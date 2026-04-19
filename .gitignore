@@ -4,3 +4,5 @@ dist-ssr
 *.local
 .env
 coverage
+
+/node_modules
