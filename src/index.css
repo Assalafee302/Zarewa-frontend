@@ -1,0 +1,2454 @@
+@import "tailwindcss";
+
+@theme {
+  --color-zarewa-teal: #134e4a;
+  --color-zarewa-mint: #2ECC71;
+  --color-sequence-bg: #F9FAFB;
+  --color-zarewa-surface: #ffffff;
+  --color-zarewa-surface-muted: #f8fafc;
+  --shadow-sequence: 0 18px 50px rgba(15, 23, 42, 0.08);
+  --shadow-zarewa-card:
+    0 20px 60px -32px rgba(15, 23, 42, 0.28),
+    0 10px 24px -18px rgba(20, 83, 45, 0.14);
+  --radius-zarewa: 24px;
+}
+
+@keyframes z-toast-in {
+  from {
+    opacity: 0;
+    transform: translateX(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.z-toast-item {
+  animation: z-toast-in 0.28s ease-out;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background-color: var(--color-sequence-bg);
+  font-family:
+    'Plus Jakarta Sans',
+    system-ui,
+    -apple-system,
+    Segoe UI,
+    Roboto,
+    sans-serif;
+  color: #0f172a;
+  text-rendering: optimizeLegibility;
+  overflow-x: clip;
+  -webkit-tap-highlight-color: rgb(19 78 74 / 0.08);
+}
+
+#root {
+  min-width: 0;
+  min-height: 100dvh;
+}
+
+/* Use on wide tables / toolbars so small devices scroll instead of blowing out the page */
+.z-scroll-x {
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Faster taps on controls; avoid breaking document scroll */
+button,
+[role='button'],
+a,
+input[type='submit'],
+input[type='button'],
+select,
+summary {
+  touch-action: manipulation;
+}
+
+/* Shared field styles — keep list pages visually aligned */
+.z-input-search {
+  @apply w-full bg-gray-50 border border-gray-100 rounded-xl py-2.5 pl-10 pr-4 text-sm outline-none transition-all;
+  @apply focus:border-teal-500/30 focus:ring-2 focus:ring-zarewa-teal/10;
+}
+
+.z-card-dark {
+  @apply bg-zarewa-teal p-6 rounded-zarewa text-white shadow-xl;
+}
+
+.z-card-muted {
+  @apply bg-white/60 backdrop-blur-3xl p-6 rounded-zarewa border border-white/80;
+  box-shadow: 0 20px 60px -32px rgba(15, 23, 42, 0.1), 0 10px 24px -18px rgba(20, 83, 45, 0.06);
+}
+
+.z-section-title-dark {
+  @apply text-xs font-bold text-white/40 uppercase tracking-[0.18em] mb-4;
+}
+
+.z-section-title {
+  @apply text-xs font-bold text-zarewa-teal uppercase tracking-widest mb-4;
+}
+
+/* Program-wide readability standards (bank-grade baseline) */
+.z-page-title {
+  @apply text-lg sm:text-xl font-black tracking-tight text-slate-900 break-words;
+}
+
+.z-page-subtitle {
+  @apply mt-1 text-sm text-slate-600 leading-relaxed max-w-3xl break-words [overflow-wrap:anywhere];
+}
+
+.z-meta-text {
+  @apply text-xs text-slate-500 leading-relaxed;
+}
+
+.z-chip {
+  @apply inline-flex items-center rounded-md border px-2 py-1 text-[10px] font-semibold uppercase tracking-wide;
+}
+
+.z-list-row-compact {
+  @apply rounded-lg border border-slate-200/70 bg-white/70 px-3 py-2 shadow-sm transition-colors hover:bg-white;
+}
+
+.z-btn-primary {
+  @apply inline-flex items-center justify-center gap-2 bg-zarewa-teal text-white px-6 py-2.5 rounded-xl font-bold text-xs shadow-lg shadow-teal-900/10 hover:brightness-110 transition-all;
+  @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zarewa-teal/30 focus-visible:ring-offset-2 focus-visible:ring-offset-[#F8FAFC];
+}
+
+.z-btn-secondary {
+  @apply inline-flex items-center justify-center gap-2 bg-white border border-gray-100 text-zarewa-teal px-6 py-2.5 rounded-xl font-bold text-xs shadow-sm hover:bg-gray-50 transition-all;
+  @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zarewa-teal/20 focus-visible:ring-offset-2 focus-visible:ring-offset-[#F8FAFC];
+}
+
+.z-empty-state {
+  @apply text-center py-16 px-6 rounded-zarewa border border-dashed;
+  background: linear-gradient(180deg, rgb(248 250 252 / 0.95) 0%, rgb(255 255 255 / 0.85) 100%);
+  border-color: rgb(226 232 240 / 0.9);
+  box-shadow: inset 0 1px 0 0 rgb(255 255 255 / 0.8);
+}
+
+/* Unified form labels — use across modals and pages */
+.z-field-label {
+  @apply block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5 ml-0.5;
+}
+
+.z-input {
+  @apply w-full bg-gray-50 border border-gray-100 rounded-xl py-3.5 min-h-11 px-4 text-base sm:text-sm font-semibold text-zarewa-teal outline-none transition-all;
+  @apply focus:border-teal-500/35 focus:ring-2 focus:ring-zarewa-teal/10;
+}
+
+.z-textarea {
+  @apply w-full bg-gray-50 border border-gray-100 rounded-xl py-3 px-4 text-sm font-medium text-gray-800 outline-none transition-all resize-none;
+  @apply focus:border-teal-500/35 focus:ring-2 focus:ring-zarewa-teal/10;
+}
+
+.z-select {
+  @apply w-full bg-gray-50 border border-gray-100 rounded-xl py-3 px-4 text-sm font-semibold text-zarewa-teal appearance-none outline-none cursor-pointer transition-all;
+  @apply focus:border-teal-500/35 focus:ring-2 focus:ring-zarewa-teal/10;
+}
+
+/* Modal inner panels (sits inside ModalFrame) */
+.z-modal-panel {
+  @apply w-full max-h-[min(90vh,900px)] overflow-hidden flex flex-col rounded-[32px] bg-white/98 shadow-2xl border border-white/80;
+  box-shadow: var(--shadow-zarewa-card);
+}
+
+.z-modal-panel-lg {
+  @apply w-full max-w-[min(100%,1152px)] max-h-[min(92vh,920px)] overflow-hidden flex flex-col rounded-[32px] bg-white/98 shadow-2xl border border-white/80;
+  box-shadow: var(--shadow-zarewa-card);
+}
+
+/* App shell — subtle depth behind content */
+.z-app-bg {
+  background:
+    radial-gradient(1200px 600px at 85% -10%, rgb(45 212 191 / 0.12), transparent 60%),
+    radial-gradient(900px 500px at 0% 100%, rgb(19 78 74 / 0.09), transparent 55%),
+    #f8fafc;
+}
+
+.z-kpi-card {
+  @apply rounded-[28px] border border-white/80 bg-white/60 backdrop-blur-3xl p-5 text-left transition-all duration-300;
+  box-shadow: 0 20px 60px -32px rgba(15, 23, 42, 0.1), 0 10px 24px -18px rgba(20, 83, 45, 0.06);
+}
+
+.z-kpi-card:hover {
+  @apply -translate-y-0.5 border-slate-200;
+}
+
+.z-soft-panel {
+  @apply rounded-[28px] border border-white/80 bg-white/60 backdrop-blur-3xl;
+  box-shadow: 0 20px 60px -32px rgba(15, 23, 42, 0.1), 0 10px 24px -18px rgba(20, 83, 45, 0.06);
+}
+
+.z-status-pill {
+  @apply inline-flex items-center rounded-full border px-3 py-1 text-xs font-bold uppercase tracking-[0.12em];
+}
+
+.z-toolbar-shell {
+  @apply rounded-[28px] border border-white/80 bg-white/70 backdrop-blur-2xl;
+  box-shadow: 0 20px 60px -32px rgba(15, 23, 42, 0.1), 0 10px 24px -18px rgba(20, 83, 45, 0.06);
+}
+
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(19 78 74 / 0.25) transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgb(19 78 74 / 0.22);
+  border-radius: 999px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* Quotation preview: A4 width on screen */
+.quotation-print-a4 {
+  width: 100%;
+  max-width: 210mm;
+  margin-left: auto;
+  margin-right: auto;
+  box-sizing: border-box;
+}
+
+/* Quotation modal preview only — keep terms to 2 lines on screen */
+@media screen {
+  .quotation-print-terms {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
+  }
+}
+
+/* Fullscreen print preview layer — reliable scroll inside Radix dialog (RemoveScroll) */
+.print-portal-scroll {
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+}
+
+/*
+ * Modal print preview: match on-screen layout to printed output (no gray mat / card chrome).
+ * Printed styles still come from @media print + print: utilities.
+ */
+.quotation-print-preview-mode .quotation-print-a4 {
+  max-width: 210mm;
+  margin-left: auto;
+  margin-right: auto;
+  background-color: #fff !important;
+  padding: 0 !important;
+  box-shadow: none !important;
+}
+
+.quotation-print-preview-mode .quotation-print-a4 > div.relative.overflow-hidden {
+  border-radius: 0 !important;
+  border: none !important;
+  box-shadow: none !important;
+  overflow: visible !important;
+}
+
+/* Unified data lists — same rhythm as Sales / Operations tables */
+.z-list-thead {
+  @apply hidden sm:grid px-4 text-xs font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200 pb-2 mb-0 gap-x-3;
+}
+
+.z-list-row {
+  @apply rounded-2xl border border-slate-200/90 bg-white px-4 py-3.5 shadow-sm transition-all hover:border-slate-300 hover:shadow-md text-sm text-slate-800;
+}
+
+.z-panel-section {
+  @apply rounded-[28px] border border-white/80 bg-white/60 backdrop-blur-3xl p-6 sm:p-7;
+  box-shadow: 0 20px 60px -32px rgba(15, 23, 42, 0.1), 0 10px 24px -18px rgba(20, 83, 45, 0.06);
+}
+
+.z-form-actions {
+  @apply flex flex-col-reverse sm:flex-row gap-3 pt-4 mt-4 border-t border-slate-100;
+}
+
+.z-page-hero {
+  @apply rounded-[28px] border border-white/80 bg-white/60 backdrop-blur-3xl p-6 sm:p-7 mb-8;
+  box-shadow: 0 20px 60px -32px rgba(15, 23, 42, 0.1), 0 10px 24px -18px rgba(20, 83, 45, 0.06);
+}
+
+/* A4 report preview on screen (inside modal) */
+.report-print-a4 {
+  width: 100%;
+  max-width: 210mm;
+  margin-left: auto;
+  margin-right: auto;
+  box-sizing: border-box;
+}
+
+/* Receipt full — A5 landscape (fits ~4–5 payment rows comfortably) */
+@page receipt-a5-landscape {
+  margin: 5mm 6mm;
+  size: A5 landscape;
+}
+
+.receipt-print-landscape {
+  page: receipt-a5-landscape;
+  width: 100%;
+  max-width: 210mm;
+  min-height: 148mm;
+  margin-left: auto;
+  margin-right: auto;
+  box-sizing: border-box;
+  font-family:
+    'Plus Jakarta Sans',
+    system-ui,
+    -apple-system,
+    Segoe UI,
+    Roboto,
+    sans-serif;
+}
+
+/*
+ * Full receipt: color + depth for screen/PDF; borders + zebra + highlight bar still read in B&W.
+ */
+.rpt-full {
+  --rpt-ink: #111827;
+  --rpt-ink-soft: #374151;
+  --rpt-teal: #134e4a;
+  --rpt-teal-mid: #0f766e;
+  --rpt-mint: #ecfdf5;
+  --rpt-mint-deep: #d1fae5;
+  --rpt-orange: #ea580c;
+  --rpt-border: #9ca3af;
+  --rpt-border-strong: #4b5563;
+  --rpt-muted: #525252;
+  --rpt-band: #1f2937;
+  padding: 3mm 3.5mm 2.5mm;
+  border: 1px solid rgb(19 78 74 / 0.22);
+  border-radius: 10px;
+  background: linear-gradient(180deg, #ffffff 0%, #fafafa 100%);
+  box-shadow:
+    0 1px 0 rgb(255 255 255 / 0.9) inset,
+    0 4px 24px rgb(15 23 42 / 0.08),
+    0 0 0 1px rgb(19 78 74 / 0.06);
+}
+
+.rpt-full-head {
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid rgb(19 78 74 / 0.18);
+  margin-bottom: 2.5mm;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+  box-shadow: 0 1px 3px rgb(15 23 42 / 0.05);
+}
+
+.rpt-full-accent {
+  height: 3px;
+  background: linear-gradient(90deg, var(--rpt-teal) 0%, var(--rpt-teal-mid) 45%, var(--rpt-orange) 100%);
+}
+
+.rpt-full-head-inner {
+  padding: 2mm 2.5mm 2mm;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 2mm 3mm;
+}
+
+.rpt-full-brand {
+  display: flex;
+  align-items: center;
+  gap: 2mm;
+  min-width: 0;
+}
+
+.rpt-full-logo-ring {
+  flex-shrink: 0;
+  width: 10mm;
+  height: 10mm;
+  border-radius: 10px;
+  background: linear-gradient(145deg, var(--rpt-mint-deep) 0%, #ffffff 100%);
+  border: 1px solid rgb(19 78 74 / 0.15);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.95);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.rpt-full-logo {
+  width: 6.5mm;
+  height: 6.5mm;
+  object-fit: contain;
+}
+
+.rpt-full-legal {
+  margin: 0;
+  font-size: 5.5pt;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--rpt-muted);
+  line-height: 1.2;
+}
+
+.rpt-full-title {
+  margin: 0.35mm 0 0;
+  font-size: 11pt;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--rpt-teal);
+  line-height: 1.1;
+}
+
+.rpt-full-refline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.35mm 0.75mm;
+  font-size: 7.5pt;
+  line-height: 1.3;
+  color: #0f172a;
+}
+
+.rpt-full-ref-item {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.4mm 0.6mm;
+}
+
+.rpt-full-ref-k {
+  font-size: 6pt;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #64748b;
+}
+
+.rpt-full-ref-v {
+  font-weight: 700;
+}
+
+.rpt-full-ref-dot {
+  color: #cbd5e1;
+  font-weight: 600;
+}
+
+.rpt-full-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 0.36fr) minmax(0, 1fr);
+  gap: 2.5mm 3mm;
+  align-items: start;
+}
+
+@media (max-width: 520px) {
+  .rpt-full-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.rpt-full-aside {
+  padding: 2mm 2.25mm;
+  border-radius: 7px;
+  border: 1px dashed rgb(19 78 74 / 0.28);
+  background: linear-gradient(165deg, #ffffff 0%, var(--rpt-mint) 40%, #f0fdfa 100%);
+  box-shadow: 0 1px 2px rgb(19 78 74 / 0.06);
+}
+
+.rpt-full-aside-label {
+  margin: 0 0 0.5mm;
+  font-size: 6pt;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--rpt-teal);
+}
+
+.rpt-full-aside-name {
+  margin: 0;
+  font-size: 9.5pt;
+  font-weight: 800;
+  color: #0f172a;
+  line-height: 1.25;
+}
+
+.rpt-full-aside-phone {
+  margin: 0.5mm 0 0;
+  font-size: 7.5pt;
+  color: var(--rpt-muted);
+  font-weight: 600;
+}
+
+.rpt-full-aside-box {
+  margin-top: 2mm;
+  padding-top: 2mm;
+  border-top: 1px solid rgb(19 78 74 / 0.12);
+}
+
+.rpt-full-aside-dl {
+  margin: 0;
+}
+
+.rpt-full-aside-row {
+  margin: 0 0 1.25mm;
+}
+
+.rpt-full-aside-row:last-child {
+  margin-bottom: 0;
+}
+
+.rpt-full-aside-dt {
+  margin: 0 0 0.15mm;
+  font-size: 5.75pt;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--rpt-muted);
+}
+
+.rpt-full-aside-dd {
+  margin: 0;
+  font-size: 7.25pt;
+  font-weight: 700;
+  color: var(--rpt-ink);
+  line-height: 1.3;
+}
+
+.rpt-full-aside-dd-mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.rpt-full-main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2.25mm;
+}
+
+.rpt-full-block {
+  margin: 0;
+}
+
+.rpt-full-block-title {
+  margin: 0 0 1mm;
+  font-size: 6.5pt;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--rpt-teal);
+}
+
+.rpt-full-shell {
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid rgb(19 78 74 / 0.15);
+  background: #fff;
+  box-shadow: 0 1px 4px rgb(15 23 42 / 0.05);
+}
+
+.rpt-full-table {
+  font-size: 8.25pt;
+  line-height: 1.25;
+}
+
+.rpt-full-table--history .rpt-full-th:nth-child(1) {
+  width: 18%;
+}
+
+.rpt-full-table--history .rpt-full-th:nth-child(2) {
+  width: 28%;
+}
+
+.rpt-full-table--history .rpt-full-th:nth-child(3) {
+  width: 30%;
+}
+
+.rpt-full-table--history .rpt-full-th:nth-child(4) {
+  width: 24%;
+}
+
+.rpt-full-table--lines .rpt-full-th:nth-child(1) {
+  width: 42%;
+}
+
+.rpt-full-table--lines .rpt-full-th:nth-child(2) {
+  width: 38%;
+}
+
+.rpt-full-table--lines .rpt-full-th:nth-child(3) {
+  width: 20%;
+}
+
+.rpt-full-th {
+  padding: 1.1mm 1.35mm;
+  font-size: 6.75pt;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.055em;
+  color: #fff;
+  background: linear-gradient(180deg, var(--rpt-teal) 0%, #0d5c56 100%);
+  border: none;
+  border-bottom: 2px solid rgb(0 0 0 / 0.35);
+}
+
+.rpt-full-td {
+  padding: 1.35mm 1.35mm;
+  border: none;
+  border-bottom: 1px solid #d1d5db;
+  vertical-align: middle;
+  color: var(--rpt-ink);
+}
+
+.rpt-full-table tbody tr:nth-child(even) .rpt-full-td {
+  background: rgb(248 250 252 / 0.95);
+}
+
+.rpt-full-tr--highlight .rpt-full-td {
+  background: linear-gradient(90deg, var(--rpt-mint-deep) 0%, #ecfdf5 100%) !important;
+  box-shadow: none;
+}
+
+.rpt-full-tr--highlight .rpt-full-td:first-child {
+  border-left: 3px solid var(--rpt-teal);
+}
+
+.rpt-full-td-muted {
+  color: var(--rpt-ink-soft);
+  font-size: 7.75pt;
+}
+
+.rpt-full-td-strong {
+  font-weight: 700;
+  font-size: 8.5pt;
+}
+
+.rpt-full-td-amt {
+  font-weight: 800;
+  font-size: 9pt;
+  color: var(--rpt-teal);
+  text-align: right;
+}
+
+.rpt-full-badge {
+  display: inline-block;
+  margin-left: 1.5mm;
+  padding: 0.15mm 1mm;
+  font-size: 5.5pt;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--rpt-teal);
+  background: #fff;
+  border: 1px solid rgb(19 78 74 / 0.35);
+  border-radius: 4px;
+  vertical-align: middle;
+  box-shadow: 0 1px 1px rgb(19 78 74 / 0.08);
+}
+
+.rpt-full-hint {
+  margin: 0.75mm 0 0;
+  font-size: 6pt;
+  line-height: 1.3;
+  color: var(--rpt-muted);
+}
+
+.rpt-full-totalbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-top: 1.5mm;
+  padding: 1.5mm 2mm;
+  border-radius: 7px;
+  background: linear-gradient(115deg, var(--rpt-teal) 0%, #0f3d39 42%, var(--rpt-teal-mid) 100%);
+  color: #fff;
+  border: 1px solid rgb(0 0 0 / 0.2);
+  box-shadow: 0 2px 10px rgb(19 78 74 / 0.22);
+}
+
+.rpt-full-totalbar-label {
+  font-size: 8pt;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.rpt-full-totalbar-amt {
+  font-size: 13pt;
+  font-weight: 900;
+  letter-spacing: 0.02em;
+}
+
+.rpt-full-foot {
+  margin-top: 2.5mm;
+  padding-top: 1.75mm;
+  border-top: 1px solid var(--rpt-border-strong);
+  font-size: 6.5pt;
+  line-height: 1.4;
+  color: var(--rpt-muted);
+}
+
+.rpt-full-foot-ref {
+  margin: 0 0 0.5mm;
+}
+
+.rpt-full-foot-ref-k {
+  font-weight: 800;
+  color: var(--rpt-teal);
+  margin-right: 0.5mm;
+}
+
+.rpt-full-foot-by {
+  margin: 0;
+}
+
+.rpt-full-foot-sig {
+  font-weight: 800;
+  color: var(--rpt-teal);
+}
+
+/* Cutting list A5 production pack — named page for print dialog (tight margins = max content) */
+@page cutting-list-a5 {
+  margin: 4mm 4.5mm;
+  size: A5 portrait;
+}
+
+.cutting-list-a5-report-root {
+  width: 100%;
+  max-width: 148mm;
+  margin-left: auto;
+  margin-right: auto;
+  box-sizing: border-box;
+  font-size: 6.75pt;
+  line-height: 1.2;
+}
+
+.cutting-list-a5-sheet {
+  page: cutting-list-a5;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) minmax(0, 1.1fr);
+  gap: 1.25mm;
+  min-height: 198mm;
+  box-sizing: border-box;
+}
+
+.cutting-list-a5-sheet--break-after {
+  break-after: page;
+  page-break-after: always;
+}
+
+/* Continuation sections: slim header row, table uses remaining space */
+.cutting-list-a5-sheet--continuation {
+  grid-template-rows: auto minmax(0, 1fr);
+  min-height: 198mm;
+}
+
+/* Cutting list A4 landscape — left = factory pack, right = waybill */
+@page cutting-list-a4-landscape {
+  margin: 5mm 6mm;
+  size: A4 landscape;
+}
+
+.cutting-list-a4-landscape-report-root {
+  width: 100%;
+  max-width: 297mm;
+  margin-left: auto;
+  margin-right: auto;
+  box-sizing: border-box;
+  font-size: 6.35pt;
+  line-height: 1.18;
+  /* Paged media: lock to named page (see @page cutting-list-a4-landscape) */
+  page: cutting-list-a4-landscape;
+}
+
+.cutting-list-a4-landscape-sheet {
+  page: cutting-list-a4-landscape;
+  display: flex;
+  flex-direction: column;
+  min-height: 198mm;
+  gap: 1.25mm;
+  box-sizing: border-box;
+}
+
+.cutting-list-a4-landscape-sheet--break-after {
+  break-after: page;
+  page-break-after: always;
+}
+
+.cutting-list-a4-landscape-sheet--continuation {
+  min-height: 198mm;
+}
+
+.cl-a4-landscape-split {
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.cl-a4-pane--cutting {
+  flex: 1 1 50%;
+  min-width: 0;
+  border-right: 1px solid var(--cl-border);
+  padding-right: 3mm;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.cl-a4-pane--waybill {
+  flex: 1 1 50%;
+  min-width: 0;
+  padding-left: 3mm;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.cl-factory-body--a4-landscape-left {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.cl-factory-subbar--double {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.15mm;
+  align-items: stretch;
+}
+
+.cl-factory-subbar--double .cl-factory-subbar-seg {
+  min-width: 0;
+}
+
+.cl-factory-continue--a4-pane {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.cl-factory-continue--a4-pane .cl-factory-col-right--full {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.cl-factory-banner--waybill-pane .cl-factory-logo-ring {
+  width: 7.5mm;
+  height: 7.5mm;
+}
+
+.cl-factory-banner--waybill-pane .cl-factory-logo-img {
+  width: 4.8mm;
+  height: 4.8mm;
+}
+
+.cl-factory-banner--waybill-pane .cl-factory-doc-title {
+  font-size: 8.25pt;
+}
+
+.cl-waybill-continuation-strip {
+  margin: 0;
+  padding: 0.55mm 1.65mm 0.85mm;
+  font-size: 5.35pt;
+  font-weight: 700;
+  line-height: 1.3;
+  color: #9a3412;
+  background: linear-gradient(90deg, #fff7ed 0%, #fff 100%);
+  border-top: 1px solid rgb(234 88 12 / 0.2);
+}
+
+.cl-waybill-banner--top {
+  flex-shrink: 0;
+}
+
+.cl-waybill-section--delivery-left {
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 0.85mm 1mm;
+}
+
+.cl-waybill-root {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1 1 auto;
+  height: 100%;
+}
+
+.cl-waybill-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25mm;
+  padding: 1.35mm !important;
+  margin-top: 0.5mm;
+}
+
+/* Waybill: banner → split: left = branches + delivery + cargo + transport + receipt; right = material check */
+.cl-waybill-mid-split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: minmax(0, auto);
+  align-items: stretch;
+  min-height: 0;
+  flex: 1 1 auto;
+  min-width: 0;
+  border: 1px solid var(--cl-border);
+  border-radius: 6px;
+  overflow: hidden;
+  background: #fff;
+}
+
+.cl-waybill-col--addresses {
+  min-width: 0;
+  padding: 1.05mm 1.15mm 1.15mm;
+  border-right: 1px solid var(--cl-border);
+  display: flex;
+  flex-direction: column;
+  gap: 1mm;
+  background: linear-gradient(180deg, #f8fafc 0%, #ffffff 100%);
+}
+
+.cl-waybill-col--cuts {
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  align-self: stretch;
+}
+
+.cl-waybill-branches-block--compact {
+  flex: 0 0 auto;
+}
+
+.cl-waybill-branches-stack--compact-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 0 1.15mm;
+  align-items: start;
+}
+
+.cl-waybill-branches-block--compact .cl-waybill-branch-card {
+  margin: 0;
+  min-width: 0;
+  padding: 0 0.65mm 0 0.75mm;
+  border-left: 1px solid var(--cl-border);
+}
+
+.cl-waybill-branches-block--compact .cl-waybill-branch-card:first-child {
+  padding-left: 0.85mm;
+  border-left: 2px solid var(--cl-teal-mid);
+}
+
+.cl-waybill-branches-block--compact .cl-waybill-branch-heading {
+  font-size: 4.85pt;
+}
+
+.cl-waybill-branches-block--compact .cl-waybill-branch-line {
+  font-size: 5.05pt;
+  line-height: 1.22;
+}
+
+/* Branches inside narrow left column: stack vertically (full-width row layout is too cramped here) */
+.cl-waybill-branches-in-left {
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 0 0 0.25mm;
+}
+
+.cl-waybill-branches-in-left .cl-waybill-branches-stack--compact-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.95mm;
+}
+
+.cl-waybill-branches-in-left .cl-waybill-branches-block--compact .cl-waybill-branch-card {
+  border-left: 2px solid var(--cl-teal-mid);
+  padding: 0 0.35mm 0 0.85mm;
+}
+
+.cl-waybill-branches-in-left .cl-waybill-branches-block--compact .cl-waybill-branch-card:first-child {
+  border-left: 2px solid var(--cl-teal-mid);
+  padding-left: 0.85mm;
+}
+
+.cl-waybill-branches-in-left .cl-waybill-branches-block--compact .cl-waybill-branch-heading {
+  font-size: 6.35pt;
+}
+
+.cl-waybill-branches-in-left .cl-waybill-branches-block--compact .cl-waybill-branch-line {
+  font-size: 6.15pt;
+  line-height: 1.32;
+}
+
+/* Right column: material check fills entire half */
+.cl-waybill-section--cuts-full-column {
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 1.05mm 1.15mm 1.15mm;
+  border: none;
+  border-radius: 0;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+  box-shadow: none;
+}
+
+.cl-waybill-section--cuts-full-column .cl-waybill-cut-tables {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: visible;
+}
+
+.cl-factory-panel--waybill {
+  border-color: rgb(19 78 74 / 0.18);
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+}
+
+.cl-waybill-section {
+  border-radius: 5px;
+  border: 1px solid var(--cl-border);
+  background: var(--cl-surface);
+  padding: 1.1mm 1.25mm;
+}
+
+.cl-waybill-section-title {
+  margin: 0 0 0.65mm;
+  font-size: 5.35pt;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--cl-teal);
+}
+
+.cl-waybill-section--branches {
+  padding: 0.85mm 1.1mm;
+  background: linear-gradient(180deg, #f8fafc 0%, #ffffff 100%);
+}
+
+.cl-waybill-branches-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85mm;
+}
+
+.cl-waybill-branch-card {
+  margin: 0;
+  padding: 0 0 0 1.15mm;
+  border-left: 2px solid var(--cl-teal-mid);
+}
+
+.cl-waybill-branch-heading {
+  margin: 0 0 0.15mm;
+  font-size: 5.15pt;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--cl-teal);
+}
+
+.cl-waybill-branch-line {
+  margin: 0;
+  font-size: 5.35pt;
+  font-weight: 600;
+  line-height: 1.28;
+  color: #334155;
+}
+
+.cl-waybill-section--cut-confirm {
+  padding: 0.9mm 1mm;
+}
+
+.cl-waybill-cut-tables .cl-factory-cut-block {
+  margin-bottom: 0.65mm;
+}
+
+.cl-waybill-cut-tables .cl-factory-cut-block:last-child {
+  margin-bottom: 0;
+}
+
+.cl-waybill-cut-tables .cl-factory-cut-title {
+  font-size: 5.35pt;
+}
+
+.cl-waybill-cut-tables .cl-factory-cut-th,
+.cl-waybill-cut-tables .cl-factory-cut-td {
+  padding: 0.2mm 0.4mm;
+  font-size: 5.5pt;
+}
+
+.cl-waybill-cut-tables .cl-factory-cut-empty {
+  font-size: 5.65pt;
+}
+
+.cl-waybill-address-text {
+  margin: 0 0 0.5mm;
+  font-size: 6pt;
+  font-weight: 600;
+  color: #0f172a;
+  line-height: 1.25;
+}
+
+.cl-waybill-write-gap {
+  margin-top: 0.45mm;
+}
+
+.cl-waybill-dl {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.35mm 1.25mm;
+  margin: 0;
+  font-size: 5.85pt;
+}
+
+.cl-waybill-dl dt {
+  margin: 0;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.055em;
+  font-size: 5.15pt;
+  color: var(--cl-text-muted);
+}
+
+.cl-waybill-dl dd {
+  margin: 0;
+  font-weight: 700;
+  color: #0f172a;
+  min-width: 0;
+}
+
+.cl-waybill-labeled-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 1mm;
+}
+
+.cl-waybill-sign-row {
+  display: flex;
+  gap: 2mm;
+  align-items: flex-end;
+}
+
+.cl-waybill-sign-cell {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.cl-waybill-sign-cell--date {
+  flex: 0 0 32%;
+}
+
+.cl-factory-sign-line--waybill {
+  min-height: 5.5mm;
+}
+
+.cl-a5-merge-top {
+  border: 1px solid #cbd5e1;
+  border-radius: 2px;
+  padding: 2mm;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.cl-a5-merge-bottom {
+  border: 1px solid #cbd5e1;
+  border-radius: 2px;
+  padding: 2mm;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.cl-a5-info-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2mm;
+  align-items: stretch;
+  min-height: 0;
+}
+
+.cl-a5-info-panel {
+  min-height: 0;
+}
+
+.cl-a5-ql-cat {
+  font-size: 6pt;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #134e4a;
+  margin: 2px 0 1px;
+}
+
+.cl-a5-panel-title {
+  font-size: 6.5pt;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #134e4a;
+  margin-bottom: 2px;
+}
+
+.cl-a5-dl {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 1px 6px;
+  font-size: 6.5pt;
+}
+
+.cl-a5-dl dt {
+  font-weight: 600;
+  color: #64748b;
+}
+
+.cl-a5-dl dd {
+  margin: 0;
+  color: #0f172a;
+}
+
+.cl-a5-ql-th,
+.cl-a5-rcpt-th,
+.cl-a5-cl-th {
+  border: 1px solid #cbd5e1;
+  background: #f1f5f9;
+  padding: 1px 3px;
+  font-size: 6pt;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #134e4a;
+}
+
+.cl-a5-ql-td,
+.cl-a5-rcpt-td,
+.cl-a5-cl-td {
+  border: 1px solid #e2e8f0;
+  padding: 1px 3px;
+  font-size: 6.5pt;
+  vertical-align: top;
+}
+
+.cl-a5-cl-table {
+  flex: 1 1 auto;
+}
+
+.cl-a5-cl-table thead {
+  display: table-header-group;
+}
+
+.cl-a5-cl-table tbody tr {
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+/* Factory cutting list — richer layout (screen + print) */
+.cutting-list-factory-root.cl-factory-theme {
+  --cl-teal: #134e4a;
+  --cl-teal-mid: #0f766e;
+  --cl-mint: #ecfdf5;
+  --cl-mint-deep: #d1fae5;
+  --cl-surface: #f8fafc;
+  --cl-surface-warm: #fffbeb;
+  --cl-orange: #ea580c;
+  --cl-orange-soft: #fff7ed;
+  --cl-border: #e2e8f0;
+  --cl-text-muted: #64748b;
+  font-family:
+    'Plus Jakarta Sans',
+    system-ui,
+    -apple-system,
+    Segoe UI,
+    Roboto,
+    sans-serif;
+  letter-spacing: 0.006em;
+}
+
+.cutting-list-factory-root .cutting-list-a5-sheet {
+  display: flex;
+  flex-direction: column;
+  min-height: 198mm;
+  gap: 1.25mm;
+}
+
+.cutting-list-factory-root .cutting-list-a4-landscape-sheet {
+  display: flex;
+  flex-direction: column;
+  min-height: 198mm;
+  gap: 1.25mm;
+}
+
+.cl-factory-body {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.75mm;
+  align-items: stretch;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/* Cutting lengths column first, slightly wider for numbers */
+.cl-factory-body--cut-first {
+  grid-template-columns: 1.08fr 0.92fr;
+}
+
+/* A4 landscape left pane: equal columns — must follow .cl-factory-body--cut-first */
+.cl-factory-body--cut-first.cl-factory-body--a4-landscape-left {
+  grid-template-columns: 1fr 1fr;
+  gap: 1.35mm;
+}
+
+.cl-factory-col-commercial {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  align-self: stretch;
+}
+
+.cl-factory-commercial-filler {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.cl-factory-scratch-anchor {
+  margin-top: auto;
+  flex-shrink: 0;
+  padding-top: 1.25mm;
+}
+
+.cl-factory-scratch-anchor .cl-factory-scratch {
+  margin-top: 0;
+}
+
+.cl-factory-panel {
+  background: linear-gradient(165deg, #ffffff 0%, var(--cl-surface) 100%);
+  border: 1px solid var(--cl-border);
+  border-radius: 10px;
+  padding: 1.35mm 1.65mm 1.15mm;
+  box-shadow: 0 1px 3px rgb(15 23 42 / 0.06);
+}
+
+.cl-factory-panel--accent {
+  background: linear-gradient(165deg, #ffffff 0%, var(--cl-mint) 55%, #f0fdfa 100%);
+  border-color: rgb(19 78 74 / 0.18);
+  box-shadow:
+    0 0 0 1px rgb(19 78 74 / 0.06),
+    0 4px 14px rgb(19 78 74 / 0.08);
+}
+
+/* Cutting list column: minimal top padding so tables start high on the sheet */
+.cl-factory-panel--cut-list {
+  padding-top: 0.5mm;
+  align-self: start;
+}
+
+.cl-factory-panel--cut-list .cl-factory-cut-title {
+  font-size: 6.35pt;
+}
+
+.cl-factory-panel--cut-list .cl-factory-cut-th {
+  font-size: 6.35pt;
+  padding: 0.85mm 1.2mm;
+  letter-spacing: 0.05em;
+}
+
+.cl-factory-panel--cut-list .cl-factory-cut-td {
+  font-size: 7.25pt;
+  padding: 0.65mm 1.15mm;
+  line-height: 1.22;
+}
+
+.cl-factory-panel--cut-list .cl-factory-cut-total-row .cl-factory-cut-td {
+  font-size: 6.85pt;
+}
+
+.cl-factory-cut-empty {
+  margin: 0;
+  padding: 0.5mm 0;
+  font-size: 6.75pt;
+  font-style: italic;
+  color: var(--cl-text-muted);
+}
+
+/* Banner — compact for A5 */
+.cl-factory-banner {
+  position: relative;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid rgb(19 78 74 / 0.2);
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+  box-shadow: 0 2px 8px rgb(15 23 42 / 0.06);
+  margin-bottom: 0.5mm;
+}
+
+.cl-factory-banner-accent {
+  height: 2px;
+  background: linear-gradient(90deg, var(--cl-teal) 0%, var(--cl-teal-mid) 40%, var(--cl-orange) 100%);
+}
+
+.cl-factory-banner-inner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1.25mm 2mm;
+  padding: 1.15mm 1.65mm 0.55mm;
+}
+
+.cl-factory-banner-inner--balanced {
+  display: grid;
+  grid-template-columns: minmax(8.5mm, auto) 1fr minmax(8.5mm, auto);
+  align-items: center;
+  gap: 1mm 1.25mm;
+}
+
+.cl-factory-banner-side {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.cl-factory-banner-side--spacer {
+  width: 8.5mm;
+  height: 8.5mm;
+  pointer-events: none;
+}
+
+.cl-factory-banner-titles--center {
+  text-align: center;
+  justify-self: center;
+  width: 100%;
+  max-width: 100%;
+}
+
+.cl-factory-banner-titles--center .cl-factory-legal-name,
+.cl-factory-banner-titles--center .cl-factory-doc-title {
+  text-align: center;
+}
+
+.cl-factory-banner-refline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.35mm 0.65mm;
+  padding: 0.45mm 1.65mm 0.65mm;
+  border-top: 1px solid rgb(19 78 74 / 0.08);
+  font-size: 6.35pt;
+  line-height: 1.25;
+  color: #0f172a;
+}
+
+.cl-factory-ref-group {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.35mm 0.5mm;
+  min-width: 0;
+}
+
+.cl-factory-ref-k {
+  font-size: 5.35pt;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--cl-text-muted);
+}
+
+.cl-factory-ref-v {
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.cl-factory-ref-v--id {
+  font-size: 8.35pt;
+  font-weight: 900;
+  letter-spacing: 0.02em;
+}
+
+.cl-factory-ref-sep {
+  color: #cbd5e1;
+  font-weight: 600;
+  user-select: none;
+}
+
+.cl-factory-banner-left {
+  display: flex;
+  align-items: center;
+  gap: 1.25mm;
+  min-width: 0;
+}
+
+.cl-factory-logo-ring {
+  flex-shrink: 0;
+  width: 8.5mm;
+  height: 8.5mm;
+  border-radius: 9px;
+  background: linear-gradient(145deg, var(--cl-mint-deep) 0%, #fff 100%);
+  border: 1px solid rgb(19 78 74 / 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.9);
+}
+
+.cl-factory-logo-img {
+  width: 5.5mm;
+  height: 5.5mm;
+  object-fit: contain;
+}
+
+.cl-factory-banner-titles {
+  min-width: 0;
+}
+
+.cl-factory-legal-name {
+  margin: 0;
+  font-size: 6pt;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--cl-teal);
+  line-height: 1.15;
+}
+
+.cl-factory-doc-title {
+  margin: 0.25mm 0 0;
+  font-size: 9pt;
+  font-weight: 900;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--cl-teal);
+  line-height: 1.05;
+}
+
+.cl-factory-id-pill {
+  font-size: 6.25pt;
+  font-weight: 700;
+  padding: 0.85mm 1.5mm;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #f1f5f9 0%, #e2e8f0 100%);
+  border: 1px solid #cbd5e1;
+  color: #0f172a;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+
+.cl-factory-banner-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55mm;
+  text-align: right;
+}
+
+.cl-factory-meta-tile {
+  background: var(--cl-surface);
+  border: 1px solid var(--cl-border);
+  border-radius: 6px;
+  padding: 0.55mm 1.15mm;
+  min-width: 21mm;
+}
+
+.cl-factory-meta-k {
+  display: block;
+  font-size: 5.25pt;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--cl-text-muted);
+}
+
+.cl-factory-meta-v {
+  display: block;
+  font-size: 6.25pt;
+  font-weight: 700;
+  color: #0f172a;
+  margin-top: 0.1mm;
+}
+
+.cl-factory-subbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.15mm;
+  padding: 0.9mm 1.65mm 1.1mm;
+  background: linear-gradient(90deg, var(--cl-orange-soft) 0%, #fff 50%, var(--cl-mint) 100%);
+  border-top: 1px solid rgb(234 88 12 / 0.12);
+}
+
+.cl-factory-subbar--triple {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr) minmax(0, 0.9fr);
+  gap: 0.5mm 1.15mm;
+  align-items: baseline;
+}
+
+.cl-factory-subbar-seg {
+  min-width: 0;
+}
+
+.cl-factory-subbar-seg .cl-factory-subbar-k {
+  margin-right: 0.4mm;
+}
+
+.cl-factory-subbar-item {
+  flex: 1 1 38%;
+  min-width: 0;
+}
+
+.cl-factory-subbar-item--wide {
+  flex: 1 1 100%;
+}
+
+.cl-factory-subbar-k {
+  font-size: 5.5pt;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--cl-orange);
+  margin-right: 1mm;
+}
+
+.cl-factory-subbar-v {
+  font-size: 6pt;
+  font-weight: 600;
+  color: #334155;
+}
+
+/* Billing / cutting tables */
+.cl-factory-bill-block {
+  margin-bottom: 1.15mm;
+}
+
+.cl-factory-cut-block {
+  margin-bottom: 1.15mm;
+}
+
+.cl-factory-cut-block:last-child {
+  margin-bottom: 0;
+}
+
+.cl-factory-bill-title-bar,
+.cl-factory-cut-title-bar {
+  display: flex;
+  align-items: center;
+  gap: 1mm;
+  margin-bottom: 0.45mm;
+}
+
+.cl-factory-bill-title-dot {
+  width: 2mm;
+  height: 2mm;
+  border-radius: 50%;
+  background: var(--cl-teal);
+  box-shadow: 0 0 0 1px rgb(19 78 74 / 0.2);
+}
+
+.cl-factory-cut-title-icon {
+  width: 2.5mm;
+  height: 2.5mm;
+  border-radius: 2px;
+  background: linear-gradient(135deg, var(--cl-teal) 0%, var(--cl-teal-mid) 100%);
+}
+
+.cl-factory-bill-title,
+.cl-factory-cut-title {
+  margin: 0;
+  font-size: 6pt;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--cl-teal);
+}
+
+.cl-factory-table-shell {
+  border-radius: 5px;
+  overflow: hidden;
+  border: 1px solid var(--cl-border);
+  background: #fff;
+}
+
+.cl-factory-table-shell--cut {
+  border-color: rgb(19 78 74 / 0.15);
+}
+
+.cl-factory-bill-th,
+.cl-factory-cut-th {
+  border: none;
+  border-bottom: 1px solid rgb(19 78 74 / 0.2);
+  background: linear-gradient(180deg, var(--cl-teal) 0%, #0d5c56 100%);
+  color: #fff;
+  padding: 0.75mm 1.15mm;
+  font-size: 5.25pt;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.055em;
+  line-height: 1.15;
+}
+
+.cl-factory-cut-th {
+  background: linear-gradient(180deg, #115e59 0%, var(--cl-teal) 100%);
+}
+
+.cl-factory-bill-td,
+.cl-factory-cut-td {
+  border: none;
+  border-bottom: 1px solid #f1f5f9;
+  padding: 0.55mm 1.1mm;
+  font-size: 5.75pt;
+  line-height: 1.2;
+  vertical-align: middle;
+}
+
+.cl-factory-bill-table tbody tr:nth-child(even):not(.cl-factory-bill-subtotal-row) .cl-factory-bill-td,
+.cl-factory-cut-table tbody tr:nth-child(even):not(.cl-factory-cut-total-row) .cl-factory-cut-td {
+  background: rgb(248 250 252 / 0.85);
+}
+
+.cl-factory-bill-td-amount {
+  font-weight: 700;
+  color: var(--cl-teal);
+}
+
+.cl-factory-bill-subtotal-row .cl-factory-bill-td {
+  background: var(--cl-mint) !important;
+  border-top: 1px solid rgb(19 78 74 / 0.12);
+  border-bottom: none;
+  padding-top: 0.85mm;
+  padding-bottom: 0.85mm;
+}
+
+.cl-factory-bill-subtotal-label {
+  text-align: right;
+  font-weight: 800;
+  font-size: 5.75pt;
+  text-transform: uppercase;
+  letter-spacing: 0.055em;
+  color: var(--cl-teal);
+}
+
+.cl-factory-bill-subtotal-value {
+  font-weight: 800;
+  font-size: 6.25pt;
+  color: #0f172a;
+}
+
+.cl-factory-cut-total-row .cl-factory-cut-td {
+  background: linear-gradient(90deg, var(--cl-mint-deep) 0%, #ecfdf5 100%);
+  border-top: 2px solid var(--cl-teal);
+  border-bottom: none;
+  font-size: 6.1pt;
+}
+
+.cl-factory-cut-table tbody tr:not(.cl-factory-cut-total-row) {
+  break-inside: auto;
+  page-break-inside: auto;
+}
+
+.cl-factory-cut-total-row {
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+/* Grand total — same visual weight as billing subtotal row */
+.cl-factory-grand-shell {
+  margin: 0.35mm 0 1.15mm;
+  border-radius: 5px;
+  overflow: hidden;
+  border: 1px solid var(--cl-border);
+  background: #fff;
+}
+
+/* Receipt */
+.cl-factory-receipt-box {
+  border-radius: 6px;
+  border: 1px solid rgb(234 88 12 / 0.25);
+  background: linear-gradient(180deg, var(--cl-orange-soft) 0%, #fff 70%);
+  padding: 1.15mm;
+  margin-bottom: 1.1mm;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.8);
+}
+
+.cl-factory-receipt-head {
+  margin: 0 0 0.75mm;
+  font-size: 5.75pt;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--cl-orange);
+}
+
+.cl-factory-receipt-empty {
+  margin: 0;
+  font-size: 6pt;
+  color: var(--cl-text-muted);
+  font-style: italic;
+}
+
+.cl-factory-receipt-row {
+  font-size: 5.75pt;
+  line-height: 1.3;
+  padding: 0.45mm 0.85mm;
+  margin-bottom: 0.55mm;
+  border-radius: 3px;
+  background: rgb(255 255 255 / 0.85);
+  border: 1px solid rgb(254 215 170 / 0.5);
+}
+
+.cl-factory-receipt-row:last-child {
+  margin-bottom: 0;
+}
+
+.cl-factory-receipt-id {
+  font-weight: 700;
+  color: var(--cl-teal);
+}
+
+.cl-factory-receipt-sep {
+  margin: 0 0.5mm;
+  color: #cbd5e1;
+}
+
+.cl-factory-receipt-amt {
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.cl-factory-receipt-bank {
+  color: #475569;
+}
+
+.cl-factory-receipt-block {
+  break-inside: avoid;
+  page-break-inside: avoid;
+  margin-bottom: 0.65mm;
+}
+
+.cl-factory-receipt-block:last-child {
+  margin-bottom: 0;
+}
+
+.cl-factory-receipt-block .cl-factory-receipt-row {
+  margin-bottom: 0.35mm;
+}
+
+.cl-factory-receipt-splits {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 0 2.25mm;
+  font-size: 5.65pt;
+  line-height: 1.38;
+  color: #334155;
+}
+
+.cl-factory-receipt-split-line {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 2mm;
+  padding: 0.15mm 0;
+}
+
+.cl-factory-receipt-split-fallback {
+  margin: 0.25mm 0 0;
+  padding-left: 2.25mm;
+  font-size: 5.5pt;
+  font-style: italic;
+  color: var(--cl-text-muted);
+}
+
+/* Chips */
+.cl-factory-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65mm;
+  margin-bottom: 0.9mm;
+}
+
+.cl-factory-chip {
+  font-size: 5.25pt;
+  font-weight: 700;
+  padding: 0.35mm 1.1mm;
+  border-radius: 999px;
+  background: #fff;
+  border: 1px solid var(--cl-border);
+  color: #475569;
+}
+
+.cl-factory-chip--muted {
+  background: #f1f5f9;
+  color: var(--cl-text-muted);
+}
+
+.cl-factory-chip--accent {
+  background: var(--cl-mint);
+  border-color: rgb(19 78 74 / 0.2);
+  color: var(--cl-teal);
+}
+
+/* Scratchpad */
+.cl-factory-scratch {
+  margin-top: 0.35mm;
+  padding: 1.15mm;
+  border-radius: 6px;
+  border: 1px solid #cbd5e1;
+  background: linear-gradient(180deg, #fafafa 0%, #fff 100%);
+  box-shadow: inset 0 1px 2px rgb(15 23 42 / 0.04);
+}
+
+.cl-factory-scratch-title {
+  display: flex;
+  align-items: center;
+  gap: 1mm;
+  margin: 0 0 1mm;
+  font-size: 6pt;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.055em;
+  color: #0f172a;
+}
+
+.cl-factory-scratch-title-mark {
+  width: 1mm;
+  height: 3.25mm;
+  border-radius: 1px;
+  background: linear-gradient(180deg, var(--cl-orange) 0%, var(--cl-teal) 100%);
+}
+
+.cl-factory-scratch-sub {
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: 0.02em;
+  color: var(--cl-text-muted);
+  font-size: 5.65pt;
+}
+
+.cl-factory-field-label {
+  display: block;
+  font-size: 5.15pt;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.045em;
+  color: var(--cl-text-muted);
+  margin-bottom: 0.25mm;
+}
+
+.cl-factory-write-line {
+  min-height: 3.15mm;
+  border-bottom: 1px dashed #94a3b8;
+  background: linear-gradient(180deg, transparent 60%, rgb(148 163 184 / 0.06) 100%);
+}
+
+.cl-factory-scratch-row3 {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 0.85mm 1.15mm;
+  align-items: start;
+}
+
+.cl-factory-scratch-footer {
+  margin: 1.1mm 0 0;
+  padding-top: 0.85mm;
+  text-align: center;
+  font-size: 6.25pt;
+  font-weight: 800;
+  letter-spacing: 0.035em;
+  color: var(--cl-teal);
+  border-top: 1px solid var(--cl-border);
+}
+
+/* Continuation + footer */
+.cl-factory-continue-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1.15mm;
+  border-radius: 6px;
+  padding: 1.1mm 1.5mm;
+  margin-bottom: 1.1mm;
+  border: 1px solid rgb(19 78 74 / 0.2);
+  background: linear-gradient(90deg, #ecfeff 0%, #f0fdfa 100%);
+  font-size: 6pt;
+  line-height: 1.28;
+}
+
+.cl-factory-continue-tag {
+  flex-shrink: 0;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  font-size: 5.15pt;
+  color: var(--cl-teal);
+  padding: 0.35mm 1mm;
+  border-radius: 3px;
+  background: rgb(255 255 255 / 0.9);
+  border: 1px solid rgb(19 78 74 / 0.15);
+}
+
+.cl-factory-continue-body {
+  font-weight: 600;
+  color: #334155;
+}
+
+.cl-factory-prepared-by-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.35mm 0.75mm;
+  margin: 0 0 1.1mm;
+  padding: 1mm 1.5mm;
+  border-radius: 6px;
+  border: 1px solid rgb(19 78 74 / 0.18);
+  background: linear-gradient(90deg, var(--cl-mint) 0%, #ffffff 92%);
+}
+
+.cl-factory-prepared-by-top .cl-factory-created-by-k {
+  display: inline;
+  margin-bottom: 0;
+}
+
+.cl-factory-prepared-by-top .cl-factory-created-by-v {
+  display: inline;
+  font-size: 7pt;
+}
+
+.cl-factory-sheet-signfoot {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: flex-end;
+  gap: 2mm 2.5mm;
+  margin-top: 1.25mm;
+  padding: 1.35mm 0 0;
+  border-top: 1px solid var(--cl-border);
+}
+
+.cl-factory-sheet-signfoot--a4-cutting-pane {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.cl-factory-sheet-signfoot--a4-cutting-pane .cl-factory-sign-cell {
+  flex: 0 0 auto;
+  width: min(36mm, 50%);
+  min-width: 0;
+  max-width: 100%;
+}
+
+.cl-factory-sheet-signfoot--a4-cutting-pane .cl-factory-sign-line {
+  width: 100%;
+}
+
+.cl-factory-sign-cell {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.cl-factory-sign-cell--narrow {
+  flex: 0 0 16mm;
+}
+
+.cl-factory-sign-line {
+  min-height: 7mm;
+  border-bottom: 1px solid #0f172a;
+  margin-bottom: 0.45mm;
+}
+
+.cl-factory-sign-label {
+  margin: 0;
+  font-size: 5.35pt;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--cl-text-muted);
+}
+
+.cl-factory-created-by {
+  flex: 0 1 auto;
+  margin-left: auto;
+  text-align: right;
+  min-width: 0;
+  max-width: 38%;
+}
+
+.cl-factory-created-by-k {
+  display: block;
+  font-size: 5.15pt;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--cl-text-muted);
+  margin-bottom: 0.35mm;
+}
+
+.cl-factory-created-by-v {
+  display: block;
+  font-size: 7.25pt;
+  font-weight: 900;
+  color: var(--cl-teal);
+  letter-spacing: 0.02em;
+}
+
+.cl-factory-page-foot {
+  margin: 0.65mm 0 0;
+  text-align: right;
+  font-size: 5.15pt;
+  color: var(--cl-text-muted);
+  letter-spacing: 0.035em;
+}
+
+.cl-factory-page-foot-brand {
+  font-weight: 800;
+  color: var(--cl-teal);
+}
+
+.cl-factory-col-right--full {
+  width: 100%;
+  max-width: 100%;
+}
+
+/* Customer quotation print — A4, multi-page long quotes, system layout */
+@media print {
+  /* Re-assert A5 for factory cutting list (named page) so margins stay tight when printing */
+  @page cutting-list-a5 {
+    margin: 4mm 4.5mm;
+    size: A5 portrait;
+  }
+
+  @page cutting-list-a4-landscape {
+    margin: 5mm 6mm;
+    size: A4 landscape;
+  }
+
+  @page receipt-a5-landscape {
+    margin: 5mm 6mm;
+    size: A5 landscape;
+  }
+
+  /* Quotation / invoice / official receipt — slightly tighter margins so typical quotes fit one page */
+  @page quotation-a4 {
+    margin: 9mm 11mm;
+    size: A4 portrait;
+  }
+
+  @page {
+    margin: 8mm 10mm;
+    size: A4 portrait;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  /* Avoid huge invisible layout from “ZP” watermark (was forcing many blank pages in print). */
+  .quotation-print-watermark {
+    display: none !important;
+  }
+
+  html,
+  body {
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+  }
+
+  /*
+   * Print-preview portal: must NOT use `no-print` on ancestors of *-print-root.
+   * Otherwise display:none hides the document and the printout is blank.
+   * Reset fixed fullscreen layout so it does not create extra blank pages.
+   */
+  .print-portal-scroll {
+    position: static !important;
+    inset: unset !important;
+    top: unset !important;
+    left: unset !important;
+    right: unset !important;
+    bottom: unset !important;
+    width: 100% !important;
+    max-width: none !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow: visible !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    z-index: auto !important;
+    display: block !important;
+  }
+
+  body * {
+    visibility: hidden;
+  }
+
+  .quotation-print-root,
+  .quotation-print-root *,
+  .receipt-print-root,
+  .receipt-print-root *,
+  .report-print-root,
+  .report-print-root *,
+  .cutting-list-print-root,
+  .cutting-list-print-root *,
+  .cutting-list-a5-report-root,
+  .cutting-list-a5-report-root *,
+  .cutting-list-a4-landscape-report-root,
+  .cutting-list-a4-landscape-report-root * {
+    visibility: visible;
+  }
+
+  .quotation-print-root {
+    position: relative !important;
+    left: auto !important;
+    top: auto !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    page: quotation-a4;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    border: none !important;
+    box-sizing: border-box !important;
+    z-index: auto !important;
+    pointer-events: auto !important;
+    overflow: visible !important;
+  }
+
+  .report-print-root,
+  .cutting-list-print-root {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 210mm !important;
+    max-width: 210mm !important;
+    margin: 0 auto;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    border: none !important;
+    box-sizing: border-box;
+    z-index: auto !important;
+    pointer-events: auto !important;
+  }
+
+  .quotation-print-root,
+  .quotation-print-root * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Content width matches page box after @page quotation-a4 margins */
+  .quotation-print-root .quotation-print-a4 {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    box-sizing: border-box !important;
+    overflow: visible !important;
+  }
+
+  /* Match on-screen preview-mode (flat sheet, no inner card chrome) when printing */
+  .quotation-print-root.quotation-print-preview-mode .quotation-print-a4 > div.relative {
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    overflow: visible !important;
+  }
+
+  /* A5 cutting list pack — own width + named page size */
+  .cutting-list-a5-report-root {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 148mm !important;
+    max-width: 148mm !important;
+    margin: 0 auto;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    border: none !important;
+    box-sizing: border-box;
+    z-index: auto !important;
+    pointer-events: auto !important;
+  }
+
+  .print-cutting-list-a4-host {
+    width: 100% !important;
+    max-width: none !important;
+    padding-bottom: 0 !important;
+  }
+
+  .cutting-list-a4-landscape-report-root {
+    position: absolute;
+    left: 0;
+    top: 0;
+    right: 0;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    page: cutting-list-a4-landscape;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    border: none !important;
+    box-sizing: border-box !important;
+    z-index: auto !important;
+    pointer-events: auto !important;
+    overflow: visible !important;
+  }
+
+  html[data-print-cutting-list-a4] {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .cutting-list-factory-root,
+  .cutting-list-factory-root * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .cutting-list-factory-root .cl-factory-panel,
+  .cutting-list-factory-root .cl-factory-banner,
+  .cutting-list-factory-root .cl-factory-table-shell,
+  .cutting-list-factory-root .cl-factory-grand-shell,
+  .cutting-list-factory-root .cl-factory-receipt-box,
+  .cutting-list-factory-root .cl-factory-scratch {
+    box-shadow: none !important;
+  }
+
+  .cutting-list-factory-root .cl-factory-panel,
+  .cutting-list-factory-root .cl-factory-banner,
+  .cutting-list-factory-root .cl-factory-table-shell,
+  .cutting-list-factory-root .cl-factory-grand-shell,
+  .cutting-list-factory-root .cl-factory-meta-tile,
+  .cutting-list-factory-root .cl-factory-id-pill {
+    border-radius: 4px !important;
+  }
+
+  .report-print-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 8pt;
+  }
+
+  .report-print-table thead {
+    display: table-header-group;
+  }
+
+  .report-print-table tbody tr.report-print-tr {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  /* Receipts: thermal (~80mm), advance A6 portrait, or full A5 landscape */
+  .receipt-print-root {
+    position: absolute;
+    left: 0;
+    top: 0;
+    margin: 0 auto;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    border: none !important;
+    box-sizing: border-box;
+  }
+
+  .receipt-print-root .receipt-print-thermal {
+    width: 80mm !important;
+    max-width: 80mm !important;
+  }
+
+  .receipt-print-root .receipt-print-a6 {
+    width: 105mm !important;
+    max-width: 105mm !important;
+    min-height: 148mm;
+  }
+
+  .receipt-print-root .receipt-print-landscape {
+    width: 210mm !important;
+    max-width: 210mm !important;
+    min-height: 148mm;
+  }
+
+  .receipt-print-landscape,
+  .receipt-print-landscape * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .receipt-print-landscape.rpt-full {
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    background: #fff !important;
+  }
+
+  .receipt-print-landscape .rpt-full-head,
+  .receipt-print-landscape .rpt-full-shell,
+  .receipt-print-landscape .rpt-full-aside,
+  .receipt-print-landscape .rpt-full-totalbar,
+  .receipt-print-landscape .rpt-full-badge,
+  .receipt-print-landscape .rpt-full-logo-ring {
+    box-shadow: none !important;
+  }
+
+  .rpt-full-table thead {
+    display: table-header-group;
+  }
+
+  .quotation-print-table {
+    width: 100%;
+    max-width: 100%;
+    table-layout: fixed;
+  }
+
+  .quotation-print-table thead {
+    display: table-header-group;
+  }
+
+  /* Line items may break across pages; keep section bands & subtotals together */
+  .quotation-print-table tbody tr.quotation-print-line {
+    break-inside: auto;
+    page-break-inside: auto;
+  }
+
+  .quotation-print-table tbody tr.quotation-print-tr:not(.quotation-print-line) {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .quotation-print-table tfoot {
+    display: table-footer-group;
+  }
+
+  .quotation-print-table tfoot tr {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  /* Full legal/terms text on paper (screen uses 2-line clamp in @media screen above) */
+  .quotation-print-terms {
+    display: block !important;
+    -webkit-line-clamp: unset !important;
+    overflow: visible !important;
+  }
+
+  /*
+   * Avoid a near-empty page 2: allow the signature row to break if needed rather than
+   * forcing the whole grid to the next page (still keep row lines intact via children).
+   */
+  .quotation-print-signatures {
+    break-inside: auto;
+    page-break-inside: auto;
+  }
+
+  .quotation-print-signatures > div {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+}
