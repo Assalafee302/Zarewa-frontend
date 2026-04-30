@@ -131,8 +131,8 @@ export default function LoginScreen() {
         setBusy(false);
         return;
       }
-      if (!next || next.length < 6) {
-        setError('New password must be at least 6 characters.');
+      if (!next || next.length < 8) {
+        setError('New password must be at least 8 characters.');
         setBusy(false);
         return;
       }

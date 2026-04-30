@@ -1,6 +1,7 @@
 import React from 'react';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
+import { X } from 'lucide-react';
 
 /**
  * Full-viewport modal shell rendered via Radix Portal.
@@ -14,6 +15,9 @@ export function ModalFrame({
   description,
   /** When false, no overlay / scroll lock (e.g. while a body-portaled print preview is open). */
   modal = true,
+  /** Visible dismiss control (Radix still closes on Escape and overlay click when modal). */
+  showCloseButton = true,
+  closeDisabled = false,
 }) {
   const reduceMotion = useReducedMotion();
   const overlayTransition = reduceMotion ? { duration: 0 } : { duration: 0.3 };
@@ -54,6 +58,18 @@ export function ModalFrame({
                   transition={contentTransition}
                   className="relative z-10 flex min-h-0 w-full max-w-[min(1200px,calc(100dvw-1.5rem))] items-start justify-center rounded-2xl shadow-[0_28px_80px_-36px_rgba(15,23,42,0.45)] outline-none sm:rounded-[32px]"
                 >
+                  {showCloseButton ? (
+                    <DialogPrimitive.Close asChild>
+                      <button
+                        type="button"
+                        disabled={closeDisabled}
+                        aria-label="Close dialog"
+                        className="absolute right-3 top-3 z-[1100] flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200/90 bg-white/95 text-slate-600 shadow-sm transition hover:bg-slate-50 hover:text-slate-900 disabled:pointer-events-none disabled:opacity-40"
+                      >
+                        <X className="h-5 w-5 shrink-0" strokeWidth={2} aria-hidden />
+                      </button>
+                    </DialogPrimitive.Close>
+                  ) : null}
                   {children}
                 </motion.div>
               </div>

@@ -4,6 +4,7 @@ import { ModalFrame } from '../layout';
 import { apiFetch } from '../../lib/apiBase';
 import { useToast } from '../../context/ToastContext';
 import { WORKSPACE_DEPARTMENT_IDS, WORKSPACE_DEPARTMENT_LABELS } from '../../lib/departmentWorkspace';
+import { useWorkspace } from '../../context/WorkspaceContext';
 import { APP_DATA_TABLE_PAGE_SIZE, useAppTablePaging } from '../../lib/appDataTable';
 import { AppTablePager } from '../ui/AppDataTable';
 import { EditSecondApprovalInline } from '../EditSecondApprovalInline';
@@ -14,6 +15,30 @@ import { EditSecondApprovalInline } from '../EditSecondApprovalInline';
  */
 export default function TeamAccessPanel({ appUsers, currentUserId, onRefresh }) {
   const { show: showToast } = useToast();
+  const ws = useWorkspace();
+  const branches = useMemo(
+    () => ws?.snapshot?.workspaceBranches ?? ws?.session?.branches ?? [],
+    [ws?.snapshot?.workspaceBranches, ws?.session?.branches]
+  );
+  const branchNameById = useMemo(() => {
+    const m = {};
+    for (const b of branches) {
+      if (b?.id) m[b.id] = b.name || b.code || b.id;
+    }
+    return m;
+  }, [branches]);
+
+  const sortedAppUsers = useMemo(() => {
+    const list = Array.isArray(appUsers) ? [...appUsers] : [];
+    list.sort((a, b) => {
+      const ba = String(a.branchId || '\uffff');
+      const bb = String(b.branchId || '\uffff');
+      if (ba !== bb) return ba.localeCompare(bb);
+      return String(a.username || '').localeCompare(String(b.username || ''));
+    });
+    return list;
+  }, [appUsers]);
+
   const [rolesMeta, setRolesMeta] = useState([]);
   const [permissionKeys, setPermissionKeys] = useState([]);
   const [metaLoading, setMetaLoading] = useState(true);
@@ -34,6 +59,7 @@ export default function TeamAccessPanel({ appUsers, currentUserId, onRefresh }) 
     password: '',
     roleKey: 'viewer',
     department: 'general',
+    branchId: '',
   });
 
   useEffect(() => {
@@ -87,9 +113,9 @@ export default function TeamAccessPanel({ appUsers, currentUserId, onRefresh }) 
   }, [permissionKeys]);
 
   const userPage = useAppTablePaging(
-    Array.isArray(appUsers) ? appUsers : [],
+    sortedAppUsers,
     APP_DATA_TABLE_PAGE_SIZE,
-    appUsers?.length
+    sortedAppUsers?.length
   );
   const pagedUsers = userPage.slice;
 
@@ -140,6 +166,28 @@ export default function TeamAccessPanel({ appUsers, currentUserId, onRefresh }) 
         return;
       }
       showToast('Workspace department updated.');
+      await refresh();
+    } finally {
+      setRowBusyId('');
+    }
+  };
+
+  const patchWorkspaceBranch = async (user, nextBranchId) => {
+    if (!user?.id || !nextBranchId || nextBranchId === user.branchId) return;
+    setRowBusyId(user.id);
+    try {
+      const { ok, data } = await apiFetch(
+        `/api/workspace/app-users/${encodeURIComponent(user.id)}/workspace-branch`,
+        {
+          method: 'PATCH',
+          body: JSON.stringify({ branchId: nextBranchId }),
+        }
+      );
+      if (!ok || !data?.ok) {
+        showToast(data?.error || 'Could not update home branch.', { variant: 'error' });
+        return;
+      }
+      showToast('Home branch updated.');
       await refresh();
     } finally {
       setRowBusyId('');
@@ -245,8 +293,13 @@ export default function TeamAccessPanel({ appUsers, currentUserId, onRefresh }) 
     e.preventDefault();
     const username = createForm.username.trim().toLowerCase();
     const displayName = createForm.displayName.trim();
+    const branchId = createForm.branchId.trim();
     if (!username || !displayName || !createForm.password) {
       showToast('Username, display name, and password are required.', { variant: 'error' });
+      return;
+    }
+    if (branches.length > 0 && !branchId) {
+      showToast('Choose a home branch for this user.', { variant: 'error' });
       return;
     }
     setCreateBusy(true);
@@ -259,6 +312,7 @@ export default function TeamAccessPanel({ appUsers, currentUserId, onRefresh }) 
           password: createForm.password,
           roleKey: createForm.roleKey,
           department: createForm.department,
+          ...(branchId ? { branchId } : {}),
         }),
       });
       if (!ok || !data?.ok) {
@@ -273,6 +327,7 @@ export default function TeamAccessPanel({ appUsers, currentUserId, onRefresh }) 
         password: '',
         roleKey: 'viewer',
         department: 'general',
+        branchId: branches[0]?.id || '',
       });
       await refresh();
     } finally {
@@ -306,6 +361,7 @@ export default function TeamAccessPanel({ appUsers, currentUserId, onRefresh }) 
               setCreateForm((f) => ({
                 ...f,
                 roleKey: roleOptions[0]?.key || f.roleKey,
+                branchId: f.branchId || branches[0]?.id || '',
               }));
               setCreateOpen(true);
             }}
@@ -319,11 +375,12 @@ export default function TeamAccessPanel({ appUsers, currentUserId, onRefresh }) 
           <p className="text-sm text-slate-500">No users in the directory snapshot.</p>
         ) : (
           <div className="z-scroll-x overflow-x-auto rounded-2xl border border-slate-200/90">
-            <table className="w-full min-w-[720px] text-left text-sm">
+            <table className="w-full min-w-[880px] text-left text-sm">
               <thead className="border-b border-slate-200 bg-slate-50/80 text-xs font-bold uppercase tracking-wide text-slate-600">
                 <tr>
                   <th className="px-3 py-2.5">User</th>
                   <th className="px-3 py-2.5">Dept</th>
+                  <th className="px-3 py-2.5">Branch</th>
                   <th className="px-3 py-2.5">Role</th>
                   <th className="px-3 py-2.5">Status</th>
                   <th className="px-3 py-2.5">Permissions</th>
@@ -359,6 +416,27 @@ export default function TeamAccessPanel({ appUsers, currentUserId, onRefresh }) 
                             </option>
                           ))}
                         </select>
+                      </td>
+                      <td className="px-3 py-3 align-middle">
+                        {branches.length === 0 ? (
+                          <span className="text-xs text-slate-400" title="Load branches from workspace snapshot">
+                            —
+                          </span>
+                        ) : (
+                          <select
+                            className="z-input !py-1.5 !text-[11px] max-w-[11rem]"
+                            value={user.branchId || ''}
+                            disabled={busy}
+                            onChange={(e) => void patchWorkspaceBranch(user, e.target.value)}
+                          >
+                            <option value="">Assign branch…</option>
+                            {branches.map((b) => (
+                              <option key={b.id} value={b.id}>
+                                {branchNameById[b.id] || b.id}
+                              </option>
+                            ))}
+                          </select>
+                        )}
                       </td>
                       <td className="px-3 py-3 align-middle">
                         <select
@@ -398,7 +476,7 @@ export default function TeamAccessPanel({ appUsers, currentUserId, onRefresh }) 
                       </td>
                       </tr>
                       <tr className="bg-slate-50/80">
-                        <td colSpan={5} className="px-3 py-2 border-b border-slate-100">
+                        <td colSpan={6} className="px-3 py-2 border-b border-slate-100">
                           <EditSecondApprovalInline
                             entityKind="user"
                             entityId={user.id}
@@ -431,8 +509,9 @@ export default function TeamAccessPanel({ appUsers, currentUserId, onRefresh }) 
       <ModalFrame
         isOpen={createOpen}
         onClose={() => !createBusy && setCreateOpen(false)}
+        closeDisabled={createBusy}
         title="Create app user"
-        description="Creates a login with a temporary password. User must meet password rules: 12+ characters with mixed case, number, and special character."
+        description="Creates a login with a temporary password. Password must be at least 8 characters with mixed case, a number, and a special character."
       >
         <form
           onSubmit={submitCreateUser}
@@ -499,6 +578,32 @@ export default function TeamAccessPanel({ appUsers, currentUserId, onRefresh }) 
               ))}
             </select>
           </div>
+          {branches.length > 0 ? (
+            <div>
+              <label className="z-field-label">Home branch</label>
+              <select
+                className="z-input"
+                value={createForm.branchId || branches[0]?.id || ''}
+                onChange={(e) => setCreateForm((f) => ({ ...f, branchId: e.target.value }))}
+                disabled={createBusy}
+              >
+                {branches.map((b) => (
+                  <option key={b.id} value={b.id}>
+                    {branchNameById[b.id] || b.id}
+                  </option>
+                ))}
+              </select>
+              <p className="mt-1 text-[10px] text-slate-500 leading-snug">
+                Stored on the HR staff profile and used to pin workspace data for this login (unless they have HQ
+                multi-branch access).
+              </p>
+            </div>
+          ) : (
+            <p className="text-[11px] text-amber-800 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2">
+              No branches in the workspace snapshot. Open Settings → Organisation after branches sync, then create
+              users so each login has a home branch.
+            </p>
+          )}
           <div className="flex flex-wrap gap-2 justify-end pt-2">
             <button
               type="button"

@@ -231,7 +231,7 @@ const RefundModal = ({
   const syncPaidFromLedger = useCallback(async () => {
     const id = String(syncPaidId || '').trim();
     if (!id) {
-      setSyncPaidError('Enter the quotation id (e.g. QT-26-001).');
+      setSyncPaidError('Enter the quotation id (e.g. QT-KD-26-0001).');
       return;
     }
     setSyncPaidBusy(true);
@@ -956,7 +956,7 @@ const RefundModal = ({
                               setSyncPaidId(e.target.value);
                               setSyncPaidError('');
                             }}
-                            placeholder="Quotation id e.g. QT-26-001"
+                            placeholder="Quotation id e.g. QT-KD-26-0001"
                             className="flex-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-[11px] font-mono outline-none focus:ring-2 focus:ring-rose-200"
                           />
                           <button

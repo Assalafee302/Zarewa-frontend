@@ -72,6 +72,9 @@ export function pathToModuleKey(pathname) {
  * @param {string[]} permissions
  */
 export function resolvePostLoginPath(user, permissions) {
+  if (canAccessModuleWithPermissions(permissions, 'office')) {
+    return '/office';
+  }
   const roleKey = String(user?.roleKey || '').trim().toLowerCase();
   if (roleKey === 'sales_manager') {
     const mod = pathToModuleKey('/manager');
