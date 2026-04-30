@@ -10,6 +10,25 @@ export function isVoucherDateInLockedPeriod(voucherDateIso, periodLocks) {
 }
 
 /**
+ * Single-line message for toast/UI when a ledger POST fails.
+ * @param {{ ok?: boolean; code?: string; error?: string; message?: string } | null | undefined} body
+ * @param {number | undefined} httpStatus
+ * @param {string} [fallback]
+ */
+export function formatLedgerApiError(body, httpStatus, fallback = 'Request failed.') {
+  const primary = String(body?.error || body?.message || '').trim();
+  const code = String(body?.code || '').trim();
+  let out = primary || fallback;
+  if (code && !out.toLowerCase().includes(code.toLowerCase())) {
+    out = `${out} (${code})`;
+  }
+  if (httpStatus != null && httpStatus >= 400 && !out.includes('HTTP')) {
+    out = `${out} · HTTP ${httpStatus}`;
+  }
+  return out;
+}
+
+/**
  * Maps ledger posting API errors to user-facing copy and in-app navigation targets.
  * @param {{ code?: string; error?: string; message?: string } | null | undefined} body
  * @returns {{
@@ -68,6 +87,24 @@ export function guidanceForLedgerPostFailure(body) {
         'For bulk entry, split work across time or ask IT about higher limits for trusted automation.',
       ],
       links: [],
+    };
+  }
+
+  if (/failed to record receipt|record receipt failed|receipt post failed/i.test(msg)) {
+    return {
+      title: 'Receipt was not saved on the server',
+      detail:
+        msg ||
+        'The API rejected this receipt. The message above is from the server; your team may need to check API logs for the same request time.',
+      steps: [
+        'Confirm you are on the correct branch (top bar) if your org uses multiple locations.',
+        'Open browser DevTools → Network, retry the receipt, and inspect the JSON body of the failed POST /api/ledger/receipt for a more specific `code` or `details` field.',
+        'Ensure the backend is the same version as this frontend and that `VITE_API_BASE` in the Hostinger build points at that API (not an old host).',
+      ],
+      links: [
+        { label: 'Accounting overview', to: '/accounts' },
+        { label: 'Settings', to: '/settings' },
+      ],
     };
   }
 

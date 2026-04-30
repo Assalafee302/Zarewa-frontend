@@ -5,6 +5,24 @@
 
 const STORAGE_KEY = 'zarewa.finance.treasuryAccounts';
 
+/**
+ * Serialize treasury account id for ledger POST bodies.
+ * Integer IDs are sent as numbers; UUIDs and other opaque ids stay strings.
+ * @param {unknown} id
+ * @returns {number|string|null}
+ */
+export function treasuryAccountIdForApiPayload(id) {
+  if (id === '' || id == null) return null;
+  if (typeof id === 'number' && Number.isFinite(id)) return Math.trunc(id);
+  const s = String(id).trim();
+  if (!s) return null;
+  if (/^\d+$/.test(s)) {
+    const n = Number(s);
+    if (Number.isSafeInteger(n)) return n;
+  }
+  return s;
+}
+
 /** @param {{ treasuryAccounts?: object[] } | null | undefined} snapshot */
 export function treasuryAccountsFromSnapshot(snapshot) {
   if (!snapshot || !Array.isArray(snapshot.treasuryAccounts)) return [];

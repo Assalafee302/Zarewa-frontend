@@ -21,8 +21,12 @@ import {
 import { quotationReceiptPrintHistory } from '../lib/salesReceiptsList';
 import { formatNgn } from '../Data/mockData';
 import { apiFetch } from '../lib/apiBase';
-import { guidanceForLedgerPostFailure, isVoucherDateInLockedPeriod } from '../lib/ledgerPostingGuidance';
-import { treasuryAccountsFromSnapshot } from '../lib/treasuryAccountsStore';
+import {
+  formatLedgerApiError,
+  guidanceForLedgerPostFailure,
+  isVoucherDateInLockedPeriod,
+} from '../lib/ledgerPostingGuidance';
+import { treasuryAccountIdForApiPayload, treasuryAccountsFromSnapshot } from '../lib/treasuryAccountsStore';
 import { ReceiptPrintQuick, ReceiptPrintFull } from './receipt/ReceiptPrintViews';
 
 function newLineId() {
@@ -349,7 +353,7 @@ const ReceiptModal = ({
         const acc = treasuryAccountForLine(line, treasuryByIdStr, treasuryList);
         const tid = acc?.id ?? line.treasuryAccountId;
         return {
-          treasuryAccountId: tid,
+          treasuryAccountId: treasuryAccountIdForApiPayload(tid),
           amountNgn: parseNum(line.amount),
           reference: [line.payeeName?.trim?.(), remarks.trim()].filter(Boolean).join(' — '),
         };
@@ -364,22 +368,28 @@ const ReceiptModal = ({
         showToast('Select a valid treasury account on each payment line.', { variant: 'error' });
         return;
       }
-      const { ok, data } = await apiFetch('/api/ledger/receipt', {
+      const branchId = String(ws?.session?.currentBranchId ?? '').trim();
+      const receiptBody = {
+        customerID,
+        customerName,
+        quotationId: selectedQuotation.id,
+        /** Some API builds read `quotationRef` instead of `quotationId` — send both. */
+        quotationRef: selectedQuotation.id,
+        amountNgn: total,
+        paymentMethod,
+        bankReference,
+        dateISO: voucherDate,
+        paymentLines: paymentLinesPayload,
+      };
+      if (branchId) receiptBody.branchId = branchId;
+
+      const { ok, data, status } = await apiFetch('/api/ledger/receipt', {
         method: 'POST',
-        body: JSON.stringify({
-          customerID,
-          customerName,
-          quotationId: selectedQuotation.id,
-          amountNgn: total,
-          paymentMethod,
-          bankReference,
-          dateISO: voucherDate,
-          paymentLines: paymentLinesPayload,
-        }),
+        body: JSON.stringify(receiptBody),
       });
       if (!ok || !data?.ok) {
         setPostingHint(guidanceForLedgerPostFailure(data) || null);
-        showToast(data?.error || 'Could not post receipt.', { variant: 'error' });
+        showToast(formatLedgerApiError(data, status, 'Could not post receipt.'), { variant: 'error' });
         return;
       }
       setPostingHint(null);
