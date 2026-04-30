@@ -33,10 +33,18 @@ function emptyPaymentLine(voucherDate, defaultAccountId) {
   return {
     id: newLineId(),
     payeeName: '',
-    treasuryAccountId: defaultAccountId,
+    treasuryAccountId:
+      defaultAccountId === '' || defaultAccountId == null ? '' : defaultAccountId,
     lineDate: voucherDate,
     amount: '',
   };
+}
+
+/** Resolve snapshot treasury row for a line (IDs may be number or string, e.g. UUID). */
+function treasuryAccountForLine(line, treasuryByIdStr, treasuryList) {
+  const key = String(line?.treasuryAccountId ?? '').trim();
+  if (key && treasuryByIdStr.has(key)) return treasuryByIdStr.get(key);
+  return treasuryList[0] ?? null;
 }
 
 function parseNum(s) {
@@ -131,7 +139,10 @@ const ReceiptModal = ({
       .map((mv) => ({
         id: newLineId(),
         payeeName: String(mv?.counterpartyName || editData?.customer || le?.customerName || 'Payer').trim() || 'Payer',
-        treasuryAccountId: Number(mv?.treasuryAccountId) || defaultAccountId,
+        treasuryAccountId:
+          mv?.treasuryAccountId != null && String(mv.treasuryAccountId).trim() !== ''
+            ? mv.treasuryAccountId
+            : defaultAccountId,
         lineDate: String(mv?.postedAtISO || vd).slice(0, 10) || vd,
         amount: String(Math.round(Number(mv?.amountNgn) || 0)),
       }));
@@ -141,7 +152,10 @@ const ReceiptModal = ({
           .map((line) => ({
             id: newLineId(),
             payeeName: String(editData?.customer || le?.customerName || 'Payer').trim() || 'Payer',
-            treasuryAccountId: Number(line?.treasuryAccountId) || defaultAccountId,
+            treasuryAccountId:
+              line?.treasuryAccountId != null && String(line.treasuryAccountId).trim() !== ''
+                ? line.treasuryAccountId
+                : defaultAccountId,
             lineDate: vd,
             amount: String(Math.round(Number(line?.amountNgn) || 0)),
           }))
@@ -152,7 +166,10 @@ const ReceiptModal = ({
           .map((line) => ({
             id: newLineId(),
             payeeName: String(le?.customerName || editData?.customer || 'Payer').trim() || 'Payer',
-            treasuryAccountId: Number(line?.treasuryAccountId) || defaultAccountId,
+            treasuryAccountId:
+              line?.treasuryAccountId != null && String(line.treasuryAccountId).trim() !== ''
+                ? line.treasuryAccountId
+                : defaultAccountId,
             lineDate: vd,
             amount: String(Math.round(Number(line?.amountNgn) || 0)),
           }))
@@ -259,9 +276,9 @@ const ReceiptModal = ({
     return Math.max(0, dueNgn - lineTotalNgn);
   }, [dueNgn, lineTotalNgn]);
 
-  const treasuryById = useMemo(() => {
+  const treasuryByIdStr = useMemo(() => {
     const m = new Map();
-    treasuryList.forEach((a) => m.set(a.id, a));
+    treasuryList.forEach((a) => m.set(String(a.id), a));
     return m;
   }, [treasuryList]);
 
@@ -277,7 +294,7 @@ const ReceiptModal = ({
     return paymentLines
       .filter((l) => parseNum(l.amount) > 0)
       .map((l) => {
-        const acc = treasuryById.get(Number(l.treasuryAccountId)) ?? treasuryList[0];
+        const acc = treasuryAccountForLine(l, treasuryByIdStr, treasuryList);
         const accountLabel = acc
           ? `${acc.type} — ${acc.name}${acc.accNo && acc.accNo !== 'N/A' ? ` (${acc.accNo})` : ''}`
           : '—';
@@ -287,7 +304,7 @@ const ReceiptModal = ({
           amount: parseNum(l.amount),
         };
       });
-  }, [paymentLines, treasuryById, treasuryList]);
+  }, [paymentLines, treasuryByIdStr, treasuryList]);
 
   const saveReceipt = async (e) => {
     e.preventDefault();
@@ -316,18 +333,37 @@ const ReceiptModal = ({
     }
 
     const refParts = validLines.map((l) => {
-      const acc = treasuryById.get(Number(l.treasuryAccountId)) ?? treasuryList[0];
+      const acc = treasuryAccountForLine(l, treasuryByIdStr, treasuryList);
       const accBit = acc ? `${acc.type}:${acc.name}` : '';
       return `${(l.payeeName || 'Payee').trim()} ${formatNgn(parseNum(l.amount))} ${accBit}`.trim();
     });
     const bankReference = [refParts.join(' | '), remarks.trim()].filter(Boolean).join(' — ');
-    const firstAcc = treasuryById.get(Number(validLines[0].treasuryAccountId)) ?? treasuryList[0];
+    const firstAcc = treasuryAccountForLine(validLines[0], treasuryByIdStr, treasuryList);
     const paymentMethod =
       validLines.length === 1 && firstAcc
         ? `${firstAcc.type} — ${firstAcc.name}`
         : `Split (${validLines.length} lines)`;
 
     if (useLedgerApi) {
+      const paymentLinesPayload = validLines.map((line) => {
+        const acc = treasuryAccountForLine(line, treasuryByIdStr, treasuryList);
+        const tid = acc?.id ?? line.treasuryAccountId;
+        return {
+          treasuryAccountId: tid,
+          amountNgn: parseNum(line.amount),
+          reference: [line.payeeName?.trim?.(), remarks.trim()].filter(Boolean).join(' — '),
+        };
+      });
+      const invalidTreasury = paymentLinesPayload.some(
+        (pl) =>
+          pl.treasuryAccountId === '' ||
+          pl.treasuryAccountId == null ||
+          (typeof pl.treasuryAccountId === 'number' && !Number.isFinite(pl.treasuryAccountId))
+      );
+      if (invalidTreasury) {
+        showToast('Select a valid treasury account on each payment line.', { variant: 'error' });
+        return;
+      }
       const { ok, data } = await apiFetch('/api/ledger/receipt', {
         method: 'POST',
         body: JSON.stringify({
@@ -338,11 +374,7 @@ const ReceiptModal = ({
           paymentMethod,
           bankReference,
           dateISO: voucherDate,
-          paymentLines: validLines.map((line) => ({
-            treasuryAccountId: Number(line.treasuryAccountId),
-            amountNgn: parseNum(line.amount),
-            reference: [line.payeeName?.trim?.(), remarks.trim()].filter(Boolean).join(' — '),
-          })),
+          paymentLines: paymentLinesPayload,
         }),
       });
       if (!ok || !data?.ok) {
@@ -664,7 +696,11 @@ const ReceiptModal = ({
                     <div className="col-span-6 sm:col-span-2 relative">
                       <select
                         value={String(line.treasuryAccountId)}
-                        onChange={(e) => updateLine(line.id, { treasuryAccountId: Number(e.target.value) })}
+                        onChange={(e) =>
+                          updateLine(line.id, {
+                            treasuryAccountId: e.target.value,
+                          })
+                        }
                         className="w-full border border-slate-200 rounded-lg py-2 px-2.5 text-[12px] font-semibold text-[#134e4a] appearance-none outline-none"
                       >
                         {treasuryList.map((a) => (
