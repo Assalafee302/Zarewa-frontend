@@ -23,7 +23,13 @@ import {
   Trash2,
 } from 'lucide-react';
 
-import { MainPanel, PageHeader, PageShell, PageTabs, ModalFrame } from '../components/layout';
+import {
+  FinancePilotHeader,
+  FinanceSequencePanel,
+  PageShell,
+  PageTabs,
+  ModalFrame,
+} from '../components/layout';
 import { AiAskButton } from '../components/AiAskButton';
 import { EditSecondApprovalInline } from '../components/EditSecondApprovalInline';
 import { formatNgn } from '../Data/mockData';
@@ -1895,50 +1901,78 @@ const Account = () => {
 
   return (
     <PageShell blurred={isAnyModalOpen}>
-      <PageHeader
+      <FinancePilotHeader
+        eyebrow="Finance"
         title="Finance & accounts"
         subtitle="Treasury, customer receipt settlement, bank reconciliation, and approvals"
         tabs={<PageTabs tabs={accountTabs} value={activeTab} onChange={handleAccountTabChange} />}
-        actions={
-          <AiAskButton
-            mode="finance"
-            prompt={
-              activeTab === 'treasury'
-                ? 'Give me a short treasury and payout summary from the live workspace.'
-                : activeTab === 'receipts'
-                  ? 'Explain the main receipt-settlement and bank-reconciliation issues visible right now.'
-                  : activeTab === 'audit'
+        search={
+          <div className="relative w-full min-w-0">
+            <Search
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
+              size={16}
+            />
+            <input
+              type="search"
+              placeholder="Search this tab…"
+              className="z-input-search"
+              autoComplete="off"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+        }
+        trailing={
+          <>
+            {newRecordLabel ? (
+              <button type="button" onClick={headerAction} className="z-btn-primary shrink-0">
+                <Plus size={16} /> {newRecordLabel}
+              </button>
+            ) : null}
+            <AiAskButton
+              mode="finance"
+              prompt={
+                activeTab === 'treasury'
+                  ? 'Give me a short treasury and payout summary from the live workspace.'
+                  : activeTab === 'receipts'
+                    ? 'Explain the main receipt-settlement and bank-reconciliation issues visible right now.'
+                    : activeTab === 'audit'
                       ? 'Summarize the audit and reconciliation queue and what needs action first.'
                       : 'Summarize the current finance workload and the next best actions.'
-            }
-            pageContext={{
-              source: 'finance-page',
-              activeTab,
-              searchQuery,
-            }}
-            className="inline-flex items-center gap-2 rounded-xl border border-teal-100 bg-white px-3 py-2 text-[10px] font-black uppercase tracking-wide text-[#134e4a] shadow-sm transition hover:bg-teal-50"
-          >
-            Ask AI
-          </AiAskButton>
+              }
+              pageContext={{
+                source: 'finance-page',
+                activeTab,
+                searchQuery,
+              }}
+              className="inline-flex items-center gap-2 rounded-xl border border-slate-200/80 bg-white px-3 py-2 text-[10px] font-black uppercase tracking-wide text-[#134e4a] shadow-[0_8px_24px_-18px_rgba(15,23,42,0.12)] transition hover:border-teal-200/60 hover:bg-teal-50/80"
+            >
+              Ask AI
+            </AiAskButton>
+          </>
         }
       />
 
-      <div className="grid grid-cols-1 gap-8 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-8 lg:gap-10 lg:grid-cols-4">
         <div className="lg:col-span-1 space-y-6">
-          <div className="z-card-dark">
-            <h3 className="z-section-title-dark">Total liquidity</h3>
+          <div className="rounded-zarewa border border-slate-200/80 border-l-[3px] border-l-[#134e4a] bg-white p-6 shadow-[var(--shadow-sequence)]">
+            <h3 className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-400 mb-3">
+              Total liquidity
+            </h3>
             <div className="space-y-1">
-              <p className="text-2xl font-black italic tracking-tighter">
+              <p className="text-2xl font-black tracking-tight text-slate-900 tabular-nums">
                 ₦{totals.cash.toLocaleString()}
               </p>
-              <p className="text-[10px] text-zarewa-mint font-medium">Combined bank, cash & POS floats</p>
+              <p className="text-[10px] text-slate-500 font-medium leading-snug">
+                Combined bank, cash & POS floats
+              </p>
             </div>
           </div>
 
           <button
             type="button"
             onClick={() => handleAccountTabChange('receipts')}
-            className="w-full text-left z-card-muted hover:border-teal-100 transition-all cursor-pointer p-5"
+            className="w-full text-left rounded-zarewa border border-slate-200/75 bg-white p-5 shadow-[var(--shadow-sequence)] transition-colors hover:border-teal-200/70 cursor-pointer"
           >
             <h3 className="z-section-title flex items-center gap-2">
               <ArrowDownLeft size={14} />
@@ -1953,7 +1987,7 @@ const Account = () => {
           <Link
             to="/procurement"
             state={{ focusTab: 'payables' }}
-            className="block w-full text-left z-card-muted hover:border-teal-100 transition-all cursor-pointer p-5"
+            className="block w-full text-left rounded-zarewa border border-slate-200/75 bg-white p-5 shadow-[var(--shadow-sequence)] transition-colors hover:border-teal-200/70 cursor-pointer"
           >
             <h3 className="z-section-title flex items-center gap-2">
               <Truck size={14} />
@@ -1966,7 +2000,7 @@ const Account = () => {
           </Link>
 
           {activeTab === 'disbursements' ? (
-            <div className="rounded-zarewa border border-teal-100/80 bg-gradient-to-br from-teal-50/50 to-white p-4 shadow-sm space-y-3">
+            <div className="rounded-zarewa border border-slate-200/75 bg-white p-5 shadow-[var(--shadow-sequence)] space-y-3 ring-1 ring-teal-500/10">
               <h3 className="z-section-title flex items-center gap-2">
                 <ClipboardList size={14} />
                 Expenses & requests
@@ -2010,23 +2044,23 @@ const Account = () => {
             </div>
           ) : null}
 
-          <div className="z-card-muted">
+          <div className="rounded-zarewa border border-slate-200/70 bg-slate-50/70 p-5 shadow-[0_12px_40px_-32px_rgba(15,23,42,0.1)]">
             <h3 className="z-section-title flex items-center gap-2">
               <Activity size={14} className="shrink-0" />
                 Control note
             </h3>
-            <p className="text-[9px] text-gray-400 leading-relaxed mb-3">
+            <p className="text-[9px] text-slate-500 leading-relaxed mb-3">
                 Customer receipts, refunds, supplier payments, expenses, and treasury transfers now post
                 live cash movements. Full general-ledger journals remain the next accounting phase.
             </p>
-              <div className="rounded-xl border border-gray-100 bg-white px-4 py-3 text-[10px] text-gray-600 leading-relaxed">
+              <div className="rounded-xl border border-slate-200/80 bg-white px-4 py-3 text-[10px] text-slate-600 leading-relaxed shadow-sm">
                 Use the tabs here to post the operational side safely:
                 expenses debit treasury, payables reduce supplier balances, and transfers create paired
                 movements.
               </div>
           </div>
 
-          <div className="rounded-zarewa border border-gray-100 bg-white/90 p-4 text-[9px] text-gray-500 leading-relaxed">
+          <div className="rounded-zarewa border border-slate-200/70 bg-white p-4 text-[9px] text-slate-500 leading-relaxed shadow-[0_10px_36px_-30px_rgba(15,23,42,0.08)]">
             <p className="font-black uppercase tracking-wider text-[#134e4a] mb-1.5 flex items-center gap-1">
               <BookOpen size={12} />
               Principles
@@ -2037,42 +2071,8 @@ const Account = () => {
         </div>
 
         <div className="lg:col-span-3">
-          <MainPanel>
+          <FinanceSequencePanel>
             <>
-            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-8">
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-center min-w-0 w-full md:w-auto">
-                <h2 className="text-xl font-bold text-[#134e4a] shrink-0">
-                  {TAB_LABELS[activeTab] ?? 'Records'}
-                </h2>
-                <div className="relative flex-1 md:w-72 min-w-0">
-                  <Search
-                    className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
-                    size={16}
-                  />
-                  <input
-                    type="search"
-                    placeholder="Search this tab…"
-                    className="z-input-search"
-                    autoComplete="off"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                  />
-                </div>
-              </div>
-
-              {newRecordLabel ? (
-                <div className="flex gap-3 w-full md:w-auto md:shrink-0">
-                  <button
-                    type="button"
-                    onClick={headerAction}
-                    className="z-btn-primary flex-1 md:flex-none w-full md:w-auto"
-                  >
-                    <Plus size={16} /> {newRecordLabel}
-                  </button>
-                </div>
-              ) : null}
-            </div>
-
             {activeTab === 'receipts' && (
               <div className="space-y-10 animate-in fade-in duration-300">
                 <section className="space-y-3">
@@ -2105,7 +2105,7 @@ const Account = () => {
                         return (
                           <li
                             key={r.id}
-                            className="rounded-lg border border-slate-200/60 bg-white/70 py-2 px-3 flex flex-wrap items-center justify-between gap-2"
+                            className="rounded-xl border border-slate-200/75 bg-white py-2.5 px-3 shadow-[0_8px_28px_-22px_rgba(15,23,42,0.07)] flex flex-wrap items-center justify-between gap-2 transition-colors hover:border-slate-300/90"
                           >
                             <div className="min-w-0 flex-1">
                               <p className="text-[11px] font-bold text-[#134e4a] font-mono">{r.id}</p>
@@ -2198,7 +2198,7 @@ const Account = () => {
             {activeTab === 'treasury' && (
               <div className="space-y-6 animate-in fade-in duration-300">
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <div className="rounded-lg border border-slate-200/60 bg-white/40 backdrop-blur-md shadow-sm px-3 py-2.5">
+                  <div className="rounded-xl border border-slate-200/75 bg-white px-3 py-2.5 shadow-[0_10px_36px_-28px_rgba(15,23,42,0.12)]">
                     <p className="text-[9px] font-bold text-slate-500 uppercase tracking-wide">Cash inflows</p>
                     <p className="text-sm font-black text-emerald-700 tabular-nums">
                       {formatNgn(
@@ -2209,14 +2209,14 @@ const Account = () => {
                     </p>
                     <p className="text-[8px] text-slate-500 mt-0.5 leading-snug">Receipts and advance deposits</p>
                   </div>
-                  <div className="rounded-lg border border-slate-200/60 bg-white/40 backdrop-blur-md shadow-sm px-3 py-2.5">
+                  <div className="rounded-xl border border-slate-200/75 bg-white px-3 py-2.5 shadow-[0_10px_36px_-28px_rgba(15,23,42,0.12)]">
                     <p className="text-[9px] font-bold text-slate-500 uppercase tracking-wide">Cash outflows</p>
                     <p className="text-sm font-black text-[#134e4a] tabular-nums">
                       {formatNgn(ws?.hasWorkspaceData ? treasuryOutflowsNgn : expenses.reduce((s, e) => s + e.amountNgn, 0))}
                     </p>
                     <p className="text-[8px] text-slate-500 mt-0.5 leading-snug">Expenses, refunds, and supplier payouts</p>
                   </div>
-                  <div className="rounded-lg border border-amber-200/80 bg-amber-50/50 backdrop-blur-md shadow-sm px-3 py-2.5">
+                  <div className="rounded-xl border border-amber-200/85 bg-amber-50/75 px-3 py-2.5 shadow-[0_10px_36px_-28px_rgba(15,23,42,0.1)]">
                     <p className="text-[9px] font-bold text-amber-800 uppercase">Reconciliation</p>
                     <p className="text-sm font-black text-amber-900">
                       {reconciliationFlags} item{reconciliationFlags !== 1 ? 's' : ''} to review
@@ -3143,7 +3143,7 @@ const Account = () => {
               </div>
             )}
             </>
-          </MainPanel>
+          </FinanceSequencePanel>
         </div>
       </div>
 

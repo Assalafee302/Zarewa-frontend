@@ -1,6 +1,8 @@
 export { PageHeader } from './PageHeader';
 export { PageTabs } from './PageTabs';
 export { MainPanel } from './MainPanel';
+export { FinancePilotHeader } from './FinancePilotHeader';
+export { FinanceSequencePanel } from './FinanceSequencePanel';
 export { PageShell } from './PageShell';
 export { ModalFrame } from './ModalFrame';
 export { SlideOverPanel } from './SlideOverPanel';
