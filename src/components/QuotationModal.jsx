@@ -37,9 +37,40 @@ const QUOTATION_MATERIAL_INVENTORY_MODELS = new Set(['coil_kg', 'stone_meter']);
 const DEFAULT_PROFILES = ['Longspan (Indus6)', 'Metrotile', 'Steptile', 'Capping', 'Ridge Cap'];
 const DEFAULT_GAUGES = ['0.70mm', '0.55mm', '0.45mm', '0.40mm', '0.30mm', '0.24mm'];
 const DEFAULT_COLOURS = ['HM Blue', 'Traffic Black', 'TC Red', 'Bush Green', 'Zinc Grey'];
-const DEFAULT_PRODUCT_ITEMS = ['Roofing Sheet', 'Capping', 'Ridge Cap', 'Gutter'];
-const DEFAULT_ACCESSORY_ITEMS = ['Tapping Screw', 'Silicon Tube', 'Rivets', 'Bitumen Tape'];
-const DEFAULT_SERVICE_ITEMS = ['Installation', 'Transportation', 'Labor Charge'];
+const DEFAULT_PRODUCT_ITEMS = [
+  'Roofing Sheet',
+  'Bargeboard',
+  'Top End',
+  'Gutter',
+  'Eaves angle',
+  'Wall Flashing',
+  'Ridge Cap',
+  'Capping',
+  'Bottom eaves',
+  'Fascia',
+  'Cladding',
+  'Flat sheet',
+  'Offcut',
+  'Wall eaves',
+  'Crimp',
+  'Coil',
+];
+const DEFAULT_ACCESSORY_ITEMS = [
+  'Concrete nail',
+  'Drive screw nail',
+  'Rivet pins',
+  'Copper nail',
+  'Silicone tube',
+  'Tapping Screw',
+  'Flash band',
+  'Felt',
+  'Washer',
+  'Repair Kit',
+  'Strapping nail',
+  'Spool',
+  'Hooks and bolts',
+];
+const DEFAULT_SERVICE_ITEMS = ['Commission', 'Transportation', 'Installation', 'Corrugation', 'Bending'];
 
 const QUOTATION_EDIT_TYPES = [
   'Correction (typo / clerical)',

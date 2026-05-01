@@ -14,11 +14,8 @@ const LINE_CATEGORIES = [
   { type: 'Cladding', title: 'Cladding' },
 ];
 
-/** Printed cutting tables and waybill material check: roofing + cladding only (flat sheet omitted). */
-const PRINT_CUT_LINE_CATEGORIES = [
-  { type: 'Roof', title: 'Roofing sheet' },
-  { type: 'Cladding', title: 'Cladding' },
-];
+/** Printed cutting tables and waybill: same categories as the editor (roof, flat sheet, cladding). */
+const PRINT_CUT_LINE_CATEGORIES = LINE_CATEGORIES;
 
 function parseNum(value) {
   const n = Number(String(value ?? '').replace(/,/g, ''));
@@ -294,7 +291,7 @@ function WaybillPanel({
                 <dd>{project}</dd>
                 <dt>Material</dt>
                 <dd>{materialInfoValue}</dd>
-                <dt>Sheets (roof + cladding)</dt>
+                <dt>Sheets (roof + flat + cladding)</dt>
                 <dd className="tabular-nums">{sheetsLabel}</dd>
                 <dt>Linear metres</dt>
                 <dd className="tabular-nums">{metersLabel} m</dd>
@@ -506,8 +503,8 @@ export default function CuttingListReportPrintView({
   );
   const chunks = chunkLines(flatLines, rowsPerPage);
   const totalChunks = chunks.length;
-  const printSheetsRoofClad = flatLines.reduce((s, l) => s + l.sheets, 0);
-  const printMetresRoofClad = flatLines.reduce((s, l) => s + l.sheets * l.lengthM, 0);
+  const printSheetsTotal = flatLines.reduce((s, l) => s + l.sheets, 0);
+  const printMetresTotal = flatLines.reduce((s, l) => s + l.sheets * l.lengthM, 0);
 
   const ql = selectedQuotation?.quotationLines;
   const products = ql?.products ?? [];
@@ -538,8 +535,8 @@ export default function CuttingListReportPrintView({
     cutDate,
     selectedQuotation,
     materialInfoValue,
-    sheetsToCut: printSheetsRoofClad,
-    totalMeters: printMetresRoofClad,
+    sheetsToCut: printSheetsTotal,
+    totalMeters: printMetresTotal,
     totalChunks,
   };
 
@@ -613,7 +610,7 @@ export default function CuttingListReportPrintView({
                           return <div key={type}>{block}</div>;
                         })}
                         {chunk.length === 0 ? (
-                          <p className="cl-factory-cut-empty">No roofing / cladding lines with qty and length.</p>
+                          <p className="cl-factory-cut-empty">No cutting lines with qty and length (roof, flat, or cladding).</p>
                         ) : null}
                       </div>
 
@@ -652,8 +649,8 @@ export default function CuttingListReportPrintView({
                           <div className="cl-factory-chips" aria-label="Production context">
                             {operatorName ? <span className="cl-factory-chip">{operatorName}</span> : null}
                             <span className="cl-factory-chip cl-factory-chip--accent">
-                              {printSheetsRoofClad.toLocaleString()} sheets (roof + cladding) ·{' '}
-                              {printMetresRoofClad.toLocaleString()} m
+                              {printSheetsTotal.toLocaleString()} sheets (roof + flat + cladding) ·{' '}
+                              {printMetresTotal.toLocaleString()} m
                             </span>
                           </div>
                         </div>
