@@ -1,5 +1,5 @@
 import React, { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
-import { Settings2, UserPlus } from 'lucide-react';
+import { Settings2, Trash2, UserPlus } from 'lucide-react';
 import { ModalFrame } from '../layout';
 import { apiFetch } from '../../lib/apiBase';
 import { useToast } from '../../context/ToastContext';
@@ -50,6 +50,10 @@ export default function TeamAccessPanel({ appUsers, currentUserId, onRefresh }) 
   const [permSaving, setPermSaving] = useState(false);
   const [userEditAidById, setUserEditAidById] = useState({});
   const [permModalEditApprovalId, setPermModalEditApprovalId] = useState('');
+
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleteConfirmInput, setDeleteConfirmInput] = useState('');
+  const [deleteBusy, setDeleteBusy] = useState(false);
 
   const [createOpen, setCreateOpen] = useState(false);
   const [createBusy, setCreateBusy] = useState(false);
@@ -266,6 +270,48 @@ export default function TeamAccessPanel({ appUsers, currentUserId, onRefresh }) 
 
   const isSelf = (id) => Boolean(currentUserId && id === currentUserId);
 
+  const openDeleteModal = (user) => {
+    setDeleteTarget(user);
+    setDeleteConfirmInput('');
+  };
+
+  const closeDeleteModal = () => {
+    if (deleteBusy) return;
+    setDeleteTarget(null);
+    setDeleteConfirmInput('');
+  };
+
+  const submitDeleteUser = async () => {
+    if (!deleteTarget?.id) return;
+    const expected = String(deleteTarget.username || '').trim().toLowerCase();
+    const typed = String(deleteConfirmInput || '').trim().toLowerCase();
+    if (!typed || typed !== expected) {
+      showToast('Type the username exactly to confirm deletion.', { variant: 'error' });
+      return;
+    }
+    setDeleteBusy(true);
+    try {
+      const aid = String(userEditAidById[deleteTarget.id] || '').trim();
+      const { ok, data } = await apiFetch(`/api/users/${encodeURIComponent(deleteTarget.id)}`, {
+        method: 'DELETE',
+        body: JSON.stringify({
+          confirmUsername: typed,
+          ...(aid ? { editApprovalId: aid } : {}),
+        }),
+      });
+      if (!ok || !data?.ok) {
+        showToast(data?.error || 'Could not delete user.', { variant: 'error' });
+        return;
+      }
+      showToast('User deleted.');
+      setDeleteTarget(null);
+      setDeleteConfirmInput('');
+      await refresh();
+    } finally {
+      setDeleteBusy(false);
+    }
+  };
+
   const submitCreateUser = async (e) => {
     e.preventDefault();
     const username = createForm.username.trim().toLowerCase();
@@ -325,9 +371,10 @@ export default function TeamAccessPanel({ appUsers, currentUserId, onRefresh }) 
           <Settings2 size={14} /> Team & access
         </h3>
         <p className="text-xs text-gray-500 mb-4 leading-relaxed">
-          Assign roles and status, and fine-tune permissions when needed. Changing a role clears custom permission
-          overrides and applies that role’s template. The team role is the same value stored as workspace “department”
-          for routing shortcuts.
+          Assign roles and status, and fine-tune permissions when needed. You can permanently delete a login after
+          typing their username (same safety rules as suspending privileged admins apply). Changing a role clears
+          custom permission overrides and applies that role’s template. The team role is the same value stored as
+          workspace “department” for routing shortcuts.
         </p>
 
         <div className="mb-4">
@@ -426,14 +473,30 @@ export default function TeamAccessPanel({ appUsers, currentUserId, onRefresh }) 
                         </select>
                       </td>
                       <td className="px-3 py-3 align-middle whitespace-nowrap">
-                        <button
-                          type="button"
-                          disabled={busy}
-                          onClick={() => openPermModal(user)}
-                          className="z-btn-secondary !px-3 !py-1.5 !text-[10px] gap-1"
-                        >
-                          <Settings2 size={14} /> Edit
-                        </button>
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <button
+                            type="button"
+                            disabled={busy}
+                            onClick={() => openPermModal(user)}
+                            className="z-btn-secondary !px-3 !py-1.5 !text-[10px] gap-1"
+                          >
+                            <Settings2 size={14} /> Edit
+                          </button>
+                          <button
+                            type="button"
+                            disabled={busy || isSelf(user.id)}
+                            title={
+                              isSelf(user.id)
+                                ? 'You cannot delete your own account from here.'
+                                : 'Permanently delete this login'
+                            }
+                            onClick={() => openDeleteModal(user)}
+                            className="inline-flex items-center justify-center rounded-lg border border-red-200 bg-white p-1.5 text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-40"
+                          >
+                            <Trash2 size={14} aria-hidden />
+                            <span className="sr-only">Delete user</span>
+                          </button>
+                        </div>
                       </td>
                       </tr>
                       <tr className="bg-slate-50/80">
@@ -564,6 +627,59 @@ export default function TeamAccessPanel({ appUsers, currentUserId, onRefresh }) 
             </button>
           </div>
         </form>
+      </ModalFrame>
+
+      <ModalFrame
+        isOpen={Boolean(deleteTarget)}
+        onClose={closeDeleteModal}
+        closeDisabled={deleteBusy}
+        title={deleteTarget ? `Delete user — ${deleteTarget.displayName}` : 'Delete user'}
+        description="This removes the login and ends all sessions. Type their username below to confirm. If your role requires it, paste an approved edit ID from the row above first."
+      >
+        {deleteTarget ? (
+          <div className="w-full max-w-md rounded-[28px] border border-red-100 bg-white p-6 shadow-xl space-y-4">
+            <p className="text-sm text-slate-700">
+              Username to remove:{' '}
+              <span className="font-mono font-semibold text-slate-900">{deleteTarget.username}</span>
+            </p>
+            <div>
+              <label className="z-field-label">Type username to confirm</label>
+              <input
+                className="z-input font-mono"
+                value={deleteConfirmInput}
+                onChange={(e) => setDeleteConfirmInput(e.target.value)}
+                autoComplete="off"
+                disabled={deleteBusy}
+                placeholder={deleteTarget.username}
+              />
+            </div>
+            <EditSecondApprovalInline
+              entityKind="user"
+              entityId={deleteTarget.id}
+              value={userEditAidById[deleteTarget.id] || ''}
+              onChange={(v) => setUserEditAidById((prev) => ({ ...prev, [deleteTarget.id]: v }))}
+              className="!p-2"
+            />
+            <div className="flex flex-wrap gap-2 justify-end pt-1">
+              <button
+                type="button"
+                className="z-btn-secondary !text-[11px]"
+                disabled={deleteBusy}
+                onClick={closeDeleteModal}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="rounded-xl border border-red-300 bg-red-600 px-4 py-2 text-[11px] font-bold text-white hover:bg-red-700 disabled:opacity-50"
+                disabled={deleteBusy}
+                onClick={() => void submitDeleteUser()}
+              >
+                {deleteBusy ? 'Deleting…' : 'Delete user'}
+              </button>
+            </div>
+          </div>
+        ) : null}
       </ModalFrame>
 
       <ModalFrame
