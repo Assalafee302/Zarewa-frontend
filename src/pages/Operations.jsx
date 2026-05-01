@@ -439,10 +439,10 @@ function CoilReceiptSortTh({ label, sortKey: columnKey, sort, onToggle, classNam
     <button
       type="button"
       onClick={() => onToggle(columnKey)}
-      className={`inline-flex min-w-0 max-w-full items-center gap-0.5 text-left text-[8px] font-bold uppercase tracking-wide hover:text-[#134e4a] ${active ? 'text-[#134e4a]' : 'text-slate-600'} ${className}`}
+      className={`inline-flex min-w-0 max-w-full items-center gap-0.5 text-left text-[10px] font-bold uppercase tracking-wide hover:text-[#134e4a] ${active ? 'text-[#134e4a]' : 'text-slate-600'} ${className}`}
     >
       <span className="truncate">{label}</span>
-      {Icon ? <Icon size={12} className="shrink-0 opacity-90" aria-hidden /> : null}
+      {Icon ? <Icon size={14} className="shrink-0 opacity-90" aria-hidden /> : null}
     </button>
   );
 }
@@ -1634,8 +1634,8 @@ const Operations = () => {
             <section className="z-soft-panel overflow-hidden w-full min-w-0 flex flex-col lg:col-span-2">
               <div className="h-1 bg-[#134e4a] shrink-0 opacity-80" />
               <div className="p-3 sm:p-4 flex flex-col">
-                <h3 className="text-[10px] font-bold text-slate-700 uppercase tracking-widest mb-2 flex items-center gap-2">
-                  <Scale size={14} className="text-[#134e4a]" />
+                <h3 className="text-[11px] font-bold text-slate-700 uppercase tracking-widest mb-2 flex items-center gap-2">
+                  <Scale size={16} className="text-[#134e4a]" />
                   {stockReceiveKind === 'coil'
                     ? 'Received coils — live weight'
                     : stockReceiveKind === 'stone'
@@ -1645,17 +1645,17 @@ const Operations = () => {
                 {stockReceiveKind === 'coil' ? (
                   <>
                     {coilLotsReceiptSorted.length === 0 ? (
-                    <p className="text-[10px] font-medium text-slate-400">
+                    <p className="text-[11px] font-medium text-slate-400">
                       No coils yet — confirm a receipt in the panel on the left.
                     </p>
                   ) : coilLotsReceiptFiltered.length === 0 ? (
-                    <p className="text-[10px] font-medium text-slate-400">No coils match your search.</p>
+                    <p className="text-[11px] font-medium text-slate-400">No coils match your search.</p>
                   ) : (
                     <>
                       <div className="flex flex-col gap-1.5 mb-2 shrink-0">
                         <label className="relative min-w-0 w-full">
                           <Search
-                            size={12}
+                            size={14}
                             className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
                             aria-hidden
                           />
@@ -1664,10 +1664,10 @@ const Operations = () => {
                             value={coilLiveSearch}
                             onChange={(e) => setCoilLiveSearch(e.target.value)}
                             placeholder="Search — words must all match. Filters: coil:, colour:, gauge:, material:, po:, supplier:, kg:, status: …"
-                            className="w-full rounded-lg border border-slate-200 bg-white py-1.5 pl-8 pr-2 text-[10px] font-medium text-slate-800 placeholder:text-slate-400"
+                            className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-9 pr-2.5 text-xs font-medium text-slate-800 placeholder:text-slate-400"
                           />
                         </label>
-                        <p className="text-[8px] text-slate-500 leading-snug pl-0.5">
+                        <p className="text-[10px] text-slate-500 leading-snug pl-0.5">
                           Example:{' '}
                           <span className="font-mono text-slate-600">bush green 0.20</span> or{' '}
                           <span className="font-mono text-slate-600">colour:bg gauge:0.2</span> — tap column titles to
@@ -1675,15 +1675,15 @@ const Operations = () => {
                         </p>
                       </div>
                       {coilsReceiptTruncated ? (
-                        <p className="text-[9px] text-slate-500 mb-1.5">
+                        <p className="text-[10px] text-slate-500 mb-1.5">
                           Showing {STOCK_SIDE_LIST_LIMIT} of {coilLotsReceiptFiltered.length}. Search or sort to find
                           older coils.
                         </p>
                       ) : null}
                       <div className="-mx-0.5 overflow-x-auto rounded-lg border border-slate-200/80 bg-white/40 sm:mx-0">
-                        <div className="min-w-[32rem] flex flex-col max-h-[min(26rem,52vh)]">
+                        <div className="min-w-[34rem] flex flex-col max-h-[min(26rem,52vh)]">
                           <div
-                            className="grid grid-cols-[4.25rem_minmax(0,1fr)_minmax(0,0.8fr)_minmax(0,3.25rem)_minmax(0,1fr)_3.25rem_1.75rem] gap-x-1.5 px-2 py-1.5 border-b border-slate-200/80 bg-slate-100/95 shrink-0 items-end"
+                            className="grid grid-cols-[4.75rem_minmax(0,1fr)_minmax(0,0.8fr)_minmax(0,3.5rem)_minmax(0,1fr)_3.5rem_2rem] gap-x-1.5 px-2 py-2 border-b border-slate-200/80 bg-slate-100/95 shrink-0 items-end"
                             role="row"
                           >
                             <CoilReceiptSortTh
@@ -1744,26 +1744,26 @@ const Operations = () => {
                                     type="button"
                                     title={rowTitle || undefined}
                                     onClick={() => navigate(`/operations/coils/${encodeURIComponent(c.coilNo)}`)}
-                                    className="grid grid-cols-[4.25rem_minmax(0,1fr)_minmax(0,0.8fr)_minmax(0,3.25rem)_minmax(0,1fr)_3.25rem_1.75rem] gap-x-1.5 w-full text-left px-2 py-1.5 hover:bg-white/85 transition-colors group items-center"
+                                    className="grid grid-cols-[4.75rem_minmax(0,1fr)_minmax(0,0.8fr)_minmax(0,3.5rem)_minmax(0,1fr)_3.5rem_2rem] gap-x-1.5 w-full text-left px-2 py-2 hover:bg-white/85 transition-colors group items-center"
                                   >
-                                    <span className="text-[9px] text-slate-600 tabular-nums">{rcvd}</span>
-                                    <span className="text-[10px] font-bold text-[#134e4a] truncate font-mono">
+                                    <span className="text-[10px] text-slate-600 tabular-nums">{rcvd}</span>
+                                    <span className="text-[11px] font-bold text-[#134e4a] truncate font-mono">
                                       {c.coilNo}
                                     </span>
-                                    <span className="text-[9px] text-slate-800 truncate" title={String(c.colour || '')}>
+                                    <span className="text-[10px] text-slate-800 truncate" title={String(c.colour || '')}>
                                       {c.colour || '—'}
                                     </span>
-                                    <span className="text-[9px] text-slate-800 truncate tabular-nums">
+                                    <span className="text-[10px] text-slate-800 truncate tabular-nums">
                                       {c.gaugeLabel || '—'}
                                     </span>
-                                    <span className="text-[9px] text-slate-700 truncate" title={material}>
+                                    <span className="text-[10px] text-slate-700 truncate" title={material}>
                                       {material}
                                     </span>
-                                    <span className="text-[10px] font-bold text-[#134e4a] tabular-nums text-right">
+                                    <span className="text-[11px] font-bold text-[#134e4a] tabular-nums text-right">
                                       {live.toLocaleString(undefined, { maximumFractionDigits: 2 })}
                                     </span>
                                     <span className="flex justify-center text-slate-400 group-hover:text-[#134e4a]">
-                                      <ChevronRight size={14} aria-hidden />
+                                      <ChevronRight size={16} aria-hidden />
                                     </span>
                                   </button>
                                 </li>
@@ -1776,18 +1776,18 @@ const Operations = () => {
                   )}
                   </>
                 ) : skuProductsLiveSorted.length === 0 ? (
-                  <p className="text-[10px] font-medium text-slate-400">
+                  <p className="text-[11px] font-medium text-slate-400">
                     No {stockReceiveKind === 'stone' ? 'stone-coated' : 'accessory'} SKUs in catalog yet — create a PO
                     or receipt in Procurement.
                   </p>
                 ) : skuProductsReceiptFiltered.length === 0 ? (
-                  <p className="text-[10px] font-medium text-slate-400">No rows match your search.</p>
+                  <p className="text-[11px] font-medium text-slate-400">No rows match your search.</p>
                 ) : (
                   <>
                     <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-end gap-2 mb-2 shrink-0">
                       <label className="relative min-w-0 w-full flex-1 sm:min-w-[140px]">
                         <Search
-                          size={12}
+                          size={14}
                           className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
                           aria-hidden
                         />
@@ -1796,12 +1796,12 @@ const Operations = () => {
                           value={coilLiveSearch}
                           onChange={(e) => setCoilLiveSearch(e.target.value)}
                           placeholder="Search SKU or name…"
-                          className="w-full rounded-lg border border-slate-200 bg-white py-1.5 pl-8 pr-2 text-[10px] font-medium text-slate-800 placeholder:text-slate-400"
+                          className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-9 pr-2.5 text-xs font-medium text-slate-800 placeholder:text-slate-400"
                         />
                       </label>
                     </div>
                     {skuReceiptTruncated ? (
-                      <p className="text-[9px] text-slate-500 mb-1.5">
+                      <p className="text-[10px] text-slate-500 mb-1.5">
                         Showing {STOCK_SIDE_LIST_LIMIT} of {skuProductsReceiptFiltered.length}. Search for more SKUs.
                       </p>
                     ) : null}
@@ -1832,12 +1832,12 @@ const Operations = () => {
                                     <span className="font-mono">{p.productID}</span>
                                     <span className="font-medium text-slate-600"> · {p.name || '—'}</span>
                                   </p>
-                                  <span className="text-[10px] font-black text-[#134e4a] tabular-nums shrink-0">
+                                  <span className="text-[11px] font-black text-[#134e4a] tabular-nums shrink-0">
                                     {live.toLocaleString()} {u}
                                   </span>
                                 </div>
                                 <p
-                                  className="text-[8px] text-slate-500 mt-0.5 leading-snug line-clamp-2"
+                                  className="text-[10px] text-slate-500 mt-0.5 leading-snug line-clamp-2"
                                   title={meta2}
                                 >
                                   {meta2} · tap for movements
