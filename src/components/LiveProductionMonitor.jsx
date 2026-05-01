@@ -463,11 +463,6 @@ export function LiveProductionMonitor({
     [draftAllocations, isStoneMeterQuote, selectedJob?.status]
   );
 
-  const runningCheckpointSaveReady = useMemo(
-    () => appendSaveReady || runLogSaveReady,
-    [appendSaveReady, runLogSaveReady]
-  );
-
   const conversionPreviewTimerRef = useRef(null);
   const conversionPreviewSeqRef = useRef(0);
   const [conversionPreview, setConversionPreview] = useState(null);
@@ -731,6 +726,10 @@ export function LiveProductionMonitor({
       ),
     [draftAllocations]
   );
+  const runningCheckpointSaveReady = useMemo(
+    () => appendSaveReady || runLogSaveReady,
+    [appendSaveReady, runLogSaveReady]
+  );
   const plannedAllocSaveReady = useMemo(
     () =>
       isStoneMeterQuote ||
@@ -793,10 +792,10 @@ export function LiveProductionMonitor({
     if (selectedJob?.status === 'Running') {
       if (isStoneMeterQuote) return 'Enter metres consumed, then Complete';
       if (!completionValidation.canComplete) {
-        return completionValidation.errors[0] || 'Complete run log on each line';
+        return `${completionValidation.errors[0] || 'Finish each coil row'} · Save keeps kg/m on the server`;
       }
       if (requiresManagerOverrunApproval) return 'Over plan — manager note required to Complete';
-      return 'Review conversion preview, then Complete';
+      return 'Conversion preview is live per coil · Save if you step away · Complete when all rows valid';
     }
     return null;
   }, [
@@ -1060,6 +1059,83 @@ export function LiveProductionMonitor({
     let body = {};
     const alsoStartAfterAlloc = type === 'allocationsAndStart';
 
+    if (type === 'runningCheckpoint') {
+      if (!runningCheckpointSaveReady) {
+        setSavingAction('');
+        showToast('Nothing to save — add a new coil line or edit a saved coil first.', { variant: 'info' });
+        return;
+      }
+      try {
+        if (appendSaveReady && !isStoneMeterQuote && selectedJob.status === 'Running') {
+          const pathAlloc = `${jobApi}/allocations`;
+          const buildRunAppend = (withAck) => {
+            const toAppend = draftAllocations.filter(
+              (row) => isDraftAllocationRow(row) && row.coilNo?.trim() && Number(row.openingWeightKg) > 0
+            );
+            if (!toAppend.length) return null;
+            return {
+              append: true,
+              allocations: toAppend.map((row) => ({
+                coilNo: row.coilNo.trim(),
+                openingWeightKg: Number(row.openingWeightKg),
+                note: row.note.trim(),
+                ...(withAck ? { specMismatchAcknowledged: true } : {}),
+              })),
+            };
+          };
+          const firstAppend = buildRunAppend(false);
+          if (firstAppend) {
+            let resA = await apiFetch(pathAlloc, { method: 'POST', body: JSON.stringify(firstAppend) });
+            if (!resA.ok && resA.data?.code === 'PRODUCTION_SPEC_MISMATCH') {
+              const detail = (resA.data.mismatches || [])
+                .map((m) => `${m.coilNo}: ${m.detail}`)
+                .join('\n');
+              const go = window.confirm(
+                `These coils do not match the quotation material specification (gauge / colour / material):\n\n${detail}\n\nSave anyway and flag the branch manager for review?`
+              );
+              if (go) {
+                const second = buildRunAppend(true);
+                if (second) resA = await apiFetch(pathAlloc, { method: 'POST', body: JSON.stringify(second) });
+              }
+            }
+            if (!resA.ok || !resA.data?.ok) {
+              setSavingAction('');
+              showToast(resA.data?.error || 'Could not save new coil.', { variant: 'error' });
+              return;
+            }
+            await ws.refresh();
+          }
+        }
+        if (runLogSaveReady && !isStoneMeterQuote) {
+          const readings = draftAllocations
+            .filter((r) => !isDraftAllocationRow(r))
+            .map((row) => ({
+              allocationId: row.id,
+              closingWeightKg: Number(String(row.closingWeightKg).replace(/,/g, '')) || 0,
+              metersProduced: Number(String(row.metersProduced).replace(/,/g, '')) || 0,
+              note: String(row.note ?? '').trim(),
+            }));
+          const resRl = await apiFetch(`${jobApi}/coil-run-log`, {
+            method: 'POST',
+            body: JSON.stringify({ readings }),
+          });
+          if (!resRl.ok || !resRl.data?.ok) {
+            setSavingAction('');
+            showToast(resRl.data?.error || 'Could not save run log.', { variant: 'error' });
+            await ws.refresh();
+            return;
+          }
+        }
+        await ws.refresh();
+        setSavingAction('');
+        showToast('Saved.');
+      } catch (e) {
+        setSavingAction('');
+        showToast(e?.message || 'Save failed.', { variant: 'error' });
+      }
+      return;
+    }
+
     if (type === 'allocations' || type === 'allocationsAndStart') {
       path = `${jobApi}/allocations`;
       if (isStoneMeterQuote && selectedJob.status === 'Planned') {
@@ -1300,7 +1376,7 @@ export function LiveProductionMonitor({
     <div
       className={`${
         inModal ? 'mb-0 min-w-0 max-w-full' : 'mb-6'
-      } rounded-xl border border-slate-200/80 bg-slate-50/50 overflow-hidden shadow-sm`}
+      } rounded-2xl border border-slate-200/90 bg-gradient-to-b from-slate-50/90 to-white overflow-hidden shadow-md ring-1 ring-slate-900/[0.04]`}
     >
       {/* Header: title, workflow stepper, actions */}
       <div
@@ -1334,6 +1410,13 @@ export function LiveProductionMonitor({
                     Live
                   </span>
                 )}
+                <span
+                  className="inline-flex items-center gap-0.5 rounded-full border border-slate-200/90 bg-white px-1.5 py-px text-[8px] font-semibold uppercase tracking-wide text-slate-600"
+                  title="Layout works on a phone: scroll the queue, tap a job, enter one coil at a time, tap Save before Complete."
+                >
+                  <Smartphone size={10} className="shrink-0 text-slate-500" aria-hidden />
+                  Phone OK
+                </span>
                 <details className="relative shrink-0">
                   <summary
                     className="list-none cursor-pointer rounded-full p-1 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#134e4a]/25 [&::-webkit-details-marker]:hidden"
@@ -1358,8 +1441,8 @@ export function LiveProductionMonitor({
                       <strong className="font-semibold">Save &amp; start</strong> — the server stores the plan and moves
                       the job to <strong className="font-semibold">Running</strong> in one step (each save replaces the
                       whole allocation set). After the job is running, use <strong className="font-semibold">Return to plan</strong>{' '}
-                      (reason) to edit primary coils, or <strong className="font-semibold">Save extra coil</strong> to add
-                      another roll mid-run. Completed run logs are locked; wrong metres on the FG SKU use{' '}
+                      (reason) to edit primary coils, or <strong className="font-semibold">Save</strong> to add another roll
+                      or persist closing kg / metres between visits. Completed run logs are locked; wrong metres on the FG SKU use{' '}
                       <strong className="font-semibold">Post stock correction</strong> (manager). High conversion: review
                       checks, then <strong className="font-semibold">Record manager sign-off</strong> — that does not
                       rewrite coil readings; contact support for rare posted-coil corrections.
@@ -1460,19 +1543,20 @@ export function LiveProductionMonitor({
                     {savingAction === 'allocationsAndStart' ? 'Saving & starting…' : 'Save & start'}
                   </button>
                 ) : null}
-                {selectedJob.status === 'Running' ? (
+                {selectedJob.status === 'Running' && !isStoneMeterQuote ? (
                   <button
                     type="button"
-                    onClick={() => void persist('allocations')}
-                    disabled={savingAction !== '' || !canAddSupplementalCoil || !appendSaveReady}
+                    onClick={() => void persist('runningCheckpoint')}
+                    disabled={savingAction !== '' || !canCaptureRun || !runningCheckpointSaveReady}
+                    title="Save new coil lines and/or closing kg, metres, and notes (safe on phone — refresh without losing draft)."
                     className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-semibold transition-colors disabled:opacity-45 ${
-                      savingAction === 'allocations'
+                      savingAction === 'runningCheckpoint'
                         ? 'bg-slate-100 text-slate-500'
-                        : 'bg-slate-100 text-slate-800 hover:bg-slate-200'
+                        : 'bg-slate-800 text-white hover:bg-slate-900'
                     }`}
                   >
                     <Save size={15} />
-                    {savingAction === 'allocations' ? 'Saving…' : 'Save extra coil'}
+                    {savingAction === 'runningCheckpoint' ? 'Saving…' : 'Save'}
                   </button>
                 ) : null}
                 <button
@@ -2235,16 +2319,35 @@ export function LiveProductionMonitor({
                   <p className="text-[10px] font-semibold uppercase tracking-widest text-[#134e4a]">
                     {isStoneMeterQuote ? 'Stone-coated run' : 'Coils &amp; run log'}
                   </p>
-                  <p className="mt-px max-w-prose text-[10px] leading-tight text-slate-600 line-clamp-2">
-                    {isStoneMeterQuote
-                      ? 'Save & start → enter metres consumed from stone stock → Complete.'
-                      : canEditPlannedAllocations
-                        ? 'Coil + opening kg → Save & start; then closing kg & metres. Planned: remove row or change coil and Save & start again to swap.'
-                        : canAddSupplementalCoil
-                          ? 'Extra coil: new rows only until saved.'
-                          : canCaptureRun
-                            ? `Closing & metres each row → Complete. If closing is under ${COIL_TAIL_FINISH_MAX_KG} kg, tick Finish roll to clear the tail from stock.`
-                            : 'Closed — read-only.'}
+                  <p className="mt-px flex flex-wrap items-center gap-1 text-[10px] leading-tight text-slate-600">
+                    <span className="line-clamp-2">
+                      {isStoneMeterQuote
+                        ? 'Metres only → Save & start → Complete.'
+                        : canEditPlannedAllocations
+                          ? 'Pick coil + opening kg → Save & start.'
+                          : canAddSupplementalCoil
+                            ? 'Next roll: Add coil, then Save.'
+                            : canCaptureRun
+                              ? 'Closing kg + metres per row → Save anytime → Complete.'
+                              : 'Closed.'}
+                    </span>
+                    <details className="relative shrink-0">
+                      <summary
+                        className="list-none cursor-pointer rounded-full p-0.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 [&::-webkit-details-marker]:hidden"
+                        aria-label="Coil run log details"
+                      >
+                        <CircleHelp className="size-3.5" strokeWidth={2} aria-hidden />
+                      </summary>
+                      <div className="absolute right-0 top-full z-20 mt-1 w-[min(calc(100vw-1.5rem),18rem)] rounded-lg border border-slate-200 bg-white p-2 text-[9px] leading-snug text-slate-700 shadow-lg">
+                        {!isStoneMeterQuote && canEditPlannedAllocations
+                          ? 'While Planned you can change the whole set and Save & start again. After start, use Return to plan to swap primary coils (audit reason).'
+                          : !isStoneMeterQuote && canAddSupplementalCoil
+                            ? 'Running: only new blank rows attach as extra coils when you Save. Finished rolls stay on the list for the full job.'
+                            : !isStoneMeterQuote && canCaptureRun
+                              ? `If closing is under ${COIL_TAIL_FINISH_MAX_KG} kg, tick Roll finished before Complete (or raise closing if steel remains). Conversion preview updates coil-by-coil.`
+                              : 'Read-only record.'}
+                      </div>
+                    </details>
                   </p>
                 </div>
               </div>
@@ -2321,9 +2424,9 @@ export function LiveProductionMonitor({
                 return (
                   <div
                     key={row.id}
-                    className={`rounded-lg border border-slate-200/80 bg-gradient-to-b from-white to-slate-50/30 ${
+                    className={`rounded-xl border border-slate-200/90 bg-gradient-to-b from-white to-slate-50/40 shadow-sm ${
                       inModal ? 'p-1.5' : 'p-2'
-                    }`}
+                    } ${draftRowConversionPreviewReady(row) ? 'ring-1 ring-teal-400/35' : ''}`}
                   >
                     <div
                       className={`min-w-0 flex flex-col gap-2 pb-1 lg:grid lg:items-end lg:gap-x-2 lg:overflow-visible lg:pb-0 ${
@@ -2495,20 +2598,25 @@ export function LiveProductionMonitor({
                     Number(row.closingWeightKg) >= 0 &&
                     Number(row.closingWeightKg) < COIL_TAIL_FINISH_MAX_KG &&
                     Number(row.closingWeightKg) <= Number(row.openingWeightKg) ? (
-                      <label className="mt-2 flex cursor-pointer items-start gap-2.5 rounded-md border border-amber-200/90 bg-amber-50/80 px-2.5 py-2.5 text-[11px] font-medium leading-snug text-amber-950 shadow-sm">
+                      <label className="mt-2 flex cursor-pointer items-center gap-2 rounded-md border border-amber-200/90 bg-amber-50/80 px-2 py-2 text-[11px] font-medium text-amber-950">
                         <input
                           type="checkbox"
                           checked={Boolean(row.finishCoil)}
                           onChange={(e) => updateDraftRow(row.id, { finishCoil: e.target.checked })}
-                          className="mt-0.5 h-[1.125rem] w-[1.125rem] shrink-0 rounded border-amber-400 text-[#134e4a] focus:ring-2 focus:ring-[#134e4a]/30"
+                          className="h-[1.125rem] w-[1.125rem] shrink-0 rounded border-amber-400 text-[#134e4a] focus:ring-2 focus:ring-[#134e4a]/30"
                         />
-                        <span>
-                          <strong className="font-semibold text-amber-950">Roll finished</strong> — closing is under{' '}
-                          {COIL_TAIL_FINISH_MAX_KG} kg (core/spool / tail). Tick to remove the remaining tail from this
-                          coil&apos;s stock when you hit <strong className="font-semibold">Complete</strong>. Required
-                          before completion; leave unticked only if you increase closing kg because usable material is
-                          still on the roll.
+                        <span className="min-w-0 flex-1 leading-snug">
+                          <strong className="font-semibold">Roll finished</strong>
+                          <span className="text-amber-900/90"> (tail under {COIL_TAIL_FINISH_MAX_KG} kg)</span>
                         </span>
+                        <button
+                          type="button"
+                          className="shrink-0 rounded-full p-1 text-amber-800/80 hover:bg-amber-100"
+                          title="Required before Complete when closing is below the tail threshold: confirms the remaining weight is scrapped/core so stock can clear. If usable steel is still on the roll, increase closing kg instead."
+                          aria-label="About roll finished"
+                        >
+                          <CircleHelp className="size-4" strokeWidth={2} />
+                        </button>
                       </label>
                     ) : null}
 
@@ -2546,10 +2654,16 @@ export function LiveProductionMonitor({
                   <BarChart3 size={15} className="text-indigo-600 shrink-0" />
                   <div className="min-w-0">
                     <p className="text-xs font-bold text-slate-900">Conversion preview</p>
-                    <p className="text-[10px] text-slate-600 leading-tight">
-                      Same as submit; nothing posts until Complete.
-                    </p>
+                    <p className="text-[10px] text-slate-500">Live estimate — nothing posts until Complete.</p>
                   </div>
+                  <button
+                    type="button"
+                    className="ml-auto shrink-0 rounded-full p-1 text-slate-400 hover:bg-white hover:text-slate-700"
+                    title="Uses the same rules as completion: four-reference kg/m and alert bands. While several coils are open, only rows with closing kg and metres filled appear here; the rest join when you finish each roll."
+                    aria-label="About conversion preview"
+                  >
+                    <CircleHelp className="size-4" />
+                  </button>
                 </div>
                 {conversionPreviewLoading ? (
                   <span className="text-[11px] font-medium text-indigo-600">Updating…</span>
@@ -2573,6 +2687,14 @@ export function LiveProductionMonitor({
                         Job rollup: {formatMeters(conversionPreview.totalMeters)} ·{' '}
                         {formatKg(conversionPreview.totalWeightKg)} consumed
                       </span>
+                      {conversionPreview.previewCoilsTotal != null &&
+                      conversionPreview.previewCoilCount != null &&
+                      conversionPreview.previewCoilCount < conversionPreview.previewCoilsTotal ? (
+                        <span className="rounded-full bg-sky-100 px-2 py-0.5 text-[9px] font-semibold text-sky-950">
+                          Showing {conversionPreview.previewCoilCount} of {conversionPreview.previewCoilsTotal} coil(s)
+                          — add closing & metres on other rows when each roll finishes
+                        </span>
+                      ) : null}
                       <span
                         className={`rounded-full px-2 py-0.5 text-[9px] font-black uppercase tracking-wide ${
                           conversionPreview.aggregatedAlertState === 'OK'
