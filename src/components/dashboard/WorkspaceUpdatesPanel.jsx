@@ -14,7 +14,8 @@ export function WorkspaceUpdatesPanel({ officeSummary, canOffice }) {
               New updates
             </h2>
             <p className="mt-2 max-w-xl text-[11px] text-slate-500">
-              Live feed and alerts will appear here. For now, use Office Desk for memos and routing.
+              Operational highlights and system notices from your live workspace. Use Office Desk for memos and formal
+              routing.
             </p>
             {canOffice && officeSummary ? (
               <p className="mt-2 text-[11px] text-slate-600">
@@ -28,8 +29,10 @@ export function WorkspaceUpdatesPanel({ officeSummary, canOffice }) {
         </div>
 
         <div className="space-y-3 rounded-xl border border-dashed border-slate-200 bg-slate-50/60 px-4 py-8 text-center">
-          <p className="text-sm font-semibold text-slate-600">No feed items yet</p>
-          <p className="text-xs text-slate-500">KPI-driven highlights and system notices will land in this column.</p>
+          <p className="text-sm font-semibold text-slate-600">No highlights yet</p>
+          <p className="text-xs text-slate-500">
+            When your workspace generates them, KPI alerts and notices show here from live data — not demo samples.
+          </p>
         </div>
       </div>
     </section>
