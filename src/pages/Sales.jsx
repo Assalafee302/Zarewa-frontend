@@ -90,6 +90,12 @@ import {
   isCoilLotUnavailableForPlanning,
   roughMetersFromKg,
 } from '../lib/salesStockCore';
+import {
+  stockCheckSelectOptionsFromCoilRows,
+  stockCheckSelectOptionsFromMasterData,
+  stockRowMatchesColourFilter,
+  stockRowMatchesMaterialTypeFilter,
+} from '../lib/stockCheckMasterOptions';
 
 const TAB_LABELS = {
   quotations: 'Quotations',
@@ -235,13 +241,14 @@ const Sales = () => {
         const attrs = p?.dashboardAttrs;
         const gaugeLabel = String(lot.gaugeLabel || '').trim() || attrs?.gauge || '—';
         const gNum = firstGaugeNumeric(gaugeLabel);
-        const colourRaw = String(lot.colour || '').trim() || attrs?.colour;
+        const colourRaw = String(lot.colour || '').trim() || String(attrs?.colour || '').trim();
         const materialType =
           String(lot.materialTypeName || '').trim() || attrs?.materialType || p?.name || lot.productID;
         const estM = roughMetersFromKg(kgNum, gNum);
         pushRow({
           id: lot.coilNo,
           colour: colourShort(colourRaw),
+          colourRaw,
           gaugeLabel,
           materialType,
           kg: kgNum,
@@ -259,7 +266,8 @@ const Sales = () => {
           const gaugeLabel = attrs?.gauge ?? '—';
           const gNum = firstGaugeNumeric(attrs?.gauge);
           const kgTotal = Number(p.stockLevel);
-          const tokens = String(attrs?.colour ?? '')
+          const colourRawAll = String(attrs?.colour ?? '').trim();
+          const tokens = colourRawAll
             .split(/[·,]/)
             .map((t) => t.trim())
             .filter(Boolean);
@@ -269,6 +277,7 @@ const Sales = () => {
             pushRow({
               id: p.productID,
               colour: colourShort(attrs?.colour),
+              colourRaw: colourRawAll,
               gaugeLabel,
               materialType: attrs?.materialType ?? p.name,
               kg: kgTotal,
@@ -286,6 +295,7 @@ const Sales = () => {
             pushRow({
               id: `${p.productID}-${i + 1}`,
               colour: colourShort(tok),
+              colourRaw: tok,
               gaugeLabel,
               materialType: attrs?.materialType ?? p.name,
               kg: share,
@@ -302,9 +312,11 @@ const Sales = () => {
       if (seenIds.has(y.id)) return;
       const gNum = firstGaugeNumeric(y.gaugeLabel);
       const estM = roughMetersFromKg(y.weightKg, gNum);
+      const yColour = String(y.colour || '').trim();
       pushRow({
         id: y.id,
         colour: y.colour,
+        colourRaw: yColour,
         gaugeLabel: y.gaugeLabel,
         materialType: y.materialType,
         kg: y.weightKg,
@@ -348,39 +360,34 @@ const Sales = () => {
   const [stockColourFilter, setStockColourFilter] = useState('');
 
   const stockSearchOptions = useMemo(() => {
-    const types = [...new Set(coilInventoryRows.map((r) => r.materialType))].sort((a, b) =>
-      a.localeCompare(b)
-    );
-    const gauges = [...new Set(coilInventoryRows.map((r) => String(r.gaugeLabel)))].sort((a, b) => {
-      const na = parseFloat(String(a).replace(/[^\d.]/g, '')) || 0;
-      const nb = parseFloat(String(b).replace(/[^\d.]/g, '')) || 0;
-      if (na !== nb) return na - nb;
-      return String(a).localeCompare(String(b));
-    });
-    const colours = [
-      ...new Set(
-        coilInventoryRows.map((r) => String(r.colour).trim()).filter((c) => c && c !== '—')
-      ),
-    ].sort((a, b) => a.localeCompare(b));
-    return { types, gauges, colours };
-  }, [coilInventoryRows]);
+    const fromMaster = stockCheckSelectOptionsFromMasterData(ws?.snapshot?.masterData);
+    const fromCoil = stockCheckSelectOptionsFromCoilRows(coilInventoryRows);
+    return {
+      types: fromMaster.types.length ? fromMaster.types : fromCoil.types,
+      gauges: fromMaster.gauges.length ? fromMaster.gauges : fromCoil.gauges,
+      colours: fromMaster.colours.length ? fromMaster.colours : fromCoil.colours,
+    };
+  }, [ws?.snapshot?.masterData, coilInventoryRows]);
 
   const stockSearchActive = Boolean(stockMatType || stockGaugeFilter || stockColourFilter);
 
   const stockSearchMatches = useMemo(() => {
     if (!stockSearchActive) return [];
+    const md = ws?.snapshot?.masterData;
     return coilInventoryRows.filter((r) => {
-      if (stockMatType && r.materialType !== stockMatType) return false;
-      if (stockGaugeFilter && String(r.gaugeLabel) !== stockGaugeFilter) return false;
-      if (
-        stockColourFilter &&
-        String(r.colour).trim().toLowerCase() !== stockColourFilter.trim().toLowerCase()
-      ) {
-        return false;
-      }
+      if (!stockRowMatchesMaterialTypeFilter(md, stockMatType, r.materialType)) return false;
+      if (stockGaugeFilter && String(r.gaugeLabel).trim() !== String(stockGaugeFilter).trim()) return false;
+      if (!stockRowMatchesColourFilter(md, stockColourFilter, r)) return false;
       return true;
     });
-  }, [coilInventoryRows, stockMatType, stockGaugeFilter, stockColourFilter, stockSearchActive]);
+  }, [
+    coilInventoryRows,
+    stockMatType,
+    stockGaugeFilter,
+    stockColourFilter,
+    stockSearchActive,
+    ws?.snapshot?.masterData,
+  ]);
 
   const stockVerdict = useMemo(
     () => buildStockVerdict(stockSearchActive, stockSearchMatches),
@@ -983,6 +990,10 @@ const Sales = () => {
                       <Package size={14} className="text-[#134e4a] shrink-0" strokeWidth={2} />
                       Stock check
                     </p>
+                    <p className="text-[10px] text-slate-500 mt-1 leading-snug">
+                      Material, gauge, and colour lists follow Setup master data (same as new quotations). Any list
+                      that is still empty in Setup falls back to values seen on current coil and yard lines.
+                    </p>
                   </div>
                   <div className="p-4 space-y-3">
                     <div className="space-y-2">
@@ -994,7 +1005,11 @@ const Sales = () => {
                            className="w-full appearance-none rounded-lg border border-slate-200 bg-slate-50 py-2 pl-3 pr-8 text-xs font-semibold text-[#134e4a] focus:ring-2 focus:ring-[#134e4a]/10 focus:border-[#134e4a]/30 outline-none"
                          >
                            <option value="">Any type</option>
-                           {stockSearchOptions.types.map(t => <option key={t} value={t}>{t}</option>)}
+                           {stockSearchOptions.types.map((t) => (
+                             <option key={t.value} value={t.value}>
+                               {t.label}
+                             </option>
+                           ))}
                          </select>
                          <ChevronDown size={14} className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
                        </div>
@@ -1009,7 +1024,11 @@ const Sales = () => {
                             className="w-full appearance-none rounded-lg border border-slate-200 bg-slate-50 py-2 pl-3 pr-8 text-xs font-semibold text-[#134e4a] outline-none"
                           >
                             <option value="">Any</option>
-                            {stockSearchOptions.gauges.map(g => <option key={g} value={g}>{g}</option>)}
+                            {stockSearchOptions.gauges.map((g) => (
+                              <option key={g.value} value={g.value}>
+                                {g.label}
+                              </option>
+                            ))}
                           </select>
                           <ChevronDown size={14} className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
                         </div>
@@ -1023,7 +1042,11 @@ const Sales = () => {
                             className="w-full appearance-none rounded-lg border border-slate-200 bg-slate-50 py-2 pl-3 pr-8 text-xs font-semibold text-[#134e4a] outline-none"
                           >
                             <option value="">Any</option>
-                            {stockSearchOptions.colours.map(c => <option key={c} value={c}>{c}</option>)}
+                            {stockSearchOptions.colours.map((c) => (
+                              <option key={c.value} value={c.value}>
+                                {c.label}
+                              </option>
+                            ))}
                           </select>
                           <ChevronDown size={14} className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
                         </div>
