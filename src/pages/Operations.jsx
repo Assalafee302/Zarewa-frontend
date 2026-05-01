@@ -1422,9 +1422,15 @@ const Operations = () => {
                 {stockReceiveKind === 'coil' ? (
                   <>
                     {coilLotsReceiptSorted.length === 0 ? (
-                    <p className="text-[10px] font-medium text-slate-400">
-                      No coils yet — confirm a receipt in the panel on the left.
-                    </p>
+                    <div className="space-y-1.5 text-[10px] font-medium text-slate-400">
+                      <p>No coils in received inventory yet — confirm a PO receipt on the left to create coil lots.</p>
+                      {Array.isArray(ws?.snapshot?.yardCoilRegister) && ws.snapshot.yardCoilRegister.length > 0 ? (
+                        <p className="text-slate-500">
+                          Yard register has {ws.snapshot.yardCoilRegister.length} physical row(s); they appear here as
+                          live coils only after you post a goods receipt against a purchase order.
+                        </p>
+                      ) : null}
+                    </div>
                   ) : coilLotsReceiptFiltered.length === 0 ? (
                     <p className="text-[10px] font-medium text-slate-400">No coils match your search.</p>
                   ) : (
