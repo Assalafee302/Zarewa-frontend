@@ -81,8 +81,10 @@ export default function AdminDataResetPanel() {
           </h3>
           <p className="text-xs text-slate-600 mt-1 max-w-2xl leading-relaxed">
             Permanently deletes rows in the database for the categories you tick. Users, branches, catalog
-            products, and core setup lists are not removed by these presets. Export anything you need before
-            continuing.
+            products, and core setup lists are not removed by these presets. Clearing sales/production does{' '}
+            <span className="font-semibold text-slate-700">not</span> remove coil book rows unless you also tick{' '}
+            <span className="font-semibold text-slate-700">Coil lots & coil stock</span>. Export anything you need
+            before continuing.
           </p>
         </div>
       </div>
