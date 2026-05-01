@@ -146,7 +146,7 @@ export const DELIVERIES_MOCK = [
  * @typedef {{ id: string, colour: string, gaugeLabel: string, materialType: string, weightKg: number, loc?: string | null }} SalesYardCoilRow
  */
 export const SALES_YARD_COIL_REGISTER = [
-  { id: 'COIL-1882', colour: 'HMB', gaugeLabel: '0.24', materialType: 'Aluzinc longspan', weightKg: 3279, loc: 'Bay A' },
+  { id: 'COIL-1882', colour: 'HMB', gaugeLabel: '0.24', materialType: 'Aluzinc longspan', weightKg: 3297, loc: 'Bay A' },
   { id: 'COIL-1908', colour: 'TB', gaugeLabel: '0.24', materialType: 'Aluzinc longspan', weightKg: 3428, loc: 'Bay A' },
   { id: 'COIL-1878', colour: 'GB', gaugeLabel: '0.55', materialType: 'Aluzinc longspan', weightKg: 732, loc: 'Bay B' },
   { id: 'COIL-1912', colour: 'IV', gaugeLabel: '0.20', materialType: 'Aluzinc longspan', weightKg: 2890, loc: 'Bay A' },
@@ -170,7 +170,7 @@ export const SALES_YARD_COIL_REGISTER = [
 /** Sales workspace — mirrors future API entities (quotations, receipts, etc.) */
 export const SALES_MOCK = {
   availableStock: [
-    { id: 'COIL-1882', material: 'HM Blue', gauge: '0.24', color: 'Blue', weight: '3,279kg' },
+    { id: 'COIL-1882', material: 'HM Blue', gauge: '0.24', color: 'Blue', weight: '3,297kg' },
     { id: 'COIL-1908', material: 'Traffic Black', gauge: '0.24', color: 'Black', weight: '3,428kg' },
     { id: 'COIL-1878', material: 'HM Blue', gauge: '0.55', color: 'Blue', weight: '732kg' },
   ],
