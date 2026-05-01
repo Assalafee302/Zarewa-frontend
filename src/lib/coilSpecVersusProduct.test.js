@@ -40,6 +40,21 @@ describe('coilSpecVersusProduct', () => {
     expect(ok).toBe(false);
   });
 
+  it('coilMatchesQuotationSpec matches quotation colour name to coil abbreviation via master data', () => {
+    const masterData = {
+      colours: [{ name: 'Bush Green', abbreviation: 'BG', active: true }],
+    };
+    const lot = { gaugeLabel: '0.20mm', colour: 'BG', materialTypeName: 'Aluzinc longspan' };
+    expect(
+      coilMatchesQuotationSpec(
+        lot,
+        { materialGauge: '0.20mm', materialColor: 'Bush Green', quotationLines: { products: [] } },
+        {},
+        masterData
+      )
+    ).toBe(true);
+  });
+
   it('expectedGaugeBoundsMm parses single value and en-dash ranges', () => {
     expect(expectedGaugeBoundsMm('0.24mm')).toEqual({ lo: 0.24, hi: 0.24 });
     expect(expectedGaugeBoundsMm('0.18–0.24')).toEqual({ lo: 0.18, hi: 0.24 });

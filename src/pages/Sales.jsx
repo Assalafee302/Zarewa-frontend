@@ -344,9 +344,10 @@ const Sales = () => {
       computeCuttingListMaterialReadiness(
         cuttingLists,
         quotations,
-        coilInventoryRowsForMaterialReadiness
+        coilInventoryRowsForMaterialReadiness,
+        ws?.snapshot?.masterData ?? null
       ),
-    [cuttingLists, quotations, coilInventoryRowsForMaterialReadiness]
+    [cuttingLists, quotations, coilInventoryRowsForMaterialReadiness, ws?.snapshot?.masterData]
   );
 
   const openCuttingListFromMaterialAlert = useCallback((cl) => {

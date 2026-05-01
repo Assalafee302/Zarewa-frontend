@@ -352,9 +352,11 @@ export function LiveProductionMonitor({
       })
       .sort((a, b) => String(a.coilNo || '').localeCompare(String(b.coilNo || '')));
   }, [coilLots, selectedJobAllocations]);
+  const masterDataForCoilSpec = ws?.snapshot?.masterData ?? null;
+
   const recommendedCoils = useMemo(() => {
     const filtered = availableCoils.filter((coil) =>
-      coilMatchesQuotationSpec(coil, linkedQuotation, jobProductAttrs)
+      coilMatchesQuotationSpec(coil, linkedQuotation, jobProductAttrs, masterDataForCoilSpec)
     );
     const planOk = Number.isFinite(plannedMetersValue) && plannedMetersValue > 0;
     if (!planOk) {
@@ -376,6 +378,7 @@ export function LiveProductionMonitor({
     availableCoils,
     linkedQuotation,
     jobProductAttrs,
+    masterDataForCoilSpec,
     plannedMetersValue,
     savedOpeningKgByCoil,
   ]);
@@ -2273,7 +2276,7 @@ export function LiveProductionMonitor({
                   canEditPlannedAllocations || (canAddSupplementalCoil && draftRow);
                 const specWarn =
                   lot && (linkedQuotation || jobProductAttrs)
-                    ? coilVersusQuotationAndProductWarning(lot, linkedQuotation, jobProductAttrs)
+                    ? coilVersusQuotationAndProductWarning(lot, linkedQuotation, jobProductAttrs, masterDataForCoilSpec)
                     : null;
                 const showRemove =
                   canEditPlannedAllocations ||
