@@ -71,9 +71,9 @@ function finalizeCoilImportPayload(pr, excelRow) {
 
 /** @type {Record<string, string[]>} */
 const COL_ALIASES = {
-  coilNo: ['coil no', 'coil_no', 'coil number', 'coil', 'coil id', 'tag', 'coil tag'],
+  coilNo: ['coil no', 'coil_no', 'coil number', 'coil num', 'coil_num', 'coil', 'coil id', 'tag', 'coil tag'],
   productID: ['product id', 'product_id', 'sku', 'material sku', 'material id'],
-  colour: ['colour', 'color'],
+  colour: ['colour', 'color', 'colour code', 'color code', 'colour_code', 'color_code'],
   gauge: ['gauge', 'gauge mm', 'thickness'],
   currentKg: [
     'current kg',
@@ -173,10 +173,13 @@ function looksLikeBrokenHeaderKeys(keys) {
       k === 'current kg' ||
       k === 'kg' ||
       k === 'material' ||
+      k === 'gauge' ||
+      k === 'colour code' ||
       k.includes('coil no') ||
       k.includes('product id') ||
       k.includes('current kg') ||
-      k.includes('material')
+      k.includes('material') ||
+      k.includes('colour code')
   );
   if (hasRealHeader) return false;
   const numericKeyCount = keys.filter((k) => /^\d+([.,]\d+)?$/.test(String(k).trim())).length;
@@ -540,9 +543,10 @@ export function parseCoilImportWorkbookArrayBuffer(ab) {
 
 export function downloadCoilImportTemplate() {
   const aoa = [
-    ['Material', 'Kg', 'Colour', 'Gauge', 'Coil no (optional)'],
-    ['Aluminium', '1250', 'Traffic white', '0.45', ''],
-    ['Aluzinc (PPGI)', '980', 'Traffic black', '0.24', 'CL-26-0001'],
+    ['Gauge', 'Colour code', 'Material type', 'Coil no', 'Kg', 'Received date (optional, YYYY-MM-DD)'],
+    ['0.45', 'IV', 'Aluminium', 'CL-KD-APR-0001', '3200', '2026-04-30'],
+    ['0.24', 'TB', 'Aluminium', 'CL-KD-APR-0002', '2800', '2026-04-30'],
+    ['0.22', 'HMB', 'Aluzinc', 'CL-KD-APR-0003', '1500', '2026-04-30'],
   ];
   const ws = XLSX.utils.aoa_to_sheet(aoa);
   const wb = XLSX.utils.book_new();
