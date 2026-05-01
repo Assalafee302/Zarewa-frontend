@@ -11,6 +11,8 @@ import {
   X,
   Award,
   ChevronRight,
+  ChevronDown,
+  ChevronUp,
   Scale,
   Search,
   Disc3,
@@ -216,6 +218,7 @@ function maxClSequenceForYear(coilLots, yy2, extraCoilNos = []) {
 }
 
 function coilReceiptSearchBlob(c) {
+  const live = liveCoilWeightKg(c);
   return [
     c.coilNo,
     c.colour,
@@ -225,10 +228,223 @@ function coilReceiptSearchBlob(c) {
     c.poID,
     c.supplierName,
     c.location,
+    c.currentStatus,
+    c.parentCoilNo,
+    c.materialOriginNote,
+    c.supplierID,
+    Number.isFinite(live) ? String(live) : '',
+    Number.isFinite(live) ? live.toFixed(2) : '',
+    Number.isFinite(live) ? live.toFixed(0) : '',
   ]
     .filter(Boolean)
     .join(' ')
     .toLowerCase();
+}
+
+/** Map user `key:` prefix → internal field id for targeted search. */
+const COIL_RECEIPT_SEARCH_FIELD_KEYS = {
+  coil: 'coilNo',
+  coilno: 'coilNo',
+  no: 'coilNo',
+  colour: 'colour',
+  color: 'colour',
+  gauge: 'gauge',
+  g: 'gauge',
+  material: 'material',
+  mat: 'material',
+  type: 'material',
+  po: 'poID',
+  supplier: 'supplier',
+  loc: 'location',
+  location: 'location',
+  status: 'status',
+  product: 'product',
+  id: 'product',
+  kg: 'kg',
+  weight: 'kg',
+};
+
+/**
+ * @param {Record<string, unknown>} c
+ * @param {string} fieldKey
+ */
+function coilReceiptFieldHaystack(c, fieldKey) {
+  switch (fieldKey) {
+    case 'coilNo':
+      return String(c.coilNo || '');
+    case 'colour':
+      return String(c.colour || '');
+    case 'gauge':
+      return String(c.gaugeLabel || '');
+    case 'material':
+      return [c.materialTypeName, c.productID].filter(Boolean).join(' ');
+    case 'poID':
+      return String(c.poID || '');
+    case 'supplier':
+      return String(c.supplierName || '');
+    case 'location':
+      return String(c.location || '');
+    case 'status':
+      return String(c.currentStatus || '');
+    case 'product':
+      return String(c.productID || '');
+    case 'kg':
+      return String(liveCoilWeightKg(c));
+    default:
+      return '';
+  }
+}
+
+function normalizeCoilSearchChunk(s) {
+  return String(s || '')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, ' ');
+}
+
+/**
+ * Split query into `field:value` filters and free-text tokens (space = AND).
+ * @param {string} raw
+ * @returns {{ pairs: { field: string; value: string }[]; tokens: string[] }}
+ */
+function parseCoilReceiptSearchQuery(raw) {
+  const q = String(raw || '').trim();
+  if (!q) return { pairs: [], tokens: [] };
+  const segments = q.split(/\s+/).filter(Boolean);
+  const pairs = [];
+  const tokens = [];
+  for (const seg of segments) {
+    const idx = seg.indexOf(':');
+    if (idx > 0 && idx < seg.length - 1) {
+      const kRaw = seg.slice(0, idx).toLowerCase();
+      let vRaw = seg.slice(idx + 1);
+      if (
+        (vRaw.startsWith('"') && vRaw.endsWith('"') && vRaw.length > 1) ||
+        (vRaw.startsWith("'") && vRaw.endsWith("'") && vRaw.length > 1)
+      ) {
+        vRaw = vRaw.slice(1, -1);
+      }
+      const field = COIL_RECEIPT_SEARCH_FIELD_KEYS[kRaw];
+      const v = normalizeCoilSearchChunk(vRaw);
+      if (field && v) pairs.push({ field, value: v });
+      else tokens.push(normalizeCoilSearchChunk(seg));
+    } else {
+      tokens.push(normalizeCoilSearchChunk(seg));
+    }
+  }
+  return { pairs, tokens };
+}
+
+/**
+ * @param {Record<string, unknown>} c
+ * @param {{ pairs: { field: string; value: string }[]; tokens: string[] }} parsed
+ */
+function coilReceiptRowMatchesSearch(c, parsed) {
+  for (const { field, value } of parsed.pairs) {
+    if (field === 'kg') {
+      const target = Number(value.replace(/,/g, '.'));
+      const live = liveCoilWeightKg(c);
+      if (Number.isFinite(target)) {
+        const near = Math.abs(live - target) <= 0.51;
+        const strHay = normalizeCoilSearchChunk(`${live} ${live.toFixed(2)}`);
+        if (!near && !strHay.includes(value)) return false;
+      } else if (!normalizeCoilSearchChunk(coilReceiptFieldHaystack(c, 'kg')).includes(value)) {
+        return false;
+      }
+      continue;
+    }
+    const hay = normalizeCoilSearchChunk(coilReceiptFieldHaystack(c, field));
+    if (!hay.includes(value)) return false;
+  }
+  const blob = coilReceiptSearchBlob(c);
+  for (const tok of parsed.tokens) {
+    if (!tok) continue;
+    if (blob.includes(tok)) continue;
+    if (/\d/.test(tok)) {
+      const digitsTok = tok.replace(/[^\d.]/g, '');
+      const gNorm = String(c.gaugeLabel || '')
+        .toLowerCase()
+        .replace(/[^\d.]/g, '');
+      if (digitsTok && gNorm.includes(digitsTok)) continue;
+      const live = liveCoilWeightKg(c);
+      const liveStr = Number.isFinite(live) ? live.toFixed(2) : '';
+      if (digitsTok && liveStr.replace(/[^\d.]/g, '').includes(digitsTok)) continue;
+    }
+    return false;
+  }
+  return true;
+}
+
+/**
+ * @param {Record<string, unknown>} a
+ * @param {Record<string, unknown>} b
+ * @param {'received' | 'coilNo' | 'colour' | 'gauge' | 'material' | 'kg'} key
+ * @param {'asc' | 'desc'} dir
+ */
+function compareCoilReceiptRows(a, b, key, dir) {
+  const tieCoil = () => String(a.coilNo || '').localeCompare(String(b.coilNo || ''), undefined, { numeric: true });
+  const flip = dir === 'desc' ? -1 : 1;
+  const cmpNum = (va, vb) => {
+    if (va < vb) return -1 * flip;
+    if (va > vb) return 1 * flip;
+    return 0;
+  };
+  const cmpStr = (sa, sb) => {
+    const c = String(sa || '').localeCompare(String(sb || ''), undefined, { numeric: true, sensitivity: 'base' });
+    if (c !== 0) return c * flip;
+    return 0;
+  };
+  switch (key) {
+    case 'kg': {
+      const d = cmpNum(liveCoilWeightKg(a), liveCoilWeightKg(b));
+      return d || tieCoil();
+    }
+    case 'coilNo': {
+      const d = cmpStr(a.coilNo, b.coilNo);
+      return d || tieCoil();
+    }
+    case 'colour': {
+      const d = cmpStr(a.colour, b.colour);
+      return d || tieCoil();
+    }
+    case 'gauge': {
+      const d = cmpStr(a.gaugeLabel, b.gaugeLabel);
+      return d || tieCoil();
+    }
+    case 'material': {
+      const d = cmpStr(
+        `${a.materialTypeName || ''} ${a.productID || ''}`.trim(),
+        `${b.materialTypeName || ''} ${b.productID || ''}`.trim()
+      );
+      return d || tieCoil();
+    }
+    case 'received':
+    default: {
+      const da = String(a.receivedAtISO || '');
+      const db = String(b.receivedAtISO || '');
+      const dateCmp = da.localeCompare(db);
+      if (dateCmp !== 0) return dateCmp * flip;
+      return tieCoil();
+    }
+  }
+}
+
+/**
+ * @param {{ label: string; sortKey: 'received' | 'coilNo' | 'colour' | 'gauge' | 'material' | 'kg'; sort: { key: string; dir: string }; onToggle: (k: string) => void; className?: string }}
+ */
+function CoilReceiptSortTh({ label, sortKey: columnKey, sort, onToggle, className = '' }) {
+  const active = sort.key === columnKey;
+  const Icon = !active ? null : sort.dir === 'asc' ? ChevronUp : ChevronDown;
+  return (
+    <button
+      type="button"
+      onClick={() => onToggle(columnKey)}
+      className={`inline-flex min-w-0 max-w-full items-center gap-0.5 text-left text-[8px] font-bold uppercase tracking-wide hover:text-[#134e4a] ${active ? 'text-[#134e4a]' : 'text-slate-600'} ${className}`}
+    >
+      <span className="truncate">{label}</span>
+      {Icon ? <Icon size={12} className="shrink-0 opacity-90" aria-hidden /> : null}
+    </button>
+  );
 }
 
 const ADJUST_REASONS = [
@@ -315,9 +531,15 @@ const Operations = () => {
     setStockAdjustCoilCount(null);
   }, []);
 
-  const [coilLiveSort, setCoilLiveSort] = useState('recent');
   const [transitSearch, setTransitSearch] = useState('');
   const [transitSort, setTransitSort] = useState('orderDesc');
+
+  const [coilReceiptSort, setCoilReceiptSort] = useState(() =>
+    /** @type {{ key: 'received' | 'coilNo' | 'colour' | 'gauge' | 'material' | 'kg'; dir: 'asc' | 'desc' }} */ ({
+      key: 'received',
+      dir: 'desc',
+    })
+  );
   const [coilLiveSearch, setCoilLiveSearch] = useState('');
   /** Stock management: filter in-transit POs and received stock panel (coil lots vs metre/unit SKUs). */
   const [stockReceiveKind, setStockReceiveKind] = useState(() => /** @type {'coil'|'stone'|'accessory'} */ ('coil'));
@@ -641,6 +863,16 @@ const Operations = () => {
     navigate('/procurement', { state: { focusTab: 'suppliers' } });
   }, [navigate]);
 
+  const toggleCoilReceiptSort = useCallback((key) => {
+    setCoilReceiptSort((prev) => {
+      if (prev.key === key) {
+        return { key, dir: prev.dir === 'asc' ? 'desc' : 'asc' };
+      }
+      const defaultDir = key === 'received' || key === 'kg' ? 'desc' : 'asc';
+      return { key, dir: defaultDir };
+    });
+  }, []);
+
   const formatVariancePct = (v) => {
     const n = Number(v);
     if (!Number.isFinite(n)) return '—';
@@ -731,36 +963,27 @@ const Operations = () => {
     const rows = coilLots.filter(
       (c) => c.currentStatus !== 'Consumed' && c.currentStatus !== 'Finished' && !finishedCoils.has(String(c.coilNo))
     );
-    rows.sort((a, b) => {
-      if (coilLiveSort === 'kgDesc') return liveCoilWeightKg(b) - liveCoilWeightKg(a);
-      if (coilLiveSort === 'kgAsc') return liveCoilWeightKg(a) - liveCoilWeightKg(b);
-      if (coilLiveSort === 'coilAsc') return String(a.coilNo || '').localeCompare(String(b.coilNo || ''));
-      if (coilLiveSort === 'gaugeAsc') return String(a.gaugeLabel || '').localeCompare(String(b.gaugeLabel || ''));
-      if (coilLiveSort === 'materialAsc') {
-        return String(a.materialTypeName || a.productID || '').localeCompare(
-          String(b.materialTypeName || b.productID || '')
-        );
-      }
-      const da = String(a.receivedAtISO || '');
-      const db = String(b.receivedAtISO || '');
-      if (da !== db) return db.localeCompare(da);
-      return String(b.coilNo || '').localeCompare(String(a.coilNo || ''));
-    });
+    const { key, dir } = coilReceiptSort;
+    rows.sort((a, b) => compareCoilReceiptRows(a, b, key, dir));
     return rows;
-  }, [coilLots, coilLiveSort, ws?.snapshot?.movements]);
+  }, [coilLots, coilReceiptSort, ws?.snapshot?.movements]);
 
-  const coilLiveSearchNorm = coilLiveSearch.trim().toLowerCase();
+  const coilReceiptSearchParsed = useMemo(() => parseCoilReceiptSearchQuery(coilLiveSearch), [coilLiveSearch]);
+
+  const hasCoilReceiptSearch =
+    coilReceiptSearchParsed.pairs.length > 0 || coilReceiptSearchParsed.tokens.some(Boolean);
+
   const coilLotsReceiptFiltered = useMemo(() => {
-    if (!coilLiveSearchNorm) return coilLotsReceiptSorted;
-    return coilLotsReceiptSorted.filter((c) => coilReceiptSearchBlob(c).includes(coilLiveSearchNorm));
-  }, [coilLotsReceiptSorted, coilLiveSearchNorm]);
+    if (!hasCoilReceiptSearch) return coilLotsReceiptSorted;
+    return coilLotsReceiptSorted.filter((c) => coilReceiptRowMatchesSearch(c, coilReceiptSearchParsed));
+  }, [coilLotsReceiptSorted, coilReceiptSearchParsed, hasCoilReceiptSearch]);
 
   const coilsReceiptTruncated =
-    !coilLiveSearchNorm && coilLotsReceiptFiltered.length > STOCK_SIDE_LIST_LIMIT;
+    !hasCoilReceiptSearch && coilLotsReceiptFiltered.length > STOCK_SIDE_LIST_LIMIT;
   const coilLotsByReceipt = useMemo(() => {
-    if (coilLiveSearchNorm) return coilLotsReceiptFiltered;
+    if (hasCoilReceiptSearch) return coilLotsReceiptFiltered;
     return coilLotsReceiptFiltered.slice(0, STOCK_SIDE_LIST_LIMIT);
-  }, [coilLotsReceiptFiltered, coilLiveSearchNorm]);
+  }, [coilLotsReceiptFiltered, hasCoilReceiptSearch]);
 
   const anyReceivablePo = useMemo(
     () => purchaseOrders.some((p) => PO_RECEIVABLE_STATUSES.includes(p.status)),
@@ -1429,8 +1652,8 @@ const Operations = () => {
                     <p className="text-[10px] font-medium text-slate-400">No coils match your search.</p>
                   ) : (
                     <>
-                      <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-end gap-2 mb-2 shrink-0">
-                        <label className="relative min-w-0 w-full flex-1 sm:min-w-[140px]">
+                      <div className="flex flex-col gap-1.5 mb-2 shrink-0">
+                        <label className="relative min-w-0 w-full">
                           <Search
                             size={12}
                             className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
@@ -1440,75 +1663,115 @@ const Operations = () => {
                             type="search"
                             value={coilLiveSearch}
                             onChange={(e) => setCoilLiveSearch(e.target.value)}
-                            placeholder="Search coil, PO, colour…"
+                            placeholder="Search — words must all match. Filters: coil:, colour:, gauge:, material:, po:, supplier:, kg:, status: …"
                             className="w-full rounded-lg border border-slate-200 bg-white py-1.5 pl-8 pr-2 text-[10px] font-medium text-slate-800 placeholder:text-slate-400"
                           />
                         </label>
-                        <div className="flex items-center gap-2 shrink-0">
-                          <span className="text-[8px] font-bold uppercase tracking-wide text-slate-500 whitespace-nowrap">
-                            Sort
-                          </span>
-                          <select
-                            value={coilLiveSort}
-                            onChange={(e) => setCoilLiveSort(e.target.value)}
-                            className="rounded-lg border border-slate-200 bg-white py-1.5 px-2 text-[10px] font-semibold text-slate-700 min-w-0 max-w-full"
-                          >
-                            <option value="recent">Newest receipt</option>
-                            <option value="kgDesc">Current kg (high → low)</option>
-                            <option value="kgAsc">Current kg (low → high)</option>
-                            <option value="coilAsc">Coil no (A → Z)</option>
-                            <option value="gaugeAsc">Gauge</option>
-                            <option value="materialAsc">Material</option>
-                          </select>
-                        </div>
+                        <p className="text-[8px] text-slate-500 leading-snug pl-0.5">
+                          Example:{' '}
+                          <span className="font-mono text-slate-600">bush green 0.20</span> or{' '}
+                          <span className="font-mono text-slate-600">colour:bg gauge:0.2</span> — tap column titles to
+                          sort (toggle direction).
+                        </p>
                       </div>
                       {coilsReceiptTruncated ? (
                         <p className="text-[9px] text-slate-500 mb-1.5">
-                          Showing {STOCK_SIDE_LIST_LIMIT} of {coilLotsReceiptFiltered.length}. Search to find older coils.
+                          Showing {STOCK_SIDE_LIST_LIMIT} of {coilLotsReceiptFiltered.length}. Search or sort to find
+                          older coils.
                         </p>
                       ) : null}
-                      <ul className="space-y-1.5">
-                        {coilLotsByReceipt.map((c) => {
-                          const live = liveCoilWeightKg(c);
-                          const material = c.materialTypeName || c.productID || '—';
-                          const meta2 = [
-                            c.colour || null,
-                            c.gaugeLabel || null,
-                            c.poID ? `PO ${c.poID}` : null,
-                            c.receivedAtISO ? `Rcvd ${c.receivedAtISO}` : null,
-                            `${live.toLocaleString(undefined, { maximumFractionDigits: 2 })} kg current`,
-                          ]
-                            .filter(Boolean)
-                            .join(' · ');
-                          return (
-                            <li key={`${c.coilNo}-${c.poID || ''}-${c.lineKey || ''}`}>
-                              <button
-                                type="button"
-                                onClick={() => navigate(`/operations/coils/${encodeURIComponent(c.coilNo)}`)}
-                                className="w-full text-left rounded-lg border border-slate-200/60 bg-white/40 py-1 px-2 shadow-sm backdrop-blur-md hover:bg-white/70 transition-colors group"
-                              >
-                                <div className="min-w-0 leading-tight">
-                                  <div className="flex items-center justify-between gap-2 min-w-0">
-                                    <p className="text-[11px] font-bold text-[#134e4a] truncate min-w-0">
-                                      {c.coilNo}
-                                      <span className="font-medium text-slate-600"> · {material}</span>
-                                    </p>
-                                    <span className="text-[8px] font-semibold uppercase tracking-wide text-sky-800 bg-sky-100 group-hover:bg-sky-200 px-2 py-1 rounded-md shrink-0">
-                                      Open
-                                    </span>
-                                  </div>
-                                  <p
-                                    className="text-[9px] font-semibold text-slate-600 mt-0.5 leading-snug line-clamp-2"
-                                    title={meta2}
+                      <div className="-mx-0.5 overflow-x-auto rounded-lg border border-slate-200/80 bg-white/40 sm:mx-0">
+                        <div className="min-w-[32rem] flex flex-col max-h-[min(26rem,52vh)]">
+                          <div
+                            className="grid grid-cols-[4.25rem_minmax(0,1fr)_minmax(0,0.8fr)_minmax(0,3.25rem)_minmax(0,1fr)_3.25rem_1.75rem] gap-x-1.5 px-2 py-1.5 border-b border-slate-200/80 bg-slate-100/95 shrink-0 items-end"
+                            role="row"
+                          >
+                            <CoilReceiptSortTh
+                              label="Rcvd"
+                              sortKey="received"
+                              sort={coilReceiptSort}
+                              onToggle={toggleCoilReceiptSort}
+                            />
+                            <CoilReceiptSortTh
+                              label="Coil no."
+                              sortKey="coilNo"
+                              sort={coilReceiptSort}
+                              onToggle={toggleCoilReceiptSort}
+                            />
+                            <CoilReceiptSortTh
+                              label="Colour"
+                              sortKey="colour"
+                              sort={coilReceiptSort}
+                              onToggle={toggleCoilReceiptSort}
+                            />
+                            <CoilReceiptSortTh
+                              label="Gauge"
+                              sortKey="gauge"
+                              sort={coilReceiptSort}
+                              onToggle={toggleCoilReceiptSort}
+                            />
+                            <CoilReceiptSortTh
+                              label="Material"
+                              sortKey="material"
+                              sort={coilReceiptSort}
+                              onToggle={toggleCoilReceiptSort}
+                            />
+                            <CoilReceiptSortTh
+                              label="Live kg"
+                              sortKey="kg"
+                              sort={coilReceiptSort}
+                              onToggle={toggleCoilReceiptSort}
+                              className="justify-end text-right w-full"
+                            />
+                            <span className="sr-only">Open profile</span>
+                          </div>
+                          <ul className="overflow-y-auto divide-y divide-slate-200/60">
+                            {coilLotsByReceipt.map((c) => {
+                              const live = liveCoilWeightKg(c);
+                              const material = c.materialTypeName || c.productID || '—';
+                              const rcvd = c.receivedAtISO ? String(c.receivedAtISO).slice(0, 10) : '—';
+                              const rowTitle = [
+                                c.poID && `PO ${c.poID}`,
+                                c.currentStatus,
+                                c.supplierName,
+                                c.location,
+                              ]
+                                .filter(Boolean)
+                                .join(' · ');
+                              return (
+                                <li key={`${c.coilNo}-${c.poID || ''}-${c.lineKey || ''}`}>
+                                  <button
+                                    type="button"
+                                    title={rowTitle || undefined}
+                                    onClick={() => navigate(`/operations/coils/${encodeURIComponent(c.coilNo)}`)}
+                                    className="grid grid-cols-[4.25rem_minmax(0,1fr)_minmax(0,0.8fr)_minmax(0,3.25rem)_minmax(0,1fr)_3.25rem_1.75rem] gap-x-1.5 w-full text-left px-2 py-1.5 hover:bg-white/85 transition-colors group items-center"
                                   >
-                                    {meta2}
-                                  </p>
-                                </div>
-                              </button>
-                            </li>
-                          );
-                        })}
-                      </ul>
+                                    <span className="text-[9px] text-slate-600 tabular-nums">{rcvd}</span>
+                                    <span className="text-[10px] font-bold text-[#134e4a] truncate font-mono">
+                                      {c.coilNo}
+                                    </span>
+                                    <span className="text-[9px] text-slate-800 truncate" title={String(c.colour || '')}>
+                                      {c.colour || '—'}
+                                    </span>
+                                    <span className="text-[9px] text-slate-800 truncate tabular-nums">
+                                      {c.gaugeLabel || '—'}
+                                    </span>
+                                    <span className="text-[9px] text-slate-700 truncate" title={material}>
+                                      {material}
+                                    </span>
+                                    <span className="text-[10px] font-bold text-[#134e4a] tabular-nums text-right">
+                                      {live.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                                    </span>
+                                    <span className="flex justify-center text-slate-400 group-hover:text-[#134e4a]">
+                                      <ChevronRight size={14} aria-hidden />
+                                    </span>
+                                  </button>
+                                </li>
+                              );
+                            })}
+                          </ul>
+                        </div>
+                      </div>
                     </>
                   )}
                   </>

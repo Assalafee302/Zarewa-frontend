@@ -3,6 +3,7 @@ import {
   AlertTriangle,
   BarChart3,
   CheckCircle2,
+  CircleHelp,
   ClipboardList,
   FileWarning,
   Gauge,
@@ -11,6 +12,7 @@ import {
   Play,
   Plus,
   Save,
+  Smartphone,
   Sparkles,
   Trash2,
   Undo2,
@@ -178,6 +180,24 @@ function statusTone(status) {
 
 function isDraftAllocationRow(row) {
   return String(row?.id ?? '').startsWith('draft-');
+}
+
+/** One coil line has enough data to include in live conversion preview (multi-coil jobs can preview per finished roll). */
+function draftRowConversionPreviewReady(row) {
+  const coil = row.coilNo?.trim();
+  const op = Number(row.openingWeightKg);
+  const cl = Number(row.closingWeightKg);
+  const m = Number(row.metersProduced);
+  return (
+    Boolean(coil) &&
+    Number.isFinite(op) &&
+    op > 0 &&
+    Number.isFinite(cl) &&
+    cl >= 0 &&
+    cl <= op &&
+    Number.isFinite(m) &&
+    m > 0
+  );
 }
 
 function completionLineFromDraft(row) {
@@ -426,22 +446,7 @@ export function LiveProductionMonitor({
       const m = Number(String(stoneMetersConsumed).replace(/,/g, ''));
       return Number.isFinite(m) && m > 0;
     }
-    return draftAllocations.every((row) => {
-      const coil = row.coilNo?.trim();
-      const op = Number(row.openingWeightKg);
-      const cl = Number(row.closingWeightKg);
-      const m = Number(row.metersProduced);
-      return (
-        coil &&
-        Number.isFinite(op) &&
-        op > 0 &&
-        Number.isFinite(cl) &&
-        cl >= 0 &&
-        cl <= op &&
-        Number.isFinite(m) &&
-        m > 0
-      );
-    });
+    return draftAllocations.some((row) => draftRowConversionPreviewReady(row));
   }, [
     draftAllocations,
     isStoneMeterQuote,
@@ -449,6 +454,19 @@ export function LiveProductionMonitor({
     selectedJob?.status,
     stoneMetersConsumed,
   ]);
+
+  /** Persisted coil rows — can save closing / metres / note to server while the run is open. */
+  const runLogSaveReady = useMemo(
+    () =>
+      Boolean(selectedJob?.status === 'Running' && !isStoneMeterQuote) &&
+      draftAllocations.some((r) => !isDraftAllocationRow(r)),
+    [draftAllocations, isStoneMeterQuote, selectedJob?.status]
+  );
+
+  const runningCheckpointSaveReady = useMemo(
+    () => appendSaveReady || runLogSaveReady,
+    [appendSaveReady, runLogSaveReady]
+  );
 
   const conversionPreviewTimerRef = useRef(null);
   const conversionPreviewSeqRef = useRef(0);
@@ -573,9 +591,12 @@ export function LiveProductionMonitor({
         accessoriesSupplied: accessoriesSuppliedForApi,
       });
     }
+    const previewLines = draftAllocations
+      .filter((row) => draftRowConversionPreviewReady(row))
+      .map((row) => completionLineFromDraft(row));
     return JSON.stringify({
       job: selectedJob.jobID,
-      lines: draftAllocations.map((row) => completionLineFromDraft(row)),
+      lines: previewLines,
       accessoriesSupplied: accessoriesSuppliedForApi,
     });
   }, [
