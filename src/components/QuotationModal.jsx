@@ -34,7 +34,23 @@ import QuotationPrintView from './QuotationPrintView';
 /** Master material types used on roofing quotes: coil stock + stone meter stock (not finished-good SKUs / consumables). */
 const QUOTATION_MATERIAL_INVENTORY_MODELS = new Set(['coil_kg', 'stone_meter']);
 
-const DEFAULT_PROFILES = ['Longspan (Indus6)', 'Metrotile', 'Steptile', 'Capping', 'Ridge Cap'];
+const DEFAULT_PROFILES = [
+  'Longspan (Indus6)',
+  'Longspan (Metra)',
+  'Metcoppo',
+  'Stone coated',
+  'Flat sheet',
+  'Offcut',
+  'Steptile',
+  'Capping',
+  'Ridge Cap',
+  'Bond',
+  'Milano',
+  'Classic',
+  'Shingle',
+  'Roman',
+  'Crimp curve',
+];
 const DEFAULT_GAUGES = ['0.70mm', '0.55mm', '0.45mm', '0.40mm', '0.30mm', '0.24mm'];
 const DEFAULT_COLOURS = [
   'HM Blue',

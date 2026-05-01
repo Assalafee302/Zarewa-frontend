@@ -191,7 +191,7 @@ export const REFERENCE_METRO_TILES = [
   { name: 'Milano Black', detail: '53 Bundles & 10 pcs' },
   { name: 'Shingle', detail: '26 Bundles & 9 pcs' },
   { name: 'Nails', detail: '7 cartons & 4 packs' },
-  { name: '1.4m Flatsheet C & B', detail: '26 pcs' },
+  { name: '1.4m Flat sheet C & B', detail: '26 pcs' },
 ];
 
 /**
