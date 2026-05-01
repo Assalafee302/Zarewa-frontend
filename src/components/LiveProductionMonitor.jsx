@@ -2794,7 +2794,7 @@ export function LiveProductionMonitor({
             <div className="border-b border-slate-100 bg-slate-50/70 px-3 py-2">
               <p className="text-sm font-bold text-slate-900">Posted conversion check</p>
               <p className="mt-0.5 text-xs leading-snug text-slate-600">
-                kg/m compared to standard, supplier, gauge history, and coil history after completion.
+                One row per coil after completion — scroll horizontally on a narrow screen.
               </p>
             </div>
 
