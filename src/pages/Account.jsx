@@ -662,6 +662,9 @@ const Account = () => {
   }, [searchParams]);
 
   const canManageTreasury = Boolean(ws?.hasPermission?.('treasury.manage'));
+  const canExecTreasuryDelete =
+    Boolean(ws?.canMutate) &&
+    ['admin', 'md', 'ceo'].includes(String(ws?.session?.user?.roleKey || '').toLowerCase());
 
   const headerAction = () => {
     if (activeTab === 'treasury') {
@@ -976,11 +979,11 @@ const Account = () => {
   };
 
   const removeTreasuryAccount = async (acc) => {
-    if (!ws?.canMutate || !canManageTreasury) return;
+    if (!canExecTreasuryDelete) return;
     const label = String(acc?.name || 'this account').trim() || 'this account';
     if (
       !window.confirm(
-        `Delete treasury account “${label}”? This cannot be undone. The server rejects delete if any treasury movements, reconciliation lines, or inter-branch records reference this account.`
+        `Delete treasury account “${label}”? Only Admin, MD, or CEO can do this. The account must have exactly ₦0 book balance, no movement history, no bank reconciliation links, and you cannot remove the last account.`
       )
     ) {
       return;
@@ -2339,22 +2342,28 @@ const Account = () => {
                             View statement
                           </p>
                         </button>
-                        {canManageTreasury && ws?.canMutate ? (
-                          <div className="flex items-center justify-end gap-1.5 px-3 pb-3 pt-0 border-t border-gray-100/80">
-                            <button
-                              type="button"
-                              onClick={() => openEditTreasuryAccount(acc)}
-                              className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[9px] font-bold uppercase tracking-wide text-slate-700 hover:border-teal-200 hover:bg-teal-50/50"
-                            >
-                              <Pencil size={12} /> Edit
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => void removeTreasuryAccount(acc)}
-                              className="inline-flex items-center gap-1 rounded-lg border border-rose-200 bg-rose-50/60 px-2.5 py-1.5 text-[9px] font-bold uppercase tracking-wide text-rose-800 hover:bg-rose-100"
-                            >
-                              <Trash2 size={12} /> Delete
-                            </button>
+                        {(canManageTreasury && ws?.canMutate) || canExecTreasuryDelete ? (
+                          <div className="flex items-center justify-end gap-2 px-3 pb-3 pt-0 border-t border-gray-100/80">
+                            {canManageTreasury && ws?.canMutate ? (
+                              <button
+                                type="button"
+                                onClick={() => openEditTreasuryAccount(acc)}
+                                className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[9px] font-bold uppercase tracking-wide text-slate-700 hover:border-teal-200 hover:bg-teal-50/50"
+                              >
+                                <Pencil size={12} /> Edit
+                              </button>
+                            ) : null}
+                            {canExecTreasuryDelete ? (
+                              <button
+                                type="button"
+                                onClick={() => void removeTreasuryAccount(acc)}
+                                className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-slate-300 opacity-[0.28] hover:opacity-100 hover:text-rose-600 hover:bg-rose-50/30 transition-all"
+                                title="Remove account (Admin, MD, or CEO only; balance must be ₦0 and no history)"
+                                aria-label="Delete treasury account"
+                              >
+                                <Trash2 size={13} strokeWidth={1.65} />
+                              </button>
+                            ) : null}
                           </div>
                         ) : null}
                       </div>
