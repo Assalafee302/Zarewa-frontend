@@ -148,8 +148,6 @@ export function InventoryProvider({ children }) {
           materialOriginNote: lot.materialOriginNote ?? '',
         }))
       );
-    } else {
-      setCoilLots([]);
     }
     if (s.wipByProduct && typeof s.wipByProduct === 'object') {
       setWipByProduct({ ...s.wipByProduct });

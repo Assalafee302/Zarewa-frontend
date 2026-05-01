@@ -3,10 +3,13 @@
  *
  * Grand total from last count sheet: **97,827 kg** (aluminium by gauge + aluzinc thin + kg register blocks).
  * Next physical coil tag to assign after the highest **C/NO** in this register: **1968** (max observed **1967**).
+ * On the sheet, **C/NO** is the coil number; in row objects it is stored as `coilNo`.
  */
 
-/** @typedef {{ sn: number, colour: string, coilNo: string, quantity: number }} ThinGaugeRow */
+/** @typedef {{ sn: number, colour: string, coilNo: string, quantity: number }} ThinGaugeRow — `coilNo` is shop **C/NO** (coil number). */
 /** @typedef {{ gauge: string, subtotal: number, rows: ThinGaugeRow[] }} ThinGaugeGroup */
+/** @typedef {{ sn: number, colour: string, coilNo: string, kg: number }} KgRegisterRow — `coilNo` is shop **C/NO** (coil number). */
+/** @typedef {{ gauge: string, subtotalKg: number, rows: KgRegisterRow[] }} KgRegisterGroup */
 
 /** Longspan / thin gauge — grouped by gauge; grand total matches your sheet. */
 export const REFERENCE_THIN_GAUGE_GROUPS = [
@@ -89,13 +92,9 @@ export const REFERENCE_KG_REGISTER_GROUPS = [
   },
   {
     gauge: '0.55',
-    subtotalKg: 30,
-    rows: [{ sn: 2, colour: 'GB', coilNo: '1441', kg: 30 }],
-  },
-  {
-    gauge: 'F0.55',
-    subtotalKg: 8344,
+    subtotalKg: 8374,
     rows: [
+      { sn: 2, colour: 'GB', coilNo: '1441', kg: 30 },
       { sn: 3, colour: 'PR', coilNo: '1963', kg: 1508 },
       { sn: 4, colour: 'PR', coilNo: '1964', kg: 1531 },
       { sn: 5, colour: 'PR', coilNo: '1965', kg: 1514 },
@@ -105,7 +104,7 @@ export const REFERENCE_KG_REGISTER_GROUPS = [
       { sn: 9, colour: 'NB', coilNo: '', kg: 741 },
       { sn: 10, colour: 'NB', coilNo: '', kg: 389 },
       { sn: 11, colour: 'PR', coilNo: '1880', kg: 7 },
-      { sn: 12, colour: 'BB', coilNo: '1577', kg: 8 },
+      { sn: 12, colour: 'GB', coilNo: '1577', kg: 8 },
       { sn: 13, colour: 'BG', coilNo: '1941', kg: 803 },
     ],
   },
@@ -209,7 +208,7 @@ export const REFERENCE_METRO_TILES = [
  * Rounded buckets for INVENTORY_PRODUCTS_MOCK (avoid double-counting thin qty vs same coils in kg book).
  * — longspanThinQty: aluzinc 0.24 + 0.22 + 0.2 + 0.18 (kg) from thin register.
  * — aluzinc028Kg: aluzinc 0.28 mm block only.
- * — heavyCoilKg: kg register excluding 0.28 & 0.24 (aluminium + aluzinc 0.35/0.4 + F0.55 finish block).
+ * — heavyCoilKg: kg register excluding 0.28 & 0.24 (aluminium + aluzinc 0.35/0.4 + all other kg lines including 0.55).
  * Sum of the three = physical grand total on the count sheet (97,827 kg).
  */
 export const REFERENCE_PHYSICAL_STOCK_GRAND_TOTAL_KG = 97827;
