@@ -1,7 +1,6 @@
 import { ZAREWA_QUOTATION_BRANDING } from '../Data/companyQuotation';
 import { formatNgn } from '../Data/mockData';
 import { receiptCashReceivedNgn, receiptLedgerReceiptTreasurySplits } from '../lib/salesReceiptsList';
-import { CUTTING_LIST_A4_LANDSCAPE_ROWS_PER_PAGE } from './cuttingListReportConstants';
 
 export {
   CUTTING_LIST_A4_LANDSCAPE_ROWS_PER_PAGE,
@@ -14,8 +13,14 @@ const LINE_CATEGORIES = [
   { type: 'Cladding', title: 'Cladding' },
 ];
 
-/** Printed cutting tables and waybill: same categories as the editor (roof, flat sheet, cladding). */
+/** Full cutting list (factory pane): roof, flat sheet, cladding. */
 const PRINT_CUT_LINE_CATEGORIES = LINE_CATEGORIES;
+
+/** Waybill cut tables and cargo sheet counts: roofing + cladding only (flat sheet is factory-only). */
+const WAYBILL_CUT_LINE_CATEGORIES = [
+  { type: 'Roof', title: 'Roofing sheet' },
+  { type: 'Cladding', title: 'Cladding' },
+];
 
 function parseNum(value) {
   const n = Number(String(value ?? '').replace(/,/g, ''));
@@ -62,15 +67,6 @@ function flattenCuttingLinesByCategories(linesByCat, categories) {
   return out;
 }
 
-function chunkLines(lines, size) {
-  if (lines.length === 0) return [[]];
-  const chunks = [];
-  for (let i = 0; i < lines.length; i += size) {
-    chunks.push(lines.slice(i, i + size));
-  }
-  return chunks;
-}
-
 function groupByType(lines) {
   const m = { Roof: [], Flatsheet: [], Cladding: [] };
   for (const line of lines) {
@@ -109,15 +105,14 @@ function mergeCuttingLinesByLengthDesc(flatLines, categories = LINE_CATEGORIES) 
   return out;
 }
 
-function BillingTable({ title, rows }) {
-  if (!rows?.length) return null;
-  const sub = sumLineRows(rows);
+/** Products, accessories, and services in one table (single list, no category blocks). */
+function QuotationLinesOneTable({ rows, grandTotal }) {
+  const list = Array.isArray(rows) ? rows : [];
+  if (!list.length) {
+    return <p className="cl-factory-cut-empty text-[8px]">No quotation line items.</p>;
+  }
   return (
-    <div className="cl-factory-bill-block">
-      <div className="cl-factory-bill-title-bar">
-        <span className="cl-factory-bill-title-dot" aria-hidden />
-        <p className="cl-factory-bill-title">{title}</p>
-      </div>
+    <div className="cl-factory-bill-block cl-factory-bill-block--flat">
       <div className="cl-factory-table-shell">
         <table className="cl-factory-bill-table w-full border-collapse">
           <thead>
@@ -129,8 +124,8 @@ function BillingTable({ title, rows }) {
             </tr>
           </thead>
           <tbody>
-            {rows.map((row, ri) => (
-              <tr key={row.id ?? `${title}-${row.name}-${ri}`}>
+            {list.map((row, ri) => (
+              <tr key={row.id ?? `qline-${row.name}-${ri}`}>
                 <td className="cl-factory-bill-td">{row.name}</td>
                 <td className="cl-factory-bill-td text-right tabular-nums">{row.qty}</td>
                 <td className="cl-factory-bill-td text-right tabular-nums">{formatMoney(parseNum(row.unitPrice))}</td>
@@ -139,9 +134,9 @@ function BillingTable({ title, rows }) {
             ))}
             <tr className="cl-factory-bill-subtotal-row">
               <td colSpan={3} className="cl-factory-bill-td cl-factory-bill-subtotal-label">
-                Sub total
+                Grand total
               </td>
-              <td className="cl-factory-bill-td text-right tabular-nums cl-factory-bill-subtotal-value">{formatMoney(sub)}</td>
+              <td className="cl-factory-bill-td text-right tabular-nums cl-factory-bill-subtotal-value">{formatMoney(grandTotal)}</td>
             </tr>
           </tbody>
         </table>
@@ -193,9 +188,9 @@ function WaybillBranchesBlock({ branches, compact }) {
   );
 }
 
-function WaybillCutConfirmBlock({ grouped, cutStartIndex, fullRightColumn }) {
+function WaybillCutConfirmBlock({ grouped, cutStartIndex, fullRightColumn, categories }) {
   let idx = cutStartIndex;
-  const anyLines = PRINT_CUT_LINE_CATEGORIES.some(({ type }) => (grouped[type] ?? []).length > 0);
+  const anyLines = categories.some(({ type }) => (grouped[type] ?? []).length > 0);
   return (
     <div
       className={
@@ -205,7 +200,7 @@ function WaybillCutConfirmBlock({ grouped, cutStartIndex, fullRightColumn }) {
       }
     >
       <div className="cl-waybill-cut-tables cl-factory-panel--cut-list">
-        {PRINT_CUT_LINE_CATEGORIES.map(({ type, title }) => {
+        {categories.map(({ type, title }) => {
           const slice = grouped[type];
           if (!slice?.length) return null;
           const block = <CuttingCategoryTable title={title} lines={slice} startIndex={idx} />;
@@ -291,7 +286,7 @@ function WaybillPanel({
                 <dd>{project}</dd>
                 <dt>Material</dt>
                 <dd>{materialInfoValue}</dd>
-                <dt>Sheets (roof + flat + cladding)</dt>
+                <dt>Sheets (roof + cladding)</dt>
                 <dd className="tabular-nums">{sheetsLabel}</dd>
                 <dt>Linear metres</dt>
                 <dd className="tabular-nums">{metersLabel} m</dd>
@@ -339,7 +334,12 @@ function WaybillPanel({
           </div>
 
           <div className="cl-waybill-col cl-waybill-col--cuts">
-            <WaybillCutConfirmBlock grouped={grouped} cutStartIndex={cutStartIndex} fullRightColumn />
+            <WaybillCutConfirmBlock
+              grouped={grouped}
+              cutStartIndex={cutStartIndex}
+              fullRightColumn
+              categories={WAYBILL_CUT_LINE_CATEGORIES}
+            />
           </div>
         </div>
       </div>
@@ -496,24 +496,33 @@ export default function CuttingListReportPrintView({
   treasuryMovements = [],
 }) {
   const b = ZAREWA_QUOTATION_BRANDING;
-  const rowsPerPage = CUTTING_LIST_A4_LANDSCAPE_ROWS_PER_PAGE;
+
   const flatLines = mergeCuttingLinesByLengthDesc(
     flattenCuttingLinesByCategories(linesByCat, PRINT_CUT_LINE_CATEGORIES),
     PRINT_CUT_LINE_CATEGORIES
   );
-  const chunks = chunkLines(flatLines, rowsPerPage);
-  const totalChunks = chunks.length;
+  const flatLinesWaybill = mergeCuttingLinesByLengthDesc(
+    flattenCuttingLinesByCategories(linesByCat, WAYBILL_CUT_LINE_CATEGORIES),
+    WAYBILL_CUT_LINE_CATEGORIES
+  );
+
+  const chunk = flatLines.length > 0 ? flatLines : [];
+  const grouped = groupByType(chunk);
+  let idx = 0;
+
   const printSheetsTotal = flatLines.reduce((s, l) => s + l.sheets, 0);
   const printMetresTotal = flatLines.reduce((s, l) => s + l.sheets * l.lengthM, 0);
+  const printSheetsWaybill = flatLinesWaybill.reduce((s, l) => s + l.sheets, 0);
+  const printMetresWaybill = flatLinesWaybill.reduce((s, l) => s + l.sheets * l.lengthM, 0);
 
   const ql = selectedQuotation?.quotationLines;
   const products = ql?.products ?? [];
-  const accessories = billingRowsWithContent(ql?.accessories ?? []);
-  const services = billingRowsWithContent(ql?.services ?? []);
-  const subProd = sumLineRows(products);
-  const subAcc = sumLineRows(accessories);
-  const subServ = sumLineRows(services);
-  const grand = subProd + subAcc + subServ;
+  const mergedQuotationLineRows = [
+    ...billingRowsWithContent(products),
+    ...billingRowsWithContent(ql?.accessories ?? []),
+    ...billingRowsWithContent(ql?.services ?? []),
+  ];
+  const grand = sumLineRows(mergedQuotationLineRows);
 
   const materialLine = [
     materialSpec?.profile || selectedQuotation?.materialDesign,
@@ -535,9 +544,9 @@ export default function CuttingListReportPrintView({
     cutDate,
     selectedQuotation,
     materialInfoValue,
-    sheetsToCut: printSheetsTotal,
-    totalMeters: printMetresTotal,
-    totalChunks,
+    sheetsToCut: printSheetsWaybill,
+    totalMeters: printMetresWaybill,
+    totalChunks: 1,
   };
 
   return (
@@ -546,22 +555,12 @@ export default function CuttingListReportPrintView({
       data-print-profile="cutting-list-a4-landscape"
       data-print-paper="A4"
       data-print-orientation="landscape"
-      data-print-sections={String(totalChunks)}
+      data-print-sections="1"
     >
-      {chunks.map((chunk, chunkIndex) => {
-        const grouped = groupByType(chunk);
-        let idx = chunkIndex * rowsPerPage;
-
-        return (
-          <section
-            key={chunkIndex}
-            className={`cutting-list-a4-landscape-sheet ${chunkIndex > 0 ? 'cutting-list-a4-landscape-sheet--continuation' : ''} ${chunkIndex < totalChunks - 1 ? 'cutting-list-a4-landscape-sheet--break-after' : ''}`}
-          >
-            <div className="cl-a4-landscape-split">
-              <div className="cl-a4-pane cl-a4-pane--cutting">
-                {chunkIndex === 0 ? (
-                  <>
-                    <header className="cl-factory-banner shrink-0">
+      <section className="cutting-list-a4-landscape-sheet">
+        <div className="cl-a4-landscape-split">
+          <div className="cl-a4-pane cl-a4-pane--cutting">
+            <header className="cl-factory-banner shrink-0">
                       <div className="cl-factory-banner-accent" aria-hidden />
                       <div className="cl-factory-banner-inner cl-factory-banner-inner--balanced">
                         <div className="cl-factory-banner-side">
@@ -604,7 +603,7 @@ export default function CuttingListReportPrintView({
                       <div className="cl-factory-col-cut cl-factory-panel cl-factory-panel--accent cl-factory-panel--cut-list min-w-0">
                         {PRINT_CUT_LINE_CATEGORIES.map(({ type, title }) => {
                           const slice = grouped[type];
-                          if (!slice.length) return null;
+                          if (!slice?.length) return null;
                           const block = <CuttingCategoryTable title={title} lines={slice} startIndex={idx} />;
                           idx += slice.length;
                           return <div key={type}>{block}</div>;
@@ -616,24 +615,7 @@ export default function CuttingListReportPrintView({
 
                       <div className="cl-factory-col-commercial cl-factory-panel min-w-0">
                         <div className="cl-factory-commercial-filler">
-                          <BillingTable title="Products" rows={products} />
-                          <BillingTable title="Accessories" rows={accessories} />
-                          <BillingTable title="Services" rows={services} />
-
-                          <div className="cl-factory-table-shell cl-factory-grand-shell">
-                            <table className="cl-factory-bill-table w-full border-collapse">
-                              <tbody>
-                                <tr className="cl-factory-bill-subtotal-row">
-                                  <td colSpan={3} className="cl-factory-bill-td cl-factory-bill-subtotal-label">
-                                    Grand total
-                                  </td>
-                                  <td className="cl-factory-bill-td text-right tabular-nums cl-factory-bill-subtotal-value">
-                                    {formatMoney(grand)}
-                                  </td>
-                                </tr>
-                              </tbody>
-                            </table>
-                          </div>
+                          <QuotationLinesOneTable rows={mergedQuotationLineRows} grandTotal={grand} />
 
                           <div className="cl-factory-receipt-box">
                             <p className="cl-factory-receipt-head">Payment &amp; receipts</p>
@@ -660,51 +642,28 @@ export default function CuttingListReportPrintView({
                         </div>
                       </div>
                     </div>
-                    <div
-                      className="cl-factory-sheet-signfoot cl-factory-sheet-signfoot--a4-cutting-pane shrink-0"
-                      aria-label="Signature"
-                    >
-                      <div className="cl-factory-sign-cell">
-                        <div className="cl-factory-sign-line" />
-                        <p className="cl-factory-sign-label">Signature</p>
-                      </div>
-                    </div>
-                  </>
-                ) : (
-                  <div className="cl-factory-continue cl-factory-continue--a4-pane">
-                    <p className="cl-factory-continue-bar">
-                      <span className="cl-factory-continue-tag">Continuation</span>
-                      <span className="cl-factory-continue-body">
-                        {cuttingListId} · {quotationRef || '—'} · section {chunkIndex + 1} of {totalChunks} (lines {chunkIndex * rowsPerPage + 1}–
-                        {chunkIndex * rowsPerPage + chunk.length})
-                      </span>
-                    </p>
-                    <div className="cl-factory-col-right cl-factory-col-right--full cl-factory-panel cl-factory-panel--accent cl-factory-panel--cut-list min-w-0">
-                      {PRINT_CUT_LINE_CATEGORIES.map(({ type, title }) => {
-                        const slice = grouped[type];
-                        if (!slice.length) return null;
-                        const block = <CuttingCategoryTable title={title} lines={slice} startIndex={idx} />;
-                        idx += slice.length;
-                        return <div key={type}>{block}</div>;
-                      })}
+                  <div
+                    className="cl-factory-sheet-signfoot cl-factory-sheet-signfoot--a4-cutting-pane shrink-0"
+                    aria-label="Signature"
+                  >
+                    <div className="cl-factory-sign-cell">
+                      <div className="cl-factory-sign-line" />
+                      <p className="cl-factory-sign-label">Signature</p>
                     </div>
                   </div>
-                )}
-              </div>
+                </div>
 
-              <div className="cl-a4-pane cl-a4-pane--waybill">
-                <WaybillPanel
-                  {...waybillShared}
-                  continuation={chunkIndex > 0}
-                  chunkIndex={chunkIndex}
-                  grouped={grouped}
-                  cutStartIndex={chunkIndex * rowsPerPage}
-                />
+                <div className="cl-a4-pane cl-a4-pane--waybill">
+                  <WaybillPanel
+                    {...waybillShared}
+                    continuation={false}
+                    chunkIndex={0}
+                    grouped={grouped}
+                    cutStartIndex={0}
+                  />
+                </div>
               </div>
-            </div>
-          </section>
-        );
-      })}
+            </section>
     </div>
   );
 }

@@ -45,7 +45,13 @@ export function quotationEditBlockedReason(q, role) {
 export function canEditReceipt(record, role) {
   if (!record?.id) return true;
   if (record.source === 'ledger') return role === 'admin' || role === 'finance_manager';
-  return role === 'admin' || role === 'finance_manager' || role === 'sales_manager';
+  return (
+    role === 'admin' ||
+    role === 'finance_manager' ||
+    role === 'sales_manager' ||
+    role === 'sales_staff' ||
+    role === 'cashier'
+  );
 }
 
 export function receiptEditBlockedReason(record, role) {
@@ -53,7 +59,7 @@ export function receiptEditBlockedReason(record, role) {
   if (record?.source === 'ledger') {
     return 'Ledger payments are read-only — use a reversing entry in Finance if a correction is needed.';
   }
-  return 'Posted receipts are view-only for sales. Accounts (audit) or a branch manager can edit during reconciliation.';
+  return 'You do not have permission to edit this receipt. Ask a branch manager or finance if a correction is needed.';
 }
 
 export function canEditCuttingList(c) {
