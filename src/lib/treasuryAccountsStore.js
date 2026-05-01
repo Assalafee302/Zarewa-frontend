@@ -33,6 +33,11 @@ export function treasuryAccountsFromSnapshot(snapshot) {
     balance: Number(a.balance) || 0,
     type: a.type === 'Cash' ? 'Cash' : 'Bank',
     accNo: String(a.accNo ?? 'N/A'),
+    accountOfficerName: String(a.accountOfficerName ?? ''),
+    accountOfficerPhone: String(a.accountOfficerPhone ?? ''),
+    bankBranch: String(a.bankBranch ?? ''),
+    sortCodeOrSwift: String(a.sortCodeOrSwift ?? ''),
+    notes: String(a.notes ?? ''),
   }));
 }
 

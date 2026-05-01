@@ -19,6 +19,8 @@ import {
   RotateCcw,
   Printer,
   Banknote,
+  Pencil,
+  Trash2,
 } from 'lucide-react';
 
 import { MainPanel, PageHeader, PageShell, PageTabs, ModalFrame } from '../components/layout';
@@ -92,13 +94,20 @@ const Account = () => {
 
   const [bankAccounts, setBankAccounts] = useState([]);
 
-  const [newBank, setNewBank] = useState({
+  const emptyBankForm = () => ({
+    id: null,
     name: '',
     bankName: '',
     type: 'Bank',
     accNo: '',
     balance: '',
+    accountOfficerName: '',
+    accountOfficerPhone: '',
+    bankBranch: '',
+    sortCodeOrSwift: '',
+    notes: '',
   });
+  const [newBank, setNewBank] = useState(emptyBankForm);
 
   const [fundMovements, setFundMovements] = useState([]);
   const [transferForm, setTransferForm] = useState({
@@ -652,8 +661,13 @@ const Account = () => {
     if (t && TAB_LABELS[t]) setActiveTab(t);
   }, [searchParams]);
 
+  const canManageTreasury = Boolean(ws?.hasPermission?.('treasury.manage'));
+
   const headerAction = () => {
-    if (activeTab === 'treasury') setShowAddBank(true);
+    if (activeTab === 'treasury') {
+      setNewBank(emptyBankForm());
+      setShowAddBank(true);
+    }
     if (activeTab === 'movements') {
       setTransferForm({
         fromId: bankAccounts[0] ? String(bankAccounts[0].id) : '',
@@ -670,7 +684,11 @@ const Account = () => {
   };
 
   const newRecordLabel =
-    activeTab === 'treasury' ? 'New account' : activeTab === 'movements' ? 'New transfer' : null;
+    activeTab === 'treasury' && canManageTreasury
+      ? 'New account'
+      : activeTab === 'movements'
+        ? 'New transfer'
+        : null;
 
    
   useEffect(() => {
@@ -940,21 +958,72 @@ const Account = () => {
     showToast('Expense request submitted for approval.');
   };
 
-  const addBank = async (e) => {
+  const openEditTreasuryAccount = (acc) => {
+    setNewBank({
+      id: acc.id,
+      name: acc.name || '',
+      bankName: acc.bankName || '',
+      type: acc.type === 'Cash' ? 'Cash' : 'Bank',
+      accNo: acc.accNo || '',
+      balance: acc.balance != null ? String(acc.balance) : '',
+      accountOfficerName: acc.accountOfficerName || '',
+      accountOfficerPhone: acc.accountOfficerPhone || '',
+      bankBranch: acc.bankBranch || '',
+      sortCodeOrSwift: acc.sortCodeOrSwift || '',
+      notes: acc.notes || '',
+    });
+    setShowAddBank(true);
+  };
+
+  const removeTreasuryAccount = async (acc) => {
+    if (!ws?.canMutate || !canManageTreasury) return;
+    const label = String(acc?.name || 'this account').trim() || 'this account';
+    if (
+      !window.confirm(
+        `Delete treasury account “${label}”? This cannot be undone. The server rejects delete if any treasury movements, reconciliation lines, or inter-branch records reference this account.`
+      )
+    ) {
+      return;
+    }
+    const { ok, data } = await apiFetch(`/api/treasury/accounts/${encodeURIComponent(acc.id)}`, {
+      method: 'DELETE',
+    });
+    if (!ok || !data?.ok) {
+      showToast(data?.error || 'Could not delete account.', { variant: 'error' });
+      return;
+    }
+    if (statementAccount && String(statementAccount.id) === String(acc.id)) {
+      setStatementAccount(null);
+    }
+    await ws.refresh();
+    showToast('Treasury account removed.');
+  };
+
+  const saveBankAccount = async (e) => {
     e.preventDefault();
     const bal = Number(newBank.balance || 0);
     const accName = newBank.name.trim();
     if (!accName) return;
     if (ws?.canMutate) {
+      const body = {
+        name: accName,
+        bankName: newBank.bankName.trim(),
+        type: newBank.type,
+        accNo: newBank.accNo.trim() || 'N/A',
+        balance: Number.isNaN(bal) ? 0 : bal,
+        accountOfficerName: newBank.accountOfficerName.trim(),
+        accountOfficerPhone: newBank.accountOfficerPhone.trim(),
+        bankBranch: newBank.bankBranch.trim(),
+        sortCodeOrSwift: newBank.sortCodeOrSwift.trim(),
+        notes: newBank.notes.trim(),
+      };
+      if (newBank.id != null && newBank.id !== '') {
+        const nid = typeof newBank.id === 'number' ? newBank.id : Number(newBank.id);
+        if (Number.isFinite(nid)) body.id = nid;
+      }
       const { ok, data } = await apiFetch('/api/treasury/accounts', {
         method: 'POST',
-        body: JSON.stringify({
-          name: accName,
-          bankName: newBank.bankName.trim(),
-          type: newBank.type,
-          accNo: newBank.accNo.trim() || 'N/A',
-          balance: Number.isNaN(bal) ? 0 : bal,
-        }),
+        body: JSON.stringify(body),
       });
       if (!ok || !data?.ok) {
         showToast(data?.error || 'Could not save treasury on server.', { variant: 'error' });
@@ -970,9 +1039,10 @@ const Account = () => {
       );
       return;
     }
-    setNewBank({ name: '', bankName: '', type: 'Bank', accNo: '', balance: '' });
+    const wasEdit = newBank.id != null && newBank.id !== '';
+    setNewBank(emptyBankForm());
     setShowAddBank(false);
-    showToast(`Account “${accName}” added to treasury.`);
+    showToast(wasEdit ? `Account “${accName}” updated.` : `Account “${accName}” added to treasury.`);
   };
 
   const saveTransfer = async (e) => {
@@ -1269,7 +1339,19 @@ const Account = () => {
     const qq = searchQuery.trim().toLowerCase();
     if (!qq) return bankAccounts;
     return bankAccounts.filter((a) => {
-      const blob = [a.name, a.type, a.accNo].join(' ').toLowerCase();
+      const blob = [
+        a.name,
+        a.type,
+        a.accNo,
+        a.bankName,
+        a.accountOfficerName,
+        a.accountOfficerPhone,
+        a.bankBranch,
+        a.sortCodeOrSwift,
+        a.notes,
+      ]
+        .join(' ')
+        .toLowerCase();
       return blob.includes(qq);
     });
   }, [bankAccounts, searchQuery]);
@@ -2218,30 +2300,64 @@ const Account = () => {
                     </div>
                   ) : (
                     filteredBankAccounts.map((acc) => (
-                      <button
+                      <div
                         key={acc.id}
-                        type="button"
-                        onClick={() => setStatementAccount(acc)}
-                        className="text-left p-4 rounded-zarewa border border-gray-100 bg-gray-50/50 hover:bg-white hover:shadow-lg hover:border-teal-100 transition-all group cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[#134e4a]/30"
+                        className="rounded-zarewa border border-gray-100 bg-gray-50/50 hover:bg-white hover:shadow-lg hover:border-teal-100 transition-all group flex flex-col"
                       >
-                        <div className="flex justify-between items-start mb-3">
-                          <div className="p-2 bg-white rounded-lg shadow-sm text-[#134e4a]">
-                            {acc.type === 'Bank' ? <Landmark size={18} /> : <CreditCard size={18} />}
+                        <button
+                          type="button"
+                          onClick={() => setStatementAccount(acc)}
+                          className="text-left p-4 flex-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#134e4a]/30 rounded-t-zarewa"
+                        >
+                          <div className="flex justify-between items-start mb-3">
+                            <div className="p-2 bg-white rounded-lg shadow-sm text-[#134e4a]">
+                              {acc.type === 'Bank' ? <Landmark size={18} /> : <CreditCard size={18} />}
+                            </div>
+                            <span className="text-[9px] font-bold text-gray-400 uppercase tracking-tighter">
+                              {acc.accNo}
+                            </span>
                           </div>
-                          <span className="text-[9px] font-bold text-gray-400 uppercase tracking-tighter">
-                            {acc.accNo}
-                          </span>
-                        </div>
-                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-0.5">
-                          {acc.name}
-                        </p>
-                        <h4 className="text-lg font-black text-[#134e4a] italic tracking-tighter">
-                          ₦{acc.balance.toLocaleString()}
-                        </h4>
-                        <p className="text-[9px] text-teal-700/80 font-bold mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                          View statement
-                        </p>
-                      </button>
+                          <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-0.5">
+                            {acc.name}
+                          </p>
+                          {acc.type === 'Bank' && acc.bankName ? (
+                            <p className="text-[9px] text-slate-500 font-semibold mb-1 truncate" title={acc.bankName}>
+                              {acc.bankName}
+                            </p>
+                          ) : null}
+                          <h4 className="text-lg font-black text-[#134e4a] italic tracking-tighter">
+                            ₦{(Number(acc.balance) || 0).toLocaleString()}
+                          </h4>
+                          {acc.accountOfficerName || acc.accountOfficerPhone ? (
+                            <p className="text-[9px] text-slate-600 mt-2 leading-snug line-clamp-2">
+                              {acc.accountOfficerName ? <span className="font-semibold">{acc.accountOfficerName}</span> : null}
+                              {acc.accountOfficerName && acc.accountOfficerPhone ? ' · ' : null}
+                              {acc.accountOfficerPhone ? <span className="tabular-nums">{acc.accountOfficerPhone}</span> : null}
+                            </p>
+                          ) : null}
+                          <p className="text-[9px] text-teal-700/80 font-bold mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                            View statement
+                          </p>
+                        </button>
+                        {canManageTreasury && ws?.canMutate ? (
+                          <div className="flex items-center justify-end gap-1.5 px-3 pb-3 pt-0 border-t border-gray-100/80">
+                            <button
+                              type="button"
+                              onClick={() => openEditTreasuryAccount(acc)}
+                              className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[9px] font-bold uppercase tracking-wide text-slate-700 hover:border-teal-200 hover:bg-teal-50/50"
+                            >
+                              <Pencil size={12} /> Edit
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => void removeTreasuryAccount(acc)}
+                              className="inline-flex items-center gap-1 rounded-lg border border-rose-200 bg-rose-50/60 px-2.5 py-1.5 text-[9px] font-bold uppercase tracking-wide text-rose-800 hover:bg-rose-100"
+                            >
+                              <Trash2 size={12} /> Delete
+                            </button>
+                          </div>
+                        ) : null}
+                      </div>
                     ))
                   )}
                 </div>
@@ -3119,10 +3235,33 @@ const Account = () => {
             <div className="min-w-0">
               <h3 className="text-lg sm:text-xl font-bold text-[#134e4a]">Account statement</h3>
               {statementAccount ? (
-                <p className="text-xs text-gray-600 mt-1 font-semibold truncate" title={statementAccount.name}>
-                  {statementAccount.name}
-                  {statementAccount.bankName ? ` · ${statementAccount.bankName}` : ''}
-                </p>
+                <div className="text-xs text-gray-600 mt-1 space-y-0.5">
+                  <p className="font-semibold truncate" title={statementAccount.name}>
+                    {statementAccount.name}
+                    {statementAccount.bankName ? ` · ${statementAccount.bankName}` : ''}
+                  </p>
+                  {statementAccount.bankBranch ? (
+                    <p className="text-[11px] text-slate-500">Branch: {statementAccount.bankBranch}</p>
+                  ) : null}
+                  {statementAccount.sortCodeOrSwift ? (
+                    <p className="text-[11px] text-slate-500 tabular-nums">
+                      Sort / SWIFT: {statementAccount.sortCodeOrSwift}
+                    </p>
+                  ) : null}
+                  {statementAccount.accountOfficerName || statementAccount.accountOfficerPhone ? (
+                    <p className="text-[11px] text-slate-600">
+                      Officer:{' '}
+                      {[statementAccount.accountOfficerName, statementAccount.accountOfficerPhone]
+                        .filter(Boolean)
+                        .join(' · ')}
+                    </p>
+                  ) : null}
+                  {statementAccount.notes ? (
+                    <p className="text-[10px] text-slate-500 leading-snug border-t border-slate-100/80 pt-1 mt-1">
+                      {statementAccount.notes}
+                    </p>
+                  ) : null}
+                </div>
               ) : null}
             </div>
             <button
@@ -3479,19 +3618,30 @@ const Account = () => {
         </div>
       </ModalFrame>
 
-      <ModalFrame isOpen={showAddBank} onClose={() => setShowAddBank(false)}>
-        <div className="z-modal-panel max-w-md p-8 overflow-y-auto">
+      <ModalFrame
+        isOpen={showAddBank}
+        onClose={() => {
+          setShowAddBank(false);
+          setNewBank(emptyBankForm());
+        }}
+      >
+        <div className="z-modal-panel max-w-lg p-8 max-h-[min(90vh,720px)] overflow-y-auto">
             <div className="flex justify-between items-center mb-6">
-              <h3 className="text-xl font-bold text-[#134e4a]">New account</h3>
+              <h3 className="text-xl font-bold text-[#134e4a]">
+                {newBank.id != null && newBank.id !== '' ? 'Edit account' : 'New account'}
+              </h3>
               <button
                 type="button"
-                onClick={() => setShowAddBank(false)}
+                onClick={() => {
+                  setShowAddBank(false);
+                  setNewBank(emptyBankForm());
+                }}
                 className="p-2 text-gray-400 hover:text-red-500 rounded-xl"
               >
                 <X size={22} />
               </button>
             </div>
-            <form className="space-y-4" onSubmit={addBank}>
+            <form className="space-y-4" onSubmit={saveBankAccount}>
               <div>
                 <label className="text-[10px] font-bold text-gray-400 uppercase ml-1 block mb-1">
                   Account name
@@ -3532,7 +3682,7 @@ const Account = () => {
                 </div>
                 <div>
                   <label className="text-[10px] font-bold text-gray-400 uppercase ml-1 block mb-1">
-                    Opening balance (₦)
+                    {newBank.id != null && newBank.id !== '' ? 'Book balance (₦)' : 'Opening balance (₦)'}
                   </label>
                   <input
                     type="number"
@@ -3541,6 +3691,11 @@ const Account = () => {
                     onChange={(e) => setNewBank((b) => ({ ...b, balance: e.target.value }))}
                     className="w-full bg-gray-50 border border-gray-100 rounded-xl py-3 px-4 text-sm font-bold outline-none"
                   />
+                  {newBank.id != null && newBank.id !== '' ? (
+                    <p className="text-[9px] text-gray-500 mt-1 leading-snug">
+                      Prefer transfers and posted receipts to move cash; change this only for corrections.
+                    </p>
+                  ) : null}
                 </div>
               </div>
               <div>
@@ -3551,6 +3706,64 @@ const Account = () => {
                   value={newBank.accNo}
                   onChange={(e) => setNewBank((b) => ({ ...b, accNo: e.target.value }))}
                   className="w-full bg-gray-50 border border-gray-100 rounded-xl py-3 px-4 text-sm font-bold outline-none"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] font-bold text-gray-400 uppercase ml-1 block mb-1">
+                  Bank branch / address
+                </label>
+                <input
+                  value={newBank.bankBranch}
+                  onChange={(e) => setNewBank((b) => ({ ...b, bankBranch: e.target.value }))}
+                  placeholder="e.g. Ahmadu Bello Way, Kaduna"
+                  className="w-full bg-gray-50 border border-gray-100 rounded-xl py-3 px-4 text-sm font-bold outline-none"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] font-bold text-gray-400 uppercase ml-1 block mb-1">
+                  Sort code / SWIFT (optional)
+                </label>
+                <input
+                  value={newBank.sortCodeOrSwift}
+                  onChange={(e) => setNewBank((b) => ({ ...b, sortCodeOrSwift: e.target.value }))}
+                  placeholder="e.g. 057 / ZEIBNGLA"
+                  className="w-full bg-gray-50 border border-gray-100 rounded-xl py-3 px-4 text-sm font-bold outline-none"
+                />
+              </div>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div>
+                  <label className="text-[10px] font-bold text-gray-400 uppercase ml-1 block mb-1">
+                    Account officer name
+                  </label>
+                  <input
+                    value={newBank.accountOfficerName}
+                    onChange={(e) => setNewBank((b) => ({ ...b, accountOfficerName: e.target.value }))}
+                    placeholder="Relationship manager"
+                    className="w-full bg-gray-50 border border-gray-100 rounded-xl py-3 px-4 text-sm font-bold outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-gray-400 uppercase ml-1 block mb-1">
+                    Account officer phone
+                  </label>
+                  <input
+                    value={newBank.accountOfficerPhone}
+                    onChange={(e) => setNewBank((b) => ({ ...b, accountOfficerPhone: e.target.value }))}
+                    placeholder="+234…"
+                    className="w-full bg-gray-50 border border-gray-100 rounded-xl py-3 px-4 text-sm font-bold outline-none"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="text-[10px] font-bold text-gray-400 uppercase ml-1 block mb-1">
+                  Internal notes
+                </label>
+                <textarea
+                  rows={2}
+                  value={newBank.notes}
+                  onChange={(e) => setNewBank((b) => ({ ...b, notes: e.target.value }))}
+                  placeholder="e.g. Primary payroll account; notify MD for transfers above ₦10m"
+                  className="w-full bg-gray-50 border border-gray-100 rounded-xl py-3 px-4 text-sm outline-none resize-y min-h-[3rem]"
                 />
               </div>
               <button type="submit" className="z-btn-primary w-full justify-center py-3">
