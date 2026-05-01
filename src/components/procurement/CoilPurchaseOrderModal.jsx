@@ -31,9 +31,21 @@ const FALLBACK_GAUGES = ['0.70mm', '0.55mm', '0.45mm', '0.40mm', '0.30mm', '0.24
 const FALLBACK_COLOURS = [
   { name: 'HM Blue', abbreviation: 'HMB' },
   { name: 'Traffic Black', abbreviation: 'TB' },
-  { name: 'TC Red', abbreviation: 'TCR' },
+  { name: 'TC Red', abbreviation: 'TR' },
   { name: 'Bush Green', abbreviation: 'BG' },
+  { name: 'Gray Beige', abbreviation: 'GB' },
+  { name: 'Ivory Beige', abbreviation: 'IV' },
+  { name: 'P Red', abbreviation: 'PR' },
+  { name: 'Pale Green', abbreviation: 'PG' },
+  { name: 'Nut Brown', abbreviation: 'NB' },
+  { name: 'Stucco', abbreviation: 'ST' },
+  { name: 'Natural Green', abbreviation: 'NG' },
+  { name: 'CP Blue', abbreviation: 'CB' },
+  { name: 'Canary Yellow', abbreviation: 'CY' },
+  { name: 'Coloured', abbreviation: 'CL' },
   { name: 'Zinc Grey', abbreviation: 'ZG' },
+  { name: 'Wine Red', abbreviation: 'WR' },
+  { name: 'Vandal Grey', abbreviation: 'VG' },
 ];
 
 function newRowUid() {

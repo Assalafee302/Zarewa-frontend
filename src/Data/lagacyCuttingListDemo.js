@@ -67,7 +67,7 @@ export const LAGACY_TOTAL_METERS = LAGACY_CUTTING_LIST_LINES.reduce((s, l) => s 
 /** Quotation line JSON (products / accessories / services) — amounts match paper subtotals & grand total. */
 export const LAGACY_LINES_JSON = {
   materialGauge: '0.70mm',
-  materialColor: 'P RED',
+  materialColor: 'P Red',
   materialDesign: 'Longspan (Indus6)',
   products: [
     { id: 'lag-p1', name: 'Roofing Sheet', qty: '1888.85', unitPrice: '12000' },
@@ -151,7 +151,7 @@ export const LAGACY_CUTTING_LIST = {
   customer: 'NDA',
   quotationRef: 'QT-2026-027',
   productID: 'FG-101',
-  productName: 'Longspan (Indus6) · P RED · 0.70mm',
+  productName: 'Longspan (Indus6) · P Red · 0.70mm',
   date: '11 Aug',
   dateISO: '2026-08-11',
   sheetsToCut: LAGACY_SHEETS_TO_CUT,

@@ -36,7 +36,25 @@ const QUOTATION_MATERIAL_INVENTORY_MODELS = new Set(['coil_kg', 'stone_meter']);
 
 const DEFAULT_PROFILES = ['Longspan (Indus6)', 'Metrotile', 'Steptile', 'Capping', 'Ridge Cap'];
 const DEFAULT_GAUGES = ['0.70mm', '0.55mm', '0.45mm', '0.40mm', '0.30mm', '0.24mm'];
-const DEFAULT_COLOURS = ['HM Blue', 'Traffic Black', 'TC Red', 'Bush Green', 'Zinc Grey'];
+const DEFAULT_COLOURS = [
+  'HM Blue',
+  'Traffic Black',
+  'TC Red',
+  'Bush Green',
+  'Gray Beige',
+  'Ivory Beige',
+  'P Red',
+  'Pale Green',
+  'Nut Brown',
+  'Stucco',
+  'Natural Green',
+  'CP Blue',
+  'Canary Yellow',
+  'Coloured',
+  'Zinc Grey',
+  'Wine Red',
+  'Vandal Grey',
+];
 const DEFAULT_PRODUCT_ITEMS = [
   'Roofing Sheet',
   'Bargeboard',
