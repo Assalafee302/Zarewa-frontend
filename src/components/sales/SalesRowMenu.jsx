@@ -1,5 +1,46 @@
-import React from 'react';
+import React, { useLayoutEffect, useRef, useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { MoreVertical, Eye, PencilLine, Receipt as ReceiptIcon, FileText } from 'lucide-react';
+
+const MENU_Z = 5000;
+/** Tailwind `w-44` (11rem) — keep in sync with menu class */
+const MENU_WIDTH_PX = 176;
+
+function useMenuPosition(open, anchorRef) {
+  const [pos, setPos] = useState(null);
+
+  const update = React.useCallback(() => {
+    const el = anchorRef.current;
+    if (!el || !open) {
+      setPos(null);
+      return;
+    }
+    const r = el.getBoundingClientRect();
+    let left = r.right - MENU_WIDTH_PX;
+    left = Math.max(8, Math.min(left, window.innerWidth - MENU_WIDTH_PX - 8));
+    setPos({
+      top: r.bottom + 4,
+      left,
+    });
+  }, [open, anchorRef]);
+
+  useLayoutEffect(() => {
+    update();
+  }, [open, update]);
+
+  useEffect(() => {
+    if (!open) return;
+    update();
+    window.addEventListener('resize', update);
+    window.addEventListener('scroll', update, true);
+    return () => {
+      window.removeEventListener('resize', update);
+      window.removeEventListener('scroll', update, true);
+    };
+  }, [open, update]);
+
+  return pos;
+}
 
 export function SalesRowMenu({
   rowKey,
@@ -13,8 +54,86 @@ export function SalesRowMenu({
   onReviewAudit,
 }) {
   const open = openKey === rowKey;
+  const anchorRef = useRef(null);
+  const pos = useMenuPosition(open, anchorRef);
+
+  const menu =
+    open && pos && typeof document !== 'undefined'
+      ? createPortal(
+          <div
+            role="menu"
+            data-sales-action-menu
+            style={{
+              position: 'fixed',
+              top: pos.top,
+              left: pos.left,
+              zIndex: MENU_Z,
+            }}
+            className="w-44 rounded-lg border border-slate-200 bg-white py-1 shadow-lg"
+          >
+            <button
+              type="button"
+              role="menuitem"
+              className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-medium text-slate-700 hover:bg-slate-50"
+              onClick={() => {
+                onView();
+                setOpenKey(null);
+              }}
+            >
+              <Eye size={14} className="text-slate-400 shrink-0" />
+              View
+            </button>
+            {onAddReceipt && (
+              <button
+                type="button"
+                role="menuitem"
+                className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-medium text-emerald-700 hover:bg-emerald-50"
+                onClick={() => {
+                  onAddReceipt();
+                  setOpenKey(null);
+                }}
+              >
+                <ReceiptIcon size={14} className="text-emerald-400 shrink-0" />
+                Add Receipt
+              </button>
+            )}
+            {onReviewAudit && (
+              <button
+                type="button"
+                role="menuitem"
+                className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-medium text-[#134e4a] hover:bg-slate-50"
+                onClick={() => {
+                  onReviewAudit();
+                  setOpenKey(null);
+                }}
+              >
+                <FileText size={14} className="text-slate-400 shrink-0" />
+                Review Audit
+              </button>
+            )}
+            <button
+              type="button"
+              role="menuitem"
+              disabled={editDisabled}
+              title={editDisabled ? editTitle : undefined}
+              className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-white"
+              onClick={() => {
+                if (!editDisabled) {
+                  onEdit();
+                  setOpenKey(null);
+                }
+              }}
+            >
+              <PencilLine size={14} className="text-slate-400 shrink-0" />
+              Edit
+            </button>
+          </div>,
+          document.body
+        )
+      : null;
+
   return (
-    <div className="relative shrink-0" data-sales-action-menu>
+    <div ref={anchorRef} className="relative shrink-0" data-sales-action-menu>
       <button
         type="button"
         aria-expanded={open}
@@ -24,70 +143,7 @@ export function SalesRowMenu({
       >
         <MoreVertical size={18} strokeWidth={2} />
       </button>
-      {open ? (
-        <div
-          role="menu"
-          className="absolute right-0 top-full z-30 mt-1 w-44 rounded-lg border border-slate-200 bg-white py-1 shadow-lg"
-        >
-          <button
-            type="button"
-            role="menuitem"
-            className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-medium text-slate-700 hover:bg-slate-50"
-            onClick={() => {
-              onView();
-              setOpenKey(null);
-            }}
-          >
-            <Eye size={14} className="text-slate-400 shrink-0" />
-            View
-          </button>
-          {onAddReceipt && (
-            <button
-              type="button"
-              role="menuitem"
-              className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-medium text-emerald-700 hover:bg-emerald-50"
-              onClick={() => {
-                onAddReceipt();
-                setOpenKey(null);
-              }}
-            >
-              <ReceiptIcon size={14} className="text-emerald-400 shrink-0" />
-              Add Receipt
-            </button>
-          )}
-          {onReviewAudit && (
-            <button
-              type="button"
-              role="menuitem"
-              className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-medium text-[#134e4a] hover:bg-slate-50"
-              onClick={() => {
-                onReviewAudit();
-                setOpenKey(null);
-              }}
-            >
-              <FileText size={14} className="text-slate-400 shrink-0" />
-              Review Audit
-            </button>
-          )}
-          <button
-            type="button"
-            role="menuitem"
-            disabled={editDisabled}
-            title={editDisabled ? editTitle : undefined}
-            className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-white"
-            onClick={() => {
-              if (!editDisabled) {
-                onEdit();
-                setOpenKey(null);
-              }
-            }}
-          >
-            <PencilLine size={14} className="text-slate-400 shrink-0" />
-            Edit
-          </button>
-        </div>
-      ) : null}
+      {menu}
     </div>
   );
 }
-
