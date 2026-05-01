@@ -19,12 +19,14 @@ import {
   BookOpen,
   Lock,
   SlidersHorizontal,
+  RotateCcw,
 } from 'lucide-react';
 import { PageHeader, PageShell, MainPanel, PageTabs } from '../components/layout';
 import MasterDataWorkbench from '../components/settings/MasterDataWorkbench';
 import CoilRegisterImportPanel from '../components/settings/CoilRegisterImportPanel';
 import TeamAccessPanel from '../components/settings/TeamAccessPanel';
 import SettingsProfilePanel from '../components/settings/SettingsProfilePanel';
+import AdminDataResetPanel from '../components/settings/AdminDataResetPanel';
 import {
   DEFAULT_MANAGER_TARGETS_PER_MONTH,
   mergeDashboardPrefs,
@@ -98,6 +100,7 @@ const Settings = () => {
 
   const showTeamTab = Boolean(ws?.hasPermission?.('settings.view'));
   const canEditOrgTargets = Boolean(ws?.hasPermission?.('settings.view'));
+  const showAdminDataReset = String(currentUser?.roleKey || '').toLowerCase() === 'admin';
 
   const settingsTabs = useMemo(() => {
     const tabs = [
@@ -110,11 +113,14 @@ const Settings = () => {
     }
     tabs.push(
       { id: 'data', label: 'Data & catalog', icon: <Database size={14} /> },
+      ...(showAdminDataReset
+        ? [{ id: 'admin-reset', label: 'Admin data reset', icon: <RotateCcw size={14} /> }]
+        : []),
       { id: 'governance', label: 'Governance', icon: <Scale size={14} /> },
       { id: 'guide', label: 'Team guide', icon: <BookOpen size={14} /> }
     );
     return tabs;
-  }, [showTeamTab]);
+  }, [showTeamTab, showAdminDataReset]);
 
   const allowedSections = useMemo(() => new Set(settingsTabs.map((t) => t.id)), [settingsTabs]);
 
@@ -142,6 +148,12 @@ const Settings = () => {
       navigate('/settings/profile', { replace: true });
     }
   }, [activeSection, showTeamTab, navigate]);
+
+  useEffect(() => {
+    if (activeSection === 'admin-reset' && !showAdminDataReset) {
+      navigate('/settings/profile', { replace: true });
+    }
+  }, [activeSection, showAdminDataReset, navigate]);
 
   const persist = async () => {
     try {
@@ -686,6 +698,18 @@ const Settings = () => {
                     <MasterDataWorkbench masterData={masterData} />
                   </section>
                 </div>
+              }
+            />
+            <Route
+              path="admin-reset"
+              element={
+                showAdminDataReset ? (
+                  <div className="space-y-5">
+                    <AdminDataResetPanel />
+                  </div>
+                ) : (
+                  <Navigate to="/settings/profile" replace />
+                )
               }
             />
             <Route
