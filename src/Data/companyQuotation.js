@@ -53,11 +53,11 @@ export const ZAREWA_DOC_MAROON = '#7b2c5a';
 export const DEFAULT_QUOTATION_PRINT_LINES = {
   products: [
     { name: 'Top End', qty: 30, unitPrice: 2000, value: 60000 },
-    { name: 'Barge board', qty: 14, unitPrice: 2000, value: 28000 },
-    { name: 'Eave angle', qty: 60, unitPrice: 850, value: 51000 },
+    { name: 'Bargeboard', qty: 14, unitPrice: 2000, value: 28000 },
+    { name: 'Eaves angle', qty: 60, unitPrice: 850, value: 51000 },
     { name: 'Capping', qty: 50, unitPrice: 2000, value: 100000 },
     { name: 'Flat sheet', qty: 47, unitPrice: 4850, value: 227950 },
-    { name: 'Roofing sheet', qty: 340.3, unitPrice: 4850, value: 1650454.94 },
+    { name: 'Roofing Sheet', qty: 340.3, unitPrice: 4850, value: 1650454.94 },
   ],
   accessories: [
     { name: 'Drive screw nail', qty: 24, unitPrice: 2500, value: 60000 },

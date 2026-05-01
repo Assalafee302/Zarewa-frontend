@@ -178,7 +178,7 @@ export const REFERENCE_KG_REGISTER_GROUPS = [
 export const REFERENCE_ACCESSORIES = [
   { name: 'Nails', quantity: 10, unit: 'Cartons' },
   { name: 'Rivet', quantity: 12, unit: 'packs' },
-  { name: 'Silicon', quantity: 20, unit: 'tubes' },
+  { name: 'Silicone', quantity: 20, unit: 'tubes' },
   { name: 'Washer', quantity: 1700, unit: 'packs' },
   { name: 'Felt', quantity: 1800, unit: 'packs' },
   { name: 'Tapping screw', quantity: 142, unit: 'cartons' },
