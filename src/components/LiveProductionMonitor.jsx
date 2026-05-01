@@ -1066,6 +1066,26 @@ export function LiveProductionMonitor({
         return;
       }
       try {
+        if (runLogSaveReady && !isStoneMeterQuote) {
+          const readings = draftAllocations
+            .filter((r) => !isDraftAllocationRow(r))
+            .map((row) => ({
+              allocationId: row.id,
+              closingWeightKg: Number(String(row.closingWeightKg).replace(/,/g, '')) || 0,
+              metersProduced: Number(String(row.metersProduced).replace(/,/g, '')) || 0,
+              note: String(row.note ?? '').trim(),
+            }));
+          const resRl = await apiFetch(`${jobApi}/coil-run-log`, {
+            method: 'POST',
+            body: JSON.stringify({ readings }),
+          });
+          if (!resRl.ok || !resRl.data?.ok) {
+            setSavingAction('');
+            showToast(resRl.data?.error || 'Could not save run log.', { variant: 'error' });
+            await ws.refresh();
+            return;
+          }
+        }
         if (appendSaveReady && !isStoneMeterQuote && selectedJob.status === 'Running') {
           const pathAlloc = `${jobApi}/allocations`;
           const buildRunAppend = (withAck) => {
@@ -1101,29 +1121,9 @@ export function LiveProductionMonitor({
             if (!resA.ok || !resA.data?.ok) {
               setSavingAction('');
               showToast(resA.data?.error || 'Could not save new coil.', { variant: 'error' });
+              await ws.refresh();
               return;
             }
-            await ws.refresh();
-          }
-        }
-        if (runLogSaveReady && !isStoneMeterQuote) {
-          const readings = draftAllocations
-            .filter((r) => !isDraftAllocationRow(r))
-            .map((row) => ({
-              allocationId: row.id,
-              closingWeightKg: Number(String(row.closingWeightKg).replace(/,/g, '')) || 0,
-              metersProduced: Number(String(row.metersProduced).replace(/,/g, '')) || 0,
-              note: String(row.note ?? '').trim(),
-            }));
-          const resRl = await apiFetch(`${jobApi}/coil-run-log`, {
-            method: 'POST',
-            body: JSON.stringify({ readings }),
-          });
-          if (!resRl.ok || !resRl.data?.ok) {
-            setSavingAction('');
-            showToast(resRl.data?.error || 'Could not save run log.', { variant: 'error' });
-            await ws.refresh();
-            return;
           }
         }
         await ws.refresh();
