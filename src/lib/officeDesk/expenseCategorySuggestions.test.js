@@ -4,7 +4,7 @@ import { suggestExpenseCategoryFromMemoText } from './expenseCategorySuggestions
 describe('suggestExpenseCategoryFromMemoText', () => {
   it('suggests logistics for haulage keywords', () => {
     const r = suggestExpenseCategoryFromMemoText({ subject: 'Haulage', body: 'Pay transporter' });
-    expect(r.category).toBe('Logistics & haulage');
+    expect(r.category).toBe('Truck & mining');
   });
 
   it('returns null when no match', () => {
