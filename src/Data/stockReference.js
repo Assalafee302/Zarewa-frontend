@@ -4,6 +4,8 @@
  * Grand total from last count sheet: **97,827 kg** (aluminium by gauge + aluzinc thin + kg register blocks).
  * Next physical coil tag to assign after the highest **C/NO** in this register: **1968** (max observed **1967**).
  * On the sheet, **C/NO** is the coil number; in row objects it is stored as `coilNo`.
+ * **Gauge** strings use the same labels as master data (`setup_gauges`), e.g. `0.24mm` (not bare `0.24`).
+ * **Colour** values are setup colour abbreviations (e.g. GB, IV, DG) matching Settings → Master lists → Colours.
  */
 
 /** @typedef {{ sn: number, colour: string, coilNo: string, quantity: number }} ThinGaugeRow — `coilNo` is shop **C/NO** (coil number). */
@@ -14,7 +16,7 @@
 /** Longspan / thin gauge — grouped by gauge; grand total matches your sheet. */
 export const REFERENCE_THIN_GAUGE_GROUPS = [
   {
-    gauge: '0.24',
+    gauge: '0.24mm',
     subtotal: 23754,
     rows: [
       { sn: 36, colour: 'IV', coilNo: '1930', quantity: 2761 },
@@ -38,7 +40,7 @@ export const REFERENCE_THIN_GAUGE_GROUPS = [
     ],
   },
   {
-    gauge: '0.22',
+    gauge: '0.22mm',
     subtotal: 5549,
     rows: [
       { sn: 54, colour: 'GB', coilNo: '1935', quantity: 1063 },
@@ -49,7 +51,7 @@ export const REFERENCE_THIN_GAUGE_GROUPS = [
     ],
   },
   {
-    gauge: '0.2',
+    gauge: '0.20mm',
     subtotal: 35133,
     rows: [
       { sn: 59, colour: 'IV', coilNo: '1961', quantity: 3331 },
@@ -68,7 +70,7 @@ export const REFERENCE_THIN_GAUGE_GROUPS = [
     ],
   },
   {
-    gauge: '0.18',
+    gauge: '0.18mm',
     subtotal: 8046,
     rows: [
       { sn: 72, colour: 'IV', coilNo: '1741', quantity: 156 },
@@ -86,12 +88,12 @@ export const REFERENCE_THIN_GAUGE_GRAND_TOTAL = 72482;
 /** Coil register in kg (heavier lines + aluzinc book). */
 export const REFERENCE_KG_REGISTER_GROUPS = [
   {
-    gauge: '0.45',
+    gauge: '0.45mm',
     subtotalKg: 798,
     rows: [{ sn: 1, colour: 'GB', coilNo: '1399', kg: 798 }],
   },
   {
-    gauge: '0.55',
+    gauge: '0.55mm',
     subtotalKg: 8374,
     rows: [
       { sn: 2, colour: 'GB', coilNo: '1441', kg: 30 },
@@ -109,12 +111,12 @@ export const REFERENCE_KG_REGISTER_GROUPS = [
     ],
   },
   {
-    gauge: '0.6',
+    gauge: '0.60mm',
     subtotalKg: 148,
     rows: [{ sn: 14, colour: 'IV', coilNo: '1455', kg: 148 }],
   },
   {
-    gauge: '0.7',
+    gauge: '0.70mm',
     subtotalKg: 1004,
     rows: [
       { sn: 15, colour: 'GB', coilNo: '1866', kg: 225 },
@@ -126,12 +128,12 @@ export const REFERENCE_KG_REGISTER_GROUPS = [
     ],
   },
   {
-    gauge: '0.35',
+    gauge: '0.35mm',
     subtotalKg: 142,
     rows: [{ sn: 21, colour: 'GB', coilNo: '1896', kg: 142 }],
   },
   {
-    gauge: '0.4',
+    gauge: '0.40mm',
     subtotalKg: 579,
     rows: [
       { sn: 22, colour: 'IV', coilNo: '1906', kg: 382 },
@@ -139,7 +141,7 @@ export const REFERENCE_KG_REGISTER_GROUPS = [
     ],
   },
   {
-    gauge: '0.28',
+    gauge: '0.28mm',
     subtotalKg: 14300,
     rows: [
       { sn: 24, colour: 'GB', coilNo: '1959', kg: 2949 },
@@ -160,7 +162,7 @@ export const REFERENCE_KG_REGISTER_GROUPS = [
     ],
   },
   {
-    gauge: '0.24',
+    gauge: '0.24mm',
     subtotalKg: 23754,
     rows: [
       { sn: 39, colour: 'IV', coilNo: '1930', kg: 2761 },

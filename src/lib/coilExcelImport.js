@@ -20,6 +20,56 @@ function strish(v) {
   return String(v).trim();
 }
 
+/** Millimetre labels aligned with `setup_gauges.label` (Settings → Master lists → Gauges). */
+const GAUGE_MM_BY_NUM = new Map(
+  Object.entries({
+    0.18: '0.18mm',
+    0.2: '0.20mm',
+    0.22: '0.22mm',
+    0.24: '0.24mm',
+    0.28: '0.28mm',
+    0.3: '0.30mm',
+    0.35: '0.35mm',
+    0.4: '0.40mm',
+    0.45: '0.45mm',
+    0.5: '0.50mm',
+    0.55: '0.55mm',
+    0.6: '0.60mm',
+    0.7: '0.70mm',
+  }).map(([k, v]) => [Number(k), v])
+);
+
+/**
+ * Map sheet values like `0.24` or `0.24 mm` to canonical gauge labels (`0.24mm`) used in master data.
+ * Leaves non-numeric labels (e.g. ranges) unchanged.
+ * @param {unknown} raw
+ * @returns {string}
+ */
+export function normalizeGaugeLabelForMasterData(raw) {
+  const s = strish(raw);
+  if (!s) return '';
+  const compact = s.replace(/\s/g, '').replace(/,/g, '');
+  let n;
+  if (/mm$/i.test(compact)) n = Number(compact.slice(0, -2));
+  else if (/^\d+(\.\d+)?$/.test(compact)) n = Number(compact);
+  else return s;
+  if (!Number.isFinite(n)) return s;
+  const key = Math.round(n * 1000) / 1000;
+  const hit = GAUGE_MM_BY_NUM.get(key);
+  if (hit) return hit;
+  const lo = Math.round(n * 100) / 100;
+  const hit2 = GAUGE_MM_BY_NUM.get(lo);
+  if (hit2) return hit2;
+  return `${lo}mm`;
+}
+
+function normalizeColourAbbrevForMaster(raw) {
+  const t = strish(raw);
+  if (!t) return '';
+  if (/^[A-Za-z]{2,4}$/.test(t)) return t.toUpperCase();
+  return t;
+}
+
 /** Normalise colour/gauge for auto-generated coil tags (stable per sheet row). */
 function coilSlug(s) {
   const t = strish(s)
@@ -63,6 +113,8 @@ function finalizeCoilImportPayload(pr, excelRow) {
     const pid = materialTextToProductId(matHint);
     if (pid) out.productID = pid;
   }
+  if (strish(out.colour)) out.colour = normalizeColourAbbrevForMaster(out.colour);
+  if (strish(out.gaugeLabel)) out.gaugeLabel = normalizeGaugeLabelForMasterData(out.gaugeLabel);
   if (!strish(out.coilNo)) {
     out.coilNo = generatedStockCoilNo(excelRow, out.colour, out.gaugeLabel);
   }
@@ -438,8 +490,8 @@ function payloadToImportRow(pr) {
     productID: pr.productID,
     currentKg: pr.currentKg,
   };
-  if (pr.colour) out.colour = pr.colour;
-  if (pr.gaugeLabel) out.gaugeLabel = pr.gaugeLabel;
+  if (pr.colour) out.colour = normalizeColourAbbrevForMaster(pr.colour);
+  if (pr.gaugeLabel) out.gaugeLabel = normalizeGaugeLabelForMasterData(pr.gaugeLabel);
   if (pr.qtyReserved != null && Number.isFinite(pr.qtyReserved)) out.qtyReserved = pr.qtyReserved;
   if (pr.location) out.location = pr.location;
   if (pr.supplierName) out.supplierName = pr.supplierName;
@@ -544,9 +596,9 @@ export function parseCoilImportWorkbookArrayBuffer(ab) {
 export function downloadCoilImportTemplate() {
   const aoa = [
     ['Gauge', 'Colour code', 'Material type', 'Coil no', 'Kg', 'Received date (optional, YYYY-MM-DD)'],
-    ['0.45', 'IV', 'Aluminium', 'CL-KD-APR-0001', '3200', '2026-04-30'],
-    ['0.24', 'TB', 'Aluminium', 'CL-KD-APR-0002', '2800', '2026-04-30'],
-    ['0.22', 'HMB', 'Aluzinc', 'CL-KD-APR-0003', '1500', '2026-04-30'],
+    ['0.45mm', 'IV', 'Aluminium', 'CL-KD-APR-0001', '3200', '2026-04-30'],
+    ['0.24mm', 'TB', 'Aluminium', 'CL-KD-APR-0002', '2800', '2026-04-30'],
+    ['0.22mm', 'HMB', 'Aluzinc', 'CL-KD-APR-0003', '1500', '2026-04-30'],
   ];
   const ws = XLSX.utils.aoa_to_sheet(aoa);
   const wb = XLSX.utils.book_new();

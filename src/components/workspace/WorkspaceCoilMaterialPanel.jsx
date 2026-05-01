@@ -7,6 +7,14 @@ function hasOpsAck(ws) {
   return Boolean(ws?.hasPermission?.('operations.manage') || ws?.hasPermission?.('production.manage') || ws?.hasPermission?.('*'));
 }
 
+/** Avoid "0.24mm mm" when gauge already includes mm from master data. */
+function formatGaugeDisplay(raw) {
+  const g = String(raw ?? '').trim();
+  if (!g) return '—';
+  if (/mm$/i.test(g)) return g;
+  return `${g} mm`;
+}
+
 /**
  * Coil / material request triage in the workspace (acknowledge coil → procurement path).
  */
@@ -83,7 +91,7 @@ export default function WorkspaceCoilMaterialPanel({ item, onDone }) {
       {sourceKind === 'coil_request' && coilRow ? (
         <div className="mt-4 space-y-2 rounded-xl border border-slate-200 bg-slate-50/70 px-3 py-3 text-sm">
           <p>
-            <span className="font-medium text-slate-700">Gauge:</span> {coilRow.gauge ?? '—'} mm
+            <span className="font-medium text-slate-700">Gauge:</span> {formatGaugeDisplay(coilRow.gauge)}
           </p>
           <p>
             <span className="font-medium text-slate-700">Colour:</span> {coilRow.colour ?? '—'}

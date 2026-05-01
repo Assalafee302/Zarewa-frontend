@@ -93,8 +93,10 @@ export default function CoilRegisterImportPanel() {
       </h3>
       <p className="text-[10px] text-slate-500 leading-snug mb-3 max-w-2xl">
         Upload or download the template (Gauge, Colour code, Material type, Coil no, Kg — April closing example
-        included). Defaults to product <span className="font-mono">COIL-ALU</span> when Material maps to aluminium.
-        Coils appear under{' '}
+        included). Gauge may be plain numbers (e.g. <span className="font-mono">0.24</span>) or master labels (
+        <span className="font-mono">0.24mm</span>); plain numbers are normalized to match master data. Defaults to
+        product <span className="font-mono">COIL-ALU</span> when Material maps to aluminium. Colour codes should match
+        Settings → Master lists → Colours (abbreviations such as GB, IV, DG). Coils appear under{' '}
         <Link
           to="/operations"
           className="font-semibold text-[#134e4a] underline-offset-2 hover:underline"

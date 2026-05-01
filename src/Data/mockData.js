@@ -146,33 +146,33 @@ export const DELIVERIES_MOCK = [
  * @typedef {{ id: string, colour: string, gaugeLabel: string, materialType: string, weightKg: number, loc?: string | null }} SalesYardCoilRow
  */
 export const SALES_YARD_COIL_REGISTER = [
-  { id: 'COIL-1882', colour: 'HMB', gaugeLabel: '0.24', materialType: 'Aluzinc longspan', weightKg: 3297, loc: 'Bay A' },
-  { id: 'COIL-1908', colour: 'TB', gaugeLabel: '0.24', materialType: 'Aluzinc longspan', weightKg: 3428, loc: 'Bay A' },
-  { id: 'COIL-1878', colour: 'GB', gaugeLabel: '0.55', materialType: 'Aluzinc longspan', weightKg: 732, loc: 'Bay B' },
-  { id: 'COIL-1912', colour: 'IV', gaugeLabel: '0.20', materialType: 'Aluzinc longspan', weightKg: 2890, loc: 'Bay A' },
-  { id: 'COIL-1913', colour: 'PR', gaugeLabel: '0.24', materialType: 'Aluzinc longspan', weightKg: 3055, loc: 'Bay C' },
-  { id: 'COIL-1914', colour: 'BG', gaugeLabel: '0.22', materialType: 'Aluzinc longspan', weightKg: 2180, loc: 'Bay C' },
-  { id: 'COIL-1915', colour: 'NB', gaugeLabel: '0.24', materialType: 'Aluzinc longspan', weightKg: 2644, loc: 'Bay A' },
-  { id: 'COIL-1916', colour: 'ST', gaugeLabel: '0.45', materialType: 'Aluzinc longspan', weightKg: 1890, loc: 'Heavy rack' },
-  { id: 'COIL-1917', colour: 'DG', gaugeLabel: '0.40', materialType: 'Aluzinc longspan', weightKg: 2120, loc: 'Heavy rack' },
-  { id: 'COIL-1918', colour: 'GB', gaugeLabel: '0.28', materialType: 'Aluzinc longspan', weightKg: 4120, loc: 'Bay B' },
-  { id: 'COIL-1919', colour: 'IV', gaugeLabel: '0.24', materialType: 'Aluzinc longspan', weightKg: 3380, loc: 'Bay B' },
-  { id: 'COIL-1920', colour: 'HMB', gaugeLabel: '0.28', materialType: 'Aluzinc longspan', weightKg: 2765, loc: 'Bay D' },
-  { id: 'COIL-1921', colour: 'TB', gaugeLabel: '0.30', materialType: 'Aluzinc longspan', weightKg: 1950, loc: 'Bay D' },
-  { id: 'COIL-1922', colour: 'PR', gaugeLabel: '0.20', materialType: 'Aluzinc longspan', weightKg: 1420, loc: 'Bay C' },
-  { id: 'COIL-1923', colour: 'GB', gaugeLabel: '0.24', materialType: 'Aluzinc metcoppo', weightKg: 990, loc: 'Metcoppo' },
-  { id: 'COIL-1924', colour: 'TC Red', gaugeLabel: '0.45', materialType: 'Colour-coated longspan', weightKg: 760, loc: 'Colour bay' },
-  { id: 'COIL-1925', colour: 'Bush Grn', gaugeLabel: '0.45', materialType: 'Colour-coated longspan', weightKg: 640, loc: 'Colour bay' },
-  { id: 'COIL-1926', colour: 'IV', gaugeLabel: '0.18', materialType: 'Aluzinc longspan (thin)', weightKg: 1180, loc: 'Thin line' },
-  { id: 'COIL-1927', colour: 'HMB', gaugeLabel: '0.22', materialType: 'Aluzinc longspan', weightKg: 2234, loc: 'Bay A' },
+  { id: 'COIL-1882', colour: 'HMB', gaugeLabel: '0.24mm', materialType: 'Aluzinc longspan', weightKg: 3297, loc: 'Bay A' },
+  { id: 'COIL-1908', colour: 'TB', gaugeLabel: '0.24mm', materialType: 'Aluzinc longspan', weightKg: 3428, loc: 'Bay A' },
+  { id: 'COIL-1878', colour: 'GB', gaugeLabel: '0.55mm', materialType: 'Aluzinc longspan', weightKg: 732, loc: 'Bay B' },
+  { id: 'COIL-1912', colour: 'IV', gaugeLabel: '0.20mm', materialType: 'Aluzinc longspan', weightKg: 2890, loc: 'Bay A' },
+  { id: 'COIL-1913', colour: 'PR', gaugeLabel: '0.24mm', materialType: 'Aluzinc longspan', weightKg: 3055, loc: 'Bay C' },
+  { id: 'COIL-1914', colour: 'BG', gaugeLabel: '0.22mm', materialType: 'Aluzinc longspan', weightKg: 2180, loc: 'Bay C' },
+  { id: 'COIL-1915', colour: 'NB', gaugeLabel: '0.24mm', materialType: 'Aluzinc longspan', weightKg: 2644, loc: 'Bay A' },
+  { id: 'COIL-1916', colour: 'ST', gaugeLabel: '0.45mm', materialType: 'Aluzinc longspan', weightKg: 1890, loc: 'Heavy rack' },
+  { id: 'COIL-1917', colour: 'DG', gaugeLabel: '0.40mm', materialType: 'Aluzinc longspan', weightKg: 2120, loc: 'Heavy rack' },
+  { id: 'COIL-1918', colour: 'GB', gaugeLabel: '0.28mm', materialType: 'Aluzinc longspan', weightKg: 4120, loc: 'Bay B' },
+  { id: 'COIL-1919', colour: 'IV', gaugeLabel: '0.24mm', materialType: 'Aluzinc longspan', weightKg: 3380, loc: 'Bay B' },
+  { id: 'COIL-1920', colour: 'HMB', gaugeLabel: '0.28mm', materialType: 'Aluzinc longspan', weightKg: 2765, loc: 'Bay D' },
+  { id: 'COIL-1921', colour: 'TB', gaugeLabel: '0.30mm', materialType: 'Aluzinc longspan', weightKg: 1950, loc: 'Bay D' },
+  { id: 'COIL-1922', colour: 'PR', gaugeLabel: '0.20mm', materialType: 'Aluzinc longspan', weightKg: 1420, loc: 'Bay C' },
+  { id: 'COIL-1923', colour: 'GB', gaugeLabel: '0.24mm', materialType: 'Aluzinc metcoppo', weightKg: 990, loc: 'Metcoppo' },
+  { id: 'COIL-1924', colour: 'TR', gaugeLabel: '0.45mm', materialType: 'Colour-coated longspan', weightKg: 760, loc: 'Colour bay' },
+  { id: 'COIL-1925', colour: 'BG', gaugeLabel: '0.45mm', materialType: 'Colour-coated longspan', weightKg: 640, loc: 'Colour bay' },
+  { id: 'COIL-1926', colour: 'IV', gaugeLabel: '0.18mm', materialType: 'Aluzinc longspan (thin)', weightKg: 1180, loc: 'Thin line' },
+  { id: 'COIL-1927', colour: 'HMB', gaugeLabel: '0.22mm', materialType: 'Aluzinc longspan', weightKg: 2234, loc: 'Bay A' },
 ];
 
 /** Sales workspace — mirrors future API entities (quotations, receipts, etc.) */
 export const SALES_MOCK = {
   availableStock: [
-    { id: 'COIL-1882', material: 'HM Blue', gauge: '0.24', color: 'Blue', weight: '3,297kg' },
-    { id: 'COIL-1908', material: 'Traffic Black', gauge: '0.24', color: 'Black', weight: '3,428kg' },
-    { id: 'COIL-1878', material: 'HM Blue', gauge: '0.55', color: 'Blue', weight: '732kg' },
+    { id: 'COIL-1882', material: 'HM Blue', gauge: '0.24mm', color: 'Blue', weight: '3,297kg' },
+    { id: 'COIL-1908', material: 'Traffic Black', gauge: '0.24mm', color: 'Black', weight: '3,428kg' },
+    { id: 'COIL-1878', material: 'HM Blue', gauge: '0.55mm', color: 'Blue', weight: '732kg' },
   ],
   quotations: [
     {
