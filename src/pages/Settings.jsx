@@ -1023,13 +1023,13 @@ const Settings = () => {
               path="guide"
               element={
                 <section>
-                  <h3 className="z-section-title text-[#134e4a] mb-2">Department roles in Zarewa</h3>
+                  <h3 className="z-section-title text-[#134e4a] mb-2">Team roles in Zarewa</h3>
                   <p className="text-xs text-gray-500 mb-6 leading-relaxed">
-                    Each team owns part of the workflow. Expand a card for responsibilities and shortcuts to the
-                    right screens. Access still follows permissions; workspace department only shapes defaults and
-                    shortcuts. Suggested roles for new accounts are exposed in the live bootstrap payload as{' '}
-                    <code className="rounded bg-slate-100 px-1 py-0.5 text-[10px]">suggestedRoleByDepartment</code>{' '}
-                    for workspace defaults.
+                    Each card describes part of the workflow. Access is controlled by the role and permissions on
+                    each login. The stored “department” field matches the role key so shortcuts and the post-login
+                    landing page stay aligned. Bootstrap still exposes{' '}
+                    <code className="rounded bg-slate-100 px-1 py-0.5 text-[10px]">suggestedRoleByDepartment</code> for
+                    legacy workspace labels mapped onto roles.
                   </p>
                   <div className="space-y-4">
                     {DEPARTMENT_GUIDE.map((d) => {

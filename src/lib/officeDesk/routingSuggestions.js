@@ -15,7 +15,7 @@ export function suggestOfficeRouting(input, directoryUsers = []) {
   const first = (ids) => (ids.length ? ids[0] : null);
 
   if (/(leave|annual\s*leave|sick\s*leave|absence|time\s*off)/i.test(text)) {
-    const ids = byRole('hr_manager');
+    const ids = byRole('finance_manager');
     const id = first(ids);
     if (id) {
       to.add(id);
@@ -27,7 +27,7 @@ export function suggestOfficeRouting(input, directoryUsers = []) {
   }
 
   if (/(loan|welfare|salary|bonus|payroll|disciplinary|hr\b)/i.test(text)) {
-    const ids = byRole('hr_manager');
+    const ids = byRole('finance_manager');
     const id = first(ids);
     if (id) {
       to.add(id);

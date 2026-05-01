@@ -46,7 +46,7 @@ describe('LoginScreen', () => {
     mockLogin.mockResolvedValue({
       ok: true,
       data: {
-        user: { department: 'it' },
+        user: { department: 'admin' },
         permissions: ['*'],
       },
     });

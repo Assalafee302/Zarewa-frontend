@@ -50,7 +50,7 @@ describe('workspaceInboxBuckets', () => {
     const a = { documentType: 'memo', sourceKind: 'office_thread', requiresApproval: false, requiresResponse: false, senderUserId: 'u1' };
     const b = { documentType: 'hr_leave', requiresApproval: false, requiresResponse: false, senderUserId: 'u1' };
     expect(groupFileTrayItemsByCategory([a, b]).map((g) => g.category)).toContain('Correspondence & memos');
-    expect(fileTrayCategoryLabel(b)).toBe('HR & people');
+    expect(fileTrayCategoryLabel(b)).toBe('Internal');
   });
 
   it('file tray hides non-personal manager-queue stubs', () => {

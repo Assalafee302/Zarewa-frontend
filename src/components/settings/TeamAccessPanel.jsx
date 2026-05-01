@@ -3,7 +3,7 @@ import { Settings2, UserPlus } from 'lucide-react';
 import { ModalFrame } from '../layout';
 import { apiFetch } from '../../lib/apiBase';
 import { useToast } from '../../context/ToastContext';
-import { WORKSPACE_DEPARTMENT_IDS, WORKSPACE_DEPARTMENT_LABELS } from '../../lib/departmentWorkspace';
+import { WORKSPACE_DEPARTMENT_LABELS } from '../../lib/departmentWorkspace';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { APP_DATA_TABLE_PAGE_SIZE, useAppTablePaging } from '../../lib/appDataTable';
 import { AppTablePager } from '../ui/AppDataTable';
@@ -57,8 +57,7 @@ export default function TeamAccessPanel({ appUsers, currentUserId, onRefresh }) 
     username: '',
     displayName: '',
     password: '',
-    roleKey: 'viewer',
-    department: 'general',
+    roleKey: 'sales_staff',
     branchId: '',
   });
 
@@ -144,28 +143,6 @@ export default function TeamAccessPanel({ appUsers, currentUserId, onRefresh }) 
         return;
       }
       showToast('Role updated. Custom permission overrides were cleared; the user’s access now follows the role.');
-      await refresh();
-    } finally {
-      setRowBusyId('');
-    }
-  };
-
-  const patchDepartment = async (user, nextDepartment) => {
-    if (!user?.id || nextDepartment === user.department) return;
-    setRowBusyId(user.id);
-    try {
-      const { ok, data } = await apiFetch(
-        `/api/workspace/app-users/${encodeURIComponent(user.id)}/department`,
-        {
-          method: 'PATCH',
-          body: JSON.stringify({ department: nextDepartment }),
-        }
-      );
-      if (!ok || !data?.ok) {
-        showToast(data?.error || 'Could not update workspace department.', { variant: 'error' });
-        return;
-      }
-      showToast('Workspace department updated.');
       await refresh();
     } finally {
       setRowBusyId('');
@@ -311,7 +288,6 @@ export default function TeamAccessPanel({ appUsers, currentUserId, onRefresh }) 
           displayName,
           password: createForm.password,
           roleKey: createForm.roleKey,
-          department: createForm.department,
           ...(branchId ? { branchId } : {}),
         }),
       });
@@ -325,8 +301,7 @@ export default function TeamAccessPanel({ appUsers, currentUserId, onRefresh }) 
         username: '',
         displayName: '',
         password: '',
-        roleKey: 'viewer',
-        department: 'general',
+        roleKey: 'sales_staff',
         branchId: branches[0]?.id || '',
       });
       await refresh();
@@ -350,8 +325,9 @@ export default function TeamAccessPanel({ appUsers, currentUserId, onRefresh }) 
           <Settings2 size={14} /> Team & access
         </h3>
         <p className="text-xs text-gray-500 mb-4 leading-relaxed">
-          Assign roles and status, and fine-tune permissions when needed. Changing a role clears custom
-          permission overrides and applies that role’s template. Employment and payroll data stay in HR.
+          Assign roles and status, and fine-tune permissions when needed. Changing a role clears custom permission
+          overrides and applies that role’s template. The team role is the same value stored as workspace “department”
+          for routing shortcuts.
         </p>
 
         <div className="mb-4">
@@ -375,11 +351,10 @@ export default function TeamAccessPanel({ appUsers, currentUserId, onRefresh }) 
           <p className="text-sm text-slate-500">No users in the directory snapshot.</p>
         ) : (
           <div className="z-scroll-x overflow-x-auto rounded-2xl border border-slate-200/90">
-            <table className="w-full min-w-[880px] text-left text-sm">
+            <table className="w-full min-w-[720px] text-left text-sm">
               <thead className="border-b border-slate-200 bg-slate-50/80 text-xs font-bold uppercase tracking-wide text-slate-600">
                 <tr>
                   <th className="px-3 py-2.5">User</th>
-                  <th className="px-3 py-2.5">Dept</th>
                   <th className="px-3 py-2.5">Branch</th>
                   <th className="px-3 py-2.5">Role</th>
                   <th className="px-3 py-2.5">Status</th>
@@ -402,20 +377,6 @@ export default function TeamAccessPanel({ appUsers, currentUserId, onRefresh }) 
                             Custom
                           </span>
                         ) : null}
-                      </td>
-                      <td className="px-3 py-3 align-middle">
-                        <select
-                          className="z-input !py-1.5 !text-[11px] max-w-[12rem]"
-                          value={user.department || 'general'}
-                          disabled={busy}
-                          onChange={(e) => void patchDepartment(user, e.target.value)}
-                        >
-                          {WORKSPACE_DEPARTMENT_IDS.map((id) => (
-                            <option key={id} value={id}>
-                              {WORKSPACE_DEPARTMENT_LABELS[id] || id}
-                            </option>
-                          ))}
-                        </select>
                       </td>
                       <td className="px-3 py-3 align-middle">
                         {branches.length === 0 ? (
@@ -476,7 +437,7 @@ export default function TeamAccessPanel({ appUsers, currentUserId, onRefresh }) 
                       </td>
                       </tr>
                       <tr className="bg-slate-50/80">
-                        <td colSpan={6} className="px-3 py-2 border-b border-slate-100">
+                        <td colSpan={5} className="px-3 py-2 border-b border-slate-100">
                           <EditSecondApprovalInline
                             entityKind="user"
                             entityId={user.id}
@@ -563,21 +524,6 @@ export default function TeamAccessPanel({ appUsers, currentUserId, onRefresh }) 
               ))}
             </select>
           </div>
-          <div>
-            <label className="z-field-label">Workspace department</label>
-            <select
-              className="z-input"
-              value={createForm.department}
-              onChange={(e) => setCreateForm((f) => ({ ...f, department: e.target.value }))}
-              disabled={createBusy}
-            >
-              {WORKSPACE_DEPARTMENT_IDS.map((id) => (
-                <option key={id} value={id}>
-                  {WORKSPACE_DEPARTMENT_LABELS[id] || id}
-                </option>
-              ))}
-            </select>
-          </div>
           {branches.length > 0 ? (
             <div>
               <label className="z-field-label">Home branch</label>
@@ -594,7 +540,7 @@ export default function TeamAccessPanel({ appUsers, currentUserId, onRefresh }) 
                 ))}
               </select>
               <p className="mt-1 text-[10px] text-slate-500 leading-snug">
-                Stored on the HR staff profile and used to pin workspace data for this login (unless they have HQ
+                Stored on the user record and used to pin workspace data for this login (unless they have HQ
                 multi-branch access).
               </p>
             </div>

@@ -1,19 +1,41 @@
 import { canAccessModuleWithPermissions } from './moduleAccess.js';
 
-/** Mirror of server `WORKSPACE_DEPARTMENT_IDS` for offline / stale bootstrap. */
-export const WORKSPACE_DEPARTMENT_IDS = [
-  'general',
-  'customer',
-  'sales',
-  'inventory',
-  'production',
-  'purchase',
-  'finance',
-  'reports',
-  'it',
+/** Canonical role keys (aligned with server auth). */
+export const WORKSPACE_ROLE_KEYS = [
+  'admin',
+  'md',
+  'finance_manager',
+  'sales_manager',
+  'sales_staff',
+  'cashier',
+  'operations_officer',
 ];
 
+const LEGACY_DEPARTMENT_TO_ROLE = {
+  general: 'sales_staff',
+  customer: 'sales_staff',
+  sales: 'sales_staff',
+  inventory: 'operations_officer',
+  production: 'operations_officer',
+  purchase: 'md',
+  finance: 'finance_manager',
+  reports: 'sales_staff',
+  it: 'admin',
+  leadership: 'md',
+  hr: 'sales_staff',
+};
+
+/** @deprecated Kept for bootstrap compatibility — values are role keys or legacy department ids. */
+export const WORKSPACE_DEPARTMENT_IDS = [...WORKSPACE_ROLE_KEYS, ...Object.keys(LEGACY_DEPARTMENT_TO_ROLE)];
+
 export const WORKSPACE_DEPARTMENT_LABELS = {
+  admin: 'Administrator',
+  md: 'Managing director',
+  finance_manager: 'Finance manager',
+  sales_manager: 'Branch manager',
+  sales_staff: 'Sales officer',
+  cashier: 'Cashier',
+  operations_officer: 'Operations officer',
   general: 'General / cross-functional',
   customer: 'Customer relations',
   sales: 'Sales',
@@ -30,24 +52,24 @@ export function normalizeWorkspaceDepartmentId(raw) {
     .trim()
     .toLowerCase()
     .replace(/\s+/g, '_');
-  return WORKSPACE_DEPARTMENT_IDS.includes(s) ? s : 'general';
+  if (WORKSPACE_ROLE_KEYS.includes(s)) return s;
+  if (LEGACY_DEPARTMENT_TO_ROLE[s]) return LEGACY_DEPARTMENT_TO_ROLE[s];
+  return 'sales_staff';
 }
 
-const DEFAULT_HOME_BY_DEPARTMENT = {
-  general: '/',
-  customer: '/sales',
-  sales: '/sales',
-  inventory: '/operations',
-  production: '/operations',
-  purchase: '/procurement',
-  finance: '/accounts',
-  reports: '/reports',
-  it: '/settings',
+const DEFAULT_HOME_BY_ROLE = {
+  admin: '/settings',
+  md: '/',
+  finance_manager: '/accounts',
+  sales_manager: '/sales',
+  sales_staff: '/sales',
+  cashier: '/sales',
+  operations_officer: '/operations',
 };
 
 export function defaultHomePathForDepartment(deptId) {
   const id = normalizeWorkspaceDepartmentId(deptId);
-  return DEFAULT_HOME_BY_DEPARTMENT[id] || '/';
+  return DEFAULT_HOME_BY_ROLE[id] || '/';
 }
 
 /** Map a route path to a sidebar module key (for guards and shortcuts). */
@@ -67,8 +89,8 @@ export function pathToModuleKey(pathname) {
 }
 
 /**
- * After login, send the user to their department home if their permissions allow it.
- * @param {{ department?: string } | null | undefined} user
+ * After login, send the user to their role home if their permissions allow it.
+ * @param {{ department?: string; roleKey?: string } | null | undefined} user
  * @param {string[]} permissions
  */
 export function resolvePostLoginPath(user, permissions) {
@@ -81,7 +103,7 @@ export function resolvePostLoginPath(user, permissions) {
     if (mod && !canAccessModuleWithPermissions(permissions, mod)) return '/';
     return '/manager';
   }
-  const target = defaultHomePathForDepartment(user?.department);
+  const target = defaultHomePathForDepartment(user?.roleKey || user?.department);
   if (target === '/') return '/';
   const mod = pathToModuleKey(target);
   if (mod && !canAccessModuleWithPermissions(permissions, mod)) return '/';
@@ -110,7 +132,7 @@ export function filterWorkspaceLinksByPermissions(links, permissions) {
 export const WORKSPACE_GUIDE_ENTRIES = [
   {
     id: 'customer',
-    title: 'Customer department',
+    title: 'Customer relations',
     primary:
       'Owns customer relationships from first contact through post-sale service — accurate profiles and responsive follow-up.',
     bullets: [
@@ -126,7 +148,7 @@ export const WORKSPACE_GUIDE_ENTRIES = [
   },
   {
     id: 'sales',
-    title: 'Sales department',
+    title: 'Sales',
     primary:
       'Drives revenue — pipeline discipline, order execution, collections, and performance visibility.',
     bullets: [
@@ -142,7 +164,7 @@ export const WORKSPACE_GUIDE_ENTRIES = [
   },
   {
     id: 'inventory',
-    title: 'Production (store)',
+    title: 'Store & inventory',
     primary:
       'Physical stock — GRN from approved POs, coil traceability, transfers, adjustments, and alerts.',
     bullets: [
@@ -150,11 +172,11 @@ export const WORKSPACE_GUIDE_ENTRIES = [
       'Movement: store → production transfers and finished-goods back to sellable stock.',
       'Reporting: low stock strip, live levels in Reports.',
     ],
-    links: [{ to: '/operations', label: 'Production' }],
+    links: [{ to: '/operations', label: 'Operations' }],
   },
   {
     id: 'production',
-    title: 'Production department',
+    title: 'Production floor',
     primary:
       'Converts raw materials to finished goods — planning, consumption visibility, quality, and yield.',
     bullets: [
@@ -167,9 +189,9 @@ export const WORKSPACE_GUIDE_ENTRIES = [
   },
   {
     id: 'purchase',
-    title: 'Purchase department',
+    title: 'Procurement (executive-led)',
     primary:
-      'Sourcing and supplier performance — PO lifecycle, invoices on file, coordination with store GRN.',
+      'Sourcing and supplier performance — PO lifecycle, invoices on file, coordination with store GRN. In this deployment procurement authority sits with the managing director role.',
     bullets: [
       'Suppliers: directory and transport agents (Purchases / Transportation tabs).',
       'Purchase orders: multi-line POs, totals, Pending → Approved / Rejected; assign transport (on loading), then post to in transit (optional treasury-linked haulage) before GRN.',

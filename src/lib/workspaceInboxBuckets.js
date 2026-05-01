@@ -30,7 +30,7 @@ export function fileTrayCategoryLabel(item) {
   if (sk === 'office_thread' || String(item?.linkedThreadId || '').trim()) {
     return 'Correspondence & memos';
   }
-  if (dt.startsWith('hr_')) return 'HR & people';
+  if (dt.startsWith('hr_')) return 'Internal';
   if (
     dt === 'payment_request' ||
     dt === 'refund_request' ||

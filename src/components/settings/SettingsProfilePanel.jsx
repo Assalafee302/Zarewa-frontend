@@ -181,15 +181,15 @@ export default function SettingsProfilePanel() {
           <Shield size={14} /> Access (read-only)
         </h3>
         <p className="text-xs text-gray-500 mb-4">
-          Role and permissions are assigned by an administrator. Workspace department affects shortcuts and the
-          team guide.
+          Role and permissions are assigned by an administrator. Your workspace label matches your role for
+          shortcuts and the team guide.
         </p>
         <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 space-y-1">
           <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Role</p>
           <p className="text-sm font-black text-[#134e4a]">{currentUser?.roleLabel || 'No active role'}</p>
           {currentUser?.department ? (
             <p className="text-[11px] font-bold uppercase tracking-wide text-teal-800/90 pt-1">
-              Workspace dept:{' '}
+              Workspace role:{' '}
               {WORKSPACE_DEPARTMENT_LABELS[currentUser.department] || currentUser.department}
             </p>
           ) : null}

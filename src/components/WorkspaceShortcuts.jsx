@@ -13,7 +13,7 @@ export default function WorkspaceShortcuts() {
   const ws = useWorkspace();
   const user = ws?.session?.user;
   const perms = useMemo(() => ws?.permissions ?? [], [ws?.permissions]);
-  const deptId = normalizeWorkspaceDepartmentId(user?.department);
+  const deptId = normalizeWorkspaceDepartmentId(user?.roleKey || user?.department);
   const entry = useMemo(() => getWorkspaceGuideEntry(deptId), [deptId]);
   const links = useMemo(
     () => filterWorkspaceLinksByPermissions(entry?.links ?? [], perms),
