@@ -34,6 +34,43 @@ import { EditSecondApprovalInline } from './EditSecondApprovalInline';
 /** Matches server: closing below this (kg) may use “Finish roll” on completion to clear the tail from stock. */
 const COIL_TAIL_FINISH_MAX_KG = 85;
 
+const PROD_ACCESSORY_DRAFT_STORAGE_PREFIX = 'zarewa.prodAccessoryDraft.v1:';
+
+function prodAccessoryDraftStorageKey(jobId) {
+  return PROD_ACCESSORY_DRAFT_STORAGE_PREFIX + encodeURIComponent(String(jobId || ''));
+}
+
+function readProdAccessoryDraftMap(jobId) {
+  if (typeof sessionStorage === 'undefined' || !jobId) return {};
+  try {
+    const raw = sessionStorage.getItem(prodAccessoryDraftStorageKey(jobId));
+    const parsed = raw ? JSON.parse(raw) : null;
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function writeProdAccessoryDraftEntry(jobId, stableKey, value) {
+  if (typeof sessionStorage === 'undefined' || !jobId || !stableKey) return;
+  try {
+    const map = readProdAccessoryDraftMap(jobId);
+    map[stableKey] = value;
+    sessionStorage.setItem(prodAccessoryDraftStorageKey(jobId), JSON.stringify(map));
+  } catch {
+    // quota / private mode
+  }
+}
+
+function clearProdAccessoryDraftStorage(jobId) {
+  if (typeof sessionStorage === 'undefined' || !jobId) return;
+  try {
+    sessionStorage.removeItem(prodAccessoryDraftStorageKey(jobId));
+  } catch {
+    // ignore
+  }
+}
+
 function createDraftLine(row = {}) {
   const hasPersistedId = row.id != null && row.id !== '';
   return {
@@ -475,8 +512,8 @@ export function LiveProductionMonitor({
 
   const conversionPreviewTimerRef = useRef(null);
   const conversionPreviewSeqRef = useRef(0);
-  /** When job/quote identity changes, accessory draft resets; otherwise refresh merges user quantities. */
-  const accessoryDraftJobRef = useRef({ jobId: '', quotationRef: '' });
+  /** When job/quote identity changes, accessory draft resets merge-from-prev; null = not yet tracked in this mount. */
+  const accessoryDraftJobRef = useRef(null);
   const [conversionPreview, setConversionPreview] = useState(null);
   const [conversionPreviewError, setConversionPreviewError] = useState('');
   const [conversionPreviewLoading, setConversionPreviewLoading] = useState(false);
@@ -549,19 +586,26 @@ export function LiveProductionMonitor({
     const quotationRef = selectedJob?.quotationRef;
     const jobId = selectedJob?.jobID;
     if (!quotationRef || !jobId || !quotedAccessoryLines.length) {
-      accessoryDraftJobRef.current = { jobId: jobId || '', quotationRef: quotationRef || '' };
+      accessoryDraftJobRef.current = null;
       setAccessoryCompletionDraft([]);
       return;
     }
+    const prevTracked = accessoryDraftJobRef.current;
     const jobSwitch =
-      accessoryDraftJobRef.current.jobId !== jobId ||
-      accessoryDraftJobRef.current.quotationRef !== quotationRef;
+      prevTracked != null &&
+      (prevTracked.jobId !== jobId || prevTracked.quotationRef !== quotationRef);
     accessoryDraftJobRef.current = { jobId, quotationRef };
 
     const usage = (ws?.snapshot?.productionJobAccessoryUsage || []).filter((u) => u.quotationRef === quotationRef);
+    const hasPostedAccessoryRowsForJob = usage.some((u) => u.jobID === jobId);
 
     setAccessoryCompletionDraft((prev) => {
+      if (hasPostedAccessoryRowsForJob) {
+        clearProdAccessoryDraftStorage(jobId);
+      }
       const prevByKey = jobSwitch ? new Map() : new Map(prev.map((r) => [r.key, r]));
+      const storedMap = hasPostedAccessoryRowsForJob ? {} : readProdAccessoryDraftMap(jobId);
+
       return quotedAccessoryLines.map((line) => {
         const stableKey = line.quoteLineId || `name:${line.name}`;
         let prior = 0;
@@ -570,9 +614,23 @@ export function LiveProductionMonitor({
           if (String(u.quoteLineId || '') === stableKey) prior += Number(u.suppliedQty) || 0;
         }
         const remaining = Math.max(0, line.ordered - prior);
+
+        const postedRows = usage.filter((u) => {
+          if (u.jobID !== jobId) return false;
+          const uq = String(u.quoteLineId || '').trim();
+          return uq === stableKey || (line.quoteLineId && uq === String(line.quoteLineId).trim());
+        });
+        const hasPostedForLine = postedRows.length > 0;
+        const postedQty = hasPostedForLine
+          ? postedRows.reduce((s, u) => s + (Number(u.suppliedQty) || 0), 0)
+          : null;
+
         const old = prevByKey.get(stableKey);
         let suppliedThisJob = remaining;
-        if (old && !jobSwitch) {
+
+        if (hasPostedForLine) {
+          suppliedThisJob = postedQty ?? 0;
+        } else if (old && !jobSwitch) {
           const raw = old.suppliedThisJob;
           const n = Number(String(raw).replace(/,/g, ''));
           if (Number.isFinite(n)) {
@@ -580,7 +638,18 @@ export function LiveProductionMonitor({
           } else if (raw != null && String(raw).trim() !== '') {
             suppliedThisJob = raw;
           }
+        } else {
+          const storedRaw = storedMap[stableKey];
+          if (storedRaw !== undefined && storedRaw !== null && String(storedRaw).trim() !== '') {
+            const n = Number(String(storedRaw).replace(/,/g, ''));
+            if (Number.isFinite(n)) {
+              suppliedThisJob = Math.min(Math.max(0, n), remaining);
+            } else {
+              suppliedThisJob = storedRaw;
+            }
+          }
         }
+
         return {
           key: stableKey,
           quoteLineId: line.quoteLineId,
@@ -2129,13 +2198,16 @@ export function LiveProductionMonitor({
                                 type="text"
                                 inputMode="decimal"
                                 value={row.suppliedThisJob}
-                                onChange={(e) =>
+                                onChange={(e) => {
+                                  const v = e.target.value;
+                                  const jId = selectedJob?.jobID;
+                                  if (jId && selectedJob?.status === 'Running') {
+                                    writeProdAccessoryDraftEntry(jId, row.key, v);
+                                  }
                                   setAccessoryCompletionDraft((prev) =>
-                                    prev.map((r) =>
-                                      r.key === row.key ? { ...r, suppliedThisJob: e.target.value } : r
-                                    )
-                                  )
-                                }
+                                    prev.map((r) => (r.key === row.key ? { ...r, suppliedThisJob: v } : r))
+                                  );
+                                }}
                                 className="w-20 rounded-md border border-slate-200 bg-white px-2 py-1 text-right font-mono text-sm font-bold text-[#134e4a] outline-none focus:ring-2 focus:ring-teal-500/20"
                                 aria-label={`Supplied this job for ${row.name}`}
                               />
