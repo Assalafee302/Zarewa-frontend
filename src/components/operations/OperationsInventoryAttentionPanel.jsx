@@ -58,6 +58,8 @@ export function OperationsInventoryAttentionPanel({
   const th = attention.thresholds || {};
   const hasAnything = stuck > 0 || invSignals > 0 || crossSignals > 0;
 
+  if (import.meta.env.PROD && !hasAnything) return null;
+
   return (
     <section className="rounded-xl border border-amber-200/90 bg-amber-50/35 overflow-hidden">
       <button
