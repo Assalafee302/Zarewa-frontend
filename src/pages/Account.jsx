@@ -13,6 +13,8 @@ import {
   CreditCard,
   ClipboardList,
   ArrowRightLeft,
+  ChevronLeft,
+  ChevronRight,
   Truck,
   BookOpen,
   AlertCircle,
@@ -43,12 +45,7 @@ import {
   refundOutstandingAmount,
 } from '../lib/refundsStore';
 import { liveReceivablesNgn, openAuditQueue } from '../lib/liveAnalytics';
-import {
-  receiptCashReceivedNgn,
-  receiptLedgerReceiptTreasurySplits,
-  firstBankReconSystemMatchToken,
-  findSalesReceiptByMatchToken,
-} from '../lib/salesReceiptsList';
+import { receiptCashReceivedNgn, receiptLedgerReceiptTreasurySplits } from '../lib/salesReceiptsList';
 import { printExpenseRequestRecord } from '../lib/expenseRequestPrint';
 import { ExpenseRequestFormFields } from '../components/office/ExpenseRequestFormFields.jsx';
 import { buildPaymentRequestBodyFromForm, initialExpenseRequestFormState } from '../lib/expenseRequestFormCore.js';
@@ -77,17 +74,6 @@ const Account = () => {
   const [showPayRequestModal, setShowPayRequestModal] = useState(false);
   const [showTransferModal, setShowTransferModal] = useState(false);
   const [showRefundPayModal, setShowRefundPayModal] = useState(false);
-  const [showBankReconModal, setShowBankReconModal] = useState(false);
-  const [showBankImportModal, setShowBankImportModal] = useState(false);
-  const [bankImportJson, setBankImportJson] = useState('[\n  { "bankDateISO": "2026-04-01", "description": "Example credit", "amountNgn": 50000 }\n]');
-  const [bankImportBusy, setBankImportBusy] = useState(false);
-  const [showBankCsvModal, setShowBankCsvModal] = useState(false);
-  const [bankCsvText, setBankCsvText] = useState(
-    'bankDateISO,description,amountNgn\n2026-04-01,"Example inflow",100000\n2026-04-02,Bank charge,-2500'
-  );
-  const [bankCsvBusy, setBankCsvBusy] = useState(false);
-  /** all | review_queue | matched | excluded */
-  const [reconViewFilter, setReconViewFilter] = useState('all');
   const [statementAccount, setStatementAccount] = useState(null);
   const [selectedPayment, setSelectedPayment] = useState(null);
   const [refundPayTarget, setRefundPayTarget] = useState(null);
@@ -147,20 +133,17 @@ const Account = () => {
   const [expenses, setExpenses] = useState([]);
   const [payRequests, setPayRequests] = useState([]);
   const [bankReconciliation, setBankReconciliation] = useState([]);
-  const [bankReconForm, setBankReconForm] = useState({
-    bankDateISO: '',
-    description: '',
-    amountNgn: '',
-    systemMatch: '',
-    branchId: '',
-  });
 
   const [receiptFinanceRow, setReceiptFinanceRow] = useState(null);
   const [receiptBankAmtInput, setReceiptBankAmtInput] = useState('');
   const [receiptClearDelivery, setReceiptClearDelivery] = useState(false);
   const [receiptFinanceBusy, setReceiptFinanceBusy] = useState(false);
   const [receiptFinanceEditApprovalId, setReceiptFinanceEditApprovalId] = useState('');
-  const [bankReconEditAidByLine, setBankReconEditAidByLine] = useState({});
+  /** Receipts tab: list paging & sort */
+  const RECEIPTS_PAGE_SIZE = 10;
+  const [receiptsSortKey, setReceiptsSortKey] = useState('date');
+  const [receiptsSortDir, setReceiptsSortDir] = useState('desc');
+  const [receiptsPage, setReceiptsPage] = useState(0);
 
    
   useEffect(() => {
@@ -245,15 +228,9 @@ const Account = () => {
     attachment: null,
   }));
   const payRequestFileRef = useRef(null);
-  const bankCsvFileRef = useRef(null);
   const activeActorLabel = ws?.session?.user?.displayName ?? 'Finance';
   const canApproveRequests = ws?.hasPermission?.('finance.approve');
   const canPayRequests = ws?.hasPermission?.('finance.pay');
-  const canReconcileBank = ws?.hasPermission?.('finance.post');
-
-  const [reconDrafts, setReconDrafts] = useState({});
-  const [settledDrafts, setSettledDrafts] = useState({});
-  const [treasuryDrafts, setTreasuryDrafts] = useState({});
   const todayIso = useMemo(() => new Date().toISOString().slice(0, 10), []);
   const branchOptions = useMemo(
     () => ws?.snapshot?.workspaceBranches ?? ws?.session?.branches ?? [],
@@ -367,9 +344,6 @@ const Account = () => {
     showPayRequestModal ||
     showTransferModal ||
     showRefundPayModal ||
-    showBankReconModal ||
-    showBankImportModal ||
-    showBankCsvModal ||
     statementAccount != null ||
     receiptFinanceRow != null;
 
@@ -708,83 +682,6 @@ const Account = () => {
   }, [location.state, location.pathname, navigate, handleAccountTabChange]);
    
 
-  const ledgerEntriesForRecon = useMemo(
-    () =>
-      ws?.hasWorkspaceData && Array.isArray(ws?.snapshot?.ledgerEntries) ? ws.snapshot.ledgerEntries : [],
-    [ws?.hasWorkspaceData, ws?.snapshot?.ledgerEntries]
-  );
-
-  const reconSuggestionsById = useMemo(() => {
-    const rows = ws?.hasWorkspaceData ? liveTreasuryMovements : [];
-    const toIso = (value) => String(value || '').slice(0, 10);
-    const toEpoch = (iso) => {
-      if (!iso) return Number.NaN;
-      const t = Date.parse(iso);
-      return Number.isNaN(t) ? Number.NaN : t;
-    };
-    const ledgerTypes = new Set(['RECEIPT', 'ADVANCE_IN', 'ADVANCE_APPLIED', 'RECEIPT_REVERSAL']);
-    const out = {};
-    for (const line of bankReconciliation) {
-      const lineAmt = Math.abs(Number(line.amountNgn) || 0);
-      const lineDate = toIso(line.bankDateISO);
-      const lineTs = toEpoch(lineDate);
-      let best = null;
-      for (const m of rows) {
-        const mAmt = Math.abs(Number(m.amountNgn) || 0);
-        if (Math.abs(mAmt - lineAmt) > 1) continue;
-        const mDate = toIso(m.postedAtISO);
-        const mTs = toEpoch(mDate);
-        const dayDiff =
-          Number.isFinite(lineTs) && Number.isFinite(mTs)
-            ? Math.round(Math.abs(mTs - lineTs) / (1000 * 60 * 60 * 24))
-            : 999;
-        if (dayDiff > 3) continue;
-        const score = dayDiff;
-        if (!best || score < best.score) {
-          const parts =
-            m.sourceKind === 'LEDGER_RECEIPT' && m.sourceId
-              ? [m.sourceId, m.reference, m.counterpartyName, m.note]
-              : [m.reference, m.counterpartyName, m.note, m.sourceId];
-          best = {
-            score,
-            text: parts.filter(Boolean).join(' · ') || m.type || '',
-            source: 'treasury',
-          };
-        }
-      }
-      if (!best?.text && ledgerEntriesForRecon.length) {
-        for (const e of ledgerEntriesForRecon) {
-          if (!ledgerTypes.has(String(e.type || '').trim())) continue;
-          const eAmt = Math.abs(Number(e.amountNgn) || 0);
-          if (Math.abs(eAmt - lineAmt) > 1) continue;
-          const eDate = toIso(e.atISO);
-          const eTs = toEpoch(eDate);
-          const dayDiff =
-            Number.isFinite(lineTs) && Number.isFinite(eTs)
-              ? Math.round(Math.abs(eTs - lineTs) / (1000 * 60 * 60 * 24))
-              : 999;
-          if (dayDiff > 5) continue;
-          const score = dayDiff + 1;
-          if (!best || score < best.score) {
-            const parts = [e.id, e.quotationRef, e.bankReference, e.customerName, e.purpose].filter(Boolean);
-            best = {
-              score,
-              text: parts.join(' · ') || String(e.type || ''),
-              source: 'ledger',
-            };
-          }
-        }
-      }
-      if (best?.text) {
-        out[line.id] = {
-          text: best.text,
-          confidence: best.score === 0 ? 'High' : best.score <= 2 ? 'Medium' : 'Low',
-        };
-      }
-    }
-    return out;
-  }, [bankReconciliation, ledgerEntriesForRecon, liveTreasuryMovements, ws?.hasWorkspaceData]);
-
   const salesReceipts = useMemo(
     () =>
       ws?.hasWorkspaceData && Array.isArray(ws?.snapshot?.receipts) ? [...ws.snapshot.receipts] : [],
@@ -801,6 +698,54 @@ const Account = () => {
       return id.includes(qq) || cust.includes(qq) || qref.includes(qq);
     });
   }, [salesReceipts, searchQuery]);
+
+  const sortedFilteredSalesReceipts = useMemo(() => {
+    const rows = [...filteredSalesReceipts];
+    const mult = receiptsSortDir === 'asc' ? 1 : -1;
+    const cashOrQuote = (r) =>
+      r.cashReceivedNgn != null ? Number(r.cashReceivedNgn) || 0 : Number(r.amountNgn) || 0;
+    rows.sort((a, b) => {
+      if (receiptsSortKey === 'date') {
+        const c = String(a.dateISO || a.date || '').localeCompare(String(b.dateISO || b.date || ''));
+        if (c !== 0) return mult * c;
+      } else if (receiptsSortKey === 'id') {
+        const c = String(a.id).localeCompare(String(b.id));
+        if (c !== 0) return mult * c;
+      } else if (receiptsSortKey === 'customer') {
+        const c = String(a.customer || '').localeCompare(String(b.customer || ''), undefined, {
+          sensitivity: 'base',
+        });
+        if (c !== 0) return mult * c;
+      } else if (receiptsSortKey === 'amount') {
+        const ca = cashOrQuote(a);
+        const cb = cashOrQuote(b);
+        if (ca !== cb) return mult * (ca < cb ? -1 : 1);
+      }
+      return mult * String(a.id).localeCompare(String(b.id));
+    });
+    return rows;
+  }, [filteredSalesReceipts, receiptsSortKey, receiptsSortDir]);
+
+  const receiptsListWindow = useMemo(() => {
+    const total = sortedFilteredSalesReceipts.length;
+    const pageCount = Math.max(1, Math.ceil(total / RECEIPTS_PAGE_SIZE) || 1);
+    const safePage = Math.min(receiptsPage, pageCount - 1);
+    const start = safePage * RECEIPTS_PAGE_SIZE;
+    const slice = sortedFilteredSalesReceipts.slice(start, start + RECEIPTS_PAGE_SIZE);
+    const from = total === 0 ? 0 : start + 1;
+    const to = Math.min(start + RECEIPTS_PAGE_SIZE, total);
+    return { total, pageCount, safePage, slice, from, to };
+  }, [sortedFilteredSalesReceipts, receiptsPage]);
+
+  useEffect(() => {
+    setReceiptsPage(0);
+  }, [receiptsSortKey, receiptsSortDir, searchQuery]);
+
+  useEffect(() => {
+    const total = sortedFilteredSalesReceipts.length;
+    const pageCount = Math.max(1, Math.ceil(total / RECEIPTS_PAGE_SIZE) || 1);
+    setReceiptsPage((p) => Math.min(p, pageCount - 1));
+  }, [sortedFilteredSalesReceipts.length]);
 
   const canFinanceReceiptSettlement = Boolean(
     ws?.hasPermission?.('finance.pay') || ws?.hasPermission?.('finance.post')
@@ -1388,546 +1333,12 @@ const Account = () => {
     });
   }, [bankAccounts, searchQuery]);
 
-  const filteredReconciliation = useMemo(() => {
-    let rows = bankReconciliation;
-    if (reconViewFilter === 'review_queue') {
-      rows = rows.filter((l) => l.status === 'Review' || l.status === 'PendingManager');
-    } else if (reconViewFilter === 'matched') {
-      rows = rows.filter((l) => l.status === 'Matched');
-    } else if (reconViewFilter === 'excluded') {
-      rows = rows.filter((l) => l.status === 'Excluded');
-    }
-    const qq = searchQuery.trim().toLowerCase();
-    if (!qq) return rows;
-    return rows.filter((l) => {
-      const blob = [l.id, l.description, l.systemMatch || ''].join(' ').toLowerCase();
-      return blob.includes(qq);
-    });
-  }, [bankReconciliation, reconViewFilter, searchQuery]);
-
-  const saveBankReconLine = async (line, status, systemMatchOverride) => {
-    if (!ws?.canMutate) {
-      showToast('Connect to the API server to save bank reconciliation.', { variant: 'info' });
-      return;
-    }
-    const systemMatch =
-      systemMatchOverride !== undefined
-        ? String(systemMatchOverride).trim()
-        : (
-            reconDrafts[line.id] ??
-            line.systemMatch ??
-            reconSuggestionsById[line.id]?.text ??
-            ''
-          ).trim();
-    const aid = String(bankReconEditAidByLine[line.id] || '').trim();
-    const body = {
-      status,
-      systemMatch,
-      ...(aid ? { editApprovalId: aid } : {}),
-    };
-    if (status === 'Matched') {
-      const sd = settledDrafts[line.id];
-      if (sd != null && String(sd).trim() !== '') {
-        const n = Math.round(Number(String(sd).replace(/,/g, '')));
-        if (Number.isFinite(n)) body.settledAmountNgn = n;
-      }
-      const td = treasuryDrafts[line.id];
-      if (td != null && String(td).trim() !== '') {
-        body.treasuryAccountId = Number(td);
-      }
-    }
-    const { ok, status: httpStatus, data } = await apiFetch(`/api/bank-reconciliation/${encodeURIComponent(line.id)}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
-    if (!ok || !data?.ok) {
-      const hint = data?.code === 'CSRF_INVALID' ? ' Refresh the page and sign in again if needed.' : '';
-      showToast(
-        data?.error ||
-          (httpStatus === 403 ? 'Permission denied or invalid session.' : `Could not update bank line (${httpStatus}).`) +
-            hint,
-        { variant: 'error' }
-      );
-      return;
-    }
-    if (data.status === 'PendingManager') {
-      showToast(
-        data.needsManagerClearance
-          ? 'Variance above 0.1% — queued for manager clearance before treasury adjusts.'
-          : 'Bank line updated.',
-        { variant: 'info' }
-      );
-    } else {
-      showToast(status === 'Matched' ? 'Statement line marked matched.' : 'Bank line updated.');
-    }
-    setBankReconEditAidByLine((d) => {
-      const next = { ...d };
-      delete next[line.id];
-      return next;
-    });
-    setSettledDrafts((d) => {
-      const next = { ...d };
-      delete next[line.id];
-      return next;
-    });
-    setTreasuryDrafts((d) => {
-      const next = { ...d };
-      delete next[line.id];
-      return next;
-    });
-    await ws.refresh();
-  };
-
-  const approveBankReconVariance = async (line) => {
-    if (!ws?.canMutate) {
-      showToast('Connect to the API server to approve.', { variant: 'info' });
-      return;
-    }
-    const { ok, status, data } = await apiFetch(
-      `/api/bank-reconciliation/${encodeURIComponent(line.id)}/approve-variance`,
-      { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' }
-    );
-    if (!ok || !data?.ok) {
-      const hint = data?.code === 'CSRF_INVALID' ? ' Refresh the page and try again.' : '';
-      showToast((data?.error || `Could not approve variance (${status}).`) + hint, { variant: 'error' });
-      return;
-    }
-    showToast('Manager clearance recorded — treasury adjusted and line matched.');
-    await ws.refresh();
-  };
-
-  const openBankReconModal = () => {
-    const scoped = String(ws?.branchScope || ws?.session?.currentBranchId || '').trim();
-    const firstBranch = String(branchOptions[0]?.id ?? '').trim();
-    setBankReconForm({
-      bankDateISO: todayIso,
-      description: '',
-      amountNgn: '',
-      systemMatch: '',
-      branchId: ws?.viewAllBranches ? scoped || firstBranch : scoped,
-    });
-    setShowBankReconModal(true);
-  };
-
-  const saveBankReconLineCreate = async (e) => {
-    e.preventDefault();
-    if (!ws?.canMutate) {
-      showToast('Connect to the API server to add bank statement lines.', { variant: 'info' });
-      return;
-    }
-    const description = String(bankReconForm.description ?? '').trim();
-    const rawAmt = Number(String(bankReconForm.amountNgn ?? '').replace(/,/g, ''));
-    const amountNgn = Number.isFinite(rawAmt) ? Math.round(rawAmt) : Number.NaN;
-    const bankDateISO = String(bankReconForm.bankDateISO ?? '').trim();
-    if (!bankDateISO) {
-      showToast('Statement date is required.', { variant: 'error' });
-      return;
-    }
-    if (!description) {
-      showToast('Bank description is required.', { variant: 'error' });
-      return;
-    }
-    if (!Number.isFinite(amountNgn) || amountNgn === 0) {
-      showToast('Enter a non-zero amount (negative for debits, positive for credits).', { variant: 'error' });
-      return;
-    }
-    const body = {
-      bankDateISO,
-      description,
-      amountNgn,
-      systemMatch: String(bankReconForm.systemMatch ?? '').trim() || undefined,
-      status: 'Review',
-    };
-    if (ws?.viewAllBranches && String(bankReconForm.branchId ?? '').trim()) {
-      body.branchId = String(bankReconForm.branchId).trim();
-    }
-    const { ok, data } = await apiFetch('/api/bank-reconciliation', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
-    if (!ok || !data?.ok) {
-      showToast(data?.error || 'Could not add statement line.', { variant: 'error' });
-      return;
-    }
-    showToast('Statement line added — in review.');
-    setShowBankReconModal(false);
-    await ws.refresh();
-  };
-
-  const runBankImport = async (e) => {
-    e?.preventDefault?.();
-    if (!ws?.canMutate) {
-      showToast('Connect to the API server to import lines.', { variant: 'info' });
-      return;
-    }
-    let lines;
-    try {
-      lines = JSON.parse(bankImportJson);
-    } catch {
-      showToast('Paste valid JSON: an array of { bankDateISO, description, amountNgn }.', { variant: 'error' });
-      return;
-    }
-    if (!Array.isArray(lines) || lines.length === 0) {
-      showToast('JSON must be a non-empty array of lines.', { variant: 'error' });
-      return;
-    }
-    setBankImportBusy(true);
-    const { ok, data } = await apiFetch('/api/bank-reconciliation/import', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ lines }),
-    });
-    setBankImportBusy(false);
-    if (!ok || !data) {
-      showToast('Import failed.', { variant: 'error' });
-      return;
-    }
-    const skipN = Number(data.skippedDuplicateCount || 0);
-    if (data.errorCount > 0) {
-      showToast(
-        `Imported ${data.createdCount} line(s); ${data.errorCount} row(s) failed.${skipN ? ` ${skipN} duplicate(s) skipped.` : ''} Check amounts and dates.`,
-        { variant: 'error' }
-      );
-    } else {
-      const msg = [
-        data.createdCount ? `Imported ${data.createdCount} statement line(s) — in review.` : null,
-        skipN ? `${skipN} duplicate row(s) skipped (same date, description, amount).` : null,
-      ]
-        .filter(Boolean)
-        .join(' ');
-      showToast(msg || 'Import finished.');
-      if (data.createdCount > 0 || skipN) setShowBankImportModal(false);
-    }
-    await ws.refresh();
-  };
-
-  const runBankCsvImport = async (e) => {
-    e?.preventDefault?.();
-    if (!ws?.canMutate) {
-      showToast('Connect to the API server to import CSV.', { variant: 'info' });
-      return;
-    }
-    const csvText = String(bankCsvText ?? '').trim();
-    if (!csvText) {
-      showToast('Paste CSV text first.', { variant: 'error' });
-      return;
-    }
-    setBankCsvBusy(true);
-    const { ok, data } = await apiFetch('/api/bank-reconciliation/import-csv', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ csvText }),
-    });
-    setBankCsvBusy(false);
-    if (!ok || !data) {
-      showToast('CSV import failed.', { variant: 'error' });
-      return;
-    }
-    const skipN = Number(data.skippedDuplicateCount || 0);
-    if (data.errorCount > 0) {
-      showToast(
-        `Imported ${data.createdCount} line(s); ${data.errorCount} row(s) failed.${skipN ? ` ${skipN} duplicate(s) skipped.` : ''} Check dates and amounts.`,
-        { variant: 'error' }
-      );
-    } else {
-      const msg = [
-        data.createdCount ? `Imported ${data.createdCount} line(s) from CSV.` : null,
-        skipN ? `${skipN} duplicate row(s) skipped (same date, description, amount).` : null,
-      ]
-        .filter(Boolean)
-        .join(' ');
-      showToast(msg || 'Import finished.');
-      if (data.createdCount > 0 || skipN) setShowBankCsvModal(false);
-    }
-    await ws.refresh();
-  };
-
-  const bankReconSection = (
-    <div id="bank-reconciliation-panel" className="space-y-3">
-      <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
-        <h3 className="text-xs font-bold text-[#134e4a] uppercase tracking-widest flex items-center gap-2">
-          <Landmark size={14} />
-          Bank reconciliation
-        </h3>
-        {canReconcileBank && ws?.canMutate ? (
-          <div className="flex flex-wrap gap-2">
-            <button type="button" onClick={openBankReconModal} className="z-btn-secondary !text-[10px] gap-1.5">
-              <Plus size={14} /> Add statement line
-            </button>
-            <button
-              type="button"
-              onClick={() => setShowBankImportModal(true)}
-              className="z-btn-secondary !text-[10px] gap-1.5"
-            >
-              Import JSON
-            </button>
-            <button
-              type="button"
-              onClick={() => setShowBankCsvModal(true)}
-              className="z-btn-secondary !text-[10px] gap-1.5"
-            >
-              Import CSV
-            </button>
-          </div>
-        ) : null}
-      </div>
-      <div className="flex flex-wrap gap-1.5 mb-3">
-        {[
-          { id: 'all', label: 'All' },
-          { id: 'review_queue', label: 'Needs action' },
-          { id: 'matched', label: 'Matched' },
-          { id: 'excluded', label: 'Excluded' },
-        ].map((f) => (
-          <button
-            key={f.id}
-            type="button"
-            onClick={() => setReconViewFilter(f.id)}
-            className={`rounded-lg border px-2.5 py-1 text-[9px] font-black uppercase tracking-wide transition ${
-              reconViewFilter === f.id
-                ? 'border-[#134e4a] bg-[#134e4a] text-white'
-                : 'border-slate-200 bg-white text-slate-600 hover:border-teal-200'
-            }`}
-          >
-            {f.label}
-          </button>
-        ))}
-      </div>
-      <ul className="space-y-1.5">
-        {filteredReconciliation.map((line) => {
-          const amtLabel = `${formatNgn(Math.abs(line.amountNgn))}${line.amountNgn < 0 ? ' DR' : ' CR'}`;
-          const matchText = line.systemMatch ?? reconSuggestionsById[line.id]?.text ?? '—';
-          const reconMatchField = reconDrafts[line.id] ?? line.systemMatch ?? '';
-          const reconReceiptToken = firstBankReconSystemMatchToken(reconMatchField);
-          const reconMatchedReceipt =
-            reconReceiptToken && salesReceipts.length
-              ? findSalesReceiptByMatchToken(salesReceipts, reconReceiptToken)
-              : null;
-          const reconReceiptPaySplits = reconMatchedReceipt
-            ? receiptLedgerReceiptTreasurySplits(reconMatchedReceipt, liveTreasuryMovements)
-            : [];
-          const meta2 = [matchText, line.branchId ? branchNameById[line.branchId] || line.branchId : null]
-            .filter(Boolean)
-            .join(' · ');
-          const statusChip =
-            line.status === 'Matched'
-              ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
-              : line.status === 'Excluded'
-                ? 'border-slate-200 bg-slate-100 text-slate-600'
-                : line.status === 'PendingManager'
-                  ? 'border-violet-300 bg-violet-50 text-violet-900'
-                  : 'border-amber-200 bg-amber-50 text-amber-900';
-          const isCredit = line.amountNgn > 0;
-          const showSettleFields =
-            line.status === 'Review' && isCredit && canReconcileBank && ws?.canMutate;
-          return (
-            <li
-              key={line.id}
-              className="rounded-lg border border-slate-200/60 bg-white/40 backdrop-blur-md py-1.5 px-2.5 shadow-sm"
-            >
-              <div className="flex flex-wrap items-start justify-between gap-2 min-w-0">
-                <div className="min-w-0 leading-tight flex-1">
-                  <div className="flex items-center justify-between gap-2 min-w-0">
-                    <p className="text-[11px] font-bold text-[#134e4a] truncate min-w-0">
-                      <span className="tabular-nums text-slate-600 font-semibold">{line.bankDateISO}</span>
-                      <span className="font-medium text-slate-600"> · {line.description}</span>
-                    </p>
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      <span
-                        className={`text-[11px] font-black tabular-nums ${line.amountNgn < 0 ? 'text-red-700' : 'text-emerald-700'}`}
-                      >
-                        {amtLabel}
-                      </span>
-                      <span
-                        className={`text-[8px] font-semibold uppercase tracking-wide px-2 py-1 rounded-md border ${statusChip}`}
-                      >
-                        {line.status}
-                      </span>
-                    </div>
-                  </div>
-                  <p className="text-[8px] text-slate-500 mt-0.5 leading-snug line-clamp-2" title={meta2}>
-                    {meta2}
-                  </p>
-                  {reconReceiptPaySplits.length > 0 ? (
-                    <div className="mt-1.5 rounded-md border border-slate-200/80 bg-slate-50/80 px-2 py-1.5">
-                      <p className="text-[8px] font-bold uppercase tracking-wide text-slate-500 mb-1">
-                        Receipt payment splits ({reconMatchedReceipt?.id})
-                      </p>
-                      <ul className="space-y-0.5">
-                        {reconReceiptPaySplits.map((s) => (
-                          <li
-                            key={s.movementId}
-                            className="flex justify-between gap-2 text-[9px] text-slate-800"
-                          >
-                            <span className="min-w-0 truncate" title={s.accountLabel}>
-                              {s.accountLabel}
-                            </span>
-                            <span className="shrink-0 font-bold tabular-nums text-emerald-800">
-                              {formatNgn(s.amountNgn)}
-                            </span>
-                          </li>
-                        ))}
-                      </ul>
-                      <p className="text-[8px] text-slate-600 mt-1 tabular-nums">
-                        Sum of splits {formatNgn(reconReceiptPaySplits.reduce((sum, s) => sum + s.amountNgn, 0))}
-                      </p>
-                    </div>
-                  ) : reconMatchedReceipt && isCredit ? (
-                    <p className="text-[8px] text-slate-500 mt-1 italic">
-                      Matched receipt has no treasury split lines on file — reconcile to receipt total.
-                    </p>
-                  ) : null}
-                  {line.matchedSystemAmountNgn != null &&
-                  (line.status === 'Matched' ||
-                    line.status === 'PendingManager' ||
-                    Number(line.varianceNgn || 0) !== 0) ? (
-                    <p className="text-[9px] text-slate-600 mt-1">
-                      Book {formatNgn(line.matchedSystemAmountNgn)}
-                      {line.settledAmountNgn != null ? ` · Settled ${formatNgn(line.settledAmountNgn)}` : ''}
-                      {line.varianceNgn != null && line.varianceNgn !== 0
-                        ? ` · Variance ${formatNgn(line.varianceNgn)} (${(Number(line.variancePercent) || 0).toFixed(4)}%)`
-                        : ''}
-                    </p>
-                  ) : null}
-                  {line.status === 'PendingManager' ? (
-                    <p className="text-[9px] text-violet-800 font-semibold mt-1">
-                      Awaiting manager clearance — variance above 0.1% of book amount.
-                      {line.managerClearedAtISO ? ` Cleared ${line.managerClearedAtISO.slice(0, 10)}.` : ''}
-                    </p>
-                  ) : null}
-                </div>
-              </div>
-              {showSettleFields ? (
-                <div className="pt-1.5 mt-1 border-t border-dashed border-slate-200 grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  <div>
-                    <label className="text-[8px] font-bold text-slate-500 uppercase block mb-0.5">
-                      Settled amount (₦) — if not same as statement
-                    </label>
-                    <input
-                      type="number"
-                      step="1"
-                      value={
-                        settledDrafts[line.id] ??
-                        (line.amountNgn != null ? String(line.amountNgn) : '')
-                      }
-                      onChange={(e) =>
-                        setSettledDrafts((d) => ({ ...d, [line.id]: e.target.value }))
-                      }
-                      placeholder={String(line.amountNgn)}
-                      className="w-full rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-[11px] outline-none focus:ring-2 focus:ring-[#134e4a]/15 tabular-nums"
-                    />
-                    <button
-                      type="button"
-                      className="text-[8px] font-bold text-teal-700 mt-0.5 uppercase hover:underline"
-                      onClick={() =>
-                        setSettledDrafts((d) => ({ ...d, [line.id]: String(line.amountNgn) }))
-                      }
-                    >
-                      Reset to statement amount
-                    </button>
-                  </div>
-                  <div>
-                    <label className="text-[8px] font-bold text-slate-500 uppercase block mb-0.5">
-                      Treasury account (for adjustment)
-                    </label>
-                    <select
-                      value={treasuryDrafts[line.id] ?? ''}
-                      onChange={(e) =>
-                        setTreasuryDrafts((d) => ({ ...d, [line.id]: e.target.value }))
-                      }
-                      className="w-full rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-[11px] outline-none focus:ring-2 focus:ring-[#134e4a]/15"
-                    >
-                      <option value="">Auto (from receipt)</option>
-                      {bankAccounts.map((a) => (
-                        <option key={a.id} value={a.id}>
-                          {a.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-              ) : null}
-              {line.status === 'Review' && canReconcileBank && ws?.canMutate ? (
-                <div className="pt-1.5 mt-1 border-t border-dashed border-slate-200 flex flex-col sm:flex-row sm:items-center gap-2">
-                  <input
-                    type="text"
-                    value={reconDrafts[line.id] ?? line.systemMatch ?? ''}
-                    onChange={(e) => setReconDrafts((d) => ({ ...d, [line.id]: e.target.value }))}
-                    placeholder="Receipt id e.g. LE-… or RC-… (first token is used)"
-                    className="flex-1 min-w-0 rounded-lg border border-gray-200 bg-white px-3 py-2 text-[11px] outline-none focus:ring-2 focus:ring-[#134e4a]/15"
-                  />
-                  {reconSuggestionsById[line.id] ? (
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setReconDrafts((d) => ({
-                          ...d,
-                          [line.id]: reconSuggestionsById[line.id].text,
-                        }))
-                      }
-                      className="rounded-lg border border-teal-200 bg-teal-50 text-teal-800 px-3 py-2 text-[10px] font-bold uppercase tracking-wide"
-                    >
-                      Use suggestion ({reconSuggestionsById[line.id].confidence})
-                    </button>
-                  ) : null}
-                  <EditSecondApprovalInline
-                    entityKind="bank_reconciliation_line"
-                    entityId={line.id}
-                    value={bankReconEditAidByLine[line.id] || ''}
-                    onChange={(v) => setBankReconEditAidByLine((d) => ({ ...d, [line.id]: v }))}
-                    className="mt-2"
-                  />
-                  <div className="flex flex-wrap gap-2 shrink-0">
-                    <button
-                      type="button"
-                      onClick={() => saveBankReconLine(line, 'Matched')}
-                      className="rounded-lg bg-[#134e4a] text-white px-3 py-2 text-[10px] font-bold uppercase tracking-wide"
-                    >
-                      Mark matched
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const reason = window.prompt(
-                          'Reason for exclusion (required for audit trace)',
-                          'Not applicable to company ledger'
-                        );
-                        const cleanReason = String(reason || '').trim();
-                        if (!cleanReason) return;
-                        saveBankReconLine(line, 'Excluded', `Excluded — ${cleanReason}`);
-                      }}
-                      className="rounded-lg border border-gray-200 bg-white text-gray-600 px-3 py-2 text-[10px] font-bold uppercase tracking-wide"
-                    >
-                      Exclude
-                    </button>
-                  </div>
-                </div>
-              ) : null}
-              {line.status === 'PendingManager' && canApproveRequests && ws?.canMutate ? (
-                <div className="pt-1.5 mt-1 border-t border-dashed border-violet-200">
-                  <button
-                    type="button"
-                    onClick={() => approveBankReconVariance(line)}
-                    className="rounded-lg bg-violet-700 text-white px-3 py-2 text-[10px] font-bold uppercase tracking-wide"
-                  >
-                    Approve variance (manager)
-                  </button>
-                </div>
-              ) : null}
-            </li>
-          );
-        })}
-      </ul>
-    </div>
-  );
-
   return (
     <PageShell blurred={isAnyModalOpen}>
       <FinancePilotHeader
         eyebrow="Finance"
         title="Finance & accounts"
-        subtitle="Treasury, customer receipt settlement, bank reconciliation, and approvals"
+        subtitle="Treasury, customer receipt settlement, and approvals"
         tabs={<PageTabs tabs={accountTabs} value={activeTab} onChange={handleAccountTabChange} />}
         search={
           <div className="relative w-full min-w-0">
@@ -1958,7 +1369,7 @@ const Account = () => {
                 activeTab === 'treasury'
                   ? 'Give me a short treasury and payout summary from the live workspace.'
                   : activeTab === 'receipts'
-                    ? 'Explain the main receipt-settlement and bank-reconciliation issues visible right now.'
+                    ? 'Summarize pending customer receipt settlement and which receipts need review first.'
                     : activeTab === 'audit'
                       ? 'Summarize the audit and reconciliation queue and what needs action first.'
                       : 'Summarize the current finance workload and the next best actions.'
@@ -2116,8 +1527,59 @@ const Account = () => {
                       No receipts in this branch scope.
                     </p>
                   ) : (
-                    <ul className="space-y-1.5">
-                      {filteredSalesReceipts.map((r) => {
+                    <>
+                      <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-200/70 bg-slate-50/80 px-2.5 py-2">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-[9px] font-bold text-slate-500 uppercase">Sort by</span>
+                          <select
+                            value={receiptsSortKey}
+                            onChange={(e) => setReceiptsSortKey(e.target.value)}
+                            className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-[10px] font-semibold text-[#134e4a] outline-none focus:ring-2 focus:ring-[#134e4a]/15"
+                          >
+                            <option value="date">Receipt date</option>
+                            <option value="id">Receipt id</option>
+                            <option value="customer">Customer</option>
+                            <option value="amount">Amount received</option>
+                          </select>
+                          <button
+                            type="button"
+                            onClick={() => setReceiptsSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))}
+                            className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-[9px] font-black uppercase tracking-wide text-slate-600"
+                          >
+                            {receiptsSortDir === 'asc' ? 'Ascending' : 'Descending'}
+                          </button>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2 text-[10px] text-slate-600">
+                          <span className="tabular-nums">
+                            {receiptsListWindow.total === 0
+                              ? '0 receipts'
+                              : `Showing ${receiptsListWindow.from}–${receiptsListWindow.to} of ${receiptsListWindow.total}`}
+                          </span>
+                          <button
+                            type="button"
+                            disabled={receiptsListWindow.safePage <= 0}
+                            onClick={() => setReceiptsPage((p) => Math.max(0, p - 1))}
+                            className="inline-flex items-center rounded-lg border border-slate-200 bg-white px-2 py-1 disabled:opacity-40"
+                            aria-label="Previous page"
+                          >
+                            <ChevronLeft size={14} />
+                          </button>
+                          <span className="text-[9px] font-bold tabular-nums text-slate-500">
+                            {receiptsListWindow.safePage + 1}/{receiptsListWindow.pageCount}
+                          </span>
+                          <button
+                            type="button"
+                            disabled={receiptsListWindow.safePage >= receiptsListWindow.pageCount - 1}
+                            onClick={() => setReceiptsPage((p) => p + 1)}
+                            className="inline-flex items-center rounded-lg border border-slate-200 bg-white px-2 py-1 disabled:opacity-40"
+                            aria-label="Next page"
+                          >
+                            <ChevronRight size={14} />
+                          </button>
+                        </div>
+                      </div>
+                      <ul className="space-y-1.5">
+                        {receiptsListWindow.slice.map((r) => {
                         const allocated = Number(r.amountNgn) || 0;
                         const cash =
                           r.cashReceivedNgn != null ? Number(r.cashReceivedNgn) || allocated : allocated;
@@ -2189,31 +1651,8 @@ const Account = () => {
                         );
                       })}
                     </ul>
+                    </>
                   )}
-                </section>
-
-                <section className="space-y-3 border-t border-slate-100 pt-8">
-                  <h3 className="text-xs font-bold uppercase tracking-widest text-[#134e4a]">
-                    Bank statement lines
-                  </h3>
-                  <p className="text-[11px] text-slate-600 mb-4 leading-relaxed max-w-3xl">
-                    Match statement lines to a <span className="font-semibold">sales receipt id</span> (posted
-                    receipts are usually <span className="font-semibold">LE-…</span>; legacy rows may show{' '}
-                    <span className="font-semibold">RC-…</span>). Put the id first if you add notes. Variance rules
-                    and manager approval behave as before.
-                  </p>
-                  {reconciliationFlags > 0 ? (
-                    <div className="flex items-start gap-3 rounded-lg border border-red-200/80 bg-red-50/80 px-3 py-2.5 text-sm text-red-900 mb-4">
-                      <AlertCircle className="shrink-0 mt-0.5" size={18} />
-                      <div>
-                        <p className="font-bold">Bank reconciliation queue</p>
-                        <p className="text-xs text-red-800/90 mt-0.5">
-                          {reconciliationFlags} line(s) need review or manager clearance.
-                        </p>
-                      </div>
-                    </div>
-                  ) : null}
-                  {bankReconSection}
                 </section>
               </div>
             )}
@@ -3183,7 +2622,7 @@ const Account = () => {
                 </div>
 
                 <p className="text-[10px] text-slate-600 rounded-lg border border-slate-200/60 bg-slate-50/80 px-3 py-2">
-                  Bank statement matching and customer receipt settlement live on the{' '}
+                  Customer receipt settlement is on the{' '}
                   <button
                     type="button"
                     className="font-bold text-teal-800 underline-offset-2 hover:underline"
@@ -3896,188 +3335,6 @@ const Account = () => {
                 Save account
               </button>
             </form>
-        </div>
-      </ModalFrame>
-
-      <ModalFrame isOpen={showBankReconModal} onClose={() => setShowBankReconModal(false)}>
-        <div className="z-modal-panel max-w-lg p-8 overflow-y-auto">
-          <div className="flex justify-between items-center mb-6">
-            <h3 className="text-xl font-bold text-[#134e4a]">Add bank statement line</h3>
-            <button
-              type="button"
-              onClick={() => setShowBankReconModal(false)}
-              className="p-2 text-gray-400 hover:text-red-500 rounded-xl"
-            >
-              <X size={22} />
-            </button>
-          </div>
-          <form className="space-y-4" onSubmit={saveBankReconLineCreate}>
-            <p className="text-[10px] text-gray-500 leading-relaxed">
-              Enter one row from the bank statement. It starts in <span className="font-semibold">Review</span>; match
-              it to a receipt or treasury reference on the Audit tab. Marking <span className="font-semibold">Matched</span>{' '}
-              with a <span className="font-semibold">LE-…</span> or <span className="font-semibold">RC-…</span>{' '}
-              receipt id checks that the receipt exists.
-            </p>
-            {ws?.viewAllBranches && branchOptions.length > 0 ? (
-              <div>
-                <label className="text-[10px] font-bold text-gray-400 uppercase ml-1 block mb-1">Branch</label>
-                <select
-                  value={bankReconForm.branchId}
-                  onChange={(e) => setBankReconForm((f) => ({ ...f, branchId: e.target.value }))}
-                  className="w-full bg-gray-50 border border-gray-100 rounded-xl py-3 px-4 text-sm font-bold outline-none"
-                  required
-                >
-                  <option value="">Select branch…</option>
-                  {branchOptions.map((b) => (
-                    <option key={b.id} value={b.id}>
-                      {b.name || b.code || b.id}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            ) : null}
-            <div>
-              <label className="text-[10px] font-bold text-gray-400 uppercase ml-1 block mb-1">Statement date</label>
-              <input
-                type="date"
-                required
-                value={bankReconForm.bankDateISO}
-                onChange={(e) => setBankReconForm((f) => ({ ...f, bankDateISO: e.target.value }))}
-                className="w-full bg-gray-50 border border-gray-100 rounded-xl py-3 px-4 text-sm font-bold outline-none"
-              />
-            </div>
-            <div>
-              <label className="text-[10px] font-bold text-gray-400 uppercase ml-1 block mb-1">
-                Description (as on statement)
-              </label>
-              <input
-                required
-                value={bankReconForm.description}
-                onChange={(e) => setBankReconForm((f) => ({ ...f, description: e.target.value }))}
-                placeholder="e.g. NIP inflow — payer name"
-                className="w-full bg-gray-50 border border-gray-100 rounded-xl py-3 px-4 text-sm font-bold outline-none"
-              />
-            </div>
-            <div>
-              <label className="text-[10px] font-bold text-gray-400 uppercase ml-1 block mb-1">
-                Amount (₦)
-              </label>
-              <input
-                required
-                type="number"
-                step="1"
-                value={bankReconForm.amountNgn}
-                onChange={(e) => setBankReconForm((f) => ({ ...f, amountNgn: e.target.value }))}
-                placeholder="Negative for bank debits / charges"
-                className="w-full bg-gray-50 border border-gray-100 rounded-xl py-3 px-4 text-sm font-bold outline-none"
-              />
-            </div>
-            <div>
-              <label className="text-[10px] font-bold text-gray-400 uppercase ml-1 block mb-1">
-                System match (optional)
-              </label>
-              <input
-                value={bankReconForm.systemMatch}
-                onChange={(e) => setBankReconForm((f) => ({ ...f, systemMatch: e.target.value }))}
-                placeholder="e.g. LE-… or RC-26-014 — can add after save"
-                className="w-full bg-gray-50 border border-gray-100 rounded-xl py-3 px-4 text-sm font-bold outline-none"
-              />
-            </div>
-            <button type="submit" className="z-btn-primary w-full justify-center py-3">
-              Save statement line
-            </button>
-          </form>
-        </div>
-      </ModalFrame>
-
-      <ModalFrame isOpen={showBankImportModal} onClose={() => setShowBankImportModal(false)}>
-        <div className="z-modal-panel max-w-2xl p-8 overflow-y-auto">
-          <div className="flex justify-between items-center mb-6">
-            <h3 className="text-xl font-bold text-[#134e4a]">Import bank lines (JSON)</h3>
-            <button
-              type="button"
-              onClick={() => setShowBankImportModal(false)}
-              className="p-2 text-gray-400 hover:text-red-500 rounded-xl"
-            >
-              <X size={22} />
-            </button>
-          </div>
-          <form className="space-y-4" onSubmit={runBankImport}>
-            <p className="text-[10px] text-gray-500 leading-relaxed">
-              Paste a JSON array of objects with <code className="font-mono">bankDateISO</code> (YYYY-MM-DD),{' '}
-              <code className="font-mono">description</code>, and <code className="font-mono">amountNgn</code> (negative
-              for debits). Up to 500 rows per request. Lines are created in <span className="font-semibold">Review</span>.
-            </p>
-            <textarea
-              value={bankImportJson}
-              onChange={(e) => setBankImportJson(e.target.value)}
-              rows={12}
-              className="w-full font-mono text-xs bg-gray-50 border border-gray-100 rounded-xl py-3 px-4 outline-none focus:ring-2 focus:ring-[#134e4a]/15"
-              spellCheck={false}
-            />
-            <button type="submit" disabled={bankImportBusy} className="z-btn-primary w-full justify-center py-3 disabled:opacity-50">
-              {bankImportBusy ? 'Importing…' : 'Import lines'}
-            </button>
-          </form>
-        </div>
-      </ModalFrame>
-
-      <ModalFrame isOpen={showBankCsvModal} onClose={() => setShowBankCsvModal(false)}>
-        <div className="z-modal-panel max-w-2xl p-8 overflow-y-auto">
-          <div className="flex justify-between items-center mb-6">
-            <h3 className="text-xl font-bold text-[#134e4a]">Import bank lines (CSV)</h3>
-            <button
-              type="button"
-              onClick={() => setShowBankCsvModal(false)}
-              className="p-2 text-gray-400 hover:text-red-500 rounded-xl"
-            >
-              <X size={22} />
-            </button>
-          </div>
-          <form className="space-y-4" onSubmit={runBankCsvImport}>
-            <p className="text-[10px] text-gray-500 leading-relaxed">
-              First row can be the header{' '}
-              <code className="font-mono">bankDateISO,description,amountNgn</code>. Then one row per statement line.
-              Use quotes around the description if it contains commas. Amounts are whole naira (negative = debit). Max
-              500 rows.
-            </p>
-            <input
-              ref={bankCsvFileRef}
-              type="file"
-              accept=".csv,text/csv"
-              className="hidden"
-              onChange={async (e) => {
-                const f = e.target.files?.[0];
-                if (!f) return;
-                try {
-                  const text = await f.text();
-                  setBankCsvText(text);
-                } catch {
-                  showToast('Could not read that file.', { variant: 'error' });
-                }
-                e.target.value = '';
-              }}
-            />
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={() => bankCsvFileRef.current?.click()}
-                className="z-btn-secondary !text-[10px] py-2 px-3"
-              >
-                Choose CSV file
-              </button>
-            </div>
-            <textarea
-              value={bankCsvText}
-              onChange={(e) => setBankCsvText(e.target.value)}
-              rows={12}
-              className="w-full font-mono text-xs bg-gray-50 border border-gray-100 rounded-xl py-3 px-4 outline-none focus:ring-2 focus:ring-[#134e4a]/15"
-              spellCheck={false}
-            />
-            <button type="submit" disabled={bankCsvBusy} className="z-btn-primary w-full justify-center py-3 disabled:opacity-50">
-              {bankCsvBusy ? 'Importing…' : 'Import CSV'}
-            </button>
-          </form>
         </div>
       </ModalFrame>
 
