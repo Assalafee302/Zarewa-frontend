@@ -951,32 +951,6 @@ const ManagerDashboard = () => {
 
   return (
     <PageShell className="pb-14">
-      <div className="flex flex-wrap items-center justify-end gap-2 mb-6 sm:mb-8">
-        <Button
-          type="button"
-          variant="outline"
-          className="rounded-xl text-[10px] font-bold uppercase tracking-wide h-10 border-slate-200"
-          onClick={() => navigate('/sales')}
-        >
-          Sales
-        </Button>
-        <button
-          type="button"
-          title="Reload management API and workspace snapshot"
-          onClick={() => void handleRefreshAll()}
-          className="p-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 transition-colors"
-        >
-          <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
-        </button>
-        <Button
-          type="button"
-          onClick={() => setShowStockRequest(true)}
-          className="rounded-xl gap-2 font-bold uppercase text-[10px] h-10"
-        >
-          <Plus size={16} /> Stock note
-        </Button>
-      </div>
-
       {loadError ? (
         <div
           className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-950 mb-6"
@@ -1044,7 +1018,7 @@ const ManagerDashboard = () => {
                 <span>Sales produced (same basis as KPI strip)</span>
                 <span
                   className="inline-flex rounded-full p-0.5 text-teal-200/80 hover:text-white hover:bg-white/10 cursor-help"
-                  title="Quotation totals allocated to completed production jobs in this period, by job completion date — not cash date. Matches the Sales card in the KPI strip below."
+                  title="Quotation totals allocated to completed production jobs in this period, by job completion date — not cash date. Treasury and low-stock KPIs stay in the strip below."
                 >
                   <HelpCircle size={14} aria-hidden />
                   <span className="sr-only">Explain sales produced</span>
@@ -1123,8 +1097,35 @@ const ManagerDashboard = () => {
         </p>
       </div>
 
+      <div className="flex flex-wrap items-center justify-end gap-2 mb-6 sm:mb-8">
+        <Button
+          type="button"
+          variant="outline"
+          className="rounded-xl text-[10px] font-bold uppercase tracking-wide h-10 border-slate-200"
+          onClick={() => navigate('/sales')}
+        >
+          Sales
+        </Button>
+        <button
+          type="button"
+          title="Reload management API and workspace snapshot"
+          onClick={() => void handleRefreshAll()}
+          className="p-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 transition-colors"
+        >
+          <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
+        </button>
+        <Button
+          type="button"
+          onClick={() => setShowStockRequest(true)}
+          className="rounded-xl gap-2 font-bold uppercase text-[10px] h-10"
+        >
+          <Plus size={16} /> Stock note
+        </Button>
+      </div>
+
       <DashboardKpiStrip
         sectionClassName="mb-6"
+        omitMetresAndSales
         metricsWindow={{
           startISO: managementPeriodStartISO(metricPeriod),
           label: displaySnapshots.periodLabel ?? 'This month',

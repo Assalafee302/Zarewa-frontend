@@ -83,11 +83,11 @@ function KpiCard({ title, value, sub, onClick, titleAttr, highlight, children })
 }
 
 /**
- * Same four KPI cards as Operations dashboard: metres produced, MTD sales (production basis), treasury, low stock.
- * Uses workspace snapshot + inventory — aligned with Dashboard.jsx.
- * @param {{ startISO: string; label: string } | null | undefined} [metricsWindow] — When set (e.g. Manager dashboard), metres & sales cards use sums from that date onward.
+ * KPI strip: metres, produced sales, treasury, low stock (workspace snapshot + inventory).
+ * @param {{ startISO: string; label: string } | null | undefined} [metricsWindow] — When set (e.g. Manager dashboard), metres & sales cards use sums from that window (unless `omitMetresAndSales`).
+ * @param {boolean} [omitMetresAndSales] — With `metricsWindow`, hide metres & sales cards (e.g. already shown in manager workspace hero).
  */
-export function DashboardKpiStrip({ sectionClassName = 'mb-8', metricsWindow }) {
+export function DashboardKpiStrip({ sectionClassName = 'mb-8', metricsWindow, omitMetresAndSales = false }) {
   const navigate = useNavigate();
   const { products: invProducts } = useInventory();
   const ws = useWorkspace();
@@ -151,6 +151,7 @@ export function DashboardKpiStrip({ sectionClassName = 'mb-8', metricsWindow }) 
   }, [quotations, productionJobs, windowStart]);
 
   const useWindow = Boolean(metricsWindow && windowStart);
+  const showMetresAndSales = !(omitMetresAndSales && useWindow);
 
   const liquidityBreakdown = useMemo(() => liveLiquidityBreakdown(treasuryAccounts), [treasuryAccounts]);
   const liquidityTotal = useMemo(() => totalLiquidityNgn(treasuryAccounts), [treasuryAccounts]);
@@ -177,59 +178,67 @@ export function DashboardKpiStrip({ sectionClassName = 'mb-8', metricsWindow }) 
   return (
     <section className={sectionClassName}>
       <h2 className="sr-only">Key performance indicators</h2>
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-        <KpiCard
-          title={useWindow ? `Metres (${metricsWindow.label})` : 'Metres produced (this month)'}
-          value={`${(useWindow ? metersInWindow ?? 0 : metersCurrent.meters).toLocaleString()} m`}
-          sub={
-            useWindow
-              ? 'Completed jobs · production completion date'
-              : metersDeltaPct == null
-                ? metersCurrent.label
-                : `${metersDeltaPct >= 0 ? '+' : ''}${metersDeltaPct.toFixed(1)}% vs ${metersPrev?.label ?? 'prior month'}`
-          }
-          titleAttr="Actual metres from completed production jobs (dated when production finished)."
-          onClick={() => navigate('/operations')}
-          highlight={
-            useWindow
-              ? undefined
-              : metersDeltaPct != null && metersDeltaPct < 0
-                ? 'danger'
-                : 'success'
-          }
-        >
-          {!useWindow ? (
-            <div className="grid grid-cols-3 gap-x-3 gap-y-3">
-              {metersSeries.slice(-4, -1).map((m) => (
-                <div
-                  key={m.key}
-                  className="min-w-0 border-b border-slate-100 pb-2 last:border-0 sm:border-0 sm:pb-0"
-                  title={`${m.label}: ${m.meters.toLocaleString()} m`}
-                >
-                  <p className="text-[9px] font-semibold text-slate-500 truncate">
-                    {shortPeriodLabel(m.key)}
-                  </p>
-                  <p className="text-[12px] font-bold text-[#134e4a] tabular-nums text-right sm:text-left">
-                    {(m.meters / 1000).toFixed(0)}
-                    <span className="text-[9px] font-semibold text-slate-400 ml-0.5">k m</span>
-                  </p>
+      <div
+        className={`grid grid-cols-1 gap-4 ${
+          showMetresAndSales ? 'sm:grid-cols-2 xl:grid-cols-4' : 'sm:grid-cols-2 xl:grid-cols-2'
+        }`}
+      >
+        {showMetresAndSales ? (
+          <>
+            <KpiCard
+              title={useWindow ? `Metres (${metricsWindow.label})` : 'Metres produced (this month)'}
+              value={`${(useWindow ? metersInWindow ?? 0 : metersCurrent.meters).toLocaleString()} m`}
+              sub={
+                useWindow
+                  ? 'Completed jobs · production completion date'
+                  : metersDeltaPct == null
+                    ? metersCurrent.label
+                    : `${metersDeltaPct >= 0 ? '+' : ''}${metersDeltaPct.toFixed(1)}% vs ${metersPrev?.label ?? 'prior month'}`
+              }
+              titleAttr="Actual metres from completed production jobs (dated when production finished)."
+              onClick={() => navigate('/operations')}
+              highlight={
+                useWindow
+                  ? undefined
+                  : metersDeltaPct != null && metersDeltaPct < 0
+                    ? 'danger'
+                    : 'success'
+              }
+            >
+              {!useWindow ? (
+                <div className="grid grid-cols-3 gap-x-3 gap-y-3">
+                  {metersSeries.slice(-4, -1).map((m) => (
+                    <div
+                      key={m.key}
+                      className="min-w-0 border-b border-slate-100 pb-2 last:border-0 sm:border-0 sm:pb-0"
+                      title={`${m.label}: ${m.meters.toLocaleString()} m`}
+                    >
+                      <p className="text-[9px] font-semibold text-slate-500 truncate">
+                        {shortPeriodLabel(m.key)}
+                      </p>
+                      <p className="text-[12px] font-bold text-[#134e4a] tabular-nums text-right sm:text-left">
+                        {(m.meters / 1000).toFixed(0)}
+                        <span className="text-[9px] font-semibold text-slate-400 ml-0.5">k m</span>
+                      </p>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-          ) : null}
-        </KpiCard>
+              ) : null}
+            </KpiCard>
 
-        <KpiCard
-          title={useWindow ? `Sales (${metricsWindow.label})` : 'Sales (produced, MTD)'}
-          value={formatNgn(useWindow ? salesInWindow ?? 0 : salesMonthRevenue)}
-          sub={
-            useWindow
-              ? 'Quote total × actual-metre share · jobs completed in range'
-              : 'Production completions this month · not quotation date'
-          }
-          titleAttr="Sales value from quotations when jobs complete; split by actual metres across completed jobs per quote."
-          onClick={() => navigate('/sales')}
-        />
+            <KpiCard
+              title={useWindow ? `Sales (${metricsWindow.label})` : 'Sales (produced, MTD)'}
+              value={formatNgn(useWindow ? salesInWindow ?? 0 : salesMonthRevenue)}
+              sub={
+                useWindow
+                  ? 'Quote total × actual-metre share · jobs completed in range'
+                  : 'Production completions this month · not quotation date'
+              }
+              titleAttr="Sales value from quotations when jobs complete; split by actual metres across completed jobs per quote."
+              onClick={() => navigate('/sales')}
+            />
+          </>
+        ) : null}
 
         <button
           type="button"
