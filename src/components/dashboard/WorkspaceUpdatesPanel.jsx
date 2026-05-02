@@ -1,10 +1,13 @@
 import React from 'react';
 import { Bell } from 'lucide-react';
 
-export function WorkspaceUpdatesPanel({ officeSummary, canOffice }) {
+export function WorkspaceUpdatesPanel({ officeSummary, canOffice, belowAccent = null }) {
   return (
     <section className="rounded-xl border border-slate-200/90 bg-white shadow-sm overflow-hidden">
       <div className="h-1 bg-sky-600/90" aria-hidden />
+      {belowAccent ? (
+        <div className="border-b border-slate-100 bg-slate-50/40 px-4 py-4 md:px-5 md:py-5">{belowAccent}</div>
+      ) : null}
       <div className="p-6 md:p-7">
         <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">

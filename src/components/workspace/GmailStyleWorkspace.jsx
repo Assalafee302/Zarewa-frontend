@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, Archive, ChevronLeft, Inbox, Layers, Mail, MessageSquare, RefreshCw } from 'lucide-react';
+import { AlertTriangle, Archive, ChevronLeft, ChevronRight, Inbox, Layers, Mail, MessageSquare, RefreshCw } from 'lucide-react';
 import { apiFetch } from '../../lib/apiBase';
 import { useToast } from '../../context/ToastContext';
 import { useWorkspace } from '../../context/WorkspaceContext';
@@ -119,6 +119,13 @@ export default function GmailStyleWorkspace({
   const [mailTab, setMailTab] = useState('primary');
   const [listMode, setListMode] = useState('registry');
   const [selectedWorkItem, setSelectedWorkItem] = useState(null);
+  const [officeNavCollapsed, setOfficeNavCollapsed] = useState(() => {
+    try {
+      return typeof sessionStorage !== 'undefined' && sessionStorage.getItem('gmailWorkspaceNavCollapsed') === '1';
+    } catch {
+      return false;
+    }
+  });
 
   const [threads, setThreads] = useState([]);
   const [threadsLoading, setThreadsLoading] = useState(false);
@@ -166,6 +173,14 @@ export default function GmailStyleWorkspace({
     [allItems, inboxCtx]
   );
 
+  useEffect(() => {
+    try {
+      sessionStorage.setItem('gmailWorkspaceNavCollapsed', officeNavCollapsed ? '1' : '0');
+    } catch {
+      /* ignore */
+    }
+  }, [officeNavCollapsed]);
+
   const loadThreads = useCallback(async () => {
     setThreadsLoading(true);
     const q = mineOnly ? '?mine=1' : '';
@@ -212,21 +227,28 @@ export default function GmailStyleWorkspace({
     <button
       type="button"
       onClick={onClick}
-      className={`flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm font-medium transition-colors lg:rounded-l-none lg:rounded-r-full ${
+      aria-current={active ? 'page' : undefined}
+      aria-label={officeNavCollapsed ? label : undefined}
+      title={label}
+      className={`relative flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm font-medium transition-colors lg:rounded-l-none lg:rounded-r-full ${
         active
           ? 'bg-teal-100/90 font-semibold text-teal-950 shadow-sm ring-1 ring-teal-200/60 lg:ring-0'
           : 'text-slate-600 hover:bg-white/80 hover:text-slate-900'
-      }`}
+      } ${officeNavCollapsed ? 'lg:justify-center lg:gap-0 lg:px-2 lg:py-2.5' : ''}`}
     >
       <span className={`flex w-6 shrink-0 justify-center ${active ? 'text-teal-800' : 'text-slate-500'}`}>{icon}</span>
-      <span className="min-w-0 flex-1 truncate">{label}</span>
+      {!officeNavCollapsed ? <span className="min-w-0 flex-1 truncate">{label}</span> : null}
       {badge != null && badge > 0 ? (
         <span
           className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums ${
             active ? 'bg-white text-teal-900' : 'bg-slate-200/80 text-slate-700'
+          } ${
+            officeNavCollapsed
+              ? 'lg:absolute lg:right-0.5 lg:top-0.5 lg:min-h-[18px] lg:min-w-[18px] lg:px-0.5 lg:py-0 lg:text-[9px] lg:leading-[18px]'
+              : ''
           }`}
         >
-          {badge}
+          {officeNavCollapsed && badge > 9 ? '9+' : badge}
         </span>
       ) : null}
     </button>
@@ -325,11 +347,44 @@ export default function GmailStyleWorkspace({
   return (
     <div className="max-w-full min-w-0 overflow-hidden rounded-xl border border-slate-200/90 bg-white shadow-sm ring-1 ring-slate-900/[0.04]">
       <div className="flex h-[min(72vh,820px)] min-h-[420px] w-full min-w-0 flex-col bg-white lg:flex-row">
-        <aside className="z-scroll-x flex w-full max-w-full shrink-0 flex-row gap-1 overflow-x-auto border-b border-slate-200 bg-slate-50/95 px-2 py-2 lg:w-56 lg:flex-col lg:gap-0 lg:overflow-x-visible lg:border-b-0 lg:border-r lg:px-0 lg:py-3">
-          <div className="flex shrink-0 flex-col gap-2 px-2 pb-2 lg:px-3">
-            <GmailComposeTriggerButton onClick={() => onCompose?.()} className="shrink-0 lg:w-full" />
+        <aside
+          className={`z-scroll-x flex w-full max-w-full shrink-0 flex-row gap-1 overflow-x-auto border-b border-slate-200 bg-slate-50/95 px-2 py-2 transition-[width] duration-200 ease-out lg:flex-col lg:gap-0 lg:overflow-x-visible lg:border-b-0 lg:border-r lg:px-0 lg:py-3 ${
+            officeNavCollapsed ? 'lg:w-[3.25rem]' : 'lg:w-56'
+          }`}
+          aria-label="Workspace folders"
+        >
+          <div className="hidden shrink-0 items-center justify-end border-b border-slate-200/80 px-2 py-1.5 lg:flex">
+            <button
+              type="button"
+              onClick={() => setOfficeNavCollapsed((c) => !c)}
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-slate-200/90 bg-white text-slate-600 shadow-sm transition hover:border-teal-200 hover:bg-teal-50/80 hover:text-teal-900"
+              aria-expanded={!officeNavCollapsed}
+              aria-controls="gmail-workspace-folder-nav"
+              title={officeNavCollapsed ? 'Expand folder navigation' : 'Collapse folder navigation'}
+            >
+              {officeNavCollapsed ? <ChevronRight size={18} aria-hidden /> : <ChevronLeft size={18} aria-hidden />}
+            </button>
           </div>
-          <nav className="flex min-w-0 flex-1 flex-row lg:flex-col lg:gap-0.5" aria-label="Workspace inbox folders">
+          <div
+            className={`flex shrink-0 flex-col gap-2 px-2 pb-2 lg:px-3 ${
+              officeNavCollapsed ? 'lg:items-center lg:px-1.5 lg:pb-1.5' : ''
+            }`}
+          >
+            <GmailComposeTriggerButton
+              onClick={() => onCompose?.()}
+              aria-label={officeNavCollapsed ? 'Compose' : undefined}
+              className={`shrink-0 lg:w-full ${
+                officeNavCollapsed
+                  ? 'lg:!w-11 lg:justify-center lg:gap-0 lg:px-2 lg:py-2 lg:[&>span:last-child]:hidden'
+                  : ''
+              }`}
+            />
+          </div>
+          <nav
+            id="gmail-workspace-folder-nav"
+            className="flex min-w-0 flex-1 flex-row lg:flex-col lg:gap-0.5"
+            aria-label="Workspace inbox folders"
+          >
             {navBtn(
               workItemsView === 'needs_action' && listMode === 'registry',
               () => {
@@ -385,7 +440,7 @@ export default function GmailStyleWorkspace({
               threads.length
             )}
           </nav>
-          {officeSummary ? (
+          {officeSummary && !officeNavCollapsed ? (
             <div className="mt-auto hidden px-3 pb-2 text-[10px] text-slate-500 lg:block">
               <span className="font-mono font-semibold text-slate-700">{officeSummary.pendingActionApprox ?? 0}</span>{' '}
               pending ·{' '}

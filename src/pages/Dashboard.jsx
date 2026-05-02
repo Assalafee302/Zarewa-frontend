@@ -173,14 +173,25 @@ const Dashboard = () => {
         ) : null}
 
         {canOffice ? (
-          <GmailStyleWorkspace
-            officeSummary={officeSummary}
-            workItemsView={workItemsView}
-            onWorkItemsViewChange={setWorkItemsView}
-            mailThreadId={mailThreadId}
-            onMailThreadIdChange={setMailThreadId}
-            onCompose={() => setOfficialDrawerOpen(true)}
-          />
+          <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-3">
+            <div className="min-h-0 min-w-0 lg:col-span-2">
+              <GmailStyleWorkspace
+                officeSummary={officeSummary}
+                workItemsView={workItemsView}
+                onWorkItemsViewChange={setWorkItemsView}
+                mailThreadId={mailThreadId}
+                onMailThreadIdChange={setMailThreadId}
+                onCompose={() => setOfficialDrawerOpen(true)}
+              />
+            </div>
+            <div className="min-h-0 min-w-0 lg:col-span-1">
+              <WorkspaceUpdatesPanel
+                officeSummary={officeSummary}
+                canOffice={canOffice}
+                belowAccent={financeExpensesQuickCard}
+              />
+            </div>
+          </div>
         ) : (
           <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-3">
             <div className="min-h-0 min-w-0 lg:col-span-2">
@@ -192,13 +203,6 @@ const Dashboard = () => {
             </div>
           </div>
         )}
-
-        {canOffice ? (
-          <div className="min-h-0 min-w-0 space-y-6">
-            <WorkspaceUpdatesPanel officeSummary={officeSummary} canOffice={canOffice} />
-            {financeExpensesQuickCard}
-          </div>
-        ) : null}
       </div>
 
       <OfficeRecordComposeDrawer

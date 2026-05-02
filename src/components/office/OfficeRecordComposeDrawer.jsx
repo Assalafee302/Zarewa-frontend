@@ -485,11 +485,12 @@ export function OfficeRecordComposeDrawer({ isOpen, onDismiss, presentation = 'd
   );
 }
 
-export function GmailComposeTriggerButton({ onClick, className = '' }) {
+export function GmailComposeTriggerButton({ onClick, className = '', 'aria-label': ariaLabel }) {
   return (
     <button
       type="button"
       onClick={onClick}
+      aria-label={ariaLabel}
       className={`group inline-flex w-full items-center gap-3 rounded-2xl border border-teal-200/80 bg-gradient-to-br from-white to-teal-50/90 px-4 py-3 text-left text-sm font-semibold text-teal-950 shadow-sm ring-1 ring-teal-900/[0.06] transition hover:border-teal-300 hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700 sm:pl-5 ${className}`}
     >
       <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-teal-800 text-white shadow-sm transition group-hover:bg-teal-900">
