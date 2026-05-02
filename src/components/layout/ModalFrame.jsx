@@ -7,6 +7,11 @@ import { X } from 'lucide-react';
  * Full-viewport modal shell rendered via Radix Portal.
  * Handles accessible focus-trapping, escape-to-close, and Framer Motion layout transitions.
  */
+const ELEVATED_SURFACE_CLASS =
+  'relative z-10 flex min-h-0 w-full max-w-[min(1200px,calc(100dvw-1.5rem))] items-start justify-center rounded-2xl shadow-[0_28px_80px_-36px_rgba(15,23,42,0.45)] outline-none sm:rounded-[32px]';
+const PLAIN_SURFACE_CLASS =
+  'relative z-10 flex min-h-0 w-full max-w-[min(1200px,calc(100dvw-1.5rem))] items-start justify-center outline-none';
+
 export function ModalFrame({
   isOpen,
   onClose,
@@ -18,6 +23,11 @@ export function ModalFrame({
   /** Visible dismiss control (Radix still closes on Escape and overlay click when modal). */
   showCloseButton = true,
   closeDisabled = false,
+  /**
+   * `elevated` — default motion shell with soft shadow (legacy).
+   * `plain` — transparent shell; child panel supplies border/shadow so there is a single card chrome.
+   */
+  surface = 'elevated',
 }) {
   const reduceMotion = useReducedMotion();
   const overlayTransition = reduceMotion ? { duration: 0 } : { duration: 0.3 };
@@ -56,7 +66,7 @@ export function ModalFrame({
                   animate={{ opacity: 1, scale: 1, y: 0 }}
                   exit={reduceMotion ? undefined : { opacity: 0, scale: 0.96, y: 10 }}
                   transition={contentTransition}
-                  className="relative z-10 flex min-h-0 w-full max-w-[min(1200px,calc(100dvw-1.5rem))] items-start justify-center rounded-2xl shadow-[0_28px_80px_-36px_rgba(15,23,42,0.45)] outline-none sm:rounded-[32px]"
+                  className={surface === 'plain' ? PLAIN_SURFACE_CLASS : ELEVATED_SURFACE_CLASS}
                 >
                   {showCloseButton ? (
                     <DialogPrimitive.Close asChild>

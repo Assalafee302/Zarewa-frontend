@@ -306,7 +306,7 @@ function AppShell() {
           <Menu size={22} strokeWidth={2} />
         </button>
 
-        <div className="sticky top-0 z-30 -mx-4 min-w-0 max-sm:overflow-x-clip sm:-mx-6 lg:mx-0 mb-4 max-sm:mb-3 sm:mb-8 py-2 pl-2 pr-2 max-sm:pl-14 sm:relative sm:px-0 sm:py-0">
+        <div className="relative z-30 -mx-4 min-w-0 max-sm:overflow-x-clip sm:sticky sm:top-0 sm:-mx-6 lg:mx-0 mb-4 max-sm:mb-3 sm:mb-8 py-2 pl-2 pr-2 max-sm:pl-14 sm:px-0 sm:py-0">
           <div className="flex min-w-0 flex-col gap-2 px-2 py-2 max-sm:border-0 max-sm:bg-transparent max-sm:shadow-none sm:z-toolbar-shell sm:gap-3 sm:px-4 sm:py-3 sm:flex-row sm:items-center sm:justify-between max-sm:pt-1">
             {ws?.session?.user?.roleKey === 'ceo' ? (
               <p className="flex-1 min-w-0 text-[12px] text-gray-500 sm:max-w-[520px] max-sm:order-2">
@@ -420,8 +420,8 @@ function AppShell() {
               </>
             )}
 
-            <div className="flex w-full min-w-0 max-w-full flex-row flex-wrap items-center gap-2 sm:w-auto sm:flex-nowrap sm:justify-end sm:gap-4 lg:gap-5 max-sm:order-1">
-              <div className="min-w-0 flex-1 sm:flex-initial sm:w-auto">
+            <div className="flex w-full min-w-0 max-w-full flex-row flex-wrap items-center gap-2 max-sm:justify-end sm:w-auto sm:flex-nowrap sm:justify-end sm:gap-4 lg:gap-5 max-sm:order-1">
+              <div className="max-sm:hidden min-w-0 sm:flex-initial sm:w-auto">
                 <BranchWorkspaceBar />
               </div>
               <div className="flex shrink-0 items-center gap-1.5 sm:gap-4">

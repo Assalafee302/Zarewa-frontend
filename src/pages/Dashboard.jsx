@@ -7,17 +7,9 @@ import { OfficeRecordComposeDrawer } from '../components/office/OfficeRecordComp
 import { OfficeThreadConversationDrawer } from '../components/office/OfficeThreadConversationDrawer';
 import { useWorkspace } from '../context/WorkspaceContext';
 import { apiFetch } from '../lib/apiBase';
-import { WorkspaceKpiCard } from '../components/dashboard/WorkspaceKpiCard';
 import { WorkspaceUpdatesPanel } from '../components/dashboard/WorkspaceUpdatesPanel';
 import UnifiedWorkItemsPanel from '../components/workspace/UnifiedWorkItemsPanel';
 import GmailStyleWorkspace from '../components/workspace/GmailStyleWorkspace';
-
-const KPI_PLACEHOLDERS = [
-  { label: 'Throughput', hint: 'Metric to be connected.' },
-  { label: 'Cash & exposure', hint: 'Metric to be connected.' },
-  { label: 'Open items', hint: 'Metric to be connected.' },
-  { label: 'Risk & SLA', hint: 'Metric to be connected.' },
-];
 
 const Dashboard = () => {
   const ws = useWorkspace();
@@ -70,12 +62,7 @@ const Dashboard = () => {
   return (
     <PageShell>
       <div className="space-y-8 px-1 pb-10">
-        <div className="flex min-w-0 flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
-          <div className="grid min-w-0 flex-1 grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 lg:gap-4">
-            {KPI_PLACEHOLDERS.map((k, i) => (
-              <WorkspaceKpiCard key={k.label} index={i} label={k.label} hint={k.hint} />
-            ))}
-          </div>
+        <div className="flex min-w-0 justify-end">
           <AiAskButton
             mode="search"
             prompt="What needs my attention today across the workspace, and where should I go first?"
@@ -86,7 +73,7 @@ const Dashboard = () => {
               productionJobCount: productionJobs.length,
             }}
             resetConversation
-            className="inline-flex shrink-0 items-center gap-2 self-start rounded-xl border border-teal-100 bg-white px-3 py-2.5 text-[10px] font-black uppercase tracking-wide text-[#134e4a] shadow-sm transition hover:bg-teal-50 xl:mt-1"
+            className="inline-flex shrink-0 items-center gap-2 rounded-xl border border-teal-100 bg-white px-3 py-2.5 text-[10px] font-black uppercase tracking-wide text-[#134e4a] shadow-sm transition hover:bg-teal-50"
           >
             Ask AI
           </AiAskButton>

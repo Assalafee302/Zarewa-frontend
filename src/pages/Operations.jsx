@@ -846,19 +846,6 @@ const Operations = () => {
 
   const operationsInventoryAttention = ws?.snapshot?.operationsInventoryAttention;
 
-  const openAttentionProductionTrace = useCallback(
-    (cuttingListId) => {
-      const id = String(cuttingListId || '').trim();
-      if (!id) return;
-      if (!ws?.canMutate) {
-        showToast('Connect API to open the production register.', { variant: 'info' });
-        return;
-      }
-      setProductionTraceModal({ type: 'trace', cuttingListId: id, completed: false });
-    },
-    [ws?.canMutate, showToast]
-  );
-
   const goProcurementFromAttention = useCallback(() => {
     navigate('/procurement', { state: { focusTab: 'suppliers' } });
   }, [navigate]);
@@ -1345,7 +1332,6 @@ const Operations = () => {
         <OperationsInventoryAttentionPanel
           attention={operationsInventoryAttention}
           hasWorkspaceData={Boolean(ws?.hasWorkspaceData)}
-          onOpenProductionTrace={openAttentionProductionTrace}
           onGoProcurement={goProcurementFromAttention}
         />
       </div>
@@ -2652,19 +2638,19 @@ const Operations = () => {
       <ModalFrame
         isOpen={productionTraceModal != null}
         onClose={() => setProductionTraceModal(null)}
+        showCloseButton={false}
+        surface="plain"
       >
-        <div className="z-modal-panel w-full min-w-0 max-w-[min(36rem,calc(100dvw-1.25rem))] sm:max-w-[min(40rem,calc(100dvw-2rem))] max-h-[min(92dvh,900px)] flex flex-col p-0 overflow-hidden bg-white rounded-2xl border border-slate-200 shadow-xl sm:rounded-[28px]">
+        <div className="z-modal-panel w-full min-w-0 max-w-[min(36rem,calc(100dvw-1.25rem))] sm:max-w-[min(40rem,calc(100dvw-2rem))] max-h-[min(92dvh,900px)] flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl sm:rounded-[28px]">
           {productionTraceModal?.type === 'trace' ? (
-            <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-              <div className="min-h-0 min-w-0 flex-1 touch-pan-y overflow-y-auto overflow-x-hidden overscroll-y-contain p-2 sm:p-3">
-                <LiveProductionMonitor
-                  focusCuttingListId={productionTraceModal.cuttingListId}
-                  hideJobSidebar
-                  inModal
-                  viewOnly={Boolean(productionTraceModal.completed)}
-                  onModalClose={() => setProductionTraceModal(null)}
-                />
-              </div>
+            <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden p-2 sm:p-3">
+              <LiveProductionMonitor
+                focusCuttingListId={productionTraceModal.cuttingListId}
+                hideJobSidebar
+                inModal
+                viewOnly={Boolean(productionTraceModal.completed)}
+                onModalClose={() => setProductionTraceModal(null)}
+              />
             </div>
           ) : (
             <>
