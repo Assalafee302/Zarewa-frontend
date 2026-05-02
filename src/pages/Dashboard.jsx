@@ -67,7 +67,9 @@ const Dashboard = () => {
           Expenses &amp; requests
         </h3>
         <p className="text-[10px] text-gray-500 leading-snug">
-          Raise a payment request for approval, or post a completed expense to treasury.
+          Raise a payment request or post a completed expense here. Approvals happen in{' '}
+          <span className="font-semibold text-slate-700">Management</span> or the workspace{' '}
+          <span className="font-semibold text-slate-700">Needs action</span> inbox — not on Finance.
         </p>
         <div className="flex flex-col gap-2">
           <button

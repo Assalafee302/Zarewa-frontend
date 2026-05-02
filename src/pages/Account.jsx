@@ -2394,7 +2394,9 @@ const Account = () => {
                     </h3>
                     <p className="text-[11px] text-gray-500 mt-1">
                       Record completed spending entries. New expense requests and direct expenses open from the
-                      workspace; approved payment payouts are on Finance → Treasury.
+                      workspace; payment request <span className="font-semibold text-slate-700">approval</span> is in
+                      Management or workspace Needs action. After approval, treasury payout is on the{' '}
+                      <span className="font-semibold text-slate-700">Treasury</span> tab.
                     </p>
                   </div>
                 <ul className="space-y-1.5">
