@@ -915,7 +915,7 @@ const Account = () => {
           showToast('No numeric changes to apply (optional note was skipped if unchanged).');
           return;
         }
-        showToast('Payment line corrected in treasury books.');
+        showToast('Saved — treasury account balances updated.');
         setPaymentCorrectionDrafts((prev) => ({
           ...prev,
           [movementId]: {
@@ -3409,58 +3409,218 @@ const Account = () => {
                   receiptFinanceRow.cashReceivedNgn != null
                     ? Number(receiptFinanceRow.cashReceivedNgn) || 0
                     : Number(receiptFinanceRow.amountNgn) || 0;
-                return settleSplits.length > 0 ? (
-                  <div className="rounded-xl border border-slate-200 bg-slate-50/90 px-3 py-2.5 space-y-1.5">
-                    <p className="text-[9px] font-bold uppercase tracking-wide text-slate-500">
-                      Payment breakdown (treasury)
+
+                if (settleSplits.length > 0) {
+                  return (
+                    <div className="space-y-3">
+                      <div className="rounded-xl border border-teal-200/90 bg-teal-50/50 px-3 py-2.5 text-[10px] text-teal-950 leading-snug">
+                        <span className="font-bold">Payment breakdown — edit each line</span>. Change amount, bank/cash
+                        account, or date to match what actually happened.{' '}
+                        <span className="font-semibold">
+                          Saving a line updates treasury account balances (money moves between books).
+                        </span>
+                      </div>
+                      {settleSplits.map((s) => {
+                        const d = paymentCorrectionDrafts[s.movementId] || {
+                          amountNgn: String(s.amountNgn),
+                          treasuryAccountId: String(s.treasuryAccountId ?? ''),
+                          postedDate: String(s.postedAtISO || '').slice(0, 10) || todayIso,
+                          note: '',
+                          editApprovalId: '',
+                        };
+                        const rec = s.amountNgn;
+                        const ver = Math.round(Number(String(d.amountNgn).replace(/,/g, '')) || 0);
+                        const varN = ver - rec;
+                        return (
+                          <div
+                            key={s.movementId}
+                            className="rounded-xl border border-slate-200 bg-white p-3 space-y-2.5 shadow-[0_8px_28px_-22px_rgba(15,23,42,0.07)]"
+                          >
+                            <div className="flex flex-wrap justify-between gap-2">
+                              <p className="text-[9px] font-mono text-slate-500 break-all">{s.movementId}</p>
+                              <span className="text-[9px] text-slate-400 truncate max-w-[55%]" title={s.reference}>
+                                {s.reference || '—'}
+                              </span>
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                              <div>
+                                <label className="text-[9px] font-bold text-slate-500 uppercase">
+                                  Amount (₦) — verify vs recorded
+                                </label>
+                                <input
+                                  type="text"
+                                  inputMode="numeric"
+                                  value={d.amountNgn}
+                                  onChange={(e) =>
+                                    setPaymentCorrectionDrafts((prev) => {
+                                      const cur = prev[s.movementId] ?? d;
+                                      return {
+                                        ...prev,
+                                        [s.movementId]: { ...cur, amountNgn: e.target.value },
+                                      };
+                                    })
+                                  }
+                                  className="w-full mt-0.5 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm font-bold tabular-nums outline-none focus:ring-2 focus:ring-[#134e4a]/15"
+                                />
+                                <p className="text-[9px] text-slate-500 mt-0.5">
+                                  Recorded {formatNgn(rec)}
+                                  {varN !== 0 ? (
+                                    <span
+                                      className={
+                                        varN > 0 ? 'text-amber-900 font-semibold' : 'text-rose-800 font-semibold'
+                                      }
+                                    >
+                                      {' '}
+                                      · Δ {varN > 0 ? '+' : ''}
+                                      {formatNgn(varN)}
+                                    </span>
+                                  ) : (
+                                    <span className="text-emerald-800 font-semibold"> · Matches recorded</span>
+                                  )}
+                                </p>
+                              </div>
+                              <div>
+                                <label className="text-[9px] font-bold text-slate-500 uppercase">
+                                  Bank / cash account
+                                </label>
+                                <select
+                                  value={d.treasuryAccountId}
+                                  onChange={(e) =>
+                                    setPaymentCorrectionDrafts((prev) => {
+                                      const cur = prev[s.movementId] ?? d;
+                                      return {
+                                        ...prev,
+                                        [s.movementId]: { ...cur, treasuryAccountId: e.target.value },
+                                      };
+                                    })
+                                  }
+                                  className="w-full mt-0.5 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[11px] font-semibold outline-none focus:ring-2 focus:ring-[#134e4a]/15"
+                                >
+                                  {bankAccounts.map((a) => (
+                                    <option key={a.id} value={a.id}>
+                                      {a.name}
+                                      {a.type ? ` (${a.type})` : ''}
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+                              <div>
+                                <label className="text-[9px] font-bold text-slate-500 uppercase">
+                                  Payment date
+                                </label>
+                                <input
+                                  type="date"
+                                  value={d.postedDate}
+                                  onChange={(e) =>
+                                    setPaymentCorrectionDrafts((prev) => {
+                                      const cur = prev[s.movementId] ?? d;
+                                      return {
+                                        ...prev,
+                                        [s.movementId]: { ...cur, postedDate: e.target.value },
+                                      };
+                                    })
+                                  }
+                                  className="w-full mt-0.5 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[11px] outline-none focus:ring-2 focus:ring-[#134e4a]/15"
+                                />
+                              </div>
+                              <div>
+                                <label className="text-[9px] font-bold text-slate-500 uppercase">
+                                  Note (optional)
+                                </label>
+                                <input
+                                  type="text"
+                                  value={d.note}
+                                  placeholder="e.g. Confirmed with bank SMS"
+                                  onChange={(e) =>
+                                    setPaymentCorrectionDrafts((prev) => {
+                                      const cur = prev[s.movementId] ?? d;
+                                      return {
+                                        ...prev,
+                                        [s.movementId]: { ...cur, note: e.target.value },
+                                      };
+                                    })
+                                  }
+                                  className="w-full mt-0.5 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[11px] outline-none focus:ring-2 focus:ring-[#134e4a]/15"
+                                />
+                              </div>
+                            </div>
+                            <EditSecondApprovalInline
+                              entityKind="treasury_movement"
+                              entityId={s.movementId}
+                              value={d.editApprovalId}
+                              onChange={(v) =>
+                                setPaymentCorrectionDrafts((prev) => {
+                                  const cur = prev[s.movementId] ?? d;
+                                  return { ...prev, [s.movementId]: { ...cur, editApprovalId: v } };
+                                })
+                              }
+                              className="mt-1"
+                            />
+                            <button
+                              type="button"
+                              disabled={
+                                paymentLineBusyId === s.movementId ||
+                                !ws?.canMutate ||
+                                bankAccounts.length === 0
+                              }
+                              onClick={() => void savePaymentLineCorrection(s.movementId)}
+                              className="w-full rounded-lg bg-[#134e4a] text-white py-2 text-[10px] font-black uppercase tracking-wide hover:bg-[#0f3d3a] disabled:opacity-50"
+                            >
+                              {paymentLineBusyId === s.movementId
+                                ? 'Saving…'
+                                : 'Save line — updates treasury balances'}
+                            </button>
+                          </div>
+                        );
+                      })}
+                      <p className="text-[10px] text-slate-600 pt-1 border-t border-slate-200/90">
+                        Receipt total (Sales){' '}
+                        <span className="font-bold tabular-nums text-slate-900">{formatNgn(cashTotal)}</span>
+                        {receiptFinanceRow.cashReceivedNgn != null &&
+                        Math.round(Number(receiptFinanceRow.cashReceivedNgn) || 0) !==
+                          Math.round(Number(receiptFinanceRow.amountNgn) || 0) ? (
+                          <span className="text-slate-500 font-normal">
+                            {' '}
+                            · Quote allocation {formatNgn(Number(receiptFinanceRow.amountNgn) || 0)}
+                          </span>
+                        ) : null}
+                      </p>
+                    </div>
+                  );
+                }
+
+                return (
+                  <div className="space-y-2">
+                    <p className="text-[10px] text-amber-900 bg-amber-50/90 border border-amber-200/80 rounded-lg px-3 py-2 leading-snug">
+                      No treasury payment lines on file for this receipt — you cannot edit split amounts here. Use the
+                      bank total below for delivery clearance, or record itemized payments from Sales so each bank/cash
+                      leg appears for reconciliation.
                     </p>
-                    <ul className="space-y-1">
-                      {settleSplits.map((s) => (
-                        <li
-                          key={s.movementId}
-                          className="flex justify-between gap-2 text-[11px] text-slate-800"
-                        >
-                          <span className="min-w-0 truncate font-medium" title={s.accountLabel}>
-                            {s.accountLabel}
-                          </span>
-                          <span className="shrink-0 font-bold tabular-nums text-[#134e4a]">
-                            {formatNgn(s.amountNgn)}
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
-                    <p className="text-[10px] text-slate-600 pt-1 border-t border-slate-200/80">
-                      Total received{' '}
-                      <span className="font-bold tabular-nums text-slate-900">{formatNgn(cashTotal)}</span>
+                    <p className="text-xs text-slate-700">
+                      Customer paid:{' '}
+                      <span className="font-bold tabular-nums">{formatNgn(cashTotal)}</span>
                       {receiptFinanceRow.cashReceivedNgn != null &&
                       Math.round(Number(receiptFinanceRow.cashReceivedNgn) || 0) !==
                         Math.round(Number(receiptFinanceRow.amountNgn) || 0) ? (
-                        <span className="text-slate-500 font-normal">
+                        <span className="text-slate-600 font-normal">
                           {' '}
-                          · Quote allocation {formatNgn(Number(receiptFinanceRow.amountNgn) || 0)}
+                          (allocated to quote {formatNgn(Number(receiptFinanceRow.amountNgn) || 0)})
                         </span>
                       ) : null}
                     </p>
                   </div>
-                ) : (
-                  <p className="text-xs text-slate-700">
-                    Customer paid:{' '}
-                    <span className="font-bold tabular-nums">{formatNgn(cashTotal)}</span>
-                    {receiptFinanceRow.cashReceivedNgn != null &&
-                    Math.round(Number(receiptFinanceRow.cashReceivedNgn) || 0) !==
-                      Math.round(Number(receiptFinanceRow.amountNgn) || 0) ? (
-                      <span className="text-slate-600 font-normal">
-                        {' '}
-                        (allocated to quote {formatNgn(Number(receiptFinanceRow.amountNgn) || 0)})
-                      </span>
-                    ) : null}
-                  </p>
                 );
               })()}
               <div>
                 <label className="text-[10px] font-bold text-gray-400 uppercase ml-1 block mb-1">
-                  Amount received in bank (₦)
+                  Total for delivery sign-off — bank / aggregate (₦)
                 </label>
+                <p className="text-[9px] text-slate-500 mb-1.5 leading-snug ml-1">
+                  Optional overall figure for clearance;{' '}
+                  <span className="font-semibold text-slate-600">
+                    correcting payment lines above changes treasury balances directly.
+                  </span>
+                </p>
                 <input
                   required
                   type="text"
