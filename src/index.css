@@ -2163,6 +2163,15 @@ summary {
   }
 
   /*
+   * Main React tree lives in #root; print previews are portaled as siblings of #root.
+   * `visibility: hidden` on body * hides the app but does NOT remove layout — a tall #root
+   * still paginates as many blank pages before the visible quotation (classic 5 blank + 1 content).
+   */
+  body > #root {
+    display: none !important;
+  }
+
+  /*
    * Print-preview portal: must NOT use `no-print` on ancestors of *-print-root.
    * Otherwise display:none hides the document and the printout is blank.
    * Reset fixed fullscreen layout so it does not create extra blank pages.

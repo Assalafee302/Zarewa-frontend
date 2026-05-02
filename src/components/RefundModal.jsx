@@ -369,6 +369,16 @@ const RefundModal = ({
     [intelligence.receipts]
   );
 
+  /** When to show receipt vs advance vs booked paid explainer (avoids noise when totals match). */
+  const showRefundPaidBreakdown = useMemo(() => {
+    const adv = Number(intelligence.summary?.advanceAppliedNgn) || 0;
+    const ra = Number(intelligence.summary?.receiptAllocatedSumNgn) || 0;
+    const booked = Number(intelligence.summary?.bookedOnQuotationNgn) || 0;
+    if (adv > 0) return true;
+    if (booked <= 0 && ra <= 0) return false;
+    return Math.abs(booked - ra - adv) > 1;
+  }, [intelligence.summary]);
+
   /** Products, accessories, and services from the quotation with accessory supplied / shortfall from intelligence. */
   const refundIntelQuotationOrderRows = useMemo(() => {
     const ref = String(form.quotationRef || '').trim();
@@ -900,7 +910,7 @@ const RefundModal = ({
                               const dateBit = ymd ? ` · ${ymd}` : '';
                               return (
                                 <option key={q.id} value={q.id}>
-                                  {q.id} · {q.customer_name} (₦{q.paid_ngn.toLocaleString()} on quote){dateBit}
+                                  {q.id} · {q.customer_name} (₦{q.paid_ngn.toLocaleString()} booked paid){dateBit}
                                 </option>
                               );
                             })}
@@ -1254,7 +1264,7 @@ const RefundModal = ({
                             </p>
                           </div>
                           <div>
-                            <p className="text-[9px] font-bold text-slate-500 uppercase mb-0.5">Receipts total</p>
+                            <p className="text-[9px] font-bold text-slate-500 uppercase mb-0.5">Receipts (cash view)</p>
                             <p className="text-sm font-black text-emerald-400 tabular-nums">
                               ₦{refundIntelReceiptsTotalNgn.toLocaleString()}
                             </p>
@@ -1266,6 +1276,34 @@ const RefundModal = ({
                           </div>
                         </div>
                       </div>
+                      {showRefundPaidBreakdown ? (
+                        <div className="rounded-lg border border-slate-700/60 bg-slate-900/50 p-2.5 space-y-1.5">
+                          <p className="text-[9px] font-bold text-slate-500 uppercase">How booked paid is built</p>
+                          <p className="text-[10px] text-slate-300 leading-snug">
+                            <span className="font-semibold text-slate-200">Booked paid</span> on the quotation is
+                            receipt lines to this quote plus any customer deposit posted here — not only the receipt you
+                            see in Sales.
+                          </p>
+                          <ul className="text-[10px] text-slate-300 space-y-0.5 tabular-nums">
+                            {(Number(intelligence.summary?.receiptAllocatedSumNgn) || 0) > 0 ? (
+                              <li>
+                                Receipt lines allocated to this quote: ₦
+                                {Number(intelligence.summary.receiptAllocatedSumNgn).toLocaleString('en-NG')}
+                              </li>
+                            ) : null}
+                            {(Number(intelligence.summary?.advanceAppliedNgn) || 0) > 0 ? (
+                              <li>
+                                Customer deposit / advance applied (ledger): ₦
+                                {Number(intelligence.summary.advanceAppliedNgn).toLocaleString('en-NG')}
+                              </li>
+                            ) : null}
+                            <li className="text-slate-400">
+                              Stored quotation paid (cap for refunds): ₦
+                              {Number(intelligence.summary?.bookedOnQuotationNgn ?? 0).toLocaleString('en-NG')}
+                            </li>
+                          </ul>
+                        </div>
+                      ) : null}
                       {refundMoneyBreakdown.overpay > 0 ? (
                         <div className="pt-2 border-t border-slate-700/80 space-y-1">
                           <div className="flex flex-wrap items-baseline justify-between gap-2">
