@@ -372,9 +372,8 @@ export default function QuotationPrintView({
                     <PrintSubtotalRow label="Sub total" amount={subC} />
                   </>
                 ) : null}
-              </tbody>
-              <tfoot>
-                <tr className="border-t-2 border-slate-200 bg-slate-50" style={{ borderTopColor: ACCENT }}>
+                {/* Grand total lives in tbody (not tfoot) so Chromium print layout does not append a blank trailing page. */}
+                <tr className="quotation-print-tr border-t-2 border-slate-200 bg-slate-50" style={{ borderTopColor: ACCENT }}>
                   <td
                     colSpan={3}
                     className={`${CELL} py-3 text-right text-[11px] font-bold uppercase tracking-wide text-slate-800 sm:py-3.5 sm:text-xs print:py-1.5 print:text-[8pt]`}
@@ -387,7 +386,7 @@ export default function QuotationPrintView({
                     {formatNgn(grand)}
                   </td>
                 </tr>
-              </tfoot>
+              </tbody>
             </table>
           </div>
 

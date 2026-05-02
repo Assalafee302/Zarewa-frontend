@@ -2162,10 +2162,15 @@ summary {
     overflow: visible !important;
   }
 
+  /* Always drop main app from layout (works even when :has() is unsupported). */
+  body > #root {
+    display: none !important;
+  }
+
   /*
-   * Remove non-print UI from layout (not only visibility). #root, Radix dialog portals,
-   * etc. sit as body children next to portaled print previews; visibility:hidden still
-   * leaves height and can add trailing blank pages. Keep any subtree that hosts a print root.
+   * Remove non-print UI from layout (not only visibility). Radix dialog portals, etc. sit
+   * as body children next to portaled print previews; visibility:hidden still leaves height
+   * and can add trailing blank pages. Keep any subtree that hosts a print root.
    */
   body
     > *:not(:has(.quotation-print-root)):not(:has(.receipt-print-root)):not(:has(.report-print-root)):not(:has(.cutting-list-print-root)):not(:has(.cutting-list-a5-report-root)):not(:has(.cutting-list-a4-landscape-report-root)) {
@@ -2231,6 +2236,9 @@ summary {
     z-index: auto !important;
     pointer-events: auto !important;
     overflow: visible !important;
+    /* Reduce phantom sheet after the document in some Chromium builds. */
+    break-after: avoid-page;
+    page-break-after: avoid;
   }
 
   .report-print-root,
@@ -2428,16 +2436,6 @@ summary {
   }
 
   .quotation-print-table tbody tr.quotation-print-tr:not(.quotation-print-line) {
-    break-inside: avoid;
-    page-break-inside: avoid;
-  }
-
-  /* table-footer-group can reserve a trailing blank page in Chromium; row-group keeps totals without that quirk */
-  .quotation-print-table tfoot {
-    display: table-row-group;
-  }
-
-  .quotation-print-table tfoot tr {
     break-inside: avoid;
     page-break-inside: avoid;
   }
