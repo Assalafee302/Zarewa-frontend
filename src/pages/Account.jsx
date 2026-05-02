@@ -140,7 +140,6 @@ const Account = () => {
   const [receiptFinanceEditApprovalId, setReceiptFinanceEditApprovalId] = useState('');
   /** movementId -> drafts for per-payment treasury correction */
   const [paymentCorrectionDrafts, setPaymentCorrectionDrafts] = useState({});
-  const [paymentLineBusyId, setPaymentLineBusyId] = useState(null);
   /** Receipts tab: list paging & sort */
   const RECEIPTS_PAGE_SIZE = 10;
   const [receiptsSortKey, setReceiptsSortKey] = useState('date');
@@ -727,16 +726,26 @@ const Account = () => {
     [ws?.hasWorkspaceData, ws?.snapshot?.receipts]
   );
 
+  /** Saved reconciliation drops off the queue unless the user has finance approval (MD desk). */
+  const canReviseFinalizedReceiptSettlement = Boolean(ws?.hasPermission?.('finance.approve'));
+
+  const receiptsVisibleInReconciliationQueue = useMemo(() => {
+    return salesReceipts.filter((r) => {
+      if (!r.financeReconciliationSavedAtISO) return true;
+      return canReviseFinalizedReceiptSettlement;
+    });
+  }, [salesReceipts, canReviseFinalizedReceiptSettlement]);
+
   const filteredSalesReceipts = useMemo(() => {
     const qq = searchQuery.trim().toLowerCase();
-    if (!qq) return salesReceipts;
-    return salesReceipts.filter((r) => {
+    if (!qq) return receiptsVisibleInReconciliationQueue;
+    return receiptsVisibleInReconciliationQueue.filter((r) => {
       const id = String(r.id || '').toLowerCase();
       const cust = String(r.customer || '').toLowerCase();
       const qref = String(r.quotationRef || '').toLowerCase();
       return id.includes(qq) || cust.includes(qq) || qref.includes(qq);
     });
-  }, [salesReceipts, searchQuery]);
+  }, [receiptsVisibleInReconciliationQueue, searchQuery]);
 
   const sortedFilteredSalesReceipts = useMemo(() => {
     const rows = [...filteredSalesReceipts];
@@ -810,7 +819,6 @@ const Account = () => {
               treasuryAccountId: String(s.treasuryAccountId ?? ''),
               postedDate: String(s.postedAtISO || '').slice(0, 10) || todayIso,
               note: '',
-              editApprovalId: '',
             },
           ])
         )
@@ -819,10 +827,17 @@ const Account = () => {
     [liveTreasuryMovements, todayIso]
   );
 
+  const receiptSettlementReadOnly = Boolean(
+    receiptFinanceRow?.financeReconciliationSavedAtISO && !canReviseFinalizedReceiptSettlement
+  );
+
   const saveReceiptFinance = useCallback(
     async (e) => {
       e?.preventDefault?.();
       if (!receiptFinanceRow?.id) return;
+      if (receiptFinanceRow.financeReconciliationSavedAtISO && !canReviseFinalizedReceiptSettlement) {
+        return;
+      }
       if (!ws?.canMutate) {
         showToast(
           ws?.usingCachedData
@@ -832,6 +847,37 @@ const Account = () => {
         );
         return;
       }
+      const settleSplits = receiptLedgerReceiptTreasurySplits(receiptFinanceRow, liveTreasuryMovements);
+      const paymentLineCorrections = [];
+      for (const s of settleSplits) {
+        const d = paymentCorrectionDrafts[s.movementId];
+        const draft =
+          d ?? {
+            amountNgn: String(s.amountNgn),
+            treasuryAccountId: String(s.treasuryAccountId ?? ''),
+            postedDate: String(s.postedAtISO || '').slice(0, 10) || todayIso,
+            note: '',
+          };
+        const amountNgn = Math.round(Number(String(draft.amountNgn).replace(/,/g, '')) || 0);
+        const treasuryAccountId = Number(draft.treasuryAccountId);
+        if (!treasuryAccountId) {
+          showToast('Select the treasury account (bank or cash) for each payment line.', { variant: 'error' });
+          return;
+        }
+        if (amountNgn <= 0) {
+          showToast('Each payment line amount must be greater than zero.', { variant: 'error' });
+          return;
+        }
+        const line = { movementId: s.movementId, amountNgn, treasuryAccountId };
+        if (draft.postedDate) {
+          line.postedAtISO = `${draft.postedDate}T12:00:00.000Z`;
+        }
+        if (String(draft.note || '').trim()) {
+          line.note = String(draft.note).trim();
+        }
+        paymentLineCorrections.push(line);
+      }
+
       setReceiptFinanceBusy(true);
       try {
         const { ok, status, data } = await apiFetch(
@@ -844,6 +890,7 @@ const Account = () => {
                 Number(String(receiptBankAmtInput).replace(/,/g, '')) || 0
               ),
               clearForDelivery: receiptClearDelivery,
+              paymentLineCorrections,
               ...(receiptFinanceEditApprovalId.trim()
                 ? { editApprovalId: receiptFinanceEditApprovalId.trim() }
                 : {}),
@@ -855,80 +902,27 @@ const Account = () => {
           showToast((data?.error || `Could not save settlement (${status}).`) + hint, { variant: 'error' });
           return;
         }
-        showToast('Receipt settlement saved.');
+        showToast('Saved — treasury balances updated and reconciliation finalized.');
         setReceiptFinanceEditApprovalId('');
         setReceiptFinanceRow(null);
+        setPaymentCorrectionDrafts({});
         await ws.refresh();
       } finally {
         setReceiptFinanceBusy(false);
       }
     },
-    [receiptFinanceRow, receiptBankAmtInput, receiptClearDelivery, receiptFinanceEditApprovalId, ws, showToast]
-  );
-
-  const savePaymentLineCorrection = useCallback(
-    async (movementId) => {
-      const d = paymentCorrectionDrafts[movementId];
-      if (!d) return;
-      if (!ws?.canMutate) {
-        showToast(
-          ws?.usingCachedData
-            ? 'Server is offline or session expired — refresh the page, then sign in and try again.'
-            : 'Connect to the API server to correct payment lines.',
-          { variant: 'error' }
-        );
-        return;
-      }
-      const amountNgn = Math.round(Number(String(d.amountNgn).replace(/,/g, '')) || 0);
-      const treasuryAccountId = Number(d.treasuryAccountId);
-      if (!treasuryAccountId) {
-        showToast('Select the treasury account (bank or cash) for this payment.', { variant: 'error' });
-        return;
-      }
-      if (amountNgn <= 0) {
-        showToast('Amount must be greater than zero.', { variant: 'error' });
-        return;
-      }
-      setPaymentLineBusyId(movementId);
-      try {
-        const postedAtISO = d.postedDate ? `${d.postedDate}T12:00:00.000Z` : undefined;
-        const { ok, status, data } = await apiFetch(
-          `/api/treasury/movements/${encodeURIComponent(movementId)}/ledger-receipt-correction`,
-          {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              amountNgn,
-              treasuryAccountId,
-              postedAtISO,
-              ...(d.note.trim() ? { note: d.note.trim() } : {}),
-              ...(d.editApprovalId.trim() ? { editApprovalId: d.editApprovalId.trim() } : {}),
-            }),
-          }
-        );
-        if (!ok || !data?.ok) {
-          const hint = data?.code === 'CSRF_INVALID' ? ' Refresh the page and try again.' : '';
-          showToast((data?.error || `Could not update payment line (${status}).`) + hint, { variant: 'error' });
-          return;
-        }
-        if (data.noOp) {
-          showToast('No numeric changes to apply (optional note was skipped if unchanged).');
-          return;
-        }
-        showToast('Saved — treasury account balances updated.');
-        setPaymentCorrectionDrafts((prev) => ({
-          ...prev,
-          [movementId]: {
-            ...prev[movementId],
-            editApprovalId: '',
-          },
-        }));
-        await ws.refresh();
-      } finally {
-        setPaymentLineBusyId(null);
-      }
-    },
-    [paymentCorrectionDrafts, ws, showToast]
+    [
+      receiptFinanceRow,
+      receiptBankAmtInput,
+      receiptClearDelivery,
+      receiptFinanceEditApprovalId,
+      paymentCorrectionDrafts,
+      liveTreasuryMovements,
+      todayIso,
+      canReviseFinalizedReceiptSettlement,
+      ws,
+      showToast,
+    ]
   );
 
   const saveExpense = async (e) => {
@@ -1658,6 +1652,11 @@ const Account = () => {
                                   <span className="text-amber-800"> · Bank {formatNgn(bank)}</span>
                                 ) : null}
                               </span>
+                              {r.financeReconciliationSavedAtISO && canReviseFinalizedReceiptSettlement ? (
+                                <span className="text-[9px] font-bold uppercase px-2 py-0.5 rounded-full bg-slate-200 text-slate-800">
+                                  Reconciled
+                                </span>
+                              ) : null}
                               {cleared ? (
                                 <span className="text-[9px] font-bold uppercase px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-900">
                                   Cleared delivery
@@ -3377,7 +3376,6 @@ const Account = () => {
           setReceiptFinanceEditApprovalId('');
           setReceiptFinanceRow(null);
           setPaymentCorrectionDrafts({});
-          setPaymentLineBusyId(null);
         }}
       >
         <div className="z-modal-panel max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6 sm:p-8">
@@ -3389,7 +3387,6 @@ const Account = () => {
                 setReceiptFinanceEditApprovalId('');
                 setReceiptFinanceRow(null);
                 setPaymentCorrectionDrafts({});
-                setPaymentLineBusyId(null);
               }}
               className="p-2 text-gray-400 hover:text-red-500 rounded-xl"
               aria-label="Close"
@@ -3400,6 +3397,18 @@ const Account = () => {
           {receiptFinanceRow ? (
             <form className="space-y-4" onSubmit={saveReceiptFinance}>
               <p className="text-[10px] text-slate-600 font-mono break-all">{receiptFinanceRow.id}</p>
+              {receiptSettlementReadOnly ? (
+                <p className="text-[10px] text-slate-700 bg-slate-100 border border-slate-200 rounded-lg px-3 py-2">
+                  This reconciliation was finalized. It is not editable here. Users with finance approval (MD) can
+                  open it from the list to revise.
+                </p>
+              ) : null}
+              {receiptFinanceRow.financeReconciliationSavedAtISO && canReviseFinalizedReceiptSettlement ? (
+                <p className="text-[10px] text-amber-900 bg-amber-50/90 border border-amber-200/80 rounded-lg px-3 py-2">
+                  <span className="font-bold">Finance approval view.</span> This receipt was already reconciled; saving
+                  again will update treasury books and re-finalize the record.
+                </p>
+              ) : null}
               {(() => {
                 const settleSplits = receiptLedgerReceiptTreasurySplits(
                   receiptFinanceRow,
@@ -3409,15 +3418,17 @@ const Account = () => {
                   receiptFinanceRow.cashReceivedNgn != null
                     ? Number(receiptFinanceRow.cashReceivedNgn) || 0
                     : Number(receiptFinanceRow.amountNgn) || 0;
+                const formDisabled = receiptSettlementReadOnly || receiptFinanceBusy;
 
                 if (settleSplits.length > 0) {
                   return (
                     <div className="space-y-3">
                       <div className="rounded-xl border border-teal-200/90 bg-teal-50/50 px-3 py-2.5 text-[10px] text-teal-950 leading-snug">
-                        <span className="font-bold">Payment breakdown — edit each line</span>. Change amount, bank/cash
-                        account, or date to match what actually happened.{' '}
+                        <span className="font-bold">Payment breakdown</span> — set amount, bank or cash, and date for
+                        each line.{' '}
                         <span className="font-semibold">
-                          Saving a line updates treasury account balances (money moves between books).
+                          One save below updates treasury balances, records the bank total, and finalizes this receipt
+                          (it leaves the queue until finance approval reopens it).
                         </span>
                       </div>
                       {settleSplits.map((s) => {
@@ -3426,7 +3437,6 @@ const Account = () => {
                           treasuryAccountId: String(s.treasuryAccountId ?? ''),
                           postedDate: String(s.postedAtISO || '').slice(0, 10) || todayIso,
                           note: '',
-                          editApprovalId: '',
                         };
                         const rec = s.amountNgn;
                         const ver = Math.round(Number(String(d.amountNgn).replace(/,/g, '')) || 0);
@@ -3451,6 +3461,7 @@ const Account = () => {
                                   type="text"
                                   inputMode="numeric"
                                   value={d.amountNgn}
+                                  disabled={formDisabled}
                                   onChange={(e) =>
                                     setPaymentCorrectionDrafts((prev) => {
                                       const cur = prev[s.movementId] ?? d;
@@ -3460,7 +3471,7 @@ const Account = () => {
                                       };
                                     })
                                   }
-                                  className="w-full mt-0.5 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm font-bold tabular-nums outline-none focus:ring-2 focus:ring-[#134e4a]/15"
+                                  className="w-full mt-0.5 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm font-bold tabular-nums outline-none focus:ring-2 focus:ring-[#134e4a]/15 disabled:opacity-60"
                                 />
                                 <p className="text-[9px] text-slate-500 mt-0.5">
                                   Recorded {formatNgn(rec)}
@@ -3485,6 +3496,7 @@ const Account = () => {
                                 </label>
                                 <select
                                   value={d.treasuryAccountId}
+                                  disabled={formDisabled}
                                   onChange={(e) =>
                                     setPaymentCorrectionDrafts((prev) => {
                                       const cur = prev[s.movementId] ?? d;
@@ -3494,7 +3506,7 @@ const Account = () => {
                                       };
                                     })
                                   }
-                                  className="w-full mt-0.5 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[11px] font-semibold outline-none focus:ring-2 focus:ring-[#134e4a]/15"
+                                  className="w-full mt-0.5 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[11px] font-semibold outline-none focus:ring-2 focus:ring-[#134e4a]/15 disabled:opacity-60"
                                 >
                                   {bankAccounts.map((a) => (
                                     <option key={a.id} value={a.id}>
@@ -3511,6 +3523,7 @@ const Account = () => {
                                 <input
                                   type="date"
                                   value={d.postedDate}
+                                  disabled={formDisabled}
                                   onChange={(e) =>
                                     setPaymentCorrectionDrafts((prev) => {
                                       const cur = prev[s.movementId] ?? d;
@@ -3520,7 +3533,7 @@ const Account = () => {
                                       };
                                     })
                                   }
-                                  className="w-full mt-0.5 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[11px] outline-none focus:ring-2 focus:ring-[#134e4a]/15"
+                                  className="w-full mt-0.5 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[11px] outline-none focus:ring-2 focus:ring-[#134e4a]/15 disabled:opacity-60"
                                 />
                               </div>
                               <div>
@@ -3530,6 +3543,7 @@ const Account = () => {
                                 <input
                                   type="text"
                                   value={d.note}
+                                  disabled={formDisabled}
                                   placeholder="e.g. Confirmed with bank SMS"
                                   onChange={(e) =>
                                     setPaymentCorrectionDrafts((prev) => {
@@ -3540,36 +3554,10 @@ const Account = () => {
                                       };
                                     })
                                   }
-                                  className="w-full mt-0.5 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[11px] outline-none focus:ring-2 focus:ring-[#134e4a]/15"
+                                  className="w-full mt-0.5 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[11px] outline-none focus:ring-2 focus:ring-[#134e4a]/15 disabled:opacity-60"
                                 />
                               </div>
                             </div>
-                            <EditSecondApprovalInline
-                              entityKind="treasury_movement"
-                              entityId={s.movementId}
-                              value={d.editApprovalId}
-                              onChange={(v) =>
-                                setPaymentCorrectionDrafts((prev) => {
-                                  const cur = prev[s.movementId] ?? d;
-                                  return { ...prev, [s.movementId]: { ...cur, editApprovalId: v } };
-                                })
-                              }
-                              className="mt-1"
-                            />
-                            <button
-                              type="button"
-                              disabled={
-                                paymentLineBusyId === s.movementId ||
-                                !ws?.canMutate ||
-                                bankAccounts.length === 0
-                              }
-                              onClick={() => void savePaymentLineCorrection(s.movementId)}
-                              className="w-full rounded-lg bg-[#134e4a] text-white py-2 text-[10px] font-black uppercase tracking-wide hover:bg-[#0f3d3a] disabled:opacity-50"
-                            >
-                              {paymentLineBusyId === s.movementId
-                                ? 'Saving…'
-                                : 'Save line — updates treasury balances'}
-                            </button>
                           </div>
                         );
                       })}
@@ -3592,9 +3580,9 @@ const Account = () => {
                 return (
                   <div className="space-y-2">
                     <p className="text-[10px] text-amber-900 bg-amber-50/90 border border-amber-200/80 rounded-lg px-3 py-2 leading-snug">
-                      No treasury payment lines on file for this receipt — you cannot edit split amounts here. Use the
-                      bank total below for delivery clearance, or record itemized payments from Sales so each bank/cash
-                      leg appears for reconciliation.
+                      No treasury payment lines on file for this receipt — split amounts are not edited here. Use the
+                      bank total below; saving still finalizes reconciliation and updates books if amounts changed
+                      elsewhere.
                     </p>
                     <p className="text-xs text-slate-700">
                       Customer paid:{' '}
@@ -3616,18 +3604,17 @@ const Account = () => {
                   Total for delivery sign-off — bank / aggregate (₦)
                 </label>
                 <p className="text-[9px] text-slate-500 mb-1.5 leading-snug ml-1">
-                  Optional overall figure for clearance;{' '}
-                  <span className="font-semibold text-slate-600">
-                    correcting payment lines above changes treasury balances directly.
-                  </span>
+                  Saved together with payment lines above (when present). Finalizing removes this receipt from the desk
+                  queue unless you have finance approval access.
                 </p>
                 <input
                   required
                   type="text"
                   inputMode="numeric"
                   value={receiptBankAmtInput}
+                  disabled={receiptSettlementReadOnly || receiptFinanceBusy}
                   onChange={(e) => setReceiptBankAmtInput(e.target.value)}
-                  className="w-full bg-gray-50 border border-gray-100 rounded-xl py-3 px-4 text-sm font-bold outline-none"
+                  className="w-full bg-gray-50 border border-gray-100 rounded-xl py-3 px-4 text-sm font-bold outline-none disabled:opacity-60"
                 />
               </div>
               <label className="flex items-start gap-2 text-[11px] text-slate-700 cursor-pointer">
@@ -3635,13 +3622,14 @@ const Account = () => {
                   type="checkbox"
                   className="mt-0.5 h-4 w-4 rounded border-slate-300"
                   checked={receiptClearDelivery}
+                  disabled={receiptSettlementReadOnly || receiptFinanceBusy}
                   onChange={(e) => setReceiptClearDelivery(e.target.checked)}
                 />
                 <span>
                   Cleared for delivery — finance confirms this receipt is good to release downstream.
                 </span>
               </label>
-              {receiptFinanceRow?.id ? (
+              {receiptFinanceRow?.id && !receiptSettlementReadOnly ? (
                 <EditSecondApprovalInline
                   entityKind="sales_receipt"
                   entityId={receiptFinanceRow.id}
@@ -3651,10 +3639,14 @@ const Account = () => {
               ) : null}
               <button
                 type="submit"
-                disabled={receiptFinanceBusy}
+                disabled={receiptFinanceBusy || receiptSettlementReadOnly || !ws?.canMutate}
                 className="z-btn-primary w-full justify-center py-3 disabled:opacity-50"
               >
-                {receiptFinanceBusy ? 'Saving…' : 'Save settlement'}
+                {receiptFinanceBusy
+                  ? 'Saving…'
+                  : receiptSettlementReadOnly
+                    ? 'Finalized'
+                    : 'Save reconciliation'}
               </button>
             </form>
           ) : null}
