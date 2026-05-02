@@ -2163,11 +2163,12 @@ summary {
   }
 
   /*
-   * Main React tree lives in #root; print previews are portaled as siblings of #root.
-   * `visibility: hidden` on body * hides the app but does NOT remove layout — a tall #root
-   * still paginates as many blank pages before the visible quotation (classic 5 blank + 1 content).
+   * Remove non-print UI from layout (not only visibility). #root, Radix dialog portals,
+   * etc. sit as body children next to portaled print previews; visibility:hidden still
+   * leaves height and can add trailing blank pages. Keep any subtree that hosts a print root.
    */
-  body > #root {
+  body
+    > *:not(:has(.quotation-print-root)):not(:has(.receipt-print-root)):not(:has(.report-print-root)):not(:has(.cutting-list-print-root)):not(:has(.cutting-list-a5-report-root)):not(:has(.cutting-list-a4-landscape-report-root)) {
     display: none !important;
   }
 
@@ -2431,8 +2432,9 @@ summary {
     page-break-inside: avoid;
   }
 
+  /* table-footer-group can reserve a trailing blank page in Chromium; row-group keeps totals without that quirk */
   .quotation-print-table tfoot {
-    display: table-footer-group;
+    display: table-row-group;
   }
 
   .quotation-print-table tfoot tr {

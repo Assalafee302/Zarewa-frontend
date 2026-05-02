@@ -28,6 +28,7 @@ import ManagerDashboard from './pages/ManagerDashboard';
 import ExecDashboard from './pages/ExecDashboard';
 import PriceListAdmin from './pages/PriceListAdmin';
 import DocumentTitleSync from './components/DocumentTitleSync';
+import PrintSessionCleanup from './components/PrintSessionCleanup';
 import { Search, Bell, Command, Menu, ChevronDown, User, Settings as SettingsIcon, Lock, LogOut } from 'lucide-react';
 import { CustomersProvider } from './context/CustomersContext';
 import { InventoryProvider } from './context/InventoryContext';
@@ -826,6 +827,7 @@ function App() {
         <ToastProvider>
           <AiAssistantProvider>
             <DocumentTitleSync />
+            <PrintSessionCleanup />
             <AuthGate />
           </AiAssistantProvider>
         </ToastProvider>
