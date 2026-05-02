@@ -475,6 +475,8 @@ export function LiveProductionMonitor({
 
   const conversionPreviewTimerRef = useRef(null);
   const conversionPreviewSeqRef = useRef(0);
+  /** When job/quote identity changes, accessory draft resets; otherwise refresh merges user quantities. */
+  const accessoryDraftJobRef = useRef({ jobId: '', quotationRef: '' });
   const [conversionPreview, setConversionPreview] = useState(null);
   const [conversionPreviewError, setConversionPreviewError] = useState('');
   const [conversionPreviewLoading, setConversionPreviewLoading] = useState(false);
@@ -544,31 +546,51 @@ export function LiveProductionMonitor({
   const [accessoryCompletionDraft, setAccessoryCompletionDraft] = useState([]);
 
   useEffect(() => {
-    const ref = selectedJob?.quotationRef;
+    const quotationRef = selectedJob?.quotationRef;
     const jobId = selectedJob?.jobID;
-    if (!ref || !jobId || !quotedAccessoryLines.length) {
+    if (!quotationRef || !jobId || !quotedAccessoryLines.length) {
+      accessoryDraftJobRef.current = { jobId: jobId || '', quotationRef: quotationRef || '' };
       setAccessoryCompletionDraft([]);
       return;
     }
-    const usage = (ws?.snapshot?.productionJobAccessoryUsage || []).filter((u) => u.quotationRef === ref);
-    const next = quotedAccessoryLines.map((line) => {
-      const stableKey = line.quoteLineId || `name:${line.name}`;
-      let prior = 0;
-      for (const u of usage) {
-        if (u.jobID === jobId) continue;
-        if (String(u.quoteLineId || '') === stableKey) prior += Number(u.suppliedQty) || 0;
-      }
-      const remaining = Math.max(0, line.ordered - prior);
-      return {
-        key: stableKey,
-        quoteLineId: line.quoteLineId,
-        name: line.name,
-        ordered: line.ordered,
-        priorSupplied: prior,
-        suppliedThisJob: remaining,
-      };
+    const jobSwitch =
+      accessoryDraftJobRef.current.jobId !== jobId ||
+      accessoryDraftJobRef.current.quotationRef !== quotationRef;
+    accessoryDraftJobRef.current = { jobId, quotationRef };
+
+    const usage = (ws?.snapshot?.productionJobAccessoryUsage || []).filter((u) => u.quotationRef === quotationRef);
+
+    setAccessoryCompletionDraft((prev) => {
+      const prevByKey = jobSwitch ? new Map() : new Map(prev.map((r) => [r.key, r]));
+      return quotedAccessoryLines.map((line) => {
+        const stableKey = line.quoteLineId || `name:${line.name}`;
+        let prior = 0;
+        for (const u of usage) {
+          if (u.jobID === jobId) continue;
+          if (String(u.quoteLineId || '') === stableKey) prior += Number(u.suppliedQty) || 0;
+        }
+        const remaining = Math.max(0, line.ordered - prior);
+        const old = prevByKey.get(stableKey);
+        let suppliedThisJob = remaining;
+        if (old && !jobSwitch) {
+          const raw = old.suppliedThisJob;
+          const n = Number(String(raw).replace(/,/g, ''));
+          if (Number.isFinite(n)) {
+            suppliedThisJob = Math.min(Math.max(0, n), remaining);
+          } else if (raw != null && String(raw).trim() !== '') {
+            suppliedThisJob = raw;
+          }
+        }
+        return {
+          key: stableKey,
+          quoteLineId: line.quoteLineId,
+          name: line.name,
+          ordered: line.ordered,
+          priorSupplied: prior,
+          suppliedThisJob,
+        };
+      });
     });
-    setAccessoryCompletionDraft(next);
   }, [selectedJob?.jobID, selectedJob?.quotationRef, quotedAccessoryLines, ws?.snapshot?.productionJobAccessoryUsage]);
 
   const accessoriesSuppliedForApi = useMemo(
@@ -952,8 +974,17 @@ export function LiveProductionMonitor({
   };
 
   const updateDraftRow = (id, patch) => {
-    setDraftAllocations((prev) =>
-      prev.map((row) => {
+    setDraftAllocations((prev) => {
+      if (Object.prototype.hasOwnProperty.call(patch, 'coilNo')) {
+        const newCoil = String(patch.coilNo ?? '').trim();
+        if (newCoil && prev.some((r) => r.id !== id && String(r.coilNo ?? '').trim() === newCoil)) {
+          queueMicrotask(() =>
+            showToast('That coil is already selected on another line. Pick a different coil.', { variant: 'error' })
+          );
+          return prev;
+        }
+      }
+      return prev.map((row) => {
         if (row.id !== id) return row;
         const next = { ...row, ...patch };
         if (Object.prototype.hasOwnProperty.call(patch, 'closingWeightKg')) {
@@ -980,8 +1011,8 @@ export function LiveProductionMonitor({
           }
         }
         return next;
-      })
-    );
+      });
+    });
   };
 
   const addDraftRow = () => {
@@ -2412,6 +2443,12 @@ export function LiveProductionMonitor({
                     )
                   : 0;
                 const draftRow = isDraftAllocationRow(row);
+                const coilsSelectedOnOtherLines = new Set(
+                  draftAllocations
+                    .filter((r) => r.id !== row.id)
+                    .map((r) => String(r.coilNo ?? '').trim())
+                    .filter(Boolean)
+                );
                 const canPickCoilAndOpening =
                   canEditPlannedAllocations || (canAddSupplementalCoil && draftRow);
                 const specWarn =
@@ -2501,7 +2538,11 @@ export function LiveProductionMonitor({
                                   Number(coil.qtyRemaining || 0) - Number(coil.qtyReserved || 0) + addBack
                                 );
                                 return (
-                                  <option key={coil.coilNo} value={coil.coilNo}>
+                                  <option
+                                    key={coil.coilNo}
+                                    value={coil.coilNo}
+                                    disabled={coilsSelectedOnOtherLines.has(coil.coilNo)}
+                                  >
                                     {coilPickerOptionText(coil, optFree, plannedMetersValue)}
                                   </option>
                                 );
@@ -2519,7 +2560,11 @@ export function LiveProductionMonitor({
                                   Number(coil.qtyRemaining || 0) - Number(coil.qtyReserved || 0) + addBack
                                 );
                                 return (
-                                  <option key={coil.coilNo} value={coil.coilNo}>
+                                  <option
+                                    key={coil.coilNo}
+                                    value={coil.coilNo}
+                                    disabled={coilsSelectedOnOtherLines.has(coil.coilNo)}
+                                  >
                                     {coilPickerOptionText(coil, optFree, plannedMetersValue)}
                                   </option>
                                 );
