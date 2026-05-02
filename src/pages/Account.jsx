@@ -1344,6 +1344,29 @@ const Account = () => {
     });
   }, [payRequests, searchQuery]);
 
+  /** Approved with unpaid balance — surfaced on Treasury (same pattern as refunds awaiting payout). */
+  const payRequestsAwaitingTreasuryPayout = useMemo(
+    () =>
+      filteredPayRequests.filter((req) => {
+        if (req.approvalStatus !== 'Approved') return false;
+        const paidAmountNgn = Number(req.paidAmountNgn) || 0;
+        const outstandingNgn = Math.max(0, (Number(req.amountRequestedNgn) || 0) - paidAmountNgn);
+        return outstandingNgn > 0;
+      }),
+    [filteredPayRequests]
+  );
+
+  const payRequestsApprovalQueueOnly = useMemo(
+    () =>
+      filteredPayRequests.filter((req) => {
+        const paidAmountNgn = Number(req.paidAmountNgn) || 0;
+        const outstandingNgn = Math.max(0, (Number(req.amountRequestedNgn) || 0) - paidAmountNgn);
+        if (req.approvalStatus === 'Approved' && outstandingNgn > 0) return false;
+        return true;
+      }),
+    [filteredPayRequests]
+  );
+
   const filteredBankAccounts = useMemo(() => {
     const qq = searchQuery.trim().toLowerCase();
     if (!qq) return bankAccounts;
@@ -2294,6 +2317,93 @@ const Account = () => {
                   </div>
                 ) : null}
 
+                {payRequestsAwaitingTreasuryPayout.length > 0 ? (
+                  <div
+                    className="rounded-2xl border border-teal-200/90 bg-teal-50/45 p-5 space-y-3"
+                    data-testid="finance-payment-requests-awaiting-payout"
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <p className="text-xs font-black text-teal-950 uppercase tracking-widest flex items-center gap-2">
+                        <Banknote size={16} strokeWidth={2} />
+                        Expense payment requests — approved, awaiting payout
+                      </p>
+                      <span className="text-[10px] font-bold text-teal-900 tabular-nums">
+                        {payRequestsAwaitingTreasuryPayout.length} open
+                      </span>
+                    </div>
+                    <p className="text-[10px] text-teal-950/80 leading-relaxed">
+                      Same flow as customer refunds: approve elsewhere, then record the bank or cash payout here so
+                      balances stay accurate.
+                    </p>
+                    <ul className="space-y-1.5">
+                      {payRequestsAwaitingTreasuryPayout.map((req) => {
+                        const paidAmountNgn = Number(req.paidAmountNgn) || 0;
+                        const outstandingNgn = Math.max(
+                          0,
+                          (Number(req.amountRequestedNgn) || 0) - paidAmountNgn
+                        );
+                        const meta2 = [
+                          `Linked ${req.expenseID}`,
+                          req.expenseCategory ? req.expenseCategory : null,
+                          req.requestReference ? `Ref ${req.requestReference}` : null,
+                          req.branchId ? branchNameById[req.branchId] || req.branchId : null,
+                          paidAmountNgn > 0 ? `Paid ${formatNgn(paidAmountNgn)}` : null,
+                        ]
+                          .filter(Boolean)
+                          .join(' · ');
+                        return (
+                          <li
+                            key={req.requestID}
+                            data-testid={`finance-preq-awaiting-row-${req.requestID}`}
+                            className="rounded-lg border border-teal-200/55 bg-white/50 backdrop-blur-md py-1.5 px-2.5 shadow-sm"
+                          >
+                            <div className="flex flex-wrap items-start justify-between gap-2 min-w-0">
+                              <div className="min-w-0 leading-tight flex-1">
+                                <p className="text-[11px] font-bold text-[#134e4a] truncate">
+                                  <span className="font-mono">{req.requestID}</span>
+                                  <span className="font-medium text-slate-600">
+                                    {' '}
+                                    · {req.description || req.expenseCategory || '—'}
+                                  </span>
+                                </p>
+                                <p
+                                  className="text-[8px] text-slate-500 mt-0.5 leading-snug line-clamp-2"
+                                  title={meta2}
+                                >
+                                  {meta2}
+                                </p>
+                              </div>
+                              <div className="flex flex-col items-end gap-1 shrink-0">
+                                <span className="text-[11px] font-black text-[#134e4a] tabular-nums">
+                                  {formatNgn(outstandingNgn)}
+                                </span>
+                                <div className="flex flex-wrap items-center justify-end gap-1">
+                                  <button
+                                    type="button"
+                                    onClick={() => printExpenseRequestRecord(req, formatNgn)}
+                                    className="text-[8px] font-semibold uppercase tracking-wide text-slate-700 bg-slate-100 hover:bg-slate-200 px-2 py-1 rounded-md inline-flex items-center gap-1"
+                                    title="Print filing copy"
+                                  >
+                                    <Printer size={12} /> Print
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => openRequestPayment(req)}
+                                    className="text-[8px] font-semibold uppercase tracking-wide text-sky-800 bg-sky-100 hover:bg-sky-200 px-2 py-1 rounded-md"
+                                    title="Record treasury payout"
+                                  >
+                                    Payout
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
+                ) : null}
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {filteredBankAccounts.length === 0 ? (
                     <div className="sm:col-span-2 lg:col-span-3 z-empty-state py-12">
@@ -2814,11 +2924,18 @@ const Account = () => {
                       1) Payment requests (approval queue)
                     </h3>
                     <p className="text-[11px] text-gray-500 mt-1">
-                      Raise and approve disbursement requests before treasury payout.
+                      Raise and approve disbursement requests. Approved items with an unpaid balance appear on the{' '}
+                      <span className="font-semibold text-slate-700">Treasury</span> tab for payout (same pattern as
+                      refunds).
                     </p>
                   </div>
                 <div className="space-y-1.5">
-                {filteredPayRequests.map((req) => {
+                {payRequestsApprovalQueueOnly.length === 0 ? (
+                  <p className="text-[10px] text-slate-500 py-8 text-center border border-dashed border-slate-200 rounded-lg">
+                    No payment requests in this queue. Approved payouts awaiting treasury are on the Treasury tab.
+                  </p>
+                ) : null}
+                {payRequestsApprovalQueueOnly.map((req) => {
                   const paidAmountNgn = Number(req.paidAmountNgn) || 0;
                   const outstandingNgn = Math.max(0, (Number(req.amountRequestedNgn) || 0) - paidAmountNgn);
                   const auditTrail = buildPaymentRequestAuditTrail(req);
