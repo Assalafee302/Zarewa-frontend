@@ -1401,7 +1401,7 @@ export function LiveProductionMonitor({
                   {inModal
                     ? viewOnly
                       ? 'Production record (completed)'
-                      : 'Production traceability'
+                      : 'Production register'
                     : 'Production record'}
                 </h3>
                 {(!inModal || !viewOnly) && (

@@ -851,7 +851,7 @@ const Operations = () => {
       const id = String(cuttingListId || '').trim();
       if (!id) return;
       if (!ws?.canMutate) {
-        showToast('Connect API to open production trace.', { variant: 'info' });
+        showToast('Connect API to open the production register.', { variant: 'info' });
         return;
       }
       setProductionTraceModal({ type: 'trace', cuttingListId: id, completed: false });
@@ -1958,8 +1958,8 @@ const Operations = () => {
                           In progress · need action
                         </h3>
                         <p className="text-[10px] text-slate-600 mt-1 leading-relaxed">
-                          Planned or running jobs. Open trace to allocate coils, start, complete, or cancel (releases
-                          reservations when abandoned).
+                          Planned or running jobs. Open <span className="font-semibold text-slate-800">production register</span> to
+                          allocate coils, save run log, start, complete, or cancel (releases reservations when abandoned).
                         </p>
                       </div>
                       <label className="flex shrink-0 items-center gap-1.5 text-[9px] font-bold uppercase tracking-wide text-slate-500">
@@ -2051,11 +2051,14 @@ const Operations = () => {
                               <button
                                 type="button"
                                 onClick={() =>
-                                  openTraceWithHint(item, 'Allocate coils, start, complete, or cancel from this panel.')
+                                  openTraceWithHint(
+                                    item,
+                                    'Production register: allocate coils, Save while running, then Complete.'
+                                  )
                                 }
                                 className="shrink-0 text-[8px] font-semibold uppercase tracking-wide px-2 py-1 rounded-md border border-sky-300 bg-white text-sky-900 hover:bg-sky-50"
                               >
-                                Open trace
+                                Open register
                               </button>
                             </li>
                           ))}
@@ -2091,7 +2094,7 @@ const Operations = () => {
                         </h3>
                         <p className="text-[10px] text-slate-600 mt-1 leading-relaxed">
                           Completed and cancelled production records. Four-reference conversion summary appears on each
-                          row when checks exist for that cutting list (open trace for full coil breakdown).
+                          row when checks exist for that cutting list (open production register for full coil breakdown).
                         </p>
                       </div>
                       <label className="flex shrink-0 items-center gap-1.5 text-[9px] font-bold uppercase tracking-wide text-slate-500">
@@ -2216,7 +2219,7 @@ const Operations = () => {
                                       {item.priority}
                                     </span>
                                     <span className="text-[8px] font-semibold uppercase tracking-wide text-sky-800 bg-sky-100 px-2 py-1 rounded-md">
-                                      Trace
+                                      Register
                                     </span>
                                   </div>
                                 </div>
@@ -2268,7 +2271,7 @@ const Operations = () => {
                                     type="button"
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      openTraceWithHint(item, 'Open coil assignment inside traceability.');
+                                      openTraceWithHint(item, 'Opens production register — coil assignment.');
                                     }}
                                     className="text-[8px] font-semibold uppercase tracking-wide px-2 py-1 rounded-md border border-sky-200 bg-sky-50 text-sky-900 hover:bg-sky-100 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300/40"
                                   >
@@ -2278,7 +2281,7 @@ const Operations = () => {
                                     type="button"
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      openTraceWithHint(item, 'Open run log and start production for this job.');
+                                      openTraceWithHint(item, 'Opens production register — run log and start.');
                                     }}
                                     className="text-[8px] font-semibold uppercase tracking-wide px-2 py-1 rounded-md border border-sky-200 bg-sky-50 text-sky-900 hover:bg-sky-100 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300/40"
                                   >
