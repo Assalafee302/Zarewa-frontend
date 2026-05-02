@@ -52,7 +52,6 @@ import { buildPaymentRequestBodyFromForm, initialExpenseRequestFormState } from 
 import { EXPENSE_CATEGORY_OPTIONS } from '../shared/expenseCategories.js';
 import {
   ACCOUNT_TAB_LABELS as TAB_LABELS,
-  buildPaymentRequestAuditTrail,
   createRequestPayLine,
   nextExpenseId,
   normalizePaymentRequest,
@@ -139,6 +138,9 @@ const Account = () => {
   const [receiptClearDelivery, setReceiptClearDelivery] = useState(false);
   const [receiptFinanceBusy, setReceiptFinanceBusy] = useState(false);
   const [receiptFinanceEditApprovalId, setReceiptFinanceEditApprovalId] = useState('');
+  /** movementId -> drafts for per-payment treasury correction */
+  const [paymentCorrectionDrafts, setPaymentCorrectionDrafts] = useState({});
+  const [paymentLineBusyId, setPaymentLineBusyId] = useState(null);
   /** Receipts tab: list paging & sort */
   const RECEIPTS_PAGE_SIZE = 10;
   const [receiptsSortKey, setReceiptsSortKey] = useState('date');
@@ -229,7 +231,6 @@ const Account = () => {
   }));
   const payRequestFileRef = useRef(null);
   const activeActorLabel = ws?.session?.user?.displayName ?? 'Finance';
-  const canApproveRequests = ws?.hasPermission?.('finance.approve');
   const canPayRequests = ws?.hasPermission?.('finance.pay');
   const todayIso = useMemo(() => new Date().toISOString().slice(0, 10), []);
   const branchOptions = useMemo(
@@ -675,11 +676,49 @@ const Account = () => {
 
    
   useEffect(() => {
-    const tab = location.state?.accountsTab;
-    if (tab !== 'requests' && tab !== 'payments') return;
-    handleAccountTabChange('disbursements');
-    navigate(location.pathname, { replace: true, state: {} });
-  }, [location.state, location.pathname, navigate, handleAccountTabChange]);
+    const st = location.state;
+    if (!st || typeof st !== 'object') return;
+
+    const tab = st.accountsTab;
+    if (tab === 'requests' || tab === 'payments') {
+      handleAccountTabChange('disbursements');
+      navigate({ pathname: location.pathname, search: '?tab=disbursements' }, { replace: true, state: {} });
+      return;
+    }
+
+    if (st.openPayRequestModal) {
+      handleAccountTabChange('disbursements');
+      setRequestForm({
+        ...initialExpenseRequestFormState(),
+        requestDate: todayIso,
+        requestReference: '',
+        expenseCategory: '',
+        description: '',
+        attachment: null,
+      });
+      if (payRequestFileRef.current) payRequestFileRef.current.value = '';
+      setShowPayRequestModal(true);
+      navigate({ pathname: location.pathname, search: '?tab=disbursements' }, { replace: true, state: {} });
+      return;
+    }
+
+    if (st.openExpenseModal) {
+      handleAccountTabChange('disbursements');
+      setExpenseForm((f) => ({
+        ...f,
+        debitAccountId: String(bankAccounts[0]?.id ?? ''),
+      }));
+      setShowExpenseModal(true);
+      navigate({ pathname: location.pathname, search: '?tab=disbursements' }, { replace: true, state: {} });
+    }
+  }, [
+    location.state,
+    location.pathname,
+    navigate,
+    handleAccountTabChange,
+    todayIso,
+    bankAccounts,
+  ]);
    
 
   const salesReceipts = useMemo(
@@ -751,16 +790,34 @@ const Account = () => {
     ws?.hasPermission?.('finance.pay') || ws?.hasPermission?.('finance.post')
   );
 
-  const openReceiptFinance = useCallback((r) => {
-    setReceiptFinanceEditApprovalId('');
-    setReceiptFinanceRow(r);
-    const allocated = Number(r.amountNgn) || 0;
-    const cash = r.cashReceivedNgn != null ? Number(r.cashReceivedNgn) || allocated : allocated;
-    const br =
-      r.bankReceivedAmountNgn != null ? Number(r.bankReceivedAmountNgn) : cash;
-    setReceiptBankAmtInput(String(br));
-    setReceiptClearDelivery(Boolean(r.financeDeliveryClearedAtISO));
-  }, []);
+  const openReceiptFinance = useCallback(
+    (r) => {
+      setReceiptFinanceEditApprovalId('');
+      setReceiptFinanceRow(r);
+      const allocated = Number(r.amountNgn) || 0;
+      const cash = r.cashReceivedNgn != null ? Number(r.cashReceivedNgn) || allocated : allocated;
+      const br =
+        r.bankReceivedAmountNgn != null ? Number(r.bankReceivedAmountNgn) : cash;
+      setReceiptBankAmtInput(String(br));
+      setReceiptClearDelivery(Boolean(r.financeDeliveryClearedAtISO));
+      const splits = receiptLedgerReceiptTreasurySplits(r, liveTreasuryMovements);
+      setPaymentCorrectionDrafts(
+        Object.fromEntries(
+          splits.map((s) => [
+            s.movementId,
+            {
+              amountNgn: String(s.amountNgn),
+              treasuryAccountId: String(s.treasuryAccountId ?? ''),
+              postedDate: String(s.postedAtISO || '').slice(0, 10) || todayIso,
+              note: '',
+              editApprovalId: '',
+            },
+          ])
+        )
+      );
+    },
+    [liveTreasuryMovements, todayIso]
+  );
 
   const saveReceiptFinance = useCallback(
     async (e) => {
@@ -807,6 +864,71 @@ const Account = () => {
       }
     },
     [receiptFinanceRow, receiptBankAmtInput, receiptClearDelivery, receiptFinanceEditApprovalId, ws, showToast]
+  );
+
+  const savePaymentLineCorrection = useCallback(
+    async (movementId) => {
+      const d = paymentCorrectionDrafts[movementId];
+      if (!d) return;
+      if (!ws?.canMutate) {
+        showToast(
+          ws?.usingCachedData
+            ? 'Server is offline or session expired — refresh the page, then sign in and try again.'
+            : 'Connect to the API server to correct payment lines.',
+          { variant: 'error' }
+        );
+        return;
+      }
+      const amountNgn = Math.round(Number(String(d.amountNgn).replace(/,/g, '')) || 0);
+      const treasuryAccountId = Number(d.treasuryAccountId);
+      if (!treasuryAccountId) {
+        showToast('Select the treasury account (bank or cash) for this payment.', { variant: 'error' });
+        return;
+      }
+      if (amountNgn <= 0) {
+        showToast('Amount must be greater than zero.', { variant: 'error' });
+        return;
+      }
+      setPaymentLineBusyId(movementId);
+      try {
+        const postedAtISO = d.postedDate ? `${d.postedDate}T12:00:00.000Z` : undefined;
+        const { ok, status, data } = await apiFetch(
+          `/api/treasury/movements/${encodeURIComponent(movementId)}/ledger-receipt-correction`,
+          {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              amountNgn,
+              treasuryAccountId,
+              postedAtISO,
+              ...(d.note.trim() ? { note: d.note.trim() } : {}),
+              ...(d.editApprovalId.trim() ? { editApprovalId: d.editApprovalId.trim() } : {}),
+            }),
+          }
+        );
+        if (!ok || !data?.ok) {
+          const hint = data?.code === 'CSRF_INVALID' ? ' Refresh the page and try again.' : '';
+          showToast((data?.error || `Could not update payment line (${status}).`) + hint, { variant: 'error' });
+          return;
+        }
+        if (data.noOp) {
+          showToast('No numeric changes to apply (optional note was skipped if unchanged).');
+          return;
+        }
+        showToast('Payment line corrected in treasury books.');
+        setPaymentCorrectionDrafts((prev) => ({
+          ...prev,
+          [movementId]: {
+            ...prev[movementId],
+            editApprovalId: '',
+          },
+        }));
+        await ws.refresh();
+      } finally {
+        setPaymentLineBusyId(null);
+      }
+    },
+    [paymentCorrectionDrafts, ws, showToast]
   );
 
   const saveExpense = async (e) => {
@@ -1216,42 +1338,6 @@ const Account = () => {
     }));
   };
 
-  const reviewPaymentRequest = async (requestID, status, note) => {
-    if (!requestID) return;
-    const cleanNote = String(note || '').trim();
-    if (status === 'Rejected' && !cleanNote) {
-      showToast('Rejection note is required for audit trace.', { variant: 'error' });
-      return;
-    }
-    if (ws?.canMutate) {
-      const { ok, data } = await apiFetch(`/api/payment-requests/${encodeURIComponent(requestID)}/decision`, {
-        method: 'POST',
-        body: JSON.stringify({
-          status,
-          note:
-            cleanNote ||
-            (status === 'Approved'
-              ? 'Approved for treasury action.'
-              : 'Rejected during finance review.'),
-        }),
-      });
-      if (!ok || !data?.ok) {
-        showToast(data?.error || 'Could not review payment request.', { variant: 'error' });
-        return;
-      }
-      await ws.refresh();
-    } else {
-      showToast(
-        ws?.usingCachedData
-          ? 'Reconnect to review payment requests — workspace is read-only.'
-          : 'Connect to the API to approve or reject payment requests.',
-        { variant: 'info' }
-      );
-      return;
-    }
-    showToast(`Payment request ${requestID} marked ${status}.`);
-  };
-
   const filteredExpenses = useMemo(() => {
     const qq = searchQuery.trim().toLowerCase();
     if (!qq) return expenses;
@@ -1297,17 +1383,6 @@ const Account = () => {
         const paidAmountNgn = Number(req.paidAmountNgn) || 0;
         const outstandingNgn = Math.max(0, (Number(req.amountRequestedNgn) || 0) - paidAmountNgn);
         return outstandingNgn > 0;
-      }),
-    [filteredPayRequests]
-  );
-
-  const payRequestsApprovalQueueOnly = useMemo(
-    () =>
-      filteredPayRequests.filter((req) => {
-        const paidAmountNgn = Number(req.paidAmountNgn) || 0;
-        const outstandingNgn = Math.max(0, (Number(req.amountRequestedNgn) || 0) - paidAmountNgn);
-        if (req.approvalStatus === 'Approved' && outstandingNgn > 0) return false;
-        return true;
       }),
     [filteredPayRequests]
   );
@@ -1432,51 +1507,6 @@ const Account = () => {
               <span className="font-bold text-[#134e4a]">Payments</span>.
             </p>
           </Link>
-
-          {activeTab === 'disbursements' ? (
-            <div className="rounded-zarewa border border-slate-200/75 bg-white p-5 shadow-[var(--shadow-sequence)] space-y-3 ring-1 ring-teal-500/10">
-              <h3 className="z-section-title flex items-center gap-2">
-                <ClipboardList size={14} />
-                Expenses & requests
-              </h3>
-              <p className="text-[10px] text-gray-500 leading-snug">
-                Raise a payment request for approval, or post a completed expense to treasury.
-              </p>
-              <div className="flex flex-col gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setRequestForm({
-                      ...initialExpenseRequestFormState(),
-                      requestDate: todayIso,
-                      requestReference: '',
-                      expenseCategory: '',
-                      description: '',
-                      attachment: null,
-                    });
-                    if (payRequestFileRef.current) payRequestFileRef.current.value = '';
-                    setShowPayRequestModal(true);
-                  }}
-                  className="z-btn-primary w-full justify-center gap-2 !text-[11px]"
-                >
-                  <Plus size={16} /> New expense request
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setExpenseForm((f) => ({
-                      ...f,
-                      debitAccountId: String(bankAccounts[0]?.id ?? ''),
-                    }));
-                    setShowExpenseModal(true);
-                  }}
-                  className="z-btn-secondary w-full justify-center gap-2 !text-[11px]"
-                >
-                  <Plus size={16} /> New expense
-                </button>
-              </div>
-            </div>
-          ) : null}
 
           <div className="rounded-zarewa border border-slate-200/70 bg-slate-50/70 p-5 shadow-[0_12px_40px_-32px_rgba(15,23,42,0.1)]">
             <h3 className="z-section-title flex items-center gap-2">
@@ -2360,178 +2390,11 @@ const Account = () => {
                 <section className="space-y-4">
                   <div>
                     <h3 className="text-xs font-bold uppercase tracking-widest text-[#134e4a]">
-                      1) Payment requests (approval queue)
+                      1) Expenses (posted records)
                     </h3>
                     <p className="text-[11px] text-gray-500 mt-1">
-                      Raise and approve disbursement requests. Approved items with an unpaid balance appear on the{' '}
-                      <span className="font-semibold text-slate-700">Treasury</span> tab for payout (same pattern as
-                      refunds).
-                    </p>
-                  </div>
-                <div className="space-y-1.5">
-                {payRequestsApprovalQueueOnly.length === 0 ? (
-                  <p className="text-[10px] text-slate-500 py-8 text-center border border-dashed border-slate-200 rounded-lg">
-                    No payment requests in this queue. Approved payouts awaiting treasury are on the Treasury tab.
-                  </p>
-                ) : null}
-                {payRequestsApprovalQueueOnly.map((req) => {
-                  const paidAmountNgn = Number(req.paidAmountNgn) || 0;
-                  const outstandingNgn = Math.max(0, (Number(req.amountRequestedNgn) || 0) - paidAmountNgn);
-                  const auditTrail = buildPaymentRequestAuditTrail(req);
-                  const payoutState =
-                    req.approvalStatus !== 'Approved'
-                      ? 'Awaiting approval'
-                      : outstandingNgn <= 0
-                        ? 'Paid'
-                        : paidAmountNgn > 0
-                          ? 'Part paid'
-                          : 'Awaiting payout';
-
-                  const meta2 = [
-                    `Linked ${req.expenseID}`,
-                    req.expenseCategory ? req.expenseCategory : null,
-                    req.requestReference ? `Ref ${req.requestReference}` : null,
-                    req.description,
-                    req.lineItems?.length ? `${req.lineItems.length} line item(s)` : null,
-                    req.attachmentPresent ? `Attachment: ${req.attachmentName || 'file'}` : null,
-                    req.branchId ? branchNameById[req.branchId] || req.branchId : null,
-                    req.isStaffLoan ? 'Staff loan' : null,
-                    req.approvalStatus,
-                    payoutState,
-                    req.requestDate,
-                    `Rem ${formatNgn(outstandingNgn)}`,
-                    req.approvedBy
-                      ? `${req.approvedBy}${req.approvedAtISO ? ` · ${req.approvedAtISO}` : ''}`
-                      : null,
-                    req.paidBy || paidAmountNgn > 0
-                      ? `Paid ${formatNgn(paidAmountNgn)}${req.paidBy ? ` · ${req.paidBy}` : ''}${req.paidAtISO ? ` · ${req.paidAtISO}` : ''}`
-                      : null,
-                    req.approvalNote,
-                    req.paymentNote,
-                  ]
-                    .filter(Boolean)
-                    .join(' · ');
-
-                  return (
-                    <div
-                      key={req.requestID}
-                      className="rounded-lg border border-slate-200/60 bg-white/40 backdrop-blur-md py-1.5 px-2.5 shadow-sm hover:bg-white/70 transition-colors"
-                    >
-                      <div className="flex flex-wrap items-start justify-between gap-2 min-w-0">
-                        <div className="min-w-0 leading-tight flex-1">
-                          <div className="flex items-center justify-between gap-2 min-w-0">
-                            <p className="text-[11px] font-bold text-[#134e4a] truncate uppercase">
-                              {req.requestID}
-                            </p>
-                            <div className="flex items-center gap-1.5 shrink-0">
-                              <span
-                                className={`text-[8px] font-semibold uppercase tracking-wide px-2 py-1 rounded-md border ${
-                                  req.approvalStatus === 'Approved'
-                                    ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
-                                    : req.approvalStatus === 'Rejected'
-                                      ? 'border-rose-200 bg-rose-50 text-rose-800'
-                                      : 'border-amber-200 bg-amber-50 text-amber-900'
-                                }`}
-                              >
-                                {req.approvalStatus}
-                              </span>
-                              <span
-                                className={`text-[8px] font-semibold uppercase tracking-wide px-2 py-1 rounded-md border ${
-                                  payoutState === 'Paid'
-                                    ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
-                                    : payoutState === 'Part paid'
-                                      ? 'border-sky-200 bg-sky-50 text-sky-800'
-                                      : payoutState === 'Awaiting payout'
-                                        ? 'border-teal-200 bg-teal-50 text-teal-800'
-                                        : 'border-slate-200 bg-slate-50 text-slate-700'
-                                }`}
-                              >
-                                {payoutState}
-                              </span>
-                            </div>
-                          </div>
-                          <p
-                            className="text-[8px] text-slate-500 mt-0.5 leading-snug line-clamp-2"
-                            title={meta2}
-                          >
-                            {meta2}
-                          </p>
-                          {auditTrail.length > 0 ? (
-                            <div className="mt-1.5 flex flex-wrap gap-1.5">
-                              {auditTrail.map((t) => (
-                                <span
-                                  key={`${req.requestID}-${t.key}`}
-                                  className="rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-[8px] font-semibold uppercase tracking-wide text-slate-600"
-                                  title={`${t.label}: ${t.who || '—'} ${t.at ? `· ${t.at}` : ''}`}
-                                >
-                                  {t.label}
-                                  {t.who ? ` · ${t.who}` : ''}
-                                </span>
-                              ))}
-                            </div>
-                          ) : null}
-                        </div>
-                        <div className="flex items-center gap-2 shrink-0">
-                          <div className="text-right leading-tight">
-                            <p className="text-[11px] font-black text-[#134e4a] tabular-nums">
-                              {formatNgn(req.amountRequestedNgn)}
-                            </p>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => printExpenseRequestRecord(req, formatNgn)}
-                            className="text-[8px] font-semibold uppercase tracking-wide text-slate-700 bg-slate-100 hover:bg-slate-200 px-2 py-1 rounded-md inline-flex items-center gap-1"
-                            title="Print filing copy"
-                          >
-                            <Printer size={12} /> Print
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => openRequestPayment(req)}
-                            className="text-[8px] font-semibold uppercase tracking-wide text-sky-800 bg-sky-100 hover:bg-sky-200 px-2 py-1 rounded-md"
-                            title="Record treasury payout"
-                          >
-                            Payout
-                          </button>
-                        </div>
-                      </div>
-                      {canApproveRequests && req.approvalStatus === 'Pending' ? (
-                        <div className="flex flex-wrap gap-1.5 pt-1.5 mt-1 border-t border-dashed border-slate-200">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const note = window.prompt('Approval note (optional)', 'Approved for treasury action.');
-                              reviewPaymentRequest(req.requestID, 'Approved', note ?? '');
-                            }}
-                            className="text-[8px] font-semibold uppercase tracking-wide px-2 py-1 rounded-md border border-emerald-200 bg-emerald-50 text-emerald-900 hover:bg-emerald-100"
-                          >
-                            Approve
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const note = window.prompt('Reason for rejection (required)');
-                              reviewPaymentRequest(req.requestID, 'Rejected', note ?? '');
-                            }}
-                            className="text-[8px] font-semibold uppercase tracking-wide px-2 py-1 rounded-md border border-rose-200 bg-rose-50 text-rose-900 hover:bg-rose-100"
-                          >
-                            Reject
-                          </button>
-                        </div>
-                      ) : null}
-                    </div>
-                  );
-                })}
-                </div>
-                </section>
-
-                <section className="space-y-4 border-t border-slate-100 pt-6">
-                  <div>
-                    <h3 className="text-xs font-bold uppercase tracking-widest text-[#134e4a]">
-                      2) Expenses (posted records)
-                    </h3>
-                    <p className="text-[11px] text-gray-500 mt-1">
-                      Record completed spending entries after request approval/payout.
+                      Record completed spending entries. New expense requests and direct expenses open from the
+                      workspace; approved payment payouts are on Finance → Treasury.
                     </p>
                   </div>
                 <ul className="space-y-1.5">
@@ -3511,9 +3374,11 @@ const Account = () => {
         onClose={() => {
           setReceiptFinanceEditApprovalId('');
           setReceiptFinanceRow(null);
+          setPaymentCorrectionDrafts({});
+          setPaymentLineBusyId(null);
         }}
       >
-        <div className="z-modal-panel max-w-md w-full p-6 sm:p-8">
+        <div className="z-modal-panel max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6 sm:p-8">
           <div className="flex justify-between items-start gap-3 mb-4">
             <h3 className="text-lg font-bold text-[#134e4a]">Receipt settlement</h3>
             <button
@@ -3521,6 +3386,8 @@ const Account = () => {
               onClick={() => {
                 setReceiptFinanceEditApprovalId('');
                 setReceiptFinanceRow(null);
+                setPaymentCorrectionDrafts({});
+                setPaymentLineBusyId(null);
               }}
               className="p-2 text-gray-400 hover:text-red-500 rounded-xl"
               aria-label="Close"

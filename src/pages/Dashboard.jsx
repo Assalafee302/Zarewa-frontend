@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { ShieldCheck } from 'lucide-react';
+import { ShieldCheck, ClipboardList, Plus } from 'lucide-react';
 import { PageShell } from '../components/layout';
 import { AiAskButton } from '../components/AiAskButton';
 import { OfficeRecordComposeDrawer } from '../components/office/OfficeRecordComposeDrawer';
@@ -58,6 +58,45 @@ const Dashboard = () => {
   const pendingCoilRequests = Array.isArray(ws?.snapshot?.coilRequests)
     ? ws.snapshot.coilRequests.filter((r) => r.status === 'pending')
     : [];
+
+  const financeExpensesQuickCard =
+    ws?.canAccessModule?.('finance') === false ? null : (
+      <div className="rounded-zarewa border border-slate-200/75 bg-white p-5 shadow-[var(--shadow-sequence)] space-y-3 ring-1 ring-teal-500/10">
+        <h3 className="text-[11px] font-bold uppercase tracking-[0.12em] text-[#134e4a] flex items-center gap-2">
+          <ClipboardList size={14} strokeWidth={2} aria-hidden />
+          Expenses &amp; requests
+        </h3>
+        <p className="text-[10px] text-gray-500 leading-snug">
+          Raise a payment request for approval, or post a completed expense to treasury.
+        </p>
+        <div className="flex flex-col gap-2">
+          <button
+            type="button"
+            onClick={() =>
+              navigate('/accounts?tab=disbursements', { state: { openPayRequestModal: true } })
+            }
+            className="z-btn-primary w-full justify-center gap-2 !text-[11px]"
+          >
+            <Plus size={16} aria-hidden /> New expense request
+          </button>
+          <button
+            type="button"
+            onClick={() =>
+              navigate('/accounts?tab=disbursements', { state: { openExpenseModal: true } })
+            }
+            className="z-btn-secondary w-full justify-center gap-2 !text-[11px]"
+          >
+            <Plus size={16} aria-hidden /> New expense
+          </button>
+          <Link
+            to="/accounts?tab=treasury"
+            className="text-center text-[9px] font-bold uppercase tracking-wide text-teal-800 hover:underline"
+          >
+            Finance &amp; treasury
+          </Link>
+        </div>
+      </div>
+    );
 
   return (
     <PageShell>
@@ -145,15 +184,17 @@ const Dashboard = () => {
             <div className="min-h-0 min-w-0 lg:col-span-2">
               <UnifiedWorkItemsPanel hideFooter view={workItemsView} onOpenMailReader={setMailThreadId} />
             </div>
-            <div className="min-h-0 min-w-0 lg:col-span-1">
+            <div className="min-h-0 min-w-0 lg:col-span-1 space-y-6">
               <WorkspaceUpdatesPanel officeSummary={officeSummary} canOffice={canOffice} />
+              {financeExpensesQuickCard}
             </div>
           </div>
         )}
 
         {canOffice ? (
-          <div className="min-h-0 min-w-0">
+          <div className="min-h-0 min-w-0 space-y-6">
             <WorkspaceUpdatesPanel officeSummary={officeSummary} canOffice={canOffice} />
+            {financeExpensesQuickCard}
           </div>
         ) : null}
       </div>
