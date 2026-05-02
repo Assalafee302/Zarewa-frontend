@@ -61,6 +61,18 @@ function formatMeters(value) {
   return Number.isFinite(next) ? `${next.toFixed(2)} m` : '—';
 }
 
+/** In compact views, omit “Design” when it matches or nests inside the FG product line label. */
+function designRedundantVersusProductLine(design, productName, productID) {
+  const d = String(design || '').trim().toLowerCase();
+  if (!d) return true;
+  const p = String(productName || productID || '').trim().toLowerCase();
+  if (!p) return false;
+  if (d === p) return true;
+  if (d.length >= 4 && p.includes(d)) return true;
+  if (p.length >= 4 && d.includes(p)) return true;
+  return false;
+}
+
 function formatKgPerM(value) {
   const next = Number(value);
   return Number.isFinite(next) && next > 0 ? `${next.toFixed(4)} kg/m` : '—';
@@ -1415,10 +1427,24 @@ export function LiveProductionMonitor({
                 </details>
               </div>
               {inModal && focusClTrim ? (
-                <p className="mt-0.5 text-[11px] text-slate-500">
+                <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[11px] text-slate-500">
                   <span className="font-mono font-semibold text-slate-700">{focusClTrim}</span>
-                  {viewOnly ? <span className="text-slate-400"> · read-only</span> : null}
-                </p>
+                  <span
+                    className={`rounded-md border border-black/5 px-1.5 py-0.5 text-[8px] font-bold uppercase shadow-sm ${statusTone(selectedJob.status)}`}
+                  >
+                    {selectedJob.status}
+                  </span>
+                  {selectedJob.quotationRef ? (
+                    <span className="inline-flex items-center rounded-md border border-slate-200/80 bg-white/90 px-1.5 py-0.5 text-[8px] font-semibold text-slate-700 shadow-sm">
+                      Quote{' '}
+                      <span className="ml-0.5 font-mono text-[#134e4a]">{selectedJob.quotationRef}</span>
+                    </span>
+                  ) : null}
+                  <span className="inline-flex items-center rounded-md border border-slate-200/80 bg-white/90 px-1.5 py-0.5 text-[8px] font-semibold text-slate-700 shadow-sm">
+                    {selectedJob.machineName || 'Line'}
+                  </span>
+                  {viewOnly ? <span className="text-slate-400">· read-only</span> : null}
+                </div>
               ) : null}
             </div>
           </div>
@@ -1752,10 +1778,7 @@ export function LiveProductionMonitor({
               }`}
             >
               <div className="flex items-center gap-2 border-b border-slate-200/50 pb-2">
-                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-[#134e4a] text-[10px] font-bold text-white">
-                  A
-                </span>
-                <p className="text-[10px] font-semibold uppercase tracking-widest text-[#134e4a]">Job &amp; target</p>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-[#134e4a]">Job &amp; target</p>
               </div>
               <div
                 className={`flex min-w-0 ${
@@ -1763,31 +1786,37 @@ export function LiveProductionMonitor({
                 }`}
               >
                 <div className="min-w-0 flex-1 space-y-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <p className="font-mono text-base font-black tracking-tight text-[#134e4a] sm:text-[1.05rem]">
-                      {selectedJob.cuttingListId || '—'}
-                    </p>
-                    <span
-                      className={`rounded-md border border-black/5 px-2 py-0.5 text-[9px] font-bold uppercase shadow-sm ${statusTone(selectedJob.status)}`}
-                    >
-                      {selectedJob.status}
-                    </span>
-                  </div>
+                  {!inModal ? (
+                    <>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="font-mono text-base font-black tracking-tight text-[#134e4a] sm:text-[1.05rem]">
+                          {selectedJob.cuttingListId || '—'}
+                        </p>
+                        <span
+                          className={`rounded-md border border-black/5 px-2 py-0.5 text-[9px] font-bold uppercase shadow-sm ${statusTone(selectedJob.status)}`}
+                        >
+                          {selectedJob.status}
+                        </span>
+                      </div>
+                    </>
+                  ) : null}
                   <p className="text-sm font-semibold leading-snug text-slate-900">{selectedJob.customerName || '—'}</p>
                   <p className="text-[11px] font-medium leading-snug text-slate-600">
                     {selectedJob.productName || selectedJob.productID || '—'}
                   </p>
-                  <div className="flex flex-wrap gap-1.5 pt-0.5">
-                    {selectedJob.quotationRef ? (
+                  {!inModal ? (
+                    <div className="flex flex-wrap gap-1.5 pt-0.5">
+                      {selectedJob.quotationRef ? (
+                        <span className="inline-flex items-center rounded-md border border-slate-200/80 bg-white/90 px-2 py-0.5 text-[9px] font-semibold text-slate-700 shadow-sm">
+                          Quote{' '}
+                          <span className="ml-0.5 font-mono text-[#134e4a]">{selectedJob.quotationRef}</span>
+                        </span>
+                      ) : null}
                       <span className="inline-flex items-center rounded-md border border-slate-200/80 bg-white/90 px-2 py-0.5 text-[9px] font-semibold text-slate-700 shadow-sm">
-                        Quote{' '}
-                        <span className="ml-0.5 font-mono text-[#134e4a]">{selectedJob.quotationRef}</span>
+                        {selectedJob.machineName || 'Line'}
                       </span>
-                    ) : null}
-                    <span className="inline-flex items-center rounded-md border border-slate-200/80 bg-white/90 px-2 py-0.5 text-[9px] font-semibold text-slate-700 shadow-sm">
-                      {selectedJob.machineName || 'Line'}
-                    </span>
-                  </div>
+                    </div>
+                  ) : null}
                 </div>
                 {!inModal ? (
                   <div
@@ -1830,51 +1859,60 @@ export function LiveProductionMonitor({
                   className="rounded-md border border-slate-200/70 bg-slate-50/50 px-1.5 py-1.5"
                   aria-label="Run weights, output, and plan summary"
                 >
-                  <div className="grid grid-cols-3 gap-x-1 gap-y-0.5 text-center">
-                    <div title="Reserved kg">
-                      <p className="text-[6px] font-bold uppercase tracking-wide text-teal-800/85">Rsvd</p>
-                      <p className="text-[11px] font-black tabular-nums leading-tight text-[#134e4a]">
-                        {formatKg(reservedKg)}
-                      </p>
-                      <p className="text-[6px] font-medium text-slate-500">kg</p>
-                    </div>
-                    <div title="Output metres">
-                      <p className="text-[6px] font-bold uppercase tracking-wide text-teal-800/85">Out</p>
-                      <p className="text-[11px] font-black tabular-nums leading-tight text-[#134e4a]">
-                        {formatMeters(recordedMeters)}
-                      </p>
-                      <p className="text-[6px] font-medium text-slate-500">m</p>
-                    </div>
-                    <div title="Consumed kg">
-                      <p className="text-[6px] font-bold uppercase tracking-wide text-slate-500">Used</p>
-                      <p className="text-[11px] font-black tabular-nums leading-tight text-slate-900">
-                        {formatKg(recordedConsumedKg)}
-                      </p>
-                      <p className="text-[6px] font-medium text-slate-500">kg</p>
-                    </div>
-                  </div>
-                  <div className="mt-1 grid grid-cols-3 gap-x-1 gap-y-0.5 border-t border-slate-200/60 pt-1 text-center">
-                    <div>
-                      <p className="text-[6px] font-bold uppercase tracking-wide text-slate-500">Plan</p>
-                      <p className="text-[11px] font-black tabular-nums leading-tight text-[#134e4a]">
-                        {formatMeters(selectedJob.plannedMeters)}
-                      </p>
-                      <p className="text-[6px] font-medium text-slate-500">m</p>
-                    </div>
-                    <div>
-                      <p className="text-[6px] font-bold uppercase tracking-wide text-slate-500">Act</p>
-                      <p className="text-[11px] font-black tabular-nums leading-tight text-[#134e4a]">
-                        {formatMeters(selectedJob.actualMeters)}
-                      </p>
-                      <p className="text-[6px] font-medium text-slate-500">m</p>
-                    </div>
-                    <div>
-                      <p className="text-[6px] font-bold uppercase tracking-wide text-slate-500">Alert</p>
-                      <p className="truncate text-[11px] font-black leading-tight text-slate-900">
-                        {selectedJob.conversionAlertState || '—'}
-                      </p>
-                    </div>
-                  </div>
+                  {(() => {
+                    const postedM = Number(selectedJob?.actualMeters ?? 0);
+                    const liveM = Number(recordedMeters);
+                    const metresMatch =
+                      Number.isFinite(postedM) && Number.isFinite(liveM) && Math.abs(postedM - liveM) < 1e-4;
+                    return (
+                      <>
+                        <div className="grid grid-cols-3 gap-x-1 gap-y-0.5 text-center">
+                          <div title="Reserved kg">
+                            <p className="text-[6px] font-bold uppercase tracking-wide text-teal-800/85">Rsvd</p>
+                            <p className="text-[11px] font-black tabular-nums leading-tight text-[#134e4a]">
+                              {formatKg(reservedKg)}
+                            </p>
+                            <p className="text-[6px] font-medium text-slate-500">kg</p>
+                          </div>
+                          <div title="Consumed kg">
+                            <p className="text-[6px] font-bold uppercase tracking-wide text-slate-500">Used</p>
+                            <p className="text-[11px] font-black tabular-nums leading-tight text-slate-900">
+                              {formatKg(recordedConsumedKg)}
+                            </p>
+                            <p className="text-[6px] font-medium text-slate-500">kg</p>
+                          </div>
+                          <div title="Planned job metres">
+                            <p className="text-[6px] font-bold uppercase tracking-wide text-slate-500">Plan</p>
+                            <p className="text-[11px] font-black tabular-nums leading-tight text-[#134e4a]">
+                              {formatMeters(selectedJob.plannedMeters)}
+                            </p>
+                            <p className="text-[6px] font-medium text-slate-500">m</p>
+                          </div>
+                        </div>
+                        <div className="mt-1 grid grid-cols-2 gap-x-1 gap-y-0.5 border-t border-slate-200/60 pt-1 text-center">
+                          <div
+                            title={
+                              metresMatch
+                                ? 'Output metres (run log matches posted actual)'
+                                : `Run log total ${formatMeters(liveM)} m · posted actual ${formatMeters(postedM)} m`
+                            }
+                          >
+                            <p className="text-[6px] font-bold uppercase tracking-wide text-teal-800/85">Output</p>
+                            <p className="text-[11px] font-black tabular-nums leading-tight text-[#134e4a]">
+                              {metresMatch ? formatMeters(liveM) : `${formatMeters(liveM)} / ${formatMeters(postedM)}`}
+                            </p>
+                            <p className="text-[6px] font-medium text-slate-500">{metresMatch ? 'm' : 'live / post m'}</p>
+                          </div>
+                          <div>
+                            <p className="text-[6px] font-bold uppercase tracking-wide text-slate-500">Alert</p>
+                            <p className="truncate text-[11px] font-black leading-tight text-slate-900">
+                              {selectedJob.conversionAlertState || '—'}
+                            </p>
+                          </div>
+                        </div>
+                      </>
+                    );
+                  })()}
                 </div>
               ) : null}
 
@@ -1956,15 +1994,22 @@ export function LiveProductionMonitor({
               >
                 <p className="text-[8px] font-bold uppercase tracking-[0.12em] text-[#134e4a]">Target spec</p>
                 <div
-                  className={`mt-2 grid grid-cols-1 gap-x-4 gap-y-1.5 text-[11px] leading-snug sm:grid-cols-2 lg:grid-cols-4 ${
-                    inModal ? 'text-[10px]' : ''
-                  }`}
+                  className={`mt-2 grid gap-x-4 gap-y-1.5 text-[11px] leading-snug ${
+                    inModal ? 'grid-cols-2 sm:grid-cols-2' : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4'
+                  } ${inModal ? 'text-[10px]' : ''}`}
                 >
                   {[
                     ['Gauge', quotationMaterialSpec.gauge],
                     ['Colour', quotationMaterialSpec.colour],
                     ['Material', quotationMaterialSpec.materialType],
-                    ['Design', quotationMaterialSpec.design],
+                    ...(inModal &&
+                    designRedundantVersusProductLine(
+                      quotationMaterialSpec.design,
+                      selectedJob.productName,
+                      selectedJob.productID
+                    )
+                      ? []
+                      : [['Design', quotationMaterialSpec.design]]),
                   ].map(([k, v]) => (
                     <p key={k} className="min-w-0 border-l-2 border-teal-200/80 pl-2">
                       <span className="text-[9px] font-bold uppercase tracking-wide text-slate-500">{k}</span>
@@ -2286,11 +2331,8 @@ export function LiveProductionMonitor({
               }`}
             >
               <div className="flex min-w-0 items-start gap-2">
-                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[#134e4a] text-[10px] font-bold text-white">
-                  B
-                </span>
                 <div className="min-w-0">
-                  <p className="text-[10px] font-semibold uppercase tracking-widest text-[#134e4a]">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-[#134e4a]">
                     {isStoneMeterQuote ? 'Stone-coated run' : 'Coils &amp; run log'}
                   </p>
                   <p className="mt-px flex flex-wrap items-center gap-1 text-[10px] leading-tight text-slate-600">
@@ -2405,16 +2447,25 @@ export function LiveProductionMonitor({
                     <div
                       className={`min-w-0 flex flex-col gap-2 pb-1 lg:grid lg:items-end lg:gap-x-2 lg:overflow-visible lg:pb-0 ${
                         inModal
-                          ? 'lg:grid-cols-[1.75rem_3.25rem_minmax(0,1fr)_minmax(3.25rem,1fr)_minmax(3.25rem,1fr)_minmax(3.25rem,1fr)_minmax(0,1fr)_2.25rem_2rem] lg:gap-x-1.5'
+                          ? 'lg:grid-cols-[1.25rem_3.25rem_minmax(0,1fr)_minmax(3.25rem,1fr)_minmax(3.25rem,1fr)_minmax(3.25rem,1fr)_minmax(0,1fr)_2.25rem_2rem] lg:gap-x-1.5'
                           : 'lg:grid-cols-[2rem_4rem_minmax(0,1.1fr)_4rem_4rem_4rem_minmax(0,1fr)_2.75rem_2rem]'
                       }`}
                     >
-                      <span
-                        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-[#134e4a] text-[9px] font-black text-white lg:h-7 lg:w-7"
-                        title={`Coil line ${index + 1}`}
-                      >
-                        {index + 1}
-                      </span>
+                      {inModal ? (
+                        <span
+                          className="shrink-0 self-end pb-1 text-right text-[11px] font-bold tabular-nums text-slate-600 lg:pb-1.5"
+                          title={`Row ${index + 1}`}
+                        >
+                          {index + 1}
+                        </span>
+                      ) : (
+                        <span
+                          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-[#134e4a] text-[9px] font-black text-white lg:h-7 lg:w-7"
+                          title={`Coil line ${index + 1}`}
+                        >
+                          {index + 1}
+                        </span>
+                      )}
                       {lot ? (
                         <span
                           className="max-w-full truncate text-[9px] leading-tight text-slate-500 lg:max-w-[4.5rem] lg:shrink-0"
@@ -2767,9 +2818,11 @@ export function LiveProductionMonitor({
           <div className="overflow-hidden rounded-lg border border-slate-200/90 bg-white shadow-sm">
             <div className="border-b border-slate-100 bg-slate-50/70 px-3 py-2">
               <p className="text-sm font-bold text-slate-900">Posted conversion check</p>
-              <p className="mt-0.5 text-xs leading-snug text-slate-600">
-                One row per coil after completion — scroll horizontally on a narrow screen.
-              </p>
+              {!inModal ? (
+                <p className="mt-0.5 text-xs leading-snug text-slate-600">
+                  One row per coil after completion — scroll horizontally on a narrow screen.
+                </p>
+              ) : null}
             </div>
 
             <div className="p-2 sm:p-3">
