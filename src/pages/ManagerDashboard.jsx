@@ -11,7 +11,6 @@ import {
   Zap,
   RefreshCw,
   BarChart3,
-  Plus,
   FileText,
   Factory,
   LayoutDashboard,
@@ -41,7 +40,7 @@ import {
 } from '../lib/managementLiveFromWorkspace';
 import { formatRefundReasonCategory, matchesInboxSearch } from '../lib/managerDashboardCore';
 import { Card, Button } from '../components/ui';
-import { ModalFrame, PageShell } from '../components/layout';
+import { PageShell } from '../components/layout';
 import { DashboardKpiStrip } from '../components/dashboard/DashboardKpiStrip';
 import { ManagementAuditSections } from '../components/management/ManagementAuditSections';
 
@@ -82,7 +81,6 @@ const ManagerDashboard = () => {
   const [editApprovalPending, setEditApprovalPending] = useState([]);
   const [conversionSignoffRemark, setConversionSignoffRemark] = useState('');
   const [conversionSignoffEditApprovalId, setConversionSignoffEditApprovalId] = useState('');
-  const [showStockRequest, setShowStockRequest] = useState(false);
   /** @type {['month' | '4months' | 'half' | 'year', Function]} */
   const [metricPeriod, setMetricPeriod] = useState('month');
 
@@ -355,11 +353,6 @@ const ManagerDashboard = () => {
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleRefreshAll = async () => {
-    await fetchData();
-    await (ws.refresh?.() ?? Promise.resolve());
   };
 
   useEffect(() => {
@@ -1097,32 +1090,6 @@ const ManagerDashboard = () => {
         </p>
       </div>
 
-      <div className="flex flex-wrap items-center justify-end gap-2 mb-6 sm:mb-8">
-        <Button
-          type="button"
-          variant="outline"
-          className="rounded-xl text-[10px] font-bold uppercase tracking-wide h-10 border-slate-200"
-          onClick={() => navigate('/sales')}
-        >
-          Sales
-        </Button>
-        <button
-          type="button"
-          title="Reload management API and workspace snapshot"
-          onClick={() => void handleRefreshAll()}
-          className="p-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 transition-colors"
-        >
-          <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
-        </button>
-        <Button
-          type="button"
-          onClick={() => setShowStockRequest(true)}
-          className="rounded-xl gap-2 font-bold uppercase text-[10px] h-10"
-        >
-          <Plus size={16} /> Stock note
-        </Button>
-      </div>
-
       <DashboardKpiStrip
         sectionClassName="mb-6"
         omitMetresAndSales
@@ -1709,70 +1676,6 @@ const ManagerDashboard = () => {
         </div>
       </div>
 
-      <ModalFrame
-        isOpen={showStockRequest}
-        onClose={() => setShowStockRequest(false)}
-        title="Inventory note"
-        description="Placeholder stock request form"
-      >
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-xl max-w-lg w-full overflow-hidden">
-          <div className="px-5 py-4 border-b border-slate-100 flex justify-between items-center">
-            <h2 className="text-base font-bold text-[#134e4a]">Inventory replenishment</h2>
-            <button
-              type="button"
-              onClick={() => setShowStockRequest(false)}
-              className="p-2 rounded-lg text-slate-400 hover:bg-slate-100"
-              aria-label="Close"
-            >
-              ×
-            </button>
-          </div>
-          <div className="p-6 space-y-4">
-            <p className="text-sm text-slate-600">
-              Draft a coil or material request for procurement. Wire this to your payment / PO flow when ready.
-            </p>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold text-slate-400 uppercase">Material</label>
-                <select className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold outline-none">
-                  <option>Aluminium coil</option>
-                  <option>PVC resin</option>
-                </select>
-              </div>
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold text-slate-400 uppercase">Weight (kg)</label>
-                <input
-                  type="number"
-                  placeholder="5000"
-                  className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold outline-none"
-                />
-              </div>
-            </div>
-            <div className="flex gap-3 pt-2">
-              <Button
-                className="flex-1 rounded-xl font-bold uppercase text-[10px] h-11"
-                type="button"
-                onClick={() => {
-                  showToast('Request draft captured. Continue in Procurement for sourcing and PO execution.', {
-                    variant: 'success',
-                  });
-                  setShowStockRequest(false);
-                }}
-              >
-                Submit request draft
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setShowStockRequest(false)}
-                className="rounded-xl font-bold uppercase text-[10px] h-11"
-              >
-                Cancel
-              </Button>
-            </div>
-          </div>
-        </div>
-      </ModalFrame>
     </PageShell>
   );
 };

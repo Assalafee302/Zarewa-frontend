@@ -7,7 +7,6 @@ import {
   ShoppingCart,
   LogOut,
   Landmark,
-  LayoutGrid,
   Truck,
   BarChart3,
   Settings,
@@ -42,14 +41,13 @@ const Sidebar = ({ mobileOpen = false, onCloseMobile, collapsed = false, onToggl
     }`;
 
   const fullMenuItems = [
-    { icon: <Home size={18} />, label: 'Workspace', path: '/' },
     {
-      icon: <ShoppingCart size={18} />,
-      label: 'Sales',
-      path: '/sales',
-      active: pathMatches(p, '/sales') || pathMatches(p, '/customers'),
-      visible: ws?.canAccessModule?.('sales') ?? true,
+      icon: <ShieldCheck size={18} />,
+      label: 'Management',
+      path: '/manager',
+      visible: ['sales_manager', 'admin', 'md'].includes(ws?.session?.user?.roleKey),
     },
+    { icon: <Home size={18} />, label: 'Workspace', path: '/' },
     {
       icon: <Truck size={18} />,
       label: 'Purchase',
@@ -57,11 +55,11 @@ const Sidebar = ({ mobileOpen = false, onCloseMobile, collapsed = false, onToggl
       visible: ws?.canAccessModule?.('procurement') ?? true,
     },
     {
-      icon: <LayoutGrid size={18} />,
-      label: 'Production',
-      path: '/operations',
-      active: pathMatches(p, '/operations'),
-      visible: ws?.canAccessModule?.('operations') ?? true,
+      icon: <ShoppingCart size={18} />,
+      label: 'Sales',
+      path: '/sales',
+      active: pathMatches(p, '/sales') || pathMatches(p, '/customers'),
+      visible: ws?.canAccessModule?.('sales') ?? true,
     },
     {
       icon: <Landmark size={18} />,
@@ -85,12 +83,6 @@ const Sidebar = ({ mobileOpen = false, onCloseMobile, collapsed = false, onToggl
       badgeCount: ws?.editApprovalsPendingCount ?? 0,
     },
     {
-      icon: <ShieldCheck size={18} />,
-      label: 'Management',
-      path: '/manager',
-      visible: ['sales_manager', 'admin', 'md'].includes(ws?.session?.user?.roleKey),
-    },
-    {
       icon: <Settings size={18} />,
       label: 'Settings',
       path: '/settings',
@@ -111,15 +103,6 @@ const Sidebar = ({ mobileOpen = false, onCloseMobile, collapsed = false, onToggl
           },
         ]
       : fullMenuItems.filter((item) => item.visible !== false);
-
-  if (roleKey === 'sales_manager') {
-    const ix = menuItems.findIndex((item) => item.path === '/manager');
-    if (ix > 0) {
-      const next = [...menuItems];
-      const [management] = next.splice(ix, 1);
-      menuItems = [management, ...next];
-    }
-  }
 
   return (
     <aside
@@ -176,11 +159,7 @@ const Sidebar = ({ mobileOpen = false, onCloseMobile, collapsed = false, onToggl
               whileTap={{ scale: 0.97 }}
             >
               <Link
-                to={
-                  item.path === '/operations'
-                    ? { pathname: '/operations', state: { focusOpsTab: 'production' } }
-                    : item.path
-                }
+                to={item.path}
                 onClick={closeIfMobile}
                 className={linkClass(active)}
                 title={collapsed ? item.label : undefined}
