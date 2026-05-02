@@ -8,6 +8,7 @@ import {
   LogOut,
   Landmark,
   Truck,
+  LayoutGrid,
   BarChart3,
   Settings,
   ChevronLeft,
@@ -60,6 +61,14 @@ const Sidebar = ({ mobileOpen = false, onCloseMobile, collapsed = false, onToggl
       path: '/sales',
       active: pathMatches(p, '/sales') || pathMatches(p, '/customers'),
       visible: ws?.canAccessModule?.('sales') ?? true,
+    },
+    {
+      icon: <LayoutGrid size={18} />,
+      label: 'Production',
+      path: '/operations',
+      to: { pathname: '/operations', state: { focusOpsTab: 'production' } },
+      active: pathMatches(p, '/operations'),
+      visible: ws?.canAccessModule?.('operations') ?? true,
     },
     {
       icon: <Landmark size={18} />,
@@ -159,7 +168,7 @@ const Sidebar = ({ mobileOpen = false, onCloseMobile, collapsed = false, onToggl
               whileTap={{ scale: 0.97 }}
             >
               <Link
-                to={item.path}
+                to={item.to ?? item.path}
                 onClick={closeIfMobile}
                 className={linkClass(active)}
                 title={collapsed ? item.label : undefined}
