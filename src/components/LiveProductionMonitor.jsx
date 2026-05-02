@@ -1397,6 +1397,9 @@ export function LiveProductionMonitor({
       showToast(`Production started for ${listLabel}.`);
     } else {
       setConversionPreview(null);
+      if (type === 'complete') {
+        setSignoffRemark('');
+      }
       if (data.managerReviewRequired) {
         showToast(`Production completed — manager review required (${data.alertState || 'alert'}).`, {
           variant: 'error',
@@ -2232,6 +2235,45 @@ export function LiveProductionMonitor({
                   </div>
                 ) : null}
               </div>
+            </div>
+          ) : null}
+
+          {canCaptureRun && requiresManagerOverrunApproval ? (
+            <div className="rounded-lg border border-amber-200 bg-amber-50/90 p-2 sm:p-2.5 space-y-1.5">
+              <div className="flex items-start gap-1.5">
+                <BarChart3 size={15} className="mt-0.5 shrink-0 text-amber-800" aria-hidden />
+                <div className="min-w-0 flex-1">
+                  <p className="text-[9px] font-black uppercase tracking-widest text-amber-950">
+                    Metre overrun — manager note before Complete
+                  </p>
+                  <p className="mt-1 text-[10px] leading-snug text-amber-950/90">
+                    Logged metres are <strong>+{overProducedMeters.toFixed(2)} m</strong> over plan. There is no separate
+                    approval page: a user with the right role types the approval below, then presses{' '}
+                    <strong className="font-semibold">Complete</strong> (and confirms the overrun prompt).
+                  </p>
+                </div>
+              </div>
+              {canManageConversionSignoff ? (
+                <label className="block space-y-1 rounded-md border border-amber-200/80 bg-white/90 p-2">
+                  <span className="text-[9px] font-bold uppercase tracking-wide text-amber-900">
+                    Approval remark (at least 3 characters)
+                  </span>
+                  <textarea
+                    value={signoffRemark}
+                    onChange={(e) => setSignoffRemark(e.target.value)}
+                    rows={2}
+                    placeholder="e.g. Customer approved extra length — overrun accepted."
+                    className="w-full rounded-md border border-slate-200 bg-white px-2 py-1.5 text-[11px] text-slate-800 outline-none focus:ring-2 focus:ring-amber-300 resize-y min-h-[2.5rem]"
+                  />
+                </label>
+              ) : (
+                <p className="text-[10px] font-medium text-amber-950">
+                  A user with <strong className="font-semibold">Production manage</strong>,{' '}
+                  <strong className="font-semibold">Production release</strong>, or{' '}
+                  <strong className="font-semibold">Operations manage</strong> must open this job, enter the remark here,
+                  and press <strong className="font-semibold">Complete</strong>.
+                </p>
+              )}
             </div>
           ) : null}
 
