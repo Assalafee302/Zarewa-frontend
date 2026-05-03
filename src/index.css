@@ -1335,6 +1335,30 @@ summary {
   margin-top: 0;
 }
 
+/* A4 landscape commercial column: larger scratchpad for handwritten notes */
+.cl-factory-body--a4-landscape-left .cl-factory-scratch-anchor {
+  min-height: 50mm;
+}
+
+.cl-factory-body--a4-landscape-left .cl-factory-scratch-anchor .cl-factory-scratch {
+  min-height: 48mm;
+  height: 100%;
+  box-sizing: border-box;
+  padding: 1.35mm 1.45mm 1.35mm;
+}
+
+.cl-factory-body--a4-landscape-left .cl-factory-scratch .cl-factory-write-line {
+  min-height: 4.9mm;
+}
+
+.cl-factory-body--a4-landscape-left .cl-factory-scratch .cl-factory-scratch-grid {
+  row-gap: 0.95mm;
+}
+
+.cl-factory-body--a4-landscape-left .cl-factory-scratch .cl-factory-scratch-row3 {
+  gap: 1mm 1.2mm;
+}
+
 .cl-factory-panel {
   background: linear-gradient(165deg, #ffffff 0%, var(--cl-surface) 100%);
   border: 1px solid var(--cl-border);

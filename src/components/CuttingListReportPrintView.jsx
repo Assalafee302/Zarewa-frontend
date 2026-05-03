@@ -230,7 +230,6 @@ function WaybillPanel({
 }) {
   const customer = selectedQuotation?.customer ?? '—';
   const project = selectedQuotation?.projectName ?? '—';
-  const shipAddr = String(selectedQuotation?.addressShipping ?? selectedQuotation?.deliveryAddress ?? '').trim();
   const metersLabel = typeof totalMeters === 'number' ? totalMeters.toLocaleString() : String(totalMeters ?? '—');
   const sheetsLabel = typeof sheetsToCut === 'number' ? sheetsToCut.toLocaleString() : String(sheetsToCut ?? '—');
 
@@ -264,13 +263,6 @@ function WaybillPanel({
               <WaybillBranchesBlock branches={b.branches} compact />
             </div>
 
-            <div className="cl-waybill-section cl-waybill-section--delivery-left">
-              <p className="cl-waybill-section-title">Delivery address</p>
-              {shipAddr ? <p className="cl-waybill-address-text">{shipAddr}</p> : null}
-              <div className="cl-factory-write-line" />
-              <div className="cl-factory-write-line cl-waybill-write-gap" />
-            </div>
-
             <div className="cl-waybill-section">
               <p className="cl-waybill-section-title">Cargo summary</p>
               <dl className="cl-waybill-dl">
@@ -286,10 +278,10 @@ function WaybillPanel({
                 <dd>{project}</dd>
                 <dt>Material</dt>
                 <dd>{materialInfoValue}</dd>
-                <dt>Total quantity &amp; metres</dt>
-                <dd className="tabular-nums">
-                  {sheetsLabel} sheets · {metersLabel} m
-                </dd>
+                <dt>Sheet</dt>
+                <dd className="tabular-nums">{sheetsLabel}</dd>
+                <dt>Metres</dt>
+                <dd className="tabular-nums">{metersLabel} m</dd>
               </dl>
             </div>
 
@@ -358,12 +350,12 @@ function CuttingCategoryTable({ title, lines, startIndex }) {
         <p className="cl-factory-cut-title">{title}</p>
       </div>
       <div className="cl-factory-table-shell cl-factory-table-shell--cut">
-        <table className="cl-factory-cut-table w-full border-collapse">
+        <table className="cl-factory-cut-table w-full table-fixed border-collapse">
         <thead>
           <tr>
-            <th className="cl-factory-cut-th text-right w-[28%]">Length (m)</th>
-            <th className="cl-factory-cut-th text-right w-[22%]">Qty</th>
-            <th className="cl-factory-cut-th text-right w-[50%]">Total m</th>
+            <th className="cl-factory-cut-th text-right w-[34%]">Length (m)</th>
+            <th className="cl-factory-cut-th text-right w-[30%]">Qty</th>
+            <th className="cl-factory-cut-th text-right w-[18%]">Total m</th>
           </tr>
         </thead>
         <tbody>
@@ -488,7 +480,6 @@ export default function CuttingListReportPrintView({
   materialSpec,
   materialTypeLabel = '',
   dateISO,
-  operatorName = '',
   linesByCat,
   receiptsForQuotation = [],
   productionFooterName = '',
@@ -509,8 +500,6 @@ export default function CuttingListReportPrintView({
   const grouped = groupByType(chunk);
   let idx = 0;
 
-  const printSheetsTotal = flatLines.reduce((s, l) => s + l.sheets, 0);
-  const printMetresTotal = flatLines.reduce((s, l) => s + l.sheets * l.lengthM, 0);
   const printSheetsWaybill = flatLinesWaybill.reduce((s, l) => s + l.sheets, 0);
   const printMetresWaybill = flatLinesWaybill.reduce((s, l) => s + l.sheets * l.lengthM, 0);
 
@@ -617,14 +606,6 @@ export default function CuttingListReportPrintView({
                                 <ReceiptPaymentBlock key={r.id} receipt={r} treasuryMovements={treasuryMovements} />
                               ))
                             )}
-                          </div>
-
-                          <div className="cl-factory-chips" aria-label="Production context">
-                            {operatorName ? <span className="cl-factory-chip">{operatorName}</span> : null}
-                            <span className="cl-factory-chip cl-factory-chip--accent">
-                              {printSheetsTotal.toLocaleString()} sheets (roof + flat + cladding) ·{' '}
-                              {printMetresTotal.toLocaleString()} m
-                            </span>
                           </div>
                         </div>
 
