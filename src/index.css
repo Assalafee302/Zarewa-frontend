@@ -1381,9 +1381,9 @@ summary {
   align-self: stretch;
 }
 
-/* Prepared-by + signature at bottom of commercial column (A4 cutting list) */
+/* Prepared-by + signature directly below scratch in commercial filler (no flex push to pane bottom) */
 .cl-factory-commercial-filler > .cl-factory-sheet-signfoot--commercial-col {
-  margin-top: auto;
+  margin-top: 0;
   flex-shrink: 0;
 }
 
