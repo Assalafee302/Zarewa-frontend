@@ -422,7 +422,7 @@ function AppShell() {
             )}
 
             <div className="flex w-full min-w-0 max-w-full flex-row flex-wrap items-center gap-2 max-sm:justify-end sm:w-auto sm:flex-nowrap sm:justify-end sm:gap-4 lg:gap-5 max-sm:order-1">
-              <div className="max-sm:hidden min-w-0 sm:flex-initial sm:w-auto">
+              <div className="w-full min-w-0 basis-full max-sm:order-last max-sm:pt-1 sm:basis-auto sm:w-auto sm:order-none sm:pt-0">
                 <BranchWorkspaceBar />
               </div>
               <div className="flex shrink-0 items-center gap-1.5 sm:gap-4">
@@ -557,7 +557,7 @@ function AppShell() {
                   </button>
                   {userMenuOpen ? (
                     <div
-                      className="fixed inset-x-3 top-[max(4.5rem,calc(env(safe-area-inset-top)+3.5rem))] z-[70] mt-0 overflow-hidden rounded-2xl border border-gray-100 bg-white text-left shadow-xl shadow-slate-900/10 sm:absolute sm:inset-x-auto sm:right-0 sm:top-full sm:mt-2 sm:w-[min(20rem,calc(100vw-2rem))]"
+                      className="fixed inset-x-3 top-[max(4.5rem,calc(env(safe-area-inset-top)+3.5rem))] z-[70] mt-0 max-h-[min(72dvh,32rem)] overflow-y-auto overscroll-contain rounded-2xl border border-gray-100 bg-white text-left shadow-xl shadow-slate-900/10 sm:absolute sm:inset-x-auto sm:right-0 sm:top-full sm:mt-2 sm:w-[min(20rem,calc(100vw-2rem))] sm:max-h-[min(70vh,28rem)]"
                       role="menu"
                       aria-label="Account menu"
                       onClick={(e) => e.stopPropagation()}
@@ -640,7 +640,7 @@ function AppShell() {
           </div>
         </div>
 
-        <main id="main-content" className="min-w-0 max-w-full outline-none" tabIndex={-1}>
+        <main id="main-content" className="min-h-0 min-w-0 w-full max-w-full outline-none" tabIndex={-1}>
           <Routes>
             <Route path="/" element={<HomeRoute />} />
             <Route path="/exec" element={<ExecDashboard />} />

@@ -293,6 +293,10 @@ export default function QuotationPrintView({
                 <MetaField label="Project">{projectName?.trim() ? projectName.trim() : '—'}</MetaField>
               </div>
 
+              {customerPhone && customerPhone !== '—' ? (
+                <p className="text-sm text-slate-600 print:text-[8pt]">{customerPhone}</p>
+              ) : null}
+
               {documentKind === 'receipt' && linkedQuotationId ? (
                 <MetaField label="Quotation">{linkedQuotationId}</MetaField>
               ) : null}

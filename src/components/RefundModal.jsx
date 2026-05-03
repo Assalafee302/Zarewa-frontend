@@ -16,7 +16,6 @@ import { useToast } from '../context/ToastContext';
 import { apiFetch } from '../lib/apiBase';
 import { printRefundRecord } from '../lib/refundRecordPrint';
 import { refundApprovedAmount, refundOutstandingAmount } from '../lib/refundsStore';
-import { formatNgn } from '../Data/mockData';
 import { flattenQuotationLineItems } from '../lib/managerDashboardCore';
 import {
   productionJobStatusClosesRefundEligibility,
@@ -406,6 +405,22 @@ const RefundModal = ({
     });
   }, [form.quotationRef, quotations, intelligence.summary?.accessoriesSummary?.lines]);
 
+  const fetchIntelligence = async (quoteRef) => {
+    if (!quoteRef) return;
+    setLoadingIntelligence(true);
+    // Fetch detailed intelligence for the sidebar
+    const { ok, data } = await apiFetch(`/api/refunds/intelligence?quotationRef=${encodeURIComponent(quoteRef)}`);
+    setLoadingIntelligence(false);
+    if (ok && data?.ok) {
+      setIntelligence({
+        receipts: data.receipts || [],
+        cuttingLists: data.cuttingLists || [],
+        summary: data.summary || { producedMeters: 0, accessoriesSummary: { lines: [] } },
+        dataQualityIssues: Array.isArray(data.dataQualityIssues) ? data.dataQualityIssues : [],
+      });
+    }
+  };
+
   const generatePreview = async (quoteRef, categories) => {
     if (!quoteRef) return;
     setPreviewLoading(true);
@@ -493,23 +508,9 @@ const RefundModal = ({
   };
 
   const generatePreviewRef = useRef(generatePreview);
-  generatePreviewRef.current = generatePreview;
-
-  const fetchIntelligence = async (quoteRef) => {
-    if (!quoteRef) return;
-    setLoadingIntelligence(true);
-    // Fetch detailed intelligence for the sidebar
-    const { ok, data } = await apiFetch(`/api/refunds/intelligence?quotationRef=${encodeURIComponent(quoteRef)}`);
-    setLoadingIntelligence(false);
-    if (ok && data?.ok) {
-      setIntelligence({
-        receipts: data.receipts || [],
-        cuttingLists: data.cuttingLists || [],
-        summary: data.summary || { producedMeters: 0, accessoriesSummary: { lines: [] } },
-        dataQualityIssues: Array.isArray(data.dataQualityIssues) ? data.dataQualityIssues : [],
-      });
-    }
-  };
+  useEffect(() => {
+    generatePreviewRef.current = generatePreview;
+  }, [generatePreview]);
 
   const toggleCategory = (cat) => {
     if (blockedRefundCategories.includes(cat)) return;
@@ -723,7 +724,7 @@ const RefundModal = ({
 
   return (
     <ModalFrame isOpen={isOpen} onClose={onClose}>
-      <div className="z-modal-panel max-w-[min(100%,72rem)] w-full max-h-[min(94vh,920px)] flex flex-col mx-auto bg-slate-50 rounded-2xl shadow-2xl transition-all duration-300">
+      <div className="z-modal-panel max-w-[min(100%,72rem)] w-full min-w-0 max-h-[min(94vh,920px)] flex flex-col mx-auto bg-slate-50 rounded-2xl shadow-2xl transition-all duration-300">
         {/* Header */}
         <div className="px-6 py-5 border-b border-slate-200/60 flex justify-between items-center bg-white/80 backdrop-blur-md rounded-t-2xl shrink-0">
           <div className="flex items-center gap-4">

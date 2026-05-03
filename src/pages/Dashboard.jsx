@@ -62,7 +62,7 @@ const Dashboard = () => {
 
   return (
     <PageShell>
-      <div className="space-y-8 px-1 pb-10">
+      <div className="min-w-0 space-y-8 px-1 pb-10">
         <div className="flex min-w-0 justify-end">
           <AiAskButton
             mode="search"

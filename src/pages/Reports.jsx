@@ -1219,8 +1219,8 @@ const Reports = () => {
         </p>
       ) : null}
 
-      <MainPanel className="!p-0 overflow-hidden sm:!p-0">
-        <div className="p-6 sm:p-8 space-y-10">
+      <MainPanel className="!p-0 min-w-0 overflow-x-auto sm:!p-0">
+        <div className="p-4 sm:p-8 space-y-10 min-w-0">
         {countOnlyOverview && (
           <div className={`${PANEL} border-teal-100/80 bg-teal-50/30`}>
             <h3 className={SUBHDR}>Count-only overview</h3>

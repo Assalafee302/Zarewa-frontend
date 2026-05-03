@@ -75,7 +75,7 @@ summary {
 
 /* Shared field styles — keep list pages visually aligned */
 .z-input-search {
-  @apply w-full bg-gray-50 border border-gray-100 rounded-xl py-2.5 pl-10 pr-4 text-sm outline-none transition-all;
+  @apply w-full bg-gray-50 border border-gray-100 rounded-xl py-2.5 pl-10 pr-4 text-base sm:text-sm outline-none transition-all;
   @apply focus:border-teal-500/30 focus:ring-2 focus:ring-zarewa-teal/10;
 }
 
@@ -145,23 +145,23 @@ summary {
 }
 
 .z-textarea {
-  @apply w-full bg-gray-50 border border-gray-100 rounded-xl py-3 px-4 text-sm font-medium text-gray-800 outline-none transition-all resize-none;
+  @apply w-full bg-gray-50 border border-gray-100 rounded-xl py-3 px-4 text-base sm:text-sm font-medium text-gray-800 outline-none transition-all resize-none;
   @apply focus:border-teal-500/35 focus:ring-2 focus:ring-zarewa-teal/10;
 }
 
 .z-select {
-  @apply w-full bg-gray-50 border border-gray-100 rounded-xl py-3 px-4 text-sm font-semibold text-zarewa-teal appearance-none outline-none cursor-pointer transition-all;
+  @apply w-full bg-gray-50 border border-gray-100 rounded-xl py-3 px-4 text-base sm:text-sm font-semibold text-zarewa-teal appearance-none outline-none cursor-pointer transition-all;
   @apply focus:border-teal-500/35 focus:ring-2 focus:ring-zarewa-teal/10;
 }
 
 /* Modal inner panels (sits inside ModalFrame) */
 .z-modal-panel {
-  @apply w-full max-h-[min(90vh,900px)] overflow-hidden flex flex-col rounded-[32px] bg-white/98 shadow-2xl border border-white/80;
+  @apply w-full max-h-[min(90vh,900px)] overflow-hidden flex flex-col rounded-[32px] bg-white/98 shadow-2xl border border-white/80 pb-[max(0.75rem,env(safe-area-inset-bottom))];
   box-shadow: var(--shadow-zarewa-card);
 }
 
 .z-modal-panel-lg {
-  @apply w-full max-w-[min(100%,1152px)] max-h-[min(92vh,920px)] overflow-hidden flex flex-col rounded-[32px] bg-white/98 shadow-2xl border border-white/80;
+  @apply w-full max-w-[min(100%,1152px)] max-h-[min(92vh,920px)] overflow-hidden flex flex-col rounded-[32px] bg-white/98 shadow-2xl border border-white/80 pb-[max(0.75rem,env(safe-area-inset-bottom))];
   box-shadow: var(--shadow-zarewa-card);
 }
 

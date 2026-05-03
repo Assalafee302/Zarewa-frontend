@@ -1456,7 +1456,7 @@ const Account = () => {
         }
       />
 
-      <div className="grid grid-cols-1 gap-8 lg:gap-10 lg:grid-cols-4">
+      <div className="grid min-w-0 grid-cols-1 gap-8 lg:gap-10 lg:grid-cols-4">
         <div className="lg:col-span-1 space-y-6">
           <div className="rounded-zarewa border border-slate-200/80 border-l-[3px] border-l-[#134e4a] bg-white p-6 shadow-[var(--shadow-sequence)]">
             <h3 className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-400 mb-3">

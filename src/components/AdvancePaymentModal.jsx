@@ -146,7 +146,7 @@ const AdvancePaymentModal = ({
       <>
       <form
         onSubmit={submit}
-        className="z-modal-panel max-w-[min(100%,26rem)] w-full max-h-[min(92vh,640px)] flex flex-col bg-white"
+        className="z-modal-panel max-w-[min(100%,26rem)] w-full min-w-0 max-h-[min(92vh,640px)] flex flex-col bg-white"
       >
         <div className="px-5 py-4 border-b border-slate-200 flex justify-between items-center shrink-0">
           <div className="flex items-center gap-3 min-w-0">

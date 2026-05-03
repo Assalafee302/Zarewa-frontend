@@ -58,7 +58,7 @@ export default function ExecDashboard() {
       ) : null}
 
       {data ? (
-        <div className="space-y-8">
+        <div className="space-y-8 min-w-0">
           <section className="rounded-2xl border border-slate-200/90 bg-white p-6 shadow-sm">
             <h2 className="flex items-center gap-2 text-sm font-black uppercase tracking-wider text-[#134e4a]">
               <BarChart3 size={18} className="text-teal-600" />

@@ -60,7 +60,7 @@ describe('LoginScreen', () => {
       expect(mockLogin).toHaveBeenCalledWith('admin', 'Admin@123');
     });
     await waitFor(() => {
-      expect(mockNavigate).toHaveBeenCalledWith('/settings', { replace: true });
+      expect(mockNavigate).toHaveBeenCalledWith('/office', { replace: true });
     });
   });
 

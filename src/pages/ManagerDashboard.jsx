@@ -1105,7 +1105,7 @@ const ManagerDashboard = () => {
         </p>
       ) : null}
 
-      <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start min-w-0">
         <div className="xl:col-span-7 space-y-6">
           <Card className="overflow-hidden border-slate-200/90 shadow-sm">
             <div className="p-4 border-b border-slate-100 bg-slate-50/80">

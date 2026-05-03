@@ -655,7 +655,7 @@ const CuttingListModal = ({
     <ModalFrame isOpen={isOpen} onClose={onClose} modal={!showPrintPreview}>
       <form
         onSubmit={submit}
-        className="z-modal-panel max-w-[min(100%,52rem)] w-full max-h-[min(92vh,860px)] flex flex-col"
+        className="z-modal-panel max-w-[min(100%,52rem)] w-full min-w-0 max-h-[min(92vh,860px)] flex flex-col"
       >
         <div className="no-print px-5 py-4 border-b border-slate-200 flex justify-between items-center bg-white shrink-0 gap-3">
           <div className="flex items-center gap-3 min-w-0">

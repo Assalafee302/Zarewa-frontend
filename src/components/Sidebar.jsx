@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Button } from './ui';
@@ -28,9 +28,25 @@ const Sidebar = ({ mobileOpen = false, onCloseMobile, collapsed = false, onToggl
   const location = useLocation();
   const ws = useWorkspace();
   const p = location.pathname;
+  const navRef = useRef(null);
   const closeIfMobile = () => {
     onCloseMobile?.();
   };
+
+  useEffect(() => {
+    if (!mobileOpen) return undefined;
+    const onKey = (e) => {
+      if (e.key === 'Escape') onCloseMobile?.();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [mobileOpen, onCloseMobile]);
+
+  useEffect(() => {
+    if (!mobileOpen) return;
+    const first = navRef.current?.querySelector('a[href]');
+    window.requestAnimationFrame(() => first?.focus?.());
+  }, [mobileOpen]);
 
   const linkClass = (active) =>
     `w-full flex items-center gap-4 px-4 py-3.5 rounded-xl transition-all duration-300 group no-underline ${
@@ -151,8 +167,9 @@ const Sidebar = ({ mobileOpen = false, onCloseMobile, collapsed = false, onToggl
       </div>
 
       <nav
+        ref={navRef}
         id="sidebar-nav"
-        className="custom-scrollbar -mr-1 flex-1 space-y-1 overflow-y-auto pr-1"
+        className="custom-scrollbar -mr-1 flex-1 space-y-1 overflow-y-auto overscroll-y-contain pr-1"
         aria-label="Modules"
       >
         {menuItems.map((item) => {

@@ -56,7 +56,7 @@ export function ModalFrame({
               />
             </DialogPrimitive.Overlay>
             <DialogPrimitive.Content asChild>
-              <div className="fixed inset-0 z-[1060] flex items-start justify-center overflow-y-auto overscroll-y-contain px-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] pb-8 pt-[max(1.25rem,env(safe-area-inset-top))] outline-none sm:items-center sm:px-6 sm:py-12">
+              <div className="fixed inset-0 z-[1060] flex items-start justify-center overflow-y-auto overscroll-y-contain px-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] pb-[max(2rem,env(safe-area-inset-bottom))] pt-[max(1.25rem,env(safe-area-inset-top))] outline-none sm:items-center sm:px-6 sm:py-12">
                 <DialogPrimitive.Title className="sr-only">{title}</DialogPrimitive.Title>
                 <DialogPrimitive.Description className="sr-only">
                   {description ?? 'Modal dialog content.'}

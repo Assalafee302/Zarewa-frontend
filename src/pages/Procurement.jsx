@@ -1314,7 +1314,7 @@ const Procurement = () => {
         }
       />
 
-      <div className="grid grid-cols-1 gap-4 lg:gap-6">
+      <div className="grid grid-cols-1 gap-4 lg:gap-6 min-w-0">
         <div className="col-span-full order-1">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <div className="rounded-xl border border-slate-200 bg-white p-3">

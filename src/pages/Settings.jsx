@@ -412,8 +412,8 @@ const Settings = () => {
         }
       />
 
-      <MainPanel className="max-w-5xl">
-        <div className="relative z-[1]">
+      <MainPanel className="max-w-5xl min-w-0">
+        <div className="relative z-[1] min-w-0">
           <Routes>
             <Route index element={<Navigate to="profile" replace />} />
             <Route path="profile" element={<SettingsProfilePanel />} />

@@ -290,7 +290,7 @@ export default function CoilProfile() {
         }
       />
 
-      <div className="flex flex-col lg:flex-row gap-6 lg:gap-8 items-start">
+      <div className="flex flex-col lg:flex-row gap-6 lg:gap-8 items-start min-w-0">
         <aside className="w-full lg:w-56 shrink-0 lg:sticky lg:top-24 space-y-1">
           <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 px-3 mb-2">On this page</p>
           {NAV.map((item) => {

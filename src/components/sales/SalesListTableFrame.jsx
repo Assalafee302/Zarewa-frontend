@@ -5,7 +5,7 @@ import { Search } from 'lucide-react';
  */
 export function SalesListTableFrame({ toolbar, children }) {
   return (
-    <div className="max-w-full min-w-0 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+    <div className="z-scroll-x max-w-full min-w-0 rounded-xl border border-slate-200 bg-white shadow-sm">
       <div className="space-y-3 border-b border-slate-200 bg-slate-50/90 px-3 py-3 sm:px-4">{toolbar}</div>
       <div className="min-w-0 p-3 sm:p-4">{children}</div>
     </div>
@@ -26,7 +26,7 @@ export function SalesListSearchInput({ value, onChange, placeholder }) {
         autoComplete="off"
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full bg-white border border-slate-200 rounded-lg py-2 pl-10 pr-3 text-[11px] font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-[#134e4a]/35 focus:ring-2 focus:ring-[#134e4a]/10 shadow-sm"
+        className="w-full bg-white border border-slate-200 rounded-lg py-2.5 pl-10 pr-3 text-base sm:text-[11px] font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 focus:border-[#134e4a]/35 focus:ring-2 focus:ring-[#134e4a]/10 shadow-sm"
       />
     </div>
   );
@@ -39,7 +39,7 @@ export function SalesListSortBar({ fields, field, dir, onFieldChange, onDirToggl
       <select
         value={field}
         onChange={(e) => onFieldChange(e.target.value)}
-        className="min-w-0 max-w-full rounded-lg border border-slate-200 bg-white py-1.5 pl-2 pr-7 text-[10px] font-bold text-[#134e4a] outline-none focus:border-[#134e4a]/35 focus:ring-2 focus:ring-[#134e4a]/10"
+        className="min-w-0 max-w-full rounded-lg border border-slate-200 bg-white py-2 pl-2 pr-7 text-base sm:text-[10px] font-bold text-[#134e4a] outline-none focus:border-[#134e4a]/35 focus:ring-2 focus:ring-[#134e4a]/10"
       >
         {fields.map((f) => (
           <option key={f.id} value={f.id}>

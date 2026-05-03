@@ -1336,7 +1336,7 @@ const Operations = () => {
         />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 lg:gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 lg:gap-8 min-w-0">
         {activeTab === 'inventory' ? (
         <div className="col-span-full w-full order-2">
           <div className="mb-2 rounded-lg border border-slate-200/80 bg-slate-50/80 px-2 py-2 sm:px-3">

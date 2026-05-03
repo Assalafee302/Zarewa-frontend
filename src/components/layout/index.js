@@ -4,5 +4,6 @@ export { MainPanel } from './MainPanel';
 export { FinancePilotHeader } from './FinancePilotHeader';
 export { FinanceSequencePanel } from './FinanceSequencePanel';
 export { PageShell } from './PageShell';
+export { ResponsiveTableShell } from './ResponsiveTableShell';
 export { ModalFrame } from './ModalFrame';
 export { SlideOverPanel } from './SlideOverPanel';

@@ -863,7 +863,7 @@ const QuotationModal = ({
 
   return (
     <ModalFrame isOpen={isOpen} onClose={onClose} modal={!showPrint}>
-      <div className="z-modal-panel max-w-[min(100%,210mm)] w-full max-h-[min(92vh,820px)] flex flex-col">
+      <div className="z-modal-panel max-w-[min(100%,210mm)] w-full min-w-0 max-h-[min(92vh,820px)] flex flex-col">
         <div className="px-5 py-4 border-b border-slate-200 flex justify-between items-center shrink-0 bg-white gap-3">
           <div className="flex items-center gap-3 min-w-0">
             <div className="w-10 h-10 bg-[#134e4a] rounded-xl flex items-center justify-center text-white font-bold text-sm shrink-0">

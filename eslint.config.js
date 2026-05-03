@@ -25,6 +25,8 @@ export default defineConfig([
     rules: {
       'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]|^motion$' }],
       'react-hooks/set-state-in-effect': 'off',
+      // React Compiler rule: optional-chained snapshot deps vs full `ws`/`snapshot` — too noisy until full compiler migration.
+      'react-hooks/preserve-manual-memoization': 'off',
     },
   },
   {

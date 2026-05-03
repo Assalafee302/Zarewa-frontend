@@ -458,7 +458,7 @@ const ReceiptModal = ({
       <form
         key={`${editData?.id ?? 'new'}-${ledgerNonce}`}
         onSubmit={saveReceipt}
-        className="z-modal-panel max-w-[min(100%,56rem)] w-full max-h-[min(92vh,820px)] flex flex-col"
+        className="z-modal-panel max-w-[min(100%,56rem)] w-full min-w-0 max-h-[min(92vh,820px)] flex flex-col"
       >
         <div className="px-5 py-4 border-b border-slate-200 flex justify-between items-center bg-white shrink-0 gap-3">
           <div className="flex items-center gap-3 min-w-0">

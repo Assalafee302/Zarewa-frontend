@@ -7,7 +7,7 @@ const NotFound = () => {
   return (
     <PageShell>
       <PageHeader eyebrow="Workspace" title="Page not found" subtitle="That route does not exist in this workspace." />
-      <MainPanel className="max-w-lg">
+      <MainPanel className="max-w-lg min-w-0">
         <p className="text-sm text-gray-600 mb-6">
           Check the sidebar for available modules, or return to the dashboard.
         </p>

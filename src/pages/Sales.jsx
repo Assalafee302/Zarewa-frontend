@@ -1003,7 +1003,7 @@ const Sales = () => {
                          <select 
                            value={stockMatType} 
                            onChange={(e) => setStockMatType(e.target.value)}
-                           className="w-full appearance-none rounded-lg border border-slate-200 bg-slate-50 py-2 pl-3 pr-8 text-xs font-semibold text-[#134e4a] focus:ring-2 focus:ring-[#134e4a]/10 focus:border-[#134e4a]/30 outline-none"
+                           className="w-full appearance-none rounded-lg border border-slate-200 bg-slate-50 py-2.5 pl-3 pr-8 text-base sm:text-xs font-semibold text-[#134e4a] focus:ring-2 focus:ring-[#134e4a]/10 focus:border-[#134e4a]/30 outline-none"
                          >
                            <option value="">Any type</option>
                            {stockSearchOptions.types.map((t) => (

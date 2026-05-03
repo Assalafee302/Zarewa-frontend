@@ -189,7 +189,12 @@ function WaybillBranchesBlock({ branches, compact }) {
 }
 
 function WaybillCutConfirmBlock({ grouped, cutStartIndex, fullRightColumn, categories }) {
-  let idx = cutStartIndex;
+  const startIndexByType = {};
+  let running = cutStartIndex;
+  for (const { type } of categories) {
+    startIndexByType[type] = running;
+    running += (grouped[type] ?? []).length;
+  }
   const anyLines = categories.some(({ type }) => (grouped[type] ?? []).length > 0);
   return (
     <div
@@ -203,8 +208,9 @@ function WaybillCutConfirmBlock({ grouped, cutStartIndex, fullRightColumn, categ
         {categories.map(({ type, title }) => {
           const slice = grouped[type];
           if (!slice?.length) return null;
-          const block = <CuttingCategoryTable title={title} lines={slice} startIndex={idx} />;
-          idx += slice.length;
+          const block = (
+            <CuttingCategoryTable title={title} lines={slice} startIndex={startIndexByType[type]} />
+          );
           return <div key={type}>{block}</div>;
         })}
         {!anyLines ? <p className="cl-factory-cut-empty">No cutting lines on this section.</p> : null}
@@ -498,7 +504,14 @@ export default function CuttingListReportPrintView({
 
   const chunk = flatLines.length > 0 ? flatLines : [];
   const grouped = groupByType(chunk);
-  let idx = 0;
+  const cutStartIndexByType = {};
+  {
+    let running = 0;
+    for (const { type } of PRINT_CUT_LINE_CATEGORIES) {
+      cutStartIndexByType[type] = running;
+      running += (grouped[type] ?? []).length;
+    }
+  }
 
   const printSheetsWaybill = flatLinesWaybill.reduce((s, l) => s + l.sheets, 0);
   const printMetresWaybill = flatLinesWaybill.reduce((s, l) => s + l.sheets * l.lengthM, 0);
@@ -625,8 +638,13 @@ export default function CuttingListReportPrintView({
                 {PRINT_CUT_LINE_CATEGORIES.map(({ type, title }) => {
                   const slice = grouped[type];
                   if (!slice?.length) return null;
-                  const block = <CuttingCategoryTable title={title} lines={slice} startIndex={idx} />;
-                  idx += slice.length;
+                  const block = (
+                    <CuttingCategoryTable
+                      title={title}
+                      lines={slice}
+                      startIndex={cutStartIndexByType[type]}
+                    />
+                  );
                   return <div key={type}>{block}</div>;
                 })}
                 {chunk.length === 0 ? (

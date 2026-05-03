@@ -54,7 +54,7 @@ export default function EditApprovalsPage() {
         subtitle="Approve one-time tokens so staff can complete sensitive saves (each token is consumed on the next successful PATCH)."
       />
       <MainPanel>
-        <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
+        <div className="flex min-w-0 w-full flex-wrap items-center justify-between gap-3 mb-6">
           <p className="text-xs text-slate-600 max-w-xl leading-relaxed">
             When someone requests approval from a quotation, purchase order, customer profile, delivery confirmation,
             or similar screen, their request appears here. Approve only after you agree with the change they described.

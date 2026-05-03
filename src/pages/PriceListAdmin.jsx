@@ -14,7 +14,7 @@ export default function PriceListAdmin() {
   }
 
   return (
-    <MainPanel>
+    <MainPanel className="min-w-0">
       <PageHeader
         title="Price list"
         subtitle="Floor prices (₦/m) in price_list_items: validated effective dates, duplicate detection, optional material/colour/profile keys, and CSV export. Also available under Procurement → Conversion."
