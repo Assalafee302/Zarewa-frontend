@@ -1305,21 +1305,47 @@ summary {
   grid-template-columns: 1.08fr 0.92fr;
 }
 
-/* A4 landscape: full-width banner, full-width refs/meta, then cut | commercial */
+/* A4 landscape: cut | commercial; banner + refs live above the commercial column only */
 .cl-factory-body--cut-first.cl-factory-body--a4-landscape-left {
   grid-template-columns: 1fr 1fr;
-  grid-template-rows: auto auto minmax(0, 1fr);
   gap: 1mm 1.35mm;
   align-items: stretch;
 }
 
-.cl-factory-body--cut-first.cl-factory-body--a4-landscape-left > .cl-factory-banner--a4-cut-grid {
-  grid-column: 1 / -1;
+.cl-factory-commercial-sheet-head {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.55mm;
+  flex-shrink: 0;
+  margin-bottom: 0.45mm;
+}
+
+.cl-factory-banner--a4-cut-grid--over-commercial {
   margin-bottom: 0;
 }
 
-.cl-factory-body--cut-first.cl-factory-body--a4-landscape-left > .cl-factory-commercial-meta {
-  grid-column: 1 / -1;
+.cl-factory-banner--a4-cut-grid--over-commercial .cl-factory-banner-inner--balanced {
+  grid-template-columns: minmax(6.5mm, auto) minmax(0, 1fr);
+  gap: 0.75mm 0.9mm;
+}
+
+.cl-factory-banner--a4-cut-grid--over-commercial .cl-factory-banner-side--spacer {
+  display: none;
+}
+
+.cl-factory-banner--a4-cut-grid--over-commercial .cl-factory-banner-titles--center {
+  text-align: left;
+}
+
+.cl-factory-banner--a4-cut-grid--over-commercial .cl-factory-logo-ring {
+  width: 7.25mm;
+  height: 7.25mm;
+}
+
+.cl-factory-banner--a4-cut-grid--over-commercial .cl-factory-logo-img {
+  width: 4.6mm;
+  height: 4.6mm;
 }
 
 .cl-factory-banner--a4-cut-grid .cl-factory-banner-inner {

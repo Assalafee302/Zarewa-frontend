@@ -549,39 +549,6 @@ export default function CuttingListReportPrintView({
         <div className="cl-a4-landscape-split">
           <div className="cl-a4-pane cl-a4-pane--cutting">
             <div className="cl-factory-body cl-factory-body--cut-first cl-factory-body--a4-landscape-left">
-              <header className="cl-factory-banner cl-factory-banner--a4-cut-grid shrink-0">
-                <div className="cl-factory-banner-accent" aria-hidden />
-                <div className="cl-factory-banner-inner cl-factory-banner-inner--balanced">
-                  <div className="cl-factory-banner-side">
-                    <div className="cl-factory-logo-ring">
-                      <img src={b.logoSrc} alt="" className="cl-factory-logo-img" />
-                    </div>
-                  </div>
-                  <div className="cl-factory-banner-titles cl-factory-banner-titles--center">
-                    <p className="cl-factory-legal-name">{b.legalName}</p>
-                    <h1 className="cl-factory-doc-title">Cutting list</h1>
-                  </div>
-                  <div className="cl-factory-banner-side cl-factory-banner-side--spacer" aria-hidden />
-                </div>
-              </header>
-              <div className="cl-factory-commercial-meta shrink-0">
-                <FactoryRefLine
-                  cuttingListId={cuttingListId}
-                  cutDate={cutDate}
-                  quotationRef={quotationRef}
-                  ariaLabel="Cutting list references"
-                />
-                <div className="cl-factory-subbar cl-factory-subbar--double">
-                  <span className="cl-factory-subbar-seg">
-                    <span className="cl-factory-subbar-k">Project</span>
-                    <span className="cl-factory-subbar-v">{selectedQuotation?.projectName ?? '—'}</span>
-                  </span>
-                  <span className="cl-factory-subbar-seg">
-                    <span className="cl-factory-subbar-k">Material</span>
-                    <span className="cl-factory-subbar-v">{materialInfoValue}</span>
-                  </span>
-                </div>
-              </div>
               <div className="cl-factory-col-cut cl-factory-panel cl-factory-panel--accent cl-factory-panel--cut-list min-w-0">
                 {PRINT_CUT_LINE_CATEGORIES.map(({ type, title }) => {
                   const slice = grouped[type];
@@ -596,6 +563,41 @@ export default function CuttingListReportPrintView({
               </div>
 
               <div className="cl-factory-col-commercial cl-factory-panel min-w-0">
+                <div className="cl-factory-commercial-sheet-head shrink-0">
+                  <header className="cl-factory-banner cl-factory-banner--a4-cut-grid cl-factory-banner--a4-cut-grid--over-commercial shrink-0">
+                    <div className="cl-factory-banner-accent" aria-hidden />
+                    <div className="cl-factory-banner-inner cl-factory-banner-inner--balanced">
+                      <div className="cl-factory-banner-side">
+                        <div className="cl-factory-logo-ring">
+                          <img src={b.logoSrc} alt="" className="cl-factory-logo-img" />
+                        </div>
+                      </div>
+                      <div className="cl-factory-banner-titles cl-factory-banner-titles--center">
+                        <p className="cl-factory-legal-name">{b.legalName}</p>
+                        <h1 className="cl-factory-doc-title">Cutting list</h1>
+                      </div>
+                      <div className="cl-factory-banner-side cl-factory-banner-side--spacer" aria-hidden />
+                    </div>
+                  </header>
+                  <div className="cl-factory-commercial-meta shrink-0">
+                    <FactoryRefLine
+                      cuttingListId={cuttingListId}
+                      cutDate={cutDate}
+                      quotationRef={quotationRef}
+                      ariaLabel="Cutting list references"
+                    />
+                    <div className="cl-factory-subbar cl-factory-subbar--double">
+                      <span className="cl-factory-subbar-seg">
+                        <span className="cl-factory-subbar-k">Project</span>
+                        <span className="cl-factory-subbar-v">{selectedQuotation?.projectName ?? '—'}</span>
+                      </span>
+                      <span className="cl-factory-subbar-seg">
+                        <span className="cl-factory-subbar-k">Material</span>
+                        <span className="cl-factory-subbar-v">{materialInfoValue}</span>
+                      </span>
+                    </div>
+                  </div>
+                </div>
                 <div className="cl-factory-commercial-filler">
                   <QuotationLinesOneTable rows={mergedQuotationLineRows} grandTotal={grand} />
 
