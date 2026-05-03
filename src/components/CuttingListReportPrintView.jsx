@@ -549,19 +549,6 @@ export default function CuttingListReportPrintView({
         <div className="cl-a4-landscape-split">
           <div className="cl-a4-pane cl-a4-pane--cutting">
             <div className="cl-factory-body cl-factory-body--cut-first cl-factory-body--a4-landscape-left">
-              <div className="cl-factory-col-cut cl-factory-panel cl-factory-panel--accent cl-factory-panel--cut-list min-w-0">
-                {PRINT_CUT_LINE_CATEGORIES.map(({ type, title }) => {
-                  const slice = grouped[type];
-                  if (!slice?.length) return null;
-                  const block = <CuttingCategoryTable title={title} lines={slice} startIndex={idx} />;
-                  idx += slice.length;
-                  return <div key={type}>{block}</div>;
-                })}
-                {chunk.length === 0 ? (
-                  <p className="cl-factory-cut-empty">No cutting lines with qty and length (roof, flat, or cladding).</p>
-                ) : null}
-              </div>
-
               <div className="cl-factory-col-commercial cl-factory-panel min-w-0">
                 <div className="cl-factory-commercial-sheet-head shrink-0">
                   <header className="cl-factory-banner cl-factory-banner--a4-cut-grid cl-factory-banner--a4-cut-grid--over-commercial shrink-0">
@@ -616,6 +603,19 @@ export default function CuttingListReportPrintView({
                     <ProductionScratchpad />
                   </div>
                 </div>
+              </div>
+
+              <div className="cl-factory-col-cut cl-factory-panel cl-factory-panel--accent cl-factory-panel--cut-list min-w-0">
+                {PRINT_CUT_LINE_CATEGORIES.map(({ type, title }) => {
+                  const slice = grouped[type];
+                  if (!slice?.length) return null;
+                  const block = <CuttingCategoryTable title={title} lines={slice} startIndex={idx} />;
+                  idx += slice.length;
+                  return <div key={type}>{block}</div>;
+                })}
+                {chunk.length === 0 ? (
+                  <p className="cl-factory-cut-empty">No cutting lines with qty and length (roof, flat, or cladding).</p>
+                ) : null}
               </div>
             </div>
             <div

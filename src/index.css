@@ -1300,14 +1300,14 @@ summary {
   min-height: 0;
 }
 
-/* Cutting lengths column first, slightly wider for numbers */
+/* Commercial column left, cut list right; cut column slightly wider for numbers */
 .cl-factory-body--cut-first {
-  grid-template-columns: 1.08fr 0.92fr;
+  grid-template-columns: 0.92fr 1.08fr;
 }
 
-/* A4 landscape: cut | commercial; banner + refs live above the commercial column only */
+/* A4 landscape: commercial | cut; banner + refs above commercial column only */
 .cl-factory-body--cut-first.cl-factory-body--a4-landscape-left {
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 0.92fr 1.08fr;
   gap: 1mm 1.35mm;
   align-items: stretch;
 }
