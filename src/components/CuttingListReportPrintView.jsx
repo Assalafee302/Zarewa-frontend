@@ -602,6 +602,22 @@ export default function CuttingListReportPrintView({
                   <div className="cl-factory-scratch-anchor cl-factory-scratch-anchor--after-receipts">
                     <ProductionScratchpad />
                   </div>
+
+                  <div
+                    className="cl-factory-sheet-signfoot cl-factory-sheet-signfoot--a4-cutting-pane cl-factory-sheet-signfoot--stacked cl-factory-sheet-signfoot--commercial-col shrink-0"
+                    aria-label="Prepared by and signature"
+                  >
+                    <div className="cl-factory-prepared-by-footer" aria-label="Cutting list prepared by">
+                      <span className="cl-factory-created-by-k">Cutting list prepared by</span>
+                      <span className="cl-factory-created-by-v">{productionFooterName || '—'}</span>
+                    </div>
+                    <div className="cl-factory-signfoot-signature-row">
+                      <div className="cl-factory-sign-cell">
+                        <div className="cl-factory-sign-line" />
+                        <p className="cl-factory-sign-label">Signature</p>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -616,21 +632,6 @@ export default function CuttingListReportPrintView({
                 {chunk.length === 0 ? (
                   <p className="cl-factory-cut-empty">No cutting lines with qty and length (roof, flat, or cladding).</p>
                 ) : null}
-              </div>
-            </div>
-            <div
-              className="cl-factory-sheet-signfoot cl-factory-sheet-signfoot--a4-cutting-pane cl-factory-sheet-signfoot--stacked shrink-0"
-              aria-label="Prepared by and signature"
-            >
-              <div className="cl-factory-prepared-by-footer" aria-label="Cutting list prepared by">
-                <span className="cl-factory-created-by-k">Cutting list prepared by</span>
-                <span className="cl-factory-created-by-v">{productionFooterName || '—'}</span>
-              </div>
-              <div className="cl-factory-signfoot-signature-row">
-                <div className="cl-factory-sign-cell">
-                  <div className="cl-factory-sign-line" />
-                  <p className="cl-factory-sign-label">Signature</p>
-                </div>
               </div>
             </div>
           </div>

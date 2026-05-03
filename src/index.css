@@ -1381,6 +1381,12 @@ summary {
   align-self: stretch;
 }
 
+/* Prepared-by + signature at bottom of commercial column (A4 cutting list) */
+.cl-factory-commercial-filler > .cl-factory-sheet-signfoot--commercial-col {
+  margin-top: auto;
+  flex-shrink: 0;
+}
+
 .cl-factory-commercial-filler {
   flex: 1 1 auto;
   min-height: 0;
