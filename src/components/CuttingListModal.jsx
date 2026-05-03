@@ -1110,7 +1110,7 @@ const CuttingListModal = ({
                     <button
                       type="button"
                       onClick={() => window.print()}
-                      title="In the print dialog: paper A4, layout Landscape. If one sheet is slightly too tall, choose Scale → Fit to page."
+                      title="The layout uses A4 landscape (@page). Most browsers open the print dialog with A4 and landscape pre-selected; if not, choose them manually. Use Scale → Fit to page only if content still clips."
                       className="rounded-lg bg-[#134e4a] px-5 py-2.5 text-[10px] font-semibold uppercase tracking-wide text-white shadow-lg"
                     >
                       Print / Save PDF · A4 landscape
@@ -1124,8 +1124,9 @@ const CuttingListModal = ({
                     </button>
                   </div>
                   <p className="text-center text-[9px] text-slate-500 max-w-sm leading-snug">
-                    A4 landscape · one sheet per section · use <span className="font-semibold text-slate-600">Fit to page</span> if the preview
-                    clips
+                    Stylesheet uses <span className="font-semibold text-slate-600">A4 landscape</span> (named @page) so one sheet usually fits
+                    without a blank second page. If the dialog shows Letter or portrait, switch to A4 and landscape. Use{' '}
+                    <span className="font-semibold text-slate-600">Fit to page</span> only if something still clips.
                   </p>
                 </div>
               </div>

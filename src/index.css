@@ -753,8 +753,8 @@ summary {
 /* Cutting list A4 landscape — left = factory pack, right = waybill */
 @page cutting-list-a4-landscape {
   margin: 5mm 6mm;
-  /* Explicit long/short edge — some engines ignore named page if a later generic @page sets portrait. */
-  size: 297mm 210mm;
+  /* Keyword form helps Chromium suggest A4 landscape in the print dialog. */
+  size: A4 landscape;
 }
 
 .cutting-list-a4-landscape-report-root {
@@ -2224,7 +2224,7 @@ summary {
 
   @page cutting-list-a4-landscape {
     margin: 5mm 6mm;
-    size: 297mm 210mm;
+    size: A4 landscape;
   }
 
   @page receipt-a5-landscape {
@@ -2400,6 +2400,8 @@ summary {
     max-width: none !important;
     padding-bottom: 0 !important;
     page: cutting-list-a4-landscape;
+    break-after: avoid-page;
+    page-break-after: avoid;
   }
 
   .print-portal-scroll:has(.cutting-list-a4-landscape-report-root) {
@@ -2422,6 +2424,23 @@ summary {
     z-index: auto !important;
     pointer-events: auto !important;
     overflow: visible !important;
+    break-after: avoid-page;
+    page-break-after: avoid;
+  }
+
+  /*
+   * Screen uses min-height: 210mm so the preview “feels” like a sheet. In print, that equals
+   * the physical page height while @page margins shrink the content box — content is ~10mm
+   * taller than the first page and spills to a blank page 2. Let height follow content in print.
+   */
+  .cutting-list-a4-landscape-sheet,
+  .cutting-list-factory-root .cutting-list-a4-landscape-sheet {
+    min-height: 0 !important;
+    height: auto !important;
+  }
+
+  .cutting-list-a4-landscape-sheet--continuation {
+    min-height: 0 !important;
   }
 
   html[data-print-cutting-list-a4] {
