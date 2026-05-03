@@ -548,88 +548,90 @@ export default function CuttingListReportPrintView({
       <section className="cutting-list-a4-landscape-sheet">
         <div className="cl-a4-landscape-split">
           <div className="cl-a4-pane cl-a4-pane--cutting">
-            <header className="cl-factory-banner shrink-0">
-                      <div className="cl-factory-banner-accent" aria-hidden />
-                      <div className="cl-factory-banner-inner cl-factory-banner-inner--balanced">
-                        <div className="cl-factory-banner-side">
-                          <div className="cl-factory-logo-ring">
-                            <img src={b.logoSrc} alt="" className="cl-factory-logo-img" />
-                          </div>
-                        </div>
-                        <div className="cl-factory-banner-titles cl-factory-banner-titles--center">
-                          <p className="cl-factory-legal-name">{b.legalName}</p>
-                          <h1 className="cl-factory-doc-title">Cutting list</h1>
-                        </div>
-                        <div className="cl-factory-banner-side cl-factory-banner-side--spacer" aria-hidden />
-                      </div>
-                      <FactoryRefLine
-                        cuttingListId={cuttingListId}
-                        cutDate={cutDate}
-                        quotationRef={quotationRef}
-                        ariaLabel="Cutting list references"
-                      />
-                      <div className="cl-factory-subbar cl-factory-subbar--double">
-                        <span className="cl-factory-subbar-seg">
-                          <span className="cl-factory-subbar-k">Project</span>
-                          <span className="cl-factory-subbar-v">{selectedQuotation?.projectName ?? '—'}</span>
-                        </span>
-                        <span className="cl-factory-subbar-seg">
-                          <span className="cl-factory-subbar-k">Material</span>
-                          <span className="cl-factory-subbar-v">{materialInfoValue}</span>
-                        </span>
-                      </div>
-                    </header>
-                    <div className="cl-factory-body cl-factory-body--cut-first cl-factory-body--a4-landscape-left">
-                      <div className="cl-factory-col-cut cl-factory-panel cl-factory-panel--accent cl-factory-panel--cut-list min-w-0">
-                        {PRINT_CUT_LINE_CATEGORIES.map(({ type, title }) => {
-                          const slice = grouped[type];
-                          if (!slice?.length) return null;
-                          const block = <CuttingCategoryTable title={title} lines={slice} startIndex={idx} />;
-                          idx += slice.length;
-                          return <div key={type}>{block}</div>;
-                        })}
-                        {chunk.length === 0 ? (
-                          <p className="cl-factory-cut-empty">No cutting lines with qty and length (roof, flat, or cladding).</p>
-                        ) : null}
-                      </div>
-
-                      <div className="cl-factory-col-commercial cl-factory-panel min-w-0">
-                        <div className="cl-factory-commercial-filler">
-                          <QuotationLinesOneTable rows={mergedQuotationLineRows} grandTotal={grand} />
-
-                          <div className="cl-factory-receipt-box">
-                            <p className="cl-factory-receipt-head">Payment &amp; receipts</p>
-                            {receiptsForQuotation.length === 0 ? (
-                              <p className="cl-factory-receipt-empty">No receipts on file.</p>
-                            ) : (
-                              receiptsForQuotation.map((r) => (
-                                <ReceiptPaymentBlock key={r.id} receipt={r} treasuryMovements={treasuryMovements} />
-                              ))
-                            )}
-                          </div>
-                        </div>
-
-                        <div className="cl-factory-scratch-anchor">
-                          <ProductionScratchpad />
-                        </div>
-                      </div>
-                    </div>
-                  <div
-                    className="cl-factory-sheet-signfoot cl-factory-sheet-signfoot--a4-cutting-pane cl-factory-sheet-signfoot--stacked shrink-0"
-                    aria-label="Prepared by and signature"
-                  >
-                    <div className="cl-factory-prepared-by-footer" aria-label="Cutting list prepared by">
-                      <span className="cl-factory-created-by-k">Cutting list prepared by</span>
-                      <span className="cl-factory-created-by-v">{productionFooterName || '—'}</span>
-                    </div>
-                    <div className="cl-factory-signfoot-signature-row">
-                      <div className="cl-factory-sign-cell">
-                        <div className="cl-factory-sign-line" />
-                        <p className="cl-factory-sign-label">Signature</p>
-                      </div>
+            <div className="cl-factory-body cl-factory-body--cut-first cl-factory-body--a4-landscape-left">
+              <header className="cl-factory-banner cl-factory-banner--a4-cut-grid shrink-0">
+                <div className="cl-factory-banner-accent" aria-hidden />
+                <div className="cl-factory-banner-inner cl-factory-banner-inner--balanced">
+                  <div className="cl-factory-banner-side">
+                    <div className="cl-factory-logo-ring">
+                      <img src={b.logoSrc} alt="" className="cl-factory-logo-img" />
                     </div>
                   </div>
+                  <div className="cl-factory-banner-titles cl-factory-banner-titles--center">
+                    <p className="cl-factory-legal-name">{b.legalName}</p>
+                    <h1 className="cl-factory-doc-title">Cutting list</h1>
+                  </div>
+                  <div className="cl-factory-banner-side cl-factory-banner-side--spacer" aria-hidden />
                 </div>
+              </header>
+              <div className="cl-factory-commercial-meta shrink-0">
+                <FactoryRefLine
+                  cuttingListId={cuttingListId}
+                  cutDate={cutDate}
+                  quotationRef={quotationRef}
+                  ariaLabel="Cutting list references"
+                />
+                <div className="cl-factory-subbar cl-factory-subbar--double">
+                  <span className="cl-factory-subbar-seg">
+                    <span className="cl-factory-subbar-k">Project</span>
+                    <span className="cl-factory-subbar-v">{selectedQuotation?.projectName ?? '—'}</span>
+                  </span>
+                  <span className="cl-factory-subbar-seg">
+                    <span className="cl-factory-subbar-k">Material</span>
+                    <span className="cl-factory-subbar-v">{materialInfoValue}</span>
+                  </span>
+                </div>
+              </div>
+              <div className="cl-factory-col-cut cl-factory-panel cl-factory-panel--accent cl-factory-panel--cut-list min-w-0">
+                {PRINT_CUT_LINE_CATEGORIES.map(({ type, title }) => {
+                  const slice = grouped[type];
+                  if (!slice?.length) return null;
+                  const block = <CuttingCategoryTable title={title} lines={slice} startIndex={idx} />;
+                  idx += slice.length;
+                  return <div key={type}>{block}</div>;
+                })}
+                {chunk.length === 0 ? (
+                  <p className="cl-factory-cut-empty">No cutting lines with qty and length (roof, flat, or cladding).</p>
+                ) : null}
+              </div>
+
+              <div className="cl-factory-col-commercial cl-factory-panel min-w-0">
+                <div className="cl-factory-commercial-filler">
+                  <QuotationLinesOneTable rows={mergedQuotationLineRows} grandTotal={grand} />
+
+                  <div className="cl-factory-receipt-box">
+                    <p className="cl-factory-receipt-head">Payment &amp; receipts</p>
+                    {receiptsForQuotation.length === 0 ? (
+                      <p className="cl-factory-receipt-empty">No receipts on file.</p>
+                    ) : (
+                      receiptsForQuotation.map((r) => (
+                        <ReceiptPaymentBlock key={r.id} receipt={r} treasuryMovements={treasuryMovements} />
+                      ))
+                    )}
+                  </div>
+                </div>
+
+                <div className="cl-factory-scratch-anchor">
+                  <ProductionScratchpad />
+                </div>
+              </div>
+            </div>
+            <div
+              className="cl-factory-sheet-signfoot cl-factory-sheet-signfoot--a4-cutting-pane cl-factory-sheet-signfoot--stacked shrink-0"
+              aria-label="Prepared by and signature"
+            >
+              <div className="cl-factory-prepared-by-footer" aria-label="Cutting list prepared by">
+                <span className="cl-factory-created-by-k">Cutting list prepared by</span>
+                <span className="cl-factory-created-by-v">{productionFooterName || '—'}</span>
+              </div>
+              <div className="cl-factory-signfoot-signature-row">
+                <div className="cl-factory-sign-cell">
+                  <div className="cl-factory-sign-line" />
+                  <p className="cl-factory-sign-label">Signature</p>
+                </div>
+              </div>
+            </div>
+          </div>
 
                 <div className="cl-a4-pane cl-a4-pane--waybill">
                   <WaybillPanel

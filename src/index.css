@@ -1305,10 +1305,42 @@ summary {
   grid-template-columns: 1.08fr 0.92fr;
 }
 
-/* A4 landscape left pane: equal columns — must follow .cl-factory-body--cut-first */
+/* A4 landscape left pane: 2×2 grid — banner | refs+project row, then cut tables | commercial */
 .cl-factory-body--cut-first.cl-factory-body--a4-landscape-left {
   grid-template-columns: 1fr 1fr;
-  gap: 1.35mm;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 1mm 1.35mm;
+  align-items: stretch;
+}
+
+.cl-factory-body--a4-landscape-left > .cl-factory-banner--a4-cut-grid {
+  margin-bottom: 0;
+}
+
+.cl-factory-banner--a4-cut-grid .cl-factory-banner-inner {
+  padding-bottom: 0.45mm;
+}
+
+.cl-factory-commercial-meta {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 0 0 0.35mm;
+  border-radius: 8px;
+  border: 1px solid rgb(19 78 74 / 0.12);
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+  overflow: hidden;
+}
+
+.cl-factory-commercial-meta > .cl-factory-banner-refline {
+  border-top: none;
+  padding-top: 0.5mm;
+}
+
+.cl-factory-commercial-meta .cl-factory-subbar {
+  border-top: none;
+  padding-top: 0.35mm;
 }
 
 .cl-factory-col-commercial {
