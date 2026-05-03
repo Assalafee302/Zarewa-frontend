@@ -471,9 +471,7 @@ function ReceiptPaymentBlock({ receipt, treasuryMovements }) {
             </li>
           ))}
         </ul>
-      ) : (
-        <p className="cl-factory-receipt-split-fallback tabular-nums">Treasury breakdown not on file — total {formatNgn(total)}</p>
-      )}
+      ) : null}
     </div>
   );
 }
@@ -488,7 +486,6 @@ export default function CuttingListReportPrintView({
   materialSpec,
   materialTypeLabel = '',
   dateISO,
-  machineName,
   operatorName = '',
   linesByCat,
   receiptsForQuotation = [],
@@ -580,7 +577,7 @@ export default function CuttingListReportPrintView({
                         quotationRef={quotationRef}
                         ariaLabel="Cutting list references"
                       />
-                      <div className="cl-factory-subbar cl-factory-subbar--triple">
+                      <div className="cl-factory-subbar cl-factory-subbar--double">
                         <span className="cl-factory-subbar-seg">
                           <span className="cl-factory-subbar-k">Project</span>
                           <span className="cl-factory-subbar-v">{selectedQuotation?.projectName ?? '—'}</span>
@@ -589,16 +586,8 @@ export default function CuttingListReportPrintView({
                           <span className="cl-factory-subbar-k">Material</span>
                           <span className="cl-factory-subbar-v">{materialInfoValue}</span>
                         </span>
-                        <span className="cl-factory-subbar-seg">
-                          <span className="cl-factory-subbar-k">Machine</span>
-                          <span className="cl-factory-subbar-v">{machineName || '—'}</span>
-                        </span>
                       </div>
                     </header>
-                    <div className="cl-factory-prepared-by-top shrink-0" aria-label="Cutting list prepared by">
-                      <span className="cl-factory-created-by-k">Cutting list prepared by</span>
-                      <span className="cl-factory-created-by-v">{productionFooterName || '—'}</span>
-                    </div>
                     <div className="cl-factory-body cl-factory-body--cut-first cl-factory-body--a4-landscape-left">
                       <div className="cl-factory-col-cut cl-factory-panel cl-factory-panel--accent cl-factory-panel--cut-list min-w-0">
                         {PRINT_CUT_LINE_CATEGORIES.map(({ type, title }) => {
@@ -643,12 +632,18 @@ export default function CuttingListReportPrintView({
                       </div>
                     </div>
                   <div
-                    className="cl-factory-sheet-signfoot cl-factory-sheet-signfoot--a4-cutting-pane shrink-0"
-                    aria-label="Signature"
+                    className="cl-factory-sheet-signfoot cl-factory-sheet-signfoot--a4-cutting-pane cl-factory-sheet-signfoot--stacked shrink-0"
+                    aria-label="Prepared by and signature"
                   >
-                    <div className="cl-factory-sign-cell">
-                      <div className="cl-factory-sign-line" />
-                      <p className="cl-factory-sign-label">Signature</p>
+                    <div className="cl-factory-prepared-by-footer" aria-label="Cutting list prepared by">
+                      <span className="cl-factory-created-by-k">Cutting list prepared by</span>
+                      <span className="cl-factory-created-by-v">{productionFooterName || '—'}</span>
+                    </div>
+                    <div className="cl-factory-signfoot-signature-row">
+                      <div className="cl-factory-sign-cell">
+                        <div className="cl-factory-sign-line" />
+                        <p className="cl-factory-sign-label">Signature</p>
+                      </div>
                     </div>
                   </div>
                 </div>

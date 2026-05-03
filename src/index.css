@@ -757,6 +757,7 @@ summary {
 }
 
 .cutting-list-a4-landscape-report-root {
+  /* A4 landscape physical sheet: long edge 297mm, short edge 210mm */
   width: 100%;
   max-width: 297mm;
   margin-left: auto;
@@ -772,7 +773,7 @@ summary {
   page: cutting-list-a4-landscape;
   display: flex;
   flex-direction: column;
-  min-height: 198mm;
+  min-height: 210mm;
   gap: 1.25mm;
   box-sizing: border-box;
 }
@@ -783,7 +784,7 @@ summary {
 }
 
 .cutting-list-a4-landscape-sheet--continuation {
-  min-height: 198mm;
+  min-height: 210mm;
 }
 
 .cl-a4-landscape-split {
@@ -1285,7 +1286,7 @@ summary {
 .cutting-list-factory-root .cutting-list-a4-landscape-sheet {
   display: flex;
   flex-direction: column;
-  min-height: 198mm;
+  min-height: 210mm;
   gap: 1.25mm;
 }
 
@@ -1860,14 +1861,6 @@ summary {
   padding: 0.15mm 0;
 }
 
-.cl-factory-receipt-split-fallback {
-  margin: 0.25mm 0 0;
-  padding-left: 2.25mm;
-  font-size: 5.5pt;
-  font-style: italic;
-  color: var(--cl-text-muted);
-}
-
 /* Chips */
 .cl-factory-chips {
   display: flex;
@@ -2001,28 +1994,6 @@ summary {
   color: #334155;
 }
 
-.cl-factory-prepared-by-top {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 0.35mm 0.75mm;
-  margin: 0 0 1.1mm;
-  padding: 1mm 1.5mm;
-  border-radius: 6px;
-  border: 1px solid rgb(19 78 74 / 0.18);
-  background: linear-gradient(90deg, var(--cl-mint) 0%, #ffffff 92%);
-}
-
-.cl-factory-prepared-by-top .cl-factory-created-by-k {
-  display: inline;
-  margin-bottom: 0;
-}
-
-.cl-factory-prepared-by-top .cl-factory-created-by-v {
-  display: inline;
-  font-size: 7pt;
-}
-
 .cl-factory-sheet-signfoot {
   display: flex;
   flex-wrap: nowrap;
@@ -2031,6 +2002,35 @@ summary {
   margin-top: 1.25mm;
   padding: 1.35mm 0 0;
   border-top: 1px solid var(--cl-border);
+}
+
+.cl-factory-sheet-signfoot.cl-factory-sheet-signfoot--stacked {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 1.1mm;
+}
+
+.cl-factory-prepared-by-footer {
+  width: 100%;
+  padding: 0.35mm 0 0.65mm;
+  border-bottom: 1px dashed rgb(15 23 42 / 0.12);
+}
+
+.cl-factory-prepared-by-footer .cl-factory-created-by-k {
+  display: inline;
+  margin-right: 0.65mm;
+}
+
+.cl-factory-prepared-by-footer .cl-factory-created-by-v {
+  display: inline;
+  font-size: 7pt;
+  font-weight: 900;
+  color: var(--cl-teal);
+}
+
+.cl-factory-signfoot-signature-row {
+  display: flex;
+  width: 100%;
 }
 
 .cl-factory-sheet-signfoot--a4-cutting-pane {
