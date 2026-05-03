@@ -609,10 +609,10 @@ export default function CuttingListReportPrintView({
                       ))
                     )}
                   </div>
-                </div>
 
-                <div className="cl-factory-scratch-anchor">
-                  <ProductionScratchpad />
+                  <div className="cl-factory-scratch-anchor cl-factory-scratch-anchor--after-receipts">
+                    <ProductionScratchpad />
+                  </div>
                 </div>
               </div>
             </div>
@@ -633,17 +633,17 @@ export default function CuttingListReportPrintView({
             </div>
           </div>
 
-                <div className="cl-a4-pane cl-a4-pane--waybill">
-                  <WaybillPanel
-                    {...waybillShared}
-                    continuation={false}
-                    chunkIndex={0}
-                    grouped={grouped}
-                    cutStartIndex={0}
-                  />
-                </div>
-              </div>
-            </section>
+          <div className="cl-a4-pane cl-a4-pane--waybill">
+            <WaybillPanel
+              {...waybillShared}
+              continuation={false}
+              chunkIndex={0}
+              grouped={grouped}
+              cutStartIndex={0}
+            />
+          </div>
+        </div>
+      </section>
     </div>
   );
 }

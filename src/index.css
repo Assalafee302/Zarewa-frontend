@@ -1305,16 +1305,21 @@ summary {
   grid-template-columns: 1.08fr 0.92fr;
 }
 
-/* A4 landscape left pane: 2×2 grid — banner | refs+project row, then cut tables | commercial */
+/* A4 landscape: full-width banner, full-width refs/meta, then cut | commercial */
 .cl-factory-body--cut-first.cl-factory-body--a4-landscape-left {
   grid-template-columns: 1fr 1fr;
-  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-rows: auto auto minmax(0, 1fr);
   gap: 1mm 1.35mm;
   align-items: stretch;
 }
 
-.cl-factory-body--a4-landscape-left > .cl-factory-banner--a4-cut-grid {
+.cl-factory-body--cut-first.cl-factory-body--a4-landscape-left > .cl-factory-banner--a4-cut-grid {
+  grid-column: 1 / -1;
   margin-bottom: 0;
+}
+
+.cl-factory-body--cut-first.cl-factory-body--a4-landscape-left > .cl-factory-commercial-meta {
+  grid-column: 1 / -1;
 }
 
 .cl-factory-banner--a4-cut-grid .cl-factory-banner-inner {
@@ -1367,27 +1372,30 @@ summary {
   margin-top: 0;
 }
 
-/* A4 landscape commercial column: larger scratchpad for handwritten notes */
-.cl-factory-body--a4-landscape-left .cl-factory-scratch-anchor {
-  min-height: 50mm;
+/* Scratch directly under receipts in A4 commercial column (no flex push to bottom) */
+.cl-factory-body--a4-landscape-left .cl-factory-scratch-anchor--after-receipts {
+  margin-top: 0;
+  min-height: 0;
+  padding-top: 1mm;
+  flex-shrink: 0;
 }
 
-.cl-factory-body--a4-landscape-left .cl-factory-scratch-anchor .cl-factory-scratch {
-  min-height: 48mm;
-  height: 100%;
+.cl-factory-body--a4-landscape-left .cl-factory-scratch-anchor--after-receipts .cl-factory-scratch {
+  min-height: 42mm;
+  height: auto;
   box-sizing: border-box;
   padding: 1.35mm 1.45mm 1.35mm;
 }
 
-.cl-factory-body--a4-landscape-left .cl-factory-scratch .cl-factory-write-line {
+.cl-factory-body--a4-landscape-left .cl-factory-scratch-anchor--after-receipts .cl-factory-scratch .cl-factory-write-line {
   min-height: 4.9mm;
 }
 
-.cl-factory-body--a4-landscape-left .cl-factory-scratch .cl-factory-scratch-grid {
+.cl-factory-body--a4-landscape-left .cl-factory-scratch-anchor--after-receipts .cl-factory-scratch .cl-factory-scratch-grid {
   row-gap: 0.95mm;
 }
 
-.cl-factory-body--a4-landscape-left .cl-factory-scratch .cl-factory-scratch-row3 {
+.cl-factory-body--a4-landscape-left .cl-factory-scratch-anchor--after-receipts .cl-factory-scratch .cl-factory-scratch-row3 {
   gap: 1mm 1.2mm;
 }
 
