@@ -753,7 +753,8 @@ summary {
 /* Cutting list A4 landscape — left = factory pack, right = waybill */
 @page cutting-list-a4-landscape {
   margin: 5mm 6mm;
-  size: A4 landscape;
+  /* Explicit long/short edge — some engines ignore named page if a later generic @page sets portrait. */
+  size: 297mm 210mm;
 }
 
 .cutting-list-a4-landscape-report-root {
@@ -2127,7 +2128,7 @@ summary {
 
   @page cutting-list-a4-landscape {
     margin: 5mm 6mm;
-    size: A4 landscape;
+    size: 297mm 210mm;
   }
 
   @page receipt-a5-landscape {
@@ -2141,9 +2142,10 @@ summary {
     size: A4 portrait;
   }
 
+  /* Do not set `size` here: unnamed @page applies to anonymous pages and can force portrait,
+   * overriding named `page: cutting-list-a4-landscape` in Chromium. Named @page rules carry size. */
   @page {
     margin: 8mm 10mm;
-    size: A4 portrait;
   }
 
   .no-print {
@@ -2301,13 +2303,18 @@ summary {
     width: 100% !important;
     max-width: none !important;
     padding-bottom: 0 !important;
+    page: cutting-list-a4-landscape;
+  }
+
+  .print-portal-scroll:has(.cutting-list-a4-landscape-report-root) {
+    page: cutting-list-a4-landscape;
   }
 
   .cutting-list-a4-landscape-report-root {
-    position: absolute;
-    left: 0;
-    top: 0;
-    right: 0;
+    position: relative !important;
+    left: auto !important;
+    top: auto !important;
+    right: auto !important;
     width: 100% !important;
     max-width: 100% !important;
     margin: 0 !important;

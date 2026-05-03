@@ -286,10 +286,10 @@ function WaybillPanel({
                 <dd>{project}</dd>
                 <dt>Material</dt>
                 <dd>{materialInfoValue}</dd>
-                <dt>Sheets (roof + cladding)</dt>
-                <dd className="tabular-nums">{sheetsLabel}</dd>
-                <dt>Linear metres</dt>
-                <dd className="tabular-nums">{metersLabel} m</dd>
+                <dt>Total quantity &amp; metres</dt>
+                <dd className="tabular-nums">
+                  {sheetsLabel} sheets · {metersLabel} m
+                </dd>
               </dl>
             </div>
 
@@ -350,6 +350,7 @@ function WaybillPanel({
 function CuttingCategoryTable({ title, lines, startIndex }) {
   if (!lines?.length) return null;
   const catM = lines.reduce((s, line) => s + line.sheets * line.lengthM, 0);
+  const catSheets = lines.reduce((s, line) => s + line.sheets, 0);
   return (
     <div className="cl-factory-cut-block">
       <div className="cl-factory-cut-title-bar">
@@ -377,8 +378,9 @@ function CuttingCategoryTable({ title, lines, startIndex }) {
             );
           })}
           <tr className="cl-factory-cut-total-row">
-            <td colSpan={2} className="cl-factory-cut-td text-right font-bold">
-              Total sum (m)
+            <td className="cl-factory-cut-td text-right font-bold">Total</td>
+            <td className="cl-factory-cut-td text-right font-bold tabular-nums">
+              {catSheets.toLocaleString('en-NG')}
             </td>
             <td className="cl-factory-cut-td text-right font-bold tabular-nums">
               {catM.toLocaleString('en-NG', { maximumFractionDigits: 2 })}
