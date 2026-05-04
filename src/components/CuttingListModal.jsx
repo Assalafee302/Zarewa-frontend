@@ -130,6 +130,19 @@ function sumAdvanceAppliedNgnForQuotation(ledgerEntries, quotationId) {
   return s;
 }
 
+/** Till / bank cash on receipts for this quote only (no advance applied — avoids double-count in UI). */
+function receiptTillCashOnlyOnQuotation(quotationId, receiptRows) {
+  const id = String(quotationId || '').trim();
+  if (!id || !Array.isArray(receiptRows)) return 0;
+  let s = 0;
+  for (const r of receiptRows) {
+    if (String(r.quotationRef || '').trim() !== id) continue;
+    if (String(r.status || '').toLowerCase() === 'reversed') continue;
+    s += receiptCashReceivedNgn(r);
+  }
+  return s;
+}
+
 /** Cash actually received for this quote: merged receipt rows + ledger advance applied. */
 function cashPaidOnQuotation(quotationId, receiptRows, ledgerEntries) {
   const id = String(quotationId || '').trim();
@@ -380,8 +393,11 @@ const CuttingListModal = ({
   );
 
   const bookPaidOnQuote = selectedQuotation ? bookPaidTowardQuotation(selectedQuotation) : 0;
-  const cashPaidOnQuote = selectedQuotation
-    ? cashPaidOnQuotation(selectedQuotation.id, receipts, ledgerEntries)
+  const advanceAppliedOnQuote = selectedQuotation
+    ? sumAdvanceAppliedNgnForQuotation(ledgerEntries, selectedQuotation.id)
+    : 0;
+  const receiptTillOnQuote = selectedQuotation
+    ? receiptTillCashOnlyOnQuotation(selectedQuotation.id, receipts)
     : 0;
   const totalQuoteNgn = selectedQuotation ? Number(selectedQuotation.totalNgn) || 0 : 0;
   const balanceQuote = Math.max(0, totalQuoteNgn - bookPaidOnQuote);
@@ -852,7 +868,7 @@ const CuttingListModal = ({
                                   <div className="flex items-center justify-between gap-2 mt-0.5">
                                     <span className="text-[11px] font-semibold text-slate-800 truncate">{cust || '—'}</span>
                                     <span className="text-[10px] font-bold text-orange-700 tabular-nums shrink-0">
-                                      {formatNgn(cashPaidOnQuotation(q.id, receipts, ledgerEntries))} /{' '}
+                                      {formatNgn(bookPaidTowardQuotation(q))} /{' '}
                                       {formatNgn(Number(q.totalNgn ?? q.total_ngn) || 0)}
                                     </span>
                                   </div>
@@ -975,9 +991,23 @@ const CuttingListModal = ({
                     </span>
                   </div>
                   <div className="flex justify-between gap-2 font-semibold">
-                    <span className="text-slate-500">Paid (cash in)</span>
-                    <span className="text-[#134e4a] tabular-nums">{formatNgn(cashPaidOnQuote)}</span>
+                    <span className="text-slate-500">Booked paid</span>
+                    <span className="text-[#134e4a] tabular-nums">{formatNgn(bookPaidOnQuote)}</span>
                   </div>
+                  <div className="flex justify-between gap-2 text-[9px] font-semibold text-slate-600">
+                    <span className="text-slate-500">Receipts (till)</span>
+                    <span className="tabular-nums">{formatNgn(receiptTillOnQuote)}</span>
+                  </div>
+                  {advanceAppliedOnQuote > 0 ? (
+                    <div className="flex justify-between gap-2 text-[9px] font-semibold text-slate-600">
+                      <span className="text-slate-500">Advance applied</span>
+                      <span className="tabular-nums">{formatNgn(advanceAppliedOnQuote)}</span>
+                    </div>
+                  ) : null}
+                  <p className="text-[8px] text-slate-500 leading-snug pt-0.5">
+                    Booked matches the quotation. Receipts is customer cash; advance is deposit credited to this quote (not added again to
+                    receipts).
+                  </p>
                   <div className="flex justify-between gap-2 font-semibold">
                     <span className="text-slate-500">Outstanding</span>
                     <span className="text-orange-700 tabular-nums">{formatNgn(balanceQuote)}</span>
