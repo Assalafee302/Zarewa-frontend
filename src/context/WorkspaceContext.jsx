@@ -65,7 +65,8 @@ export function WorkspaceProvider({ children }) {
   const [refreshEpoch, setRefreshEpoch] = useState(0);
   const [editApprovalsPendingCount, setEditApprovalsPendingCount] = useState(0);
 
-  const applySnapshot = useCallback((data, mode = 'ok') => {
+  const applySnapshot = useCallback((data, mode = 'ok', snapOpts = {}) => {
+    const bumpEpoch = snapOpts.bumpEpoch !== false;
     setSnapshot(data);
     setStatus(mode);
     setLastError(null);
@@ -75,7 +76,9 @@ export function WorkspaceProvider({ children }) {
     if (mode === 'ok') {
       writeBootstrapCache(data);
     }
-    setRefreshEpoch((n) => n + 1);
+    if (bumpEpoch) {
+      setRefreshEpoch((n) => n + 1);
+    }
     return data;
   }, []);
 
@@ -104,7 +107,12 @@ export function WorkspaceProvider({ children }) {
     }
   }, [dashboardSummary, dashboardSummaryEtag]);
 
+  /**
+   * Reload workspace bootstrap. Use `{ background: true }` for scheduled/tab-visible sync so
+   * `refreshEpoch` does not advance — Inventory/Customers/Account mirrors keyed on epoch stay intact.
+   */
   const refresh = useCallback(async (opts = {}) => {
+    const background = Boolean(opts?.background);
     try {
       const mode = String(opts?.mode ?? '').trim();
       const qs = mode ? `?mode=${encodeURIComponent(mode)}` : '';
@@ -118,7 +126,7 @@ export function WorkspaceProvider({ children }) {
         return null;
       }
       if (!ok || !data?.ok) throw new Error(data?.error || 'Bootstrap failed');
-      return applySnapshot(data, 'ok');
+      return applySnapshot(data, 'ok', { bumpEpoch: !background });
     } catch (e) {
       const cached = readBootstrapCache();
       if (cached) {
@@ -330,13 +338,14 @@ export function WorkspaceProvider({ children }) {
     const ms = workspacePollIntervalMs();
     const pull = () => {
       if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
-      void refresh();
+      /** `background: true` avoids bumping refreshEpoch so Inventory/Customers mirrors do not reset drafts. */
+      void refresh({ background: true });
       void refreshDashboardSummary();
     };
     const id = window.setInterval(pull, ms);
     const onVisible = () => {
       if (document.visibilityState === 'visible') {
-        void refresh();
+        void refresh({ background: true });
         void refreshDashboardSummary();
       }
     };

@@ -346,15 +346,15 @@ const Procurement = () => {
 
    
   useEffect(() => {
-    const s = ws?.snapshot;
-    if (!s) {
+    if (!ws?.hasWorkspaceData || !ws?.snapshot) {
       setAgents([]);
       setSuppliers([]);
       return;
     }
+    const s = ws.snapshot;
     setAgents(Array.isArray(s.transportAgents) ? s.transportAgents.map((a) => ({ ...a })) : []);
     setSuppliers(Array.isArray(s.suppliers) ? s.suppliers.map((x) => ({ ...x })) : []);
-  }, [ws?.snapshot, ws?.refreshEpoch]);
+  }, [ws?.refreshEpoch, ws?.hasWorkspaceData]);
    
 
   const [showMaterialPricingWorkbook, setShowMaterialPricingWorkbook] = useState(false);

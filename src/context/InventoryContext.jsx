@@ -94,10 +94,12 @@ export function InventoryProvider({ children }) {
   const [wipByProduct, setWipByProduct] = useState({});
   const [inTransitLoads, setInTransitLoads] = useState([]);
 
-   
+  /**
+   * Mirror server lists into React state only on explicit refresh (refreshEpoch), not on silent
+   * background snapshot updates — otherwise timed workspace sync wipes in-progress PO / stock edits.
+   */
   useEffect(() => {
-    const s = ws?.snapshot;
-    if (!s) {
+    if (!ws?.hasWorkspaceData || !ws?.snapshot) {
       setProducts([]);
       setPurchaseOrders([]);
       setMovements([]);
@@ -107,6 +109,7 @@ export function InventoryProvider({ children }) {
       setInTransitLoads([]);
       return;
     }
+    const s = ws.snapshot;
     if (Array.isArray(s.products)) {
       setProducts(s.products.map((p) => ({ ...p })));
     }
@@ -155,7 +158,7 @@ export function InventoryProvider({ children }) {
     if (Array.isArray(s.inTransitLoads)) {
       setInTransitLoads(s.inTransitLoads.map((load) => ({ ...load, lines: Array.isArray(load.lines) ? load.lines.map((line) => ({ ...line })) : [] })));
     }
-  }, [ws?.snapshot]);
+  }, [ws?.refreshEpoch, ws?.hasWorkspaceData]);
    
 
   const appendMovement = useCallback((entry) => {

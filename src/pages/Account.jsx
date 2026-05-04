@@ -207,7 +207,7 @@ const Account = () => {
     } else {
       setBankReconciliation([]);
     }
-  }, [ws?.snapshot, ws?.hasWorkspaceData]);
+  }, [ws?.refreshEpoch, ws?.hasWorkspaceData]);
    
 
   const [expenseForm, setExpenseForm] = useState({

@@ -13,14 +13,14 @@ export function CustomersProvider({ children }) {
 
    
   useEffect(() => {
-    const s = ws?.snapshot;
-    if (!s) {
+    if (!ws?.hasWorkspaceData || !ws?.snapshot) {
       setCustomers([]);
       return;
     }
+    const s = ws.snapshot;
     const list = s.customers;
     setCustomers(Array.isArray(list) ? list.map((c) => ({ ...c })) : []);
-  }, [ws?.snapshot]);
+  }, [ws?.refreshEpoch, ws?.hasWorkspaceData]);
    
 
   const addCustomer = useCallback(
