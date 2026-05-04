@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import {
@@ -86,6 +86,8 @@ const ReceiptModal = ({
   const [paymentLines, setPaymentLines] = useState([]);
   const [showPrint, setShowPrint] = useState(false);
   const [printKind, setPrintKind] = useState('quick');
+  const postingRef = useRef(false);
+  const [isPosting, setIsPosting] = useState(false);
 
   const treasuryList = useMemo(() => treasuryAccountsFromSnapshot(ws?.snapshot), [ws?.snapshot]);
 
@@ -335,6 +337,7 @@ const ReceiptModal = ({
       showToast('Total must be greater than zero.', { variant: 'error' });
       return;
     }
+    if (postingRef.current) return;
 
     const refParts = validLines.map((l) => {
       const acc = treasuryAccountForLine(l, treasuryByIdStr, treasuryList);
@@ -348,78 +351,91 @@ const ReceiptModal = ({
         ? `${firstAcc.type} — ${firstAcc.name}`
         : `Split (${validLines.length} lines)`;
 
-    if (useLedgerApi) {
-      const paymentLinesPayload = validLines.map((line) => {
-        const acc = treasuryAccountForLine(line, treasuryByIdStr, treasuryList);
-        const tid = acc?.id ?? line.treasuryAccountId;
-        return {
-          treasuryAccountId: treasuryAccountIdForApiPayload(tid),
-          amountNgn: parseNum(line.amount),
-          reference: [line.payeeName?.trim?.(), remarks.trim()].filter(Boolean).join(' — '),
-        };
-      });
-      const invalidTreasury = paymentLinesPayload.some(
-        (pl) =>
-          pl.treasuryAccountId === '' ||
-          pl.treasuryAccountId == null ||
-          (typeof pl.treasuryAccountId === 'number' && !Number.isFinite(pl.treasuryAccountId))
-      );
-      if (invalidTreasury) {
-        showToast('Select a valid treasury account on each payment line.', { variant: 'error' });
-        return;
-      }
-      const branchId = String(ws?.session?.currentBranchId ?? '').trim();
-      const receiptBody = {
-        customerID,
-        customerName,
-        quotationId: selectedQuotation.id,
-        /** Some API builds read `quotationRef` instead of `quotationId` — send both. */
-        quotationRef: selectedQuotation.id,
-        amountNgn: total,
-        paymentMethod,
-        bankReference,
-        dateISO: voucherDate,
-        paymentLines: paymentLinesPayload,
-      };
-      if (branchId) receiptBody.branchId = branchId;
-
-      const { ok, data, status } = await apiFetch('/api/ledger/receipt', {
-        method: 'POST',
-        body: JSON.stringify(receiptBody),
-      });
-      if (!ok || !data?.ok) {
-        setPostingHint(guidanceForLedgerPostFailure(data) || null);
-        showToast(formatLedgerApiError(data, status, 'Could not post receipt.'), { variant: 'error' });
-        return;
-      }
-      setPostingHint(null);
-      showToast(`Receipt ${formatNgn(total)} posted against ${selectedQuotation.id}.`);
-    } else {
-      const res = recordReceiptWithQuotation({
-        customerID,
-        customerName,
-        quotationRow: selectedQuotation,
-        amountNgn: total,
-        paymentMethod,
-        bankReference,
-        dateISO: voucherDate,
-      });
-      if (!res.ok) {
-        showToast(res.error, { variant: 'error' });
-        return;
-      }
-      if (res.overpay) {
-        showToast(
-          `Receipt ${formatNgn(res.receipt?.amountNgn ?? 0)} + advance ${formatNgn(res.overpay.amountNgn)} (overpayment).`
+    postingRef.current = true;
+    setIsPosting(true);
+    try {
+      if (useLedgerApi) {
+        const paymentLinesPayload = validLines.map((line) => {
+          const acc = treasuryAccountForLine(line, treasuryByIdStr, treasuryList);
+          const tid = acc?.id ?? line.treasuryAccountId;
+          return {
+            treasuryAccountId: treasuryAccountIdForApiPayload(tid),
+            amountNgn: parseNum(line.amount),
+            reference: [line.payeeName?.trim?.(), remarks.trim()].filter(Boolean).join(' — '),
+          };
+        });
+        const invalidTreasury = paymentLinesPayload.some(
+          (pl) =>
+            pl.treasuryAccountId === '' ||
+            pl.treasuryAccountId == null ||
+            (typeof pl.treasuryAccountId === 'number' && !Number.isFinite(pl.treasuryAccountId))
         );
-      } else if (dueNgn != null && total < dueNgn) {
-        showToast(`Part payment ${formatNgn(total)} posted. Remaining on quote ≈ ${formatNgn(dueNgn - total)}.`);
-      } else {
+        if (invalidTreasury) {
+          showToast('Select a valid treasury account on each payment line.', { variant: 'error' });
+          return;
+        }
+        const branchId = String(ws?.session?.currentBranchId ?? '').trim();
+        const receiptBody = {
+          customerID,
+          customerName,
+          quotationId: selectedQuotation.id,
+          /** Some API builds read `quotationRef` instead of `quotationId` — send both. */
+          quotationRef: selectedQuotation.id,
+          amountNgn: total,
+          paymentMethod,
+          bankReference,
+          dateISO: voucherDate,
+          paymentLines: paymentLinesPayload,
+        };
+        if (branchId) receiptBody.branchId = branchId;
+
+        const idempotencyKey =
+          typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+            ? crypto.randomUUID()
+            : `rc-${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
+
+        const { ok, data, status } = await apiFetch('/api/ledger/receipt', {
+          method: 'POST',
+          body: JSON.stringify(receiptBody),
+          headers: { 'Idempotency-Key': idempotencyKey },
+        });
+        if (!ok || !data?.ok) {
+          setPostingHint(guidanceForLedgerPostFailure(data) || null);
+          showToast(formatLedgerApiError(data, status, 'Could not post receipt.'), { variant: 'error' });
+          return;
+        }
+        setPostingHint(null);
         showToast(`Receipt ${formatNgn(total)} posted against ${selectedQuotation.id}.`);
+      } else {
+        const res = recordReceiptWithQuotation({
+          customerID,
+          customerName,
+          quotationRow: selectedQuotation,
+          amountNgn: total,
+          paymentMethod,
+          bankReference,
+          dateISO: voucherDate,
+        });
+        if (!res.ok) {
+          showToast(res.error, { variant: 'error' });
+          return;
+        }
+        if (res.overpay) {
+          showToast(
+            `Receipt ${formatNgn(res.receipt?.amountNgn ?? 0)} + advance ${formatNgn(res.overpay.amountNgn)} (overpayment).`
+          );
+        } else if (dueNgn != null && total < dueNgn) {
+          showToast(`Part payment ${formatNgn(total)} posted. Remaining on quote ≈ ${formatNgn(dueNgn - total)}.`);
+        } else {
+          showToast(`Receipt ${formatNgn(total)} posted against ${selectedQuotation.id}.`);
+        }
       }
+      await onLedgerChange?.();
+      onClose();
+    } finally {
+      postingRef.current = false;
+      setIsPosting(false);
     }
-    await onLedgerChange?.();
-    onClose();
   };
 
   const label = 'text-[9px] font-semibold text-slate-400 uppercase tracking-wide ml-0.5 mb-1 block';
@@ -828,10 +844,10 @@ const ReceiptModal = ({
           <div className="flex gap-2 flex-wrap">
             <button
               type="submit"
-              disabled={readOnly}
+              disabled={readOnly || isPosting}
               className="bg-white/10 px-4 py-2.5 rounded-lg text-[9px] font-semibold uppercase tracking-wide border border-white/15 hover:bg-white/20 disabled:opacity-40"
             >
-              <Save size={14} className="inline mr-1.5" /> Post to ledger
+              <Save size={14} className="inline mr-1.5" /> {isPosting ? 'Posting…' : 'Post to ledger'}
             </button>
             <button
               type="button"
