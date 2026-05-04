@@ -192,6 +192,8 @@ const RefundModal = ({
   const [loadingIntelligence, setLoadingIntelligence] = useState(false);
   const [lastPreviewSnapshot, setLastPreviewSnapshot] = useState(null);
   const [previewRemainingNgn, setPreviewRemainingNgn] = useState(null);
+  const [eligibleRefundCategoriesFromPreview, setEligibleRefundCategoriesFromPreview] = useState(null);
+  const [refundCategoryPickerOpen, setRefundCategoryPickerOpen] = useState(true);
   const [refundIntelExpanded, setRefundIntelExpanded] = useState(() => mode !== 'create');
   const categoryPreviewTimerRef = useRef(null);
   /** From refund preview: paid on quote vs overpay split (ledger RECEIPT + OVERPAY_ADVANCE). */
@@ -276,6 +278,8 @@ const RefundModal = ({
     setQuotationPickDate('');
     setLastPreviewSnapshot(null);
     setPreviewRemainingNgn(null);
+    setEligibleRefundCategoriesFromPreview(null);
+    setRefundCategoryPickerOpen(true);
 
     if (mode === 'create') {
       void fetchEligibleQuotes();
@@ -439,11 +443,15 @@ const RefundModal = ({
       setMoneyContext(null);
       setPreviewRemainingNgn(null);
       setLastPreviewSnapshot(null);
+      setEligibleRefundCategoriesFromPreview(null);
       setPreviewError(data?.error || 'Could not generate refund preview.');
       return;
     }
 
     const preview = data.preview;
+    setEligibleRefundCategoriesFromPreview(
+      Array.isArray(preview.eligibleRefundCategories) ? preview.eligibleRefundCategories : null
+    );
     setPreviewRemainingNgn(
       preview.remainingRefundableNgn != null ? Math.round(Number(preview.remainingRefundableNgn)) : null
     );
@@ -484,6 +492,10 @@ const RefundModal = ({
       ...f,
       reasonCategory: f.reasonCategory.filter((c) => !blocked.includes(c)),
     }));
+
+    if (Array.isArray(categories) && categories.length > 0) {
+      setRefundCategoryPickerOpen(false);
+    }
 
     // Also fetch detailed intelligence for the sidebar
     fetchIntelligence(quoteRef);
@@ -534,6 +546,8 @@ const RefundModal = ({
     setMoneyContext(null);
     setPreviewRemainingNgn(null);
     setLastPreviewSnapshot(null);
+    setEligibleRefundCategoriesFromPreview(null);
+    setRefundCategoryPickerOpen(true);
     setForm(f => ({ ...f, quotationRef: ref, reasonCategory: [] }));
     if (ref) {
       void generatePreview(ref, []);
@@ -592,11 +606,14 @@ const RefundModal = ({
   const recordApprovedAmount = refundApprovedAmount(record) || Number(record?.approved_amount_ngn) || 0;
   const recordOutstandingAmount = refundOutstandingAmount(record);
 
-  /** Categories the user can still request; excludes blocked (e.g. delivered) and already refunded. */
+  /** Categories the user can still request; server sends applicable types for this quotation when preview ran. */
   const { selectableRefundCategories, excludedRefundCategories } = useMemo(() => {
     const selectable = [];
     const excluded = [];
+    const pool = eligibleRefundCategoriesFromPreview != null ? eligibleRefundCategoriesFromPreview : null;
+    const poolSet = pool != null ? new Set(pool) : null;
     for (const cat of REFUND_REASON_CATEGORIES) {
+      if (poolSet && !poolSet.has(cat)) continue;
       if (form.alreadyRefundedCategories.includes(cat)) {
         excluded.push({ cat, reason: 'already' });
       } else if (blockedRefundCategories.includes(cat)) {
@@ -606,7 +623,7 @@ const RefundModal = ({
       }
     }
     return { selectableRefundCategories: selectable, excludedRefundCategories: excluded };
-  }, [form.alreadyRefundedCategories, blockedRefundCategories]);
+  }, [form.alreadyRefundedCategories, blockedRefundCategories, eligibleRefundCategoriesFromPreview]);
 
   const label = 'text-[9px] font-semibold text-slate-400 uppercase tracking-wide ml-0.5 mb-1 block';
   const input =
@@ -1018,45 +1035,62 @@ const RefundModal = ({
                     </div>
                   ) : (
                     <>
-                      <details className="group mt-1 rounded-xl border border-slate-200 bg-slate-50/80 open:bg-white open:shadow-sm transition-colors">
-                        <summary
-                          className="flex cursor-pointer list-none items-center justify-between gap-2 px-3 py-2.5 text-xs font-bold text-slate-800 [&::-webkit-details-marker]:hidden"
-                          aria-label={`Refund categories, ${form.reasonCategory.length} selected. Open or close list.`}
+                      {refundCategoryPickerOpen ? (
+                        <div className="mt-1 rounded-xl border border-slate-200 bg-slate-50/80 shadow-sm">
+                          <div className="flex items-center justify-between gap-2 border-b border-slate-100 px-3 py-2">
+                            <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                              Applicable refund types
+                            </p>
+                            {form.reasonCategory.length > 0 ? (
+                              <button
+                                type="button"
+                                onClick={() => setRefundCategoryPickerOpen(false)}
+                                className="shrink-0 rounded-md border border-slate-200 bg-white px-2 py-1 text-[9px] font-bold uppercase tracking-wide text-slate-700 hover:bg-slate-50"
+                              >
+                                Collapse
+                              </button>
+                            ) : null}
+                          </div>
+                          <div className="max-h-48 space-y-2 overflow-y-auto px-3 py-2 custom-scrollbar">
+                            {selectableRefundCategories.map((cat) => (
+                              <label
+                                key={cat}
+                                className="flex cursor-pointer items-start gap-2.5 rounded-lg px-1 py-1 hover:bg-slate-50"
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={form.reasonCategory.includes(cat)}
+                                  onChange={() => toggleCategory(cat)}
+                                  className="mt-0.5 h-3.5 w-3.5 rounded border-slate-300 text-rose-600 focus:ring-rose-500"
+                                />
+                                <span className="text-xs font-semibold leading-snug text-slate-800">{cat}</span>
+                              </label>
+                            ))}
+                            {selectableRefundCategories.length === 0 ? (
+                              <p className="py-1 text-[11px] font-medium text-amber-800">
+                                No applicable refund types for this quotation (or preview still loading). Pick another
+                                quote or check eligibility.
+                              </p>
+                            ) : null}
+                          </div>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setRefundCategoryPickerOpen(true)}
+                          className="mt-1 flex w-full items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-left shadow-sm hover:border-rose-200/60 hover:bg-rose-50/30"
                         >
-                          <span className="flex min-w-0 items-center gap-2">
-                            <span className="truncate">Select categories</span>
-                            <span className="shrink-0 rounded-md bg-rose-100 px-1.5 py-0.5 text-[10px] font-black text-rose-800 tabular-nums">
-                              {form.reasonCategory.length}
+                          <span className="min-w-0">
+                            <span className="block text-[9px] font-bold uppercase tracking-wide text-slate-500">
+                              Refund types
+                            </span>
+                            <span className="mt-0.5 block truncate text-xs font-semibold text-slate-800">
+                              {form.reasonCategory.join(' · ')}
                             </span>
                           </span>
-                          <ChevronDown
-                            size={16}
-                            className="shrink-0 text-slate-400 transition-transform group-open:rotate-180"
-                            aria-hidden
-                          />
-                        </summary>
-                        <div className="max-h-48 space-y-2 overflow-y-auto border-t border-slate-100 px-3 py-2 custom-scrollbar">
-                          {selectableRefundCategories.map((cat) => (
-                            <label
-                              key={cat}
-                              className="flex cursor-pointer items-start gap-2.5 rounded-lg px-1 py-1 hover:bg-slate-50"
-                            >
-                              <input
-                                type="checkbox"
-                                checked={form.reasonCategory.includes(cat)}
-                                onChange={() => toggleCategory(cat)}
-                                className="mt-0.5 h-3.5 w-3.5 rounded border-slate-300 text-rose-600 focus:ring-rose-500"
-                              />
-                              <span className="text-xs font-semibold leading-snug text-slate-800">{cat}</span>
-                            </label>
-                          ))}
-                          {selectableRefundCategories.length === 0 ? (
-                            <p className="py-1 text-[11px] font-medium text-amber-800">
-                              No categories left to request (all blocked or already refunded on this quotation).
-                            </p>
-                          ) : null}
-                        </div>
-                      </details>
+                          <ChevronDown size={16} className="shrink-0 text-slate-400" aria-hidden />
+                        </button>
+                      )}
                       {excludedRefundCategories.length > 0 ? (
                         <p className="mt-2 text-[9px] leading-snug text-slate-500">
                           <span className="font-semibold text-slate-600">Not selectable:</span>{' '}
