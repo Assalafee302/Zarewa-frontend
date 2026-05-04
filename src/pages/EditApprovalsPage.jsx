@@ -43,7 +43,7 @@ export default function EditApprovalsPage() {
       showToast(data?.error || 'Could not approve.', { variant: 'error' });
       return;
     }
-    showToast('Edit approval granted — the colleague can save once with this token.');
+    showToast('Edit approval granted — the colleague can save once with this 6-digit code.');
     await load();
   };
 
@@ -51,7 +51,7 @@ export default function EditApprovalsPage() {
     <PageShell>
       <PageHeader
         title="Edit approvals"
-        subtitle="Approve one-time tokens so staff can complete sensitive saves (each token is consumed on the next successful PATCH)."
+        subtitle="Approve one-time 6-digit codes so staff can complete sensitive saves (each code is consumed on the next successful PATCH)."
       />
       <MainPanel>
         <div className="flex min-w-0 w-full flex-wrap items-center justify-between gap-3 mb-6">
