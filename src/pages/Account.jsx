@@ -56,6 +56,7 @@ import {
   nextExpenseId,
   normalizePaymentRequest,
   treasuryMovementStatementLabel,
+  treasuryMovementSourceBadge,
 } from '../lib/accountCore';
 
 const Account = () => {
@@ -2707,44 +2708,69 @@ const Account = () => {
               Connect to the live workspace to load treasury movements. Statements are built from posted receipts,
               expenses, transfers, and payouts on the server.
             </p>
-          ) : accountStatementLines.length === 0 ? (
-            <p className="text-xs text-gray-500">No movements recorded for this account yet.</p>
           ) : (
-            <div className="overflow-y-auto flex-1 min-h-0 -mx-1 px-1 border border-slate-200/60 rounded-lg bg-white/40 backdrop-blur-md">
-              <ul className="p-2 space-y-1.5">
-                {accountStatementLines.map((m) => {
-                  const raw = Number(m.amountNgn) || 0;
-                  const isIn = raw > 0;
-                  const isOut = raw < 0;
-                  const abs = Math.abs(raw);
-                  const dateStr = String(m.postedAtISO || '').slice(0, 10) || '—';
-                  const detail = treasuryMovementStatementLabel(m);
-                  const amtStr = `${isIn ? '+' : isOut ? '−' : ''}${formatNgn(abs)}`;
-                  return (
-                    <li
-                      key={m.id}
-                      className="rounded-lg border border-slate-200/60 bg-white/50 py-1.5 px-2.5 shadow-sm"
-                    >
-                      <div className="flex items-center justify-between gap-2 min-w-0">
-                        <p className="text-[11px] font-bold text-[#134e4a] truncate min-w-0">
-                          <span className="tabular-nums text-slate-600 font-semibold">{dateStr}</span>
-                        </p>
-                        <span
-                          className={`text-[11px] font-black tabular-nums shrink-0 ${
-                            isIn ? 'text-emerald-600' : isOut ? 'text-red-600' : 'text-slate-500'
-                          }`}
+            <>
+              <p className="text-[10px] text-slate-600 leading-snug mb-3 rounded-lg border border-slate-200/80 bg-slate-50/90 px-3 py-2">
+                <strong>Sales → Receipt payments</strong> lists only <strong>quotation receipts</strong> (jobs). This
+                statement lists <strong>every</strong> movement on this account—including{' '}
+                <strong>advance deposits</strong>, transfers, expenses, and bank recon—so a line can appear here but not
+                under Sales receipts. Use the badge on each row (e.g.{' '}
+                <span className="font-semibold text-emerald-800">Sales receipt</span> vs{' '}
+                <span className="font-semibold text-amber-900">Advance</span>).{' '}
+                <Link to="/sales" className="font-semibold text-[#134e4a] underline underline-offset-2">
+                  Open Sales
+                </Link>
+                .
+              </p>
+              {accountStatementLines.length === 0 ? (
+                <p className="text-xs text-gray-500">No movements recorded for this account yet.</p>
+              ) : (
+                <div className="overflow-y-auto flex-1 min-h-0 -mx-1 px-1 border border-slate-200/60 rounded-lg bg-white/40 backdrop-blur-md">
+                  <ul className="p-2 space-y-1.5">
+                    {accountStatementLines.map((m) => {
+                      const raw = Number(m.amountNgn) || 0;
+                      const isIn = raw > 0;
+                      const isOut = raw < 0;
+                      const abs = Math.abs(raw);
+                      const dateStr = String(m.postedAtISO || '').slice(0, 10) || '—';
+                      const detail = treasuryMovementStatementLabel(m);
+                      const badge = treasuryMovementSourceBadge(m);
+                      const amtStr = `${isIn ? '+' : isOut ? '−' : ''}${formatNgn(abs)}`;
+                      return (
+                        <li
+                          key={m.id}
+                          className="rounded-lg border border-slate-200/60 bg-white/50 py-1.5 px-2.5 shadow-sm"
                         >
-                          {amtStr}
-                        </span>
-                      </div>
-                      <p className="text-[8px] text-slate-500 mt-0.5 leading-snug line-clamp-2 break-words" title={detail}>
-                        {detail}
-                      </p>
-                    </li>
-                  );
-                })}
-              </ul>
-            </div>
+                          <div className="flex items-center justify-between gap-2 min-w-0">
+                            <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
+                              <span
+                                className={`text-[8px] font-bold uppercase px-1.5 py-0.5 rounded shrink-0 ${badge.className}`}
+                              >
+                                {badge.label}
+                              </span>
+                              <span className="text-[11px] font-bold tabular-nums text-slate-600">{dateStr}</span>
+                            </div>
+                            <span
+                              className={`text-[11px] font-black tabular-nums shrink-0 ${
+                                isIn ? 'text-emerald-600' : isOut ? 'text-red-600' : 'text-slate-500'
+                              }`}
+                            >
+                              {amtStr}
+                            </span>
+                          </div>
+                          <p
+                            className="text-[8px] text-slate-500 mt-0.5 leading-snug line-clamp-2 break-words"
+                            title={detail}
+                          >
+                            {detail}
+                          </p>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              )}
+            </>
           )}
         </div>
       </ModalFrame>

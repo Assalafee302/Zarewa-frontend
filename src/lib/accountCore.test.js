@@ -6,6 +6,7 @@ import {
   nextExpenseId,
   normalizePaymentRequest,
   treasuryMovementStatementLabel,
+  treasuryMovementSourceBadge,
 } from './accountCore';
 
 describe('accountCore', () => {
@@ -39,6 +40,13 @@ describe('accountCore', () => {
     });
     expect(text).toContain('Inter-branch lending');
     expect(text).toContain('Ref IB-001');
+  });
+
+  it('badges ledger receipt vs advance for Finance statements', () => {
+    expect(treasuryMovementSourceBadge({ sourceKind: 'LEDGER_RECEIPT', type: 'RECEIPT_IN' }).label).toBe(
+      'Sales receipt'
+    );
+    expect(treasuryMovementSourceBadge({ sourceKind: 'LEDGER_ADVANCE', type: 'ADVANCE_IN' }).label).toBe('Advance');
   });
 
   it('builds payment request audit trail rows', () => {

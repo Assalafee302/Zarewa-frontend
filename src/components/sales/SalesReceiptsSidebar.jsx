@@ -90,8 +90,9 @@ export function ReceiptsTransactionsPanel({
           Receipt payments
         </p>
         <p className="text-[11px] text-slate-500 mt-1 leading-snug">
-          <strong>Ledger</strong> rows update live when you post a receipt. Historical rows stay in sync with the
-          customer ledger and receipt register.
+          <strong>Quotation receipts only</strong> (money booked to a job). The same bank account in Finance shows{' '}
+          <strong>every</strong> inflow—also <strong>advance deposits</strong>, transfers, expenses—so you may see a line
+          on the treasury statement that is not listed here (check the statement badge: Sales receipt vs Advance).
         </p>
         <div className="relative mt-3">
           <label className="sr-only">Sort</label>

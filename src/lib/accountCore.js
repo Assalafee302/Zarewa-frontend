@@ -25,6 +25,12 @@ export const TREASURY_STATEMENT_TYPE_LABEL = {
 export const TREASURY_SOURCE_KIND_LABEL = {
   INTER_BRANCH_LOAN: 'Inter-branch lending (disbursement)',
   INTER_BRANCH_LOAN_REPAY: 'Inter-branch lending (repayment)',
+  /** Sales quotation receipt — same rows appear under Sales → Receipt payments when posted live. */
+  LEDGER_RECEIPT: 'Customer receipt (Sales)',
+  /** Advance deposit hitting the bank — listed under Sales → Advance deposits until linked/applied. */
+  LEDGER_ADVANCE: 'Advance deposit (not a quotation receipt)',
+  LEDGER_ADVANCE_REFUND: 'Advance refund payout',
+  BANK_RECON_LINE: 'Bank reconciliation settlement',
 };
 
 export const nextExpenseId = (list) => {
@@ -73,6 +79,44 @@ export function treasuryMovementStatementLabel(m) {
   if (m.reference) bits.push(`Ref ${m.reference}`);
   if (m.note) bits.push(m.note);
   return bits.join(' · ');
+}
+
+/**
+ * Compact badge for Finance account statements so users can tell Sales receipts from advances and other flows.
+ * @returns {{ label: string, className: string }}
+ */
+export function treasuryMovementSourceBadge(m) {
+  if (!m || typeof m !== 'object') return { label: '—', className: 'bg-slate-100 text-slate-600 ring-1 ring-slate-200/80' };
+  const sk = String(m.sourceKind || '');
+  const tp = String(m.type || '');
+  if (sk === 'LEDGER_RECEIPT') {
+    return { label: 'Sales receipt', className: 'bg-emerald-100 text-emerald-900 ring-1 ring-emerald-200/80' };
+  }
+  if (sk === 'LEDGER_ADVANCE') {
+    return { label: 'Advance', className: 'bg-amber-100 text-amber-900 ring-1 ring-amber-200/80' };
+  }
+  if (sk === 'LEDGER_ADVANCE_REFUND') {
+    return { label: 'Adv refund', className: 'bg-amber-100 text-amber-900 ring-1 ring-amber-200/80' };
+  }
+  if (sk === 'BANK_RECON_LINE') {
+    return { label: 'Bank recon', className: 'bg-sky-100 text-sky-900 ring-1 ring-sky-200/70' };
+  }
+  if (sk === 'EXPENSE' || tp === 'EXPENSE') {
+    return { label: 'Expense', className: 'bg-rose-50 text-rose-900 ring-1 ring-rose-100' };
+  }
+  if (sk === 'TREASURY_TRANSFER' || tp === 'INTERNAL_TRANSFER_IN' || tp === 'INTERNAL_TRANSFER_OUT') {
+    return { label: 'Transfer', className: 'bg-violet-100 text-violet-900 ring-1 ring-violet-200/70' };
+  }
+  if (sk === 'REFUND' || tp === 'REFUND_PAYOUT') {
+    return { label: 'Refund', className: 'bg-rose-100 text-rose-900 ring-1 ring-rose-200/70' };
+  }
+  if (sk === 'PAYMENT_REQUEST') {
+    return { label: 'Payment req', className: 'bg-indigo-100 text-indigo-900 ring-1 ring-indigo-200/70' };
+  }
+  const fallback = TREASURY_STATEMENT_TYPE_LABEL[tp] || tp || 'Other';
+  const short =
+    fallback.length > 14 ? `${fallback.slice(0, 12).trim()}…` : fallback;
+  return { label: short, className: 'bg-slate-100 text-slate-700 ring-1 ring-slate-200/80' };
 }
 
 export function buildPaymentRequestAuditTrail(req) {
