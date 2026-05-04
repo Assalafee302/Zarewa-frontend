@@ -243,7 +243,8 @@ summary {
  * Modal print preview: match on-screen layout to printed output (no gray mat / card chrome).
  * Printed styles still come from @media print + print: utilities.
  */
-.quotation-print-preview-mode .quotation-print-a4 {
+.quotation-print-preview-mode .quotation-print-a4,
+.report-print-preview-mode .quotation-print-a4 {
   max-width: 210mm;
   margin-left: auto;
   margin-right: auto;
@@ -252,11 +253,17 @@ summary {
   box-shadow: none !important;
 }
 
-.quotation-print-preview-mode .quotation-print-a4 > div.relative.overflow-hidden {
+.quotation-print-preview-mode .quotation-print-a4 > div.relative.overflow-hidden,
+.report-print-preview-mode .quotation-print-a4 > div.relative.overflow-hidden {
   border-radius: 0 !important;
   border: none !important;
   box-shadow: none !important;
   overflow: visible !important;
+}
+
+/* Management reports — A4 landscape preview width */
+.report-print-root.report-print-a4-landscape .quotation-print-a4 {
+  max-width: 297mm;
 }
 
 /* Unified data lists — same rhythm as Sales / Operations tables */
@@ -2232,6 +2239,11 @@ summary {
     size: A5 landscape;
   }
 
+  @page report-a4-landscape {
+    margin: 6mm 7mm;
+    size: A4 landscape;
+  }
+
   /* Quotation / invoice / official receipt — slightly tighter margins so typical quotes fit one page */
   @page quotation-a4 {
     margin: 9mm 11mm;
@@ -2271,7 +2283,7 @@ summary {
    * and can add trailing blank pages. Keep any subtree that hosts a print root.
    */
   body
-    > *:not(:has(.quotation-print-root)):not(:has(.receipt-print-root)):not(:has(.report-print-root)):not(:has(.cutting-list-print-root)):not(:has(.cutting-list-a5-report-root)):not(:has(.cutting-list-a4-landscape-report-root)) {
+    > *:not(:has(.quotation-print-root)):not(:has(.receipt-print-root)):not(:has(.report-print-root)):not(:has(.report-print-a4-landscape)):not(:has(.cutting-list-print-root)):not(:has(.cutting-list-a5-report-root)):not(:has(.cutting-list-a4-landscape-report-root)) {
     display: none !important;
   }
 
@@ -2309,6 +2321,8 @@ summary {
   .receipt-print-root *,
   .report-print-root,
   .report-print-root *,
+  .report-print-a4-landscape,
+  .report-print-a4-landscape *,
   .cutting-list-print-root,
   .cutting-list-print-root *,
   .cutting-list-a5-report-root,
@@ -2355,6 +2369,18 @@ summary {
     pointer-events: auto !important;
   }
 
+  .report-print-root.report-print-a4-landscape {
+    width: 297mm !important;
+    max-width: 297mm !important;
+    page: report-a4-landscape;
+    break-after: avoid-page;
+    page-break-after: avoid;
+  }
+
+  .print-portal-scroll:has(.report-print-a4-landscape) {
+    page: report-a4-landscape;
+  }
+
   .quotation-print-root,
   .quotation-print-root * {
     -webkit-print-color-adjust: exact !important;
@@ -2372,7 +2398,8 @@ summary {
   }
 
   /* Match on-screen preview-mode (flat sheet, no inner card chrome) when printing */
-  .quotation-print-root.quotation-print-preview-mode .quotation-print-a4 > div.relative {
+  .quotation-print-root.quotation-print-preview-mode .quotation-print-a4 > div.relative,
+  .report-print-root.report-print-preview-mode .quotation-print-a4 > div.relative {
     border: none !important;
     border-radius: 0 !important;
     box-shadow: none !important;
@@ -2485,6 +2512,14 @@ summary {
   .report-print-table tbody tr.report-print-tr {
     break-inside: avoid;
     page-break-inside: avoid;
+  }
+
+  .report-print-table.report-print-table--single-line td,
+  .report-print-table.report-print-table--single-line th {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 0;
   }
 
   /* Receipts: thermal (~80mm), advance A6 portrait, or full A5 landscape */

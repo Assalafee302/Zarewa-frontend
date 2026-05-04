@@ -9,6 +9,13 @@ import { useToast } from '../context/ToastContext';
 import { useInventory } from '../context/InventoryContext';
 import { useWorkspace } from '../context/WorkspaceContext';
 import { apiFetch } from '../lib/apiBase';
+import { displayDocNumber } from '../lib/reportDisplayFormat';
+import {
+  downloadStandardFinanceWorkbook,
+  downloadStandardPurchasesWorkbook,
+  downloadStandardSalesWorkbook,
+  downloadStandardStockWorkbook,
+} from '../lib/standardReportsDownload';
 import {
   accruedApprovedPayablesRows,
   coilInventoryValuationRows,
@@ -308,13 +315,16 @@ function productionTransactionExportRows(raw) {
   return (raw || []).map((r) => {
     const { jobId, ...x } = r;
     void jobId;
+    const qt = x.qtNoDisplay ?? displayDocNumber(x.qtNo) ?? x.qtNo;
+    const coil = x.coilNoDisplay ?? displayDocNumber(x.coilNo) ?? x.coilNo;
     return {
-      qtNo: x.qtNo,
+      qt,
       prodDate: x.prodDate,
       customer: x.customer,
+      material: x.materialType ?? '',
       color: x.color,
       gauge: x.gauge,
-      coilNo: x.coilNo,
+      coil,
       beforeKg: x.beforeKg,
       afterKg: x.afterKg,
       kgUsed: x.kgUsed,
@@ -336,12 +346,13 @@ function buildProductionTransactionPrintPayload(raw) {
     return v.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   };
   const rows = (raw || []).map((r) => ({
-    qtNo: r.qtNo,
+    qt: r.qtNoDisplay ?? displayDocNumber(r.qtNo) ?? r.qtNo,
     prodDate: r.prodDate,
     customer: r.customer,
+    material: r.materialType ?? '—',
     color: r.color,
     gauge: r.gauge,
-    coilNo: r.coilNo,
+    coil: r.coilNoDisplay ?? displayDocNumber(r.coilNo) ?? r.coilNo,
     beforeKg: fmtK(r.beforeKg),
     afterKg: fmtK(r.afterKg),
     kgUsed: fmtK(r.kgUsed),
@@ -356,12 +367,13 @@ function buildProductionTransactionPrintPayload(raw) {
   return {
     title: PACK_PRODUCTION_TRANSACTION,
     columns: [
-      { key: 'qtNo', label: 'Qt no' },
+      { key: 'qt', label: 'Qt' },
       { key: 'prodDate', label: 'Prod. date' },
       { key: 'customer', label: 'Customer' },
+      { key: 'material', label: 'Material' },
       { key: 'color', label: 'Color' },
       { key: 'gauge', label: 'Gauge' },
-      { key: 'coilNo', label: 'Coil' },
+      { key: 'coil', label: 'Coil' },
       { key: 'beforeKg', label: 'Before kg' },
       { key: 'afterKg', label: 'After kg' },
       { key: 'kgUsed', label: 'Kg used' },
@@ -608,6 +620,8 @@ const Reports = () => {
 
   const [printOpen, setPrintOpen] = useState(false);
   const [printPayload, setPrintPayload] = useState(null);
+  const [printLayout, setPrintLayout] = useState('portrait');
+  const [printDense, setPrintDense] = useState(false);
 
   const getExportRows = useCallback(
     (name) => {
@@ -1132,6 +1146,8 @@ const Reports = () => {
   };
 
   const openPrintSheet = async (name) => {
+    setPrintLayout('portrait');
+    setPrintDense(false);
     if (name === PACK_GL_AUDIT) {
       if (!ws.hasPermission('finance.view')) {
         showToast('General ledger pack requires finance.view.', { variant: 'info' });
@@ -1182,6 +1198,8 @@ const Reports = () => {
         showToast('No completed production rows in the selected range.', { variant: 'info' });
         return;
       }
+      setPrintLayout('landscape');
+      setPrintDense(true);
       setPrintPayload(buildProductionTransactionPrintPayload(raw));
       setPrintOpen(true);
       return;
@@ -1204,6 +1222,8 @@ const Reports = () => {
         columns={printPayload?.columns ?? []}
         rows={printPayload?.rows ?? []}
         summaryLines={printPayload?.summaryLines ?? []}
+        layout={printLayout}
+        denseSingleLine={printDense}
       />
 
       <PageHeader
@@ -1596,6 +1616,43 @@ const Reports = () => {
         </div>
 
         <div className="space-y-0">
+          <h3 className="z-section-title mb-2">Standard reports (audit)</h3>
+          <p className="text-sm font-medium text-slate-600 mb-4 max-w-2xl leading-relaxed">
+            Receipts register (bank account), production revenue, AR as-at, sales bridge, expenses + refunds, purchases
+            (received / ordered / paid), and coil stock as-at end date. IDs use compact numbers; production print uses
+            A4 landscape.
+          </p>
+          <div className="flex flex-wrap gap-2 mb-10">
+            <button
+              type="button"
+              className="z-btn-primary !text-[11px]"
+              onClick={() => downloadStandardSalesWorkbook(apiFetch, startDate, endDate, showToast)}
+            >
+              Sales workbook (Excel)
+            </button>
+            <button
+              type="button"
+              className="z-btn-primary !text-[11px]"
+              onClick={() => downloadStandardFinanceWorkbook(apiFetch, startDate, endDate, showToast)}
+            >
+              Expenses &amp; refunds (Excel)
+            </button>
+            <button
+              type="button"
+              className="z-btn-primary !text-[11px]"
+              onClick={() => downloadStandardPurchasesWorkbook(apiFetch, startDate, endDate, showToast)}
+            >
+              Purchases 3 cuts (Excel)
+            </button>
+            <button
+              type="button"
+              className="z-btn-primary !text-[11px]"
+              onClick={() => downloadStandardStockWorkbook(apiFetch, endDate, showToast)}
+            >
+              Stock as-at end date (Excel)
+            </button>
+          </div>
+
           <h3 className="z-section-title mb-2">Exports &amp; print</h3>
           <p className="text-sm font-medium text-slate-600 mb-8 max-w-2xl leading-relaxed">
             Consolidated packs: each Excel file uses multiple sheets where needed. The operations pack includes

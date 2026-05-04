@@ -3,11 +3,14 @@ import { Printer, X } from 'lucide-react';
 import { ModalFrame } from '../layout';
 import { StandardReportPrintShell } from './StandardReportPrintShell';
 
-const TH = 'px-2 py-1.5 text-left text-[9px] font-bold uppercase tracking-wide text-slate-600 print:text-[8pt]';
-const TD = 'px-2 py-1.5 align-top text-[11px] text-slate-800 print:text-[10pt]';
+const TH_BASE =
+  'px-2 py-1.5 text-left text-[9px] font-bold uppercase tracking-wide text-slate-600 print:text-[8pt]';
+const TD_BASE = 'px-2 py-1.5 align-top text-[11px] text-slate-800 print:text-[10pt]';
 
 /**
- * A4 management report — use inside a wrapper with `quotation-print-root quotation-print-preview-mode` for @media print.
+ * A4 management report — use inside a wrapper with `report-print-root quotation-print-preview-mode` for @media print.
+ * @param {'portrait'|'landscape'} [props.layout]
+ * @param {boolean} [props.denseSingleLine] — nowrap + ellipsis on cells; use title for full value
  */
 export function ManagementReportSheet({
   title,
@@ -16,11 +19,22 @@ export function ManagementReportSheet({
   rows,
   summaryLines = [],
   documentTypeLabel = 'Management report',
+  layout = 'portrait',
+  denseSingleLine = false,
 }) {
   const generated = new Date().toLocaleString(undefined, {
     dateStyle: 'medium',
     timeStyle: 'short',
   });
+
+  const shellClass = layout === 'landscape' ? 'max-w-[297mm]' : 'max-w-4xl';
+
+  const tableClass = [
+    'report-print-table w-full border-collapse border border-slate-200',
+    denseSingleLine ? 'report-print-table--single-line' : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
 
   return (
     <StandardReportPrintShell
@@ -28,6 +42,7 @@ export function ManagementReportSheet({
       title={title}
       subtitle={periodLabel}
       watermarkText="RPT"
+      shellClassName={shellClass}
       rightColumn={
         <>
           <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500 print:text-[9pt]">Generated</p>
@@ -36,11 +51,11 @@ export function ManagementReportSheet({
       }
       footer="Confidential — internal operations summary. Figures reflect workspace snapshot at generation time."
     >
-      <table className="quotation-print-table w-full border-collapse border border-slate-200">
+      <table className={tableClass}>
         <thead>
           <tr className="border-b border-slate-200 bg-slate-50/90">
             {columns.map((c) => (
-              <th key={c.key} className={`${TH} ${c.align === 'right' ? 'text-right' : 'text-left'}`}>
+              <th key={c.key} className={`${TH_BASE} ${c.align === 'right' ? 'text-right' : 'text-left'}`}>
                 {c.label}
               </th>
             ))}
@@ -58,17 +73,22 @@ export function ManagementReportSheet({
             </tr>
           ) : (
             rows.map((row, i) => (
-              <tr key={i} className="quotation-print-line border-b border-slate-100">
-                {columns.map((c) => (
-                  <td
-                    key={c.key}
-                    className={`${TD} ${c.align === 'right' ? 'text-right tabular-nums' : ''} ${
-                      i % 2 === 1 ? 'bg-slate-50/50' : ''
-                    }`}
-                  >
-                    {row[c.key] != null && row[c.key] !== '' ? String(row[c.key]) : '—'}
-                  </td>
-                ))}
+              <tr key={i} className="report-print-tr quotation-print-line border-b border-slate-100">
+                {columns.map((c) => {
+                  const raw = row[c.key];
+                  const text = raw != null && raw !== '' ? String(raw) : '—';
+                  return (
+                    <td
+                      key={c.key}
+                      title={denseSingleLine && text !== '—' ? text : undefined}
+                      className={`${TD_BASE} ${c.align === 'right' ? 'text-right tabular-nums' : ''} ${
+                        i % 2 === 1 ? 'bg-slate-50/50' : ''
+                      }`}
+                    >
+                      {text}
+                    </td>
+                  );
+                })}
               </tr>
             ))
           )}
@@ -98,7 +118,21 @@ export function ReportPrintModal({
   rows,
   summaryLines,
   documentTypeLabel,
+  layout = 'portrait',
+  denseSingleLine = false,
 }) {
+  const isLandscape = layout === 'landscape';
+  const outerScrollClass = ['flex-1 min-h-0 overflow-y-auto custom-scrollbar bg-slate-100/80 p-4 sm:p-6', isLandscape ? 'print-portal-scroll' : '']
+    .filter(Boolean)
+    .join(' ');
+
+  const innerRootClass = [
+    'report-print-root quotation-print-preview-mode mx-auto rounded-lg border border-slate-200 bg-white shadow-xl overflow-hidden print:shadow-none print:rounded-none print:border-0',
+    isLandscape ? 'report-print-a4-landscape' : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
+
   return (
     <ModalFrame isOpen={isOpen} onClose={onClose}>
       <div className="z-modal-panel-lg max-h-[92vh] flex flex-col p-0 overflow-hidden">
@@ -117,8 +151,8 @@ export function ReportPrintModal({
             </button>
           </div>
         </div>
-        <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar bg-slate-100/80 p-4 sm:p-6">
-          <div className="quotation-print-root quotation-print-preview-mode mx-auto max-w-4xl rounded-lg border border-slate-200 bg-white shadow-xl overflow-hidden print:shadow-none print:rounded-none print:border-0">
+        <div className={outerScrollClass}>
+          <div className={innerRootClass}>
             <ManagementReportSheet
               title={title}
               periodLabel={periodLabel}
@@ -126,6 +160,8 @@ export function ReportPrintModal({
               rows={rows}
               summaryLines={summaryLines}
               documentTypeLabel={documentTypeLabel}
+              layout={layout}
+              denseSingleLine={denseSingleLine}
             />
           </div>
         </div>

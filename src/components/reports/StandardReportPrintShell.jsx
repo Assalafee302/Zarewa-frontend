@@ -9,7 +9,7 @@ const MAROON = ZAREWA_DOC_MAROON;
 
 /**
  * Pilot layout for internal printable reports: letterhead, A4 content width, watermark, card body.
- * Use with outer wrapper `quotation-print-root quotation-print-preview-mode` for correct @media print.
+ * Use with outer wrapper `report-print-root quotation-print-preview-mode` (or quotation-print-root) for @media print.
  */
 export function StandardReportPrintShell({
   documentTypeLabel = 'Internal document',
@@ -22,12 +22,16 @@ export function StandardReportPrintShell({
   watermarkText = 'ZP',
   children,
   footer,
+  /** Outer shell width (e.g. max-w-[297mm] for landscape preview) */
+  shellClassName = 'max-w-4xl',
 }) {
   const b = ZAREWA_QUOTATION_BRANDING;
   const legal = legalNameLine ?? b.legalName;
 
   return (
-    <div className="quotation-print-a4 relative mx-auto max-w-4xl w-full overflow-hidden bg-slate-100/80 p-3 font-sans text-slate-800 shadow-lg print:max-w-none print:w-full print:overflow-visible print:bg-white print:p-0 print:shadow-none sm:p-5">
+    <div
+      className={`quotation-print-a4 relative mx-auto ${shellClassName} w-full overflow-hidden bg-slate-100/80 p-3 font-sans text-slate-800 shadow-lg print:max-w-none print:w-full print:overflow-visible print:bg-white print:p-0 print:shadow-none sm:p-5`}
+    >
       <div
         className="quotation-print-watermark pointer-events-none absolute inset-0 flex items-center justify-center opacity-[0.028] print:opacity-[0.04]"
         aria-hidden
