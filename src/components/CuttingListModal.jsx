@@ -632,7 +632,18 @@ const CuttingListModal = ({
 
   const registerProduction = useCallback(async () => {
     const id = editData?.id;
-    if (!id || productionLocked || !ws?.canMutate || editData?.productionReleasePending) return;
+    if (!id || !ws?.canMutate) return;
+    if (productionLocked) {
+      showToast('This cutting list is already linked to a production job.', { variant: 'error' });
+      return;
+    }
+    if (editData?.productionReleasePending) {
+      showToast(
+        'This list is on hold until operations clears the production release (Manager / operations with release permission).',
+        { variant: 'error' }
+      );
+      return;
+    }
     setRegistering(true);
     const { ok, data } = await apiFetch(
       `/api/cutting-lists/${encodeURIComponent(id)}/register-production`,

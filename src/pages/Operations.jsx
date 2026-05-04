@@ -610,14 +610,6 @@ const Operations = () => {
     [ws]
   );
 
-  const jobByCuttingListId = useMemo(() => {
-    const m = new Map();
-    for (const j of productionJobs) {
-      if (j.cuttingListId) m.set(j.cuttingListId, j);
-    }
-    return m;
-  }, [productionJobs]);
-
   const productionQueueModel = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
     const matches = (item) => {
@@ -657,8 +649,21 @@ const Operations = () => {
 
     const registered = cuttingLists.filter((cl) => cl.productionRegistered);
 
+    /** Same cutting list can have a cancelled job plus a new job — prefer the row linked on the list (`productionRegisterRef`). */
+    const jobForRegisteredCuttingList = (cl) => {
+      const ref = String(cl.productionRegisterRef || '').trim();
+      if (ref) {
+        const byRef = productionJobs.find((j) => j.jobID === ref && j.cuttingListId === cl.id);
+        if (byRef) return byRef;
+      }
+      for (const j of productionJobs) {
+        if (j.cuttingListId === cl.id) return j;
+      }
+      return undefined;
+    };
+
     const mapRegistered = (cl) => {
-      const job = jobByCuttingListId.get(cl.id);
+      const job = jobForRegisteredCuttingList(cl);
       const status = job?.status ?? 'Planned';
       const isCompleted = status === 'Completed';
       const isCancelled = status === 'Cancelled';
@@ -732,7 +737,7 @@ const Operations = () => {
         { key: 'closed', title: 'Completed or cancelled', rows: closed.filter(matches) },
       ],
     };
-  }, [cuttingLists, productionJobCoils, ws?.hasWorkspaceData, searchQuery, jobByCuttingListId]);
+  }, [cuttingLists, productionJobCoils, productionJobs, ws?.hasWorkspaceData, searchQuery]);
   const conversionStats = useMemo(() => {
     if (!productionConversionChecks.length) {
       return { efficiencyPct: null, flagged: 0, watch: 0, total: 0 };

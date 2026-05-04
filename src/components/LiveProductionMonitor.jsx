@@ -1073,7 +1073,7 @@ export function LiveProductionMonitor({
               const addBack = savedOpeningKgByCoil.get(newCoil) ?? 0;
               const free = Number(lot.qtyRemaining || 0) - Number(lot.qtyReserved || 0) + addBack;
               if (Number.isFinite(free) && free > 0) {
-                const suggested = Math.max(0.01, Math.round(free * 0.995 * 1000) / 1000);
+                const suggested = Math.max(1, Math.round(free * 0.995));
                 next.openingWeightKg = String(suggested);
               }
             }
