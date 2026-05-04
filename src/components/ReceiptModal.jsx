@@ -16,6 +16,7 @@ import { useToast } from '../context/ToastContext';
 import { useWorkspace } from '../context/WorkspaceContext';
 import {
   amountDueOnQuotation,
+  loadLedgerEntries,
   recordReceiptWithQuotation,
 } from '../lib/customerLedgerStore';
 import { quotationReceiptPrintHistory } from '../lib/salesReceiptsList';
@@ -293,8 +294,38 @@ const ReceiptModal = ({
       quotationRef
         ? quotationReceiptPrintHistory(quotationRef, importedReceiptsForHistory)
         : [],
-    [quotationRef, importedReceiptsForHistory]
+    [quotationRef, importedReceiptsForHistory, ledgerNonce]
   );
+
+  /** Receipts + advance applied already booked on this quote (newest first), shown above new voucher lines. */
+  const priorRecordedOnQuotation = useMemo(() => {
+    void ledgerNonce;
+    const qid = String(quotationRef || '').trim();
+    if (!qid) return [];
+    const fromReceipts = quotationPaymentHistory.map((r) => ({
+      key: `rc-${r.id}`,
+      sortIso: String(r.iso || '').slice(0, 10) || '0000-00-00',
+      dateLabel: r.dateStr || formatDisplayDate(String(r.iso || '').slice(0, 10)),
+      entryId: r.id,
+      label: 'Receipt',
+      sublabel: r.source === 'Ledger' ? 'Ledger' : 'Imported',
+      amountNgn: r.amountNgn,
+      detail: r.detail || '—',
+    }));
+    const advanceApplied = loadLedgerEntries()
+      .filter((e) => e.type === 'ADVANCE_APPLIED' && String(e.quotationRef || '').trim() === qid)
+      .map((e) => ({
+        key: `aa-${e.id}`,
+        sortIso: (e.atISO || '').slice(0, 10) || '0000-00-00',
+        dateLabel: formatDisplayDate((e.atISO || '').slice(0, 10)),
+        entryId: e.id,
+        label: 'Advance applied',
+        sublabel: 'Credit to this quote',
+        amountNgn: Math.round(Number(e.amountNgn) || 0),
+        detail: e.note || e.bankReference || e.purpose || '—',
+      }));
+    return [...fromReceipts, ...advanceApplied].sort((a, b) => b.sortIso.localeCompare(a.sortIso));
+  }, [quotationPaymentHistory, quotationRef, ledgerNonce]);
 
   const printLinesPayload = useMemo(() => {
     return paymentLines
@@ -691,6 +722,56 @@ const ReceiptModal = ({
                 Payment breakdown
               </h3>
             </div>
+
+            {quotationRef && priorRecordedOnQuotation.length > 0 ? (
+              <div className="mb-4 rounded-xl border border-sky-200/90 bg-sky-50/70 p-3.5 space-y-2">
+                <p className="text-[9px] font-semibold text-sky-950 uppercase tracking-widest">
+                  Already on this quotation
+                </p>
+                <p className="text-[10px] text-sky-900/90 leading-snug">
+                  Prior receipt payments and advance applied to this quote. Add lines below only for{' '}
+                  <strong>new</strong> money you are posting now.
+                </p>
+                <ul className="space-y-1.5 max-h-[min(36vh,200px)] overflow-y-auto custom-scrollbar">
+                  {priorRecordedOnQuotation.map((row) => (
+                    <li
+                      key={row.key}
+                      className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 rounded-lg border border-sky-100 bg-white/95 px-2.5 py-2 text-[11px]"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                          <span className="font-bold text-[#134e4a] tabular-nums">{row.dateLabel}</span>
+                          <span className="rounded bg-sky-100 px-1.5 py-0.5 text-[8px] font-bold uppercase text-sky-900">
+                            {row.label}
+                          </span>
+                          <span className="text-[9px] font-semibold text-slate-500">{row.sublabel}</span>
+                        </div>
+                        <p className="mt-0.5 truncate text-[10px] text-slate-600" title={row.detail}>
+                          <span className="font-mono text-slate-500">{row.entryId}</span>
+                          <span className="text-slate-400"> · </span>
+                          {row.detail}
+                        </p>
+                      </div>
+                      <span className="shrink-0 text-sm font-black tabular-nums text-emerald-800">
+                        {formatNgn(row.amountNgn)}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+            {quotationRef &&
+            selectedQuotation &&
+            (Number(selectedQuotation.paidNgn) || 0) > 0 &&
+            priorRecordedOnQuotation.length === 0 ? (
+              <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50/90 px-3 py-2.5 text-[10px] text-amber-950 leading-snug">
+                <p className="font-bold">Paid on file ({formatNgn(selectedQuotation.paidNgn)}) but no receipt lines loaded</p>
+                <p className="mt-1 opacity-95">
+                  Refresh the page or reconnect so the ledger matches the server. Until then, check Sales → Receipts
+                  before posting again.
+                </p>
+              </div>
+            ) : null}
 
             {treasuryList.length === 0 ? (
               <p className="text-[10px] font-medium text-amber-800 rounded-lg border border-amber-200 bg-amber-50/80 p-3">
