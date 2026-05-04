@@ -11,6 +11,20 @@ const WorkspaceContext = createContext(null);
 
 const BOOTSTRAP_CACHE_KEY = 'zarewa.bootstrap.cache.v2';
 
+/** Pull server changes from other users without a full page reload (ms). Override with `VITE_WORKSPACE_POLL_MS`. */
+function workspacePollIntervalMs() {
+  try {
+    const raw = import.meta.env?.VITE_WORKSPACE_POLL_MS;
+    if (raw != null && String(raw).trim() !== '') {
+      const n = Number(raw);
+      if (Number.isFinite(n) && n >= 5000) return n;
+    }
+  } catch {
+    /* ignore */
+  }
+  return 30000;
+}
+
 function readBootstrapCache() {
   try {
     const raw = sessionStorage.getItem(BOOTSTRAP_CACHE_KEY);
@@ -309,6 +323,29 @@ export function WorkspaceProvider({ children }) {
   useEffect(() => {
     refresh();
   }, [refresh]);
+
+  /** Re-fetch workspace snapshot on a timer so other users' edits appear without manual refresh. */
+  useEffect(() => {
+    if (status !== 'ok') return undefined;
+    const ms = workspacePollIntervalMs();
+    const pull = () => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
+      void refresh();
+      void refreshDashboardSummary();
+    };
+    const id = window.setInterval(pull, ms);
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') {
+        void refresh();
+        void refreshDashboardSummary();
+      }
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      window.clearInterval(id);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, [status, refresh, refreshDashboardSummary]);
 
   const session = snapshot?.session ?? null;
   const permissions = useMemo(

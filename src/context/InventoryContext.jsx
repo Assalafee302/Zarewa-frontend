@@ -738,7 +738,9 @@ export function InventoryProvider({ children }) {
       setProducts((prev) =>
         prev.map((p) => {
           if (p.productID !== productID) return p;
-          const next = Math.max(0, p.stockLevel + delta);
+          const raw = p.stockLevel + delta;
+          const allowNeg = /^ACC-/i.test(String(productID));
+          const next = allowNeg ? raw : Math.max(0, raw);
           return { ...p, stockLevel: next };
         })
       );

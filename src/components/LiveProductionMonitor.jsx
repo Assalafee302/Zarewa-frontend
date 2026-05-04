@@ -796,20 +796,6 @@ export function LiveProductionMonitor({
         opening > 0 &&
         Number.isFinite(closing) &&
         closing >= 0 &&
-        closing < COIL_TAIL_FINISH_MAX_KG &&
-        closing <= opening &&
-        !row.finishCoil
-      ) {
-        errors.push(
-          `${label}: closing is under ${COIL_TAIL_FINISH_MAX_KG} kg — tick “Roll finished” to clear the tail from coil stock when you complete (or increase closing kg if steel remains on the roll).`
-        );
-      }
-      if (
-        coil &&
-        Number.isFinite(opening) &&
-        opening > 0 &&
-        Number.isFinite(closing) &&
-        closing >= 0 &&
         closing <= opening &&
         Number.isFinite(meters) &&
         meters > 0
@@ -1380,6 +1366,22 @@ export function LiveProductionMonitor({
           return;
         }
       }
+      if (
+        prev.ok &&
+        prev.data?.ok &&
+        Array.isArray(prev.data.accessoryStockWarnings) &&
+        prev.data.accessoryStockWarnings.length
+      ) {
+        const w = prev.data.accessoryStockWarnings.join('\n');
+        const proceedAcc = window.confirm(
+          `On-hand accessory stock is less than the quantities entered. Balances can go negative.\n\n${w}\n\nComplete production anyway?`
+        );
+        if (!proceedAcc) {
+          setSavingAction('');
+          setConversionPreview(prev.data);
+          return;
+        }
+      }
       path = `${jobApi}/complete`;
       body = completeBody;
     }
@@ -1399,17 +1401,23 @@ export function LiveProductionMonitor({
       setConversionPreview(null);
       if (type === 'complete') {
         setSignoffRemark('');
-      }
-      if (data.managerReviewRequired) {
-        showToast(`Production completed — manager review required (${data.alertState || 'alert'}).`, {
-          variant: 'error',
-        });
-      } else if (data.alertState && data.alertState !== 'OK') {
-        showToast(`Production completed — conversion ${String(data.alertState).toLowerCase()} band.`, {
-          variant: 'warning',
-        });
-      } else {
-        showToast(`Production completed for ${listLabel}.`);
+        const accW = Array.isArray(data.accessoryStockWarnings) ? data.accessoryStockWarnings : [];
+        if (data.managerReviewRequired) {
+          showToast(`Production completed — manager review required (${data.alertState || 'alert'}).`, {
+            variant: 'error',
+          });
+        } else if (data.alertState && data.alertState !== 'OK') {
+          showToast(`Production completed — conversion ${String(data.alertState).toLowerCase()} band.`, {
+            variant: 'warning',
+          });
+        } else if (accW.length) {
+          showToast(
+            `Production completed for ${listLabel}. Accessory stock note: ${accW.join(' ')}`,
+            { variant: 'warning' }
+          );
+        } else {
+          showToast(`Production completed for ${listLabel}.`);
+        }
       }
     }
   };
@@ -2505,7 +2513,7 @@ export function LiveProductionMonitor({
                           : !isStoneMeterQuote && canAddSupplementalCoil
                             ? 'Running: only new blank rows attach as extra coils when you Save. Finished rolls stay on the list for the full job.'
                             : !isStoneMeterQuote && canCaptureRun
-                              ? `If closing is under ${COIL_TAIL_FINISH_MAX_KG} kg, tick Roll finished before Complete (or raise closing if steel remains). Conversion preview updates coil-by-coil.`
+                              ? `Closing below ${COIL_TAIL_FINISH_MAX_KG} kg is allowed. Tick “Roll finished” only when clearing unusable spool/core tail from stock; otherwise leave it unchecked if steel stays on the roll. Conversion preview updates coil-by-coil.`
                               : 'Read-only record.'}
                       </div>
                     </details>
@@ -2796,7 +2804,7 @@ export function LiveProductionMonitor({
                         <button
                           type="button"
                           className="shrink-0 rounded-full p-1 text-amber-800/80 hover:bg-amber-100"
-                          title="Required before Complete when closing is below the tail threshold: confirms the remaining weight is scrapped/core so stock can clear. If usable steel is still on the roll, increase closing kg instead."
+                          title="Tick only when this coil’s tail under the threshold is unusable spool/core and should be cleared from coil stock. Leave unchecked if usable steel remains on the roll — you can complete without finishing the roll."
                           aria-label="About roll finished"
                         >
                           <CircleHelp className="size-4" strokeWidth={2} />
