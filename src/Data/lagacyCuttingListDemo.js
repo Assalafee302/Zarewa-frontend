@@ -161,6 +161,7 @@ export const LAGACY_CUTTING_LIST = {
   machineName: 'Machine 01 (Longspan)',
   operatorName: '',
   productionRegistered: false,
+  productionEditLocked: false,
   productionRegisterRef: '',
   handledBy: 'Auwal Idris',
   lines: LAGACY_CUTTING_LIST_LINES,

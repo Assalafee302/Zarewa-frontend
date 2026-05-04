@@ -64,11 +64,12 @@ export function receiptEditBlockedReason(record, role) {
 
 export function canEditCuttingList(c) {
   if (!c?.id) return true;
-  if (c.productionRegistered) return false;
+  if (c.productionEditLocked) return false;
+  if (c.productionRegistered && String(c.status || '').trim().toLowerCase() === 'finished') return false;
   return true;
 }
 
 export function cuttingListEditBlockedReason(c) {
   if (canEditCuttingList(c)) return null;
-  return 'Production register was entered for this cutting list — editing is blocked to prevent fraud.';
+  return 'Production is finished for this cutting list — editing is blocked to protect the completed record.';
 }

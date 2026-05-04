@@ -275,8 +275,12 @@ const CuttingListModal = ({
   const minPaidFraction = useMemo(() => cuttingListMinPaidFractionFromSession(ws?.session), [ws?.session]);
   const minPaidPercentLabel = Math.round(minPaidFraction * 100);
   const navigate = useNavigate();
-  const productionLocked = Boolean(editData?.productionRegistered);
-  const readOnly = accessMode === 'view' || productionLocked;
+  const productionCompletedLock = Boolean(
+    editData?.productionEditLocked ??
+      (editData?.productionRegistered && String(editData?.status || '').trim().toLowerCase() === 'finished')
+  );
+  const productionOnQueue = Boolean(editData?.productionRegistered && !productionCompletedLock);
+  const readOnly = accessMode === 'view' || productionCompletedLock;
   const [quotationRef, setQuotationRef] = useState('');
   const [dateISO, setDateISO] = useState('');
   const [machineName, setMachineName] = useState('Machine 01 (Longspan)');
@@ -552,12 +556,22 @@ const CuttingListModal = ({
     });
   }, []);
 
-  const headerBadge = productionLocked
+  const headerBadge = productionCompletedLock
     ? 'bg-amber-100 text-amber-900 ring-1 ring-amber-300/50'
     : readOnly
       ? 'bg-slate-200 text-slate-700'
-      : 'bg-orange-100 text-orange-800 ring-1 ring-orange-400/30';
-  const headerBadgeText = productionLocked ? 'Locked' : readOnly ? 'View' : editData?.id ? 'Edit' : 'New';
+      : productionOnQueue
+        ? 'bg-teal-100 text-teal-900 ring-1 ring-teal-300/50'
+        : 'bg-orange-100 text-orange-800 ring-1 ring-orange-400/30';
+  const headerBadgeText = productionCompletedLock
+    ? 'Locked'
+    : readOnly
+      ? 'View'
+      : productionOnQueue
+        ? 'Production'
+        : editData?.id
+          ? 'Edit'
+          : 'New';
   const isCreate = !editData?.id;
 
   const submit = async (e) => {
@@ -633,7 +647,7 @@ const CuttingListModal = ({
   const registerProduction = useCallback(async () => {
     const id = editData?.id;
     if (!id || !ws?.canMutate) return;
-    if (productionLocked) {
+    if (editData?.productionRegistered) {
       showToast('This cutting list is already linked to a production job.', { variant: 'error' });
       return;
     }
@@ -660,7 +674,7 @@ const CuttingListModal = ({
     showToast('Cutting list added to the production queue.', { variant: 'success' });
     if (data?.cuttingList) onCuttingListUpdated?.(data.cuttingList);
     await ws?.refresh?.();
-  }, [editData?.id, editData?.productionReleasePending, productionLocked, machineName, ws, showToast, onCuttingListUpdated]);
+  }, [editData?.id, editData?.productionRegistered, editData?.productionReleasePending, machineName, ws, showToast, onCuttingListUpdated]);
 
   return (
     <ModalFrame isOpen={isOpen} onClose={onClose} modal={!showPrintPreview}>
@@ -714,12 +728,17 @@ const CuttingListModal = ({
           </div>
         </div>
 
-        {productionLocked ? (
+        {productionCompletedLock ? (
           <div className="no-print px-5 py-2 bg-amber-50 border-b border-amber-200 text-[10px] font-medium text-amber-900">
-            This cutting list is on the production queue — editing is blocked.
+            Production is finished for this list — editing is blocked to protect the completed record.
           </div>
         ) : null}
-        {editData?.id && editData?.productionReleasePending && !productionLocked ? (
+        {productionOnQueue ? (
+          <div className="no-print px-5 py-2 bg-teal-50 border-b border-teal-200 text-[10px] font-medium text-teal-900">
+            On the production queue — you can still update lengths and quantities until the run is completed.
+          </div>
+        ) : null}
+        {editData?.id && editData?.productionReleasePending && !productionCompletedLock ? (
           <div className="no-print px-5 py-2.5 bg-sky-50 border-b border-sky-200 text-[10px] text-sky-950 space-y-2">
             <p className="font-semibold">Receipts and cutting lists are separate: this list is on hold until operations releases it for production.</p>
             {canClearProductionHold ? (
@@ -736,7 +755,7 @@ const CuttingListModal = ({
             )}
           </div>
         ) : null}
-        {accessMode === 'view' && !productionLocked ? (
+        {accessMode === 'view' ? (
           <div className="no-print px-5 py-2 bg-slate-50 border-b border-slate-200 text-[10px] font-medium text-slate-600">
             View only.
           </div>
@@ -757,7 +776,7 @@ const CuttingListModal = ({
                     <span className="font-semibold text-slate-700">Manager dashboard</span> → Transaction Intel →{' '}
                     <span className="font-semibold text-slate-700">Override</span> before you can save a cutting list here.
                   </p>
-                  {productionLocked ? (
+                  {productionCompletedLock ? (
                     <div className={`${field} bg-slate-50 text-slate-700`}>{quotationRef || '—'}</div>
                   ) : (
                     <div className="relative">
@@ -1030,13 +1049,13 @@ const CuttingListModal = ({
               </div>
             )}
 
-            {editData?.id && !productionLocked && editData?.productionReleasePending ? (
+            {editData?.id && !editData?.productionRegistered && editData?.productionReleasePending ? (
               <p className="text-[9px] font-medium text-amber-900 bg-amber-50 border border-amber-100 rounded-lg p-2 leading-snug">
                 Clear the operations production hold above before sending to the queue.
               </p>
             ) : null}
 
-            {editData?.id && !productionLocked && ws?.canMutate && canRegisterProduction && !editData?.productionReleasePending ? (
+            {editData?.id && !editData?.productionRegistered && ws?.canMutate && canRegisterProduction && !editData?.productionReleasePending ? (
               <button
                 type="button"
                 onClick={registerProduction}
@@ -1047,12 +1066,12 @@ const CuttingListModal = ({
                 {registering ? 'Sending…' : 'Send to production queue'}
               </button>
             ) : null}
-            {editData?.id && !productionLocked && ws?.canMutate && !canRegisterProduction ? (
+            {editData?.id && !editData?.productionRegistered && ws?.canMutate && !canRegisterProduction ? (
               <p className="text-[9px] text-slate-500 leading-snug">
                 Ask an admin for sales, operations, or production access to send this list to the queue.
               </p>
             ) : null}
-            {editData?.id && !productionLocked && !ws?.canMutate ? (
+            {editData?.id && !editData?.productionRegistered && !ws?.canMutate ? (
               <p className="text-[9px] text-slate-500 leading-snug">
                 Connect and sign in to send this cutting list to the production queue.
               </p>
