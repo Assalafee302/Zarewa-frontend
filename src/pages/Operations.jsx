@@ -16,7 +16,6 @@ import {
   Scale,
   Search,
   Disc3,
-  PencilLine,
 } from 'lucide-react';
 
 import { WorkspacePanelToolbar } from '../components/workspace';
@@ -35,10 +34,6 @@ import { AppTablePager, AppTableWrap } from '../components/ui/AppDataTable';
 import { productionJobNeedsManagerReviewAttention } from '../lib/productionReview';
 import { pickProductionJobForCuttingList } from '../lib/productionJobPick';
 import { procurementKindFromPo } from '../lib/procurementPoKind';
-import {
-  canSeeExecutiveInventoryEditShortcut,
-  canSeeExecutiveProductionEditShortcut,
-} from '../lib/executiveStoreToolsAccess';
 
 /** Current kg on the coil (after production use); uses API fields when present. */
 function liveCoilWeightKg(lot) {
@@ -488,14 +483,6 @@ const Operations = () => {
   const ws = useWorkspace();
   const canReceiveInventory = Boolean(ws?.hasPermission?.('inventory.receive'));
   const canAdjustInventory = Boolean(ws?.hasPermission?.('inventory.adjust'));
-  const showExecutiveProductionShortcut = useMemo(
-    () => canSeeExecutiveProductionEditShortcut(ws?.session?.user?.roleKey, ws?.permissions),
-    [ws?.session?.user?.roleKey, ws?.permissions]
-  );
-  const showExecutiveInventoryShortcut = useMemo(
-    () => canSeeExecutiveInventoryEditShortcut(ws?.session?.user?.roleKey, ws?.permissions),
-    [ws?.session?.user?.roleKey, ws?.permissions]
-  );
 
   const [activeTab, setActiveTab] = useState('production');
   const [searchQuery, setSearchQuery] = useState('');
@@ -646,30 +633,6 @@ const Operations = () => {
       ws?.hasWorkspaceData && Array.isArray(ws?.snapshot?.cuttingLists) ? ws.snapshot.cuttingLists : [],
     [ws?.hasWorkspaceData, ws?.snapshot?.cuttingLists]
   );
-  const openStockAdjustForFamily = useCallback(
-    (family) => {
-      if (!canAdjustInventory) {
-        showToast('Branch manager or director required to post book stock adjustments.', { variant: 'error' });
-        return;
-      }
-      const candidates = inventoryRows.filter((r) => productMaterialFamily(r) === family);
-      const list = candidates.length ? candidates : inventoryRows;
-      const first = list[0];
-      setStockAdjust((s) => ({
-        ...s,
-        productID: first?.productID ?? '',
-        type: 'Increase',
-        qty: '',
-        reasonCode: 'Count correction',
-        reasonNote: '',
-        date: s.date || new Date().toISOString().slice(0, 10),
-      }));
-      setStockAdjustMaterialFamily(family);
-      setShowStockAdjust(true);
-    },
-    [canAdjustInventory, inventoryRows, showToast]
-  );
-
   const productionQueueModel = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
     const matches = (item) => {
@@ -1370,48 +1333,6 @@ const Operations = () => {
         tabs={<PageTabs tabs={opsTabs} value={activeTab} onChange={handleOpsTab} />}
         actions={
           <>
-            {showExecutiveProductionShortcut || showExecutiveInventoryShortcut ? (
-              <div className="mr-auto flex flex-wrap items-center gap-2">
-                {showExecutiveProductionShortcut ? (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setActiveTab('production');
-                      setSearchQuery('');
-                      setProductionFilter('all');
-                      showToast('Production line — select a job to edit run log, completion, or post-completion output corrections.', {
-                        variant: 'info',
-                      });
-                    }}
-                    className="inline-flex items-center gap-2 rounded-xl border border-amber-200/90 bg-amber-50/90 px-3 py-2 text-[10px] font-black uppercase tracking-wide text-amber-950 shadow-sm transition hover:bg-amber-100"
-                  >
-                    <PencilLine size={14} aria-hidden />
-                    Edit production
-                  </button>
-                ) : null}
-                {showExecutiveInventoryShortcut ? (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setActiveTab('inventory');
-                      setSearchQuery('');
-                      if (canAdjustInventory) {
-                        setStockAdjustMaterialFamily(null);
-                        setShowStockAdjust(true);
-                      }
-                      else
-                        showToast('Stock management — use receive and on-hand tabs; book adjustments need inventory adjust rights.', {
-                          variant: 'info',
-                        });
-                    }}
-                    className="inline-flex items-center gap-2 rounded-xl border border-sky-200/90 bg-sky-50/90 px-3 py-2 text-[10px] font-black uppercase tracking-wide text-sky-950 shadow-sm transition hover:bg-sky-100"
-                  >
-                    <Package size={14} aria-hidden />
-                    Edit stock
-                  </button>
-                ) : null}
-              </div>
-            ) : null}
             <AiAskButton
               mode="operations"
               prompt={
@@ -2029,24 +1950,6 @@ const Operations = () => {
                   <span className="font-bold tabular-nums">{inventoryStats.aluzincKg.toLocaleString()} kg</span>
                 </p>
               </div>
-              {canAdjustInventory ? (
-                <div className="mt-2 flex flex-col gap-1.5">
-                  <button
-                    type="button"
-                    onClick={() => openStockAdjustForFamily('aluminium')}
-                    className="w-full rounded-lg border border-slate-200 bg-slate-50 py-1.5 px-2 text-[8px] font-bold uppercase tracking-wide text-[#134e4a] hover:bg-white"
-                  >
-                    Adjust aluminium SKUs…
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => openStockAdjustForFamily('aluzinc')}
-                    className="w-full rounded-lg border border-slate-200 bg-slate-50 py-1.5 px-2 text-[8px] font-bold uppercase tracking-wide text-[#134e4a] hover:bg-white"
-                  >
-                    Adjust aluzinc SKUs…
-                  </button>
-                </div>
-              ) : null}
             </div>
             <div className="rounded-xl border border-slate-200 bg-white p-3">
               <p className="text-[9px] font-bold uppercase tracking-wide text-slate-500">Conversion efficiency</p>
