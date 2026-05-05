@@ -416,7 +416,16 @@ export function LiveProductionMonitor({
     linkedQuotation && String(linkedQuotation.materialTypeId || '').trim() === 'MAT-005'
   );
   const jobSt = normalizeJobStatus(selectedJob?.status);
-  const readOnly = Boolean(viewOnly) || jobSt === 'Completed' || jobSt === 'Cancelled';
+  /** Same gate as post-completion FG metre adjustments — not plain production.manage. */
+  const canEditCompletedCoilCorrections =
+    jobSt === 'Completed' &&
+    !Boolean(viewOnly) &&
+    !isStoneMeterQuote &&
+    (Boolean(ws?.hasPermission?.('production.release')) || Boolean(ws?.hasPermission?.('operations.manage')));
+  const readOnly =
+    Boolean(viewOnly) ||
+    jobSt === 'Cancelled' ||
+    (jobSt === 'Completed' && !canEditCompletedCoilCorrections);
   const canEditPlannedAllocations = jobSt === 'Planned' && !readOnly;
   const canAddSupplementalCoil = jobSt === 'Running' && !readOnly && !isStoneMeterQuote;
   const canCaptureRun = jobSt === 'Running' && !readOnly;
@@ -848,6 +857,13 @@ export function LiveProductionMonitor({
     () => appendSaveReady || runLogSaveReady,
     [appendSaveReady, runLogSaveReady]
   );
+  const completedCoilCorrectionSaveReady = useMemo(
+    () =>
+      canEditCompletedCoilCorrections &&
+      draftAllocations.length > 0 &&
+      draftAllocations.every((r) => !isDraftAllocationRow(r)),
+    [canEditCompletedCoilCorrections, draftAllocations]
+  );
   const plannedAllocSaveReady = useMemo(
     () =>
       isStoneMeterQuote ||
@@ -1151,6 +1167,71 @@ export function LiveProductionMonitor({
     let path = '';
     let body = {};
     const alsoStartAfterAlloc = type === 'allocationsAndStart';
+
+    if (type === 'completedCoilCorrection') {
+      if (!completedCoilCorrectionSaveReady) {
+        setSavingAction('');
+        showToast('Load the job with all coil lines present (no blank “add coil” rows) before saving a correction.', {
+          variant: 'info',
+        });
+        return;
+      }
+      const reason = window.prompt(
+        'Reason for correcting this completed job (at least 12 characters — audited like other completion fixes):'
+      );
+      if (!reason || reason.trim().length < 12) {
+        setSavingAction('');
+        showToast('Correction requires a reason of at least 12 characters.', { variant: 'error' });
+        return;
+      }
+      try {
+        const buildBody = (withAck) => ({
+          reason: reason.trim(),
+          readings: draftAllocations
+            .filter((r) => !isDraftAllocationRow(r))
+            .map((row) => ({
+              allocationId: row.id,
+              coilNo: String(row.coilNo ?? '').trim(),
+              openingWeightKg: Number(String(row.openingWeightKg).replace(/,/g, '')) || 0,
+              closingWeightKg: Number(String(row.closingWeightKg).replace(/,/g, '')) || 0,
+              metersProduced: Number(String(row.metersProduced).replace(/,/g, '')) || 0,
+              note: String(row.note ?? '').trim(),
+              ...(withAck ? { specMismatchAcknowledged: true } : {}),
+            })),
+        });
+        let res = await apiFetch(`${jobApi}/completion-coil-corrections`, {
+          method: 'POST',
+          body: JSON.stringify(buildBody(false)),
+        });
+        if (!res.ok && res.data?.code === 'PRODUCTION_SPEC_MISMATCH') {
+          const detail = (res.data.mismatches || [])
+            .map((m) => `${m.coilNo}: ${m.detail}`)
+            .join('\n');
+          const go = window.confirm(
+            `These coils do not match the quotation material specification (gauge / colour / material):\n\n${detail}\n\nSave anyway and flag the branch manager for review?`
+          );
+          if (go) {
+            res = await apiFetch(`${jobApi}/completion-coil-corrections`, {
+              method: 'POST',
+              body: JSON.stringify(buildBody(true)),
+            });
+          }
+        }
+        if (!res.ok || !res.data?.ok) {
+          setSavingAction('');
+          showToast(res.data?.error || 'Could not apply correction.', { variant: 'error' });
+          await ws.refresh();
+          return;
+        }
+        await ws.refresh();
+        setSavingAction('');
+        showToast('Completed job coil correction saved.');
+      } catch (e) {
+        setSavingAction('');
+        showToast(e?.message || 'Save failed.', { variant: 'error' });
+      }
+      return;
+    }
 
     if (type === 'runningCheckpoint') {
       if (!runningCheckpointSaveReady) {
@@ -1658,6 +1739,22 @@ export function LiveProductionMonitor({
                     >
                       <Save size={15} />
                       {savingAction === 'runningCheckpoint' ? 'Saving…' : 'Save'}
+                    </button>
+                  ) : null}
+                  {selectedJob.status === 'Completed' && canEditCompletedCoilCorrections ? (
+                    <button
+                      type="button"
+                      onClick={() => void persist('completedCoilCorrection')}
+                      disabled={savingAction !== '' || !completedCoilCorrectionSaveReady}
+                      title="Correct coil, opening/closing kg, or metres after completion. Requires a 12+ character reason. Adjusts stock; does not reverse posted GL automatically."
+                      className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-semibold transition-colors disabled:opacity-45 ${
+                        savingAction === 'completedCoilCorrection'
+                          ? 'bg-amber-100 text-amber-900'
+                          : 'border border-amber-400 bg-amber-50 text-amber-950 hover:bg-amber-100'
+                      }`}
+                    >
+                      <Save size={15} />
+                      {savingAction === 'completedCoilCorrection' ? 'Saving…' : 'Save correction'}
                     </button>
                   ) : null}
                   <button
@@ -2625,7 +2722,8 @@ export function LiveProductionMonitor({
                 const canPickCoilAndOpening =
                   canEditPlannedAllocations ||
                   (canAddSupplementalCoil && draftRow) ||
-                  (jobSt === 'Running' && !readOnly && !isStoneMeterQuote && !draftRow);
+                  (jobSt === 'Running' && !readOnly && !isStoneMeterQuote && !draftRow) ||
+                  (canEditCompletedCoilCorrections && !draftRow);
                 const coilSelectLockedRunningPrimary =
                   operationsRegisterEdit &&
                   inModal &&
@@ -2784,7 +2882,7 @@ export function LiveProductionMonitor({
                             type="number"
                             min="0"
                             step="0.01"
-                            disabled={!canCaptureRun}
+                            disabled={!canCaptureRun && !(canEditCompletedCoilCorrections && !draftRow)}
                             value={row.closingWeightKg}
                             onChange={(e) => updateDraftRow(row.id, { closingWeightKg: e.target.value })}
                             className="min-h-10 w-full rounded-md border border-slate-200 bg-white py-2 px-1.5 text-xs font-bold tabular-nums text-[#134e4a] outline-none transition-all focus:border-[#134e4a]/40 focus:ring-1 focus:ring-[#134e4a]/20 disabled:opacity-60 lg:min-h-0 lg:py-1.5"
@@ -2799,7 +2897,7 @@ export function LiveProductionMonitor({
                             type="number"
                             min="0"
                             step="0.01"
-                            disabled={!canCaptureRun}
+                            disabled={!canCaptureRun && !(canEditCompletedCoilCorrections && !draftRow)}
                             value={row.metersProduced}
                             onChange={(e) => updateDraftRow(row.id, { metersProduced: e.target.value })}
                             className="min-h-10 w-full rounded-md border border-slate-200 bg-white py-2 px-1.5 text-xs font-bold tabular-nums text-[#134e4a] outline-none transition-all focus:border-[#134e4a]/40 focus:ring-1 focus:ring-[#134e4a]/20 disabled:opacity-60 lg:min-h-0 lg:py-1.5"
@@ -2815,7 +2913,10 @@ export function LiveProductionMonitor({
                           type="text"
                           value={row.note}
                           onChange={(e) => updateDraftRow(row.id, { note: e.target.value })}
-                          disabled={readOnly || (jobSt === 'Running' && !draftRow && !canCaptureRun)}
+                          disabled={
+                            (readOnly && !canEditCompletedCoilCorrections) ||
+                            (jobSt === 'Running' && !draftRow && !canCaptureRun)
+                          }
                           placeholder="Trim, splice…"
                           className="min-h-10 min-w-0 w-full rounded-md border border-slate-200 bg-white py-2 px-2 text-[11px] font-medium text-slate-800 outline-none transition-all focus:border-slate-300 focus:ring-1 focus:ring-slate-200/80 disabled:opacity-60 lg:min-h-0 lg:py-1.5"
                         />
@@ -3196,6 +3297,22 @@ export function LiveProductionMonitor({
                 >
                   <Save size={12} />
                   {savingAction === 'runningCheckpoint' ? 'Saving…' : 'Save'}
+                </button>
+              ) : null}
+              {selectedJob.status === 'Completed' && canEditCompletedCoilCorrections ? (
+                <button
+                  type="button"
+                  onClick={() => void persist('completedCoilCorrection')}
+                  disabled={savingAction !== '' || !completedCoilCorrectionSaveReady}
+                  title="Correct coil or weights after completion (reason required). Stock only — GL not auto-reversed."
+                  className={`inline-flex items-center gap-0.5 rounded-md px-2 py-0.5 text-[10px] font-semibold transition-colors disabled:opacity-45 ${
+                    savingAction === 'completedCoilCorrection'
+                      ? 'bg-amber-100 text-amber-900'
+                      : 'border border-amber-400 bg-amber-50 text-amber-950 hover:bg-amber-100'
+                  }`}
+                >
+                  <Save size={12} />
+                  {savingAction === 'completedCoilCorrection' ? 'Saving…' : 'Save correction'}
                 </button>
               ) : null}
               <button
