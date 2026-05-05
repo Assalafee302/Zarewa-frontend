@@ -54,8 +54,9 @@ export function ProductionRegisterEditModal({ isOpen, onClose, cuttingListId, su
         <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden p-2 sm:p-3">
           <LiveProductionMonitor
             focusCuttingListId={id}
-            hideJobSidebar={false}
+            hideJobSidebar
             inModal
+            operationsRegisterEdit
             viewOnly={false}
             onModalClose={onClose}
             showModalCloseButton={false}

@@ -300,7 +300,7 @@ function pickProductionJobForCuttingList(cuttingListId, jobs, cuttingLists) {
 }
 
 /**
- * @param {{ focusCuttingListId?: string | null; hideJobSidebar?: boolean; inModal?: boolean; viewOnly?: boolean; onModalClose?: () => void; showModalCloseButton?: boolean }} [props]
+ * @param {{ focusCuttingListId?: string | null; hideJobSidebar?: boolean; inModal?: boolean; viewOnly?: boolean; onModalClose?: () => void; showModalCloseButton?: boolean; operationsRegisterEdit?: boolean }} [props]
  */
 export function LiveProductionMonitor({
   focusCuttingListId = null,
@@ -309,6 +309,7 @@ export function LiveProductionMonitor({
   viewOnly = false,
   onModalClose = null,
   showModalCloseButton = true,
+  operationsRegisterEdit = false,
 } = {}) {
   const ws = useWorkspace();
   const { show: showToast } = useToast();
@@ -449,6 +450,12 @@ export function LiveProductionMonitor({
   const isStoneMeterQuote = Boolean(
     linkedQuotation && String(linkedQuotation.materialTypeId || '').trim() === 'MAT-005'
   );
+  const jobSt = normalizeJobStatus(selectedJob?.status);
+  const readOnly = Boolean(viewOnly) || jobSt === 'Completed' || jobSt === 'Cancelled';
+  const canEditPlannedAllocations = jobSt === 'Planned' && !readOnly;
+  const canAddSupplementalCoil = jobSt === 'Running' && !readOnly && !isStoneMeterQuote;
+  const canCaptureRun = jobSt === 'Running' && !readOnly;
+
   const quotationMaterialSpec = useMemo(
     () => buildExpectedCoilSpecFromQuotation(linkedQuotation, jobProductAttrs),
     [linkedQuotation, jobProductAttrs]
@@ -530,7 +537,7 @@ export function LiveProductionMonitor({
     [draftAllocations]
   );
   const recordedMeters = useMemo(() => {
-    if (isStoneMeterQuote && selectedJob?.status === 'Running') {
+    if (isStoneMeterQuote && jobSt === 'Running') {
       const m = Number(String(stoneMetersConsumed).replace(/,/g, ''));
       return Number.isFinite(m) && m > 0 ? m : 0;
     }
@@ -538,7 +545,7 @@ export function LiveProductionMonitor({
       const meters = Number(row.metersProduced);
       return sum + (Number.isFinite(meters) ? meters : 0);
     }, 0);
-  }, [draftAllocations, isStoneMeterQuote, selectedJob?.status, stoneMetersConsumed]);
+  }, [draftAllocations, isStoneMeterQuote, jobSt, stoneMetersConsumed]);
   const recordedConsumedKg = useMemo(
     () =>
       draftAllocations.reduce((sum, row) => {
@@ -551,7 +558,7 @@ export function LiveProductionMonitor({
   );
 
   const canRunConversionPreview = useMemo(() => {
-    if (selectedJob?.status !== 'Running' || !selectedJob?.jobID) return false;
+    if (jobSt !== 'Running' || !selectedJob?.jobID) return false;
     if (isStoneMeterQuote) {
       const m = Number(String(stoneMetersConsumed).replace(/,/g, ''));
       return Number.isFinite(m) && m > 0;
@@ -560,17 +567,17 @@ export function LiveProductionMonitor({
   }, [
     draftAllocations,
     isStoneMeterQuote,
+    jobSt,
     selectedJob?.jobID,
-    selectedJob?.status,
     stoneMetersConsumed,
   ]);
 
   /** Persisted coil rows — can save closing / metres / note to server while the run is open. */
   const runLogSaveReady = useMemo(
     () =>
-      Boolean(selectedJob?.status === 'Running' && !isStoneMeterQuote) &&
+      Boolean(jobSt === 'Running' && !isStoneMeterQuote) &&
       draftAllocations.some((r) => !isDraftAllocationRow(r)),
-    [draftAllocations, isStoneMeterQuote, selectedJob?.status]
+    [draftAllocations, isStoneMeterQuote, jobSt]
   );
 
   const conversionPreviewTimerRef = useRef(null);
@@ -820,11 +827,6 @@ export function LiveProductionMonitor({
     };
   }, [conversionPreviewKey, selectedJob?.jobID]);
 
-  const readOnly =
-    Boolean(viewOnly) || selectedJob?.status === 'Completed' || selectedJob?.status === 'Cancelled';
-  const canEditPlannedAllocations = selectedJob?.status === 'Planned' && !readOnly;
-  const canAddSupplementalCoil = selectedJob?.status === 'Running' && !readOnly && !isStoneMeterQuote;
-  const canCaptureRun = selectedJob?.status === 'Running' && !readOnly;
   const completionValidation = useMemo(() => {
     if (isStoneMeterQuote) {
       const m = Number(String(stoneMetersConsumed).replace(/,/g, ''));
@@ -1793,13 +1795,13 @@ export function LiveProductionMonitor({
       ) : (
         <div className={`border-b border-slate-100 bg-slate-50/70 ${inModal ? 'px-2 py-0.5 sm:px-2.5' : 'px-2 py-1 sm:px-3'}`}>
           <div className={`flex flex-wrap ${inModal ? 'gap-1' : 'gap-1.5'}`}>
-            {readOnly && selectedJob?.status === 'Cancelled' ? (
+            {readOnly && jobSt === 'Cancelled' ? (
               <span className="inline-flex max-w-full items-start gap-1 rounded-md border border-slate-200 bg-white px-2 py-1 text-[10px] text-slate-600">
                 <Ban size={14} className="mt-0.5 shrink-0 text-slate-600" />
                 Job cancelled — no further production actions; record kept for refunds / audit.
               </span>
             ) : null}
-            {readOnly && selectedJob?.status !== 'Cancelled' ? (
+            {readOnly && jobSt !== 'Cancelled' ? (
               <span className="inline-flex max-w-full items-start gap-1 rounded-md border border-slate-200 bg-white px-2 py-1 text-[10px] text-slate-600">
                 <CheckCircle2 size={14} className="mt-0.5 shrink-0 text-emerald-600" />
                 Finished run — review conversion below; actions are off.
@@ -2398,7 +2400,7 @@ export function LiveProductionMonitor({
             </div>
           ) : null}
 
-          {readOnly && selectedJob.status === 'Completed' && selectedJob.productID ? (
+          {readOnly && jobSt === 'Completed' && selectedJob.productID ? (
             <div className="rounded-lg border border-indigo-200/90 bg-indigo-50/60 p-2.5 sm:p-3 space-y-2">
               <p className="text-[9px] font-black uppercase tracking-widest text-indigo-900/90">
                 Output product stock (after completion)
@@ -2637,6 +2639,13 @@ export function LiveProductionMonitor({
                 );
                 const canPickCoilAndOpening =
                   canEditPlannedAllocations || (canAddSupplementalCoil && draftRow);
+                const coilSelectLockedRunningPrimary =
+                  operationsRegisterEdit &&
+                  inModal &&
+                  !readOnly &&
+                  jobSt === 'Running' &&
+                  !draftRow &&
+                  !canPickCoilAndOpening;
                 const specWarn =
                   lot && (linkedQuotation || jobProductAttrs)
                     ? coilVersusQuotationAndProductWarning(lot, linkedQuotation, jobProductAttrs, masterDataForCoilSpec)
@@ -2709,7 +2718,11 @@ export function LiveProductionMonitor({
                         </label>
                         <select
                           disabled={!canPickCoilAndOpening}
-                          title={coilSelectTitle}
+                          title={
+                            coilSelectLockedRunningPrimary
+                              ? 'Primary coil is fixed while the run is open. Use Return to plan to change coils, or add a new coil row for an extra roll.'
+                              : coilSelectTitle
+                          }
                           value={row.coilNo}
                           onChange={(e) => updateDraftRow(row.id, { coilNo: e.target.value })}
                           className="min-h-11 w-full min-w-0 max-w-full rounded-md border border-slate-200 bg-white py-2 px-2 text-[11px] font-bold text-[#134e4a] outline-none transition-all focus:border-[#134e4a]/40 focus:ring-1 focus:ring-[#134e4a]/20 disabled:opacity-60 lg:min-h-0 lg:py-1.5"
@@ -2815,10 +2828,7 @@ export function LiveProductionMonitor({
                           type="text"
                           value={row.note}
                           onChange={(e) => updateDraftRow(row.id, { note: e.target.value })}
-                          disabled={
-                            selectedJob.status === 'Completed' ||
-                            (selectedJob.status === 'Running' && !draftRow)
-                          }
+                          disabled={readOnly || (jobSt === 'Running' && !draftRow && !canCaptureRun)}
                           placeholder="Trim, splice…"
                           className="min-h-10 min-w-0 w-full rounded-md border border-slate-200 bg-white py-2 px-2 text-[11px] font-medium text-slate-800 outline-none transition-all focus:border-slate-300 focus:ring-1 focus:ring-slate-200/80 disabled:opacity-60 lg:min-h-0 lg:py-1.5"
                         />
