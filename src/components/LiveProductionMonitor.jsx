@@ -1160,18 +1160,37 @@ export function LiveProductionMonitor({
       }
       try {
         if (runLogSaveReady && !isStoneMeterQuote) {
-          const readings = draftAllocations
-            .filter((r) => !isDraftAllocationRow(r))
-            .map((row) => ({
-              allocationId: row.id,
-              closingWeightKg: Number(String(row.closingWeightKg).replace(/,/g, '')) || 0,
-              metersProduced: Number(String(row.metersProduced).replace(/,/g, '')) || 0,
-              note: String(row.note ?? '').trim(),
-            }));
-          const resRl = await apiFetch(`${jobApi}/coil-run-log`, {
-            method: 'POST',
-            body: JSON.stringify({ readings }),
+          const buildRunLog = (withAck) => ({
+            readings: draftAllocations
+              .filter((r) => !isDraftAllocationRow(r))
+              .map((row) => ({
+                allocationId: row.id,
+                coilNo: String(row.coilNo ?? '').trim(),
+                openingWeightKg: Number(String(row.openingWeightKg).replace(/,/g, '')) || 0,
+                closingWeightKg: Number(String(row.closingWeightKg).replace(/,/g, '')) || 0,
+                metersProduced: Number(String(row.metersProduced).replace(/,/g, '')) || 0,
+                note: String(row.note ?? '').trim(),
+                ...(withAck ? { specMismatchAcknowledged: true } : {}),
+              })),
           });
+          let resRl = await apiFetch(`${jobApi}/coil-run-log`, {
+            method: 'POST',
+            body: JSON.stringify(buildRunLog(false)),
+          });
+          if (!resRl.ok && resRl.data?.code === 'PRODUCTION_SPEC_MISMATCH') {
+            const detail = (resRl.data.mismatches || [])
+              .map((m) => `${m.coilNo}: ${m.detail}`)
+              .join('\n');
+            const go = window.confirm(
+              `These coils do not match the quotation material specification (gauge / colour / material):\n\n${detail}\n\nSave anyway and flag the branch manager for review?`
+            );
+            if (go) {
+              resRl = await apiFetch(`${jobApi}/coil-run-log`, {
+                method: 'POST',
+                body: JSON.stringify(buildRunLog(true)),
+              });
+            }
+          }
           if (!resRl.ok || !resRl.data?.ok) {
             setSavingAction('');
             showToast(resRl.data?.error || 'Could not save run log.', { variant: 'error' });
@@ -2602,8 +2621,11 @@ export function LiveProductionMonitor({
                     .map((r) => String(r.coilNo ?? '').trim())
                     .filter(Boolean)
                 );
+                /** Running persisted lines: allow correcting wrong coil / opening kg (server run-log save adjusts reservations). */
                 const canPickCoilAndOpening =
-                  canEditPlannedAllocations || (canAddSupplementalCoil && draftRow);
+                  canEditPlannedAllocations ||
+                  (canAddSupplementalCoil && draftRow) ||
+                  (jobSt === 'Running' && !readOnly && !isStoneMeterQuote && !draftRow);
                 const coilSelectLockedRunningPrimary =
                   operationsRegisterEdit &&
                   inModal &&
