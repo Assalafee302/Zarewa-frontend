@@ -251,20 +251,20 @@ const Account = () => {
 
   const liveQuotations = useMemo(
     () => (ws?.hasWorkspaceData && Array.isArray(ws?.snapshot?.quotations) ? ws.snapshot.quotations : []),
-    [ws]
+    [ws?.hasWorkspaceData, ws?.snapshot?.quotations]
   );
   const liveReceipts = useMemo(
     () => (ws?.hasWorkspaceData && Array.isArray(ws?.snapshot?.receipts) ? ws.snapshot.receipts : []),
-    [ws]
+    [ws?.hasWorkspaceData, ws?.snapshot?.receipts]
   );
   const liveTreasuryMovements = useMemo(
     () =>
       ws?.hasWorkspaceData && Array.isArray(ws?.snapshot?.treasuryMovements) ? ws.snapshot.treasuryMovements : [],
-    [ws]
+    [ws?.hasWorkspaceData, ws?.snapshot?.treasuryMovements]
   );
   const liveLedgerEntries = useMemo(
     () => (ws?.hasWorkspaceData && Array.isArray(ws?.snapshot?.ledgerEntries) ? ws.snapshot.ledgerEntries : []),
-    [ws]
+    [ws?.hasWorkspaceData, ws?.snapshot?.ledgerEntries]
   );
 
   const treasuryTransferRows = useMemo(() => {
@@ -921,7 +921,7 @@ const Account = () => {
       liveTreasuryMovements,
       todayIso,
       canReviseFinalizedReceiptSettlement,
-      ws,
+      ws.refresh,
       showToast,
     ]
   );

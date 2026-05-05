@@ -34,7 +34,7 @@ export default function WorkspaceEditApprovalPanel({ item, onDone }) {
     } finally {
       setBusy(false);
     }
-  }, [id, onDone, showToast, ws]);
+  }, [id, onDone, showToast, ws.refresh, ws.canMutate]);
 
   if (!id) {
     return <p className="p-4 text-sm text-slate-500">Missing approval id.</p>;

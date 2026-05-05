@@ -22,8 +22,17 @@ export function EditSecondApprovalInline({ entityKind, entityId, value, onChange
   const [err, setErr] = useState('');
   const [saveHint, setSaveHint] = useState('');
   const [hintTone, setHintTone] = useState('neutral');
+  const [waitingOnApprover, setWaitingOnApprover] = useState(false);
   const pollRef = useRef(null);
   const lookupTimerRef = useRef(null);
+
+  useEffect(() => {
+    setWaitingOnApprover(false);
+    setSaveHint('');
+    setErr('');
+    if (pollRef.current) clearInterval(pollRef.current);
+    pollRef.current = null;
+  }, [entityKind, entityId]);
 
   useEffect(
     () => () => {
@@ -32,6 +41,12 @@ export function EditSecondApprovalInline({ entityKind, entityId, value, onChange
     },
     []
   );
+
+  useEffect(() => {
+    if (!String(value || '').trim() && !pollRef.current) {
+      setWaitingOnApprover(false);
+    }
+  }, [value]);
 
   useEffect(() => {
     if (!needs || !String(entityId || '').trim()) return;
@@ -71,14 +86,16 @@ export function EditSecondApprovalInline({ entityKind, entityId, value, onChange
       }
       const st = String(r.data.approval.status || '').toLowerCase();
       if (st === 'approved') {
-        setSaveHint('Save endpoint ready — your next successful save will use this token once.');
+        setSaveHint('Ready to save — your next successful save uses this token once.');
         setHintTone('good');
+        setWaitingOnApprover(false);
       } else if (st === 'pending') {
         setSaveHint('Still pending — ask an approver to grant it in Edit approvals.');
         setHintTone('neutral');
       } else if (st === 'used') {
         setSaveHint('This code was already used. Request a new approval.');
         setHintTone('bad');
+        setWaitingOnApprover(false);
       } else {
         setSaveHint(`Status: ${r.data.approval.status || 'unknown'}.`);
         setHintTone('neutral');
@@ -98,8 +115,9 @@ export function EditSecondApprovalInline({ entityKind, entityId, value, onChange
       if (r.ok && r.data?.ok && r.data.approval?.status === 'approved') {
         if (pollRef.current) clearInterval(pollRef.current);
         pollRef.current = null;
-        setSaveHint('Save endpoint ready — your next successful save will use this token once.');
+        setSaveHint('Ready to save — your next successful save uses this token once.');
         setHintTone('good');
+        setWaitingOnApprover(false);
         onChange(approvalId);
       }
     }, 2000);
@@ -108,11 +126,24 @@ export function EditSecondApprovalInline({ entityKind, entityId, value, onChange
   const request = async () => {
     setBusy(true);
     setErr('');
-    const { ok, data } = await apiFetch('/api/edit-approvals/request', {
+    const r = await apiFetch('/api/edit-approvals/request', {
       method: 'POST',
       body: JSON.stringify({ entityKind, entityId: String(entityId).trim() }),
     });
     setBusy(false);
+    const { ok, data, status } = r;
+    if (status === 409 && data?.code === 'EDIT_APPROVAL_ALREADY_PENDING') {
+      setErr('');
+      setSaveHint(data.error || 'A request was already sent for this record.');
+      setHintTone('neutral');
+      setWaitingOnApprover(true);
+      const existing = String(data.existingApprovalId || '').trim();
+      if (existing) {
+        onChange('');
+        startPoll(existing);
+      }
+      return;
+    }
     if (!ok || !data?.ok) {
       setErr(data?.error || 'Could not create approval request.');
       return;
@@ -125,6 +156,7 @@ export function EditSecondApprovalInline({ entityKind, entityId, value, onChange
     onChange('');
     setSaveHint('Waiting for approver…');
     setHintTone('neutral');
+    setWaitingOnApprover(true);
     startPoll(id);
   };
 
@@ -149,11 +181,11 @@ export function EditSecondApprovalInline({ entityKind, entityId, value, onChange
       <div className="flex flex-wrap gap-2 items-center">
         <button
           type="button"
-          disabled={busy}
+          disabled={busy || waitingOnApprover}
           onClick={() => void request()}
           className="shrink-0 rounded-lg bg-amber-700 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide text-white hover:bg-amber-800 disabled:opacity-50"
         >
-          {busy ? 'Requesting…' : 'Request approval'}
+          {busy ? 'Requesting…' : waitingOnApprover ? 'Request already sent' : 'Request approval'}
         </button>
         <input
           type="text"

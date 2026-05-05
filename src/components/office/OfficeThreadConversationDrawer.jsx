@@ -56,7 +56,7 @@ export function OfficeThreadConversationDrawer({ threadId, isOpen = true, onDism
     const wid = detail?.thread?.relatedWorkItemId;
     if (!wid) return detail?.workItem || null;
     return ws?.getUnifiedWorkItemById?.(wid) || detail?.workItem || null;
-  }, [detail?.thread?.relatedWorkItemId, detail?.workItem, ws]);
+  }, [detail?.thread?.relatedWorkItemId, detail?.workItem, ws.getUnifiedWorkItemById]);
 
   const drawerIntelWorkItem = useMemo(() => {
     if (selectedThreadWorkItem && workItemShowsOfficeDrawerTransactionIntel(selectedThreadWorkItem.documentType)) {

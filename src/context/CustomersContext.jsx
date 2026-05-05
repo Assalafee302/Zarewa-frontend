@@ -37,7 +37,7 @@ export function CustomersProvider({ children }) {
       await ws.refresh();
       return data?.customerID || record.customerID;
     },
-    [showToast, ws]
+    [showToast, ws.refresh, ws.canMutate]
   );
 
   const deleteCustomer = useCallback(
@@ -58,7 +58,7 @@ export function CustomersProvider({ children }) {
       }
       await ws.refresh();
     },
-    [showToast, ws]
+    [showToast, ws.refresh, ws.canMutate]
   );
 
   const value = useMemo(

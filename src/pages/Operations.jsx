@@ -590,24 +590,24 @@ const Operations = () => {
 
   const productionJobs = useMemo(
     () => (ws?.hasWorkspaceData && Array.isArray(ws?.snapshot?.productionJobs) ? ws.snapshot.productionJobs : []),
-    [ws]
+    [ws?.hasWorkspaceData, ws?.snapshot?.productionJobs]
   );
   const productionJobCoils = useMemo(
     () =>
       ws?.hasWorkspaceData && Array.isArray(ws?.snapshot?.productionJobCoils) ? ws.snapshot.productionJobCoils : [],
-    [ws]
+    [ws?.hasWorkspaceData, ws?.snapshot?.productionJobCoils]
   );
   const productionConversionChecks = useMemo(
     () =>
       ws?.hasWorkspaceData && Array.isArray(ws?.snapshot?.productionConversionChecks)
         ? ws.snapshot.productionConversionChecks
         : [],
-    [ws]
+    [ws?.hasWorkspaceData, ws?.snapshot?.productionConversionChecks]
   );
   const cuttingLists = useMemo(
     () =>
       ws?.hasWorkspaceData && Array.isArray(ws?.snapshot?.cuttingLists) ? ws.snapshot.cuttingLists : [],
-    [ws]
+    [ws?.hasWorkspaceData, ws?.snapshot?.cuttingLists]
   );
 
   const productionQueueModel = useMemo(() => {
@@ -1246,10 +1246,10 @@ const Operations = () => {
     if (activeTab !== 'inventory') return undefined;
     if (!ws?.hasWorkspaceData) return undefined;
     const t = window.setInterval(() => {
-      void ws.refresh?.();
+      void ws.refresh?.({ background: true });
     }, 15000);
     return () => window.clearInterval(t);
-  }, [activeTab, ws]);
+  }, [activeTab, ws?.hasWorkspaceData, ws.refresh]);
 
   const openProductionQueueRow = (item) => {
     if (ws?.canMutate) {

@@ -65,8 +65,7 @@ export function WorkspaceProvider({ children }) {
   const [refreshEpoch, setRefreshEpoch] = useState(0);
   const [editApprovalsPendingCount, setEditApprovalsPendingCount] = useState(0);
 
-  const applySnapshot = useCallback((data, mode = 'ok', snapOpts = {}) => {
-    const bumpEpoch = snapOpts.bumpEpoch !== false;
+  const applySnapshot = useCallback((data, mode = 'ok') => {
     setSnapshot(data);
     setStatus(mode);
     setLastError(null);
@@ -76,9 +75,7 @@ export function WorkspaceProvider({ children }) {
     if (mode === 'ok') {
       writeBootstrapCache(data);
     }
-    if (bumpEpoch) {
-      setRefreshEpoch((n) => n + 1);
-    }
+    setRefreshEpoch((n) => n + 1);
     return data;
   }, []);
 
@@ -108,8 +105,9 @@ export function WorkspaceProvider({ children }) {
   }, [dashboardSummary, dashboardSummaryEtag]);
 
   /**
-   * Reload workspace bootstrap. Use `{ background: true }` for scheduled/tab-visible sync so
-   * `refreshEpoch` does not advance — Inventory/Customers/Account mirrors keyed on epoch stay intact.
+   * Reload workspace bootstrap. `{ background: true }` only warms session cache — it does **not**
+   * call `setSnapshot`, so open forms and modals are not reset by the timer or returning to the tab.
+   * Use `refresh()` (no options) or actions that call it after saves to update live data.
    */
   const refresh = useCallback(async (opts = {}) => {
     const background = Boolean(opts?.background);
@@ -126,7 +124,11 @@ export function WorkspaceProvider({ children }) {
         return null;
       }
       if (!ok || !data?.ok) throw new Error(data?.error || 'Bootstrap failed');
-      return applySnapshot(data, 'ok', { bumpEpoch: !background });
+      if (background) {
+        writeBootstrapCache(data);
+        return data;
+      }
+      return applySnapshot(data, 'ok');
     } catch (e) {
       const cached = readBootstrapCache();
       if (cached) {
@@ -332,13 +334,12 @@ export function WorkspaceProvider({ children }) {
     refresh();
   }, [refresh]);
 
-  /** Re-fetch workspace snapshot on a timer so other users' edits appear without manual refresh. */
+  /** Timer warms session cache and dashboard summary; in-memory `snapshot` updates only on explicit `refresh()`. */
   useEffect(() => {
     if (status !== 'ok') return undefined;
     const ms = workspacePollIntervalMs();
     const pull = () => {
       if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
-      /** `background: true` avoids bumping refreshEpoch so Inventory/Customers mirrors do not reset drafts. */
       void refresh({ background: true });
       void refreshDashboardSummary();
     };

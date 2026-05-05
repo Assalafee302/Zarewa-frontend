@@ -76,7 +76,7 @@ export default function WorkspaceCoilMaterialPanel({ item, onDone }) {
     } finally {
       setBusy(false);
     }
-  }, [onDone, showToast, sourceId, sourceKind, ws]);
+  }, [onDone, showToast, sourceId, sourceKind, ws.refresh, ws.hasPermission]);
 
   const mr = materialRows[0];
   const pendingCoil = coilRow && String(coilRow.status || '').toLowerCase() === 'pending';

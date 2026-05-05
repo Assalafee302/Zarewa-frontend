@@ -105,7 +105,7 @@ export function DashboardKpiStrip({ sectionClassName = 'mb-8', metricsWindow, om
           ? ws.snapshot.quotations
           : []
         : [],
-    [ws]
+    [ws?.hasWorkspaceData, ws?.snapshot?.quotations]
   );
   const productionJobs = useMemo(
     () =>
@@ -114,7 +114,7 @@ export function DashboardKpiStrip({ sectionClassName = 'mb-8', metricsWindow, om
           ? ws.snapshot.productionJobs
           : []
         : [],
-    [ws]
+    [ws?.hasWorkspaceData, ws?.snapshot?.productionJobs]
   );
   const treasuryAccounts = useMemo(
     () =>
@@ -123,7 +123,7 @@ export function DashboardKpiStrip({ sectionClassName = 'mb-8', metricsWindow, om
           ? ws.snapshot.treasuryAccounts
           : []
         : [],
-    [ws]
+    [ws?.hasWorkspaceData, ws?.snapshot?.treasuryAccounts]
   );
 
   const metersSeries = useMemo(() => liveMetersSeries(productionJobs, 6), [productionJobs]);

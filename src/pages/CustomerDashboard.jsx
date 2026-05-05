@@ -206,7 +206,7 @@ const CustomerDashboard = () => {
   const allCustomers = useMemo(() => {
     const snapshotCustomers = Array.isArray(ws?.snapshot?.customers) ? ws.snapshot.customers : [];
     return customers.length > 0 ? customers : snapshotCustomers;
-  }, [customers, ws]);
+  }, [customers, ws?.snapshot?.customers]);
 
   const crm = useMemo(
     () =>
@@ -231,11 +231,11 @@ const CustomerDashboard = () => {
   const quotationRows = useMemo(
     () =>
       ws?.hasWorkspaceData && Array.isArray(ws?.snapshot?.quotations) ? ws.snapshot.quotations : [],
-    [ws]
+    [ws?.hasWorkspaceData, ws?.snapshot?.quotations]
   );
   const receiptRows = useMemo(
     () => (ws?.hasWorkspaceData && Array.isArray(ws?.snapshot?.receipts) ? ws.snapshot.receipts : []),
-    [ws]
+    [ws?.hasWorkspaceData, ws?.snapshot?.receipts]
   );
   const mergedReceiptRowsAll = useMemo(() => {
     void ledgerViewNonce;
@@ -244,16 +244,16 @@ const CustomerDashboard = () => {
   const cuttingListRows = useMemo(
     () =>
       ws?.hasWorkspaceData && Array.isArray(ws?.snapshot?.cuttingLists) ? ws.snapshot.cuttingLists : [],
-    [ws]
+    [ws?.hasWorkspaceData, ws?.snapshot?.cuttingLists]
   );
   const refundRows = useMemo(
     () => (ws?.hasWorkspaceData && Array.isArray(ws?.snapshot?.refunds) ? ws.snapshot.refunds : []),
-    [ws]
+    [ws?.hasWorkspaceData, ws?.snapshot?.refunds]
   );
   const productionJobRows = useMemo(
     () =>
       ws?.hasWorkspaceData && Array.isArray(ws?.snapshot?.productionJobs) ? ws.snapshot.productionJobs : [],
-    [ws]
+    [ws?.hasWorkspaceData, ws?.snapshot?.productionJobs]
   );
 
   const quotations = useMemo(

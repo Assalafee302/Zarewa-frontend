@@ -90,7 +90,10 @@ const ReceiptModal = ({
   const postingRef = useRef(false);
   const [isPosting, setIsPosting] = useState(false);
 
-  const treasuryList = useMemo(() => treasuryAccountsFromSnapshot(ws?.snapshot), [ws?.snapshot]);
+  const treasuryList = useMemo(() => treasuryAccountsFromSnapshot(ws?.snapshot), [
+    ws?.refreshEpoch,
+    ws?.hasWorkspaceData,
+  ]);
 
   const defaultAccountId = treasuryList[0]?.id ?? '';
 
@@ -231,7 +234,7 @@ const ReceiptModal = ({
     editData?.customer,
     editData?._ledgerEntry,
     defaultAccountId,
-    ws?.snapshot?.treasuryMovements,
+    ws?.refreshEpoch,
     ledgerNonce,
   ]);
    

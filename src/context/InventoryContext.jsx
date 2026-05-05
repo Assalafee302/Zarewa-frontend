@@ -275,7 +275,7 @@ export function InventoryProvider({ children }) {
       });
       return { ok: true, poID: createdId };
     },
-    [appendMovement, products, ws]
+    [appendMovement, products, ws.refresh, ws.canMutate]
   );
 
   const updatePurchaseOrder = useCallback(
@@ -368,7 +368,7 @@ export function InventoryProvider({ children }) {
       });
       return { ok: true, poID: id };
     },
-    [appendMovement, products, ws]
+    [appendMovement, products, ws.refresh, ws.canMutate]
   );
 
   const linkTransportToPurchaseOrder = useCallback(
@@ -450,7 +450,7 @@ export function InventoryProvider({ children }) {
       });
       return { ok: true };
     },
-    [appendMovement, ws]
+    [appendMovement, ws.refresh, ws.canMutate]
   );
 
   const postPurchaseOrderTransport = useCallback(
@@ -497,7 +497,7 @@ export function InventoryProvider({ children }) {
       appendMovement({ type: 'PO_TRANSPORT_POSTED', ref: poID, detail: 'In transit' });
       return { ok: true };
     },
-    [appendMovement, ws]
+    [appendMovement, ws.refresh, ws.canMutate]
   );
 
   const recordPurchaseSupplierPayment = useCallback(
@@ -539,7 +539,7 @@ export function InventoryProvider({ children }) {
       });
       return { ok: true };
     },
-    [appendMovement, ws]
+    [appendMovement, ws.refresh, ws.canMutate]
   );
 
   const setPurchaseOrderStatus = useCallback(
@@ -567,7 +567,7 @@ export function InventoryProvider({ children }) {
       appendMovement({ type: 'PO_STATUS', ref: poID, detail: status });
       return { ok: true };
     },
-    [appendMovement, ws]
+    [appendMovement, ws.refresh, ws.canMutate]
   );
 
   const confirmStoreReceipt = useCallback(
@@ -703,7 +703,7 @@ export function InventoryProvider({ children }) {
 
       return { ok: true, coilNos: coilNumbers };
     },
-    [purchaseOrders, products, appendMovement, ws]
+    [purchaseOrders, products, appendMovement, ws.refresh, ws.canMutate]
   );
 
   const adjustStock = useCallback(
@@ -756,7 +756,7 @@ export function InventoryProvider({ children }) {
       });
       return { ok: true };
     },
-    [appendMovement, ws]
+    [appendMovement, ws.refresh, ws.canMutate]
   );
 
   const transferToProduction = useCallback(
@@ -801,7 +801,7 @@ export function InventoryProvider({ children }) {
       });
       return { ok: true };
     },
-    [products, appendMovement, ws]
+    [products, appendMovement, ws.refresh, ws.canMutate]
   );
 
   const receiveFinishedGoods = useCallback(
@@ -894,7 +894,7 @@ export function InventoryProvider({ children }) {
       });
       return { ok: true };
     },
-    [appendMovement, wipByProduct, ws]
+    [appendMovement, wipByProduct, ws.refresh, ws.canMutate]
   );
 
   const value = useMemo(

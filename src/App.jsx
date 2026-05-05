@@ -68,8 +68,9 @@ function AppShell() {
     [products]
   );
   const [officeSummary, setOfficeSummary] = useState(null);
+  const canSeeOfficeModule = Boolean(ws?.canAccessModule?.('office'));
   useEffect(() => {
-    if (!ws?.canAccessModule?.('office')) {
+    if (!canSeeOfficeModule) {
       setOfficeSummary(null);
       return;
     }
@@ -83,7 +84,7 @@ function AppShell() {
     return () => {
       cancelled = true;
     };
-  }, [ws]);
+  }, [canSeeOfficeModule]);
 
   const notificationItems = useMemo(
     () =>
@@ -94,7 +95,7 @@ function AppShell() {
         lowStockSkuCount: lowStockCount,
         officeSummary,
       }),
-    [ws, lowStockCount, officeSummary]
+    [ws?.snapshot, ws?.hasPermission, ws?.canAccessModule, lowStockCount, officeSummary]
   );
   const urgentNotifCount = useMemo(
     () => notificationItems.filter((n) => n.severity === 'warning').length,
@@ -209,7 +210,7 @@ function AppShell() {
     return () => {
       if (searchDebounceRef.current) window.clearTimeout(searchDebounceRef.current);
     };
-  }, [headerSearch, ws]);
+  }, [headerSearch, ws?.apiOnline, ws?.snapshot, ws?.hasPermission]);
 
   const goSearchHit = useCallback(
     (hit) => {

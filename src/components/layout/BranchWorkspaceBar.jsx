@@ -28,7 +28,7 @@ export function BranchWorkspaceBar() {
       setBusy(false);
       if (!r.ok) setError(r.error || 'Update failed');
     },
-    [currentId, ws]
+    [currentId, ws.updateWorkspace]
   );
 
   const onToggleRollup = useCallback(
@@ -40,7 +40,7 @@ export function BranchWorkspaceBar() {
       setBusy(false);
       if (!r.ok) setError(r.error || 'Update failed');
     },
-    [ws]
+    [ws.updateWorkspace]
   );
 
   if (!ws.apiOnline || branches.length === 0) return null;

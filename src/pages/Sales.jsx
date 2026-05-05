@@ -220,7 +220,7 @@ const Sales = () => {
   const onLedgerSynced = useCallback(async () => {
     bumpLedger();
     if (ws?.canMutate) await ws.refresh();
-  }, [bumpLedger, ws]);
+  }, [bumpLedger, ws.refresh, ws.canMutate]);
 
   const coilInventoryRows = useMemo(() => {
     const seenIds = new Set();
@@ -734,7 +734,7 @@ const Sales = () => {
       setRefundModalKey((k) => k + 1);
       setShowRefundModal(true);
     },
-    [showToast, ws]
+    [showToast, ws.hasPermission]
   );
 
   // Logic to handle opening modals for "New"

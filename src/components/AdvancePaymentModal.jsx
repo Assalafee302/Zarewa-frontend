@@ -36,7 +36,10 @@ const AdvancePaymentModal = ({
   const [showPrint, setShowPrint] = useState(false);
   const [postingHint, setPostingHint] = useState(null);
 
-  const treasuryList = useMemo(() => treasuryAccountsFromSnapshot(ws?.snapshot), [ws?.snapshot]);
+  const treasuryList = useMemo(() => treasuryAccountsFromSnapshot(ws?.snapshot), [
+    ws?.refreshEpoch,
+    ws?.hasWorkspaceData,
+  ]);
   const periodLocks = ws?.snapshot?.periodLocks ?? [];
   const voucherInLockedPeriod = useMemo(
     () => Boolean(useLedgerApi && isVoucherDateInLockedPeriod(dateISO, periodLocks)),

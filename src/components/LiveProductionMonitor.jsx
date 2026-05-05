@@ -295,33 +295,33 @@ export function LiveProductionMonitor({
 
   const productionJobs = useMemo(
     () => (ws?.hasWorkspaceData && Array.isArray(ws?.snapshot?.productionJobs) ? ws.snapshot.productionJobs : []),
-    [ws]
+    [ws?.hasWorkspaceData, ws?.snapshot?.productionJobs]
   );
   const jobCoils = useMemo(
     () => (ws?.hasWorkspaceData && Array.isArray(ws?.snapshot?.productionJobCoils) ? ws.snapshot.productionJobCoils : []),
-    [ws]
+    [ws?.hasWorkspaceData, ws?.snapshot?.productionJobCoils]
   );
   const conversionChecks = useMemo(
     () =>
       ws?.hasWorkspaceData && Array.isArray(ws?.snapshot?.productionConversionChecks)
         ? ws.snapshot.productionConversionChecks
         : [],
-    [ws]
+    [ws?.hasWorkspaceData, ws?.snapshot?.productionConversionChecks]
   );
   const completionAdjustments = useMemo(
     () =>
       ws?.hasWorkspaceData && Array.isArray(ws?.snapshot?.productionCompletionAdjustments)
         ? ws.snapshot.productionCompletionAdjustments
         : [],
-    [ws]
+    [ws?.hasWorkspaceData, ws?.snapshot?.productionCompletionAdjustments]
   );
   const coilLots = useMemo(
     () => (ws?.hasWorkspaceData && Array.isArray(ws?.snapshot?.coilLots) ? ws.snapshot.coilLots : []),
-    [ws]
+    [ws?.hasWorkspaceData, ws?.snapshot?.coilLots]
   );
   const products = useMemo(
     () => (ws?.hasWorkspaceData && Array.isArray(ws?.snapshot?.products) ? ws.snapshot.products : []),
-    [ws]
+    [ws?.hasWorkspaceData, ws?.snapshot?.products]
   );
   const coilAllocationCountByJob = useMemo(() => {
     const m = new Map();
@@ -364,6 +364,25 @@ export function LiveProductionMonitor({
         .filter((row) => row.jobID === selectedJob?.jobID)
         .sort((a, b) => (a.sequenceNo || 0) - (b.sequenceNo || 0)),
     [jobCoils, selectedJob?.jobID]
+  );
+  /** Stable while server row *content* is unchanged — avoids re-seeding drafts when `ws` or array identity churns. */
+  const selectedJobAllocationsSyncKey = useMemo(
+    () =>
+      selectedJobAllocations
+        .map((row) =>
+          [
+            row.id,
+            row.coilNo,
+            row.openingWeightKg,
+            row.closingWeightKg,
+            row.metersProduced,
+            row.sequenceNo,
+            row.note,
+            row.finishCoil,
+          ].join(':')
+        )
+        .join('|'),
+    [selectedJobAllocations]
   );
   const selectedChecks = useMemo(
     () => conversionChecks.filter((row) => row.jobID === selectedJob?.jobID),
@@ -538,7 +557,7 @@ export function LiveProductionMonitor({
   }, [selectedJobId, sortedJobs, focusClTrim, productionJobs]);
 
   useEffect(() => {
-    if (!selectedJob) {
+    if (!selectedJob?.jobID) {
       setDraftAllocations([createDraftLine()]);
       return;
     }
@@ -547,7 +566,8 @@ export function LiveProductionMonitor({
         ? selectedJobAllocations.map((row) => createDraftLine(row))
         : [createDraftLine()]
     );
-  }, [selectedJob, selectedJobAllocations]);
+    // Intentionally omit selectedJobAllocations from deps: array identity churns on unrelated `ws` updates; syncKey captures server edits.
+  }, [selectedJob?.jobID, selectedJobAllocationsSyncKey]);
 
   useEffect(() => {
     setSignoffRemark('');

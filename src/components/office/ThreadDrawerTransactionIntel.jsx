@@ -319,7 +319,7 @@ export function ThreadDrawerTransactionIntel({ workItem, variant = 'aside', onMa
         setDecisionBusy(false);
       }
     },
-    [qref, showToast, ws, onManagementDecisionSuccess]
+    [qref, showToast, ws.refresh, onManagementDecisionSuccess]
   );
 
   const handlePaymentDecision = useCallback(
@@ -343,7 +343,7 @@ export function ThreadDrawerTransactionIntel({ workItem, variant = 'aside', onMa
       await (ws.refresh?.() ?? Promise.resolve());
       onManagementDecisionSuccess?.();
     },
-    [sourceId, showToast, ws, onManagementDecisionSuccess]
+    [sourceId, showToast, ws.refresh, onManagementDecisionSuccess]
   );
 
   const handleRefundDecision = useCallback(
@@ -370,7 +370,7 @@ export function ThreadDrawerTransactionIntel({ workItem, variant = 'aside', onMa
       await (ws.refresh?.() ?? Promise.resolve());
       onManagementDecisionSuccess?.();
     },
-    [sourceId, refundDetail, showToast, ws, onManagementDecisionSuccess]
+    [sourceId, refundDetail, showToast, ws.refresh, onManagementDecisionSuccess]
   );
 
   const handleConversionSignoff = useCallback(async () => {
@@ -408,7 +408,7 @@ export function ThreadDrawerTransactionIntel({ workItem, variant = 'aside', onMa
     conversionSignoffRemark,
     conversionSignoffEditApprovalId,
     showToast,
-    ws,
+    ws.refresh,
     onManagementDecisionSuccess,
   ]);
 

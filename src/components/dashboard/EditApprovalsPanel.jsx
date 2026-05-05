@@ -26,7 +26,7 @@ export default function EditApprovalsPanel() {
     }
     setItems(Array.isArray(data.items) ? data.items : []);
     await (ws?.refreshEditApprovalsPending?.() ?? Promise.resolve());
-  }, [showToast, ws]);
+  }, [showToast, ws.refresh, ws.refreshEditApprovalsPending]);
 
   useEffect(() => {
     void load();

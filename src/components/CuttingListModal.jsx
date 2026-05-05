@@ -321,7 +321,7 @@ const CuttingListModal = ({
 
   const ledgerEntries = useMemo(
     () => (Array.isArray(ws?.snapshot?.ledgerEntries) ? ws.snapshot.ledgerEntries : []),
-    [ws]
+    [ws?.snapshot?.ledgerEntries]
   );
 
   const selectableQuotations = useMemo(() => {
@@ -658,7 +658,7 @@ const CuttingListModal = ({
     showToast('Production hold cleared. You can send this list to the queue.', { variant: 'success' });
     if (data?.cuttingList) onCuttingListUpdated?.(data.cuttingList);
     await ws?.refresh?.();
-  }, [editData?.id, ws, showToast, onCuttingListUpdated, canClearProductionHold]);
+  }, [editData?.id, ws.refresh, ws.canMutate, showToast, onCuttingListUpdated, canClearProductionHold]);
 
   const registerProduction = useCallback(async () => {
     const id = editData?.id;
@@ -690,7 +690,7 @@ const CuttingListModal = ({
     showToast('Cutting list added to the production queue.', { variant: 'success' });
     if (data?.cuttingList) onCuttingListUpdated?.(data.cuttingList);
     await ws?.refresh?.();
-  }, [editData?.id, editData?.productionRegistered, editData?.productionReleasePending, machineName, ws, showToast, onCuttingListUpdated]);
+  }, [editData?.id, editData?.productionRegistered, editData?.productionReleasePending, machineName, ws.refresh, ws.canMutate, showToast, onCuttingListUpdated]);
 
   return (
     <ModalFrame isOpen={isOpen} onClose={onClose} modal={!showPrintPreview}>

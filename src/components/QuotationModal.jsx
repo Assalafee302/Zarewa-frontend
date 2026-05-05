@@ -410,7 +410,8 @@ const QuotationModal = ({
 
   const treasuryPayAccountsLive = useMemo(
     () => bankAccountsForCustomerPayment(treasuryAccountsFromSnapshot(ws?.snapshot)),
-    [ws?.snapshot]
+    /** Epoch ties treasury list to intentional workspace refresh, not silent snapshot churn. */
+    [ws?.refreshEpoch, ws?.hasWorkspaceData]
   );
 
   const materialTypeOptions = useMemo(() => {
