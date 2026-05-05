@@ -22,7 +22,7 @@ export const SALES_TABLE_SORT_FIELD_OPTIONS = {
     { id: 'id', label: 'List ID' },
     { id: 'customer', label: 'Customer' },
     { id: 'total', label: 'Total' },
-    { id: 'status', label: 'Status' },
+    { id: 'status', label: 'Line status' },
   ],
   refund: [
     { id: 'date', label: 'Date' },
@@ -113,7 +113,9 @@ function cuttingTotalNgn(row) {
   return Number.isFinite(p) ? p : 0;
 }
 
-export function sortCuttingLists(rows, field, dir) {
+export function sortCuttingLists(rows, field, dir, opts = {}) {
+  const lineStatusKey =
+    typeof opts.productionLineStatusKey === 'function' ? opts.productionLineStatusKey : null;
   const list = [...rows];
   list.sort((a, b) => {
     switch (field) {
@@ -126,6 +128,9 @@ export function sortCuttingLists(rows, field, dir) {
       case 'total':
         return compareNum(cuttingTotalNgn(a), cuttingTotalNgn(b), dir);
       case 'status':
+        if (lineStatusKey) {
+          return compareLocale(lineStatusKey(a), lineStatusKey(b), dir);
+        }
         return compareLocale(a.status, b.status, dir);
       default:
         return compareLocale(cuttingDateKey(a), cuttingDateKey(b), dir);

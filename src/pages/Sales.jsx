@@ -82,6 +82,8 @@ import {
   productionJobStatusClosesRefundEligibility,
   quotationVoidPaidRefundEligible,
 } from '../lib/refundEligibility';
+import { pickProductionJobForCuttingList } from '../lib/productionJobPick';
+import { productionQueueLineStatusPresentation } from '../lib/productionQueueLineStatus';
 import {
   buildStockVerdict,
   coilLotRemainingKg,
@@ -196,6 +198,11 @@ const Sales = () => {
     () =>
       ws?.hasWorkspaceData && Array.isArray(ws?.snapshot?.cuttingLists) ? ws.snapshot.cuttingLists : [],
     [ws?.hasWorkspaceData, ws?.snapshot?.cuttingLists]
+  );
+  const productionJobs = useMemo(
+    () =>
+      ws?.hasWorkspaceData && Array.isArray(ws?.snapshot?.productionJobs) ? ws.snapshot.productionJobs : [],
+    [ws?.hasWorkspaceData, ws?.snapshot?.productionJobs]
   );
   const yardRegister = useMemo(
     () => (Array.isArray(ws?.snapshot?.yardCoilRegister) ? ws.snapshot.yardCoilRegister : []),
@@ -511,12 +518,19 @@ const Sales = () => {
     const q = searchQuery.trim().toLowerCase();
     const filtered = cuttingLists.filter((row) => {
       if (!q) return true;
-      const blob = `${row.id} ${row.customer} ${row.date} ${row.total} ${row.status}`.toLowerCase();
+      const job = pickProductionJobForCuttingList(row.id, productionJobs, cuttingLists);
+      const line = productionQueueLineStatusPresentation(row, job);
+      const blob = `${row.id} ${row.customer} ${row.date} ${row.total} ${row.status} ${line.label}`.toLowerCase();
       return blob.includes(q);
     });
-    const sorted = sortCuttingLists(filtered, salesListSort.field, salesListSort.dir);
+    const sorted = sortCuttingLists(filtered, salesListSort.field, salesListSort.dir, {
+      productionLineStatusKey: (row) => {
+        const job = pickProductionJobForCuttingList(row.id, productionJobs, cuttingLists);
+        return productionQueueLineStatusPresentation(row, job).label;
+      },
+    });
     return sorted.slice(0, showCount);
-  }, [cuttingLists, searchQuery, showCount, salesListSort]);
+  }, [cuttingLists, productionJobs, searchQuery, showCount, salesListSort]);
 
   const filteredRefunds = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
@@ -1485,7 +1499,7 @@ const Sales = () => {
                         <SalesListSearchInput
                           value={searchQuery}
                           onChange={setSearchQuery}
-                          placeholder="Search list ID, customer, date, status…"
+                          placeholder="Search list ID, customer, date, list status, production line status…"
                         />
                         <SalesListSortBar
                           fields={SALES_TABLE_SORT_FIELD_OPTIONS.cuttinglist}
@@ -1507,7 +1521,10 @@ const Sales = () => {
                       </div>
                     ) : (
                       <ul className="space-y-1.5">
-                        {filteredCuttingLists.map((c) => (
+                        {filteredCuttingLists.map((c) => {
+                          const job = pickProductionJobForCuttingList(c.id, productionJobs, cuttingLists);
+                          const lineSt = productionQueueLineStatusPresentation(c, job);
+                          return (
                           <li key={c.id} className={salesListItemClass(`cl-${c.id}`, actionMenuKey)}>
                             <div className="flex flex-wrap items-start justify-between gap-2 min-w-0">
                               <div className="min-w-0 flex-1 leading-tight">
@@ -1520,8 +1537,15 @@ const Sales = () => {
                                     <span className="text-[11px] font-black text-[#134e4a] tabular-nums">
                                       {c.total}
                                     </span>
-                                    <span className={`${CHIP} border-sky-200 bg-sky-50 text-sky-800`}>
-                                      {c.status}
+                                    <span
+                                      className={`${CHIP} ${lineSt.chipClass}`}
+                                      title={
+                                        c.status
+                                          ? `List status: ${c.status} · Line: ${lineSt.label}`
+                                          : `Production line: ${lineSt.label}`
+                                      }
+                                    >
+                                      {lineSt.label}
                                     </span>
                                     <SalesRowMenu
                                       rowKey={`cl-${c.id}`}
@@ -1546,7 +1570,8 @@ const Sales = () => {
                               </div>
                             </div>
                           </li>
-                        ))}
+                          );
+                        })}
                       </ul>
                     )}
                     {cuttingLists.length > showCount && (
