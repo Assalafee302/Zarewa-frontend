@@ -9,6 +9,7 @@ import {
   Landmark,
   Truck,
   LayoutGrid,
+  LayoutDashboard,
   BarChart3,
   Settings,
   ChevronLeft,
@@ -120,12 +121,23 @@ const Sidebar = ({ mobileOpen = false, onCloseMobile, collapsed = false, onToggl
     roleKey === 'ceo'
       ? [
           {
-            icon: <BarChart3 size={18} />,
+            icon: <LayoutDashboard size={18} />,
             label: 'Executive',
             path: '/exec',
             active: pathMatches(p, '/exec'),
             visible: true,
           },
+          ...(ws?.canAccessModule?.('reports')
+            ? [
+                {
+                  icon: <BarChart3 size={18} />,
+                  label: 'Reports',
+                  path: '/reports',
+                  active: pathMatches(p, '/reports'),
+                  visible: true,
+                },
+              ]
+            : []),
         ]
       : fullMenuItems.filter((item) => item.visible !== false);
 

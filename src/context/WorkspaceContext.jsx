@@ -6,6 +6,7 @@ import { auth } from '../lib/firebase.js';
 import { replaceLedgerEntries } from '../lib/customerLedgerStore';
 import { canAccessModuleWithPermissions, hasPermissionInList } from '../lib/moduleAccess';
 import { userCanApproveEditMutationsClient } from '../lib/editApprovalUi';
+import { userMayViewManagementReportsClient } from '../lib/reportsAccess';
 
 const WorkspaceContext = createContext(null);
 
@@ -374,6 +375,12 @@ export function WorkspaceProvider({ children }) {
         return (
           canAccessModuleWithPermissions(permissions, 'edit_approvals') &&
           userCanApproveEditMutationsClient(session?.user?.roleKey, permissions)
+        );
+      }
+      if (moduleKey === 'reports') {
+        return (
+          canAccessModuleWithPermissions(permissions, 'reports') &&
+          userMayViewManagementReportsClient(session?.user?.roleKey, permissions)
         );
       }
       return canAccessModuleWithPermissions(permissions, moduleKey);
