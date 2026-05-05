@@ -46,20 +46,26 @@ const AdvancePaymentModal = ({
     [useLedgerApi, dateISO, periodLocks]
   );
 
-   
   useEffect(() => {
     if (!isOpen) return;
     setCustomerID(defaultCustomerID || '');
     setAmount('');
-    const first = treasuryList[0];
-    setTreasuryAccountId(first ? String(first.id) : '');
     setDateISO(new Date().toISOString().slice(0, 10));
     setReference('');
     setPurpose('');
     setShowPrint(false);
     setPostingHint(null);
-  }, [isOpen, defaultCustomerID, treasuryList]);
-   
+  }, [isOpen, defaultCustomerID]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    setTreasuryAccountId((prev) => {
+      if (prev && treasuryList.some((a) => String(a.id) === String(prev))) return prev;
+      const first = treasuryList[0];
+      return first ? String(first.id) : '';
+    });
+  }, [isOpen, treasuryList]);
+
 
   const customerName = useMemo(
     () => customers.find((c) => c.customerID === customerID)?.name ?? '',

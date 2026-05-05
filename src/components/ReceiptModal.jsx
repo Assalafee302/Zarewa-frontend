@@ -63,6 +63,36 @@ function formatDisplayDate(iso) {
   return d && m && y ? `${d}/${m}/${y}` : iso;
 }
 
+/** Stable receipt identity — excludes workspace refreshEpoch / ledgerNonce churn. */
+function receiptModalHydrateSignature(editData) {
+  const le = editData?._ledgerEntry;
+  let payKey = '';
+  try {
+    payKey = JSON.stringify({
+      pl: editData?.paymentLines,
+      lepl: le?.paymentLines,
+    });
+  } catch {
+    payKey = '';
+  }
+  return JSON.stringify({
+    id: editData?.id,
+    source: editData?.source,
+    quotationRef: editData?.quotationRef,
+    dateISO: editData?.dateISO,
+    amountNgn: editData?.amountNgn,
+    cashReceivedNgn: editData?.cashReceivedNgn,
+    handledBy: editData?.handledBy,
+    customer: editData?.customer,
+    ledgerEntryId: le?.id,
+    leAtISO: le?.atISO,
+    leAmountNgn: le?.amountNgn,
+    leBankRef: le?.bankReference,
+    leNote: le?.note,
+    payKey,
+  });
+}
+
 const ReceiptModal = ({
   isOpen,
   onClose,
@@ -88,6 +118,7 @@ const ReceiptModal = ({
   const [showPrint, setShowPrint] = useState(false);
   const [printKind, setPrintKind] = useState('quick');
   const postingRef = useRef(false);
+  const lastReceiptHydrateSigRef = useRef('');
   const [isPosting, setIsPosting] = useState(false);
 
   const treasuryList = useMemo(() => treasuryAccountsFromSnapshot(ws?.snapshot), [
@@ -107,9 +138,31 @@ const ReceiptModal = ({
     [useLedgerApi, voucherDate, periodLocks]
   );
 
-   
+  const receiptHydrateSig = useMemo(
+    () => (isOpen ? receiptModalHydrateSignature(editData) : ''),
+    [
+      isOpen,
+      editData?.id,
+      editData?.source,
+      editData?.quotationRef,
+      editData?.dateISO,
+      editData?.amountNgn,
+      editData?.cashReceivedNgn,
+      editData?.handledBy,
+      editData?.customer,
+      editData?.paymentLines,
+      editData?._ledgerEntry,
+    ]
+  );
+
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen) {
+      lastReceiptHydrateSigRef.current = '';
+      return;
+    }
+    if (lastReceiptHydrateSigRef.current === receiptHydrateSig) return;
+    lastReceiptHydrateSigRef.current = receiptHydrateSig;
+
     const le = editData?._ledgerEntry;
     const isLedgerRow = editData?.source === 'ledger' && le;
     const isRc = editData?.id && String(editData.id).startsWith('RC-');
@@ -222,22 +275,21 @@ const ReceiptModal = ({
     } else {
       setPaymentLines([emptyPaymentLine(vd, defaultAccountId)]);
     }
-  }, [
-    isOpen,
-    editData?.id,
-    editData?.source,
-    editData?.quotationRef,
-    editData?.dateISO,
-    editData?.amountNgn,
-    editData?.cashReceivedNgn,
-    editData?.handledBy,
-    editData?.customer,
-    editData?._ledgerEntry,
-    defaultAccountId,
-    ws?.refreshEpoch,
-    ledgerNonce,
-  ]);
-   
+  }, [isOpen, receiptHydrateSig]);
+
+  /** Treasury default account arrived after open: fill blank line account ids without full re-hydrate. */
+  useEffect(() => {
+    if (!isOpen || defaultAccountId === '' || defaultAccountId == null) return;
+    setPaymentLines((prev) =>
+      prev.some((line) => line.treasuryAccountId === '' || line.treasuryAccountId == null)
+        ? prev.map((line) =>
+            line.treasuryAccountId === '' || line.treasuryAccountId == null
+              ? { ...line, treasuryAccountId: defaultAccountId }
+              : line
+          )
+        : prev
+    );
+  }, [isOpen, defaultAccountId]);
 
   const selectedQuotation = useMemo(
     () => quotations.find((q) => q.id === quotationRef) ?? null,
@@ -506,7 +558,7 @@ const ReceiptModal = ({
     <ModalFrame isOpen={isOpen} onClose={onClose} modal={!showPrint}>
       <>
       <form
-        key={`${editData?.id ?? 'new'}-${ledgerNonce}`}
+        key={editData?.id ?? 'rcpt-new'}
         onSubmit={saveReceipt}
         className="z-modal-panel max-w-[min(100%,56rem)] w-full min-w-0 max-h-[min(92vh,820px)] flex flex-col"
       >

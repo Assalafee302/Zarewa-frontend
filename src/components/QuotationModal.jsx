@@ -142,6 +142,34 @@ function sumRowsNgn(rows) {
   return rows.reduce((s, r) => s + lineAmountNgn(r), 0);
 }
 
+/** Stable key for which quotation record we're editing — excludes customers/treasury epoch churn. */
+function quotationHydrateSignature(editData) {
+  const q = editData?.quotationLines;
+  let linesKey = '';
+  if (q && typeof q === 'object') {
+    try {
+      linesKey = JSON.stringify({
+        products: q.products,
+        accessories: q.accessories,
+        services: q.services,
+      });
+    } catch {
+      linesKey = '';
+    }
+  }
+  return [
+    editData?.id ?? '',
+    editData?.customerID ?? '',
+    editData?.dateISO ?? '',
+    editData?.materialTypeId ?? '',
+    editData?.materialGauge ?? '',
+    editData?.materialColor ?? '',
+    editData?.materialDesign ?? '',
+    editData?.projectName ?? '',
+    linesKey,
+  ].join('\u0000');
+}
+
 /** @param {unknown} raw */
 function normalizeLoadedLines(raw) {
   if (!raw || typeof raw !== 'object') return null;
@@ -407,6 +435,23 @@ const QuotationModal = ({
   const [reviving, setReviving] = useState(false);
   const [quotationEditApprovalId, setQuotationEditApprovalId] = useState('');
   const liveMasterData = ws?.snapshot?.masterData ?? null;
+  const lastQuotationHydrateSigRef = useRef('');
+
+  const quotationHydrateSig = useMemo(
+    () => (isOpen ? quotationHydrateSignature(editData) : ''),
+    [
+      isOpen,
+      editData?.id,
+      editData?.customerID,
+      editData?.dateISO,
+      editData?.materialTypeId,
+      editData?.materialGauge,
+      editData?.materialColor,
+      editData?.materialDesign,
+      editData?.projectName,
+      editData?.quotationLines,
+    ]
+  );
 
   const treasuryPayAccountsLive = useMemo(
     () => bankAccountsForCustomerPayment(treasuryAccountsFromSnapshot(ws?.snapshot)),
@@ -554,7 +599,13 @@ const QuotationModal = ({
   };
 
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen) {
+      lastQuotationHydrateSigRef.current = '';
+      return;
+    }
+    if (lastQuotationHydrateSigRef.current === quotationHydrateSig) return;
+    lastQuotationHydrateSigRef.current = quotationHydrateSig;
+
     setApplyAdvanceAmount('');
     setApplyAdvanceHint(null);
     const cid = editData?.customerID ?? '';
@@ -588,20 +639,30 @@ const QuotationModal = ({
       setAccessoryRows([emptyOrderLine()]);
       setServiceRows([emptyOrderLine()]);
     }
-  }, [
-    isOpen,
-    editData?.id,
-    editData?.customerID,
-    editData?.dateISO,
-    customers,
-    editData?.materialTypeId,
-    editData?.materialGauge,
-    editData?.materialColor,
-    editData?.materialDesign,
-    editData?.projectName,
-    editData?.quotationLines,
-    treasuryPayAccountsLive,
-  ]);
+  }, [isOpen, quotationHydrateSig, customers, treasuryPayAccountsLive]);
+
+  /** Late-loaded customer directory: fill picker label without re-hydrating line items. */
+  useEffect(() => {
+    if (!isOpen) return;
+    const cid = String(editData?.customerID ?? selectedCustomerId ?? '').trim();
+    if (!cid) return;
+    const match = customers.find((x) => x.customerID === cid);
+    if (!match) return;
+    const label = `${match.name} · ${match.phoneNumber}`;
+    setCustomerQuery((prev) => (String(prev).trim() ? prev : label));
+  }, [isOpen, customers, editData?.customerID, selectedCustomerId]);
+
+  /** Treasury accounts list refresh (workspace epoch): update accounts + payment id only. */
+  useEffect(() => {
+    if (!isOpen) return;
+    const list = treasuryPayAccountsLive;
+    setTreasuryPayAccounts(list);
+    setPaymentAccountId((prev) => {
+      const ok = list.some((a) => String(a.id) === String(prev));
+      if (ok) return prev;
+      return list[0] ? String(list[0].id) : '';
+    });
+  }, [isOpen, treasuryPayAccountsLive]);
 
   useEffect(() => {
     if (!materialDesign) return;
