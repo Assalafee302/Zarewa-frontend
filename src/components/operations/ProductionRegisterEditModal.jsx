@@ -20,8 +20,15 @@ export function ProductionRegisterEditModal({ isOpen, onClose, cuttingListId, su
   const open = Boolean(isOpen && id);
 
   return (
-    <ModalFrame isOpen={open} onClose={onClose} showCloseButton={false} surface="plain">
-      <div className="z-modal-panel w-full min-w-0 max-w-[min(36rem,calc(100dvw-1.25rem))] sm:max-w-[min(40rem,calc(100dvw-2rem))] max-h-[min(92dvh,900px)] flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl sm:rounded-[28px]">
+    <ModalFrame
+      isOpen={open}
+      onClose={onClose}
+      showCloseButton={false}
+      surface="plain"
+      title="Edit production register"
+      description="Coil allocation, run log, completion, and conversion tools for this cutting list."
+    >
+      <div className="z-modal-panel flex h-[min(90dvh,860px)] w-full min-w-0 max-w-[min(44rem,calc(100dvw-1.25rem))] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl sm:h-[min(88dvh,900px)] sm:max-w-[min(48rem,calc(100dvw-2rem))] sm:rounded-[28px]">
         <header className="flex shrink-0 items-start justify-between gap-3 border-b border-teal-100/90 bg-gradient-to-r from-teal-50/50 via-white to-white px-3 py-2.5 sm:px-4">
           <div className="min-w-0 pr-2">
             <p className="text-[8px] font-black uppercase tracking-widest text-[#134e4a]/75">Store &amp; production</p>
@@ -47,7 +54,7 @@ export function ProductionRegisterEditModal({ isOpen, onClose, cuttingListId, su
         <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden p-2 sm:p-3">
           <LiveProductionMonitor
             focusCuttingListId={id}
-            hideJobSidebar
+            hideJobSidebar={false}
             inModal
             viewOnly={false}
             onModalClose={onClose}

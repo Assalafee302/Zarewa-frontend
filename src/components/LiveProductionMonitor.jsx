@@ -229,6 +229,20 @@ function isDraftAllocationRow(row) {
   return String(row?.id ?? '').startsWith('draft-');
 }
 
+/** Canonical status for UI gating (API / DB may vary casing). */
+function normalizeJobStatus(status) {
+  const t = String(status ?? '').trim();
+  if (!t) return 'Planned';
+  const key = t.toLowerCase();
+  const map = {
+    planned: 'Planned',
+    running: 'Running',
+    completed: 'Completed',
+    cancelled: 'Cancelled',
+  };
+  return map[key] ?? t;
+}
+
 /** One coil line has enough data to include in live conversion preview (multi-coil jobs can preview per finished roll). */
 function draftRowConversionPreviewReady(row) {
   const coil = row.coilNo?.trim();
@@ -280,7 +294,7 @@ function pickProductionJobForCuttingList(cuttingListId, jobs, cuttingLists) {
   }
   const rank = (s) => {
     const order = { Running: 0, Planned: 1, Completed: 2, Cancelled: 3 };
-    return order[s] ?? 50;
+    return order[normalizeJobStatus(s)] ?? 50;
   };
   return [...matches].sort((a, b) => rank(a.status) - rank(b.status))[0];
 }
@@ -363,7 +377,8 @@ export function LiveProductionMonitor({
   const sortedJobs = useMemo(() => {
     const order = { Running: 0, Planned: 1, Completed: 2, Cancelled: 3 };
     return [...productionJobs].sort((a, b) => {
-      const byStatus = (order[a.status] ?? 99) - (order[b.status] ?? 99);
+      const byStatus =
+        (order[normalizeJobStatus(a.status)] ?? 99) - (order[normalizeJobStatus(b.status)] ?? 99);
       if (byStatus !== 0) return byStatus;
       return String(b.createdAtISO || '').localeCompare(String(a.createdAtISO || ''));
     });
@@ -376,9 +391,11 @@ export function LiveProductionMonitor({
 
   const selectedJob = useMemo(() => {
     const found = sortedJobs.find((job) => job.jobID === selectedJobId);
-    if (found) return found;
-    if (focusClTrim) return null;
-    return sortedJobs[0] ?? null;
+    const base = found ?? (focusClTrim ? null : sortedJobs[0] ?? null);
+    if (!base) return null;
+    const status = normalizeJobStatus(base.status);
+    if (status === base.status) return base;
+    return { ...base, status };
   }, [selectedJobId, sortedJobs, focusClTrim]);
 
   useEffect(() => {
