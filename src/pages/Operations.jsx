@@ -23,7 +23,7 @@ import { WorkspacePanelToolbar } from '../components/workspace';
 import { WORKSPACE_EMPTY_LIST_CLASS } from '../lib/workspaceListStyle';
 import { MainPanel, PageHeader, PageShell, PageTabs, ModalFrame } from '../components/layout';
 import { AiAskButton } from '../components/AiAskButton';
-import { LiveProductionMonitor } from '../components/LiveProductionMonitor';
+import { ProductionRegisterEditModal } from '../components/operations/ProductionRegisterEditModal';
 import OperationsCoilControlTab from '../components/operations/OperationsCoilControlTab';
 import { OperationsInventoryAttentionPanel } from '../components/operations/OperationsInventoryAttentionPanel';
 import { useInventory } from '../context/InventoryContext';
@@ -1327,7 +1327,7 @@ const Operations = () => {
       setProductionTraceModal({
         type: 'trace',
         cuttingListId: item.id,
-        completed: Boolean(item.completed),
+        subtitle: [item.customer, item.spec].filter(Boolean).join(' · ') || undefined,
       });
       return;
     }
@@ -2842,68 +2842,63 @@ const Operations = () => {
         </div>
       </ModalFrame>
 
+      <ProductionRegisterEditModal
+        isOpen={productionTraceModal?.type === 'trace'}
+        onClose={() => setProductionTraceModal(null)}
+        cuttingListId={productionTraceModal?.cuttingListId}
+        subtitle={productionTraceModal?.subtitle}
+      />
+
       <ModalFrame
-        isOpen={productionTraceModal != null}
+        isOpen={productionTraceModal?.type === 'pending'}
         onClose={() => setProductionTraceModal(null)}
         showCloseButton={false}
         surface="plain"
       >
         <div className="z-modal-panel w-full min-w-0 max-w-[min(36rem,calc(100dvw-1.25rem))] sm:max-w-[min(40rem,calc(100dvw-2rem))] max-h-[min(92dvh,900px)] flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl sm:rounded-[28px]">
-          {productionTraceModal?.type === 'trace' ? (
-            <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden p-2 sm:p-3">
-              <LiveProductionMonitor
-                focusCuttingListId={productionTraceModal.cuttingListId}
-                hideJobSidebar
-                inModal
-                viewOnly={Boolean(productionTraceModal.completed)}
-                onModalClose={() => setProductionTraceModal(null)}
-              />
-            </div>
-          ) : (
-            <>
-              <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-5 py-4 sm:px-6 shrink-0">
-                <div className="min-w-0">
-                  <h3 className="text-lg font-bold text-[#134e4a]">Queued cutting list</h3>
-                  {productionTraceModal?.type === 'pending' ? (
-                    <p className="mt-1 text-[11px] text-slate-500">
-                      <span className="font-mono font-semibold text-slate-700">{productionTraceModal.id}</span> — connect
-                      the API to send this list to the production line from Sales.
-                    </p>
-                  ) : null}
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setProductionTraceModal(null)}
-                  className="p-2 text-gray-400 hover:text-red-500 rounded-xl shrink-0"
-                  aria-label="Close"
-                >
-                  <X size={22} />
-                </button>
-              </div>
-              <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6">
+          <>
+            <div className="flex items-start justify-between gap-4 border-b border-slate-100 px-5 py-4 sm:px-6 shrink-0">
+              <div className="min-w-0">
+                <h3 className="text-lg font-bold text-[#134e4a]">Queued cutting list</h3>
                 {productionTraceModal?.type === 'pending' ? (
-                  <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/70 px-5 py-6 text-sm text-slate-600 space-y-3">
-                    <p>
-                      <span className="font-semibold text-slate-800">Customer:</span> {productionTraceModal.customer}
-                    </p>
-                    <p>
-                      <span className="font-semibold text-slate-800">Spec / ref:</span> {productionTraceModal.spec}
-                    </p>
-                    <p>
-                      <span className="font-semibold text-slate-800">Quantity:</span> {productionTraceModal.quantity}
-                    </p>
-                    <p>
-                      <span className="font-semibold text-slate-800">Priority:</span> {productionTraceModal.priority}
-                    </p>
-                    <p className="text-xs text-slate-500 pt-2 border-t border-slate-200">
-                      Connect the API server to register this list for production and use full coil allocation, run logging,
-                      and conversion checks in traceability.
-                    </p>
-                  </div>
+                  <p className="mt-1 text-[11px] text-slate-500">
+                    <span className="font-mono font-semibold text-slate-700">{productionTraceModal.id}</span> — connect
+                    the API to send this list to the production line from Sales.
+                  </p>
                 ) : null}
               </div>
-            </>
-          )}
+              <button
+                type="button"
+                onClick={() => setProductionTraceModal(null)}
+                className="p-2 text-gray-400 hover:text-red-500 rounded-xl shrink-0"
+                aria-label="Close"
+              >
+                <X size={22} />
+              </button>
+            </div>
+            <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:px-6">
+              {productionTraceModal?.type === 'pending' ? (
+                <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/70 px-5 py-6 text-sm text-slate-600 space-y-3">
+                  <p>
+                    <span className="font-semibold text-slate-800">Customer:</span> {productionTraceModal.customer}
+                  </p>
+                  <p>
+                    <span className="font-semibold text-slate-800">Spec / ref:</span> {productionTraceModal.spec}
+                  </p>
+                  <p>
+                    <span className="font-semibold text-slate-800">Quantity:</span> {productionTraceModal.quantity}
+                  </p>
+                  <p>
+                    <span className="font-semibold text-slate-800">Priority:</span> {productionTraceModal.priority}
+                  </p>
+                  <p className="text-xs text-slate-500 pt-2 border-t border-slate-200">
+                    Connect the API server to register this list for production and use full coil allocation, run logging,
+                    and conversion checks in traceability.
+                  </p>
+                </div>
+              ) : null}
+            </div>
+          </>
         </div>
       </ModalFrame>
 

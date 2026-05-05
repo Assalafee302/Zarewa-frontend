@@ -286,7 +286,7 @@ function pickProductionJobForCuttingList(cuttingListId, jobs, cuttingLists) {
 }
 
 /**
- * @param {{ focusCuttingListId?: string | null; hideJobSidebar?: boolean; inModal?: boolean; viewOnly?: boolean; onModalClose?: () => void }} [props]
+ * @param {{ focusCuttingListId?: string | null; hideJobSidebar?: boolean; inModal?: boolean; viewOnly?: boolean; onModalClose?: () => void; showModalCloseButton?: boolean }} [props]
  */
 export function LiveProductionMonitor({
   focusCuttingListId = null,
@@ -294,6 +294,7 @@ export function LiveProductionMonitor({
   inModal = false,
   viewOnly = false,
   onModalClose = null,
+  showModalCloseButton = true,
 } = {}) {
   const ws = useWorkspace();
   const { show: showToast } = useToast();
@@ -1532,7 +1533,7 @@ export function LiveProductionMonitor({
               <div className="flex flex-wrap items-center gap-1.5">
                 <h3 className="text-sm font-bold tracking-tight text-slate-900">
                   {inModal
-                    ? viewOnly
+                    ? readOnly
                       ? 'Production record (completed)'
                       : 'Production register'
                     : 'Production record'}
@@ -1600,12 +1601,12 @@ export function LiveProductionMonitor({
                   <span className="inline-flex items-center rounded-md border border-slate-200/80 bg-white/90 px-1.5 py-0.5 text-[8px] font-semibold text-slate-700 shadow-sm">
                     {selectedJob.machineName || 'Line'}
                   </span>
-                  {viewOnly ? <span className="text-slate-400">· read-only</span> : null}
+                  {readOnly ? <span className="text-slate-400">· read-only</span> : null}
                 </div>
               ) : null}
             </div>
           </div>
-          {inModal && typeof onModalClose === 'function' ? (
+          {inModal && typeof onModalClose === 'function' && showModalCloseButton !== false ? (
             <button
               type="button"
               onClick={onModalClose}
