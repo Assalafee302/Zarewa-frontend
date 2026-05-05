@@ -2,13 +2,9 @@ import React, { useEffect, useRef, useState } from 'react';
 import { apiFetch } from '../lib/apiBase';
 import { useWorkspace } from '../context/WorkspaceContext';
 import { editMutationNeedsSecondApprovalRole } from '../lib/editApprovalUi';
+import { normalizeEditApprovalInput } from '../lib/editApprovalInput.js';
 
-/** @param {string} raw */
-export function normalizeEditApprovalInput(raw) {
-  const t = String(raw ?? '').trim();
-  if (/^EA-/i.test(t)) return t.slice(0, 120);
-  return t.replace(/\D/g, '').slice(0, 6);
-}
+export { normalizeEditApprovalInput } from '../lib/editApprovalInput.js';
 
 /**
  * Shown when the signed-in role must obtain a manager/admin approval before PATCHing this entity.

@@ -19,6 +19,8 @@ import {
   Printer,
   Paperclip,
   HelpCircle,
+  Package,
+  PencilLine,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -31,6 +33,10 @@ import { formatNgn } from '../Data/mockData';
 import { receiptCashReceivedNgn } from '../lib/salesReceiptsList';
 import { effectiveManagerTargetsPerMonth, mergeDashboardPrefs } from '../lib/dashboardPrefs';
 import { userCanApproveEditMutationsClient } from '../lib/editApprovalUi';
+import {
+  canSeeExecutiveInventoryEditShortcut,
+  canSeeExecutiveProductionEditShortcut,
+} from '../lib/executiveStoreToolsAccess';
 import { EditSecondApprovalInline } from '../components/EditSecondApprovalInline';
 import {
   buildManagementQueuesFromSnapshot,
@@ -83,6 +89,16 @@ const ManagerDashboard = () => {
   const [conversionSignoffEditApprovalId, setConversionSignoffEditApprovalId] = useState('');
   /** @type {['month' | '4months' | 'half' | 'year', Function]} */
   const [metricPeriod, setMetricPeriod] = useState('month');
+
+  const showExecProdShortcut = useMemo(
+    () => canSeeExecutiveProductionEditShortcut(ws?.session?.user?.roleKey, ws?.permissions),
+    [ws?.session?.user?.roleKey, ws?.permissions]
+  );
+  const showExecInvShortcut = useMemo(
+    () => canSeeExecutiveInventoryEditShortcut(ws?.session?.user?.roleKey, ws?.permissions),
+    [ws?.session?.user?.roleKey, ws?.permissions]
+  );
+  const canExecInvOpenAdjust = Boolean(ws?.hasPermission?.('inventory.adjust'));
 
   const inboxTabs = useMemo(() => {
     const t = [...INBOX_TABS];
@@ -1058,6 +1074,44 @@ const ManagerDashboard = () => {
             </div>
           </div>
         </div>
+        {showExecProdShortcut || showExecInvShortcut ? (
+          <div
+            className="mt-5 flex flex-wrap items-center gap-2 border-t border-white/10 pt-4"
+            role="group"
+            aria-label="Executive store and production tools"
+          >
+            <span className="w-full text-[9px] font-bold uppercase tracking-wider text-teal-200/80">
+              Store and production (executive)
+            </span>
+            {showExecProdShortcut ? (
+              <button
+                type="button"
+                onClick={() => navigate('/operations', { state: { focusOpsTab: 'production' } })}
+                className="inline-flex items-center gap-2 rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-[10px] font-black uppercase tracking-wide text-white hover:bg-white/15"
+              >
+                <PencilLine size={14} aria-hidden />
+                Edit production
+              </button>
+            ) : null}
+            {showExecInvShortcut ? (
+              <button
+                type="button"
+                onClick={() =>
+                  navigate('/operations', {
+                    state: {
+                      focusOpsTab: 'inventory',
+                      ...(canExecInvOpenAdjust ? { openStockAdjust: true } : {}),
+                    },
+                  })
+                }
+                className="inline-flex items-center gap-2 rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-[10px] font-black uppercase tracking-wide text-white hover:bg-white/15"
+              >
+                <Package size={14} aria-hidden />
+                Edit stock
+              </button>
+            ) : null}
+          </div>
+        ) : null}
         <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <div className="flex justify-between text-[10px] font-bold uppercase tracking-wide text-teal-100/90 mb-1.5">

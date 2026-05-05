@@ -16,6 +16,7 @@ import {
   Scale,
   Search,
   Disc3,
+  PencilLine,
 } from 'lucide-react';
 
 import { WorkspacePanelToolbar } from '../components/workspace';
@@ -33,6 +34,10 @@ import { APP_DATA_TABLE_PAGE_SIZE, useAppTablePaging } from '../lib/appDataTable
 import { AppTablePager, AppTableWrap } from '../components/ui/AppDataTable';
 import { productionJobNeedsManagerReviewAttention } from '../lib/productionReview';
 import { procurementKindFromPo } from '../lib/procurementPoKind';
+import {
+  canSeeExecutiveInventoryEditShortcut,
+  canSeeExecutiveProductionEditShortcut,
+} from '../lib/executiveStoreToolsAccess';
 
 /** Current kg on the coil (after production use); uses API fields when present. */
 function liveCoilWeightKg(lot) {
@@ -470,6 +475,14 @@ const Operations = () => {
   const ws = useWorkspace();
   const canReceiveInventory = Boolean(ws?.hasPermission?.('inventory.receive'));
   const canAdjustInventory = Boolean(ws?.hasPermission?.('inventory.adjust'));
+  const showExecutiveProductionShortcut = useMemo(
+    () => canSeeExecutiveProductionEditShortcut(ws?.session?.user?.roleKey, ws?.permissions),
+    [ws?.session?.user?.roleKey, ws?.permissions]
+  );
+  const showExecutiveInventoryShortcut = useMemo(
+    () => canSeeExecutiveInventoryEditShortcut(ws?.session?.user?.roleKey, ws?.permissions),
+    [ws?.session?.user?.roleKey, ws?.permissions]
+  );
 
   const [activeTab, setActiveTab] = useState('production');
   const [searchQuery, setSearchQuery] = useState('');
@@ -903,6 +916,9 @@ const Operations = () => {
         else setStockReceiveKind('coil');
         setCoilLiveSearch(invSku);
       }
+      if (st.openStockAdjust && canAdjustInventory) {
+        setShowStockAdjust(true);
+      }
       navigate(location.pathname, { replace: true, state: {} });
       return;
     }
@@ -923,7 +939,7 @@ const Operations = () => {
     const highlightId = String(st.highlightCuttingListId || '').trim();
     if (t === 'production' && highlightId) setSearchQuery(highlightId);
     navigate(location.pathname, { replace: true, state: {} });
-  }, [location.state, location.pathname, navigate]);
+  }, [location.state, location.pathname, navigate, canAdjustInventory]);
 
   const transitOrdersAll = useMemo(
     () =>
@@ -1320,26 +1336,67 @@ const Operations = () => {
         subtitle="Receive in-transit coils into stock, adjustments & coil requests. Coil control posts ledger moves, scrap/offcut (metres + book refs), return inward to the offcut pool, and supplier defect logs."
         tabs={<PageTabs tabs={opsTabs} value={activeTab} onChange={handleOpsTab} />}
         actions={
-          <AiAskButton
-            mode="operations"
-            prompt={
-              activeTab === 'inventory'
-                ? 'Summarize stock risk, in-transit receipts, and the most important store actions.'
-                : activeTab === 'production'
-                  ? 'Which production jobs or conversion checks need attention first, and why?'
-                  : activeTab === 'coilControl'
-                    ? 'Which coil ledger adjustments, scrap/offcut entries, return inward pool lines, or supplier defects need attention first?'
-                    : 'Summarize operational priorities for this workspace.'
-            }
-            pageContext={{
-              source: 'operations-page',
-              activeTab,
-              searchQuery,
-            }}
-            className="inline-flex items-center gap-2 rounded-xl border border-teal-100 bg-white px-3 py-2 text-[10px] font-black uppercase tracking-wide text-[#134e4a] shadow-sm transition hover:bg-teal-50"
-          >
-            Ask AI
-          </AiAskButton>
+          <>
+            {showExecutiveProductionShortcut || showExecutiveInventoryShortcut ? (
+              <div className="mr-auto flex flex-wrap items-center gap-2">
+                {showExecutiveProductionShortcut ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveTab('production');
+                      setSearchQuery('');
+                      setProductionFilter('all');
+                      showToast('Production line — select a job to edit run log, completion, or post-completion output corrections.', {
+                        variant: 'info',
+                      });
+                    }}
+                    className="inline-flex items-center gap-2 rounded-xl border border-amber-200/90 bg-amber-50/90 px-3 py-2 text-[10px] font-black uppercase tracking-wide text-amber-950 shadow-sm transition hover:bg-amber-100"
+                  >
+                    <PencilLine size={14} aria-hidden />
+                    Edit production
+                  </button>
+                ) : null}
+                {showExecutiveInventoryShortcut ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveTab('inventory');
+                      setSearchQuery('');
+                      if (canAdjustInventory) setShowStockAdjust(true);
+                      else
+                        showToast('Stock management — use receive and on-hand tabs; book adjustments need inventory adjust rights.', {
+                          variant: 'info',
+                        });
+                    }}
+                    className="inline-flex items-center gap-2 rounded-xl border border-sky-200/90 bg-sky-50/90 px-3 py-2 text-[10px] font-black uppercase tracking-wide text-sky-950 shadow-sm transition hover:bg-sky-100"
+                  >
+                    <Package size={14} aria-hidden />
+                    Edit stock
+                  </button>
+                ) : null}
+              </div>
+            ) : null}
+            <AiAskButton
+              mode="operations"
+              prompt={
+                activeTab === 'inventory'
+                  ? 'Summarize stock risk, in-transit receipts, and the most important store actions.'
+                  : activeTab === 'production'
+                    ? 'Which production jobs or conversion checks need attention first, and why?'
+                    : activeTab === 'coilControl'
+                      ? 'Which coil ledger adjustments, scrap/offcut entries, return inward pool lines, or supplier defects need attention first?'
+                      : 'Summarize operational priorities for this workspace.'
+              }
+              pageContext={{
+                source: 'operations-page',
+                activeTab,
+                searchQuery,
+              }}
+              className="inline-flex items-center gap-2 rounded-xl border border-teal-100 bg-white px-3 py-2 text-[10px] font-black uppercase tracking-wide text-[#134e4a] shadow-sm transition hover:bg-teal-50"
+            >
+              Ask AI
+            </AiAskButton>
+          </>
         }
       />
 
