@@ -468,6 +468,8 @@ const Operations = () => {
     coilLots,
   } = useInventory();
   const ws = useWorkspace();
+  const canReceiveInventory = Boolean(ws?.hasPermission?.('inventory.receive'));
+  const canAdjustInventory = Boolean(ws?.hasPermission?.('inventory.adjust'));
 
   const [activeTab, setActiveTab] = useState('production');
   const [searchQuery, setSearchQuery] = useState('');
@@ -1106,6 +1108,10 @@ const Operations = () => {
 
   const applyTransitReceipt = async (e) => {
     e.preventDefault();
+    if (!canReceiveInventory) {
+      showToast('Only a branch manager or director can post goods into inventory.', { variant: 'error' });
+      return;
+    }
     if (!receiveDraft.poID) {
       showToast('Select an incoming order.', { variant: 'error' });
       return;
@@ -1147,6 +1153,10 @@ const Operations = () => {
 
   const applyStockAdjust = async (e) => {
     e.preventDefault();
+    if (!canAdjustInventory) {
+      showToast('Only a branch manager or director can post stock adjustments.', { variant: 'error' });
+      return;
+    }
     const { productID, type, qty, reasonCode, reasonNote, date } = stockAdjust;
     if (!productID || !qty) return;
     if (reasonCode === 'Other' && !reasonNote.trim()) {
@@ -1341,6 +1351,22 @@ const Operations = () => {
         />
       </div>
 
+      {activeTab === 'inventory' && (!canReceiveInventory || !canAdjustInventory) ? (
+        <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50/80 px-3 py-2.5 text-[10px] font-medium text-amber-950 leading-snug">
+          {!canReceiveInventory ? (
+            <p>
+              <strong>Receiving into stock</strong> (GRN / goods in transit) requires a{' '}
+              <strong>branch manager</strong> account or above.
+            </p>
+          ) : null}
+          {!canAdjustInventory ? (
+            <p className={!canReceiveInventory ? 'mt-1.5' : ''}>
+              <strong>Stock adjustments</strong> require a <strong>branch manager</strong> account or above.
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 lg:gap-8 min-w-0">
         {activeTab === 'inventory' ? (
         <div className="col-span-full w-full order-2">
@@ -1456,11 +1482,17 @@ const Operations = () => {
                           {expandedReceivePoId !== p.poID ? (
                             <button
                               type="button"
+                              disabled={!canReceiveInventory}
+                              title={
+                                canReceiveInventory
+                                  ? 'Enter receipt quantities'
+                                  : 'Branch manager or director required to receive into stock'
+                              }
                               onClick={() => {
                                 setExpandedReceivePoId(p.poID);
                                 setReceiveDraft((d) => ({ ...d, poID: p.poID }));
                               }}
-                              className="text-[8px] font-semibold uppercase tracking-wide text-sky-800 bg-sky-100 hover:bg-sky-200 px-2 py-1 rounded-md shrink-0"
+                              className="text-[8px] font-semibold uppercase tracking-wide text-sky-800 bg-sky-100 hover:bg-sky-200 px-2 py-1 rounded-md shrink-0 disabled:opacity-40 disabled:pointer-events-none"
                             >
                               Receive
                             </button>
@@ -1491,6 +1523,10 @@ const Operations = () => {
                           className="mt-1.5 space-y-2 border-t border-dashed border-slate-200 pt-1.5"
                           onSubmit={applyTransitReceipt}
                         >
+                          <fieldset
+                            disabled={!canReceiveInventory}
+                            className="border-0 p-0 m-0 min-w-0 space-y-2 disabled:opacity-60"
+                          >
                           <input
                             value={receiveDraft.location}
                             onChange={(e) =>
@@ -1603,10 +1639,12 @@ const Operations = () => {
                               <span>Override conversion checks (audited).</span>
                             </label>
                           ) : null}
+                          </fieldset>
                           {grnLines.length > 0 ? (
                             <button
                               type="submit"
-                              className="w-full rounded-lg bg-[#134e4a] text-white text-[10px] font-black uppercase tracking-wide py-2 hover:bg-[#0f3d39]"
+                              disabled={!canReceiveInventory}
+                              className="w-full rounded-lg bg-[#134e4a] text-white text-[10px] font-black uppercase tracking-wide py-2 hover:bg-[#0f3d39] disabled:opacity-40 disabled:pointer-events-none"
                             >
                               Confirm receipt
                             </button>
@@ -1852,8 +1890,17 @@ const Operations = () => {
           <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
-              onClick={() => setShowStockAdjust(true)}
-              className="z-btn-secondary"
+              disabled={!canAdjustInventory}
+              title={
+                canAdjustInventory
+                  ? 'Post a book stock adjustment'
+                  : 'Branch manager or director required'
+              }
+              onClick={() => {
+                if (!canAdjustInventory) return;
+                setShowStockAdjust(true);
+              }}
+              className="z-btn-secondary disabled:opacity-40 disabled:pointer-events-none"
             >
                   <Box size={16} /> Adjust stock
             </button>
