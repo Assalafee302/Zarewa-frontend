@@ -2249,6 +2249,24 @@ const Operations = () => {
                                   : item.priority === 'Waiting' || item.priority === 'Wait'
                                     ? 'border-amber-200 bg-amber-50 text-amber-900'
                                     : 'border-slate-200 bg-slate-50 text-slate-600';
+                          const clIdForConv = String(item.cuttingListId || item.id || '').trim();
+                          const convChecks =
+                            ws?.hasWorkspaceData && clIdForConv
+                              ? conversionChecksByCuttingListId.get(clIdForConv)
+                              : null;
+                          const convSum =
+                            convChecks?.length
+                              ? summarizeConversionChecksForCuttingList(convChecks, formatVariancePct)
+                              : null;
+                          const convWorstTone = convSum
+                            ? (() => {
+                                const w = String(convSum.worst || 'OK');
+                                if (w === 'High') return 'border-red-200 bg-red-50 text-red-800';
+                                if (w === 'Low') return 'border-amber-200 bg-amber-50 text-amber-900';
+                                if (w === 'Watch') return 'border-sky-200 bg-sky-50 text-sky-900';
+                                return 'border-emerald-200 bg-emerald-50 text-emerald-800';
+                              })()
+                            : null;
                           return (
                             <li
                               key={`${item.queueKind}-${item.id}`}
@@ -2277,103 +2295,86 @@ const Operations = () => {
                                     >
                                       {item.priority}
                                     </span>
-                                    <span className="text-[8px] font-semibold uppercase tracking-wide text-sky-800 bg-sky-100 px-2 py-1 rounded-md">
-                                      Register
-                                    </span>
                                   </div>
                                 </div>
-                                <p
-                                  className="text-[8px] text-slate-500 mt-0.5 leading-snug line-clamp-2"
-                                  title={meta2}
-                                >
-                                  {meta2}
-                                </p>
-                                {ws?.hasWorkspaceData
-                                  ? (() => {
-                                      const clId = String(item.cuttingListId || item.id || '').trim();
-                                      const chk = clId ? conversionChecksByCuttingListId.get(clId) : null;
-                                      const sum = chk?.length
-                                        ? summarizeConversionChecksForCuttingList(chk, formatVariancePct)
-                                        : null;
-                                      if (!sum) return null;
-                                      const w = String(sum.worst || 'OK');
-                                      const alertTone =
-                                        w === 'High'
-                                          ? 'border-red-200 bg-red-50 text-red-800'
-                                          : w === 'Low'
-                                            ? 'border-amber-200 bg-amber-50 text-amber-900'
-                                            : w === 'Watch'
-                                              ? 'border-sky-200 bg-sky-50 text-sky-900'
-                                              : 'border-emerald-200 bg-emerald-50 text-emerald-800';
-                                      return (
-                                        <div className="mt-1.5 flex flex-wrap items-center gap-1.5 border-t border-slate-100/90 pt-1.5">
-                                          <span className="text-[7px] font-bold uppercase tracking-wide text-slate-400">
-                                            4-ref
-                                          </span>
-                                          <span
-                                            className={`text-[7px] font-semibold uppercase px-1.5 py-0.5 rounded border ${alertTone}`}
-                                          >
-                                            {sum.worst}
-                                          </span>
-                                          <span className="text-[8px] text-slate-600 tabular-nums">{sum.deltaLabel}</span>
-                                          <span className="text-[8px] text-slate-500">
-                                            · {sum.count} coil line{sum.count === 1 ? '' : 's'}
-                                          </span>
-                                        </div>
+                                <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 border-t border-slate-100/90 pt-1.5">
+                                  <span className="shrink-0 text-[8px] font-semibold uppercase tracking-wide text-sky-800 bg-sky-100 px-2 py-1 rounded-md">
+                                    Register
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      openTraceWithHint(
+                                        item,
+                                        'Production register: coil allocation, run log, and completion.'
                                       );
-                                    })()
-                                  : null}
+                                    }}
+                                    className="shrink-0 text-[8px] font-semibold uppercase tracking-wide px-2 py-1 rounded-md border border-sky-200 bg-sky-50 text-sky-900 hover:bg-sky-100 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300/40"
+                                    title="Open production register (not cutting list lines)"
+                                  >
+                                    Edit register
+                                  </button>
+                                  <p
+                                    className="min-w-0 flex-1 basis-[min(100%,14rem)] text-[8px] text-slate-500 leading-snug sm:line-clamp-1 line-clamp-2"
+                                    title={meta2}
+                                  >
+                                    {meta2}
+                                  </p>
+                                  {convSum && convWorstTone ? (
+                                    <div className="flex flex-wrap items-center gap-1.5 shrink-0">
+                                      <span className="text-[7px] font-bold uppercase tracking-wide text-slate-400">
+                                        4-ref
+                                      </span>
+                                      <span
+                                        className={`text-[7px] font-semibold uppercase px-1.5 py-0.5 rounded border ${convWorstTone}`}
+                                      >
+                                        {convSum.worst}
+                                      </span>
+                                      <span className="text-[8px] text-slate-600 tabular-nums">
+                                        {convSum.deltaLabel}
+                                      </span>
+                                      <span className="text-[8px] text-slate-500">
+                                        · {convSum.count} coil line{convSum.count === 1 ? '' : 's'}
+                                      </span>
+                                    </div>
+                                  ) : null}
+                                </div>
                               </div>
-                              <div className="flex flex-wrap gap-1.5 pt-1.5 mt-1 border-t border-dashed border-slate-200">
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    openTraceWithHint(
-                                      item,
-                                      'Production register: coil allocation, run log, and completion.'
-                                    );
-                                  }}
-                                  className="text-[8px] font-semibold uppercase tracking-wide px-2 py-1 rounded-md border border-sky-200 bg-sky-50 text-sky-900 hover:bg-sky-100 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300/40"
-                                  title="Open production register (not cutting list lines)"
-                                >
-                                  Edit register
-                                </button>
-                                {!item.completed ? (
-                                  <>
-                                    <button
-                                      type="button"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        openTraceWithHint(item, 'Opens production register — coil assignment.');
-                                      }}
-                                      className="text-[8px] font-semibold uppercase tracking-wide px-2 py-1 rounded-md border border-sky-200 bg-sky-50 text-sky-900 hover:bg-sky-100 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300/40"
-                                    >
-                                      Assign coil
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        openTraceWithHint(item, 'Opens production register — run log and start.');
-                                      }}
-                                      className="text-[8px] font-semibold uppercase tracking-wide px-2 py-1 rounded-md border border-sky-200 bg-sky-50 text-sky-900 hover:bg-sky-100 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300/40"
-                                    >
-                                      Start run
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        requestMarkComplete(item);
-                                      }}
-                                      className="text-[8px] font-semibold uppercase tracking-wide px-2 py-1 rounded-md border border-emerald-200 bg-emerald-50 text-emerald-900 hover:bg-emerald-100 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/35"
-                                    >
-                                      Mark complete
-                                    </button>
-                                  </>
-                                ) : null}
-                              </div>
+                              {!item.completed ? (
+                                <div className="flex flex-wrap gap-1.5 pt-1.5 mt-1 border-t border-dashed border-slate-200">
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      openTraceWithHint(item, 'Opens production register — coil assignment.');
+                                    }}
+                                    className="text-[8px] font-semibold uppercase tracking-wide px-2 py-1 rounded-md border border-sky-200 bg-sky-50 text-sky-900 hover:bg-sky-100 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300/40"
+                                  >
+                                    Assign coil
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      openTraceWithHint(item, 'Opens production register — run log and start.');
+                                    }}
+                                    className="text-[8px] font-semibold uppercase tracking-wide px-2 py-1 rounded-md border border-sky-200 bg-sky-50 text-sky-900 hover:bg-sky-100 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300/40"
+                                  >
+                                    Start run
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      requestMarkComplete(item);
+                                    }}
+                                    className="text-[8px] font-semibold uppercase tracking-wide px-2 py-1 rounded-md border border-emerald-200 bg-emerald-50 text-emerald-900 hover:bg-emerald-100 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/35"
+                                  >
+                                    Mark complete
+                                  </button>
+                                </div>
+                              ) : null}
                             </li>
                           );
                         })}
