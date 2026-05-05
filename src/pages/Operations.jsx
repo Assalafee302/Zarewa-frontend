@@ -38,9 +38,6 @@ import {
   canSeeExecutiveInventoryEditShortcut,
   canSeeExecutiveProductionEditShortcut,
 } from '../lib/executiveStoreToolsAccess';
-import CuttingListModal from '../components/CuttingListModal';
-import { mergeReceiptRowsForSales } from '../lib/salesReceiptsList';
-import { canEditCuttingList, loadSalesWorkspaceRole, SALES_ROLE_LABELS } from '../lib/salesWorkspaceAccess';
 
 /** Current kg on the coil (after production use); uses API fields when present. */
 function liveCoilWeightKg(lot) {
@@ -548,10 +545,6 @@ const Operations = () => {
   const [stockAdjustMaterialFamily, setStockAdjustMaterialFamily] = useState(
     /** @type {null | 'aluminium' | 'aluzinc'} */ (null)
   );
-  const [showOpsCuttingModal, setShowOpsCuttingModal] = useState(false);
-  const [opsCuttingEditItem, setOpsCuttingEditItem] = useState(null);
-  const [opsCuttingAccessMode, setOpsCuttingAccessMode] = useState('edit');
-
   useEffect(() => {
     if (showStockAdjust) {
       setStockAdjustCoilPrompt(false);
@@ -565,11 +558,6 @@ const Operations = () => {
     const filtered = inventoryRows.filter((r) => productMaterialFamily(r) === stockAdjustMaterialFamily);
     return filtered.length ? filtered : inventoryRows;
   }, [inventoryRows, stockAdjustMaterialFamily]);
-
-  const opsHandledByLabel = useMemo(() => {
-    const r = loadSalesWorkspaceRole(ws?.session?.user?.roleKey);
-    return ws?.session?.user?.roleLabel ?? SALES_ROLE_LABELS[r] ?? r;
-  }, [ws?.session?.user?.roleKey, ws?.session?.user?.roleLabel]);
 
   const closeStockAdjustModal = useCallback(() => {
     setShowStockAdjust(false);
@@ -657,61 +645,6 @@ const Operations = () => {
       ws?.hasWorkspaceData && Array.isArray(ws?.snapshot?.cuttingLists) ? ws.snapshot.cuttingLists : [],
     [ws?.hasWorkspaceData, ws?.snapshot?.cuttingLists]
   );
-  const quotations = useMemo(
-    () => (ws?.hasWorkspaceData && Array.isArray(ws?.snapshot?.quotations) ? ws.snapshot.quotations : []),
-    [ws?.hasWorkspaceData, ws?.snapshot?.quotations]
-  );
-  const mergedReceiptRows = useMemo(
-    () => mergeReceiptRowsForSales(ws?.snapshot?.receipts ?? [], quotations, ws?.refreshEpoch ?? 0),
-    [ws?.snapshot?.receipts, quotations, ws?.refreshEpoch]
-  );
-
-  const persistOpsCuttingList = useCallback(
-    async (payload) => {
-      if (!ws?.canMutate) {
-        return {
-          ok: false,
-          error: ws?.usingCachedData
-            ? 'Reconnect to save — workspace is read-only (cached data).'
-            : 'Start the API server to save cutting lists.',
-        };
-      }
-      const isEdit = Boolean(payload.id);
-      const path = isEdit ? `/api/cutting-lists/${encodeURIComponent(payload.id)}` : '/api/cutting-lists';
-      const { editApprovalId: cuttingAid, ...cuttingBody } = payload;
-      const body =
-        isEdit && String(cuttingAid || '').trim()
-          ? { ...cuttingBody, editApprovalId: String(cuttingAid).trim() }
-          : cuttingBody;
-      const { ok, data } = await apiFetch(path, {
-        method: isEdit ? 'PATCH' : 'POST',
-        body: JSON.stringify(body),
-      });
-      if (!ok || !data?.ok) {
-        return { ok: false, error: data?.error || 'Could not save cutting list.' };
-      }
-      await ws.refresh();
-      showToast(`${isEdit ? 'Updated' : 'Created'} cutting list ${data.cuttingList?.id || data.id}.`);
-      return { ok: true };
-    },
-    [showToast, ws]
-  );
-
-  const openCuttingListEditor = useCallback(
-    (item) => {
-      const id = String(item?.cuttingListId || item?.id || '').trim();
-      const row = cuttingLists.find((c) => c.id === id);
-      if (!row) {
-        showToast('Cutting list not found — refresh the workspace and try again.', { variant: 'error' });
-        return;
-      }
-      setOpsCuttingEditItem(row);
-      setOpsCuttingAccessMode(canEditCuttingList(row) ? 'edit' : 'view');
-      setShowOpsCuttingModal(true);
-    },
-    [cuttingLists, showToast]
-  );
-
   const openStockAdjustForFamily = useCallback(
     (family) => {
       if (!canAdjustInventory) {
@@ -1378,8 +1311,7 @@ const Operations = () => {
     showCoilRequest ||
     completeChecklistModal != null ||
     productionTraceModal != null ||
-    productMovementModal != null ||
-    showOpsCuttingModal;
+    productMovementModal != null;
 
   useEffect(() => {
     if (activeTab !== 'inventory') return undefined;
@@ -2281,14 +2213,6 @@ const Operations = () => {
                               <div className="flex shrink-0 flex-wrap items-center justify-end gap-1">
                                 <button
                                   type="button"
-                                  onClick={() => openCuttingListEditor(item)}
-                                  className="text-[8px] font-semibold uppercase tracking-wide px-2 py-1 rounded-md border border-teal-200 bg-teal-50 text-teal-900 hover:bg-teal-100"
-                                  title="Edit cutting list lines, machine, or date (when not locked)"
-                                >
-                                  Edit list
-                                </button>
-                                <button
-                                  type="button"
                                   onClick={() =>
                                     openTraceWithHint(
                                       item,
@@ -2296,8 +2220,9 @@ const Operations = () => {
                                     )
                                   }
                                   className="text-[8px] font-semibold uppercase tracking-wide px-2 py-1 rounded-md border border-sky-300 bg-white text-sky-900 hover:bg-sky-50"
+                                  title="Open production register (coils, run log, complete)"
                                 >
-                                  Open register
+                                  Edit register
                                 </button>
                               </div>
                             </li>
@@ -2510,12 +2435,15 @@ const Operations = () => {
                                   type="button"
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    openCuttingListEditor(item);
+                                    openTraceWithHint(
+                                      item,
+                                      'Production register: coil allocation, run log, and completion.'
+                                    );
                                   }}
-                                  className="text-[8px] font-semibold uppercase tracking-wide px-2 py-1 rounded-md border border-teal-200 bg-teal-50 text-teal-900 hover:bg-teal-100 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-300/40"
-                                  title="Edit cutting list (lines, machine, date) when not production-locked"
+                                  className="text-[8px] font-semibold uppercase tracking-wide px-2 py-1 rounded-md border border-sky-200 bg-sky-50 text-sky-900 hover:bg-sky-100 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300/40"
+                                  title="Open production register (not cutting list lines)"
                                 >
-                                  Edit list
+                                  Edit register
                                 </button>
                                 {!item.completed ? (
                                   <>
@@ -3054,21 +2982,6 @@ const Operations = () => {
           </div>
         </div>
       </ModalFrame>
-      <CuttingListModal
-        isOpen={showOpsCuttingModal}
-        editData={opsCuttingEditItem}
-        accessMode={opsCuttingAccessMode}
-        onClose={() => {
-          setShowOpsCuttingModal(false);
-          setOpsCuttingEditItem(null);
-        }}
-        quotations={quotations}
-        receipts={mergedReceiptRows}
-        cuttingLists={cuttingLists}
-        onPersist={persistOpsCuttingList}
-        onCuttingListUpdated={(cl) => setOpsCuttingEditItem(cl)}
-        handledByLabel={opsHandledByLabel}
-      />
     </PageShell>
   );
 };
