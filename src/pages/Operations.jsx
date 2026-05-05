@@ -32,7 +32,7 @@ import { apiFetch } from '../lib/apiBase';
 import { APP_DATA_TABLE_PAGE_SIZE, useAppTablePaging } from '../lib/appDataTable';
 import { AppTablePager, AppTableWrap } from '../components/ui/AppDataTable';
 import { productionJobNeedsManagerReviewAttention } from '../lib/productionReview';
-import { pickProductionJobForCuttingList } from '../lib/productionJobPick';
+import { normalizeJobStatus, pickProductionJobForCuttingList } from '../lib/productionJobPick';
 import { procurementKindFromPo } from '../lib/procurementPoKind';
 
 /** Current kg on the coil (after production use); uses API fields when present. */
@@ -105,24 +105,25 @@ function cuttingListIdNumericRank(id) {
 }
 
 /**
- * Coloured queue status: Waiting (not on line yet), Pushed (registered, planned), In production, Produced (finished).
+ * Five distinct chip palettes. Waiting = not on production yet; Pushed = registered for line (planned or job syncing).
  */
 function productionQueueLineStatusPresentation(cl, job) {
-  const jobSt = String(job?.status ?? '').trim();
+  const jobSt = job != null ? normalizeJobStatus(job.status) : '';
   const clSt = String(cl?.status ?? '').trim();
   if (jobSt === 'Cancelled') {
-    return { label: 'Cancelled', chipClass: 'border-slate-300 bg-slate-100 text-slate-800' };
+    return { label: 'Cancelled', chipClass: 'border-rose-500 bg-rose-50 text-rose-950' };
   }
   if (jobSt === 'Completed' || clSt === 'Finished') {
-    return { label: 'Produced', chipClass: 'border-emerald-400 bg-emerald-50 text-emerald-900' };
+    return { label: 'Produced', chipClass: 'border-emerald-600 bg-emerald-50 text-emerald-950' };
   }
   if (jobSt === 'Running' || clSt === 'In production') {
-    return { label: 'In production', chipClass: 'border-sky-400 bg-sky-50 text-sky-950' };
+    return { label: 'In production', chipClass: 'border-cyan-500 bg-cyan-50 text-cyan-950' };
   }
-  if (cl?.productionRegistered && jobSt === 'Planned') {
-    return { label: 'Pushed', chipClass: 'border-indigo-300 bg-indigo-50 text-indigo-950' };
+  /* Registered for production: show Pushed while Planned or before the job row appears in the snapshot. */
+  if (cl?.productionRegistered && (job == null || jobSt === 'Planned')) {
+    return { label: 'Pushed', chipClass: 'border-violet-500 bg-violet-50 text-violet-950' };
   }
-  return { label: 'Waiting', chipClass: 'border-amber-300 bg-amber-50 text-amber-950' };
+  return { label: 'Waiting', chipClass: 'border-orange-500 bg-orange-50 text-orange-950' };
 }
 
 /** Lower score = needs attention first (active + closed production lists). */
@@ -707,7 +708,7 @@ const Operations = () => {
           coilCount: 0,
           coilLabel: null,
           lineStatusLabel: 'Waiting',
-          lineStatusChipClass: 'border-amber-300 bg-amber-50 text-amber-950',
+          lineStatusChipClass: 'border-orange-500 bg-orange-50 text-orange-950',
         }));
       return {
         mode: 'offline',
