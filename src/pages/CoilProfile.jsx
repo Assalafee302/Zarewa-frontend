@@ -1,9 +1,10 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import {
   ArrowLeft,
   LayoutDashboard,
   Factory,
+  Pencil,
   ScrollText,
 } from 'lucide-react';
 import { MainPanel, ModalFrame, PageHeader, PageShell } from '../components/layout';
@@ -60,6 +61,11 @@ function movementTitle(m) {
   return m?.type || 'Movement';
 }
 
+function canEditCoilLotMasterData(roleKey) {
+  const r = String(roleKey || '').trim().toLowerCase();
+  return ['admin', 'md', 'sales_manager', 'branch_manager'].includes(r);
+}
+
 export default function CoilProfile() {
   const { coilNo: coilNoParam } = useParams();
   const coilNo = decodeURIComponent(String(coilNoParam || '')).trim();
@@ -71,11 +77,33 @@ export default function CoilProfile() {
   const [savingAction, setSavingAction] = useState(false);
   const [scrapForm, setScrapForm] = useState({ kg: '', meters: '', bookRef: '', reason: 'Damaged edge / offcut', note: '' });
   const [returnForm, setReturnForm] = useState({ kg: '', reason: 'Unused from production', note: '' });
+  const [editForm, setEditForm] = useState({
+    colour: '',
+    gaugeLabel: '',
+    materialTypeName: '',
+    receivedKg: '',
+  });
 
   const coil = useMemo(
     () => coilLots.find((c) => coilKey(c.coilNo) === coilNoKey),
     [coilLots, coilNoKey]
   );
+
+  const mayEditCoilMaster = useMemo(
+    () => canEditCoilLotMasterData(ws?.session?.user?.roleKey),
+    [ws?.session?.user?.roleKey]
+  );
+
+  useEffect(() => {
+    if (actionModal !== 'edit' || !coil) return;
+    const recv = asNum(coil.weightKg || coil.qtyReceived);
+    setEditForm({
+      colour: String(coil.colour ?? '').trim(),
+      gaugeLabel: String(coil.gaugeLabel ?? coil.gauge ?? '').trim(),
+      materialTypeName: String(coil.materialTypeName ?? coil.materialType ?? '').trim(),
+      receivedKg: recv > 0 ? String(recv) : '',
+    });
+  }, [actionModal, coil]);
 
   const productionJobCoils = useMemo(
     () => (Array.isArray(ws?.snapshot?.productionJobCoils) ? ws.snapshot.productionJobCoils : []),
@@ -253,6 +281,36 @@ export default function CoilProfile() {
     }
   };
 
+  const submitEditMaster = async (e) => {
+    e.preventDefault();
+    if (!coil) return;
+    if (!ws?.canMutate) return showToast('Workspace is read-only.', { variant: 'error' });
+    const recvStr = editForm.receivedKg.trim();
+    const recvNum = recvStr ? Number(recvStr) : null;
+    if (recvStr && (!Number.isFinite(recvNum) || recvNum < 0)) {
+      return showToast('Received kg must be a valid non-negative number.', { variant: 'error' });
+    }
+    const body = {
+      colour: editForm.colour.trim(),
+      gaugeLabel: editForm.gaugeLabel.trim(),
+      materialTypeName: editForm.materialTypeName.trim(),
+    };
+    if (recvStr) body.receivedKg = recvNum;
+    setSavingAction(true);
+    try {
+      const { ok, data } = await apiFetch(`/api/coil-lots/${encodeURIComponent(coil.coilNo)}/master-data`, {
+        method: 'PATCH',
+        body: JSON.stringify(body),
+      });
+      if (!ok || !data?.ok) return showToast(data?.error || 'Update failed.', { variant: 'error' });
+      await ws.refresh?.();
+      showToast('Coil details updated.');
+      setActionModal('');
+    } finally {
+      setSavingAction(false);
+    }
+  };
+
   return (
     <PageShell>
       <PageHeader
@@ -280,6 +338,11 @@ export default function CoilProfile() {
             >
               Coil control
             </Link>
+            {mayEditCoilMaster ? (
+              <button type="button" className="z-btn-secondary inline-flex items-center gap-1.5" onClick={() => setActionModal('edit')}>
+                <Pencil size={16} aria-hidden /> Edit details
+              </button>
+            ) : null}
             <button type="button" className="z-btn-secondary inline-flex" onClick={() => setActionModal('scrap')}>
               Scrap
             </button>
@@ -333,7 +396,7 @@ export default function CoilProfile() {
             <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs text-slate-600">
               <p>Colour: <strong>{coil.colour || '—'}</strong></p>
               <p>Gauge: <strong>{coil.gaugeLabel || coil.gauge || '—'}</strong></p>
-              <p>Material type: <strong>{coil.materialType || coil.productID || '—'}</strong></p>
+              <p>Material type: <strong>{coil.materialTypeName || coil.materialType || coil.productID || '—'}</strong></p>
               <p>Supplier: <strong>{coil.supplierName || coil.supplierID || '—'}</strong></p>
               <p>PO: <strong>{coil.poID || '—'}</strong></p>
               <p>Status: <strong>{coil.currentStatus || '—'}</strong></p>
@@ -476,6 +539,33 @@ export default function CoilProfile() {
           <input className="z-input w-full" placeholder="Reason" value={returnForm.reason} onChange={(e) => setReturnForm((s) => ({ ...s, reason: e.target.value }))} />
           <textarea className="z-input w-full min-h-20" placeholder="Note" value={returnForm.note} onChange={(e) => setReturnForm((s) => ({ ...s, note: e.target.value }))} />
           <button className="z-btn-primary" type="submit" disabled={savingAction}>Post return</button>
+        </form>
+      </ModalFrame>
+      <ModalFrame isOpen={actionModal === 'edit'} onClose={() => !savingAction && setActionModal('')}>
+        <form onSubmit={submitEditMaster} className="space-y-3">
+          <h3 className="text-lg font-black text-[#134e4a]">Edit coil details</h3>
+          <p className="text-xs text-slate-600 leading-relaxed">
+            For branch managers, the MD, and administrators only. Received kg updates the GRN book figure (
+            <code className="text-[11px]">qty_received</code> / <code className="text-[11px]">weight_kg</code>
+            ). Current on-hand kg is unchanged — use <strong>Coil control</strong> for live mass adjustments.
+          </p>
+          <label className="block">
+            <span className="text-[10px] font-bold text-slate-500 uppercase">Colour</span>
+            <input className="z-input w-full mt-0.5" value={editForm.colour} onChange={(e) => setEditForm((f) => ({ ...f, colour: e.target.value }))} />
+          </label>
+          <label className="block">
+            <span className="text-[10px] font-bold text-slate-500 uppercase">Gauge</span>
+            <input className="z-input w-full mt-0.5" value={editForm.gaugeLabel} onChange={(e) => setEditForm((f) => ({ ...f, gaugeLabel: e.target.value }))} />
+          </label>
+          <label className="block">
+            <span className="text-[10px] font-bold text-slate-500 uppercase">Material type (description)</span>
+            <input className="z-input w-full mt-0.5" value={editForm.materialTypeName} onChange={(e) => setEditForm((f) => ({ ...f, materialTypeName: e.target.value }))} />
+          </label>
+          <label className="block">
+            <span className="text-[10px] font-bold text-slate-500 uppercase">Received kg (GRN)</span>
+            <input className="z-input w-full mt-0.5" type="number" min="0" step="0.01" value={editForm.receivedKg} onChange={(e) => setEditForm((f) => ({ ...f, receivedKg: e.target.value }))} />
+          </label>
+          <button className="z-btn-primary" type="submit" disabled={savingAction}>Save changes</button>
         </form>
       </ModalFrame>
     </PageShell>
