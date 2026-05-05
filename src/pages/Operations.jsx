@@ -2238,38 +2238,41 @@ const Operations = () => {
                     )}
                   </section>
 
-                  {/* Right 2/3 — closed / finished / complete + reference-check detail */}
-                  <section className="space-y-4 lg:col-span-2 order-2 min-w-0 flex flex-col rounded-xl border border-slate-200/80 bg-white p-4 shadow-sm">
-                    <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                      <div className="min-w-0">
-                        <h3 className="text-sm font-black uppercase tracking-wide text-[#134e4a]">
-                          Closed · finished · complete
-                        </h3>
-                        <p className="text-[10px] text-slate-600 mt-1 leading-relaxed">
-                          Completed and cancelled production records. Four-reference conversion summary appears on each
-                          row when checks exist for that cutting list (open production register for full coil breakdown).
-                        </p>
-                      </div>
-                      <label className="flex shrink-0 items-center gap-1.5 text-[9px] font-bold uppercase tracking-wide text-slate-500">
-                        Sort
-                        <select
-                          value={productionClosedSortKey}
-                          onChange={(e) => setProductionClosedSortKey(e.target.value)}
-                          className="max-w-[9.5rem] rounded-md border border-slate-200 bg-white px-2 py-1 text-[10px] font-semibold normal-case text-slate-800 outline-none focus-visible:ring-2 focus-visible:ring-[#134e4a]/25"
-                        >
-                          <option value="attention">Attention</option>
-                          <option value="id">Cutting list ID</option>
-                          <option value="customer">Customer A–Z</option>
-                          <option value="status">Status A–Z</option>
-                        </select>
-                      </label>
-                    </div>
+                  {/* Right 2/3 — closed / finished / complete + reference-check detail (surface matches Sales quotations table) */}
+                  <section className="space-y-0 lg:col-span-2 order-2 min-w-0 flex min-h-0 flex-col">
+                    <MainPanel className="!rounded-xl !border-slate-200/90 !shadow-sm !bg-white !backdrop-blur-none border !border-solid !p-0 overflow-hidden min-h-[min(480px,72vh)] sm:min-h-[560px]">
+                      <div className="h-1 bg-[#134e4a]" aria-hidden />
+                      <div className="flex min-h-0 flex-col space-y-4 p-5 sm:p-6 md:p-8">
+                        <div className="mb-1 flex flex-col gap-4 sm:mb-0 sm:flex-row sm:items-end sm:justify-between">
+                          <div className="min-w-0 shrink-0">
+                            <h2 className="text-[10px] font-bold uppercase tracking-widest text-[#134e4a]">
+                              Closed · finished · complete
+                            </h2>
+                            <p className="mt-1 text-[9px] font-semibold leading-relaxed text-slate-400">
+                              Completed and cancelled production records. Four-reference conversion summary appears on each
+                              row when checks exist for that cutting list (open production register for full coil breakdown).
+                            </p>
+                          </div>
+                          <label className="flex shrink-0 items-center gap-1.5 text-[9px] font-bold uppercase tracking-wide text-slate-500">
+                            Sort
+                            <select
+                              value={productionClosedSortKey}
+                              onChange={(e) => setProductionClosedSortKey(e.target.value)}
+                              className="max-w-[9.5rem] rounded-md border border-slate-200 bg-white px-2 py-1 text-[10px] font-semibold normal-case text-slate-800 outline-none focus-visible:ring-2 focus-visible:ring-[#134e4a]/25"
+                            >
+                              <option value="attention">Attention</option>
+                              <option value="id">Cutting list ID</option>
+                              <option value="customer">Customer A–Z</option>
+                              <option value="status">Status A–Z</option>
+                            </select>
+                          </label>
+                        </div>
 
-                    <div
-                      className="inline-flex flex-wrap rounded-lg border border-slate-200 bg-slate-50/90 p-1 gap-1"
-                      role="group"
-                      aria-label="Filter closed production records"
-                    >
+                        <div
+                          className="inline-flex flex-wrap gap-1 rounded-lg border border-slate-200 bg-slate-50/90 p-1"
+                          role="group"
+                          aria-label="Filter closed production records"
+                        >
                       {(ws?.hasWorkspaceData
                         ? [
                             { id: 'all', label: 'All closed' },
@@ -2484,6 +2487,8 @@ const Operations = () => {
                       />
                       </div>
                     )}
+                      </div>
+                    </MainPanel>
                   </section>
                 </div>
               ) : null}
