@@ -38,6 +38,9 @@ import {
   canSeeExecutiveInventoryEditShortcut,
   canSeeExecutiveProductionEditShortcut,
 } from '../lib/executiveStoreToolsAccess';
+import CuttingListModal from '../components/CuttingListModal';
+import { mergeReceiptRowsForSales } from '../lib/salesReceiptsList';
+import { canEditCuttingList, loadSalesWorkspaceRole, SALES_ROLE_LABELS } from '../lib/salesWorkspaceAccess';
 
 /** Current kg on the coil (after production use); uses API fields when present. */
 function liveCoilWeightKg(lot) {
@@ -53,6 +56,18 @@ function liveCoilWeightKg(lot) {
   if (Number.isFinite(w) && w > 0) return w;
   const q = Number(lot.qtyReceived);
   return Number.isFinite(q) ? Math.max(0, q) : 0;
+}
+
+/** Rough family for book stock adjustment picker (product name / type / id text). */
+function productMaterialFamily(row) {
+  const blob = [row?.name, row?.materialType, row?.material_type, row?.productID]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
+  if (blob.includes('aluzinc')) return 'aluzinc';
+  if (blob.includes('alumin')) return 'aluminium';
+  if (blob.includes('galvan')) return 'aluzinc';
+  return 'other';
 }
 
 /** Roll up conversion checks for one cutting list (multiple coils → one summary line). */
@@ -530,6 +545,12 @@ const Operations = () => {
   const [stockAdjustCoilPrompt, setStockAdjustCoilPrompt] = useState(false);
   const [stockAdjustCoilAck, setStockAdjustCoilAck] = useState(false);
   const [stockAdjustCoilCount, setStockAdjustCoilCount] = useState(null);
+  const [stockAdjustMaterialFamily, setStockAdjustMaterialFamily] = useState(
+    /** @type {null | 'aluminium' | 'aluzinc'} */ (null)
+  );
+  const [showOpsCuttingModal, setShowOpsCuttingModal] = useState(false);
+  const [opsCuttingEditItem, setOpsCuttingEditItem] = useState(null);
+  const [opsCuttingAccessMode, setOpsCuttingAccessMode] = useState('edit');
 
   useEffect(() => {
     if (showStockAdjust) {
@@ -539,8 +560,20 @@ const Operations = () => {
     }
   }, [showStockAdjust]);
 
+  const stockAdjustProductOptions = useMemo(() => {
+    if (!stockAdjustMaterialFamily) return inventoryRows;
+    const filtered = inventoryRows.filter((r) => productMaterialFamily(r) === stockAdjustMaterialFamily);
+    return filtered.length ? filtered : inventoryRows;
+  }, [inventoryRows, stockAdjustMaterialFamily]);
+
+  const opsHandledByLabel = useMemo(() => {
+    const r = loadSalesWorkspaceRole(ws?.session?.user?.roleKey);
+    return ws?.session?.user?.roleLabel ?? SALES_ROLE_LABELS[r] ?? r;
+  }, [ws?.session?.user?.roleKey, ws?.session?.user?.roleLabel]);
+
   const closeStockAdjustModal = useCallback(() => {
     setShowStockAdjust(false);
+    setStockAdjustMaterialFamily(null);
     setStockAdjustCoilPrompt(false);
     setStockAdjustCoilAck(false);
     setStockAdjustCoilCount(null);
@@ -623,6 +656,84 @@ const Operations = () => {
     () =>
       ws?.hasWorkspaceData && Array.isArray(ws?.snapshot?.cuttingLists) ? ws.snapshot.cuttingLists : [],
     [ws?.hasWorkspaceData, ws?.snapshot?.cuttingLists]
+  );
+  const quotations = useMemo(
+    () => (ws?.hasWorkspaceData && Array.isArray(ws?.snapshot?.quotations) ? ws.snapshot.quotations : []),
+    [ws?.hasWorkspaceData, ws?.snapshot?.quotations]
+  );
+  const mergedReceiptRows = useMemo(
+    () => mergeReceiptRowsForSales(ws?.snapshot?.receipts ?? [], quotations, ws?.refreshEpoch ?? 0),
+    [ws?.snapshot?.receipts, quotations, ws?.refreshEpoch]
+  );
+
+  const persistOpsCuttingList = useCallback(
+    async (payload) => {
+      if (!ws?.canMutate) {
+        return {
+          ok: false,
+          error: ws?.usingCachedData
+            ? 'Reconnect to save — workspace is read-only (cached data).'
+            : 'Start the API server to save cutting lists.',
+        };
+      }
+      const isEdit = Boolean(payload.id);
+      const path = isEdit ? `/api/cutting-lists/${encodeURIComponent(payload.id)}` : '/api/cutting-lists';
+      const { editApprovalId: cuttingAid, ...cuttingBody } = payload;
+      const body =
+        isEdit && String(cuttingAid || '').trim()
+          ? { ...cuttingBody, editApprovalId: String(cuttingAid).trim() }
+          : cuttingBody;
+      const { ok, data } = await apiFetch(path, {
+        method: isEdit ? 'PATCH' : 'POST',
+        body: JSON.stringify(body),
+      });
+      if (!ok || !data?.ok) {
+        return { ok: false, error: data?.error || 'Could not save cutting list.' };
+      }
+      await ws.refresh();
+      showToast(`${isEdit ? 'Updated' : 'Created'} cutting list ${data.cuttingList?.id || data.id}.`);
+      return { ok: true };
+    },
+    [showToast, ws]
+  );
+
+  const openCuttingListEditor = useCallback(
+    (item) => {
+      const id = String(item?.cuttingListId || item?.id || '').trim();
+      const row = cuttingLists.find((c) => c.id === id);
+      if (!row) {
+        showToast('Cutting list not found — refresh the workspace and try again.', { variant: 'error' });
+        return;
+      }
+      setOpsCuttingEditItem(row);
+      setOpsCuttingAccessMode(canEditCuttingList(row) ? 'edit' : 'view');
+      setShowOpsCuttingModal(true);
+    },
+    [cuttingLists, showToast]
+  );
+
+  const openStockAdjustForFamily = useCallback(
+    (family) => {
+      if (!canAdjustInventory) {
+        showToast('Branch manager or director required to post book stock adjustments.', { variant: 'error' });
+        return;
+      }
+      const candidates = inventoryRows.filter((r) => productMaterialFamily(r) === family);
+      const list = candidates.length ? candidates : inventoryRows;
+      const first = list[0];
+      setStockAdjust((s) => ({
+        ...s,
+        productID: first?.productID ?? '',
+        type: 'Increase',
+        qty: '',
+        reasonCode: 'Count correction',
+        reasonNote: '',
+        date: s.date || new Date().toISOString().slice(0, 10),
+      }));
+      setStockAdjustMaterialFamily(family);
+      setShowStockAdjust(true);
+    },
+    [canAdjustInventory, inventoryRows, showToast]
   );
 
   const productionQueueModel = useMemo(() => {
@@ -917,6 +1028,7 @@ const Operations = () => {
         setCoilLiveSearch(invSku);
       }
       if (st.openStockAdjust && canAdjustInventory) {
+        setStockAdjustMaterialFamily(null);
         setShowStockAdjust(true);
       }
       navigate(location.pathname, { replace: true, state: {} });
@@ -1266,7 +1378,8 @@ const Operations = () => {
     showCoilRequest ||
     completeChecklistModal != null ||
     productionTraceModal != null ||
-    productMovementModal != null;
+    productMovementModal != null ||
+    showOpsCuttingModal;
 
   useEffect(() => {
     if (activeTab !== 'inventory') return undefined;
@@ -1362,7 +1475,10 @@ const Operations = () => {
                     onClick={() => {
                       setActiveTab('inventory');
                       setSearchQuery('');
-                      if (canAdjustInventory) setShowStockAdjust(true);
+                      if (canAdjustInventory) {
+                        setStockAdjustMaterialFamily(null);
+                        setShowStockAdjust(true);
+                      }
                       else
                         showToast('Stock management — use receive and on-hand tabs; book adjustments need inventory adjust rights.', {
                           variant: 'info',
@@ -1955,6 +2071,7 @@ const Operations = () => {
               }
               onClick={() => {
                 if (!canAdjustInventory) return;
+                setStockAdjustMaterialFamily(null);
                 setShowStockAdjust(true);
               }}
               className="z-btn-secondary disabled:opacity-40 disabled:pointer-events-none"
@@ -1992,6 +2109,24 @@ const Operations = () => {
                   <span className="font-bold tabular-nums">{inventoryStats.aluzincKg.toLocaleString()} kg</span>
                 </p>
               </div>
+              {canAdjustInventory ? (
+                <div className="mt-2 flex flex-col gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => openStockAdjustForFamily('aluminium')}
+                    className="w-full rounded-lg border border-slate-200 bg-slate-50 py-1.5 px-2 text-[8px] font-bold uppercase tracking-wide text-[#134e4a] hover:bg-white"
+                  >
+                    Adjust aluminium SKUs…
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => openStockAdjustForFamily('aluzinc')}
+                    className="w-full rounded-lg border border-slate-200 bg-slate-50 py-1.5 px-2 text-[8px] font-bold uppercase tracking-wide text-[#134e4a] hover:bg-white"
+                  >
+                    Adjust aluzinc SKUs…
+                  </button>
+                </div>
+              ) : null}
             </div>
             <div className="rounded-xl border border-slate-200 bg-white p-3">
               <p className="text-[9px] font-bold uppercase tracking-wide text-slate-500">Conversion efficiency</p>
@@ -2143,18 +2278,28 @@ const Operations = () => {
                                   {item.customer} · {item.status || '—'}
                                 </p>
                               </div>
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  openTraceWithHint(
-                                    item,
-                                    'Production register: allocate coils, Save while running, then Complete.'
-                                  )
-                                }
-                                className="shrink-0 text-[8px] font-semibold uppercase tracking-wide px-2 py-1 rounded-md border border-sky-300 bg-white text-sky-900 hover:bg-sky-50"
-                              >
-                                Open register
-                              </button>
+                              <div className="flex shrink-0 flex-wrap items-center justify-end gap-1">
+                                <button
+                                  type="button"
+                                  onClick={() => openCuttingListEditor(item)}
+                                  className="text-[8px] font-semibold uppercase tracking-wide px-2 py-1 rounded-md border border-teal-200 bg-teal-50 text-teal-900 hover:bg-teal-100"
+                                  title="Edit cutting list lines, machine, or date (when not locked)"
+                                >
+                                  Edit list
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    openTraceWithHint(
+                                      item,
+                                      'Production register: allocate coils, Save while running, then Complete.'
+                                    )
+                                  }
+                                  className="text-[8px] font-semibold uppercase tracking-wide px-2 py-1 rounded-md border border-sky-300 bg-white text-sky-900 hover:bg-sky-50"
+                                >
+                                  Open register
+                                </button>
+                              </div>
                             </li>
                           ))}
                         </ul>
@@ -2360,40 +2505,53 @@ const Operations = () => {
                                     })()
                                   : null}
                               </div>
-                              {!item.completed ? (
-                                <div className="flex flex-wrap gap-1.5 pt-1.5 mt-1 border-t border-dashed border-slate-200">
-                                  <button
-                                    type="button"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      openTraceWithHint(item, 'Opens production register — coil assignment.');
-                                    }}
-                                    className="text-[8px] font-semibold uppercase tracking-wide px-2 py-1 rounded-md border border-sky-200 bg-sky-50 text-sky-900 hover:bg-sky-100 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300/40"
-                                  >
-                                    Assign coil
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      openTraceWithHint(item, 'Opens production register — run log and start.');
-                                    }}
-                                    className="text-[8px] font-semibold uppercase tracking-wide px-2 py-1 rounded-md border border-sky-200 bg-sky-50 text-sky-900 hover:bg-sky-100 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300/40"
-                                  >
-                                    Start run
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      requestMarkComplete(item);
-                                    }}
-                                    className="text-[8px] font-semibold uppercase tracking-wide px-2 py-1 rounded-md border border-emerald-200 bg-emerald-50 text-emerald-900 hover:bg-emerald-100 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/35"
-                                  >
-                                    Mark complete
-                                  </button>
-                                </div>
-                              ) : null}
+                              <div className="flex flex-wrap gap-1.5 pt-1.5 mt-1 border-t border-dashed border-slate-200">
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    openCuttingListEditor(item);
+                                  }}
+                                  className="text-[8px] font-semibold uppercase tracking-wide px-2 py-1 rounded-md border border-teal-200 bg-teal-50 text-teal-900 hover:bg-teal-100 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-300/40"
+                                  title="Edit cutting list (lines, machine, date) when not production-locked"
+                                >
+                                  Edit list
+                                </button>
+                                {!item.completed ? (
+                                  <>
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        openTraceWithHint(item, 'Opens production register — coil assignment.');
+                                      }}
+                                      className="text-[8px] font-semibold uppercase tracking-wide px-2 py-1 rounded-md border border-sky-200 bg-sky-50 text-sky-900 hover:bg-sky-100 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300/40"
+                                    >
+                                      Assign coil
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        openTraceWithHint(item, 'Opens production register — run log and start.');
+                                      }}
+                                      className="text-[8px] font-semibold uppercase tracking-wide px-2 py-1 rounded-md border border-sky-200 bg-sky-50 text-sky-900 hover:bg-sky-100 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300/40"
+                                    >
+                                      Start run
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        requestMarkComplete(item);
+                                      }}
+                                      className="text-[8px] font-semibold uppercase tracking-wide px-2 py-1 rounded-md border border-emerald-200 bg-emerald-50 text-emerald-900 hover:bg-emerald-100 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/35"
+                                    >
+                                      Mark complete
+                                    </button>
+                                  </>
+                                ) : null}
+                              </div>
                             </li>
                           );
                         })}
@@ -2423,7 +2581,13 @@ const Operations = () => {
       <ModalFrame isOpen={showStockAdjust} onClose={closeStockAdjustModal}>
         <div className="z-modal-panel max-w-lg p-8 overflow-y-auto">
             <div className="flex justify-between items-center mb-6">
-            <h3 className="text-xl font-bold text-[#134e4a]">Adjust stock</h3>
+            <h3 className="text-xl font-bold text-[#134e4a]">
+              {stockAdjustMaterialFamily === 'aluminium'
+                ? 'Adjust stock — aluminium'
+                : stockAdjustMaterialFamily === 'aluzinc'
+                  ? 'Adjust stock — aluzinc'
+                  : 'Adjust stock'}
+            </h3>
               <button
                 type="button"
                 onClick={closeStockAdjustModal}
@@ -2433,6 +2597,12 @@ const Operations = () => {
               </button>
             </div>
             <form className="space-y-4" onSubmit={applyStockAdjust}>
+              {stockAdjustMaterialFamily ? (
+                <p className="text-[10px] text-slate-600 leading-snug">
+                  SKU list prefers {stockAdjustMaterialFamily} products (matched from product name / type). You can
+                  still pick another SKU from the dropdown.
+                </p>
+              ) : null}
               <div>
                 <label className="text-[10px] font-bold text-gray-400 uppercase ml-1 block mb-1">
                   Item
@@ -2449,7 +2619,7 @@ const Operations = () => {
                   className="w-full bg-gray-50 border border-gray-100 rounded-xl py-3 px-4 text-sm font-bold outline-none"
                 >
                   <option value="">Select item…</option>
-                  {inventoryRows.map((r) => (
+                  {stockAdjustProductOptions.map((r) => (
                     <option key={r.productID} value={r.productID}>
                       {r.name} ({r.productID})
                     </option>
@@ -2884,6 +3054,21 @@ const Operations = () => {
           </div>
         </div>
       </ModalFrame>
+      <CuttingListModal
+        isOpen={showOpsCuttingModal}
+        editData={opsCuttingEditItem}
+        accessMode={opsCuttingAccessMode}
+        onClose={() => {
+          setShowOpsCuttingModal(false);
+          setOpsCuttingEditItem(null);
+        }}
+        quotations={quotations}
+        receipts={mergedReceiptRows}
+        cuttingLists={cuttingLists}
+        onPersist={persistOpsCuttingList}
+        onCuttingListUpdated={(cl) => setOpsCuttingEditItem(cl)}
+        handledByLabel={opsHandledByLabel}
+      />
     </PageShell>
   );
 };
