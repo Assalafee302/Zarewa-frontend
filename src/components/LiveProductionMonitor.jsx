@@ -2481,7 +2481,7 @@ export function LiveProductionMonitor({
             </div>
           ) : null}
 
-          {readOnly && jobSt === 'Completed' && selectedJob.productID ? (
+          {jobSt === 'Completed' && selectedJob.productID ? (
             <div className="rounded-lg border border-indigo-200/90 bg-indigo-50/60 p-2.5 sm:p-3 space-y-2">
               <p className="text-[9px] font-black uppercase tracking-widest text-indigo-900/90">
                 Output product stock (after completion)
@@ -2505,10 +2505,12 @@ export function LiveProductionMonitor({
                 ) : (
                   <> · no stock corrections yet</>
                 )}
-                . The coil run log and conversion table below stay as the <strong className="font-semibold">historical</strong>{' '}
-                record; if metres in the warehouse were wrong (offcut, recount, data entry), a manager posts a{' '}
-                <strong className="font-semibold">separate</strong> adjustment so stock matches reality without erasing
-                the original completion.
+                . With <strong className="font-semibold">production.release</strong> or{' '}
+                <strong className="font-semibold">operations.manage</strong>, use{' '}
+                <strong className="font-semibold">Save correction</strong> on the coil lines above to fix wrong coil,
+                opening/closing kg, or metres (updates coil and finished-goods stock; does not reverse posted GL). If
+                metres in the warehouse were wrong for other reasons, a manager posts a <strong className="font-semibold">separate</strong>{' '}
+                finished-goods adjustment below so stock matches reality without erasing the original completion.
               </p>
               {selectedJobAdjustments.length > 0 ? (
                 <ul className="space-y-1 rounded-md border border-indigo-100 bg-white/90 px-2 py-1.5 text-[10px] text-slate-800">
