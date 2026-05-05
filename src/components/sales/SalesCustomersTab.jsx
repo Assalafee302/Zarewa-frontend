@@ -47,14 +47,6 @@ const emptyForm = {
   paymentTerms: 'Net 30',
 };
 
-const nextCustomerId = (list) => {
-  const nums = list
-    .map((c) => parseInt(c.customerID.replace(/\D/g, ''), 10))
-    .filter((n) => !Number.isNaN(n));
-  const n = nums.length ? Math.max(...nums) + 1 : 1;
-  return `CUS-${String(n).padStart(3, '0')}`;
-};
-
 function parseMeters(totalStr) {
   const m = String(totalStr ?? '').match(/([\d.]+)\s*m/i);
   return m ? parseFloat(m[1], 10) : 0;
@@ -232,13 +224,17 @@ export default function SalesCustomersTab({
       showToast('Name and phone required.', { variant: 'error' });
       return;
     }
-    const id = form.customerID?.trim() || nextCustomerId(customers);
     const iso = new Date().toISOString().slice(0, 10);
     try {
-      await addCustomer({ ...form, customerID: id, createdAtISO: iso, lastActivityISO: iso, createdBy: createdByLabel });
+      const newId = await addCustomer({
+        ...form,
+        createdAtISO: iso,
+        lastActivityISO: iso,
+        createdBy: createdByLabel,
+      });
       setForm(emptyForm);
       onAddClose();
-      showToast(`Customer ${id} saved.`);
+      showToast(`Customer ${newId || 'saved'} saved.`);
     } catch (err) {
       showToast(err.message, { variant: 'error' });
     }

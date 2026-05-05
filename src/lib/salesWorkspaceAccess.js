@@ -25,12 +25,20 @@ export function isQuotationFullyPaid(q) {
   return false;
 }
 
+/** Roles that may amend a fully paid quotation (pricing, lines, material, etc.). */
+const FULL_EDIT_PAID_QUOTATION_ROLES = new Set([
+  'admin',
+  'sales_manager',
+  'operations_officer',
+  'procurement_officer',
+]);
+
 export function canEditQuotation(q, role) {
   if (!q?.id) return true;
   const st = String(q.status || '').trim();
   if (st === 'Expired' || st === 'Void') return false;
   if (!isQuotationFullyPaid(q)) return true;
-  return role === 'admin' || role === 'sales_manager';
+  return FULL_EDIT_PAID_QUOTATION_ROLES.has(role);
 }
 
 export function quotationEditBlockedReason(q, role) {
@@ -39,7 +47,7 @@ export function quotationEditBlockedReason(q, role) {
   if (st === 'Expired' || st === 'Void') {
     return 'This quotation is archived (expired or void). Use Revive in the quotation window to return it to the active pipeline, or create a new quote.';
   }
-  return 'Fully paid quotations can only be edited by a branch manager. You can still view the record.';
+  return 'Fully paid quotations can only be fully edited by a branch manager, operations, or procurement. You can still view the record, or correct colour / gauge / material / profile from view mode when signed in with quotation permission.';
 }
 
 export function canEditReceipt(record, role) {

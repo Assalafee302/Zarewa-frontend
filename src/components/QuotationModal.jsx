@@ -408,6 +408,15 @@ const QuotationModal = ({
   const archivedLifecycle =
     Boolean(editData?.id) && ['Expired', 'Void'].includes(String(editData?.status || '').trim());
   const readOnly = accessMode === 'view' || archivedLifecycle;
+  /** View mode: allow fixing material lines in JSON without resending `lines` (totals / payments unchanged). */
+  const allowMaterialSpecCorrectionInView =
+    readOnly &&
+    accessMode === 'view' &&
+    !archivedLifecycle &&
+    Boolean(editData?.id) &&
+    useQuotationApi &&
+    Boolean(ws?.canMutate);
+  const materialFieldsLocked = readOnly && !allowMaterialSpecCorrectionInView;
 
   const [customerQuery, setCustomerQuery] = useState('');
   const [selectedCustomerId, setSelectedCustomerId] = useState('');
@@ -432,6 +441,7 @@ const QuotationModal = ({
   const [applyAdvanceAmount, setApplyAdvanceAmount] = useState('');
   const [applyAdvanceHint, setApplyAdvanceHint] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [savingMaterial, setSavingMaterial] = useState(false);
   const [reviving, setReviving] = useState(false);
   const [quotationEditApprovalId, setQuotationEditApprovalId] = useState('');
   const liveMasterData = ws?.snapshot?.masterData ?? null;
@@ -568,6 +578,38 @@ const QuotationModal = ({
     () => colourOptions.find((row) => row.value === materialColor) || null,
     [colourOptions, materialColor]
   );
+
+  const committedMaterialSpec = useMemo(
+    () => ({
+      materialTypeId: String(editData?.materialTypeId ?? '').trim(),
+      materialGauge: String(editData?.materialGauge ?? '').trim(),
+      materialColor: String(editData?.materialColor ?? '').trim(),
+      materialDesign: String(editData?.materialDesign ?? '').trim(),
+    }),
+    [
+      editData?.materialTypeId,
+      editData?.materialGauge,
+      editData?.materialColor,
+      editData?.materialDesign,
+    ]
+  );
+
+  const materialSpecDirty = useMemo(() => {
+    if (!allowMaterialSpecCorrectionInView) return false;
+    return (
+      String(materialTypeId ?? '').trim() !== committedMaterialSpec.materialTypeId ||
+      String(materialGauge ?? '').trim() !== committedMaterialSpec.materialGauge ||
+      String(materialColor ?? '').trim() !== committedMaterialSpec.materialColor ||
+      String(materialDesign ?? '').trim() !== committedMaterialSpec.materialDesign
+    );
+  }, [
+    allowMaterialSpecCorrectionInView,
+    committedMaterialSpec,
+    materialTypeId,
+    materialGauge,
+    materialColor,
+    materialDesign,
+  ]);
   const selectedProfileMeta = useMemo(
     () => liveMasterData?.profiles?.find((row) => row.name === materialDesign) || null,
     [liveMasterData?.profiles, materialDesign]
@@ -902,6 +944,34 @@ const QuotationModal = ({
     );
   };
 
+  const onSaveMaterialSpecOnly = async () => {
+    if (!allowMaterialSpecCorrectionInView || !editData?.id || !materialSpecDirty) return;
+    setSavingMaterial(true);
+    try {
+      const body = {
+        materialTypeId,
+        materialGauge,
+        materialColor,
+        materialDesign,
+        ...(quotationEditApprovalId ? { editApprovalId: quotationEditApprovalId.trim() } : {}),
+      };
+      const { ok, data } = await apiFetch(`/api/quotations/${encodeURIComponent(editData.id)}`, {
+        method: 'PATCH',
+        body: JSON.stringify(body),
+      });
+      if (!ok || !data?.ok) {
+        showToast(data?.error || 'Could not update material details.', { variant: 'error' });
+        return;
+      }
+      setQuotationEditApprovalId('');
+      showToast(`Material details updated on ${editData.id} (totals unchanged).`);
+      await onLedgerChange?.();
+      onClose();
+    } finally {
+      setSavingMaterial(false);
+    }
+  };
+
   const onReviveArchived = async () => {
     if (!editData?.id || !useQuotationApi || !ws?.canMutate) return;
     setReviving(true);
@@ -994,7 +1064,9 @@ const QuotationModal = ({
             <div className="mb-4 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-[10px] font-medium text-slate-600">
               {archivedLifecycle
                 ? 'Archived — use Revive above to unlock editing.'
-                : 'View only — fields are locked. Editing may require branch manager approval when the quote is fully paid.'}
+                : allowMaterialSpecCorrectionInView
+                  ? 'View only — line items and pricing are locked. You can still correct material type, gauge, colour, and profile below; totals and payments stay the same.'
+                  : 'View only — fields are locked. Editing may require branch manager approval when the quote is fully paid.'}
             </div>
           ) : null}
 
@@ -1172,7 +1244,7 @@ const QuotationModal = ({
               <select
                 value={materialTypeId}
                 onChange={(e) => setMaterialTypeId(e.target.value)}
-                disabled={readOnly}
+                disabled={materialFieldsLocked}
                 className="w-full bg-slate-50 border border-slate-200 rounded-lg py-2 px-3 text-xs font-semibold text-[#134e4a] appearance-none outline-none disabled:opacity-60"
               >
                 <option value="">Select material type…</option>
@@ -1191,7 +1263,7 @@ const QuotationModal = ({
               <select
                 value={materialGauge}
                 onChange={(e) => setMaterialGauge(e.target.value)}
-                disabled={readOnly}
+                disabled={materialFieldsLocked}
                 className="w-full bg-slate-50 border border-slate-200 rounded-lg py-2 px-3 text-xs font-semibold text-[#134e4a] appearance-none outline-none disabled:opacity-60"
               >
                 <option value="">Select gauge…</option>
@@ -1210,7 +1282,7 @@ const QuotationModal = ({
               <select
                 value={materialColor}
                 onChange={(e) => setMaterialColor(e.target.value)}
-                disabled={readOnly}
+                disabled={materialFieldsLocked}
                 className="w-full bg-slate-50 border border-slate-200 rounded-lg py-2 px-3 text-xs font-semibold text-[#134e4a] appearance-none outline-none disabled:opacity-60"
               >
                 <option value="">Select…</option>
@@ -1229,7 +1301,7 @@ const QuotationModal = ({
               <select
                 value={materialDesign}
                 onChange={(e) => setMaterialDesign(e.target.value)}
-                disabled={readOnly}
+                disabled={materialFieldsLocked}
                 className="w-full bg-slate-50 border border-slate-200 rounded-lg py-2 px-3 text-xs font-semibold text-[#134e4a] appearance-none outline-none disabled:opacity-60"
               >
                 <option value="">Select design…</option>
@@ -1255,6 +1327,41 @@ const QuotationModal = ({
               <Calendar size={12} className="absolute right-2 bottom-2.5 text-slate-300 pointer-events-none" />
             </div>
           </div>
+
+          {allowMaterialSpecCorrectionInView ? (
+            <div className="rounded-xl border border-teal-200/90 bg-teal-50/50 p-4 mb-5">
+              <p className="text-[10px] font-semibold text-[#134e4a] uppercase tracking-widest mb-1">
+                Material correction (no price change)
+              </p>
+              <p className="text-[10px] text-slate-700 leading-snug mb-3">
+                Use this when colour, gauge, material type, or profile was entered wrong. The server keeps line items
+                and totals as they are. To change quantities (including kg on product lines), open{' '}
+                <strong>Edit</strong> from the quotation row menu if your role allows, or ask a branch manager. For kg
+                received on a purchase order or coil GRN, use Procurement or Operations.
+              </p>
+              {materialSpecDirty ? (
+                <div className="space-y-3">
+                  <EditSecondApprovalInline
+                    entityKind="quotation"
+                    entityId={editData.id}
+                    value={quotationEditApprovalId}
+                    onChange={setQuotationEditApprovalId}
+                  />
+                  <button
+                    type="button"
+                    disabled={savingMaterial}
+                    onClick={() => void onSaveMaterialSpecOnly()}
+                    className="inline-flex items-center gap-2 rounded-lg bg-[#134e4a] px-4 py-2.5 text-[10px] font-bold uppercase tracking-wide text-white hover:bg-[#0f3d39] disabled:opacity-40"
+                  >
+                    <Save size={14} />
+                    {savingMaterial ? 'Saving…' : 'Save material correction'}
+                  </button>
+                </div>
+              ) : (
+                <p className="text-[9px] text-slate-500 italic">Adjust the fields above, then save here.</p>
+              )}
+            </div>
+          ) : null}
 
           <div className="rounded-xl border border-slate-200/90 p-4 mb-5 bg-slate-50/50">
             <label className="text-[9px] font-semibold text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-1.5">
@@ -1403,7 +1510,7 @@ const QuotationModal = ({
           <div className="flex gap-2 flex-wrap justify-end">
             <button
               type="button"
-              disabled={readOnly || saving}
+              disabled={readOnly || saving || savingMaterial}
               onClick={() => void onSaveDraft()}
               className="bg-white/10 px-4 py-2.5 rounded-lg text-[9px] font-semibold uppercase tracking-wide border border-white/15 hover:bg-white/20 disabled:opacity-40"
             >

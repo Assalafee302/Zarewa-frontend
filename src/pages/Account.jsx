@@ -53,7 +53,6 @@ import { EXPENSE_CATEGORY_OPTIONS } from '../shared/expenseCategories.js';
 import {
   ACCOUNT_TAB_LABELS as TAB_LABELS,
   createRequestPayLine,
-  nextExpenseId,
   normalizePaymentRequest,
   treasuryMovementStatementLabel,
   treasuryMovementSourceBadge,
@@ -941,7 +940,6 @@ const Account = () => {
       return;
     }
     const row = {
-      expenseID: nextExpenseId(expenses),
       expenseType: expenseForm.expenseType,
       amountNgn: amount,
       date: expenseForm.date || new Date().toISOString().slice(0, 10),

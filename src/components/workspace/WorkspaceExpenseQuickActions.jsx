@@ -9,7 +9,6 @@ import { useWorkspace } from '../../context/WorkspaceContext';
 import { apiFetch } from '../../lib/apiBase';
 import { buildPaymentRequestBodyFromForm, initialExpenseRequestFormState } from '../../lib/expenseRequestFormCore.js';
 import { EXPENSE_CATEGORY_OPTIONS } from '../../shared/expenseCategories.js';
-import { nextExpenseId } from '../../lib/accountCore';
 
 /**
  * Workspace-only entry for expense payment requests (and optional direct expense for finance roles).
@@ -131,7 +130,6 @@ export function WorkspaceExpenseQuickActions() {
       return;
     }
     const row = {
-      expenseID: nextExpenseId(expenses),
       expenseType: expenseForm.expenseType,
       amountNgn: amount,
       date: expenseForm.date || new Date().toISOString().slice(0, 10),
