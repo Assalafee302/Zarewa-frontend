@@ -33,6 +33,7 @@ import { apiFetch } from '../lib/apiBase';
 import { APP_DATA_TABLE_PAGE_SIZE, useAppTablePaging } from '../lib/appDataTable';
 import { AppTablePager, AppTableWrap } from '../components/ui/AppDataTable';
 import { productionJobNeedsManagerReviewAttention } from '../lib/productionReview';
+import { pickProductionJobForCuttingList } from '../lib/productionJobPick';
 import { procurementKindFromPo } from '../lib/procurementPoKind';
 import {
   canSeeExecutiveInventoryEditShortcut,
@@ -708,21 +709,8 @@ const Operations = () => {
 
     const registered = cuttingLists.filter((cl) => cl.productionRegistered);
 
-    /** Same cutting list can have a cancelled job plus a new job — prefer the row linked on the list (`productionRegisterRef`). */
-    const jobForRegisteredCuttingList = (cl) => {
-      const ref = String(cl.productionRegisterRef || '').trim();
-      if (ref) {
-        const byRef = productionJobs.find((j) => j.jobID === ref && j.cuttingListId === cl.id);
-        if (byRef) return byRef;
-      }
-      for (const j of productionJobs) {
-        if (j.cuttingListId === cl.id) return j;
-      }
-      return undefined;
-    };
-
     const mapRegistered = (cl) => {
-      const job = jobForRegisteredCuttingList(cl);
+      const job = pickProductionJobForCuttingList(cl.id, productionJobs, cuttingLists);
       const status = job?.status ?? 'Planned';
       const isCompleted = status === 'Completed';
       const isCancelled = status === 'Cancelled';
