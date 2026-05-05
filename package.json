@@ -9,6 +9,7 @@
     "preview": "vite preview",
     "lint": "eslint .",
     "test": "vitest run",
+    "test:edit-approval": "vitest run src/lib/editApprovalInput.test.js",
     "test:watch": "vitest",
     "verify:ci": "npm run lint && npm run build",
     "test:critical-lib": "vitest run src/lib/moduleAccess.test.js src/lib/accountCore.test.js src/lib/managerDashboardCore.test.js src/lib/salesStockCore.test.js"
