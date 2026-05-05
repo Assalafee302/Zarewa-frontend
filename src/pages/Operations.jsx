@@ -95,6 +95,36 @@ function summarizeConversionChecksForCuttingList(checks, formatPct) {
   };
 }
 
+/** Trailing number from cutting list id for numeric sort (higher = newer / larger id). */
+function cuttingListIdNumericRank(id) {
+  const s = String(id ?? '').trim();
+  const m = s.match(/(\d+)\s*$/);
+  if (m) return Number(m[1]) || 0;
+  const digits = s.replace(/\D/g, '');
+  return digits ? Number(digits) : 0;
+}
+
+/**
+ * Coloured queue status: Waiting (not on line yet), Pushed (registered, planned), In production, Produced (finished).
+ */
+function productionQueueLineStatusPresentation(cl, job) {
+  const jobSt = String(job?.status ?? '').trim();
+  const clSt = String(cl?.status ?? '').trim();
+  if (jobSt === 'Cancelled') {
+    return { label: 'Cancelled', chipClass: 'border-slate-300 bg-slate-100 text-slate-800' };
+  }
+  if (jobSt === 'Completed' || clSt === 'Finished') {
+    return { label: 'Produced', chipClass: 'border-emerald-400 bg-emerald-50 text-emerald-900' };
+  }
+  if (jobSt === 'Running' || clSt === 'In production') {
+    return { label: 'In production', chipClass: 'border-sky-400 bg-sky-50 text-sky-950' };
+  }
+  if (cl?.productionRegistered && jobSt === 'Planned') {
+    return { label: 'Pushed', chipClass: 'border-indigo-300 bg-indigo-50 text-indigo-950' };
+  }
+  return { label: 'Waiting', chipClass: 'border-amber-300 bg-amber-50 text-amber-950' };
+}
+
 /** Lower score = needs attention first (active + closed production lists). */
 function productionAttentionScore(row) {
   const completed = Boolean(row?.completed);
@@ -116,19 +146,32 @@ function compareProductionQueueRows(a, b, sortKey) {
     const pa = productionAttentionScore(a);
     const pb = productionAttentionScore(b);
     if (pa !== pb) return pa - pb;
-    return String(a.id || '').localeCompare(String(b.id || ''));
+    const ra = cuttingListIdNumericRank(a.id);
+    const rb = cuttingListIdNumericRank(b.id);
+    if (ra !== rb) return rb - ra;
+    return String(b.id || '').localeCompare(String(a.id || ''));
   }
   if (sortKey === 'customer') {
     const c = String(a.customer || '').localeCompare(String(b.customer || ''), undefined, { sensitivity: 'base' });
     if (c !== 0) return c;
-    return String(a.id || '').localeCompare(String(b.id || ''));
+    const ra = cuttingListIdNumericRank(a.id);
+    const rb = cuttingListIdNumericRank(b.id);
+    if (ra !== rb) return rb - ra;
+    return String(b.id || '').localeCompare(String(a.id || ''));
   }
   if (sortKey === 'status') {
     const s = String(a.status || '').localeCompare(String(b.status || ''));
     if (s !== 0) return s;
-    return String(a.id || '').localeCompare(String(b.id || ''));
+    const ra = cuttingListIdNumericRank(a.id);
+    const rb = cuttingListIdNumericRank(b.id);
+    if (ra !== rb) return rb - ra;
+    return String(b.id || '').localeCompare(String(a.id || ''));
   }
-  return String(a.id || '').localeCompare(String(b.id || ''));
+  /* id — highest cutting list number first */
+  const na = cuttingListIdNumericRank(a.id);
+  const nb = cuttingListIdNumericRank(b.id);
+  if (na !== nb) return nb - na;
+  return String(b.id || '').localeCompare(String(a.id || ''));
 }
 
 const PANEL_TITLE = {
@@ -488,8 +531,8 @@ const Operations = () => {
   const [searchQuery, setSearchQuery] = useState('');
   /** Closed-record list: all | completed | cancelled (in-progress jobs are above this list). */
   const [productionFilter, setProductionFilter] = useState('all');
-  const [productionActiveSortKey, setProductionActiveSortKey] = useState('attention');
-  const [productionClosedSortKey, setProductionClosedSortKey] = useState('attention');
+  const [productionActiveSortKey, setProductionActiveSortKey] = useState('id');
+  const [productionClosedSortKey, setProductionClosedSortKey] = useState('id');
   useEffect(() => {
     if (!ws?.hasWorkspaceData) return;
     const onlineFilters = new Set(['all', 'completed', 'cancelled']);
@@ -637,7 +680,9 @@ const Operations = () => {
     const q = searchQuery.trim().toLowerCase();
     const matches = (item) => {
       if (!q) return true;
-      const blob = `${item.id} ${item.customer} ${item.spec} ${item.quotationRef || ''} ${item.cuttingListId || ''}`.toLowerCase();
+      const blob = `${item.id} ${item.customer} ${item.spec} ${item.quotationRef || ''} ${item.cuttingListId || ''} ${
+        item.lineStatusLabel || ''
+      } ${item.status || ''}`.toLowerCase();
       return blob.includes(q);
     };
 
@@ -661,6 +706,8 @@ const Operations = () => {
           status: '',
           coilCount: 0,
           coilLabel: null,
+          lineStatusLabel: 'Waiting',
+          lineStatusChipClass: 'border-amber-300 bg-amber-50 text-amber-950',
         }));
       return {
         mode: 'offline',
@@ -680,6 +727,7 @@ const Operations = () => {
       const closedRecord = isCompleted || isCancelled;
       const jobID = job?.jobID;
       const nCoils = jobID ? coilCount(jobID) : 0;
+      const lineStatus = productionQueueLineStatusPresentation(cl, job);
       const specParts = [
         cl.quotationRef ? `Quote ${cl.quotationRef}` : null,
         cl.productName || cl.productID || null,
@@ -733,6 +781,9 @@ const Operations = () => {
         completed: closedRecord,
         quotationRef: cl.quotationRef || '',
         cuttingListId: cl.id,
+        cuttingListStatus: cl.status || '',
+        lineStatusLabel: lineStatus.label,
+        lineStatusChipClass: lineStatus.chipClass,
       };
     };
 
@@ -808,12 +859,19 @@ const Operations = () => {
         if (productionFilter === 'done') return Boolean(row.completed);
         return true;
       }
+      if (
+        !searchQuery.trim() &&
+        productionFilter === 'all' &&
+        String(row.status || '') === 'Completed'
+      ) {
+        return false;
+      }
       if (productionFilter === 'completed') return row.status === 'Completed';
       if (productionFilter === 'cancelled') return row.status === 'Cancelled';
       if (productionFilter === 'done') return row.status === 'Completed';
       return true;
     });
-  }, [productionQueueModel, productionFilter]);
+  }, [productionQueueModel, productionFilter, searchQuery]);
 
   const productionQueueRows = useMemo(
     () =>
@@ -1992,7 +2050,7 @@ const Operations = () => {
                 title={PANEL_TITLE[activeTab] ?? 'Records'}
                 searchValue={searchQuery}
                 onSearchChange={setSearchQuery}
-                searchPlaceholder="Search SKUs…"
+                searchPlaceholder="Search lists, customers, status…"
               />
             ) : activeTab === 'coilControl' ? (
               <WorkspacePanelToolbar title={PANEL_TITLE.coilControl} />
@@ -2022,8 +2080,8 @@ const Operations = () => {
                           onChange={(e) => setProductionActiveSortKey(e.target.value)}
                           className="max-w-[9.5rem] rounded-md border border-slate-200 bg-white px-2 py-1 text-[10px] font-semibold normal-case text-slate-800 outline-none focus-visible:ring-2 focus-visible:ring-[#134e4a]/25"
                         >
+                          <option value="id">Cutting list # (high first)</option>
                           <option value="attention">Attention</option>
-                          <option value="id">Cutting list ID</option>
                           <option value="customer">Customer A–Z</option>
                           <option value="status">Status A–Z</option>
                         </select>
@@ -2097,9 +2155,17 @@ const Operations = () => {
                             >
                               <div className="min-w-0">
                                 <p className="font-mono text-[11px] font-bold text-[#134e4a]">{item.id}</p>
-                                <p className="text-[9px] text-slate-600 truncate">
-                                  {item.customer} · {item.status || '—'}
-                                </p>
+                                <div className="mt-0.5 flex flex-wrap items-center gap-1.5 min-w-0">
+                                  <span
+                                    className={`shrink-0 text-[7px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded-md border ${
+                                      item.lineStatusChipClass ||
+                                      'border-slate-200 bg-slate-50 text-slate-600'
+                                    }`}
+                                  >
+                                    {item.lineStatusLabel || '—'}
+                                  </span>
+                                  <span className="text-[9px] text-slate-600 truncate">{item.customer}</span>
+                                </div>
                               </div>
                               <div className="flex shrink-0 flex-wrap items-center justify-end gap-1">
                                 <button
@@ -2152,8 +2218,9 @@ const Operations = () => {
                               Closed · finished · complete
                             </h2>
                             <p className="mt-1 text-[9px] font-semibold leading-relaxed text-slate-400">
-                              Completed and cancelled production records. Four-reference conversion summary appears on each
-                              row when checks exist for that cutting list (open production register for full coil breakdown).
+                              Cancelled rows always appear here. <strong className="font-semibold text-slate-600">Produced</strong>{' '}
+                              (completed) jobs are hidden until you type in the search box or choose the Completed filter
+                              — so the list stays focused on work in motion.
                             </p>
                           </div>
                           <label className="flex shrink-0 items-center gap-1.5 text-[9px] font-bold uppercase tracking-wide text-slate-500">
@@ -2163,8 +2230,8 @@ const Operations = () => {
                               onChange={(e) => setProductionClosedSortKey(e.target.value)}
                               className="max-w-[9.5rem] rounded-md border border-slate-200 bg-white px-2 py-1 text-[10px] font-semibold normal-case text-slate-800 outline-none focus-visible:ring-2 focus-visible:ring-[#134e4a]/25"
                             >
+                              <option value="id">Cutting list # (high first)</option>
                               <option value="attention">Attention</option>
-                              <option value="id">Cutting list ID</option>
                               <option value="customer">Customer A–Z</option>
                               <option value="status">Status A–Z</option>
                             </select>
@@ -2228,7 +2295,6 @@ const Operations = () => {
                             item.spec,
                             item.quantity,
                             ws?.hasWorkspaceData && item.coilLabel ? item.coilLabel : null,
-                            item.status,
                           ]
                             .filter(Boolean)
                             .join(' · ');
@@ -2289,7 +2355,15 @@ const Operations = () => {
                                     <span className="font-mono">{item.id}</span>
                                     <span className="font-medium text-slate-600"> · {item.customer}</span>
                                   </p>
-                                  <div className="flex items-center gap-1.5 shrink-0">
+                                  <div className="flex items-center gap-1.5 shrink-0 flex-wrap justify-end">
+                                    <span
+                                      className={`text-[7px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded-md border ${
+                                        item.lineStatusChipClass ||
+                                        'border-slate-200 bg-slate-50 text-slate-600'
+                                      }`}
+                                    >
+                                      {item.lineStatusLabel || '—'}
+                                    </span>
                                     <span
                                       className={`text-[8px] font-semibold uppercase tracking-wide px-2 py-1 rounded-md border ${priorityChip}`}
                                     >

@@ -30,6 +30,7 @@ import { productionJobNeedsManagerReviewAttention } from '../lib/productionRevie
 import { normalizeJobStatus, pickProductionJobForCuttingList } from '../lib/productionJobPick';
 import { useToast } from '../context/ToastContext';
 import { useWorkspace } from '../context/WorkspaceContext';
+import { editMutationNeedsSecondApprovalRole } from '../lib/editApprovalUi';
 import { EditSecondApprovalInline } from './EditSecondApprovalInline';
 
 /** Matches server: closing below this (kg) may use “Finish roll” on completion to clear the tail from stock. */
@@ -283,6 +284,8 @@ export function LiveProductionMonitor({
   const [savingAction, setSavingAction] = useState('');
   const [signoffRemark, setSignoffRemark] = useState('');
   const [signoffEditApprovalId, setSignoffEditApprovalId] = useState('');
+  /** Edit OKs token for post-completion register fixes (coil-line correction + FG metre adjustment). */
+  const [postCompletionEditApprovalId, setPostCompletionEditApprovalId] = useState('');
   const [signoffSaving, setSignoffSaving] = useState(false);
   const [returnModalOpen, setReturnModalOpen] = useState(false);
   const [returnReason, setReturnReason] = useState('');
@@ -366,6 +369,7 @@ export function LiveProductionMonitor({
 
   useEffect(() => {
     setSignoffEditApprovalId('');
+    setPostCompletionEditApprovalId('');
   }, [selectedJob?.jobID]);
 
   const selectedJobAllocations = useMemo(
@@ -1049,6 +1053,14 @@ export function LiveProductionMonitor({
       showToast('Reconnect to apply changes — workspace is read-only.', { variant: 'error' });
       return;
     }
+    const rk = ws?.session?.user?.roleKey;
+    if (editMutationNeedsSecondApprovalRole(rk) && !postCompletionEditApprovalId.trim()) {
+      showToast(
+        'Finished-goods stock corrections after completion need an Edit OKs code — request approval, enter the 6-digit code, then post again.',
+        { variant: 'error' }
+      );
+      return;
+    }
     const okConfirm = window.confirm(
       `Post output-product stock correction of ${delta >= 0 ? '+' : ''}${delta.toFixed(2)} m to ${selectedJob.productID || 'SKU'}? This is logged and updates warehouse stock — it does not change the original completion record.`
     );
@@ -1058,7 +1070,11 @@ export function LiveProductionMonitor({
     try {
       const { ok, data } = await apiFetch(path, {
         method: 'POST',
-        body: JSON.stringify({ deltaFinishedGoodsM: delta, note }),
+        body: JSON.stringify({
+          deltaFinishedGoodsM: delta,
+          note,
+          ...(postCompletionEditApprovalId.trim() ? { editApprovalId: postCompletionEditApprovalId.trim() } : {}),
+        }),
       });
       if (!ok || !data?.ok) {
         showToast(data?.error || 'Could not post adjustment.', { variant: 'error' });
@@ -1066,6 +1082,7 @@ export function LiveProductionMonitor({
       }
       setFgAdjDelta('');
       setFgAdjNote('');
+      setPostCompletionEditApprovalId('');
       await ws.refresh();
       showToast(`Adjustment recorded. Stock now ~${Number(data.productStockMetersAfter).toFixed(2)} m for SKU.`);
     } catch (e) {
@@ -1184,6 +1201,15 @@ export function LiveProductionMonitor({
         showToast('Correction requires a reason of at least 12 characters.', { variant: 'error' });
         return;
       }
+      const rk = ws?.session?.user?.roleKey;
+      if (editMutationNeedsSecondApprovalRole(rk) && !postCompletionEditApprovalId.trim()) {
+        setSavingAction('');
+        showToast(
+          'After completion, coil-line corrections need an Edit OKs code — request approval, enter the 6-digit code, then save again.',
+          { variant: 'error' }
+        );
+        return;
+      }
       try {
         const buildBody = (withAck) => ({
           reason: reason.trim(),
@@ -1198,6 +1224,7 @@ export function LiveProductionMonitor({
               note: String(row.note ?? '').trim(),
               ...(withAck ? { specMismatchAcknowledged: true } : {}),
             })),
+          ...(postCompletionEditApprovalId.trim() ? { editApprovalId: postCompletionEditApprovalId.trim() } : {}),
         });
         let res = await apiFetch(`${jobApi}/completion-coil-corrections`, {
           method: 'POST',
@@ -1225,6 +1252,7 @@ export function LiveProductionMonitor({
         }
         await ws.refresh();
         setSavingAction('');
+        setPostCompletionEditApprovalId('');
         showToast('Completed job coil correction saved.');
       } catch (e) {
         setSavingAction('');
@@ -2624,6 +2652,18 @@ export function LiveProductionMonitor({
                 </p>
               )}
             </div>
+          ) : null}
+
+          {jobSt === 'Completed' &&
+          selectedJob?.jobID &&
+          (canEditCompletedCoilCorrections || canPostFgCompletionAdjustment) ? (
+            <EditSecondApprovalInline
+              entityKind="production_job"
+              entityId={selectedJob.jobID}
+              value={postCompletionEditApprovalId}
+              onChange={setPostCompletionEditApprovalId}
+              className="mb-2"
+            />
           ) : null}
 
           <div className="overflow-hidden rounded-lg border border-slate-200/90 bg-white shadow-sm">
