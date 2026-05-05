@@ -264,6 +264,28 @@ function completionLineFromDraft(row) {
 }
 
 /**
+ * Same cutting list can have a cancelled job plus a new job — prefer the row linked on the list
+ * (`productionRegisterRef`), then the most actionable status (matches Operations queue mapping).
+ */
+function pickProductionJobForCuttingList(cuttingListId, jobs, cuttingLists) {
+  const id = String(cuttingListId || '').trim();
+  if (!id || !Array.isArray(jobs)) return null;
+  const matches = jobs.filter((j) => String(j.cuttingListId || '').trim() === id);
+  if (!matches.length) return null;
+  const cl = Array.isArray(cuttingLists) ? cuttingLists.find((c) => String(c.id || '').trim() === id) : null;
+  const ref = String(cl?.productionRegisterRef || '').trim();
+  if (ref) {
+    const byRef = matches.find((j) => j.jobID === ref);
+    if (byRef) return byRef;
+  }
+  const rank = (s) => {
+    const order = { Running: 0, Planned: 1, Completed: 2, Cancelled: 3 };
+    return order[s] ?? 50;
+  };
+  return [...matches].sort((a, b) => rank(a.status) - rank(b.status))[0];
+}
+
+/**
  * @param {{ focusCuttingListId?: string | null; hideJobSidebar?: boolean; inModal?: boolean; viewOnly?: boolean; onModalClose?: () => void }} [props]
  */
 export function LiveProductionMonitor({
@@ -296,6 +318,10 @@ export function LiveProductionMonitor({
   const productionJobs = useMemo(
     () => (ws?.hasWorkspaceData && Array.isArray(ws?.snapshot?.productionJobs) ? ws.snapshot.productionJobs : []),
     [ws?.hasWorkspaceData, ws?.snapshot?.productionJobs]
+  );
+  const cuttingLists = useMemo(
+    () => (ws?.hasWorkspaceData && Array.isArray(ws?.snapshot?.cuttingLists) ? ws.snapshot.cuttingLists : []),
+    [ws?.hasWorkspaceData, ws?.snapshot?.cuttingLists]
   );
   const jobCoils = useMemo(
     () => (ws?.hasWorkspaceData && Array.isArray(ws?.snapshot?.productionJobCoils) ? ws.snapshot.productionJobCoils : []),
@@ -539,7 +565,7 @@ export function LiveProductionMonitor({
 
   useEffect(() => {
     if (focusClTrim) {
-      const j = productionJobs.find((x) => x.cuttingListId === focusClTrim);
+      const j = pickProductionJobForCuttingList(focusClTrim, productionJobs, cuttingLists);
       if (j) {
         if (selectedJobId !== j.jobID) setSelectedJobId(j.jobID);
       } else if (selectedJobId !== '') {
@@ -554,7 +580,7 @@ export function LiveProductionMonitor({
     if (!selectedJobId || !sortedJobs.some((job) => job.jobID === selectedJobId)) {
       setSelectedJobId(sortedJobs[0].jobID);
     }
-  }, [selectedJobId, sortedJobs, focusClTrim, productionJobs]);
+  }, [selectedJobId, sortedJobs, focusClTrim, productionJobs, cuttingLists]);
 
   useEffect(() => {
     if (!selectedJob?.jobID) {
