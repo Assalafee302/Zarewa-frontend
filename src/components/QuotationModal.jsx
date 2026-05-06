@@ -910,11 +910,14 @@ const QuotationModal = ({
           materialDesign,
           handledBy: preparedByLabel,
           status: editData?.status || 'Pending',
-          paidNgn: editData?.paidNgn ?? 0,
-          paymentStatus: editData?.paymentStatus,
           customerFeedback: editData?.customerFeedback,
           approvalDate: editData?.approvalDate,
         };
+        /** New quotations only: server defaults paid to zero; booked paid later comes from receipts. */
+        if (!editData?.id) {
+          body.paidNgn = 0;
+          body.paymentStatus = 'Unpaid';
+        }
         if (editData?.id) {
           const { ok, data } = await apiFetch(`/api/quotations/${encodeURIComponent(editData.id)}`, {
             method: 'PATCH',
