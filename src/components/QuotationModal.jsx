@@ -92,6 +92,7 @@ const DEFAULT_PRODUCT_ITEMS = [
 const DEFAULT_ACCESSORY_ITEMS = [
   'Concrete nail',
   'Drive screw nail',
+  'Stone nail',
   'Rivet pins',
   'Copper nail',
   'Silicone tube',

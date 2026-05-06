@@ -179,9 +179,18 @@ const Sales = () => {
   const [showArchivedQuotations, setShowArchivedQuotations] = useState(false);
   const [salesListSort, setSalesListSort] = useState({ field: 'date', dir: 'desc' });
   const salesRole = loadSalesWorkspaceRole(ws?.session?.user?.roleKey);
+  const roleKey = String(ws?.session?.user?.roleKey || '').toLowerCase();
+  const canDeleteSalesRecord = ['admin', 'md', 'sales_manager', 'branch_manager'].includes(roleKey);
   const salesRoleLabel = ws?.session?.user?.roleLabel ?? SALES_ROLE_LABELS[salesRole] ?? salesRole;
   /** Branch manager & MD hold refunds.approve; finance holds finance.approve; admin has *. */
   const canApproveRefunds = ws?.hasPermission?.('refunds.approve') || ws?.hasPermission?.('finance.approve');
+
+  const confirmDangerousDelete = useCallback((recordLabel) => {
+    const proceed = window.confirm(`Delete ${recordLabel}? This action cannot be undone.`);
+    if (!proceed) return false;
+    const typed = window.prompt(`Type DELETE to permanently remove ${recordLabel}.`, '');
+    return String(typed || '').trim().toUpperCase() === 'DELETE';
+  }, []);
 
   const bumpLedger = useCallback(() => setLedgerNonce((n) => n + 1), []);
 
@@ -854,6 +863,46 @@ const Sales = () => {
     return { ok: true };
   };
 
+  const deleteQuotation = useCallback(
+    async (quotationId) => {
+      if (!canDeleteSalesRecord) {
+        showToast('Only Admin, MD, or Branch Manager can delete quotations.', { variant: 'error' });
+        return;
+      }
+      if (!confirmDangerousDelete(`quotation ${quotationId}`)) return;
+      const { ok, data } = await apiFetch(`/api/quotations/${encodeURIComponent(quotationId)}`, {
+        method: 'DELETE',
+      });
+      if (!ok || !data?.ok) {
+        showToast(data?.error || 'Could not delete quotation.', { variant: 'error' });
+        return;
+      }
+      if (ws?.canMutate) await ws.refresh();
+      showToast(`Deleted quotation ${quotationId}.`);
+    },
+    [canDeleteSalesRecord, confirmDangerousDelete, showToast, ws]
+  );
+
+  const deleteReceipt = useCallback(
+    async (receiptId) => {
+      if (!canDeleteSalesRecord) {
+        showToast('Only Admin, MD, or Branch Manager can delete payments.', { variant: 'error' });
+        return;
+      }
+      if (!confirmDangerousDelete(`payment ${receiptId}`)) return;
+      const { ok, data } = await apiFetch(`/api/receipts/${encodeURIComponent(receiptId)}`, {
+        method: 'DELETE',
+      });
+      if (!ok || !data?.ok) {
+        showToast(data?.error || 'Could not delete payment.', { variant: 'error' });
+        return;
+      }
+      await onLedgerSynced();
+      showToast(`Deleted payment ${receiptId}.`);
+    },
+    [canDeleteSalesRecord, confirmDangerousDelete, onLedgerSynced, showToast]
+  );
+
   const isAnyModalOpen =
     showQuotationModal ||
     showReceiptModal ||
@@ -1348,6 +1397,10 @@ const Sales = () => {
                                               }
                                             : undefined
                                         }
+                                        onDelete={
+                                          canDeleteSalesRecord ? () => deleteQuotation(String(q.id || '').trim()) : undefined
+                                        }
+                                        deleteLabel="Delete quotation"
                                       />
                                     </div>
                                   </div>
@@ -1448,6 +1501,10 @@ const Sales = () => {
                                         }}
                                         editDisabled={!canEditReceipt(r, salesRole)}
                                         editTitle={receiptEditBlockedReason(r, salesRole) ?? ''}
+                                        onDelete={
+                                          canDeleteSalesRecord ? () => deleteReceipt(String(r.id || '').trim()) : undefined
+                                        }
+                                        deleteLabel="Delete payment"
                                       />
                                     </div>
                                   </div>

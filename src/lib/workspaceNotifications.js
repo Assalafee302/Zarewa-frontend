@@ -69,6 +69,20 @@ export function buildWorkspaceNotifications({
     });
   }
 
+  const transportTreasuryDue = Array.isArray(snapshot?.poTransportAwaitingTreasury)
+    ? snapshot.poTransportAwaitingTreasury
+    : [];
+  if (canAccessModule('finance') && can('finance.pay') && transportTreasuryDue.length > 0) {
+    items.push({
+      id: 'po-transport-payouts',
+      title: 'PO transport payouts',
+      detail: `${transportTreasuryDue.length} purchase order(s) with haulage still to pay from treasury.`,
+      severity: 'warning',
+      path: '/accounts',
+      state: { accountsTab: 'treasury' },
+    });
+  }
+
   const coilReq = Array.isArray(snapshot?.coilRequests) ? snapshot.coilRequests : [];
   const pendingCoils = coilReq.filter((r) => r.status === 'pending');
   if (canAccessModule('operations') && can('operations.manage') && pendingCoils.length > 0) {

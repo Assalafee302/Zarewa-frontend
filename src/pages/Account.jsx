@@ -543,8 +543,37 @@ const Account = () => {
     setShowPaymentEntry(true);
   };
 
-  const confirmRequestPayment = async () => {
-    if (selectedPayment?.type !== 'payment_request') return;
+  const openPoTransportTreasuryPayout = (row) => {
+    const outstanding = Math.max(0, Number(row.outstandingNgn) || 0);
+    if (outstanding <= 0) {
+      showToast('This PO transport fee is already fully paid from treasury.', { variant: 'info' });
+      return;
+    }
+    if (!canPayRequests) {
+      showToast('You do not have permission to post treasury transport payments.', { variant: 'error' });
+      return;
+    }
+    if (!ws?.viewAllBranches && row?.branchId && ws?.branchScope && row.branchId !== ws.branchScope) {
+      showToast(`This PO belongs to ${row.branchId}. Switch branch before payout.`, { variant: 'error' });
+      return;
+    }
+    setSelectedPayment({
+      type: 'po_transport',
+      id: row.poID,
+      total: Number(row.transportAmountNgn) || 0,
+      paid: Number(row.transportPaidNgn) || 0,
+      desc: row.supplierName || 'Supplier',
+      category: row.transportAgentName ? `${row.transportAgentName} · Haulage` : 'PO transport / haulage',
+      branchId: row.branchId || '',
+    });
+    setRequestPayLines([createRequestPayLine(bankAccounts[0]?.id ?? '', outstanding)]);
+    setRequestPayNote(row.transportFinanceAdvice || '');
+    setShowPaymentEntry(true);
+  };
+
+  const confirmProcessPaymentModal = async () => {
+    if (!selectedPayment?.id) return;
+
     const outstanding = Math.max(0, (selectedPayment.total ?? 0) - (selectedPayment.paid ?? 0));
     const validLines = requestPayLines
       .map((line) => ({
@@ -563,7 +592,7 @@ const Account = () => {
       return;
     }
     if (requestPayTotalNgn > outstanding) {
-      showToast('Payout total exceeds the outstanding approved balance.', { variant: 'error' });
+      showToast('Payout total exceeds the outstanding balance for this item.', { variant: 'error' });
       return;
     }
     const requestShortAccount = bankAccounts.find((account) => {
@@ -576,6 +605,60 @@ const Account = () => {
       showToast(`Insufficient balance in ${requestShortAccount.name}.`, { variant: 'error' });
       return;
     }
+
+    if (selectedPayment.type === 'po_transport') {
+      if (!canPayRequests) {
+        showToast('You do not have permission to post treasury transport payments.', { variant: 'error' });
+        return;
+      }
+      if (!ws?.viewAllBranches && selectedPayment.branchId && ws?.branchScope && selectedPayment.branchId !== ws.branchScope) {
+        showToast(`This PO belongs to ${selectedPayment.branchId}. Switch branch before payout.`, { variant: 'error' });
+        return;
+      }
+      if (!ws?.canMutate) {
+        showToast(
+          ws?.usingCachedData
+            ? 'Reconnect to post transport payments — workspace is read-only.'
+            : 'Connect to the API to post transport payments.',
+          { variant: 'info' }
+        );
+        return;
+      }
+      const dateISO = new Date().toISOString().slice(0, 10);
+      const poId = String(selectedPayment.id);
+      for (const line of validLines) {
+        const { ok, data } = await apiFetch(`/api/purchase-orders/${encodeURIComponent(poId)}/post-transport`, {
+          method: 'POST',
+          body: JSON.stringify({
+            treasuryAccountId: line.treasuryAccountId,
+            amountNgn: line.amountNgn,
+            reference: line.reference || poId,
+            dateISO,
+            note: requestPayNote.trim() || 'PO transport / haulage',
+            createdBy: activeActorLabel,
+          }),
+        });
+        if (!ok || !data?.ok) {
+          showToast(data?.error || 'Could not record transport treasury payment.', { variant: 'error' });
+          await ws.refresh();
+          return;
+        }
+      }
+      await ws.refresh();
+      const fullyPaid = requestPayTotalNgn >= outstanding;
+      setShowPaymentEntry(false);
+      setSelectedPayment(null);
+      setRequestPayLines([]);
+      setRequestPayNote('');
+      showToast(
+        fullyPaid
+          ? `PO ${poId} transport fee fully paid from treasury.`
+          : `PO ${poId} transport part-paid from treasury.`
+      );
+      return;
+    }
+
+    if (selectedPayment.type !== 'payment_request') return;
 
     if (ws?.canMutate) {
       const { ok, data } = await apiFetch(`/api/payment-requests/${encodeURIComponent(selectedPayment.id)}/pay`, {
@@ -682,6 +765,15 @@ const Account = () => {
     if (tab === 'requests' || tab === 'payments') {
       handleAccountTabChange('disbursements');
       navigate({ pathname: location.pathname, search: '?tab=disbursements' }, { replace: true, state: {} });
+      return;
+    }
+
+    if (tab && TAB_LABELS[tab]) {
+      handleAccountTabChange(tab);
+      navigate(
+        { pathname: location.pathname, search: tab === 'treasury' ? '' : `?tab=${encodeURIComponent(tab)}` },
+        { replace: true, state: {} }
+      );
       return;
     }
 
@@ -1380,6 +1472,34 @@ const Account = () => {
     [filteredPayRequests]
   );
 
+  const livePoTransportAwaitingTreasury = useMemo(
+    () =>
+      ws?.hasWorkspaceData && Array.isArray(ws?.snapshot?.poTransportAwaitingTreasury)
+        ? ws.snapshot.poTransportAwaitingTreasury
+        : [],
+    [ws?.hasWorkspaceData, ws?.snapshot?.poTransportAwaitingTreasury, ws?.refreshEpoch]
+  );
+
+  const filteredPoTransportAwaitingTreasury = useMemo(() => {
+    const qq = searchQuery.trim().toLowerCase();
+    if (!qq) return livePoTransportAwaitingTreasury;
+    return livePoTransportAwaitingTreasury.filter((row) => {
+      const blob = [
+        row.poID,
+        row.supplierName,
+        row.transportAgentName,
+        row.transportReference,
+        row.transportFinanceAdvice,
+        row.status,
+        row.procurementKind,
+        row.branchId,
+      ]
+        .join(' ')
+        .toLowerCase();
+      return blob.includes(qq);
+    });
+  }, [livePoTransportAwaitingTreasury, searchQuery]);
+
   const filteredBankAccounts = useMemo(() => {
     const qq = searchQuery.trim().toLowerCase();
     if (!qq) return bankAccounts;
@@ -1704,7 +1824,9 @@ const Account = () => {
                     <p className="text-sm font-black text-[#134e4a] tabular-nums">
                       {formatNgn(ws?.hasWorkspaceData ? treasuryOutflowsNgn : expenses.reduce((s, e) => s + e.amountNgn, 0))}
                     </p>
-                    <p className="text-[8px] text-slate-500 mt-0.5 leading-snug">Expenses, refunds, and supplier payouts</p>
+                    <p className="text-[8px] text-slate-500 mt-0.5 leading-snug">
+                      Expenses, refunds, supplier payouts, and PO haulage
+                    </p>
                   </div>
                   <div className="rounded-xl border border-amber-200/85 bg-amber-50/75 px-3 py-2.5 shadow-[0_10px_36px_-28px_rgba(15,23,42,0.1)]">
                     <p className="text-[9px] font-bold text-amber-800 uppercase">Reconciliation</p>
@@ -1862,6 +1984,78 @@ const Account = () => {
                                     Payout
                                   </button>
                                 </div>
+                              </div>
+                            </div>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
+                ) : null}
+
+                {filteredPoTransportAwaitingTreasury.length > 0 ? (
+                  <div
+                    className="rounded-2xl border border-sky-200/90 bg-sky-50/50 p-5 space-y-3"
+                    data-testid="finance-po-transport-awaiting-payout"
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <p className="text-xs font-black text-sky-950 uppercase tracking-widest flex items-center gap-2">
+                        <Truck size={16} strokeWidth={2} />
+                        PO transport / haulage — awaiting treasury
+                      </p>
+                      <span className="text-[10px] font-bold text-sky-900 tabular-nums">
+                        {filteredPoTransportAwaitingTreasury.length} open
+                      </span>
+                    </div>
+                    <p className="text-[10px] text-sky-950/85 leading-relaxed">
+                      Procurement links the transporter and quoted fee on the PO. Record bank or cash payout here so
+                      balances and in-transit status stay aligned (same pattern as refunds and expense requests).
+                    </p>
+                    <ul className="space-y-1.5">
+                      {filteredPoTransportAwaitingTreasury.map((row) => {
+                        const meta2 = [
+                          row.supplierName ? `Supplier ${row.supplierName}` : null,
+                          row.transportReference ? `Ref ${row.transportReference}` : null,
+                          row.branchId ? branchNameById[row.branchId] || row.branchId : null,
+                          row.transportPaidNgn > 0 ? `Paid ${formatNgn(row.transportPaidNgn)} of ${formatNgn(row.transportAmountNgn)}` : `Quoted ${formatNgn(row.transportAmountNgn)}`,
+                          row.status ? row.status : null,
+                        ]
+                          .filter(Boolean)
+                          .join(' · ');
+                        return (
+                          <li
+                            key={row.poID}
+                            data-testid={`finance-po-transport-awaiting-row-${row.poID}`}
+                            className="rounded-lg border border-sky-200/55 bg-white/50 backdrop-blur-md py-1.5 px-2.5 shadow-sm"
+                          >
+                            <div className="flex flex-wrap items-start justify-between gap-2 min-w-0">
+                              <div className="min-w-0 leading-tight flex-1">
+                                <p className="text-[11px] font-bold text-[#134e4a] truncate">
+                                  <span className="font-mono">{row.poID}</span>
+                                  <span className="font-medium text-slate-600">
+                                    {' '}
+                                    · {row.transportAgentName || 'Transporter'}
+                                  </span>
+                                </p>
+                                <p
+                                  className="text-[8px] text-slate-500 mt-0.5 leading-snug line-clamp-2"
+                                  title={meta2}
+                                >
+                                  {meta2}
+                                </p>
+                              </div>
+                              <div className="flex flex-col items-end gap-1 shrink-0">
+                                <span className="text-[11px] font-black text-[#134e4a] tabular-nums">
+                                  {formatNgn(row.outstandingNgn)}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => openPoTransportTreasuryPayout(row)}
+                                  className="text-[8px] font-semibold uppercase tracking-wide text-sky-800 bg-sky-100 hover:bg-sky-200 px-2 py-1 rounded-md"
+                                  title="Record treasury payout for haulage"
+                                >
+                                  Record pay
+                                </button>
                               </div>
                             </div>
                           </li>
@@ -2937,7 +3131,9 @@ const Account = () => {
       >
         <div className="z-modal-panel max-w-lg p-8 sm:p-10 overflow-y-auto">
           <div className="flex justify-between items-center mb-8">
-            <h3 className="text-2xl font-bold text-[#134e4a]">Process payment</h3>
+            <h3 className="text-2xl font-bold text-[#134e4a]">
+              {selectedPayment?.type === 'po_transport' ? 'Post transport payment' : 'Process payment'}
+            </h3>
             <button
               type="button"
               onClick={() => {
@@ -2965,7 +3161,7 @@ const Account = () => {
               </p>
             </div>
             <span className="text-[10px] font-bold px-3 py-1 bg-white rounded-full border border-gray-100 shrink-0">
-              {selectedPayment?.id}
+              {selectedPayment?.type === 'po_transport' ? `PO ${selectedPayment?.id}` : selectedPayment?.id}
             </span>
           </div>
           {bankAccounts.length === 0 ? (
@@ -3061,10 +3257,10 @@ const Account = () => {
               </div>
               <button
                 type="button"
-                onClick={confirmRequestPayment}
+                onClick={confirmProcessPaymentModal}
                 className="w-full bg-[#134e4a] text-white py-4 rounded-xl font-bold text-xs uppercase tracking-widest shadow-xl mt-4"
               >
-                Confirm transaction
+                {selectedPayment?.type === 'po_transport' ? 'Confirm transport payout' : 'Confirm transaction'}
               </button>
             </div>
           )}
