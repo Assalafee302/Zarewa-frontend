@@ -432,6 +432,11 @@ export function LiveProductionMonitor({
     (jobSt === 'Completed' && !canEditCompletedCoilCorrections);
   const canEditPlannedAllocations = jobSt === 'Planned' && !readOnly;
   const canAddSupplementalCoil = jobSt === 'Running' && !readOnly && !isStoneMeterQuote;
+  /** Planned / mid-run supplemental rows, or post-completion register correction (add missing roll). */
+  const canAppendCoilRow =
+    canEditPlannedAllocations ||
+    canAddSupplementalCoil ||
+    (canEditCompletedCoilCorrections && !isStoneMeterQuote);
   const canCaptureRun = jobSt === 'Running' && !readOnly;
 
   const quotationMaterialSpec = useMemo(
@@ -861,13 +866,17 @@ export function LiveProductionMonitor({
     () => appendSaveReady || runLogSaveReady,
     [appendSaveReady, runLogSaveReady]
   );
-  const completedCoilCorrectionSaveReady = useMemo(
-    () =>
-      canEditCompletedCoilCorrections &&
-      draftAllocations.length > 0 &&
-      draftAllocations.every((r) => !isDraftAllocationRow(r)),
-    [canEditCompletedCoilCorrections, draftAllocations]
-  );
+  const completedCoilCorrectionSaveReady = useMemo(() => {
+    if (!canEditCompletedCoilCorrections || draftAllocations.length === 0) return false;
+    const persistedIds = new Set(
+      selectedJobAllocations.map((a) => String(a.id ?? '').trim()).filter(Boolean)
+    );
+    const coveredIds = new Set(
+      draftAllocations.filter((r) => !isDraftAllocationRow(r)).map((r) => String(r.id).trim())
+    );
+    if (persistedIds.size > 0 && ![...persistedIds].every((id) => coveredIds.has(id))) return false;
+    return draftAllocations.every((r) => draftRowConversionPreviewReady(r));
+  }, [canEditCompletedCoilCorrections, draftAllocations, selectedJobAllocations]);
   const plannedAllocSaveReady = useMemo(
     () =>
       isStoneMeterQuote ||
@@ -1135,7 +1144,7 @@ export function LiveProductionMonitor({
   };
 
   const addDraftRow = () => {
-    if (!canEditPlannedAllocations && !canAddSupplementalCoil) return;
+    if (!canAppendCoilRow) return;
     setDraftAllocations((prev) => [...prev, createDraftLine()]);
   };
 
@@ -1146,7 +1155,7 @@ export function LiveProductionMonitor({
       setDraftAllocations((prev) => (prev.length <= 1 ? [createDraftLine()] : prev.filter((r) => r.id !== id)));
       return;
     }
-    if (canAddSupplementalCoil && isDraftAllocationRow(row)) {
+    if ((canAddSupplementalCoil || canEditCompletedCoilCorrections) && isDraftAllocationRow(row)) {
       setDraftAllocations((prev) => (prev.length <= 1 ? [createDraftLine()] : prev.filter((r) => r.id !== id)));
     }
   };
@@ -1188,9 +1197,10 @@ export function LiveProductionMonitor({
     if (type === 'completedCoilCorrection') {
       if (!completedCoilCorrectionSaveReady) {
         setSavingAction('');
-        showToast('Load the job with all coil lines present (no blank “add coil” rows) before saving a correction.', {
-          variant: 'info',
-        });
+        showToast(
+          'Complete every coil row (opening, closing, metres), remove empty “add coil” rows, and keep all original lines before saving a correction.',
+          { variant: 'info' }
+        );
         return;
       }
       const reason = window.prompt(
@@ -1214,9 +1224,9 @@ export function LiveProductionMonitor({
         const buildBody = (withAck) => ({
           reason: reason.trim(),
           readings: draftAllocations
-            .filter((r) => !isDraftAllocationRow(r))
+            .filter((r) => draftRowConversionPreviewReady(r))
             .map((row) => ({
-              allocationId: row.id,
+              allocationId: isDraftAllocationRow(row) ? '' : row.id,
               coilNo: String(row.coilNo ?? '').trim(),
               openingWeightKg: Number(String(row.openingWeightKg).replace(/,/g, '')) || 0,
               closingWeightKg: Number(String(row.closingWeightKg).replace(/,/g, '')) || 0,
@@ -1869,6 +1879,12 @@ export function LiveProductionMonitor({
                 Mid-run: <strong className="font-semibold">Add coil</strong> if one roll is not enough.
               </span>
             ) : null}
+            {canEditCompletedCoilCorrections ? (
+              <span className="inline-flex items-center gap-1 rounded-md border border-teal-200 bg-teal-50 px-2 py-0.5 text-[10px] text-teal-950">
+                <Plus size={14} className="shrink-0" />
+                Completed correction: <strong className="font-semibold">Add coil</strong> if a roll was left off the register.
+              </span>
+            ) : null}
             {selectedJob?.coilSpecMismatchPending ? (
               <span className="inline-flex items-center gap-1.5 rounded-md border border-amber-300 bg-amber-50 px-2 py-0.5 text-[10px] font-medium text-amber-950">
                 <AlertTriangle size={14} className="shrink-0" />
@@ -1948,6 +1964,12 @@ export function LiveProductionMonitor({
               <span className="inline-flex items-center gap-1 rounded-md border border-sky-200 bg-sky-50 px-2 py-1 text-[10px] text-sky-950">
                 <Plus size={14} className="shrink-0" />
                 Mid-run: <strong className="font-semibold">Add coil</strong> if one roll is not enough.
+              </span>
+            ) : null}
+            {canEditCompletedCoilCorrections ? (
+              <span className="inline-flex items-center gap-1 rounded-md border border-teal-200 bg-teal-50 px-2 py-1 text-[10px] text-teal-950">
+                <Plus size={14} className="shrink-0" />
+                Completed correction: <strong className="font-semibold">Add coil</strong> if a roll was omitted.
               </span>
             ) : null}
             {selectedJob?.coilSpecMismatchPending ? (
@@ -2685,6 +2707,8 @@ export function LiveProductionMonitor({
                           ? 'Pick coil + opening kg → Save & start.'
                           : canAddSupplementalCoil
                             ? 'Next roll: Add coil, then Save.'
+                            : canEditCompletedCoilCorrections
+                              ? 'Correction: Add coil for a missing roll, fill all rows, then Save correction.'
                             : canCaptureRun
                               ? 'Closing kg + metres per row → Save anytime → Complete.'
                               : 'Closed.'}
@@ -2701,6 +2725,8 @@ export function LiveProductionMonitor({
                           ? 'While Planned you can change the whole set and Save & start again. After start, use Return to plan to swap primary coils (audit reason).'
                           : !isStoneMeterQuote && canAddSupplementalCoil
                             ? 'Running: only new blank rows attach as extra coils when you Save. Finished rolls stay on the list for the full job.'
+                            : !isStoneMeterQuote && canEditCompletedCoilCorrections
+                              ? 'Completed job correction: use Add coil for a roll that was omitted; every row must have full readings before Save correction.'
                             : !isStoneMeterQuote && canCaptureRun
                               ? `Closing below ${COIL_TAIL_FINISH_MAX_KG} kg is allowed. Tick “Roll finished” only when clearing unusable spool/core tail from stock; otherwise leave it unchecked if steel stays on the roll. Conversion preview updates coil-by-coil.`
                               : 'Read-only record.'}
@@ -2709,7 +2735,7 @@ export function LiveProductionMonitor({
                   </p>
                 </div>
               </div>
-              {!isStoneMeterQuote && (canEditPlannedAllocations || canAddSupplementalCoil) ? (
+              {!isStoneMeterQuote && canAppendCoilRow ? (
                 <button
                   type="button"
                   onClick={addDraftRow}
@@ -2765,7 +2791,7 @@ export function LiveProductionMonitor({
                   canEditPlannedAllocations ||
                   (canAddSupplementalCoil && draftRow) ||
                   (jobSt === 'Running' && !readOnly && !isStoneMeterQuote && !draftRow) ||
-                  (canEditCompletedCoilCorrections && !draftRow);
+                  canEditCompletedCoilCorrections;
                 const coilSelectLockedRunningPrimary =
                   operationsRegisterEdit &&
                   inModal &&
@@ -2779,7 +2805,8 @@ export function LiveProductionMonitor({
                     : null;
                 const showRemove =
                   canEditPlannedAllocations ||
-                  (canAddSupplementalCoil && draftRow && draftAllocations.length > 1);
+                  (canAddSupplementalCoil && draftRow && draftAllocations.length > 1) ||
+                  (canEditCompletedCoilCorrections && draftRow && draftAllocations.length > 1);
                 const lotEst = lot ? estimatedMetresFromFreeKg(lot, freeKg) : null;
                 const lotNom = lot ? supplierNominalMetres(lot) : null;
                 const lotMat = lot ? String(lot.materialTypeName || '').trim() : '';
