@@ -2951,7 +2951,7 @@ export function LiveProductionMonitor({
                             type="number"
                             min="0"
                             step="0.01"
-                            disabled={!canCaptureRun && !(canEditCompletedCoilCorrections && !draftRow)}
+                            disabled={!(canCaptureRun || canEditCompletedCoilCorrections)}
                             value={row.closingWeightKg}
                             onChange={(e) => updateDraftRow(row.id, { closingWeightKg: e.target.value })}
                             className="min-h-10 w-full rounded-md border border-slate-200 bg-white py-2 px-1.5 text-xs font-bold tabular-nums text-[#134e4a] outline-none transition-all focus:border-[#134e4a]/40 focus:ring-1 focus:ring-[#134e4a]/20 disabled:opacity-60 lg:min-h-0 lg:py-1.5"
@@ -2966,7 +2966,7 @@ export function LiveProductionMonitor({
                             type="number"
                             min="0"
                             step="0.01"
-                            disabled={!canCaptureRun && !(canEditCompletedCoilCorrections && !draftRow)}
+                            disabled={!(canCaptureRun || canEditCompletedCoilCorrections)}
                             value={row.metersProduced}
                             onChange={(e) => updateDraftRow(row.id, { metersProduced: e.target.value })}
                             className="min-h-10 w-full rounded-md border border-slate-200 bg-white py-2 px-1.5 text-xs font-bold tabular-nums text-[#134e4a] outline-none transition-all focus:border-[#134e4a]/40 focus:ring-1 focus:ring-[#134e4a]/20 disabled:opacity-60 lg:min-h-0 lg:py-1.5"
