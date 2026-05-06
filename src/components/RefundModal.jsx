@@ -312,21 +312,24 @@ const RefundModal = ({
     return s;
   }, [productionJobs]);
 
-  /** Server-eligible quotes plus workspace fallback; excludes refunds on file and (when known) not-yet-produced quotes. */
+  /** Server-eligible quotes only; keep an explicitly-selected quote visible as an exception. */
   const quotationPickMerged = useMemo(() => {
     const byId = new Map();
     for (const q of eligibleQuotes) {
       const n = normalizeQuoteForRefundSelect(q);
       if (n) byId.set(n.id, n);
     }
-    for (const q of quotations) {
-      const n = normalizeQuoteForRefundSelect(q);
-      if (n && !byId.has(n.id)) byId.set(n.id, n);
+    const activeRef = String(form.quotationRef || '').trim();
+    if (activeRef && !byId.has(activeRef)) {
+      const forced = normalizeQuoteForRefundSelect(
+        quotations.find((x) => String(x.id).trim() === activeRef)
+      );
+      if (forced) byId.set(forced.id, forced);
     }
     const merged = Array.from(byId.values()).sort((a, b) => b.paid_ngn - a.paid_ngn);
     return merged.filter((q) => {
       const id = String(q.id).trim();
-      if (mode !== 'create' && String(form.quotationRef || '').trim() === id) return true;
+      if (String(form.quotationRef || '').trim() === id) return true;
       if (quotationRefsWithNonRejectedRefund.has(id)) return false;
       if (quotationRefsProduced != null && !quotationRefsProduced.has(id)) {
         const full = quotations.find((x) => String(x.id).trim() === id);
