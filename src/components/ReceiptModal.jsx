@@ -536,6 +536,14 @@ const ReceiptModal = ({
   const receiptIdPreview = isEdit ? editData.id : `RC-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-NEW`;
 
   const openPrint = (kind) => {
+    if (!ws?.canMutate) {
+      showToast('System offline (read-only). Reconnect and refresh before printing.', { variant: 'error' });
+      return;
+    }
+    if (!isEdit) {
+      showToast('Post and save this receipt first before printing.', { variant: 'error' });
+      return;
+    }
     if (!quotationRef) {
       showToast('Select a quotation before printing.', { variant: 'error' });
       return;
@@ -606,6 +614,11 @@ const ReceiptModal = ({
             {editData?.source === 'ledger'
               ? 'This row is a live ledger payment — view and print only. Corrections go through Finance.'
               : 'View only for sales. Imported rows are not the live ledger; new posts are recorded on the customer ledger.'}
+          </div>
+        ) : null}
+        {!ws?.canMutate ? (
+          <div className="px-5 py-2 bg-amber-50 border-b border-amber-200 text-[10px] font-semibold text-amber-900">
+            System offline (read-only). Reconnect and refresh before posting or printing receipts.
           </div>
         ) : null}
 
@@ -1005,14 +1018,16 @@ const ReceiptModal = ({
             <button
               type="button"
               onClick={() => openPrint('quick')}
-              className="bg-white/90 text-emerald-800 px-3 py-2.5 rounded-lg text-[9px] font-semibold uppercase tracking-wide shadow-sm"
+              disabled={!ws?.canMutate || !isEdit}
+              className="bg-white/90 text-emerald-800 px-3 py-2.5 rounded-lg text-[9px] font-semibold uppercase tracking-wide shadow-sm disabled:opacity-40"
             >
               <Printer size={14} className="inline mr-1" /> Summary (A4)
             </button>
             <button
               type="button"
               onClick={() => openPrint('full')}
-              className="bg-white text-emerald-700 px-3 py-2.5 rounded-lg text-[9px] font-semibold uppercase tracking-wide shadow-sm"
+              disabled={!ws?.canMutate || !isEdit}
+              className="bg-white text-emerald-700 px-3 py-2.5 rounded-lg text-[9px] font-semibold uppercase tracking-wide shadow-sm disabled:opacity-40"
             >
               <Printer size={14} className="inline mr-1" /> Full detail (A4)
             </button>

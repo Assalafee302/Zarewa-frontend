@@ -764,6 +764,10 @@ const Sales = () => {
 
   // Logic to handle opening modals for "New"
   const openNewModal = () => {
+    if (!ws?.canMutate) {
+      showToast('System offline (read-only). Reconnect, refresh, then try again.', { variant: 'error' });
+      return;
+    }
     setSelectedItem(null);
     if (activeTab === 'quotations') {
       setQuotationAccessMode('edit');
@@ -997,7 +1001,13 @@ const Sales = () => {
                   </button>
                   <button
                     type="button"
-                    onClick={() => setShowAdvanceModal(true)}
+                    onClick={() => {
+                      if (!ws?.canMutate) {
+                        showToast('System offline (read-only). Reconnect, refresh, then try again.', { variant: 'error' });
+                        return;
+                      }
+                      setShowAdvanceModal(true);
+                    }}
                     className="inline-flex items-center justify-center gap-2 rounded-lg border border-amber-200 bg-amber-50 text-amber-950 px-4 py-2 text-[10px] font-semibold uppercase tracking-wider shadow-sm hover:bg-amber-100 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/40 focus-visible:ring-offset-2 shrink-0"
                     title="Payment before quotation — customer deposit / liability"
                   >

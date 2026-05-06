@@ -729,8 +729,19 @@ const CuttingListModal = ({
           <div className="flex items-center gap-2 shrink-0">
             <button
               type="button"
-              onClick={() => setShowPrintPreview(true)}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-[9px] font-semibold uppercase tracking-wide text-[#134e4a] hover:bg-slate-50"
+              onClick={() => {
+                if (!ws?.canMutate) {
+                  showToast('System offline (read-only). Reconnect and refresh before printing.', { variant: 'error' });
+                  return;
+                }
+                if (!editData?.id) {
+                  showToast('Save cutting list successfully before printing.', { variant: 'error' });
+                  return;
+                }
+                setShowPrintPreview(true);
+              }}
+              disabled={!ws?.canMutate || !editData?.id}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-[9px] font-semibold uppercase tracking-wide text-[#134e4a] hover:bg-slate-50 disabled:opacity-40"
             >
               <Printer size={14} /> Print
             </button>
@@ -774,6 +785,11 @@ const CuttingListModal = ({
         {accessMode === 'view' ? (
           <div className="no-print px-5 py-2 bg-slate-50 border-b border-slate-200 text-[10px] font-medium text-slate-600">
             View only.
+          </div>
+        ) : null}
+        {!ws?.canMutate ? (
+          <div className="no-print px-5 py-2 bg-amber-50 border-b border-amber-200 text-[10px] font-semibold text-amber-900">
+            System offline (read-only). Reconnect and refresh before saving, queueing, or printing cutting lists.
           </div>
         ) : null}
 

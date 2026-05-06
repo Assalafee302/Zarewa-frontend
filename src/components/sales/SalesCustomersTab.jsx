@@ -424,7 +424,13 @@ export default function SalesCustomersTab({
               <X size={22} />
             </button>
           </div>
+          {!ws?.canMutate ? (
+            <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] font-semibold text-amber-900">
+              System offline (read-only). Reconnect and refresh before registering customers.
+            </div>
+          ) : null}
           <form onSubmit={submitNew} className="space-y-4">
+             <fieldset disabled={!ws?.canMutate} className="space-y-4 disabled:opacity-60">
              <div className="space-y-1">
                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Full Name *</label>
                <input required value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} className="w-full bg-slate-50 border border-slate-100 rounded-xl py-3 px-4 text-sm font-bold text-[#134e4a] outline-none focus:ring-2 focus:ring-teal-500/10" />
@@ -470,6 +476,7 @@ export default function SalesCustomersTab({
              <button type="submit" className="w-full bg-[#134e4a] text-white rounded-xl py-4 text-xs font-black uppercase tracking-widest shadow-lg shadow-teal-900/20 hover:brightness-110 active:scale-[0.98] transition-all">
                Save Customer
              </button>
+             </fieldset>
           </form>
         </div>
       </ModalFrame>

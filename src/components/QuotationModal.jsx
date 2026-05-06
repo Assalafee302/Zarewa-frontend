@@ -845,6 +845,14 @@ const QuotationModal = ({
   const quotationBalanceAfterPaidNgn = Math.max(0, grandTotalNgn - quotationPaidNgn);
 
   const openPrintPreview = (kind) => {
+    if (!ws?.canMutate) {
+      showToast('System offline (read-only). Reconnect and refresh before printing.', { variant: 'error' });
+      return;
+    }
+    if (!editData?.id) {
+      showToast('Save quotation successfully before printing.', { variant: 'error' });
+      return;
+    }
     setPrintDocumentKind(kind);
     setShowPrint(true);
   };
@@ -1500,6 +1508,11 @@ const QuotationModal = ({
               value={quotationEditApprovalId}
               onChange={setQuotationEditApprovalId}
             />
+          </div>
+        ) : null}
+        {!ws?.canMutate ? (
+          <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[10px] font-semibold text-amber-900">
+            System offline (read-only). Reconnect and refresh before saving or printing.
           </div>
         ) : null}
 
