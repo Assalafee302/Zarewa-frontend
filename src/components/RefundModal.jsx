@@ -128,12 +128,18 @@ function normalizeQuoteForRefundSelect(q) {
   if (paid <= 0) return null;
   const total = Number(q.total_ngn ?? q.totalNgn ?? 0);
   const totalRefunded = Number(q.total_refunded ?? q.totalRefunded ?? 0);
+  const eligibleRefundCategories = Array.isArray(q.eligible_refund_categories)
+    ? q.eligible_refund_categories.map((x) => String(x || '').trim()).filter(Boolean)
+    : Array.isArray(q.eligibleRefundCategories)
+      ? q.eligibleRefundCategories.map((x) => String(x || '').trim()).filter(Boolean)
+      : [];
   return {
     id: String(q.id),
     customer_name: q.customer_name ?? q.customer ?? '—',
     paid_ngn: paid,
     total_ngn: total,
     total_refunded_ngn: Number.isFinite(totalRefunded) ? totalRefunded : 0,
+    eligible_refund_categories: eligibleRefundCategories,
     dateISO: String(q.dateISO ?? q.date_iso ?? '').trim(),
     status: String(q.status ?? '').trim(),
   };
@@ -333,12 +339,15 @@ const RefundModal = ({
     const merged = Array.from(byId.values()).sort((a, b) => b.paid_ngn - a.paid_ngn);
     return merged.filter((q) => {
       const id = String(q.id).trim();
+      if (String(form.quotationRef || '').trim() === id) return true;
       const remainingNgn = Math.max(
         0,
         Math.round(Number(q.paid_ngn) || 0) - Math.round(Number(q.total_refunded_ngn) || 0)
       );
       if (remainingNgn < MIN_REFUND_PICK_NGN) return false;
-      if (String(form.quotationRef || '').trim() === id) return true;
+      if (!Array.isArray(q.eligible_refund_categories) || q.eligible_refund_categories.length === 0) {
+        return false;
+      }
       if (quotationRefsWithNonRejectedRefund.has(id)) return false;
       if (quotationRefsProduced != null && !quotationRefsProduced.has(id)) {
         const full = quotations.find((x) => String(x.id).trim() === id);
@@ -984,6 +993,7 @@ const RefundModal = ({
                           Refunds only list quotations with <strong>paid total &gt; 0</strong>, production{' '}
                           <strong>completed or cancelled</strong> (or <strong>void with payment</strong>), and{' '}
                           <strong>at least ₦1,000 remaining refundable</strong>, with{' '}
+                          <strong>at least one applicable refund category</strong>, and{' '}
                           <strong>no non-rejected refund on file</strong>{' '}
                           (rejected-only still counts as eligible). {quotationPickDate ? 'Try clearing the quote date filter.' : ''}{' '}
                           If you already posted a receipt but the quote is missing here, the payment may have been
