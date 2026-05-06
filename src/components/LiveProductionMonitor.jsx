@@ -256,6 +256,10 @@ function completionLineFromDraft(row) {
     metersProduced: Number(row.metersProduced),
     note: row.note.trim(),
   };
+  const opening = Number(String(row.openingWeightKg ?? '').replace(/,/g, ''));
+  if (Number.isFinite(opening) && opening > 0) {
+    line.openingWeightKg = opening;
+  }
   if (row.finishCoil) {
     line.finishCoil = true;
   }
@@ -541,13 +545,17 @@ export function LiveProductionMonitor({
   );
 
   const canRunConversionPreview = useMemo(() => {
-    if (jobSt !== 'Running' || !selectedJob?.jobID) return false;
+    if (!selectedJob?.jobID) return false;
     if (isStoneMeterQuote) {
       const m = Number(String(stoneMetersConsumed).replace(/,/g, ''));
-      return Number.isFinite(m) && m > 0;
+      if (!Number.isFinite(m) || m <= 0) return false;
+      return jobSt === 'Running' || (jobSt === 'Completed' && canEditCompletedCoilCorrections);
     }
-    return draftAllocations.some((row) => draftRowConversionPreviewReady(row));
+    const hasPreviewRows = draftAllocations.some((row) => draftRowConversionPreviewReady(row));
+    if (!hasPreviewRows) return false;
+    return jobSt === 'Running' || (jobSt === 'Completed' && canEditCompletedCoilCorrections);
   }, [
+    canEditCompletedCoilCorrections,
     draftAllocations,
     isStoneMeterQuote,
     jobSt,
@@ -3066,7 +3074,7 @@ export function LiveProductionMonitor({
             </div>
           </div>
 
-          {canCaptureRun ? (
+          {canCaptureRun || canEditCompletedCoilCorrections ? (
             <div className="overflow-hidden rounded-lg border border-indigo-200/60 bg-gradient-to-br from-indigo-50/35 via-white to-white shadow-sm">
               <div
                 className={`flex flex-col gap-0.5 border-b border-indigo-100/80 bg-indigo-50/30 sm:flex-row sm:items-center sm:justify-between ${
@@ -3077,7 +3085,11 @@ export function LiveProductionMonitor({
                   <BarChart3 size={15} className="text-indigo-600 shrink-0" />
                   <div className="min-w-0">
                     <p className="text-xs font-bold text-slate-900">Conversion preview</p>
-                    <p className="text-[10px] text-slate-500">Live estimate — nothing posts until Complete.</p>
+                    <p className="text-[10px] text-slate-500">
+                      {jobSt === 'Completed' && canEditCompletedCoilCorrections
+                        ? 'Live estimate for this correction — same kg/m rules as completion.'
+                        : 'Live estimate — nothing posts until Complete.'}
+                    </p>
                   </div>
                   <button
                     type="button"
