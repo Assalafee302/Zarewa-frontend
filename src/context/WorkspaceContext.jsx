@@ -106,12 +106,12 @@ export function WorkspaceProvider({ children }) {
   }, [dashboardSummary, dashboardSummaryEtag]);
 
   /**
-   * Reload workspace bootstrap. `{ background: true }` only warms session cache — it does **not**
-   * call `setSnapshot`, so open forms and modals are not reset by the timer or returning to the tab.
-   * Use `refresh()` (no options) or actions that call it after saves to update live data.
+   * Reload workspace bootstrap. Successful loads always merge into React state (including the
+   * periodic poll and tab-focus pull) so other users’ changes appear without a full page reload.
+   * Options: `mode` (e.g. `dashboard`). Modals should hydrate from a stable signature (see
+   * QuotationModal / CuttingListModal) so snapshot churn does not reset in-progress edits.
    */
   const refresh = useCallback(async (opts = {}) => {
-    const background = Boolean(opts?.background);
     try {
       const mode = String(opts?.mode ?? '').trim();
       const qs = mode ? `?mode=${encodeURIComponent(mode)}` : '';
@@ -125,10 +125,6 @@ export function WorkspaceProvider({ children }) {
         return null;
       }
       if (!ok || !data?.ok) throw new Error(data?.error || 'Bootstrap failed');
-      if (background) {
-        writeBootstrapCache(data);
-        return data;
-      }
       return applySnapshot(data, 'ok');
     } catch (e) {
       const cached = readBootstrapCache();
@@ -335,19 +331,19 @@ export function WorkspaceProvider({ children }) {
     refresh();
   }, [refresh]);
 
-  /** Timer warms session cache and dashboard summary; in-memory `snapshot` updates only on explicit `refresh()`. */
+  /** Timer + tab focus: merge latest bootstrap into state and warm session cache. */
   useEffect(() => {
     if (status !== 'ok') return undefined;
     const ms = workspacePollIntervalMs();
     const pull = () => {
       if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
-      void refresh({ background: true });
+      void refresh();
       void refreshDashboardSummary();
     };
     const id = window.setInterval(pull, ms);
     const onVisible = () => {
       if (document.visibilityState === 'visible') {
-        void refresh({ background: true });
+        void refresh();
         void refreshDashboardSummary();
       }
     };

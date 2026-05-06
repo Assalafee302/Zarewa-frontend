@@ -1306,7 +1306,7 @@ const Operations = () => {
     if (activeTab !== 'inventory') return undefined;
     if (!ws?.hasWorkspaceData) return undefined;
     const t = window.setInterval(() => {
-      void ws.refresh?.({ background: true });
+      void ws.refresh?.();
     }, 15000);
     return () => window.clearInterval(t);
   }, [activeTab, ws?.hasWorkspaceData, ws.refresh]);

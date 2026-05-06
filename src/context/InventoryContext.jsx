@@ -95,8 +95,9 @@ export function InventoryProvider({ children }) {
   const [inTransitLoads, setInTransitLoads] = useState([]);
 
   /**
-   * Mirror server lists into React state only on explicit refresh (refreshEpoch), not on silent
-   * background snapshot updates — otherwise timed workspace sync wipes in-progress PO / stock edits.
+   * Mirror server lists into React state whenever the workspace snapshot advances (`refreshEpoch`:
+   * initial load, saves, periodic background bootstrap). Local optimistic updates should merge back
+   * via the next successful refresh or be re-applied after sync.
    */
   useEffect(() => {
     if (!ws?.hasWorkspaceData || !ws?.snapshot) {

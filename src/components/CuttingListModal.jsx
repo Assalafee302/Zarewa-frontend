@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -45,6 +45,32 @@ function emptyLinesByCat() {
     Flatsheet: [blankRow()],
     Cladding: [blankRow()],
   };
+}
+
+/** Stable key for which cutting list is open — avoids re-hydrating when only workspace `quotations` churns. */
+function cuttingListHydrateSignature(editData) {
+  if (!editData?.id) {
+    return `new:${String(editData?.quotationRef ?? '').trim()}`;
+  }
+  let linesKey = '';
+  try {
+    linesKey = JSON.stringify(editData.lines ?? []);
+  } catch {
+    linesKey = '';
+  }
+  return [
+    editData.id,
+    String(editData.quotationRef ?? '').trim(),
+    editData.dateISO ?? '',
+    editData.machineName ?? '',
+    editData.operatorName ?? '',
+    editData.handledBy ?? '',
+    editData.sheetsToCut ?? '',
+    editData.productionRegistered ? '1' : '0',
+    editData.productionEditLocked ? '1' : '0',
+    String(editData.status ?? '').trim(),
+    linesKey,
+  ].join('\u0000');
 }
 
 function parseNum(value) {
@@ -306,6 +332,25 @@ const CuttingListModal = ({
   const [quoteSearch, setQuoteSearch] = useState('');
   const [showQuotePicker, setShowQuotePicker] = useState(false);
   const [cuttingListEditApprovalId, setCuttingListEditApprovalId] = useState('');
+  const lastCuttingListHydrateSigRef = useRef('');
+
+  const cuttingListHydrateSig = useMemo(
+    () => (isOpen ? cuttingListHydrateSignature(editData) : ''),
+    [
+      isOpen,
+      editData?.id,
+      editData?.quotationRef,
+      editData?.dateISO,
+      editData?.machineName,
+      editData?.operatorName,
+      editData?.handledBy,
+      editData?.sheetsToCut,
+      editData?.lines,
+      editData?.productionRegistered,
+      editData?.productionEditLocked,
+      editData?.status,
+    ]
+  );
 
   useEffect(() => {
     if (!isOpen) return;
@@ -509,7 +554,13 @@ const CuttingListModal = ({
   }, [showPrintPreview]);
 
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen) {
+      lastCuttingListHydrateSigRef.current = '';
+      return;
+    }
+    if (lastCuttingListHydrateSigRef.current === cuttingListHydrateSig) return;
+    lastCuttingListHydrateSigRef.current = cuttingListHydrateSig;
+
     if (editData?.id) {
       const buckets = { Roof: [], Flatsheet: [], Cladding: [] };
       if (Array.isArray(editData.lines)) {
@@ -529,10 +580,6 @@ const CuttingListModal = ({
       setLinesByCat(next);
       const qref = editData.quotationRef ?? '';
       setQuotationRef(qref);
-      const eq = quotations.find((x) => x.id === qref);
-      setQuoteSearch(
-        qref && eq ? `${eq.id} · ${eq.customer ?? eq.customer_name ?? ''}`.trim() : qref
-      );
       setDateISO(editData.dateISO ?? new Date().toISOString().slice(0, 10));
       setMachineName(editData.machineName ?? 'Machine 01 (Longspan)');
     } else {
@@ -544,7 +591,25 @@ const CuttingListModal = ({
     }
     setSaving(false);
     if (!editData?.id) setHoldForProductionApproval(false);
-  }, [editData, isOpen, quotations]);
+  }, [isOpen, cuttingListHydrateSig, editData]);
+
+  /** Workspace poll updates quotation rows: refresh the resolved quote label without re-hydrating line editors. */
+  useEffect(() => {
+    if (!isOpen || !editData?.id) return;
+    const qref = String(quotationRef || editData.quotationRef || '').trim();
+    if (!qref) return;
+    const eq = quotations.find((x) => x.id === qref);
+    if (!eq) return;
+    const label = `${eq.id} · ${eq.customer ?? eq.customer_name ?? ''}`.trim();
+    setQuoteSearch((prev) => {
+      const t = String(prev).trim();
+      if (!t) return label;
+      if (t === qref) return label;
+      if (t.startsWith(`${qref} ·`)) return label;
+      return prev;
+    });
+  }, [isOpen, editData?.id, editData?.quotationRef, quotations, quotationRef]);
+
    
 
   const updateLine = useCallback((cat, id, patch) => {
