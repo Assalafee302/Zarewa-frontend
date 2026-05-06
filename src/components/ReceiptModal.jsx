@@ -104,6 +104,7 @@ const ReceiptModal = ({
   ledgerNonce = 0,
   useLedgerApi = false,
   handledByLabel = 'Sales',
+  onDeleteReceipt,
 }) => {
   const { customers } = useCustomers();
   const { show: showToast } = useToast();
@@ -554,6 +555,12 @@ const ReceiptModal = ({
   const removeLine = (id) =>
     setPaymentLines((prev) => (prev.length <= 1 ? prev : prev.filter((r) => r.id !== id)));
 
+  const deleteCurrentReceipt = async () => {
+    if (!isEdit || !onDeleteReceipt || isPosting) return;
+    const ok = await onDeleteReceipt(editData);
+    if (ok) onClose();
+  };
+
   return (
     <ModalFrame isOpen={isOpen} onClose={onClose} modal={!showPrint}>
       <>
@@ -978,6 +985,16 @@ const ReceiptModal = ({
             <p className="text-2xl font-bold text-white tabular-nums">{formatNgn(lineTotalNgn)}</p>
           </div>
           <div className="flex gap-2 flex-wrap">
+            {isEdit && !readOnly && onDeleteReceipt ? (
+              <button
+                type="button"
+                disabled={isPosting}
+                onClick={deleteCurrentReceipt}
+                className="bg-rose-700/90 px-4 py-2.5 rounded-lg text-[9px] font-semibold uppercase tracking-wide border border-rose-300/40 hover:bg-rose-700 disabled:opacity-40"
+              >
+                <Trash2 size={14} className="inline mr-1.5" /> Delete receipt
+              </button>
+            ) : null}
             <button
               type="submit"
               disabled={readOnly || isPosting}

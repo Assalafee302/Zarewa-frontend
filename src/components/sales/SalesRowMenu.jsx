@@ -133,13 +133,13 @@ export function SalesRowMenu({
               <button
                 type="button"
                 role="menuitem"
-                className="flex w-full items-center gap-2 border-t border-rose-100 bg-rose-50 px-3 py-2 text-left text-xs font-black uppercase tracking-wide text-rose-800 hover:bg-rose-100"
+                className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-semibold text-rose-700 hover:bg-rose-50"
                 onClick={() => {
                   onDelete();
                   setOpenKey(null);
                 }}
               >
-                <Trash2 size={14} className="text-rose-700 shrink-0" />
+                <Trash2 size={14} className="text-rose-500 shrink-0" />
                 {deleteLabel}
               </button>
             ) : null}

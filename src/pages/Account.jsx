@@ -45,7 +45,11 @@ import {
   refundOutstandingAmount,
 } from '../lib/refundsStore';
 import { liveReceivablesNgn, openAuditQueue } from '../lib/liveAnalytics';
-import { receiptCashReceivedNgn, receiptLedgerReceiptTreasurySplits } from '../lib/salesReceiptsList';
+import {
+  findSalesReceiptByMatchToken,
+  receiptCashReceivedNgn,
+  receiptLedgerReceiptTreasurySplits,
+} from '../lib/salesReceiptsList';
 import { printExpenseRequestRecord } from '../lib/expenseRequestPrint';
 import { ExpenseRequestFormFields } from '../components/office/ExpenseRequestFormFields.jsx';
 import { buildPaymentRequestBodyFromForm, initialExpenseRequestFormState } from '../lib/expenseRequestFormCore.js';
@@ -838,6 +842,22 @@ const Account = () => {
       return id.includes(qq) || cust.includes(qq) || qref.includes(qq);
     });
   }, [receiptsVisibleInReconciliationQueue, searchQuery]);
+
+  const resolveSalesReceiptFromStatementMovement = useCallback(
+    (movement) => {
+      const candidates = [
+        String(movement?.sourceId || '').trim(),
+        String(movement?.reference || '').trim().split(/\s+/)[0] || '',
+        String(movement?.note || '').trim().split(/\s+/)[0] || '',
+      ].filter(Boolean);
+      for (const token of candidates) {
+        const found = findSalesReceiptByMatchToken(salesReceipts, token);
+        if (found) return found;
+      }
+      return null;
+    },
+    [salesReceipts]
+  );
 
   const sortedFilteredSalesReceipts = useMemo(() => {
     const rows = [...filteredSalesReceipts];
@@ -2928,34 +2948,60 @@ const Account = () => {
                       const detail = treasuryMovementStatementLabel(m);
                       const badge = treasuryMovementSourceBadge(m);
                       const amtStr = `${isIn ? '+' : isOut ? '−' : ''}${formatNgn(abs)}`;
+                      const linkedReceipt = resolveSalesReceiptFromStatementMovement(m);
+                      const canOpenReceipt =
+                        Boolean(linkedReceipt?.id) &&
+                        (String(m.sourceKind || '').trim() === 'LEDGER_RECEIPT' ||
+                          String(m.type || '').trim() === 'RECEIPT_IN');
                       return (
                         <li
                           key={m.id}
                           className="rounded-lg border border-slate-200/60 bg-white/50 py-1.5 px-2.5 shadow-sm"
                         >
-                          <div className="flex items-center justify-between gap-2 min-w-0">
-                            <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
-                              <span
-                                className={`text-[8px] font-bold uppercase px-1.5 py-0.5 rounded shrink-0 ${badge.className}`}
-                              >
-                                {badge.label}
-                              </span>
-                              <span className="text-[11px] font-bold tabular-nums text-slate-600">{dateStr}</span>
-                            </div>
-                            <span
-                              className={`text-[11px] font-black tabular-nums shrink-0 ${
-                                isIn ? 'text-emerald-600' : isOut ? 'text-red-600' : 'text-slate-500'
-                              }`}
-                            >
-                              {amtStr}
-                            </span>
-                          </div>
-                          <p
-                            className="text-[8px] text-slate-500 mt-0.5 leading-snug line-clamp-2 break-words"
-                            title={detail}
+                          <button
+                            type="button"
+                            disabled={!canOpenReceipt}
+                            onClick={() => {
+                              if (!canOpenReceipt || !linkedReceipt?.id) return;
+                              setStatementAccount(null);
+                              navigate('/sales', {
+                                state: {
+                                  focusSalesTab: 'receipts',
+                                  openSalesRecord: { type: 'receipt', id: String(linkedReceipt.id) },
+                                },
+                              });
+                            }}
+                            className={`w-full text-left ${
+                              canOpenReceipt
+                                ? 'cursor-pointer rounded-md transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#134e4a]/20'
+                                : 'cursor-default'
+                            }`}
+                            title={canOpenReceipt ? 'Open this receipt in Sales' : undefined}
                           >
-                            {detail}
-                          </p>
+                            <div className="flex items-center justify-between gap-2 min-w-0">
+                              <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
+                                <span
+                                  className={`text-[8px] font-bold uppercase px-1.5 py-0.5 rounded shrink-0 ${badge.className}`}
+                                >
+                                  {badge.label}
+                                </span>
+                                <span className="text-[11px] font-bold tabular-nums text-slate-600">{dateStr}</span>
+                              </div>
+                              <span
+                                className={`text-[11px] font-black tabular-nums shrink-0 ${
+                                  isIn ? 'text-emerald-600' : isOut ? 'text-red-600' : 'text-slate-500'
+                                }`}
+                              >
+                                {amtStr}
+                              </span>
+                            </div>
+                            <p
+                              className="text-[8px] text-slate-500 mt-0.5 leading-snug line-clamp-2 break-words"
+                              title={detail}
+                            >
+                              {detail}
+                            </p>
+                          </button>
                         </li>
                       );
                     })}

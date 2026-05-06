@@ -897,10 +897,11 @@ const Sales = () => {
       });
       if (!ok || !data?.ok) {
         showToast(data?.error || 'Could not delete payment.', { variant: 'error' });
-        return;
+        return false;
       }
       await onLedgerSynced();
       showToast(`Deleted payment ${receiptId} and any linked cutting list.`);
+      return true;
     },
     [canDeleteSalesRecord, confirmDangerousDelete, onLedgerSynced, showToast]
   );
@@ -1426,7 +1427,7 @@ const Sales = () => {
                                         onDelete={
                                           canDeleteSalesRecord ? () => deleteQuotation(String(q.id || '').trim()) : undefined
                                         }
-                                        deleteLabel="Danger: Delete quote + linked records"
+                                        deleteLabel="Delete"
                                       />
                                     </div>
                                   </div>
@@ -1530,7 +1531,7 @@ const Sales = () => {
                                         onDelete={
                                           canDeleteSalesRecord ? () => deleteReceipt(String(r.id || '').trim()) : undefined
                                         }
-                                        deleteLabel="Danger: Delete payment + linked cutting list"
+                                        deleteLabel="Delete"
                                       />
                                     </div>
                                   </div>
@@ -1649,7 +1650,7 @@ const Sales = () => {
                                       onDelete={
                                         canDeleteSalesRecord ? () => deleteCuttingList(String(c.id || '').trim()) : undefined
                                       }
-                                      deleteLabel="Danger: Delete cutting list only"
+                                      deleteLabel="Delete"
                                     />
                                   </div>
                                 </div>
@@ -1823,6 +1824,11 @@ const Sales = () => {
         onLedgerChange={onLedgerSynced}
         useLedgerApi={Boolean(ws?.canMutate)}
         handledByLabel={salesRoleLabel}
+        onDeleteReceipt={
+          canDeleteSalesRecord
+            ? async (row) => deleteReceipt(String(row?.id || '').trim())
+            : undefined
+        }
       />
       <AdvancePaymentModal
         isOpen={showAdvanceModal}
