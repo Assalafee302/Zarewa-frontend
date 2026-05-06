@@ -185,11 +185,13 @@ const Sales = () => {
   /** Branch manager & MD hold refunds.approve; finance holds finance.approve; admin has *. */
   const canApproveRefunds = ws?.hasPermission?.('refunds.approve') || ws?.hasPermission?.('finance.approve');
 
-  const confirmDangerousDelete = useCallback((recordLabel) => {
-    const proceed = window.confirm(`Delete ${recordLabel}? This action cannot be undone.`);
+  const confirmDangerousDelete = useCallback((recordLabel, typedPhrase = 'DELETE') => {
+    const proceed = window.confirm(
+      `DANGER: Delete ${recordLabel} permanently?\n\nThis action is irreversible and may remove linked records.`
+    );
     if (!proceed) return false;
-    const typed = window.prompt(`Type DELETE to permanently remove ${recordLabel}.`, '');
-    return String(typed || '').trim().toUpperCase() === 'DELETE';
+    const typed = window.prompt(`Type "${typedPhrase}" to confirm deleting ${recordLabel}.`, '');
+    return String(typed || '').trim().toUpperCase() === String(typedPhrase).trim().toUpperCase();
   }, []);
 
   const bumpLedger = useCallback(() => setLedgerNonce((n) => n + 1), []);
@@ -869,7 +871,7 @@ const Sales = () => {
         showToast('Only Admin, MD, or Branch Manager can delete quotations.', { variant: 'error' });
         return;
       }
-      if (!confirmDangerousDelete(`quotation ${quotationId}`)) return;
+      if (!confirmDangerousDelete(`quotation ${quotationId}`, 'DELETE QUOTATION')) return;
       const { ok, data } = await apiFetch(`/api/quotations/${encodeURIComponent(quotationId)}`, {
         method: 'DELETE',
       });
@@ -878,7 +880,7 @@ const Sales = () => {
         return;
       }
       if (ws?.canMutate) await ws.refresh();
-      showToast(`Deleted quotation ${quotationId}.`);
+      showToast(`Deleted quotation ${quotationId} and linked receipts/cutting lists.`);
     },
     [canDeleteSalesRecord, confirmDangerousDelete, showToast, ws]
   );
@@ -889,7 +891,7 @@ const Sales = () => {
         showToast('Only Admin, MD, or Branch Manager can delete payments.', { variant: 'error' });
         return;
       }
-      if (!confirmDangerousDelete(`payment ${receiptId}`)) return;
+      if (!confirmDangerousDelete(`payment ${receiptId}`, 'DELETE RECEIPT')) return;
       const { ok, data } = await apiFetch(`/api/receipts/${encodeURIComponent(receiptId)}`, {
         method: 'DELETE',
       });
@@ -898,9 +900,33 @@ const Sales = () => {
         return;
       }
       await onLedgerSynced();
-      showToast(`Deleted payment ${receiptId}.`);
+      showToast(`Deleted payment ${receiptId} and any linked cutting list.`);
     },
     [canDeleteSalesRecord, confirmDangerousDelete, onLedgerSynced, showToast]
+  );
+
+  const deleteCuttingList = useCallback(
+    async (cuttingListId) => {
+      if (!canDeleteSalesRecord) {
+        showToast('Only Admin, MD, or Branch Manager can delete cutting lists.', { variant: 'error' });
+        return;
+      }
+      if (!confirmDangerousDelete(`cutting list ${cuttingListId}`, 'DELETE CUTTING LIST')) return;
+      const { ok, data } = await apiFetch(`/api/cutting-lists/${encodeURIComponent(cuttingListId)}`, {
+        method: 'DELETE',
+      });
+      if (!ok || !data?.ok) {
+        showToast(
+          data?.error ||
+            'Could not delete cutting list. Cutting lists with production activity cannot be deleted.',
+          { variant: 'error' }
+        );
+        return;
+      }
+      if (ws?.canMutate) await ws.refresh();
+      showToast(`Deleted cutting list ${cuttingListId}.`);
+    },
+    [canDeleteSalesRecord, confirmDangerousDelete, showToast, ws]
   );
 
   const isAnyModalOpen =
@@ -1400,7 +1426,7 @@ const Sales = () => {
                                         onDelete={
                                           canDeleteSalesRecord ? () => deleteQuotation(String(q.id || '').trim()) : undefined
                                         }
-                                        deleteLabel="Delete quotation"
+                                        deleteLabel="Danger: Delete quote + linked records"
                                       />
                                     </div>
                                   </div>
@@ -1504,7 +1530,7 @@ const Sales = () => {
                                         onDelete={
                                           canDeleteSalesRecord ? () => deleteReceipt(String(r.id || '').trim()) : undefined
                                         }
-                                        deleteLabel="Delete payment"
+                                        deleteLabel="Danger: Delete payment + linked cutting list"
                                       />
                                     </div>
                                   </div>
@@ -1620,6 +1646,10 @@ const Sales = () => {
                                       }}
                                       editDisabled={!canEditCuttingList(c)}
                                       editTitle={cuttingListEditBlockedReason(c) ?? ''}
+                                      onDelete={
+                                        canDeleteSalesRecord ? () => deleteCuttingList(String(c.id || '').trim()) : undefined
+                                      }
+                                      deleteLabel="Danger: Delete cutting list only"
                                     />
                                   </div>
                                 </div>
