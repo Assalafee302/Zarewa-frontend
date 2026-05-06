@@ -15,6 +15,7 @@ import {
   Wallet,
 } from 'lucide-react';
 import { ModalFrame } from './layout/ModalFrame';
+import { useTrackedUnsavedForm } from '../hooks/useTrackedUnsavedForm';
 import { useCustomers } from '../context/CustomersContext';
 import { bankAccountsForCustomerPayment, treasuryAccountsFromSnapshot } from '../lib/treasuryAccountsStore';
 import { ZAREWA_COMPANY_ACCOUNT_NAME } from '../Data/companyQuotation';
@@ -464,6 +465,13 @@ const QuotationModal = ({
     ]
   );
 
+  const { captureEdited, wrapClose, abandonUnsavedAndRun } = useTrackedUnsavedForm('modal-quotation', {
+    isOpen,
+    blockTracking: materialFieldsLocked,
+    hydrateKey: quotationHydrateSig,
+  });
+  const handleClose = () => wrapClose(() => onClose());
+
   const treasuryPayAccountsLive = useMemo(
     () => bankAccountsForCustomerPayment(treasuryAccountsFromSnapshot(ws?.snapshot)),
     /** Epoch ties treasury list to intentional workspace refresh, not silent snapshot churn. */
@@ -874,8 +882,10 @@ const QuotationModal = ({
   };
 
   const openFullCustomerForm = () => {
-    onClose();
-    navigate('/sales', { state: { focusSalesTab: 'customers', openCustomerCreate: true } });
+    wrapClose(() => {
+      onClose();
+      navigate('/sales', { state: { focusSalesTab: 'customers', openCustomerCreate: true } });
+    });
   };
 
   const pickCustomer = (c) => {
@@ -944,7 +954,7 @@ const QuotationModal = ({
           showToast(`Quotation ${data.quotationId} created.`);
         }
         await onLedgerChange?.();
-        onClose();
+        abandonUnsavedAndRun(() => onClose());
       } finally {
         setSaving(false);
       }
@@ -978,7 +988,7 @@ const QuotationModal = ({
       setQuotationEditApprovalId('');
       showToast(`Material details updated on ${editData.id} (totals unchanged).`);
       await onLedgerChange?.();
-      onClose();
+      abandonUnsavedAndRun(() => onClose());
     } finally {
       setSavingMaterial(false);
     }
@@ -1006,8 +1016,12 @@ const QuotationModal = ({
   };
 
   return (
-    <ModalFrame isOpen={isOpen} onClose={onClose} modal={!showPrint}>
-      <div className="z-modal-panel max-w-[min(100%,210mm)] w-full min-w-0 max-h-[min(92vh,820px)] flex flex-col">
+    <ModalFrame isOpen={isOpen} onClose={handleClose} modal={!showPrint}>
+      <div
+        className="z-modal-panel max-w-[min(100%,210mm)] w-full min-w-0 max-h-[min(92vh,820px)] flex flex-col"
+        onInput={captureEdited}
+        onChange={captureEdited}
+      >
         <div className="px-5 py-4 border-b border-slate-200 flex justify-between items-center shrink-0 bg-white gap-3">
           <div className="flex items-center gap-3 min-w-0">
             <div className="w-10 h-10 bg-[#134e4a] rounded-xl flex items-center justify-center text-white font-bold text-sm shrink-0">
@@ -1038,7 +1052,7 @@ const QuotationModal = ({
           </div>
           <button
             type="button"
-            onClick={onClose}
+            onClick={handleClose}
             className="p-2.5 bg-slate-50 hover:bg-red-50 text-slate-400 hover:text-red-600 rounded-xl transition-colors shrink-0"
           >
             <X size={20} />

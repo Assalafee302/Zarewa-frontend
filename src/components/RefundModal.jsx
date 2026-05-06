@@ -12,6 +12,7 @@ import {
   Info,
 } from 'lucide-react';
 import { ModalFrame } from './layout/ModalFrame';
+import { useTrackedUnsavedForm } from '../hooks/useTrackedUnsavedForm';
 import { useToast } from '../context/ToastContext';
 import { useWorkspace } from '../context/WorkspaceContext';
 import { apiFetch } from '../lib/apiBase';
@@ -638,6 +639,21 @@ const RefundModal = ({
   const showApproval = mode === 'approve' && record?.status === 'Pending';
   const identityLocked = mode !== 'create';
 
+  const refundHydrateKey = useMemo(
+    () =>
+      isOpen
+        ? `${mode}\0${record?.refundID ?? record?.refundId ?? record?.id ?? ''}\0${String(record?.quotationRef ?? record?.quotation_ref ?? '').trim()}`
+        : '',
+    [isOpen, mode, record?.refundID, record?.refundId, record?.id, record?.quotationRef, record?.quotation_ref]
+  );
+
+  const { captureEdited, wrapClose, abandonUnsavedAndRun } = useTrackedUnsavedForm('modal-refund', {
+    isOpen,
+    blockTracking: readOnly,
+    hydrateKey: refundHydrateKey,
+  });
+  const handleClose = () => wrapClose(() => onClose());
+
   const approvalMoneyContext = useMemo(() => {
     if (!showApproval) return null;
     const ref = String(record?.quotationRef || '').trim();
@@ -737,7 +753,7 @@ const RefundModal = ({
       previewSnapshot: lastPreviewSnapshot,
     });
     setSaving(false);
-    if (result?.ok !== false) onClose();
+    if (result?.ok !== false) abandonUnsavedAndRun(() => onClose());
   };
 
   const submitApproval = async () => {
@@ -764,7 +780,7 @@ const RefundModal = ({
       calculationNotes: form.calculationNotes.trim(),
     });
     setSaving(false);
-    if (result?.ok !== false) onClose();
+    if (result?.ok !== false) abandonUnsavedAndRun(() => onClose());
   };
 
   const handleFormSubmit = async (e) => {
@@ -795,7 +811,7 @@ const RefundModal = ({
     Math.round(lineSum) !== Math.round(Number(form.amountNgn));
 
   return (
-    <ModalFrame isOpen={isOpen} onClose={onClose}>
+    <ModalFrame isOpen={isOpen} onClose={handleClose}>
       <div className="z-modal-panel max-w-[min(100%,72rem)] w-full min-w-0 max-h-[min(94vh,920px)] flex flex-col mx-auto bg-slate-50 rounded-2xl shadow-2xl transition-all duration-300">
         {/* Header */}
         <div className="px-6 py-5 border-b border-slate-200/60 flex justify-between items-center bg-white/80 backdrop-blur-md rounded-t-2xl shrink-0">
@@ -842,7 +858,7 @@ const RefundModal = ({
             </button>
             <button
               type="button"
-              onClick={onClose}
+              onClick={handleClose}
               className="p-2.5 bg-slate-100 hover:bg-rose-50 text-slate-400 hover:text-rose-600 rounded-xl transition-all duration-200"
             >
               <X size={22} />
@@ -850,7 +866,12 @@ const RefundModal = ({
           </div>
         </div>
 
-        <form className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar" onSubmit={handleFormSubmit}>
+        <form
+          className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar"
+          onSubmit={handleFormSubmit}
+          onInput={captureEdited}
+          onChange={captureEdited}
+        >
           {refundGuideOpen ? (
             <div
               id="refund-guide-panel"
@@ -1728,7 +1749,7 @@ const RefundModal = ({
           <div className="flex gap-3">
             <button
               type="button"
-              onClick={onClose}
+              onClick={handleClose}
               disabled={saving}
               className="px-6 py-2.5 rounded-xl text-[11px] font-bold uppercase tracking-wide text-slate-500 hover:bg-slate-100 transition-all active:scale-95"
             >

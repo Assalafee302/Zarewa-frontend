@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { X } from 'lucide-react';
 import { ModalFrame } from '../layout/ModalFrame';
+import { useTrackedUnsavedForm } from '../../hooks/useTrackedUnsavedForm';
 import { useToast } from '../../context/ToastContext';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { guidanceForLedgerPostFailure, isVoucherDateInLockedPeriod } from '../../lib/ledgerPostingGuidance';
@@ -39,7 +40,21 @@ export default function LinkAdvanceModal({
     [useLedgerApi, applyDateISO, periodLocks]
   );
 
-   
+  const linkAdvHydrateKey = useMemo(
+    () =>
+      isOpen && advanceEntry
+        ? `linkadv:${advanceEntry.id ?? ''}:${advanceEntry.customerID ?? ''}:${advanceEntry.amountNgn ?? ''}`
+        : '',
+    [isOpen, advanceEntry?.id, advanceEntry?.customerID, advanceEntry?.amountNgn]
+  );
+
+  const { captureEdited, wrapClose, abandonUnsavedAndRun } = useTrackedUnsavedForm('modal-link-advance', {
+    isOpen: Boolean(isOpen && advanceEntry),
+    blockTracking: false,
+    hydrateKey: linkAdvHydrateKey,
+  });
+  const handleClose = () => wrapClose(() => onClose());
+
   useEffect(() => {
     if (!isOpen || !advanceEntry) return;
     setQuotationRef('');
@@ -121,15 +136,17 @@ export default function LinkAdvanceModal({
     }
     showToast(`Applied ${formatNgn(n)} advance to ${quotationRef}.`);
     await onPosted?.();
-    onClose();
+    abandonUnsavedAndRun(() => onClose());
   };
 
   if (!advanceEntry) return null;
 
   return (
-    <ModalFrame isOpen={isOpen} onClose={onClose}>
+    <ModalFrame isOpen={isOpen} onClose={handleClose}>
       <form
         onSubmit={submit}
+        onInput={captureEdited}
+        onChange={captureEdited}
         className="z-modal-panel max-w-md w-full flex flex-col bg-white rounded-2xl border border-slate-200 shadow-xl"
       >
         <div className="px-5 py-4 border-b border-slate-100 flex justify-between items-center">
@@ -141,7 +158,7 @@ export default function LinkAdvanceModal({
           </div>
           <button
             type="button"
-            onClick={onClose}
+            onClick={handleClose}
             className="p-2 rounded-xl text-slate-400 hover:bg-slate-50 hover:text-red-500"
           >
             <X size={20} />
@@ -219,7 +236,7 @@ export default function LinkAdvanceModal({
         <div className="px-5 py-4 border-t border-slate-100 flex justify-end gap-2">
           <button
             type="button"
-            onClick={onClose}
+            onClick={handleClose}
             className="px-4 py-2 rounded-lg text-[10px] font-semibold uppercase border border-slate-200 text-slate-600"
           >
             Cancel

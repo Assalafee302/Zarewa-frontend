@@ -18,6 +18,7 @@ import {
 import { ModalFrame } from './layout/ModalFrame';
 import { useToast } from '../context/ToastContext';
 import { useWorkspace } from '../context/WorkspaceContext';
+import { useTrackedUnsavedForm } from '../hooks/useTrackedUnsavedForm';
 import { apiFetch } from '../lib/apiBase';
 import { formatNgn } from '../Data/mockData';
 import { receiptCashReceivedNgn } from '../lib/salesReceiptsList';
@@ -351,6 +352,13 @@ const CuttingListModal = ({
       editData?.status,
     ]
   );
+
+  const { captureEdited, wrapClose, abandonUnsavedAndRun } = useTrackedUnsavedForm('modal-cutting-list', {
+    isOpen,
+    blockTracking: readOnly,
+    hydrateKey: cuttingListHydrateSig,
+  });
+  const handleClose = () => wrapClose(() => onClose());
 
   useEffect(() => {
     if (!isOpen) return;
@@ -704,7 +712,7 @@ const CuttingListModal = ({
       showToast(result?.error || 'Could not save cutting list.', { variant: 'error' });
       return;
     }
-    onClose();
+    abandonUnsavedAndRun(() => onClose());
   };
 
   const clearProductionHold = useCallback(async () => {
@@ -758,9 +766,11 @@ const CuttingListModal = ({
   }, [editData?.id, editData?.productionRegistered, editData?.productionReleasePending, machineName, ws.refresh, ws.canMutate, showToast, onCuttingListUpdated]);
 
   return (
-    <ModalFrame isOpen={isOpen} onClose={onClose} modal={!showPrintPreview}>
+    <ModalFrame isOpen={isOpen} onClose={handleClose} modal={!showPrintPreview}>
       <form
         onSubmit={submit}
+        onInput={captureEdited}
+        onChange={captureEdited}
         className="z-modal-panel max-w-[min(100%,52rem)] w-full min-w-0 max-h-[min(92vh,860px)] flex flex-col"
       >
         <div className="no-print px-5 py-4 border-b border-slate-200 flex justify-between items-center bg-white shrink-0 gap-3">
@@ -812,7 +822,7 @@ const CuttingListModal = ({
             </button>
             <button
               type="button"
-              onClick={onClose}
+              onClick={handleClose}
               className="p-2.5 bg-slate-50 hover:bg-red-50 text-slate-400 hover:text-red-600 rounded-xl transition-all"
             >
               <X size={20} />
@@ -1013,8 +1023,10 @@ const CuttingListModal = ({
                     <button
                       type="button"
                       onClick={() => {
-                        onClose();
-                        navigate(`/manager?quoteRef=${encodeURIComponent(quotationRef)}`);
+                        wrapClose(() => {
+                          onClose();
+                          navigate(`/manager?quoteRef=${encodeURIComponent(quotationRef)}`);
+                        });
                       }}
                       className="w-full sm:w-auto px-4 py-2.5 rounded-lg bg-[#134e4a] text-white text-[9px] font-bold uppercase tracking-wider hover:bg-[#0f3d39] transition-colors"
                     >

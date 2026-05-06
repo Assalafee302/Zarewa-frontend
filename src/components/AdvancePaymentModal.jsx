@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import { X, Wallet, Save, Printer } from 'lucide-react';
 import { ModalFrame } from './layout/ModalFrame';
+import { useTrackedUnsavedForm } from '../hooks/useTrackedUnsavedForm';
 import { useCustomers } from '../context/CustomersContext';
 import { useToast } from '../context/ToastContext';
 import { useWorkspace } from '../context/WorkspaceContext';
@@ -45,6 +46,18 @@ const AdvancePaymentModal = ({
     () => Boolean(useLedgerApi && isVoucherDateInLockedPeriod(dateISO, periodLocks)),
     [useLedgerApi, dateISO, periodLocks]
   );
+
+  const advanceHydrateKey = useMemo(
+    () => (isOpen ? `advance:${String(defaultCustomerID ?? '')}` : ''),
+    [isOpen, defaultCustomerID]
+  );
+
+  const { captureEdited, wrapClose, abandonUnsavedAndRun } = useTrackedUnsavedForm('modal-advance-payment', {
+    isOpen,
+    blockTracking: false,
+    hydrateKey: advanceHydrateKey,
+  });
+  const handleClose = () => wrapClose(() => onClose());
 
   useEffect(() => {
     if (!isOpen) return;
@@ -138,7 +151,7 @@ const AdvancePaymentModal = ({
     }
     showToast(`Advance ${formatNgn(n)} recorded — not revenue until applied or receipt against a quote.`);
     await onPosted?.();
-    onClose();
+    abandonUnsavedAndRun(() => onClose());
   };
 
   const openPrintPreview = () => {
@@ -151,10 +164,12 @@ const AdvancePaymentModal = ({
   };
 
   return (
-    <ModalFrame isOpen={isOpen} onClose={onClose} modal={!showPrint}>
+    <ModalFrame isOpen={isOpen} onClose={handleClose} modal={!showPrint}>
       <>
       <form
         onSubmit={submit}
+        onInput={captureEdited}
+        onChange={captureEdited}
         className="z-modal-panel max-w-[min(100%,26rem)] w-full min-w-0 max-h-[min(92vh,640px)] flex flex-col bg-white"
       >
         <div className="px-5 py-4 border-b border-slate-200 flex justify-between items-center shrink-0">
@@ -171,7 +186,7 @@ const AdvancePaymentModal = ({
           </div>
           <button
             type="button"
-            onClick={onClose}
+            onClick={handleClose}
             className="p-2.5 bg-slate-50 hover:bg-red-50 text-slate-400 hover:text-red-600 rounded-xl shrink-0"
           >
             <X size={20} />
@@ -311,7 +326,7 @@ const AdvancePaymentModal = ({
           </button>
           <button
             type="button"
-            onClick={onClose}
+            onClick={handleClose}
             className="px-4 py-2.5 rounded-lg text-[10px] font-semibold uppercase text-slate-600 border border-slate-200 hover:bg-slate-50"
           >
             Cancel

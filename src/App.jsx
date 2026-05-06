@@ -46,6 +46,8 @@ import { CustomersProvider } from './context/CustomersContext';
 import { InventoryProvider } from './context/InventoryContext';
 import { ToastProvider, useToast } from './context/ToastContext';
 import { WorkspaceProvider } from './context/WorkspaceContext';
+import { UnsavedWorkProvider, useUnsavedWorkRegistry, UNSAVED_LEAVE_MESSAGE } from './context/UnsavedWorkContext';
+import { UnsavedWorkNavigationGuard } from './components/UnsavedWorkNavigationGuard';
 import { useInventory } from './context/InventoryContext';
 import { useWorkspace } from './context/WorkspaceContext';
 import { ZAREWA_LOGO_SRC } from './Data/companyQuotation';
@@ -172,6 +174,7 @@ function HomeRoute() {
 
 function AppShell() {
   const navigate = useNavigate();
+  const { hasUnsavedWork } = useUnsavedWorkRegistry();
   const { products } = useInventory();
   const ws = useWorkspace();
   const ai = useAiAssistant();
@@ -324,13 +327,21 @@ function AppShell() {
     };
   }, [headerSearch, ws?.apiOnline, ws?.snapshot, ws?.hasPermission]);
 
+  const guardedNavigate = useCallback(
+    (to, opts) => {
+      if (hasUnsavedWork && !window.confirm(UNSAVED_LEAVE_MESSAGE)) return;
+      navigate(to, opts);
+    },
+    [hasUnsavedWork, navigate]
+  );
+
   const goSearchHit = useCallback(
     (hit) => {
-      navigate(hit.path, { state: hit.state || {} });
+      guardedNavigate(hit.path, { state: hit.state || {} });
       setHeaderSearch('');
       setSearchHits([]);
     },
-    [navigate]
+    [guardedNavigate]
   );
 
   const runGlobalSearch = (e) => {
@@ -343,13 +354,13 @@ function AppShell() {
     }
     const lower = q.toLowerCase();
     if (lower.startsWith('qt-') || lower.startsWith('q-')) {
-      navigate('/sales', { state: { globalSearchQuery: q, focusSalesTab: 'quotations' } });
+      guardedNavigate('/sales', { state: { globalSearchQuery: q, focusSalesTab: 'quotations' } });
     } else if (lower.startsWith('rcp-') || lower.startsWith('rcpt')) {
-      navigate('/sales', { state: { globalSearchQuery: q, focusSalesTab: 'receipts' } });
+      guardedNavigate('/sales', { state: { globalSearchQuery: q, focusSalesTab: 'receipts' } });
     } else if (lower.startsWith('rf-')) {
-      navigate('/sales', { state: { globalSearchQuery: q, focusSalesTab: 'refund' } });
+      guardedNavigate('/sales', { state: { globalSearchQuery: q, focusSalesTab: 'refund' } });
     } else {
-      navigate('/sales', { state: { globalSearchQuery: q, focusSalesTab: 'customers' } });
+      guardedNavigate('/sales', { state: { globalSearchQuery: q, focusSalesTab: 'customers' } });
     }
     setHeaderSearch('');
     setSearchHits([]);
@@ -375,6 +386,7 @@ function AppShell() {
 
   return (
     <div className="flex min-h-screen min-h-dvh min-w-0 w-full max-w-full z-app-bg font-sans selection:bg-teal-100 selection:text-[#134e4a]">
+      <UnsavedWorkNavigationGuard />
       <a
         href="#main-content"
         className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[1200] focus:rounded-xl focus:bg-[#134e4a] focus:text-white focus:px-4 focus:py-3 focus:text-sm focus:font-bold focus:shadow-xl"
@@ -600,7 +612,7 @@ function AppShell() {
                                 type="button"
                                 className="w-full text-left"
                                 onClick={() => {
-                                  navigate(n.path, { state: n.state || {} });
+                                  guardedNavigate(n.path, { state: n.state || {} });
                                   setNotifOpen(false);
                                 }}
                               >
@@ -694,7 +706,7 @@ function AppShell() {
                           className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-[13px] font-semibold text-slate-800 transition hover:bg-teal-50/80"
                           onClick={() => {
                             setUserMenuOpen(false);
-                            navigate('/settings/profile');
+                            guardedNavigate('/settings/profile');
                           }}
                         >
                           <User size={16} className="shrink-0 text-gray-400" aria-hidden />
@@ -706,7 +718,7 @@ function AppShell() {
                           className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-[13px] font-semibold text-slate-800 transition hover:bg-teal-50/80"
                           onClick={() => {
                             setUserMenuOpen(false);
-                            navigate('/settings');
+                            guardedNavigate('/settings');
                           }}
                         >
                           <SettingsIcon size={16} className="shrink-0 text-gray-400" aria-hidden />
@@ -718,7 +730,7 @@ function AppShell() {
                           className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-[13px] font-semibold text-slate-800 transition hover:bg-teal-50/80"
                           onClick={() => {
                             setUserMenuOpen(false);
-                            navigate('/settings/security');
+                            guardedNavigate('/settings/security');
                           }}
                         >
                           <Lock size={16} className="shrink-0 text-gray-400" aria-hidden />
@@ -732,7 +744,10 @@ function AppShell() {
                           className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-[13px] font-semibold text-red-700 transition hover:bg-red-50/80"
                           onClick={async () => {
                             setUserMenuOpen(false);
-                            if (!window.confirm('Sign out of this workspace?')) return;
+                            const signOutMsg = hasUnsavedWork
+                              ? 'You have unsaved changes. Sign out without saving?'
+                              : 'Sign out of this workspace?';
+                            if (!window.confirm(signOutMsg)) return;
                             try {
                               await ws?.logout?.();
                               window.location.href = '/';
@@ -926,11 +941,13 @@ function AuthGate() {
   }
 
   return (
-    <InventoryProvider>
-      <CustomersProvider>
-        <AppShell />
-      </CustomersProvider>
-    </InventoryProvider>
+    <UnsavedWorkProvider>
+      <InventoryProvider>
+        <CustomersProvider>
+          <AppShell />
+        </CustomersProvider>
+      </InventoryProvider>
+    </UnsavedWorkProvider>
   );
 }
 

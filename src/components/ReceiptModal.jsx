@@ -11,6 +11,7 @@ import {
   Plus,
 } from 'lucide-react';
 import { ModalFrame } from './layout/ModalFrame';
+import { useTrackedUnsavedForm } from '../hooks/useTrackedUnsavedForm';
 import { useCustomers } from '../context/CustomersContext';
 import { useToast } from '../context/ToastContext';
 import { useWorkspace } from '../context/WorkspaceContext';
@@ -155,6 +156,13 @@ const ReceiptModal = ({
       editData?._ledgerEntry,
     ]
   );
+
+  const { captureEdited, wrapClose, abandonUnsavedAndRun } = useTrackedUnsavedForm('modal-receipt', {
+    isOpen,
+    blockTracking: readOnly,
+    hydrateKey: receiptHydrateSig,
+  });
+  const handleClose = () => wrapClose(() => onClose());
 
   useEffect(() => {
     if (!isOpen) {
@@ -518,7 +526,7 @@ const ReceiptModal = ({
         }
       }
       await onLedgerChange?.();
-      onClose();
+      abandonUnsavedAndRun(() => onClose());
     } finally {
       postingRef.current = false;
       setIsPosting(false);
@@ -566,15 +574,17 @@ const ReceiptModal = ({
   const deleteCurrentReceipt = async () => {
     if (!isEdit || !onDeleteReceipt || isPosting) return;
     const ok = await onDeleteReceipt(editData);
-    if (ok) onClose();
+    if (ok) abandonUnsavedAndRun(() => onClose());
   };
 
   return (
-    <ModalFrame isOpen={isOpen} onClose={onClose} modal={!showPrint}>
+    <ModalFrame isOpen={isOpen} onClose={handleClose} modal={!showPrint}>
       <>
       <form
         key={editData?.id ?? 'rcpt-new'}
         onSubmit={saveReceipt}
+        onInput={captureEdited}
+        onChange={captureEdited}
         className="z-modal-panel max-w-[min(100%,56rem)] w-full min-w-0 max-h-[min(92vh,820px)] flex flex-col"
       >
         <div className="px-5 py-4 border-b border-slate-200 flex justify-between items-center bg-white shrink-0 gap-3">
@@ -602,7 +612,7 @@ const ReceiptModal = ({
           </div>
           <button
             type="button"
-            onClick={onClose}
+            onClick={handleClose}
             className="p-2.5 bg-slate-50 hover:bg-red-50 text-slate-400 hover:text-red-600 rounded-xl transition-all shrink-0"
           >
             <X size={20} />
