@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { ModalFrame } from './layout/ModalFrame';
 import { useToast } from '../context/ToastContext';
+import { useWorkspace } from '../context/WorkspaceContext';
 import { apiFetch } from '../lib/apiBase';
 import { printRefundRecord } from '../lib/refundRecordPrint';
 import { refundApprovedAmount, refundOutstandingAmount } from '../lib/refundsStore';
@@ -173,12 +174,15 @@ const RefundModal = ({
   productionJobs = [],
 }) => {
   const { show: showToast } = useToast();
+  const ws = useWorkspace();
   const [form, setForm] = useState(() => initFormFromRecord(record));
   const [eligibleQuotes, setEligibleQuotes] = useState([]);
   const [loadingQuotes, setLoadingQuotes] = useState(false);
   const [syncPaidId, setSyncPaidId] = useState('');
   const [syncPaidBusy, setSyncPaidBusy] = useState(false);
   const [syncPaidError, setSyncPaidError] = useState('');
+  const [bulkPaidBusy, setBulkPaidBusy] = useState(false);
+  const [bulkPaidError, setBulkPaidError] = useState('');
   const [approvalStatus, setApprovalStatus] = useState(() =>
     record?.status === 'Rejected' ? 'Rejected' : 'Approved'
   );
@@ -266,6 +270,36 @@ const RefundModal = ({
     );
     void fetchEligibleQuotes();
   }, [syncPaidId, fetchEligibleQuotes, showToast]);
+
+  const bulkRecalculateAllQuotationPaid = useCallback(async () => {
+    if (
+      !window.confirm(
+        'Recalculate booked paid on every quotation in this workspace branch from sales receipts and advance applied? This fixes stale paid totals after data issues; it does not create or delete receipts.'
+      )
+    ) {
+      return;
+    }
+    setBulkPaidBusy(true);
+    setBulkPaidError('');
+    const { ok, data } = await apiFetch('/api/quotations/recalculate-paid-all', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ confirm: true }),
+    });
+    setBulkPaidBusy(false);
+    if (!ok || !data?.ok) {
+      setBulkPaidError(data?.error || 'Bulk recalculation failed.');
+      return;
+    }
+    const processed = Number(data.processed) || 0;
+    const changed = Number(data.paidChangedCount) || 0;
+    showToast(
+      `Recalculated ${processed} quotation(s). Booked paid changed on ${changed}. Refresh lists if needed.`,
+      { variant: 'success' }
+    );
+    if (ws?.canMutate) await ws.refresh();
+    void fetchEligibleQuotes();
+  }, [fetchEligibleQuotes, showToast, ws]);
 
   /* Sync form state when the modal opens or the record/mode changes (intentional reset). */
    
@@ -1021,6 +1055,27 @@ const RefundModal = ({
                         </div>
                         {syncPaidError ? (
                           <p className="text-[10px] text-rose-700 font-medium">{syncPaidError}</p>
+                        ) : null}
+                      </div>
+                    ) : null}
+                    {mode === 'create' && ws?.hasPermission?.('finance.approve') ? (
+                      <div className="mt-2 space-y-2 rounded-lg border border-rose-200/90 bg-rose-50/70 p-3">
+                        <p className="text-[10px] font-bold text-rose-950 uppercase tracking-wide">Finance · bulk repair</p>
+                        <p className="text-[10px] text-rose-950/90 leading-snug">
+                          Recalculate <strong>booked paid</strong> for <strong>all quotations</strong> in the current
+                          branch (same scope as your workspace). Use after fixing quote-save issues or migrating data.
+                          Requires <span className="font-semibold">finance approval</span> permission.
+                        </p>
+                        <button
+                          type="button"
+                          disabled={bulkPaidBusy || syncPaidBusy}
+                          onClick={() => void bulkRecalculateAllQuotationPaid()}
+                          className="w-full sm:w-auto rounded-lg border border-rose-300 bg-white px-3 py-2 text-[10px] font-bold uppercase tracking-wide text-rose-900 shadow-sm hover:bg-rose-100/80 disabled:opacity-50"
+                        >
+                          {bulkPaidBusy ? 'Recalculating…' : 'Recalculate all quotations (this branch)'}
+                        </button>
+                        {bulkPaidError ? (
+                          <p className="text-[10px] text-rose-700 font-medium">{bulkPaidError}</p>
                         ) : null}
                       </div>
                     ) : null}
