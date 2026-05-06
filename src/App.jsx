@@ -29,10 +29,22 @@ import ExecDashboard from './pages/ExecDashboard';
 import PriceListAdmin from './pages/PriceListAdmin';
 import DocumentTitleSync from './components/DocumentTitleSync';
 import PrintSessionCleanup from './components/PrintSessionCleanup';
-import { Search, Bell, Command, Menu, ChevronDown, User, Settings as SettingsIcon, Lock, LogOut } from 'lucide-react';
+import {
+  Search,
+  Bell,
+  Command,
+  Menu,
+  ChevronDown,
+  User,
+  Settings as SettingsIcon,
+  Lock,
+  LogOut,
+  RefreshCw,
+  WifiOff,
+} from 'lucide-react';
 import { CustomersProvider } from './context/CustomersContext';
 import { InventoryProvider } from './context/InventoryContext';
-import { ToastProvider } from './context/ToastContext';
+import { ToastProvider, useToast } from './context/ToastContext';
 import { WorkspaceProvider } from './context/WorkspaceContext';
 import { useInventory } from './context/InventoryContext';
 import { useWorkspace } from './context/WorkspaceContext';
@@ -45,6 +57,106 @@ import { buildWorkspaceNotifications } from './lib/workspaceNotifications';
 import { AiAssistantProvider, useAiAssistant } from './context/AiAssistantContext';
 import { notificationPrompt } from './lib/aiAssistUi';
 import { searchWorkspaceSnapshot } from './lib/workspaceSearchLocal';
+
+/** Blocks the whole app when bootstrap falls back to cached session (API unreachable). */
+function DegradedWorkspaceLock() {
+  const ws = useWorkspace();
+  const { show: showToast } = useToast();
+  const [retrying, setRetrying] = useState(false);
+  const wsRef = useRef(ws);
+  wsRef.current = ws;
+
+  useEffect(() => {
+    if (!ws?.usingCachedData) return undefined;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [ws?.usingCachedData]);
+
+  if (!ws?.usingCachedData) return null;
+
+  const handleReconnect = async () => {
+    setRetrying(true);
+    try {
+      await ws.refresh?.();
+    } finally {
+      setRetrying(false);
+    }
+    window.setTimeout(() => {
+      if (wsRef.current?.usingCachedData) {
+        showToast(
+          'Still offline. Ensure the API server is running and your network is stable, then use Refresh page.',
+          { variant: 'error' }
+        );
+      }
+    }, 0);
+  };
+
+  const handleSignOut = async () => {
+    if (!window.confirm('Sign out? Unsaved changes in this tab may be lost.')) return;
+    try {
+      await ws?.logout?.();
+    } catch {
+      /* ignore */
+    }
+    window.location.href = '/';
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-[5000] flex items-center justify-center bg-slate-950/85 p-6 backdrop-blur-sm"
+      role="alertdialog"
+      aria-modal="true"
+      aria-labelledby="degraded-workspace-title"
+      aria-describedby="degraded-workspace-desc"
+    >
+      <div className="max-w-md rounded-2xl border border-amber-200/90 bg-amber-50 px-6 py-7 text-center shadow-2xl">
+        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-100 text-amber-900">
+          <WifiOff size={28} strokeWidth={2} aria-hidden />
+        </div>
+        <h1 id="degraded-workspace-title" className="mt-4 text-lg font-black text-amber-950">
+          System offline
+        </h1>
+        <p id="degraded-workspace-desc" className="mt-2 text-sm font-medium leading-relaxed text-amber-950/90">
+          This tab is showing your last workspace sync only. Nothing new can be saved until the live server responds.
+          Reconnect the API, then try again or refresh the page.
+        </p>
+        {ws?.lastError ? (
+          <p className="mt-3 rounded-lg border border-amber-200/80 bg-white/80 px-3 py-2 text-left font-mono text-[10px] text-amber-900/90 break-words">
+            {ws.lastError}
+          </p>
+        ) : null}
+        <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:justify-center">
+          <button
+            type="button"
+            disabled={retrying}
+            onClick={() => void handleReconnect()}
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#134e4a] px-4 py-3 text-xs font-bold uppercase tracking-wide text-white shadow-lg hover:brightness-110 disabled:opacity-50"
+          >
+            <RefreshCw size={16} className={retrying ? 'animate-spin' : ''} aria-hidden />
+            {retrying ? 'Reconnecting…' : 'Try reconnect'}
+          </button>
+          <button
+            type="button"
+            onClick={() => window.location.reload()}
+            className="inline-flex items-center justify-center rounded-xl border border-amber-300 bg-white px-4 py-3 text-xs font-bold uppercase tracking-wide text-amber-950 shadow-sm hover:bg-amber-100/80"
+          >
+            Refresh page
+          </button>
+        </div>
+        <button
+          type="button"
+          onClick={() => void handleSignOut()}
+          className="mt-4 text-[11px] font-semibold text-amber-900/80 underline underline-offset-2 hover:text-amber-950"
+        >
+          Sign out
+        </button>
+      </div>
+    </div>
+  );
+}
 
 function HomeRoute() {
   const ws = useWorkspace();
@@ -775,6 +887,7 @@ function AppShell() {
         </main>
         <AiAssistantDock />
       </div>
+      <DegradedWorkspaceLock />
     </div>
   );
 }
