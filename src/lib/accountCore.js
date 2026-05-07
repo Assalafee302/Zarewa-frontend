@@ -1,6 +1,7 @@
 export const ACCOUNT_TAB_LABELS = {
   treasury: 'Treasury',
   receipts: 'Receipts & bank recon',
+  cashier: 'Cashier confirmation',
   movements: 'Fund movements',
   disbursements: 'Expenses & requests',
   audit: 'Audit & reconciliation',

@@ -318,7 +318,6 @@ const Account = () => {
           amountNgn: Math.max(0, Number(m?.amountNgn) || 0),
           postedAtISO: String(m?.postedAtISO || '').slice(0, 10),
           accountName: treasuryAccountDisplayName(m, { includeAccountNumber: false }),
-          accountId: String(m?.treasuryAccountId || ''),
           customer: String(linkedReceipt?.customer || m?.counterpartyName || '—'),
           quotationRef: String(linkedReceipt?.quotationRef || ''),
           reference: String(m?.reference || '').trim(),
@@ -1029,6 +1028,7 @@ const Account = () => {
     () => [
       { id: 'treasury', icon: <Landmark size={16} />, label: 'Treasury' },
       { id: 'receipts', icon: <Banknote size={16} />, label: 'Receipts & recon' },
+      { id: 'cashier', icon: <CheckCircle2 size={16} />, label: 'Cashier confirm' },
       { id: 'movements', icon: <ArrowRightLeft size={16} />, label: 'Movements' },
       { id: 'disbursements', icon: <ClipboardList size={16} />, label: 'Expenses & requests' },
       { id: 'audit', icon: <ShieldCheck size={16} />, label: 'Audit' },
@@ -1977,7 +1977,7 @@ const Account = () => {
       />
 
       <div className="grid min-w-0 grid-cols-1 gap-8 lg:gap-10 lg:grid-cols-4">
-        {activeTab !== 'receipts' ? <div className="lg:col-span-1 space-y-6">
+        <div className="lg:col-span-1 space-y-6">
           <div className="rounded-zarewa border border-slate-200/80 border-l-[3px] border-l-[#134e4a] bg-white p-6 shadow-[var(--shadow-sequence)]">
             <h3 className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-400 mb-3">
               Total liquidity
@@ -2046,9 +2046,9 @@ const Account = () => {
             Accrual view, revenue recognition on delivery / billing, and expense matching are enforced in
             reporting once the ledger is live.
           </div>
-        </div> : null}
+        </div>
 
-        <div className={activeTab === 'receipts' ? 'lg:col-span-4' : 'lg:col-span-3'}>
+        <div className="lg:col-span-3">
           <FinanceSequencePanel>
             <>
             {activeTab === 'receipts' && (
@@ -2057,11 +2057,165 @@ const Account = () => {
                   <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
                     <div>
                       <h3 className="text-xs font-bold uppercase tracking-widest text-[#134e4a]">
+                        Customer receipts
+                      </h3>
+                      <p className="text-[11px] text-slate-600 mt-1 max-w-3xl">
+                        Enter the amount that actually landed in the bank, then mark{' '}
+                        <span className="font-semibold">Cleared for delivery</span> when finance is satisfied.
+                        Sales no longer confirms receipts here — this desk owns settlement.
+                      </p>
+                    </div>
+                  </div>
+                  {filteredSalesReceipts.length === 0 ? (
+                    <p className="text-[10px] text-slate-500 py-8 text-center border border-dashed border-slate-200 rounded-lg">
+                      No receipts in this branch scope.
+                    </p>
+                  ) : (
+                    <>
+                      <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-200/70 bg-slate-50/80 px-2.5 py-2">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-[9px] font-bold text-slate-500 uppercase">Sort by</span>
+                          <select
+                            value={receiptsSortKey}
+                            onChange={(e) => setReceiptsSortKey(e.target.value)}
+                            className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-[10px] font-semibold text-[#134e4a] outline-none focus:ring-2 focus:ring-[#134e4a]/15"
+                          >
+                            <option value="date">Receipt date</option>
+                            <option value="id">Receipt id</option>
+                            <option value="customer">Customer</option>
+                            <option value="amount">Amount received</option>
+                          </select>
+                          <button
+                            type="button"
+                            onClick={() => setReceiptsSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))}
+                            className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-[9px] font-black uppercase tracking-wide text-slate-600"
+                          >
+                            {receiptsSortDir === 'asc' ? 'Ascending' : 'Descending'}
+                          </button>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2 text-[10px] text-slate-600">
+                          <span className="tabular-nums">
+                            {receiptsListWindow.total === 0
+                              ? '0 receipts'
+                              : `Showing ${receiptsListWindow.from}–${receiptsListWindow.to} of ${receiptsListWindow.total}`}
+                          </span>
+                          <button
+                            type="button"
+                            disabled={receiptsListWindow.safePage <= 0}
+                            onClick={() => setReceiptsPage((p) => Math.max(0, p - 1))}
+                            className="inline-flex items-center rounded-lg border border-slate-200 bg-white px-2 py-1 disabled:opacity-40"
+                            aria-label="Previous page"
+                          >
+                            <ChevronLeft size={14} />
+                          </button>
+                          <span className="text-[9px] font-bold tabular-nums text-slate-500">
+                            {receiptsListWindow.safePage + 1}/{receiptsListWindow.pageCount}
+                          </span>
+                          <button
+                            type="button"
+                            disabled={receiptsListWindow.safePage >= receiptsListWindow.pageCount - 1}
+                            onClick={() => setReceiptsPage((p) => p + 1)}
+                            className="inline-flex items-center rounded-lg border border-slate-200 bg-white px-2 py-1 disabled:opacity-40"
+                            aria-label="Next page"
+                          >
+                            <ChevronRight size={14} />
+                          </button>
+                        </div>
+                      </div>
+                      <ul className="space-y-1.5">
+                        {receiptsListWindow.slice.map((r) => {
+                        const allocated = Number(r.amountNgn) || 0;
+                        const cash =
+                          r.cashReceivedNgn != null ? Number(r.cashReceivedNgn) || allocated : allocated;
+                        const bank =
+                          r.bankReceivedAmountNgn != null ? Number(r.bankReceivedAmountNgn) : null;
+                        const cleared = Boolean(r.financeDeliveryClearedAtISO);
+                        const paySplits = receiptLedgerReceiptTreasurySplits(r, liveTreasuryMovements);
+                        return (
+                          <li
+                            key={r.id}
+                            className="rounded-xl border border-slate-200/75 bg-white py-2.5 px-3 shadow-[0_8px_28px_-22px_rgba(15,23,42,0.07)] flex flex-wrap items-center justify-between gap-2 transition-colors hover:border-slate-300/90"
+                          >
+                            <div className="min-w-0 flex-1">
+                              <p className="text-[11px] font-bold text-[#134e4a] font-mono">{r.id}</p>
+                              <p className="text-[9px] text-slate-500 truncate">
+                                {r.customer || '—'} · {r.quotationRef || '—'} · {r.dateISO || r.date || '—'}
+                              </p>
+                              {paySplits.length > 0 ? (
+                                <ul className="mt-1.5 space-y-0.5 border-t border-dashed border-slate-200/80 pt-1.5">
+                                  {paySplits.map((s) => (
+                                    <li
+                                      key={s.movementId}
+                                      className="flex justify-between gap-2 text-[9px] text-slate-700"
+                                    >
+                                      <span className="min-w-0 truncate font-medium" title={s.accountLabel}>
+                                        {s.accountLabel}
+                                      </span>
+                                      <span className="shrink-0 font-bold tabular-nums text-[#134e4a]">
+                                        {formatNgn(s.amountNgn)}
+                                      </span>
+                                    </li>
+                                  ))}
+                                </ul>
+                              ) : null}
+                            </div>
+                            <div className="flex flex-wrap items-center gap-2 shrink-0">
+                              <span className="text-[10px] font-bold text-slate-600 tabular-nums">
+                                Total {formatNgn(cash)}
+                                {Math.round(allocated) !== Math.round(cash) ? (
+                                  <span className="text-slate-500 font-semibold">
+                                    {' '}
+                                    (quote {formatNgn(allocated)})
+                                  </span>
+                                ) : null}
+                                {bank != null && Math.round(bank) !== Math.round(cash) ? (
+                                  <span className="text-amber-800"> · Bank {formatNgn(bank)}</span>
+                                ) : null}
+                              </span>
+                              {r.financeReconciliationSavedAtISO && canReviseFinalizedReceiptSettlement ? (
+                                <span className="text-[9px] font-bold uppercase px-2 py-0.5 rounded-full bg-slate-200 text-slate-800">
+                                  Reconciled
+                                </span>
+                              ) : null}
+                              {cleared ? (
+                                <span className="text-[9px] font-bold uppercase px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-900">
+                                  Cleared delivery
+                                </span>
+                              ) : (
+                                <span className="text-[9px] font-bold uppercase px-2 py-0.5 rounded-full bg-amber-100 text-amber-900">
+                                  Pending
+                                </span>
+                              )}
+                              {canFinanceReceiptSettlement && ws?.canMutate ? (
+                                <button
+                                  type="button"
+                                  onClick={() => openReceiptFinance(r)}
+                                  className="text-[9px] font-bold uppercase px-3 py-1.5 rounded-lg bg-[#134e4a] text-white hover:bg-[#0f3d3a]"
+                                >
+                                  Review
+                                </button>
+                              ) : null}
+                            </div>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                    </>
+                  )}
+                </section>
+              </div>
+            )}
+            {activeTab === 'cashier' && (
+              <div className="space-y-10 animate-in fade-in duration-300">
+                <section className="space-y-3">
+                  <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+                    <div>
+                      <h3 className="text-xs font-bold uppercase tracking-widest text-[#134e4a]">
                         Payments received (quotation + advance)
                       </h3>
                       <p className="text-[11px] text-slate-600 mt-1 max-w-3xl">
-                        Cashier confirmation queue. Tick each payment after you have physically confirmed receipt.
-                        Confirmed items are removed from this list.
+                        Cashier confirmation queue. Tick each payment after you physically confirm receipt. Confirmed
+                        items are removed from this list.
                       </p>
                     </div>
                   </div>
@@ -2083,41 +2237,42 @@ const Account = () => {
                       </div>
                       <ul className="space-y-1.5">
                         {cashierReceiptsQueue.map((r) => {
-                        const sourceLabel = r.sourceKind === 'LEDGER_ADVANCE' ? 'Advance payment' : 'Quotation payment';
-                        return (
-                          <li
-                            key={r.rowId}
-                            className="rounded-xl border border-slate-200/75 bg-white py-2.5 px-3 shadow-[0_8px_28px_-22px_rgba(15,23,42,0.07)] flex flex-wrap items-center justify-between gap-2 transition-colors hover:border-slate-300/90"
-                          >
-                            <div className="min-w-0 flex-1">
-                              <p className="text-[11px] font-bold text-[#134e4a]">{r.customer}</p>
-                              <p className="text-[9px] text-slate-500 truncate">
-                                {r.quotationRef ? `Quote ${r.quotationRef}` : sourceLabel} · {r.postedAtISO || '—'}
-                              </p>
-                              <p className="mt-1 text-[9px] text-slate-600">
-                                Account: <span className="font-semibold">{r.accountName || '—'}</span>
-                              </p>
-                            </div>
-                            <div className="flex flex-wrap items-center gap-2 shrink-0">
-                              <span className="text-[10px] font-bold text-slate-600 tabular-nums">
-                                {formatNgn(r.amountNgn)}
-                              </span>
-                              <label className="inline-flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-[9px] font-bold uppercase tracking-wide text-emerald-900 cursor-pointer">
-                                <input
-                                  type="checkbox"
-                                  className="h-3.5 w-3.5 accent-emerald-700"
-                                  onChange={(e) => {
-                                    if (!e.target.checked) return;
-                                    setCashierConfirmedReceiptIds((prev) => [...prev, r.rowId]);
-                                  }}
-                                />
-                                Cashier confirmed
-                              </label>
-                            </div>
-                          </li>
-                        );
-                      })}
-                    </ul>
+                          const sourceLabel =
+                            r.sourceKind === 'LEDGER_ADVANCE' ? 'Advance payment' : 'Quotation payment';
+                          return (
+                            <li
+                              key={r.rowId}
+                              className="rounded-xl border border-slate-200/75 bg-white py-2.5 px-3 shadow-[0_8px_28px_-22px_rgba(15,23,42,0.07)] flex flex-wrap items-center justify-between gap-2 transition-colors hover:border-slate-300/90"
+                            >
+                              <div className="min-w-0 flex-1">
+                                <p className="text-[11px] font-bold text-[#134e4a]">{r.customer}</p>
+                                <p className="text-[9px] text-slate-500 truncate">
+                                  {r.quotationRef ? `Quote ${r.quotationRef}` : sourceLabel} · {r.postedAtISO || '—'}
+                                </p>
+                                <p className="mt-1 text-[9px] text-slate-600">
+                                  Account: <span className="font-semibold">{r.accountName || '—'}</span>
+                                </p>
+                              </div>
+                              <div className="flex flex-wrap items-center gap-2 shrink-0">
+                                <span className="text-[10px] font-bold text-slate-600 tabular-nums">
+                                  {formatNgn(r.amountNgn)}
+                                </span>
+                                <label className="inline-flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-[9px] font-bold uppercase tracking-wide text-emerald-900 cursor-pointer">
+                                  <input
+                                    type="checkbox"
+                                    className="h-3.5 w-3.5 accent-emerald-700"
+                                    onChange={(e) => {
+                                      if (!e.target.checked) return;
+                                      setCashierConfirmedReceiptIds((prev) => [...prev, r.rowId]);
+                                    }}
+                                  />
+                                  Cashier confirmed
+                                </label>
+                              </div>
+                            </li>
+                          );
+                        })}
+                      </ul>
                     </>
                   )}
                 </section>
