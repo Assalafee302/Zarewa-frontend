@@ -368,6 +368,7 @@ const CuttingListModal = ({
 
   const canRegisterProduction =
     ws?.hasPermission?.('sales.manage') ||
+    ws?.hasPermission?.('quotations.manage') ||
     ws?.hasPermission?.('production.manage') ||
     ws?.hasPermission?.('operations.manage');
 

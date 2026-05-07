@@ -940,10 +940,11 @@ const Sales = () => {
       if (!id) return;
       const canRegisterProduction =
         ws?.hasPermission?.('sales.manage') ||
+        ws?.hasPermission?.('quotations.manage') ||
         ws?.hasPermission?.('production.manage') ||
         ws?.hasPermission?.('operations.manage');
       if (!canRegisterProduction) {
-        showToast('Ask an admin for sales, operations, or production access to push to queue.', {
+        showToast('Ask an admin for quotation, sales, operations, or production access to push to queue.', {
           variant: 'error',
         });
         return;
