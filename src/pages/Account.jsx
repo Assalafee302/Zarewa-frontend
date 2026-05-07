@@ -397,7 +397,7 @@ const Account = () => {
       .replace(/'/g, '&#39;');
   }, []);
 
-  const printStatementForDateRange = useCallback(() => {
+  const openStatementForDateRange = useCallback((autoPrint = true) => {
     if (!statementAccount) return;
     const fromDate = String(statementPrintFromDate || '').trim();
     const toDate = String(statementPrintToDate || '').trim();
@@ -520,18 +520,21 @@ const Account = () => {
 </body>
 </html>`);
     printWindow.document.close();
-    // Wait for the new document to render before invoking print preview,
-    // otherwise some browsers may open a blank print dialog.
-    const triggerPrint = () => {
-      try {
-        printWindow.focus();
-        printWindow.print();
-      } catch (_) {
-        // Keep the statement tab open so users can still print manually.
-      }
-    };
-    printWindow.onload = triggerPrint;
-    setTimeout(triggerPrint, 350);
+    printWindow.focus();
+    if (autoPrint) {
+      // Wait for the new document to render before invoking print preview,
+      // otherwise some browsers may open a blank print dialog.
+      const triggerPrint = () => {
+        try {
+          printWindow.focus();
+          printWindow.print();
+        } catch (_) {
+          // Keep the statement tab open so users can still print manually.
+        }
+      };
+      printWindow.onload = triggerPrint;
+      setTimeout(triggerPrint, 350);
+    }
     setShowStatementPrintModal(false);
   }, [
     statementAccount,
@@ -3456,7 +3459,14 @@ const Account = () => {
             </div>
             <button
               type="button"
-              onClick={printStatementForDateRange}
+              onClick={() => openStatementForDateRange(false)}
+              className="w-full inline-flex items-center justify-center gap-2 rounded-xl border border-[#134e4a]/20 bg-white px-4 py-3 text-sm font-bold text-[#134e4a] transition-colors hover:bg-[#134e4a]/5"
+            >
+              Open preview
+            </button>
+            <button
+              type="button"
+              onClick={() => openStatementForDateRange(true)}
               className="z-btn-primary w-full justify-center py-3"
             >
               <Printer size={16} />
