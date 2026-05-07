@@ -469,7 +469,7 @@ const Account = () => {
         </tr>`;
       })
       .join('');
-    const printWindow = window.open('', '_blank', 'noopener,noreferrer');
+    const printWindow = window.open('', '_blank');
     if (!printWindow) {
       showToast('Pop-up blocked. Allow pop-ups to print statements.', { type: 'warning' });
       return;
@@ -520,8 +520,18 @@ const Account = () => {
 </body>
 </html>`);
     printWindow.document.close();
-    printWindow.focus();
-    printWindow.print();
+    // Wait for the new document to render before invoking print preview,
+    // otherwise some browsers may open a blank print dialog.
+    const triggerPrint = () => {
+      try {
+        printWindow.focus();
+        printWindow.print();
+      } catch (_) {
+        // Keep the statement tab open so users can still print manually.
+      }
+    };
+    printWindow.onload = triggerPrint;
+    setTimeout(triggerPrint, 350);
     setShowStatementPrintModal(false);
   }, [
     statementAccount,
