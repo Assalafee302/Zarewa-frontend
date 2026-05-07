@@ -1,6 +1,6 @@
 import React, { useLayoutEffect, useRef, useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { MoreVertical, Eye, PencilLine, Receipt as ReceiptIcon, FileText, Trash2 } from 'lucide-react';
+import { MoreVertical, Eye, PencilLine, Receipt as ReceiptIcon, FileText, Trash2, Factory } from 'lucide-react';
 
 const MENU_Z = 5000;
 /** Tailwind `w-44` (11rem) — keep in sync with menu class */
@@ -52,6 +52,7 @@ export function SalesRowMenu({
   editTitle,
   onAddReceipt,
   onReviewAudit,
+  onPush,
   onDelete,
   deleteLabel = 'Delete',
 }) {
@@ -111,6 +112,20 @@ export function SalesRowMenu({
               >
                 <FileText size={14} className="text-slate-400 shrink-0" />
                 Review Audit
+              </button>
+            )}
+            {onPush && (
+              <button
+                type="button"
+                role="menuitem"
+                className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-medium text-[#134e4a] hover:bg-teal-50"
+                onClick={() => {
+                  onPush();
+                  setOpenKey(null);
+                }}
+              >
+                <Factory size={14} className="text-teal-500 shrink-0" />
+                Push
               </button>
             )}
             <button

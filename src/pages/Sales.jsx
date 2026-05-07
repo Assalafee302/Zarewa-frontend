@@ -934,6 +934,55 @@ const Sales = () => {
     [canDeleteSalesRecord, confirmDangerousDelete, showToast, ws]
   );
 
+  const pushCuttingListToProduction = useCallback(
+    async (cuttingList) => {
+      const id = String(cuttingList?.id || '').trim();
+      if (!id) return;
+      const canRegisterProduction =
+        ws?.hasPermission?.('sales.manage') ||
+        ws?.hasPermission?.('production.manage') ||
+        ws?.hasPermission?.('operations.manage');
+      if (!canRegisterProduction) {
+        showToast('Ask an admin for sales, operations, or production access to push to queue.', {
+          variant: 'error',
+        });
+        return;
+      }
+      if (!ws?.canMutate) {
+        showToast('System offline (read-only). Reconnect and refresh before pushing to queue.', {
+          variant: 'error',
+        });
+        return;
+      }
+      if (cuttingList?.productionRegistered) {
+        showToast('This cutting list is already linked to a production job.', { variant: 'error' });
+        return;
+      }
+      if (cuttingList?.productionReleasePending) {
+        showToast('This list is on hold until operations clears the production release.', {
+          variant: 'error',
+        });
+        return;
+      }
+      const { ok, data } = await apiFetch(
+        `/api/cutting-lists/${encodeURIComponent(id)}/register-production`,
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            machineName: String(cuttingList?.machineName || 'Machine 01 (Longspan)'),
+          }),
+        }
+      );
+      if (!ok || !data?.ok) {
+        showToast(data?.error || 'Could not add to production queue.', { variant: 'error' });
+        return;
+      }
+      if (ws?.canMutate) await ws.refresh();
+      showToast('Cutting list added to the production queue.', { variant: 'success' });
+    },
+    [showToast, ws]
+  );
+
   const isAnyModalOpen =
     showQuotationModal ||
     showReceiptModal ||
@@ -1657,6 +1706,11 @@ const Sales = () => {
                                       }}
                                       editDisabled={!canEditCuttingList(c)}
                                       editTitle={cuttingListEditBlockedReason(c) ?? ''}
+                                      onPush={
+                                        !c.productionRegistered && !c.productionEditLocked
+                                          ? () => pushCuttingListToProduction(c)
+                                          : undefined
+                                      }
                                       onDelete={
                                         canDeleteSalesRecord ? () => deleteCuttingList(String(c.id || '').trim()) : undefined
                                       }
