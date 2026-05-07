@@ -59,16 +59,16 @@ export function StandardReportPrintShell({
                 )}
               </div>
               <div className="min-w-0 pt-0.5">
-                <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 print:text-[9pt]">
-                  {documentTypeLabel}
-                </p>
+                <p className="text-[12px] text-slate-600 print:text-[10.5pt]">{legal}</p>
                 <h1 className="mt-1 text-xl font-bold uppercase leading-tight tracking-tight text-slate-900 print:text-[16pt]">
                   {title}
                 </h1>
                 {subtitle ? (
                   <p className="mt-1 text-[12px] font-medium text-slate-700 print:text-[10.5pt]">{subtitle}</p>
                 ) : null}
-                <p className="mt-1 text-[12px] text-slate-600 print:text-[10.5pt]">{legal}</p>
+                <p className="mt-1 text-[10px] font-bold uppercase tracking-widest text-slate-500 print:text-[9pt]">
+                  {documentTypeLabel}
+                </p>
               </div>
             </div>
             {rightColumn ? (

@@ -134,7 +134,7 @@ export function ReportPrintModal({
     .join(' ');
 
   return (
-    <ModalFrame isOpen={isOpen} onClose={onClose}>
+    <ModalFrame isOpen={isOpen} onClose={onClose} showCloseButton={false}>
       <div className="z-modal-panel-lg max-h-[92vh] flex flex-col p-0 overflow-hidden">
         <div className="no-print flex items-center justify-between gap-3 border-b border-slate-100 px-5 py-4 shrink-0 bg-white">
           <div className="min-w-0">
