@@ -19,6 +19,7 @@ import {
   Building2,
   Users,
   Paperclip,
+  RotateCcw,
 } from 'lucide-react';
 
 import { MainPanel, PageHeader, PageShell, PageTabs, ModalFrame } from '../components/layout';
@@ -179,6 +180,13 @@ function poLineSummaryLabel(kind) {
 }
 
 const PILL = 'inline-flex items-center px-2 py-0.5 rounded-md text-[9px] font-semibold uppercase tracking-wide';
+
+const createApPayLine = (defaultAccountId = '', amount = '') => ({
+  id: `ap-pay-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+  treasuryAccountId: String(defaultAccountId),
+  amount: amount === '' ? '' : String(amount),
+  reference: '',
+});
 
 /** Bordered chip — matches Stock / Finance compact lists */
 const statusChipBorder = (st) => {
@@ -374,11 +382,11 @@ const Procurement = () => {
   const [showTransportModal, setShowTransportModal] = useState(false);
   const [showApPayModal, setShowApPayModal] = useState(false);
   const [selectedAp, setSelectedAp] = useState(null);
-  const [apPayForm, setApPayForm] = useState({
-    amountNgn: '',
-    paymentMethod: 'Bank Transfer',
-    debitAccountId: '',
-  });
+  const [apPayForm, setApPayForm] = useState({ paymentMethod: 'Bank Transfer', paymentNote: '' });
+  const [apPayLines, setApPayLines] = useState(() => [createApPayLine('')]);
+  const [apPaidBy, setApPaidBy] = useState('');
+  const [apPayBusy, setApPayBusy] = useState(false);
+
   const [supplierForm, setSupplierForm] = useState(() => ({
     name: '',
     city: '',
@@ -1117,55 +1125,115 @@ const Procurement = () => {
     }
   };
 
+  const apPayTotalNgn = useMemo(
+    () => apPayLines.reduce((sum, line) => sum + (Number(line.amount) || 0), 0),
+    [apPayLines]
+  );
+
+  const updateApPayLine = (lineId, patch) => {
+    setApPayLines((prev) => prev.map((line) => (line.id === lineId ? { ...line, ...patch } : line)));
+  };
+
+  const addApPayLine = () => {
+    setApPayLines((prev) => [...prev, createApPayLine(treasuryAccounts[0]?.id ?? '')]);
+  };
+
+  const removeApPayLine = (lineId) => {
+    setApPayLines((prev) => (prev.length <= 1 ? prev : prev.filter((line) => line.id !== lineId)));
+  };
+
+  const resetApPaymentModal = () => {
+    setShowApPayModal(false);
+    setSelectedAp(null);
+    setApPaidBy('');
+    setApPayLines([createApPayLine(treasuryAccounts[0]?.id ?? '')]);
+    setApPayForm({ paymentMethod: 'Bank Transfer', paymentNote: '' });
+    setApPayBusy(false);
+  };
+
+  const openApPaymentModal = (ap) => {
+    const outstanding = Math.max(0, (Number(ap?.amountNgn) || 0) - (Number(ap?.paidNgn) || 0));
+    setSelectedAp(ap);
+    setApPaidBy('');
+    setApPayLines([createApPayLine(treasuryAccounts[0]?.id ?? '', outstanding)]);
+    setApPayForm({ paymentMethod: 'Bank Transfer', paymentNote: '' });
+    setShowApPayModal(true);
+  };
+
   const saveApPayment = async (e) => {
     e.preventDefault();
-    if (!selectedAp) return;
+    if (!selectedAp || apPayBusy) return;
     const invoiceRef = selectedAp.invoiceRef || selectedAp.poRef || selectedAp.apID;
-    const amount = Number(apPayForm.amountNgn);
-    const debitId = Number(apPayForm.debitAccountId);
-    if (Number.isNaN(amount) || amount <= 0) {
-      showToast('Enter payment amount.', { variant: 'error' });
+    const paidBy = apPaidBy.trim() || currentActorLabel;
+    const remaining = Math.max(0, (Number(selectedAp.amountNgn) || 0) - (Number(selectedAp.paidNgn) || 0));
+    const validLines = apPayLines
+      .map((line) => ({
+        treasuryAccountId: Number(line.treasuryAccountId),
+        amountNgn: Number(line.amount) || 0,
+        reference: String(line.reference || '').trim(),
+      }))
+      .filter((line) => line.treasuryAccountId && line.amountNgn > 0);
+    if (validLines.length === 0) {
+      showToast('Add at least one payout line.', { variant: 'error' });
       return;
     }
-    const remaining = selectedAp.amountNgn - selectedAp.paidNgn;
-    const apply = Math.min(amount, remaining);
-    if (apply <= 0) {
+    if (apPayTotalNgn <= 0) {
+      showToast('Payout total must be positive.', { variant: 'error' });
+      return;
+    }
+    if (remaining <= 0) {
       showToast('This payable is already fully paid on file.', { variant: 'info' });
       return;
     }
-    const acc = treasuryAccounts.find((a) => a.id === debitId);
-    if (!acc || acc.balance < apply) {
-      showToast('Selected account has insufficient balance.', { variant: 'error' });
+    if (apPayTotalNgn > remaining) {
+      showToast('Payout total exceeds outstanding payable balance.', { variant: 'error' });
+      return;
+    }
+    const shortAccount = treasuryAccounts.find((account) => {
+      const applied = validLines
+        .filter((line) => line.treasuryAccountId === account.id)
+        .reduce((sum, line) => sum + line.amountNgn, 0);
+      return applied > account.balance;
+    });
+    if (shortAccount) {
+      showToast(`Insufficient balance in ${shortAccount.name}.`, { variant: 'error' });
       return;
     }
     const method = apPayForm.paymentMethod;
-    const newPaidTotal = selectedAp.paidNgn + apply;
-    const fullySettled = newPaidTotal >= selectedAp.amountNgn;
+    const newPaidTotal = (Number(selectedAp.paidNgn) || 0) + apPayTotalNgn;
+    const fullySettled = newPaidTotal >= (Number(selectedAp.amountNgn) || 0);
     const poRef = selectedAp.poRef?.trim?.() ?? '';
     const shouldAdvancePo = Boolean(
       fullySettled && poRef && purchaseOrders.find((p) => p.poID === poRef)?.status === 'Approved'
     );
     let procurementNote = '';
     if (ws?.canMutate) {
-      const pay = await apiFetch(`/api/accounts-payable/${encodeURIComponent(selectedAp.apID)}/pay`, {
-        method: 'POST',
-        body: JSON.stringify({
-          amountNgn: apply,
-          paymentMethod: method,
-          treasuryAccountId: debitId,
-          reference: invoiceRef,
-          createdBy: currentActorLabel,
-        }),
-      });
-      if (!pay.ok || !pay.data?.ok) {
-        showToast(pay.data?.error || 'Could not record supplier payment.', { variant: 'error' });
-        return;
+      setApPayBusy(true);
+      for (const line of validLines) {
+        const pay = await apiFetch(`/api/accounts-payable/${encodeURIComponent(selectedAp.apID)}/pay`, {
+          method: 'POST',
+          body: JSON.stringify({
+            amountNgn: line.amountNgn,
+            paymentMethod: method,
+            treasuryAccountId: line.treasuryAccountId,
+            reference: line.reference || invoiceRef,
+            note: apPayForm.paymentNote.trim(),
+            paidBy,
+            createdBy: paidBy,
+          }),
+        });
+        if (!pay.ok || !pay.data?.ok) {
+          showToast(pay.data?.error || 'Could not record supplier payment.', { variant: 'error' });
+          setApPayBusy(false);
+          return;
+        }
       }
       if (shouldAdvancePo) {
         const st = await setPurchaseOrderStatus(poRef, 'In Transit');
         if (st.ok) procurementNote = ` ${poRef} → In Transit (await GRN in Operations).`;
       }
       await ws.refresh?.();
+      setApPayBusy(false);
     } else {
       showToast(
         ws?.usingCachedData
@@ -1175,14 +1243,8 @@ const Procurement = () => {
       );
       return;
     }
-    setShowApPayModal(false);
-    setSelectedAp(null);
-    setApPayForm({
-      amountNgn: '',
-      paymentMethod: 'Bank Transfer',
-      debitAccountId: String(treasuryAccounts[0]?.id ?? ''),
-    });
-    showToast(`${formatNgn(apply)} recorded against ${invoiceRef} (${method}).${procurementNote}`);
+    resetApPaymentModal();
+    showToast(`${formatNgn(apPayTotalNgn)} recorded against ${invoiceRef} (${method}).${procurementNote}`);
   };
 
   const isAnyModalOpen =
@@ -1476,13 +1538,7 @@ const Procurement = () => {
                                 setPreviewPo(null);
                               }}
                               onOpenPay={() => {
-                                setSelectedAp(p);
-                                setApPayForm({
-                                  amountNgn: String(p.amountNgn - (Number(p.paidNgn) || 0)),
-                                  paymentMethod: 'Bank Transfer',
-                                  debitAccountId: String(treasuryAccounts[0]?.id ?? ''),
-                                });
-                                setShowApPayModal(true);
+                                openApPaymentModal(p);
                               }}
                             />
                           ))}
@@ -1564,13 +1620,7 @@ const Procurement = () => {
                                 setPreviewPo(null);
                               }}
                               onOpenPay={() => {
-                                setSelectedAp(p);
-                                setApPayForm({
-                                  amountNgn: String(p.amountNgn - (Number(p.paidNgn) || 0)),
-                                  paymentMethod: 'Bank Transfer',
-                                  debitAccountId: String(treasuryAccounts[0]?.id ?? ''),
-                                });
-                                setShowApPayModal(true);
+                                openApPaymentModal(p);
                               }}
                             />
                           ))}
@@ -2383,20 +2433,17 @@ const Procurement = () => {
 
       <ModalFrame
         isOpen={showApPayModal}
-        onClose={() => {
-          setShowApPayModal(false);
-          setSelectedAp(null);
-        }}
+        onClose={resetApPaymentModal}
       >
-        <div className="z-modal-panel max-w-md p-8 overflow-y-auto">
+        <div className="z-modal-panel max-w-lg p-8 overflow-y-auto">
           <div className="flex justify-between items-center mb-6">
-            <h3 className="text-xl font-bold text-[#134e4a]">Supplier payment</h3>
+            <h3 className="text-xl font-bold text-[#134e4a] flex items-center gap-2">
+              <RotateCcw size={22} className="text-rose-600" />
+              Supplier payment
+            </h3>
             <button
               type="button"
-              onClick={() => {
-                setShowApPayModal(false);
-                setSelectedAp(null);
-              }}
+              onClick={resetApPaymentModal}
               className="p-2 text-gray-400 hover:text-red-500 rounded-xl"
               aria-label="Close"
             >
@@ -2405,64 +2452,147 @@ const Procurement = () => {
           </div>
           {selectedAp ? (
             <form className="space-y-4" onSubmit={saveApPayment}>
-              <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200 text-sm">
-                <p className="font-bold text-[#134e4a]">{selectedAp.supplierName}</p>
-                <p className="text-[10px] text-slate-500 mt-1">
+              <div className="bg-rose-50/80 rounded-2xl p-4 border border-rose-100 text-sm space-y-1">
+                <p className="font-mono font-bold text-[#134e4a]">{selectedAp.apID}</p>
+                <p className="font-bold text-gray-800">{selectedAp.supplierName}</p>
+                <p className="text-xs text-gray-600">
                   {selectedAp.invoiceRef ? `${selectedAp.invoiceRef} · ` : ''}PO {selectedAp.poRef || '—'}
                 </p>
-                <p className="text-xs mt-2">
-                  Outstanding:{' '}
-                  <span className="font-black">
-                    {formatNgn(selectedAp.amountNgn - selectedAp.paidNgn)}
-                  </span>
-                </p>
+                <div className="grid grid-cols-3 gap-3 pt-2 text-[10px] text-gray-600 tabular-nums">
+                  <div>
+                    <p className="uppercase text-gray-400">Invoice</p>
+                    <p className="text-sm font-black text-[#134e4a]">{formatNgn(Number(selectedAp.amountNgn) || 0)}</p>
+                  </div>
+                  <div>
+                    <p className="uppercase text-gray-400">Paid</p>
+                    <p className="text-sm font-black text-[#134e4a]">{formatNgn(Number(selectedAp.paidNgn) || 0)}</p>
+                  </div>
+                  <div>
+                    <p className="uppercase text-gray-400">Balance</p>
+                    <p className="text-sm font-black text-rose-700">
+                      {formatNgn(Math.max(0, (Number(selectedAp.amountNgn) || 0) - (Number(selectedAp.paidNgn) || 0)))}
+                    </p>
+                  </div>
+                </div>
               </div>
               <div>
-                <label className="text-[10px] font-bold text-slate-400 uppercase ml-1 block mb-1">
-                  Amount to pay (₦)
+                <label className="text-[10px] font-bold text-gray-400 uppercase ml-1 block mb-1">
+                  Paid by (Finance user)
                 </label>
                 <input
-                  required
-                  type="number"
-                  min="1"
-                  value={apPayForm.amountNgn}
-                  onChange={(e) => setApPayForm((f) => ({ ...f, amountNgn: e.target.value }))}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 text-sm font-bold outline-none"
+                  value={apPaidBy}
+                  onChange={(e) => setApPaidBy(e.target.value)}
+                  placeholder="e.g. Hauwa — GTBank transfer"
+                  className="w-full bg-gray-50 border border-gray-100 rounded-xl py-3 px-4 text-sm font-bold outline-none"
                 />
               </div>
+              <div className="flex items-center justify-between">
+                <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">Payout breakdown</label>
+                <button
+                  type="button"
+                  onClick={addApPayLine}
+                  className="inline-flex items-center gap-1 rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-[10px] font-black uppercase tracking-wide text-rose-800"
+                >
+                  <Plus size={14} /> Add line
+                </button>
+              </div>
+              <div className="space-y-1.5">
+                {apPayLines.map((line) => (
+                  <div
+                    key={line.id}
+                    className="rounded-lg border border-slate-200/60 bg-white/40 backdrop-blur-md py-2 px-2.5 shadow-sm flex flex-col gap-2"
+                  >
+                    <select
+                      value={line.treasuryAccountId}
+                      onChange={(e) => updateApPayLine(line.id, { treasuryAccountId: e.target.value })}
+                      className="w-full rounded-lg border border-slate-200 bg-white py-2 px-2 text-[11px] font-semibold"
+                    >
+                      <option value="">Select account…</option>
+                      {treasuryAccounts.map((a) => (
+                        <option key={a.id} value={String(a.id)}>
+                          {a.name} ({formatNgn(a.balance)})
+                        </option>
+                      ))}
+                    </select>
+                    <div className="grid grid-cols-1 sm:grid-cols-12 gap-2 items-center">
+                      <input
+                        type="number"
+                        min="0"
+                        step="1"
+                        value={line.amount}
+                        onChange={(e) => updateApPayLine(line.id, { amount: e.target.value })}
+                        className="sm:col-span-5 rounded-lg border border-slate-200 bg-white py-2 px-2 text-[11px] font-bold text-[#134e4a]"
+                        placeholder="Amount ₦"
+                      />
+                      <input
+                        type="text"
+                        value={line.reference}
+                        onChange={(e) => updateApPayLine(line.id, { reference: e.target.value })}
+                        className="sm:col-span-5 rounded-lg border border-slate-200 bg-white py-2 px-2 text-[11px]"
+                        placeholder="Reference"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removeApPayLine(line.id)}
+                        className="sm:col-span-2 inline-flex h-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-400 hover:text-rose-500"
+                        title="Remove line"
+                      >
+                        <X size={16} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
               <div>
-                <label className="text-[10px] font-bold text-slate-400 uppercase ml-1 block mb-1">
+                <label className="text-[10px] font-bold text-gray-400 uppercase ml-1 block mb-1">
                   Payment method
                 </label>
                 <select
                   value={apPayForm.paymentMethod}
                   onChange={(e) => setApPayForm((f) => ({ ...f, paymentMethod: e.target.value }))}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 text-sm font-bold outline-none"
+                  className="w-full bg-gray-50 border border-gray-100 rounded-xl py-3 px-4 text-sm font-bold outline-none"
                 >
                   <option value="Bank Transfer">Bank Transfer</option>
                   <option value="Cash">Cash</option>
                   <option value="POS">POS</option>
                 </select>
+                <p className="text-[10px] text-gray-500 mt-1">
+                  Selected method applies to all payout lines in this post (works for coil, stone-coated, and accessory PO payables).
+                </p>
               </div>
               <div>
-                <label className="text-[10px] font-bold text-slate-400 uppercase ml-1 block mb-1">
-                  Pay from account
+                <label className="text-[10px] font-bold text-gray-400 uppercase ml-1 block mb-1">
+                  Payment note
                 </label>
-                <select
-                  required
-                  value={apPayForm.debitAccountId}
-                  onChange={(e) => setApPayForm((f) => ({ ...f, debitAccountId: e.target.value }))}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 text-sm font-bold outline-none"
-                >
-                  {treasuryAccounts.map((a) => (
-                    <option key={a.id} value={a.id}>
-                      {a.name} ({formatNgn(a.balance)})
-                    </option>
-                  ))}
-                </select>
+                <input
+                  value={apPayForm.paymentNote}
+                  onChange={(e) => setApPayForm((f) => ({ ...f, paymentNote: e.target.value }))}
+                  placeholder="Example: cash 150,000 and transfer 250,000"
+                  className="w-full bg-gray-50 border border-gray-100 rounded-xl py-3 px-4 text-sm outline-none"
+                />
               </div>
-              <button type="submit" className="z-btn-primary w-full justify-center py-3">
-                Record payment
+              <div className="rounded-lg border border-slate-200/60 bg-white/40 backdrop-blur-md px-3 py-3 shadow-sm">
+                <div className="flex items-center justify-between gap-4 text-sm">
+                  <span className="font-bold text-gray-500 uppercase text-[10px] tracking-wide">This payout</span>
+                  <span className="font-black text-[#134e4a]">{formatNgn(apPayTotalNgn)}</span>
+                </div>
+                <div className="mt-2 flex items-center justify-between gap-4 text-sm">
+                  <span className="font-bold text-gray-500 uppercase text-[10px] tracking-wide">Remaining after post</span>
+                  <span className="font-black text-gray-700">
+                    {formatNgn(
+                      Math.max(
+                        0,
+                        Math.max(0, (Number(selectedAp.amountNgn) || 0) - (Number(selectedAp.paidNgn) || 0)) - apPayTotalNgn
+                      )
+                    )}
+                  </span>
+                </div>
+              </div>
+              <p className="text-[10px] text-gray-500 leading-relaxed">
+                Saving this payout writes treasury movements and keeps the payable open until the invoice balance is fully paid.
+              </p>
+              <button type="submit" disabled={apPayBusy} className="z-btn-primary w-full justify-center py-3 disabled:opacity-70 disabled:cursor-not-allowed">
+                {apPayBusy ? 'Posting...' : 'Post supplier payment'}
               </button>
             </form>
           ) : null}
@@ -3089,13 +3219,7 @@ const Procurement = () => {
         onPay={(ap) => {
           setPreviewPo(null);
           setPreviewAp(null);
-          setSelectedAp(ap);
-          setApPayForm({
-            amountNgn: String(ap.amountNgn - (Number(ap.paidNgn) || 0)),
-            paymentMethod: 'Bank Transfer',
-            debitAccountId: String(treasuryAccounts[0]?.id ?? ''),
-          });
-          setShowApPayModal(true);
+          openApPaymentModal(ap);
         }}
       />
     </PageShell>
@@ -3188,3 +3312,4 @@ function ProcurementPayableRow({
 }
 
 export default Procurement;
+
