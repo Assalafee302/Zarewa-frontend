@@ -139,14 +139,38 @@ function paidExpensesInRange(expenses = [], paymentRequests = [], startDate, end
 }
 
 function buildPaidExpensePrintRows(expenses = [], paymentRequests = [], startDate, endDate) {
+  const formatExpenseDateShort = (value) => {
+    const iso = String(value || '').slice(0, 10);
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
+    if (!m) return String(value || '—');
+    const [, yy, mm, dd] = m;
+    return `${dd}/${mm}/${yy.slice(-2)}`;
+  };
+  const compactExpenseId = (value) => {
+    const raw = String(value || '').trim();
+    if (!raw) return '—';
+    const m = /(\d+)$/.exec(raw);
+    return m ? m[1] : raw;
+  };
+  const expenseDescription = (expense) => {
+    const options = [
+      expense?.description,
+      expense?.note,
+      expense?.reason,
+      expense?.expenseType,
+      expense?.category,
+    ];
+    const first = options.find((v) => String(v || '').trim());
+    return first ? String(first).trim() : '—';
+  };
   const rows = paidExpensesInRange(expenses, paymentRequests, startDate, endDate)
     .map((e) => ({
-      expenseID: e.expenseID,
-      date: e.date,
+      expenseID: compactExpenseId(e.expenseID),
+      date: formatExpenseDateShort(e.date),
       category: e.category || 'Uncategorized',
-      type: e.expenseType || '—',
-      amount: formatNgn(e.amountNgn),
-      paidAmount: formatNgn(e.paidAmountNgn),
+      type: expenseDescription(e),
+      amount: (Number(e.amountNgn) || 0).toLocaleString('en-NG'),
+      paidAmount: (Number(e.paidAmountNgn) || 0).toLocaleString('en-NG'),
       remainingAmount: formatNgn(e.remainingAmountNgn),
       _paidAmountNgn: Number(e.paidAmountNgn) || 0,
       _remainingAmountNgn: Number(e.remainingAmountNgn) || 0,
@@ -724,8 +748,8 @@ const Reports = () => {
             subtotalKey: '_paidAmountNgn',
             subtotalColumnKey: 'paidAmount',
             groupLabel: 'Category',
-            subtotalLabel: 'Category subtotal (paid)',
-            totalLabel: 'Overall total (paid)',
+            subtotalLabel: 'Subtotal',
+            totalLabel: 'Total',
           },
           summaryLines: [
             { label: 'Print shows paid and part-paid expenses', value: String(exRows.length) },
