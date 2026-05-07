@@ -33,6 +33,7 @@ import { formatNgn } from '../Data/mockData';
 import { receiptCashReceivedNgn } from '../lib/salesReceiptsList';
 import { effectiveManagerTargetsPerMonth, mergeDashboardPrefs } from '../lib/dashboardPrefs';
 import { userCanApproveEditMutationsClient } from '../lib/editApprovalUi';
+import { EXPENSE_CATEGORY_OPTIONS } from '../shared/expenseCategories';
 import {
   canSeeExecutiveInventoryEditShortcut,
   canSeeExecutiveProductionEditShortcut,
@@ -87,6 +88,17 @@ const ManagerDashboard = () => {
   const [editApprovalPending, setEditApprovalPending] = useState([]);
   const [conversionSignoffRemark, setConversionSignoffRemark] = useState('');
   const [conversionSignoffEditApprovalId, setConversionSignoffEditApprovalId] = useState('');
+  const [showExpenseCorrectionModal, setShowExpenseCorrectionModal] = useState(false);
+  const [savingExpenseCorrection, setSavingExpenseCorrection] = useState(false);
+  const [expenseCorrectionForm, setExpenseCorrectionForm] = useState({
+    expenseType: 'Operational — correction entry',
+    amountNgn: '',
+    date: '',
+    category: '',
+    paymentMethod: 'Bank Transfer',
+    debitAccountId: '',
+    reference: '',
+  });
   /** @type {['month' | '4months' | 'half' | 'year', Function]} */
   const [metricPeriod, setMetricPeriod] = useState('month');
 
@@ -151,28 +163,30 @@ const ManagerDashboard = () => {
   const openUnifiedWorkItem = useCallback(
     (item) => {
       if (selectedIntel?.kind === 'payment') {
-        const approvalStatus = String(selectedIntel?.row?.approval_status || '').trim().toLowerCase();
-        if (approvalStatus === 'rejected') {
-          navigate('/accounts', {
-            state: {
-              accountsTab: 'disbursements',
-              openExpenseCorrection: {
-                requestId: String(selectedIntel.requestId || ''),
-                expenseId: String(selectedIntel?.row?.expense_id || selectedIntel?.row?.expenseID || ''),
-                expenseCategory: String(selectedIntel?.row?.expense_category || ''),
-                requestReference: String(selectedIntel?.row?.request_reference || ''),
-                amountRequestedNgn: Number(selectedIntel?.row?.amount_requested_ngn) || 0,
-                requestDate: String(selectedIntel?.row?.request_date || ''),
-              },
-            },
-          });
-          return;
-        }
+        const treasuryAccounts =
+          ws?.hasWorkspaceData && Array.isArray(ws?.snapshot?.treasuryAccounts)
+            ? ws.snapshot.treasuryAccounts
+            : [];
+        const amountNgn = Number(selectedIntel?.row?.amount_requested_ngn) || 0;
+        const requestDate = String(selectedIntel?.row?.request_date || '').slice(0, 10);
+        setExpenseCorrectionForm({
+          expenseType: 'Operational — correction entry',
+          amountNgn: amountNgn > 0 ? String(amountNgn) : '',
+          date: requestDate || new Date().toISOString().slice(0, 10),
+          category: String(selectedIntel?.row?.expense_category || '').trim(),
+          paymentMethod: 'Bank Transfer',
+          debitAccountId: String(treasuryAccounts[0]?.id ?? ''),
+          reference: String(
+            selectedIntel?.row?.request_reference || selectedIntel.requestId || 'Correction entry'
+          ).trim(),
+        });
+        setShowExpenseCorrectionModal(true);
+        return;
       }
       if (!item?.routePath) return;
       navigate(item.routePath, item.routeState ? { state: item.routeState } : undefined);
     },
-    [navigate, selectedIntel]
+    [navigate, selectedIntel, ws?.hasWorkspaceData, ws?.snapshot?.treasuryAccounts]
   );
   const selectedUnifiedWorkItem = useMemo(() => {
     if (!selectedIntel) return null;
@@ -216,7 +230,7 @@ const ManagerDashboard = () => {
               <p className="text-[10px] text-teal-100/85 mt-2 line-clamp-2">{item.keyDecisionSummary}</p>
             ) : null}
           </div>
-          {item.routePath ? (
+          {item.routePath || selectedIntel?.kind === 'payment' ? (
             <button
               type="button"
               onClick={() => openUnifiedWorkItem(item)}
@@ -235,6 +249,47 @@ const ManagerDashboard = () => {
     if (!Array.isArray(raw)) return { lines: [], total: 0 };
     return { lines: raw.slice(0, 20), total: raw.length };
   }, [selectedIntel?.row?.line_items]);
+  const treasuryAccounts = useMemo(
+    () => (ws?.hasWorkspaceData && Array.isArray(ws?.snapshot?.treasuryAccounts) ? ws.snapshot.treasuryAccounts : []),
+    [ws?.hasWorkspaceData, ws?.snapshot?.treasuryAccounts]
+  );
+  const saveExpenseCorrection = async (e) => {
+    e.preventDefault();
+    if (savingExpenseCorrection) return;
+    const amount = Number(expenseCorrectionForm.amountNgn);
+    if (!expenseCorrectionForm.category.trim() || Number.isNaN(amount) || amount <= 0) {
+      showToast('Category and amount are required for correction entry.', { variant: 'error' });
+      return;
+    }
+    if (!ws?.canMutate) {
+      showToast('Connect to the API to record correction entries.', { variant: 'info' });
+      return;
+    }
+    setSavingExpenseCorrection(true);
+    try {
+      const debitId = Number(expenseCorrectionForm.debitAccountId);
+      const payload = {
+        expenseType: expenseCorrectionForm.expenseType,
+        amountNgn: amount,
+        date: expenseCorrectionForm.date || new Date().toISOString().slice(0, 10),
+        category: expenseCorrectionForm.category.trim(),
+        paymentMethod: expenseCorrectionForm.paymentMethod,
+        reference: expenseCorrectionForm.reference.trim() || 'Correction entry',
+        createdBy: ws?.session?.user?.displayName || 'Manager',
+        ...(debitId ? { treasuryAccountId: debitId } : {}),
+      };
+      const { ok, data } = await apiFetch('/api/expenses', { method: 'POST', body: JSON.stringify(payload) });
+      if (!ok || !data?.ok) {
+        showToast(data?.error || 'Could not save correction entry.', { variant: 'error' });
+        return;
+      }
+      await ws.refresh();
+      showToast('Correction expense entry saved.');
+      setShowExpenseCorrectionModal(false);
+    } finally {
+      setSavingExpenseCorrection(false);
+    }
+  };
 
   const { products: invProducts } = useInventory();
   const liveLowStockCount = useMemo(
@@ -1745,6 +1800,113 @@ const ManagerDashboard = () => {
           </div>
         </ModalFrame>
       </div>
+
+      <ModalFrame isOpen={showExpenseCorrectionModal} onClose={() => setShowExpenseCorrectionModal(false)}>
+        <div className="z-modal-panel max-w-xl p-6 sm:p-8 overflow-y-auto">
+          <div className="flex items-center justify-between gap-3 mb-5">
+            <h3 className="text-lg font-black text-[#134e4a]">Expense correction</h3>
+            <button
+              type="button"
+              onClick={() => setShowExpenseCorrectionModal(false)}
+              className="text-[11px] font-bold uppercase tracking-wide text-slate-500 hover:text-slate-800"
+            >
+              Close
+            </button>
+          </div>
+          <form className="space-y-3" onSubmit={saveExpenseCorrection}>
+            <div>
+              <label className="text-[10px] font-bold text-gray-500 uppercase ml-1 block mb-1">Expense type</label>
+              <input
+                value={expenseCorrectionForm.expenseType}
+                onChange={(e) => setExpenseCorrectionForm((f) => ({ ...f, expenseType: e.target.value }))}
+                className="w-full bg-gray-50 border border-gray-100 rounded-xl py-2.5 px-3 text-sm font-semibold outline-none"
+              />
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="text-[10px] font-bold text-gray-500 uppercase ml-1 block mb-1">Amount (NGN)</label>
+                <input
+                  required
+                  type="number"
+                  min="1"
+                  value={expenseCorrectionForm.amountNgn}
+                  onChange={(e) => setExpenseCorrectionForm((f) => ({ ...f, amountNgn: e.target.value }))}
+                  className="w-full bg-gray-50 border border-gray-100 rounded-xl py-2.5 px-3 text-sm font-semibold outline-none"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] font-bold text-gray-500 uppercase ml-1 block mb-1">Date</label>
+                <input
+                  type="date"
+                  value={expenseCorrectionForm.date}
+                  onChange={(e) => setExpenseCorrectionForm((f) => ({ ...f, date: e.target.value }))}
+                  className="w-full bg-gray-50 border border-gray-100 rounded-xl py-2.5 px-3 text-sm font-semibold outline-none"
+                />
+              </div>
+            </div>
+            <div>
+              <label className="text-[10px] font-bold text-gray-500 uppercase ml-1 block mb-1">Category</label>
+              <select
+                required
+                value={expenseCorrectionForm.category}
+                onChange={(e) => setExpenseCorrectionForm((f) => ({ ...f, category: e.target.value }))}
+                className="w-full bg-gray-50 border border-gray-100 rounded-xl py-2.5 px-3 text-sm font-semibold outline-none"
+              >
+                <option value="">Select category...</option>
+                {EXPENSE_CATEGORY_OPTIONS.map((name) => (
+                  <option key={name} value={name}>
+                    {name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="text-[10px] font-bold text-gray-500 uppercase ml-1 block mb-1">Payment method</label>
+                <select
+                  value={expenseCorrectionForm.paymentMethod}
+                  onChange={(e) => setExpenseCorrectionForm((f) => ({ ...f, paymentMethod: e.target.value }))}
+                  className="w-full bg-gray-50 border border-gray-100 rounded-xl py-2.5 px-3 text-sm font-semibold outline-none"
+                >
+                  <option value="Bank Transfer">Bank Transfer</option>
+                  <option value="Cash">Cash</option>
+                  <option value="POS">POS</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-[10px] font-bold text-gray-500 uppercase ml-1 block mb-1">Pay from account</label>
+                <select
+                  value={expenseCorrectionForm.debitAccountId}
+                  onChange={(e) => setExpenseCorrectionForm((f) => ({ ...f, debitAccountId: e.target.value }))}
+                  className="w-full bg-gray-50 border border-gray-100 rounded-xl py-2.5 px-3 text-sm font-semibold outline-none"
+                >
+                  <option value="">No account (entry only)</option>
+                  {treasuryAccounts.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.name} ({formatNgn(a.balance)})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div>
+              <label className="text-[10px] font-bold text-gray-500 uppercase ml-1 block mb-1">Reference</label>
+              <input
+                value={expenseCorrectionForm.reference}
+                onChange={(e) => setExpenseCorrectionForm((f) => ({ ...f, reference: e.target.value }))}
+                className="w-full bg-gray-50 border border-gray-100 rounded-xl py-2.5 px-3 text-sm font-semibold outline-none"
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={savingExpenseCorrection}
+              className="z-btn-primary w-full justify-center py-3 disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              {savingExpenseCorrection ? 'Saving correction...' : 'Save correction entry'}
+            </button>
+          </form>
+        </div>
+      </ModalFrame>
 
     </PageShell>
   );
