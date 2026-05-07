@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import * as XLSX from 'xlsx';
-import { ChevronDown, Factory, FileSpreadsheet, Landmark, Printer, Receipt, Scale, Table2 } from 'lucide-react';
+import { Factory, FileSpreadsheet, Landmark, Printer, Receipt, Scale, Table2 } from 'lucide-react';
 import { PageHeader, PageShell, MainPanel } from '../components/layout';
 import { ReportPrintModal } from '../components/reports/ReportPrintModal';
 import { formatNgn } from '../Data/mockData';
@@ -1422,30 +1422,43 @@ const Reports = () => {
                 title: 'Sales workbook (Excel)',
                 desc: 'Production revenue, receipts register, AR as-at and bridge checks.',
                 run: () => downloadStandardSalesWorkbook(apiFetch, startDate, endDate, showToast),
+                printTarget: PACK_SALES_CUSTOMER,
               },
               {
                 id: 'std-finance',
                 title: 'Expenses & refunds (Excel)',
                 desc: 'Expenses period lines and approved refund trail in one workbook.',
                 run: () => downloadStandardFinanceWorkbook(apiFetch, startDate, endDate, showToast),
+                printTarget: PACK_PERIOD_COSTS_INVENTORY,
               },
               {
                 id: 'std-purchases',
                 title: 'Purchases 3 cuts (Excel)',
                 desc: 'Ordered, received and paid purchase views grouped for audit checks.',
                 run: () => downloadStandardPurchasesWorkbook(apiFetch, startDate, endDate, showToast),
+                printTarget: PACK_OPS_PROCUREMENT,
               },
               {
                 id: 'std-stock',
                 title: 'Stock as-at end date (Excel)',
                 desc: 'Inventory position snapshot using the selected end date.',
                 run: () => downloadStandardStockWorkbook(apiFetch, endDate, showToast),
+                printTarget: PACK_OPS_PROCUREMENT,
               },
             ].map((report) => (
               <div key={report.id} className="z-soft-panel p-6 sm:p-7 transition-all hover:border-teal-100/80">
                 <h4 className="text-lg font-black text-[#134e4a] tracking-tight">{report.title}</h4>
                 <p className="text-sm font-medium text-slate-600 mt-1.5 leading-relaxed">{report.desc}</p>
-                <div className="z-form-actions !mt-5 !pt-0 !border-0">
+                <div className="z-form-actions !mt-5 !pt-0 !border-0 flex-wrap">
+                  <button
+                    type="button"
+                    onClick={() => openPrintSheet(report.printTarget)}
+                    className="z-btn-secondary min-w-0 flex-1 justify-center sm:min-w-[10rem]"
+                    title={`A4 print preview — ${report.title}`}
+                  >
+                    <Printer size={16} />
+                    Print sheet
+                  </button>
                   <button type="button" onClick={report.run} className="z-btn-primary min-w-0">
                     <FileSpreadsheet size={14} />
                     Excel
@@ -1540,71 +1553,59 @@ const Reports = () => {
             </section>
           ))}
 
-          <details className="group mt-12 rounded-2xl border border-slate-200/90 bg-slate-50/40 overflow-hidden open:bg-white open:shadow-sm open:border-slate-200">
-            <summary className="cursor-pointer list-none flex items-center justify-between gap-3 px-5 py-4 sm:px-6 font-black text-[#134e4a] text-sm sm:text-base hover:bg-slate-100/60 transition-colors [&::-webkit-details-marker]:hidden">
-              <span className="flex items-center gap-2 min-w-0">
-                <span className="truncate">More operational exports</span>
-                <span className="text-xs font-semibold text-slate-500 shrink-0 hidden sm:inline">
-                  Sales &amp; customer · Operations &amp; procurement
-                </span>
-              </span>
-              <ChevronDown
-                className="shrink-0 text-slate-500 transition-transform duration-200 group-open:rotate-180"
-                size={22}
-                strokeWidth={2}
-              />
-            </summary>
-            <div className="px-5 pb-6 sm:px-6 pt-0 border-t border-slate-100 bg-white/80">
-              <p className="text-sm text-slate-600 py-4 leading-relaxed">
+          <section className="mt-12 space-y-4">
+            <header className="max-w-3xl">
+              <h4 className="text-lg font-black text-[#134e4a] tracking-tight">More operational exports</h4>
+              <p className="text-sm font-medium text-slate-600 mt-1.5 leading-relaxed">
                 Day-to-day operations and supporting registers. Same date range as above unless the report notes
                 otherwise.
               </p>
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {MORE_OPERATIONAL_REPORTS.map((r) => {
-                  const Icon = r.icon;
-                  return (
-                    <div
-                      key={r.id}
-                      className="z-soft-panel p-6 sm:p-7 transition-all hover:border-teal-100/80 bg-white"
-                    >
-                      <div className="flex items-start gap-4 mb-5">
-                        <div className="p-3 rounded-2xl bg-white text-[#134e4a] border border-slate-100 shadow-sm shrink-0">
-                          <Icon size={22} strokeWidth={2} />
-                        </div>
-                        <div className="min-w-0">
-                          <h3 className="text-lg font-black text-[#134e4a] tracking-tight">{r.title}</h3>
-                          <p className="text-sm font-medium text-slate-600 mt-1.5 leading-relaxed">{r.desc}</p>
-                        </div>
+            </header>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {MORE_OPERATIONAL_REPORTS.map((r) => {
+                const Icon = r.icon;
+                return (
+                  <div
+                    key={r.id}
+                    className="z-soft-panel p-6 sm:p-7 transition-all hover:border-teal-100/80 bg-white"
+                  >
+                    <div className="flex items-start gap-4 mb-5">
+                      <div className="p-3 rounded-2xl bg-white text-[#134e4a] border border-slate-100 shadow-sm shrink-0">
+                        <Icon size={22} strokeWidth={2} />
                       </div>
-                      <div className="z-form-actions !mt-0 !pt-0 !border-0 flex-wrap">
-                        <button
-                          type="button"
-                          onClick={() => openPrintSheet(r.title)}
-                          className="z-btn-secondary min-w-0 flex-1 justify-center sm:min-w-[10rem]"
-                          title={`A4 print preview — ${r.title}`}
-                        >
-                          <Printer size={16} />
-                          Print sheet
-                        </button>
-                        {r.formats.map((fmt) => (
-                          <button
-                            key={fmt}
-                            type="button"
-                            onClick={() => downloadReport(r.title, fmt)}
-                            className="z-btn-primary min-w-0 flex-1 justify-center sm:min-w-[9rem]"
-                            title={`Generate ${fmt} for ${r.title}`}
-                          >
-                            <FileSpreadsheet size={14} />
-                            {fmt}
-                          </button>
-                        ))}
+                      <div className="min-w-0">
+                        <h3 className="text-lg font-black text-[#134e4a] tracking-tight">{r.title}</h3>
+                        <p className="text-sm font-medium text-slate-600 mt-1.5 leading-relaxed">{r.desc}</p>
                       </div>
                     </div>
-                  );
-                })}
-              </div>
+                    <div className="z-form-actions !mt-0 !pt-0 !border-0 flex-wrap">
+                      <button
+                        type="button"
+                        onClick={() => openPrintSheet(r.title)}
+                        className="z-btn-secondary min-w-0 flex-1 justify-center sm:min-w-[10rem]"
+                        title={`A4 print preview — ${r.title}`}
+                      >
+                        <Printer size={16} />
+                        Print sheet
+                      </button>
+                      {r.formats.map((fmt) => (
+                        <button
+                          key={fmt}
+                          type="button"
+                          onClick={() => downloadReport(r.title, fmt)}
+                          className="z-btn-primary min-w-0 flex-1 justify-center sm:min-w-[9rem]"
+                          title={`Generate ${fmt} for ${r.title}`}
+                        >
+                          <FileSpreadsheet size={14} />
+                          {fmt}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-          </details>
+          </section>
         </div>
         </>
         )}
