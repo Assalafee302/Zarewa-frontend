@@ -1545,6 +1545,37 @@ const Account = () => {
     showToast('Treasury account removed.');
   };
 
+  const deleteStatementLinkedReceipt = useCallback(
+    async (receiptId) => {
+      const rid = String(receiptId || '').trim();
+      if (!rid) return;
+      if (!canExecTreasuryDelete) {
+        showToast('Only Admin, MD, or CEO can delete receipts from statement.', { variant: 'error' });
+        return;
+      }
+      if (!ws?.canMutate) {
+        showToast(
+          ws?.usingCachedData
+            ? 'Reconnect to delete receipts - workspace is read-only.'
+            : 'Connect to the API to delete receipts.',
+          { variant: 'info' }
+        );
+        return;
+      }
+      if (!window.confirm(`Delete receipt ${rid}? This action is permanent and for admin cleanup only.`)) return;
+      const { ok, data } = await apiFetch(`/api/receipts/${encodeURIComponent(rid)}`, {
+        method: 'DELETE',
+      });
+      if (!ok || !data?.ok) {
+        showToast(data?.error || 'Could not delete receipt.', { variant: 'error' });
+        return;
+      }
+      await ws.refresh();
+      showToast(`Deleted receipt ${rid}.`);
+    },
+    [canExecTreasuryDelete, showToast, ws]
+  );
+
   const saveBankAccount = async (e) => {
     e.preventDefault();
     const bal = Number(newBank.balance || 0);
@@ -3503,55 +3534,69 @@ const Account = () => {
                         Boolean(linkedReceipt?.id) &&
                         (String(m.sourceKind || '').trim() === 'LEDGER_RECEIPT' ||
                           String(m.type || '').trim() === 'RECEIPT_IN');
+                      const canDeleteReceiptFromStatement = canExecTreasuryDelete && canOpenReceipt;
                       return (
                         <li
                           key={m.id}
                           className="rounded-lg border border-slate-200/60 bg-white/50 py-1.5 px-2.5 shadow-sm"
                         >
-                          <button
-                            type="button"
-                            disabled={!canOpenReceipt}
-                            onClick={() => {
-                              if (!canOpenReceipt || !linkedReceipt?.id) return;
-                              setStatementAccount(null);
-                              navigate('/sales', {
-                                state: {
-                                  focusSalesTab: 'receipts',
-                                  openSalesRecord: { type: 'receipt', id: String(linkedReceipt.id) },
-                                },
-                              });
-                            }}
-                            className={`w-full text-left ${
-                              canOpenReceipt
-                                ? 'cursor-pointer rounded-md transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#134e4a]/20'
-                                : 'cursor-default'
-                            }`}
-                            title={canOpenReceipt ? 'Open this receipt in Sales' : undefined}
-                          >
-                            <div className="flex items-center justify-between gap-2 min-w-0">
-                              <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
-                                <span
-                                  className={`text-[8px] font-bold uppercase px-1.5 py-0.5 rounded shrink-0 ${badge.className}`}
-                                >
-                                  {badge.label}
-                                </span>
-                                <span className="text-[11px] font-bold tabular-nums text-slate-600">{dateStr}</span>
-                              </div>
-                              <span
-                                className={`text-[11px] font-black tabular-nums shrink-0 ${
-                                  isIn ? 'text-emerald-600' : isOut ? 'text-red-600' : 'text-slate-500'
-                                }`}
-                              >
-                                {amtStr}
-                              </span>
-                            </div>
-                            <p
-                              className="text-[8px] text-slate-500 mt-0.5 leading-snug line-clamp-2 break-words"
-                              title={detail}
+                          <div className="flex items-start gap-2">
+                            <button
+                              type="button"
+                              disabled={!canOpenReceipt}
+                              onClick={() => {
+                                if (!canOpenReceipt || !linkedReceipt?.id) return;
+                                setStatementAccount(null);
+                                navigate('/sales', {
+                                  state: {
+                                    focusSalesTab: 'receipts',
+                                    openSalesRecord: { type: 'receipt', id: String(linkedReceipt.id) },
+                                  },
+                                });
+                              }}
+                              className={`w-full text-left ${
+                                canOpenReceipt
+                                  ? 'cursor-pointer rounded-md transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#134e4a]/20'
+                                  : 'cursor-default'
+                              }`}
+                              title={canOpenReceipt ? 'Open this receipt in Sales' : undefined}
                             >
-                              {detail}
-                            </p>
-                          </button>
+                              <div className="flex items-center justify-between gap-2 min-w-0">
+                                <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
+                                  <span
+                                    className={`text-[8px] font-bold uppercase px-1.5 py-0.5 rounded shrink-0 ${badge.className}`}
+                                  >
+                                    {badge.label}
+                                  </span>
+                                  <span className="text-[11px] font-bold tabular-nums text-slate-600">{dateStr}</span>
+                                </div>
+                                <span
+                                  className={`text-[11px] font-black tabular-nums shrink-0 ${
+                                    isIn ? 'text-emerald-600' : isOut ? 'text-red-600' : 'text-slate-500'
+                                  }`}
+                                >
+                                  {amtStr}
+                                </span>
+                              </div>
+                              <p
+                                className="text-[8px] text-slate-500 mt-0.5 leading-snug line-clamp-2 break-words"
+                                title={detail}
+                              >
+                                {detail}
+                              </p>
+                            </button>
+                            {canDeleteReceiptFromStatement ? (
+                              <button
+                                type="button"
+                                onClick={() => void deleteStatementLinkedReceipt(linkedReceipt.id)}
+                                className="mt-0.5 inline-flex h-7 w-7 items-center justify-center rounded-md border border-red-200/80 text-red-600 hover:bg-red-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300"
+                                title="Delete this receipt (admin only, temporary cleanup)"
+                                aria-label="Delete receipt"
+                              >
+                                <Trash2 size={13} />
+                              </button>
+                            ) : null}
+                          </div>
                         </li>
                       );
                     })}
