@@ -78,6 +78,12 @@ const TAB_LABELS = {
 
 /** Kg coil SKUs below this on-hand level count as low stock on the Procurement KPI row. */
 const PROCUREMENT_LOW_STOCK_KG_FLOOR = 700;
+const APPROVED_PURCHASE_WINDOWS = [
+  { id: '1m', label: '1 month', months: 1 },
+  { id: '4m', label: '4 months', months: 4 },
+  { id: '6m', label: '6 months', months: 6 },
+  { id: '12m', label: '1 year', months: 12 },
+];
 
 /** Coil materials for density-based standard conversion (maps to stock product_id). Stonecoated is excluded — different product class. */
 const PROCUREMENT_COIL_MATERIALS = [
@@ -359,6 +365,7 @@ const Procurement = () => {
   const [previewPo, setPreviewPo] = useState(null);
   const [previewAp, setPreviewAp] = useState(null);
   const [poListSort, setPoListSort] = useState({ field: 'date', dir: 'desc' });
+  const [approvedPurchaseWindow, setApprovedPurchaseWindow] = useState('1m');
 
    
   useEffect(() => {
@@ -488,6 +495,24 @@ const Procurement = () => {
     }
     return top;
   }, [purchaseOrders, suppliers]);
+
+  const approvedPurchaseTotalNgn = useMemo(() => {
+    const win = APPROVED_PURCHASE_WINDOWS.find((w) => w.id === approvedPurchaseWindow) ?? APPROVED_PURCHASE_WINDOWS[0];
+    const end = new Date();
+    const start = new Date(end);
+    start.setMonth(start.getMonth() - win.months);
+    start.setHours(0, 0, 0, 0);
+
+    return purchaseOrders.reduce((sum, po) => {
+      if (String(po?.status || '') !== 'Approved') return sum;
+      const rawDate = String(po?.orderDateISO || '').trim();
+      if (!rawDate) return sum;
+      const poDate = new Date(rawDate);
+      if (Number.isNaN(poDate.getTime())) return sum;
+      if (poDate < start) return sum;
+      return sum + purchaseOrderOrderedValueNgn(po);
+    }, 0);
+  }, [approvedPurchaseWindow, purchaseOrders]);
 
   const productionJobs = useMemo(
     () =>
@@ -1420,45 +1445,28 @@ const Procurement = () => {
               <p className="mt-2 text-[10px] text-teal-800/90 border-t border-teal-100/80 pt-2">Quality × volume</p>
             </div>
             <div className="rounded-xl border border-amber-200 bg-amber-50/50 p-3">
-              <p className="text-[9px] font-bold uppercase tracking-wide text-amber-700 flex items-center gap-1">
-                <AlertTriangle size={12} /> Low stock
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-[9px] font-bold uppercase tracking-wide text-amber-700 flex items-center gap-1">
+                  <DollarSign size={12} /> Approved purchases
+                </p>
+                <select
+                  value={approvedPurchaseWindow}
+                  onChange={(e) => setApprovedPurchaseWindow(e.target.value)}
+                  className="rounded-md border border-amber-200 bg-white px-1.5 py-1 text-[9px] font-semibold text-amber-900"
+                  aria-label="Approved purchase total period"
+                >
+                  {APPROVED_PURCHASE_WINDOWS.map((w) => (
+                    <option key={w.id} value={w.id}>
+                      {w.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <p className="mt-1 text-xl font-black text-amber-900 tabular-nums">{formatNgn(approvedPurchaseTotalNgn)}</p>
+              <p className="mt-2 text-[10px] text-amber-800/85 border-t border-amber-100 pt-2">
+                Total value of purchase orders in <span className="font-semibold">Approved</span> status for selected
+                period.
               </p>
-              {lowStockCount === 0 ? (
-                <>
-                  <p className="mt-1 text-sm font-bold text-amber-900/80">None</p>
-                  <p className="mt-2 text-[10px] text-amber-800/85 border-t border-amber-100 pt-2">
-                    Kg SKUs at or above {PROCUREMENT_LOW_STOCK_KG_FLOOR.toLocaleString()} kg
-                  </p>
-                </>
-              ) : (
-                <>
-                  <ul className="mt-2 space-y-1.5" aria-label="Low stock coil SKUs prioritised by production demand">
-                    {lowStockHotLines.map((row) => (
-                      <li
-                        key={row.productID}
-                        className="flex items-start justify-between gap-2 text-[10px] leading-tight"
-                      >
-                        <span className="font-bold text-amber-950 min-w-0 line-clamp-2">{row.label}</span>
-                        <span
-                          className="shrink-0 tabular-nums text-amber-800/90 font-semibold"
-                          title={`Stock vs ${PROCUREMENT_LOW_STOCK_KG_FLOOR.toLocaleString()} kg floor`}
-                        >
-                          {row.stockKg.toLocaleString()}/{row.thresholdKg.toLocaleString()} kg
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                  {lowStockCount > 3 ? (
-                    <p className="mt-1.5 text-[9px] font-semibold text-amber-800/75">
-                      +{lowStockCount - 3} more below {PROCUREMENT_LOW_STOCK_KG_FLOOR.toLocaleString()} kg
-                    </p>
-                  ) : null}
-                  <p className="mt-2 text-[9px] text-amber-800/80 border-t border-amber-100 pt-2 leading-snug">
-                    Below {PROCUREMENT_LOW_STOCK_KG_FLOOR.toLocaleString()} kg on hand. Ranked by production volume
-                    (12&nbsp;mo) for matching colour / gauge / profile — restock these first.
-                  </p>
-                </>
-              )}
             </div>
           </div>
         </div>
