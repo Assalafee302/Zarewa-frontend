@@ -79,6 +79,9 @@ const Account = () => {
   const [showTransferModal, setShowTransferModal] = useState(false);
   const [showRefundPayModal, setShowRefundPayModal] = useState(false);
   const [statementAccount, setStatementAccount] = useState(null);
+  const [showStatementPrintModal, setShowStatementPrintModal] = useState(false);
+  const [statementPrintFromDate, setStatementPrintFromDate] = useState('');
+  const [statementPrintToDate, setStatementPrintToDate] = useState('');
   const [selectedPayment, setSelectedPayment] = useState(null);
   const [refundPayTarget, setRefundPayTarget] = useState(null);
   const [refundPaidBy, setRefundPaidBy] = useState('');
@@ -365,6 +368,122 @@ const Account = () => {
         return String(b.id || '').localeCompare(String(a.id || ''));
       });
   }, [statementAccount, liveTreasuryMovements]);
+
+  const statementDateBounds = useMemo(() => {
+    if (accountStatementLines.length === 0) return { minDate: '', maxDate: '' };
+    const dates = accountStatementLines
+      .map((line) => String(line.postedAtISO || '').slice(0, 10))
+      .filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d));
+    if (dates.length === 0) return { minDate: '', maxDate: '' };
+    const minDate = dates.reduce((min, current) => (current < min ? current : min), dates[0]);
+    const maxDate = dates.reduce((max, current) => (current > max ? current : max), dates[0]);
+    return { minDate, maxDate };
+  }, [accountStatementLines]);
+
+  const closeStatementModal = useCallback(() => {
+    setStatementAccount(null);
+    setShowStatementPrintModal(false);
+  }, []);
+
+  const escapeHtml = useCallback((value) => {
+    return String(value ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }, []);
+
+  const printStatementForDateRange = useCallback(() => {
+    if (!statementAccount) return;
+    const fromDate = String(statementPrintFromDate || '').trim();
+    const toDate = String(statementPrintToDate || '').trim();
+    if (!fromDate || !toDate) {
+      showToast('Select both start and end dates before printing.', { type: 'warning' });
+      return;
+    }
+    if (fromDate > toDate) {
+      showToast('Start date cannot be after end date.', { type: 'warning' });
+      return;
+    }
+    const lines = accountStatementLines.filter((line) => {
+      const date = String(line.postedAtISO || '').slice(0, 10);
+      return date >= fromDate && date <= toDate;
+    });
+    if (lines.length === 0) {
+      showToast('No statement lines found for the selected date range.', { type: 'warning' });
+      return;
+    }
+    const rowsHtml = lines
+      .map((line, index) => {
+        const amount = Number(line.amountNgn) || 0;
+        const inNgn = amount > 0 ? formatNgn(amount) : '—';
+        const outNgn = amount < 0 ? formatNgn(Math.abs(amount)) : '—';
+        return `<tr>
+          <td>${index + 1}</td>
+          <td>${escapeHtml(String(line.postedAtISO || '').slice(0, 10) || '—')}</td>
+          <td>${escapeHtml(treasuryMovementSourceBadge(line).label)}</td>
+          <td>${escapeHtml(treasuryMovementStatementLabel(line))}</td>
+          <td class="num">${escapeHtml(inNgn)}</td>
+          <td class="num">${escapeHtml(outNgn)}</td>
+        </tr>`;
+      })
+      .join('');
+    const printWindow = window.open('', '_blank', 'noopener,noreferrer');
+    if (!printWindow) {
+      showToast('Pop-up blocked. Allow pop-ups to print statements.', { type: 'warning' });
+      return;
+    }
+    const accountTitle = `${statementAccount.name || 'Treasury account'}${
+      statementAccount.bankName ? ` · ${statementAccount.bankName}` : ''
+    }`;
+    printWindow.document.write(`<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Statement - ${escapeHtml(accountTitle)}</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 24px; color: #0f172a; }
+    h1 { margin: 0 0 8px; font-size: 20px; }
+    p.meta { margin: 0 0 4px; color: #334155; font-size: 12px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 16px; font-size: 12px; }
+    th, td { border: 1px solid #cbd5e1; padding: 8px; vertical-align: top; }
+    th { background: #f8fafc; text-align: left; }
+    td.num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  </style>
+</head>
+<body>
+  <h1>Account Statement</h1>
+  <p class="meta"><strong>Account:</strong> ${escapeHtml(accountTitle)}</p>
+  <p class="meta"><strong>Period:</strong> ${escapeHtml(fromDate)} to ${escapeHtml(toDate)}</p>
+  <p class="meta"><strong>Printed:</strong> ${escapeHtml(new Date().toLocaleString())}</p>
+  <table>
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Date</th>
+        <th>Source</th>
+        <th>Description</th>
+        <th>In (NGN)</th>
+        <th>Out (NGN)</th>
+      </tr>
+    </thead>
+    <tbody>${rowsHtml}</tbody>
+  </table>
+</body>
+</html>`);
+    printWindow.document.close();
+    printWindow.focus();
+    printWindow.print();
+    setShowStatementPrintModal(false);
+  }, [
+    statementAccount,
+    statementPrintFromDate,
+    statementPrintToDate,
+    accountStatementLines,
+    escapeHtml,
+    showToast,
+  ]);
 
    
   useEffect(() => {
@@ -3003,7 +3122,7 @@ const Account = () => {
         </div>
       </ModalFrame>
 
-      <ModalFrame isOpen={statementAccount != null} onClose={() => setStatementAccount(null)}>
+      <ModalFrame isOpen={statementAccount != null} onClose={closeStatementModal}>
         <div className="z-modal-panel max-w-lg w-full max-h-[min(85vh,640px)] p-6 sm:p-8 overflow-hidden flex flex-col">
           <div className="flex justify-between items-start gap-3 mb-4 shrink-0">
             <div className="min-w-0">
@@ -3040,7 +3159,7 @@ const Account = () => {
             </div>
             <button
               type="button"
-              onClick={() => setStatementAccount(null)}
+              onClick={closeStatementModal}
               className="p-2 text-gray-400 hover:text-red-500 rounded-xl shrink-0"
               aria-label="Close statement"
             >
@@ -3054,18 +3173,21 @@ const Account = () => {
             </p>
           ) : (
             <>
-              <p className="text-[10px] text-slate-600 leading-snug mb-3 rounded-lg border border-slate-200/80 bg-slate-50/90 px-3 py-2">
-                <strong>Sales → Receipt payments</strong> lists only <strong>quotation receipts</strong> (jobs). This
-                statement lists <strong>every</strong> movement on this account—including{' '}
-                <strong>advance deposits</strong>, transfers, expenses, and bank recon—so a line can appear here but not
-                under Sales receipts. Use the badge on each row (e.g.{' '}
-                <span className="font-semibold text-emerald-800">Sales receipt</span> vs{' '}
-                <span className="font-semibold text-amber-900">Advance</span>).{' '}
-                <Link to="/sales" className="font-semibold text-[#134e4a] underline underline-offset-2">
-                  Open Sales
-                </Link>
-                .
-              </p>
+              <div className="mb-3 rounded-lg border border-slate-200/80 bg-slate-50/90 px-3 py-2 flex items-center justify-between gap-2">
+                <p className="text-[10px] text-slate-600 leading-snug">Choose a date range and print this statement.</p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setStatementPrintFromDate(statementDateBounds.minDate);
+                    setStatementPrintToDate(statementDateBounds.maxDate);
+                    setShowStatementPrintModal(true);
+                  }}
+                  className="z-btn-primary py-1.5 px-3 text-[11px] shrink-0"
+                >
+                  <Printer size={14} />
+                  Print statement
+                </button>
+              </div>
               {accountStatementLines.length === 0 ? (
                 <p className="text-xs text-gray-500">No movements recorded for this account yet.</p>
               ) : (
@@ -3142,6 +3264,54 @@ const Account = () => {
               )}
             </>
           )}
+        </div>
+      </ModalFrame>
+
+      <ModalFrame isOpen={showStatementPrintModal} onClose={() => setShowStatementPrintModal(false)}>
+        <div className="z-modal-panel max-w-md w-full p-6 sm:p-8">
+          <div className="flex justify-between items-center gap-3 mb-4">
+            <h3 className="text-lg font-bold text-[#134e4a]">Print statement</h3>
+            <button
+              type="button"
+              onClick={() => setShowStatementPrintModal(false)}
+              className="p-2 text-gray-400 hover:text-red-500 rounded-xl shrink-0"
+              aria-label="Close print statement modal"
+            >
+              <X size={20} />
+            </button>
+          </div>
+          <div className="space-y-3">
+            <div>
+              <label className="text-[10px] font-bold text-gray-400 uppercase ml-1 block mb-1">From date</label>
+              <input
+                type="date"
+                value={statementPrintFromDate}
+                min={statementDateBounds.minDate || undefined}
+                max={statementDateBounds.maxDate || undefined}
+                onChange={(e) => setStatementPrintFromDate(e.target.value)}
+                className="w-full bg-gray-50 border border-gray-100 rounded-xl py-3 px-4 text-sm font-bold outline-none"
+              />
+            </div>
+            <div>
+              <label className="text-[10px] font-bold text-gray-400 uppercase ml-1 block mb-1">End date</label>
+              <input
+                type="date"
+                value={statementPrintToDate}
+                min={statementDateBounds.minDate || undefined}
+                max={statementDateBounds.maxDate || undefined}
+                onChange={(e) => setStatementPrintToDate(e.target.value)}
+                className="w-full bg-gray-50 border border-gray-100 rounded-xl py-3 px-4 text-sm font-bold outline-none"
+              />
+            </div>
+            <button
+              type="button"
+              onClick={printStatementForDateRange}
+              className="z-btn-primary w-full justify-center py-3"
+            >
+              <Printer size={16} />
+              Print statement
+            </button>
+          </div>
         </div>
       </ModalFrame>
 
