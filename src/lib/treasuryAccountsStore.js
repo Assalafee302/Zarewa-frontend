@@ -41,6 +41,19 @@ export function treasuryAccountsFromSnapshot(snapshot) {
   }));
 }
 
+/**
+ * Bank-first label for treasury selectors across payment/ledger flows.
+ * Example: "Guaranty Trust Bank — Zaps Aluminum Enterprises"
+ */
+export function treasuryAccountDisplayName(account) {
+  const bankName = String(account?.bankName ?? '').trim();
+  const accountName = String(account?.name ?? '').trim();
+  if (bankName && accountName && bankName.toLowerCase() !== accountName.toLowerCase()) {
+    return `${bankName} — ${accountName}`;
+  }
+  return bankName || accountName || 'Treasury account';
+}
+
 export function defaultTreasuryAccounts() {
   return [
     {

@@ -28,7 +28,11 @@ import {
   guidanceForLedgerPostFailure,
   isVoucherDateInLockedPeriod,
 } from '../lib/ledgerPostingGuidance';
-import { treasuryAccountIdForApiPayload, treasuryAccountsFromSnapshot } from '../lib/treasuryAccountsStore';
+import {
+  treasuryAccountDisplayName,
+  treasuryAccountIdForApiPayload,
+  treasuryAccountsFromSnapshot,
+} from '../lib/treasuryAccountsStore';
 import { ReceiptPrintQuick, ReceiptPrintFull } from './receipt/ReceiptPrintViews';
 
 function newLineId() {
@@ -897,7 +901,7 @@ const ReceiptModal = ({
                       >
                         {treasuryList.map((a) => (
                           <option key={a.id} value={String(a.id)}>
-                            {a.type} — {a.name}
+                            {treasuryAccountDisplayName(a)}
                           </option>
                         ))}
                       </select>

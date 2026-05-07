@@ -61,6 +61,7 @@ import {
   treasuryMovementStatementLabel,
   treasuryMovementSourceBadge,
 } from '../lib/accountCore';
+import { treasuryAccountDisplayName } from '../lib/treasuryAccountsStore';
 
 const Account = () => {
   const location = useLocation();
@@ -2591,7 +2592,7 @@ const Account = () => {
                               <option value="">Select…</option>
                               {bankAccounts.map((a) => (
                                 <option key={a.id} value={String(a.id)}>
-                                  {a.name} ({formatNgn(a.balance)})
+                                  {treasuryAccountDisplayName(a)} ({formatNgn(a.balance)})
                                 </option>
                               ))}
                             </select>
@@ -2609,7 +2610,7 @@ const Account = () => {
                               <option value="">Select…</option>
                               {bankAccounts.map((a) => (
                                 <option key={a.id} value={String(a.id)}>
-                                  {a.name}
+                                  {treasuryAccountDisplayName(a)}
                                 </option>
                               ))}
                             </select>
@@ -2779,7 +2780,7 @@ const Account = () => {
                                   <option value="">From account…</option>
                                   {bankAccounts.map((a) => (
                                     <option key={a.id} value={String(a.id)}>
-                                      {a.name}
+                                      {treasuryAccountDisplayName(a)}
                                     </option>
                                   ))}
                                 </select>
@@ -2802,7 +2803,7 @@ const Account = () => {
                                   <option value="">To account…</option>
                                   {bankAccounts.map((a) => (
                                     <option key={a.id} value={String(a.id)}>
-                                      {a.name}
+                                      {treasuryAccountDisplayName(a)}
                                     </option>
                                   ))}
                                 </select>
@@ -3216,7 +3217,7 @@ const Account = () => {
                 <option value="">Select account…</option>
                 {bankAccounts.map((a) => (
                   <option key={a.id} value={a.id}>
-                    {a.name} ({formatNgn(a.balance)})
+                    {treasuryAccountDisplayName(a)} ({formatNgn(a.balance)})
                   </option>
                 ))}
               </select>
@@ -3236,7 +3237,7 @@ const Account = () => {
                 <option value="">Select account…</option>
                 {bankAccounts.map((a) => (
                   <option key={a.id} value={a.id}>
-                    {a.name}
+                    {treasuryAccountDisplayName(a)}
                   </option>
                 ))}
               </select>
@@ -3562,7 +3563,7 @@ const Account = () => {
                       <option value="">Select account…</option>
                       {bankAccounts.map((a) => (
                         <option key={a.id} value={String(a.id)}>
-                          {a.name} ({formatNgn(a.balance)})
+                          {treasuryAccountDisplayName(a)} ({formatNgn(a.balance)})
                         </option>
                       ))}
                     </select>
@@ -3707,7 +3708,7 @@ const Account = () => {
                       <option value="">Select account…</option>
                       {bankAccounts.map((a) => (
                         <option key={a.id} value={String(a.id)}>
-                          {a.name} ({formatNgn(a.balance)})
+                          {treasuryAccountDisplayName(a)} ({formatNgn(a.balance)})
                         </option>
                       ))}
                     </select>
@@ -4053,7 +4054,7 @@ const Account = () => {
                   <option value="">Select account…</option>
                   {bankAccounts.map((a) => (
                     <option key={a.id} value={a.id}>
-                      {a.name} ({formatNgn(a.balance)})
+                      {treasuryAccountDisplayName(a)} ({formatNgn(a.balance)})
                     </option>
                   ))}
                 </select>
@@ -4253,8 +4254,7 @@ const Account = () => {
                                 >
                                   {bankAccounts.map((a) => (
                                     <option key={a.id} value={a.id}>
-                                      {a.name}
-                                      {a.type ? ` (${a.type})` : ''}
+                                      {treasuryAccountDisplayName(a)}
                                     </option>
                                   ))}
                                 </select>

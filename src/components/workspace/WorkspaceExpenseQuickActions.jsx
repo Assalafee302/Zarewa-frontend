@@ -9,6 +9,7 @@ import { useWorkspace } from '../../context/WorkspaceContext';
 import { apiFetch } from '../../lib/apiBase';
 import { buildPaymentRequestBodyFromForm, initialExpenseRequestFormState } from '../../lib/expenseRequestFormCore.js';
 import { EXPENSE_CATEGORY_OPTIONS } from '../../shared/expenseCategories.js';
+import { treasuryAccountDisplayName } from '../../lib/treasuryAccountsStore';
 
 /**
  * Workspace-only entry for expense payment requests (and optional direct expense for finance roles).
@@ -347,7 +348,7 @@ export function WorkspaceExpenseQuickActions() {
                 <option value="">Select account…</option>
                 {bankAccounts.map((a) => (
                   <option key={a.id} value={a.id}>
-                    {a.name} ({formatNgn(a.balance)})
+                    {treasuryAccountDisplayName(a)} ({formatNgn(a.balance)})
                   </option>
                 ))}
               </select>

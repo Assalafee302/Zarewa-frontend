@@ -11,7 +11,7 @@ import { recordAdvancePayment } from '../lib/customerLedgerStore';
 import { formatNgn } from '../Data/mockData';
 import { apiFetch } from '../lib/apiBase';
 import { guidanceForLedgerPostFailure, isVoucherDateInLockedPeriod } from '../lib/ledgerPostingGuidance';
-import { treasuryAccountsFromSnapshot } from '../lib/treasuryAccountsStore';
+import { treasuryAccountDisplayName, treasuryAccountsFromSnapshot } from '../lib/treasuryAccountsStore';
 import { AdvancePaymentPrintView } from './receipt/ReceiptPrintViews';
 
 /**
@@ -273,7 +273,7 @@ const AdvancePaymentModal = ({
               ) : (
                 treasuryList.map((a) => (
                   <option key={a.id} value={String(a.id)}>
-                    {a.type} — {a.name}
+                    {treasuryAccountDisplayName(a)}
                   </option>
                 ))
               )}
