@@ -89,6 +89,9 @@ const Account = () => {
   const [refundPaymentNote, setRefundPaymentNote] = useState('');
   const [requestPayLines, setRequestPayLines] = useState([]);
   const [requestPayNote, setRequestPayNote] = useState('');
+  const [cancelRefundBusyId, setCancelRefundBusyId] = useState('');
+  const [cancelPayRequestBusyId, setCancelPayRequestBusyId] = useState('');
+  const [transportPayEditApprovalId, setTransportPayEditApprovalId] = useState('');
   const [customerRefunds, setCustomerRefunds] = useState([]);
 
   const [bankAccounts, setBankAccounts] = useState([]);
@@ -414,18 +417,55 @@ const Account = () => {
       showToast('No statement lines found for the selected date range.', { type: 'warning' });
       return;
     }
-    const rowsHtml = lines
+    const chronologicalAllLines = accountStatementLines
+      .slice()
+      .sort((a, b) => {
+        const ta = String(a.postedAtISO || '');
+        const tb = String(b.postedAtISO || '');
+        if (ta !== tb) return ta.localeCompare(tb);
+        return String(a.id || '').localeCompare(String(b.id || ''));
+      });
+    const totalMovementsNgn = chronologicalAllLines.reduce((sum, line) => sum + (Number(line.amountNgn) || 0), 0);
+    const currentBookBalanceNgn = Number(statementAccount.balance) || 0;
+    const openingBookBalanceNgn = currentBookBalanceNgn - totalMovementsNgn;
+    const fromBoundaryBalanceNgn = chronologicalAllLines.reduce((sum, line) => {
+      const date = String(line.postedAtISO || '').slice(0, 10);
+      return date < fromDate ? sum + (Number(line.amountNgn) || 0) : sum;
+    }, openingBookBalanceNgn);
+    let runningBalanceNgn = fromBoundaryBalanceNgn;
+    const rangeLines = lines
+      .slice()
+      .sort((a, b) => {
+        const ta = String(a.postedAtISO || '');
+        const tb = String(b.postedAtISO || '');
+        if (ta !== tb) return ta.localeCompare(tb);
+        return String(a.id || '').localeCompare(String(b.id || ''));
+      });
+    const totals = rangeLines.reduce(
+      (acc, line) => {
+        const amount = Number(line.amountNgn) || 0;
+        if (amount > 0) acc.in += amount;
+        if (amount < 0) acc.out += Math.abs(amount);
+        return acc;
+      },
+      { in: 0, out: 0 }
+    );
+    const rowsHtml = rangeLines
       .map((line, index) => {
         const amount = Number(line.amountNgn) || 0;
         const inNgn = amount > 0 ? formatNgn(amount) : '—';
         const outNgn = amount < 0 ? formatNgn(Math.abs(amount)) : '—';
+        runningBalanceNgn += amount;
+        const movementRef = String(line.reference || line.sourceId || line.id || '—');
         return `<tr>
           <td>${index + 1}</td>
           <td>${escapeHtml(String(line.postedAtISO || '').slice(0, 10) || '—')}</td>
+          <td>${escapeHtml(movementRef)}</td>
           <td>${escapeHtml(treasuryMovementSourceBadge(line).label)}</td>
           <td>${escapeHtml(treasuryMovementStatementLabel(line))}</td>
           <td class="num">${escapeHtml(inNgn)}</td>
           <td class="num">${escapeHtml(outNgn)}</td>
+          <td class="num">${escapeHtml(formatNgn(runningBalanceNgn))}</td>
         </tr>`;
       })
       .join('');
@@ -457,15 +497,22 @@ const Account = () => {
   <p class="meta"><strong>Account:</strong> ${escapeHtml(accountTitle)}</p>
   <p class="meta"><strong>Period:</strong> ${escapeHtml(fromDate)} to ${escapeHtml(toDate)}</p>
   <p class="meta"><strong>Printed:</strong> ${escapeHtml(new Date().toLocaleString())}</p>
+  <p class="meta"><strong>Opening balance:</strong> ${escapeHtml(formatNgn(fromBoundaryBalanceNgn))}</p>
+  <p class="meta"><strong>Total inflow:</strong> ${escapeHtml(formatNgn(totals.in))} &nbsp;|&nbsp; <strong>Total outflow:</strong> ${escapeHtml(
+      formatNgn(totals.out)
+    )}</p>
+  <p class="meta"><strong>Closing balance:</strong> ${escapeHtml(formatNgn(fromBoundaryBalanceNgn + totals.in - totals.out))}</p>
   <table>
     <thead>
       <tr>
         <th>#</th>
         <th>Date</th>
+        <th>Reference</th>
         <th>Source</th>
         <th>Description</th>
         <th>In (NGN)</th>
         <th>Out (NGN)</th>
+        <th>Balance (NGN)</th>
       </tr>
     </thead>
     <tbody>${rowsHtml}</tbody>
@@ -544,6 +591,40 @@ const Account = () => {
     setRefundPayLines([createRequestPayLine(bankAccounts[0]?.id ?? '', refundOutstandingAmount(row))]);
     setRefundPaymentNote(row.paymentNote || '');
     setShowRefundPayModal(true);
+  };
+
+  const cancelRefundBeforePay = async (row) => {
+    const rid = String(row?.refundID || '').trim();
+    if (!rid || cancelRefundBusyId) return;
+    const note = window.prompt(`Optional cancellation note for ${rid}`) || '';
+    if (!window.confirm(`Cancel refund ${rid} before payout?`)) return;
+    if (!ws?.canMutate) {
+      showToast(
+        ws?.usingCachedData
+          ? 'Reconnect to cancel refund requests — workspace is read-only.'
+          : 'Connect to the API to cancel refund requests.',
+        { variant: 'info' }
+      );
+      return;
+    }
+    setCancelRefundBusyId(rid);
+    try {
+      const { ok, data } = await apiFetch(`/api/refunds/${encodeURIComponent(rid)}/cancel-before-pay`, {
+        method: 'POST',
+        body: JSON.stringify({
+          note: note.trim(),
+          actedAtISO: new Date().toISOString().slice(0, 10),
+        }),
+      });
+      if (!ok || !data?.ok) {
+        showToast(data?.error || 'Could not cancel refund before payout.', { variant: 'error' });
+        return;
+      }
+      await ws.refresh();
+      showToast(`Refund ${rid} cancelled before payout.`);
+    } finally {
+      setCancelRefundBusyId('');
+    }
   };
 
   const confirmRefundPaid = async (e) => {
@@ -667,6 +748,43 @@ const Account = () => {
     setShowPaymentEntry(true);
   };
 
+  const cancelPaymentRequestBeforePay = async (req) => {
+    const requestId = String(req?.requestID || '').trim();
+    if (!requestId || cancelPayRequestBusyId) return;
+    const note = window.prompt(`Optional cancellation note for ${requestId}`) || '';
+    if (!window.confirm(`Cancel payment request ${requestId} before payout?`)) return;
+    if (!ws?.canMutate) {
+      showToast(
+        ws?.usingCachedData
+          ? 'Reconnect to cancel payment requests — workspace is read-only.'
+          : 'Connect to the API to cancel payment requests.',
+        { variant: 'info' }
+      );
+      return;
+    }
+    setCancelPayRequestBusyId(requestId);
+    try {
+      const { ok, data } = await apiFetch(
+        `/api/payment-requests/${encodeURIComponent(requestId)}/cancel-before-pay`,
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            note: note.trim(),
+            actedAtISO: new Date().toISOString().slice(0, 10),
+          }),
+        }
+      );
+      if (!ok || !data?.ok) {
+        showToast(data?.error || 'Could not cancel payment request before payout.', { variant: 'error' });
+        return;
+      }
+      await ws.refresh();
+      showToast(`Payment request ${requestId} cancelled before payout.`);
+    } finally {
+      setCancelPayRequestBusyId('');
+    }
+  };
+
   const openPoTransportTreasuryPayout = (row) => {
     const outstanding = Math.max(0, Number(row.outstandingNgn) || 0);
     if (outstanding <= 0) {
@@ -760,6 +878,9 @@ const Account = () => {
             dateISO,
             note: requestPayNote.trim() || 'PO transport / haulage',
             createdBy: activeActorLabel,
+            ...(transportPayEditApprovalId.trim()
+              ? { editApprovalId: transportPayEditApprovalId.trim() }
+              : {}),
           }),
         });
         if (!ok || !data?.ok) {
@@ -774,6 +895,7 @@ const Account = () => {
       setSelectedPayment(null);
       setRequestPayLines([]);
       setRequestPayNote('');
+      setTransportPayEditApprovalId('');
       showToast(
         fullyPaid
           ? `PO ${poId} transport fee fully paid from treasury.`
@@ -813,6 +935,7 @@ const Account = () => {
     setSelectedPayment(null);
     setRequestPayLines([]);
     setRequestPayNote('');
+    setTransportPayEditApprovalId('');
     showToast(
       fullyPaid
         ? `Payment request ${selectedPayment.id} fully paid from treasury.`
@@ -2093,6 +2216,15 @@ const Account = () => {
                                 >
                                   Record pay
                                 </button>
+                                <button
+                                  type="button"
+                                  onClick={() => void cancelRefundBeforePay(r)}
+                                  disabled={cancelRefundBusyId === r.refundID}
+                                  className="text-[8px] font-semibold uppercase tracking-wide text-rose-800 bg-rose-100 hover:bg-rose-200 px-2 py-1 rounded-md disabled:opacity-60 disabled:cursor-not-allowed"
+                                  title="Cancel this approved refund before payout"
+                                >
+                                  {cancelRefundBusyId === r.refundID ? 'Cancelling...' : 'Cancel'}
+                                </button>
                               </div>
                             </div>
                           </li>
@@ -2178,6 +2310,15 @@ const Account = () => {
                                     title="Record treasury payout"
                                   >
                                     Payout
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => void cancelPaymentRequestBeforePay(req)}
+                                    disabled={cancelPayRequestBusyId === req.requestID}
+                                    className="text-[8px] font-semibold uppercase tracking-wide text-rose-800 bg-rose-100 hover:bg-rose-200 px-2 py-1 rounded-md disabled:opacity-60 disabled:cursor-not-allowed"
+                                    title="Cancel this approved request before payout"
+                                  >
+                                    {cancelPayRequestBusyId === req.requestID ? 'Cancelling...' : 'Cancel'}
                                   </button>
                                 </div>
                               </div>
@@ -3475,6 +3616,7 @@ const Account = () => {
           setSelectedPayment(null);
           setRequestPayLines([]);
           setRequestPayNote('');
+          setTransportPayEditApprovalId('');
         }}
       >
         <div className="z-modal-panel max-w-lg p-8 sm:p-10 overflow-y-auto">
@@ -3489,6 +3631,7 @@ const Account = () => {
                 setSelectedPayment(null);
                 setRequestPayLines([]);
                 setRequestPayNote('');
+                setTransportPayEditApprovalId('');
               }}
               className="text-gray-300 hover:text-rose-500"
             >
@@ -3603,6 +3746,14 @@ const Account = () => {
                   </span>
                 </div>
               </div>
+              {selectedPayment?.type === 'po_transport' ? (
+                <EditSecondApprovalInline
+                  entityKind="purchase_order"
+                  entityId={selectedPayment?.id}
+                  value={transportPayEditApprovalId}
+                  onChange={setTransportPayEditApprovalId}
+                />
+              ) : null}
               <button
                 type="button"
                 onClick={confirmProcessPaymentModal}

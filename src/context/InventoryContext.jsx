@@ -430,6 +430,7 @@ export function InventoryProvider({ children }) {
                 ? amt
                 : 0;
           const hasTreasury = Number(treasuryAccountId) > 0 && amt > 0;
+          const nextStatus = !hasTreasury && (!Number.isFinite(amt) || amt <= 0) ? 'In Transit' : hasTreasury ? 'In Transit' : 'On loading';
           return {
             ...p,
             transportAgentId: transportAgentId ?? '',
@@ -440,7 +441,7 @@ export function InventoryProvider({ children }) {
             transportAmountNgn: Number.isFinite(amt) && amt > 0 ? amt : p.transportAmountNgn,
             transportAdvanceNgn: Number.isFinite(adv) && adv > 0 ? adv : p.transportAdvanceNgn,
             transportPaid: hasTreasury ? true : p.transportPaid,
-            status: hasTreasury ? 'In Transit' : 'On loading',
+            status: nextStatus,
           };
         })
       );
