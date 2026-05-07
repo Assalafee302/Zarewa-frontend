@@ -309,8 +309,8 @@ const Account = () => {
       .map((m) => {
         const sourceId = String(m?.sourceId || '').trim();
         const linkedReceipt =
-          findSalesReceiptByMatchToken(salesReceipts, sourceId) ||
-          findSalesReceiptByMatchToken(salesReceipts, String(m?.reference || '').trim());
+          findSalesReceiptByMatchToken(liveReceipts, sourceId) ||
+          findSalesReceiptByMatchToken(liveReceipts, String(m?.reference || '').trim());
         const rowId = String(m?.id || sourceId || `${m?.postedAtISO || ''}:${m?.treasuryAccountId || ''}`);
         return {
           rowId,
@@ -344,7 +344,7 @@ const Account = () => {
       return String(a.rowId).localeCompare(String(b.rowId));
     });
     return searched;
-  }, [cashierConfirmedReceiptIds, liveTreasuryMovements, salesReceipts, searchQuery]);
+  }, [cashierConfirmedReceiptIds, liveTreasuryMovements, liveReceipts, searchQuery]);
 
   const treasuryTransferRows = useMemo(() => {
     const transferKinds = new Set(['TREASURY_TRANSFER', 'INTER_BRANCH_LOAN', 'INTER_BRANCH_LOAN_REPAY']);
