@@ -188,6 +188,13 @@ const createApPayLine = (defaultAccountId = '', amount = '') => ({
   reference: '',
 });
 
+const normalizeNairaInput = (value) => String(value ?? '').replace(/[^\d]/g, '');
+const formatNairaInput = (value) => {
+  const normalized = normalizeNairaInput(value);
+  if (!normalized) return '';
+  return Number(normalized).toLocaleString('en-NG');
+};
+
 /** Bordered chip — matches Stock / Finance compact lists */
 const statusChipBorder = (st) => {
   if (st === 'Received') return 'border-emerald-200 bg-emerald-50 text-emerald-800';
@@ -382,9 +389,7 @@ const Procurement = () => {
   const [showTransportModal, setShowTransportModal] = useState(false);
   const [showApPayModal, setShowApPayModal] = useState(false);
   const [selectedAp, setSelectedAp] = useState(null);
-  const [apPayForm, setApPayForm] = useState({ paymentMethod: 'Bank Transfer', paymentNote: '' });
   const [apPayLines, setApPayLines] = useState(() => [createApPayLine('')]);
-  const [apPaidBy, setApPaidBy] = useState('');
   const [apPayBusy, setApPayBusy] = useState(false);
 
   const [supplierForm, setSupplierForm] = useState(() => ({
@@ -1145,18 +1150,14 @@ const Procurement = () => {
   const resetApPaymentModal = () => {
     setShowApPayModal(false);
     setSelectedAp(null);
-    setApPaidBy('');
     setApPayLines([createApPayLine(treasuryAccounts[0]?.id ?? '')]);
-    setApPayForm({ paymentMethod: 'Bank Transfer', paymentNote: '' });
     setApPayBusy(false);
   };
 
   const openApPaymentModal = (ap) => {
     const outstanding = Math.max(0, (Number(ap?.amountNgn) || 0) - (Number(ap?.paidNgn) || 0));
     setSelectedAp(ap);
-    setApPaidBy('');
     setApPayLines([createApPayLine(treasuryAccounts[0]?.id ?? '', outstanding)]);
-    setApPayForm({ paymentMethod: 'Bank Transfer', paymentNote: '' });
     setShowApPayModal(true);
   };
 
@@ -1164,7 +1165,7 @@ const Procurement = () => {
     e.preventDefault();
     if (!selectedAp || apPayBusy) return;
     const invoiceRef = selectedAp.invoiceRef || selectedAp.poRef || selectedAp.apID;
-    const paidBy = apPaidBy.trim() || currentActorLabel;
+    const paidBy = currentActorLabel;
     const remaining = Math.max(0, (Number(selectedAp.amountNgn) || 0) - (Number(selectedAp.paidNgn) || 0));
     const validLines = apPayLines
       .map((line) => ({
@@ -1199,7 +1200,7 @@ const Procurement = () => {
       showToast(`Insufficient balance in ${shortAccount.name}.`, { variant: 'error' });
       return;
     }
-    const method = apPayForm.paymentMethod;
+    const method = 'Bank Transfer';
     const newPaidTotal = (Number(selectedAp.paidNgn) || 0) + apPayTotalNgn;
     const fullySettled = newPaidTotal >= (Number(selectedAp.amountNgn) || 0);
     const poRef = selectedAp.poRef?.trim?.() ?? '';
@@ -1217,7 +1218,7 @@ const Procurement = () => {
             paymentMethod: method,
             treasuryAccountId: line.treasuryAccountId,
             reference: line.reference || invoiceRef,
-            note: apPayForm.paymentNote.trim(),
+            note: '',
             paidBy,
             createdBy: paidBy,
           }),
@@ -2435,8 +2436,8 @@ const Procurement = () => {
         isOpen={showApPayModal}
         onClose={resetApPaymentModal}
       >
-        <div className="z-modal-panel max-w-lg p-8 overflow-y-auto">
-          <div className="flex justify-between items-center mb-6">
+        <div className="z-modal-panel max-w-lg w-full max-h-[min(92vh,820px)] flex flex-col p-0 overflow-hidden">
+          <div className="shrink-0 flex justify-between items-center px-6 pt-6 pb-4 border-b border-slate-200">
             <h3 className="text-xl font-bold text-[#134e4a] flex items-center gap-2">
               <RotateCcw size={22} className="text-rose-600" />
               Supplier payment
@@ -2451,8 +2452,9 @@ const Procurement = () => {
             </button>
           </div>
           {selectedAp ? (
-            <form className="space-y-4" onSubmit={saveApPayment}>
-              <div className="bg-rose-50/80 rounded-2xl p-4 border border-rose-100 text-sm space-y-1">
+            <form className="flex-1 min-h-0 flex flex-col" onSubmit={saveApPayment}>
+              <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar px-6 py-4 space-y-4">
+                <div className="bg-rose-50/80 rounded-2xl p-4 border border-rose-100 text-sm space-y-1">
                 <p className="font-mono font-bold text-[#134e4a]">{selectedAp.apID}</p>
                 <p className="font-bold text-gray-800">{selectedAp.supplierName}</p>
                 <p className="text-xs text-gray-600">
@@ -2474,18 +2476,7 @@ const Procurement = () => {
                     </p>
                   </div>
                 </div>
-              </div>
-              <div>
-                <label className="text-[10px] font-bold text-gray-400 uppercase ml-1 block mb-1">
-                  Paid by (Finance user)
-                </label>
-                <input
-                  value={apPaidBy}
-                  onChange={(e) => setApPaidBy(e.target.value)}
-                  placeholder="e.g. Hauwa — GTBank transfer"
-                  className="w-full bg-gray-50 border border-gray-100 rounded-xl py-3 px-4 text-sm font-bold outline-none"
-                />
-              </div>
+                </div>
               <div className="flex items-center justify-between">
                 <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">Payout breakdown</label>
                 <button
@@ -2516,11 +2507,12 @@ const Procurement = () => {
                     </select>
                     <div className="grid grid-cols-1 sm:grid-cols-12 gap-2 items-center">
                       <input
-                        type="number"
-                        min="0"
-                        step="1"
-                        value={line.amount}
-                        onChange={(e) => updateApPayLine(line.id, { amount: e.target.value })}
+                        type="text"
+                        inputMode="numeric"
+                        value={formatNairaInput(line.amount)}
+                        onChange={(e) =>
+                          updateApPayLine(line.id, { amount: normalizeNairaInput(e.target.value) })
+                        }
                         className="sm:col-span-5 rounded-lg border border-slate-200 bg-white py-2 px-2 text-[11px] font-bold text-[#134e4a]"
                         placeholder="Amount ₦"
                       />
@@ -2543,34 +2535,6 @@ const Procurement = () => {
                   </div>
                 ))}
               </div>
-              <div>
-                <label className="text-[10px] font-bold text-gray-400 uppercase ml-1 block mb-1">
-                  Payment method
-                </label>
-                <select
-                  value={apPayForm.paymentMethod}
-                  onChange={(e) => setApPayForm((f) => ({ ...f, paymentMethod: e.target.value }))}
-                  className="w-full bg-gray-50 border border-gray-100 rounded-xl py-3 px-4 text-sm font-bold outline-none"
-                >
-                  <option value="Bank Transfer">Bank Transfer</option>
-                  <option value="Cash">Cash</option>
-                  <option value="POS">POS</option>
-                </select>
-                <p className="text-[10px] text-gray-500 mt-1">
-                  Selected method applies to all payout lines in this post (works for coil, stone-coated, and accessory PO payables).
-                </p>
-              </div>
-              <div>
-                <label className="text-[10px] font-bold text-gray-400 uppercase ml-1 block mb-1">
-                  Payment note
-                </label>
-                <input
-                  value={apPayForm.paymentNote}
-                  onChange={(e) => setApPayForm((f) => ({ ...f, paymentNote: e.target.value }))}
-                  placeholder="Example: cash 150,000 and transfer 250,000"
-                  className="w-full bg-gray-50 border border-gray-100 rounded-xl py-3 px-4 text-sm outline-none"
-                />
-              </div>
               <div className="rounded-lg border border-slate-200/60 bg-white/40 backdrop-blur-md px-3 py-3 shadow-sm">
                 <div className="flex items-center justify-between gap-4 text-sm">
                   <span className="font-bold text-gray-500 uppercase text-[10px] tracking-wide">This payout</span>
@@ -2591,9 +2555,12 @@ const Procurement = () => {
               <p className="text-[10px] text-gray-500 leading-relaxed">
                 Saving this payout writes treasury movements and keeps the payable open until the invoice balance is fully paid.
               </p>
-              <button type="submit" disabled={apPayBusy} className="z-btn-primary w-full justify-center py-3 disabled:opacity-70 disabled:cursor-not-allowed">
-                {apPayBusy ? 'Posting...' : 'Post supplier payment'}
-              </button>
+              </div>
+              <div className="shrink-0 border-t border-slate-200 bg-slate-50/90 px-6 py-3">
+                <button type="submit" disabled={apPayBusy} className="z-btn-primary w-full justify-center py-3 disabled:opacity-70 disabled:cursor-not-allowed">
+                  {apPayBusy ? 'Saving...' : 'Save payment'}
+                </button>
+              </div>
             </form>
           ) : null}
         </div>
