@@ -682,7 +682,14 @@ export function InventoryProvider({ children }) {
       const deltaByProduct = {};
       for (const e of entries) {
         const pid = e.productID;
-        deltaByProduct[pid] = (deltaByProduct[pid] || 0) + Number(e.qtyReceived);
+        const w = e.weightKg != null && e.weightKg !== '' ? Number(e.weightKg) : null;
+        const line = po.lines.find((l) =>
+          e.lineKey ? l.lineKey === e.lineKey : l.productID === e.productID
+        );
+        const isStone = /^STONE-/i.test(String(line?.productID || e.productID || '').trim());
+        const isAcc = /^ACC-/i.test(String(line?.productID || e.productID || '').trim());
+        const qtyDelta = isStone || isAcc ? Number(e.qtyReceived) : w != null && !Number.isNaN(w) && w > 0 ? w : Number(e.qtyReceived);
+        deltaByProduct[pid] = (deltaByProduct[pid] || 0) + qtyDelta;
       }
       setProducts((prev) =>
         prev.map((p) => {

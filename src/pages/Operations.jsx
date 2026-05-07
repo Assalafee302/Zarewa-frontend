@@ -239,6 +239,20 @@ function transitPoSearchBlob(p) {
 
 /** Matches server GRN default `CL-YY-####` (writeOps.postPurchaseOrderGrn). */
 const CL_COIL_NO_RE = /^CL-(\d{2})-(\d{1,6})$/i;
+const METER_BASIS_EPS = 0.001;
+
+function isMeterBasisCoilLine(line) {
+  const upkg = Number(line?.unitPricePerKgNgn);
+  const meters = Number(line?.metersOffered);
+  const ordered = Number(line?.qtyOrdered);
+  return (
+    (!Number.isFinite(upkg) || upkg <= 0) &&
+    Number.isFinite(meters) &&
+    meters > 0 &&
+    Number.isFinite(ordered) &&
+    Math.abs(ordered - meters) <= METER_BASIS_EPS
+  );
+}
 
 function maxClSequenceForYear(coilLots, yy2, extraCoilNos = []) {
   let max = 0;
@@ -1147,6 +1161,7 @@ const Operations = () => {
       return openLines.map((l) => {
         const remaining = Number(l.qtyOrdered) - Number(l.qtyReceived);
         const old = prevByKey.get(l.lineKey);
+        const meterBasis = isMeterBasisCoilLine(l);
         if (old) {
           return {
             lineKey: l.lineKey,
@@ -1157,6 +1172,8 @@ const Operations = () => {
             remaining,
             qtyReceived: old.qtyReceived,
             coilNo: old.coilNo,
+            weightKg: old.weightKg ?? '',
+            meterBasis,
             grnKind: 'coil',
           };
         }
@@ -1170,6 +1187,8 @@ const Operations = () => {
           remaining,
           qtyReceived: '',
           coilNo: `CL-${yy}-${String(nextSeq).padStart(4, '0')}`,
+          weightKg: '',
+          meterBasis,
           grnKind: 'coil',
         };
       });
@@ -1195,7 +1214,9 @@ const Operations = () => {
           coilNo: row.grnKind === 'coil' ? row.coilNo : '',
           location: receiveDraft.location,
         };
-        /* Omit weightKg — server treats missing weighbridge as “use qty”; avoids empty-string quirks in proxies. */
+        if (row.grnKind === 'coil' && row.weightKg !== '' && row.weightKg != null) {
+          entry.weightKg = Number(row.weightKg);
+        }
         return entry;
       })
       .filter((x) => x.qtyReceived > 0 && !Number.isNaN(x.qtyReceived));
@@ -1696,7 +1717,9 @@ const Operations = () => {
                                 ) : (
                                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
                                     <div>
-                                      <label className="sr-only">Kilograms received</label>
+                                      <label className="sr-only">
+                                        {row.meterBasis ? 'Metres received' : 'Kilograms received'}
+                                      </label>
                                       <input
                                         type="number"
                                         min="0"
@@ -1707,11 +1730,30 @@ const Operations = () => {
                                             prev.map((r, i) => (i === idx ? { ...r, qtyReceived: v } : r))
                                           );
                                         }}
-                                        placeholder="Kg"
+                                        placeholder={row.meterBasis ? 'Metres' : 'Kg'}
                                         className="w-full rounded border border-slate-200 py-1.5 px-2 text-xs font-black text-[#134e4a]"
                                       />
                                     </div>
                                     <div>
+                                      <label className="sr-only">
+                                        {row.meterBasis ? 'Weight in kg (required)' : 'Weight in kg (optional)'}
+                                      </label>
+                                      <input
+                                        type="number"
+                                        min="0"
+                                        step="0.01"
+                                        value={row.weightKg ?? ''}
+                                        onChange={(e) => {
+                                          const v = e.target.value;
+                                          setGrnLines((prev) =>
+                                            prev.map((r, i) => (i === idx ? { ...r, weightKg: v } : r))
+                                          );
+                                        }}
+                                        placeholder={row.meterBasis ? 'Weight kg *' : 'Weight kg (optional)'}
+                                        className="w-full rounded border border-slate-200 py-1.5 px-2 text-xs font-black text-[#134e4a]"
+                                      />
+                                    </div>
+                                    <div className="sm:col-span-2">
                                       <label className="sr-only">Coil number</label>
                                       <input
                                         value={row.coilNo}
@@ -1726,6 +1768,11 @@ const Operations = () => {
                                         className="w-full rounded border border-slate-200 py-1.5 px-2 text-xs font-black font-mono text-slate-900"
                                       />
                                     </div>
+                                    {row.meterBasis ? (
+                                      <p className="sm:col-span-2 text-[9px] font-semibold text-amber-700">
+                                        Metre-basis PO line: enter metres received and actual kg weight.
+                                      </p>
+                                    ) : null}
                                   </div>
                                 )}
                               </div>
