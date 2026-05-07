@@ -21,14 +21,10 @@ import {
   coilInventoryValuationRows,
   cogsMovementRows,
   customerLedgerActivityRows,
-  deliveryPerformanceSummary,
   filterAccessoryUsageInRange,
   filterBankReconciliationInRange,
   filterExpensesInRange,
-  filterPurchaseOrdersInRange,
   filterQuotationsInRange,
-  filterRefundsInRange,
-  filterStockMovementsInRange,
   filterTreasuryMovementsInRange,
   grnCoilRegisterRows,
   liveReceivablesNgn,
@@ -37,11 +33,8 @@ import {
   purchaseOrderAccrualBridgeRows,
   quotationPaidNgnReceiptDiscrepancies,
   receiptAdvanceTreasuryReconciliationRows,
-  receivablesAgingBuckets,
   salesPeriodCashBridgeExportRows,
   salesPeriodCashBridgeSummary,
-  supplierPerformanceSummary,
-  topCustomersByProductionAttributedSales,
 } from '../lib/liveAnalytics';
 import { procurementKindFromPo } from '../lib/procurementPoKind';
 
@@ -54,7 +47,7 @@ const PACK_PRODUCTION_TRANSACTION = 'Production transaction register';
 
 function rowsPeriodCostsInventoryPack(expenses, paymentRequests, coilLots, movements, startDate, endDate) {
   const rows = [];
-  filterExpensesInRange(expenses, startDate, endDate).forEach((e) => {
+  paidExpensesInRange(expenses, paymentRequests, startDate, endDate).forEach((e) => {
     rows.push({
       packSection: 'Expenses',
       expenseID: e.expenseID,
@@ -77,6 +70,105 @@ function rowsPeriodCostsInventoryPack(expenses, paymentRequests, coilLots, movem
     rows.push({ packSection: 'COGS_movement', ...r });
   });
   return rows;
+}
+
+function normalizeExpenseTypeLabel(expenseType, paymentStatus) {
+  const raw = String(expenseType || '').trim();
+  if (!raw) return '—';
+  if (paymentStatus === 'paid') {
+    return raw.replace(/\(pending payout\)/gi, '(paid out)');
+  }
+  return raw;
+}
+
+function paidExpensesInRange(expenses = [], paymentRequests = [], startDate, endDate) {
+  const inRange = filterExpensesInRange(expenses, startDate, endDate);
+  const requestsByExpense = new Map();
+  for (const req of paymentRequests || []) {
+    const expenseID = String(req?.expenseID || '').trim();
+    if (!expenseID) continue;
+    const requested = Number(req.amountRequestedNgn) || 0;
+    const paid = Number(req.paidAmountNgn) || 0;
+    const approved = String(req.approvalStatus || '').trim() === 'Approved';
+    const rejected = String(req.approvalStatus || '').trim() === 'Rejected';
+    const fullyPaid = requested > 0 && paid >= requested;
+    const hasAnyPayout = paid > 0;
+    const existing = requestsByExpense.get(expenseID);
+    const next = {
+      approved,
+      rejected,
+      fullyPaid,
+      hasAnyPayout,
+      paidAmountNgn: paid,
+      requestedAmountNgn: requested,
+    };
+    if (!existing) {
+      requestsByExpense.set(expenseID, next);
+      continue;
+    }
+    requestsByExpense.set(expenseID, {
+      approved: existing.approved || next.approved,
+      rejected: existing.rejected || next.rejected,
+      fullyPaid: existing.fullyPaid || next.fullyPaid,
+      hasAnyPayout: existing.hasAnyPayout || next.hasAnyPayout,
+      paidAmountNgn: Math.max(Number(existing.paidAmountNgn) || 0, Number(next.paidAmountNgn) || 0),
+      requestedAmountNgn: Math.max(Number(existing.requestedAmountNgn) || 0, Number(next.requestedAmountNgn) || 0),
+    });
+  }
+  return inRange
+    .filter((ex) => {
+      const expenseID = String(ex?.expenseID || '').trim();
+      const req = expenseID ? requestsByExpense.get(expenseID) : null;
+      if (!req) return true;
+      if (req.rejected) return false;
+      return req.approved && req.hasAnyPayout;
+    })
+    .map((ex) => {
+      const expenseID = String(ex?.expenseID || '').trim();
+      const req = expenseID ? requestsByExpense.get(expenseID) : null;
+      const totalAmount = Number(ex.amountNgn) || 0;
+      const paidAmountNgn = req ? Math.max(0, Math.min(Number(req.paidAmountNgn) || 0, totalAmount)) : totalAmount;
+      const remainingAmountNgn = Math.max(0, totalAmount - paidAmountNgn);
+      return {
+        ...ex,
+        expenseType: normalizeExpenseTypeLabel(ex.expenseType, req?.fullyPaid ? 'paid' : ''),
+        paidAmountNgn,
+        remainingAmountNgn,
+      };
+    });
+}
+
+function buildPaidExpensePrintRows(expenses = [], paymentRequests = [], startDate, endDate) {
+  const rows = paidExpensesInRange(expenses, paymentRequests, startDate, endDate)
+    .map((e) => ({
+      expenseID: e.expenseID,
+      date: e.date,
+      category: e.category || 'Uncategorized',
+      type: e.expenseType || '—',
+      amount: formatNgn(e.amountNgn),
+      paidAmount: formatNgn(e.paidAmountNgn),
+      remainingAmount: formatNgn(e.remainingAmountNgn),
+      _paidAmountNgn: Number(e.paidAmountNgn) || 0,
+      _remainingAmountNgn: Number(e.remainingAmountNgn) || 0,
+    }))
+    .sort((a, b) => {
+      const c = String(a.category).localeCompare(String(b.category));
+      if (c !== 0) return c;
+      const d = String(a.date).localeCompare(String(b.date));
+      if (d !== 0) return d;
+      return String(a.expenseID).localeCompare(String(b.expenseID));
+    });
+
+  let lastCategory = '';
+  return rows.map((row) => {
+    const category = row.category;
+    const showCategory = category !== lastCategory;
+    lastCategory = category;
+    return {
+      ...row,
+      category: showCategory ? category : '',
+    };
+  });
 }
 
 function rowsCashBankArPack(
@@ -404,8 +496,6 @@ function buildProductionTransactionPrintPayload(raw) {
   };
 }
 
-const LIST_ROW =
-  'z-list-row flex flex-wrap items-center justify-between gap-2 sm:gap-3 text-sm font-semibold text-slate-800';
 const PANEL = 'z-panel-section';
 const SUBHDR = 'z-section-title mb-4';
 
@@ -497,10 +587,6 @@ const Reports = () => {
     () => (ws?.hasWorkspaceData && Array.isArray(snapshot.purchaseOrders) ? snapshot.purchaseOrders : []),
     [snapshot.purchaseOrders, ws.hasWorkspaceData]
   );
-  const deliveries = useMemo(
-    () => (ws?.hasWorkspaceData && Array.isArray(snapshot.deliveries) ? snapshot.deliveries : []),
-    [snapshot.deliveries, ws.hasWorkspaceData]
-  );
   const treasuryMovements = useMemo(
     () => (ws?.hasWorkspaceData && Array.isArray(snapshot.treasuryMovements) ? snapshot.treasuryMovements : []),
     [snapshot.treasuryMovements, ws.hasWorkspaceData]
@@ -539,26 +625,6 @@ const Reports = () => {
     [snapshot.productionJobAccessoryUsage, ws.hasWorkspaceData]
   );
 
-  const procurementMixInPeriod = useMemo(() => {
-    const inRange = filterPurchaseOrdersInRange(purchaseOrders, startDate, endDate);
-    const mix = { coil: 0, stone: 0, accessory: 0 };
-    for (const po of inRange) {
-      const k = procurementKindFromPo(po);
-      if (k in mix) mix[k] += 1;
-    }
-    return { ...mix, total: inRange.length };
-  }, [endDate, purchaseOrders, startDate]);
-
-  const accessoryUsageInPeriod = useMemo(
-    () => filterAccessoryUsageInRange(accessoryUsage, startDate, endDate),
-    [accessoryUsage, endDate, startDate]
-  );
-
-  const treasuryMovementsInPeriod = useMemo(
-    () => filterTreasuryMovementsInRange(treasuryMovements, startDate, endDate),
-    [endDate, startDate, treasuryMovements]
-  );
-
   const salesKpis = useMemo(() => {
     const quotes = filterQuotationsInRange(quotations, startDate, endDate);
     const quotationPipelineNgn = quotes.reduce((s, q) => s + (q.totalNgn ?? 0), 0);
@@ -582,39 +648,6 @@ const Reports = () => {
       productionJobsCompletedInRange,
     };
   }, [endDate, ledgerEntries, productionJobs, quotations, receipts, startDate]);
-
-  const expensesInPeriodNgn = useMemo(
-    () =>
-      filterExpensesInRange(expenses, startDate, endDate).reduce((s, e) => s + (Number(e.amountNgn) || 0), 0),
-    [endDate, expenses, startDate]
-  );
-
-  const refundsInPeriod = useMemo(
-    () => filterRefundsInRange(refunds, startDate, endDate),
-    [endDate, refunds, startDate]
-  );
-
-  const inventoryPreview = useMemo(() => {
-    return liveProducts.map((p) => ({
-      name: p.name,
-      stockLevel: p.stockLevel,
-      low: p.stockLevel < p.lowStockThreshold,
-      unit: p.unit,
-    }));
-  }, [liveProducts]);
-
-  const movementPreview = useMemo(
-    () => filterStockMovementsInRange(movements, startDate, endDate).slice(0, 12),
-    [endDate, movements, startDate]
-  );
-
-  const topCustomers = topCustomersByProductionAttributedSales(quotations, productionJobs, startDate, endDate, 5);
-  const arAging = useMemo(
-    () => receivablesAgingBuckets(quotations, ledgerEntries, endDate),
-    [endDate, ledgerEntries, quotations]
-  );
-  const supplierPerformance = useMemo(() => supplierPerformanceSummary(purchaseOrders, 5), [purchaseOrders]);
-  const deliveryPerformance = useMemo(() => deliveryPerformanceSummary(deliveries), [deliveries]);
 
   const periodLabel = useMemo(() => `Period ${startDate} → ${endDate}`, [endDate, startDate]);
 
@@ -670,18 +703,10 @@ const Reports = () => {
   const getPrintConfig = useCallback(
     (name) => {
       if (name === PACK_PERIOD_COSTS_INVENTORY) {
-        const exRows = filterExpensesInRange(expenses, startDate, endDate);
+        const exRows = buildPaidExpensePrintRows(expenses, paymentRequests, startDate, endDate);
         const acRows = accruedApprovedPayablesRows(paymentRequests, startDate, endDate);
         const val = coilInventoryValuationRows(coilLots);
         const cogs = cogsMovementRows(movements, startDate, endDate);
-        const rows = exRows.map((e) => ({
-          expenseID: e.expenseID,
-          date: e.date,
-          category: e.category || '—',
-          type: e.expenseType || '—',
-          amount: formatNgn(e.amountNgn),
-          reference: e.reference || '—',
-        }));
         return {
           title: PACK_PERIOD_COSTS_INVENTORY,
           columns: [
@@ -690,12 +715,23 @@ const Reports = () => {
             { key: 'category', label: 'Category' },
             { key: 'type', label: 'Type' },
             { key: 'amount', label: 'Amount' },
-            { key: 'reference', label: 'Reference' },
+            { key: 'paidAmount', label: 'Paid' },
+            { key: 'remainingAmount', label: 'Remaining' },
           ],
-          rows,
+          rows: exRows,
           summaryLines: [
-            { label: 'Print shows expenses only', value: String(exRows.length) },
-            { label: 'Expenses total', value: formatNgn(exRows.reduce((s, e) => s + (Number(e.amountNgn) || 0), 0)) },
+            { label: 'Print shows paid and part-paid expenses', value: String(exRows.length) },
+            {
+              label: 'Expenses total',
+              value: formatNgn(
+                exRows.reduce((s, e) => s + (Number(String(e._paidAmountNgn || 0)) + Number(String(e._remainingAmountNgn || 0))), 0)
+              ),
+            },
+            { label: 'Paid total', value: formatNgn(exRows.reduce((s, e) => s + (Number(e._paidAmountNgn) || 0), 0)) },
+            {
+              label: 'Remaining balance',
+              value: formatNgn(exRows.reduce((s, e) => s + (Number(e._remainingAmountNgn) || 0), 0)),
+            },
             { label: 'Unpaid accrual rows', value: String(acRows.length) },
             {
               label: 'Accrual unpaid ₦',
@@ -1001,7 +1037,7 @@ const Reports = () => {
     }
 
     if (name === PACK_PERIOD_COSTS_INVENTORY && fmt === 'Excel') {
-      const ex = filterExpensesInRange(expenses, startDate, endDate);
+      const ex = paidExpensesInRange(expenses, paymentRequests, startDate, endDate);
       const ac = accruedApprovedPayablesRows(paymentRequests, startDate, endDate);
       const val = coilInventoryValuationRows(coilLots);
       const cogs = cogsMovementRows(movements, startDate, endDate);
@@ -1283,8 +1319,8 @@ const Reports = () => {
 
         {!countOnlyOverview && (
         <>
-        <div className="z-page-hero grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-10 !mb-0">
-          <div>
+        <div className="z-page-hero !mb-0">
+          <div className="max-w-4xl">
             <h3 className={SUBHDR}>Report period</h3>
             <form
               className="space-y-6"
@@ -1370,249 +1406,6 @@ const Reports = () => {
               </div>
             </form>
           </div>
-          <div>
-            <h3 className={SUBHDR}>Inventory snapshot</h3>
-            <p className="text-sm font-medium text-slate-600 mb-4 leading-relaxed">
-              Live stock against reorder threshold — matches the inventory export.
-            </p>
-            <div className="space-y-2 max-h-[min(280px,40vh)] overflow-y-auto pr-1 custom-scrollbar">
-              {inventoryPreview.map((row) => (
-                <div
-                  key={row.name}
-                  className={`${LIST_ROW} ${
-                    row.low ? 'border-amber-200/80 bg-amber-50/40' : ''
-                  }`}
-                >
-                  <span className="text-slate-800 truncate min-w-0">{row.name}</span>
-                  <span className={`tabular-nums shrink-0 ${row.low ? 'text-amber-900' : 'text-[#134e4a]'}`}>
-                    {row.stockLevel.toLocaleString()} {row.unit}
-                    {row.low ? ' · Low' : ''}
-                  </span>
-                </div>
-              ))}
-            </div>
-            <p className="text-sm font-medium text-slate-500 mt-4">
-              Low-stock SKUs: {liveProducts.filter((p) => p.stockLevel < p.lowStockThreshold).length} · Receivables
-              open: {formatNgn(liveReceivablesNgn(quotations, ledgerEntries))}
-            </p>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
-          <div className={PANEL}>
-            <h3 className={SUBHDR}>Top customers (sales from production)</h3>
-            <p className="text-xs text-slate-500 mb-3 -mt-2">
-              Ranked by attributed quotation value on cutting lists dated in this period.
-            </p>
-            <div className="space-y-2">
-              {topCustomers.length === 0 ? (
-                <p className="text-sm font-semibold text-slate-400">No produced sales in range</p>
-              ) : (
-                topCustomers.map((row) => (
-                  <div key={row.customer} className={LIST_ROW}>
-                    <div className="min-w-0">
-                      <p className="text-[#134e4a] truncate font-bold">{row.customer}</p>
-                      <p className="text-xs font-medium text-slate-500 mt-0.5">
-                        {row.completedJobs} production job(s) completed
-                      </p>
-                    </div>
-                    <span className="font-bold text-[#134e4a] tabular-nums shrink-0">{formatNgn(row.amountNgn)}</span>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-          <div className={PANEL}>
-            <h3 className={SUBHDR}>Financial snapshot</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="rounded-2xl border border-slate-100 bg-slate-50/70 px-4 py-3">
-                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Receivables open</p>
-                <p className="text-sm font-black text-amber-700 tabular-nums mt-1">
-                  {formatNgn(liveReceivablesNgn(quotations, ledgerEntries))}
-                </p>
-              </div>
-              <div className="rounded-2xl border border-slate-100 bg-slate-50/70 px-4 py-3">
-                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Expenses (period)</p>
-                <p className="text-sm font-black text-[#134e4a] tabular-nums mt-1">
-                  {formatNgn(expensesInPeriodNgn)}
-                </p>
-                <p className="text-[9px] text-slate-400 mt-1">By expense date in range</p>
-              </div>
-              <div className="rounded-2xl border border-slate-100 bg-slate-50/70 px-4 py-3">
-                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Refunds (period)</p>
-                <p className="text-sm font-black text-rose-800 tabular-nums mt-1">{refundsInPeriod.length} requests</p>
-                <p className="text-[9px] text-slate-400 mt-1">By request date in range</p>
-              </div>
-              <div className="rounded-2xl border border-slate-100 bg-slate-50/70 px-4 py-3">
-                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Treasury movements</p>
-                <p className="text-sm font-black text-[#134e4a] mt-1">{treasuryMovementsInPeriod.length}</p>
-                <p className="text-[9px] text-slate-400 mt-1">By posted date in range</p>
-              </div>
-              <div className="rounded-2xl border border-slate-100 bg-slate-50/70 px-4 py-3">
-                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Delivered shipments</p>
-                <p className="text-sm font-black text-emerald-700 mt-1">
-                  {deliveryPerformance.delivered} / {deliveryPerformance.total}
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
-          <div className={PANEL}>
-            <h3 className={SUBHDR}>Procurement mix (POs in period)</h3>
-            <p className="text-xs text-slate-500 mb-3 -mt-2">
-              Purchase orders with an order date in the selected range, grouped by procurement kind (coil kg, stone
-              metres, accessories).
-            </p>
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
-              {[
-                ['Coil', procurementMixInPeriod.coil],
-                ['Stone', procurementMixInPeriod.stone],
-                ['Accessory', procurementMixInPeriod.accessory],
-                ['Total POs', procurementMixInPeriod.total],
-              ].map(([label, n]) => (
-                <div key={label} className="rounded-xl border border-slate-100 bg-slate-50/80 px-3 py-2.5">
-                  <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">{label}</p>
-                  <p className="text-lg font-black text-[#134e4a] tabular-nums mt-0.5">{Number(n) || 0}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-          <div className={PANEL}>
-            <h3 className={SUBHDR}>Production accessories (posted in period)</h3>
-            <p className="text-xs text-slate-500 mb-3 -mt-2">
-              Lines recorded when accessories were supplied to jobs (posting date in range).
-            </p>
-            <div className="flex flex-wrap gap-3 mb-3">
-              <div className="rounded-xl border border-slate-100 bg-slate-50/80 px-3 py-2.5">
-                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Lines</p>
-                <p className="text-lg font-black text-[#134e4a] tabular-nums mt-0.5">
-                  {accessoryUsageInPeriod.length}
-                </p>
-              </div>
-              <div className="rounded-xl border border-slate-100 bg-slate-50/80 px-3 py-2.5">
-                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Qty supplied (sum)</p>
-                <p className="text-lg font-black text-[#134e4a] tabular-nums mt-0.5">
-                  {accessoryUsageInPeriod
-                    .reduce((s, u) => s + (Number(u.suppliedQty) || 0), 0)
-                    .toLocaleString(undefined, { maximumFractionDigits: 2 })}
-                </p>
-              </div>
-            </div>
-            <div className="space-y-2 max-h-40 overflow-y-auto pr-1 custom-scrollbar">
-              {accessoryUsageInPeriod.length === 0 ? (
-                <p className="text-sm font-semibold text-slate-400">No accessory postings in range</p>
-              ) : (
-                accessoryUsageInPeriod.slice(0, 8).map((u) => (
-                  <div key={u.id} className={LIST_ROW}>
-                    <div className="min-w-0">
-                      <p className="text-[#134e4a] font-bold truncate">{u.name}</p>
-                      <p className="text-xs font-medium text-slate-500 mt-0.5 truncate">
-                        {u.quotationRef || '—'} · job {u.jobID}
-                      </p>
-                    </div>
-                    <span className="tabular-nums font-bold text-slate-800 shrink-0">
-                      {Number(u.suppliedQty).toLocaleString(undefined, { maximumFractionDigits: 2 })}
-                    </span>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
-          <div className={PANEL}>
-            <h3 className={SUBHDR}>Receivables aging</h3>
-            <div className="space-y-2">
-              {[
-                ['Current', arAging.current],
-                ['1-30 days', arAging.days1to30],
-                ['31-60 days', arAging.days31to60],
-                ['61-90 days', arAging.days61to90],
-                ['90+ days', arAging.days90plus],
-              ].map(([label, value]) => (
-                <div key={label} className={LIST_ROW}>
-                  <span className="text-slate-600 font-semibold">{label}</span>
-                  <span className="font-bold text-[#134e4a] tabular-nums">{formatNgn(value)}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className={PANEL}>
-            <h3 className={SUBHDR}>Supplier performance</h3>
-            <div className="space-y-2">
-              {supplierPerformance.length === 0 ? (
-                <p className="text-sm font-semibold text-slate-400">No supplier rows</p>
-              ) : (
-                supplierPerformance.map((row) => (
-                  <div key={row.supplierName} className={`${LIST_ROW} !flex-col !items-stretch gap-2`}>
-                    <p className="text-[#134e4a] font-bold">{row.supplierName}</p>
-                    <p className="text-sm font-medium text-slate-600">
-                      {row.poCount} PO(s) · Receive rate {row.receiveRatePct}%
-                    </p>
-                    <p className="text-sm font-semibold text-slate-800">
-                      Spend {formatNgn(row.orderValueNgn)} · Outstanding {formatNgn(row.outstandingNgn)}
-                    </p>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-
-          <div className={PANEL}>
-            <h3 className={SUBHDR}>Delivery performance</h3>
-            <div className="space-y-2">
-              <div className={LIST_ROW}>
-                <span className="text-slate-600 font-semibold">Delivered</span>
-                <span className="font-bold text-emerald-700 tabular-nums">{deliveryPerformance.delivered}</span>
-              </div>
-              <div className={LIST_ROW}>
-                <span className="text-slate-600 font-semibold">In transit</span>
-                <span className="font-bold text-sky-700 tabular-nums">{deliveryPerformance.inTransit}</span>
-              </div>
-              <div className={LIST_ROW}>
-                <span className="text-slate-600 font-semibold">Exceptions</span>
-                <span className="font-bold text-rose-700 tabular-nums">{deliveryPerformance.exceptions}</span>
-              </div>
-              <div className={LIST_ROW}>
-                <span className="text-slate-600 font-semibold">Total dispatch lines</span>
-                <span className="font-bold text-[#134e4a] tabular-nums">{deliveryPerformance.totalLines}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className={PANEL}>
-          <h3 className={SUBHDR}>Stock movement log</h3>
-          <p className="text-sm font-medium text-slate-600 mb-4 leading-relaxed">
-            Latest stock movements in the selected period (GRNs, transfers, adjustments, finished-goods postings —
-            coil, stone, and SKU lines).
-          </p>
-          <div className="space-y-2 max-h-56 overflow-y-auto pr-1 custom-scrollbar">
-            {movementPreview.length === 0 ? (
-              <p className="text-sm font-semibold text-slate-400">No movements in this period</p>
-            ) : (
-              movementPreview.map((m) => (
-                <div key={m.id} className={`${LIST_ROW} flex-col items-stretch`}>
-                  <div className="flex flex-wrap justify-between gap-2 w-full">
-                    <span className="font-bold text-[#134e4a]">{m.type}</span>
-                    <span className="text-sm font-medium text-slate-500 tabular-nums">
-                      {m.atISO?.replace('T', ' ')}
-                    </span>
-                  </div>
-                  <span className="text-sm font-medium text-slate-700 w-full">
-                    {m.ref ? `${m.ref} · ` : ''}
-                    {m.productID ? `${m.productID} ` : ''}
-                    {m.qty != null ? `qty ${m.qty} ` : ''}
-                    {m.detail || ''}
-                  </span>
-                </div>
-              ))
-            )}
-          </div>
         </div>
 
         <div className="space-y-0">
@@ -1622,35 +1415,44 @@ const Reports = () => {
             (received / ordered / paid), and coil stock as-at end date. IDs use compact numbers; production print uses
             A4 landscape.
           </p>
-          <div className="flex flex-wrap gap-2 mb-10">
-            <button
-              type="button"
-              className="z-btn-primary !text-[11px]"
-              onClick={() => downloadStandardSalesWorkbook(apiFetch, startDate, endDate, showToast)}
-            >
-              Sales workbook (Excel)
-            </button>
-            <button
-              type="button"
-              className="z-btn-primary !text-[11px]"
-              onClick={() => downloadStandardFinanceWorkbook(apiFetch, startDate, endDate, showToast)}
-            >
-              Expenses &amp; refunds (Excel)
-            </button>
-            <button
-              type="button"
-              className="z-btn-primary !text-[11px]"
-              onClick={() => downloadStandardPurchasesWorkbook(apiFetch, startDate, endDate, showToast)}
-            >
-              Purchases 3 cuts (Excel)
-            </button>
-            <button
-              type="button"
-              className="z-btn-primary !text-[11px]"
-              onClick={() => downloadStandardStockWorkbook(apiFetch, endDate, showToast)}
-            >
-              Stock as-at end date (Excel)
-            </button>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-10">
+            {[
+              {
+                id: 'std-sales',
+                title: 'Sales workbook (Excel)',
+                desc: 'Production revenue, receipts register, AR as-at and bridge checks.',
+                run: () => downloadStandardSalesWorkbook(apiFetch, startDate, endDate, showToast),
+              },
+              {
+                id: 'std-finance',
+                title: 'Expenses & refunds (Excel)',
+                desc: 'Expenses period lines and approved refund trail in one workbook.',
+                run: () => downloadStandardFinanceWorkbook(apiFetch, startDate, endDate, showToast),
+              },
+              {
+                id: 'std-purchases',
+                title: 'Purchases 3 cuts (Excel)',
+                desc: 'Ordered, received and paid purchase views grouped for audit checks.',
+                run: () => downloadStandardPurchasesWorkbook(apiFetch, startDate, endDate, showToast),
+              },
+              {
+                id: 'std-stock',
+                title: 'Stock as-at end date (Excel)',
+                desc: 'Inventory position snapshot using the selected end date.',
+                run: () => downloadStandardStockWorkbook(apiFetch, endDate, showToast),
+              },
+            ].map((report) => (
+              <div key={report.id} className="z-soft-panel p-6 sm:p-7 transition-all hover:border-teal-100/80">
+                <h4 className="text-lg font-black text-[#134e4a] tracking-tight">{report.title}</h4>
+                <p className="text-sm font-medium text-slate-600 mt-1.5 leading-relaxed">{report.desc}</p>
+                <div className="z-form-actions !mt-5 !pt-0 !border-0">
+                  <button type="button" onClick={report.run} className="z-btn-primary min-w-0">
+                    <FileSpreadsheet size={14} />
+                    Excel
+                  </button>
+                </div>
+              </div>
+            ))}
           </div>
 
           <h3 className="z-section-title mb-2">Exports &amp; print</h3>
