@@ -46,7 +46,7 @@ import {
 } from '../lib/managementLiveFromWorkspace';
 import { formatRefundReasonCategory, matchesInboxSearch } from '../lib/managerDashboardCore';
 import { Card, Button } from '../components/ui';
-import { PageShell } from '../components/layout';
+import { ModalFrame, PageShell } from '../components/layout';
 import { DashboardKpiStrip } from '../components/dashboard/DashboardKpiStrip';
 import { ManagementAuditSections } from '../components/management/ManagementAuditSections';
 
@@ -1179,7 +1179,7 @@ const ManagerDashboard = () => {
       ) : null}
 
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start min-w-0">
-        <div className="xl:col-span-7 space-y-6">
+        <div className="xl:col-span-12 space-y-6">
           <Card className="overflow-hidden border-slate-200/90 shadow-sm">
             <div className="p-4 border-b border-slate-100 bg-slate-50/80">
               <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
@@ -1301,14 +1301,21 @@ const ManagerDashboard = () => {
           </Card>
         </div>
 
-        <div className="xl:col-span-5 xl:sticky xl:top-6 space-y-4">
-          <Card className="flex flex-col bg-slate-900 border-slate-800 shadow-xl overflow-hidden min-h-[min(88vh,920px)] max-h-[min(92vh,960px)]">
-            <div className="p-4 border-b border-white/10 flex items-center justify-between gap-2">
-              <h3 className="text-[11px] font-black text-white/50 uppercase tracking-[0.2em] flex items-center gap-2">
-                <History size={14} className="text-teal-400" />
-                Transaction intel
-              </h3>
-              {selectedIntel ? (
+        <ModalFrame
+          isOpen={Boolean(selectedIntel)}
+          onClose={() => {
+            setSelectedIntel(null);
+            setAuditData(null);
+            setRefundIntelExtras(null);
+          }}
+        >
+          <div className="z-modal-panel max-w-5xl w-full p-0 overflow-hidden">
+            <Card className="flex flex-col bg-slate-900 border-slate-800 shadow-xl overflow-hidden max-h-[min(92vh,960px)]">
+              <div className="p-4 border-b border-white/10 flex items-center justify-between gap-2">
+                <h3 className="text-[11px] font-black text-white/50 uppercase tracking-[0.2em] flex items-center gap-2">
+                  <History size={14} className="text-teal-400" />
+                  Transaction intel
+                </h3>
                 <button
                   type="button"
                   onClick={() => {
@@ -1320,21 +1327,10 @@ const ManagerDashboard = () => {
                 >
                   Close
                 </button>
-              ) : null}
-            </div>
+              </div>
 
-            <div className="flex-1 overflow-y-auto p-4 space-y-5 custom-scrollbar text-white min-h-0">
-              {!selectedIntel ? (
-                <div className="h-full min-h-[280px] flex flex-col items-center justify-center p-8 text-center">
-                  <div className="w-16 h-16 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center mb-4">
-                    <Search size={28} className="text-white/25" />
-                  </div>
-                  <p className="text-sm font-bold text-white/50">Select an inbox row</p>
-                  <p className="text-xs text-white/35 mt-2 max-w-[240px] leading-relaxed">
-                    Clearance, production gate, conversion review, flags, refunds, and payment requests all open here with actions.
-                  </p>
-                </div>
-              ) : selectedIntel.kind === 'quotation' ? (
+              <div className="flex-1 overflow-y-auto p-4 space-y-5 custom-scrollbar text-white min-h-0">
+                {selectedIntel?.kind === 'quotation' ? (
                 <div className="space-y-5 animate-in fade-in duration-200">
                   <div>
                     <p className="text-[10px] font-bold uppercase tracking-widest text-teal-400/90 mb-1">Quotation</p>
@@ -1417,7 +1413,7 @@ const ManagerDashboard = () => {
                     </>
                   )}
                 </div>
-              ) : selectedIntel.kind === 'refund' ? (
+              ) : selectedIntel?.kind === 'refund' ? (
                 <div className="space-y-5 animate-in fade-in duration-200">
                   <div>
                     <p className="text-[10px] font-bold uppercase tracking-widest text-amber-300/90 mb-1">Refund request</p>
@@ -1530,7 +1526,7 @@ const ManagerDashboard = () => {
                     </button>
                   </div>
                 </div>
-              ) : selectedIntel.kind === 'payment' ? (
+              ) : selectedIntel?.kind === 'payment' ? (
                 <div className="space-y-5 animate-in fade-in duration-200">
                   <div>
                     <p className="text-[10px] font-bold uppercase tracking-widest text-rose-300/90 mb-1">Payment request</p>
@@ -1659,7 +1655,7 @@ const ManagerDashboard = () => {
                     </div>
                   </div>
                 </div>
-              ) : selectedIntel.kind === 'conversion' ? (
+              ) : selectedIntel?.kind === 'conversion' ? (
                 <div className="space-y-5 animate-in fade-in duration-200">
                   <div>
                     <p className="text-[10px] font-bold uppercase tracking-widest text-violet-300/90 mb-1">Conversion review</p>
@@ -1738,15 +1734,16 @@ const ManagerDashboard = () => {
                   </div>
                 </div>
               ) : null}
-            </div>
+              </div>
 
-            <div className="p-3 border-t border-white/10 bg-black/30">
-              <p className="text-[9px] font-semibold text-white/25 text-center uppercase tracking-widest">
-                Management · Zarewa
-              </p>
-            </div>
-          </Card>
-        </div>
+              <div className="p-3 border-t border-white/10 bg-black/30">
+                <p className="text-[9px] font-semibold text-white/25 text-center uppercase tracking-widest">
+                  Management · Zarewa
+                </p>
+              </div>
+            </Card>
+          </div>
+        </ModalFrame>
       </div>
 
     </PageShell>
