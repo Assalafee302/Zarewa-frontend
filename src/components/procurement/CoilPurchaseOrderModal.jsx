@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { X, Plus, Trash2, ChevronDown, Save, UserPlus, Package } from 'lucide-react';
+import { X, Plus, Trash2, ChevronDown, Save, UserPlus, Package, Info } from 'lucide-react';
 import { ModalFrame } from '../layout/ModalFrame';
 import { ProcurementFormSection } from './ProcurementFormSection';
 import { formatNgn } from '../../Data/mockData';
@@ -96,6 +96,7 @@ export default function CoilPurchaseOrderModal({
   const [expectedDelivery, setExpectedDelivery] = useState('');
   const [lines, setLines] = useState([emptyLine()]);
   const [formError, setFormError] = useState('');
+  const [showCoilHelp, setShowCoilHelp] = useState(false);
 
   const editPoId = editDraft?.poID ?? '';
 
@@ -134,8 +135,9 @@ export default function CoilPurchaseOrderModal({
   const lineTotals = useMemo(() => {
     return lines.map((l) => {
       const kg = Number(l.kg) || 0;
+      const m = Number(l.meters) || 0;
       const p = Number(l.pricePerKg) || 0;
-      return kg * p;
+      return (kg > 0 ? kg : m) * p;
     });
   }, [lines]);
   const colourOptions = useMemo(() => {
@@ -190,19 +192,23 @@ export default function CoilPurchaseOrderModal({
       return;
     }
     const sup = suppliers.find((s) => s.supplierID === supplierID);
+    const meterOnlyRows = [];
     const built = lines
       .map((l, i) => {
         const kg = Number(l.kg);
+        const hasKg = Number.isFinite(kg) && kg > 0;
+        const m = l.meters ? Number(l.meters) : null;
+        const hasMeters = m != null && !Number.isNaN(m) && m > 0;
         const color = l.color.trim();
         const gauge = l.gauge.trim();
         const mk = l.materialKind;
-        if (!mk || !color || !gauge || Number.isNaN(kg) || kg <= 0) return null;
+        if (!mk || !color || !gauge || (!hasKg && !hasMeters)) return null;
         const price = Number(l.pricePerKg);
         if (Number.isNaN(price) || price <= 0) return null;
         const productID = stockProductIdForMaterial(mk);
         if (!productID) return null;
-        const conv = conversionForLine(l);
-        const m = l.meters ? Number(l.meters) : null;
+        const conv = hasKg ? conversionForLine(l) : null;
+        if (!hasKg && hasMeters) meterOnlyRows.push(i + 1);
         const lineKey =
           typeof l.existingLineKey === 'string' && l.existingLineKey.trim()
             ? l.existingLineKey.trim()
@@ -214,17 +220,24 @@ export default function CoilPurchaseOrderModal({
           gauge,
           metersOffered: m != null && !Number.isNaN(m) ? m : null,
           conversionKgPerM: conv != null && !Number.isNaN(conv) ? conv : null,
-          unitPricePerKgNgn: price,
-          qtyOrdered: kg,
+          unitPricePerKgNgn: hasKg ? price : null,
+          qtyOrdered: hasKg ? kg : m,
           unitPriceNgn: price,
         };
       })
       .filter(Boolean);
     if (!built.length) {
       setFormError(
-        'Each line needs: material (Aluminium or Aluzinc), colour, gauge, kg ordered, reference metres, and ₦/kg.'
+        'Each line needs: material, colour, gauge, ordered kg or metres, and price.'
       );
       return;
+    }
+    if (meterOnlyRows.length) {
+      const prompt =
+        meterOnlyRows.length === 1
+          ? `Line ${meterOnlyRows[0]} is metres-only. Price will be saved as ₦/metre and kg will be finalized when receipt weight is entered. Continue?`
+          : `Lines ${meterOnlyRows.join(', ')} are metres-only. Prices will be saved as ₦/metre and kg will be finalized when receipt weights are entered. Continue?`;
+      if (!window.confirm(prompt)) return;
     }
     const payload = {
       ...(editPoId ? { poID: editPoId } : {}),
@@ -287,7 +300,7 @@ export default function CoilPurchaseOrderModal({
         </div>
 
         <form className="flex flex-col flex-1 min-h-0" onSubmit={handleSubmit}>
-          <div className="flex-1 overflow-y-auto p-5 custom-scrollbar bg-white min-h-0 flex flex-col gap-6">
+          <div className="flex-1 overflow-y-auto p-5 custom-scrollbar bg-white min-h-0 flex flex-col gap-3">
           <ProcurementFormSection
             letter="A"
             title="Supplier & order header"
@@ -352,24 +365,48 @@ export default function CoilPurchaseOrderModal({
             action={
               <button
                 type="button"
-                onClick={addRow}
-                className="text-[9px] font-semibold text-[#134e4a] uppercase flex items-center gap-1 hover:bg-slate-100 px-2 py-1 rounded-md"
+                onClick={() => setShowCoilHelp((v) => !v)}
+                className={`text-[9px] font-semibold uppercase flex items-center gap-1 px-2 py-1 rounded-md border ${
+                  showCoilHelp
+                    ? 'text-[#134e4a] bg-teal-50 border-[#134e4a]/25'
+                    : 'text-slate-500 bg-white border-slate-200 hover:bg-slate-100'
+                }`}
+                aria-expanded={showCoilHelp}
+                aria-label="Show coil line help"
+                title="Show coil line help"
               >
-                <Plus size={12} /> Add coil line
+                <Info size={12} /> Help
               </button>
             }
           >
-            <p className="text-[9px] text-slate-500 mb-2 leading-snug">
-              Choose <strong>Aluminium</strong> or <strong>Aluzinc</strong> for stock (kg). Add colour (HMB, TB, …),
-              gauge, ordered kg, reference metres, and price. <strong>kg/m</strong> = kg ÷ metres. Assign{' '}
-              <strong>coil number</strong> and <strong>kg received</strong> when you post store receipt — that links
-              transit → inventory → production.
-            </p>
+            {showCoilHelp ? (
+              <div className="mb-2 rounded-md border border-slate-200 bg-white/70 p-2 space-y-1.5">
+                <p className="text-[9px] text-slate-500 leading-snug">
+                  Choose <strong>Aluminium</strong> or <strong>Aluzinc</strong> for stock (kg). Add colour (HMB, TB,
+                  …), gauge, ordered kg, reference metres, and price. <strong>kg/m</strong> = kg ÷ metres. Assign{' '}
+                  <strong>coil number</strong> and <strong>kg received</strong> when you post store receipt — that
+                  links transit → inventory → production.
+                </p>
+                <p className="text-[9px] text-amber-700 leading-snug">
+                  Metres-only purchase is allowed. If kg is blank but metres is entered, price is treated as{' '}
+                  <strong>₦/metre</strong> and the system will ask for confirmation.
+                </p>
+                <p className="text-[9px] text-slate-500 leading-snug">
+                  After save, use <strong>Assign transport</strong> (on loading), then{' '}
+                  <strong>Post to in transit</strong>. In Operations, enter <strong>coil #</strong> and{' '}
+                  <strong>kg in</strong> at receipt — that ties the coil to this PO line for production.
+                </p>
+              </div>
+            ) : null}
 
             <div className="overflow-x-auto -mx-1 px-1 sm:mx-0 sm:px-0 [scrollbar-gutter:stable]">
               <div className="space-y-2 min-w-0">
                 {lines.map((l, idx) => {
                   const conv = conversionForLine(l);
+                  const hasKgForPricing = Number(l.kg) > 0;
+                  const hasMetersForPricing = Number(l.meters) > 0;
+                  const pricingModeLabel =
+                    hasMetersForPricing && !hasKgForPricing ? '₦/m' : '₦/kg';
                   return (
                     <div
                       key={l.rowUid}
@@ -463,7 +500,7 @@ export default function CoilPurchaseOrderModal({
                         </div>
                       </div>
                       <div className="min-w-0 sm:col-span-1 flex flex-col justify-end">
-                        <label className={lineLabelClass}>₦/kg</label>
+                        <label className={lineLabelClass}>Price ({pricingModeLabel})</label>
                         <input
                           type="number"
                           min="0"
@@ -499,6 +536,11 @@ export default function CoilPurchaseOrderModal({
                             <Trash2 size={14} />
                           </button>
                         </div>
+                        <p className="text-[8px] font-semibold text-slate-500 text-right">
+                          {hasMetersForPricing && !hasKgForPricing
+                            ? 'Line total = metres × price (kg does not affect pricing).'
+                            : 'Line total = kg × price.'}
+                        </p>
                       </div>
                     </div>
                   );
@@ -506,13 +548,6 @@ export default function CoilPurchaseOrderModal({
               </div>
             </div>
 
-            <div className="mt-4 pt-4 border-t border-slate-200">
-              <p className="text-[10px] text-slate-500 leading-relaxed">
-                After save, use <strong>Assign transport</strong> (on loading), then{' '}
-                <strong>Post to in transit</strong>. In Operations, enter <strong>coil #</strong> and{' '}
-                <strong>kg in</strong> at receipt — that ties the coil to this PO line for production.
-              </p>
-            </div>
           </ProcurementFormSection>
 
           {formError ? (
