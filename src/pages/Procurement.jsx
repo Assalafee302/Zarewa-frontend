@@ -496,7 +496,7 @@ const Procurement = () => {
     return top;
   }, [purchaseOrders, suppliers]);
 
-  const approvedPurchaseTotalNgn = useMemo(() => {
+  const approvedAndPaidTotalNgn = useMemo(() => {
     const win = APPROVED_PURCHASE_WINDOWS.find((w) => w.id === approvedPurchaseWindow) ?? APPROVED_PURCHASE_WINDOWS[0];
     const end = new Date();
     const start = new Date(end);
@@ -504,13 +504,14 @@ const Procurement = () => {
     start.setHours(0, 0, 0, 0);
 
     return purchaseOrders.reduce((sum, po) => {
-      if (String(po?.status || '') !== 'Approved') return sum;
       const rawDate = String(po?.orderDateISO || '').trim();
       if (!rawDate) return sum;
       const poDate = new Date(rawDate);
       if (Number.isNaN(poDate.getTime())) return sum;
       if (poDate < start) return sum;
-      return sum + purchaseOrderOrderedValueNgn(po);
+      const approvedValue = String(po?.status || '') === 'Approved' ? purchaseOrderOrderedValueNgn(po) : 0;
+      const paidValue = Math.max(0, Number(po?.supplierPaidNgn) || 0);
+      return sum + approvedValue + paidValue;
     }, 0);
   }, [approvedPurchaseWindow, purchaseOrders]);
 
@@ -1447,7 +1448,7 @@ const Procurement = () => {
             <div className="rounded-xl border border-amber-200 bg-amber-50/50 p-3">
               <div className="flex items-center justify-between gap-2">
                 <p className="text-[9px] font-bold uppercase tracking-wide text-amber-700 flex items-center gap-1">
-                  <DollarSign size={12} /> Approved purchases
+                  <DollarSign size={12} /> Approved + paid
                 </p>
                 <select
                   value={approvedPurchaseWindow}
@@ -1462,10 +1463,10 @@ const Procurement = () => {
                   ))}
                 </select>
               </div>
-              <p className="mt-1 text-xl font-black text-amber-900 tabular-nums">{formatNgn(approvedPurchaseTotalNgn)}</p>
+              <p className="mt-1 text-xl font-black text-amber-900 tabular-nums">{formatNgn(approvedAndPaidTotalNgn)}</p>
               <p className="mt-2 text-[10px] text-amber-800/85 border-t border-amber-100 pt-2">
-                Total value of purchase orders in <span className="font-semibold">Approved</span> status for selected
-                period.
+                Combined total for selected period: <span className="font-semibold">Approved PO value</span> plus{' '}
+                <span className="font-semibold">supplier payments posted</span>.
               </p>
             </div>
           </div>

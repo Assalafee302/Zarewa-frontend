@@ -157,6 +157,7 @@ const Account = () => {
   const [receiptsSortKey, setReceiptsSortKey] = useState('date');
   const [receiptsSortDir, setReceiptsSortDir] = useState('desc');
   const [receiptsPage, setReceiptsPage] = useState(0);
+  const [cashierConfirmedReceiptIds, setCashierConfirmedReceiptIds] = useState([]);
 
    
   useEffect(() => {
@@ -243,6 +244,10 @@ const Account = () => {
   const payRequestFileRef = useRef(null);
   const activeActorLabel = ws?.session?.user?.displayName ?? 'Finance';
   const canPayRequests = ws?.hasPermission?.('finance.pay');
+  const cashierReceiptConfirmStorageKey = useMemo(
+    () => `zarewa:cashier-receipt-confirmed:${String(ws?.session?.user?.id || 'anon')}`,
+    [ws?.session?.user?.id]
+  );
   const todayIso = useMemo(() => new Date().toISOString().slice(0, 10), []);
   const branchOptions = useMemo(
     () => ws?.snapshot?.workspaceBranches ?? ws?.session?.branches ?? [],
@@ -277,6 +282,69 @@ const Account = () => {
     () => (ws?.hasWorkspaceData && Array.isArray(ws?.snapshot?.ledgerEntries) ? ws.snapshot.ledgerEntries : []),
     [ws?.hasWorkspaceData, ws?.snapshot?.ledgerEntries]
   );
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(cashierReceiptConfirmStorageKey);
+      const parsed = raw ? JSON.parse(raw) : [];
+      if (Array.isArray(parsed)) setCashierConfirmedReceiptIds(parsed.map((x) => String(x)));
+      else setCashierConfirmedReceiptIds([]);
+    } catch {
+      setCashierConfirmedReceiptIds([]);
+    }
+  }, [cashierReceiptConfirmStorageKey]);
+  useEffect(() => {
+    try {
+      localStorage.setItem(cashierReceiptConfirmStorageKey, JSON.stringify(cashierConfirmedReceiptIds));
+    } catch {
+      /* localStorage unavailable */
+    }
+  }, [cashierConfirmedReceiptIds, cashierReceiptConfirmStorageKey]);
+
+  const cashierReceiptsQueue = useMemo(() => {
+    const confirmed = new Set(cashierConfirmedReceiptIds.map((x) => String(x)));
+    const rows = liveTreasuryMovements
+      .filter((m) => ['LEDGER_RECEIPT', 'LEDGER_ADVANCE'].includes(String(m?.sourceKind || '')))
+      .filter((m) => ['RECEIPT_IN', 'ADVANCE_IN'].includes(String(m?.type || '')))
+      .filter((m) => Number(m?.amountNgn) > 0)
+      .map((m) => {
+        const sourceId = String(m?.sourceId || '').trim();
+        const linkedReceipt =
+          findSalesReceiptByMatchToken(salesReceipts, sourceId) ||
+          findSalesReceiptByMatchToken(salesReceipts, String(m?.reference || '').trim());
+        const rowId = String(m?.id || sourceId || `${m?.postedAtISO || ''}:${m?.treasuryAccountId || ''}`);
+        return {
+          rowId,
+          sourceKind: String(m?.sourceKind || ''),
+          amountNgn: Math.max(0, Number(m?.amountNgn) || 0),
+          postedAtISO: String(m?.postedAtISO || '').slice(0, 10),
+          accountName: treasuryAccountDisplayName(m, { includeAccountNumber: false }),
+          accountId: String(m?.treasuryAccountId || ''),
+          customer: String(linkedReceipt?.customer || m?.counterpartyName || '—'),
+          quotationRef: String(linkedReceipt?.quotationRef || ''),
+          reference: String(m?.reference || '').trim(),
+        };
+      })
+      .filter((r) => !confirmed.has(r.rowId));
+
+    const qq = String(searchQuery || '')
+      .trim()
+      .toLowerCase();
+    const searched = !qq
+      ? rows
+      : rows.filter((r) =>
+          [r.customer, r.quotationRef, r.reference, r.accountName, r.postedAtISO].join(' ').toLowerCase().includes(qq)
+        );
+    searched.sort((a, b) => {
+      const accountCmp = String(a.accountName || '').localeCompare(String(b.accountName || ''), undefined, {
+        sensitivity: 'base',
+      });
+      if (accountCmp !== 0) return accountCmp;
+      const dateCmp = String(b.postedAtISO || '').localeCompare(String(a.postedAtISO || ''));
+      if (dateCmp !== 0) return dateCmp;
+      return String(a.rowId).localeCompare(String(b.rowId));
+    });
+    return searched;
+  }, [cashierConfirmedReceiptIds, liveTreasuryMovements, salesReceipts, searchQuery]);
 
   const treasuryTransferRows = useMemo(() => {
     const transferKinds = new Set(['TREASURY_TRANSFER', 'INTER_BRANCH_LOAN', 'INTER_BRANCH_LOAN_REPAY']);
@@ -1909,7 +1977,7 @@ const Account = () => {
       />
 
       <div className="grid min-w-0 grid-cols-1 gap-8 lg:gap-10 lg:grid-cols-4">
-        <div className="lg:col-span-1 space-y-6">
+        {activeTab !== 'receipts' ? <div className="lg:col-span-1 space-y-6">
           <div className="rounded-zarewa border border-slate-200/80 border-l-[3px] border-l-[#134e4a] bg-white p-6 shadow-[var(--shadow-sequence)]">
             <h3 className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-400 mb-3">
               Total liquidity
@@ -1978,9 +2046,9 @@ const Account = () => {
             Accrual view, revenue recognition on delivery / billing, and expense matching are enforced in
             reporting once the ledger is live.
           </div>
-        </div>
+        </div> : null}
 
-        <div className="lg:col-span-3">
+        <div className={activeTab === 'receipts' ? 'lg:col-span-4' : 'lg:col-span-3'}>
           <FinanceSequencePanel>
             <>
             {activeTab === 'receipts' && (
@@ -1989,144 +2057,62 @@ const Account = () => {
                   <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
                     <div>
                       <h3 className="text-xs font-bold uppercase tracking-widest text-[#134e4a]">
-                        Customer receipts
+                        Payments received (quotation + advance)
                       </h3>
                       <p className="text-[11px] text-slate-600 mt-1 max-w-3xl">
-                        Enter the amount that actually landed in the bank, then mark{' '}
-                        <span className="font-semibold">Cleared for delivery</span> when finance is satisfied.
-                        Sales no longer confirms receipts here — this desk owns settlement.
+                        Cashier confirmation queue. Tick each payment after you have physically confirmed receipt.
+                        Confirmed items are removed from this list.
                       </p>
                     </div>
                   </div>
-                  {filteredSalesReceipts.length === 0 ? (
+                  {cashierReceiptsQueue.length === 0 ? (
                     <p className="text-[10px] text-slate-500 py-8 text-center border border-dashed border-slate-200 rounded-lg">
-                      No receipts in this branch scope.
+                      No pending cashier confirmations.
                     </p>
                   ) : (
                     <>
                       <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-200/70 bg-slate-50/80 px-2.5 py-2">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="text-[9px] font-bold text-slate-500 uppercase">Sort by</span>
-                          <select
-                            value={receiptsSortKey}
-                            onChange={(e) => setReceiptsSortKey(e.target.value)}
-                            className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-[10px] font-semibold text-[#134e4a] outline-none focus:ring-2 focus:ring-[#134e4a]/15"
-                          >
-                            <option value="date">Receipt date</option>
-                            <option value="id">Receipt id</option>
-                            <option value="customer">Customer</option>
-                            <option value="amount">Amount received</option>
-                          </select>
-                          <button
-                            type="button"
-                            onClick={() => setReceiptsSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))}
-                            className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-[9px] font-black uppercase tracking-wide text-slate-600"
-                          >
-                            {receiptsSortDir === 'asc' ? 'Ascending' : 'Descending'}
-                          </button>
-                        </div>
                         <div className="flex flex-wrap items-center gap-2 text-[10px] text-slate-600">
                           <span className="tabular-nums">
-                            {receiptsListWindow.total === 0
-                              ? '0 receipts'
-                              : `Showing ${receiptsListWindow.from}–${receiptsListWindow.to} of ${receiptsListWindow.total}`}
+                            {cashierReceiptsQueue.length} pending item{cashierReceiptsQueue.length !== 1 ? 's' : ''}
                           </span>
-                          <button
-                            type="button"
-                            disabled={receiptsListWindow.safePage <= 0}
-                            onClick={() => setReceiptsPage((p) => Math.max(0, p - 1))}
-                            className="inline-flex items-center rounded-lg border border-slate-200 bg-white px-2 py-1 disabled:opacity-40"
-                            aria-label="Previous page"
-                          >
-                            <ChevronLeft size={14} />
-                          </button>
-                          <span className="text-[9px] font-bold tabular-nums text-slate-500">
-                            {receiptsListWindow.safePage + 1}/{receiptsListWindow.pageCount}
+                          <span className="rounded-full bg-white px-2 py-1 text-[9px] font-bold uppercase tracking-wide text-slate-500">
+                            Sorted by account
                           </span>
-                          <button
-                            type="button"
-                            disabled={receiptsListWindow.safePage >= receiptsListWindow.pageCount - 1}
-                            onClick={() => setReceiptsPage((p) => p + 1)}
-                            className="inline-flex items-center rounded-lg border border-slate-200 bg-white px-2 py-1 disabled:opacity-40"
-                            aria-label="Next page"
-                          >
-                            <ChevronRight size={14} />
-                          </button>
                         </div>
                       </div>
                       <ul className="space-y-1.5">
-                        {receiptsListWindow.slice.map((r) => {
-                        const allocated = Number(r.amountNgn) || 0;
-                        const cash =
-                          r.cashReceivedNgn != null ? Number(r.cashReceivedNgn) || allocated : allocated;
-                        const bank =
-                          r.bankReceivedAmountNgn != null ? Number(r.bankReceivedAmountNgn) : null;
-                        const cleared = Boolean(r.financeDeliveryClearedAtISO);
-                        const paySplits = receiptLedgerReceiptTreasurySplits(r, liveTreasuryMovements);
+                        {cashierReceiptsQueue.map((r) => {
+                        const sourceLabel = r.sourceKind === 'LEDGER_ADVANCE' ? 'Advance payment' : 'Quotation payment';
                         return (
                           <li
-                            key={r.id}
+                            key={r.rowId}
                             className="rounded-xl border border-slate-200/75 bg-white py-2.5 px-3 shadow-[0_8px_28px_-22px_rgba(15,23,42,0.07)] flex flex-wrap items-center justify-between gap-2 transition-colors hover:border-slate-300/90"
                           >
                             <div className="min-w-0 flex-1">
-                              <p className="text-[11px] font-bold text-[#134e4a] font-mono">{r.id}</p>
+                              <p className="text-[11px] font-bold text-[#134e4a]">{r.customer}</p>
                               <p className="text-[9px] text-slate-500 truncate">
-                                {r.customer || '—'} · {r.quotationRef || '—'} · {r.dateISO || r.date || '—'}
+                                {r.quotationRef ? `Quote ${r.quotationRef}` : sourceLabel} · {r.postedAtISO || '—'}
                               </p>
-                              {paySplits.length > 0 ? (
-                                <ul className="mt-1.5 space-y-0.5 border-t border-dashed border-slate-200/80 pt-1.5">
-                                  {paySplits.map((s) => (
-                                    <li
-                                      key={s.movementId}
-                                      className="flex justify-between gap-2 text-[9px] text-slate-700"
-                                    >
-                                      <span className="min-w-0 truncate font-medium" title={s.accountLabel}>
-                                        {s.accountLabel}
-                                      </span>
-                                      <span className="shrink-0 font-bold tabular-nums text-[#134e4a]">
-                                        {formatNgn(s.amountNgn)}
-                                      </span>
-                                    </li>
-                                  ))}
-                                </ul>
-                              ) : null}
+                              <p className="mt-1 text-[9px] text-slate-600">
+                                Account: <span className="font-semibold">{r.accountName || '—'}</span>
+                              </p>
                             </div>
                             <div className="flex flex-wrap items-center gap-2 shrink-0">
                               <span className="text-[10px] font-bold text-slate-600 tabular-nums">
-                                Total {formatNgn(cash)}
-                                {Math.round(allocated) !== Math.round(cash) ? (
-                                  <span className="text-slate-500 font-semibold">
-                                    {' '}
-                                    (quote {formatNgn(allocated)})
-                                  </span>
-                                ) : null}
-                                {bank != null && Math.round(bank) !== Math.round(cash) ? (
-                                  <span className="text-amber-800"> · Bank {formatNgn(bank)}</span>
-                                ) : null}
+                                {formatNgn(r.amountNgn)}
                               </span>
-                              {r.financeReconciliationSavedAtISO && canReviseFinalizedReceiptSettlement ? (
-                                <span className="text-[9px] font-bold uppercase px-2 py-0.5 rounded-full bg-slate-200 text-slate-800">
-                                  Reconciled
-                                </span>
-                              ) : null}
-                              {cleared ? (
-                                <span className="text-[9px] font-bold uppercase px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-900">
-                                  Cleared delivery
-                                </span>
-                              ) : (
-                                <span className="text-[9px] font-bold uppercase px-2 py-0.5 rounded-full bg-amber-100 text-amber-900">
-                                  Pending
-                                </span>
-                              )}
-                              {canFinanceReceiptSettlement && ws?.canMutate ? (
-                                <button
-                                  type="button"
-                                  onClick={() => openReceiptFinance(r)}
-                                  className="text-[9px] font-bold uppercase px-3 py-1.5 rounded-lg bg-[#134e4a] text-white hover:bg-[#0f3d3a]"
-                                >
-                                  Review
-                                </button>
-                              ) : null}
+                              <label className="inline-flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-[9px] font-bold uppercase tracking-wide text-emerald-900 cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  className="h-3.5 w-3.5 accent-emerald-700"
+                                  onChange={(e) => {
+                                    if (!e.target.checked) return;
+                                    setCashierConfirmedReceiptIds((prev) => [...prev, r.rowId]);
+                                  }}
+                                />
+                                Cashier confirmed
+                              </label>
                             </div>
                           </li>
                         );
