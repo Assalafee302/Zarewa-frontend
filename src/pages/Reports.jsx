@@ -719,6 +719,14 @@ const Reports = () => {
             { key: 'remainingAmount', label: 'Remaining' },
           ],
           rows: exRows,
+          grouping: {
+            groupBy: 'category',
+            subtotalKey: '_paidAmountNgn',
+            subtotalColumnKey: 'paidAmount',
+            groupLabel: 'Category',
+            subtotalLabel: 'Category subtotal (paid)',
+            totalLabel: 'Overall total (paid)',
+          },
           summaryLines: [
             { label: 'Print shows paid and part-paid expenses', value: String(exRows.length) },
             {
@@ -1258,6 +1266,7 @@ const Reports = () => {
         columns={printPayload?.columns ?? []}
         rows={printPayload?.rows ?? []}
         summaryLines={printPayload?.summaryLines ?? []}
+        grouping={printPayload?.grouping ?? null}
         layout={printLayout}
         denseSingleLine={printDense}
       />

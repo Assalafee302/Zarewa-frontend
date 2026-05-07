@@ -21,6 +21,7 @@ export function ManagementReportSheet({
   documentTypeLabel = 'Management report',
   layout = 'portrait',
   denseSingleLine = false,
+  grouping = null,
 }) {
   const generated = new Date().toLocaleString(undefined, {
     dateStyle: 'medium',
@@ -35,6 +36,41 @@ export function ManagementReportSheet({
   ]
     .filter(Boolean)
     .join(' ');
+  const parseNumeric = (value) => {
+    if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
+    const cleaned = String(value ?? '')
+      .replace(/[^\d.-]/g, '')
+      .trim();
+    const n = Number(cleaned);
+    return Number.isFinite(n) ? n : 0;
+  };
+  const formatSubtotal = (n) =>
+    n.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const shouldGroup = Boolean(grouping?.groupBy && grouping?.subtotalKey);
+  const subtotalColumnIndex = shouldGroup
+    ? Math.max(
+        0,
+        columns.findIndex((c) => c.key === (grouping.subtotalColumnKey || grouping.subtotalKey))
+      )
+    : 0;
+  const groupedRows = shouldGroup
+    ? rows.reduce((acc, row) => {
+        const key = String(row[grouping.groupBy] || 'Uncategorized');
+        const existing = acc.find((g) => g.key === key);
+        if (existing) {
+          existing.rows.push(row);
+          existing.subtotal += parseNumeric(row[grouping.subtotalKey]);
+        } else {
+          acc.push({
+            key,
+            rows: [row],
+            subtotal: parseNumeric(row[grouping.subtotalKey]),
+          });
+        }
+        return acc;
+      }, [])
+    : [];
+  const overallTotal = shouldGroup ? groupedRows.reduce((sum, g) => sum + g.subtotal, 0) : 0;
 
   return (
     <StandardReportPrintShell
@@ -71,6 +107,76 @@ export function ManagementReportSheet({
                 No rows in this period.
               </td>
             </tr>
+          ) : shouldGroup ? (
+            <>
+              {groupedRows.map((group, groupIdx) => (
+                <React.Fragment key={`${group.key}-${groupIdx}`}>
+                  <tr className="border-b border-slate-200 bg-slate-100/80">
+                    <td
+                      colSpan={Math.max(1, columns.length)}
+                      className="px-2 py-1.5 text-[10px] font-black uppercase tracking-wide text-slate-700 print:text-[9pt]"
+                    >
+                      {grouping.groupLabel || 'Category'}: {group.key}
+                    </td>
+                  </tr>
+                  {group.rows.map((row, i) => (
+                    <tr key={`${group.key}-${i}`} className="report-print-tr quotation-print-line border-b border-slate-100">
+                      {columns.map((c) => {
+                        const raw = c.key === grouping.groupBy ? '' : row[c.key];
+                        const text = raw != null && raw !== '' ? String(raw) : '—';
+                        return (
+                          <td
+                            key={c.key}
+                            title={denseSingleLine && text !== '—' ? text : undefined}
+                            className={`${TD_BASE} ${c.align === 'right' ? 'text-right tabular-nums' : ''} ${
+                              i % 2 === 1 ? 'bg-slate-50/50' : ''
+                            }`}
+                          >
+                            {text}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                  <tr className="border-b border-slate-200 bg-slate-50/90">
+                    {columns.map((col, idx) => {
+                      if (idx < subtotalColumnIndex) {
+                        return <td key={col.key} className="px-2 py-1.5" />;
+                      }
+                      if (idx === subtotalColumnIndex) {
+                        return (
+                          <td
+                            key={col.key}
+                            className="px-2 py-1.5 text-right text-[10px] font-bold uppercase tracking-wide text-slate-600 print:text-[9pt]"
+                          >
+                            {`${grouping.subtotalLabel || 'Subtotal'}: ${formatSubtotal(group.subtotal)}`}
+                          </td>
+                        );
+                      }
+                      return <td key={col.key} className="px-2 py-1.5" />;
+                    })}
+                  </tr>
+                </React.Fragment>
+              ))}
+              <tr className="border-b border-slate-300 bg-slate-100">
+                {columns.map((col, idx) => {
+                  if (idx < subtotalColumnIndex) {
+                    return <td key={col.key} className="px-2 py-1.5" />;
+                  }
+                  if (idx === subtotalColumnIndex) {
+                    return (
+                      <td
+                        key={col.key}
+                        className="px-2 py-1.5 text-right text-[10px] font-black uppercase tracking-wide text-slate-700 print:text-[9pt]"
+                      >
+                        {`${grouping.totalLabel || 'Overall total'}: ${formatSubtotal(overallTotal)}`}
+                      </td>
+                    );
+                  }
+                  return <td key={col.key} className="px-2 py-1.5" />;
+                })}
+              </tr>
+            </>
           ) : (
             rows.map((row, i) => (
               <tr key={i} className="report-print-tr quotation-print-line border-b border-slate-100">
@@ -120,6 +226,7 @@ export function ReportPrintModal({
   documentTypeLabel,
   layout = 'portrait',
   denseSingleLine = false,
+  grouping = null,
 }) {
   const isLandscape = layout === 'landscape';
   const outerScrollClass = ['flex-1 min-h-0 overflow-y-auto custom-scrollbar bg-slate-100/80 p-4 sm:p-6', isLandscape ? 'print-portal-scroll' : '']
@@ -162,6 +269,7 @@ export function ReportPrintModal({
               documentTypeLabel={documentTypeLabel}
               layout={layout}
               denseSingleLine={denseSingleLine}
+              grouping={grouping}
             />
           </div>
         </div>
