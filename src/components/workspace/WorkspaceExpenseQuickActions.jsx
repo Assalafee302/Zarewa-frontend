@@ -33,6 +33,7 @@ export function WorkspaceExpenseQuickActions() {
 
   const [showPayRequestModal, setShowPayRequestModal] = useState(false);
   const [showExpenseModal, setShowExpenseModal] = useState(false);
+  const [savingExpense, setSavingExpense] = useState(false);
   const [requestForm, setRequestForm] = useState(() => ({
     ...initialExpenseRequestFormState(),
     requestDate: '',
@@ -117,6 +118,7 @@ export function WorkspaceExpenseQuickActions() {
 
   const saveExpense = async (e) => {
     e.preventDefault();
+    if (savingExpense) return;
     const amount = Number(expenseForm.amountNgn);
     const debitId = Number(expenseForm.debitAccountId);
     if (!expenseForm.category.trim() || Number.isNaN(amount) || amount <= 0) return;
@@ -139,14 +141,21 @@ export function WorkspaceExpenseQuickActions() {
       reference: expenseForm.reference.trim() || '—',
     };
     if (ws?.canMutate) {
-      const { ok, data } = await apiFetch('/api/expenses', {
-        method: 'POST',
-        body: JSON.stringify({
-          ...row,
-          treasuryAccountId: debitId,
-          createdBy: activeActorLabel,
-        }),
-      });
+      setSavingExpense(true);
+      let ok = false;
+      let data = null;
+      try {
+        ({ ok, data } = await apiFetch('/api/expenses', {
+          method: 'POST',
+          body: JSON.stringify({
+            ...row,
+            treasuryAccountId: debitId,
+            createdBy: activeActorLabel,
+          }),
+        }));
+      } finally {
+        setSavingExpense(false);
+      }
       if (!ok || !data?.ok) {
         showToast(data?.error || 'Could not save expense on server.', { variant: 'error' });
         return;
@@ -354,8 +363,12 @@ export function WorkspaceExpenseQuickActions() {
               />
             </div>
             <p className="text-[10px] text-gray-400">Expense ID is generated on save (e.g. EXP-26-015).</p>
-            <button type="submit" className="z-btn-primary w-full justify-center py-3">
-              Save expense
+            <button
+              type="submit"
+              disabled={savingExpense}
+              className="z-btn-primary w-full justify-center py-3 disabled:opacity-70 disabled:cursor-not-allowed"
+            >
+              {savingExpense ? 'Saving expense...' : 'Save expense'}
             </button>
           </form>
         </div>

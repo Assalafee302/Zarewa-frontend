@@ -150,10 +150,29 @@ const ManagerDashboard = () => {
   );
   const openUnifiedWorkItem = useCallback(
     (item) => {
+      if (selectedIntel?.kind === 'payment') {
+        const approvalStatus = String(selectedIntel?.row?.approval_status || '').trim().toLowerCase();
+        if (approvalStatus === 'rejected') {
+          navigate('/accounts', {
+            state: {
+              accountsTab: 'disbursements',
+              openExpenseCorrection: {
+                requestId: String(selectedIntel.requestId || ''),
+                expenseId: String(selectedIntel?.row?.expense_id || selectedIntel?.row?.expenseID || ''),
+                expenseCategory: String(selectedIntel?.row?.expense_category || ''),
+                requestReference: String(selectedIntel?.row?.request_reference || ''),
+                amountRequestedNgn: Number(selectedIntel?.row?.amount_requested_ngn) || 0,
+                requestDate: String(selectedIntel?.row?.request_date || ''),
+              },
+            },
+          });
+          return;
+        }
+      }
       if (!item?.routePath) return;
       navigate(item.routePath, item.routeState ? { state: item.routeState } : undefined);
     },
-    [navigate]
+    [navigate, selectedIntel]
   );
   const selectedUnifiedWorkItem = useMemo(() => {
     if (!selectedIntel) return null;

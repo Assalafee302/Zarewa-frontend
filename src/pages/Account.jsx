@@ -75,6 +75,7 @@ const Account = () => {
   const [showAddBank, setShowAddBank] = useState(false);
   const [showExpenseModal, setShowExpenseModal] = useState(false);
   const [showPayRequestModal, setShowPayRequestModal] = useState(false);
+  const [savingExpense, setSavingExpense] = useState(false);
   const [showTransferModal, setShowTransferModal] = useState(false);
   const [showRefundPayModal, setShowRefundPayModal] = useState(false);
   const [statementAccount, setStatementAccount] = useState(null);
@@ -805,6 +806,36 @@ const Account = () => {
       }));
       setShowExpenseModal(true);
       navigate({ pathname: location.pathname, search: '?tab=disbursements' }, { replace: true, state: {} });
+      return;
+    }
+
+    if (st.openExpenseCorrection) {
+      const correction = st.openExpenseCorrection || {};
+      const requestId = String(correction.requestId || '').trim();
+      const req = requestId ? payRequests.find((row) => String(row.requestID || '').trim() === requestId) : null;
+      const amountNgn = Number(req?.amountRequestedNgn ?? correction.amountRequestedNgn ?? 0);
+      const chosenCategory = String(req?.expenseCategory || correction.expenseCategory || '').trim();
+      const suggestedReference = String(
+        req?.requestReference || correction.requestReference || requestId || req?.requestID || ''
+      ).trim();
+      handleAccountTabChange('disbursements');
+      setExpenseForm({
+        expenseType: 'Operational — correction entry',
+        amountNgn: amountNgn > 0 ? String(amountNgn) : '',
+        date: String(req?.requestDate || correction.requestDate || todayIso).slice(0, 10),
+        category: chosenCategory,
+        paymentMethod: 'Bank Transfer',
+        debitAccountId: String(bankAccounts[0]?.id ?? ''),
+        reference: suggestedReference || 'Correction entry',
+      });
+      setShowExpenseModal(true);
+      showToast(
+        requestId
+          ? `Rejected request ${requestId} moved to archive. Record the corrected expense below.`
+          : 'Rejected request moved to archive. Record the corrected expense below.',
+        { variant: 'info' }
+      );
+      navigate({ pathname: location.pathname, search: '?tab=disbursements' }, { replace: true, state: {} });
     }
   }, [
     location.state,
@@ -813,6 +844,8 @@ const Account = () => {
     handleAccountTabChange,
     todayIso,
     bankAccounts,
+    payRequests,
+    showToast,
   ]);
    
 
@@ -1039,6 +1072,7 @@ const Account = () => {
 
   const saveExpense = async (e) => {
     e.preventDefault();
+    if (savingExpense) return;
     const amount = Number(expenseForm.amountNgn);
     const debitId = Number(expenseForm.debitAccountId);
     if (!expenseForm.category.trim() || Number.isNaN(amount) || amount <= 0) return;
@@ -1061,14 +1095,21 @@ const Account = () => {
       reference: expenseForm.reference.trim() || '—',
     };
     if (ws?.canMutate) {
-      const { ok, data } = await apiFetch('/api/expenses', {
-        method: 'POST',
-        body: JSON.stringify({
-          ...row,
-          treasuryAccountId: debitId,
-          createdBy: activeActorLabel,
-        }),
-      });
+      setSavingExpense(true);
+      let ok = false;
+      let data = null;
+      try {
+        ({ ok, data } = await apiFetch('/api/expenses', {
+          method: 'POST',
+          body: JSON.stringify({
+            ...row,
+            treasuryAccountId: debitId,
+            createdBy: activeActorLabel,
+          }),
+        }));
+      } finally {
+        setSavingExpense(false);
+      }
       if (!ok || !data?.ok) {
         showToast(data?.error || 'Could not save expense on server.', { variant: 'error' });
         return;
@@ -1480,16 +1521,32 @@ const Account = () => {
     });
   }, [payRequests, searchQuery]);
 
+  const activePayRequests = useMemo(
+    () =>
+      filteredPayRequests.filter(
+        (req) => String(req.approvalStatus || '').trim().toLowerCase() !== 'rejected'
+      ),
+    [filteredPayRequests]
+  );
+
+  const archivedRejectedPayRequests = useMemo(
+    () =>
+      filteredPayRequests.filter(
+        (req) => String(req.approvalStatus || '').trim().toLowerCase() === 'rejected'
+      ),
+    [filteredPayRequests]
+  );
+
   /** Approved with unpaid balance — surfaced on Treasury (same pattern as refunds awaiting payout). */
   const payRequestsAwaitingTreasuryPayout = useMemo(
     () =>
-      filteredPayRequests.filter((req) => {
+      activePayRequests.filter((req) => {
         if (req.approvalStatus !== 'Approved') return false;
         const paidAmountNgn = Number(req.paidAmountNgn) || 0;
         const outstandingNgn = Math.max(0, (Number(req.amountRequestedNgn) || 0) - paidAmountNgn);
         return outstandingNgn > 0;
       }),
-    [filteredPayRequests]
+    [activePayRequests]
   );
 
   const livePoTransportAwaitingTreasury = useMemo(
@@ -2643,6 +2700,81 @@ const Account = () => {
                 })}
                 </ul>
                 </section>
+                <section className="space-y-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <h3 className="text-xs font-bold uppercase tracking-widest text-[#134e4a]">
+                      Archived rejected expense requests
+                    </h3>
+                    <span className="text-[10px] font-bold text-slate-500 tabular-nums">
+                      {archivedRejectedPayRequests.length} archived
+                    </span>
+                  </div>
+                  <p className="text-[10px] text-slate-500">
+                    Rejected requests are hidden from active payout flow and kept here as archived history.
+                  </p>
+                  {archivedRejectedPayRequests.length === 0 ? (
+                    <p className="text-[10px] text-slate-400 rounded-lg border border-slate-100 bg-slate-50/70 px-3 py-2">
+                      No rejected expense requests in archive.
+                    </p>
+                  ) : (
+                    <ul className="space-y-1.5">
+                      {archivedRejectedPayRequests.map((req) => {
+                        const meta2 = [
+                          req.expenseCategory ? req.expenseCategory : null,
+                          req.requestReference ? `Ref ${req.requestReference}` : null,
+                          req.branchId ? branchNameById[req.branchId] || req.branchId : null,
+                          req.requestDate,
+                        ]
+                          .filter(Boolean)
+                          .join(' · ');
+                        return (
+                          <li
+                            key={req.requestID}
+                            className="rounded-lg border border-slate-200/60 bg-slate-50/60 py-1.5 px-2.5 shadow-sm"
+                          >
+                            <div className="flex flex-wrap items-start justify-between gap-2 min-w-0">
+                              <div className="min-w-0 leading-tight flex-1">
+                                <p className="text-[11px] font-bold text-slate-700 truncate">
+                                  <span className="font-mono">{req.requestID}</span>
+                                  <span className="font-medium text-slate-500">
+                                    {' '}
+                                    · {req.description || 'Rejected request'}
+                                  </span>
+                                </p>
+                                <p className="text-[8px] text-slate-500 mt-0.5 leading-snug line-clamp-2" title={meta2}>
+                                  {meta2}
+                                </p>
+                              </div>
+                              <div className="flex flex-col items-end gap-1 shrink-0">
+                                <span className="text-[11px] font-black text-slate-700 tabular-nums">
+                                  {formatNgn(Number(req.amountRequestedNgn) || 0)}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setExpenseForm({
+                                      expenseType: 'Operational — correction entry',
+                                      amountNgn: String(Number(req.amountRequestedNgn) || ''),
+                                      date: String(req.requestDate || todayIso).slice(0, 10),
+                                      category: String(req.expenseCategory || '').trim(),
+                                      paymentMethod: 'Bank Transfer',
+                                      debitAccountId: String(bankAccounts[0]?.id ?? ''),
+                                      reference: String(req.requestReference || req.requestID || 'Correction entry').trim(),
+                                    });
+                                    setShowExpenseModal(true);
+                                  }}
+                                  className="text-[8px] font-semibold uppercase tracking-wide text-sky-800 bg-sky-100 hover:bg-sky-200 px-2 py-1 rounded-md"
+                                >
+                                  Correct entry
+                                </button>
+                              </div>
+                            </div>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+                </section>
               </div>
             )}
 
@@ -3600,8 +3732,12 @@ const Account = () => {
               <p className="text-[10px] text-gray-400">
                 Expense ID is generated on save (e.g. EXP-26-015).
               </p>
-              <button type="submit" className="z-btn-primary w-full justify-center py-3">
-                Save expense
+              <button
+                type="submit"
+                disabled={savingExpense}
+                className="z-btn-primary w-full justify-center py-3 disabled:opacity-70 disabled:cursor-not-allowed"
+              >
+                {savingExpense ? 'Saving expense...' : 'Save expense'}
               </button>
             </form>
         </div>
