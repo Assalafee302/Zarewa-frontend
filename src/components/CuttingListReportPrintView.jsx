@@ -196,6 +196,11 @@ function WaybillCutConfirmBlock({ grouped, cutStartIndex, fullRightColumn, categ
     running += (grouped[type] ?? []).length;
   }
   const anyLines = categories.some(({ type }) => (grouped[type] ?? []).length > 0);
+  const grandMeters = categories.reduce(
+    (sum, { type }) =>
+      sum + (grouped[type] ?? []).reduce((catSum, line) => catSum + line.sheets * line.lengthM, 0),
+    0
+  );
   return (
     <div
       className={
@@ -213,6 +218,11 @@ function WaybillCutConfirmBlock({ grouped, cutStartIndex, fullRightColumn, categ
           );
           return <div key={type}>{block}</div>;
         })}
+        {anyLines ? (
+          <p className="cl-factory-cut-empty font-bold text-right">
+            Grand total metres: {grandMeters.toLocaleString('en-NG', { maximumFractionDigits: 2 })} m
+          </p>
+        ) : null}
         {!anyLines ? <p className="cl-factory-cut-empty">No cutting lines on this section.</p> : null}
       </div>
     </div>
@@ -593,7 +603,7 @@ export default function CuttingListReportPrintView({
                       </span>
                       <span className="cl-factory-subbar-seg">
                         <span className="cl-factory-subbar-k">Material</span>
-                        <span className="cl-factory-subbar-v">{materialInfoValue}</span>
+                        <span className="cl-factory-subbar-v font-bold">{materialInfoValue}</span>
                       </span>
                     </div>
                   </div>
@@ -649,7 +659,15 @@ export default function CuttingListReportPrintView({
                 })}
                 {chunk.length === 0 ? (
                   <p className="cl-factory-cut-empty">No cutting lines with qty and length (roof, flat, or cladding).</p>
-                ) : null}
+                ) : (
+                  <p className="cl-factory-cut-empty font-bold text-right">
+                    Grand total metres:{' '}
+                    {chunk
+                      .reduce((sum, line) => sum + line.sheets * line.lengthM, 0)
+                      .toLocaleString('en-NG', { maximumFractionDigits: 2 })}{' '}
+                    m
+                  </p>
+                )}
               </div>
             </div>
           </div>

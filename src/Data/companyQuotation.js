@@ -19,21 +19,21 @@ export const ZAREWA_QUOTATION_BRANDING = {
       title: 'KADUNA HEAD OFFICE',
       lines: [
         'No A1 Kaduna–Zaria Road, Unguwan Gwari, Kawo, Kaduna State.',
-        'Tel: +234 803 000 0000 · +234 806 000 0000 · +234 809 000 0000',
+        'Tel: +2349137000205',
       ],
     },
     {
       title: 'YOLA FACTORY',
       lines: [
         'Yola Numan Road, 1 km from welcome to Yola, Adamawa State.',
-        'Tel: +234 701 000 0000',
+        'Tel: +2349137000203',
       ],
     },
     {
       title: 'MAIDUGURI FACTORY',
       lines: [
         'Airport Road, behind Yola Electric Building, Bulunkutu, Maiduguri, Borno State.',
-        'Tel: +234 902 000 0000',
+        'Tel: +2349137000202',
       ],
     },
   ],

@@ -312,6 +312,7 @@ const CuttingListModal = ({
 }) => {
   const { show: showToast } = useToast();
   const ws = useWorkspace();
+  const activeDisplayName = String(ws?.session?.user?.displayName ?? '').trim();
   const minPaidFraction = useMemo(() => cuttingListMinPaidFractionFromSession(ws?.session), [ws?.session]);
   const minPaidPercentLabel = Math.round(minPaidFraction * 100);
   const navigate = useNavigate();
@@ -510,7 +511,7 @@ const CuttingListModal = ({
       sheetsToCut: editData?.sheetsToCut ?? computedSheets,
       linesByCat,
       receiptsForQuotation: quoteReceipts,
-      productionFooterName: editData?.handledBy || handledByLabel,
+      productionFooterName: editData?.handledBy || activeDisplayName || handledByLabel,
       treasuryMovements: Array.isArray(ws?.snapshot?.treasuryMovements) ? ws.snapshot.treasuryMovements : [],
     }),
     [
@@ -527,6 +528,7 @@ const CuttingListModal = ({
       computedSheets,
       linesByCat,
       quoteReceipts,
+      activeDisplayName,
       ws?.snapshot?.treasuryMovements,
     ]
   );
@@ -699,7 +701,7 @@ const CuttingListModal = ({
       dateISO,
       sheetsToCut: computedSheets,
       machineName,
-      handledBy: handledByLabel,
+      handledBy: activeDisplayName || handledByLabel,
       lines: normalizedLines,
       totalMeters,
       ...(isCreate ? { holdForProductionApproval } : {}),

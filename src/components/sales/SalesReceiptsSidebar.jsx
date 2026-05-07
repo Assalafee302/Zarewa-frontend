@@ -5,10 +5,11 @@ import {
   MoreVertical,
   Eye,
   Link2,
+  Trash2,
   ChevronDown,
 } from 'lucide-react';
 import { loadLedgerEntries } from '../../lib/customerLedgerStore';
-import { loadDismissedAdvanceIds } from '../../lib/advanceEntryUiStore';
+import { dismissAdvanceEntryId, loadDismissedAdvanceIds } from '../../lib/advanceEntryUiStore';
 import { formatNgn } from '../../Data/mockData';
 import { receiptCashReceivedNgn } from '../../lib/salesReceiptsList';
 
@@ -20,7 +21,7 @@ function reversalTargetId(raw) {
   return m ? m[1] : '';
 }
 
-function RowMenu({ rowKey, openKey, setOpenKey, onView, onLink }) {
+function RowMenu({ rowKey, openKey, setOpenKey, onView, onLink, onDelete }) {
   const open = openKey === rowKey;
   return (
     <div className="relative shrink-0" data-sales-receipt-sidebar-menu>
@@ -33,7 +34,7 @@ function RowMenu({ rowKey, openKey, setOpenKey, onView, onLink }) {
         <MoreVertical size={16} />
       </button>
       {open ? (
-        <div className="absolute right-0 top-full z-40 mt-1 w-40 rounded-lg border border-slate-200 bg-white py-1 shadow-lg">
+        <div className="absolute bottom-full right-0 z-[70] mb-1 w-40 rounded-lg border border-slate-200 bg-white py-1 shadow-lg">
           <button
             type="button"
             className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-medium text-slate-700 hover:bg-slate-50"
@@ -53,6 +54,16 @@ function RowMenu({ rowKey, openKey, setOpenKey, onView, onLink }) {
             }}
           >
             <Link2 size={14} className="text-slate-400" /> Link to quote
+          </button>
+          <button
+            type="button"
+            className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-medium text-red-700 hover:bg-red-50"
+            onClick={() => {
+              onDelete();
+              setOpenKey(null);
+            }}
+          >
+            <Trash2 size={14} className="text-red-500" /> Delete
           </button>
         </div>
       ) : null}
@@ -157,6 +168,7 @@ export function ReceiptsAdvancesPanel({
   className = '',
 }) {
   const [menuKey, setMenuKey] = useState(null);
+  const [locallyDismissed, setLocallyDismissed] = useState(() => new Set());
 
   useEffect(() => {
     if (!menuKey) return;
@@ -183,10 +195,11 @@ export function ReceiptsAdvancesPanel({
         (e) =>
           e.type === 'ADVANCE_IN' &&
           !dismissed.has(String(e.id)) &&
+          !locallyDismissed.has(String(e.id)) &&
           !reversedAdvanceIds.has(String(e.id))
       )
       .sort((a, b) => String(b.atISO).localeCompare(String(a.atISO)));
-  }, [ledgerNonce]);
+  }, [ledgerNonce, locallyDismissed]);
 
   return (
     <section className={`${PANEL_CLASS} border-amber-200/90 bg-amber-50/10 ${className}`}>
@@ -200,7 +213,7 @@ export function ReceiptsAdvancesPanel({
           Not yet linked to a quote. <strong>Link</strong> applies to a quotation; full apply removes the row here.
         </p>
       </div>
-      <ul className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-2 space-y-1.5">
+      <ul className="flex-1 min-h-0 overflow-y-auto overflow-x-visible custom-scrollbar p-2 space-y-1.5">
         {advanceRows.length === 0 ? (
           <li className="text-[10px] text-amber-800/60 px-2 py-4 text-center">No pending advances.</li>
         ) : (
@@ -208,7 +221,7 @@ export function ReceiptsAdvancesPanel({
             <li
               key={e.id}
               className={`flex items-center justify-between gap-2 rounded-lg border border-amber-100 bg-white/90 px-2.5 py-2${
-                menuKey === e.id ? ' relative z-50' : ''
+                menuKey === e.id ? ' relative z-[60]' : ''
               }`}
             >
               <div className="min-w-0">
@@ -222,6 +235,14 @@ export function ReceiptsAdvancesPanel({
                 setOpenKey={setMenuKey}
                 onView={() => onSelectAdvance?.(e)}
                 onLink={() => onLinkAdvance?.(e)}
+                onDelete={() => {
+                  dismissAdvanceEntryId(e.id);
+                  setLocallyDismissed((prev) => {
+                    const next = new Set(prev);
+                    next.add(String(e.id));
+                    return next;
+                  });
+                }}
               />
             </li>
           ))
