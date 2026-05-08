@@ -63,6 +63,38 @@ function buildCoilRiskRows(products = []) {
     .slice(0, 18);
 }
 
+const EMPTY_MODEL = {
+  kpis: {
+    totalPurchasesNgn: 0,
+    pendingPoCount: 0,
+    approvedPoCount: 0,
+    outstandingSupplierPaymentsNgn: 0,
+    activeSuppliers: 0,
+    goodsInTransitCount: 0,
+    lowStockItemsCount: 0,
+    stockOutIncidents: 0,
+    posCreatedToday: 0,
+    payablesOutstandingNgn: 0,
+  },
+  charts: {
+    spendTrend: [],
+    categorySpend: [],
+    topItems: [],
+    supplierSpend: [],
+    payablesAging: { '0_30': 0, '31_60': 0, '61_90': 0, over_90: 0 },
+    poStatusFlow: [],
+  },
+};
+
+function safeBuildModel(args) {
+  try {
+    return buildProcurementDashboardModel(args);
+  } catch (error) {
+    console.error('Procurement dashboard model failed; rendering safe fallback.', error);
+    return EMPTY_MODEL;
+  }
+}
+
 export default function ProcurementDashboardTab({
   purchaseOrders = [],
   suppliers = [],
@@ -96,7 +128,7 @@ export default function ProcurementDashboardTab({
 
   const model = useMemo(
     () =>
-      buildProcurementDashboardModel({
+      safeBuildModel({
         purchaseOrders: filteredPo,
         suppliers,
         accountsPayable,

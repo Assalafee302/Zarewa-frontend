@@ -68,7 +68,10 @@ export default function SalesDashboardTab({
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
         <SalesRevenueTrendChart rows={charts.revenueTrend} />
         <SalesPipelineFunnel rows={charts.pipeline} />
-        <SalesTopCustomersPanel rows={charts.topCustomers} />
+        <SalesTopCustomersPanel
+          rowsByPaid={charts.topCustomersByPaid || charts.topCustomers || []}
+          rowsByMeters={charts.topCustomersByMeters || []}
+        />
         {canViewFinance ? <SalesReceivablesAgingChart buckets={charts.receivablesAging} /> : null}
         <SalesDemandMixPanel rows={charts.demandMix} bookedVsProduced={charts.bookedVsProduced} />
         <SalesAlertsPanel alerts={alerts} />

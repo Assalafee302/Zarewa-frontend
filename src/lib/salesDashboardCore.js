@@ -74,14 +74,20 @@ export function buildSalesDashboardModel({
   quotations.forEach((q) => {
     const id = String(q?.customerID || q?.customer_id || q?.customer || '').trim();
     if (!id) return;
-    customerMap.set(id, (customerMap.get(id) || 0) + (Number(q?.totalNgn) || 0));
+    const curr = customerMap.get(id) || { paidNgn: 0, metres: 0 };
+    curr.paidNgn += Number(q?.paidNgn) || 0;
+    curr.metres += Number(q?.totalMeters ?? q?.meters ?? q?.total_meters ?? 0) || 0;
+    customerMap.set(id, curr);
   });
-  const topCustomers = [...customerMap.entries()]
-    .map(([id, value]) => {
+  const customerRankRows = [...customerMap.entries()].map(([id, value]) => {
       const c = customers.find((x) => String(x?.customerID || x?.customer_id || x?.name || '') === id);
-      return { id, name: c?.name || id, value };
-    })
-    .sort((a, b) => b.value - a.value)
+      return { id, name: c?.name || id, paidNgn: Number(value?.paidNgn) || 0, metres: Number(value?.metres) || 0 };
+    });
+  const topCustomersByPaid = [...customerRankRows]
+    .sort((a, b) => b.paidNgn - a.paidNgn)
+    .slice(0, 10);
+  const topCustomersByMeters = [...customerRankRows]
+    .sort((a, b) => b.metres - a.metres)
     .slice(0, 10);
 
   const revenueTrendMap = new Map();
@@ -157,15 +163,17 @@ export function buildSalesDashboardModel({
       refundsPending,
       refundsAwaitingPayout,
       cuttingWaiting,
-      topCustomerValueNgn: topCustomers[0]?.value || 0,
-      topCustomerName: topCustomers[0]?.name || '—',
+      topCustomerValueNgn: topCustomersByPaid[0]?.paidNgn || 0,
+      topCustomerName: topCustomersByPaid[0]?.name || '—',
       producedMeters: bookedVsProduced.producedMeters,
       producedValueNgn: bookedVsProduced.producedValueNgn,
     },
     charts: {
       revenueTrend,
       pipeline,
-      topCustomers,
+      topCustomers: topCustomersByPaid,
+      topCustomersByPaid,
+      topCustomersByMeters,
       receivablesAging: aging,
       demandMix: demandMixRows,
       bookedVsProduced,

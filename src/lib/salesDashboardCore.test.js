@@ -27,7 +27,8 @@ describe('buildSalesDashboardModel', () => {
     });
     expect(model.kpis.salesMtdNgn).toBe(1000);
     expect(model.kpis.outstandingReceivablesNgn).toBe(600);
-    expect(model.charts.topCustomers[0]?.name).toBe('Test Customer');
+    expect(model.charts.topCustomersByPaid[0]?.name).toBe('Test Customer');
+    expect(model.charts.topCustomersByPaid[0]?.paidNgn).toBe(400);
     expect(model.charts.pipeline.some((x) => x.stage === 'approved')).toBe(true);
     expect(model.alerts.length > 0).toBe(true);
   });
