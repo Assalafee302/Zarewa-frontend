@@ -632,10 +632,11 @@ const Procurement = () => {
   );
 
   const todayIso = useMemo(() => new Date().toISOString().slice(0, 10), []);
-  const branchOptions = useMemo(
-    () => ws?.snapshot?.workspaceBranches ?? ws?.session?.branches ?? [],
-    [ws?.snapshot?.workspaceBranches, ws?.session?.branches]
-  );
+  const branchOptions = useMemo(() => {
+    if (Array.isArray(ws?.snapshot?.workspaceBranches)) return ws.snapshot.workspaceBranches;
+    if (Array.isArray(ws?.session?.branches)) return ws.session.branches;
+    return [];
+  }, [ws?.snapshot?.workspaceBranches, ws?.session?.branches]);
   const branchNameById = useMemo(
     () =>
       Object.fromEntries(
