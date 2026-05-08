@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 
 import { MainPanel, PageHeader, PageShell, PageTabs, ModalFrame } from '../components/layout';
+import ProcurementDashboardTab from '../components/procurement/dashboard/ProcurementDashboardTab';
 import { AiAskButton } from '../components/AiAskButton';
 import CoilPurchaseOrderModal from '../components/procurement/CoilPurchaseOrderModal';
 import StonePurchaseOrderModal from '../components/procurement/StonePurchaseOrderModal';
@@ -70,6 +71,7 @@ const PROCUREMENT_PURCHASES_COLUMN_PAGE_SIZE = 10;
 const PAYABLES_TABLE_PAGE_SIZE = 10;
 
 const TAB_LABELS = {
+  dashboard: 'Dashboard',
   purchases: 'Purchases',
   payables: 'Payments',
   suppliers: 'Suppliers',
@@ -447,15 +449,26 @@ const Procurement = () => {
     navigate(location.pathname, { replace: true, state: {} });
   }, [location.state, location.pathname, navigate]);
 
-  const procurementTabs = useMemo(
-    () => [
+  const dashboardFlagEnabled = Boolean(
+    ws?.snapshot?.dashboardPrefs?.procurementDashboardV1 ||
+      ['admin', 'md'].includes(String(ws?.session?.user?.roleKey || '').toLowerCase())
+  );
+  const procurementTabs = useMemo(() => {
+    const tabs = [
       { id: 'purchases', icon: <DollarSign size={16} />, label: 'Purchases' },
       { id: 'payables', icon: <Banknote size={16} />, label: 'Payments' },
       { id: 'suppliers', icon: <Anchor size={16} />, label: 'Suppliers' },
       { id: 'conversion', icon: <Ruler size={16} />, label: 'Conversion' },
-    ],
-    []
-  );
+    ];
+    if (dashboardFlagEnabled) tabs.unshift({ id: 'dashboard', icon: <BarChart3 size={16} />, label: 'Dashboard' });
+    return tabs;
+  }, [dashboardFlagEnabled]);
+
+  useEffect(() => {
+    if (dashboardFlagEnabled && activeTab === 'purchases') {
+      setActiveTab('dashboard');
+    }
+  }, [dashboardFlagEnabled, activeTab]);
 
   const outstandingSupplierNgn = useMemo(
     () =>
@@ -1358,44 +1371,46 @@ const Procurement = () => {
                 Ask AI
               </AiAskButton>
               {activeTab === 'purchases' && canManagePo ? (
-                <div className="flex flex-wrap gap-1 justify-end shrink-0">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setCoilPoEditDraft(null);
-                      setShowCoilPoModal(true);
-                    }}
-                    className="inline-flex items-center justify-center gap-1 rounded-lg bg-[#134e4a] text-white px-2.5 py-1.5 text-[9px] font-semibold uppercase tracking-wider shadow-sm hover:brightness-105"
-                  >
-                    <Plus size={12} strokeWidth={2} /> Coil PO
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setStonePoEditDraft(null);
-                      setShowStonePoModal(true);
-                    }}
-                    className="inline-flex items-center justify-center gap-1 rounded-lg border border-teal-300 bg-teal-50 text-[#134e4a] px-2.5 py-1.5 text-[9px] font-semibold uppercase tracking-wider hover:bg-teal-100"
-                  >
-                    <Plus size={12} strokeWidth={2} /> Stone PO
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setAccessoryPoEditDraft(null);
-                      setShowAccessoryPoModal(true);
-                    }}
-                    className="inline-flex items-center justify-center gap-1 rounded-lg border border-slate-300 bg-white text-[#134e4a] px-2.5 py-1.5 text-[9px] font-semibold uppercase tracking-wider hover:bg-slate-50"
-                  >
-                    <Plus size={12} strokeWidth={2} /> Accessory PO
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setShowStoneAccessoryReceiptModal(true)}
-                    className="inline-flex items-center justify-center gap-1 rounded-lg border border-teal-200 bg-white text-[#134e4a] px-2.5 py-1.5 text-[9px] font-semibold uppercase tracking-wider hover:bg-teal-50/80"
-                  >
-                    Stone / accessory receipt
-                  </button>
+                <div className="w-full min-w-0 overflow-x-auto sm:w-auto sm:overflow-visible">
+                  <div className="flex w-max gap-1 pb-1 sm:w-auto sm:flex-wrap sm:justify-end sm:pb-0">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCoilPoEditDraft(null);
+                        setShowCoilPoModal(true);
+                      }}
+                      className="inline-flex items-center justify-center gap-1 rounded-lg bg-[#134e4a] text-white px-2.5 py-1.5 text-[9px] font-semibold uppercase tracking-wider shadow-sm hover:brightness-105"
+                    >
+                      <Plus size={12} strokeWidth={2} /> Coil PO
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setStonePoEditDraft(null);
+                        setShowStonePoModal(true);
+                      }}
+                      className="inline-flex items-center justify-center gap-1 rounded-lg border border-teal-300 bg-teal-50 text-[#134e4a] px-2.5 py-1.5 text-[9px] font-semibold uppercase tracking-wider hover:bg-teal-100"
+                    >
+                      <Plus size={12} strokeWidth={2} /> Stone PO
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAccessoryPoEditDraft(null);
+                        setShowAccessoryPoModal(true);
+                      }}
+                      className="inline-flex items-center justify-center gap-1 rounded-lg border border-slate-300 bg-white text-[#134e4a] px-2.5 py-1.5 text-[9px] font-semibold uppercase tracking-wider hover:bg-slate-50"
+                    >
+                      <Plus size={12} strokeWidth={2} /> Accessory PO
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowStoneAccessoryReceiptModal(true)}
+                      className="inline-flex items-center justify-center gap-1 rounded-lg border border-teal-200 bg-white text-[#134e4a] px-2.5 py-1.5 text-[9px] font-semibold uppercase tracking-wider hover:bg-teal-50/80"
+                    >
+                      Stone / accessory receipt
+                    </button>
+                  </div>
                 </div>
               ) : null}
               {newButtonLabel ? (
@@ -1671,19 +1686,25 @@ const Procurement = () => {
                   {TAB_LABELS[activeTab] ?? 'Records'}
                 </h2>
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end flex-1 w-full min-w-0">
-                  <div className="relative flex-1 w-full sm:max-w-xs min-w-0">
-                    <Search
-                      className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
-                      size={16}
-                    />
-                    <input
-                      type="search"
-                      placeholder="Search purchase orders & suppliers…"
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-lg py-2 pl-9 pr-3 text-xs outline-none focus:ring-2 focus:ring-[#134e4a]/10"
-                    />
-                  </div>
+                  {activeTab !== 'dashboard' ? (
+                    <div className="relative flex-1 w-full sm:max-w-xs min-w-0">
+                      <Search
+                        className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
+                        size={16}
+                      />
+                      <input
+                        type="search"
+                        placeholder="Search purchase orders & suppliers…"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-lg py-2 pl-9 pr-3 text-xs outline-none focus:ring-2 focus:ring-[#134e4a]/10"
+                      />
+                    </div>
+                  ) : (
+                    <p className="flex-1 text-[11px] text-slate-500 leading-snug">
+                      Executive, operations, supplier, inventory, payment, and logistics intelligence in one view.
+                    </p>
+                  )}
                   {activeTab === 'purchases' || activeTab === 'conversion' ? (
                     <div className="flex justify-end sm:justify-center shrink-0">
                       <details className="relative shrink-0">
@@ -1838,6 +1859,20 @@ const Procurement = () => {
                     ))}
                   </div>
                 </div>
+              )}
+
+              {activeTab === 'dashboard' && (
+                <ProcurementDashboardTab
+                  purchaseOrders={purchaseOrders}
+                  suppliers={suppliers}
+                  accountsPayable={payables}
+                  products={invProducts}
+                  inTransitLoads={inTransitLoads}
+                  transportAgents={agents}
+                  workspaceBranches={branchOptions}
+                  canViewFinance={Boolean(ws?.hasPermission?.('finance.view'))}
+                  canViewExecutive={Boolean(ws?.hasPermission?.('exec.dashboard.view') || ws?.hasPermission?.('hq.view_all_branches'))}
+                />
               )}
 
               {activeTab === 'suppliers' && (

@@ -64,6 +64,7 @@ export default function TeamAccessPanel({ appUsers, currentUserId, onRefresh }) 
     roleKey: 'sales_staff',
     branchId: '',
   });
+  const canGenerateResetCodes = ['admin', 'md'].includes(String(ws?.session?.user?.roleKey || '').toLowerCase());
 
   useEffect(() => {
     let cancelled = false;
@@ -197,6 +198,40 @@ export default function TeamAccessPanel({ appUsers, currentUserId, onRefresh }) 
           : 'User reactivated.'
       );
       await refresh();
+    } finally {
+      setRowBusyId('');
+    }
+  };
+
+  const generateResetCode = async (user) => {
+    if (!user?.id) return;
+    if (!canGenerateResetCodes) {
+      showToast('Only Admin or MD can generate reset codes.', { variant: 'error' });
+      return;
+    }
+    setRowBusyId(user.id);
+    try {
+      const { ok, data } = await apiFetch(`/api/users/${encodeURIComponent(user.id)}/password-reset-code`, {
+        method: 'POST',
+      });
+      if (!ok || !data?.ok || !data?.resetToken) {
+        showToast(data?.error || 'Could not generate reset code.', { variant: 'error' });
+        return;
+      }
+      const code = String(data.resetToken);
+      const identifier = String(data.identifier || user.username || '').trim();
+      try {
+        await navigator.clipboard?.writeText(code);
+        showToast(
+          `Reset code copied for ${identifier || 'user'} (expires ${String(data.expiresAtISO || '').slice(0, 16).replace('T', ' ')}).`
+        );
+      } catch {
+        showToast(`Reset code: ${code}`, { variant: 'info' });
+      }
+      window.prompt(
+        `One-time reset code for ${identifier || user.username}. Expires ${String(data.expiresAtISO || '').slice(0, 16).replace('T', ' ')}.`,
+        code
+      );
     } finally {
       setRowBusyId('');
     }
@@ -482,6 +517,17 @@ export default function TeamAccessPanel({ appUsers, currentUserId, onRefresh }) 
                           >
                             <Settings2 size={14} /> Edit
                           </button>
+                          {canGenerateResetCodes ? (
+                            <button
+                              type="button"
+                              disabled={busy}
+                              onClick={() => void generateResetCode(user)}
+                              className="z-btn-secondary !px-3 !py-1.5 !text-[10px]"
+                              title="Generate one-time password reset code"
+                            >
+                              Reset code
+                            </button>
+                          ) : null}
                           <button
                             type="button"
                             disabled={busy || isSelf(user.id)}

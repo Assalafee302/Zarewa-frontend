@@ -3530,6 +3530,18 @@ const Account = () => {
                       const badge = treasuryMovementSourceBadge(m);
                       const amtStr = `${isIn ? '+' : isOut ? '−' : ''}${formatNgn(abs)}`;
                       const linkedReceipt = resolveSalesReceiptFromStatementMovement(m);
+                      const receiptQuotationRef =
+                        String(
+                          linkedReceipt?.quotationRef ||
+                            linkedReceipt?.quotationID ||
+                            linkedReceipt?.quotationId ||
+                            linkedReceipt?.quoteId ||
+                            ''
+                        ).trim();
+                      const detailWithQuotation =
+                        receiptQuotationRef && !String(detail).toLowerCase().includes(String(receiptQuotationRef).toLowerCase())
+                          ? `${detail} · Quote ${receiptQuotationRef}`
+                          : detail;
                       const canOpenReceipt =
                         Boolean(linkedReceipt?.id) &&
                         (String(m.sourceKind || '').trim() === 'LEDGER_RECEIPT' ||
@@ -3580,9 +3592,9 @@ const Account = () => {
                               </div>
                               <p
                                 className="text-[8px] text-slate-500 mt-0.5 leading-snug line-clamp-2 break-words"
-                                title={detail}
+                                title={detailWithQuotation}
                               >
-                                {detail}
+                                {detailWithQuotation}
                               </p>
                             </button>
                             {canDeleteReceiptFromStatement ? (
