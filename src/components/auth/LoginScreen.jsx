@@ -6,7 +6,6 @@ import { useWorkspace } from '../../context/WorkspaceContext';
 import { ZAREWA_LOGO_SRC } from '../../Data/companyQuotation';
 import { resolvePostLoginPath } from '../../lib/departmentWorkspace';
 import { auth, firebaseConfigured } from '../../lib/firebase.js';
-import loginHeroSrc from '../../../assets/longspan-roof-login-hero.png';
 
 export default function LoginScreen() {
   const navigate = useNavigate();
@@ -179,36 +178,11 @@ export default function LoginScreen() {
             unified production dashboard.
           </p>
 
-          <div className="mt-8 grid gap-4 sm:grid-cols-3">
-            {[
-              {
-                title: 'Controlled postings',
-                detail: 'Treasury, reversals, and payouts now require signed-in roles.',
-              },
-              {
-                title: 'Audit visibility',
-                detail: 'Sensitive actions leave an append-only trace for review.',
-              },
-              {
-                title: 'Period protection',
-                detail: 'Locked accounting periods block late postings and cash edits.',
-              },
-            ].map((item) => (
-              <div
-                key={item.title}
-                className="rounded-3xl border border-slate-200/80 bg-white/90 p-5 shadow-sm"
-              >
-                <p className="text-[11px] font-black uppercase tracking-[0.16em] text-slate-400">{item.title}</p>
-                <p className="mt-3 text-sm font-semibold leading-6 text-slate-700">{item.detail}</p>
-              </div>
-            ))}
-          </div>
-
           <div className="mt-8 overflow-hidden rounded-[28px] border border-slate-200/80 bg-slate-950 text-white shadow-xl">
             <div className="relative">
               <img
-                src={loginHeroSrc}
-                alt="Long-span roof production line"
+                src="https://images.unsplash.com/photo-1531834685032-c34bf0d84c77?auto=format&fit=crop&w=1600&q=80"
+                alt="Aluminium roofing sheet corrugation factory"
                 className="h-[260px] w-full object-cover sm:h-[300px]"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-slate-950/75 via-slate-950/30 to-transparent" />
