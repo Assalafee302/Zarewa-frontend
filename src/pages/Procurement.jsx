@@ -1077,7 +1077,10 @@ const Procurement = () => {
     const q = searchQuery.trim().toLowerCase();
     if (!q) return purchaseOrders;
     return purchaseOrders.filter((p) => {
-      const blob = [p.poID, p.supplierName, p.status, ...p.lines.map((l) => l.productID)].join(' ');
+      const lineProductIds = Array.isArray(p?.lines)
+        ? p.lines.map((l) => String(l?.productID || '')).filter(Boolean)
+        : [];
+      const blob = [p?.poID, p?.supplierName, p?.status, ...lineProductIds].join(' ');
       return blob.toLowerCase().includes(q);
     });
   }, [purchaseOrders, searchQuery]);
@@ -1135,6 +1138,11 @@ const Procurement = () => {
     if (!q) return suppliers;
     return suppliers.filter((s) => {
       const p = s.supplierProfile || {};
+      const contactTokens = Array.isArray(p.contacts)
+        ? p.contacts
+            .filter((c) => c && typeof c === 'object')
+            .map((c) => [c.name, c.email, c.phone].join(' '))
+        : [];
       const blob = [
         s.supplierID,
         s.name,
@@ -1143,7 +1151,7 @@ const Procurement = () => {
         p.phoneMain,
         p.vatTin,
         p.rcNumber,
-        ...(Array.isArray(p.contacts) ? p.contacts.map((c) => [c.name, c.email, c.phone].join(' ')) : []),
+        ...contactTokens,
       ]
         .join(' ')
         .toLowerCase();
@@ -1781,9 +1789,10 @@ const Procurement = () => {
                           <ul className="space-y-1.5 flex-1 min-h-0">
                             {col.page.slice.map((p) => {
                               const pk = procurementKindFromPo(p);
+                              const lineCount = Array.isArray(p?.lines) ? p.lines.length : 0;
                               const meta2 = [
                                 p.orderDateISO,
-                                `${p.lines.length} ${poLineSummaryLabel(pk)}`,
+                                `${lineCount} ${poLineSummaryLabel(pk)}`,
                                 p.transportAgentName,
                                 p.transportReference ? `Ref ${p.transportReference}` : null,
                                 p.transportTreasuryMovementId ? `Treasury ${p.transportTreasuryMovementId}` : null,
