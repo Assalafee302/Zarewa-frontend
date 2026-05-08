@@ -38,6 +38,14 @@ export function compareLocale(a, b, dir) {
   return dir === 'asc' ? c : -c;
 }
 
+export function compareId(a, b, dir) {
+  const c = String(a ?? '').localeCompare(String(b ?? ''), undefined, {
+    sensitivity: 'base',
+    numeric: true,
+  });
+  return dir === 'asc' ? c : -c;
+}
+
 export function compareNum(a, b, dir) {
   const na = Number(a);
   const nb = Number(b);
@@ -56,7 +64,7 @@ export function sortQuotationsList(rows, field, dir) {
   list.sort((a, b) => {
     switch (field) {
       case 'id':
-        return compareLocale(a.id, b.id, dir);
+        return compareId(a.id, b.id, dir);
       case 'customer':
         return compareLocale(a.customer, b.customer, dir);
       case 'date':
@@ -83,7 +91,7 @@ export function sortReceiptsList(rows, field, dir) {
   list.sort((a, b) => {
     switch (field) {
       case 'id':
-        return compareLocale(a.id, b.id, dir);
+        return compareId(a.id, b.id, dir);
       case 'customer':
         return compareLocale(a.customer, b.customer, dir);
       case 'date':
@@ -120,7 +128,7 @@ export function sortCuttingLists(rows, field, dir, opts = {}) {
   list.sort((a, b) => {
     switch (field) {
       case 'id':
-        return compareLocale(a.id, b.id, dir);
+        return compareId(a.id, b.id, dir);
       case 'customer':
         return compareLocale(a.customer, b.customer, dir);
       case 'date':
@@ -150,7 +158,7 @@ export function sortRefundsList(rows, field, dir) {
     const idB = b.refundID ?? b.id;
     switch (field) {
       case 'id':
-        return compareLocale(idA, idB, dir);
+        return compareId(idA, idB, dir);
       case 'customer':
         return compareLocale(a.customer, b.customer, dir);
       case 'date':

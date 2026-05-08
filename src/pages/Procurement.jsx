@@ -464,12 +464,6 @@ const Procurement = () => {
     return tabs;
   }, [dashboardFlagEnabled]);
 
-  useEffect(() => {
-    if (dashboardFlagEnabled && activeTab === 'purchases') {
-      setActiveTab('dashboard');
-    }
-  }, [dashboardFlagEnabled, activeTab]);
-
   const outstandingSupplierNgn = useMemo(
     () =>
       purchaseOrders.reduce((s, p) => {

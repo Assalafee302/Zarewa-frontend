@@ -97,8 +97,8 @@ export default function SalesCustomersTab({
   receipts = [],
   cuttingLists = [],
 }) {
-  const [sortField, setSortField] = useState('name');
-  const [sortOrder, setSortOrder] = useState('asc');
+  const [sortField, setSortField] = useState('customerID');
+  const [sortOrder, setSortOrder] = useState('desc');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 20;
 
@@ -160,11 +160,18 @@ export default function SalesCustomersTab({
       if (sortField === 'revenue') {
         valA = customerRevenue.get(a.customerID) || 0;
         valB = customerRevenue.get(b.customerID) || 0;
+      } else if (sortField === 'customerID') {
+        valA = String(a.customerID || '');
+        valB = String(b.customerID || '');
       } else {
         valA = String(a[sortField] || '').toLowerCase();
         valB = String(b[sortField] || '').toLowerCase();
       }
-      
+
+      if (sortField === 'customerID') {
+        const cmp = valA.localeCompare(valB, undefined, { sensitivity: 'base', numeric: true });
+        return sortOrder === 'asc' ? cmp : -cmp;
+      }
       if (valA < valB) return sortOrder === 'asc' ? -1 : 1;
       if (valA > valB) return sortOrder === 'asc' ? 1 : -1;
       return 0;

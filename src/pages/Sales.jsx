@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import {
   Plus,
   FileText,
+  BarChart3,
   Scissors,
   Receipt as ReceiptIcon,
   RotateCcw,
@@ -98,8 +99,10 @@ import {
   stockRowMatchesColourFilter,
   stockRowMatchesMaterialTypeFilter,
 } from '../lib/stockCheckMasterOptions';
+import SalesDashboardTab from '../components/sales/dashboard/SalesDashboardTab';
 
 const TAB_LABELS = {
+  dashboard: 'Dashboard',
   quotations: 'Quotations',
   receipts: 'Receipts',
   cuttinglist: 'Cutting list',
@@ -177,13 +180,25 @@ const Sales = () => {
   const [ledgerNonce, setLedgerNonce] = useState(0);
   const [showCount, setShowCount] = useState(20);
   const [showArchivedQuotations, setShowArchivedQuotations] = useState(false);
-  const [salesListSort, setSalesListSort] = useState({ field: 'date', dir: 'desc' });
+  const [salesListSort, setSalesListSort] = useState({ field: 'id', dir: 'desc' });
+  const dashboardAutoRoutedRef = useRef(false);
   const salesRole = loadSalesWorkspaceRole(ws?.session?.user?.roleKey);
   const roleKey = String(ws?.session?.user?.roleKey || '').toLowerCase();
+  const dashboardFlagEnabled = useMemo(() => {
+    const pref = ws?.snapshot?.dashboardPrefs?.salesDashboardV1;
+    if (pref === true || pref === 'true') return true;
+    return ['admin', 'md', 'ceo', 'sales_manager', 'branch_manager'].includes(roleKey);
+  }, [roleKey, ws?.snapshot?.dashboardPrefs?.salesDashboardV1]);
   const canDeleteSalesRecord = ['admin', 'md', 'sales_manager', 'branch_manager'].includes(roleKey);
   const salesRoleLabel = ws?.session?.user?.roleLabel ?? SALES_ROLE_LABELS[salesRole] ?? salesRole;
   /** Branch manager & MD hold refunds.approve; finance holds finance.approve; admin has *. */
   const canApproveRefunds = ws?.hasPermission?.('refunds.approve') || ws?.hasPermission?.('finance.approve');
+  const canViewFinance = Boolean(
+    ws?.hasPermission?.('finance.view') ||
+      ws?.hasPermission?.('ledger.view') ||
+      ws?.hasPermission?.('accounts.view') ||
+      ['admin', 'md', 'ceo'].includes(roleKey)
+  );
 
   const confirmDangerousDelete = useCallback((recordLabel, typedPhrase = 'DELETE') => {
     const proceed = window.confirm(
@@ -611,11 +626,22 @@ const Sales = () => {
     setShowCount(20);
     setShowArchivedQuotations(false);
     if (id === 'customers') {
-      setSalesListSort({ field: 'name', dir: 'asc' });
+      setSalesListSort({ field: 'customerID', dir: 'desc' });
     } else {
-      setSalesListSort({ field: 'date', dir: 'desc' });
+      setSalesListSort({ field: 'id', dir: 'desc' });
     }
   };
+
+  useEffect(() => {
+    if (dashboardFlagEnabled && !dashboardAutoRoutedRef.current && activeTab === 'quotations') {
+      dashboardAutoRoutedRef.current = true;
+      setActiveTab('dashboard');
+      return;
+    }
+    if (!dashboardFlagEnabled && activeTab === 'dashboard') {
+      setActiveTab('quotations');
+    }
+  }, [activeTab, dashboardFlagEnabled]);
 
   /**
    * Command center (Dashboard) sends `navigate('/sales', { state: { openSalesAction } })`.
@@ -992,16 +1018,19 @@ const Sales = () => {
     customerAddOpen ||
     showAdvanceModal;
 
-  const salesTabs = useMemo(
-    () => [
+  const salesTabs = useMemo(() => {
+    const tabs = [
       { id: 'quotations', icon: <FileText size={16} />, label: 'Quotations' },
       { id: 'receipts', icon: <ReceiptIcon size={16} />, label: 'Receipts' },
       { id: 'cuttinglist', icon: <Scissors size={16} />, label: 'Cutting list' },
       { id: 'refund', icon: <RotateCcw size={16} />, label: 'Refunds' },
       { id: 'customers', icon: <UserCircle size={16} />, label: 'Customers' },
-    ],
-    []
-  );
+    ];
+    if (dashboardFlagEnabled) {
+      tabs.unshift({ id: 'dashboard', icon: <BarChart3 size={16} />, label: 'Dashboard' });
+    }
+    return tabs;
+  }, [dashboardFlagEnabled]);
 
   const primaryActionBtnClass =
     'inline-flex items-center justify-center gap-2 rounded-lg bg-[#134e4a] text-white px-4 py-2 text-[10px] font-semibold uppercase tracking-wider shadow-sm hover:brightness-105 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#134e4a]/30 focus-visible:ring-offset-2 shrink-0';
@@ -1020,7 +1049,9 @@ const Sales = () => {
               <AiAskButton
                 mode="sales"
                 prompt={
-                  activeTab === 'quotations'
+                  activeTab === 'dashboard'
+                    ? 'Summarize sales KPIs, risks, and immediate follow-up actions.'
+                    : activeTab === 'quotations'
                     ? 'Which quotations need follow-up now, and what should sales do next?'
                     : activeTab === 'receipts'
                       ? 'Summarize the receipt and settlement issues visible on this page.'
@@ -1086,7 +1117,7 @@ const Sales = () => {
       />
 
       <div className="grid grid-cols-1 gap-6 lg:gap-8 min-w-0 lg:grid-cols-4">
-        {activeTab !== 'customers' && (
+        {activeTab !== 'customers' && activeTab !== 'dashboard' && (
           <aside className="lg:col-span-1 hidden lg:flex flex-col gap-5 sticky top-6">
             {activeTab === 'quotations' ? (
               <>
@@ -1342,7 +1373,7 @@ const Sales = () => {
 
         <div
           className={
-            activeTab === 'customers' ? 'lg:col-span-4 min-w-0' : 'lg:col-span-3 min-w-0'
+            activeTab === 'customers' || activeTab === 'dashboard' ? 'lg:col-span-4 min-w-0' : 'lg:col-span-3 min-w-0'
           }
         >
           <MainPanel
@@ -1384,11 +1415,24 @@ const Sales = () => {
                         {listStats.customers.shown} showing · {listStats.customers.total} total
                       </>
                     )}
+                    {activeTab === 'dashboard' && <>Sales cockpit overview</>}
                   </p>
                 </div>
               </div>
 
               <div className="space-y-2">
+                {activeTab === 'dashboard' ? (
+                  <SalesDashboardTab
+                    quotations={quotations}
+                    receipts={mergedReceiptRows}
+                    refunds={refunds}
+                    cuttingLists={cuttingLists}
+                    productionJobs={productionJobs}
+                    customers={customerRecords}
+                    canViewFinance={canViewFinance}
+                  />
+                ) : null}
+
                 {activeTab === 'quotations' ? (
                   <SalesListTableFrame
                     toolbar={
