@@ -3337,5 +3337,43 @@ function ProcurementPayableRow({
   );
 }
 
-export default Procurement;
+class ProcurementRouteErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error) {
+    console.error('Procurement route crashed during render.', error);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <PageShell>
+          <MainPanel className="!rounded-xl !border-slate-200/90 !shadow-sm !bg-white !p-6">
+            <h2 className="text-lg font-bold text-[#134e4a]">Procurement temporarily unavailable</h2>
+            <p className="mt-2 text-sm text-slate-600">
+              A screen error occurred while loading Procurement. Refresh the page, and if this persists, share this
+              time with support so we can trace the exact row causing the issue.
+            </p>
+          </MainPanel>
+        </PageShell>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+export default function ProcurementPage() {
+  return (
+    <ProcurementRouteErrorBoundary>
+      <Procurement />
+    </ProcurementRouteErrorBoundary>
+  );
+}
 
