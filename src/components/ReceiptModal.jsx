@@ -68,6 +68,12 @@ function formatDisplayDate(iso) {
   return d && m && y ? `${d}/${m}/${y}` : iso;
 }
 
+function normalizeRefToken(v) {
+  return String(v || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '');
+}
+
 /** Stable receipt identity — excludes workspace refreshEpoch / ledgerNonce churn. */
 function receiptModalHydrateSignature(editData) {
   const le = editData?._ledgerEntry;
@@ -411,6 +417,40 @@ const ReceiptModal = ({
       });
   }, [paymentLines, treasuryByIdStr, treasuryList]);
 
+  const priorRecordedTotalNgn = useMemo(
+    () => priorRecordedOnQuotation.reduce((s, row) => s + (Math.round(Number(row.amountNgn) || 0) || 0), 0),
+    [priorRecordedOnQuotation]
+  );
+
+  const receiptGuardSignals = useMemo(() => {
+    const total = Math.round(Number(lineTotalNgn) || 0);
+    const due = Math.round(Number(dueNgn) || 0);
+    if (total <= 0) return [];
+    const out = [];
+    const normalizedRemarks = normalizeRefToken(remarks);
+    if (due > 0 && total > due) {
+      out.push(`Entered amount ${formatNgn(total)} exceeds current balance due ${formatNgn(due)}.`);
+    }
+    if (priorRecordedTotalNgn > 0 && total === priorRecordedTotalNgn) {
+      out.push(
+        `Entered amount equals already-posted history total (${formatNgn(priorRecordedTotalNgn)}). This can duplicate an earlier payment.`
+      );
+    }
+    const sameAmountHistory = priorRecordedOnQuotation.find((row) => Math.round(Number(row.amountNgn) || 0) === total);
+    if (sameAmountHistory) {
+      out.push(
+        `A prior line with the same amount exists (${sameAmountHistory.entryId}, ${sameAmountHistory.dateLabel}).`
+      );
+    }
+    if (normalizedRemarks) {
+      const refDuplicate = priorRecordedOnQuotation.find((row) => normalizeRefToken(row.detail).includes(normalizedRemarks));
+      if (refDuplicate) {
+        out.push(`Reference/remarks appears similar to previous posting (${refDuplicate.entryId}).`);
+      }
+    }
+    return out;
+  }, [dueNgn, lineTotalNgn, priorRecordedOnQuotation, priorRecordedTotalNgn, remarks]);
+
   const saveReceipt = async (e) => {
     e.preventDefault();
     if (readOnly) return;
@@ -437,6 +477,12 @@ const ReceiptModal = ({
       return;
     }
     if (postingRef.current) return;
+    if (receiptGuardSignals.length > 0 && !readOnly) {
+      const proceed = window.confirm(
+        `Potential duplicate or risky posting detected:\n\n- ${receiptGuardSignals.join('\n- ')}\n\nContinue posting anyway?`
+      );
+      if (!proceed) return;
+    }
 
     const refParts = validLines.map((l) => {
       const acc = treasuryAccountForLine(l, treasuryByIdStr, treasuryList);
@@ -498,6 +544,41 @@ const ReceiptModal = ({
           body: JSON.stringify(receiptBody),
           headers: { 'Idempotency-Key': idempotencyKey },
         });
+        if (!ok && data?.code === 'POSSIBLE_DUPLICATE_RECEIPT') {
+          const lines = (data?.duplicateSignals || [])
+            .map((sig) => `- ${sig.message}`)
+            .join('\n');
+          const reason = window.prompt(
+            `Server detected a duplicate-like payment:\n${lines || '- Similar posting exists.'}\n\nIf this is intentional, type reason to continue:`
+          );
+          if (!reason || !reason.trim()) {
+            showToast('Posting cancelled to avoid duplicate entry.', { variant: 'info' });
+            return;
+          }
+          const secondKey =
+            typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+              ? crypto.randomUUID()
+              : `rc-retry-${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
+          const retry = await apiFetch('/api/ledger/receipt', {
+            method: 'POST',
+            body: JSON.stringify({
+              ...receiptBody,
+              forceDuplicatePost: true,
+              duplicateOverrideReason: reason.trim(),
+            }),
+            headers: { 'Idempotency-Key': secondKey },
+          });
+          if (!retry.ok || !retry.data?.ok) {
+            setPostingHint(guidanceForLedgerPostFailure(retry.data) || null);
+            showToast(formatLedgerApiError(retry.data, retry.status, 'Could not post receipt.'), { variant: 'error' });
+            return;
+          }
+          setPostingHint(null);
+          showToast(`Receipt ${formatNgn(total)} posted against ${selectedQuotation.id}.`);
+          await onLedgerChange?.();
+          abandonUnsavedAndRun(() => onClose());
+          return;
+        }
         if (!ok || !data?.ok) {
           setPostingHint(guidanceForLedgerPostFailure(data) || null);
           showToast(formatLedgerApiError(data, status, 'Could not post receipt.'), { variant: 'error' });
@@ -572,6 +653,20 @@ const ReceiptModal = ({
     setPaymentLines((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } : r)));
   const addLine = () =>
     setPaymentLines((prev) => [...prev, emptyPaymentLine(voucherDate, defaultAccountId)]);
+  const fillRemainingBalanceLine = () => {
+    if (readOnly) return;
+    const due = Math.max(0, Math.round(Number(dueNgn) || 0));
+    if (due <= 0) {
+      showToast('No remaining balance to fill.', { variant: 'info' });
+      return;
+    }
+    const next = paymentLines.map((line, idx) => ({
+      ...line,
+      amount: idx === 0 ? String(due) : '',
+    }));
+    setPaymentLines(next.length ? next : [emptyPaymentLine(voucherDate, defaultAccountId)]);
+    showToast(`Filled first line with remaining balance ${formatNgn(due)}.`);
+  };
   const removeLine = (id) =>
     setPaymentLines((prev) => (prev.length <= 1 ? prev : prev.filter((r) => r.id !== id)));
 
@@ -815,7 +910,7 @@ const ReceiptModal = ({
             {quotationRef && priorRecordedOnQuotation.length > 0 ? (
               <div className="mb-4 rounded-xl border border-sky-200/90 bg-sky-50/70 p-3.5 space-y-2">
                 <p className="text-[9px] font-semibold text-sky-950 uppercase tracking-widest">
-                  Already on this quotation
+                  Already posted history (read-only)
                 </p>
                 <p className="text-[10px] text-sky-900/90 leading-snug">
                   Prior receipt payments and advance applied to this quote. Add lines below only for{' '}
@@ -868,6 +963,30 @@ const ReceiptModal = ({
               </p>
             ) : null}
             <div className="rounded-xl border border-slate-200/90 bg-slate-50/80 p-3.5 space-y-2.5">
+              <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-emerald-200 bg-emerald-50/70 px-3 py-2 text-[10px] text-emerald-950">
+                <p className="font-semibold">
+                  New money being posted now. Do not re-enter amounts shown in history above.
+                </p>
+                {!readOnly ? (
+                  <button
+                    type="button"
+                    onClick={fillRemainingBalanceLine}
+                    className="rounded-md border border-emerald-300 bg-white px-2.5 py-1 text-[10px] font-bold text-emerald-800 hover:bg-emerald-100"
+                  >
+                    Fill remaining balance
+                  </button>
+                ) : null}
+              </div>
+              {receiptGuardSignals.length > 0 && !readOnly ? (
+                <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[10px] text-amber-950">
+                  <p className="font-bold mb-1">Posting check</p>
+                  <ul className="list-disc pl-4 space-y-0.5">
+                    {receiptGuardSignals.map((signal) => (
+                      <li key={signal}>{signal}</li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
               <div className="grid grid-cols-12 gap-2.5 px-1 text-[9px] font-semibold text-slate-500 uppercase tracking-wider">
                 <div className="col-span-12 sm:col-span-3">Payee name</div>
                 <div className="col-span-6 sm:col-span-2">Account</div>

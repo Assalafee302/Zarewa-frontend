@@ -977,6 +977,73 @@ export function receiptAdvanceTreasuryReconciliationRows(
   ];
 }
 
+function ageInDaysFromIso(isoDate, nowDate = new Date()) {
+  const iso = toIsoDate(isoDate);
+  if (!iso) return null;
+  const dt = new Date(`${iso}T00:00:00`);
+  if (Number.isNaN(dt.getTime())) return null;
+  const now = new Date(nowDate.getFullYear(), nowDate.getMonth(), nowDate.getDate());
+  const diffMs = now.getTime() - dt.getTime();
+  if (!Number.isFinite(diffMs)) return null;
+  return Math.max(0, Math.floor(diffMs / 86400000));
+}
+
+/**
+ * Unified queue for receipt/treasury and quotation-paid discrepancies.
+ * Highest risk rows first so ops can clear live-data exceptions quickly.
+ */
+export function paymentReconciliationExceptionQueue(
+  ledgerEntries = [],
+  treasuryMovements = [],
+  quotations = [],
+  salesReceipts = [],
+  startDate,
+  endDate
+) {
+  const receiptRows = receiptAdvanceTreasuryReconciliationRows(ledgerEntries, treasuryMovements, startDate, endDate).map(
+    (row, idx) => {
+      const deltaAbs = Math.abs(Number(row.deltaNgn) || 0);
+      const ageDays = ageInDaysFromIso(row.atISO || row.postedAtISO);
+      return {
+        key: `receipt:${row.ledgerEntryId || row.treasuryMovementId || row.sourceId || `row-${idx}`}`,
+        bucket: 'receipt_treasury',
+        severity: deltaAbs >= 100000 ? 'high' : deltaAbs >= 10000 ? 'medium' : 'low',
+        ageDays,
+        happenedAtISO: row.atISO || row.postedAtISO || '',
+        refId: row.ledgerEntryId || row.treasuryMovementId || row.sourceId || '',
+        customer: row.customerName || '',
+        quotationRef: row.quotationRef || '',
+        deltaNgn: Number(row.deltaNgn) || 0,
+        issue: row.issue || 'Receipt/treasury mismatch',
+      };
+    }
+  );
+  const arRows = quotationPaidNgnReceiptDiscrepancies(quotations, salesReceipts, ledgerEntries).map((row) => {
+    const deltaAbs = Math.abs(Number(row.deltaNgn) || 0);
+    const ageDays = ageInDaysFromIso(row.dateISO);
+    return {
+      key: `ar:${row.quotationID}`,
+      bucket: 'quotation_ar',
+      severity: deltaAbs >= 100000 ? 'high' : deltaAbs >= 10000 ? 'medium' : 'low',
+      ageDays,
+      happenedAtISO: row.dateISO || '',
+      refId: row.quotationID,
+      customer: row.customer || '',
+      quotationRef: row.quotationID || '',
+      deltaNgn: Number(row.deltaNgn) || 0,
+      issue: 'Quotation paid amount differs from receipts + applied advance',
+    };
+  });
+  return [...receiptRows, ...arRows].sort((a, b) => {
+    const sevRank = { high: 3, medium: 2, low: 1 };
+    const sr = (sevRank[b.severity] || 0) - (sevRank[a.severity] || 0);
+    if (sr !== 0) return sr;
+    const dd = Math.abs(Number(b.deltaNgn) || 0) - Math.abs(Number(a.deltaNgn) || 0);
+    if (dd !== 0) return dd;
+    return (Number(b.ageDays) || 0) - (Number(a.ageDays) || 0);
+  });
+}
+
 function sumReceiptsNgnForQuotation(salesReceipts, quotationId) {
   const id = String(quotationId || '').trim();
   if (!id) return 0;

@@ -30,6 +30,7 @@ import {
   liveReceivablesNgn,
   productionAttributedRevenueNgn,
   productionOutputDateISO,
+  paymentReconciliationExceptionQueue,
   purchaseOrderAccrualBridgeRows,
   quotationPaidNgnReceiptDiscrepancies,
   receiptAdvanceTreasuryReconciliationRows,
@@ -679,6 +680,64 @@ const Reports = () => {
   const [printPayload, setPrintPayload] = useState(null);
   const [printLayout, setPrintLayout] = useState('portrait');
   const [printDense, setPrintDense] = useState(false);
+  const [exceptionClosureNotes, setExceptionClosureNotes] = useState({});
+
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem('reports.paymentExceptionClosureNotes');
+      if (!raw) return;
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === 'object') setExceptionClosureNotes(parsed);
+    } catch {
+      // ignore invalid cache and start clean
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem('reports.paymentExceptionClosureNotes', JSON.stringify(exceptionClosureNotes));
+    } catch {
+      // ignore storage write failures
+    }
+  }, [exceptionClosureNotes]);
+
+  const paymentExceptionQueue = useMemo(
+    () =>
+      paymentReconciliationExceptionQueue(
+        ledgerEntries,
+        treasuryMovements,
+        quotations,
+        receipts,
+        startDate,
+        endDate
+      ),
+    [endDate, ledgerEntries, quotations, receipts, startDate, treasuryMovements]
+  );
+  const openPaymentExceptionQueue = useMemo(
+    () => paymentExceptionQueue.filter((row) => !exceptionClosureNotes[row.key]?.closed),
+    [exceptionClosureNotes, paymentExceptionQueue]
+  );
+
+  const toggleExceptionClosed = useCallback((row, closed) => {
+    setExceptionClosureNotes((prev) => ({
+      ...prev,
+      [row.key]: {
+        ...prev[row.key],
+        closed: Boolean(closed),
+        closedAtISO: closed ? new Date().toISOString() : null,
+      },
+    }));
+  }, []);
+
+  const updateExceptionNote = useCallback((row, note) => {
+    setExceptionClosureNotes((prev) => ({
+      ...prev,
+      [row.key]: {
+        ...prev[row.key],
+        note,
+      },
+    }));
+  }, []);
 
   const getExportRows = useCallback(
     (name) => {
@@ -1507,6 +1566,69 @@ const Reports = () => {
             procurement kind on POs, GRN/inventory lots (coil and stone), and accessory usage lines for the period.
             Print shows a focused table plus counts for the rest (full detail stays in Excel/CSV).
           </p>
+
+          <section className="z-soft-panel p-5 sm:p-6 mb-8">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h4 className="text-base font-black text-[#134e4a] tracking-tight">Payment exception triage queue</h4>
+              <p className="text-xs font-semibold text-slate-500">
+                Open {openPaymentExceptionQueue.length} / Total {paymentExceptionQueue.length}
+              </p>
+            </div>
+            <p className="text-xs text-slate-600 mt-1.5 leading-relaxed">
+              Prioritize by severity, then delta and aging. Mark rows closed after reversal/re-post verification so Finance and Sales
+              track unresolved risk.
+            </p>
+            <div className="mt-4 space-y-3">
+              {paymentExceptionQueue.length === 0 ? (
+                <p className="rounded-lg border border-emerald-100 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-900">
+                  No payment exceptions for the selected date range.
+                </p>
+              ) : (
+                paymentExceptionQueue.slice(0, 12).map((row) => {
+                  const closure = exceptionClosureNotes[row.key] || {};
+                  const closed = Boolean(closure.closed);
+                  return (
+                    <div
+                      key={row.key}
+                      className={`rounded-lg border p-3 ${closed ? 'border-emerald-200 bg-emerald-50/70' : 'border-rose-200 bg-rose-50/60'}`}
+                    >
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <p className="text-xs font-bold text-slate-800">
+                          {row.refId || '—'} · {row.bucket === 'quotation_ar' ? 'AR mismatch' : 'Receipt/Treasury'}
+                        </p>
+                        <p className="text-xs font-black text-rose-800">{formatNgn(Math.abs(Number(row.deltaNgn) || 0))}</p>
+                      </div>
+                      <p className="text-[11px] text-slate-700 mt-1">{row.issue}</p>
+                      <p className="text-[11px] text-slate-500 mt-1">
+                        {row.customer || '—'} {row.quotationRef ? `· ${row.quotationRef}` : ''} · Severity {row.severity}
+                        {row.ageDays != null ? ` · ${row.ageDays} day(s)` : ''}
+                      </p>
+                      <div className="mt-2 flex flex-wrap items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => toggleExceptionClosed(row, !closed)}
+                          className={`rounded-md border px-2 py-1 text-[11px] font-semibold ${
+                            closed
+                              ? 'border-emerald-300 text-emerald-800 bg-emerald-100'
+                              : 'border-rose-300 text-rose-800 bg-white'
+                          }`}
+                        >
+                          {closed ? 'Closed' : 'Mark closed'}
+                        </button>
+                        <input
+                          type="text"
+                          value={closure.note || ''}
+                          onChange={(e) => updateExceptionNote(row, e.target.value)}
+                          placeholder="Closure note (reversed, reposted, verified...)"
+                          className="flex-1 min-w-[14rem] rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-[11px] text-slate-700"
+                        />
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </section>
 
           {PRIMARY_REPORT_GROUPS.map((grp, gi) => (
             <section
