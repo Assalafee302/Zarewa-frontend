@@ -302,6 +302,8 @@ export function LiveProductionMonitor({
   const [fgAdjSaving, setFgAdjSaving] = useState(false);
   const [stoneMetersConsumed, setStoneMetersConsumed] = useState('');
   const [stoneAllocAck, setStoneAllocAck] = useState(false);
+  const [completionSourceMode, setCompletionSourceMode] = useState('coil');
+  const [offcutMetersProduced, setOffcutMetersProduced] = useState('');
 
   const productionJobs = useMemo(
     () => (ws?.hasWorkspaceData && Array.isArray(ws?.snapshot?.productionJobs) ? ws.snapshot.productionJobs : []),
@@ -374,6 +376,8 @@ export function LiveProductionMonitor({
   useEffect(() => {
     setSignoffEditApprovalId('');
     setPostCompletionEditApprovalId('');
+    setCompletionSourceMode('coil');
+    setOffcutMetersProduced('');
   }, [selectedJob?.jobID]);
 
   const selectedJobAllocations = useMemo(
@@ -423,6 +427,7 @@ export function LiveProductionMonitor({
   const isStoneMeterQuote = Boolean(
     linkedQuotation && String(linkedQuotation.materialTypeId || '').trim() === 'MAT-005'
   );
+  const completionUsesOffcutMode = !isStoneMeterQuote && completionSourceMode === 'offcut';
   const jobSt = normalizeJobStatus(selectedJob?.status);
   /** Same gate as post-completion FG metre adjustments — not plain production.manage. */
   const canEditCompletedCoilCorrections =
@@ -528,11 +533,15 @@ export function LiveProductionMonitor({
       const m = Number(String(stoneMetersConsumed).replace(/,/g, ''));
       return Number.isFinite(m) && m > 0 ? m : 0;
     }
+    if (completionUsesOffcutMode && jobSt === 'Running') {
+      const m = Number(String(offcutMetersProduced).replace(/,/g, ''));
+      return Number.isFinite(m) && m >= 0 ? m : 0;
+    }
     return draftAllocations.reduce((sum, row) => {
       const meters = Number(row.metersProduced);
       return sum + (Number.isFinite(meters) ? meters : 0);
     }, 0);
-  }, [draftAllocations, isStoneMeterQuote, jobSt, stoneMetersConsumed]);
+  }, [completionUsesOffcutMode, draftAllocations, isStoneMeterQuote, jobSt, offcutMetersProduced, stoneMetersConsumed]);
   const recordedConsumedKg = useMemo(
     () =>
       draftAllocations.reduce((sum, row) => {
@@ -551,14 +560,21 @@ export function LiveProductionMonitor({
       if (!Number.isFinite(m) || m <= 0) return false;
       return jobSt === 'Running' || (jobSt === 'Completed' && canEditCompletedCoilCorrections);
     }
+    if (completionUsesOffcutMode) {
+      const m = Number(String(offcutMetersProduced).replace(/,/g, ''));
+      if (!Number.isFinite(m) || m < 0) return false;
+      return jobSt === 'Running';
+    }
     const hasPreviewRows = draftAllocations.some((row) => draftRowConversionPreviewReady(row));
     if (!hasPreviewRows) return false;
     return jobSt === 'Running' || (jobSt === 'Completed' && canEditCompletedCoilCorrections);
   }, [
     canEditCompletedCoilCorrections,
+    completionUsesOffcutMode,
     draftAllocations,
     isStoneMeterQuote,
     jobSt,
+    offcutMetersProduced,
     selectedJob?.jobID,
     stoneMetersConsumed,
   ]);
@@ -749,6 +765,14 @@ export function LiveProductionMonitor({
         accessoriesSupplied: accessoriesSuppliedForApi,
       });
     }
+    if (completionUsesOffcutMode) {
+      return JSON.stringify({
+        job: selectedJob.jobID,
+        offcut: true,
+        offcutMetersProduced: Number(String(offcutMetersProduced).replace(/,/g, '')) || 0,
+        accessoriesSupplied: accessoriesSuppliedForApi,
+      });
+    }
     const previewLines = draftAllocations
       .filter((row) => draftRowConversionPreviewReady(row))
       .map((row) => completionLineFromDraft(row));
@@ -760,8 +784,10 @@ export function LiveProductionMonitor({
   }, [
     accessoriesSuppliedForApi,
     canRunConversionPreview,
+    completionUsesOffcutMode,
     draftAllocations,
     isStoneMeterQuote,
+    offcutMetersProduced,
     selectedJob,
     stoneMetersConsumed,
   ]);
@@ -791,6 +817,12 @@ export function LiveProductionMonitor({
               stoneMetersConsumed: parsed.stoneMetersConsumed,
               accessoriesSupplied: parsed.accessoriesSupplied || [],
             }
+          : parsed.offcut
+            ? {
+                completeMode: 'offcut',
+                offcutMetersProduced: parsed.offcutMetersProduced,
+                accessoriesSupplied: parsed.accessoriesSupplied || [],
+              }
           : {
               allocations: parsed.lines,
               accessoriesSupplied: parsed.accessoriesSupplied || [],
@@ -819,6 +851,17 @@ export function LiveProductionMonitor({
   }, [conversionPreviewKey, selectedJob?.jobID]);
 
   const completionValidation = useMemo(() => {
+    if (completionUsesOffcutMode) {
+      const rawMeters = String(offcutMetersProduced).trim();
+      if (!rawMeters) {
+        return { validLineCount: 1, errors: [], canComplete: true };
+      }
+      const m = Number(String(offcutMetersProduced).replace(/,/g, ''));
+      if (!Number.isFinite(m) || m < 0) {
+        return { validLineCount: 0, errors: ['Offcut produced metres must be zero or greater.'], canComplete: false };
+      }
+      return { validLineCount: 1, errors: [], canComplete: true };
+    }
     if (isStoneMeterQuote) {
       const m = Number(String(stoneMetersConsumed).replace(/,/g, ''));
       if (!Number.isFinite(m) || m <= 0) {
@@ -861,7 +904,7 @@ export function LiveProductionMonitor({
       }
     });
     return { validLineCount, errors, canComplete: validLineCount > 0 && errors.length === 0 };
-  }, [draftAllocations, isStoneMeterQuote, stoneMetersConsumed]);
+  }, [completionUsesOffcutMode, draftAllocations, isStoneMeterQuote, offcutMetersProduced, stoneMetersConsumed]);
 
   const appendSaveReady = useMemo(
     () =>
@@ -888,8 +931,9 @@ export function LiveProductionMonitor({
   const plannedAllocSaveReady = useMemo(
     () =>
       isStoneMeterQuote ||
+      completionUsesOffcutMode ||
       draftAllocations.some((r) => r.coilNo?.trim() && Number(r.openingWeightKg) > 0),
-    [draftAllocations, isStoneMeterQuote]
+    [completionUsesOffcutMode, draftAllocations, isStoneMeterQuote]
   );
   const canManageConversionSignoff =
     Boolean(ws?.hasPermission?.('production.release')) ||
@@ -1177,6 +1221,16 @@ export function LiveProductionMonitor({
         allocations: [],
       };
     }
+    if (completionUsesOffcutMode) {
+      const parsedMeters = Number(String(offcutMetersProduced).replace(/,/g, ''));
+      return {
+        completedAtISO: new Date().toISOString().slice(0, 10),
+        completeMode: 'offcut',
+        offcutMetersProduced: Number.isFinite(parsedMeters) && parsedMeters >= 0 ? parsedMeters : 0,
+        accessoriesSupplied: accessoriesSuppliedForApi,
+        allocations: [],
+      };
+    }
     return {
       completedAtISO: new Date().toISOString().slice(0, 10),
       allocations: draftAllocations.map((row) => completionLineFromDraft(row)),
@@ -1402,6 +1456,25 @@ export function LiveProductionMonitor({
         setStoneAllocAck(true);
         await ws.refresh();
         showToast(`Stone-coated job saved and production started for ${listLabel}.`);
+        return;
+      }
+      if (completionUsesOffcutMode && selectedJob.status === 'Planned') {
+        const startRes = await apiFetch(`${jobApi}/start`, {
+          method: 'POST',
+          body: JSON.stringify({ startedAtISO: new Date().toISOString().slice(0, 10), startMode: 'offcut' }),
+        });
+        setSavingAction('');
+        if (!startRes.ok || !startRes.data?.ok) {
+          showToast(
+            startRes.data?.error ||
+              'Could not start offcut/accessories run (e.g. price-list approval). Fix the issue, then use Save & start again.',
+            { variant: 'error' }
+          );
+          await ws.refresh();
+          return;
+        }
+        await ws.refresh();
+        showToast(`Offcut/accessories run started for ${listLabel}.`);
         return;
       }
       const buildAllocBody = (withAck) => {
@@ -1771,7 +1844,7 @@ export function LiveProductionMonitor({
                       {savingAction === 'allocationsAndStart' ? 'Saving & starting…' : 'Save & start'}
                     </button>
                   ) : null}
-                  {selectedJob.status === 'Running' && !isStoneMeterQuote ? (
+                  {selectedJob.status === 'Running' && !isStoneMeterQuote && !completionUsesOffcutMode ? (
                     <button
                       type="button"
                       onClick={() => void persist('runningCheckpoint')}
@@ -2705,12 +2778,14 @@ export function LiveProductionMonitor({
               <div className="flex min-w-0 items-start gap-2">
                 <div className="min-w-0">
                   <p className="text-[10px] font-bold uppercase tracking-widest text-[#134e4a]">
-                    {isStoneMeterQuote ? 'Stone-coated run' : 'Coils &amp; run log'}
+                    {isStoneMeterQuote ? 'Stone-coated run' : completionUsesOffcutMode ? 'Offcut / accessories run' : 'Coils &amp; run log'}
                   </p>
                   <p className="mt-px flex flex-wrap items-center gap-1 text-[10px] leading-tight text-slate-600">
                     <span className="line-clamp-2">
                       {isStoneMeterQuote
                         ? 'Metres only → Save & start → Complete.'
+                        : completionUsesOffcutMode
+                          ? 'No coil selection required. Enter output metres (optional) and complete.'
                         : canEditPlannedAllocations
                           ? 'Pick coil + opening kg → Save & start.'
                           : canAddSupplementalCoil
@@ -2729,7 +2804,9 @@ export function LiveProductionMonitor({
                         <CircleHelp className="size-3.5" strokeWidth={2} aria-hidden />
                       </summary>
                       <div className="absolute right-0 top-full z-20 mt-1 w-[min(calc(100vw-1.5rem),18rem)] rounded-lg border border-slate-200 bg-white p-2 text-[9px] leading-snug text-slate-700 shadow-lg">
-                        {!isStoneMeterQuote && canEditPlannedAllocations
+                        {completionUsesOffcutMode
+                          ? 'Use when output came from offcuts or this job only supplies accessories. Coil allocation is skipped and completion posts accessories plus optional finished-goods metres.'
+                          : !isStoneMeterQuote && canEditPlannedAllocations
                           ? 'While Planned you can change the whole set and Save & start again. After start, use Return to plan to swap primary coils (audit reason).'
                           : !isStoneMeterQuote && canAddSupplementalCoil
                             ? 'Running: only new blank rows attach as extra coils when you Save. Finished rolls stay on the list for the full job.'
@@ -2743,7 +2820,7 @@ export function LiveProductionMonitor({
                   </p>
                 </div>
               </div>
-              {!isStoneMeterQuote && canAppendCoilRow ? (
+              {!isStoneMeterQuote && !completionUsesOffcutMode && canAppendCoilRow ? (
                 <button
                   type="button"
                   onClick={addDraftRow}
@@ -2756,6 +2833,32 @@ export function LiveProductionMonitor({
             </div>
 
             <div className={`${inModal ? 'space-y-1.5 p-2' : 'space-y-2 p-2 sm:p-2.5'}`}>
+              {!isStoneMeterQuote && (canCaptureRun || canEditPlannedAllocations) ? (
+                <div className="flex flex-wrap items-center gap-1 rounded-lg border border-slate-200 bg-slate-50/70 p-1">
+                  <button
+                    type="button"
+                    onClick={() => setCompletionSourceMode('coil')}
+                    className={`inline-flex items-center rounded-md px-2 py-1 text-[10px] font-semibold ${
+                      !completionUsesOffcutMode
+                        ? 'bg-[#134e4a] text-white'
+                        : 'text-slate-700 hover:bg-white'
+                    }`}
+                  >
+                    Use coil run log
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCompletionSourceMode('offcut')}
+                    className={`inline-flex items-center rounded-md px-2 py-1 text-[10px] font-semibold ${
+                      completionUsesOffcutMode
+                        ? 'bg-[#134e4a] text-white'
+                        : 'text-slate-700 hover:bg-white'
+                    }`}
+                  >
+                    Produced from offcut / accessories only
+                  </button>
+                </div>
+              ) : null}
               {isStoneMeterQuote ? (
                 <div className="rounded-lg border border-teal-100 bg-teal-50/50 p-3 text-[11px] text-slate-700 space-y-2">
                   <p>
@@ -2777,7 +2880,25 @@ export function LiveProductionMonitor({
                   ) : null}
                 </div>
               ) : null}
-              {!isStoneMeterQuote
+              {completionUsesOffcutMode ? (
+                <div className="rounded-lg border border-amber-200 bg-amber-50/70 p-3 text-[11px] text-slate-700 space-y-2">
+                  <p>
+                    Offcut / accessories completion skips coil validation and marks this run complete directly.
+                  </p>
+                  <label className="block text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                    Output metres produced (optional)
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      value={offcutMetersProduced}
+                      onChange={(e) => setOffcutMetersProduced(e.target.value)}
+                      placeholder="Leave blank for 0"
+                      className="mt-1 w-full max-w-[12rem] rounded-md border border-slate-200 bg-white px-2 py-1.5 font-mono text-sm font-bold text-[#134e4a]"
+                    />
+                  </label>
+                </div>
+              ) : null}
+              {!isStoneMeterQuote && !completionUsesOffcutMode
                 ? draftAllocations.map((row, index) => {
                 const lot = coilByNo[row.coilNo];
                 const addBackThisJob = row.coilNo ? savedOpeningKgByCoil.get(row.coilNo) ?? 0 : 0;
@@ -3107,9 +3228,15 @@ export function LiveProductionMonitor({
               <div className={inModal ? 'p-2' : 'p-2.5'}>
                 {!canRunConversionPreview ? (
                   <p className="rounded-md border border-dashed border-slate-200 bg-slate-50/80 px-2 py-2 text-[11px] text-slate-600">
-                    Enter <strong className="font-semibold text-slate-800">closing kg</strong> and{' '}
-                    <strong className="font-semibold text-slate-800">metres</strong> on each coil to preview conversion
-                    and alerts.
+                    {completionUsesOffcutMode ? (
+                      <>Offcut mode preview is ready after you choose this source. Output metres are optional.</>
+                    ) : (
+                      <>
+                        Enter <strong className="font-semibold text-slate-800">closing kg</strong> and{' '}
+                        <strong className="font-semibold text-slate-800">metres</strong> on each coil to preview conversion
+                        and alerts.
+                      </>
+                    )}
                   </p>
                 ) : conversionPreviewLoading ? (
                   <p className="text-xs font-semibold text-slate-500">Calculating…</p>
@@ -3364,7 +3491,7 @@ export function LiveProductionMonitor({
                   {savingAction === 'allocationsAndStart' ? 'Saving…' : 'Save & start'}
                 </button>
               ) : null}
-              {selectedJob.status === 'Running' && !isStoneMeterQuote ? (
+              {selectedJob.status === 'Running' && !isStoneMeterQuote && !completionUsesOffcutMode ? (
                 <button
                   type="button"
                   onClick={() => void persist('runningCheckpoint')}
