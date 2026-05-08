@@ -23,7 +23,6 @@ import {
 } from 'lucide-react';
 
 import { MainPanel, PageHeader, PageShell, PageTabs, ModalFrame } from '../components/layout';
-import ProcurementDashboardTab from '../components/procurement/dashboard/ProcurementDashboardTab';
 import { AiAskButton } from '../components/AiAskButton';
 import CoilPurchaseOrderModal from '../components/procurement/CoilPurchaseOrderModal';
 import StonePurchaseOrderModal from '../components/procurement/StonePurchaseOrderModal';
@@ -71,7 +70,6 @@ const PROCUREMENT_PURCHASES_COLUMN_PAGE_SIZE = 10;
 const PAYABLES_TABLE_PAGE_SIZE = 10;
 
 const TAB_LABELS = {
-  dashboard: 'Dashboard',
   purchases: 'Purchases',
   payables: 'Payments',
   suppliers: 'Suppliers',
@@ -449,20 +447,14 @@ const Procurement = () => {
     navigate(location.pathname, { replace: true, state: {} });
   }, [location.state, location.pathname, navigate]);
 
-  const dashboardFlagEnabled = Boolean(
-    ws?.snapshot?.dashboardPrefs?.procurementDashboardV1 ||
-      ['admin', 'md'].includes(String(ws?.session?.user?.roleKey || '').toLowerCase())
-  );
   const procurementTabs = useMemo(() => {
-    const tabs = [
+    return [
       { id: 'purchases', icon: <DollarSign size={16} />, label: 'Purchases' },
       { id: 'payables', icon: <Banknote size={16} />, label: 'Payments' },
       { id: 'suppliers', icon: <Anchor size={16} />, label: 'Suppliers' },
       { id: 'conversion', icon: <Ruler size={16} />, label: 'Conversion' },
     ];
-    if (dashboardFlagEnabled) tabs.unshift({ id: 'dashboard', icon: <BarChart3 size={16} />, label: 'Dashboard' });
-    return tabs;
-  }, [dashboardFlagEnabled]);
+  }, []);
 
   const outstandingSupplierNgn = useMemo(
     () =>
@@ -1689,25 +1681,19 @@ const Procurement = () => {
                   {TAB_LABELS[activeTab] ?? 'Records'}
                 </h2>
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end flex-1 w-full min-w-0">
-                  {activeTab !== 'dashboard' ? (
-                    <div className="relative flex-1 w-full sm:max-w-xs min-w-0">
-                      <Search
-                        className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
-                        size={16}
-                      />
-                      <input
-                        type="search"
-                        placeholder="Search purchase orders & suppliers…"
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-full bg-slate-50 border border-slate-200 rounded-lg py-2 pl-9 pr-3 text-xs outline-none focus:ring-2 focus:ring-[#134e4a]/10"
-                      />
-                    </div>
-                  ) : (
-                    <p className="flex-1 text-[11px] text-slate-500 leading-snug">
-                      Executive, operations, supplier, inventory, payment, and logistics intelligence in one view.
-                    </p>
-                  )}
+                  <div className="relative flex-1 w-full sm:max-w-xs min-w-0">
+                    <Search
+                      className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
+                      size={16}
+                    />
+                    <input
+                      type="search"
+                      placeholder="Search purchase orders & suppliers…"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-lg py-2 pl-9 pr-3 text-xs outline-none focus:ring-2 focus:ring-[#134e4a]/10"
+                    />
+                  </div>
                   {activeTab === 'purchases' || activeTab === 'conversion' ? (
                     <div className="flex justify-end sm:justify-center shrink-0">
                       <details className="relative shrink-0">
@@ -1863,20 +1849,6 @@ const Procurement = () => {
                     ))}
                   </div>
                 </div>
-              )}
-
-              {activeTab === 'dashboard' && (
-                <ProcurementDashboardTab
-                  purchaseOrders={purchaseOrders}
-                  suppliers={suppliers}
-                  accountsPayable={payables}
-                  products={invProducts}
-                  inTransitLoads={inTransitLoads}
-                  transportAgents={agents}
-                  workspaceBranches={branchOptions}
-                  canViewFinance={Boolean(ws?.hasPermission?.('finance.view'))}
-                  canViewExecutive={Boolean(ws?.hasPermission?.('exec.dashboard.view') || ws?.hasPermission?.('hq.view_all_branches'))}
-                />
               )}
 
               {activeTab === 'suppliers' && (
