@@ -261,11 +261,6 @@ const Account = () => {
       ),
     [branchOptions]
   );
-  const totals = useMemo(() => {
-    const cash = bankAccounts.reduce((acc, curr) => acc + curr.balance, 0);
-    return { cash };
-  }, [bankAccounts]);
-
   const liveQuotations = useMemo(
     () => (ws?.hasWorkspaceData && Array.isArray(ws?.snapshot?.quotations) ? ws.snapshot.quotations : []),
     [ws?.hasWorkspaceData, ws?.snapshot?.quotations]
@@ -279,6 +274,39 @@ const Account = () => {
       ws?.hasWorkspaceData && Array.isArray(ws?.snapshot?.treasuryMovements) ? ws.snapshot.treasuryMovements : [],
     [ws?.hasWorkspaceData, ws?.snapshot?.treasuryMovements]
   );
+
+  /** Book per account = stored opening + Σ movements (matches edit modal and statements). */
+  const treasuryDisplayedBookNgnById = useMemo(() => {
+    const map = new Map();
+    for (const acc of bankAccounts) {
+      const id = Number(acc.id);
+      if (!Number.isFinite(id)) continue;
+      const movSum = liveTreasuryMovements
+        .filter((m) => Number(m.treasuryAccountId) === id)
+        .reduce((s, m) => s + (Number(m.amountNgn) || 0), 0);
+      const o = Math.round(Number(acc.openingBalanceNgn ?? 0));
+      const opening = Number.isNaN(o) ? 0 : o;
+      map.set(id, opening + movSum);
+    }
+    return map;
+  }, [bankAccounts, liveTreasuryMovements]);
+
+  const totals = useMemo(() => {
+    const cash = bankAccounts.reduce((acc, curr) => {
+      const id = Number(curr.id);
+      const implied = Number.isFinite(id) ? treasuryDisplayedBookNgnById.get(id) : undefined;
+      return acc + (implied !== undefined ? implied : Number(curr.balance) || 0);
+    }, 0);
+    return { cash };
+  }, [bankAccounts, treasuryDisplayedBookNgnById]);
+
+  function treasuryBookDisplayNgn(acc) {
+    if (!acc) return 0;
+    const id = Number(acc.id);
+    if (!Number.isFinite(id)) return Number(acc.balance) || 0;
+    const implied = treasuryDisplayedBookNgnById.get(id);
+    return implied !== undefined ? implied : Number(acc.balance) || 0;
+  }
 
   /** Edit-account modal: book balance = opening (form) + net posted movements for this account. */
   const treasuryEditImpliedBookStr = useMemo(() => {
@@ -771,7 +799,7 @@ const Account = () => {
       const applied = validLines
         .filter((line) => line.treasuryAccountId === account.id)
         .reduce((sum, line) => sum + line.amountNgn, 0);
-      return applied > account.balance;
+      return applied > treasuryBookDisplayNgn(account);
     });
     if (refundShortAccount) {
       showToast(`Insufficient balance in ${refundShortAccount.name}.`, { variant: 'error' });
@@ -956,7 +984,7 @@ const Account = () => {
       const applied = validLines
         .filter((line) => line.treasuryAccountId === account.id)
         .reduce((sum, line) => sum + line.amountNgn, 0);
-      return applied > account.balance;
+      return applied > treasuryBookDisplayNgn(account);
     });
     if (requestShortAccount) {
       showToast(`Insufficient balance in ${requestShortAccount.name}.`, { variant: 'error' });
@@ -1439,7 +1467,7 @@ const Account = () => {
       return;
     }
     const debitAcc = bankAccounts.find((a) => a.id === debitId);
-    if (!debitAcc || debitAcc.balance < amount) {
+    if (!debitAcc || treasuryBookDisplayNgn(debitAcc) < amount) {
       showToast('Selected account has insufficient balance.', { variant: 'error' });
       return;
     }
@@ -1689,7 +1717,7 @@ const Account = () => {
       return;
     }
     const fromAcc = bankAccounts.find((a) => a.id === fromId);
-    if (!fromAcc || fromAcc.balance < amount) {
+    if (!fromAcc || treasuryBookDisplayNgn(fromAcc) < amount) {
       showToast('Insufficient balance in source account.', { variant: 'error' });
       return;
     }
@@ -2676,7 +2704,7 @@ const Account = () => {
                             </p>
                           ) : null}
                           <h4 className="text-lg font-black text-[#134e4a] italic tracking-tighter">
-                            ₦{(Number(acc.balance) || 0).toLocaleString()}
+                            {formatNgn(treasuryBookDisplayNgn(acc))}
                           </h4>
                           {acc.accountOfficerName || acc.accountOfficerPhone ? (
                             <p className="text-[9px] text-slate-600 mt-2 leading-snug line-clamp-2">
@@ -2817,7 +2845,7 @@ const Account = () => {
                               <option value="">Select…</option>
                               {bankAccounts.map((a) => (
                                 <option key={a.id} value={String(a.id)}>
-                                  {treasuryAccountDisplayName(a)} ({formatNgn(a.balance)})
+                                  {treasuryAccountDisplayName(a)} ({formatNgn(treasuryBookDisplayNgn(a))})
                                 </option>
                               ))}
                             </select>
@@ -3442,7 +3470,7 @@ const Account = () => {
                 <option value="">Select account…</option>
                 {bankAccounts.map((a) => (
                   <option key={a.id} value={a.id}>
-                    {treasuryAccountDisplayName(a)} ({formatNgn(a.balance)})
+                    {treasuryAccountDisplayName(a)} ({formatNgn(treasuryBookDisplayNgn(a))})
                   </option>
                 ))}
               </select>
@@ -3814,7 +3842,7 @@ const Account = () => {
                       <option value="">Select account…</option>
                       {bankAccounts.map((a) => (
                         <option key={a.id} value={String(a.id)}>
-                          {treasuryAccountDisplayName(a)} ({formatNgn(a.balance)})
+                          {treasuryAccountDisplayName(a)} ({formatNgn(treasuryBookDisplayNgn(a))})
                         </option>
                       ))}
                     </select>
@@ -3959,7 +3987,7 @@ const Account = () => {
                       <option value="">Select account…</option>
                       {bankAccounts.map((a) => (
                         <option key={a.id} value={String(a.id)}>
-                          {treasuryAccountDisplayName(a)} ({formatNgn(a.balance)})
+                          {treasuryAccountDisplayName(a)} ({formatNgn(treasuryBookDisplayNgn(a))})
                         </option>
                       ))}
                     </select>
@@ -4339,7 +4367,7 @@ const Account = () => {
                   <option value="">Select account…</option>
                   {bankAccounts.map((a) => (
                     <option key={a.id} value={a.id}>
-                      {treasuryAccountDisplayName(a)} ({formatNgn(a.balance)})
+                      {treasuryAccountDisplayName(a)} ({formatNgn(treasuryBookDisplayNgn(a))})
                     </option>
                   ))}
                 </select>
