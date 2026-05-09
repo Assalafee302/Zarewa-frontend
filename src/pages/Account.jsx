@@ -519,7 +519,15 @@ const Account = () => {
       });
     const totalMovementsNgn = chronologicalAllLines.reduce((sum, line) => sum + (Number(line.amountNgn) || 0), 0);
     const currentBookBalanceNgn = Number(statementAccount.balance) || 0;
-    const openingBookBalanceNgn = currentBookBalanceNgn - totalMovementsNgn;
+    const impliedOpeningFromPostingsNgn = currentBookBalanceNgn - totalMovementsNgn;
+    const regOpeningRaw = statementAccount.openingBalanceNgn;
+    const openingBookBalanceNgn = Math.round(
+      Number(
+        regOpeningRaw !== undefined && regOpeningRaw !== null
+          ? regOpeningRaw
+          : impliedOpeningFromPostingsNgn
+      ) || 0
+    );
     const fromBoundaryBalanceNgn = chronologicalAllLines.reduce((sum, line) => {
       const date = String(line.postedAtISO || '').slice(0, 10);
       return date < fromDate ? sum + (Number(line.amountNgn) || 0) : sum;
