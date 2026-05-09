@@ -31,6 +31,7 @@ export function treasuryAccountsFromSnapshot(snapshot) {
     name: String(a.name ?? ''),
     bankName: String(a.bankName ?? ''),
     balance: Number(a.balance) || 0,
+    openingBalanceNgn: Number(a.openingBalanceNgn) || 0,
     type: a.type === 'Cash' ? 'Cash' : 'Bank',
     accNo: String(a.accNo ?? 'N/A'),
     accountOfficerName: String(a.accountOfficerName ?? ''),
@@ -61,6 +62,7 @@ export function defaultTreasuryAccounts() {
       name: 'GTBank Main',
       bankName: 'Guaranty Trust Bank',
       balance: 14250000,
+      openingBalanceNgn: 14250000,
       type: 'Bank',
       accNo: '0123456789',
     },
@@ -69,10 +71,19 @@ export function defaultTreasuryAccounts() {
       name: 'Zenith Production',
       bankName: 'Zenith Bank',
       balance: 5200000,
+      openingBalanceNgn: 5200000,
       type: 'Bank',
       accNo: '9876543210',
     },
-    { id: 3, name: 'Cash Office (Till)', bankName: '', balance: 450000, type: 'Cash', accNo: 'N/A' },
+    {
+      id: 3,
+      name: 'Cash Office (Till)',
+      bankName: '',
+      balance: 450000,
+      openingBalanceNgn: 450000,
+      type: 'Cash',
+      accNo: 'N/A',
+    },
   ];
 }
 

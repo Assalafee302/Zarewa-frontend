@@ -104,6 +104,7 @@ const Account = () => {
     type: 'Bank',
     accNo: '',
     balance: '',
+    openingBalanceNgn: '',
     accountOfficerName: '',
     accountOfficerPhone: '',
     bankBranch: '',
@@ -278,28 +279,6 @@ const Account = () => {
       ws?.hasWorkspaceData && Array.isArray(ws?.snapshot?.treasuryMovements) ? ws.snapshot.treasuryMovements : [],
     [ws?.hasWorkspaceData, ws?.snapshot?.treasuryMovements]
   );
-
-  /** Balance at registration (before movements), same basis as printed statements: saved book − Σ movements. */
-  const editTreasuryRegisteredOpeningNgn = useMemo(() => {
-    const idRaw = newBank.id;
-    if (idRaw == null || idRaw === '') return null;
-    const id = Number(idRaw);
-    if (!Number.isFinite(id)) return null;
-    const saved = bankAccounts.find((a) => Number(a.id) === id);
-    if (!saved) return null;
-    const currentSaved = Number(saved.balance) || 0;
-    const lines = liveTreasuryMovements
-      .filter((m) => Number(m.treasuryAccountId) === id)
-      .slice()
-      .sort((a, b) => {
-        const ta = String(a.postedAtISO || '');
-        const tb = String(b.postedAtISO || '');
-        if (ta !== tb) return ta.localeCompare(tb);
-        return String(a.id || '').localeCompare(String(b.id || ''));
-      });
-    const totalMovements = lines.reduce((sum, line) => sum + (Number(line.amountNgn) || 0), 0);
-    return currentSaved - totalMovements;
-  }, [newBank.id, bankAccounts, liveTreasuryMovements]);
 
   const liveLedgerEntries = useMemo(
     () => (ws?.hasWorkspaceData && Array.isArray(ws?.snapshot?.ledgerEntries) ? ws.snapshot.ledgerEntries : []),
@@ -1539,6 +1518,12 @@ const Account = () => {
   };
 
   const openEditTreasuryAccount = (acc) => {
+    const opening =
+      acc.openingBalanceNgn != null && !Number.isNaN(Number(acc.openingBalanceNgn))
+        ? String(Math.round(Number(acc.openingBalanceNgn)))
+        : acc.balance != null
+          ? String(acc.balance)
+          : '';
     setNewBank({
       id: acc.id,
       name: acc.name || '',
@@ -1546,6 +1531,7 @@ const Account = () => {
       type: acc.type === 'Cash' ? 'Cash' : 'Bank',
       accNo: acc.accNo || '',
       balance: acc.balance != null ? String(acc.balance) : '',
+      openingBalanceNgn: opening,
       accountOfficerName: acc.accountOfficerName || '',
       accountOfficerPhone: acc.accountOfficerPhone || '',
       bankBranch: acc.bankBranch || '',
@@ -1613,6 +1599,15 @@ const Account = () => {
   const saveBankAccount = async (e) => {
     e.preventDefault();
     const bal = Number(newBank.balance || 0);
+    const isEditTreasury = newBank.id != null && newBank.id !== '';
+    const openingRaw = Number(newBank.openingBalanceNgn || 0);
+    const openingNgn = isEditTreasury
+      ? Number.isNaN(openingRaw)
+        ? 0
+        : Math.round(openingRaw)
+      : Number.isNaN(bal)
+        ? 0
+        : Math.round(bal);
     const accName = newBank.name.trim();
     if (!accName) return;
     if (ws?.canMutate) {
@@ -1622,6 +1617,7 @@ const Account = () => {
         type: newBank.type,
         accNo: newBank.accNo.trim() || 'N/A',
         balance: Number.isNaN(bal) ? 0 : bal,
+        openingBalanceNgn: openingNgn,
         accountOfficerName: newBank.accountOfficerName.trim(),
         accountOfficerPhone: newBank.accountOfficerPhone.trim(),
         bankBranch: newBank.bankBranch.trim(),
@@ -4026,7 +4022,8 @@ const Account = () => {
           setNewBank(emptyBankForm());
         }}
       >
-        <div className="z-modal-panel max-w-lg p-8 max-h-[min(90vh,720px)] overflow-y-auto">
+        <div className="z-modal-panel max-w-lg w-full min-h-0 max-h-[min(90dvh,720px)] flex flex-col overflow-hidden p-0">
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-8 pt-8 pb-10">
             <div className="flex justify-between items-center mb-6">
               <h3 className="text-xl font-bold text-[#134e4a]">
                 {newBank.id != null && newBank.id !== '' ? 'Edit account' : 'New account'}
@@ -4088,18 +4085,24 @@ const Account = () => {
                       : 'Opening balance (₦)'}
                   </label>
                   {newBank.id != null && newBank.id !== '' ? (
-                    <input
-                      type="number"
-                      min="0"
-                      readOnly
-                      aria-readonly="true"
-                      value={editTreasuryRegisteredOpeningNgn != null ? editTreasuryRegisteredOpeningNgn : ''}
-                      className="w-full bg-gray-100 border border-gray-200 rounded-xl py-3 px-4 text-sm font-bold outline-none text-gray-700 cursor-default"
-                    />
+                    <>
+                      <input
+                        type="number"
+                        inputMode="numeric"
+                        step="any"
+                        value={newBank.openingBalanceNgn}
+                        onChange={(e) => setNewBank((b) => ({ ...b, openingBalanceNgn: e.target.value }))}
+                        className="w-full bg-gray-50 border border-gray-100 rounded-xl py-3 px-4 text-sm font-bold outline-none"
+                      />
+                      <p className="text-[9px] text-gray-500 mt-1 leading-snug">
+                        Stored opening amount when the account was set up (does not change book balance by itself).
+                      </p>
+                    </>
                   ) : (
                     <input
                       type="number"
-                      min="0"
+                      inputMode="numeric"
+                      step="any"
                       value={newBank.balance}
                       onChange={(e) => setNewBank((b) => ({ ...b, balance: e.target.value }))}
                       className="w-full bg-gray-50 border border-gray-100 rounded-xl py-3 px-4 text-sm font-bold outline-none"
@@ -4114,7 +4117,8 @@ const Account = () => {
                   </label>
                   <input
                     type="number"
-                    min="0"
+                    inputMode="numeric"
+                    step="any"
                     value={newBank.balance}
                     onChange={(e) => setNewBank((b) => ({ ...b, balance: e.target.value }))}
                     className="w-full bg-gray-50 border border-gray-100 rounded-xl py-3 px-4 text-sm font-bold outline-none"
@@ -4196,6 +4200,7 @@ const Account = () => {
                 Save account
               </button>
             </form>
+          </div>
         </div>
       </ModalFrame>
 
