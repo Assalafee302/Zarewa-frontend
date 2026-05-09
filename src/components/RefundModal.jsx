@@ -26,11 +26,13 @@ import {
 import { flattenQuotationLineItems } from '../lib/managerDashboardCore';
 import {
   productionJobStatusClosesRefundEligibility,
+  quotationOrderFullySettledForRefundPicker,
   quotationVoidPaidRefundEligible,
 } from '../lib/refundEligibility';
 import {
   REFUND_REASON_CATEGORY_VALUES as REFUND_REASON_CATEGORIES,
   REFUND_PREVIEW_VERSION,
+  MIN_REFUND_QUOTATION_REMAINING_NGN,
 } from '../shared/refundConstants.js';
 
 function parseQuoteQtyDisplay(qty, unit) {
@@ -118,8 +120,6 @@ const initFormFromRecord = (record) => {
     alreadyRefundedCategories: []
   };
 };
-
-const MIN_REFUND_PICK_NGN = 1000;
 
 function sumLines(lines) {
   return lines.reduce((s, l) => {
@@ -398,7 +398,8 @@ const RefundModal = ({
         0,
         Math.round(Number(q.paid_ngn) || 0) - Math.round(Number(q.total_refunded_ngn) || 0)
       );
-      if (remainingNgn < MIN_REFUND_PICK_NGN) return false;
+      if (remainingNgn <= MIN_REFUND_QUOTATION_REMAINING_NGN) return false;
+      if (!quotationOrderFullySettledForRefundPicker(q.paid_ngn, q.total_ngn)) return false;
       if (!Array.isArray(q.eligible_refund_categories) || q.eligible_refund_categories.length === 0) {
         return false;
       }
@@ -429,14 +430,12 @@ const RefundModal = ({
 
   const quotationSearchFiltered = useMemo(() => {
     const q = String(quotationSearchText || '').trim().toLowerCase();
-    if (!q) return quotationPickList.slice(0, 12);
-    return quotationPickList
-      .filter((row) => {
-        const id = String(row.id || '').toLowerCase();
-        const name = String(row.customer_name || '').toLowerCase();
-        return id.includes(q) || name.includes(q);
-      })
-      .slice(0, 12);
+    if (!q) return quotationPickList;
+    return quotationPickList.filter((row) => {
+      const id = String(row.id || '').toLowerCase();
+      const name = String(row.customer_name || '').toLowerCase();
+      return id.includes(q) || name.includes(q);
+    });
   }, [quotationPickList, quotationSearchText]);
 
   const refundMoneyBreakdown = useMemo(() => {
@@ -973,10 +972,10 @@ const RefundModal = ({
                 <div className="border-t border-teal-200/60 pt-3 space-y-1.5">
                   <p className="text-xs font-bold text-teal-900">Which quotations appear in the list?</p>
                   <p className="text-[11px] leading-relaxed text-teal-800/85 font-medium">
-                    Listed quotes have production <strong className="text-teal-950">completed</strong> or{' '}
-                    <strong className="text-teal-950">cancelled</strong> (when job data is available in your workspace), or
-                    are <strong className="text-teal-950">void</strong> with payment on file — plus the usual paid /
-                    refund-cap rules (e.g. no duplicate blocking refund for the same category).
+                    Listed quotes are <strong className="text-teal-950">fully paid</strong> (booked paid ≥ order total when
+                    a total exists), have more than <strong className="text-teal-950">₦{MIN_REFUND_QUOTATION_REMAINING_NGN.toLocaleString('en-NG')} refundable</strong> headroom, production <strong className="text-teal-950">completed</strong> or{' '}
+                    <strong className="text-teal-950">cancelled</strong> (or <strong className="text-teal-950">void</strong> with payment), and pass refund-cap / category rules. The dropdown shows{' '}
+                    <strong className="text-teal-950">all</strong> matches (scroll). Use <strong>Check quotation id</strong> for exact reasons a specific QT-… is excluded.
                   </p>
                 </div>
               </div>
@@ -1111,10 +1110,14 @@ const RefundModal = ({
                             {quotationSuggestOpen &&
                             quotationSearchFiltered.length > 0 &&
                             !loadingQuotes ? (
-                              <div className="absolute z-20 mt-1 w-full max-h-56 overflow-auto rounded-lg border border-slate-200 bg-white py-1 shadow-lg">
+                              <div className="absolute z-20 mt-1 w-full max-h-[min(24rem,70vh)] overflow-auto rounded-lg border border-slate-200 bg-white py-1 shadow-lg">
                                 {quotationSearchFiltered.map((q) => {
                                   const ymd = quotationYmdForPickRow(q, quotations);
                                   const dateBit = ymd ? ` · ${ymd}` : '';
+                                  const remNgn = Math.max(
+                                    0,
+                                    Math.round(q.paid_ngn) - Math.round(q.total_refunded_ngn || 0)
+                                  );
                                   return (
                                     <button
                                       key={q.id}
@@ -1127,7 +1130,10 @@ const RefundModal = ({
                                         {q.id} · {q.customer_name}
                                       </span>
                                       <span className="block text-[10px] font-medium text-slate-500 truncate">
-                                        ₦{q.paid_ngn.toLocaleString()} booked paid{dateBit}
+                                        ₦{q.paid_ngn.toLocaleString()} paid
+                                        {q.total_ngn > 0 ? ` / ₦${q.total_ngn.toLocaleString()} total` : ''}
+                                        {` · ₦${remNgn.toLocaleString()} refundable`}
+                                        {dateBit}
                                       </span>
                                     </button>
                                   );
@@ -1170,6 +1176,16 @@ const RefundModal = ({
                                     ) : null}
                                   </ul>
                                 )}
+                                {quotationLookup.diagnostics ? (
+                                  <details className="mt-2 rounded-md border border-slate-200/80 bg-white/70 p-2">
+                                    <summary className="cursor-pointer text-[10px] font-bold text-slate-700">
+                                      Technical detail (for support / exact id checks)
+                                    </summary>
+                                    <pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap break-all text-[9px] text-slate-800">
+                                      {JSON.stringify(quotationLookup.diagnostics, null, 2)}
+                                    </pre>
+                                  </details>
+                                ) : null}
                               </div>
                             ) : null}
                           </div>
@@ -1205,12 +1221,11 @@ const RefundModal = ({
                     {!loadingQuotes && quotationPickList.length === 0 && mode === 'create' ? (
                       <div className="mt-2 space-y-2 rounded-lg border border-amber-200/80 bg-amber-50/50 p-3">
                         <p className="text-[10px] text-amber-900 font-medium leading-snug">
-                          Refunds only list quotations with <strong>paid total &gt; 0</strong>, production{' '}
-                          <strong>completed or cancelled</strong> (or <strong>void with payment</strong>), and{' '}
-                          <strong>at least ₦1,000 remaining refundable</strong>, with{' '}
+                          Refunds only list quotations that are <strong>fully paid</strong> (paid ≥ total when total is set), have{' '}
+                          <strong>more than ₦{MIN_REFUND_QUOTATION_REMAINING_NGN.toLocaleString('en-NG')} refundable</strong>, production{' '}
+                          <strong>completed or cancelled</strong> (or <strong>void with payment</strong>), with{' '}
                           <strong>at least one applicable refund category</strong>, and{' '}
-                          <strong>no blocking refund on file</strong>{' '}
-                          (rejected-only still counts as eligible). {quotationPickDate ? 'Try clearing the quote date filter.' : ''}{' '}
+                          <strong>no blocking refund on file</strong>. {quotationPickDate ? 'Try clearing the quote date filter.' : ''}{' '}
                           If you already posted a receipt but the quote is missing here, the payment may have been
                           recorded under a different branch than the quotation — use sync to recalculate from the ledger.
                         </p>

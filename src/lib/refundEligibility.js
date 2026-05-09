@@ -14,3 +14,14 @@ export function quotationVoidPaidRefundEligible(q) {
   if (String(q.status ?? '').trim() !== 'Void') return false;
   return (Number(q.paidNgn ?? q.paid_ngn) || 0) > 0;
 }
+
+/**
+ * Refund create picker: only list orders with nothing left for the customer to pay (paid ≥ total).
+ * If order total is missing or zero, do not exclude (legacy / header not set).
+ */
+export function quotationOrderFullySettledForRefundPicker(paidNgn, totalNgn) {
+  const total = Math.round(Number(totalNgn) || 0);
+  const paid = Math.round(Number(paidNgn) || 0);
+  if (total <= 0) return true;
+  return paid >= total;
+}

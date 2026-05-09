@@ -278,6 +278,29 @@ const Account = () => {
       ws?.hasWorkspaceData && Array.isArray(ws?.snapshot?.treasuryMovements) ? ws.snapshot.treasuryMovements : [],
     [ws?.hasWorkspaceData, ws?.snapshot?.treasuryMovements]
   );
+
+  /** Balance at registration (before movements), same basis as printed statements: saved book − Σ movements. */
+  const editTreasuryRegisteredOpeningNgn = useMemo(() => {
+    const idRaw = newBank.id;
+    if (idRaw == null || idRaw === '') return null;
+    const id = Number(idRaw);
+    if (!Number.isFinite(id)) return null;
+    const saved = bankAccounts.find((a) => Number(a.id) === id);
+    if (!saved) return null;
+    const currentSaved = Number(saved.balance) || 0;
+    const lines = liveTreasuryMovements
+      .filter((m) => Number(m.treasuryAccountId) === id)
+      .slice()
+      .sort((a, b) => {
+        const ta = String(a.postedAtISO || '');
+        const tb = String(b.postedAtISO || '');
+        if (ta !== tb) return ta.localeCompare(tb);
+        return String(a.id || '').localeCompare(String(b.id || ''));
+      });
+    const totalMovements = lines.reduce((sum, line) => sum + (Number(line.amountNgn) || 0), 0);
+    return currentSaved - totalMovements;
+  }, [newBank.id, bankAccounts, liveTreasuryMovements]);
+
   const liveLedgerEntries = useMemo(
     () => (ws?.hasWorkspaceData && Array.isArray(ws?.snapshot?.ledgerEntries) ? ws.snapshot.ledgerEntries : []),
     [ws?.hasWorkspaceData, ws?.snapshot?.ledgerEntries]
@@ -4060,7 +4083,34 @@ const Account = () => {
                 </div>
                 <div>
                   <label className="text-[10px] font-bold text-gray-400 uppercase ml-1 block mb-1">
-                    {newBank.id != null && newBank.id !== '' ? 'Book balance (₦)' : 'Opening balance (₦)'}
+                    {newBank.id != null && newBank.id !== ''
+                      ? 'Opening balance (₦) — when registered'
+                      : 'Opening balance (₦)'}
+                  </label>
+                  {newBank.id != null && newBank.id !== '' ? (
+                    <input
+                      type="number"
+                      min="0"
+                      readOnly
+                      aria-readonly="true"
+                      value={editTreasuryRegisteredOpeningNgn != null ? editTreasuryRegisteredOpeningNgn : ''}
+                      className="w-full bg-gray-100 border border-gray-200 rounded-xl py-3 px-4 text-sm font-bold outline-none text-gray-700 cursor-default"
+                    />
+                  ) : (
+                    <input
+                      type="number"
+                      min="0"
+                      value={newBank.balance}
+                      onChange={(e) => setNewBank((b) => ({ ...b, balance: e.target.value }))}
+                      className="w-full bg-gray-50 border border-gray-100 rounded-xl py-3 px-4 text-sm font-bold outline-none"
+                    />
+                  )}
+                </div>
+              </div>
+              {newBank.id != null && newBank.id !== '' ? (
+                <div>
+                  <label className="text-[10px] font-bold text-gray-400 uppercase ml-1 block mb-1">
+                    Book balance (₦) — current
                   </label>
                   <input
                     type="number"
@@ -4069,13 +4119,11 @@ const Account = () => {
                     onChange={(e) => setNewBank((b) => ({ ...b, balance: e.target.value }))}
                     className="w-full bg-gray-50 border border-gray-100 rounded-xl py-3 px-4 text-sm font-bold outline-none"
                   />
-                  {newBank.id != null && newBank.id !== '' ? (
-                    <p className="text-[9px] text-gray-500 mt-1 leading-snug">
-                      Prefer transfers and posted receipts to move cash; change this only for corrections.
-                    </p>
-                  ) : null}
+                  <p className="text-[9px] text-gray-500 mt-1 leading-snug">
+                    Prefer transfers and posted receipts to move cash; change this only for corrections.
+                  </p>
                 </div>
-              </div>
+              ) : null}
               <div>
                 <label className="text-[10px] font-bold text-gray-400 uppercase ml-1 block mb-1">
                   Account / reference no.
