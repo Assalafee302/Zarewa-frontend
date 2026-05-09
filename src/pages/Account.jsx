@@ -280,6 +280,19 @@ const Account = () => {
     [ws?.hasWorkspaceData, ws?.snapshot?.treasuryMovements]
   );
 
+  /** Edit-account modal: book balance = opening (form) + net posted movements for this account. */
+  const treasuryEditImpliedBookStr = useMemo(() => {
+    if (newBank.id == null || newBank.id === '') return '';
+    const id = Number(newBank.id);
+    if (!Number.isFinite(id)) return '';
+    const movSum = liveTreasuryMovements
+      .filter((m) => Number(m.treasuryAccountId) === id)
+      .reduce((s, m) => s + (Number(m.amountNgn) || 0), 0);
+    const o = Math.round(Number(newBank.openingBalanceNgn || 0));
+    const implied = (Number.isNaN(o) ? 0 : o) + movSum;
+    return String(implied);
+  }, [newBank.id, newBank.openingBalanceNgn, liveTreasuryMovements]);
+
   const liveLedgerEntries = useMemo(
     () => (ws?.hasWorkspaceData && Array.isArray(ws?.snapshot?.ledgerEntries) ? ws.snapshot.ledgerEntries : []),
     [ws?.hasWorkspaceData, ws?.snapshot?.ledgerEntries]
@@ -1598,8 +1611,10 @@ const Account = () => {
 
   const saveBankAccount = async (e) => {
     e.preventDefault();
-    const bal = Number(newBank.balance || 0);
     const isEditTreasury = newBank.id != null && newBank.id !== '';
+    const bal = isEditTreasury
+      ? Number(treasuryEditImpliedBookStr || 0)
+      : Number(newBank.balance || 0);
     const openingRaw = Number(newBank.openingBalanceNgn || 0);
     const openingNgn = isEditTreasury
       ? Number.isNaN(openingRaw)
@@ -4095,7 +4110,7 @@ const Account = () => {
                         className="w-full bg-gray-50 border border-gray-100 rounded-xl py-3 px-4 text-sm font-bold outline-none"
                       />
                       <p className="text-[9px] text-gray-500 mt-1 leading-snug">
-                        Stored opening amount when the account was set up (does not change book balance by itself).
+                        Book balance below updates automatically: opening plus all posted movements on this account.
                       </p>
                     </>
                   ) : (
@@ -4118,13 +4133,13 @@ const Account = () => {
                   <input
                     type="number"
                     inputMode="numeric"
-                    step="any"
-                    value={newBank.balance}
-                    onChange={(e) => setNewBank((b) => ({ ...b, balance: e.target.value }))}
-                    className="w-full bg-gray-50 border border-gray-100 rounded-xl py-3 px-4 text-sm font-bold outline-none"
+                    readOnly
+                    aria-readonly="true"
+                    value={treasuryEditImpliedBookStr}
+                    className="w-full bg-gray-100 border border-gray-200 rounded-xl py-3 px-4 text-sm font-bold text-gray-800 outline-none cursor-default"
                   />
                   <p className="text-[9px] text-gray-500 mt-1 leading-snug">
-                    Prefer transfers and posted receipts to move cash; change this only for corrections.
+                    Computed from opening above and posted movements. It is saved with the account when you click Save.
                   </p>
                 </div>
               ) : null}
