@@ -465,6 +465,15 @@ const Account = () => {
       .replace(/'/g, '&#39;');
   }, []);
 
+  /** Compact DD/MM/YY for statement tables (from YYYY-MM-DD or ISO). */
+  const formatStatementShortDate = useCallback((iso) => {
+    const d = String(iso || '').slice(0, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) return '—';
+    const [y, m, day] = d.split('-').map(Number);
+    const dt = new Date(y, m - 1, day);
+    return dt.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' });
+  }, []);
+
   const openStatementForDateRange = useCallback((autoPrint = true) => {
     if (!statementAccount) return;
     const fromDate = String(statementPrintFromDate || '').trim();
@@ -524,11 +533,9 @@ const Account = () => {
         const inNgn = amount > 0 ? formatNgn(amount) : '—';
         const outNgn = amount < 0 ? formatNgn(Math.abs(amount)) : '—';
         runningBalanceNgn += amount;
-        const movementRef = String(line.reference || line.sourceId || line.id || '—');
         return `<tr>
           <td>${index + 1}</td>
-          <td>${escapeHtml(String(line.postedAtISO || '').slice(0, 10) || '—')}</td>
-          <td>${escapeHtml(movementRef)}</td>
+          <td>${escapeHtml(formatStatementShortDate(line.postedAtISO))}</td>
           <td>${escapeHtml(treasuryMovementSourceBadge(line).label)}</td>
           <td>${escapeHtml(treasuryMovementStatementLabel(line))}</td>
           <td class="num">${escapeHtml(inNgn)}</td>
@@ -554,17 +561,21 @@ const Account = () => {
     body { font-family: Arial, sans-serif; margin: 24px; color: #0f172a; }
     h1 { margin: 0 0 8px; font-size: 20px; }
     p.meta { margin: 0 0 4px; color: #334155; font-size: 12px; }
-    table { width: 100%; border-collapse: collapse; margin-top: 16px; font-size: 12px; }
-    th, td { border: 1px solid #cbd5e1; padding: 8px; vertical-align: top; }
+    table { width: 100%; border-collapse: collapse; margin-top: 16px; font-size: 11px; }
+    th, td { border: 1px solid #cbd5e1; padding: 3px 5px; vertical-align: top; line-height: 1.25; }
     th { background: #f8fafc; text-align: left; }
-    td.num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+    td.num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; font-size: 10px; }
   </style>
 </head>
 <body>
   <h1>Account Statement</h1>
   <p class="meta"><strong>Account:</strong> ${escapeHtml(accountTitle)}</p>
-  <p class="meta"><strong>Period:</strong> ${escapeHtml(fromDate)} to ${escapeHtml(toDate)}</p>
-  <p class="meta"><strong>Printed:</strong> ${escapeHtml(new Date().toLocaleString())}</p>
+  <p class="meta"><strong>Period:</strong> ${escapeHtml(formatStatementShortDate(fromDate))} – ${escapeHtml(
+      formatStatementShortDate(toDate)
+    )}</p>
+  <p class="meta"><strong>Printed:</strong> ${escapeHtml(
+      new Date().toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'short' })
+    )}</p>
   <p class="meta"><strong>Opening balance:</strong> ${escapeHtml(formatNgn(fromBoundaryBalanceNgn))}</p>
   <p class="meta"><strong>Total inflow:</strong> ${escapeHtml(formatNgn(totals.in))} &nbsp;|&nbsp; <strong>Total outflow:</strong> ${escapeHtml(
       formatNgn(totals.out)
@@ -575,7 +586,6 @@ const Account = () => {
       <tr>
         <th>#</th>
         <th>Date</th>
-        <th>Reference</th>
         <th>Source</th>
         <th>Description</th>
         <th>In (NGN)</th>
@@ -610,6 +620,7 @@ const Account = () => {
     statementPrintToDate,
     accountStatementLines,
     escapeHtml,
+    formatStatementShortDate,
     showToast,
   ]);
 
