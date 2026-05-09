@@ -1146,7 +1146,7 @@ const ReceiptModal = ({
               disabled={readOnly || isPosting}
               className="bg-white/10 px-4 py-2.5 rounded-lg text-[9px] font-semibold uppercase tracking-wide border border-white/15 hover:bg-white/20 disabled:opacity-40"
             >
-              <Save size={14} className="inline mr-1.5" /> {isPosting ? 'Posting…' : 'Post to ledger'}
+              <Save size={14} className="inline mr-1.5" /> {isPosting ? 'Saving…' : 'Save'}
             </button>
             <button
               type="button"

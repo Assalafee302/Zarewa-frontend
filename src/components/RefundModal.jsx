@@ -10,6 +10,7 @@ import {
   Link2,
   Printer,
   Info,
+  Search,
 } from 'lucide-react';
 import { ModalFrame } from './layout/ModalFrame';
 import { useTrackedUnsavedForm } from '../hooks/useTrackedUnsavedForm';
@@ -216,6 +217,14 @@ const RefundModal = ({
   const [refundGuideOpen, setRefundGuideOpen] = useState(false);
   /** Filter quotation dropdown by quote date (YYYY-MM-DD); empty = all dates. */
   const [quotationPickDate, setQuotationPickDate] = useState('');
+  /** Typeahead / paste quotation id (Step 1). */
+  const [quotationSearchText, setQuotationSearchText] = useState('');
+  const [quotationSuggestOpen, setQuotationSuggestOpen] = useState(false);
+  const [quotationLookupLoading, setQuotationLookupLoading] = useState(false);
+  /** Last GET /api/refunds/eligibility-check response (create mode). */
+  const [quotationLookup, setQuotationLookup] = useState(null);
+  /** When server says wouldAppearInRefundQuotationDropdown — keep selection even if client pick list filter differs. */
+  const [quotationServerVerifiedRef, setQuotationServerVerifiedRef] = useState('');
 
   useEffect(() => {
     if (!isOpen) setRefundGuideOpen(false);
@@ -306,7 +315,13 @@ const RefundModal = ({
    
   useEffect(() => {
     if (!isOpen) return;
-    setForm(initFormFromRecord(record));
+    const initialForm = initFormFromRecord(record);
+    setForm(initialForm);
+    setQuotationSearchText(String(initialForm.quotationRef || '').trim());
+    setQuotationSuggestOpen(false);
+    setQuotationLookup(null);
+    setQuotationLookupLoading(false);
+    setQuotationServerVerifiedRef('');
     setApprovalStatus(record?.status === 'Rejected' ? 'Rejected' : 'Approved');
     setApprovalDate(record?.approvalDate ?? '');
     setApprovedAmountNgn(String(refundApprovedAmount(record) || Number(record?.amountNgn) || ''));
@@ -407,6 +422,18 @@ const RefundModal = ({
     if (!d) return quotationPickMerged;
     return quotationPickMerged.filter((q) => quotationYmdForPickRow(q, quotations) === d);
   }, [quotationPickMerged, quotationPickDate, quotations]);
+
+  const quotationSearchFiltered = useMemo(() => {
+    const q = String(quotationSearchText || '').trim().toLowerCase();
+    if (!q) return quotationPickList.slice(0, 12);
+    return quotationPickList
+      .filter((row) => {
+        const id = String(row.id || '').toLowerCase();
+        const name = String(row.customer_name || '').toLowerCase();
+        return id.includes(q) || name.includes(q);
+      })
+      .slice(0, 12);
+  }, [quotationPickList, quotationSearchText]);
 
   const refundMoneyBreakdown = useMemo(() => {
     const ref = form.quotationRef;
@@ -580,6 +607,40 @@ const RefundModal = ({
     generatePreviewRef.current = generatePreview;
   }, [generatePreview]);
 
+  const runQuotationEligibilityLookup = useCallback(async () => {
+    const ref = String(quotationSearchText || '').trim();
+    if (!ref) {
+      showToast('Enter a quotation id to check (e.g. QT-KD-26-0001).', { variant: 'warning' });
+      return;
+    }
+    setQuotationLookupLoading(true);
+    setQuotationLookup(null);
+    const { ok, data } = await apiFetch(`/api/refunds/eligibility-check?quotationRef=${encodeURIComponent(ref)}`);
+    setQuotationLookupLoading(false);
+    if (!ok || !data?.ok) {
+      setQuotationLookup({
+        ok: false,
+        quotationRef: ref,
+        blockingReasons: [data?.error || 'Could not check eligibility. Is the API updated and are you online?'],
+      });
+      setQuotationServerVerifiedRef('');
+      return;
+    }
+    setQuotationLookup(data);
+    if (data.wouldAppearInRefundQuotationDropdown) {
+      setQuotationServerVerifiedRef(ref);
+      setMoneyContext(null);
+      setPreviewRemainingNgn(null);
+      setLastPreviewSnapshot(null);
+      setEligibleRefundCategoriesFromPreview(null);
+      setRefundCategoryPickerOpen(true);
+      setForm((f) => ({ ...f, quotationRef: ref, reasonCategory: [] }));
+      void generatePreviewRef.current(ref, []);
+    } else {
+      setQuotationServerVerifiedRef('');
+    }
+  }, [quotationSearchText, showToast]);
+
   const toggleCategory = (cat) => {
     if (blockedRefundCategories.includes(cat)) return;
     setForm((f) => {
@@ -599,12 +660,16 @@ const RefundModal = ({
   };
 
   const handleQuoteChange = (ref) => {
+    setQuotationServerVerifiedRef('');
+    setQuotationLookup(null);
     setMoneyContext(null);
     setPreviewRemainingNgn(null);
     setLastPreviewSnapshot(null);
     setEligibleRefundCategoriesFromPreview(null);
     setRefundCategoryPickerOpen(true);
     setForm(f => ({ ...f, quotationRef: ref, reasonCategory: [] }));
+    setQuotationSearchText(String(ref || '').trim());
+    setQuotationSuggestOpen(false);
     if (ref) {
       void generatePreview(ref, []);
     }
@@ -612,11 +677,14 @@ const RefundModal = ({
 
   useEffect(() => {
     if (mode !== 'create' || !form.quotationRef || loadingQuotes) return;
-    if (!quotationPickList.some((q) => q.id === form.quotationRef)) {
+    const inList = quotationPickList.some((q) => q.id === form.quotationRef);
+    const serverOk = form.quotationRef === quotationServerVerifiedRef;
+    if (!inList && !serverOk) {
       setMoneyContext(null);
       setForm((f) => ({ ...f, quotationRef: '', reasonCategory: [] }));
+      setQuotationServerVerifiedRef('');
     }
-  }, [quotationPickList, form.quotationRef, mode, loadingQuotes]);
+  }, [quotationPickList, form.quotationRef, mode, loadingQuotes, quotationServerVerifiedRef]);
 
   /** Create mode opened with a seeded quotation (e.g. Sales sidebar) — same as picking the quote in Step 1. */
   const seededCreatePreviewKeyRef = useRef('');
@@ -632,6 +700,7 @@ const RefundModal = ({
     }
     if (seededCreatePreviewKeyRef.current === ref) return;
     seededCreatePreviewKeyRef.current = ref;
+    setQuotationServerVerifiedRef(ref);
     void generatePreviewRef.current(ref, []);
   }, [isOpen, mode, record?.quotationRef, record?.quotation_ref, record?.refundID]);
 
@@ -987,33 +1056,120 @@ const RefundModal = ({
                   <div>
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
                       <div className="relative min-w-0 flex-1">
-                        <label className={label}>Search Finished Quotation</label>
-                        <div className="relative">
-                          <select
-                            required
-                            disabled={identityLocked}
-                            value={form.quotationRef}
-                            onChange={(e) => handleQuoteChange(e.target.value)}
-                            className={`${input} h-11 appearance-none pr-10 border-slate-200 hover:border-rose-300 transition-colors cursor-pointer`}
+                        <label className={label} htmlFor="refund-quotation-search">
+                          Search finished quotation
+                        </label>
+                        {identityLocked ? (
+                          <div
+                            className={`${input} h-11 flex items-center text-slate-600`}
+                            id="refund-quotation-search"
                           >
-                            <option value="">
-                              {loadingQuotes ? 'Loading quotations…' : 'Select a quotation with payment…'}
-                            </option>
-                            {quotationPickList.map((q) => {
-                              const ymd = quotationYmdForPickRow(q, quotations);
-                              const dateBit = ymd ? ` · ${ymd}` : '';
-                              return (
-                                <option key={q.id} value={q.id}>
-                                  {q.id} · {q.customer_name} (₦{q.paid_ngn.toLocaleString()} booked paid){dateBit}
-                                </option>
-                              );
-                            })}
-                          </select>
-                          <ChevronDown
-                            size={18}
-                            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
-                          />
-                        </div>
+                            {form.quotationRef || '—'}
+                          </div>
+                        ) : (
+                          <div className="relative">
+                            <Search
+                              size={16}
+                              className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
+                            />
+                            <input
+                              id="refund-quotation-search"
+                              type="text"
+                              autoComplete="off"
+                              placeholder={
+                                loadingQuotes
+                                  ? 'Loading quotations…'
+                                  : 'Type id or customer — or paste full QT-… and Check'
+                              }
+                              disabled={loadingQuotes}
+                              value={quotationSearchText}
+                              onChange={(e) => {
+                                const v = e.target.value;
+                                setQuotationSearchText(v);
+                                setQuotationSuggestOpen(true);
+                                const t = v.trim();
+                                if (quotationLookup && t !== String(quotationLookup.quotationRef || '').trim()) {
+                                  setQuotationLookup(null);
+                                }
+                              }}
+                              onFocus={() => setQuotationSuggestOpen(true)}
+                              onBlur={() => {
+                                window.setTimeout(() => setQuotationSuggestOpen(false), 180);
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  e.preventDefault();
+                                  void runQuotationEligibilityLookup();
+                                }
+                              }}
+                              className={`${input} h-11 pl-9 pr-3 border-slate-200 hover:border-rose-300 transition-colors`}
+                            />
+                            {quotationSuggestOpen &&
+                            quotationSearchFiltered.length > 0 &&
+                            !loadingQuotes ? (
+                              <div className="absolute z-20 mt-1 w-full max-h-56 overflow-auto rounded-lg border border-slate-200 bg-white py-1 shadow-lg">
+                                {quotationSearchFiltered.map((q) => {
+                                  const ymd = quotationYmdForPickRow(q, quotations);
+                                  const dateBit = ymd ? ` · ${ymd}` : '';
+                                  return (
+                                    <button
+                                      key={q.id}
+                                      type="button"
+                                      className="w-full px-3 py-2 text-left text-[11px] font-semibold text-[#134e4a] hover:bg-rose-50"
+                                      onMouseDown={(ev) => ev.preventDefault()}
+                                      onClick={() => handleQuoteChange(q.id)}
+                                    >
+                                      <span className="block truncate">
+                                        {q.id} · {q.customer_name}
+                                      </span>
+                                      <span className="block text-[10px] font-medium text-slate-500 truncate">
+                                        ₦{q.paid_ngn.toLocaleString()} booked paid{dateBit}
+                                      </span>
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            ) : null}
+                            <div className="mt-2 flex flex-wrap items-center gap-2">
+                              <button
+                                type="button"
+                                disabled={quotationLookupLoading || loadingQuotes}
+                                onClick={() => void runQuotationEligibilityLookup()}
+                                className="inline-flex items-center gap-1.5 rounded-lg border border-rose-200 bg-rose-50/80 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide text-rose-800 hover:bg-rose-100 disabled:opacity-50"
+                              >
+                                {quotationLookupLoading ? 'Checking…' : 'Check quotation id'}
+                              </button>
+                              <span className="text-[9px] text-slate-500">
+                                Explains why an id is missing from the list below.
+                              </span>
+                            </div>
+                            {quotationLookup ? (
+                              <div
+                                className={`mt-3 rounded-lg border p-3 text-[10px] leading-snug ${
+                                  quotationLookup.wouldAppearInRefundQuotationDropdown
+                                    ? 'border-emerald-200 bg-emerald-50/60 text-emerald-900'
+                                    : 'border-amber-200 bg-amber-50/70 text-amber-950'
+                                }`}
+                              >
+                                <p className="font-bold mb-1">
+                                  {String(quotationLookup.quotationRef || quotationSearchText || '').trim()}
+                                </p>
+                                {quotationLookup.wouldAppearInRefundQuotationDropdown ? (
+                                  <p>This quotation meets the rules and is linked — continue with refund categories.</p>
+                                ) : (
+                                  <ul className="list-disc pl-4 space-y-1">
+                                    {(quotationLookup.blockingReasons || []).map((reason, i) => (
+                                      <li key={i}>{reason}</li>
+                                    ))}
+                                    {quotationLookup.previewError ? (
+                                      <li>Preview: {quotationLookup.previewError}</li>
+                                    ) : null}
+                                  </ul>
+                                )}
+                              </div>
+                            ) : null}
+                          </div>
+                        )}
                       </div>
                       <div className="w-full shrink-0 sm:w-[11.5rem]">
                         <label className={label} htmlFor="refund-quotation-date-filter">
