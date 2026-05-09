@@ -39,6 +39,12 @@ export function refundOutstandingAmount(r) {
   return Math.max(0, refundApprovedAmount(r) - paid);
 }
 
+/** Rejected finance decision or cancel-before-pay — does not reserve quotation headroom or block a new request. */
+export function refundStatusIsWithdrawn(status) {
+  const s = String(status || '').trim().toLowerCase();
+  return s === 'rejected' || s === 'cancelled';
+}
+
 /**
  * @param {object} r
  * @returns {object}

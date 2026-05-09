@@ -18,7 +18,11 @@ import { useToast } from '../context/ToastContext';
 import { useWorkspace } from '../context/WorkspaceContext';
 import { apiFetch } from '../lib/apiBase';
 import { printRefundRecord } from '../lib/refundRecordPrint';
-import { refundApprovedAmount, refundOutstandingAmount } from '../lib/refundsStore';
+import {
+  refundApprovedAmount,
+  refundOutstandingAmount,
+  refundStatusIsWithdrawn,
+} from '../lib/refundsStore';
 import { flattenQuotationLineItems } from '../lib/managerDashboardCore';
 import {
   productionJobStatusClosesRefundEligibility,
@@ -346,12 +350,12 @@ const RefundModal = ({
     }
   }, [isOpen, record, mode, fetchEligibleQuotes]);
 
-  /** Quotation refs that already have a non-rejected refund — no new request from this list. */
-  const quotationRefsWithNonRejectedRefund = useMemo(() => {
+  /** Quotation refs that already have a refund still “on file” (rejected / cancel-before-pay excluded). */
+  const quotationRefsWithBlockingRefund = useMemo(() => {
     const s = new Set();
     for (const r of refunds) {
       const ref = String(r.quotationRef || '').trim();
-      if (!ref || r.status === 'Rejected') continue;
+      if (!ref || refundStatusIsWithdrawn(r.status)) continue;
       s.add(ref);
     }
     return s;
@@ -398,7 +402,7 @@ const RefundModal = ({
       if (!Array.isArray(q.eligible_refund_categories) || q.eligible_refund_categories.length === 0) {
         return false;
       }
-      if (quotationRefsWithNonRejectedRefund.has(id)) return false;
+      if (quotationRefsWithBlockingRefund.has(id)) return false;
       if (quotationRefsProduced != null && !quotationRefsProduced.has(id)) {
         const full = quotations.find((x) => String(x.id).trim() === id);
         const voidPaid =
@@ -410,7 +414,7 @@ const RefundModal = ({
   }, [
     eligibleQuotes,
     quotations,
-    quotationRefsWithNonRejectedRefund,
+    quotationRefsWithBlockingRefund,
     quotationRefsProduced,
     mode,
     form.quotationRef,
@@ -735,7 +739,7 @@ const RefundModal = ({
     for (const r of refunds || []) {
       if (String(r.quotationRef || '').trim() !== ref) continue;
       if (String(r.refundID || '') === String(record?.refundID || '')) continue;
-      if (r.status === 'Rejected') continue;
+      if (refundStatusIsWithdrawn(r.status)) continue;
       sumOthers += Math.round(Number(r.amountNgn) || 0);
     }
     const maxApprovable = Math.max(0, paidNgn - sumOthers);
@@ -972,7 +976,7 @@ const RefundModal = ({
                     Listed quotes have production <strong className="text-teal-950">completed</strong> or{' '}
                     <strong className="text-teal-950">cancelled</strong> (when job data is available in your workspace), or
                     are <strong className="text-teal-950">void</strong> with payment on file — plus the usual paid /
-                    refund-cap rules (e.g. no duplicate non-rejected refund for the same category).
+                    refund-cap rules (e.g. no duplicate blocking refund for the same category).
                   </p>
                 </div>
               </div>
@@ -1205,7 +1209,7 @@ const RefundModal = ({
                           <strong>completed or cancelled</strong> (or <strong>void with payment</strong>), and{' '}
                           <strong>at least ₦1,000 remaining refundable</strong>, with{' '}
                           <strong>at least one applicable refund category</strong>, and{' '}
-                          <strong>no non-rejected refund on file</strong>{' '}
+                          <strong>no blocking refund on file</strong>{' '}
                           (rejected-only still counts as eligible). {quotationPickDate ? 'Try clearing the quote date filter.' : ''}{' '}
                           If you already posted a receipt but the quote is missing here, the payment may have been
                           recorded under a different branch than the quotation — use sync to recalculate from the ledger.
@@ -1617,7 +1621,7 @@ const RefundModal = ({
                             ₦{previewRemainingNgn.toLocaleString('en-NG')}
                           </p>
                           <p className="text-[8px] text-slate-500 leading-snug mt-0.5">
-                            After existing non-rejected refund reservations. Your request cannot exceed this.
+                            After existing blocking refund reservations. Your request cannot exceed this.
                           </p>
                         </div>
                       ) : null}

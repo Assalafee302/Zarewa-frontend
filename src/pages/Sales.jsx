@@ -78,6 +78,7 @@ import {
   normalizeRefund,
   refundApprovedAmount,
   refundOutstandingAmount,
+  refundStatusIsWithdrawn,
 } from '../lib/refundsStore';
 import {
   productionJobStatusClosesRefundEligibility,
@@ -456,12 +457,12 @@ const Sales = () => {
     [quotationsSearchFiltered]
   );
 
-  /** Quotation refs that already have a refund on file (rejected requests do not count). */
+  /** Quotation refs that already have a refund on file (rejected / cancel-before-pay do not count). */
   const quotationRefsWithRefundApplied = useMemo(() => {
     const s = new Set();
     for (const r of refunds) {
       const ref = String(r.quotationRef || '').trim();
-      if (!ref || r.status === 'Rejected') continue;
+      if (!ref || refundStatusIsWithdrawn(r.status)) continue;
       s.add(ref);
     }
     return s;
@@ -480,7 +481,7 @@ const Sales = () => {
     return s;
   }, [ws?.snapshot?.productionJobs]);
 
-  /** Paid, eligible for refund pick (void+cancelled quotes included), no non-rejected refund on file. */
+  /** Paid, eligible for refund pick (void+cancelled quotes included), no blocking refund on file. */
   const quotationsRefundPotentialRows = useMemo(
     () =>
       quotations
@@ -1324,7 +1325,7 @@ const Sales = () => {
                 </p>
                 <p className="text-[9px] text-slate-500 leading-snug mb-3">
                   Paid quotations with at least one <span className="font-semibold text-slate-600">completed production job</span>,{' '}
-                  and <span className="font-semibold text-slate-600">no non-rejected refund on file</span>. Quotes with{' '}
+                  and <span className="font-semibold text-slate-600">no blocking refund on file</span>. Quotes with{' '}
                   <strong>only rejected</strong> refunds stay listed. <strong>Click a row</strong> to start{' '}
                   <strong>New refund</strong>.
                 </p>
