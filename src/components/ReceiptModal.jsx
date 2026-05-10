@@ -484,6 +484,26 @@ const ReceiptModal = ({
       if (!proceed) return;
     }
 
+    const paymentBreakdownLines = validLines.map((l) => {
+      const acc = treasuryAccountForLine(l, treasuryByIdStr, treasuryList);
+      const accLabel = acc ? treasuryAccountDisplayName(acc) : 'Treasury account';
+      const who = (l.payeeName || '').trim();
+      const payerBit = who ? `${who} · ` : '';
+      return `• ${payerBit}${accLabel}: ${formatNgn(parseNum(l.amount))}`;
+    });
+    const summaryConfirm = [
+      'Save this receipt? Please confirm details:',
+      '',
+      `Customer: ${customerName || '—'}`,
+      `Quotation: ${selectedQuotation?.id || quotationRef || '—'}`,
+      `Voucher date: ${formatDisplayDate(voucherDate)}`,
+      `Total: ${formatNgn(total)}`,
+      '',
+      'Payment breakdown:',
+      ...paymentBreakdownLines,
+    ].join('\n');
+    if (!window.confirm(summaryConfirm)) return;
+
     const refParts = validLines.map((l) => {
       const acc = treasuryAccountForLine(l, treasuryByIdStr, treasuryList);
       const accBit = acc ? `${acc.type}:${acc.name}` : '';
@@ -767,9 +787,9 @@ const ReceiptModal = ({
           </div>
         ) : null}
 
-        <div className="flex-1 overflow-hidden flex flex-col md:flex-row bg-white min-h-0">
+        <div className="flex-1 overflow-hidden flex flex-col lg:flex-row bg-white min-h-0">
           <div
-            className={`flex-1 overflow-y-auto p-5 custom-scrollbar border-r border-slate-100 ${readOnly ? 'pointer-events-none opacity-75' : ''}`}
+            className={`flex-1 min-h-0 overflow-y-auto p-5 custom-scrollbar lg:border-r border-slate-100 ${readOnly ? 'pointer-events-none opacity-75' : ''}`}
           >
             <div className="rounded-xl border border-slate-200/90 p-4 mb-5 bg-slate-50/50">
               <p className="text-[9px] font-semibold text-slate-500 uppercase tracking-widest mb-3">
@@ -1080,7 +1100,7 @@ const ReceiptModal = ({
           </div>
 
           <div
-            className={`w-full md:w-56 bg-slate-50/90 p-3 flex flex-col gap-2.5 shrink-0 self-start md:self-start border-t md:border-t-0 md:border-l border-slate-100 ${readOnly ? 'opacity-85' : ''}`}
+            className={`w-full lg:w-56 lg:shrink-0 bg-slate-50/90 p-3 flex flex-col gap-2.5 border-t lg:border-t-0 lg:border-l border-slate-100 ${readOnly ? 'opacity-85' : ''}`}
           >
             <p className="text-[9px] font-semibold text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />

@@ -114,9 +114,30 @@ export function saveTreasuryAccounts(accounts) {
   }
 }
 
-/** Bank accounts suitable for customer transfers (excludes till / N/A numbers). */
+/**
+ * Account number is usable for “pay into” / customer-facing bank details.
+ * Uses digit run length so values like "0006047389" or "604-738-9012" still qualify;
+ * excludes placeholders (N/A, empty, very short stubs).
+ */
+export function hasSettlableCustomerAccountNumber(accNo) {
+  const raw = String(accNo ?? '').trim();
+  if (!raw || raw.toUpperCase() === 'N/A') return false;
+  const digits = raw.replace(/\D/g, '');
+  if (digits.length >= 6) return true;
+  return raw.replace(/\s/g, '').length >= 6;
+}
+
+/**
+ * Bank accounts suitable for customer transfers (excludes till / N/A numbers).
+ * Includes `Bank` rows with a settlable number, and `Cash` rows that look like
+ * bank/POS wallets (non-empty bankName + number) so fintech accounts aren’t hidden
+ * if mis-typed as Cash in Treasury.
+ */
 export function bankAccountsForCustomerPayment(accounts) {
-  return (accounts ?? []).filter(
-    (a) => a.type === 'Bank' && a.accNo && a.accNo !== 'N/A' && String(a.accNo).length >= 8
-  );
+  return (accounts ?? []).filter((a) => {
+    if (!hasSettlableCustomerAccountNumber(a.accNo)) return false;
+    if (a.type === 'Bank') return true;
+    if (a.type === 'Cash' && String(a.bankName ?? '').trim()) return true;
+    return false;
+  });
 }

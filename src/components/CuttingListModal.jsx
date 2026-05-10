@@ -871,9 +871,9 @@ const CuttingListModal = ({
           </div>
         ) : null}
 
-        <div className="no-print flex-1 overflow-hidden flex flex-col md:flex-row bg-white min-h-0">
+        <div className="no-print flex-1 min-h-0 overflow-y-auto lg:overflow-hidden flex flex-col lg:flex-row bg-white">
           <div
-            className={`flex-1 overflow-y-auto p-5 custom-scrollbar border-r border-slate-100 ${readOnly ? 'pointer-events-none opacity-75' : ''}`}
+            className={`w-full lg:flex-1 lg:min-h-0 lg:overflow-y-auto p-5 custom-scrollbar lg:border-r border-slate-100 ${readOnly ? 'pointer-events-none opacity-75' : ''}`}
           >
             <div className="rounded-xl border border-slate-200/90 p-4 mb-5 bg-slate-50/50">
               <p className="text-[9px] font-semibold text-slate-500 uppercase tracking-widest mb-3">Job header</p>
@@ -1055,7 +1055,7 @@ const CuttingListModal = ({
             </div>
           </div>
 
-          <div className="w-full md:w-64 lg:w-72 bg-slate-50/90 p-4 flex flex-col gap-3 shrink-0 border-t md:border-t-0 md:border-l border-slate-100 overflow-y-auto max-h-[40vh] md:max-h-none custom-scrollbar">
+          <div className="w-full lg:w-72 lg:shrink-0 lg:min-h-0 bg-slate-50/90 p-4 flex flex-col gap-3 border-t lg:border-t-0 lg:border-l border-slate-100 lg:overflow-y-auto custom-scrollbar">
             <p className="text-[9px] font-semibold text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
               <Info size={12} className="text-orange-500 shrink-0" />
               Job spec

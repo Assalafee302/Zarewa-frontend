@@ -866,8 +866,9 @@ const QuotationModal = ({
       : null);
 
   const selectedPayTreasuryAccount = useMemo(() => {
-    const id = Number(paymentAccountId);
-    return treasuryPayAccounts.find((a) => a.id === id) ?? null;
+    const key = String(paymentAccountId ?? '').trim();
+    if (!key) return null;
+    return treasuryPayAccounts.find((a) => String(a.id) === key) ?? null;
   }, [treasuryPayAccounts, paymentAccountId]);
 
   const payAccountForPrint = useMemo(() => {

@@ -54,6 +54,12 @@ function parseQuoteQtyNumeric(qty) {
   return Number.isFinite(n) ? n : null;
 }
 
+function formatQuoteUnitPriceLabel(unitPrice) {
+  const n = Number(String(unitPrice ?? '').replace(/,/g, ''));
+  if (!Number.isFinite(n)) return '—';
+  return `₦${Math.round(n).toLocaleString('en-NG')}`;
+}
+
 /** Align intelligence accessory summary to a flattened quotation line (by id or name). */
 /** First 10 chars YYYY-MM-DD from pick row or full workspace quotation. */
 function quotationYmdForPickRow(q, quotationsArr) {
@@ -194,8 +200,6 @@ const RefundModal = ({
   const [syncPaidId, setSyncPaidId] = useState('');
   const [syncPaidBusy, setSyncPaidBusy] = useState(false);
   const [syncPaidError, setSyncPaidError] = useState('');
-  const [bulkPaidBusy, setBulkPaidBusy] = useState(false);
-  const [bulkPaidError, setBulkPaidError] = useState('');
   const [approvalStatus, setApprovalStatus] = useState(() =>
     record?.status === 'Rejected' ? 'Rejected' : 'Approved'
   );
@@ -231,10 +235,7 @@ const RefundModal = ({
   /** Typeahead / paste quotation id (Step 1). */
   const [quotationSearchText, setQuotationSearchText] = useState('');
   const [quotationSuggestOpen, setQuotationSuggestOpen] = useState(false);
-  const [quotationLookupLoading, setQuotationLookupLoading] = useState(false);
-  /** Last GET /api/refunds/eligibility-check response (create mode). */
-  const [quotationLookup, setQuotationLookup] = useState(null);
-  /** When server says wouldAppearInRefundQuotationDropdown — keep selection even if client pick list filter differs. */
+  /** Seeded create / edge cases: quotation ref allowed even if not yet in eligible pick list. */
   const [quotationServerVerifiedRef, setQuotationServerVerifiedRef] = useState('');
 
   useEffect(() => {
@@ -292,36 +293,6 @@ const RefundModal = ({
     void fetchEligibleQuotes();
   }, [syncPaidId, fetchEligibleQuotes, showToast]);
 
-  const bulkRecalculateAllQuotationPaid = useCallback(async () => {
-    if (
-      !window.confirm(
-        'Recalculate booked paid on every quotation in this workspace branch from sales receipts and advance applied? This fixes stale paid totals after data issues; it does not create or delete receipts.'
-      )
-    ) {
-      return;
-    }
-    setBulkPaidBusy(true);
-    setBulkPaidError('');
-    const { ok, data } = await apiFetch('/api/quotations/recalculate-paid-all', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ confirm: true }),
-    });
-    setBulkPaidBusy(false);
-    if (!ok || !data?.ok) {
-      setBulkPaidError(data?.error || 'Bulk recalculation failed.');
-      return;
-    }
-    const processed = Number(data.processed) || 0;
-    const changed = Number(data.paidChangedCount) || 0;
-    showToast(
-      `Recalculated ${processed} quotation(s). Booked paid changed on ${changed}. Refresh lists if needed.`,
-      { variant: 'success' }
-    );
-    if (ws?.canMutate) await ws.refresh();
-    void fetchEligibleQuotes();
-  }, [fetchEligibleQuotes, showToast, ws]);
-
   /* Sync form state when the modal opens or the record/mode changes (intentional reset). */
    
   useEffect(() => {
@@ -330,8 +301,6 @@ const RefundModal = ({
     setForm(initialForm);
     setQuotationSearchText(String(initialForm.quotationRef || '').trim());
     setQuotationSuggestOpen(false);
-    setQuotationLookup(null);
-    setQuotationLookupLoading(false);
     setQuotationServerVerifiedRef('');
     setApprovalStatus(record?.status === 'Rejected' ? 'Rejected' : 'Approved');
     setApprovalDate(record?.approvalDate ?? '');
@@ -475,11 +444,38 @@ const RefundModal = ({
     return Math.abs(booked - ra - adv) > 1;
   }, [intelligence.summary]);
 
+  const selectedQuotationSnapshot = useMemo(() => {
+    const ref = String(form.quotationRef || '').trim();
+    if (!ref) return null;
+    return quotations.find((x) => String(x.id) === ref) ?? null;
+  }, [form.quotationRef, quotations]);
+
+  const refundProductionConversionSummary = useMemo(() => {
+    const ref = String(form.quotationRef || '').trim();
+    if (!ref) return null;
+    const jobs = (productionJobs || []).filter((j) => String(j.quotationRef || '').trim() === ref);
+    if (jobs.length === 0) {
+      return {
+        jobs: [],
+        emptyMessage: 'No production jobs linked to this quotation in the workspace.',
+      };
+    }
+    return {
+      jobs: jobs.map((j) => ({
+        jobID: j.jobID,
+        status: j.status,
+        conversionAlertState: String(j.conversionAlertState || 'Pending').trim() || 'Pending',
+        managerReviewRequired: Boolean(j.managerReviewRequired),
+        productName: String(j.productName || '').trim() || '—',
+      })),
+      emptyMessage: null,
+    };
+  }, [form.quotationRef, productionJobs]);
+
   /** Products, accessories, and services from the quotation with accessory supplied / shortfall from intelligence. */
   const refundIntelQuotationOrderRows = useMemo(() => {
-    const ref = String(form.quotationRef || '').trim();
-    if (!ref) return [];
-    const q = quotations.find((x) => String(x.id) === ref);
+    const q = selectedQuotationSnapshot;
+    if (!q) return [];
     const flat = flattenQuotationLineItems(q);
     if (flat.length === 0) return [];
     const accLines = intelligence.summary?.accessoriesSummary?.lines || [];
@@ -494,13 +490,14 @@ const RefundModal = ({
           line.category === 'products' ? 'Product' : line.category === 'accessories' ? 'Accessory' : 'Service',
         name: String(line.name || '—'),
         qtyLabel: parseQuoteQtyDisplay(line.qty, line.unit),
+        unitPriceLabel: formatQuoteUnitPriceLabel(line.unitPrice),
         ordered,
         supplied,
         shortfall,
         isAccessoryTracked: !!acc,
       };
     });
-  }, [form.quotationRef, quotations, intelligence.summary?.accessoriesSummary?.lines]);
+  }, [selectedQuotationSnapshot, intelligence.summary?.accessoriesSummary?.lines]);
 
   const fetchIntelligence = async (quoteRef) => {
     if (!quoteRef) return;
@@ -617,40 +614,6 @@ const RefundModal = ({
     generatePreviewRef.current = generatePreview;
   }, [generatePreview]);
 
-  const runQuotationEligibilityLookup = useCallback(async () => {
-    const ref = String(quotationSearchText || '').trim();
-    if (!ref) {
-      showToast('Enter a quotation id to check (e.g. QT-KD-26-0001).', { variant: 'warning' });
-      return;
-    }
-    setQuotationLookupLoading(true);
-    setQuotationLookup(null);
-    const { ok, data } = await apiFetch(`/api/refunds/eligibility-check?quotationRef=${encodeURIComponent(ref)}`);
-    setQuotationLookupLoading(false);
-    if (!ok || !data?.ok) {
-      setQuotationLookup({
-        ok: false,
-        quotationRef: ref,
-        blockingReasons: [data?.error || 'Could not check eligibility. Is the API updated and are you online?'],
-      });
-      setQuotationServerVerifiedRef('');
-      return;
-    }
-    setQuotationLookup(data);
-    if (data.wouldAppearInRefundQuotationDropdown) {
-      setQuotationServerVerifiedRef(ref);
-      setMoneyContext(null);
-      setPreviewRemainingNgn(null);
-      setLastPreviewSnapshot(null);
-      setEligibleRefundCategoriesFromPreview(null);
-      setRefundCategoryPickerOpen(true);
-      setForm((f) => ({ ...f, quotationRef: ref, reasonCategory: [] }));
-      void generatePreviewRef.current(ref, []);
-    } else {
-      setQuotationServerVerifiedRef('');
-    }
-  }, [quotationSearchText, showToast]);
-
   const toggleCategory = (cat) => {
     if (blockedRefundCategories.includes(cat)) return;
     setForm((f) => {
@@ -671,7 +634,6 @@ const RefundModal = ({
 
   const handleQuoteChange = (ref) => {
     setQuotationServerVerifiedRef('');
-    setQuotationLookup(null);
     setMoneyContext(null);
     setPreviewRemainingNgn(null);
     setLastPreviewSnapshot(null);
@@ -982,7 +944,7 @@ const RefundModal = ({
                     Listed quotes are <strong className="text-teal-950">fully paid</strong> (booked paid ≥ order total when
                     a total exists), have more than <strong className="text-teal-950">₦{MIN_REFUND_QUOTATION_REMAINING_NGN.toLocaleString('en-NG')} refundable</strong> headroom, production <strong className="text-teal-950">completed</strong> or{' '}
                     <strong className="text-teal-950">cancelled</strong> (or <strong className="text-teal-950">void</strong> with payment), and pass refund-cap / category rules. The dropdown shows{' '}
-                    <strong className="text-teal-950">all</strong> matches (scroll). Use <strong>Check quotation id</strong> for exact reasons a specific QT-… is excluded.
+                    <strong className="text-teal-950">all</strong> matches (scroll).
                   </p>
                 </div>
               </div>
@@ -1087,9 +1049,7 @@ const RefundModal = ({
                               type="text"
                               autoComplete="off"
                               placeholder={
-                                loadingQuotes
-                                  ? 'Loading quotations…'
-                                  : 'Type id or customer — or paste full QT-… and Check'
+                                loadingQuotes ? 'Loading quotations…' : 'Type quotation id or customer name'
                               }
                               disabled={loadingQuotes}
                               value={quotationSearchText}
@@ -1097,20 +1057,10 @@ const RefundModal = ({
                                 const v = e.target.value;
                                 setQuotationSearchText(v);
                                 setQuotationSuggestOpen(true);
-                                const t = v.trim();
-                                if (quotationLookup && t !== String(quotationLookup.quotationRef || '').trim()) {
-                                  setQuotationLookup(null);
-                                }
                               }}
                               onFocus={() => setQuotationSuggestOpen(true)}
                               onBlur={() => {
                                 window.setTimeout(() => setQuotationSuggestOpen(false), 180);
-                              }}
-                              onKeyDown={(e) => {
-                                if (e.key === 'Enter') {
-                                  e.preventDefault();
-                                  void runQuotationEligibilityLookup();
-                                }
                               }}
                               className={`${input} h-11 pl-9 pr-3 border-slate-200 hover:border-rose-300 transition-colors`}
                             />
@@ -1145,54 +1095,6 @@ const RefundModal = ({
                                     </button>
                                   );
                                 })}
-                              </div>
-                            ) : null}
-                            <div className="mt-2 flex flex-wrap items-center gap-2">
-                              <button
-                                type="button"
-                                disabled={quotationLookupLoading || loadingQuotes}
-                                onClick={() => void runQuotationEligibilityLookup()}
-                                className="inline-flex items-center gap-1.5 rounded-lg border border-rose-200 bg-rose-50/80 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide text-rose-800 hover:bg-rose-100 disabled:opacity-50"
-                              >
-                                {quotationLookupLoading ? 'Checking…' : 'Check quotation id'}
-                              </button>
-                              <span className="text-[9px] text-slate-500">
-                                Explains why an id is missing from the list below.
-                              </span>
-                            </div>
-                            {quotationLookup ? (
-                              <div
-                                className={`mt-3 rounded-lg border p-3 text-[10px] leading-snug ${
-                                  quotationLookup.wouldAppearInRefundQuotationDropdown
-                                    ? 'border-emerald-200 bg-emerald-50/60 text-emerald-900'
-                                    : 'border-amber-200 bg-amber-50/70 text-amber-950'
-                                }`}
-                              >
-                                <p className="font-bold mb-1">
-                                  {String(quotationLookup.quotationRef || quotationSearchText || '').trim()}
-                                </p>
-                                {quotationLookup.wouldAppearInRefundQuotationDropdown ? (
-                                  <p>This quotation meets the rules and is linked — continue with refund categories.</p>
-                                ) : (
-                                  <ul className="list-disc pl-4 space-y-1">
-                                    {(quotationLookup.blockingReasons || []).map((reason, i) => (
-                                      <li key={i}>{reason}</li>
-                                    ))}
-                                    {quotationLookup.previewError ? (
-                                      <li>Preview: {quotationLookup.previewError}</li>
-                                    ) : null}
-                                  </ul>
-                                )}
-                                {quotationLookup.diagnostics ? (
-                                  <details className="mt-2 rounded-md border border-slate-200/80 bg-white/70 p-2">
-                                    <summary className="cursor-pointer text-[10px] font-bold text-slate-700">
-                                      Technical detail (for support / exact id checks)
-                                    </summary>
-                                    <pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap break-all text-[9px] text-slate-800">
-                                      {JSON.stringify(quotationLookup.diagnostics, null, 2)}
-                                    </pre>
-                                  </details>
-                                ) : null}
                               </div>
                             ) : null}
                           </div>
@@ -1258,27 +1160,6 @@ const RefundModal = ({
                         </div>
                         {syncPaidError ? (
                           <p className="text-[10px] text-rose-700 font-medium">{syncPaidError}</p>
-                        ) : null}
-                      </div>
-                    ) : null}
-                    {mode === 'create' && ws?.hasPermission?.('finance.approve') ? (
-                      <div className="mt-2 space-y-2 rounded-lg border border-rose-200/90 bg-rose-50/70 p-3">
-                        <p className="text-[10px] font-bold text-rose-950 uppercase tracking-wide">Finance · bulk repair</p>
-                        <p className="text-[10px] text-rose-950/90 leading-snug">
-                          Recalculate <strong>booked paid</strong> for <strong>all quotations</strong> in the current
-                          branch (same scope as your workspace). Use after fixing quote-save issues or migrating data.
-                          Requires <span className="font-semibold">finance approval</span> permission.
-                        </p>
-                        <button
-                          type="button"
-                          disabled={bulkPaidBusy || syncPaidBusy}
-                          onClick={() => void bulkRecalculateAllQuotationPaid()}
-                          className="w-full sm:w-auto rounded-lg border border-rose-300 bg-white px-3 py-2 text-[10px] font-bold uppercase tracking-wide text-rose-900 shadow-sm hover:bg-rose-100/80 disabled:opacity-50"
-                        >
-                          {bulkPaidBusy ? 'Recalculating…' : 'Recalculate all quotations (this branch)'}
-                        </button>
-                        {bulkPaidError ? (
-                          <p className="text-[10px] text-rose-700 font-medium">{bulkPaidError}</p>
                         ) : null}
                       </div>
                     ) : null}
@@ -1597,6 +1478,128 @@ const RefundModal = ({
                           </div>
                         </div>
                       </div>
+                      {selectedQuotationSnapshot ? (
+                        <div className="border-t border-slate-700/50 pt-3 space-y-2">
+                          <p className="text-[9px] font-bold text-slate-500 uppercase">Quotation details</p>
+                          <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-3 gap-y-1.5 text-[10px] text-slate-200">
+                            <div className="flex justify-between gap-2 sm:col-span-2">
+                              <dt className="text-slate-500 shrink-0">Quotation</dt>
+                              <dd className="font-mono text-right truncate" title={selectedQuotationSnapshot.id}>
+                                {selectedQuotationSnapshot.id}
+                              </dd>
+                            </div>
+                            <div className="flex justify-between gap-2">
+                              <dt className="text-slate-500 shrink-0">Quote date</dt>
+                              <dd className="text-right tabular-nums">
+                                {String(
+                                  selectedQuotationSnapshot.dateISO ||
+                                    selectedQuotationSnapshot.date_iso ||
+                                    ''
+                                ).slice(0, 10) || '—'}
+                              </dd>
+                            </div>
+                            <div className="flex justify-between gap-2">
+                              <dt className="text-slate-500 shrink-0">Status</dt>
+                              <dd className="text-right">{selectedQuotationSnapshot.status || '—'}</dd>
+                            </div>
+                            <div className="flex justify-between gap-2 sm:col-span-2">
+                              <dt className="text-slate-500 shrink-0">Project / site</dt>
+                              <dd
+                                className="text-right truncate max-w-[14rem] sm:max-w-[18rem]"
+                                title={
+                                  selectedQuotationSnapshot.projectName ||
+                                  selectedQuotationSnapshot.project_name ||
+                                  ''
+                                }
+                              >
+                                {selectedQuotationSnapshot.projectName ||
+                                  selectedQuotationSnapshot.project_name ||
+                                  '—'}
+                              </dd>
+                            </div>
+                            <div className="flex justify-between gap-2 sm:col-span-2">
+                              <dt className="text-slate-500 shrink-0">Material type</dt>
+                              <dd className="text-right">
+                                {selectedQuotationSnapshot.materialTypeName ||
+                                  selectedQuotationSnapshot.material_type_name ||
+                                  selectedQuotationSnapshot.materialTypeId ||
+                                  selectedQuotationSnapshot.material_type_id ||
+                                  '—'}
+                              </dd>
+                            </div>
+                            <div className="flex justify-between gap-2">
+                              <dt className="text-slate-500 shrink-0">Gauge</dt>
+                              <dd className="text-right tabular-nums">
+                                {selectedQuotationSnapshot.materialGauge ||
+                                  selectedQuotationSnapshot.material_gauge ||
+                                  '—'}
+                              </dd>
+                            </div>
+                            <div className="flex justify-between gap-2">
+                              <dt className="text-slate-500 shrink-0">Colour</dt>
+                              <dd className="text-right">
+                                {selectedQuotationSnapshot.materialColor ||
+                                  selectedQuotationSnapshot.material_color ||
+                                  '—'}
+                              </dd>
+                            </div>
+                            <div className="flex justify-between gap-2 sm:col-span-2">
+                              <dt className="text-slate-500 shrink-0">Profile / design</dt>
+                              <dd className="text-right truncate max-w-[14rem]" title={String(selectedQuotationSnapshot.materialDesign || selectedQuotationSnapshot.material_design || '')}>
+                                {selectedQuotationSnapshot.materialDesign ||
+                                  selectedQuotationSnapshot.material_design ||
+                                  '—'}
+                              </dd>
+                            </div>
+                          </dl>
+                        </div>
+                      ) : null}
+                      {refundProductionConversionSummary ? (
+                        <div className="border-t border-slate-700/50 pt-3 space-y-2">
+                          <p className="text-[9px] font-bold text-slate-500 uppercase">
+                            Conversion &amp; production status
+                          </p>
+                          {refundProductionConversionSummary.emptyMessage ? (
+                            <p className="text-[10px] text-slate-400 leading-snug">
+                              {refundProductionConversionSummary.emptyMessage}
+                            </p>
+                          ) : (
+                            <ul className="space-y-2">
+                              {refundProductionConversionSummary.jobs.map((j) => (
+                                <li
+                                  key={j.jobID}
+                                  className="rounded-lg border border-slate-700/80 bg-slate-900/40 px-2.5 py-2 text-[10px] leading-snug"
+                                >
+                                  <div className="flex flex-wrap items-baseline justify-between gap-2">
+                                    <span className="font-mono text-slate-300">{j.jobID}</span>
+                                    <span className="text-[9px] font-bold uppercase text-slate-500">{j.status}</span>
+                                  </div>
+                                  <p className="text-slate-400 mt-0.5 truncate" title={j.productName}>
+                                    {j.productName}
+                                  </p>
+                                  <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[9px]">
+                                    <span>
+                                      <span className="text-slate-500">Conversion: </span>
+                                      <span
+                                        className={
+                                          ['HIGH', 'LOW'].includes(String(j.conversionAlertState).toUpperCase())
+                                            ? 'font-bold text-amber-300'
+                                            : 'text-slate-200'
+                                        }
+                                      >
+                                        {j.conversionAlertState}
+                                      </span>
+                                    </span>
+                                    {j.managerReviewRequired ? (
+                                      <span className="text-rose-300 font-semibold">Manager review</span>
+                                    ) : null}
+                                  </div>
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+                        </div>
+                      ) : null}
                       {showRefundPaidBreakdown ? (
                         <div className="rounded-lg border border-slate-700/60 bg-slate-900/50 p-2.5 space-y-1.5">
                           <p className="text-[9px] font-bold text-slate-500 uppercase">How booked paid is built</p>
@@ -1714,6 +1717,9 @@ const RefundModal = ({
                                   Qty
                                 </th>
                                 <th className="py-2 px-1 text-[8px] font-bold text-slate-500 uppercase tracking-wide text-right">
+                                  Unit ₦
+                                </th>
+                                <th className="py-2 px-1 text-[8px] font-bold text-slate-500 uppercase tracking-wide text-right">
                                   Supplied
                                 </th>
                                 <th className="py-2 pr-2.5 pl-1 text-[8px] font-bold text-slate-500 uppercase tracking-wide text-right">
@@ -1735,6 +1741,9 @@ const RefundModal = ({
                                   </td>
                                   <td className="py-1.5 px-1 text-[9px] text-right tabular-nums text-slate-300">
                                     {row.qtyLabel}
+                                  </td>
+                                  <td className="py-1.5 px-1 text-[9px] text-right tabular-nums text-slate-300">
+                                    {row.unitPriceLabel}
                                   </td>
                                   <td className="py-1.5 px-1 text-[9px] text-right tabular-nums text-emerald-400/95">
                                     {row.isAccessoryTracked ? row.supplied?.toLocaleString() ?? '—' : '—'}
