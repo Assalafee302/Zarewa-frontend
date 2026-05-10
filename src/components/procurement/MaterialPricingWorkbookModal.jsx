@@ -16,7 +16,15 @@ const MATERIAL_OPTIONS = [
   { key: 'alu', label: 'Aluminium' },
   { key: 'aluzinc', label: 'Aluzinc (PPGI)' },
   { key: 'stone-coated', label: 'Stone-coated' },
+  { key: 'ridge-flashing', label: 'Ridge / flashing' },
+  { key: 'accessories', label: 'Accessories' },
 ];
+
+const WORKBOOK_MATERIAL_KEYS = new Set(['alu', 'aluzinc', 'stone-coated']);
+
+function isWorkbookMaterialKey(k) {
+  return WORKBOOK_MATERIAL_KEYS.has(String(k || ''));
+}
 
 function fmtConv2(v) {
   if (v == null || !Number.isFinite(Number(v))) return '—';
@@ -186,6 +194,10 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
   const [savingAll, setSavingAll] = useState(false);
   /** @type {Array<{ key: string; serverId?: string; gaugeMm: string; designKey: string; draft: Record<string, unknown> }>} */
   const [workbookLines, setWorkbookLines] = useState([]);
+  /** Ridge add-ons from pricing policy (reference tabs). */
+  const [refRidgeAddOns, setRefRidgeAddOns] = useState([]);
+  /** Accessories from master data (reference tab). */
+  const [refAccessories, setRefAccessories] = useState([]);
   const [printPreview, setPrintPreview] = useState(null);
   const [printPack, setPrintPack] = useState(null);
   const [printLoading, setPrintLoading] = useState(false);
@@ -210,6 +222,40 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
 
   const loadSheet = useCallback(async () => {
     if (!materialKey || !branchId) return;
+
+    if (!isWorkbookMaterialKey(materialKey)) {
+      setBusy(true);
+      try {
+        const [policyR, extrasR] = await Promise.all([
+          apiFetch('/api/pricing/policy'),
+          apiFetch('/api/pricing/material-workbook-print-extras'),
+        ]);
+        const ridges = policyR.ok && Array.isArray(policyR.data?.ridgeAddOns) ? policyR.data.ridgeAddOns : [];
+        const acc =
+          extrasR.ok && extrasR.data?.ok && Array.isArray(extrasR.data.accessories) ? extrasR.data.accessories : [];
+        setSheet({
+          ok: true,
+          isReferenceTab: true,
+          referenceTab: materialKey,
+        });
+        setWorkbookLines([]);
+        setEvents([]);
+        setRefRidgeAddOns(ridges);
+        setRefAccessories(acc);
+        if (!policyR.ok || !extrasR.ok || !extrasR.data?.ok) {
+          showToast('Some reference data could not be loaded.', { variant: 'error' });
+        }
+      } catch {
+        setSheet(null);
+        setRefRidgeAddOns([]);
+        setRefAccessories([]);
+        showToast('Could not load ridge/accessory reference.', { variant: 'error' });
+      } finally {
+        setBusy(false);
+      }
+      return;
+    }
+
     setBusy(true);
     const [r1, r2] = await Promise.all([
       apiFetch(
@@ -305,6 +351,10 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
   };
 
   const persistAllRows = async () => {
+    if (!isWorkbookMaterialKey(materialKey)) {
+      showToast('Switch to Aluminium, Aluzinc, or Stone-coated to save workbook lines.', { variant: 'error' });
+      return;
+    }
     if (!branchId || savingAll || busy) return;
     const finalized = finalizeDesignKeys(workbookLines.filter((l) => String(l.gaugeMm ?? '').trim()));
     if (!finalized.length) {
@@ -462,6 +512,7 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
 
   const recCostLabel = sheet?.recommendedCostPerKgNgn;
   const lookbackDays = sheet?.purchaseCostLookbackDays ?? 30;
+  const isReferenceTab = Boolean(sheet?.isReferenceTab);
 
   const materialCostPerKgFieldValue = useMemo(() => {
     const vals = workbookLines
@@ -551,34 +602,36 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
               ))}
             </select>
           </label>
-          <label
-            className="text-[10px] font-bold uppercase text-slate-500 block min-w-[160px]"
-            title={`Suggested from weighted average unit cost on coil GRNs (last ${lookbackDays} days, this branch). You may override.`}
-          >
-            ₦/kg (material)
-            <input
-              type="text"
-              inputMode="decimal"
-              autoComplete="off"
-              aria-label="Material cost per kilogram, applied to all gauges"
-              placeholder={
-                materialCostPerKgMixed
-                  ? 'Mixed — set to align'
-                  : recCostLabel != null && Number(recCostLabel) > 0 && !sheet?.isStoneCoatedWorkbook
-                    ? `Avg purchase ~${recCostLabel} (30d)`
-                    : sheet?.isStoneCoatedWorkbook
-                      ? 'N/A stone'
-                      : ''
-              }
-              disabled={Boolean(sheet?.isStoneCoatedWorkbook)}
-              className="mt-1 w-full rounded-lg border border-slate-200 bg-white py-2 px-2 text-sm font-semibold text-slate-800 font-mono tabular-nums disabled:opacity-50"
-              value={materialCostPerKgFieldValue}
-              onChange={(e) => setCostPerKgAllLines(e.target.value)}
-            />
-          </label>
+          {!isReferenceTab ? (
+            <label
+              className="text-[10px] font-bold uppercase text-slate-500 block min-w-[160px]"
+              title={`Suggested from weighted average unit cost on coil GRNs (last ${lookbackDays} days, this branch). You may override.`}
+            >
+              ₦/kg (material)
+              <input
+                type="text"
+                inputMode="decimal"
+                autoComplete="off"
+                aria-label="Material cost per kilogram, applied to all gauges"
+                placeholder={
+                  materialCostPerKgMixed
+                    ? 'Mixed — set to align'
+                    : recCostLabel != null && Number(recCostLabel) > 0 && !sheet?.isStoneCoatedWorkbook
+                      ? `Avg purchase ~${recCostLabel} (30d)`
+                      : sheet?.isStoneCoatedWorkbook
+                        ? 'N/A stone'
+                        : ''
+                }
+                disabled={Boolean(sheet?.isStoneCoatedWorkbook)}
+                className="mt-1 w-full rounded-lg border border-slate-200 bg-white py-2 px-2 text-sm font-semibold text-slate-800 font-mono tabular-nums disabled:opacity-50"
+                value={materialCostPerKgFieldValue}
+                onChange={(e) => setCostPerKgAllLines(e.target.value)}
+              />
+            </label>
+          ) : null}
           <button
             type="button"
-            disabled={busy || savingAll || !sheet}
+            disabled={busy || savingAll || !sheet || isReferenceTab}
             onClick={() => void persistAllRows()}
             className="rounded-lg bg-[#134e4a] px-3 py-2 text-[10px] font-black uppercase text-white disabled:opacity-50"
           >
@@ -611,7 +664,7 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
           </button>
           <button
             type="button"
-            disabled={busy || !sheet}
+            disabled={busy || !sheet || isReferenceTab}
             onClick={addWorkbookLine}
             className="rounded-lg border border-dashed border-[#134e4a]/40 bg-teal-50/80 px-3 py-2 text-[10px] font-black uppercase text-[#134e4a] disabled:opacity-50 inline-flex items-center gap-1"
           >
@@ -623,8 +676,89 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
         <div className="flex-1 min-h-0 overflow-auto px-2 sm:px-4 py-3">
           {busy && !sheet ? (
             <p className="text-sm text-slate-500 px-2">Loading…</p>
+          ) : !sheet ? (
+            <p className="text-sm text-slate-500 px-2">Could not load this section.</p>
+          ) : isReferenceTab && materialKey === 'ridge-flashing' ? (
+            <div className="rounded-xl border border-slate-200 bg-white shadow-sm p-4 space-y-3">
+              <p className="text-[11px] text-slate-600 leading-relaxed">
+                Ridge and flashing add-on rates (₦/m) come from <strong className="text-slate-800">Pricing policy</strong>. They appear on
+                workbook printouts; edit them under{' '}
+                <strong className="text-slate-800">Admin → Pricing policy</strong> (ridge add-ons).
+              </p>
+              <div className="z-scroll-x overflow-x-auto">
+                <table className="min-w-[520px] w-full border-collapse text-left text-xs">
+                  <thead className="bg-slate-50 text-[9px] font-black uppercase tracking-wide text-slate-600">
+                    <tr>
+                      <th className="px-3 py-2 border-b border-slate-200">Girth (mm)</th>
+                      <th className="px-3 py-2 border-b border-slate-200">Material family</th>
+                      <th className="px-3 py-2 border-b border-slate-200 text-right">Add-on ₦/m</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {refRidgeAddOns.length === 0 ? (
+                      <tr>
+                        <td colSpan={3} className="px-3 py-6 text-center text-sm text-slate-500">
+                          No ridge or flashing add-ons configured yet.
+                        </td>
+                      </tr>
+                    ) : (
+                      refRidgeAddOns.map((r, i) => (
+                        <tr key={i}>
+                          <td className="px-3 py-2 font-medium text-slate-800">{r.girthMm ?? '—'}</td>
+                          <td className="px-3 py-2 text-slate-700">{r.materialFamily || '—'}</td>
+                          <td className="px-3 py-2 text-right font-mono tabular-nums text-slate-900">
+                            {formatNgn(r.addOnNgn)}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ) : isReferenceTab && materialKey === 'accessories' ? (
+            <div className="rounded-xl border border-slate-200 bg-white shadow-sm p-4 space-y-3">
+              <p className="text-[11px] text-slate-600 leading-relaxed">
+                Default accessory unit prices come from <strong className="text-slate-800">master quote items</strong> (active accessories).
+                Update items in master data; they are listed on customer/internal workbook prints when priced.
+              </p>
+              <div className="z-scroll-x overflow-x-auto">
+                <table className="min-w-[520px] w-full border-collapse text-left text-xs">
+                  <thead className="bg-slate-50 text-[9px] font-black uppercase tracking-wide text-slate-600">
+                    <tr>
+                      <th className="px-3 py-2 border-b border-slate-200">Item</th>
+                      <th className="px-3 py-2 border-b border-slate-200">Unit</th>
+                      <th className="px-3 py-2 border-b border-slate-200 text-right">Default ₦</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {refAccessories.length === 0 ? (
+                      <tr>
+                        <td colSpan={3} className="px-3 py-6 text-center text-sm text-slate-500">
+                          No active accessories in master data.
+                        </td>
+                      </tr>
+                    ) : (
+                      refAccessories.map((a, i) => {
+                        const up = Math.round(Number(a.defaultUnitPriceNgn) || 0);
+                        return (
+                          <tr key={i}>
+                            <td className="px-3 py-2 font-medium text-slate-800">{a.name || '—'}</td>
+                            <td className="px-3 py-2 text-slate-700">{a.unit || '—'}</td>
+                            <td className="px-3 py-2 text-right font-mono tabular-nums text-slate-900">
+                              {up > 0 ? formatNgn(up) : '—'}
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           ) : (
-            <div className="z-scroll-x overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
+            <>
+              <div className="z-scroll-x overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
               <table className="min-w-[1120px] w-full border-collapse text-left text-xs">
                 <thead className="bg-slate-50 text-[9px] font-black uppercase tracking-wide text-slate-600 sticky top-0 z-[1]">
                   <tr>
@@ -849,44 +983,45 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
                 </tbody>
               </table>
             </div>
-          )}
 
-          <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50/60 p-3">
-            <h3 className="text-[10px] font-black uppercase text-[#134e4a] mb-2">Price change log</h3>
-            {events.length === 0 ? (
-              <p className="text-[11px] text-slate-500">No changes recorded for this material yet.</p>
-            ) : (
-              <ul className="space-y-2 max-h-48 overflow-y-auto pr-1">
-                {events.map((ev) => {
-                  const snap = ev.payload?.after || {};
-                  const when = ev.changedAtIso ? new Date(ev.changedAtIso).toLocaleString() : '';
-                  return (
-                    <li
-                      key={ev.id}
-                      className="text-[10px] text-slate-700 border-b border-slate-200/80 pb-2 last:border-0 leading-snug"
-                    >
-                      <span className="font-bold text-slate-900">{when}</span>
-                      {' · '}
-                      <span className="font-mono">{ev.branchId}</span> · gauge {ev.gaugeMm} mm
-                      {snap.minimumPricePerMeterNgn != null ? (
-                        <>
-                          {' '}
-                          · min <span className="font-mono">₦{formatNgn(snap.minimumPricePerMeterNgn)}</span>/m
-                        </>
-                      ) : null}
-                      {snap.suggestedPricePerMeterNgn != null ? (
-                        <>
-                          {' '}
-                          · suggested{' '}
-                          <span className="font-mono">₦{formatNgn(snap.suggestedPricePerMeterNgn)}</span>/m
-                        </>
-                      ) : null}
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </div>
+            <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50/60 p-3">
+              <h3 className="text-[10px] font-black uppercase text-[#134e4a] mb-2">Price change log</h3>
+              {events.length === 0 ? (
+                <p className="text-[11px] text-slate-500">No changes recorded for this material yet.</p>
+              ) : (
+                <ul className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                  {events.map((ev) => {
+                    const snap = ev.payload?.after || {};
+                    const when = ev.changedAtIso ? new Date(ev.changedAtIso).toLocaleString() : '';
+                    return (
+                      <li
+                        key={ev.id}
+                        className="text-[10px] text-slate-700 border-b border-slate-200/80 pb-2 last:border-0 leading-snug"
+                      >
+                        <span className="font-bold text-slate-900">{when}</span>
+                        {' · '}
+                        <span className="font-mono">{ev.branchId}</span> · gauge {ev.gaugeMm} mm
+                        {snap.minimumPricePerMeterNgn != null ? (
+                          <>
+                            {' '}
+                            · min <span className="font-mono">₦{formatNgn(snap.minimumPricePerMeterNgn)}</span>/m
+                          </>
+                        ) : null}
+                        {snap.suggestedPricePerMeterNgn != null ? (
+                          <>
+                            {' '}
+                            · suggested{' '}
+                            <span className="font-mono">₦{formatNgn(snap.suggestedPricePerMeterNgn)}</span>/m
+                          </>
+                        ) : null}
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </div>
+            </>
+          )}
         </div>
       </div>
 
