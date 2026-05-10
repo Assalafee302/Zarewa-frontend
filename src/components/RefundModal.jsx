@@ -457,6 +457,9 @@ const RefundModal = ({
       if (!Array.isArray(q.eligible_refund_categories) || q.eligible_refund_categories.length === 0) {
         return false;
       }
+      const suggestedPreviewNgn =
+        Math.round(Number(q.suggested_preview_amount_ngn ?? q.suggestedPreviewAmountNgn) || 0);
+      if (suggestedPreviewNgn < MIN_REFUND_QUOTATION_REMAINING_NGN) return false;
       if (quotationRefsWithBlockingRefund.has(id)) return false;
       if (quotationRefsProduced != null && !quotationRefsProduced.has(id)) {
         const full = quotations.find((x) => String(x.id).trim() === id);
@@ -1128,8 +1131,8 @@ const RefundModal = ({
                   <p className="text-[11px] leading-relaxed text-teal-800/85 font-medium">
                     Listed quotes are <strong className="text-teal-950">fully paid</strong> (booked paid ≥ order total when
                     a total exists), have more than <strong className="text-teal-950">₦{MIN_REFUND_QUOTATION_REMAINING_NGN.toLocaleString('en-NG')} refundable</strong> headroom, production <strong className="text-teal-950">completed</strong> or{' '}
-                    <strong className="text-teal-950">cancelled</strong> (or <strong className="text-teal-950">void</strong> with payment), and the server must produce a <strong className="text-teal-950">positive automatic preview total</strong> (overpayment, unproduced metres, service lines, etc.)—not only an open “Other” path with ₦0 suggestions. The dropdown shows{' '}
-                    <strong className="text-teal-950">all</strong> such matches (scroll). If a sale qualifies but the automatic preview is ₦0, use <strong className="text-teal-950">Use quotation id</strong> — the server confirms eligibility; then enter amounts manually.
+                    <strong className="text-teal-950">cancelled</strong> (or <strong className="text-teal-950">void</strong> with payment), and the server must produce an <strong className="text-teal-950">automatic preview total of at least ₦{MIN_REFUND_QUOTATION_REMAINING_NGN.toLocaleString('en-NG')}</strong> (overpayment, unproduced metres, service lines, etc.). The dropdown shows{' '}
+                    <strong className="text-teal-950">all</strong> such matches (scroll). If a sale qualifies but the preview is below that floor (including ₦0), use <strong className="text-teal-950">Use quotation id</strong> — the server confirms eligibility; then enter amounts manually.
                   </p>
                 </div>
               </div>
@@ -1286,7 +1289,7 @@ const RefundModal = ({
                                     Math.round(q.paid_ngn) - Math.round(q.total_refunded_ngn || 0)
                                   );
                                   const previewHint =
-                                    q.suggested_preview_amount_ngn > 0
+                                    Number(q.suggested_preview_amount_ngn) >= MIN_REFUND_QUOTATION_REMAINING_NGN
                                       ? ` · preview ₦${q.suggested_preview_amount_ngn.toLocaleString('en-NG')} auto`
                                       : '';
                                   return (
@@ -1340,7 +1343,8 @@ const RefundModal = ({
                           {manualQuotationVerifyBusy ? 'Verifying…' : 'Use quotation id'}
                         </button>
                         <p className="text-[9px] text-slate-500 leading-snug flex-1 min-w-0">
-                          If the quotation id is valid but missing from the list (for example automatic preview ₦0), verify
+                          If the quotation id is valid but missing from the list (for example automatic preview below ₦
+                          {MIN_REFUND_QUOTATION_REMAINING_NGN.toLocaleString('en-NG')}), verify
                           it here and complete lines manually. Press Enter when the suggestion list is closed.
                         </p>
                       </div>
@@ -1369,11 +1373,11 @@ const RefundModal = ({
                           Refunds only list quotations that are <strong>fully paid</strong> (paid ≥ total when total is set), have{' '}
                           <strong>more than ₦{MIN_REFUND_QUOTATION_REMAINING_NGN.toLocaleString('en-NG')} refundable</strong>, production{' '}
                           <strong>completed or cancelled</strong> (or <strong>void with payment</strong>), where the refund{' '}
-                          <strong>preview’s automatic lines sum to more than ₦0</strong>, and{' '}
+                          <strong>automatic preview total at least ₦{MIN_REFUND_QUOTATION_REMAINING_NGN.toLocaleString('en-NG')}</strong>, and{' '}
                           <strong>no blocking refund on file</strong>. {quotationPickDate ? 'Try clearing the quote date filter.' : ''}{' '}
                           If you already posted a receipt but the quote is missing here, the payment may have been
                           recorded under a different branch than the quotation — use sync to recalculate from the ledger.
-                          If the sale is eligible but excluded because the automatic preview total is ₦0, use{' '}
+                          If the sale is eligible but excluded because the automatic preview is below that amount, use{' '}
                           <strong>Use quotation id</strong> after entering the full quotation reference.
                         </p>
                         <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
