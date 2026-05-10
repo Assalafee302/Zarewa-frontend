@@ -747,6 +747,8 @@ const RefundModal = ({
   const label = 'text-[9px] font-semibold text-slate-400 uppercase tracking-wide ml-0.5 mb-1 block';
   const input =
     'w-full bg-white border border-slate-200 rounded-lg py-2 px-3 text-xs font-semibold text-[#134e4a] outline-none focus:ring-2 focus:ring-red-500/15 disabled:opacity-60';
+  const inputIntelDark =
+    'w-full bg-slate-800/90 border border-slate-600 rounded-lg py-2 px-3 text-xs font-semibold text-white placeholder:text-slate-500 outline-none focus:ring-2 focus:ring-rose-500/35 disabled:opacity-50';
 
   const setLine = (idx, patch) => {
     setForm((f) => ({
@@ -964,7 +966,9 @@ const RefundModal = ({
                 <ul className="text-[11px] leading-relaxed text-teal-900/90 font-medium space-y-1.5 list-disc pl-4 border-t border-teal-200/60 pt-3">
                   <li>Choose a quotation with payment recorded; the preview fills a breakdown — uncheck lines you do not want.</li>
                   <li>Customer commission is optional: use “Add commission to preview” if it applies (capped by minimum selling ₦/m).</li>
-                  <li>Enter Pay to details so finance can transfer the refund.</li>
+                  <li>
+                    Enter Pay to details in the Transaction intelligence column so finance can transfer the refund.
+                  </li>
                   <li>Submit for approval; after approval, finance records the payout against the refund.</li>
                 </ul>
                 <div className="border-t border-teal-200/60 pt-3 space-y-1.5">
@@ -1291,66 +1295,6 @@ const RefundModal = ({
                   ) : null}
                 </div>
 
-                <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4 space-y-3">
-                  <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">Pay to (for finance)</p>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div className="sm:col-span-2">
-                      <label className={label} htmlFor="refund-payee-name">
-                        Beneficiary name
-                      </label>
-                      <input
-                        id="refund-payee-name"
-                        type="text"
-                        disabled={readOnly}
-                        value={form.payeeName}
-                        onChange={(e) => setForm((f) => ({ ...f, payeeName: e.target.value }))}
-                        placeholder="Name on the account"
-                        className={input}
-                      />
-                    </div>
-                    <div>
-                      <label className={label} htmlFor="refund-payee-bank">
-                        Bank name
-                      </label>
-                      <input
-                        id="refund-payee-bank"
-                        type="text"
-                        disabled={readOnly}
-                        value={form.payeeBankName}
-                        onChange={(e) => setForm((f) => ({ ...f, payeeBankName: e.target.value }))}
-                        placeholder="e.g. Access Bank"
-                        className={input}
-                      />
-                    </div>
-                    <div>
-                      <label className={label} htmlFor="refund-payee-acct">
-                        Account number
-                      </label>
-                      <input
-                        id="refund-payee-acct"
-                        type="text"
-                        disabled={readOnly}
-                        value={form.payeeAccountNo}
-                        onChange={(e) => setForm((f) => ({ ...f, payeeAccountNo: e.target.value }))}
-                        placeholder="Nigerian bank account no."
-                        className={`${input} font-mono`}
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <div>
-                  <label className={label}>Situation context (reason notes)</label>
-                  <textarea
-                    rows={2}
-                    disabled={readOnly}
-                    value={form.reasonNotes}
-                    onChange={(e) => setForm((f) => ({ ...f, reasonNotes: e.target.value }))}
-                    placeholder="Provide specific details about the situation..."
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 text-xs font-medium text-slate-700 outline-none focus:ring-2 focus:ring-rose-500/20 resize-none transition-all"
-                  />
-                </div>
-
                 <div className="space-y-4 border-t border-slate-100 pt-5">
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2">
@@ -1508,6 +1452,18 @@ const RefundModal = ({
                           Outstanding after approvals: ₦{recordOutstandingAmount.toLocaleString()}
                         </p>
                       ) : null}
+                    </div>
+
+                    <div>
+                      <label className={label}>Situation context (reason notes)</label>
+                      <textarea
+                        rows={2}
+                        disabled={readOnly}
+                        value={form.reasonNotes}
+                        onChange={(e) => setForm((f) => ({ ...f, reasonNotes: e.target.value }))}
+                        placeholder="Provide specific details about the situation..."
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 text-xs font-medium text-slate-700 outline-none focus:ring-2 focus:ring-rose-500/20 resize-none transition-all"
+                      />
                     </div>
                   </div>
                 </div>
@@ -1926,6 +1882,54 @@ const RefundModal = ({
                     )}
                     </>
                     )}
+
+                    <div className="rounded-xl border border-slate-600 bg-slate-800/40 p-4 space-y-3 pt-4 border-t border-slate-700/80 mt-2">
+                      <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Pay to (for finance)</p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div className="sm:col-span-2">
+                          <label className={`${label} text-slate-500`} htmlFor="refund-payee-name">
+                            Beneficiary name
+                          </label>
+                          <input
+                            id="refund-payee-name"
+                            type="text"
+                            disabled={readOnly}
+                            value={form.payeeName}
+                            onChange={(e) => setForm((f) => ({ ...f, payeeName: e.target.value }))}
+                            placeholder="Name on the account"
+                            className={inputIntelDark}
+                          />
+                        </div>
+                        <div>
+                          <label className={`${label} text-slate-500`} htmlFor="refund-payee-bank">
+                            Bank name
+                          </label>
+                          <input
+                            id="refund-payee-bank"
+                            type="text"
+                            disabled={readOnly}
+                            value={form.payeeBankName}
+                            onChange={(e) => setForm((f) => ({ ...f, payeeBankName: e.target.value }))}
+                            placeholder="e.g. Access Bank"
+                            className={inputIntelDark}
+                          />
+                        </div>
+                        <div>
+                          <label className={`${label} text-slate-500`} htmlFor="refund-payee-acct">
+                            Account number
+                          </label>
+                          <input
+                            id="refund-payee-acct"
+                            type="text"
+                            disabled={readOnly}
+                            value={form.payeeAccountNo}
+                            onChange={(e) => setForm((f) => ({ ...f, payeeAccountNo: e.target.value }))}
+                            placeholder="Nigerian bank account no."
+                            className={`${inputIntelDark} font-mono`}
+                          />
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>
