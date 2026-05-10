@@ -3,9 +3,8 @@ import { Printer, X } from 'lucide-react';
 import { ModalFrame } from '../layout';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { useToast } from '../../context/ToastContext';
-import { apiFetch } from '../../lib/apiBase';
+import { apiFetch, apiUrl } from '../../lib/apiBase';
 import { formatNgn } from '../../Data/mockData';
-import { printMaterialPricingWorkbookSummary } from '../../lib/materialPricingWorkbookPrint';
 
 const MATERIAL_OPTIONS = [
   { key: 'alu', label: 'Aluminium' },
@@ -39,6 +38,17 @@ function suggested(used, costKg, oh, pr) {
   const p = Number(pr) || 0;
   if (!Number.isFinite(u) || u <= 0 || !Number.isFinite(ck) || ck < 0) return null;
   return Math.round(u * ck + o + p);
+}
+
+/** Effective kg/m for economics: draft override, else data average (usedSuggested), else merged API used. */
+function effectiveUsedKgPerM(draftStr, resolved) {
+  const d = numOrUndef(draftStr);
+  if (d != null && d > 0) return d;
+  const us = resolved?.usedSuggested;
+  if (us != null && Number.isFinite(Number(us)) && Number(us) > 0) return Number(us);
+  const u = resolved?.used;
+  if (u != null && Number.isFinite(Number(u)) && Number(u) > 0) return Number(u);
+  return null;
 }
 
 /**
@@ -108,8 +118,19 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
       if (!costStr && recCost != null && Number(recCost) > 0 && !isStone) {
         costStr = String(recCost);
       }
+      const rv = r1.data.resolvedByGauge?.[g] || {};
+      const usedStored = row?.conversionUsedKgPerM;
+      const usedSuggested = rv.usedSuggested;
+      const hasDistinctStored =
+        usedStored != null &&
+        Number(usedStored) > 0 &&
+        (usedSuggested == null ||
+          !Number.isFinite(Number(usedSuggested)) ||
+          Math.abs(Number(usedStored) - Number(usedSuggested)) > 1e-6);
       d[g] = {
         costPerKgNgn: costStr,
+        conversionUsedKgPerM:
+          hasDistinctStored && usedStored != null ? String(usedStored) : '',
         overheadNgnPerM: row?.overheadNgnPerM != null ? String(row.overheadNgnPerM) : '',
         profitNgnPerM: row?.profitNgnPerM != null ? String(row.profitNgnPerM) : '',
         minimumPricePerMeterNgn: row?.minimumPricePerMeterNgn != null ? String(row.minimumPricePerMeterNgn) : '',
@@ -128,12 +149,19 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
   const buildPersistBody = (gaugeMm) => {
     const dr = draftByGauge[gaugeMm];
     if (!dr || !branchId) return null;
+    const uStr = String(dr.conversionUsedKgPerM ?? '').trim();
+    let conversionUsedKgPerM = null;
+    if (uStr !== '') {
+      const n = Number(uStr);
+      conversionUsedKgPerM = Number.isFinite(n) && n > 0 ? n : null;
+    }
     return {
       materialKey,
       gaugeMm,
       branchId,
       designKey: '',
       costPerKgNgn: numOrUndef(dr.costPerKgNgn) ?? 0,
+      conversionUsedKgPerM,
       overheadNgnPerM: numOrUndef(dr.overheadNgnPerM) ?? 0,
       profitNgnPerM: numOrUndef(dr.profitNgnPerM) ?? 0,
       minimumPricePerMeterNgn: Math.round(Number(dr.minimumPricePerMeterNgn) || 0),
@@ -193,41 +221,14 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
   const branchName = branchRecord?.name || branchRecord?.code || branchId;
 
   const handlePrintPreview = () => {
-    const gauges = sheet?.gauges || [];
-    const rows = [];
-    for (const g of gauges) {
-      const dr = draftByGauge[g] || {};
-      const rv = sheet?.resolvedByGauge?.[g] || {};
-      const used = rv.used != null && Number.isFinite(Number(rv.used)) ? Number(rv.used) : null;
-      const ck = numOrUndef(dr.costPerKgNgn);
-      const oh = numOrUndef(dr.overheadNgnPerM);
-      const pr = numOrUndef(dr.profitNgnPerM);
-      const sug = used != null && ck != null ? suggested(used, ck, oh, pr) : null;
-      const minimumNgn = Math.round(Number(dr.minimumPricePerMeterNgn) || 0);
-      const sugOut =
-        sug != null && sug > 0 ? sug : sheet?.isStoneCoatedWorkbook && minimumNgn > 0 ? minimumNgn : null;
-      const hasPrice =
-        (sugOut != null && sugOut > 0) ||
-        (Number.isFinite(minimumNgn) && minimumNgn > 0);
-      if (!hasPrice) continue;
-      rows.push({
-        gaugeMm: g,
-        stdKgPerM: fmtConv2(rv.std),
-        refKgPerM: fmtConv2(rv.ref),
-        histKgPerM: fmtConv2(rv.hist),
-        usedKgPerM: fmtConv2(rv.used),
-        costPerKgNgn: String(dr.costPerKgNgn ?? '').trim(),
-        suggestedNgn: sugOut,
-        minimumNgn,
-      });
-    }
-    const opened = printMaterialPricingWorkbookSummary({
-      materialLabel,
-      branchName: String(branchName || ''),
-      rows,
-      formatNgn,
+    if (!branchId) return;
+    const q = new URLSearchParams({
+      branchId,
+      branchName: String(branchName || branchId),
     });
-    if (!opened) showToast('Pop-up blocked. Allow pop-ups to print.', { variant: 'error' });
+    const url = apiUrl(`/api/pricing/material-workbook-all.html?${q.toString()}`);
+    const w = window.open(url, '_blank', 'noopener,noreferrer');
+    if (!w) showToast('Pop-up blocked. Allow pop-ups to print.', { variant: 'error' });
   };
 
   const setDraft = (gaugeMm, patch) => {
@@ -283,12 +284,15 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
           <div>
             <h2 className="text-base font-black text-[#134e4a]">Material pricing workbook</h2>
             <p className="text-[10px] text-slate-600 mt-1 max-w-xl leading-relaxed">
-              <strong className="text-slate-800">Std / Ref / Hist / Used</strong> kg/m are <strong>read-only</strong> from
-              data (theory/catalog, last {lookbackDays}d purchases, last {lookbackDays}d production checks, then their average)
-              — all shown to <strong>two decimal places</strong>. Stone-coated: enter <strong>minimum ₦/m</strong> per gauge
-              and sync to the price list. <strong className="text-slate-800">₦/kg</strong> defaults from{' '}
+              <strong className="text-slate-800">Std / Ref / Hist</strong> kg/m are <strong>read-only</strong> from data
+              (theory/catalog, last {lookbackDays}d purchases, last {lookbackDays}d production checks).{' '}
+              <strong className="text-slate-800">Used</strong> defaults to the average of those three; leave blank to keep the
+              average or type an override (two decimal places). Stone-coated: enter <strong>minimum ₦/m</strong> per gauge and
+              sync to the price list. <strong className="text-slate-800">₦/kg</strong> defaults from{' '}
               <strong>weighted average</strong> coil cost for this branch (last {lookbackDays} days) when available.{' '}
-              <strong className="text-slate-800">Suggested ₦/m</strong> = used kg/m × ₦/m overhead + profit. Save all when done.
+              <strong className="text-slate-800">Suggested ₦/m</strong> = used kg/m × ₦/kg + overhead + profit.{' '}
+              <strong className="text-slate-800">Print</strong> opens a single report for all materials (plus accessories). Save
+              all when done.
             </p>
           </div>
           <button
@@ -427,7 +431,9 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
                   {(sheet?.gauges || []).map((g) => {
                     const dr = draftByGauge[g] || {};
                     const rv = sheet?.resolvedByGauge?.[g] || {};
-                    const usedNum = rv.used != null && Number.isFinite(Number(rv.used)) ? Number(rv.used) : null;
+                    const usedNum = sheet?.isStoneCoatedWorkbook
+                      ? null
+                      : effectiveUsedKgPerM(dr.conversionUsedKgPerM, rv);
                     const ck = numOrUndef(dr.costPerKgNgn);
                     const oh = numOrUndef(dr.overheadNgnPerM);
                     const pr = numOrUndef(dr.profitNgnPerM);
@@ -469,10 +475,24 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
                           ) : null}
                         </td>
                         <td className="px-2 py-1.5 align-top">
-                          <div className={cell}>{fmtConv2(rv.used)}</div>
-                          {!sheet?.isStoneCoatedWorkbook ? (
-                            <p className="text-[8px] text-slate-400 mt-0.5">Avg of above</p>
-                          ) : null}
+                          {sheet?.isStoneCoatedWorkbook ? (
+                            <div className={cell}>—</div>
+                          ) : (
+                            <>
+                              <input
+                                className={inp}
+                                placeholder={
+                                  rv.usedSuggested != null && Number.isFinite(Number(rv.usedSuggested))
+                                    ? `~${fmtConv2(rv.usedSuggested)}`
+                                    : '—'
+                                }
+                                title="Leave blank to use the average of Std, Ref, and Hist"
+                                value={dr.conversionUsedKgPerM ?? ''}
+                                onChange={(e) => setDraft(g, { conversionUsedKgPerM: e.target.value })}
+                              />
+                              <p className="text-[8px] text-slate-400 mt-0.5">Override avg (kg/m)</p>
+                            </>
+                          )}
                         </td>
                         <td className="px-2 py-1.5 font-mono text-[11px] text-slate-600 tabular-nums">
                           {cm == null ? '—' : formatNgn(Math.round(cm))}

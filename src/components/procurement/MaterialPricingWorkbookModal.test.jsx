@@ -46,8 +46,8 @@ function sheetResponse() {
       purchaseAvgConversionByGauge: {},
       gaugeHistoryAvgConversionByGauge: {},
       resolvedByGauge: {
-        '0.40': { std: 1.0, ref: null, hist: null, used: 1.0 },
-        '0.45': { std: 1.1, ref: null, hist: null, used: 1.1 },
+        '0.40': { std: 1.0, ref: null, hist: null, usedSuggested: 1.0, used: 1.0 },
+        '0.45': { std: 1.1, ref: null, hist: null, usedSuggested: 1.1, used: 1.1 },
       },
       recommendedCostPerKgNgn: null,
       isStoneCoatedWorkbook: false,
