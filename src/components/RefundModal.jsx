@@ -35,6 +35,13 @@ import {
   MIN_REFUND_QUOTATION_REMAINING_NGN,
 } from '../shared/refundConstants.js';
 
+const REFUND_CATEGORY_HINTS = {
+  'Customer commission':
+    'After payment: recover part of an agreed price concession using quotation snapshots (recommended ₦/m vs quoted). Amount is capped by remaining refundable balance.',
+  'Substitution Difference':
+    'When supplied material differs from what was quoted, credit may follow list ₦/m for quoted gauge/design vs the FG product (see per-metre breakdown).',
+};
+
 function parseQuoteQtyDisplay(qty, unit) {
   const raw = qty != null ? String(qty).trim() : '';
   const u = unit != null ? String(unit).trim() : '';
@@ -1337,7 +1344,12 @@ const RefundModal = ({
                                   onChange={() => toggleCategory(cat)}
                                   className="mt-0.5 h-3.5 w-3.5 rounded border-slate-300 text-rose-600 focus:ring-rose-500"
                                 />
-                                <span className="text-xs font-semibold leading-snug text-slate-800">{cat}</span>
+                                <span
+                                  className="text-xs font-semibold leading-snug text-slate-800"
+                                  title={REFUND_CATEGORY_HINTS[cat] || ''}
+                                >
+                                  {cat}
+                                </span>
                               </label>
                             ))}
                             {selectableRefundCategories.length === 0 ? (
@@ -1797,8 +1809,16 @@ const RefundModal = ({
                                 ₦{Number(row.creditNgn || 0).toLocaleString('en-NG')}
                               </span>
                               <div className="text-[9px] text-slate-500 mt-0.5 pl-0">
-                                Quoted ₦{Number(row.quotedPricePerMeterNgn || 0).toLocaleString('en-NG')}/m vs list ₦
-                                {Number(row.producedListPricePerMeterNgn || 0).toLocaleString('en-NG')}/m (FG product)
+                                Quoted blended ₦{Number(row.quotedPricePerMeterNgn || 0).toLocaleString('en-NG')}/m
+                                {row.quotedListPricePerMeterNgn != null && row.quotedListPricePerMeterNgn > 0 ? (
+                                  <>
+                                    {' '}
+                                    · list at quoted {row.quotedGaugeDesignLabel || 'gauge/design'} ₦
+                                    {Number(row.quotedListPricePerMeterNgn).toLocaleString('en-NG')}/m
+                                  </>
+                                ) : null}
+                                {' '}
+                                vs list at FG ₦{Number(row.producedListPricePerMeterNgn || 0).toLocaleString('en-NG')}/m
                               </div>
                             </li>
                           ))}

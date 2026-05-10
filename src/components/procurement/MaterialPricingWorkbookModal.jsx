@@ -1,10 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { X } from 'lucide-react';
+import { Printer, X } from 'lucide-react';
 import { ModalFrame } from '../layout';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { useToast } from '../../context/ToastContext';
 import { apiFetch } from '../../lib/apiBase';
 import { formatNgn } from '../../Data/mockData';
+import { printMaterialPricingWorkbookSummary } from '../../lib/materialPricingWorkbookPrint';
 
 const MATERIAL_OPTIONS = [
   { key: 'alu', label: 'Aluminium' },
@@ -56,7 +57,7 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
   const [sheet, setSheet] = useState(null);
   const [events, setEvents] = useState([]);
   const [busy, setBusy] = useState(false);
-  const [savingGauge, setSavingGauge] = useState(null);
+  const [savingAll, setSavingAll] = useState(false);
   const [draftByGauge, setDraftByGauge] = useState({});
 
   useEffect(() => {
@@ -124,11 +125,10 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
     if (open && branchId) void loadSheet();
   }, [open, branchId, materialKey, loadSheet]);
 
-  const persistRow = async (gaugeMm) => {
+  const buildPersistBody = (gaugeMm) => {
     const dr = draftByGauge[gaugeMm];
-    if (!dr || !branchId) return;
-    setSavingGauge(gaugeMm);
-    const body = {
+    if (!dr || !branchId) return null;
+    return {
       materialKey,
       gaugeMm,
       branchId,
@@ -145,22 +145,91 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
       syncMinimumToPriceList: Boolean(dr.syncMinimumToPriceList),
       syncDesignKey: dr.syncDesignKey?.trim() || undefined,
     };
-    const { ok, data } = await apiFetch('/api/pricing/material-sheet/rows', {
-      method: 'POST',
-      body: JSON.stringify(body),
-    });
-    setSavingGauge(null);
-    if (!ok || !data?.ok) {
-      showToast(data?.error || 'Save failed.', { variant: 'error' });
+  };
+
+  const persistAllRows = async () => {
+    const gauges = sheet?.gauges || [];
+    if (!branchId || !gauges.length || savingAll || busy) return;
+    setSavingAll(true);
+    let saved = 0;
+    let firstError = '';
+    let priceListSyncWarning = '';
+    for (const g of gauges) {
+      const body = buildPersistBody(g);
+      if (!body) continue;
+      const { ok, data } = await apiFetch('/api/pricing/material-sheet/rows', {
+        method: 'POST',
+        body: JSON.stringify(body),
+      });
+      if (!ok || !data?.ok) {
+        firstError = data?.error || 'Save failed.';
+        break;
+      }
+      saved += 1;
+      if (data.priceListSync && !data.priceListSync.ok && !priceListSyncWarning) {
+        priceListSyncWarning = data.priceListSync.error || 'Price list sync skipped for at least one row.';
+      }
+    }
+    setSavingAll(false);
+    if (firstError) {
+      showToast(`${firstError} (stopped at ${saved}/${gauges.length} saved)`, { variant: 'error' });
+      if (saved > 0) {
+        void loadSheet();
+        void loadEvents(materialKey);
+      }
       return;
     }
-    if (data.priceListSync && !data.priceListSync.ok) {
-      showToast(`Saved row. Price list: ${data.priceListSync.error || 'sync skipped.'}`, { variant: 'error' });
-    } else {
-      showToast(data.priceListSync?.ok ? 'Saved row and synced floor price.' : 'Saved row.');
+    if (saved === 0) {
+      showToast('Nothing to save.', { variant: 'error' });
+      return;
     }
+    showToast(
+      priceListSyncWarning
+        ? `Saved ${saved} gauge row(s). ${priceListSyncWarning}`
+        : `Saved ${saved} gauge row(s).`
+    );
     void loadSheet();
     void loadEvents(materialKey);
+  };
+
+  const materialLabel = MATERIAL_OPTIONS.find((m) => m.key === materialKey)?.label || materialKey;
+  const branchRecord = branches.find((b) => b.id === branchId);
+  const branchName = branchRecord?.name || branchRecord?.code || branchId;
+
+  const handlePrintPreview = () => {
+    const gauges = sheet?.gauges || [];
+    const rows = [];
+    for (const g of gauges) {
+      const dr = draftByGauge[g] || {};
+      const std = numOrUndef(dr.conversionStandardKgPerM);
+      const ref = numOrUndef(dr.conversionReferenceKgPerM);
+      const hist = numOrUndef(dr.conversionHistoryKgPerM);
+      const av = avgThree(std, ref, hist);
+      const used = numOrUndef(dr.conversionUsedKgPerM);
+      const ck = numOrUndef(dr.costPerKgNgn);
+      const oh = numOrUndef(dr.overheadNgnPerM);
+      const pr = numOrUndef(dr.profitNgnPerM);
+      const sug = suggested(used ?? av, ck ?? 0, oh, pr);
+      const minimumNgn = Math.round(Number(dr.minimumPricePerMeterNgn) || 0);
+      const hasPrice =
+        (sug != null && sug > 0) ||
+        (Number.isFinite(minimumNgn) && minimumNgn > 0);
+      if (!hasPrice) continue;
+      rows.push({
+        gaugeMm: g,
+        conversionUsedKgPerM: String(dr.conversionUsedKgPerM ?? '').trim(),
+        costPerKgNgn: String(dr.costPerKgNgn ?? '').trim(),
+        suggestedNgn: sug,
+        minimumNgn,
+      });
+    }
+    const opened = printMaterialPricingWorkbookSummary({
+      materialLabel,
+      branchName: String(branchName || ''),
+      rows,
+      formatNgn,
+    });
+    if (!opened) showToast('Pop-up blocked. Allow pop-ups to print.', { variant: 'error' });
   };
 
   const setDraft = (gaugeMm, patch) => {
@@ -169,6 +238,42 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
       [gaugeMm]: { ...prev[gaugeMm], ...patch },
     }));
   };
+
+  const setCostPerKgAllGauges = useCallback(
+    (raw) => {
+      const gauges = sheet?.gauges || [];
+      setDraftByGauge((prev) => {
+        const next = { ...prev };
+        for (const g of gauges) {
+          const row = next[g];
+          if (!row) continue;
+          next[g] = { ...row, costPerKgNgn: raw };
+        }
+        return next;
+      });
+    },
+    [sheet?.gauges]
+  );
+
+  const materialCostPerKgFieldValue = useMemo(() => {
+    const gauges = sheet?.gauges || [];
+    const vals = gauges
+      .map((g) => String(draftByGauge[g]?.costPerKgNgn ?? '').trim())
+      .filter((s) => s.length > 0);
+    if (!vals.length) return '';
+    const first = vals[0];
+    return vals.every((v) => v === first) ? first : '';
+  }, [sheet?.gauges, draftByGauge]);
+
+  const materialCostPerKgMixed = useMemo(() => {
+    const gauges = sheet?.gauges || [];
+    const vals = gauges
+      .map((g) => String(draftByGauge[g]?.costPerKgNgn ?? '').trim())
+      .filter((s) => s.length > 0);
+    if (vals.length < 2) return false;
+    const first = vals[0];
+    return !vals.every((v) => v === first);
+  }, [sheet?.gauges, draftByGauge]);
 
   const thMap = sheet?.theoreticalStandardByGauge || {};
   const catMap = sheet?.catalogHintByGauge || {};
@@ -187,9 +292,11 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
               hints average <strong className="text-slate-800">posted production</strong> kg/m for that gauge.{' '}
               <strong className="text-slate-800">Avg conversion</strong> is from standard, reference, and history where entered. Enter{' '}
               <strong className="text-slate-800">conversion used</strong>{' '}
-              for economics. <strong className="text-slate-800">Suggested ₦/m</strong> is derived (not locked). Set{' '}
+              for economics.               <strong className="text-slate-800">Suggested ₦/m</strong> is derived (not locked).{' '}
+              <strong className="text-slate-800">₦/kg</strong> is one value for the whole material (all gauges). Set{' '}
               <strong className="text-slate-800">minimum ₦/m</strong> as the floor; quotations below it still require MD
-              approval. MD and pricing roles can edit all fields here.
+              approval. Use <strong className="text-slate-800">Save all</strong> once after editing. MD and pricing roles
+              can edit all fields here.
             </p>
           </div>
           <button
@@ -232,6 +339,39 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
               ))}
             </select>
           </label>
+          <label
+            className="text-[10px] font-bold uppercase text-slate-500 block min-w-[128px]"
+            title="Cost per kg applies to every gauge for this material and branch. Saving a row stores this value on that gauge’s sheet row."
+          >
+            ₦/kg (material)
+            <input
+              type="text"
+              inputMode="decimal"
+              autoComplete="off"
+              aria-label="Material cost per kilogram, applied to all gauges"
+              placeholder={materialCostPerKgMixed ? 'Mixed — set to align' : ''}
+              className="mt-1 w-full rounded-lg border border-slate-200 bg-white py-2 px-2 text-sm font-semibold text-slate-800 font-mono tabular-nums"
+              value={materialCostPerKgFieldValue}
+              onChange={(e) => setCostPerKgAllGauges(e.target.value)}
+            />
+          </label>
+          <button
+            type="button"
+            disabled={busy || savingAll || !sheet}
+            onClick={() => void persistAllRows()}
+            className="rounded-lg bg-[#134e4a] px-3 py-2 text-[10px] font-black uppercase text-white disabled:opacity-50"
+          >
+            {savingAll ? 'Saving…' : 'Save all'}
+          </button>
+          <button
+            type="button"
+            disabled={busy || !sheet}
+            onClick={handlePrintPreview}
+            className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-[10px] font-black uppercase text-[#134e4a] disabled:opacity-50 inline-flex items-center gap-1.5"
+          >
+            <Printer size={14} className="shrink-0" aria-hidden />
+            Print
+          </button>
           <button
             type="button"
             disabled={busy}
@@ -247,7 +387,7 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
             <p className="text-sm text-slate-500 px-2">Loading…</p>
           ) : (
             <div className="z-scroll-x overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
-              <table className="min-w-[920px] w-full border-collapse text-left text-xs">
+              <table className="min-w-[860px] w-full border-collapse text-left text-xs">
                 <thead className="bg-slate-50 text-[9px] font-black uppercase tracking-wide text-slate-600 sticky top-0 z-[1]">
                   <tr>
                     <th className="px-2 py-2 border-b border-slate-200 whitespace-nowrap">Gauge</th>
@@ -266,14 +406,12 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
                     </th>
                     <th className="px-2 py-2 border-b border-slate-200 whitespace-nowrap">Avg</th>
                     <th className="px-2 py-2 border-b border-slate-200 whitespace-nowrap">Used</th>
-                    <th className="px-2 py-2 border-b border-slate-200 whitespace-nowrap">₦/kg</th>
                     <th className="px-2 py-2 border-b border-slate-200 whitespace-nowrap">Cost/m</th>
                     <th className="px-2 py-2 border-b border-slate-200 whitespace-nowrap">OH/m</th>
                     <th className="px-2 py-2 border-b border-slate-200 whitespace-nowrap">Profit/m</th>
                     <th className="px-2 py-2 border-b border-slate-200 whitespace-nowrap">Suggested</th>
                     <th className="px-2 py-2 border-b border-slate-200 whitespace-nowrap">Min ₦/m</th>
                     <th className="px-2 py-2 border-b border-slate-200 whitespace-nowrap">Sync floor</th>
-                    <th className="px-2 py-2 border-b border-slate-200 whitespace-nowrap w-[120px]" />
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -354,13 +492,6 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
                             onChange={(e) => setDraft(g, { conversionUsedKgPerM: e.target.value })}
                           />
                         </td>
-                        <td className="px-2 py-1.5">
-                          <input
-                            className={inp}
-                            value={dr.costPerKgNgn ?? ''}
-                            onChange={(e) => setDraft(g, { costPerKgNgn: e.target.value })}
-                          />
-                        </td>
                         <td className="px-2 py-1.5 font-mono text-[11px] text-slate-600 tabular-nums">
                           {cm == null ? '—' : formatNgn(Math.round(cm))}
                         </td>
@@ -403,16 +534,6 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
                             value={dr.syncDesignKey ?? ''}
                             onChange={(e) => setDraft(g, { syncDesignKey: e.target.value })}
                           />
-                        </td>
-                        <td className="px-2 py-1.5">
-                          <button
-                            type="button"
-                            disabled={Boolean(savingGauge) || busy}
-                            onClick={() => void persistRow(g)}
-                            className="rounded-lg bg-[#134e4a] px-2 py-1.5 text-[9px] font-black uppercase text-white disabled:opacity-50"
-                          >
-                            {savingGauge === g ? '…' : 'Save'}
-                          </button>
                         </td>
                       </tr>
                     );

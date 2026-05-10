@@ -1,12 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { X, UserCircle, TrendingUp, Ruler, Moon, Trash2 } from 'lucide-react';
+import { UserCircle, TrendingUp, Ruler, Moon, Trash2 } from 'lucide-react';
 import {
   SalesListTableFrame,
   SalesListSearchInput,
   SalesListSortBar,
 } from './SalesListTableFrame';
-import { ModalFrame } from '../layout';
 import { useCustomers } from '../../context/CustomersContext';
 import { useToast } from '../../context/ToastContext';
 import { useWorkspace } from '../../context/WorkspaceContext';
@@ -35,17 +34,6 @@ function customerTierChipBorder(tier) {
   if (t === 'wholesale') return 'border-sky-200 bg-sky-50 text-sky-800';
   return 'border-slate-200 bg-slate-50 text-slate-600';
 }
-
-const emptyForm = {
-  name: '',
-  phoneNumber: '',
-  email: '',
-  addressShipping: '',
-  addressBilling: '',
-  status: 'Active',
-  tier: 'Regular',
-  paymentTerms: 'Net 30',
-};
 
 function parseMeters(totalStr) {
   const m = String(totalStr ?? '').match(/([\d.]+)\s*m/i);
@@ -77,7 +65,7 @@ function lastTouchISO(customerID, quotations, receipts, cuttingLists) {
 
 /**
  * Customers workspace embedded in Sales (Customers tab).
- * @param {{ searchQuery: string; onSearchChange: (q: string) => void; addOpen: boolean; onAddClose: () => void; createdByLabel?: string; quotations?: object[]; receipts?: object[]; cuttingLists?: object[] }} props
+ * @param {{ searchQuery: string; onSearchChange: (q: string) => void; createdByLabel?: string; quotations?: object[]; receipts?: object[]; cuttingLists?: object[] }} props
  */
 const CUSTOMER_SORT_FIELDS = [
   { id: 'name', label: 'Name' },
@@ -90,8 +78,6 @@ const CUSTOMER_SORT_FIELDS = [
 export default function SalesCustomersTab({
   searchQuery,
   onSearchChange = () => {},
-  addOpen,
-  onAddClose,
   createdByLabel = 'Sales',
   quotations = [],
   receipts = [],
@@ -102,11 +88,10 @@ export default function SalesCustomersTab({
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 20;
 
-  const { customers, addCustomer, deleteCustomer } = useCustomers();
+  const { customers, deleteCustomer } = useCustomers();
   const { show: showToast } = useToast();
   const ws = useWorkspace();
   const canDeleteCustomer = Boolean(ws?.hasPermission?.('sales.manage') && ws?.canMutate);
-  const [form, setForm] = useState(emptyForm);
   const [deleteBusy, setDeleteBusy] = useState(false);
 
   useEffect(() => {
@@ -224,28 +209,6 @@ export default function SalesCustomersTab({
 
     return { topSpend, topMeters, inactive, ciso };
   }, [customers, cuttingLists, quotations, receipts]);
-
-  const submitNew = async (e) => {
-    e.preventDefault();
-    if (!form.name.trim() || !form.phoneNumber.trim()) {
-      showToast('Name and phone required.', { variant: 'error' });
-      return;
-    }
-    const iso = new Date().toISOString().slice(0, 10);
-    try {
-      const newId = await addCustomer({
-        ...form,
-        createdAtISO: iso,
-        lastActivityISO: iso,
-        createdBy: createdByLabel,
-      });
-      setForm(emptyForm);
-      onAddClose();
-      showToast(`Customer ${newId || 'saved'} saved.`);
-    } catch (err) {
-      showToast(err.message, { variant: 'error' });
-    }
-  };
 
   return (
     <>
@@ -422,71 +385,6 @@ export default function SalesCustomersTab({
           </SalesListTableFrame>
         </div>
       </div>
-
-      <ModalFrame isOpen={addOpen} onClose={onAddClose}>
-        <div className="z-modal-panel max-w-lg p-8">
-          <div className="flex justify-between items-center mb-6">
-            <h3 className="text-xl font-bold text-[#134e4a]">New Customer</h3>
-            <button onClick={onAddClose} className="p-2 text-slate-400 hover:text-rose-500 rounded-xl hover:bg-rose-50">
-              <X size={22} />
-            </button>
-          </div>
-          {!ws?.canMutate ? (
-            <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] font-semibold text-amber-900">
-              System offline (read-only). Reconnect and refresh before registering customers.
-            </div>
-          ) : null}
-          <form onSubmit={submitNew} className="space-y-4">
-             <fieldset disabled={!ws?.canMutate} className="space-y-4 disabled:opacity-60">
-             <div className="space-y-1">
-               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Full Name *</label>
-               <input required value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} className="w-full bg-slate-50 border border-slate-100 rounded-xl py-3 px-4 text-sm font-bold text-[#134e4a] outline-none focus:ring-2 focus:ring-teal-500/10" />
-             </div>
-             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-               <div className="space-y-1">
-                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Phone *</label>
-                 <input required value={form.phoneNumber} onChange={e => setForm(f => ({ ...f, phoneNumber: e.target.value }))} className="w-full bg-slate-50 border border-slate-100 rounded-xl py-3 px-4 text-sm font-bold text-[#134e4a] outline-none focus:ring-2 focus:ring-teal-500/10" />
-               </div>
-               <div className="space-y-1">
-                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Email</label>
-                 <input type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} className="w-full bg-slate-50 border border-slate-100 rounded-xl py-3 px-4 text-sm font-bold text-[#134e4a] outline-none focus:ring-2 focus:ring-teal-500/10" />
-               </div>
-             </div>
-             <div className="space-y-1">
-               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Shipping Address</label>
-               <textarea rows={2} value={form.addressShipping} onChange={e => setForm(f => ({ ...f, addressShipping: e.target.value }))} className="w-full bg-slate-50 border border-slate-100 rounded-xl py-3 px-4 text-sm font-medium text-[#134e4a] outline-none focus:ring-2 focus:ring-teal-500/10 resize-none" />
-             </div>
-             <div className="grid grid-cols-3 gap-3">
-               <div className="space-y-1">
-                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Tier</label>
-                 <select value={form.tier} onChange={e => setForm(f => ({ ...f, tier: e.target.value }))} className="w-full bg-slate-50 border border-slate-100 rounded-xl py-3 px-4 text-xs font-bold text-[#134e4a] outline-none">
-                   <option value="Regular">Regular</option>
-                   <option value="VIP">VIP</option>
-                   <option value="Wholesale">Wholesale</option>
-                 </select>
-               </div>
-               <div className="space-y-1">
-                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Terms</label>
-                 <select value={form.paymentTerms} onChange={e => setForm(f => ({ ...f, paymentTerms: e.target.value }))} className="w-full bg-slate-50 border border-slate-100 rounded-xl py-3 px-4 text-xs font-bold text-[#134e4a] outline-none">
-                   <option value="Due on receipt">Due on receipt</option>
-                   <option value="Net 30">Net 30</option>
-                 </select>
-               </div>
-               <div className="space-y-1">
-                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Status</label>
-                 <select value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))} className="w-full bg-slate-50 border border-slate-100 rounded-xl py-3 px-4 text-xs font-bold text-[#134e4a] outline-none">
-                   <option value="Active">Active</option>
-                   <option value="Inactive">Inactive</option>
-                 </select>
-               </div>
-             </div>
-             <button type="submit" className="w-full bg-[#134e4a] text-white rounded-xl py-4 text-xs font-black uppercase tracking-widest shadow-lg shadow-teal-900/20 hover:brightness-110 active:scale-[0.98] transition-all">
-               Save Customer
-             </button>
-             </fieldset>
-          </form>
-        </div>
-      </ModalFrame>
     </>
   );
 }

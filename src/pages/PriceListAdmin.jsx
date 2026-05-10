@@ -1,5 +1,5 @@
 import React from 'react';
-import { Navigate } from 'react-router-dom';
+import { Link, Navigate } from 'react-router-dom';
 import { MainPanel, PageHeader } from '../components/layout';
 import { PriceListPanel } from '../components/procurement/PriceListPanel';
 import { useWorkspace } from '../context/WorkspaceContext';
@@ -13,12 +13,24 @@ export default function PriceListAdmin() {
     return <Navigate to="/" replace />;
   }
 
+  const canPolicy =
+    ws?.hasPermission?.('pricing.policy.manage') ||
+    ws?.hasPermission?.('md.price_exception.approve') ||
+    ws?.hasPermission?.('*');
+
   return (
     <MainPanel className="min-w-0">
       <PageHeader
         title="Price list"
         subtitle="Floor prices (₦/m) in price_list_items: validated effective dates, duplicate detection, optional material/colour/profile keys, and CSV export. Also available under Procurement → Conversion."
       />
+      {canPolicy ? (
+        <p className="mb-3 text-[11px] text-slate-600">
+          <Link className="font-bold text-[#134e4a] underline-offset-2 hover:underline" to="/pricing-policy">
+            Pricing policy &amp; customer price book
+          </Link>
+        </p>
+      ) : null}
       <PriceListPanel />
     </MainPanel>
   );

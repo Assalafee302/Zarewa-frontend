@@ -27,6 +27,7 @@ import ModuleRouteGuard from './components/ModuleRouteGuard';
 import ManagerDashboard from './pages/ManagerDashboard';
 import ExecDashboard from './pages/ExecDashboard';
 import PriceListAdmin from './pages/PriceListAdmin';
+import PricingPolicyAdmin from './pages/PricingPolicyAdmin';
 import DocumentTitleSync from './components/DocumentTitleSync';
 import PrintSessionCleanup from './components/PrintSessionCleanup';
 import {
@@ -773,6 +774,7 @@ function AppShell() {
             <Route path="/" element={<HomeRoute />} />
             <Route path="/exec" element={<ExecDashboard />} />
             <Route path="/price-list" element={<PriceListAdmin />} />
+            <Route path="/pricing-policy" element={<PricingPolicyAdmin />} />
             <Route
               path="/sales"
               element={

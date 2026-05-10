@@ -7,6 +7,8 @@ import { formatNgn } from '../../Data/mockData';
 import { APP_DATA_TABLE_PAGE_SIZE, useAppTablePaging } from '../../lib/appDataTable';
 import { AppTablePager } from '../ui/AppDataTable';
 
+const STONE_COATED_GAUGES = ['0.20', '0.22', '0.24'];
+
 const emptyForm = {
   gaugeKey: '',
   designKey: '',
@@ -38,6 +40,7 @@ export function PriceListPanel({ embedded = false }) {
   const [items, setItems] = useState([]);
   const [busy, setBusy] = useState(true);
   const [form, setForm] = useState(emptyForm);
+  const [listTab, setListTab] = useState(/** @type {'coil' | 'stone'} */ ('coil'));
 
   const canManage = ws?.hasPermission?.('pricing.manage');
   const canView = ws?.hasPermission?.('pricing.manage') || ws?.hasPermission?.('md.price_exception.approve');
@@ -67,7 +70,13 @@ export function PriceListPanel({ embedded = false }) {
     void load();
   }, [canView, load]);
 
-  const pricePage = useAppTablePaging(items, APP_DATA_TABLE_PAGE_SIZE, items.length);
+  const displayItems = useMemo(() => {
+    const isStoneRow = (it) => String(it?.materialTypeKey ?? '').toLowerCase().includes('stone');
+    if (listTab === 'stone') return items.filter(isStoneRow);
+    return items.filter((it) => !isStoneRow(it));
+  }, [items, listTab]);
+
+  const pricePage = useAppTablePaging(displayItems, APP_DATA_TABLE_PAGE_SIZE, displayItems.length);
 
   if (!canView) {
     return (
@@ -81,7 +90,24 @@ export function PriceListPanel({ embedded = false }) {
     e.preventDefault();
     if (!canManage) return;
     const unitPricePerMeterNgn = Math.round(Number(form.unitPricePerMeterNgn) || 0);
-    if (!form.gaugeKey.trim() || !form.designKey.trim() || unitPricePerMeterNgn <= 0) {
+    let gaugeKey = form.gaugeKey.trim();
+    let designKey = form.designKey.trim();
+    let materialTypeKey = form.materialTypeKey.trim();
+    let colourKey = form.colourKey.trim();
+    let profileKey = form.profileKey.trim();
+    if (listTab === 'stone') {
+      designKey = 'stone-coated';
+      materialTypeKey = 'stone-coated';
+      colourKey = '';
+      profileKey = '';
+      const gNorm = gaugeKey.replace(/mm$/i, '').trim();
+      if (!STONE_COATED_GAUGES.includes(gNorm)) {
+        showToast('Stone-coated: gauge must be exactly 0.20, 0.22, or 0.24.', { variant: 'error' });
+        return;
+      }
+      gaugeKey = gNorm;
+    }
+    if (!gaugeKey || !designKey || unitPricePerMeterNgn <= 0) {
       showToast('Gauge, design, and a positive price per metre are required.', { variant: 'error' });
       return;
     }
@@ -89,7 +115,7 @@ export function PriceListPanel({ embedded = false }) {
       showToast('Effective date must be empty (defaults to today) or a valid YYYY-MM-DD.', { variant: 'error' });
       return;
     }
-    if (form.gaugeKey.trim().length > 120 || form.designKey.trim().length > 120) {
+    if (gaugeKey.length > 120 || designKey.length > 120) {
       showToast('Gauge and design are too long (max 120 characters).', { variant: 'error' });
       return;
     }
@@ -97,16 +123,16 @@ export function PriceListPanel({ embedded = false }) {
     const { ok, data } = await apiFetch('/api/pricing/price-list', {
       method: 'POST',
       body: JSON.stringify({
-        gaugeKey: form.gaugeKey.trim(),
-        designKey: form.designKey.trim(),
+        gaugeKey,
+        designKey,
         unitPricePerMeterNgn,
         sortOrder: Math.round(Number(form.sortOrder) || 0),
         notes: form.notes.trim() || undefined,
         branchId: form.branchId.trim() || undefined,
         effectiveFromIso: form.effectiveFromIso.trim() || undefined,
-        materialTypeKey: form.materialTypeKey.trim() || undefined,
-        colourKey: form.colourKey.trim() || undefined,
-        profileKey: form.profileKey.trim() || undefined,
+        materialTypeKey: materialTypeKey || undefined,
+        colourKey: colourKey || undefined,
+        profileKey: profileKey || undefined,
       }),
     });
     setBusy(false);
@@ -167,6 +193,28 @@ export function PriceListPanel({ embedded = false }) {
 
   return (
     <div className={embedded ? 'space-y-3' : 'space-y-0'}>
+      {canManage ? (
+        <div className={`flex flex-wrap gap-2 ${embedded ? 'mb-2' : 'mb-3'}`}>
+          <button
+            type="button"
+            onClick={() => setListTab('coil')}
+            className={`rounded-lg px-3 py-1.5 text-[10px] font-black uppercase ${
+              listTab === 'coil' ? 'bg-[#134e4a] text-white' : 'border border-slate-200 bg-white text-slate-600'
+            }`}
+          >
+            Coil / sheet floors
+          </button>
+          <button
+            type="button"
+            onClick={() => setListTab('stone')}
+            className={`rounded-lg px-3 py-1.5 text-[10px] font-black uppercase ${
+              listTab === 'stone' ? 'bg-[#134e4a] text-white' : 'border border-slate-200 bg-white text-slate-600'
+            }`}
+          >
+            Stone-coated (0.20–0.24)
+          </button>
+        </div>
+      ) : null}
       <div className={`flex flex-wrap justify-end gap-2 ${embedded ? '' : 'mb-2'}`}>
         <button
           type="button"
@@ -217,26 +265,30 @@ export function PriceListPanel({ embedded = false }) {
               Gauge key
               <input
                 className={inp}
-                list={dlGauge}
+                list={listTab === 'stone' ? undefined : dlGauge}
                 value={form.gaugeKey}
                 onChange={(e) => setForm((f) => ({ ...f, gaugeKey: e.target.value }))}
-                placeholder="e.g. 0.45mm"
+                placeholder={listTab === 'stone' ? '0.20, 0.22, or 0.24' : 'e.g. 0.45mm'}
                 autoComplete="off"
               />
               <datalist id={dlGauge}>
-                {gaugeOptions.map((g) => (
-                  <option key={g.id} value={g.label} />
-                ))}
+                {listTab === 'stone'
+                  ? STONE_COATED_GAUGES.map((g) => <option key={g} value={g} />)
+                  : gaugeOptions.map((g) => (
+                      <option key={g.id} value={g.label} />
+                    ))}
               </datalist>
             </label>
             <label className={labelCls}>
               Design key
               <input
                 className={inp}
-                list={dlDesign}
-                value={form.designKey}
+                list={listTab === 'stone' ? undefined : dlDesign}
+                value={listTab === 'stone' ? 'stone-coated' : form.designKey}
                 onChange={(e) => setForm((f) => ({ ...f, designKey: e.target.value }))}
                 placeholder="e.g. profile or colour token"
+                readOnly={listTab === 'stone'}
+                disabled={listTab === 'stone'}
                 autoComplete="off"
               />
               <datalist id={dlDesign}>
@@ -289,10 +341,12 @@ export function PriceListPanel({ embedded = false }) {
               Material key (optional)
               <input
                 className={inp}
-                list={dlMat}
-                value={form.materialTypeKey}
+                list={listTab === 'stone' ? undefined : dlMat}
+                value={listTab === 'stone' ? 'stone-coated' : form.materialTypeKey}
                 onChange={(e) => setForm((f) => ({ ...f, materialTypeKey: e.target.value }))}
                 placeholder="e.g. stone coated type name"
+                readOnly={listTab === 'stone'}
+                disabled={listTab === 'stone'}
                 autoComplete="off"
               />
               <datalist id={dlMat}>
@@ -373,10 +427,10 @@ export function PriceListPanel({ embedded = false }) {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {items.length === 0 ? (
+            {displayItems.length === 0 ? (
               <tr>
                 <td colSpan={9} className={`${embedded ? 'px-2 py-4' : 'px-4 py-8'} text-center text-slate-500`}>
-                  {busy ? 'Loading…' : 'No price list rows yet.'}
+                  {busy ? 'Loading…' : 'No price list rows in this tab yet.'}
                 </td>
               </tr>
             ) : (
@@ -448,7 +502,7 @@ export function PriceListPanel({ embedded = false }) {
           </tbody>
         </table>
       </div>
-      {items.length > 0 ? (
+      {displayItems.length > 0 ? (
         <AppTablePager
           showingFrom={pricePage.showingFrom}
           showingTo={pricePage.showingTo}

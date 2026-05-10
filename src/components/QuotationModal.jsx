@@ -184,6 +184,14 @@ function normalizeLoadedLines(raw) {
     name: String(r.name ?? ''),
     qty: r.qty != null ? String(r.qty) : '',
     unitPrice: r.unitPrice != null ? String(r.unitPrice) : '',
+    gauge: r.gauge != null ? String(r.gauge) : '',
+    colour: r.colour != null || r.color != null ? String(r.colour ?? r.color ?? '') : '',
+    design: r.design != null ? String(r.design) : '',
+    profile: r.profile != null ? String(r.profile) : '',
+    recommendedPricePerMeter: r.recommendedPricePerMeter,
+    floorPricePerMeter: r.floorPricePerMeter,
+    lineKind: r.lineKind,
+    girthMm: r.girthMm != null ? String(r.girthMm) : '',
   });
   const withIds = (arr) =>
     arr.map((r) => {
@@ -445,6 +453,7 @@ const QuotationModal = ({
   const [saving, setSaving] = useState(false);
   const [savingMaterial, setSavingMaterial] = useState(false);
   const [reviving, setReviving] = useState(false);
+  const [mdApproving, setMdApproving] = useState(false);
   const [quotationEditApprovalId, setQuotationEditApprovalId] = useState('');
   const liveMasterData = ws?.snapshot?.masterData ?? null;
   const lastQuotationHydrateSigRef = useRef('');
@@ -849,6 +858,11 @@ const QuotationModal = ({
     [productRows, accessoryRows, serviceRows]
   );
 
+  const pricingViolationsList = useMemo(
+    () => (Array.isArray(editData?.pricingViolations) ? editData.pricingViolations : []),
+    [editData?.pricingViolations, editData?.id]
+  );
+
   const quotationPaidNgn = Math.round(Number(editData?.paidNgn) || 0);
   const quotationBalanceAfterPaidNgn = Math.max(0, grandTotalNgn - quotationPaidNgn);
 
@@ -895,9 +909,27 @@ const QuotationModal = ({
   };
 
   const buildLinesPayload = () => ({
-    products: productRows.map(({ id, name, qty, unitPrice }) => ({ id, name, qty, unitPrice })),
+    products: productRows.map(({ id, name, qty, unitPrice }) => ({
+      id,
+      name,
+      qty,
+      unitPrice,
+      gauge: materialGauge,
+      colour: materialColor,
+      design: materialDesign,
+      profile: materialDesign,
+    })),
     accessories: accessoryRows.map(({ id, name, qty, unitPrice }) => ({ id, name, qty, unitPrice })),
-    services: serviceRows.map(({ id, name, qty, unitPrice }) => ({ id, name, qty, unitPrice })),
+    services: serviceRows.map(({ id, name, qty, unitPrice }) => ({
+      id,
+      name,
+      qty,
+      unitPrice,
+      gauge: materialGauge,
+      colour: materialColor,
+      design: materialDesign,
+      profile: materialDesign,
+    })),
   });
 
   const onSaveDraft = async () => {
@@ -994,6 +1026,35 @@ const QuotationModal = ({
     }
   };
 
+  const onMdPriceExceptionApprove = async () => {
+    if (!editData?.id || !useQuotationApi || !ws?.canMutate) return;
+    if (!ws?.hasPermission?.('md.price_exception.approve')) {
+      showToast('Only the Managing Director (or delegated role) can record this approval.', { variant: 'error' });
+      return;
+    }
+    if (!window.confirm('Record Managing Director approval for this below-policy quotation? Production may then start.'))
+      return;
+    setMdApproving(true);
+    try {
+      const { ok, data } = await apiFetch(
+        `/api/quotations/${encodeURIComponent(editData.id)}/md-price-exception`,
+        {
+          method: 'PATCH',
+          body: JSON.stringify({}),
+        }
+      );
+      if (!ok || !data?.ok) {
+        showToast(data?.error || 'Could not record MD approval.', { variant: 'error' });
+        return;
+      }
+      showToast('MD price exception recorded for this quotation.');
+      await onLedgerChange?.();
+      abandonUnsavedAndRun(() => onClose());
+    } finally {
+      setMdApproving(false);
+    }
+  };
+
   const onReviveArchived = async () => {
     if (!editData?.id || !useQuotationApi || !ws?.canMutate) return;
     setReviving(true);
@@ -1084,6 +1145,41 @@ const QuotationModal = ({
                   Sign in with quotation edit permission to revive this record.
                 </p>
               )}
+            </div>
+          ) : null}
+          {pricingViolationsList.length > 0 ? (
+            <div className="mb-4 rounded-xl border border-amber-300 bg-amber-50/95 px-4 py-3 space-y-2">
+              <p className="text-[10px] font-black text-amber-950 uppercase tracking-wide">Pricing policy</p>
+              <p className="text-[10px] text-amber-950/90 leading-relaxed">
+                {editData?.mdPriceExceptionApprovedAtISO
+                  ? 'MD price exception is on file — production may proceed if other gates are satisfied.'
+                  : 'One or more lines are below the published floor or the automatic trading band. Production stays blocked until the Managing Director records a price exception.'}
+              </p>
+              <ul className="text-[10px] text-amber-950 space-y-1.5 list-disc pl-4">
+                {pricingViolationsList.map((v, i) => (
+                  <li key={i}>
+                    <span className="font-semibold capitalize">{v.lineCategory || 'line'}</span> #{Number(v.lineIndex) + 1}:{' '}
+                    {v.code === 'below_floor' ? 'Below list floor' : 'Below allowed band (quoted deeper than recommended − trading band)'} — quoted{' '}
+                    {formatNgn(v.quotedPerMeter)}/m; minimum without MD{' '}
+                    {formatNgn(v.minAllowedPerMeter ?? v.floorPerMeter)}/m (floor {formatNgn(v.floorPerMeter)}/m, trading band ₦
+                    {v.bandNgn ?? '—'}).
+                  </li>
+                ))}
+              </ul>
+              {useQuotationApi &&
+              ws?.canMutate &&
+              ws?.hasPermission?.('md.price_exception.approve') &&
+              editData?.id &&
+              !editData?.mdPriceExceptionApprovedAtISO ? (
+                <button
+                  type="button"
+                  onClick={onMdPriceExceptionApprove}
+                  disabled={mdApproving}
+                  className="inline-flex items-center justify-center rounded-lg bg-amber-800 px-3 py-2 text-[10px] font-bold uppercase tracking-wide text-white hover:bg-amber-900 disabled:opacity-40"
+                >
+                  {mdApproving ? 'Recording…' : 'Record MD price exception approval'}
+                </button>
+              ) : null}
             </div>
           ) : null}
           {readOnly ? (

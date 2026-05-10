@@ -1543,11 +1543,23 @@ export function LiveProductionMonitor({
         });
         setSavingAction('');
         if (!startRes.ok || !startRes.data?.ok) {
-          showToast(
+          let msg =
             startRes.data?.error ||
-              'Coils saved, but production could not be started (e.g. price-list MD approval). Fix the issue, then use Save & start again.',
-            { variant: 'error' }
-          );
+            'Coils saved, but production could not be started (e.g. price-list MD approval). Fix the issue, then use Save & start again.';
+          if (
+            startRes.data?.code === 'PRICE_LIST_MD_APPROVAL_REQUIRED' &&
+            Array.isArray(startRes.data?.violations) &&
+            startRes.data.violations.length
+          ) {
+            const detail = startRes.data.violations
+              .map(
+                (v) =>
+                  `${v.lineCategory || 'line'} #${Number(v.lineIndex) + 1} (${v.code}): quoted ₦${v.quotedPerMeter}/m < min ₦${v.minAllowedPerMeter ?? v.floorPerMeter}/m`
+              )
+              .join(' · ');
+            msg = `${msg} — ${detail}`;
+          }
+          showToast(msg, { variant: 'error' });
           await ws.refresh();
           return;
         }
