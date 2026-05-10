@@ -11,6 +11,7 @@ function normalizeLine(line) {
   return {
     label: String(line?.label ?? '').trim(),
     amountNgn: Number(line?.amountNgn) || 0,
+    category: String(line?.category ?? '').trim(),
   };
 }
 
@@ -82,6 +83,9 @@ export function normalizeRefund(r) {
     paidAtISO: r.paidAtISO ?? '',
     paidBy: r.paidBy ?? '',
     paymentNote: r.paymentNote ?? '',
+    payeeName: String(r.payeeName ?? r.payee_name ?? '').trim(),
+    payeeAccountNo: String(r.payeeAccountNo ?? r.payee_account_no ?? '').trim(),
+    payeeBankName: String(r.payeeBankName ?? r.payee_bank_name ?? '').trim(),
     payoutHistory: Array.isArray(r.payoutHistory) ? r.payoutHistory.map(normalizePayoutLine) : [],
     outstandingAmountNgn: Math.max(0, approvedAmountNgn - paidAmountNgn),
   };

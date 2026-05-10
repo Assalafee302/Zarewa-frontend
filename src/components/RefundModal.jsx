@@ -6,7 +6,6 @@ import {
   AlertTriangle,
   DollarSign,
   Save,
-  ChevronDown,
   Link2,
   Printer,
   Info,
@@ -36,11 +35,36 @@ import {
 } from '../shared/refundConstants.js';
 
 const REFUND_CATEGORY_HINTS = {
+  'Unproduced meterage':
+    'Quoted line metres exceed production metres (completed/cancelled jobs). Distinct from order cancellation (cancelled production only).',
   'Customer commission':
-    'After payment: recover part of an agreed price concession using quotation snapshots (recommended ₦/m vs quoted). Amount is capped by remaining refundable balance.',
+    'Not added automatically — use “Add commission to preview”. Capped by minimum selling ₦/m and refundable headroom.',
   'Substitution Difference':
     'When supplied material differs from what was quoted, credit may follow list ₦/m for quoted gauge/design vs the FG product (see per-metre breakdown).',
 };
+
+function roundMoneyLocal(n) {
+  return Math.round(Number(n) || 0);
+}
+
+/** Build reason categories from included breakdown lines (expands bundled transport/install). */
+function deriveReasonCategoriesFromLines(lines) {
+  const s = new Set();
+  for (const l of lines || []) {
+    if (l?.include === false) continue;
+    const amt = Number(String(l?.amountNgn ?? '').replace(/,/g, ''));
+    if (!String(l?.label ?? '').trim() || !Number.isFinite(amt) || amt <= 0) continue;
+    const multi = l.appliesToCategories;
+    if (Array.isArray(multi) && multi.length) {
+      for (const c of multi) {
+        if (c) s.add(String(c).trim());
+      }
+    } else if (l.category) {
+      s.add(String(l.category).trim());
+    }
+  }
+  return Array.from(s);
+}
 
 function parseQuoteQtyDisplay(qty, unit) {
   const raw = qty != null ? String(qty).trim() : '';
@@ -87,7 +111,14 @@ function findAccessoryFulfillmentRow(quotLine, accSummaryLines) {
   return null;
 }
 
-const emptyLine = () => ({ label: '', amountNgn: '', category: '' });
+const emptyLine = () => ({
+  lineKey: `m-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+  include: true,
+  label: '',
+  amountNgn: '',
+  category: 'Other',
+  appliesToCategories: undefined,
+});
 
 const emptyRequest = {
   customerID: '',
@@ -100,6 +131,9 @@ const emptyRequest = {
   calculationNotes: '',
   suggestedLines: [],
   alreadyRefundedCategories: [],
+  payeeName: '',
+  payeeAccountNo: '',
+  payeeBankName: '',
 };
 
 const initFormFromRecord = (record) => {
@@ -114,10 +148,13 @@ const initFormFromRecord = (record) => {
 
   const lines =
     Array.isArray(record.calculationLines || record.calculation_lines_json) && (record.calculationLines || record.calculation_lines_json).length > 0
-      ? (record.calculationLines || record.calculation_lines_json).map((l) => ({
+      ? (record.calculationLines || record.calculation_lines_json).map((l, idx) => ({
+          lineKey: l.lineKey || `v-${idx}-${String(l.category || '')}`,
+          include: l.include !== false,
           label: l.label ?? '',
           amountNgn: l.amountNgn != null ? String(l.amountNgn) : '',
-          category: l.category ?? ''
+          category: l.category ?? '',
+          appliesToCategories: l.appliesToCategories,
         }))
       : [emptyLine()];
   return {
@@ -130,13 +167,17 @@ const initFormFromRecord = (record) => {
     calculationLines: lines,
     calculationNotes: record.calculationNotes || record.calculation_notes || '',
     suggestedLines: Array.isArray(record.suggestedLines) ? record.suggestedLines : [],
-    alreadyRefundedCategories: []
+    alreadyRefundedCategories: [],
+    payeeName: record.payeeName || record.payee_name || '',
+    payeeAccountNo: record.payeeAccountNo || record.payee_account_no || '',
+    payeeBankName: record.payeeBankName || record.payee_bank_name || '',
   };
 };
 
 function sumLines(lines) {
-  return lines.reduce((s, l) => {
-    const n = Number(l.amountNgn);
+  return (lines || []).reduce((s, l) => {
+    if (l?.include === false) return s;
+    const n = Number(String(l.amountNgn ?? '').replace(/,/g, ''));
     return s + (Number.isNaN(n) ? 0 : n);
   }, 0);
 }
@@ -224,9 +265,9 @@ const RefundModal = ({
   const [lastPreviewSnapshot, setLastPreviewSnapshot] = useState(null);
   const [previewRemainingNgn, setPreviewRemainingNgn] = useState(null);
   const [eligibleRefundCategoriesFromPreview, setEligibleRefundCategoriesFromPreview] = useState(null);
-  const [refundCategoryPickerOpen, setRefundCategoryPickerOpen] = useState(true);
+  /** When true, next preview includes Customer commission (opt-in; capped server-side by floor + headroom). */
+  const [includeCommissionInPreview, setIncludeCommissionInPreview] = useState(false);
   const [refundIntelExpanded, setRefundIntelExpanded] = useState(() => mode !== 'create');
-  const categoryPreviewTimerRef = useRef(null);
   /** From refund preview: paid on quote vs overpay split (ledger RECEIPT + OVERPAY_ADVANCE). */
   const [moneyContext, setMoneyContext] = useState(null);
   const [refundGuideOpen, setRefundGuideOpen] = useState(false);
@@ -246,13 +287,6 @@ const RefundModal = ({
     if (!isOpen) return;
     setRefundIntelExpanded(mode !== 'create');
   }, [isOpen, mode]);
-
-  useEffect(
-    () => () => {
-      if (categoryPreviewTimerRef.current) clearTimeout(categoryPreviewTimerRef.current);
-    },
-    []
-  );
 
   const fetchEligibleQuotes = useCallback(async () => {
     setLoadingQuotes(true);
@@ -319,7 +353,7 @@ const RefundModal = ({
     setLastPreviewSnapshot(null);
     setPreviewRemainingNgn(null);
     setEligibleRefundCategoriesFromPreview(null);
-    setRefundCategoryPickerOpen(true);
+    setIncludeCommissionInPreview(false);
 
     if (mode === 'create') {
       void fetchEligibleQuotes();
@@ -515,122 +549,94 @@ const RefundModal = ({
     }
   };
 
-  const generatePreview = async (quoteRef, categories) => {
-    if (!quoteRef) return;
-    setPreviewLoading(true);
-    setPreviewError('');
-    setWarnings([]);
-    setSubstitutionPerMeterBreakdown([]);
-    const { ok, data } = await apiFetch('/api/refunds/preview', {
-      method: 'POST',
-      body: JSON.stringify({
-        quotationRef: quoteRef,
-        reasonCategory: categories,
-      }),
-    });
-    setPreviewLoading(false);
-    if (!ok || !data?.ok || !data?.preview) {
-      setMoneyContext(null);
-      setPreviewRemainingNgn(null);
-      setLastPreviewSnapshot(null);
-      setEligibleRefundCategoriesFromPreview(null);
-      setPreviewError(data?.error || 'Could not generate refund preview.');
-      return;
-    }
-
-    const preview = data.preview;
-    setEligibleRefundCategoriesFromPreview(
-      Array.isArray(preview.eligibleRefundCategories) ? preview.eligibleRefundCategories : null
-    );
-    setPreviewRemainingNgn(
-      preview.remainingRefundableNgn != null ? Math.round(Number(preview.remainingRefundableNgn)) : null
-    );
-    setLastPreviewSnapshot({
-      capturedAtISO: new Date().toISOString(),
-      engineVersion: REFUND_PREVIEW_VERSION,
-      quotationRef: quoteRef,
-      suggestedLines: preview.suggestedLines || [],
-      warnings: preview.warnings || [],
-      suggestedAmountNgn: Number(preview.suggestedAmountNgn) || 0,
-      substitutionPerMeterBreakdown: preview.substitutionPerMeterBreakdown || [],
-      quotedMeters: preview.quotedMeters,
-      actualMeters: preview.actualMeters,
-      pricePerMeterNgn: preview.pricePerMeterNgn,
-      quoteTotalNgn: preview.quoteTotalNgn,
-      quotationCashInNgn: preview.quotationCashInNgn,
-    });
-    setMoneyContext({
-      paidOnQuoteNgn: Number(preview.paidOnQuoteNgn) || 0,
-      overpayAdvanceNgn: Number(preview.overpayAdvanceNgn) || 0,
-      quotationCashInNgn: Number(preview.quotationCashInNgn) || 0,
-      quoteTotalNgn: Number(preview.quoteTotalNgn) || 0,
-    });
-    setForm(f => ({
-      ...f,
-      customerID: preview.customerID,
-      customerName: preview.customerName,
-      alreadyRefundedCategories: preview.alreadyRefundedCategories || []
-    }));
-
-    setWarnings(preview.warnings || []);
-    setSubstitutionPerMeterBreakdown(
-      Array.isArray(preview.substitutionPerMeterBreakdown) ? preview.substitutionPerMeterBreakdown : []
-    );
-    const blocked = Array.isArray(preview.blockedRefundCategories) ? preview.blockedRefundCategories : [];
-    setBlockedRefundCategories(blocked);
-    setForm((f) => ({
-      ...f,
-      reasonCategory: f.reasonCategory.filter((c) => !blocked.includes(c)),
-    }));
-
-    if (Array.isArray(categories) && categories.length > 0) {
-      setRefundCategoryPickerOpen(false);
-    }
-
-    // Also fetch detailed intelligence for the sidebar
-    fetchIntelligence(quoteRef);
-
-    // Filter suggested lines: match primary category or appliesToCategories (e.g. bundled transport + installation)
-    const relevantSuggestions = (preview.suggestedLines || []).filter((s) => {
-      const multi = s.appliesToCategories || s.matchCategories;
-      if (Array.isArray(multi) && multi.length) {
-        return multi.some((c) => categories.includes(c));
+  const generatePreview = useCallback(
+    async (quoteRef, commissionOverride) => {
+      if (!quoteRef) return;
+      const includeComm =
+        commissionOverride !== undefined ? Boolean(commissionOverride) : includeCommissionInPreview;
+      setPreviewLoading(true);
+      setPreviewError('');
+      setWarnings([]);
+      setSubstitutionPerMeterBreakdown([]);
+      const { ok, data } = await apiFetch('/api/refunds/preview', {
+        method: 'POST',
+        body: JSON.stringify({
+          quotationRef: quoteRef,
+          includeCustomerCommission: includeComm,
+        }),
+      });
+      setPreviewLoading(false);
+      if (!ok || !data?.ok || !data?.preview) {
+        setMoneyContext(null);
+        setPreviewRemainingNgn(null);
+        setLastPreviewSnapshot(null);
+        setEligibleRefundCategoriesFromPreview(null);
+        setPreviewError(data?.error || 'Could not generate refund preview.');
+        return;
       }
-      return s.category && categories.includes(s.category);
-    });
 
-    setForm(f => ({
-      ...f,
-      calculationLines: relevantSuggestions.map(s => ({
-        label: s.label,
-        amountNgn: String(s.amountNgn),
-        category: s.category
-      }))
-    }));
-  };
+      const preview = data.preview;
+      setEligibleRefundCategoriesFromPreview(
+        Array.isArray(preview.eligibleRefundCategories) ? preview.eligibleRefundCategories : null
+      );
+      setPreviewRemainingNgn(
+        preview.remainingRefundableNgn != null ? Math.round(Number(preview.remainingRefundableNgn)) : null
+      );
+      setLastPreviewSnapshot({
+        capturedAtISO: new Date().toISOString(),
+        engineVersion: REFUND_PREVIEW_VERSION,
+        quotationRef: quoteRef,
+        suggestedLines: preview.suggestedLines || [],
+        warnings: preview.warnings || [],
+        suggestedAmountNgn: Number(preview.suggestedAmountNgn) || 0,
+        substitutionPerMeterBreakdown: preview.substitutionPerMeterBreakdown || [],
+        quotedMeters: preview.quotedMeters,
+        actualMeters: preview.actualMeters,
+        pricePerMeterNgn: preview.pricePerMeterNgn,
+        quoteTotalNgn: preview.quoteTotalNgn,
+        quotationCashInNgn: preview.quotationCashInNgn,
+      });
+      setMoneyContext({
+        paidOnQuoteNgn: Number(preview.paidOnQuoteNgn) || 0,
+        overpayAdvanceNgn: Number(preview.overpayAdvanceNgn) || 0,
+        quotationCashInNgn: Number(preview.quotationCashInNgn) || 0,
+        quoteTotalNgn: Number(preview.quoteTotalNgn) || 0,
+      });
+
+      setWarnings(preview.warnings || []);
+      setSubstitutionPerMeterBreakdown(
+        Array.isArray(preview.substitutionPerMeterBreakdown) ? preview.substitutionPerMeterBreakdown : []
+      );
+      const blocked = Array.isArray(preview.blockedRefundCategories) ? preview.blockedRefundCategories : [];
+      setBlockedRefundCategories(blocked);
+
+      const breakdownRows = (preview.suggestedLines || []).map((s, idx) => ({
+        lineKey: `p-${idx}-${String(s.category || 'line')}`,
+        include: roundMoneyLocal(s.amountNgn) > 0,
+        label: s.label ?? '',
+        amountNgn: String(s.amountNgn ?? ''),
+        category: s.category ?? '',
+        appliesToCategories: s.appliesToCategories,
+      }));
+
+      setForm((f) => ({
+        ...f,
+        customerID: preview.customerID,
+        customerName: preview.customerName,
+        alreadyRefundedCategories: preview.alreadyRefundedCategories || [],
+        calculationLines: breakdownRows.length > 0 ? breakdownRows : [emptyLine()],
+        reasonCategory: deriveReasonCategoriesFromLines(breakdownRows),
+      }));
+
+      fetchIntelligence(quoteRef);
+    },
+    [includeCommissionInPreview]
+  );
 
   const generatePreviewRef = useRef(generatePreview);
   useEffect(() => {
     generatePreviewRef.current = generatePreview;
   }, [generatePreview]);
-
-  const toggleCategory = (cat) => {
-    if (blockedRefundCategories.includes(cat)) return;
-    setForm((f) => {
-      const next = f.reasonCategory.includes(cat)
-        ? f.reasonCategory.filter((c) => c !== cat)
-        : [...f.reasonCategory, cat];
-      const qref = String(f.quotationRef || '').trim();
-      if (qref) {
-        if (categoryPreviewTimerRef.current) clearTimeout(categoryPreviewTimerRef.current);
-        categoryPreviewTimerRef.current = setTimeout(() => {
-          void generatePreview(qref, next);
-          categoryPreviewTimerRef.current = null;
-        }, 320);
-      }
-      return { ...f, reasonCategory: next };
-    });
-  };
 
   const handleQuoteChange = (ref) => {
     setQuotationServerVerifiedRef('');
@@ -638,12 +644,12 @@ const RefundModal = ({
     setPreviewRemainingNgn(null);
     setLastPreviewSnapshot(null);
     setEligibleRefundCategoriesFromPreview(null);
-    setRefundCategoryPickerOpen(true);
-    setForm(f => ({ ...f, quotationRef: ref, reasonCategory: [] }));
+    setIncludeCommissionInPreview(false);
+    setForm((f) => ({ ...f, quotationRef: ref, reasonCategory: [] }));
     setQuotationSearchText(String(ref || '').trim());
     setQuotationSuggestOpen(false);
     if (ref) {
-      void generatePreview(ref, []);
+      void generatePreview(ref, false);
     }
   };
 
@@ -673,7 +679,7 @@ const RefundModal = ({
     if (seededCreatePreviewKeyRef.current === ref) return;
     seededCreatePreviewKeyRef.current = ref;
     setQuotationServerVerifiedRef(ref);
-    void generatePreviewRef.current(ref, []);
+    void generatePreviewRef.current(ref, false);
   }, [isOpen, mode, record?.quotationRef, record?.quotation_ref, record?.refundID]);
 
   const readOnly = mode === 'view';
@@ -718,9 +724,12 @@ const RefundModal = ({
   const recordApprovedAmount = refundApprovedAmount(record) || Number(record?.approved_amount_ngn) || 0;
   const recordOutstandingAmount = refundOutstandingAmount(record);
 
-  /** Categories the user can still request; server sends applicable types for this quotation when preview ran. */
-  const { selectableRefundCategories, excludedRefundCategories } = useMemo(() => {
-    const selectable = [];
+  const derivedReasonCategories = useMemo(
+    () => deriveReasonCategoriesFromLines(form.calculationLines),
+    [form.calculationLines]
+  );
+
+  const excludedRefundHints = useMemo(() => {
     const excluded = [];
     const pool = eligibleRefundCategoriesFromPreview != null ? eligibleRefundCategoriesFromPreview : null;
     const poolSet = pool != null ? new Set(pool) : null;
@@ -730,11 +739,9 @@ const RefundModal = ({
         excluded.push({ cat, reason: 'already' });
       } else if (blockedRefundCategories.includes(cat)) {
         excluded.push({ cat, reason: 'blocked' });
-      } else {
-        selectable.push(cat);
       }
     }
-    return { selectableRefundCategories: selectable, excludedRefundCategories: excluded };
+    return excluded;
   }, [form.alreadyRefundedCategories, blockedRefundCategories, eligibleRefundCategoriesFromPreview]);
 
   const label = 'text-[9px] font-semibold text-slate-400 uppercase tracking-wide ml-0.5 mb-1 block';
@@ -764,18 +771,36 @@ const RefundModal = ({
     if (!form.quotationRef || !form.amountNgn) return;
     const amountNgn = Number(form.amountNgn);
     if (Number.isNaN(amountNgn) || amountNgn <= 0) return;
-    if (form.reasonCategory.length === 0) return;
-    if (form.reasonCategory.some((c) => blockedRefundCategories.includes(c))) {
-      setPreviewError('Remove refund categories that are not allowed for this quotation.');
+    const reasonCategory = deriveReasonCategoriesFromLines(form.calculationLines);
+    if (reasonCategory.length === 0) {
+      setPreviewError('Include at least one line with a positive amount (check the Include box).');
       return;
     }
-    
+    if (reasonCategory.some((c) => blockedRefundCategories.includes(c))) {
+      setPreviewError('Uncheck or remove lines for categories that are not allowed for this quotation.');
+      return;
+    }
+    const payeeName = String(form.payeeName || '').trim();
+    const payeeAccountNo = String(form.payeeAccountNo || '').trim();
+    const payeeBankName = String(form.payeeBankName || '').trim();
+    if (!payeeName || !payeeAccountNo || !payeeBankName) {
+      setPreviewError('Complete Pay to: beneficiary name, account number, and bank name.');
+      return;
+    }
+
     const calculationLines = form.calculationLines
-      .map((l) => ({
-        label: l.label.trim(),
-        amountNgn: Number(l.amountNgn),
-        category: l.category
-      }))
+      .filter((l) => l.include !== false)
+      .map((l) => {
+        const row = {
+          label: l.label.trim(),
+          amountNgn: Number(l.amountNgn),
+          category: l.category,
+        };
+        if (Array.isArray(l.appliesToCategories) && l.appliesToCategories.length) {
+          row.appliesToCategories = l.appliesToCategories;
+        }
+        return row;
+      })
       .filter((l) => l.label && !Number.isNaN(l.amountNgn) && l.amountNgn > 0);
 
     setPreviewError('');
@@ -785,13 +810,16 @@ const RefundModal = ({
       customerID: form.customerID,
       customer: form.customerName,
       quotationRef: form.quotationRef,
-      reasonCategory: form.reasonCategory,
-      reason: form.reasonNotes.trim() || form.reasonCategory.join(', '),
+      reasonCategory,
+      reason: form.reasonNotes.trim() || reasonCategory.join(', '),
       amountNgn,
       calculationLines,
       calculationNotes: form.calculationNotes.trim(),
       status: 'Pending',
       previewSnapshot: lastPreviewSnapshot,
+      payeeName,
+      payeeAccountNo,
+      payeeBankName,
     });
     setSaving(false);
     if (result?.ok !== false) abandonUnsavedAndRun(() => onClose());
@@ -934,8 +962,9 @@ const RefundModal = ({
                   </p>
                 </div>
                 <ul className="text-[11px] leading-relaxed text-teal-900/90 font-medium space-y-1.5 list-disc pl-4 border-t border-teal-200/60 pt-3">
-                  <li>Choose a quotation with payment recorded, then pick refund reason categories.</li>
-                  <li>Use the preview and suggested lines as a starting point; adjust amounts to match evidence.</li>
+                  <li>Choose a quotation with payment recorded; the preview fills a breakdown — uncheck lines you do not want.</li>
+                  <li>Customer commission is optional: use “Add commission to preview” if it applies (capped by minimum selling ₦/m).</li>
+                  <li>Enter Pay to details so finance can transfer the refund.</li>
                   <li>Submit for approval; after approval, finance records the payout against the refund.</li>
                 </ul>
                 <div className="border-t border-teal-200/60 pt-3 space-y-1.5">
@@ -974,6 +1003,21 @@ const RefundModal = ({
                 {record.managerComments ? (
                   <li>
                     <span className="text-slate-500">Manager note</span> {record.managerComments}
+                  </li>
+                ) : null}
+                {record.payeeName || record.payee_name || record.payeeAccountNo || record.payee_account_no || record.payeeBankName || record.payee_bank_name ? (
+                  <li className="pt-1 border-t border-slate-100">
+                    <span className="text-slate-500 block mb-0.5">Pay to</span>
+                    <span className="text-xs font-semibold text-slate-800">
+                      {[record.payeeName || record.payee_name, record.payeeBankName || record.payee_bank_name]
+                        .filter(Boolean)
+                        .join(' · ')}
+                    </span>
+                    {record.payeeAccountNo || record.payee_account_no ? (
+                      <span className="block text-[11px] font-mono text-slate-600">
+                        {record.payeeAccountNo || record.payee_account_no}
+                      </span>
+                    ) : null}
                   </li>
                 ) : null}
                 <li>
@@ -1167,115 +1211,136 @@ const RefundModal = ({
                 </div>
               </div>
 
-              {/* Steps 2 & 3: categories (compact) + breakdown — left column */}
+              {/* Step 2: unified breakdown + pay to */}
               <div
                 className={`p-5 rounded-2xl bg-white border border-slate-200/60 shadow-sm space-y-5 transition-opacity duration-300 ${!form.quotationRef ? 'opacity-40 pointer-events-none' : 'opacity-100'}`}
               >
-                <div className="flex items-center gap-2 mb-1">
-                  <div className="w-2 h-5 bg-rose-500 rounded-full" />
-                  <h3 className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
-                    Steps 2 &amp; 3: Categories &amp; breakdown
-                  </h3>
-                </div>
-
-                <div>
-                  <p className={label}>Refund categories</p>
-                  {readOnly ? (
-                    <div className="flex flex-wrap gap-1.5 mt-1">
-                      {form.reasonCategory.length ? (
-                        form.reasonCategory.map((c) => (
-                          <span
-                            key={c}
-                            className="inline-flex items-center rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-[10px] font-bold text-slate-700"
-                          >
-                            {c}
-                          </span>
-                        ))
-                      ) : (
-                        <span className="text-xs text-slate-400">—</span>
-                      )}
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="flex items-center gap-2 mb-1">
+                    <div className="w-2 h-5 bg-rose-500 rounded-full" />
+                    <div>
+                      <h3 className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+                        Refund breakdown
+                      </h3>
+                      <p className="text-[10px] text-slate-500 mt-0.5 max-w-xl leading-snug">
+                        All suggested refund lines from the preview are listed below. Uncheck any line you do not want on
+                        this request. Customer commission is{' '}
+                        <span className="font-semibold text-slate-700">not</span> included until you add it.
+                      </p>
                     </div>
-                  ) : (
-                    <>
-                      {refundCategoryPickerOpen ? (
-                        <div className="mt-1 rounded-xl border border-slate-200 bg-slate-50/80 shadow-sm">
-                          <div className="flex items-center justify-between gap-2 border-b border-slate-100 px-3 py-2">
-                            <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
-                              Applicable refund types
-                            </p>
-                            {form.reasonCategory.length > 0 ? (
-                              <button
-                                type="button"
-                                onClick={() => setRefundCategoryPickerOpen(false)}
-                                className="shrink-0 rounded-md border border-slate-200 bg-white px-2 py-1 text-[9px] font-bold uppercase tracking-wide text-slate-700 hover:bg-slate-50"
-                              >
-                                Collapse
-                              </button>
-                            ) : null}
-                          </div>
-                          <div className="max-h-48 space-y-2 overflow-y-auto px-3 py-2 custom-scrollbar">
-                            {selectableRefundCategories.map((cat) => (
-                              <label
-                                key={cat}
-                                className="flex cursor-pointer items-start gap-2.5 rounded-lg px-1 py-1 hover:bg-slate-50"
-                              >
-                                <input
-                                  type="checkbox"
-                                  checked={form.reasonCategory.includes(cat)}
-                                  onChange={() => toggleCategory(cat)}
-                                  className="mt-0.5 h-3.5 w-3.5 rounded border-slate-300 text-rose-600 focus:ring-rose-500"
-                                />
-                                <span
-                                  className="text-xs font-semibold leading-snug text-slate-800"
-                                  title={REFUND_CATEGORY_HINTS[cat] || ''}
-                                >
-                                  {cat}
-                                </span>
-                              </label>
-                            ))}
-                            {selectableRefundCategories.length === 0 ? (
-                              <p className="py-1 text-[11px] font-medium text-amber-800">
-                                No applicable refund types for this quotation (or preview still loading). Pick another
-                                quote or check eligibility.
-                              </p>
-                            ) : null}
-                          </div>
-                        </div>
+                  </div>
+                  {!readOnly && mode === 'create' ? (
+                    <div className="flex flex-wrap gap-2 shrink-0">
+                      {!includeCommissionInPreview ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIncludeCommissionInPreview(true);
+                            const r = String(form.quotationRef || '').trim();
+                            if (r) void generatePreview(r, true);
+                          }}
+                          className="rounded-lg border border-teal-200 bg-teal-50 px-3 py-1.5 text-[9px] font-bold uppercase tracking-wide text-teal-900 hover:bg-teal-100"
+                        >
+                          + Add commission to preview
+                        </button>
                       ) : (
                         <button
                           type="button"
-                          onClick={() => setRefundCategoryPickerOpen(true)}
-                          className="mt-1 flex w-full items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-left shadow-sm hover:border-rose-200/60 hover:bg-rose-50/30"
+                          onClick={() => {
+                            setIncludeCommissionInPreview(false);
+                            const r = String(form.quotationRef || '').trim();
+                            if (r) void generatePreview(r, false);
+                          }}
+                          className="rounded-lg border border-slate-200 bg-slate-100 px-3 py-1.5 text-[9px] font-bold uppercase tracking-wide text-slate-700 hover:bg-slate-200"
                         >
-                          <span className="min-w-0">
-                            <span className="block text-[9px] font-bold uppercase tracking-wide text-slate-500">
-                              Refund types
-                            </span>
-                            <span className="mt-0.5 block truncate text-xs font-semibold text-slate-800">
-                              {form.reasonCategory.join(' · ')}
-                            </span>
-                          </span>
-                          <ChevronDown size={16} className="shrink-0 text-slate-400" aria-hidden />
+                          Remove commission from preview
                         </button>
                       )}
-                      {excludedRefundCategories.length > 0 ? (
-                        <p className="mt-2 text-[9px] leading-snug text-slate-500">
-                          <span className="font-semibold text-slate-600">Not selectable:</span>{' '}
-                          {excludedRefundCategories
-                            .map(({ cat, reason }) =>
-                              reason === 'blocked'
-                                ? `${cat} (not available — e.g. delivered)`
-                                : `${cat} (already refunded)`
-                            )
-                            .join(' · ')}
-                        </p>
-                      ) : null}
-                    </>
-                  )}
+                    </div>
+                  ) : null}
                 </div>
 
                 <div>
-                  <label className={label}>Situation Context (Reason Notes)</label>
+                  <p className={label}>Reason categories (from included lines)</p>
+                  <div className="flex flex-wrap gap-1.5 mt-1">
+                    {derivedReasonCategories.length ? (
+                      derivedReasonCategories.map((c) => (
+                        <span
+                          key={c}
+                          className="inline-flex items-center rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-[10px] font-bold text-slate-700"
+                          title={REFUND_CATEGORY_HINTS[c] || ''}
+                        >
+                          {c}
+                        </span>
+                      ))
+                    ) : (
+                      <span className="text-xs text-slate-400">—</span>
+                    )}
+                  </div>
+                  {excludedRefundHints.length > 0 ? (
+                    <p className="mt-2 text-[9px] leading-snug text-slate-500">
+                      <span className="font-semibold text-slate-600">Unavailable for this quote:</span>{' '}
+                      {excludedRefundHints
+                        .map(({ cat, reason }) =>
+                          reason === 'blocked'
+                            ? `${cat} (e.g. delivered or blocked)`
+                            : `${cat} (already refunded)`
+                        )
+                        .join(' · ')}
+                    </p>
+                  ) : null}
+                </div>
+
+                <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4 space-y-3">
+                  <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">Pay to (for finance)</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="sm:col-span-2">
+                      <label className={label} htmlFor="refund-payee-name">
+                        Beneficiary name
+                      </label>
+                      <input
+                        id="refund-payee-name"
+                        type="text"
+                        disabled={readOnly}
+                        value={form.payeeName}
+                        onChange={(e) => setForm((f) => ({ ...f, payeeName: e.target.value }))}
+                        placeholder="Name on the account"
+                        className={input}
+                      />
+                    </div>
+                    <div>
+                      <label className={label} htmlFor="refund-payee-bank">
+                        Bank name
+                      </label>
+                      <input
+                        id="refund-payee-bank"
+                        type="text"
+                        disabled={readOnly}
+                        value={form.payeeBankName}
+                        onChange={(e) => setForm((f) => ({ ...f, payeeBankName: e.target.value }))}
+                        placeholder="e.g. Access Bank"
+                        className={input}
+                      />
+                    </div>
+                    <div>
+                      <label className={label} htmlFor="refund-payee-acct">
+                        Account number
+                      </label>
+                      <input
+                        id="refund-payee-acct"
+                        type="text"
+                        disabled={readOnly}
+                        value={form.payeeAccountNo}
+                        onChange={(e) => setForm((f) => ({ ...f, payeeAccountNo: e.target.value }))}
+                        placeholder="Nigerian bank account no."
+                        className={`${input} font-mono`}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <label className={label}>Situation context (reason notes)</label>
                   <textarea
                     rows={2}
                     disabled={readOnly}
@@ -1290,7 +1355,7 @@ const RefundModal = ({
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2">
                       <div className="h-4 w-1.5 rounded-full bg-rose-500/80" />
-                      <h4 className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Amount breakdown</h4>
+                      <h4 className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Lines</h4>
                     </div>
                     {!readOnly ? (
                       <button
@@ -1304,69 +1369,96 @@ const RefundModal = ({
                   </div>
 
                   <div
-                    className={`space-y-3 transition-opacity duration-300 ${form.reasonCategory.length === 0 ? 'pointer-events-none opacity-40' : 'opacity-100'}`}
+                    className={`space-y-3 transition-opacity duration-300 ${!form.quotationRef ? 'pointer-events-none opacity-40' : 'opacity-100'}`}
                   >
                     {form.calculationLines.length === 0 ? (
                       <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-slate-100 p-8 text-center">
                         <DollarSign size={32} className="mb-2 text-slate-200" />
-                        <p className="text-xs font-bold text-slate-400">
-                          Select categories above to load
-                          <br />
-                          suggested lines
-                        </p>
+                        <p className="text-xs font-bold text-slate-400">Link a quotation to load preview lines.</p>
                       </div>
                     ) : (
-                      form.calculationLines.map((line, idx) => (
-                        <div
-                          key={idx}
-                          className="group flex items-center gap-3 rounded-xl border border-slate-100 bg-slate-50 p-3 transition-all animate-in fade-in hover:border-rose-100 hover:bg-white"
-                        >
-                          <div className="min-w-0 flex-1">
-                            <input
-                              type="text"
-                              disabled={readOnly}
-                              value={line.label}
-                              onChange={(e) => setLine(idx, { label: e.target.value })}
-                              className="w-full border-none bg-transparent p-0 text-xs font-bold text-slate-800 outline-none focus:ring-0"
-                              placeholder="Description..."
-                            />
-                            <p className="mt-0.5 text-[9px] font-bold uppercase text-slate-400">
-                              {line.category || 'Manual Entry'}
-                            </p>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs font-bold text-slate-400">₦</span>
-                            <input
-                              type="number"
-                              disabled={readOnly}
-                              value={line.amountNgn}
-                              onChange={(e) => setLine(idx, { amountNgn: e.target.value })}
-                              className="w-24 rounded-lg border border-slate-200 bg-white py-1 px-2 text-right text-xs font-black text-slate-900 outline-none focus:ring-2 focus:ring-rose-500/10 tabular-nums"
-                            />
+                      form.calculationLines.map((line, idx) => {
+                        const isManual = String(line.lineKey || '').startsWith('m-');
+                        return (
+                          <div
+                            key={line.lineKey || `line-${idx}`}
+                            className="group flex flex-col sm:flex-row sm:items-center gap-3 rounded-xl border border-slate-100 bg-slate-50 p-3 transition-all animate-in fade-in hover:border-rose-100 hover:bg-white"
+                          >
                             {!readOnly ? (
-                              <button
-                                type="button"
-                                onClick={() => removeLine(idx)}
-                                className="rounded-lg p-1 text-slate-300 transition-colors hover:text-rose-600"
-                              >
-                                <X size={14} />
-                              </button>
+                              <label className="flex items-center gap-2 shrink-0 cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  checked={line.include !== false}
+                                  onChange={(e) => setLine(idx, { include: e.target.checked })}
+                                  className="h-3.5 w-3.5 rounded border-slate-300 text-rose-600 focus:ring-rose-500"
+                                />
+                                <span className="text-[9px] font-bold uppercase text-slate-500">Include</span>
+                              </label>
                             ) : null}
+                            <div className="min-w-0 flex-1 space-y-1.5">
+                              <input
+                                type="text"
+                                disabled={readOnly}
+                                value={line.label}
+                                onChange={(e) => setLine(idx, { label: e.target.value })}
+                                className="w-full border-none bg-transparent p-0 text-xs font-bold text-slate-800 outline-none focus:ring-0"
+                                placeholder="Description..."
+                              />
+                              <div className="flex flex-wrap items-center gap-2">
+                                {isManual && !readOnly ? (
+                                  <select
+                                    value={line.category || 'Other'}
+                                    onChange={(e) => setLine(idx, { category: e.target.value })}
+                                    className="rounded-md border border-slate-200 bg-white py-1 px-2 text-[9px] font-bold uppercase text-slate-700"
+                                  >
+                                    {REFUND_REASON_CATEGORIES.map((c) => (
+                                      <option key={c} value={c}>
+                                        {c}
+                                      </option>
+                                    ))}
+                                  </select>
+                                ) : (
+                                  <p
+                                    className="text-[9px] font-bold uppercase text-slate-400"
+                                    title={REFUND_CATEGORY_HINTS[line.category] || ''}
+                                  >
+                                    {line.category || '—'}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0">
+                              <span className="text-xs font-bold text-slate-400">₦</span>
+                              <input
+                                type="number"
+                                disabled={readOnly}
+                                value={line.amountNgn}
+                                onChange={(e) => setLine(idx, { amountNgn: e.target.value })}
+                                className="w-28 rounded-lg border border-slate-200 bg-white py-1 px-2 text-right text-xs font-black text-slate-900 outline-none focus:ring-2 focus:ring-rose-500/10 tabular-nums"
+                              />
+                              {!readOnly && isManual ? (
+                                <button
+                                  type="button"
+                                  onClick={() => removeLine(idx)}
+                                  className="rounded-lg p-1 text-slate-300 transition-colors hover:text-rose-600"
+                                  aria-label="Remove line"
+                                >
+                                  <X size={14} />
+                                </button>
+                              ) : null}
+                            </div>
                           </div>
-                        </div>
-                      ))
+                        );
+                      })
                     )}
                   </div>
 
                   <div className="space-y-4 border-t border-slate-100 pt-4">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Calculated Total</p>
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Included lines total</p>
                         <p className="text-2xl font-black tabular-nums tracking-tighter text-slate-900">
-                          ₦
-                          {form.calculationLines
-                            .reduce((sum, l) => sum + (Number(l.amountNgn) || 0), 0)
-                            .toLocaleString()}
+                          ₦{lineSum.toLocaleString()}
                         </p>
                       </div>
                       {!readOnly ? (
@@ -1375,21 +1467,19 @@ const RefundModal = ({
                           onClick={() =>
                             setForm((f) => ({
                               ...f,
-                              amountNgn: String(
-                                f.calculationLines.reduce((sum, l) => sum + (Number(l.amountNgn) || 0), 0)
-                              ),
+                              amountNgn: String(sumLines(f.calculationLines)),
                             }))
                           }
                           className="rounded-xl bg-slate-900 px-4 py-2 text-[10px] font-bold uppercase tracking-wide text-white shadow-lg shadow-slate-200 transition-all hover:bg-slate-800 active:scale-95"
                         >
-                          Apply Total
+                          Apply total
                         </button>
                       ) : null}
                     </div>
 
                     <div className="rounded-2xl bg-rose-600 p-4 text-white shadow-xl shadow-rose-200">
                       <p className="mb-1 text-[10px] font-bold uppercase tracking-widest text-white/60">
-                        Requested Refund Amount
+                        Requested refund amount
                       </p>
                       <div className="flex items-end gap-1">
                         <span className="mb-0.5 text-base font-black text-white/80">₦</span>

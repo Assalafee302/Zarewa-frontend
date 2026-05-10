@@ -27,6 +27,9 @@ export function printRefundRecord(record, formatNgn) {
   const paidAt = String(record.paidAtISO || record.paid_at_iso || '').trim();
   const paidAmt = Number(record.paidAmountNgn ?? 0) || 0;
   const paidBy = String(record.paidBy || '').trim();
+  const payeeName = String(record.payeeName || record.payee_name || '').trim();
+  const payeeAccountNo = String(record.payeeAccountNo || record.payee_account_no || '').trim();
+  const payeeBankName = String(record.payeeBankName || record.payee_bank_name || '').trim();
 
   let lines = [];
   try {
@@ -78,6 +81,13 @@ export function printRefundRecord(record, formatNgn) {
   <p class="sub">Requested: <strong>${escapeHtml(requestedAt)}</strong>${requestedBy ? ` · <strong>${escapeHtml(requestedBy)}</strong>` : ''}</p>
   ${reasonCats.length ? `<p class="block"><strong>Reason categories</strong><br/>${escapeHtml(reasonCats.join(', '))}</p>` : ''}
   ${reasonText ? `<p class="block"><strong>Notes</strong><br/>${escapeHtml(reasonText)}</p>` : ''}
+  ${
+    payeeName || payeeAccountNo || payeeBankName
+      ? `<p class="block"><strong>Pay to</strong><br/>${escapeHtml(payeeName || '—')}${
+          payeeBankName ? `<br/>${escapeHtml(payeeBankName)}` : ''
+        }${payeeAccountNo ? `<br/>Acct: ${escapeHtml(payeeAccountNo)}` : ''}</p>`
+      : ''
+  }
   <table>
     <thead><tr><th>Line</th><th>Category</th><th class="right">Amount</th></tr></thead>
     <tbody>${rowsHtml}</tbody>
