@@ -281,12 +281,12 @@ function OrderLinesSection({
           </ul>
         ) : (
           <>
-            <div className="grid grid-cols-12 gap-2 items-center mb-2 px-1 text-[8px] font-semibold text-slate-400 uppercase tracking-wider">
-              <div className="col-span-12 sm:col-span-4">Item</div>
-              <div className="col-span-4 sm:col-span-2 text-center">Qty</div>
-              <div className="col-span-4 sm:col-span-2 text-center">Unit ₦</div>
-              <div className="col-span-3 sm:col-span-2 text-right pr-1 sm:pr-2">Amount</div>
-              <div className="col-span-1 sm:col-span-2 text-right"> </div>
+            <div className="flex items-center gap-2 mb-2 px-1 text-[8px] font-semibold text-slate-400 uppercase tracking-wider min-w-0">
+              <div className="min-w-0 flex-1">Item</div>
+              <div className="w-14 sm:w-16 shrink-0 text-center">Qty</div>
+              <div className="w-[4.25rem] sm:w-24 shrink-0 text-center">Unit ₦</div>
+              <div className="w-[5.25rem] sm:w-28 shrink-0 text-right tabular-nums">Amount</div>
+              <div className="w-[4.5rem] shrink-0" aria-hidden />
             </div>
 
             {rows.map((row, idx) => {
@@ -300,34 +300,36 @@ function OrderLinesSection({
               return (
                 <div
                   key={row.id}
-                  className="grid grid-cols-12 gap-2 items-center mb-2 last:mb-0 border-b border-slate-100/80 pb-2 last:border-0 last:pb-0"
+                  className="flex items-center gap-2 mb-2 last:mb-0 border-b border-slate-100/80 pb-2 last:border-0 last:pb-0 min-w-0"
                 >
-                  <div className="col-span-12 sm:col-span-4 relative">
+                  <div className="min-w-0 flex-1 flex items-center gap-1.5">
                     {isCustomLine ? (
                       <>
                         <input
                           type="text"
                           value={row.name}
                           onChange={(e) => updateRow(row.id, { name: e.target.value, customLine: true })}
-                          placeholder="Custom item name"
-                          className="w-full bg-white border border-slate-200 rounded-lg py-2 px-3 text-xs font-semibold text-[#134e4a] outline-none focus:ring-2 focus:ring-[#134e4a]/10"
+                          placeholder="Custom name"
+                          title="Custom line item"
+                          className="min-w-0 flex-1 bg-white border border-slate-200 rounded-lg py-1.5 px-2 text-[11px] font-semibold text-[#134e4a] outline-none focus:ring-2 focus:ring-[#134e4a]/10"
                         />
                         <button
                           type="button"
+                          title="Choose from price list"
                           onClick={() =>
                             updateRow(row.id, {
                               customLine: false,
                               name: matchedOption ? row.name : '',
                             })
                           }
-                          className="mt-1 text-left text-[10px] font-semibold text-[#134e4a]/90 underline decoration-[#134e4a]/30 underline-offset-2 hover:text-[#0f3d39]"
+                          className="shrink-0 text-[9px] font-semibold text-[#134e4a] underline decoration-[#134e4a]/30 underline-offset-2 hover:text-[#0f3d39] whitespace-nowrap"
                         >
-                          Choose from list
+                          List
                         </button>
                       </>
                     ) : (
                       <>
-                        <div className="relative">
+                        <div className="relative min-w-0 flex-1">
                           <select
                             value={matchedOption?.id || ''}
                             onChange={(e) => {
@@ -347,9 +349,9 @@ function OrderLinesSection({
                                       : row.unitPrice,
                               });
                             }}
-                            className="w-full bg-white border border-slate-200 rounded-lg py-2 px-3 text-xs font-semibold text-[#134e4a] appearance-none outline-none focus:ring-2 focus:ring-[#134e4a]/15 cursor-pointer"
+                            className="w-full min-w-0 bg-white border border-slate-200 rounded-lg py-1.5 pl-2 pr-7 text-[11px] font-semibold text-[#134e4a] appearance-none outline-none focus:ring-2 focus:ring-[#134e4a]/15 cursor-pointer"
                           >
-                            <option value="">Choose item…</option>
+                            <option value="">Choose…</option>
                             {normalizedOptions.map((option) => (
                               <option key={option.id} value={option.id}>
                                 {option.name}
@@ -358,15 +360,16 @@ function OrderLinesSection({
                           </select>
                           <ChevronDown
                             size={12}
-                            className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-300 pointer-events-none"
+                            className="absolute right-1.5 top-1/2 -translate-y-1/2 text-slate-300 pointer-events-none"
                           />
                         </div>
                         <button
                           type="button"
+                          title="Type a custom line item"
                           onClick={() => updateRow(row.id, { customLine: true })}
-                          className="mt-1 text-left text-[10px] font-semibold text-[#134e4a]/90 underline decoration-[#134e4a]/30 underline-offset-2 hover:text-[#0f3d39]"
+                          className="shrink-0 text-[9px] font-semibold text-[#134e4a] underline decoration-[#134e4a]/30 underline-offset-2 hover:text-[#0f3d39] whitespace-nowrap"
                         >
-                          Custom entry
+                          Custom
                         </button>
                       </>
                     )}
@@ -378,7 +381,7 @@ function OrderLinesSection({
                     placeholder="0"
                     value={row.qty}
                     onChange={(e) => updateRow(row.id, { qty: e.target.value })}
-                    className="col-span-4 sm:col-span-2 bg-white border border-slate-200 p-2 rounded-lg text-xs text-center font-semibold text-[#134e4a] outline-none"
+                    className="w-14 sm:w-16 shrink-0 bg-white border border-slate-200 py-1.5 px-1 rounded-lg text-[11px] text-center font-semibold text-[#134e4a] outline-none tabular-nums"
                   />
                   <input
                     type="number"
@@ -387,17 +390,17 @@ function OrderLinesSection({
                     placeholder="0"
                     value={row.unitPrice}
                     onChange={(e) => updateRow(row.id, { unitPrice: e.target.value })}
-                    className="col-span-4 sm:col-span-2 bg-white border border-slate-200 p-2 rounded-lg text-xs text-center font-semibold text-[#134e4a] outline-none tabular-nums"
+                    className="w-[4.25rem] sm:w-24 shrink-0 bg-white border border-slate-200 py-1.5 px-1 rounded-lg text-[11px] text-center font-semibold text-[#134e4a] outline-none tabular-nums"
                   />
-                  <div className="col-span-3 sm:col-span-2 text-right pr-1 sm:pr-2 text-xs font-bold text-[#134e4a] tabular-nums">
+                  <div className="w-[5.25rem] sm:w-28 shrink-0 text-right pr-0.5 sm:pr-1 text-[10px] sm:text-[11px] font-bold text-[#134e4a] tabular-nums leading-tight">
                     {formatNgn(amt)}
                   </div>
-                  <div className="col-span-5 sm:col-span-2 flex justify-end items-center gap-1">
+                  <div className="w-[4.5rem] shrink-0 flex justify-end items-center gap-0.5">
                     <button
                       type="button"
                       title="Remove line"
                       onClick={() => removeRow(row.id)}
-                      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-300 hover:bg-red-50 hover:text-red-600 transition-colors"
+                      className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-slate-300 hover:bg-red-50 hover:text-red-600 transition-colors"
                     >
                       <Trash2 size={14} />
                     </button>
@@ -406,7 +409,7 @@ function OrderLinesSection({
                         type="button"
                         title={`Add ${title.endsWith('s') ? title.slice(0, -1) : title}`}
                         onClick={addRow}
-                        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-[#134e4a]/25 bg-teal-50/80 text-[#134e4a] hover:bg-teal-100 transition-colors"
+                        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-[#134e4a]/25 bg-teal-50/80 text-[#134e4a] hover:bg-teal-100 transition-colors"
                       >
                         <Plus size={16} strokeWidth={2.5} />
                       </button>

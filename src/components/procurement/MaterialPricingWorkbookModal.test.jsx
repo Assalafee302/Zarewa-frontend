@@ -45,6 +45,13 @@ function sheetResponse() {
       catalogHintByGauge: {},
       purchaseAvgConversionByGauge: {},
       gaugeHistoryAvgConversionByGauge: {},
+      resolvedByGauge: {
+        '0.40': { std: 1.0, ref: null, hist: null, used: 1.0 },
+        '0.45': { std: 1.1, ref: null, hist: null, used: 1.1 },
+      },
+      recommendedCostPerKgNgn: null,
+      isStoneCoatedWorkbook: false,
+      purchaseCostLookbackDays: 30,
       rows: [
         { gaugeMm: '0.40', ...baseRow },
         { gaugeMm: '0.45', ...baseRow },
