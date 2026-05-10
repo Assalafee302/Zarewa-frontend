@@ -1,10 +1,16 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Printer, X } from 'lucide-react';
 import { ModalFrame } from '../layout';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { useToast } from '../../context/ToastContext';
-import { apiFetch, apiUrl } from '../../lib/apiBase';
+import { apiFetch } from '../../lib/apiBase';
 import { formatNgn } from '../../Data/mockData';
+import { listPriceFromFloorAndCommission } from '../../lib/publishedPrice.js';
+import {
+  MaterialWorkbookCustomerPrintView,
+  MaterialWorkbookOfficialPrintView,
+} from './MaterialPricingWorkbookPrintViews.jsx';
 
 const MATERIAL_OPTIONS = [
   { key: 'alu', label: 'Aluminium' },
@@ -51,6 +57,50 @@ function effectiveUsedKgPerM(draftStr, resolved) {
   return null;
 }
 
+/** Merge current on-screen drafts into one material sheet payload for print preview. */
+function mergeDraftIntoSheet(sheet, draftByGauge) {
+  if (!sheet?.ok || !draftByGauge) return sheet;
+  const designRows = (sheet.rows || []).filter((r) => String(r.designKey || '').trim());
+  const baseRows = (sheet.gauges || []).map((g) => {
+    const existing = (sheet.rows || []).find((r) => r.gaugeMm === g && !String(r.designKey || '').trim());
+    const row = existing
+      ? { ...existing }
+      : {
+          gaugeMm: g,
+          designKey: '',
+          materialKey: sheet.materialKey,
+          branchId: sheet.branchId,
+          costPerKgNgn: 0,
+          overheadNgnPerM: 0,
+          profitNgnPerM: 0,
+          minimumPricePerMeterNgn: 0,
+          commissionNgnPerM: 0,
+          conversionUsedKgPerM: null,
+          notes: '',
+        };
+    const dr = draftByGauge[g];
+    if (dr) {
+      const ck = numOrUndef(dr.costPerKgNgn);
+      if (ck !== undefined) row.costPerKgNgn = ck;
+      const oh = numOrUndef(dr.overheadNgnPerM);
+      if (oh !== undefined) row.overheadNgnPerM = oh;
+      const pr = numOrUndef(dr.profitNgnPerM);
+      if (pr !== undefined) row.profitNgnPerM = pr;
+      const mn = numOrUndef(dr.minimumPricePerMeterNgn);
+      if (mn !== undefined) row.minimumPricePerMeterNgn = Math.round(mn);
+      const cm = numOrUndef(dr.commissionNgnPerM);
+      if (cm !== undefined) row.commissionNgnPerM = Math.max(0, cm);
+      const uStr = String(dr.conversionUsedKgPerM ?? '').trim();
+      if (uStr !== '') {
+        const n = Number(uStr);
+        if (Number.isFinite(n) && n > 0) row.conversionUsedKgPerM = n;
+      }
+    }
+    return row;
+  });
+  return { ...sheet, rows: [...baseRows, ...designRows] };
+}
+
 /**
  * Coil material pricing workbook: conversions, suggested ₦/m, minimum floor, change log.
  * @param {{ open: boolean; onClose: () => void; initialMaterialKey?: string }} props
@@ -69,6 +119,9 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
   const [busy, setBusy] = useState(false);
   const [savingAll, setSavingAll] = useState(false);
   const [draftByGauge, setDraftByGauge] = useState({});
+  const [printPreview, setPrintPreview] = useState(null);
+  const [printPack, setPrintPack] = useState(null);
+  const [printLoading, setPrintLoading] = useState(false);
 
   useEffect(() => {
     if (open) setMaterialKey(initialMaterialKey);
@@ -133,6 +186,7 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
           hasDistinctStored && usedStored != null ? String(usedStored) : '',
         overheadNgnPerM: row?.overheadNgnPerM != null ? String(row.overheadNgnPerM) : '',
         profitNgnPerM: row?.profitNgnPerM != null ? String(row.profitNgnPerM) : '',
+        commissionNgnPerM: row?.commissionNgnPerM != null && Number(row.commissionNgnPerM) > 0 ? String(row.commissionNgnPerM) : '',
         minimumPricePerMeterNgn: row?.minimumPricePerMeterNgn != null ? String(row.minimumPricePerMeterNgn) : '',
         notes: row?.notes || '',
         syncMinimumToPriceList: false,
@@ -145,6 +199,22 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
   useEffect(() => {
     if (open && branchId) void loadSheet();
   }, [open, branchId, materialKey, loadSheet]);
+
+  useEffect(() => {
+    if (!printPreview) return undefined;
+    const el = document.createElement('style');
+    el.setAttribute('data-workbook-print', '1');
+    el.textContent = `@media print {
+  body * { visibility: hidden !important; }
+  #workbook-print-root, #workbook-print-root * { visibility: visible !important; }
+  #workbook-print-root { position: absolute; left: 0; top: 0; width: 100%; background: #fff; }
+  #workbook-print-actions, #workbook-print-actions * { display: none !important; }
+}`;
+    document.head.appendChild(el);
+    return () => {
+      el.remove();
+    };
+  }, [printPreview]);
 
   const buildPersistBody = (gaugeMm) => {
     const dr = draftByGauge[gaugeMm];
@@ -164,6 +234,7 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
       conversionUsedKgPerM,
       overheadNgnPerM: numOrUndef(dr.overheadNgnPerM) ?? 0,
       profitNgnPerM: numOrUndef(dr.profitNgnPerM) ?? 0,
+      commissionNgnPerM: Math.max(0, numOrUndef(dr.commissionNgnPerM) ?? 0),
       minimumPricePerMeterNgn: Math.round(Number(dr.minimumPricePerMeterNgn) || 0),
       notes: dr.notes?.trim() || undefined,
       syncMinimumToPriceList: Boolean(dr.syncMinimumToPriceList),
@@ -216,20 +287,50 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
     void loadEvents(materialKey);
   };
 
-  const materialLabel = MATERIAL_OPTIONS.find((m) => m.key === materialKey)?.label || materialKey;
   const branchRecord = branches.find((b) => b.id === branchId);
   const branchName = branchRecord?.name || branchRecord?.code || branchId;
 
-  const handlePrintPreview = () => {
-    if (!branchId) return;
-    const q = new URLSearchParams({
-      branchId,
-      branchName: String(branchName || branchId),
-    });
-    const url = apiUrl(`/api/pricing/material-workbook-all.html?${q.toString()}`);
-    const w = window.open(url, '_blank', 'noopener,noreferrer');
-    if (!w) showToast('Pop-up blocked. Allow pop-ups to print.', { variant: 'error' });
-  };
+  const effectiveDateLabel = useMemo(
+    () => new Date().toLocaleDateString('en-NG', { dateStyle: 'long' }),
+    [printPreview]
+  );
+
+  const loadPrintPack = useCallback(
+    async (kind) => {
+      if (!branchId) return;
+      setPrintLoading(true);
+      try {
+        const matKeys = ['alu', 'aluzinc', 'stone-coated'];
+        const sheetReqs = matKeys.map((mk) =>
+          apiFetch(
+            `/api/pricing/material-sheet?materialKey=${encodeURIComponent(mk)}&branchId=${encodeURIComponent(branchId)}`
+          )
+        );
+        const [policyR, extrasR, ...sheetRs] = await Promise.all([
+          apiFetch('/api/pricing/policy'),
+          apiFetch('/api/pricing/material-workbook-print-extras'),
+          ...sheetReqs,
+        ]);
+        const sheets = sheetRs.map((r) => r.data).filter((d) => d?.ok);
+        if (sheets.length < 3) {
+          showToast('Could not load all workbook sections for print.', { variant: 'error' });
+          return;
+        }
+        const merged = sheets.map((s) => (s.materialKey === materialKey ? mergeDraftIntoSheet(s, draftByGauge) : s));
+        setPrintPack({
+          sheets: merged,
+          accessories: extrasR.ok && extrasR.data?.ok ? extrasR.data.accessories || [] : [],
+          ridgeAddOns: policyR.ok && policyR.data?.ridgeAddOns ? policyR.data.ridgeAddOns : [],
+        });
+        setPrintPreview(kind);
+      } catch {
+        showToast('Could not load print data.', { variant: 'error' });
+      } finally {
+        setPrintLoading(false);
+      }
+    },
+    [branchId, draftByGauge, materialKey, showToast]
+  );
 
   const setDraft = (gaugeMm, patch) => {
     setDraftByGauge((prev) => ({
@@ -278,7 +379,7 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
   }, [sheet?.gauges, draftByGauge]);
 
   return (
-    <ModalFrame isOpen={open} onClose={onClose}>
+    <ModalFrame isOpen={open} onClose={onClose} modal={!printPreview}>
       <div className="z-modal-panel max-w-[min(96vw,1100px)] max-h-[min(90vh,820px)] flex flex-col p-0 overflow-hidden">
         <div className="flex items-start justify-between gap-3 border-b border-slate-200 bg-slate-50/80 px-4 py-3 sm:px-5">
           <div>
@@ -291,8 +392,11 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
               sync to the price list. <strong className="text-slate-800">₦/kg</strong> defaults from{' '}
               <strong>weighted average</strong> coil cost for this branch (last {lookbackDays} days) when available.{' '}
               <strong className="text-slate-800">Suggested ₦/m</strong> = used kg/m × ₦/kg + overhead + profit.{' '}
-              <strong className="text-slate-800">Print</strong> opens a single report for all materials (plus accessories). Save
-              all when done.
+              <strong className="text-slate-800">Floor</strong> is the minimum ₦/m; <strong className="text-slate-800">commission</strong>{' '}
+              is added to the floor, then <strong className="text-slate-800">list ₦/m</strong> = published rounding of floor + commission
+              (same rule as customer price book). Sync writes that <strong>list</strong> amount to the floor price list.{' '}
+              <strong className="text-slate-800">Print</strong> opens a preview modal: internal (full steps) or customer (Longspan / Metcoppo
+              columns only). Save all when done.
             </p>
           </div>
           <button
@@ -379,12 +483,20 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
           </button>
           <button
             type="button"
-            disabled={busy || !sheet}
-            onClick={handlePrintPreview}
+            disabled={busy || !sheet || printLoading}
+            onClick={() => void loadPrintPack('official')}
             className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-[10px] font-black uppercase text-[#134e4a] disabled:opacity-50 inline-flex items-center gap-1.5"
           >
             <Printer size={14} className="shrink-0" aria-hidden />
-            Print
+            {printLoading ? '…' : 'Print · internal'}
+          </button>
+          <button
+            type="button"
+            disabled={busy || !sheet || printLoading}
+            onClick={() => void loadPrintPack('customer')}
+            className="rounded-lg border border-slate-200 bg-[#134e4a]/10 px-3 py-2 text-[10px] font-black uppercase text-[#134e4a] disabled:opacity-50"
+          >
+            Print · customer list
           </button>
           <button
             type="button"
@@ -401,7 +513,7 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
             <p className="text-sm text-slate-500 px-2">Loading…</p>
           ) : (
             <div className="z-scroll-x overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
-              <table className="min-w-[860px] w-full border-collapse text-left text-xs">
+              <table className="min-w-[1020px] w-full border-collapse text-left text-xs">
                 <thead className="bg-slate-50 text-[9px] font-black uppercase tracking-wide text-slate-600 sticky top-0 z-[1]">
                   <tr>
                     <th className="px-2 py-2 border-b border-slate-200 whitespace-nowrap">Gauge</th>
@@ -423,8 +535,17 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
                     <th className="px-2 py-2 border-b border-slate-200 whitespace-nowrap">OH/m</th>
                     <th className="px-2 py-2 border-b border-slate-200 whitespace-nowrap">Profit/m</th>
                     <th className="px-2 py-2 border-b border-slate-200 whitespace-nowrap">Suggested</th>
-                    <th className="px-2 py-2 border-b border-slate-200 whitespace-nowrap">Min ₦/m</th>
-                    <th className="px-2 py-2 border-b border-slate-200 whitespace-nowrap">Sync floor</th>
+                    <th className="px-2 py-2 border-b border-slate-200 whitespace-nowrap" title="Floor minimum ₦/m">
+                      Floor
+                    </th>
+                    <th
+                      className="px-2 py-2 border-b border-slate-200 whitespace-nowrap"
+                      title="Commission ₦/m on top of floor; list = published round(floor + commission)"
+                    >
+                      Comm/m
+                    </th>
+                    <th className="px-2 py-2 border-b border-slate-200 whitespace-nowrap">List ₦/m</th>
+                    <th className="px-2 py-2 border-b border-slate-200 whitespace-nowrap">Sync list</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -446,6 +567,8 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
                         ? null
                         : suggested(usedNum, ck ?? 0, oh, pr);
                     const minimumNgn = Math.round(Number(dr.minimumPricePerMeterNgn) || 0);
+                    const commissionNgn = Math.max(0, numOrUndef(dr.commissionNgnPerM) ?? 0);
+                    const listNgn = listPriceFromFloorAndCommission(minimumNgn, commissionNgn);
                     const displaySug =
                       sug != null && sug > 0
                         ? sug
@@ -521,6 +644,19 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
                             onChange={(e) => setDraft(g, { minimumPricePerMeterNgn: e.target.value })}
                           />
                         </td>
+                        <td className="px-2 py-1.5">
+                          <input
+                            className={inp}
+                            inputMode="decimal"
+                            placeholder="0"
+                            title="Commission ₦/m added to floor for published list price"
+                            value={dr.commissionNgnPerM ?? ''}
+                            onChange={(e) => setDraft(g, { commissionNgnPerM: e.target.value })}
+                          />
+                        </td>
+                        <td className="px-2 py-1.5 font-mono text-[11px] font-semibold text-slate-800 tabular-nums">
+                          {listNgn > 0 ? formatNgn(listNgn) : '—'}
+                        </td>
                         <td className="px-2 py-1.5 align-top space-y-1">
                           <label className="flex items-center gap-1 text-[9px] text-slate-600 whitespace-nowrap">
                             <input
@@ -528,7 +664,7 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
                               checked={Boolean(dr.syncMinimumToPriceList)}
                               onChange={(e) => setDraft(g, { syncMinimumToPriceList: e.target.checked })}
                             />
-                            Sync
+                            Sync list
                           </label>
                           <input
                             className={`${inp} text-[10px]`}
@@ -583,6 +719,83 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
           </div>
         </div>
       </div>
+
+      {printPreview &&
+        printPack &&
+        typeof document !== 'undefined' &&
+        createPortal(
+          <>
+            <button
+              type="button"
+              aria-label="Close print preview"
+              className="no-print fixed inset-0 z-[11060] bg-black/50"
+              onClick={() => {
+                setPrintPreview(null);
+                setPrintPack(null);
+              }}
+            />
+            <div
+              className="no-print fixed inset-0 z-[11070] overflow-y-auto overscroll-y-contain p-4 sm:p-8"
+              onClick={() => {
+                setPrintPreview(null);
+                setPrintPack(null);
+              }}
+            >
+              <div className="mx-auto max-w-[min(1000px,100%)] pb-16" onClick={(e) => e.stopPropagation()}>
+                <div
+                  id="workbook-print-root"
+                  className="rounded-lg border border-slate-200 bg-white p-4 shadow-2xl print:rounded-none print:border-0 print:shadow-none print:p-0"
+                >
+                  {printPreview === 'official' ? (
+                    <MaterialWorkbookOfficialPrintView
+                      sheets={printPack.sheets}
+                      branchName={String(branchName || branchId)}
+                      effectiveDateLabel={effectiveDateLabel}
+                      lookbackDays={lookbackDays}
+                      accessories={printPack.accessories}
+                      ridgeAddOns={printPack.ridgeAddOns}
+                    />
+                  ) : (
+                    <MaterialWorkbookCustomerPrintView
+                      sheets={printPack.sheets}
+                      branchName={String(branchName || branchId)}
+                      effectiveDateLabel={effectiveDateLabel}
+                      accessories={printPack.accessories}
+                      ridgeAddOns={printPack.ridgeAddOns}
+                    />
+                  )}
+                </div>
+                <div id="workbook-print-actions" className="mt-4 flex flex-col items-center gap-2">
+                  <div className="flex flex-wrap justify-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => window.print()}
+                      className="rounded-lg bg-[#134e4a] px-5 py-2.5 text-[10px] font-semibold uppercase tracking-wide text-white shadow-lg"
+                    >
+                      Print…
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPrintPreview(null);
+                        setPrintPack(null);
+                      }}
+                      className="rounded-lg border border-slate-200 bg-white px-5 py-2.5 text-[10px] font-semibold uppercase tracking-wide text-slate-700"
+                    >
+                      Close
+                    </button>
+                  </div>
+                  <p className="text-center text-[9px] text-slate-500 max-w-md">
+                    {printPreview === 'customer'
+                      ? 'Customer sheet shows only gauges with a published list price (floor + commission).'
+                      : 'Internal sheet includes full cost build-up for all gauges.'}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </>,
+          document.body
+        )}
     </ModalFrame>
   );
 }

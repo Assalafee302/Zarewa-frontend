@@ -31,6 +31,7 @@ function sheetResponse() {
     costPerKgNgn: 0,
     overheadNgnPerM: 0,
     profitNgnPerM: 0,
+    commissionNgnPerM: 0,
     minimumPricePerMeterNgn: 0,
     notes: '',
   };
