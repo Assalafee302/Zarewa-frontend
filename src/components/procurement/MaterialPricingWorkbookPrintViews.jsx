@@ -62,6 +62,8 @@ const SECTION_META = [
   { key: 'stone-coated', title: 'Stone-coated' },
 ];
 
+const COIL_SECTION_KEYS = ['alu', 'aluzinc'];
+
 /**
  * Internal workbook print: full conversion and cost build-up (all materials).
  * @param {{
@@ -287,83 +289,102 @@ export function MaterialWorkbookCustomerPrintView({ sheets, branchName, effectiv
     return out;
   };
 
+  const renderCustomerMaterialSection = (key, title) => {
+    const sheet = sheets.find((s) => s?.materialKey === key);
+    if (!sheet?.ok) return null;
+    const rows = coilCustomerRows(sheet);
+    if (rows.length === 0) return null;
+    const isStone = Boolean(sheet.isStoneCoatedWorkbook);
+    const premiumHeader = isStone ? 'Metcoppo ₦/m' : 'Metcoppo / Steptiles ₦/m';
+    return (
+      <section key={key} className="min-w-0">
+        <h2 className="text-sm font-black text-[#0f766e] mb-2">{title}</h2>
+        <table className="w-full border-collapse text-left">
+          <thead className="bg-slate-100 text-[9px] font-black uppercase tracking-wide text-slate-700">
+            <tr>
+              <th className="border border-slate-400 px-3 py-2">Gauge / label</th>
+              <th className="border border-slate-400 px-3 py-2 text-right">Longspan ₦/m</th>
+              <th className="border border-slate-400 px-3 py-2 text-right">{premiumHeader}</th>
+            </tr>
+          </thead>
+          <tbody className="font-mono tabular-nums text-[12px]">
+            {rows.map((r, idx) => (
+              <tr key={`${r.gaugeLabel}-${idx}`}>
+                <td className="border border-slate-300 px-3 py-2 font-sans font-bold">{r.gaugeLabel}</td>
+                <td className="border border-slate-300 px-3 py-2 text-right">{formatNgn(r.longspan)}</td>
+                <td className="border border-slate-300 px-3 py-2 text-right">{formatNgn(r.metcoppo)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </section>
+    );
+  };
+
   return (
     <div className="text-slate-900 text-[12px] leading-snug print:text-black">
       <div className="max-w-[920px] mx-auto">
         <div className="flex items-start gap-4 border-b-2 border-[#134e4a] pb-4 mb-4">
           <img src={ZAREWA_LOGO_SRC} alt="" className="h-16 w-auto object-contain shrink-0" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
           <div className="flex-1">
-            <p className="text-[11px] font-bold text-[#134e4a] tracking-wide">{ZAREWA_COMPANY_ACCOUNT_NAME}</p>
-            <h1 className="text-xl font-black text-[#134e4a] mt-1">Price list — roofing sheet</h1>
-            <p className="text-[11px] text-slate-600 mt-2">
-              <strong>Effective:</strong> {effectiveDateLabel}
+            <p className="text-[11px] font-black text-[#134e4a] tracking-wide">{ZAREWA_COMPANY_ACCOUNT_NAME}</p>
+            <h1 className="text-xl font-black text-[#134e4a] mt-1">Price list</h1>
+            <p className="text-[11px] font-semibold text-slate-700 mt-2">
+              <span className="text-slate-700">Effective:</span> {effectiveDateLabel}
               {branchName ? (
                 <>
                   {' '}
-                  · <strong>Branch:</strong> {branchName}
+                  · <span className="text-slate-700">Branch:</span> {branchName}
                 </>
               ) : null}
-            </p>
-            <p className="text-[10px] text-slate-500 mt-2">
-              Rates in Naira per running metre. <strong>Longspan</strong> = published list rate (floor + commission, rounded).{' '}
-              <strong>Metcoppo / Steptiles</strong> = Longspan + 3.5% with published rounding (premium profile).
             </p>
           </div>
         </div>
 
-        {SECTION_META.map(({ key, title }) => {
-          const sheet = sheets.find((s) => s?.materialKey === key);
-          if (!sheet?.ok) return null;
-          const rows = coilCustomerRows(sheet);
-          if (rows.length === 0) return null;
-          return (
-            <section key={key} className="mb-8 print:mb-6">
-              <h2 className="text-sm font-black text-[#0f766e] mb-2">{title}</h2>
-              <table className="w-full border-collapse text-left">
-                <thead className="bg-slate-100 text-[9px] font-black uppercase tracking-wide text-slate-700">
-                  <tr>
-                    <th className="border border-slate-400 px-3 py-2">Gauge / label</th>
-                    <th className="border border-slate-400 px-3 py-2 text-right">Longspan ₦/m</th>
-                    <th className="border border-slate-400 px-3 py-2 text-right">Metcoppo / Steptiles ₦/m</th>
-                  </tr>
-                </thead>
-                <tbody className="font-mono tabular-nums text-[12px]">
-                  {rows.map((r, idx) => (
-                    <tr key={`${r.gaugeLabel}-${idx}`}>
-                      <td className="border border-slate-300 px-3 py-2 font-sans font-bold">{r.gaugeLabel}</td>
-                      <td className="border border-slate-300 px-3 py-2 text-right">{formatNgn(r.longspan)}</td>
-                      <td className="border border-slate-300 px-3 py-2 text-right">{formatNgn(r.metcoppo)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </section>
-          );
-        })}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8 print:mb-6 print:grid-cols-2 items-start">
+          {COIL_SECTION_KEYS.map((key) => {
+            const meta = SECTION_META.find((m) => m.key === key);
+            return meta ? renderCustomerMaterialSection(key, meta.title) : null;
+          })}
+        </div>
 
-        {ridgeRows.length > 0 ? (
-          <section className="mb-8">
-            <h2 className="text-sm font-black text-[#0f766e] mb-2">Ridge / flashing add-ons (₦/m)</h2>
-            <table className="w-full border-collapse text-left max-w-xl">
-              <thead className="bg-slate-100 text-[9px] font-black uppercase text-slate-700">
+        {(() => {
+          const meta = SECTION_META.find((m) => m.key === 'stone-coated');
+          if (!meta) return null;
+          const block = renderCustomerMaterialSection(meta.key, meta.title);
+          if (!block) return null;
+          return <div className="mb-8 print:mb-6">{block}</div>;
+        })()}
+
+        <section className="mb-8 print:mb-6">
+          <h2 className="text-sm font-black text-[#0f766e] mb-2">Ridge / flashing add-ons (₦/m)</h2>
+          <table className="w-full border-collapse text-left">
+            <thead className="bg-slate-100 text-[9px] font-black uppercase text-slate-700">
+              <tr>
+                <th className="border border-slate-400 px-3 py-2">Girth mm</th>
+                <th className="border border-slate-400 px-3 py-2">Material</th>
+                <th className="border border-slate-400 px-3 py-2 text-right">₦/m</th>
+              </tr>
+            </thead>
+            <tbody className="text-[12px]">
+              {ridgeRows.length === 0 ? (
                 <tr>
-                  <th className="border border-slate-400 px-3 py-2">Girth mm</th>
-                  <th className="border border-slate-400 px-3 py-2">Material</th>
-                  <th className="border border-slate-400 px-3 py-2 text-right">₦/m</th>
+                  <td colSpan={3} className="border border-slate-300 px-3 py-2 text-slate-500">
+                    No ridge or flashing add-ons configured yet. Add rows under <strong>Pricing policy</strong> (admin, ridge add-ons) so published ₦/m appears here.
+                  </td>
                 </tr>
-              </thead>
-              <tbody className="text-[12px]">
-                {ridgeRows.map((r, i) => (
+              ) : (
+                ridgeRows.map((r, i) => (
                   <tr key={i}>
                     <td className="border border-slate-300 px-3 py-2">{r.girthMm}</td>
                     <td className="border border-slate-300 px-3 py-2">{r.materialFamily || '—'}</td>
                     <td className="border border-slate-300 px-3 py-2 text-right font-mono tabular-nums">{formatNgn(r.addOnNgn)}</td>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </section>
-        ) : null}
+                ))
+              )}
+            </tbody>
+          </table>
+        </section>
 
         {accRows.length > 0 ? (
           <section className="mb-6">
