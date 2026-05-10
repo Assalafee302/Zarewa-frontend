@@ -172,6 +172,8 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
 
   const thMap = sheet?.theoreticalStandardByGauge || {};
   const catMap = sheet?.catalogHintByGauge || {};
+  const purchaseHintMap = sheet?.purchaseAvgConversionByGauge || {};
+  const gaugeHistHintMap = sheet?.gaugeHistoryAvgConversionByGauge || {};
 
   return (
     <ModalFrame isOpen={open} onClose={onClose}>
@@ -180,8 +182,11 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
           <div>
             <h2 className="text-base font-black text-[#134e4a]">Material pricing workbook</h2>
             <p className="text-[10px] text-slate-600 mt-1 max-w-xl leading-relaxed">
-              Pick a coil material and branch. <strong className="text-slate-800">Avg conversion</strong> is from
-              standard, reference, and history where entered. Enter <strong className="text-slate-800">conversion used</strong>{' '}
+              Pick a coil material and branch. <strong className="text-slate-800">Ref</strong> hints average supplier kg/m
+              from <strong className="text-slate-800">received coil purchases</strong>; <strong className="text-slate-800">Hist</strong>{' '}
+              hints average <strong className="text-slate-800">posted production</strong> kg/m for that gauge.{' '}
+              <strong className="text-slate-800">Avg conversion</strong> is from standard, reference, and history where entered. Enter{' '}
+              <strong className="text-slate-800">conversion used</strong>{' '}
               for economics. <strong className="text-slate-800">Suggested ₦/m</strong> is derived (not locked). Set{' '}
               <strong className="text-slate-800">minimum ₦/m</strong> as the floor; quotations below it still require MD
               approval. MD and pricing roles can edit all fields here.
@@ -247,8 +252,18 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
                   <tr>
                     <th className="px-2 py-2 border-b border-slate-200 whitespace-nowrap">Gauge</th>
                     <th className="px-2 py-2 border-b border-slate-200 whitespace-nowrap">Std kg/m</th>
-                    <th className="px-2 py-2 border-b border-slate-200 whitespace-nowrap">Ref</th>
-                    <th className="px-2 py-2 border-b border-slate-200 whitespace-nowrap">Hist</th>
+                    <th
+                      className="px-2 py-2 border-b border-slate-200 whitespace-nowrap"
+                      title="Reference kg/m — hint from average supplier conversion on received coils (purchases)."
+                    >
+                      Ref
+                    </th>
+                    <th
+                      className="px-2 py-2 border-b border-slate-200 whitespace-nowrap"
+                      title="History kg/m — hint from average actual conversion in production (gauge history)."
+                    >
+                      Hist
+                    </th>
                     <th className="px-2 py-2 border-b border-slate-200 whitespace-nowrap">Avg</th>
                     <th className="px-2 py-2 border-b border-slate-200 whitespace-nowrap">Used</th>
                     <th className="px-2 py-2 border-b border-slate-200 whitespace-nowrap">₦/kg</th>
@@ -276,6 +291,8 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
                     const sug = suggested(used ?? av, ck ?? 0, oh, pr);
                     const th = thMap[g];
                     const cat = catMap[g];
+                    const purchaseHint = purchaseHintMap[g];
+                    const gaugeHistHint = gaugeHistHintMap[g];
                     const inp =
                       'w-full min-w-[64px] rounded border border-slate-200 px-1 py-1 font-mono text-[11px] tabular-nums';
                     return (
@@ -292,19 +309,39 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
                             <p className="text-[8px] text-slate-400 mt-0.5">ρ calc {th.toFixed(4)}</p>
                           ) : null}
                         </td>
-                        <td className="px-2 py-1.5">
+                        <td className="px-2 py-1.5 align-top">
                           <input
                             className={inp}
                             value={dr.conversionReferenceKgPerM ?? ''}
+                            placeholder={
+                              String(dr.conversionReferenceKgPerM ?? '').trim()
+                                ? ''
+                                : purchaseHint != null && Number.isFinite(Number(purchaseHint))
+                                  ? Number(purchaseHint).toFixed(4)
+                                  : '—'
+                            }
                             onChange={(e) => setDraft(g, { conversionReferenceKgPerM: e.target.value })}
                           />
+                          {purchaseHint != null && Number.isFinite(Number(purchaseHint)) ? (
+                            <p className="text-[8px] text-slate-400 mt-0.5">Avg purchase</p>
+                          ) : null}
                         </td>
-                        <td className="px-2 py-1.5">
+                        <td className="px-2 py-1.5 align-top">
                           <input
                             className={inp}
                             value={dr.conversionHistoryKgPerM ?? ''}
+                            placeholder={
+                              String(dr.conversionHistoryKgPerM ?? '').trim()
+                                ? ''
+                                : gaugeHistHint != null && Number.isFinite(Number(gaugeHistHint))
+                                  ? Number(gaugeHistHint).toFixed(4)
+                                  : '—'
+                            }
                             onChange={(e) => setDraft(g, { conversionHistoryKgPerM: e.target.value })}
                           />
+                          {gaugeHistHint != null && Number.isFinite(Number(gaugeHistHint)) ? (
+                            <p className="text-[8px] text-slate-400 mt-0.5">Gauge history</p>
+                          ) : null}
                         </td>
                         <td className="px-2 py-1.5 font-mono text-[11px] text-slate-700 tabular-nums">
                           {av == null ? '—' : av.toFixed(4)}

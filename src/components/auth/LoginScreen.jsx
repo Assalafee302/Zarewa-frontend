@@ -181,8 +181,8 @@ export default function LoginScreen() {
           <div className="mt-8 overflow-hidden rounded-[28px] border border-slate-200/80 bg-slate-950 text-white shadow-xl">
             <div className="relative">
               <img
-                src="https://images.unsplash.com/photo-1531834685032-c34bf0d84c77?auto=format&fit=crop&w=1600&q=80"
-                alt="Aluminium roofing sheet corrugation factory"
+                src="https://images.unsplash.com/photo-1720036237561-2049a547752e?auto=format&fit=crop&w=1600&q=80"
+                alt="Industrial metal sheet production line with forming machinery"
                 className="h-[260px] w-full object-cover sm:h-[300px]"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-slate-950/75 via-slate-950/30 to-transparent" />
