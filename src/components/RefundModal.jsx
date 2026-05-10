@@ -194,6 +194,9 @@ function normalizeQuoteForRefundSelect(q) {
     : Array.isArray(q.eligibleRefundCategories)
       ? q.eligibleRefundCategories.map((x) => String(x || '').trim()).filter(Boolean)
       : [];
+  const suggestedPreviewNgn = Math.round(
+    Number(q.suggested_preview_amount_ngn ?? q.suggestedPreviewAmountNgn) || 0
+  );
   return {
     id: String(q.id),
     customer_name: q.customer_name ?? q.customer ?? '—',
@@ -201,6 +204,7 @@ function normalizeQuoteForRefundSelect(q) {
     total_ngn: total,
     total_refunded_ngn: Number.isFinite(totalRefunded) ? totalRefunded : 0,
     eligible_refund_categories: eligibleRefundCategories,
+    suggested_preview_amount_ngn: suggestedPreviewNgn,
     dateISO: String(q.dateISO ?? q.date_iso ?? '').trim(),
     status: String(q.status ?? '').trim(),
   };
@@ -278,6 +282,8 @@ const RefundModal = ({
   const [quotationSuggestOpen, setQuotationSuggestOpen] = useState(false);
   /** Seeded create / edge cases: quotation ref allowed even if not yet in eligible pick list. */
   const [quotationServerVerifiedRef, setQuotationServerVerifiedRef] = useState('');
+  const [manualQuotationVerifyBusy, setManualQuotationVerifyBusy] = useState(false);
+  const [manualQuotationVerifyError, setManualQuotationVerifyError] = useState('');
 
   useEffect(() => {
     if (!isOpen) setRefundGuideOpen(false);
@@ -354,6 +360,8 @@ const RefundModal = ({
     setPreviewRemainingNgn(null);
     setEligibleRefundCategoriesFromPreview(null);
     setIncludeCommissionInPreview(false);
+    setManualQuotationVerifyBusy(false);
+    setManualQuotationVerifyError('');
 
     if (mode === 'create') {
       void fetchEligibleQuotes();
@@ -437,6 +445,16 @@ const RefundModal = ({
     if (!d) return quotationPickMerged;
     return quotationPickMerged.filter((q) => quotationYmdForPickRow(q, quotations) === d);
   }, [quotationPickMerged, quotationPickDate, quotations]);
+
+  /** Paid/total for intelligence panel when pick row is missing (date filter or manual-only quotation). */
+  const selectedQuoteMoneyRow = useMemo(() => {
+    const ref = String(form.quotationRef || '').trim();
+    if (!ref) return null;
+    return (
+      quotationPickMerged.find((q) => q.id === ref) ||
+      normalizeQuoteForRefundSelect(quotations.find((x) => String(x.id) === ref))
+    );
+  }, [form.quotationRef, quotationPickMerged, quotations]);
 
   const quotationSearchFiltered = useMemo(() => {
     const q = String(quotationSearchText || '').trim().toLowerCase();
@@ -633,6 +651,54 @@ const RefundModal = ({
     [includeCommissionInPreview]
   );
 
+  const resetPreviewStateForQuoteChange = useCallback(() => {
+    setMoneyContext(null);
+    setPreviewRemainingNgn(null);
+    setLastPreviewSnapshot(null);
+    setEligibleRefundCategoriesFromPreview(null);
+    setIncludeCommissionInPreview(false);
+  }, []);
+
+  const applyVerifiedQuotationRef = useCallback(
+    (ref) => {
+      const id = String(ref || '').trim();
+      setQuotationServerVerifiedRef(id);
+      resetPreviewStateForQuoteChange();
+      setForm((f) => ({ ...f, quotationRef: id, reasonCategory: [] }));
+      setQuotationSearchText(id);
+      setQuotationSuggestOpen(false);
+      setManualQuotationVerifyError('');
+      if (id) void generatePreview(id, false);
+    },
+    [generatePreview, resetPreviewStateForQuoteChange]
+  );
+
+  const verifyAndApplyQuotationId = useCallback(async () => {
+    const ref = String(quotationSearchText || '').trim();
+    if (!ref) {
+      setManualQuotationVerifyError('Enter a quotation id (e.g. QT-…).');
+      return;
+    }
+    setManualQuotationVerifyBusy(true);
+    setManualQuotationVerifyError('');
+    const { ok, data } = await apiFetch(
+      `/api/refunds/eligibility-check?quotationRef=${encodeURIComponent(ref)}`
+    );
+    setManualQuotationVerifyBusy(false);
+    if (!ok || !data?.ok) {
+      setManualQuotationVerifyError(data?.error || 'Could not verify quotation.');
+      return;
+    }
+    const allowed =
+      data.wouldAppearInRefundQuotationDropdown === true || data.manualEntryRefundAllowed === true;
+    if (!allowed) {
+      const reasons = Array.isArray(data.blockingReasons) ? data.blockingReasons.filter(Boolean).join(' ') : '';
+      setManualQuotationVerifyError(reasons || 'This quotation cannot be used for a refund request.');
+      return;
+    }
+    applyVerifiedQuotationRef(ref);
+  }, [quotationSearchText, applyVerifiedQuotationRef]);
+
   const generatePreviewRef = useRef(generatePreview);
   useEffect(() => {
     generatePreviewRef.current = generatePreview;
@@ -640,11 +706,8 @@ const RefundModal = ({
 
   const handleQuoteChange = (ref) => {
     setQuotationServerVerifiedRef('');
-    setMoneyContext(null);
-    setPreviewRemainingNgn(null);
-    setLastPreviewSnapshot(null);
-    setEligibleRefundCategoriesFromPreview(null);
-    setIncludeCommissionInPreview(false);
+    resetPreviewStateForQuoteChange();
+    setManualQuotationVerifyError('');
     setForm((f) => ({ ...f, quotationRef: ref, reasonCategory: [] }));
     setQuotationSearchText(String(ref || '').trim());
     setQuotationSuggestOpen(false);
@@ -655,14 +718,14 @@ const RefundModal = ({
 
   useEffect(() => {
     if (mode !== 'create' || !form.quotationRef || loadingQuotes) return;
-    const inList = quotationPickList.some((q) => q.id === form.quotationRef);
+    const inList = quotationPickMerged.some((q) => q.id === form.quotationRef);
     const serverOk = form.quotationRef === quotationServerVerifiedRef;
     if (!inList && !serverOk) {
       setMoneyContext(null);
       setForm((f) => ({ ...f, quotationRef: '', reasonCategory: [] }));
       setQuotationServerVerifiedRef('');
     }
-  }, [quotationPickList, form.quotationRef, mode, loadingQuotes, quotationServerVerifiedRef]);
+  }, [quotationPickMerged, form.quotationRef, mode, loadingQuotes, quotationServerVerifiedRef]);
 
   /** Create mode opened with a seeded quotation (e.g. Sales sidebar) — same as picking the quote in Step 1. */
   const seededCreatePreviewKeyRef = useRef('');
@@ -976,8 +1039,8 @@ const RefundModal = ({
                   <p className="text-[11px] leading-relaxed text-teal-800/85 font-medium">
                     Listed quotes are <strong className="text-teal-950">fully paid</strong> (booked paid ≥ order total when
                     a total exists), have more than <strong className="text-teal-950">₦{MIN_REFUND_QUOTATION_REMAINING_NGN.toLocaleString('en-NG')} refundable</strong> headroom, production <strong className="text-teal-950">completed</strong> or{' '}
-                    <strong className="text-teal-950">cancelled</strong> (or <strong className="text-teal-950">void</strong> with payment), and pass refund-cap / category rules. The dropdown shows{' '}
-                    <strong className="text-teal-950">all</strong> matches (scroll).
+                    <strong className="text-teal-950">cancelled</strong> (or <strong className="text-teal-950">void</strong> with payment), and the server must produce a <strong className="text-teal-950">positive automatic preview total</strong> (overpayment, unproduced metres, service lines, etc.)—not only an open “Other” path with ₦0 suggestions. The dropdown shows{' '}
+                    <strong className="text-teal-950">all</strong> such matches (scroll). If a sale qualifies but the automatic preview is ₦0, use <strong className="text-teal-950">Use quotation id</strong> — the server confirms eligibility; then enter amounts manually.
                   </p>
                 </div>
               </div>
@@ -1105,10 +1168,20 @@ const RefundModal = ({
                                 const v = e.target.value;
                                 setQuotationSearchText(v);
                                 setQuotationSuggestOpen(true);
+                                setManualQuotationVerifyError('');
                               }}
                               onFocus={() => setQuotationSuggestOpen(true)}
                               onBlur={() => {
                                 window.setTimeout(() => setQuotationSuggestOpen(false), 180);
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key !== 'Enter') return;
+                                if (identityLocked || loadingQuotes || manualQuotationVerifyBusy) return;
+                                const hasOpenSuggestions =
+                                  quotationSuggestOpen && quotationSearchFiltered.length > 0;
+                                if (hasOpenSuggestions) return;
+                                e.preventDefault();
+                                void verifyAndApplyQuotationId();
                               }}
                               className={`${input} h-11 pl-9 pr-3 border-slate-200 hover:border-rose-300 transition-colors`}
                             />
@@ -1123,6 +1196,10 @@ const RefundModal = ({
                                     0,
                                     Math.round(q.paid_ngn) - Math.round(q.total_refunded_ngn || 0)
                                   );
+                                  const previewHint =
+                                    q.suggested_preview_amount_ngn > 0
+                                      ? ` · preview ₦${q.suggested_preview_amount_ngn.toLocaleString('en-NG')} auto`
+                                      : '';
                                   return (
                                     <button
                                       key={q.id}
@@ -1138,6 +1215,7 @@ const RefundModal = ({
                                         ₦{q.paid_ngn.toLocaleString()} paid
                                         {q.total_ngn > 0 ? ` / ₦${q.total_ngn.toLocaleString()} total` : ''}
                                         {` · ₦${remNgn.toLocaleString()} refundable`}
+                                        {previewHint}
                                         {dateBit}
                                       </span>
                                     </button>
@@ -1162,6 +1240,27 @@ const RefundModal = ({
                         />
                       </div>
                     </div>
+                    {mode === 'create' && !identityLocked ? (
+                      <div className="mt-2 flex flex-col sm:flex-row gap-2 sm:items-center sm:justify-between">
+                        <button
+                          type="button"
+                          disabled={loadingQuotes || manualQuotationVerifyBusy}
+                          onClick={() => void verifyAndApplyQuotationId()}
+                          className="shrink-0 rounded-lg border border-teal-200 bg-teal-50 px-3 py-2 text-[10px] font-bold uppercase tracking-wide text-teal-900 hover:bg-teal-100 disabled:opacity-50"
+                        >
+                          {manualQuotationVerifyBusy ? 'Verifying…' : 'Use quotation id'}
+                        </button>
+                        <p className="text-[9px] text-slate-500 leading-snug flex-1 min-w-0">
+                          If the quotation id is valid but missing from the list (for example automatic preview ₦0), verify
+                          it here and complete lines manually. Press Enter when the suggestion list is closed.
+                        </p>
+                      </div>
+                    ) : null}
+                    {manualQuotationVerifyError ? (
+                      <p className="mt-1 text-[10px] text-rose-700 font-medium leading-snug" role="alert">
+                        {manualQuotationVerifyError}
+                      </p>
+                    ) : null}
                     {mode === 'create' ? (
                       <p className="text-[9px] text-slate-500 leading-snug mt-2">
                         Eligibility rules for this list are in the{' '}
@@ -1180,11 +1279,13 @@ const RefundModal = ({
                         <p className="text-[10px] text-amber-900 font-medium leading-snug">
                           Refunds only list quotations that are <strong>fully paid</strong> (paid ≥ total when total is set), have{' '}
                           <strong>more than ₦{MIN_REFUND_QUOTATION_REMAINING_NGN.toLocaleString('en-NG')} refundable</strong>, production{' '}
-                          <strong>completed or cancelled</strong> (or <strong>void with payment</strong>), with{' '}
-                          <strong>at least one applicable refund category</strong>, and{' '}
+                          <strong>completed or cancelled</strong> (or <strong>void with payment</strong>), where the refund{' '}
+                          <strong>preview’s automatic lines sum to more than ₦0</strong>, and{' '}
                           <strong>no blocking refund on file</strong>. {quotationPickDate ? 'Try clearing the quote date filter.' : ''}{' '}
                           If you already posted a receipt but the quote is missing here, the payment may have been
                           recorded under a different branch than the quotation — use sync to recalculate from the ledger.
+                          If the sale is eligible but excluded because the automatic preview total is ₦0, use{' '}
+                          <strong>Use quotation id</strong> after entering the full quotation reference.
                         </p>
                         <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
                           <input
@@ -1508,7 +1609,7 @@ const RefundModal = ({
                             <p className="text-[9px] font-bold text-slate-500 uppercase mb-0.5">Quote total</p>
                             <p className="text-sm font-black text-white tabular-nums">
                               ₦
-                              {(quotationPickList.find((q) => q.id === form.quotationRef)?.total_ngn || 0).toLocaleString()}
+                              {(selectedQuoteMoneyRow?.total_ngn || 0).toLocaleString()}
                             </p>
                           </div>
                           <div>
