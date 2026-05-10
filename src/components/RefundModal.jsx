@@ -182,6 +182,42 @@ function sumLines(lines) {
   }, 0);
 }
 
+const AMOUNT_LINE_TOL = 1;
+
+/**
+ * When an approver sets a lower approved amount but lines still sum to the original request,
+ * scale included line amounts proportionally so the API line-sum check passes.
+ */
+function scaleCalculationLinesToApprovedAmount(lines, targetNgn) {
+  const target = roundMoneyLocal(targetNgn);
+  if (!Array.isArray(lines) || target <= 0) return lines;
+  const includedIndices = [];
+  let sum = 0;
+  for (let i = 0; i < lines.length; i += 1) {
+    if (lines[i]?.include === false) continue;
+    const n = Number(String(lines[i]?.amountNgn ?? '').replace(/,/g, ''));
+    if (!Number.isNaN(n) && n > 0) {
+      includedIndices.push(i);
+      sum += roundMoneyLocal(n);
+    }
+  }
+  if (includedIndices.length === 0 || sum <= 0) return lines;
+  if (Math.abs(sum - target) <= AMOUNT_LINE_TOL) return lines;
+
+  const scale = target / sum;
+  const next = lines.map((l) => ({ ...l }));
+  let allocated = 0;
+  for (let j = 0; j < includedIndices.length; j += 1) {
+    const i = includedIndices[j];
+    const raw = Number(String(lines[i]?.amountNgn ?? '').replace(/,/g, ''));
+    const isLast = j === includedIndices.length - 1;
+    const amt = isLast ? target - allocated : roundMoneyLocal(raw * scale);
+    next[i] = { ...next[i], amountNgn: amt };
+    allocated += amt;
+  }
+  return next;
+}
+
 /** API rows use snake_case; workspace snapshot uses camelCase — unify for the quotation dropdown. */
 function normalizeQuoteForRefundSelect(q) {
   if (!q?.id) return null;
@@ -896,10 +932,46 @@ const RefundModal = ({
       approvalStatus === 'Approved'
         ? Number(approvedAmountNgn) || recordApprovedAmount || Number(record?.amountNgn) || 0
         : 0;
-    
+
     if (approvalStatus === 'Approved' && nextApprovedAmountNgn <= 0) {
       setPreviewError('Approved amount must be positive.');
       return;
+    }
+
+    const requestedTotal = Math.round(Number(record?.amountNgn) || 0);
+    const lineSum = sumLines(form.calculationLines);
+    let linesForDecision = form.calculationLines;
+
+    if (approvalStatus === 'Approved') {
+      if (Math.abs(lineSum - nextApprovedAmountNgn) <= AMOUNT_LINE_TOL) {
+        linesForDecision = form.calculationLines;
+      } else if (
+        Math.abs(lineSum - requestedTotal) <= AMOUNT_LINE_TOL &&
+        nextApprovedAmountNgn <= requestedTotal + AMOUNT_LINE_TOL
+      ) {
+        linesForDecision = scaleCalculationLinesToApprovedAmount(
+          form.calculationLines,
+          nextApprovedAmountNgn
+        );
+        const check = sumLines(linesForDecision);
+        if (Math.abs(check - nextApprovedAmountNgn) > AMOUNT_LINE_TOL) {
+          setPreviewError(
+            `Breakdown lines could not be aligned to ₦${nextApprovedAmountNgn.toLocaleString(
+              'en-NG'
+            )}. Edit line amounts so included lines sum to the approved total.`
+          );
+          return;
+        }
+      } else {
+        setPreviewError(
+          `Included lines total ₦${Math.round(lineSum).toLocaleString(
+            'en-NG'
+          )} but approved amount is ₦${nextApprovedAmountNgn.toLocaleString(
+            'en-NG'
+          )}. Edit lines so they match, or leave lines matching the original request to allow proportional scaling.`
+        );
+        return;
+      }
     }
 
     setPreviewError('');
@@ -910,7 +982,7 @@ const RefundModal = ({
       approvalDate: approvalDate.trim() || new Date().toISOString().slice(0, 10),
       managerComments: managerComments.trim(),
       approvedAmountNgn: nextApprovedAmountNgn,
-      calculationLines: form.calculationLines.map(l => ({ ...l, amountNgn: Number(l.amountNgn) })),
+      calculationLines: linesForDecision.map((l) => ({ ...l, amountNgn: Number(l.amountNgn) })),
       calculationNotes: form.calculationNotes.trim(),
     });
     setSaving(false);
@@ -943,6 +1015,23 @@ const RefundModal = ({
     lineSum > 0 &&
     Number(form.amountNgn) > 0 &&
     Math.round(lineSum) !== Math.round(Number(form.amountNgn));
+
+  const requestedRefundTotal = Math.round(Number(record?.amountNgn) || 0);
+  const approvalWillScaleLines =
+    showApproval &&
+    approvalStatus === 'Approved' &&
+    requestedRefundTotal > 0 &&
+    Math.abs(lineSum - requestedRefundTotal) <= AMOUNT_LINE_TOL &&
+    Math.abs(lineSum - (Number(approvedAmountNgn) || 0)) > AMOUNT_LINE_TOL &&
+    (Number(approvedAmountNgn) || 0) > 0 &&
+    (Number(approvedAmountNgn) || 0) <= requestedRefundTotal + AMOUNT_LINE_TOL;
+
+  const approvalSumMismatch =
+    showApproval &&
+    approvalStatus === 'Approved' &&
+    (Number(approvedAmountNgn) || 0) > 0 &&
+    Math.abs(lineSum - requestedRefundTotal) > AMOUNT_LINE_TOL &&
+    Math.abs(lineSum - (Number(approvedAmountNgn) || 0)) > AMOUNT_LINE_TOL;
 
   return (
     <ModalFrame isOpen={isOpen} onClose={handleClose}>
@@ -2107,6 +2196,18 @@ const RefundModal = ({
                               ₦{approvalMoneyContext.paidNgn.toLocaleString('en-NG')} · Other open refunds (reserved): ₦
                               {approvalMoneyContext.sumOthers.toLocaleString('en-NG')} · Approvable cap: ₦
                               {approvalMoneyContext.maxApprovable.toLocaleString('en-NG')}
+                            </p>
+                          ) : null}
+                          {approvalWillScaleLines ? (
+                            <p className="mt-2 text-[10px] font-semibold text-teal-800 leading-snug">
+                              Breakdown still matches the original request total — line amounts will scale proportionally to
+                              the approved amount when you submit.
+                            </p>
+                          ) : null}
+                          {approvalSumMismatch ? (
+                            <p className="mt-2 text-[10px] font-semibold text-rose-700 leading-snug" role="alert">
+                              Included lines do not sum to the approved amount and no longer match the original request —
+                              edit individual lines so their total equals the approved figure.
                             </p>
                           ) : null}
                         </div>
