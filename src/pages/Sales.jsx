@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 
 import SalesCustomersTab from '../components/sales/SalesCustomersTab';
+import SalesCustomerCreateModal from '../components/sales/SalesCustomerCreateModal';
 import SalesCuttingListMaterialPanel from '../components/sales/SalesCuttingListMaterialPanel';
 import { SalesRowMenu } from '../components/sales/SalesRowMenu';
 import {
@@ -175,6 +176,8 @@ const Sales = () => {
   const [receiptAccessMode, setReceiptAccessMode] = useState('edit');
   const [cuttingAccessMode, setCuttingAccessMode] = useState('edit');
   const [customerAddOpen, setCustomerAddOpen] = useState(false);
+  const [customerCreateFromQuotation, setCustomerCreateFromQuotation] = useState(false);
+  const [quotationCustomerPick, setQuotationCustomerPick] = useState(null);
   const [showAdvanceModal, setShowAdvanceModal] = useState(false);
   const [linkAdvanceEntry, setLinkAdvanceEntry] = useState(null);
   const [advanceViewEntry, setAdvanceViewEntry] = useState(null);
@@ -256,6 +259,25 @@ const Sales = () => {
     bumpLedger();
     if (ws?.canMutate) await ws.refresh();
   }, [bumpLedger, ws.refresh, ws.canMutate]);
+
+  const consumeQuotationCustomerPick = useCallback(() => setQuotationCustomerPick(null), []);
+  const requestNewCustomerFromQuotation = useCallback(() => {
+    setCustomerCreateFromQuotation(true);
+    setCustomerAddOpen(true);
+  }, []);
+  const handleCustomerCreateModalClose = useCallback(() => {
+    setCustomerAddOpen(false);
+    setCustomerCreateFromQuotation(false);
+  }, []);
+  const handleCustomerCreated = useCallback(
+    (p) => {
+      if (customerCreateFromQuotation && p?.customerID) {
+        setQuotationCustomerPick(p);
+      }
+      setCustomerCreateFromQuotation(false);
+    },
+    [customerCreateFromQuotation]
+  );
 
   const coilInventoryRows = useMemo(() => {
     const seenIds = new Set();
@@ -1894,8 +1916,6 @@ const Sales = () => {
                   <SalesCustomersTab
                     searchQuery={searchQuery}
                     onSearchChange={setSearchQuery}
-                    addOpen={customerAddOpen}
-                    onAddClose={() => setCustomerAddOpen(false)}
                     createdByLabel={salesRoleLabel}
                     quotations={quotations}
                     receipts={mergedReceiptRows}
@@ -1923,6 +1943,15 @@ const Sales = () => {
         useLedgerApi={Boolean(ws?.canMutate)}
         useQuotationApi={Boolean(ws?.canMutate)}
         quotedByStaff={salesRoleLabel}
+        onRequestNewCustomer={requestNewCustomerFromQuotation}
+        externalCustomerPick={quotationCustomerPick}
+        onConsumeExternalCustomerPick={consumeQuotationCustomerPick}
+      />
+      <SalesCustomerCreateModal
+        isOpen={customerAddOpen}
+        onClose={handleCustomerCreateModalClose}
+        createdByLabel={salesRoleLabel}
+        onCreated={handleCustomerCreated}
       />
       <ReceiptModal
         isOpen={showReceiptModal}

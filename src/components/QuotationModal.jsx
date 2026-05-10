@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import {
   X,
   Search,
@@ -127,7 +127,7 @@ function newLineId() {
 }
 
 function emptyOrderLine() {
-  return { id: newLineId(), name: '', qty: '', unitPrice: '' };
+  return { id: newLineId(), name: '', qty: '', unitPrice: '', customLine: false };
 }
 
 function parseLineNum(s) {
@@ -184,6 +184,7 @@ function normalizeLoadedLines(raw) {
     name: String(r.name ?? ''),
     qty: r.qty != null ? String(r.qty) : '',
     unitPrice: r.unitPrice != null ? String(r.unitPrice) : '',
+    customLine: r.customLine === true,
     gauge: r.gauge != null ? String(r.gauge) : '',
     colour: r.colour != null || r.color != null ? String(r.colour ?? r.color ?? '') : '',
     design: r.design != null ? String(r.design) : '',
@@ -237,7 +238,6 @@ function normalizeOptionItems(optionItems) {
 
 function OrderLinesSection({
   title,
-  letter,
   optionItems,
   rows,
   setRows,
@@ -253,11 +253,8 @@ function OrderLinesSection({
 
   return (
     <div className="mb-5">
-      <div className="flex items-center gap-2 mb-3 px-1">
-        <div className="w-7 h-7 bg-[#134e4a] text-white rounded-lg flex items-center justify-center font-bold text-[10px]">
-          {letter}
-        </div>
-        <h3 className="text-[10px] font-semibold text-[#134e4a] uppercase tracking-widest">{title}</h3>
+      <div className="mb-2 px-0.5">
+        <h3 className="text-[9px] font-semibold text-[#134e4a] uppercase tracking-widest">{title}</h3>
       </div>
 
       <div className="bg-slate-50/80 rounded-xl p-3 sm:p-4 border border-slate-200/90">
@@ -297,50 +294,82 @@ function OrderLinesSection({
               const amt = lineAmountNgn(row);
               const matchedOption =
                 normalizedOptions.find((option) => option.name === row.name) || null;
+              const isCustomLine =
+                row.customLine === true ||
+                (Boolean(String(row.name || '').trim()) && !matchedOption);
               return (
                 <div
                   key={row.id}
                   className="grid grid-cols-12 gap-2 items-center mb-2 last:mb-0 border-b border-slate-100/80 pb-2 last:border-0 last:pb-0"
                 >
                   <div className="col-span-12 sm:col-span-4 relative">
-                    <select
-                      value={matchedOption?.id || ''}
-                      onChange={(e) => {
-                        const option = normalizedOptions.find((item) => item.id === e.target.value);
-                        const suggestedPrice =
-                          typeof resolveUnitPrice === 'function'
-                            ? resolveUnitPrice(option?.name || '', option || null)
-                            : option?.defaultUnitPriceNgn || 0;
-                        updateRow(row.id, {
-                          name: option?.name || '',
-                          unitPrice:
-                            suggestedPrice > 0
-                              ? String(suggestedPrice)
-                              : option?.defaultUnitPriceNgn > 0
-                                ? String(option.defaultUnitPriceNgn)
-                                : row.unitPrice,
-                        });
-                      }}
-                      className="w-full bg-white border border-slate-200 rounded-lg py-2 px-3 text-xs font-semibold text-[#134e4a] appearance-none outline-none focus:ring-2 focus:ring-[#134e4a]/15 cursor-pointer"
-                    >
-                      <option value="">Choose or type below…</option>
-                      {normalizedOptions.map((option) => (
-                        <option key={option.id} value={option.id}>
-                          {option.name}
-                        </option>
-                      ))}
-                    </select>
-                    <ChevronDown
-                      size={12}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-300 pointer-events-none"
-                    />
-                    <input
-                      type="text"
-                      value={matchedOption ? '' : row.name}
-                      onChange={(e) => updateRow(row.id, { name: e.target.value })}
-                      placeholder="Custom item name"
-                      className="mt-1.5 w-full bg-white border border-dashed border-slate-200 rounded-lg py-1.5 px-2 text-[11px] text-slate-700 outline-none focus:ring-2 focus:ring-[#134e4a]/10"
-                    />
+                    {isCustomLine ? (
+                      <>
+                        <input
+                          type="text"
+                          value={row.name}
+                          onChange={(e) => updateRow(row.id, { name: e.target.value, customLine: true })}
+                          placeholder="Custom item name"
+                          className="w-full bg-white border border-slate-200 rounded-lg py-2 px-3 text-xs font-semibold text-[#134e4a] outline-none focus:ring-2 focus:ring-[#134e4a]/10"
+                        />
+                        <button
+                          type="button"
+                          onClick={() =>
+                            updateRow(row.id, {
+                              customLine: false,
+                              name: matchedOption ? row.name : '',
+                            })
+                          }
+                          className="mt-1 text-left text-[10px] font-semibold text-[#134e4a]/90 underline decoration-[#134e4a]/30 underline-offset-2 hover:text-[#0f3d39]"
+                        >
+                          Choose from list
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <div className="relative">
+                          <select
+                            value={matchedOption?.id || ''}
+                            onChange={(e) => {
+                              const option = normalizedOptions.find((item) => item.id === e.target.value);
+                              const suggestedPrice =
+                                typeof resolveUnitPrice === 'function'
+                                  ? resolveUnitPrice(option?.name || '', option || null)
+                                  : option?.defaultUnitPriceNgn || 0;
+                              updateRow(row.id, {
+                                customLine: false,
+                                name: option?.name || '',
+                                unitPrice:
+                                  suggestedPrice > 0
+                                    ? String(suggestedPrice)
+                                    : option?.defaultUnitPriceNgn > 0
+                                      ? String(option.defaultUnitPriceNgn)
+                                      : row.unitPrice,
+                              });
+                            }}
+                            className="w-full bg-white border border-slate-200 rounded-lg py-2 px-3 text-xs font-semibold text-[#134e4a] appearance-none outline-none focus:ring-2 focus:ring-[#134e4a]/15 cursor-pointer"
+                          >
+                            <option value="">Choose item…</option>
+                            {normalizedOptions.map((option) => (
+                              <option key={option.id} value={option.id}>
+                                {option.name}
+                              </option>
+                            ))}
+                          </select>
+                          <ChevronDown
+                            size={12}
+                            className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-300 pointer-events-none"
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => updateRow(row.id, { customLine: true })}
+                          className="mt-1 text-left text-[10px] font-semibold text-[#134e4a]/90 underline decoration-[#134e4a]/30 underline-offset-2 hover:text-[#0f3d39]"
+                        >
+                          Custom entry
+                        </button>
+                      </>
+                    )}
                   </div>
                   <input
                     type="number"
@@ -399,6 +428,9 @@ function OrderLinesSection({
  * @param {string} [props.quotedByStaff] — workspace staff label for new quotations (print + audit)
  * @param {boolean} [props.useQuotationApi] — persist create/update to SQLite via POST/PATCH /api/quotations
  * @param {(quotation: object) => void} [props.onQuotationRevived] — after POST /api/quotations/:id/revive
+ * @param {() => void} [props.onRequestNewCustomer] — open stacked new-customer form without leaving the quote
+ * @param {{ customerID: string; name: string; phoneNumber: string } | null} [props.externalCustomerPick]
+ * @param {() => void} [props.onConsumeExternalCustomerPick]
  */
 const QuotationModal = ({
   isOpen,
@@ -410,8 +442,10 @@ const QuotationModal = ({
   useLedgerApi = false,
   useQuotationApi = false,
   quotedByStaff = 'Sales',
+  onRequestNewCustomer,
+  externalCustomerPick = null,
+  onConsumeExternalCustomerPick,
 }) => {
-  const navigate = useNavigate();
   const { customers } = useCustomers();
   const { show: showToast } = useToast();
   const ws = useWorkspace();
@@ -430,6 +464,7 @@ const QuotationModal = ({
 
   const [customerQuery, setCustomerQuery] = useState('');
   const [selectedCustomerId, setSelectedCustomerId] = useState('');
+  const [pickedCustomerInline, setPickedCustomerInline] = useState(null);
   const [customerListOpen, setCustomerListOpen] = useState(false);
   const customerBlurTimer = useRef(null);
 
@@ -668,6 +703,7 @@ const QuotationModal = ({
 
     setApplyAdvanceAmount('');
     setApplyAdvanceHint(null);
+    setPickedCustomerInline(null);
     const cid = editData?.customerID ?? '';
     setSelectedCustomerId(cid);
     const match = customers.find((x) => x.customerID === cid);
@@ -817,7 +853,8 @@ const QuotationModal = ({
 
   const selectedCustomer =
     customers.find((x) => x.customerID === selectedCustomerId) ??
-    (editData?.customer && editData?.customerID
+    (pickedCustomerInline?.customerID === selectedCustomerId ? pickedCustomerInline : null) ??
+    (editData?.customer && String(editData.customerID) === String(selectedCustomerId)
       ? {
           customerID: editData.customerID,
           name: editData.customer,
@@ -896,46 +933,83 @@ const QuotationModal = ({
   };
 
   const openFullCustomerForm = () => {
-    wrapClose(() => {
-      onClose();
-      navigate('/sales', { state: { focusSalesTab: 'customers', openCustomerCreate: true } });
-    });
+    if (onRequestNewCustomer) {
+      onRequestNewCustomer();
+      return;
+    }
+    showToast('Add customers from the Customers tab.', { variant: 'error' });
   };
 
-  const pickCustomer = (c) => {
+  const pickCustomer = useCallback((c) => {
     setSelectedCustomerId(c.customerID);
     setCustomerQuery(`${c.name} · ${c.phoneNumber}`);
     setCustomerListOpen(false);
-  };
+    setPickedCustomerInline({
+      customerID: c.customerID,
+      name: c.name,
+      phoneNumber: c.phoneNumber || '',
+    });
+  }, []);
 
-  const buildLinesPayload = () => ({
-    products: productRows.map(({ id, name, qty, unitPrice }) => ({
-      id,
-      name,
-      qty,
-      unitPrice,
-      gauge: materialGauge,
-      colour: materialColor,
-      design: materialDesign,
-      profile: materialDesign,
-    })),
-    accessories: accessoryRows.map(({ id, name, qty, unitPrice }) => ({ id, name, qty, unitPrice })),
-    services: serviceRows.map(({ id, name, qty, unitPrice }) => ({
-      id,
-      name,
-      qty,
-      unitPrice,
-      gauge: materialGauge,
-      colour: materialColor,
-      design: materialDesign,
-      profile: materialDesign,
-    })),
-  });
+  useEffect(() => {
+    if (!isOpen || !externalCustomerPick?.customerID) return;
+    pickCustomer({
+      customerID: externalCustomerPick.customerID,
+      name: externalCustomerPick.name,
+      phoneNumber: externalCustomerPick.phoneNumber,
+    });
+    onConsumeExternalCustomerPick?.();
+  }, [isOpen, externalCustomerPick, onConsumeExternalCustomerPick, pickCustomer]);
+
+  const buildLinesPayload = () => {
+    const lineCustom = (row, optionItems) => {
+      const normalizedOptions = normalizeOptionItems(optionItems);
+      const matchedOption = normalizedOptions.find((option) => option.name === row.name) || null;
+      return (
+        row.customLine === true || (Boolean(String(row.name || '').trim()) && !matchedOption)
+      );
+    };
+    return {
+      products: productRows.map((row) => ({
+        id: row.id,
+        name: row.name,
+        qty: row.qty,
+        unitPrice: row.unitPrice,
+        customLine: lineCustom(row, productOptions),
+        gauge: materialGauge,
+        colour: materialColor,
+        design: materialDesign,
+        profile: materialDesign,
+      })),
+      accessories: accessoryRows.map((row) => ({
+        id: row.id,
+        name: row.name,
+        qty: row.qty,
+        unitPrice: row.unitPrice,
+        customLine: lineCustom(row, accessoryOptions),
+      })),
+      services: serviceRows.map((row) => ({
+        id: row.id,
+        name: row.name,
+        qty: row.qty,
+        unitPrice: row.unitPrice,
+        customLine: lineCustom(row, serviceOptions),
+        gauge: materialGauge,
+        colour: materialColor,
+        design: materialDesign,
+        profile: materialDesign,
+      })),
+    };
+  };
 
   const onSaveDraft = async () => {
     if (readOnly) return;
     if (!selectedCustomer?.customerID) {
       showToast('Select a customer before saving.', { variant: 'error' });
+      return;
+    }
+    if (!projectName.trim()) {
+      showToast('Enter project / site (required).', { variant: 'error' });
       return;
     }
     if (useQuotationApi) {
@@ -1265,6 +1339,8 @@ const QuotationModal = ({
           ) : null}
 
           <div className="rounded-xl border border-slate-200/90 p-4 mb-5 bg-white">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-5">
+              <div>
             <label className="text-[9px] font-semibold text-slate-500 uppercase tracking-widest mb-2 block">
               Customer — search by name or phone
             </label>
@@ -1279,6 +1355,7 @@ const QuotationModal = ({
                 onChange={(e) => {
                   setCustomerQuery(e.target.value);
                   setSelectedCustomerId('');
+                  setPickedCustomerInline(null);
                   setCustomerListOpen(true);
                 }}
                 onFocus={() => {
@@ -1326,7 +1403,7 @@ const QuotationModal = ({
             ) : null}
             {!readOnly && customerQuery.trim().length >= 2 && filteredCustomers.length === 0 ? (
               <p className="mt-2 text-[10px] text-amber-700 font-medium">
-                No match — use New customer to open the full registration form on the Customers tab.
+                No match — use New customer to register without leaving this quote.
               </p>
             ) : null}
             {!readOnly ? (
@@ -1339,27 +1416,30 @@ const QuotationModal = ({
                   <UserPlus size={14} />
                   New customer
                 </button>
-                <span className="text-[9px] text-slate-400">Opens Sales → Customers (full form)</span>
+                <span className="text-[9px] text-slate-400">Opens on top — quotation stays open</span>
               </div>
             ) : null}
-          </div>
+              </div>
 
-          <div className="rounded-xl border border-slate-200/90 p-4 mb-5 bg-white">
+              <div>
             <label className="text-[9px] font-semibold text-slate-500 uppercase tracking-widest mb-2 block">
-              Project name
+              Project / site <span className="text-rose-600 normal-case font-bold">(required)</span>
             </label>
             <input
               type="text"
               value={projectName}
               onChange={(e) => setProjectName(e.target.value)}
               readOnly={readOnly}
+              required={!readOnly}
               placeholder="e.g. Site address, estate, or job reference"
               className="w-full bg-slate-50 border border-slate-200 rounded-lg py-2.5 px-3 text-xs font-semibold text-[#134e4a] outline-none focus:ring-2 focus:ring-[#134e4a]/10 disabled:opacity-60"
             />
+              </div>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
-            <div className="relative sm:col-span-3">
+            <div className="relative">
               <label className="text-[9px] font-semibold text-slate-400 uppercase tracking-wide mb-1 block">
                 Material type
               </label>
@@ -1378,7 +1458,7 @@ const QuotationModal = ({
               </select>
               <ChevronDown size={12} className="absolute right-2 bottom-2.5 text-slate-300 pointer-events-none" />
             </div>
-            <div className="relative sm:col-span-3">
+            <div className="relative">
               <label className="text-[9px] font-semibold text-slate-400 uppercase tracking-wide mb-1 block">
                 Material gauge
               </label>
@@ -1586,7 +1666,6 @@ const QuotationModal = ({
 
           <OrderLinesSection
             title="Products"
-            letter="1"
             optionItems={productOptions}
             rows={productRows}
             setRows={setProductRows}
@@ -1595,7 +1674,6 @@ const QuotationModal = ({
           />
           <OrderLinesSection
             title="Accessories"
-            letter="2"
             optionItems={accessoryOptions}
             rows={accessoryRows}
             setRows={setAccessoryRows}
@@ -1604,7 +1682,6 @@ const QuotationModal = ({
           />
           <OrderLinesSection
             title="Services"
-            letter="3"
             optionItems={serviceOptions}
             rows={serviceRows}
             setRows={setServiceRows}
