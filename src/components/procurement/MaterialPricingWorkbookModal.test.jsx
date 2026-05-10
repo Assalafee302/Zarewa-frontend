@@ -54,8 +54,8 @@ function sheetResponse() {
       isStoneCoatedWorkbook: false,
       purchaseCostLookbackDays: 30,
       rows: [
-        { gaugeMm: '0.40', ...baseRow },
-        { gaugeMm: '0.45', ...baseRow },
+        { id: 'MPS-T40', gaugeMm: '0.40', ...baseRow },
+        { id: 'MPS-T45', gaugeMm: '0.45', ...baseRow },
       ],
     },
   };
@@ -82,7 +82,10 @@ describe('MaterialPricingWorkbookModal', () => {
     render(<MaterialPricingWorkbookModal open onClose={vi.fn()} initialMaterialKey="alu" />);
 
     await waitFor(() => {
-      expect(screen.getByText('0.40 mm')).toBeInTheDocument();
+      const gaugeSelects = screen.getAllByLabelText(/gauge thickness mm/i);
+      expect(gaugeSelects.length).toBe(2);
+      expect(gaugeSelects[0]).toHaveValue('0.40');
+      expect(gaugeSelects[1]).toHaveValue('0.45');
     });
 
     const costField = screen.getByRole('textbox', { name: /material cost per kilogram/i });

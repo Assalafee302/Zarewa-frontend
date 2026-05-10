@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Printer, X } from 'lucide-react';
+import { Plus, Printer, Trash2, X } from 'lucide-react';
 import { ModalFrame } from '../layout';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { useToast } from '../../context/ToastContext';
@@ -57,48 +57,114 @@ function effectiveUsedKgPerM(draftStr, resolved) {
   return null;
 }
 
-/** Merge current on-screen drafts into one material sheet payload for print preview. */
-function mergeDraftIntoSheet(sheet, draftByGauge) {
-  if (!sheet?.ok || !draftByGauge) return sheet;
-  const designRows = (sheet.rows || []).filter((r) => String(r.designKey || '').trim());
-  const baseRows = (sheet.gauges || []).map((g) => {
-    const existing = (sheet.rows || []).find((r) => r.gaugeMm === g && !String(r.designKey || '').trim());
-    const row = existing
-      ? { ...existing }
-      : {
-          gaugeMm: g,
-          designKey: '',
-          materialKey: sheet.materialKey,
-          branchId: sheet.branchId,
-          costPerKgNgn: 0,
-          overheadNgnPerM: 0,
-          profitNgnPerM: 0,
-          minimumPricePerMeterNgn: 0,
-          commissionNgnPerM: 0,
-          conversionUsedKgPerM: null,
-          notes: '',
-        };
-    const dr = draftByGauge[g];
-    if (dr) {
-      const ck = numOrUndef(dr.costPerKgNgn);
-      if (ck !== undefined) row.costPerKgNgn = ck;
-      const oh = numOrUndef(dr.overheadNgnPerM);
-      if (oh !== undefined) row.overheadNgnPerM = oh;
-      const pr = numOrUndef(dr.profitNgnPerM);
-      if (pr !== undefined) row.profitNgnPerM = pr;
-      const mn = numOrUndef(dr.minimumPricePerMeterNgn);
-      if (mn !== undefined) row.minimumPricePerMeterNgn = Math.round(mn);
-      const cm = numOrUndef(dr.commissionNgnPerM);
-      if (cm !== undefined) row.commissionNgnPerM = Math.max(0, cm);
-      const uStr = String(dr.conversionUsedKgPerM ?? '').trim();
-      if (uStr !== '') {
-        const n = Number(uStr);
-        if (Number.isFinite(n) && n > 0) row.conversionUsedKgPerM = n;
-      }
+function isWorkbookDesignKey(dk) {
+  const s = String(dk ?? '').trim();
+  return s === '' || s.startsWith('wb-');
+}
+
+function newLineKey() {
+  return `ln_${crypto.randomUUID().replace(/-/g, '').slice(0, 12)}`;
+}
+
+function newWbDesignKey() {
+  return `wb_${crypto.randomUUID().replace(/-/g, '').slice(0, 10)}`;
+}
+
+/** First row per gauge keeps '' or explicit wb-; further rows for same gauge get wb-* */
+function finalizeDesignKeys(lines) {
+  const seenGauge = new Set();
+  return lines.map((line) => {
+    const g = String(line.gaugeMm ?? '').trim();
+    if (!g) return line;
+    let dk = String(line.designKey ?? '').trim();
+    if (!seenGauge.has(g)) {
+      seenGauge.add(g);
+      return { ...line, designKey: dk.startsWith('wb-') ? dk : '' };
     }
-    return row;
+    if (!dk || !dk.startsWith('wb-')) {
+      dk = newWbDesignKey();
+    }
+    return { ...line, designKey: dk };
   });
-  return { ...sheet, rows: [...baseRows, ...designRows] };
+}
+
+function draftFromServerRow(row, recCost, rv, isStone) {
+  if (!row) {
+    return {
+      gaugeCustomerLabel: '',
+      costPerKgNgn: recCost != null && Number(recCost) > 0 && !isStone ? String(recCost) : '',
+      conversionUsedKgPerM: '',
+      overheadNgnPerM: '',
+      profitNgnPerM: '',
+      commissionNgnPerM: '',
+      minimumPricePerMeterNgn: '',
+      notes: '',
+      syncMinimumToPriceList: false,
+      syncDesignKey: isStone ? 'stone-coated' : '',
+    };
+  }
+  let costStr = row?.costPerKgNgn != null && Number(row.costPerKgNgn) > 0 ? String(row.costPerKgNgn) : '';
+  if (!costStr && recCost != null && Number(recCost) > 0 && !isStone) {
+    costStr = String(recCost);
+  }
+  const usedStored = row?.conversionUsedKgPerM;
+  const usedSuggested = rv?.usedSuggested;
+  const hasDistinctStored =
+    usedStored != null &&
+    Number(usedStored) > 0 &&
+    (usedSuggested == null ||
+      !Number.isFinite(Number(usedSuggested)) ||
+      Math.abs(Number(usedStored) - Number(usedSuggested)) > 1e-6);
+  return {
+    gaugeCustomerLabel: row?.gaugeCustomerLabel != null ? String(row.gaugeCustomerLabel) : '',
+    costPerKgNgn: costStr,
+    conversionUsedKgPerM: hasDistinctStored && usedStored != null ? String(usedStored) : '',
+    overheadNgnPerM: row?.overheadNgnPerM != null ? String(row.overheadNgnPerM) : '',
+    profitNgnPerM: row?.profitNgnPerM != null ? String(row.profitNgnPerM) : '',
+    commissionNgnPerM: row?.commissionNgnPerM != null && Number(row.commissionNgnPerM) > 0 ? String(row.commissionNgnPerM) : '',
+    minimumPricePerMeterNgn: row?.minimumPricePerMeterNgn != null ? String(row.minimumPricePerMeterNgn) : '',
+    notes: row?.notes || '',
+    syncMinimumToPriceList: false,
+    syncDesignKey: isStone ? 'stone-coated' : '',
+  };
+}
+
+/** Merge workbook line state into sheet payload for print preview. */
+function mergeDraftIntoSheet(sheet, workbookLines) {
+  if (!sheet?.ok) return sheet;
+  if (!workbookLines?.length) {
+    return { ...sheet, rows: [] };
+  }
+  const finalized = finalizeDesignKeys(workbookLines.filter((l) => String(l.gaugeMm ?? '').trim()));
+  const built = finalized.map((line) => {
+    const dr = line.draft;
+    const g = String(line.gaugeMm).trim();
+    const dk = String(line.designKey ?? '').trim();
+    const uStr = String(dr.conversionUsedKgPerM ?? '').trim();
+    let conversionUsedKgPerM = null;
+    if (uStr !== '') {
+      const n = Number(uStr);
+      conversionUsedKgPerM = Number.isFinite(n) && n > 0 ? n : null;
+    }
+    const existing = (sheet.rows || []).find((r) => r.id === line.serverId);
+    return {
+      ...(existing || {}),
+      id: line.serverId,
+      gaugeMm: g,
+      designKey: dk,
+      materialKey: sheet.materialKey,
+      branchId: sheet.branchId,
+      gaugeCustomerLabel: String(dr.gaugeCustomerLabel ?? '').trim(),
+      costPerKgNgn: numOrUndef(dr.costPerKgNgn) ?? 0,
+      overheadNgnPerM: numOrUndef(dr.overheadNgnPerM) ?? 0,
+      profitNgnPerM: numOrUndef(dr.profitNgnPerM) ?? 0,
+      commissionNgnPerM: Math.max(0, numOrUndef(dr.commissionNgnPerM) ?? 0),
+      minimumPricePerMeterNgn: Math.round(Number(dr.minimumPricePerMeterNgn) || 0),
+      conversionUsedKgPerM,
+      notes: dr.notes?.trim() || '',
+    };
+  });
+  return { ...sheet, rows: built };
 }
 
 /**
@@ -118,7 +184,8 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
   const [events, setEvents] = useState([]);
   const [busy, setBusy] = useState(false);
   const [savingAll, setSavingAll] = useState(false);
-  const [draftByGauge, setDraftByGauge] = useState({});
+  /** @type {Array<{ key: string; serverId?: string; gaugeMm: string; designKey: string; draft: Record<string, unknown> }>} */
+  const [workbookLines, setWorkbookLines] = useState([]);
   const [printPreview, setPrintPreview] = useState(null);
   const [printPack, setPrintPack] = useState(null);
   const [printLoading, setPrintLoading] = useState(false);
@@ -155,7 +222,7 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
     setBusy(false);
     if (!r1.ok || !r1.data?.ok) {
       setSheet(null);
-      setDraftByGauge({});
+      setWorkbookLines([]);
       showToast(r1.data?.error || 'Could not load workbook.', { variant: 'error' });
       return;
     }
@@ -164,36 +231,26 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
 
     const isStone = Boolean(r1.data.isStoneCoatedWorkbook);
     const recCost = r1.data.recommendedCostPerKgNgn;
-    const d = {};
-    for (const g of r1.data.gauges || []) {
-      const row = (r1.data.rows || []).find((x) => x.gaugeMm === g && !x.designKey);
-      let costStr = row?.costPerKgNgn != null && Number(row.costPerKgNgn) > 0 ? String(row.costPerKgNgn) : '';
-      if (!costStr && recCost != null && Number(recCost) > 0 && !isStone) {
-        costStr = String(recCost);
-      }
-      const rv = r1.data.resolvedByGauge?.[g] || {};
-      const usedStored = row?.conversionUsedKgPerM;
-      const usedSuggested = rv.usedSuggested;
-      const hasDistinctStored =
-        usedStored != null &&
-        Number(usedStored) > 0 &&
-        (usedSuggested == null ||
-          !Number.isFinite(Number(usedSuggested)) ||
-          Math.abs(Number(usedStored) - Number(usedSuggested)) > 1e-6);
-      d[g] = {
-        costPerKgNgn: costStr,
-        conversionUsedKgPerM:
-          hasDistinctStored && usedStored != null ? String(usedStored) : '',
-        overheadNgnPerM: row?.overheadNgnPerM != null ? String(row.overheadNgnPerM) : '',
-        profitNgnPerM: row?.profitNgnPerM != null ? String(row.profitNgnPerM) : '',
-        commissionNgnPerM: row?.commissionNgnPerM != null && Number(row.commissionNgnPerM) > 0 ? String(row.commissionNgnPerM) : '',
-        minimumPricePerMeterNgn: row?.minimumPricePerMeterNgn != null ? String(row.minimumPricePerMeterNgn) : '',
-        notes: row?.notes || '',
-        syncMinimumToPriceList: false,
-        syncDesignKey: isStone ? 'stone-coated' : '',
-      };
-    }
-    setDraftByGauge(d);
+    const wbRows = (r1.data.rows || [])
+      .filter((r) => isWorkbookDesignKey(r.designKey))
+      .sort((a, b) => {
+        const ga = String(a.gaugeMm || '');
+        const gb = String(b.gaugeMm || '');
+        if (ga !== gb) return ga.localeCompare(gb, undefined, { numeric: true });
+        return String(a.designKey || '').localeCompare(String(b.designKey || ''));
+      });
+    setWorkbookLines(
+      wbRows.map((row) => {
+        const rv = r1.data.resolvedByGauge?.[row.gaugeMm] || {};
+        return {
+          key: row.id ? `srv_${row.id}` : newLineKey(),
+          serverId: row.id,
+          gaugeMm: row.gaugeMm || '',
+          designKey: row.designKey || '',
+          draft: draftFromServerRow(row, recCost, rv, isStone),
+        };
+      })
+    );
   }, [materialKey, branchId, showToast]);
 
   useEffect(() => {
@@ -216,20 +273,25 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
     };
   }, [printPreview]);
 
-  const buildPersistBody = (gaugeMm) => {
-    const dr = draftByGauge[gaugeMm];
+  const buildPersistBody = (line) => {
+    const dr = line.draft;
     if (!dr || !branchId) return null;
+    const gaugeMm = String(line.gaugeMm ?? '').trim();
+    if (!gaugeMm) return null;
     const uStr = String(dr.conversionUsedKgPerM ?? '').trim();
     let conversionUsedKgPerM = null;
     if (uStr !== '') {
       const n = Number(uStr);
       conversionUsedKgPerM = Number.isFinite(n) && n > 0 ? n : null;
     }
+    const designKey = String(line.designKey ?? '').trim();
     return {
+      id: line.serverId,
       materialKey,
       gaugeMm,
       branchId,
-      designKey: '',
+      designKey,
+      gaugeCustomerLabel: String(dr.gaugeCustomerLabel ?? '').trim() || undefined,
       costPerKgNgn: numOrUndef(dr.costPerKgNgn) ?? 0,
       conversionUsedKgPerM,
       overheadNgnPerM: numOrUndef(dr.overheadNgnPerM) ?? 0,
@@ -243,14 +305,18 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
   };
 
   const persistAllRows = async () => {
-    const gauges = sheet?.gauges || [];
-    if (!branchId || !gauges.length || savingAll || busy) return;
+    if (!branchId || savingAll || busy) return;
+    const finalized = finalizeDesignKeys(workbookLines.filter((l) => String(l.gaugeMm ?? '').trim()));
+    if (!finalized.length) {
+      showToast('Add at least one row and choose a gauge before saving.', { variant: 'error' });
+      return;
+    }
     setSavingAll(true);
     let saved = 0;
     let firstError = '';
     let priceListSyncWarning = '';
-    for (const g of gauges) {
-      const body = buildPersistBody(g);
+    for (const line of finalized) {
+      const body = buildPersistBody(line);
       if (!body) continue;
       const { ok, data } = await apiFetch('/api/pricing/material-sheet/rows', {
         method: 'POST',
@@ -267,7 +333,7 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
     }
     setSavingAll(false);
     if (firstError) {
-      showToast(`${firstError} (stopped at ${saved}/${gauges.length} saved)`, { variant: 'error' });
+      showToast(`${firstError} (stopped at ${saved}/${finalized.length} saved)`, { variant: 'error' });
       if (saved > 0) {
         void loadSheet();
         void loadEvents(materialKey);
@@ -280,12 +346,74 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
     }
     showToast(
       priceListSyncWarning
-        ? `Saved ${saved} gauge row(s). ${priceListSyncWarning}`
-        : `Saved ${saved} gauge row(s).`
+        ? `Saved ${saved} row(s). ${priceListSyncWarning}`
+        : `Saved ${saved} row(s).`
     );
     void loadSheet();
     void loadEvents(materialKey);
   };
+
+  const addWorkbookLine = () => {
+    const isStone = Boolean(sheet?.isStoneCoatedWorkbook);
+    const recCost = sheet?.recommendedCostPerKgNgn;
+    const emptyDraft = draftFromServerRow(null, recCost, {}, isStone);
+    setWorkbookLines((prev) => [
+      ...prev,
+      { key: newLineKey(), gaugeMm: '', designKey: '', draft: { ...emptyDraft, costPerKgNgn: '' } },
+    ]);
+  };
+
+  const removeWorkbookLine = async (lineKey) => {
+    const line = workbookLines.find((l) => l.key === lineKey);
+    if (line?.serverId) {
+      const { ok, data } = await apiFetch(`/api/pricing/material-sheet/rows/${encodeURIComponent(line.serverId)}`, {
+        method: 'DELETE',
+      });
+      if (!ok || !data?.ok) {
+        showToast(data?.error || 'Could not delete row.', { variant: 'error' });
+        return;
+      }
+      void loadEvents(materialKey);
+    }
+    setWorkbookLines((prev) => prev.filter((l) => l.key !== lineKey));
+  };
+
+  const updateLineDraft = (lineKey, patch) => {
+    setWorkbookLines((prev) =>
+      prev.map((l) =>
+        l.key === lineKey ? { ...l, draft: { ...(l.draft || {}), ...patch } } : l
+      )
+    );
+  };
+
+  const setLineGauge = (lineKey, newGauge) => {
+    const g = String(newGauge ?? '').trim();
+    setWorkbookLines((prev) =>
+      prev.map((line) => {
+        if (line.key !== lineKey) return line;
+        let dk = String(line.designKey ?? '').trim();
+        if (g) {
+          const siblingSame = prev.filter((x) => x.key !== lineKey && String(x.gaugeMm ?? '').trim() === g);
+          if (siblingSame.length > 0 && (!dk || !dk.startsWith('wb-'))) {
+            dk = newWbDesignKey();
+          }
+        }
+        return { ...line, gaugeMm: g, designKey: dk };
+      })
+    );
+  };
+
+  const setCostPerKgAllLines = useCallback(
+    (raw) => {
+      setWorkbookLines((prev) =>
+        prev.map((line) => ({
+          ...line,
+          draft: { ...line.draft, costPerKgNgn: raw },
+        }))
+      );
+    },
+    []
+  );
 
   const branchRecord = branches.find((b) => b.id === branchId);
   const branchName = branchRecord?.name || branchRecord?.code || branchId;
@@ -316,7 +444,7 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
           showToast('Could not load all workbook sections for print.', { variant: 'error' });
           return;
         }
-        const merged = sheets.map((s) => (s.materialKey === materialKey ? mergeDraftIntoSheet(s, draftByGauge) : s));
+        const merged = sheets.map((s) => (s.materialKey === materialKey ? mergeDraftIntoSheet(s, workbookLines) : s));
         setPrintPack({
           sheets: merged,
           accessories: extrasR.ok && extrasR.data?.ok ? extrasR.data.accessories || [] : [],
@@ -329,54 +457,29 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
         setPrintLoading(false);
       }
     },
-    [branchId, draftByGauge, materialKey, showToast]
+    [branchId, workbookLines, materialKey, showToast]
   );
-
-  const setDraft = (gaugeMm, patch) => {
-    setDraftByGauge((prev) => ({
-      ...prev,
-      [gaugeMm]: { ...prev[gaugeMm], ...patch },
-    }));
-  };
-
-  const setCostPerKgAllGauges = useCallback(
-    (raw) => {
-      const gauges = sheet?.gauges || [];
-      setDraftByGauge((prev) => {
-        const next = { ...prev };
-        for (const g of gauges) {
-          const row = next[g];
-          if (!row) continue;
-          next[g] = { ...row, costPerKgNgn: raw };
-        }
-        return next;
-      });
-    },
-    [sheet?.gauges]
-  );
-
-  const materialCostPerKgFieldValue = useMemo(() => {
-    const gauges = sheet?.gauges || [];
-    const vals = gauges
-      .map((g) => String(draftByGauge[g]?.costPerKgNgn ?? '').trim())
-      .filter((s) => s.length > 0);
-    if (!vals.length) return '';
-    const first = vals[0];
-    return vals.every((v) => v === first) ? first : '';
-  }, [sheet?.gauges, draftByGauge]);
 
   const recCostLabel = sheet?.recommendedCostPerKgNgn;
   const lookbackDays = sheet?.purchaseCostLookbackDays ?? 30;
 
+  const materialCostPerKgFieldValue = useMemo(() => {
+    const vals = workbookLines
+      .map((l) => String(l.draft?.costPerKgNgn ?? '').trim())
+      .filter((s) => s.length > 0);
+    if (!vals.length) return '';
+    const first = vals[0];
+    return vals.every((v) => v === first) ? first : '';
+  }, [workbookLines]);
+
   const materialCostPerKgMixed = useMemo(() => {
-    const gauges = sheet?.gauges || [];
-    const vals = gauges
-      .map((g) => String(draftByGauge[g]?.costPerKgNgn ?? '').trim())
+    const vals = workbookLines
+      .map((l) => String(l.draft?.costPerKgNgn ?? '').trim())
       .filter((s) => s.length > 0);
     if (vals.length < 2) return false;
     const first = vals[0];
     return !vals.every((v) => v === first);
-  }, [sheet?.gauges, draftByGauge]);
+  }, [workbookLines]);
 
   return (
     <ModalFrame isOpen={open} onClose={onClose} modal={!printPreview}>
@@ -470,7 +573,7 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
               disabled={Boolean(sheet?.isStoneCoatedWorkbook)}
               className="mt-1 w-full rounded-lg border border-slate-200 bg-white py-2 px-2 text-sm font-semibold text-slate-800 font-mono tabular-nums disabled:opacity-50"
               value={materialCostPerKgFieldValue}
-              onChange={(e) => setCostPerKgAllGauges(e.target.value)}
+              onChange={(e) => setCostPerKgAllLines(e.target.value)}
             />
           </label>
           <button
@@ -506,6 +609,15 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
           >
             Refresh
           </button>
+          <button
+            type="button"
+            disabled={busy || !sheet}
+            onClick={addWorkbookLine}
+            className="rounded-lg border border-dashed border-[#134e4a]/40 bg-teal-50/80 px-3 py-2 text-[10px] font-black uppercase text-[#134e4a] disabled:opacity-50 inline-flex items-center gap-1"
+          >
+            <Plus size={14} className="shrink-0" aria-hidden />
+            Add line
+          </button>
         </div>
 
         <div className="flex-1 min-h-0 overflow-auto px-2 sm:px-4 py-3">
@@ -513,10 +625,17 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
             <p className="text-sm text-slate-500 px-2">Loading…</p>
           ) : (
             <div className="z-scroll-x overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
-              <table className="min-w-[1020px] w-full border-collapse text-left text-xs">
+              <table className="min-w-[1120px] w-full border-collapse text-left text-xs">
                 <thead className="bg-slate-50 text-[9px] font-black uppercase tracking-wide text-slate-600 sticky top-0 z-[1]">
                   <tr>
-                    <th className="px-2 py-2 border-b border-slate-200 whitespace-nowrap">Gauge</th>
+                    <th className="px-2 py-2 border-b border-slate-200 whitespace-nowrap w-10" aria-label="Remove row" />
+                    <th className="px-2 py-2 border-b border-slate-200 whitespace-nowrap">Gauge (mm)</th>
+                    <th
+                      className="px-2 py-2 border-b border-slate-200 whitespace-nowrap min-w-[120px]"
+                      title="Shown on customer price list instead of raw mm when set"
+                    >
+                      Customer label
+                    </th>
                     <th className="px-2 py-2 border-b border-slate-200 whitespace-nowrap">Std kg/m</th>
                     <th
                       className="px-2 py-2 border-b border-slate-200 whitespace-nowrap"
@@ -549,133 +668,184 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {(sheet?.gauges || []).map((g) => {
-                    const dr = draftByGauge[g] || {};
-                    const rv = sheet?.resolvedByGauge?.[g] || {};
-                    const usedNum = sheet?.isStoneCoatedWorkbook
-                      ? null
-                      : effectiveUsedKgPerM(dr.conversionUsedKgPerM, rv);
-                    const ck = numOrUndef(dr.costPerKgNgn);
-                    const oh = numOrUndef(dr.overheadNgnPerM);
-                    const pr = numOrUndef(dr.profitNgnPerM);
-                    const cm =
-                      sheet?.isStoneCoatedWorkbook || usedNum == null || ck == null
+                  {workbookLines.length === 0 ? (
+                    <tr>
+                      <td colSpan={15} className="px-4 py-8 text-center text-sm text-slate-500">
+                        No lines yet. Use <strong>Add line</strong>, choose a gauge, enter prices, then Save all.
+                      </td>
+                    </tr>
+                  ) : (
+                    workbookLines.map((line) => {
+                      const g = String(line.gaugeMm ?? '').trim();
+                      const dr = line.draft || {};
+                      const rv = g ? sheet?.resolvedByGauge?.[g] || {} : {};
+                      const usedNum = sheet?.isStoneCoatedWorkbook
                         ? null
-                        : costPerM(usedNum, ck);
-                    const sug =
-                      sheet?.isStoneCoatedWorkbook || usedNum == null
-                        ? null
-                        : suggested(usedNum, ck ?? 0, oh, pr);
-                    const minimumNgn = Math.round(Number(dr.minimumPricePerMeterNgn) || 0);
-                    const commissionNgn = Math.max(0, numOrUndef(dr.commissionNgnPerM) ?? 0);
-                    const listNgn = listPriceFromFloorAndCommission(minimumNgn, commissionNgn);
-                    const displaySug =
-                      sug != null && sug > 0
-                        ? sug
-                        : sheet?.isStoneCoatedWorkbook && minimumNgn > 0
-                          ? minimumNgn
-                          : null;
-                    const inp =
-                      'w-full min-w-[64px] rounded border border-slate-200 px-1 py-1 font-mono text-[11px] tabular-nums';
-                    const cell =
-                      'min-w-[72px] rounded border border-slate-100 bg-slate-50/80 px-2 py-1 font-mono text-[11px] tabular-nums text-slate-800';
-                    return (
-                      <tr key={g} className="hover:bg-teal-50/20">
-                        <td className="px-2 py-1.5 font-bold text-slate-800 whitespace-nowrap">{g} mm</td>
-                        <td className="px-2 py-1.5 align-top">
-                          <div className={cell}>{fmtConv2(rv.std)}</div>
-                        </td>
-                        <td className="px-2 py-1.5 align-top">
-                          <div className={cell}>{fmtConv2(rv.ref)}</div>
-                          {!sheet?.isStoneCoatedWorkbook ? (
-                            <p className="text-[8px] text-slate-400 mt-0.5">Purchases {lookbackDays}d</p>
-                          ) : null}
-                        </td>
-                        <td className="px-2 py-1.5 align-top">
-                          <div className={cell}>{fmtConv2(rv.hist)}</div>
-                          {!sheet?.isStoneCoatedWorkbook ? (
-                            <p className="text-[8px] text-slate-400 mt-0.5">Production {lookbackDays}d</p>
-                          ) : null}
-                        </td>
-                        <td className="px-2 py-1.5 align-top">
-                          {sheet?.isStoneCoatedWorkbook ? (
-                            <div className={cell}>—</div>
-                          ) : (
-                            <>
-                              <input
-                                className={inp}
-                                placeholder={
-                                  rv.usedSuggested != null && Number.isFinite(Number(rv.usedSuggested))
-                                    ? `~${fmtConv2(rv.usedSuggested)}`
-                                    : '—'
-                                }
-                                title="Leave blank to use the average of Std, Ref, and Hist"
-                                value={dr.conversionUsedKgPerM ?? ''}
-                                onChange={(e) => setDraft(g, { conversionUsedKgPerM: e.target.value })}
-                              />
-                              <p className="text-[8px] text-slate-400 mt-0.5">Override avg (kg/m)</p>
-                            </>
-                          )}
-                        </td>
-                        <td className="px-2 py-1.5 font-mono text-[11px] text-slate-600 tabular-nums">
-                          {cm == null ? '—' : formatNgn(Math.round(cm))}
-                        </td>
-                        <td className="px-2 py-1.5">
-                          <input
-                            className={inp}
-                            value={dr.overheadNgnPerM ?? ''}
-                            onChange={(e) => setDraft(g, { overheadNgnPerM: e.target.value })}
-                          />
-                        </td>
-                        <td className="px-2 py-1.5">
-                          <input
-                            className={inp}
-                            value={dr.profitNgnPerM ?? ''}
-                            onChange={(e) => setDraft(g, { profitNgnPerM: e.target.value })}
-                          />
-                        </td>
-                        <td className="px-2 py-1.5 font-mono text-[11px] font-semibold text-[#134e4a] tabular-nums">
-                          {displaySug == null ? '—' : formatNgn(displaySug)}
-                        </td>
-                        <td className="px-2 py-1.5">
-                          <input
-                            className={inp}
-                            value={dr.minimumPricePerMeterNgn ?? ''}
-                            onChange={(e) => setDraft(g, { minimumPricePerMeterNgn: e.target.value })}
-                          />
-                        </td>
-                        <td className="px-2 py-1.5">
-                          <input
-                            className={inp}
-                            inputMode="decimal"
-                            placeholder="0"
-                            title="Commission ₦/m added to floor for published list price"
-                            value={dr.commissionNgnPerM ?? ''}
-                            onChange={(e) => setDraft(g, { commissionNgnPerM: e.target.value })}
-                          />
-                        </td>
-                        <td className="px-2 py-1.5 font-mono text-[11px] font-semibold text-slate-800 tabular-nums">
-                          {listNgn > 0 ? formatNgn(listNgn) : '—'}
-                        </td>
-                        <td className="px-2 py-1.5 align-top space-y-1">
-                          <label className="flex items-center gap-1 text-[9px] text-slate-600 whitespace-nowrap">
+                        : effectiveUsedKgPerM(dr.conversionUsedKgPerM, rv);
+                      const ck = numOrUndef(dr.costPerKgNgn);
+                      const oh = numOrUndef(dr.overheadNgnPerM);
+                      const pr = numOrUndef(dr.profitNgnPerM);
+                      const cm =
+                        sheet?.isStoneCoatedWorkbook || usedNum == null || ck == null
+                          ? null
+                          : costPerM(usedNum, ck);
+                      const sug =
+                        sheet?.isStoneCoatedWorkbook || usedNum == null
+                          ? null
+                          : suggested(usedNum, ck ?? 0, oh, pr);
+                      const minimumNgn = Math.round(Number(dr.minimumPricePerMeterNgn) || 0);
+                      const commissionNgn = Math.max(0, numOrUndef(dr.commissionNgnPerM) ?? 0);
+                      const listNgn = listPriceFromFloorAndCommission(minimumNgn, commissionNgn);
+                      const displaySug =
+                        sug != null && sug > 0
+                          ? sug
+                          : sheet?.isStoneCoatedWorkbook && minimumNgn > 0
+                            ? minimumNgn
+                            : null;
+                      const inp =
+                        'w-full min-w-[64px] rounded border border-slate-200 px-1 py-1 font-mono text-[11px] tabular-nums';
+                      const cell =
+                        'min-w-[72px] rounded border border-slate-100 bg-slate-50/80 px-2 py-1 font-mono text-[11px] tabular-nums text-slate-800';
+                      const dkShow = String(line.designKey || '').trim();
+                      return (
+                        <tr key={line.key} className="hover:bg-teal-50/20">
+                          <td className="px-1 py-1.5 align-middle">
+                            <button
+                              type="button"
+                              title="Remove row"
+                              className="rounded p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600"
+                              onClick={() => void removeWorkbookLine(line.key)}
+                            >
+                              <Trash2 size={16} aria-hidden />
+                            </button>
+                          </td>
+                          <td className="px-2 py-1.5 align-top min-w-[100px]">
+                            <select
+                              className="w-full rounded border border-slate-200 px-1 py-1 text-[11px] font-semibold text-slate-800"
+                              value={g}
+                              onChange={(e) => setLineGauge(line.key, e.target.value)}
+                              aria-label="Gauge thickness mm"
+                            >
+                              <option value="">— Select —</option>
+                              {(sheet?.gauges || []).map((opt) => (
+                                <option key={opt} value={opt}>
+                                  {opt} mm
+                                </option>
+                              ))}
+                            </select>
+                            {dkShow.startsWith('wb-') ? (
+                              <p className="text-[8px] text-slate-400 mt-0.5 font-mono truncate max-w-[96px]" title={dkShow}>
+                                Alt line
+                              </p>
+                            ) : null}
+                          </td>
+                          <td className="px-2 py-1.5 align-top">
                             <input
-                              type="checkbox"
-                              checked={Boolean(dr.syncMinimumToPriceList)}
-                              onChange={(e) => setDraft(g, { syncMinimumToPriceList: e.target.checked })}
+                              className={`${inp} font-sans`}
+                              placeholder="Customer print label"
+                              title="Optional: how this row appears on the customer price list (e.g. full 0.55)"
+                              value={dr.gaugeCustomerLabel ?? ''}
+                              onChange={(e) => updateLineDraft(line.key, { gaugeCustomerLabel: e.target.value })}
                             />
-                            Sync list
-                          </label>
-                          <input
-                            className={`${inp} text-[10px]`}
-                            placeholder="Design key"
-                            value={dr.syncDesignKey ?? ''}
-                            onChange={(e) => setDraft(g, { syncDesignKey: e.target.value })}
-                          />
-                        </td>
-                      </tr>
-                    );
-                  })}
+                          </td>
+                          <td className="px-2 py-1.5 align-top">
+                            <div className={cell}>{g ? fmtConv2(rv.std) : '—'}</div>
+                          </td>
+                          <td className="px-2 py-1.5 align-top">
+                            <div className={cell}>{g ? fmtConv2(rv.ref) : '—'}</div>
+                            {!sheet?.isStoneCoatedWorkbook && g ? (
+                              <p className="text-[8px] text-slate-400 mt-0.5">Purchases {lookbackDays}d</p>
+                            ) : null}
+                          </td>
+                          <td className="px-2 py-1.5 align-top">
+                            <div className={cell}>{g ? fmtConv2(rv.hist) : '—'}</div>
+                            {!sheet?.isStoneCoatedWorkbook && g ? (
+                              <p className="text-[8px] text-slate-400 mt-0.5">Production {lookbackDays}d</p>
+                            ) : null}
+                          </td>
+                          <td className="px-2 py-1.5 align-top">
+                            {sheet?.isStoneCoatedWorkbook ? (
+                              <div className={cell}>—</div>
+                            ) : (
+                              <>
+                                <input
+                                  className={inp}
+                                  placeholder={
+                                    g && rv.usedSuggested != null && Number.isFinite(Number(rv.usedSuggested))
+                                      ? `~${fmtConv2(rv.usedSuggested)}`
+                                      : '—'
+                                  }
+                                  title="Leave blank to use the average of Std, Ref, and Hist"
+                                  value={dr.conversionUsedKgPerM ?? ''}
+                                  onChange={(e) => updateLineDraft(line.key, { conversionUsedKgPerM: e.target.value })}
+                                  disabled={!g}
+                                />
+                                <p className="text-[8px] text-slate-400 mt-0.5">Override avg (kg/m)</p>
+                              </>
+                            )}
+                          </td>
+                          <td className="px-2 py-1.5 font-mono text-[11px] text-slate-600 tabular-nums">
+                            {cm == null ? '—' : formatNgn(Math.round(cm))}
+                          </td>
+                          <td className="px-2 py-1.5">
+                            <input
+                              className={inp}
+                              value={dr.overheadNgnPerM ?? ''}
+                              onChange={(e) => updateLineDraft(line.key, { overheadNgnPerM: e.target.value })}
+                            />
+                          </td>
+                          <td className="px-2 py-1.5">
+                            <input
+                              className={inp}
+                              value={dr.profitNgnPerM ?? ''}
+                              onChange={(e) => updateLineDraft(line.key, { profitNgnPerM: e.target.value })}
+                            />
+                          </td>
+                          <td className="px-2 py-1.5 font-mono text-[11px] font-semibold text-[#134e4a] tabular-nums">
+                            {displaySug == null ? '—' : formatNgn(displaySug)}
+                          </td>
+                          <td className="px-2 py-1.5">
+                            <input
+                              className={inp}
+                              value={dr.minimumPricePerMeterNgn ?? ''}
+                              onChange={(e) => updateLineDraft(line.key, { minimumPricePerMeterNgn: e.target.value })}
+                            />
+                          </td>
+                          <td className="px-2 py-1.5">
+                            <input
+                              className={inp}
+                              inputMode="decimal"
+                              placeholder="0"
+                              title="Commission ₦/m added to floor for published list price"
+                              value={dr.commissionNgnPerM ?? ''}
+                              onChange={(e) => updateLineDraft(line.key, { commissionNgnPerM: e.target.value })}
+                            />
+                          </td>
+                          <td className="px-2 py-1.5 font-mono text-[11px] font-semibold text-slate-800 tabular-nums">
+                            {listNgn > 0 ? formatNgn(listNgn) : '—'}
+                          </td>
+                          <td className="px-2 py-1.5 align-top space-y-1">
+                            <label className="flex items-center gap-1 text-[9px] text-slate-600 whitespace-nowrap">
+                              <input
+                                type="checkbox"
+                                checked={Boolean(dr.syncMinimumToPriceList)}
+                                onChange={(e) =>
+                                  updateLineDraft(line.key, { syncMinimumToPriceList: e.target.checked })
+                                }
+                              />
+                              Sync list
+                            </label>
+                            <input
+                              className={`${inp} text-[10px]`}
+                              placeholder="Design key"
+                              value={dr.syncDesignKey ?? ''}
+                              onChange={(e) => updateLineDraft(line.key, { syncDesignKey: e.target.value })}
+                            />
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
                 </tbody>
               </table>
             </div>

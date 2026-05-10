@@ -33,6 +33,29 @@ function listPriceFromRow(row) {
   return listPriceFromFloorAndCommission(row?.minimumPricePerMeterNgn, row?.commissionNgnPerM);
 }
 
+function isWorkbookDesignKey(dk) {
+  const s = String(dk ?? '').trim();
+  return s === '' || s.startsWith('wb-');
+}
+
+function workbookRowsForSheet(sheet) {
+  return (sheet.rows || [])
+    .filter((r) => isWorkbookDesignKey(r.designKey))
+    .sort((a, b) => {
+      const ga = String(a.gaugeMm || '');
+      const gb = String(b.gaugeMm || '');
+      if (ga !== gb) return ga.localeCompare(gb, undefined, { numeric: true });
+      return String(a.designKey || '').localeCompare(String(b.designKey || ''));
+    });
+}
+
+/** Label shown on customer price list (marketing name); falls back to gauge mm */
+export function customerGaugeDisplayLabel(row) {
+  const lab = String(row?.gaugeCustomerLabel ?? '').trim();
+  if (lab) return lab;
+  return String(row?.gaugeMm ?? '');
+}
+
 const SECTION_META = [
   { key: 'alu', title: 'Aluminium' },
   { key: 'aluzinc', title: 'Aluzinc (PPGI)' },
@@ -83,7 +106,7 @@ export function MaterialWorkbookOfficialPrintView({ sheets, branchName, effectiv
           const sheet = sheets.find((s) => s?.materialKey === key);
           if (!sheet?.ok) return null;
           const isStone = Boolean(sheet.isStoneCoatedWorkbook);
-          const gauges = sheet.gauges || [];
+          const wbRows = workbookRowsForSheet(sheet);
           return (
             <section key={key} className="mb-6 print:mb-4">
               <h2 className="text-sm font-black text-[#0f766e] mb-2">{title}</h2>
@@ -91,7 +114,8 @@ export function MaterialWorkbookOfficialPrintView({ sheets, branchName, effectiv
                 <table className="workbook-print-table min-w-[980px] w-full border-collapse text-left">
                   <thead className="bg-slate-100 text-[8px] font-black uppercase tracking-wide text-slate-700">
                     <tr>
-                      <th className="border border-slate-300 px-2 py-1.5">Gauge</th>
+                      <th className="border border-slate-300 px-2 py-1.5">Gauge (mm)</th>
+                      <th className="border border-slate-300 px-2 py-1.5">Customer label</th>
                       <th className="border border-slate-300 px-2 py-1.5 text-right">Std</th>
                       <th className="border border-slate-300 px-2 py-1.5 text-right">Ref</th>
                       <th className="border border-slate-300 px-2 py-1.5 text-right">Hist</th>
@@ -106,8 +130,15 @@ export function MaterialWorkbookOfficialPrintView({ sheets, branchName, effectiv
                     </tr>
                   </thead>
                   <tbody>
-                    {gauges.map((g) => {
-                      const row = (sheet.rows || []).find((r) => r.gaugeMm === g && !String(r.designKey || '').trim());
+                    {wbRows.length === 0 ? (
+                      <tr>
+                        <td colSpan={13} className="border border-slate-200 px-2 py-2 text-slate-500">
+                          No workbook lines for this material.
+                        </td>
+                      </tr>
+                    ) : (
+                      wbRows.map((row) => {
+                      const g = String(row.gaugeMm || '');
                       const rv = sheet.resolvedByGauge?.[g] || {};
                       const used = effectiveUsed(row, rv, isStone);
                       const ck = row?.costPerKgNgn != null ? Number(row.costPerKgNgn) : null;
@@ -148,7 +179,8 @@ export function MaterialWorkbookOfficialPrintView({ sheets, branchName, effectiv
                           </td>
                         </tr>
                       );
-                    })}
+                    })
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -242,13 +274,12 @@ export function MaterialWorkbookCustomerPrintView({ sheets, branchName, effectiv
 
   const coilCustomerRows = (sheet) => {
     const out = [];
-    for (const g of sheet.gauges || []) {
-      const row = (sheet.rows || []).find((r) => r.gaugeMm === g && !String(r.designKey || '').trim());
+    for (const row of workbookRowsForSheet(sheet)) {
       const listBase = listPriceFromRow(row);
       if (!listBase || listBase <= 0) continue;
       const premium = premiumProfilePriceFromBase(listBase);
       out.push({
-        gauge: g,
+        gaugeLabel: customerGaugeDisplayLabel(row),
         longspan: listBase,
         metcoppo: premium,
       });
@@ -291,15 +322,15 @@ export function MaterialWorkbookCustomerPrintView({ sheets, branchName, effectiv
               <table className="w-full border-collapse text-left">
                 <thead className="bg-slate-100 text-[9px] font-black uppercase tracking-wide text-slate-700">
                   <tr>
-                    <th className="border border-slate-400 px-3 py-2">Gauge (mm)</th>
+                    <th className="border border-slate-400 px-3 py-2">Gauge / label</th>
                     <th className="border border-slate-400 px-3 py-2 text-right">Longspan ₦/m</th>
                     <th className="border border-slate-400 px-3 py-2 text-right">Metcoppo / Steptiles ₦/m</th>
                   </tr>
                 </thead>
                 <tbody className="font-mono tabular-nums text-[12px]">
-                  {rows.map((r) => (
-                    <tr key={r.gauge}>
-                      <td className="border border-slate-300 px-3 py-2 font-sans font-bold">{r.gauge}</td>
+                  {rows.map((r, idx) => (
+                    <tr key={`${r.gaugeLabel}-${idx}`}>
+                      <td className="border border-slate-300 px-3 py-2 font-sans font-bold">{r.gaugeLabel}</td>
                       <td className="border border-slate-300 px-3 py-2 text-right">{formatNgn(r.longspan)}</td>
                       <td className="border border-slate-300 px-3 py-2 text-right">{formatNgn(r.metcoppo)}</td>
                     </tr>
