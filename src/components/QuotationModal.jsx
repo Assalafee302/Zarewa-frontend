@@ -601,13 +601,31 @@ const QuotationModal = ({
         label: row.abbreviation ? `${row.name} (${row.abbreviation})` : row.name,
         id: row.id,
       }));
-    if (fromMaster.length > 0) return fromMaster;
-    return DEFAULT_COLOURS.map((name) => ({
-      value: name,
-      label: name,
-      id: undefined,
-    }));
-  }, [liveMasterData?.colours]);
+    const base =
+      fromMaster.length > 0
+        ? fromMaster
+        : DEFAULT_COLOURS.map((name) => ({
+            value: name,
+            label: name,
+            id: undefined,
+          }));
+    const inv = String(
+      liveMasterData?.materialTypes?.find((row) => row.id === materialTypeId)?.inventoryModel || ''
+    ).trim();
+    const activePriceList = Array.isArray(liveMasterData?.priceList)
+      ? liveMasterData.priceList.filter((row) => row.active)
+      : [];
+    if (inv !== 'stone_meter' || !materialTypeId || !activePriceList.length) return base;
+    const ids = new Set(
+      activePriceList
+        .filter((r) => String(r.materialTypeId || '').trim() === materialTypeId)
+        .map((r) => String(r.colourId || '').trim())
+        .filter(Boolean)
+    );
+    if (!ids.size) return base;
+    const filtered = base.filter((c) => c.id && ids.has(String(c.id).trim()));
+    return filtered.length ? filtered : base;
+  }, [liveMasterData?.colours, liveMasterData?.materialTypes, liveMasterData?.priceList, materialTypeId]);
 
   const quoteItemRowsActive = useMemo(
     () => (liveMasterData?.quoteItems || []).filter((row) => row.active),
@@ -1112,6 +1130,10 @@ const QuotationModal = ({
       showToast('Enter project / site (required).', { variant: 'error' });
       return;
     }
+    if (!String(materialTypeId ?? '').trim() || !String(materialGauge ?? '').trim() || !String(materialColor ?? '').trim()) {
+      showToast('Select material type, gauge, and colour — required on every quotation.', { variant: 'error' });
+      return;
+    }
     if (useQuotationApi) {
       setSaving(true);
       try {
@@ -1174,6 +1196,10 @@ const QuotationModal = ({
 
   const onSaveMaterialSpecOnly = async () => {
     if (!allowMaterialSpecCorrectionInView || !editData?.id || !materialSpecDirty) return;
+    if (!String(materialTypeId ?? '').trim() || !String(materialGauge ?? '').trim() || !String(materialColor ?? '').trim()) {
+      showToast('Select material type, gauge, and colour — all are required.', { variant: 'error' });
+      return;
+    }
     setSavingMaterial(true);
     try {
       const body = {

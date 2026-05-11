@@ -97,7 +97,7 @@ function summarizeConversionChecksForCuttingList(checks, formatPct) {
   };
 }
 
-/** Trailing number from cutting list id for numeric sort (higher = newer / larger id). */
+/** Trailing number from cutting list id for numeric sort (larger suffix ≈ newer list). */
 function cuttingListIdNumericRank(id) {
   const s = String(id ?? '').trim();
   const m = s.match(/(\d+)\s*$/);
@@ -120,7 +120,7 @@ function productionAttentionScore(row) {
 }
 
 /**
- * @param {'attention'|'id'|'customer'|'status'} sortKey
+ * @param {'attention'|'id'|'idDesc'|'customer'|'status'} sortKey
  */
 function compareProductionQueueRows(a, b, sortKey) {
   if (sortKey === 'attention') {
@@ -129,30 +129,36 @@ function compareProductionQueueRows(a, b, sortKey) {
     if (pa !== pb) return pa - pb;
     const ra = cuttingListIdNumericRank(a.id);
     const rb = cuttingListIdNumericRank(b.id);
-    if (ra !== rb) return rb - ra;
-    return String(b.id || '').localeCompare(String(a.id || ''));
+    if (ra !== rb) return ra - rb;
+    return String(a.id || '').localeCompare(String(b.id || ''));
   }
   if (sortKey === 'customer') {
     const c = String(a.customer || '').localeCompare(String(b.customer || ''), undefined, { sensitivity: 'base' });
     if (c !== 0) return c;
     const ra = cuttingListIdNumericRank(a.id);
     const rb = cuttingListIdNumericRank(b.id);
-    if (ra !== rb) return rb - ra;
-    return String(b.id || '').localeCompare(String(a.id || ''));
+    if (ra !== rb) return ra - rb;
+    return String(a.id || '').localeCompare(String(b.id || ''));
   }
   if (sortKey === 'status') {
     const s = String(a.status || '').localeCompare(String(b.status || ''));
     if (s !== 0) return s;
     const ra = cuttingListIdNumericRank(a.id);
     const rb = cuttingListIdNumericRank(b.id);
-    if (ra !== rb) return rb - ra;
+    if (ra !== rb) return ra - rb;
+    return String(a.id || '').localeCompare(String(b.id || ''));
+  }
+  if (sortKey === 'idDesc') {
+    const na = cuttingListIdNumericRank(a.id);
+    const nb = cuttingListIdNumericRank(b.id);
+    if (na !== nb) return nb - na;
     return String(b.id || '').localeCompare(String(a.id || ''));
   }
-  /* id — highest cutting list number first */
+  /* id — oldest first (lowest trailing # / stable id) */
   const na = cuttingListIdNumericRank(a.id);
   const nb = cuttingListIdNumericRank(b.id);
-  if (na !== nb) return nb - na;
-  return String(b.id || '').localeCompare(String(a.id || ''));
+  if (na !== nb) return na - nb;
+  return String(a.id || '').localeCompare(String(b.id || ''));
 }
 
 const PANEL_TITLE = {
@@ -2161,7 +2167,8 @@ const Operations = () => {
                           onChange={(e) => setProductionActiveSortKey(e.target.value)}
                           className="max-w-[9.5rem] rounded-md border border-slate-200 bg-white px-2 py-1 text-[10px] font-semibold normal-case text-slate-800 outline-none focus-visible:ring-2 focus-visible:ring-[#134e4a]/25"
                         >
-                          <option value="id">Cutting list # (high first)</option>
+                          <option value="id">Cutting list # (oldest first)</option>
+                          <option value="idDesc">Cutting list # (newest first)</option>
                           <option value="attention">Attention</option>
                           <option value="customer">Customer A–Z</option>
                           <option value="status">Status A–Z</option>
@@ -2311,7 +2318,8 @@ const Operations = () => {
                               onChange={(e) => setProductionClosedSortKey(e.target.value)}
                               className="max-w-[9.5rem] rounded-md border border-slate-200 bg-white px-2 py-1 text-[10px] font-semibold normal-case text-slate-800 outline-none focus-visible:ring-2 focus-visible:ring-[#134e4a]/25"
                             >
-                              <option value="id">Cutting list # (high first)</option>
+                              <option value="id">Cutting list # (oldest first)</option>
+                              <option value="idDesc">Cutting list # (newest first)</option>
                               <option value="attention">Attention</option>
                               <option value="customer">Customer A–Z</option>
                               <option value="status">Status A–Z</option>

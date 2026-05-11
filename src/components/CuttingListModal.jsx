@@ -21,7 +21,12 @@ import { useWorkspace } from '../context/WorkspaceContext';
 import { useTrackedUnsavedForm } from '../hooks/useTrackedUnsavedForm';
 import { apiFetch } from '../lib/apiBase';
 import { formatNgn } from '../Data/mockData';
-import { receiptCashReceivedNgn } from '../lib/salesReceiptsList';
+import { receiptCashReceivedNgn, normalizeReceiptMatchDashes } from '../lib/salesReceiptsList';
+
+/** Compare quote / receipt links when pasted refs use en-dash etc. */
+function normQuoteKey(s) {
+  return normalizeReceiptMatchDashes(String(s ?? '').trim()).toLowerCase();
+}
 import CuttingListReportPrintView from './CuttingListReportPrintView';
 import { EditSecondApprovalInline } from './EditSecondApprovalInline';
 const LINE_TYPE_SET = new Set(['Roof', 'Flatsheet', 'Cladding']);
@@ -146,12 +151,12 @@ function bookPaidTowardQuotation(q) {
 }
 
 function sumAdvanceAppliedNgnForQuotation(ledgerEntries, quotationId) {
-  const id = String(quotationId || '').trim();
-  if (!id || !Array.isArray(ledgerEntries)) return 0;
+  const idKey = normQuoteKey(quotationId);
+  if (!idKey || !Array.isArray(ledgerEntries)) return 0;
   let s = 0;
   for (const e of ledgerEntries) {
     if (e.type !== 'ADVANCE_APPLIED') continue;
-    if (String(e.quotationRef || '').trim() !== id) continue;
+    if (normQuoteKey(e.quotationRef) !== idKey) continue;
     s += Math.round(Number(e.amountNgn) || 0);
   }
   return s;
@@ -159,11 +164,11 @@ function sumAdvanceAppliedNgnForQuotation(ledgerEntries, quotationId) {
 
 /** Till / bank cash on receipts for this quote only (no advance applied — avoids double-count in UI). */
 function receiptTillCashOnlyOnQuotation(quotationId, receiptRows) {
-  const id = String(quotationId || '').trim();
-  if (!id || !Array.isArray(receiptRows)) return 0;
+  const idKey = normQuoteKey(quotationId);
+  if (!idKey || !Array.isArray(receiptRows)) return 0;
   let s = 0;
   for (const r of receiptRows) {
-    if (String(r.quotationRef || '').trim() !== id) continue;
+    if (normQuoteKey(r.quotationRef) !== idKey) continue;
     if (String(r.status || '').toLowerCase() === 'reversed') continue;
     s += receiptCashReceivedNgn(r);
   }
@@ -172,11 +177,11 @@ function receiptTillCashOnlyOnQuotation(quotationId, receiptRows) {
 
 /** Cash actually received for this quote: merged receipt rows + ledger advance applied. */
 function cashPaidOnQuotation(quotationId, receiptRows, ledgerEntries) {
-  const id = String(quotationId || '').trim();
-  if (!id) return 0;
-  let s = sumAdvanceAppliedNgnForQuotation(ledgerEntries, id);
+  const idKey = normQuoteKey(quotationId);
+  if (!idKey) return 0;
+  let s = sumAdvanceAppliedNgnForQuotation(ledgerEntries, quotationId);
   for (const r of receiptRows || []) {
-    if (String(r.quotationRef || '').trim() !== id) continue;
+    if (normQuoteKey(r.quotationRef) !== idKey) continue;
     if (String(r.status || '').toLowerCase() === 'reversed') continue;
     s += receiptCashReceivedNgn(r);
   }
@@ -382,7 +387,9 @@ const CuttingListModal = ({
   const selectableQuotations = useMemo(() => {
     const editingId = editData?.id ?? '';
     const takenByAnother = (quoteId) =>
-      cuttingLists.some((cl) => cl.quotationRef === quoteId && cl.id !== editingId);
+      cuttingLists.some(
+        (cl) => normQuoteKey(cl.quotationRef) === normQuoteKey(quoteId) && String(cl.id) !== String(editingId)
+      );
 
     const base = quotations.filter((q) => {
       if (!q?.id || takenByAnother(q.id)) return false;
@@ -405,17 +412,36 @@ const CuttingListModal = ({
   }, [quotations, cuttingLists, editData, receipts, ledgerEntries, minPaidFraction]);
 
   const filteredQuotePicker = useMemo(() => {
-    const s = quoteSearch.trim().toLowerCase();
-    if (!s) return selectableQuotations.slice(0, 14);
-    return selectableQuotations
-      .filter((q) => {
-        const id = String(q.id).toLowerCase();
-        const cust = String(q.customer ?? q.customer_name ?? '').toLowerCase();
-        const cid = String(q.customerID ?? q.customer_id ?? '').toLowerCase();
-        return id.includes(s) || cust.includes(s) || cid.includes(s);
-      })
-      .slice(0, 20);
+    const raw = quoteSearch.trim();
+    const s = raw.toLowerCase();
+    const nk = normQuoteKey(raw);
+    if (!s) return selectableQuotations;
+    return selectableQuotations.filter((q) => {
+      const id = String(q.id).toLowerCase();
+      const idNorm = normQuoteKey(q.id);
+      const cust = String(q.customer ?? q.customer_name ?? '').toLowerCase();
+      const cid = String(q.customerID ?? q.customer_id ?? '').toLowerCase();
+      return id.includes(s) || idNorm.includes(nk) || cust.includes(s) || cid.includes(s);
+    });
   }, [selectableQuotations, quoteSearch]);
+
+  /** Quotation exists in workspace but is excluded from "new list" picker (hidden CL, zero total, etc.). */
+  const knownQuotePickerBlocker = useMemo(() => {
+    const raw = quoteSearch.trim();
+    if (!raw) return null;
+    const token = normQuoteKey(raw.split('·')[0] || raw);
+    if (!token) return null;
+    const q = quotations.find((row) => row?.id && normQuoteKey(row.id) === token);
+    if (!q) return null;
+    if (selectableQuotations.some((row) => row.id === q.id)) return null;
+    const total = Number(q.totalNgn ?? q.total_ngn) || 0;
+    if (total <= 0) return { kind: 'zero_total', q };
+    const linked = cuttingLists.find(
+      (cl) => normQuoteKey(cl.quotationRef) === normQuoteKey(q.id) && String(cl.id) !== String(editData?.id ?? '')
+    );
+    if (linked) return { kind: 'has_list', q, listId: linked.id, branchId: linked.branchId ?? '' };
+    return null;
+  }, [quoteSearch, quotations, selectableQuotations, cuttingLists, editData?.id]);
 
   const selectedQuotation = useMemo(
     () => quotations.find((q) => q.id === quotationRef) ?? null,
@@ -441,11 +467,13 @@ const CuttingListModal = ({
 
   const draftBranchCode = useMemo(() => branchCodeForDraft(ws?.session), [ws?.session]);
 
-  const draftCuttingListId = useMemo(
-    () =>
-      editData?.id ? editData.id : nextDraftCuttingListId(cuttingLists, draftBranchCode),
-    [editData, cuttingLists, draftBranchCode]
+  /** Next CL serial if you save *now* — branch-wide; not reserved; same preview for every unsaved draft until one saves. */
+  const nextBranchCuttingListSerialPreview = useMemo(
+    () => nextDraftCuttingListId(cuttingLists, draftBranchCode),
+    [cuttingLists, draftBranchCode]
   );
+
+  const savedCuttingListId = String(editData?.id ?? '').trim();
 
   const bookPaidOnQuote = selectedQuotation ? bookPaidTowardQuotation(selectedQuotation) : 0;
   const advanceAppliedOnQuote = selectedQuotation
@@ -460,7 +488,8 @@ const CuttingListModal = ({
 
   const quoteReceipts = useMemo(() => {
     if (!quotationRef) return [];
-    return receipts.filter((r) => r.quotationRef === quotationRef);
+    const k = normQuoteKey(quotationRef);
+    return receipts.filter((r) => normQuoteKey(r.quotationRef) === k);
   }, [receipts, quotationRef]);
 
   const quoteLineSnippet = useMemo(() => {
@@ -500,7 +529,7 @@ const CuttingListModal = ({
 
   const printPayload = useMemo(
     () => ({
-      cuttingListId: draftCuttingListId,
+      cuttingListId: savedCuttingListId,
       quotationRef,
       selectedQuotation,
       materialSpec,
@@ -516,7 +545,7 @@ const CuttingListModal = ({
       treasuryMovements: Array.isArray(ws?.snapshot?.treasuryMovements) ? ws.snapshot.treasuryMovements : [],
     }),
     [
-      draftCuttingListId,
+      savedCuttingListId,
       quotationRef,
       selectedQuotation,
       materialSpec,
@@ -790,16 +819,30 @@ const CuttingListModal = ({
                   {headerBadgeText}
                 </span>
               </div>
-              <p className="text-[9px] font-semibold text-slate-400 uppercase tracking-widest truncate mt-0.5">
-                ID <span className="font-mono text-[#134e4a]">{draftCuttingListId}</span>
-                {editData?.id ? (
+              <p className="text-[9px] font-semibold text-slate-400 uppercase tracking-widest mt-0.5 leading-snug">
+                {savedCuttingListId ? (
                   <>
+                    ID <span className="font-mono text-[#134e4a]">{savedCuttingListId}</span>
                     {' '}
-                    · status{' '}
-                    <span className="text-[#134e4a]">{displayCuttingListStatus(editData.status)}</span>
+                    · status <span className="text-[#134e4a]">{displayCuttingListStatus(editData.status)}</span>
                   </>
                 ) : (
-                  <span className="text-slate-400 font-normal normal-case"> · saves as Waiting</span>
+                  <span className="font-normal normal-case text-slate-600">
+                    <span className="font-semibold text-amber-800 uppercase tracking-wide">Draft (not saved)</span>
+                    {quotationRef ? (
+                      <>
+                        {' '}
+                        · quotation <span className="font-mono font-semibold text-[#134e4a]">{quotationRef}</span>
+                      </>
+                    ) : null}
+                    {' '}
+                    · next list # <em className="not-italic font-normal text-slate-500">if you save now</em>:{' '}
+                    <span className="font-mono font-semibold text-[#134e4a]">{nextBranchCuttingListSerialPreview}</span>
+                    <span className="block text-[8px] font-normal text-slate-500 normal-case mt-0.5">
+                      That number is a branch-wide preview only — it is not reserved, and every new draft shows the same
+                      preview until someone saves. Save to get a real ID and appear under Sales → Cutting list.
+                    </span>
+                  </span>
                 )}
               </p>
             </div>
@@ -927,10 +970,35 @@ const CuttingListModal = ({
                         />
                       ) : null}
                       {showQuotePicker ? (
-                        <div className="absolute z-[25] left-0 right-0 mt-1 max-h-[240px] overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-xl custom-scrollbar p-1">
+                        <div className="absolute z-[25] left-0 right-0 mt-1 max-h-[min(360px,55vh)] overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-xl custom-scrollbar p-1">
                           {filteredQuotePicker.length === 0 ? (
-                            <div className="p-3 text-center text-[10px] font-semibold text-slate-400 uppercase">
-                              No matching quotations
+                            <div className="p-3 text-[10px] font-medium text-slate-600 space-y-2">
+                              {knownQuotePickerBlocker?.kind === 'has_list' ? (
+                                <div className="text-left rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-amber-950">
+                                  <p className="font-bold text-[11px] text-amber-900">
+                                    {knownQuotePickerBlocker.q.id} already has cutting list{' '}
+                                    <span className="font-mono">{knownQuotePickerBlocker.listId}</span>
+                                    {knownQuotePickerBlocker.branchId ? (
+                                      <span className="font-normal text-amber-800">
+                                        {' '}
+                                        (branch {knownQuotePickerBlocker.branchId})
+                                      </span>
+                                    ) : null}
+                                  </p>
+                                  <p className="text-[9px] text-amber-900/90 leading-snug mt-1">
+                                    It will not appear under &quot;New cutting list&quot;. Go to Sales → Cutting list and search that list
+                                    ID. If you do not see it, switch the workspace branch to match the branch above, or ask an admin to remove
+                                    a stray record.
+                                  </p>
+                                </div>
+                              ) : knownQuotePickerBlocker?.kind === 'zero_total' ? (
+                                <div className="text-left rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-slate-800">
+                                  <p className="font-bold text-[11px]">Quotation {knownQuotePickerBlocker.q.id} has zero total</p>
+                                  <p className="text-[9px] leading-snug mt-1">Add priced lines to the quotation before creating a cutting list.</p>
+                                </div>
+                              ) : (
+                                <p className="text-center font-semibold text-slate-400 uppercase">No matching quotations</p>
+                              )}
                             </div>
                           ) : (
                             filteredQuotePicker.map((q) => {

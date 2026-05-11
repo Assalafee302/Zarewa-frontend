@@ -570,7 +570,9 @@ const Sales = () => {
       if (!q) return true;
       const job = pickProductionJobForCuttingList(row.id, productionJobs, cuttingLists);
       const line = productionQueueLineStatusPresentation(row, job);
-      const blob = `${row.id} ${row.customer} ${row.date} ${row.total} ${row.status} ${line.label}`.toLowerCase();
+      const blob = `${row.id} ${row.customer} ${row.customerID || ''} ${row.quotationRef || ''} ${
+        row.productID || ''
+      } ${row.productName || ''} ${row.date} ${row.total} ${row.status} ${line.label}`.toLowerCase();
       return blob.includes(q);
     });
     const sorted = sortCuttingLists(filtered, salesListSort.field, salesListSort.dir, {
