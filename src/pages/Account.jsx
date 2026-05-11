@@ -80,6 +80,7 @@ const Account = () => {
   const [receiptsTableSearch, setReceiptsTableSearch] = useState('');
   const [deletingExpenseId, setDeletingExpenseId] = useState('');
   const [deletingPayRequestId, setDeletingPayRequestId] = useState('');
+  const [reversingTreasuryPayoutId, setReversingTreasuryPayoutId] = useState('');
   const [showPaymentEntry, setShowPaymentEntry] = useState(false);
   const [showAddBank, setShowAddBank] = useState(false);
   const [showExpenseModal, setShowExpenseModal] = useState(false);
@@ -2135,6 +2136,7 @@ const Account = () => {
   );
 
   const canDeleteRolloutExpenseOrRequest = Boolean(ws?.hasPermission?.('finance.approve'));
+  const canReversePaymentRequestTreasury = Boolean(ws?.hasPermission?.('finance.reverse'));
 
   const activePayRequests = useMemo(
     () =>
@@ -2291,6 +2293,53 @@ const Account = () => {
         showToast(`Deleted payment request ${id}.`);
       } finally {
         setDeletingPayRequestId('');
+      }
+    },
+    [showToast, ws]
+  );
+
+  const reversePaymentRequestTreasuryPayout = useCallback(
+    async (requestID) => {
+      if (!ws?.hasPermission?.('finance.reverse')) {
+        showToast('finance.reverse permission is required to reverse treasury payouts.', { variant: 'error' });
+        return;
+      }
+      if (!ws?.canMutate) {
+        showToast(
+          ws?.usingCachedData
+            ? 'Reconnect to reverse — workspace is read-only.'
+            : 'Connect to the API to reverse.',
+          { variant: 'info' }
+        );
+        return;
+      }
+      const id = String(requestID || '').trim();
+      if (!id) return;
+      if (
+        !window.confirm(
+          `Reverse treasury payout for ${id}? This posts compensating credits to the same bank/cash accounts, sets paid balance to zero, and is audited. Use only to fix mistakes before delete or re-pay.`
+        )
+      ) {
+        return;
+      }
+      setReversingTreasuryPayoutId(id);
+      try {
+        const { ok, data } = await apiFetch(
+          `/api/payment-requests/${encodeURIComponent(id)}/reverse-treasury-payout`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({}),
+          }
+        );
+        if (!ok || !data?.ok) {
+          showToast(data?.error || 'Could not reverse treasury payout.', { variant: 'error' });
+          return;
+        }
+        await ws.refresh();
+        showToast(`Treasury payout reversed for ${id}.`);
+      } finally {
+        setReversingTreasuryPayoutId('');
       }
     },
     [showToast, ws]
@@ -3481,7 +3530,9 @@ const Account = () => {
                   </div>
                   <p className="text-[9px] text-slate-500 mt-1.5 leading-snug">
                     Also respects the page header search. Temporary <strong>Delete</strong> requires finance approval
-                    and only removes rows with <strong>no treasury payout</strong> on linked requests.
+                    and only removes rows with <strong>no treasury payout</strong> on linked requests. If a request was
+                    paid by mistake, use <strong>Reverse payout</strong> (finance.reverse) to put money back on the
+                    books and clear paid balance, then delete if needed.
                   </p>
                 </div>
                 <section className="space-y-4">
@@ -3625,6 +3676,18 @@ const Account = () => {
                                       Pay-from
                                     </button>
                                   ) : null}
+                                  {canReversePaymentRequestTreasury && ws?.canMutate && paid > 0 ? (
+                                    <button
+                                      type="button"
+                                      title="Post compensating treasury credits and reset paid balance (finance.reverse)"
+                                      disabled={reversingTreasuryPayoutId === req.requestID}
+                                      onClick={() => void reversePaymentRequestTreasuryPayout(req.requestID)}
+                                      className="text-[8px] font-bold uppercase tracking-wide text-amber-900 bg-amber-100 hover:bg-amber-200 px-2 py-1 rounded-md disabled:opacity-50 inline-flex items-center gap-1"
+                                    >
+                                      <RotateCcw size={10} aria-hidden />
+                                      {reversingTreasuryPayoutId === req.requestID ? '…' : 'Reverse payout'}
+                                    </button>
+                                  ) : null}
                                   {canDeleteRolloutExpenseOrRequest && paid <= 0 ? (
                                     <button
                                       type="button"
@@ -3665,6 +3728,7 @@ const Account = () => {
                   ) : (
                     <ul className="space-y-1.5">
                       {disbursementsArchivedRejectedPayRequests.map((req) => {
+                        const archPaid = Number(req.paidAmountNgn) || 0;
                         const archPrTreasuryOut = treasuryOutflowLinesForPaymentRequest(
                           req.requestID,
                           liveTreasuryMovements
@@ -3729,6 +3793,18 @@ const Account = () => {
                                     >
                                       <Pencil size={10} aria-hidden />
                                       Pay-from
+                                    </button>
+                                  ) : null}
+                                  {canReversePaymentRequestTreasury && ws?.canMutate && archPaid > 0 ? (
+                                    <button
+                                      type="button"
+                                      title="Post compensating treasury credits and reset paid balance (finance.reverse)"
+                                      disabled={reversingTreasuryPayoutId === req.requestID}
+                                      onClick={() => void reversePaymentRequestTreasuryPayout(req.requestID)}
+                                      className="text-[8px] font-bold uppercase tracking-wide text-amber-900 bg-amber-100 hover:bg-amber-200 px-2 py-1 rounded-md disabled:opacity-50 inline-flex items-center gap-1"
+                                    >
+                                      <RotateCcw size={10} aria-hidden />
+                                      {reversingTreasuryPayoutId === req.requestID ? '…' : 'Reverse'}
                                     </button>
                                   ) : null}
                                   {canDeleteRolloutExpenseOrRequest &&
