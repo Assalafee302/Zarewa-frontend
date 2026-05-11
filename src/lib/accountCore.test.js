@@ -3,6 +3,7 @@ import {
   ACCOUNT_TAB_LABELS,
   buildPaymentRequestAuditTrail,
   createRequestPayLine,
+  isTreasuryOutflowPaymentRow,
   nextExpenseId,
   normalizePaymentRequest,
   treasuryMovementStatementLabel,
@@ -11,7 +12,33 @@ import {
 
 describe('accountCore', () => {
   it('provides stable account tab labels', () => {
-    expect(ACCOUNT_TAB_LABELS.disbursements).toContain('requests');
+    expect(ACCOUNT_TAB_LABELS.disbursements).toBe('Payments');
+  });
+
+  it('flags treasury outflow rows for the payments register', () => {
+    expect(
+      isTreasuryOutflowPaymentRow({
+        type: 'PAYMENT_REQUEST_OUT',
+        sourceKind: 'PAYMENT_REQUEST',
+        amountNgn: -5000,
+        reversesMovementId: '',
+      })
+    ).toBe(true);
+    expect(
+      isTreasuryOutflowPaymentRow({
+        type: 'PAYMENT_REQUEST_OUT',
+        sourceKind: 'PAYMENT_REQUEST',
+        amountNgn: -5000,
+        reversesMovementId: 'TM-1',
+      })
+    ).toBe(false);
+    expect(
+      isTreasuryOutflowPaymentRow({
+        type: 'RECEIPT_IN',
+        sourceKind: 'LEDGER_RECEIPT',
+        amountNgn: 5000,
+      })
+    ).toBe(false);
   });
 
   it('increments expense ids', () => {

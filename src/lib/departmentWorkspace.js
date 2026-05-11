@@ -207,8 +207,8 @@ export const WORKSPACE_GUIDE_ENTRIES = [
       'Liquidity, AR/AP, expenses, approvals, movements, audit and bank reconciliation.',
     bullets: [
       'Receivables: summary from Finance sidebar; detail in Sales receipts / customer dashboards.',
-      'Supplier AP: procurement posts payments on Payments; Finance focuses on treasury, AR, expenses, recon.',
-      'Expenses & requests: vouchers and approval workflow.',
+      'Supplier AP: procurement posts payments; Finance uses Treasury and Payments for cash movement.',
+      'Payments tab: posted treasury debits (refunds, requests, purchases, haulage) plus request pipeline.',
       'Control: reconciliation lines, audit checklist, reporting exports (stubs).',
     ],
     links: [{ to: '/accounts', label: 'Finance & accounts' }],

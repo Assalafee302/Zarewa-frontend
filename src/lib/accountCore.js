@@ -3,7 +3,7 @@ export const ACCOUNT_TAB_LABELS = {
   receipts: 'Receipts & bank recon',
   cashier: 'Cashier confirmation',
   movements: 'Fund movements',
-  disbursements: 'Expenses & requests',
+  disbursements: 'Payments',
   audit: 'Audit & reconciliation',
 };
 
@@ -68,6 +68,52 @@ export function treasuryOutflowLinesForPaymentRequest(requestId, movements) {
       String(m.sourceId || '').trim() === rid &&
       !m.reversesMovementId
   );
+}
+
+/** Treasury movement types shown on Finance → Payments (money leaving the business). */
+export const TREASURY_PAYMENTS_TABLE_OUTFLOW_TYPES = new Set([
+  'EXPENSE',
+  'AP_PAYMENT',
+  'SUPPLIER_PAYMENT',
+  'PO_SUPPLIER_PAYMENT',
+  'REFUND_PAYOUT',
+  'ADVANCE_REFUND_OUT',
+  'PAYMENT_REQUEST_OUT',
+  'TRANSPORT_PAYMENT',
+  'RECEIPT_REVERSAL_OUT',
+  'ADVANCE_REVERSAL_OUT',
+]);
+
+/**
+ * Whether a movement row is a primary (non-reversal) treasury debit for the Payments register.
+ * @param {{ type?: string, sourceKind?: string, amountNgn?: number, reversesMovementId?: string }} m
+ */
+export function isTreasuryOutflowPaymentRow(m) {
+  if (!m || m.reversesMovementId) return false;
+  const t = String(m.type || '');
+  if (!TREASURY_PAYMENTS_TABLE_OUTFLOW_TYPES.has(t)) return false;
+  const amt = Number(m.amountNgn) || 0;
+  return amt < 0;
+}
+
+/**
+ * Rows for the unified Payments table (posted treasury outflows).
+ * @param {Array<object>} movements workspace treasuryMovements
+ */
+export function treasuryOutflowPaymentTableRows(movements) {
+  if (!Array.isArray(movements)) return [];
+  return movements.filter(isTreasuryOutflowPaymentRow).map((m) => ({
+    movementId: String(m.id || ''),
+    postedAtISO: String(m.postedAtISO || ''),
+    type: String(m.type || ''),
+    sourceKind: String(m.sourceKind || ''),
+    sourceId: String(m.sourceId || '').trim(),
+    description: treasuryMovementStatementLabel(m),
+    accountName: String(m.accountName || '').trim(),
+    amountAbs: Math.abs(Number(m.amountNgn) || 0),
+    reference: String(m.reference || '').trim(),
+    counterpartyName: String(m.counterpartyName || '').trim(),
+  }));
 }
 
 export const nextExpenseId = (list) => {

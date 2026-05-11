@@ -124,7 +124,11 @@ export function EditSecondApprovalInline({ entityKind, entityId, value, onChange
     setErr('');
     const r = await apiFetch('/api/edit-approvals/request', {
       method: 'POST',
-      body: JSON.stringify({ entityKind, entityId: String(entityId).trim() }),
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        entityKind: String(entityKind || '').trim(),
+        entityId: String(entityId || '').trim(),
+      }),
     });
     setBusy(false);
     const { ok, data, status } = r;
