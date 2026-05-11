@@ -8,11 +8,41 @@ import {
   normalizePaymentRequest,
   treasuryMovementStatementLabel,
   treasuryMovementSourceBadge,
+  treasuryOutflowLinesForRefund,
 } from './accountCore';
 
 describe('accountCore', () => {
   it('provides stable account tab labels', () => {
     expect(ACCOUNT_TAB_LABELS.disbursements).toBe('Payments');
+  });
+
+  it('lists refund payout treasury lines for a refund id', () => {
+    const lines = treasuryOutflowLinesForRefund('RF-1', [
+      {
+        id: 'm1',
+        type: 'REFUND_PAYOUT',
+        sourceKind: 'REFUND',
+        sourceId: 'RF-1',
+        amountNgn: -100,
+        reversesMovementId: '',
+      },
+      {
+        id: 'm2',
+        type: 'REFUND_PAYOUT',
+        sourceKind: 'REFUND',
+        sourceId: 'RF-2',
+        amountNgn: -50,
+      },
+      {
+        id: 'm3',
+        type: 'REFUND_PAYOUT_REVERSAL_IN',
+        sourceKind: 'REFUND',
+        sourceId: 'RF-1',
+        amountNgn: 100,
+        reversesMovementId: 'm1',
+      },
+    ]);
+    expect(lines.map((l) => l.id)).toEqual(['m1']);
   });
 
   it('flags treasury outflow rows for the payments register', () => {

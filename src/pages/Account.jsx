@@ -62,6 +62,7 @@ import {
   treasuryMovementSourceBadge,
   treasuryOutflowLinesForExpense,
   treasuryOutflowLinesForPaymentRequest,
+  treasuryOutflowLinesForRefund,
   treasuryOutflowPaymentTableRows,
   TREASURY_STATEMENT_TYPE_LABEL,
 } from '../lib/accountCore';
@@ -84,8 +85,10 @@ const Account = () => {
   const [deletingExpenseId, setDeletingExpenseId] = useState('');
   const [deletingPayRequestId, setDeletingPayRequestId] = useState('');
   const [reversingTreasuryPayoutId, setReversingTreasuryPayoutId] = useState('');
+  const [reversingRefundTreasuryPayoutId, setReversingRefundTreasuryPayoutId] = useState('');
   const [paymentsTableSortKey, setPaymentsTableSortKey] = useState('date');
   const [paymentsTableSortDir, setPaymentsTableSortDir] = useState('desc');
+  const [paymentsTablePage, setPaymentsTablePage] = useState(0);
   const [paymentsMutateApprovalId, setPaymentsMutateApprovalId] = useState('');
   const [paymentsApprovalEntity, setPaymentsApprovalEntity] = useState(null);
   const [showPaymentEntry, setShowPaymentEntry] = useState(false);
@@ -176,6 +179,7 @@ const Account = () => {
   const [paymentCorrectionDrafts, setPaymentCorrectionDrafts] = useState({});
   /** Receipts tab: list paging & sort */
   const RECEIPTS_PAGE_SIZE = 10;
+  const PAYMENTS_PAGE_SIZE = 20;
   const [receiptsSortKey, setReceiptsSortKey] = useState('date');
   const [receiptsSortDir, setReceiptsSortDir] = useState('desc');
   const [receiptsPage, setReceiptsPage] = useState(0);
@@ -1609,6 +1613,30 @@ const Account = () => {
     [liveTreasuryMovements, showToast, todayIso]
   );
 
+  const openRefundOutflowEdit = useCallback(
+    (rf) => {
+      const lines = treasuryOutflowLinesForRefund(rf.refundID, liveTreasuryMovements);
+      if (!lines.length) {
+        showToast('No treasury payout is recorded for this refund yet.', { variant: 'info' });
+        return;
+      }
+      setExpenseOutflowLineIdx(0);
+      setExpenseOutflowEditApprovalId('');
+      setExpenseOutflowEdit({
+        headline: 'Customer refund — bank/cash paid from',
+        subline: `${rf.refundID} · ${rf.customer || ''}`,
+        rows: lines.map((m) => ({
+          movementId: String(m.id),
+          amountNgn: Number(m.amountNgn) || 0,
+          treasuryAccountId: String(m.treasuryAccountId ?? ''),
+          postedDate: String(m.postedAtISO || '').slice(0, 10) || todayIso,
+          note: '',
+        })),
+      });
+    },
+    [liveTreasuryMovements, showToast, todayIso]
+  );
+
   const updateExpenseOutflowRowField = useCallback((idx, patch) => {
     setExpenseOutflowEdit((prev) => {
       if (!prev?.rows?.[idx]) return prev;
@@ -2157,10 +2185,26 @@ const Account = () => {
     [payRequests]
   );
 
+  const refundById = useMemo(
+    () => Object.fromEntries((customerRefunds || []).map((r) => [r.refundID, r])),
+    [customerRefunds]
+  );
+
   const prPayoutPrimaryMovementId = useMemo(() => {
     const map = new Map();
     const outs = paymentOutflowBaseRows
       .filter((r) => r.type === 'PAYMENT_REQUEST_OUT' && r.sourceKind === 'PAYMENT_REQUEST' && r.sourceId)
+      .sort((a, b) => String(a.postedAtISO || '').localeCompare(String(b.postedAtISO || '')));
+    for (const r of outs) {
+      if (!map.has(r.sourceId)) map.set(r.sourceId, r.movementId);
+    }
+    return map;
+  }, [paymentOutflowBaseRows]);
+
+  const refundPayoutPrimaryMovementId = useMemo(() => {
+    const map = new Map();
+    const outs = paymentOutflowBaseRows
+      .filter((r) => r.type === 'REFUND_PAYOUT' && r.sourceKind === 'REFUND' && r.sourceId)
       .sort((a, b) => String(a.postedAtISO || '').localeCompare(String(b.postedAtISO || '')));
     for (const r of outs) {
       if (!map.has(r.sourceId)) map.set(r.sourceId, r.movementId);
@@ -2200,6 +2244,16 @@ const Account = () => {
       } else if (paymentsTableSortKey === 'account') {
         const t = mult * String(a.accountName || '').localeCompare(String(b.accountName || ''));
         if (t !== 0) return t;
+      } else if (paymentsTableSortKey === 'description') {
+        const t = mult * String(a.description || '').localeCompare(String(b.description || ''), undefined, {
+          sensitivity: 'base',
+        });
+        if (t !== 0) return t;
+      } else if (paymentsTableSortKey === 'source') {
+        const sa = `${String(a.sourceKind || '')}\u0000${String(a.sourceId || '')}`;
+        const sb = `${String(b.sourceKind || '')}\u0000${String(b.sourceId || '')}`;
+        const t = mult * sa.localeCompare(sb);
+        if (t !== 0) return t;
       } else {
         const t = mult * String(a.postedAtISO || '').localeCompare(String(b.postedAtISO || ''));
         if (t !== 0) return t;
@@ -2214,6 +2268,27 @@ const Account = () => {
     paymentsTableSortKey,
     paymentsTableSortDir,
   ]);
+
+  const paymentsListWindow = useMemo(() => {
+    const total = paymentsTableRowsSorted.length;
+    const pageCount = Math.max(1, Math.ceil(total / PAYMENTS_PAGE_SIZE) || 1);
+    const safePage = Math.min(paymentsTablePage, pageCount - 1);
+    const start = safePage * PAYMENTS_PAGE_SIZE;
+    const slice = paymentsTableRowsSorted.slice(start, start + PAYMENTS_PAGE_SIZE);
+    const from = total === 0 ? 0 : start + 1;
+    const to = Math.min(start + PAYMENTS_PAGE_SIZE, total);
+    return { total, pageCount, safePage, slice, from, to };
+  }, [paymentsTableRowsSorted, paymentsTablePage]);
+
+  useEffect(() => {
+    setPaymentsTablePage(0);
+  }, [disbursementsSearch, searchQuery, paymentsTableSortKey, paymentsTableSortDir]);
+
+  useEffect(() => {
+    const total = paymentsTableRowsSorted.length;
+    const pageCount = Math.max(1, Math.ceil(total / PAYMENTS_PAGE_SIZE) || 1);
+    setPaymentsTablePage((p) => Math.min(p, pageCount - 1));
+  }, [paymentsTableRowsSorted.length]);
 
   const canDeleteRolloutExpenseOrRequest = Boolean(ws?.hasPermission?.('finance.approve'));
   const canReversePaymentRequestTreasury = Boolean(ws?.hasPermission?.('finance.reverse'));
@@ -2479,6 +2554,65 @@ const Account = () => {
         setPaymentsMutateApprovalId('');
       } finally {
         setReversingTreasuryPayoutId('');
+      }
+    },
+    [needsPaymentsMutateSecondApproval, paymentsMutateApprovalId, showToast, ws]
+  );
+
+  const reverseRefundTreasuryPayout = useCallback(
+    async (refundID) => {
+      if (!ws?.hasPermission?.('finance.reverse')) {
+        showToast('finance.reverse permission is required to reverse refund treasury payouts.', { variant: 'error' });
+        return;
+      }
+      if (!ws?.canMutate) {
+        showToast(
+          ws?.usingCachedData
+            ? 'Reconnect to reverse — workspace is read-only.'
+            : 'Connect to the API to reverse.',
+          { variant: 'info' }
+        );
+        return;
+      }
+      const id = String(refundID || '').trim();
+      if (!id) return;
+      setPaymentsApprovalEntity({ kind: 'refund', id });
+      if (
+        needsPaymentsMutateSecondApproval &&
+        !String(paymentsMutateApprovalId || '').trim()
+      ) {
+        showToast('Enter the manager-approved KPI code in the Payments panel, then try again.', {
+          variant: 'error',
+        });
+        return;
+      }
+      if (
+        !window.confirm(
+          `Reverse treasury payout for refund ${id}? This posts compensating credits, clears customer-refund paid balance (and related advance ledger slices), and is audited.`
+        )
+      ) {
+        return;
+      }
+      setReversingRefundTreasuryPayoutId(id);
+      try {
+        const body = {};
+        if (String(paymentsMutateApprovalId || '').trim()) {
+          body.editApprovalId = String(paymentsMutateApprovalId).trim();
+        }
+        const { ok, data } = await apiFetch(`/api/refunds/${encodeURIComponent(id)}/reverse-treasury-payout`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+        if (!ok || !data?.ok) {
+          showToast(data?.error || 'Could not reverse refund treasury payout.', { variant: 'error' });
+          return;
+        }
+        await ws.refresh();
+        showToast(`Treasury payout reversed for refund ${id}.`);
+        setPaymentsMutateApprovalId('');
+      } finally {
+        setReversingRefundTreasuryPayoutId('');
       }
     },
     [needsPaymentsMutateSecondApproval, paymentsMutateApprovalId, showToast, ws]
@@ -3679,9 +3813,9 @@ const Account = () => {
                 {needsPaymentsMutateSecondApproval ? (
                   <div className="rounded-lg border border-amber-200 bg-amber-50/90 px-3 py-2.5 space-y-2">
                     <p className="text-[10px] text-amber-950 font-semibold leading-snug">
-                      Officer / finance roles: rollout delete, payment-request payout reversal, and the KPI gate below
-                      apply to you. Request an edit approval from a manager for the same expense or payment request ID,
-                      then paste the code.
+                      Officer / finance roles: rollout delete, payment-request or refund payout reversal, and the KPI
+                      gate below apply to you. Request an edit approval from a manager for the same expense, payment
+                      request, or refund ID, then paste the code.
                     </p>
                     {paymentsApprovalEntity ? (
                       <div className="space-y-1.5">
@@ -3690,7 +3824,13 @@ const Account = () => {
                           <span className="font-bold">{paymentsApprovalEntity.kind}</span> · {paymentsApprovalEntity.id}
                         </p>
                         <EditSecondApprovalInline
-                          entityKind={paymentsApprovalEntity.kind === 'expense' ? 'expense' : 'payment_request'}
+                          entityKind={
+                            paymentsApprovalEntity.kind === 'expense'
+                              ? 'expense'
+                              : paymentsApprovalEntity.kind === 'refund'
+                                ? 'refund'
+                                : 'payment_request'
+                          }
                           entityId={paymentsApprovalEntity.id}
                           value={paymentsMutateApprovalId}
                           onChange={setPaymentsMutateApprovalId}
@@ -3699,7 +3839,7 @@ const Account = () => {
                     ) : (
                       <p className="text-[9px] text-slate-600 italic">
                         Click <strong>Reverse</strong>, <strong>Delete</strong>, or set pay-from on a row to lock this
-                        form to that expense or payment request.
+                        form to that expense, payment request, or refund.
                       </p>
                     )}
                   </div>
@@ -3707,18 +3847,46 @@ const Account = () => {
 
                 <section className="space-y-2">
                   <div className="flex flex-wrap items-end justify-between gap-2">
-                    <div>
+                    <div className="min-w-0 flex-1">
                       <h3 className="text-xs font-bold uppercase tracking-widest text-[#134e4a]">
                         Posted treasury outflows
                       </h3>
                       <p className="text-[10px] text-slate-600 mt-0.5 max-w-3xl leading-snug">
                         Unified register of money leaving bank/cash — purchases, refunds, expense payment requests,
-                        transport, AP, and related lines. Sort columns; row actions where supported.
+                        transport, AP, and related lines. Sort columns (date, type, description, account, amount,
+                        source); <span className="font-semibold text-slate-700">{PAYMENTS_PAGE_SIZE} rows per page</span>
+                        . Row actions where supported.
                       </p>
                     </div>
-                    <span className="text-[10px] font-bold text-slate-500 tabular-nums">
-                      {paymentsTableRowsSorted.length} line{paymentsTableRowsSorted.length === 1 ? '' : 's'}
-                    </span>
+                    <div className="flex flex-wrap items-center justify-end gap-2 shrink-0">
+                      <span className="text-[10px] font-bold text-slate-500 tabular-nums">
+                        {paymentsListWindow.total} line{paymentsListWindow.total === 1 ? '' : 's'}
+                        {paymentsListWindow.total > 0
+                          ? ` · Showing ${paymentsListWindow.from}–${paymentsListWindow.to}`
+                          : ''}
+                      </span>
+                      <button
+                        type="button"
+                        disabled={paymentsListWindow.safePage <= 0}
+                        onClick={() => setPaymentsTablePage((p) => Math.max(0, p - 1))}
+                        className="inline-flex items-center rounded-lg border border-slate-200 bg-white px-2 py-1 disabled:opacity-40"
+                        aria-label="Previous payments page"
+                      >
+                        <ChevronLeft size={14} />
+                      </button>
+                      <span className="text-[9px] font-bold tabular-nums text-slate-500 min-w-[2.5rem] text-center">
+                        {paymentsListWindow.safePage + 1}/{paymentsListWindow.pageCount}
+                      </span>
+                      <button
+                        type="button"
+                        disabled={paymentsListWindow.safePage >= paymentsListWindow.pageCount - 1}
+                        onClick={() => setPaymentsTablePage((p) => p + 1)}
+                        className="inline-flex items-center rounded-lg border border-slate-200 bg-white px-2 py-1 disabled:opacity-40"
+                        aria-label="Next payments page"
+                      >
+                        <ChevronRight size={14} />
+                      </button>
+                    </div>
                   </div>
                   <div className="overflow-x-auto rounded-xl border border-slate-200/80 bg-white shadow-sm">
                     <table className="min-w-[920px] w-full text-left text-[10px]">
@@ -3753,7 +3921,20 @@ const Account = () => {
                                 : ''}
                             </button>
                           </th>
-                          <th className="px-2 py-2 min-w-[200px]">Description</th>
+                          <th className="px-2 py-2 min-w-[200px]">
+                            <button
+                              type="button"
+                              onClick={() => togglePaymentsSort('description')}
+                              className="inline-flex items-center gap-0.5 hover:text-[#134e4a] text-left"
+                            >
+                              Description
+                              {paymentsTableSortKey === 'description'
+                                ? paymentsTableSortDir === 'asc'
+                                  ? ' ↑'
+                                  : ' ↓'
+                                : ''}
+                            </button>
+                          </th>
                           <th className="px-2 py-2">
                             <button
                               type="button"
@@ -3782,33 +3963,56 @@ const Account = () => {
                                 : ''}
                             </button>
                           </th>
-                          <th className="px-2 py-2 min-w-[120px]">Source</th>
+                          <th className="px-2 py-2 min-w-[120px]">
+                            <button
+                              type="button"
+                              onClick={() => togglePaymentsSort('source')}
+                              className="inline-flex items-center gap-0.5 hover:text-[#134e4a] text-left"
+                            >
+                              Source
+                              {paymentsTableSortKey === 'source'
+                                ? paymentsTableSortDir === 'asc'
+                                  ? ' ↑'
+                                  : ' ↓'
+                                : ''}
+                            </button>
+                          </th>
                           <th className="px-2 py-2 text-right">Actions</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {paymentsTableRowsSorted.map((row, idx) => {
+                        {paymentsListWindow.slice.map((row, idx) => {
                           const pr =
                             row.sourceKind === 'PAYMENT_REQUEST' ? payRequestById[row.sourceId] : null;
                           const ex = row.sourceKind === 'EXPENSE' ? expenseById[row.sourceId] : null;
+                          const rf = row.sourceKind === 'REFUND' ? refundById[row.sourceId] : null;
                           const typeLabel = TREASURY_STATEMENT_TYPE_LABEL[row.type] || row.type;
+                          const rowOrdinal =
+                            paymentsListWindow.total === 0 ? idx + 1 : paymentsListWindow.from + idx;
                           const showPayFrom =
                             canFinanceReceiptSettlement &&
                             ws?.canMutate &&
                             ((row.type === 'EXPENSE' && row.sourceKind === 'EXPENSE' && ex) ||
-                              (row.type === 'PAYMENT_REQUEST_OUT' && row.sourceKind === 'PAYMENT_REQUEST' && pr));
+                              (row.type === 'PAYMENT_REQUEST_OUT' && row.sourceKind === 'PAYMENT_REQUEST' && pr) ||
+                              (row.type === 'REFUND_PAYOUT' && row.sourceKind === 'REFUND' && rf));
                           const paidPr = pr ? Number(pr.paidAmountNgn) || 0 : 0;
+                          const paidRf = rf ? Number(rf.paidAmountNgn) || 0 : 0;
                           const isPrPrimary =
                             row.type === 'PAYMENT_REQUEST_OUT' &&
                             row.sourceKind === 'PAYMENT_REQUEST' &&
                             prPayoutPrimaryMovementId.get(row.sourceId) === row.movementId;
+                          const isRefundPrimary =
+                            row.type === 'REFUND_PAYOUT' &&
+                            row.sourceKind === 'REFUND' &&
+                            refundPayoutPrimaryMovementId.get(row.sourceId) === row.movementId;
                           const showReverse =
                             canReversePaymentRequestTreasury &&
                             ws?.canMutate &&
-                            row.type === 'PAYMENT_REQUEST_OUT' &&
-                            pr &&
-                            paidPr > 0 &&
-                            isPrPrimary;
+                            ((row.type === 'PAYMENT_REQUEST_OUT' &&
+                              pr &&
+                              paidPr > 0 &&
+                              isPrPrimary) ||
+                              (row.type === 'REFUND_PAYOUT' && rf && paidRf > 0 && isRefundPrimary));
                           const showDeleteExpenseRow =
                             canDeleteRolloutExpenseOrRequest &&
                             ws?.canMutate &&
@@ -3827,7 +4031,7 @@ const Account = () => {
                               key={row.movementId || `${idx}`}
                               className="border-b border-slate-100/90 hover:bg-slate-50/80 align-top"
                             >
-                              <td className="px-2 py-1.5 text-slate-400 tabular-nums">{idx + 1}</td>
+                              <td className="px-2 py-1.5 text-slate-400 tabular-nums">{rowOrdinal}</td>
                               <td className="px-2 py-1.5 whitespace-nowrap text-slate-700">
                                 {String(row.postedAtISO || '').slice(0, 10) || '—'}
                               </td>
@@ -3857,6 +4061,7 @@ const Account = () => {
                                       onClick={() => {
                                         if (ex) openExpenseOutflowEdit(ex);
                                         else if (pr) openPaymentRequestOutflowEdit(pr);
+                                        else if (rf) openRefundOutflowEdit(rf);
                                       }}
                                       className="text-[8px] font-bold uppercase tracking-wide text-[#134e4a] bg-teal-100 hover:bg-teal-200 px-1.5 py-0.5 rounded"
                                     >
@@ -3866,12 +4071,30 @@ const Account = () => {
                                   {showReverse ? (
                                     <button
                                       type="button"
-                                      title="Reverse full payout for this request"
-                                      disabled={reversingTreasuryPayoutId === row.sourceId}
-                                      onClick={() => void reversePaymentRequestTreasuryPayout(row.sourceId)}
+                                      title={
+                                        row.type === 'REFUND_PAYOUT'
+                                          ? 'Reverse full treasury payout for this refund'
+                                          : 'Reverse full payout for this request'
+                                      }
+                                      disabled={
+                                        row.type === 'REFUND_PAYOUT'
+                                          ? reversingRefundTreasuryPayoutId === row.sourceId
+                                          : reversingTreasuryPayoutId === row.sourceId
+                                      }
+                                      onClick={() =>
+                                        row.type === 'REFUND_PAYOUT'
+                                          ? void reverseRefundTreasuryPayout(row.sourceId)
+                                          : void reversePaymentRequestTreasuryPayout(row.sourceId)
+                                      }
                                       className="text-[8px] font-bold uppercase text-amber-900 bg-amber-100 hover:bg-amber-200 px-1.5 py-0.5 rounded disabled:opacity-50"
                                     >
-                                      {reversingTreasuryPayoutId === row.sourceId ? '…' : 'Reverse'}
+                                      {row.type === 'REFUND_PAYOUT'
+                                        ? reversingRefundTreasuryPayoutId === row.sourceId
+                                          ? '…'
+                                          : 'Reverse'
+                                        : reversingTreasuryPayoutId === row.sourceId
+                                          ? '…'
+                                          : 'Reverse'}
                                     </button>
                                   ) : null}
                                   {showDeleteExpenseRow ? (
@@ -3903,7 +4126,7 @@ const Account = () => {
                         })}
                       </tbody>
                     </table>
-                    {paymentsTableRowsSorted.length === 0 ? (
+                    {paymentsListWindow.total === 0 ? (
                       <p className="text-[10px] text-slate-400 px-3 py-6 text-center border-t border-slate-100">
                         No treasury outflows match this filter (or workspace has no posted payment lines yet).
                       </p>

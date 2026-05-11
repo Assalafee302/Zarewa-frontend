@@ -18,6 +18,7 @@ export const TREASURY_STATEMENT_TYPE_LABEL = {
   SUPPLIER_PAYMENT: 'Supplier payment',
   PO_SUPPLIER_PAYMENT: 'Supplier payment',
   REFUND_PAYOUT: 'Customer refund payout',
+  REFUND_PAYOUT_REVERSAL_IN: 'Customer refund payout (reversal)',
   ADVANCE_REFUND_OUT: 'Advance refund',
   PAYMENT_REQUEST_OUT: 'Payment request payout',
   TRANSPORT_PAYMENT: 'Transport / haulage',
@@ -66,6 +67,23 @@ export function treasuryOutflowLinesForPaymentRequest(requestId, movements) {
       String(m.type || '') === 'PAYMENT_REQUEST_OUT' &&
       String(m.sourceKind || '') === 'PAYMENT_REQUEST' &&
       String(m.sourceId || '').trim() === rid &&
+      !m.reversesMovementId
+  );
+}
+
+/**
+ * Treasury payout lines for a customer refund (negative outflow per bank/cash leg).
+ * @param {string} refundId
+ * @param {Array<{ id?: string, type?: string, sourceKind?: string, sourceId?: string, reversesMovementId?: string }>} movements
+ */
+export function treasuryOutflowLinesForRefund(refundId, movements) {
+  const fid = String(refundId || '').trim();
+  if (!fid || !Array.isArray(movements)) return [];
+  return movements.filter(
+    (m) =>
+      String(m.type || '') === 'REFUND_PAYOUT' &&
+      String(m.sourceKind || '') === 'REFUND' &&
+      String(m.sourceId || '').trim() === fid &&
       !m.reversesMovementId
   );
 }
