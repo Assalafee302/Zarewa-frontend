@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Plus, Printer, Trash2, X } from 'lucide-react';
 import { ModalFrame } from '../layout';
@@ -21,6 +21,11 @@ const MATERIAL_OPTIONS = [
 ];
 
 const WORKBOOK_MATERIAL_KEYS = new Set(['alu', 'aluzinc', 'stone-coated']);
+const RIDGE_GIRTH_COLUMNS_MM = [150, 300, 400, 600];
+const RIDGE_MATERIAL_OPTIONS = [
+  { key: 'alu', label: 'Aluminium' },
+  { key: 'aluzinc', label: 'Aluzinc (PPGI)' },
+];
 
 function isWorkbookMaterialKey(k) {
   return WORKBOOK_MATERIAL_KEYS.has(String(k || ''));
@@ -76,6 +81,14 @@ function newLineKey() {
 
 function newWbDesignKey() {
   return `wb_${crypto.randomUUID().replace(/-/g, '').slice(0, 10)}`;
+}
+
+function newCalcRowId() {
+  return `rc_${crypto.randomUUID().replace(/-/g, '').slice(0, 10)}`;
+}
+
+function lineGaugeDesignKey(gaugeMm, designKey) {
+  return `gd:${String(gaugeMm || '').trim()}|${String(designKey || '').trim()}`;
 }
 
 /** First row per gauge keeps '' or explicit wb-; further rows for same gauge get wb-* */
@@ -196,10 +209,16 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
   const [savingAll, setSavingAll] = useState(false);
   /** @type {Array<{ key: string; serverId?: string; gaugeMm: string; designKey: string; draft: Record<string, unknown> }>} */
   const [workbookLines, setWorkbookLines] = useState([]);
+  /** Preserve transient sync controls through post-save reloads. */
+  const syncDraftRef = useRef(new Map());
   /** Ridge add-ons from pricing policy (reference tabs). */
   const [refRidgeAddOns, setRefRidgeAddOns] = useState([]);
   /** Accessories from master data (reference tab). */
   const [refAccessories, setRefAccessories] = useState([]);
+  /** Ridge calculator rows (gauge + material). */
+  const [ridgeCalcRows, setRidgeCalcRows] = useState([]);
+  /** Base list price by material+gauge key. */
+  const [ridgeBaseByMatGauge, setRidgeBaseByMatGauge] = useState({});
   const [savingRidges, setSavingRidges] = useState(false);
   const [savingAccessories, setSavingAccessories] = useState(false);
   const [printPreview, setPrintPreview] = useState(null);
@@ -216,6 +235,20 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
     }
   }, [branches, branchId]);
 
+  useEffect(() => {
+    const next = new Map();
+    for (const line of workbookLines) {
+      const draft = line?.draft || {};
+      const syncState = {
+        syncMinimumToPriceList: Boolean(draft.syncMinimumToPriceList),
+        syncDesignKey: String(draft.syncDesignKey || ''),
+      };
+      if (line?.serverId) next.set(`id:${line.serverId}`, syncState);
+      next.set(lineGaugeDesignKey(line?.gaugeMm, line?.designKey), syncState);
+    }
+    syncDraftRef.current = next;
+  }, [workbookLines]);
+
   const loadEvents = useCallback(async (mk) => {
     const { ok, data } = await apiFetch(
       `/api/pricing/material-sheet/events?materialKey=${encodeURIComponent(mk)}&limit=60`
@@ -230,9 +263,11 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
     if (!isWorkbookMaterialKey(materialKey)) {
       setBusy(true);
       try {
-        const [policyR, setupR] = await Promise.all([
+        const [policyR, setupR, aluSheetR, aluzSheetR] = await Promise.all([
           apiFetch('/api/pricing/policy'),
           apiFetch('/api/setup'),
+          apiFetch(`/api/pricing/material-sheet?materialKey=alu&branchId=${encodeURIComponent(branchId)}`),
+          apiFetch(`/api/pricing/material-sheet?materialKey=aluzinc&branchId=${encodeURIComponent(branchId)}`),
         ]);
         const ridges = policyR.ok && Array.isArray(policyR.data?.ridgeAddOns) ? policyR.data.ridgeAddOns : [];
         const accRaw =
@@ -249,6 +284,22 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
         setEvents([]);
         setRefRidgeAddOns(ridges);
         setRefAccessories(acc);
+        const sheets = [aluSheetR?.data, aluzSheetR?.data].filter((s) => s?.ok);
+        const baseMap = {};
+        for (const s of sheets) {
+          const mk = String(s.materialKey || '').trim();
+          for (const row of s.rows || []) {
+            if (!isWorkbookDesignKey(row?.designKey)) continue;
+            const g = String(row?.gaugeMm || '').trim();
+            if (!mk || !g) continue;
+            const listNgn = listPriceFromFloorAndCommission(row?.minimumPricePerMeterNgn, row?.commissionNgnPerM);
+            if (listNgn <= 0) continue;
+            const k = `${mk}::${g}`;
+            if (!baseMap[k] || listNgn > baseMap[k]) baseMap[k] = listNgn;
+          }
+        }
+        setRidgeBaseByMatGauge(baseMap);
+        setRidgeCalcRows((prev) => (prev.length ? prev : [{ id: newCalcRowId(), gaugeMm: '', materialKey: 'alu' }]));
         if (!policyR.ok || !setupR.ok || !setupR.data?.ok) {
           showToast('Some reference data could not be loaded.', { variant: 'error' });
         }
@@ -256,6 +307,7 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
         setSheet(null);
         setRefRidgeAddOns([]);
         setRefAccessories([]);
+        setRidgeBaseByMatGauge({});
         showToast('Could not load ridge/accessory reference.', { variant: 'error' });
       } finally {
         setBusy(false);
@@ -295,12 +347,22 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
     setWorkbookLines(
       wbRows.map((row) => {
         const rv = r1.data.resolvedByGauge?.[row.gaugeMm] || {};
+        const preservedSync =
+          syncDraftRef.current.get(`id:${row.id}`) ||
+          syncDraftRef.current.get(lineGaugeDesignKey(row.gaugeMm, row.designKey));
+        const draft = draftFromServerRow(row, recCost, rv, isStone);
+        if (preservedSync) {
+          draft.syncMinimumToPriceList = Boolean(preservedSync.syncMinimumToPriceList);
+          if (String(preservedSync.syncDesignKey || '').trim()) {
+            draft.syncDesignKey = String(preservedSync.syncDesignKey || '').trim();
+          }
+        }
         return {
           key: row.id ? `srv_${row.id}` : newLineKey(),
           serverId: row.id,
           gaugeMm: row.gaugeMm || '',
           designKey: row.designKey || '',
-          draft: draftFromServerRow(row, recCost, rv, isStone),
+          draft,
         };
       })
     );
@@ -489,11 +551,11 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
   }, []);
 
   const addRidgeRow = () => {
-    setRefRidgeAddOns((prev) => [...prev, { id: '', girthMm: '', materialFamily: '', addOnNgn: 0 }]);
+    setRidgeCalcRows((prev) => [...prev, { id: newCalcRowId(), gaugeMm: '', materialKey: 'alu' }]);
   };
 
   const removeRidgeRow = (idx) => {
-    setRefRidgeAddOns((prev) => prev.filter((_, i) => i !== idx));
+    setRidgeCalcRows((prev) => prev.filter((_, i) => i !== idx));
   };
 
   const saveRidgeRows = async () => {
@@ -576,6 +638,50 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
     showToast('Accessories saved.');
     void loadSheet();
   };
+
+  const ridgeGaugeOptions = useMemo(() => {
+    const out = new Set();
+    Object.keys(ridgeBaseByMatGauge).forEach((k) => {
+      const parts = k.split('::');
+      if (parts[1]) out.add(parts[1]);
+    });
+    return Array.from(out).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+  }, [ridgeBaseByMatGauge]);
+
+  const ridgeAddOnFor = useCallback(
+    (materialKeyValue, girthMm) => {
+      const g = Number(girthMm);
+      if (!Number.isFinite(g)) return 0;
+      const rows = (refRidgeAddOns || []).filter((r) => Math.abs(Number(r?.girthMm) - g) < 0.001);
+      if (!rows.length) return 0;
+      const mk = String(materialKeyValue || '').trim().toLowerCase();
+      const exact = rows.find((r) => {
+        const mf = String(r?.materialFamily || '').trim().toLowerCase();
+        return mf === mk;
+      });
+      if (exact) return Math.max(0, Math.round(Number(exact?.addOnNgn) || 0));
+      const familyHint = rows.find((r) => {
+        const mf = String(r?.materialFamily || '').trim().toLowerCase();
+        return (mk === 'alu' && mf.includes('alu')) || (mk === 'aluzinc' && (mf.includes('zinc') || mf.includes('ppgi')));
+      });
+      if (familyHint) return Math.max(0, Math.round(Number(familyHint?.addOnNgn) || 0));
+      const any = rows.find((r) => !String(r?.materialFamily || '').trim());
+      return Math.max(0, Math.round(Number(any?.addOnNgn) || 0));
+    },
+    [refRidgeAddOns]
+  );
+
+  const ridgeAutoAmount = useCallback(
+    (materialKeyValue, gaugeMm, girthMm) => {
+      const base = Math.max(0, Math.round(Number(ridgeBaseByMatGauge[`${materialKeyValue}::${gaugeMm}`]) || 0));
+      if (!base) return 0;
+      const divisor = 1200 / Number(girthMm || 0);
+      if (!Number.isFinite(divisor) || divisor <= 0) return 0;
+      const addOn = ridgeAddOnFor(materialKeyValue, girthMm);
+      return Math.round(base / divisor + addOn);
+    },
+    [ridgeAddOnFor, ridgeBaseByMatGauge]
+  );
 
   const branchRecord = branches.find((b) => b.id === branchId);
   const branchName = branchRecord?.name || branchRecord?.code || branchId;
@@ -768,7 +874,7 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
             <>
               <button
                 type="button"
-                disabled={busy || savingRidges || !sheet || !canPolicyManage}
+                disabled={busy || !sheet}
                 onClick={addRidgeRow}
                 className="rounded-lg border border-dashed border-[#134e4a]/40 bg-teal-50/80 px-3 py-2 text-[10px] font-black uppercase text-[#134e4a] disabled:opacity-50 inline-flex items-center gap-1"
               >
@@ -781,7 +887,7 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
                 onClick={() => void saveRidgeRows()}
                 className="rounded-lg bg-[#134e4a] px-3 py-2 text-[10px] font-black uppercase text-white disabled:opacity-50"
               >
-                {savingRidges ? 'Saving…' : 'Save ridges'}
+                {savingRidges ? 'Saving…' : 'Save add-ons'}
               </button>
             </>
           ) : (
@@ -851,84 +957,96 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
           ) : isReferenceTab && materialKey === 'ridge-flashing' ? (
             <div className="rounded-xl border border-slate-200 bg-white shadow-sm p-4 space-y-3">
               <p className="text-[11px] text-slate-600 leading-relaxed">
-                Edit ridge/flashing add-on rates used on workbook printouts. Use <strong className="text-slate-800">Save ridges</strong> to
-                apply changes.
+                Ridge/flat-sheet calculator by gauge and material using your split rule:
+                <strong className="text-slate-800"> 150=÷8, 300=÷4, 400=÷3, 600=÷2 </strong>
+                plus configured add-ons. Base is the workbook published <strong className="text-slate-800">List ₦/m</strong> for the selected
+                gauge/material.
               </p>
               <div className="z-scroll-x overflow-x-auto rounded-lg border border-slate-200 bg-white">
                 <table className="min-w-[620px] w-full border-collapse text-left text-xs">
                   <thead className="bg-slate-50 text-[9px] font-black uppercase tracking-wide text-slate-600">
                     <tr>
                       <th className="px-3 py-2 border-b border-slate-200 w-10" aria-label="Remove row" />
-                      <th className="px-3 py-2 border-b border-slate-200">Girth (mm)</th>
-                      <th className="px-3 py-2 border-b border-slate-200">Material family</th>
-                      <th className="px-3 py-2 border-b border-slate-200 text-right">Add-on ₦/m</th>
+                      <th className="px-3 py-2 border-b border-slate-200">Gauge</th>
+                      <th className="px-3 py-2 border-b border-slate-200">Material</th>
+                      <th className="px-3 py-2 border-b border-slate-200 text-right">150mm</th>
+                      <th className="px-3 py-2 border-b border-slate-200 text-right">300mm</th>
+                      <th className="px-3 py-2 border-b border-slate-200 text-right">400mm</th>
+                      <th className="px-3 py-2 border-b border-slate-200 text-right">600mm</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {refRidgeAddOns.length === 0 ? (
+                    {ridgeCalcRows.length === 0 ? (
                       <tr>
-                        <td colSpan={4} className="px-3 py-6 text-center text-sm text-slate-500">
-                          No ridge or flashing add-ons configured yet.
+                        <td colSpan={7} className="px-3 py-6 text-center text-sm text-slate-500">
+                          No rows yet. Use Add ridge row.
                         </td>
                       </tr>
                     ) : (
-                      refRidgeAddOns.map((r, i) => (
-                        <tr key={i}>
+                      ridgeCalcRows.map((r, i) => (
+                        <tr key={r.id || i}>
                           <td className="px-2 py-1.5 align-middle">
                             <button
                               type="button"
                               title="Remove row"
                               className="rounded p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
                               onClick={() => removeRidgeRow(i)}
-                              disabled={!canPolicyManage}
                             >
                               <Trash2 size={16} aria-hidden />
                             </button>
                           </td>
                           <td className="px-3 py-2">
-                            <input
-                              type="number"
+                            <select
                               className="w-full rounded border border-slate-200 px-2 py-1"
-                              value={r.girthMm ?? ''}
+                              value={String(r.gaugeMm || '')}
                               onChange={(e) =>
-                                setRefRidgeAddOns((prev) =>
-                                  prev.map((x, idx) => (idx === i ? { ...x, girthMm: e.target.value } : x))
+                                setRidgeCalcRows((prev) =>
+                                  prev.map((x, idx) => (idx === i ? { ...x, gaugeMm: e.target.value } : x))
                                 )
                               }
-                              disabled={!canPolicyManage}
-                            />
+                            >
+                              <option value="">— Select —</option>
+                              {ridgeGaugeOptions.map((g) => (
+                                <option key={g} value={g}>
+                                  {g} mm
+                                </option>
+                              ))}
+                            </select>
                           </td>
                           <td className="px-3 py-2">
-                            <input
+                            <select
                               className="w-full rounded border border-slate-200 px-2 py-1"
-                              value={r.materialFamily ?? ''}
+                              value={String(r.materialKey || 'alu')}
                               onChange={(e) =>
-                                setRefRidgeAddOns((prev) =>
-                                  prev.map((x, idx) => (idx === i ? { ...x, materialFamily: e.target.value } : x))
+                                setRidgeCalcRows((prev) =>
+                                  prev.map((x, idx) => (idx === i ? { ...x, materialKey: e.target.value } : x))
                                 )
                               }
-                              disabled={!canPolicyManage}
-                            />
+                            >
+                              {RIDGE_MATERIAL_OPTIONS.map((m) => (
+                                <option key={m.key} value={m.key}>
+                                  {m.label}
+                                </option>
+                              ))}
+                            </select>
                           </td>
-                          <td className="px-3 py-2">
-                            <input
-                              type="number"
-                              className="w-full rounded border border-slate-200 px-2 py-1 text-right font-mono tabular-nums"
-                              value={r.addOnNgn ?? 0}
-                              onChange={(e) =>
-                                setRefRidgeAddOns((prev) =>
-                                  prev.map((x, idx) => (idx === i ? { ...x, addOnNgn: e.target.value } : x))
-                                )
-                              }
-                              disabled={!canPolicyManage}
-                            />
-                          </td>
+                          {RIDGE_GIRTH_COLUMNS_MM.map((girth) => {
+                            const amount = ridgeAutoAmount(r.materialKey, r.gaugeMm, girth);
+                            return (
+                              <td key={girth} className="px-3 py-2 text-right font-mono tabular-nums text-slate-900">
+                                {amount > 0 ? formatNgn(amount) : '—'}
+                              </td>
+                            );
+                          })}
                         </tr>
                       ))
                     )}
                   </tbody>
                 </table>
               </div>
+              <p className="text-[10px] text-slate-500">
+                To update the add-on values used in this calculation, edit and save them with the button above.
+              </p>
             </div>
           ) : isReferenceTab && materialKey === 'accessories' ? (
             <div className="rounded-xl border border-slate-200 bg-white shadow-sm p-4 space-y-3">
