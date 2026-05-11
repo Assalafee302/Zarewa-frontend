@@ -72,6 +72,12 @@ const Account = () => {
 
   const [activeTab, setActiveTab] = useState('treasury');
   const [searchQuery, setSearchQuery] = useState('');
+  /** In-tab filter for Expenses & requests (also falls back to header search). */
+  const [disbursementsSearch, setDisbursementsSearch] = useState('');
+  /** In-tab filter for Receipts reconciliation list (also falls back to header search). */
+  const [receiptsTableSearch, setReceiptsTableSearch] = useState('');
+  const [deletingExpenseId, setDeletingExpenseId] = useState('');
+  const [deletingPayRequestId, setDeletingPayRequestId] = useState('');
   const [showPaymentEntry, setShowPaymentEntry] = useState(false);
   const [showAddBank, setShowAddBank] = useState(false);
   const [showExpenseModal, setShowExpenseModal] = useState(false);
@@ -1252,15 +1258,23 @@ const Account = () => {
   }, [salesReceipts, canReviseFinalizedReceiptSettlement]);
 
   const filteredSalesReceipts = useMemo(() => {
-    const qq = searchQuery.trim().toLowerCase();
+    const qq = (receiptsTableSearch.trim() || searchQuery.trim()).toLowerCase();
     if (!qq) return receiptsVisibleInReconciliationQueue;
     return receiptsVisibleInReconciliationQueue.filter((r) => {
       const id = String(r.id || '').toLowerCase();
       const cust = String(r.customer || '').toLowerCase();
       const qref = String(r.quotationRef || '').toLowerCase();
-      return id.includes(qq) || cust.includes(qq) || qref.includes(qq);
+      const amt = String(r.amountNgn ?? '').toLowerCase();
+      const date = String(r.dateISO || r.date || '').toLowerCase();
+      return (
+        id.includes(qq) ||
+        cust.includes(qq) ||
+        qref.includes(qq) ||
+        amt.includes(qq) ||
+        date.includes(qq)
+      );
     });
-  }, [receiptsVisibleInReconciliationQueue, searchQuery]);
+  }, [receiptsVisibleInReconciliationQueue, receiptsTableSearch, searchQuery]);
 
   const resolveSalesReceiptFromStatementMovement = useCallback(
     (movement) => {
@@ -1318,7 +1332,7 @@ const Account = () => {
 
   useEffect(() => {
     setReceiptsPage(0);
-  }, [receiptsSortKey, receiptsSortDir, searchQuery]);
+  }, [receiptsSortKey, receiptsSortDir, searchQuery, receiptsTableSearch]);
 
   useEffect(() => {
     const total = sortedFilteredSalesReceipts.length;
@@ -1920,17 +1934,6 @@ const Account = () => {
     }));
   };
 
-  const filteredExpenses = useMemo(() => {
-    const qq = searchQuery.trim().toLowerCase();
-    if (!qq) return expenses;
-    return expenses.filter((ex) => {
-      const blob = [ex.expenseID, ex.category, ex.expenseType, ex.reference, ex.paymentMethod]
-        .join(' ')
-        .toLowerCase();
-      return blob.includes(qq);
-    });
-  }, [expenses, searchQuery]);
-
   const filteredPayRequests = useMemo(() => {
     const qq = searchQuery.trim().toLowerCase();
     if (!qq) return payRequests;
@@ -1956,6 +1959,61 @@ const Account = () => {
       return blob.includes(qq);
     });
   }, [payRequests, searchQuery]);
+
+  const disbursementsFilteredExpenses = useMemo(() => {
+    const qq = (disbursementsSearch.trim() || searchQuery.trim()).toLowerCase();
+    if (!qq) return expenses;
+    return expenses.filter((ex) => {
+      const blob = [ex.expenseID, ex.category, ex.expenseType, ex.reference, ex.paymentMethod, ex.branchId, ex.date]
+        .join(' ')
+        .toLowerCase();
+      return blob.includes(qq);
+    });
+  }, [expenses, disbursementsSearch, searchQuery]);
+
+  const disbursementsFilteredPayRequests = useMemo(() => {
+    const qq = (disbursementsSearch.trim() || searchQuery.trim()).toLowerCase();
+    if (!qq) return payRequests;
+    return payRequests.filter((req) => {
+      const lineBlob = (req.lineItems || [])
+        .map((x) => [x.item, x.lineTotalNgn, x.unitPriceNgn].filter(Boolean).join(' '))
+        .join(' ');
+      const blob = [
+        req.requestID,
+        req.expenseID,
+        req.description,
+        req.requestReference,
+        req.expenseCategory,
+        lineBlob,
+        req.approvalStatus,
+        req.approvedBy,
+        req.paidBy,
+        req.requestDate,
+        req.attachmentName,
+      ]
+        .join(' ')
+        .toLowerCase();
+      return blob.includes(qq);
+    });
+  }, [payRequests, disbursementsSearch, searchQuery]);
+
+  const disbursementsActivePayRequests = useMemo(
+    () =>
+      disbursementsFilteredPayRequests.filter(
+        (req) => String(req.approvalStatus || '').trim().toLowerCase() !== 'rejected'
+      ),
+    [disbursementsFilteredPayRequests]
+  );
+
+  const disbursementsArchivedRejectedPayRequests = useMemo(
+    () =>
+      disbursementsFilteredPayRequests.filter(
+        (req) => String(req.approvalStatus || '').trim().toLowerCase() === 'rejected'
+      ),
+    [disbursementsFilteredPayRequests]
+  );
+
+  const canDeleteRolloutExpenseOrRequest = Boolean(ws?.hasPermission?.('finance.approve'));
 
   const activePayRequests = useMemo(
     () =>
@@ -2033,6 +2091,89 @@ const Account = () => {
       return blob.includes(qq);
     });
   }, [bankAccounts, searchQuery]);
+
+  const deleteRolloutExpense = useCallback(
+    async (expenseID) => {
+      if (!ws?.hasPermission?.('finance.approve')) {
+        showToast('Finance approval permission is required to delete expenses.', { variant: 'error' });
+        return;
+      }
+      if (!ws?.canMutate) {
+        showToast(
+          ws?.usingCachedData
+            ? 'Reconnect to delete — workspace is read-only.'
+            : 'Connect to the API to delete.',
+          { variant: 'info' }
+        );
+        return;
+      }
+      const id = String(expenseID || '').trim();
+      if (!id) return;
+      if (
+        !window.confirm(
+          `Delete expense ${id} (temporary rollout cleanup)? Removes this row, any linked payment requests that have no treasury payout yet, and direct EXPENSE treasury lines. Blocked if a linked request was already paid from treasury.`
+        )
+      ) {
+        return;
+      }
+      setDeletingExpenseId(id);
+      try {
+        const { ok, data } = await apiFetch(`/api/expenses/${encodeURIComponent(id)}`, { method: 'DELETE' });
+        if (!ok || !data?.ok) {
+          showToast(data?.error || 'Could not delete expense.', { variant: 'error' });
+          return;
+        }
+        await ws.refresh();
+        showToast(`Deleted expense ${id}.`);
+      } finally {
+        setDeletingExpenseId('');
+      }
+    },
+    [showToast, ws]
+  );
+
+  const deleteRolloutPaymentRequest = useCallback(
+    async (requestID) => {
+      if (!ws?.hasPermission?.('finance.approve')) {
+        showToast('Finance approval permission is required to delete requests.', { variant: 'error' });
+        return;
+      }
+      if (!ws?.canMutate) {
+        showToast(
+          ws?.usingCachedData
+            ? 'Reconnect to delete — workspace is read-only.'
+            : 'Connect to the API to delete.',
+          { variant: 'info' }
+        );
+        return;
+      }
+      const id = String(requestID || '').trim();
+      if (!id) return;
+      if (
+        !window.confirm(
+          `Delete payment request ${id} (temporary rollout cleanup)? Only allowed when no treasury payout was recorded; removes the request and the placeholder expense if nothing else references it.`
+        )
+      ) {
+        return;
+      }
+      setDeletingPayRequestId(id);
+      try {
+        const { ok, data } = await apiFetch(
+          `/api/payment-requests/${encodeURIComponent(id)}/rollout-dup`,
+          { method: 'DELETE' }
+        );
+        if (!ok || !data?.ok) {
+          showToast(data?.error || 'Could not delete payment request.', { variant: 'error' });
+          return;
+        }
+        await ws.refresh();
+        showToast(`Deleted payment request ${id}.`);
+      } finally {
+        setDeletingPayRequestId('');
+      }
+    },
+    [showToast, ws]
+  );
 
   return (
     <PageShell blurred={isAnyModalOpen}>
@@ -2185,7 +2326,22 @@ const Account = () => {
                   ) : (
                     <>
                       <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-200/70 bg-slate-50/80 px-2.5 py-2">
-                        <div className="flex flex-wrap items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-2 flex-1 min-w-0">
+                          <div className="relative min-w-[8rem] flex-1 max-w-[14rem]">
+                            <Search
+                              className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
+                              size={14}
+                            />
+                            <input
+                              type="search"
+                              className="w-full rounded-lg border border-slate-200 bg-white py-1.5 pl-7 pr-2 text-[10px] font-semibold text-slate-800 outline-none focus:ring-2 focus:ring-[#134e4a]/15"
+                              placeholder="Search receipts…"
+                              value={receiptsTableSearch}
+                              onChange={(e) => setReceiptsTableSearch(e.target.value)}
+                              autoComplete="off"
+                              aria-label="Filter receipts table"
+                            />
+                          </div>
                           <span className="text-[9px] font-bold text-slate-500 uppercase">Sort by</span>
                           <select
                             value={receiptsSortKey}
@@ -3183,6 +3339,30 @@ const Account = () => {
 
             {activeTab === 'disbursements' && (
               <div className="space-y-8 animate-in slide-in-from-right-5">
+                <div className="rounded-lg border border-slate-200/80 bg-slate-50/80 px-3 py-2">
+                  <label className="text-[9px] font-bold uppercase tracking-wide text-slate-500 block mb-1">
+                    Search expenses &amp; requests (this tab)
+                  </label>
+                  <div className="relative">
+                    <Search
+                      className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
+                      size={14}
+                    />
+                    <input
+                      type="search"
+                      className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-8 pr-2 text-[11px] font-semibold text-slate-800 outline-none focus:ring-2 focus:ring-[#134e4a]/15"
+                      placeholder="Filter by id, category, reference, status…"
+                      value={disbursementsSearch}
+                      onChange={(e) => setDisbursementsSearch(e.target.value)}
+                      autoComplete="off"
+                      aria-label="Search expenses and payment requests"
+                    />
+                  </div>
+                  <p className="text-[9px] text-slate-500 mt-1.5 leading-snug">
+                    Also respects the page header search. Temporary <strong>Delete</strong> requires finance approval
+                    and only removes rows with <strong>no treasury payout</strong> on linked requests.
+                  </p>
+                </div>
                 <section className="space-y-4">
                   <div>
                     <h3 className="text-xs font-bold uppercase tracking-widest text-[#134e4a]">
@@ -3196,7 +3376,7 @@ const Account = () => {
                     </p>
                   </div>
                 <ul className="space-y-1.5">
-                {filteredExpenses.map((ex) => {
+                {disbursementsFilteredExpenses.map((ex) => {
                   const meta2 = [
                     ex.expenseType,
                     ex.category,
@@ -3218,9 +3398,23 @@ const Account = () => {
                           {meta2}
                         </p>
                       </div>
-                      <p className="text-[11px] font-black text-[#134e4a] tabular-nums shrink-0">
-                        {formatNgn(ex.amountNgn)}
-                      </p>
+                      <div className="flex flex-col items-end gap-1 shrink-0">
+                        <p className="text-[11px] font-black text-[#134e4a] tabular-nums">
+                          {formatNgn(ex.amountNgn)}
+                        </p>
+                        {canDeleteRolloutExpenseOrRequest ? (
+                          <button
+                            type="button"
+                            title="Temporary rollout delete (unpaid links only)"
+                            disabled={deletingExpenseId === ex.expenseID}
+                            onClick={() => void deleteRolloutExpense(ex.expenseID)}
+                            className="text-[8px] font-bold uppercase tracking-wide text-rose-800 bg-rose-100 hover:bg-rose-200 px-2 py-1 rounded-md disabled:opacity-50 inline-flex items-center gap-1"
+                          >
+                            <Trash2 size={10} aria-hidden />
+                            {deletingExpenseId === ex.expenseID ? '…' : 'Delete'}
+                          </button>
+                        ) : null}
+                      </div>
                     </div>
                   </li>
                   );
@@ -3228,24 +3422,94 @@ const Account = () => {
                 </ul>
                 </section>
                 <section className="space-y-3">
+                  <div>
+                    <h3 className="text-xs font-bold uppercase tracking-widest text-[#134e4a]">
+                      2) Expense payment requests (pipeline)
+                    </h3>
+                    <p className="text-[11px] text-slate-500 mt-1">
+                      Pending, submitted, approved (awaiting treasury), and cancelled — same rows as workspace; use
+                      Treasury tab to record payout when approved.
+                    </p>
+                  </div>
+                  {disbursementsActivePayRequests.length === 0 ? (
+                    <p className="text-[10px] text-slate-400 rounded-lg border border-slate-100 bg-slate-50/70 px-3 py-2">
+                      No payment requests match this filter.
+                    </p>
+                  ) : (
+                    <ul className="space-y-1.5">
+                      {disbursementsActivePayRequests.map((req) => {
+                        const paid = Number(req.paidAmountNgn) || 0;
+                        const meta2 = [
+                          req.expenseCategory || null,
+                          req.expenseID ? `Expense ${req.expenseID}` : null,
+                          req.requestReference ? `Ref ${req.requestReference}` : null,
+                          req.branchId ? branchNameById[req.branchId] || req.branchId : null,
+                          req.approvalStatus,
+                          paid > 0 ? `Paid ${formatNgn(paid)}` : null,
+                        ]
+                          .filter(Boolean)
+                          .join(' · ');
+                        return (
+                          <li
+                            key={req.requestID}
+                            className="rounded-lg border border-slate-200/60 bg-white/50 py-1.5 px-2.5 shadow-sm"
+                          >
+                            <div className="flex flex-wrap items-start justify-between gap-2 min-w-0">
+                              <div className="min-w-0 leading-tight flex-1">
+                                <p className="text-[11px] font-bold text-[#134e4a] truncate">
+                                  <span className="font-mono">{req.requestID}</span>
+                                  <span className="font-medium text-slate-600">
+                                    {' '}
+                                    · {req.description || req.expenseCategory || '—'}
+                                  </span>
+                                </p>
+                                <p className="text-[8px] text-slate-500 mt-0.5 line-clamp-2" title={meta2}>
+                                  {meta2}
+                                </p>
+                              </div>
+                              <div className="flex flex-col items-end gap-1 shrink-0">
+                                <span className="text-[11px] font-black text-[#134e4a] tabular-nums">
+                                  {formatNgn(Number(req.amountRequestedNgn) || 0)}
+                                </span>
+                                {canDeleteRolloutExpenseOrRequest && paid <= 0 ? (
+                                  <button
+                                    type="button"
+                                    title="Temporary rollout delete (no treasury payout)"
+                                    disabled={deletingPayRequestId === req.requestID}
+                                    onClick={() => void deleteRolloutPaymentRequest(req.requestID)}
+                                    className="text-[8px] font-bold uppercase tracking-wide text-rose-800 bg-rose-100 hover:bg-rose-200 px-2 py-1 rounded-md disabled:opacity-50 inline-flex items-center gap-1"
+                                  >
+                                    <Trash2 size={10} aria-hidden />
+                                    {deletingPayRequestId === req.requestID ? '…' : 'Delete'}
+                                  </button>
+                                ) : null}
+                              </div>
+                            </div>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+                </section>
+                <section className="space-y-3">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <h3 className="text-xs font-bold uppercase tracking-widest text-[#134e4a]">
                       Archived rejected expense requests
                     </h3>
                     <span className="text-[10px] font-bold text-slate-500 tabular-nums">
-                      {archivedRejectedPayRequests.length} archived
+                      {disbursementsArchivedRejectedPayRequests.length} archived
                     </span>
                   </div>
                   <p className="text-[10px] text-slate-500">
                     Rejected requests are hidden from active payout flow and kept here as archived history.
                   </p>
-                  {archivedRejectedPayRequests.length === 0 ? (
+                  {disbursementsArchivedRejectedPayRequests.length === 0 ? (
                     <p className="text-[10px] text-slate-400 rounded-lg border border-slate-100 bg-slate-50/70 px-3 py-2">
                       No rejected expense requests in archive.
                     </p>
                   ) : (
                     <ul className="space-y-1.5">
-                      {archivedRejectedPayRequests.map((req) => {
+                      {disbursementsArchivedRejectedPayRequests.map((req) => {
                         const meta2 = [
                           req.expenseCategory ? req.expenseCategory : null,
                           req.requestReference ? `Ref ${req.requestReference}` : null,
@@ -3276,24 +3540,41 @@ const Account = () => {
                                 <span className="text-[11px] font-black text-slate-700 tabular-nums">
                                   {formatNgn(Number(req.amountRequestedNgn) || 0)}
                                 </span>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setExpenseForm({
-                                      expenseType: 'Operational — correction entry',
-                                      amountNgn: String(Number(req.amountRequestedNgn) || ''),
-                                      date: String(req.requestDate || todayIso).slice(0, 10),
-                                      category: String(req.expenseCategory || '').trim(),
-                                      paymentMethod: 'Bank Transfer',
-                                      debitAccountId: String(bankAccounts[0]?.id ?? ''),
-                                      reference: String(req.requestReference || req.requestID || 'Correction entry').trim(),
-                                    });
-                                    setShowExpenseModal(true);
-                                  }}
-                                  className="text-[8px] font-semibold uppercase tracking-wide text-sky-800 bg-sky-100 hover:bg-sky-200 px-2 py-1 rounded-md"
-                                >
-                                  Correct entry
-                                </button>
+                                <div className="flex flex-wrap justify-end gap-1">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setExpenseForm({
+                                        expenseType: 'Operational — correction entry',
+                                        amountNgn: String(Number(req.amountRequestedNgn) || ''),
+                                        date: String(req.requestDate || todayIso).slice(0, 10),
+                                        category: String(req.expenseCategory || '').trim(),
+                                        paymentMethod: 'Bank Transfer',
+                                        debitAccountId: String(bankAccounts[0]?.id ?? ''),
+                                        reference: String(
+                                          req.requestReference || req.requestID || 'Correction entry'
+                                        ).trim(),
+                                      });
+                                      setShowExpenseModal(true);
+                                    }}
+                                    className="text-[8px] font-semibold uppercase tracking-wide text-sky-800 bg-sky-100 hover:bg-sky-200 px-2 py-1 rounded-md"
+                                  >
+                                    Correct entry
+                                  </button>
+                                  {canDeleteRolloutExpenseOrRequest &&
+                                  (Number(req.paidAmountNgn) || 0) <= 0 ? (
+                                    <button
+                                      type="button"
+                                      title="Temporary rollout delete"
+                                      disabled={deletingPayRequestId === req.requestID}
+                                      onClick={() => void deleteRolloutPaymentRequest(req.requestID)}
+                                      className="text-[8px] font-bold uppercase tracking-wide text-rose-800 bg-rose-100 hover:bg-rose-200 px-2 py-1 rounded-md disabled:opacity-50 inline-flex items-center gap-0.5"
+                                    >
+                                      <Trash2 size={10} aria-hidden />
+                                      {deletingPayRequestId === req.requestID ? '…' : 'Del'}
+                                    </button>
+                                  ) : null}
+                                </div>
                               </div>
                             </div>
                           </li>
