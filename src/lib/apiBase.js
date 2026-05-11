@@ -101,6 +101,8 @@ export async function apiFetch(path, options = {}) {
     ...options,
     credentials: 'include',
     headers,
+    /** Always bypass disk/HTTP cache so reloads and dev API changes stay authoritative. */
+    cache: options.cache ?? 'no-store',
   });
   const text = await r.text();
   let data = null;
