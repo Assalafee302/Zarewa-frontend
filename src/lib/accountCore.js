@@ -32,7 +32,43 @@ export const TREASURY_SOURCE_KIND_LABEL = {
   LEDGER_ADVANCE: 'Advance deposit (not a quotation receipt)',
   LEDGER_ADVANCE_REFUND: 'Advance refund payout',
   BANK_RECON_LINE: 'Bank reconciliation settlement',
+  EXPENSE: 'Posted expense (direct debit)',
+  PAYMENT_REQUEST: 'Expense payment request (payout)',
 };
+
+/**
+ * Treasury lines for a posted direct expense (negative outflow).
+ * @param {string} expenseId
+ * @param {Array<{ id?: string, type?: string, sourceKind?: string, sourceId?: string, reversesMovementId?: string }>} movements
+ */
+export function treasuryOutflowLinesForExpense(expenseId, movements) {
+  const eid = String(expenseId || '').trim();
+  if (!eid || !Array.isArray(movements)) return [];
+  return movements.filter(
+    (m) =>
+      String(m.type || '') === 'EXPENSE' &&
+      String(m.sourceKind || '') === 'EXPENSE' &&
+      String(m.sourceId || '').trim() === eid &&
+      !m.reversesMovementId
+  );
+}
+
+/**
+ * Treasury payout lines for an expense payment request (negative outflow).
+ * @param {string} requestId
+ * @param {Array<{ id?: string, type?: string, sourceKind?: string, sourceId?: string, reversesMovementId?: string }>} movements
+ */
+export function treasuryOutflowLinesForPaymentRequest(requestId, movements) {
+  const rid = String(requestId || '').trim();
+  if (!rid || !Array.isArray(movements)) return [];
+  return movements.filter(
+    (m) =>
+      String(m.type || '') === 'PAYMENT_REQUEST_OUT' &&
+      String(m.sourceKind || '') === 'PAYMENT_REQUEST' &&
+      String(m.sourceId || '').trim() === rid &&
+      !m.reversesMovementId
+  );
+}
 
 export const nextExpenseId = (list) => {
   const nums = list

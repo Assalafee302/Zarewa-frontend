@@ -60,6 +60,8 @@ import {
   normalizePaymentRequest,
   treasuryMovementStatementLabel,
   treasuryMovementSourceBadge,
+  treasuryOutflowLinesForExpense,
+  treasuryOutflowLinesForPaymentRequest,
 } from '../lib/accountCore';
 import { treasuryAccountDisplayName } from '../lib/treasuryAccountsStore';
 
@@ -157,6 +159,11 @@ const Account = () => {
   const [receiptClearDelivery, setReceiptClearDelivery] = useState(false);
   const [receiptFinanceBusy, setReceiptFinanceBusy] = useState(false);
   const [receiptFinanceEditApprovalId, setReceiptFinanceEditApprovalId] = useState('');
+  /** Correct bank/cash account for expense or payment-request treasury outflows (same idea as receipt splits). */
+  const [expenseOutflowEdit, setExpenseOutflowEdit] = useState(null);
+  const [expenseOutflowLineIdx, setExpenseOutflowLineIdx] = useState(0);
+  const [expenseOutflowSaving, setExpenseOutflowSaving] = useState(false);
+  const [expenseOutflowEditApprovalId, setExpenseOutflowEditApprovalId] = useState('');
   /** movementId -> drafts for per-payment treasury correction */
   const [paymentCorrectionDrafts, setPaymentCorrectionDrafts] = useState({});
   /** Receipts tab: list paging & sort */
@@ -166,7 +173,16 @@ const Account = () => {
   const [receiptsPage, setReceiptsPage] = useState(0);
   const [cashierConfirmedReceiptIds, setCashierConfirmedReceiptIds] = useState([]);
 
-   
+  useEffect(() => {
+    if (!expenseOutflowEdit?.rows?.length) {
+      setExpenseOutflowLineIdx(0);
+      return;
+    }
+    setExpenseOutflowLineIdx((i) =>
+      Math.min(Math.max(0, i), expenseOutflowEdit.rows.length - 1)
+    );
+  }, [expenseOutflowEdit]);
+
   useEffect(() => {
     if (!ws?.hasWorkspaceData || !ws?.snapshot) {
       setBankAccounts([]);
@@ -1536,6 +1552,111 @@ const Account = () => {
     setShowExpenseModal(false);
     showToast('Expense recorded and synced.');
   };
+
+  const openExpenseOutflowEdit = useCallback(
+    (ex) => {
+      const lines = treasuryOutflowLinesForExpense(ex.expenseID, liveTreasuryMovements);
+      if (!lines.length) {
+        showToast('No treasury payout is recorded for this expense yet.', { variant: 'info' });
+        return;
+      }
+      setExpenseOutflowLineIdx(0);
+      setExpenseOutflowEditApprovalId('');
+      setExpenseOutflowEdit({
+        headline: 'Direct expense — bank/cash paid from',
+        subline: `${ex.expenseID} · ${ex.category || ex.expenseType || ''}`,
+        rows: lines.map((m) => ({
+          movementId: String(m.id),
+          amountNgn: Number(m.amountNgn) || 0,
+          treasuryAccountId: String(m.treasuryAccountId ?? ''),
+          postedDate: String(m.postedAtISO || '').slice(0, 10) || todayIso,
+          note: '',
+        })),
+      });
+    },
+    [liveTreasuryMovements, showToast, todayIso]
+  );
+
+  const openPaymentRequestOutflowEdit = useCallback(
+    (req) => {
+      const lines = treasuryOutflowLinesForPaymentRequest(req.requestID, liveTreasuryMovements);
+      if (!lines.length) {
+        showToast('No treasury payout recorded for this request yet.', { variant: 'info' });
+        return;
+      }
+      setExpenseOutflowLineIdx(0);
+      setExpenseOutflowEditApprovalId('');
+      setExpenseOutflowEdit({
+        headline: 'Payment request — bank/cash paid from',
+        subline: `${req.requestID} · ${req.description || req.expenseCategory || ''}`,
+        rows: lines.map((m) => ({
+          movementId: String(m.id),
+          amountNgn: Number(m.amountNgn) || 0,
+          treasuryAccountId: String(m.treasuryAccountId ?? ''),
+          postedDate: String(m.postedAtISO || '').slice(0, 10) || todayIso,
+          note: '',
+        })),
+      });
+    },
+    [liveTreasuryMovements, showToast, todayIso]
+  );
+
+  const updateExpenseOutflowRowField = useCallback((idx, patch) => {
+    setExpenseOutflowEdit((prev) => {
+      if (!prev?.rows?.[idx]) return prev;
+      const rows = prev.rows.map((r, i) => (i === idx ? { ...r, ...patch } : r));
+      return { ...prev, rows };
+    });
+  }, []);
+
+  const saveExpenseOutflowEdit = useCallback(
+    async (e) => {
+      e.preventDefault();
+      if (!expenseOutflowEdit?.rows?.length) return;
+      const idx = Math.min(Math.max(0, expenseOutflowLineIdx), expenseOutflowEdit.rows.length - 1);
+      const row = expenseOutflowEdit.rows[idx];
+      if (!row?.movementId) return;
+      if (!ws?.canMutate) {
+        showToast('Connect to the API to save.', { variant: 'info' });
+        return;
+      }
+      const tid = Number(row.treasuryAccountId);
+      if (!tid) {
+        showToast('Select the treasury account this payment left from.', { variant: 'error' });
+        return;
+      }
+      setExpenseOutflowSaving(true);
+      try {
+        const body = {
+          treasuryAccountId: tid,
+          postedAtISO: row.postedDate ? `${row.postedDate}T12:00:00.000Z` : undefined,
+          ...(String(row.note || '').trim() ? { note: String(row.note).trim() } : {}),
+          ...(expenseOutflowEditApprovalId.trim()
+            ? { editApprovalId: expenseOutflowEditApprovalId.trim() }
+            : {}),
+        };
+        const { ok, data } = await apiFetch(
+          `/api/treasury/movements/${encodeURIComponent(row.movementId)}/expense-out-correction`,
+          {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+          }
+        );
+        if (!ok || !data?.ok) {
+          showToast(data?.error || 'Could not update pay-from account.', { variant: 'error' });
+          return;
+        }
+        await ws.refresh();
+        showToast(data?.noOp ? 'No changes to apply.' : 'Pay-from account updated.');
+        setExpenseOutflowEdit(null);
+        setExpenseOutflowEditApprovalId('');
+      } finally {
+        setExpenseOutflowSaving(false);
+      }
+    },
+    [expenseOutflowEdit, expenseOutflowLineIdx, expenseOutflowEditApprovalId, ws, showToast]
+  );
 
   const savePayRequest = async (e) => {
     e.preventDefault();
@@ -3386,6 +3507,10 @@ const Account = () => {
                   ]
                     .filter(Boolean)
                     .join(' · ');
+                  const expenseTreasuryOut = treasuryOutflowLinesForExpense(
+                    ex.expenseID,
+                    liveTreasuryMovements
+                  );
                   return (
                   <li
                     key={ex.expenseID}
@@ -3402,18 +3527,31 @@ const Account = () => {
                         <p className="text-[11px] font-black text-[#134e4a] tabular-nums">
                           {formatNgn(ex.amountNgn)}
                         </p>
-                        {canDeleteRolloutExpenseOrRequest ? (
-                          <button
-                            type="button"
-                            title="Temporary rollout delete (unpaid links only)"
-                            disabled={deletingExpenseId === ex.expenseID}
-                            onClick={() => void deleteRolloutExpense(ex.expenseID)}
-                            className="text-[8px] font-bold uppercase tracking-wide text-rose-800 bg-rose-100 hover:bg-rose-200 px-2 py-1 rounded-md disabled:opacity-50 inline-flex items-center gap-1"
-                          >
-                            <Trash2 size={10} aria-hidden />
-                            {deletingExpenseId === ex.expenseID ? '…' : 'Delete'}
-                          </button>
-                        ) : null}
+                        <div className="flex flex-wrap justify-end gap-1">
+                          {canFinanceReceiptSettlement && ws?.canMutate && expenseTreasuryOut.length > 0 ? (
+                            <button
+                              type="button"
+                              title="Correct which bank or cash account this expense was paid from"
+                              onClick={() => openExpenseOutflowEdit(ex)}
+                              className="text-[8px] font-bold uppercase tracking-wide text-[#134e4a] bg-teal-100 hover:bg-teal-200 px-2 py-1 rounded-md inline-flex items-center gap-1"
+                            >
+                              <Pencil size={10} aria-hidden />
+                              Pay-from
+                            </button>
+                          ) : null}
+                          {canDeleteRolloutExpenseOrRequest ? (
+                            <button
+                              type="button"
+                              title="Temporary rollout delete (unpaid links only)"
+                              disabled={deletingExpenseId === ex.expenseID}
+                              onClick={() => void deleteRolloutExpense(ex.expenseID)}
+                              className="text-[8px] font-bold uppercase tracking-wide text-rose-800 bg-rose-100 hover:bg-rose-200 px-2 py-1 rounded-md disabled:opacity-50 inline-flex items-center gap-1"
+                            >
+                              <Trash2 size={10} aria-hidden />
+                              {deletingExpenseId === ex.expenseID ? '…' : 'Delete'}
+                            </button>
+                          ) : null}
+                        </div>
                       </div>
                     </div>
                   </li>
@@ -3439,6 +3577,10 @@ const Account = () => {
                     <ul className="space-y-1.5">
                       {disbursementsActivePayRequests.map((req) => {
                         const paid = Number(req.paidAmountNgn) || 0;
+                        const prTreasuryOut = treasuryOutflowLinesForPaymentRequest(
+                          req.requestID,
+                          liveTreasuryMovements
+                        );
                         const meta2 = [
                           req.expenseCategory || null,
                           req.expenseID ? `Expense ${req.expenseID}` : null,
@@ -3471,18 +3613,31 @@ const Account = () => {
                                 <span className="text-[11px] font-black text-[#134e4a] tabular-nums">
                                   {formatNgn(Number(req.amountRequestedNgn) || 0)}
                                 </span>
-                                {canDeleteRolloutExpenseOrRequest && paid <= 0 ? (
-                                  <button
-                                    type="button"
-                                    title="Temporary rollout delete (no treasury payout)"
-                                    disabled={deletingPayRequestId === req.requestID}
-                                    onClick={() => void deleteRolloutPaymentRequest(req.requestID)}
-                                    className="text-[8px] font-bold uppercase tracking-wide text-rose-800 bg-rose-100 hover:bg-rose-200 px-2 py-1 rounded-md disabled:opacity-50 inline-flex items-center gap-1"
-                                  >
-                                    <Trash2 size={10} aria-hidden />
-                                    {deletingPayRequestId === req.requestID ? '…' : 'Delete'}
-                                  </button>
-                                ) : null}
+                                <div className="flex flex-wrap justify-end gap-1">
+                                  {canFinanceReceiptSettlement && ws?.canMutate && prTreasuryOut.length > 0 ? (
+                                    <button
+                                      type="button"
+                                      title="Correct which bank or cash account this payout left from"
+                                      onClick={() => openPaymentRequestOutflowEdit(req)}
+                                      className="text-[8px] font-bold uppercase tracking-wide text-[#134e4a] bg-teal-100 hover:bg-teal-200 px-2 py-1 rounded-md inline-flex items-center gap-1"
+                                    >
+                                      <Pencil size={10} aria-hidden />
+                                      Pay-from
+                                    </button>
+                                  ) : null}
+                                  {canDeleteRolloutExpenseOrRequest && paid <= 0 ? (
+                                    <button
+                                      type="button"
+                                      title="Temporary rollout delete (no treasury payout)"
+                                      disabled={deletingPayRequestId === req.requestID}
+                                      onClick={() => void deleteRolloutPaymentRequest(req.requestID)}
+                                      className="text-[8px] font-bold uppercase tracking-wide text-rose-800 bg-rose-100 hover:bg-rose-200 px-2 py-1 rounded-md disabled:opacity-50 inline-flex items-center gap-1"
+                                    >
+                                      <Trash2 size={10} aria-hidden />
+                                      {deletingPayRequestId === req.requestID ? '…' : 'Delete'}
+                                    </button>
+                                  ) : null}
+                                </div>
                               </div>
                             </div>
                           </li>
@@ -3510,6 +3665,10 @@ const Account = () => {
                   ) : (
                     <ul className="space-y-1.5">
                       {disbursementsArchivedRejectedPayRequests.map((req) => {
+                        const archPrTreasuryOut = treasuryOutflowLinesForPaymentRequest(
+                          req.requestID,
+                          liveTreasuryMovements
+                        );
                         const meta2 = [
                           req.expenseCategory ? req.expenseCategory : null,
                           req.requestReference ? `Ref ${req.requestReference}` : null,
@@ -3561,6 +3720,17 @@ const Account = () => {
                                   >
                                     Correct entry
                                   </button>
+                                  {canFinanceReceiptSettlement && ws?.canMutate && archPrTreasuryOut.length > 0 ? (
+                                    <button
+                                      type="button"
+                                      title="Correct which bank or cash account this payout left from"
+                                      onClick={() => openPaymentRequestOutflowEdit(req)}
+                                      className="text-[8px] font-bold uppercase tracking-wide text-[#134e4a] bg-teal-100 hover:bg-teal-200 px-2 py-1 rounded-md inline-flex items-center gap-1"
+                                    >
+                                      <Pencil size={10} aria-hidden />
+                                      Pay-from
+                                    </button>
+                                  ) : null}
                                   {canDeleteRolloutExpenseOrRequest &&
                                   (Number(req.paidAmountNgn) || 0) <= 0 ? (
                                     <button
@@ -4705,6 +4875,130 @@ const Account = () => {
             formatNgn={formatNgn}
             hintBeforeSubmit="Extra rows can be left blank — only completed lines are sent. Request ID is assigned on save. Use Print on the list row for a filing copy."
           />
+        </div>
+      </ModalFrame>
+
+      <ModalFrame
+        isOpen={expenseOutflowEdit != null}
+        onClose={() => {
+          setExpenseOutflowEdit(null);
+          setExpenseOutflowEditApprovalId('');
+        }}
+      >
+        <div className="z-modal-panel max-w-lg w-full max-h-[90vh] overflow-y-auto p-6 sm:p-8">
+          <div className="flex justify-between items-start gap-3 mb-4">
+            <h3 className="text-lg font-bold text-[#134e4a]">
+              {expenseOutflowEdit?.headline || 'Expense payout — pay-from'}
+            </h3>
+            <button
+              type="button"
+              onClick={() => {
+                setExpenseOutflowEdit(null);
+                setExpenseOutflowEditApprovalId('');
+              }}
+              className="p-2 text-gray-400 hover:text-red-500 rounded-xl"
+              aria-label="Close"
+            >
+              <X size={20} />
+            </button>
+          </div>
+          {expenseOutflowEdit?.rows?.length ? (
+            <form className="space-y-4" onSubmit={saveExpenseOutflowEdit}>
+              {(() => {
+                const rows = expenseOutflowEdit.rows;
+                const idx = Math.min(Math.max(0, expenseOutflowLineIdx), rows.length - 1);
+                const row = rows[idx];
+                const movementId = String(row.movementId || '').trim();
+                return (
+                  <>
+                    <p className="text-[10px] text-slate-600 leading-snug">{expenseOutflowEdit.subline}</p>
+                    <div className="rounded-xl border border-teal-200/90 bg-teal-50/50 px-3 py-2.5 text-[10px] text-teal-950 leading-snug">
+                      <span className="font-bold">Treasury correction</span> — updates which bank or cash account this
+                      payout debited (and optional date / note). Same controls as receipt payment-line corrections.
+                    </div>
+                    {rows.length > 1 ? (
+                      <label className="block">
+                        <span className="text-[9px] font-bold text-slate-500 uppercase">Payout line</span>
+                        <select
+                          value={idx}
+                          onChange={(e) => setExpenseOutflowLineIdx(Number(e.target.value))}
+                          className="mt-0.5 w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[11px] font-semibold outline-none focus:ring-2 focus:ring-[#134e4a]/15"
+                        >
+                          {rows.map((r, i) => (
+                            <option key={r.movementId} value={i}>
+                              {formatNgn(Math.abs(Number(r.amountNgn) || 0))} · {String(r.movementId).slice(0, 10)}…
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                    ) : null}
+                    <p className="text-[10px] text-slate-600">
+                      Recorded amount{' '}
+                      <span className="font-bold tabular-nums">{formatNgn(Math.abs(Number(row.amountNgn) || 0))}</span>
+                      <span className="text-slate-400 font-mono text-[9px] ml-2 break-all">{movementId}</span>
+                    </p>
+                    {bankAccounts.length === 0 ? (
+                      <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-900">
+                        Add a treasury account first, then reopen this dialog.
+                      </p>
+                    ) : (
+                      <div className="grid grid-cols-1 gap-2.5">
+                        <label className="block">
+                          <span className="text-[9px] font-bold text-slate-500 uppercase">Bank / cash paid from</span>
+                          <select
+                            value={row.treasuryAccountId}
+                            onChange={(e) => updateExpenseOutflowRowField(idx, { treasuryAccountId: e.target.value })}
+                            className="mt-0.5 w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[11px] font-semibold outline-none focus:ring-2 focus:ring-[#134e4a]/15"
+                          >
+                            <option value="">Select account…</option>
+                            {bankAccounts.map((a) => (
+                              <option key={a.id} value={String(a.id)}>
+                                {treasuryAccountDisplayName(a)}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <label className="block">
+                          <span className="text-[9px] font-bold text-slate-500 uppercase">Posted date</span>
+                          <input
+                            type="date"
+                            value={row.postedDate}
+                            onChange={(e) => updateExpenseOutflowRowField(idx, { postedDate: e.target.value })}
+                            className="mt-0.5 w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[11px] outline-none focus:ring-2 focus:ring-[#134e4a]/15"
+                          />
+                        </label>
+                        <label className="block">
+                          <span className="text-[9px] font-bold text-slate-500 uppercase">Note (optional)</span>
+                          <input
+                            type="text"
+                            value={row.note}
+                            placeholder="e.g. Confirmed with bank statement"
+                            onChange={(e) => updateExpenseOutflowRowField(idx, { note: e.target.value })}
+                            className="mt-0.5 w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[11px] outline-none focus:ring-2 focus:ring-[#134e4a]/15"
+                          />
+                        </label>
+                      </div>
+                    )}
+                    {movementId ? (
+                      <EditSecondApprovalInline
+                        entityKind="treasury_movement"
+                        entityId={movementId}
+                        value={expenseOutflowEditApprovalId}
+                        onChange={setExpenseOutflowEditApprovalId}
+                      />
+                    ) : null}
+                  </>
+                );
+              })()}
+              <button
+                type="submit"
+                disabled={expenseOutflowSaving || !ws?.canMutate || bankAccounts.length === 0}
+                className="z-btn-primary w-full justify-center py-3 disabled:opacity-50"
+              >
+                {expenseOutflowSaving ? 'Saving…' : 'Save pay-from correction'}
+              </button>
+            </form>
+          ) : null}
         </div>
       </ModalFrame>
 
