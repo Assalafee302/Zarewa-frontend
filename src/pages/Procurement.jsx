@@ -36,7 +36,7 @@ import { useToast } from '../context/ToastContext';
 import { useInventory } from '../context/InventoryContext';
 import { useWorkspace } from '../context/WorkspaceContext';
 import { apiFetch, apiUrl } from '../lib/apiBase';
-import { liveTopSalesPerformersByMaterial, purchaseOrderOrderedValueNgn } from '../lib/liveAnalytics';
+import { purchaseOrderOrderedValueNgn } from '../lib/liveAnalytics';
 import { procurementKindFromPo } from '../lib/procurementPoKind';
 import { EditSecondApprovalInline } from '../components/EditSecondApprovalInline';
 import { editMutationNeedsSecondApprovalRole } from '../lib/editApprovalUi';
@@ -77,7 +77,6 @@ const TAB_LABELS = {
 };
 
 /** Kg coil SKUs below this on-hand level count as low stock on the Procurement KPI row. */
-const PROCUREMENT_LOW_STOCK_KG_FLOOR = 700;
 const APPROVED_PURCHASE_WINDOWS = [
   { id: '1m', label: '1 month', months: 1 },
   { id: '4m', label: '4 months', months: 4 },
@@ -514,23 +513,6 @@ const Procurement = () => {
     }, 0);
   }, [approvedPurchaseWindow, purchaseOrders]);
 
-  const productionJobs = useMemo(
-    () =>
-      ws?.hasWorkspaceData && Array.isArray(ws?.snapshot?.productionJobs) ? ws.snapshot.productionJobs : [],
-    [ws?.hasWorkspaceData, ws?.snapshot?.productionJobs]
-  );
-  const quotations = useMemo(
-    () => (ws?.hasWorkspaceData && Array.isArray(ws?.snapshot?.quotations) ? ws.snapshot.quotations : []),
-    [ws?.hasWorkspaceData, ws?.snapshot?.quotations]
-  );
-
-  const lowStockKgProducts = useMemo(
-    () =>
-      invProducts.filter(
-        (p) => p.unit === 'kg' && Number(p.stockLevel) < PROCUREMENT_LOW_STOCK_KG_FLOOR
-      ),
-    [invProducts]
-  );
 
 
   const treasuryAccounts =

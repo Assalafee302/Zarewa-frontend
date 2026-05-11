@@ -78,7 +78,8 @@ const CUSTOMER_SORT_FIELDS = [
 export default function SalesCustomersTab({
   searchQuery,
   onSearchChange = () => {},
-  createdByLabel: _ = 'Sales',
+  // eslint-disable-next-line no-unused-vars
+  createdByLabel = 'Sales',
   quotations = [],
   receipts = [],
   cuttingLists = [],
