@@ -182,6 +182,8 @@ function mergeDraftIntoSheet(sheet, workbookLines) {
 export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey = 'alu' }) {
   const ws = useWorkspace();
   const { show: showToast } = useToast();
+  const canPolicyManage = Boolean(ws?.hasPermission?.('pricing.policy.manage') || ws?.hasPermission?.('*'));
+  const canSetupManage = Boolean(ws?.hasPermission?.('settings.view') || ws?.hasPermission?.('*'));
   const branches = useMemo(
     () => ws?.snapshot?.workspaceBranches ?? ws?.session?.branches ?? [],
     [ws?.snapshot?.workspaceBranches, ws?.session?.branches]
@@ -198,6 +200,8 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
   const [refRidgeAddOns, setRefRidgeAddOns] = useState([]);
   /** Accessories from master data (reference tab). */
   const [refAccessories, setRefAccessories] = useState([]);
+  const [savingRidges, setSavingRidges] = useState(false);
+  const [savingAccessories, setSavingAccessories] = useState(false);
   const [printPreview, setPrintPreview] = useState(null);
   const [printPack, setPrintPack] = useState(null);
   const [printLoading, setPrintLoading] = useState(false);
@@ -226,13 +230,16 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
     if (!isWorkbookMaterialKey(materialKey)) {
       setBusy(true);
       try {
-        const [policyR, extrasR] = await Promise.all([
+        const [policyR, setupR] = await Promise.all([
           apiFetch('/api/pricing/policy'),
-          apiFetch('/api/pricing/material-workbook-print-extras'),
+          apiFetch('/api/setup'),
         ]);
         const ridges = policyR.ok && Array.isArray(policyR.data?.ridgeAddOns) ? policyR.data.ridgeAddOns : [];
-        const acc =
-          extrasR.ok && extrasR.data?.ok && Array.isArray(extrasR.data.accessories) ? extrasR.data.accessories : [];
+        const accRaw =
+          setupR.ok && setupR.data?.ok && Array.isArray(setupR.data?.masterData?.quoteItems)
+            ? setupR.data.masterData.quoteItems
+            : [];
+        const acc = accRaw.filter((r) => String(r?.itemType || '').toLowerCase() === 'accessory');
         setSheet({
           ok: true,
           isReferenceTab: true,
@@ -242,7 +249,7 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
         setEvents([]);
         setRefRidgeAddOns(ridges);
         setRefAccessories(acc);
-        if (!policyR.ok || !extrasR.ok || !extrasR.data?.ok) {
+        if (!policyR.ok || !setupR.ok || !setupR.data?.ok) {
           showToast('Some reference data could not be loaded.', { variant: 'error' });
         }
       } catch {
@@ -465,6 +472,111 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
     []
   );
 
+  const syncListAllChecked = useMemo(() => {
+    const eligible = workbookLines.filter((l) => String(l.gaugeMm || '').trim());
+    if (eligible.length === 0) return false;
+    return eligible.every((l) => Boolean(l.draft?.syncMinimumToPriceList));
+  }, [workbookLines]);
+
+  const setSyncListForAll = useCallback((checked) => {
+    setWorkbookLines((prev) =>
+      prev.map((line) =>
+        String(line.gaugeMm || '').trim()
+          ? { ...line, draft: { ...(line.draft || {}), syncMinimumToPriceList: checked } }
+          : line
+      )
+    );
+  }, []);
+
+  const addRidgeRow = () => {
+    setRefRidgeAddOns((prev) => [...prev, { id: '', girthMm: '', materialFamily: '', addOnNgn: 0 }]);
+  };
+
+  const removeRidgeRow = (idx) => {
+    setRefRidgeAddOns((prev) => prev.filter((_, i) => i !== idx));
+  };
+
+  const saveRidgeRows = async () => {
+    if (!canPolicyManage) {
+      showToast('You do not have permission to edit ridge/flashing rates.', { variant: 'error' });
+      return;
+    }
+    setSavingRidges(true);
+    const body = {
+      ridgeAddOns: refRidgeAddOns.map((r) => ({
+        ...(r.id ? { id: r.id } : {}),
+        girthMm: Number(r.girthMm) || 0,
+        materialFamily: String(r.materialFamily || '').trim(),
+        addOnNgn: Math.round(Number(r.addOnNgn) || 0),
+      })),
+    };
+    const { ok, data } = await apiFetch('/api/pricing/policy', {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    });
+    setSavingRidges(false);
+    if (!ok || !data?.ok) {
+      showToast(data?.error || 'Could not save ridge/flashing add-ons.', { variant: 'error' });
+      return;
+    }
+    showToast('Ridge/flashing add-ons saved.');
+    void loadSheet();
+  };
+
+  const addAccessoryRow = () => {
+    setRefAccessories((prev) => [
+      ...prev,
+      { id: '', itemType: 'accessory', name: '', unit: 'pcs', defaultUnitPriceNgn: 0, active: true },
+    ]);
+  };
+
+  const removeAccessoryRow = async (idx) => {
+    const row = refAccessories[idx];
+    if (row?.id) {
+      const { ok, data } = await apiFetch(`/api/setup/quote-items/${encodeURIComponent(row.id)}`, { method: 'DELETE' });
+      if (!ok || !data?.ok) {
+        showToast(data?.error || 'Could not delete accessory.', { variant: 'error' });
+        return;
+      }
+    }
+    setRefAccessories((prev) => prev.filter((_, i) => i !== idx));
+  };
+
+  const saveAccessories = async () => {
+    if (!canSetupManage) {
+      showToast('You do not have permission to edit accessories.', { variant: 'error' });
+      return;
+    }
+    setSavingAccessories(true);
+    for (const row of refAccessories) {
+      const name = String(row?.name || '').trim();
+      if (!name) continue;
+      const payload = {
+        itemType: 'accessory',
+        name,
+        unit: String(row?.unit || 'unit').trim() || 'unit',
+        defaultUnitPriceNgn: Math.round(Number(row?.defaultUnitPriceNgn) || 0),
+        active: row?.active !== false,
+      };
+      const endpoint = row?.id
+        ? `/api/setup/quote-items/${encodeURIComponent(row.id)}`
+        : '/api/setup/quote-items';
+      const method = row?.id ? 'PATCH' : 'POST';
+      const { ok, data } = await apiFetch(endpoint, {
+        method,
+        body: JSON.stringify(payload),
+      });
+      if (!ok || !data?.ok) {
+        setSavingAccessories(false);
+        showToast(data?.error || `Could not save accessory "${name}".`, { variant: 'error' });
+        return;
+      }
+    }
+    setSavingAccessories(false);
+    showToast('Accessories saved.');
+    void loadSheet();
+  };
+
   const branchRecord = branches.find((b) => b.id === branchId);
   const branchName = branchRecord?.name || branchRecord?.code || branchId;
 
@@ -629,14 +741,70 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
               />
             </label>
           ) : null}
-          <button
-            type="button"
-            disabled={busy || savingAll || !sheet || isReferenceTab}
-            onClick={() => void persistAllRows()}
-            className="rounded-lg bg-[#134e4a] px-3 py-2 text-[10px] font-black uppercase text-white disabled:opacity-50"
-          >
-            {savingAll ? 'Saving…' : 'Save all'}
-          </button>
+          {!isReferenceTab ? (
+            <>
+              <label className="text-[10px] font-bold uppercase text-slate-500 block min-w-[130px]">
+                Sync list (all)
+                <span className="mt-1 inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-[11px] font-semibold text-slate-700">
+                  <input
+                    type="checkbox"
+                    checked={syncListAllChecked}
+                    onChange={(e) => setSyncListForAll(e.target.checked)}
+                    aria-label="Sync list for all workbook rows"
+                  />
+                  Apply to all rows
+                </span>
+              </label>
+              <button
+                type="button"
+                disabled={busy || savingAll || !sheet}
+                onClick={() => void persistAllRows()}
+                className="rounded-lg bg-[#134e4a] px-3 py-2 text-[10px] font-black uppercase text-white disabled:opacity-50"
+              >
+                {savingAll ? 'Saving…' : 'Save all'}
+              </button>
+            </>
+          ) : materialKey === 'ridge-flashing' ? (
+            <>
+              <button
+                type="button"
+                disabled={busy || savingRidges || !sheet || !canPolicyManage}
+                onClick={addRidgeRow}
+                className="rounded-lg border border-dashed border-[#134e4a]/40 bg-teal-50/80 px-3 py-2 text-[10px] font-black uppercase text-[#134e4a] disabled:opacity-50 inline-flex items-center gap-1"
+              >
+                <Plus size={14} className="shrink-0" aria-hidden />
+                Add ridge row
+              </button>
+              <button
+                type="button"
+                disabled={busy || savingRidges || !sheet || !canPolicyManage}
+                onClick={() => void saveRidgeRows()}
+                className="rounded-lg bg-[#134e4a] px-3 py-2 text-[10px] font-black uppercase text-white disabled:opacity-50"
+              >
+                {savingRidges ? 'Saving…' : 'Save ridges'}
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                type="button"
+                disabled={busy || savingAccessories || !sheet || !canSetupManage}
+                onClick={addAccessoryRow}
+                className="rounded-lg border border-dashed border-[#134e4a]/40 bg-teal-50/80 px-3 py-2 text-[10px] font-black uppercase text-[#134e4a] disabled:opacity-50 inline-flex items-center gap-1"
+              >
+                <Plus size={14} className="shrink-0" aria-hidden />
+                Add accessory
+              </button>
+              <button
+                type="button"
+                disabled={busy || savingAccessories || !sheet || !canSetupManage}
+                onClick={() => void saveAccessories()}
+                className="rounded-lg bg-[#134e4a] px-3 py-2 text-[10px] font-black uppercase text-white disabled:opacity-50"
+              >
+                {savingAccessories ? 'Saving…' : 'Save accessories'}
+              </button>
+            </>
+          )}
           <button
             type="button"
             disabled={busy || !sheet || printLoading}
@@ -662,15 +830,17 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
           >
             Refresh
           </button>
-          <button
-            type="button"
-            disabled={busy || !sheet || isReferenceTab}
-            onClick={addWorkbookLine}
-            className="rounded-lg border border-dashed border-[#134e4a]/40 bg-teal-50/80 px-3 py-2 text-[10px] font-black uppercase text-[#134e4a] disabled:opacity-50 inline-flex items-center gap-1"
-          >
-            <Plus size={14} className="shrink-0" aria-hidden />
-            Add line
-          </button>
+          {!isReferenceTab ? (
+            <button
+              type="button"
+              disabled={busy || !sheet}
+              onClick={addWorkbookLine}
+              className="rounded-lg border border-dashed border-[#134e4a]/40 bg-teal-50/80 px-3 py-2 text-[10px] font-black uppercase text-[#134e4a] disabled:opacity-50 inline-flex items-center gap-1"
+            >
+              <Plus size={14} className="shrink-0" aria-hidden />
+              Add line
+            </button>
+          ) : null}
         </div>
 
         <div className="flex-1 min-h-0 overflow-auto px-2 sm:px-4 py-3">
@@ -679,26 +849,16 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
           ) : !sheet ? (
             <p className="text-sm text-slate-500 px-2">Could not load this section.</p>
           ) : isReferenceTab && materialKey === 'ridge-flashing' ? (
-            <div
-              className="rounded-xl border border-dashed border-slate-300 bg-slate-50/80 shadow-sm p-4 space-y-3"
-              role="region"
-              aria-label="Ridge and flashing rates read-only reference"
-            >
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="rounded-md bg-slate-200/90 px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-slate-700">
-                  Read-only
-                </span>
-                <span className="text-[10px] font-semibold text-slate-500">Nothing here can be edited in this modal.</span>
-              </div>
+            <div className="rounded-xl border border-slate-200 bg-white shadow-sm p-4 space-y-3">
               <p className="text-[11px] text-slate-600 leading-relaxed">
-                Ridge and flashing add-on rates (₦/m) are maintained in <strong className="text-slate-800">Pricing policy</strong> only. They
-                appear on workbook printouts; to change values use{' '}
-                <strong className="text-slate-800">Admin → Pricing policy</strong> (ridge add-ons).
+                Edit ridge/flashing add-on rates used on workbook printouts. Use <strong className="text-slate-800">Save ridges</strong> to
+                apply changes.
               </p>
               <div className="z-scroll-x overflow-x-auto rounded-lg border border-slate-200 bg-white">
-                <table className="min-w-[520px] w-full border-collapse text-left text-xs">
+                <table className="min-w-[620px] w-full border-collapse text-left text-xs">
                   <thead className="bg-slate-50 text-[9px] font-black uppercase tracking-wide text-slate-600">
                     <tr>
+                      <th className="px-3 py-2 border-b border-slate-200 w-10" aria-label="Remove row" />
                       <th className="px-3 py-2 border-b border-slate-200">Girth (mm)</th>
                       <th className="px-3 py-2 border-b border-slate-200">Material family</th>
                       <th className="px-3 py-2 border-b border-slate-200 text-right">Add-on ₦/m</th>
@@ -707,17 +867,61 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
                   <tbody className="divide-y divide-slate-100">
                     {refRidgeAddOns.length === 0 ? (
                       <tr>
-                        <td colSpan={3} className="px-3 py-6 text-center text-sm text-slate-500">
+                        <td colSpan={4} className="px-3 py-6 text-center text-sm text-slate-500">
                           No ridge or flashing add-ons configured yet.
                         </td>
                       </tr>
                     ) : (
                       refRidgeAddOns.map((r, i) => (
                         <tr key={i}>
-                          <td className="px-3 py-2 font-medium text-slate-800">{r.girthMm ?? '—'}</td>
-                          <td className="px-3 py-2 text-slate-700">{r.materialFamily || '—'}</td>
-                          <td className="px-3 py-2 text-right font-mono tabular-nums text-slate-900">
-                            {formatNgn(r.addOnNgn)}
+                          <td className="px-2 py-1.5 align-middle">
+                            <button
+                              type="button"
+                              title="Remove row"
+                              className="rounded p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
+                              onClick={() => removeRidgeRow(i)}
+                              disabled={!canPolicyManage}
+                            >
+                              <Trash2 size={16} aria-hidden />
+                            </button>
+                          </td>
+                          <td className="px-3 py-2">
+                            <input
+                              type="number"
+                              className="w-full rounded border border-slate-200 px-2 py-1"
+                              value={r.girthMm ?? ''}
+                              onChange={(e) =>
+                                setRefRidgeAddOns((prev) =>
+                                  prev.map((x, idx) => (idx === i ? { ...x, girthMm: e.target.value } : x))
+                                )
+                              }
+                              disabled={!canPolicyManage}
+                            />
+                          </td>
+                          <td className="px-3 py-2">
+                            <input
+                              className="w-full rounded border border-slate-200 px-2 py-1"
+                              value={r.materialFamily ?? ''}
+                              onChange={(e) =>
+                                setRefRidgeAddOns((prev) =>
+                                  prev.map((x, idx) => (idx === i ? { ...x, materialFamily: e.target.value } : x))
+                                )
+                              }
+                              disabled={!canPolicyManage}
+                            />
+                          </td>
+                          <td className="px-3 py-2">
+                            <input
+                              type="number"
+                              className="w-full rounded border border-slate-200 px-2 py-1 text-right font-mono tabular-nums"
+                              value={r.addOnNgn ?? 0}
+                              onChange={(e) =>
+                                setRefRidgeAddOns((prev) =>
+                                  prev.map((x, idx) => (idx === i ? { ...x, addOnNgn: e.target.value } : x))
+                                )
+                              }
+                              disabled={!canPolicyManage}
+                            />
                           </td>
                         </tr>
                       ))
@@ -727,46 +931,95 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
               </div>
             </div>
           ) : isReferenceTab && materialKey === 'accessories' ? (
-            <div
-              className="rounded-xl border border-dashed border-slate-300 bg-slate-50/80 shadow-sm p-4 space-y-3"
-              role="region"
-              aria-label="Accessories read-only reference"
-            >
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="rounded-md bg-slate-200/90 px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-slate-700">
-                  Read-only
-                </span>
-                <span className="text-[10px] font-semibold text-slate-500">Nothing here can be edited in this modal.</span>
-              </div>
+            <div className="rounded-xl border border-slate-200 bg-white shadow-sm p-4 space-y-3">
               <p className="text-[11px] text-slate-600 leading-relaxed">
-                Default accessory unit prices are maintained in <strong className="text-slate-800">master quote items</strong> (active
-                accessories) only. To change prices or items, edit master data; values listed here appear on workbook prints when priced.
+                Edit accessory rows and default unit prices used in workbook prints and quotation master data. Use{' '}
+                <strong className="text-slate-800">Save accessories</strong> to apply changes.
               </p>
               <div className="z-scroll-x overflow-x-auto rounded-lg border border-slate-200 bg-white">
-                <table className="min-w-[520px] w-full border-collapse text-left text-xs">
+                <table className="min-w-[720px] w-full border-collapse text-left text-xs">
                   <thead className="bg-slate-50 text-[9px] font-black uppercase tracking-wide text-slate-600">
                     <tr>
+                      <th className="px-3 py-2 border-b border-slate-200 w-10" aria-label="Remove row" />
                       <th className="px-3 py-2 border-b border-slate-200">Item</th>
                       <th className="px-3 py-2 border-b border-slate-200">Unit</th>
+                      <th className="px-3 py-2 border-b border-slate-200">Active</th>
                       <th className="px-3 py-2 border-b border-slate-200 text-right">Default ₦</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
                     {refAccessories.length === 0 ? (
                       <tr>
-                        <td colSpan={3} className="px-3 py-6 text-center text-sm text-slate-500">
+                        <td colSpan={5} className="px-3 py-6 text-center text-sm text-slate-500">
                           No active accessories in master data.
                         </td>
                       </tr>
                     ) : (
                       refAccessories.map((a, i) => {
-                        const up = Math.round(Number(a.defaultUnitPriceNgn) || 0);
                         return (
                           <tr key={i}>
-                            <td className="px-3 py-2 font-medium text-slate-800">{a.name || '—'}</td>
-                            <td className="px-3 py-2 text-slate-700">{a.unit || '—'}</td>
-                            <td className="px-3 py-2 text-right font-mono tabular-nums text-slate-900">
-                              {up > 0 ? formatNgn(up) : '—'}
+                            <td className="px-2 py-1.5 align-middle">
+                              <button
+                                type="button"
+                                title="Remove accessory"
+                                className="rounded p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
+                                onClick={() => void removeAccessoryRow(i)}
+                                disabled={!canSetupManage}
+                              >
+                                <Trash2 size={16} aria-hidden />
+                              </button>
+                            </td>
+                            <td className="px-3 py-2">
+                              <input
+                                className="w-full rounded border border-slate-200 px-2 py-1"
+                                value={a.name ?? ''}
+                                onChange={(e) =>
+                                  setRefAccessories((prev) =>
+                                    prev.map((x, idx) => (idx === i ? { ...x, name: e.target.value } : x))
+                                  )
+                                }
+                                disabled={!canSetupManage}
+                              />
+                            </td>
+                            <td className="px-3 py-2">
+                              <input
+                                className="w-full rounded border border-slate-200 px-2 py-1"
+                                value={a.unit ?? ''}
+                                onChange={(e) =>
+                                  setRefAccessories((prev) =>
+                                    prev.map((x, idx) => (idx === i ? { ...x, unit: e.target.value } : x))
+                                  )
+                                }
+                                disabled={!canSetupManage}
+                              />
+                            </td>
+                            <td className="px-3 py-2">
+                              <label className="inline-flex items-center gap-1 text-[10px] text-slate-600">
+                                <input
+                                  type="checkbox"
+                                  checked={a.active !== false}
+                                  onChange={(e) =>
+                                    setRefAccessories((prev) =>
+                                      prev.map((x, idx) => (idx === i ? { ...x, active: e.target.checked } : x))
+                                    )
+                                  }
+                                  disabled={!canSetupManage}
+                                />
+                                Active
+                              </label>
+                            </td>
+                            <td className="px-3 py-2">
+                              <input
+                                type="number"
+                                className="w-full rounded border border-slate-200 px-2 py-1 text-right font-mono tabular-nums"
+                                value={a.defaultUnitPriceNgn ?? 0}
+                                onChange={(e) =>
+                                  setRefAccessories((prev) =>
+                                    prev.map((x, idx) => (idx === i ? { ...x, defaultUnitPriceNgn: e.target.value } : x))
+                                  )
+                                }
+                                disabled={!canSetupManage}
+                              />
                             </td>
                           </tr>
                         );
