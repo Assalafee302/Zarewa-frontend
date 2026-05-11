@@ -679,13 +679,23 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
           ) : !sheet ? (
             <p className="text-sm text-slate-500 px-2">Could not load this section.</p>
           ) : isReferenceTab && materialKey === 'ridge-flashing' ? (
-            <div className="rounded-xl border border-slate-200 bg-white shadow-sm p-4 space-y-3">
+            <div
+              className="rounded-xl border border-dashed border-slate-300 bg-slate-50/80 shadow-sm p-4 space-y-3"
+              role="region"
+              aria-label="Ridge and flashing rates read-only reference"
+            >
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="rounded-md bg-slate-200/90 px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-slate-700">
+                  Read-only
+                </span>
+                <span className="text-[10px] font-semibold text-slate-500">Nothing here can be edited in this modal.</span>
+              </div>
               <p className="text-[11px] text-slate-600 leading-relaxed">
-                Ridge and flashing add-on rates (₦/m) come from <strong className="text-slate-800">Pricing policy</strong>. They appear on
-                workbook printouts; edit them under{' '}
+                Ridge and flashing add-on rates (₦/m) are maintained in <strong className="text-slate-800">Pricing policy</strong> only. They
+                appear on workbook printouts; to change values use{' '}
                 <strong className="text-slate-800">Admin → Pricing policy</strong> (ridge add-ons).
               </p>
-              <div className="z-scroll-x overflow-x-auto">
+              <div className="z-scroll-x overflow-x-auto rounded-lg border border-slate-200 bg-white">
                 <table className="min-w-[520px] w-full border-collapse text-left text-xs">
                   <thead className="bg-slate-50 text-[9px] font-black uppercase tracking-wide text-slate-600">
                     <tr>
@@ -717,12 +727,22 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
               </div>
             </div>
           ) : isReferenceTab && materialKey === 'accessories' ? (
-            <div className="rounded-xl border border-slate-200 bg-white shadow-sm p-4 space-y-3">
+            <div
+              className="rounded-xl border border-dashed border-slate-300 bg-slate-50/80 shadow-sm p-4 space-y-3"
+              role="region"
+              aria-label="Accessories read-only reference"
+            >
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="rounded-md bg-slate-200/90 px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-slate-700">
+                  Read-only
+                </span>
+                <span className="text-[10px] font-semibold text-slate-500">Nothing here can be edited in this modal.</span>
+              </div>
               <p className="text-[11px] text-slate-600 leading-relaxed">
-                Default accessory unit prices come from <strong className="text-slate-800">master quote items</strong> (active accessories).
-                Update items in master data; they are listed on customer/internal workbook prints when priced.
+                Default accessory unit prices are maintained in <strong className="text-slate-800">master quote items</strong> (active
+                accessories) only. To change prices or items, edit master data; values listed here appear on workbook prints when priced.
               </p>
-              <div className="z-scroll-x overflow-x-auto">
+              <div className="z-scroll-x overflow-x-auto rounded-lg border border-slate-200 bg-white">
                 <table className="min-w-[520px] w-full border-collapse text-left text-xs">
                   <thead className="bg-slate-50 text-[9px] font-black uppercase tracking-wide text-slate-600">
                     <tr>
