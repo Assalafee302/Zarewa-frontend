@@ -440,10 +440,14 @@ export function LiveProductionMonitor({
     !viewOnly &&
     !isStoneMeterQuote &&
     (Boolean(ws?.hasPermission?.('production.release')) || Boolean(ws?.hasPermission?.('operations.manage')));
+  const canEditCompletedAccessoryCorrections =
+    jobSt === 'Completed' &&
+    !viewOnly &&
+    (Boolean(ws?.hasPermission?.('production.release')) || Boolean(ws?.hasPermission?.('operations.manage')));
   const readOnly =
     Boolean(viewOnly) ||
     jobSt === 'Cancelled' ||
-    (jobSt === 'Completed' && !canEditCompletedCoilCorrections);
+    (jobSt === 'Completed' && !(canEditCompletedCoilCorrections || canEditCompletedAccessoryCorrections));
   const canEditPlannedAllocations = jobSt === 'Planned' && !readOnly;
   const canAddSupplementalCoil = jobSt === 'Running' && !readOnly && !isStoneMeterQuote;
   /** Planned / mid-run supplemental rows, or post-completion register correction (add missing roll). */
@@ -1399,6 +1403,55 @@ export function LiveProductionMonitor({
       return;
     }
 
+    if (type === 'completedAccessoryCorrection') {
+      if (!accessoryCompletionDraft.length) {
+        setSavingAction('');
+        showToast('No accessory lines found on the quotation for correction.', { variant: 'info' });
+        return;
+      }
+      const reason = window.prompt(
+        'Reason for correcting accessories on this completed job (at least 12 characters — audited like other completion fixes):'
+      );
+      if (!reason || reason.trim().length < 12) {
+        setSavingAction('');
+        showToast('Correction requires a reason of at least 12 characters.', { variant: 'error' });
+        return;
+      }
+      const rk = ws?.session?.user?.roleKey;
+      if (editMutationNeedsSecondApprovalRole(rk) && !postCompletionEditApprovalId.trim()) {
+        setSavingAction('');
+        showToast(
+          'After completion, accessory corrections need an Edit OKs code — request approval, enter the 6-digit code, then save again.',
+          { variant: 'error' }
+        );
+        return;
+      }
+      try {
+        const res = await apiFetch(`${jobApi}/completion-accessory-corrections`, {
+          method: 'POST',
+          body: JSON.stringify({
+            reason: reason.trim(),
+            accessoriesSupplied: accessoriesSuppliedForApi,
+            ...(postCompletionEditApprovalId.trim() ? { editApprovalId: postCompletionEditApprovalId.trim() } : {}),
+          }),
+        });
+        if (!res.ok || !res.data?.ok) {
+          setSavingAction('');
+          showToast(res.data?.error || 'Could not apply accessory correction.', { variant: 'error' });
+          await ws.refresh();
+          return;
+        }
+        await ws.refresh();
+        setSavingAction('');
+        setPostCompletionEditApprovalId('');
+        showToast('Completed job accessory correction saved.');
+      } catch (e) {
+        setSavingAction('');
+        showToast(e?.message || 'Save failed.', { variant: 'error' });
+      }
+      return;
+    }
+
     if (type === 'runningCheckpoint') {
       if (!runningCheckpointSaveReady) {
         setSavingAction('');
@@ -1952,6 +2005,22 @@ export function LiveProductionMonitor({
                     >
                       <Save size={15} />
                       {savingAction === 'completedCoilCorrection' ? 'Saving…' : 'Save correction'}
+                    </button>
+                  ) : null}
+                  {selectedJob.status === 'Completed' && canEditCompletedAccessoryCorrections ? (
+                    <button
+                      type="button"
+                      onClick={() => void persist('completedAccessoryCorrection')}
+                      disabled={savingAction !== ''}
+                      title="Correct accessory issues after completion (ordered vs supplied). Requires a 12+ character reason. Adjusts stock; does not reverse posted GL automatically."
+                      className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-semibold transition-colors disabled:opacity-45 ${
+                        savingAction === 'completedAccessoryCorrection'
+                          ? 'bg-amber-100 text-amber-900'
+                          : 'border border-amber-400 bg-amber-50 text-amber-950 hover:bg-amber-100'
+                      }`}
+                    >
+                      <Save size={15} />
+                      {savingAction === 'completedAccessoryCorrection' ? 'Saving…' : 'Save accessories'}
                     </button>
                   ) : null}
                   <button
@@ -2528,10 +2597,10 @@ export function LiveProductionMonitor({
             </div>
           </div>
 
-          {canCaptureRun && accessoryCompletionDraft.length > 0 ? (
+          {(canCaptureRun || canEditCompletedAccessoryCorrections) && accessoryCompletionDraft.length > 0 ? (
             <div className="rounded-lg border border-teal-200/80 bg-teal-50/40 p-2 sm:p-2.5 space-y-1.5">
               <p className="text-[9px] font-black uppercase tracking-widest text-[#134e4a]">
-                Accessories issued (this completion)
+                Accessories issued{jobSt === 'Completed' ? ' (correction)' : ' (this completion)'}
               </p>
               <p className="text-[9px] text-slate-600 leading-snug">
                 Ordered on the quote vs already posted from other completed jobs. Adjust &ldquo;This job&rdquo; to match
