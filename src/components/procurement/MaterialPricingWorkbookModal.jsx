@@ -72,7 +72,8 @@ function effectiveUsedKgPerM(draftStr, resolved) {
 
 function isWorkbookDesignKey(dk) {
   const s = String(dk ?? '').trim();
-  return s === '' || s.startsWith('wb-');
+  // Back-compat: older clients generated `wb_...`; treat as workbook rows too.
+  return s === '' || s.startsWith('wb-') || s.startsWith('wb_');
 }
 
 function newLineKey() {
@@ -80,7 +81,8 @@ function newLineKey() {
 }
 
 function newWbDesignKey() {
-  return `wb_${crypto.randomUUID().replace(/-/g, '').slice(0, 10)}`;
+  // Must match server + UI workbook row matcher: `wb-...` (not `wb_...`).
+  return `wb-${crypto.randomUUID().replace(/-/g, '').slice(0, 10)}`;
 }
 
 function newCalcRowId() {
@@ -434,6 +436,7 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
     let saved = 0;
     let firstError = '';
     let priceListSyncWarning = '';
+    let didSyncAny = false;
     for (const line of finalized) {
       const body = buildPersistBody(line);
       if (!body) continue;
@@ -446,6 +449,7 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
         break;
       }
       saved += 1;
+      if (body.syncMinimumToPriceList) didSyncAny = true;
       if (data.priceListSync && !data.priceListSync.ok && !priceListSyncWarning) {
         priceListSyncWarning = data.priceListSync.error || 'Price list sync skipped for at least one row.';
       }
@@ -468,6 +472,14 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
         ? `Saved ${saved} row(s). ${priceListSyncWarning}`
         : `Saved ${saved} row(s).`
     );
+    // Quotation and refunds screens consume `snapshot.priceListItems`; refresh so synced floors appear immediately.
+    if (didSyncAny && typeof ws?.refresh === 'function') {
+      try {
+        await ws.refresh();
+      } catch {
+        // Non-fatal: workbook rows are saved; user may manually refresh workspace if needed.
+      }
+    }
     void loadSheet();
     void loadEvents(materialKey);
   };
