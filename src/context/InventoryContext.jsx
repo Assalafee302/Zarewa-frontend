@@ -391,115 +391,63 @@ export function InventoryProvider({ children }) {
         editApprovalId,
       } = {}
     ) => {
-      if (ws?.canMutate) {
-        const { ok, data } = await apiFetch(
-          `/api/purchase-orders/${encodeURIComponent(poID)}/link-transport`,
-          {
-            method: 'PATCH',
-            body: JSON.stringify({
-              transportAgentId,
-              transportAgentName,
-              transportReference,
-              transportNote,
-              transportFinanceAdvice,
-              transportAmountNgn,
-              transportAdvanceNgn,
-              treasuryAccountId,
-              dateISO,
-              postedAtISO,
-              note,
-              createdBy,
-              ...(editApprovalId ? { editApprovalId: String(editApprovalId).trim() } : {}),
-            }),
-          }
-        );
-        if (!ok || !data?.ok) {
-          return { ok: false, error: data?.error || 'Could not link transport.' };
-        }
-        await ws.refresh();
-        return { ok: true };
+      if (!ws?.canMutate) {
+        return {
+          ok: false,
+          error:
+            'Cannot save transport while the workspace is read-only. Reconnect to the server, then try again.',
+        };
       }
-      setPurchaseOrders((prev) =>
-        prev.map((p) => {
-          if (p.poID !== poID || !['Approved', 'On loading'].includes(p.status)) return p;
-          const amt = transportAmountNgn != null && transportAmountNgn !== '' ? Number(transportAmountNgn) : 0;
-          const adv =
-            transportAdvanceNgn != null && transportAdvanceNgn !== ''
-              ? Number(transportAdvanceNgn)
-              : amt > 0
-                ? amt
-                : 0;
-          const hasTreasury = Number(treasuryAccountId) > 0 && amt > 0;
-          const nextStatus = !hasTreasury && (!Number.isFinite(amt) || amt <= 0) ? 'In Transit' : hasTreasury ? 'In Transit' : 'On loading';
-          return {
-            ...p,
-            transportAgentId: transportAgentId ?? '',
-            transportAgentName: transportAgentName ?? '',
-            transportReference: transportReference ?? '',
-            transportNote: transportNote ?? '',
-            transportFinanceAdvice: transportFinanceAdvice ?? '',
-            transportAmountNgn: Number.isFinite(amt) && amt > 0 ? amt : p.transportAmountNgn,
-            transportAdvanceNgn: Number.isFinite(adv) && adv > 0 ? adv : p.transportAdvanceNgn,
-            transportPaid: hasTreasury ? true : p.transportPaid,
-            status: nextStatus,
-          };
-        })
+      const { ok, data } = await apiFetch(
+        `/api/purchase-orders/${encodeURIComponent(poID)}/link-transport`,
+        {
+          method: 'PATCH',
+          body: JSON.stringify({
+            transportAgentId,
+            transportAgentName,
+            transportReference,
+            transportNote,
+            transportFinanceAdvice,
+            transportAmountNgn,
+            transportAdvanceNgn,
+            treasuryAccountId,
+            dateISO,
+            postedAtISO,
+            note,
+            createdBy,
+            ...(editApprovalId ? { editApprovalId: String(editApprovalId).trim() } : {}),
+          }),
+        }
       );
-      appendMovement({
-        type: 'PO_TRANSPORT_LINK',
-        ref: poID,
-        detail: `${transportAgentName || transportAgentId}${transportReference ? ` · ${transportReference}` : ''}`,
-      });
+      if (!ok || !data?.ok) {
+        return { ok: false, error: data?.error || 'Could not link transport.' };
+      }
+      await ws.refresh();
       return { ok: true };
     },
-    [appendMovement, ws.refresh, ws.canMutate]
+    [ws.refresh, ws.canMutate]
   );
 
   const postPurchaseOrderTransport = useCallback(
     async (poID, body = {}) => {
-      if (ws?.canMutate) {
-        const { ok, data } = await apiFetch(
-          `/api/purchase-orders/${encodeURIComponent(poID)}/post-transport`,
-          {
-            method: 'POST',
-            body: JSON.stringify(body),
-          }
-        );
-        if (!ok || !data?.ok) {
-          return { ok: false, error: data?.error || 'Could not post transport.' };
-        }
-        await ws.refresh();
-        return { ok: true };
+      if (!ws?.canMutate) {
+        return {
+          ok: false,
+          error:
+            'Cannot post transport payment while the workspace is read-only. Reconnect to the server, then try again.',
+        };
       }
-      const hasTreasury = Number(body.treasuryAccountId) > 0 && Number(body.amountNgn) > 0;
-      if (!hasTreasury) {
-        return { ok: false, error: 'Treasury payment is required.' };
+      const { ok, data } = await apiFetch(`/api/purchase-orders/${encodeURIComponent(poID)}/post-transport`, {
+        method: 'POST',
+        body: JSON.stringify(body),
+      });
+      if (!ok || !data?.ok) {
+        return { ok: false, error: data?.error || 'Could not post transport.' };
       }
-      setPurchaseOrders((prev) =>
-        prev.map((p) =>
-          p.poID === poID && p.status === 'On loading'
-            ? {
-                ...p,
-                status: 'In Transit',
-                transportPaid: Boolean(
-                  body.treasuryAccountId && Number(body.amountNgn) > 0
-                ),
-                transportPaidAtISO:
-                  body.treasuryAccountId && Number(body.amountNgn) > 0
-                    ? new Date().toISOString()
-                    : p.transportPaidAtISO,
-                transportAmountNgn:
-                  body.treasuryAccountId && Number(body.amountNgn) > 0
-                    ? Number(body.amountNgn)
-                    : p.transportAmountNgn,
-              }
-            : p
-        )
-      );
-      appendMovement({ type: 'PO_TRANSPORT_POSTED', ref: poID, detail: 'In transit' });
+      await ws.refresh();
       return { ok: true };
     },
-    [appendMovement, ws.refresh, ws.canMutate]
+    [ws.refresh, ws.canMutate]
   );
 
   const recordPurchaseSupplierPayment = useCallback(

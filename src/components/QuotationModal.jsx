@@ -108,6 +108,37 @@ const DEFAULT_ACCESSORY_ITEMS = [
 ];
 const DEFAULT_SERVICE_ITEMS = ['Commission', 'Transportation', 'Installation', 'Corrugation', 'Bending'];
 
+/** Same normalization as server `pricingPolicyResolve.normKey` (used for price_list_items keys). */
+function pricingNormKey(s) {
+  return String(s ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, ' ');
+}
+
+/** First numeric gauge token from quotation UI (e.g. "0.45mm" → "0.45") to match workbook `gauge_key`. */
+function gaugeMmKeyFromQuotationGauge(label) {
+  const s = String(label ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, ' ');
+  const m = s.match(/^(\d+(?:\.\d+)?)/);
+  return m ? m[1] : pricingNormKey(s);
+}
+
+/** Map master material type row → `price_list_items.material_type_key` from workbook sync. */
+function priceListMaterialKeyFromMeta(meta) {
+  const id = String(meta?.id || '').trim();
+  if (id === 'MAT-001') return 'alu';
+  if (id === 'MAT-002') return 'aluzinc';
+  if (id === 'MAT-005') return 'stone-coated';
+  const n = pricingNormKey(meta?.name || '');
+  if (n.includes('aluzinc')) return 'aluzinc';
+  if (n.includes('alumin')) return 'alu';
+  if (n.includes('stone')) return 'stone-coated';
+  return '';
+}
+
 const QUOTATION_EDIT_TYPES = [
   'Correction (typo / clerical)',
   'Customer / billing change',
@@ -494,6 +525,10 @@ const QuotationModal = ({
   const [mdApproving, setMdApproving] = useState(false);
   const [quotationEditApprovalId, setQuotationEditApprovalId] = useState('');
   const liveMasterData = ws?.snapshot?.masterData ?? null;
+  const priceListItems = useMemo(
+    () => (Array.isArray(ws?.snapshot?.priceListItems) ? ws.snapshot.priceListItems : []),
+    [ws?.snapshot?.priceListItems]
+  );
   const lastQuotationHydrateSigRef = useRef('');
 
   const quotationHydrateSig = useMemo(
@@ -675,26 +710,87 @@ const QuotationModal = ({
     [liveMasterData?.materialTypes, materialTypeId]
   );
 
-  const resolveUnitPrice = (itemName, option) => {
-    const matches = priceListRows
-      .filter((row) => {
-        const sameItem =
-          (option?.id && row.quoteItemId === option.id) ||
-          String(row.itemName || '').trim().toLowerCase() === String(itemName || '').trim().toLowerCase();
-        if (!sameItem) return false;
-        if (row.gaugeId && row.gaugeId !== selectedGaugeMeta?.id) return false;
-        if (row.colourId && row.colourId !== selectedColourMeta?.id) return false;
-        if (row.profileId && row.profileId !== selectedProfileMeta?.id) return false;
-        if (row.materialTypeId && row.materialTypeId !== selectedMaterialTypeMeta?.id) return false;
-        return true;
-      })
-      .sort((a, b) => {
-        const score = (row) =>
-          [row.gaugeId, row.colourId, row.materialTypeId, row.profileId].filter(Boolean).length;
-        return score(b) - score(a);
-      });
-    return matches[0]?.unitPriceNgn || option?.defaultUnitPriceNgn || 0;
-  };
+  const resolveUnitPrice = useCallback(
+    (itemName, option) => {
+      const itemLc = String(itemName || '').trim().toLowerCase();
+      const usesWorkbookFloor = itemLc === 'roofing sheet' || itemLc === 'flat sheet';
+
+      let workbookN = 0;
+      if (usesWorkbookFloor && priceListItems.length > 0) {
+        const gaugeK = gaugeMmKeyFromQuotationGauge(materialGauge);
+        const designK = pricingNormKey(materialDesign);
+        const mtKey = priceListMaterialKeyFromMeta(selectedMaterialTypeMeta);
+        const branchId = String(editData?.branchId ?? '').trim();
+
+        let bestScore = -1;
+        let bestN = 0;
+        for (const row of priceListItems) {
+          const rg = String(row.gaugeKey ?? '').trim();
+          const rd = pricingNormKey(row.designKey);
+          const rmt = String(row.materialTypeKey ?? '').trim().toLowerCase();
+          const rb = String(row.branchId ?? '').trim();
+
+          if (rb && branchId && rb !== branchId) continue;
+
+          if (gaugeK && rg && rg !== gaugeK) continue;
+          if (designK && rd && rd !== designK) continue;
+
+          if (rmt && mtKey) {
+            if (rmt !== mtKey && !mtKey.includes(rmt) && !rmt.includes(mtKey)) continue;
+          } else if (rmt && !mtKey) {
+            continue;
+          }
+
+          const n = Math.round(Number(row.unitPricePerMeterNgn) || 0);
+          if (n <= 0) continue;
+
+          let score = 0;
+          if (gaugeK && rg === gaugeK) score += 4;
+          if (designK && rd === designK) score += 4;
+          if (rmt && mtKey) score += 2;
+          if (rb && branchId) score += 1;
+          if (score > bestScore) {
+            bestScore = score;
+            bestN = n;
+          }
+        }
+        workbookN = bestScore > 0 ? bestN : 0;
+      }
+
+      const matches = priceListRows
+        .filter((row) => {
+          const sameItem =
+            (option?.id && row.quoteItemId === option.id) ||
+            String(row.itemName || '').trim().toLowerCase() === String(itemName || '').trim().toLowerCase();
+          if (!sameItem) return false;
+          if (row.gaugeId && row.gaugeId !== selectedGaugeMeta?.id) return false;
+          if (row.colourId && row.colourId !== selectedColourMeta?.id) return false;
+          if (row.profileId && row.profileId !== selectedProfileMeta?.id) return false;
+          if (row.materialTypeId && row.materialTypeId !== selectedMaterialTypeMeta?.id) return false;
+          return true;
+        })
+        .sort((a, b) => {
+          const score = (row) =>
+            [row.gaugeId, row.colourId, row.materialTypeId, row.profileId].filter(Boolean).length;
+          return score(b) - score(a);
+        });
+      const setupN = matches[0]?.unitPriceNgn || option?.defaultUnitPriceNgn || 0;
+
+      if (workbookN > 0) return workbookN;
+      return setupN;
+    },
+    [
+      priceListItems,
+      priceListRows,
+      materialGauge,
+      materialDesign,
+      editData?.branchId,
+      selectedGaugeMeta,
+      selectedColourMeta,
+      selectedProfileMeta,
+      selectedMaterialTypeMeta,
+    ]
+  );
 
   useEffect(() => {
     if (!isOpen) {

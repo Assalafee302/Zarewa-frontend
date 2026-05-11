@@ -761,6 +761,14 @@ const Procurement = () => {
 
   const canManagePo = Boolean(ws?.hasPermission?.('purchase_orders.manage'));
 
+  const poTransportAwaitingTreasuryRows = useMemo(
+    () =>
+      Array.isArray(ws?.snapshot?.poTransportAwaitingTreasury)
+        ? ws.snapshot.poTransportAwaitingTreasury
+        : [],
+    [ws?.snapshot?.poTransportAwaitingTreasury]
+  );
+
   const saveStandardConversion = async (e) => {
     e.preventDefault();
     const matOpt = procurementCoilMaterialByKey(standardConversionForm.materialKey);
@@ -1718,6 +1726,33 @@ const Procurement = () => {
 
               {activeTab === 'purchases' && (
                 <div className="space-y-3">
+                  {poTransportAwaitingTreasuryRows.length > 0 ? (
+                    <div className="rounded-xl border border-sky-200/80 bg-sky-50/90 px-3 py-2.5 sm:px-4 flex flex-wrap items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="text-[10px] font-bold uppercase tracking-wide text-sky-950 flex items-center gap-1.5">
+                          <Truck className="size-3.5 shrink-0" strokeWidth={2.25} aria-hidden />
+                          PO haulage awaiting treasury payout
+                        </p>
+                        <p className="text-[10px] text-sky-950/85 mt-1 leading-relaxed">
+                          {poTransportAwaitingTreasuryRows.length} open line
+                          {poTransportAwaitingTreasuryRows.length !== 1 ? 's' : ''} (quoted transport fee exceeds
+                          treasury-paid). Finance records the bank or cash payout so balances stay correct.
+                        </p>
+                      </div>
+                      {ws?.canAccessModule?.('finance') ? (
+                        <Link
+                          to="/accounts"
+                          className="shrink-0 text-[10px] font-bold uppercase text-sky-900 underline-offset-2 hover:underline"
+                        >
+                          Open Finance — Treasury
+                        </Link>
+                      ) : (
+                        <span className="shrink-0 text-[9px] font-semibold text-sky-900/80 max-w-[12rem] text-right leading-snug">
+                          Ask Finance to post haulage under Finance → Treasury.
+                        </span>
+                      )}
+                    </div>
+                  ) : null}
                   {editMutationNeedsSecondApprovalRole(ws?.session?.user?.roleKey) && procurementPoForApprovalUi ? (
                     <div className="mb-2">
                       <EditSecondApprovalInline

@@ -614,23 +614,20 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
       const name = String(row?.name || '').trim();
       if (!name) continue;
       const payload = {
+        ...(row?.id ? { id: row.id } : {}),
         itemType: 'accessory',
         name,
         unit: String(row?.unit || 'unit').trim() || 'unit',
         defaultUnitPriceNgn: Math.round(Number(row?.defaultUnitPriceNgn) || 0),
         active: row?.active !== false,
       };
-      const endpoint = row?.id
-        ? `/api/setup/quote-items/${encodeURIComponent(row.id)}`
-        : '/api/setup/quote-items';
-      const method = row?.id ? 'PATCH' : 'POST';
-      const { ok, data } = await apiFetch(endpoint, {
-        method,
+      const { ok, data } = await apiFetch('/api/setup/quote-items', {
+        method: 'POST',
         body: JSON.stringify(payload),
       });
       if (!ok || !data?.ok) {
         setSavingAccessories(false);
-        showToast(data?.error || `Could not save accessory "${name}".`, { variant: 'error' });
+        showToast(data?.error || `Could not save accessory "${name}". Check setup permission.`, { variant: 'error' });
         return;
       }
     }
