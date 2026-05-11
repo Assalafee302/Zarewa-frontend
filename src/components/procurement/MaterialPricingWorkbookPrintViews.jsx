@@ -50,6 +50,7 @@ function workbookRowsForSheet(sheet) {
 }
 
 /** Label shown on customer price list (marketing name); falls back to gauge mm */
+// eslint-disable-next-line react-refresh/only-export-components
 export function customerGaugeDisplayLabel(row) {
   const lab = String(row?.gaugeCustomerLabel ?? '').trim();
   if (lab) return lab;

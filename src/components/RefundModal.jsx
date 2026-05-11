@@ -14,7 +14,6 @@ import {
 import { ModalFrame } from './layout/ModalFrame';
 import { useTrackedUnsavedForm } from '../hooks/useTrackedUnsavedForm';
 import { useToast } from '../context/ToastContext';
-import { useWorkspace } from '../context/WorkspaceContext';
 import { apiFetch } from '../lib/apiBase';
 import { printRefundRecord } from '../lib/refundRecordPrint';
 import {
@@ -274,7 +273,6 @@ const RefundModal = ({
   productionJobs = [],
 }) => {
   const { show: showToast } = useToast();
-  const ws = useWorkspace();
   const [form, setForm] = useState(() => initFormFromRecord(record));
   const [eligibleQuotes, setEligibleQuotes] = useState([]);
   const [loadingQuotes, setLoadingQuotes] = useState(false);

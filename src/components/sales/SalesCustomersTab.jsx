@@ -78,7 +78,7 @@ const CUSTOMER_SORT_FIELDS = [
 export default function SalesCustomersTab({
   searchQuery,
   onSearchChange = () => {},
-  createdByLabel = 'Sales',
+  createdByLabel: _createdByLabel = 'Sales',
   quotations = [],
   receipts = [],
   cuttingLists = [],

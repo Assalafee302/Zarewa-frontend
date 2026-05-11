@@ -27,10 +27,6 @@ export function WorkspaceExpenseQuickActions() {
     () => (ws?.hasWorkspaceData && Array.isArray(ws?.snapshot?.treasuryAccounts) ? ws.snapshot.treasuryAccounts : []),
     [ws?.hasWorkspaceData, ws?.snapshot?.treasuryAccounts]
   );
-  const expenses = useMemo(
-    () => (ws?.hasWorkspaceData && Array.isArray(ws?.snapshot?.expenses) ? ws.snapshot.expenses : []),
-    [ws?.hasWorkspaceData, ws?.snapshot?.expenses]
-  );
 
   const [showPayRequestModal, setShowPayRequestModal] = useState(false);
   const [showExpenseModal, setShowExpenseModal] = useState(false);

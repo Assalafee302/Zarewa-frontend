@@ -67,7 +67,9 @@ function DegradedWorkspaceLock() {
   const { show: showToast } = useToast();
   const [retrying, setRetrying] = useState(false);
   const wsRef = useRef(ws);
-  wsRef.current = ws;
+  useEffect(() => {
+    wsRef.current = ws;
+  });
 
   useEffect(() => {
     if (!ws?.usingCachedData) return undefined;

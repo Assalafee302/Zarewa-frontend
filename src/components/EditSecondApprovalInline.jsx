@@ -4,8 +4,6 @@ import { useWorkspace } from '../context/WorkspaceContext';
 import { editMutationNeedsSecondApprovalRole } from '../lib/editApprovalUi';
 import { normalizeEditApprovalInput } from '../lib/editApprovalInput.js';
 
-export { normalizeEditApprovalInput };
-
 /**
  * Shown when the signed-in role must obtain a manager/admin approval before PATCHing this entity.
  * @param {{ entityKind: string; entityId: string; value: string; onChange: (v: string) => void; className?: string }} props
