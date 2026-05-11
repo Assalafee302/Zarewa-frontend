@@ -417,7 +417,8 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
       minimumPricePerMeterNgn: Math.round(Number(dr.minimumPricePerMeterNgn) || 0),
       notes: dr.notes?.trim() || undefined,
       syncMinimumToPriceList: Boolean(dr.syncMinimumToPriceList),
-      syncDesignKey: dr.syncDesignKey?.trim() || undefined,
+      // Default design key for coil materials so sync never silently fails on a blank field.
+      syncDesignKey: dr.syncDesignKey?.trim() || (materialKey !== 'stone-coated' ? 'longspan' : undefined),
     };
   };
 
@@ -470,7 +471,9 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
     showToast(
       priceListSyncWarning
         ? `Saved ${saved} row(s). ${priceListSyncWarning}`
-        : `Saved ${saved} row(s).`
+        : didSyncAny
+          ? `Saved ${saved} row(s). Floor price list updated — Quotation pricing reflects new floors.`
+          : `Saved ${saved} row(s).`
     );
     // Quotation and refunds screens consume `snapshot.priceListItems`; refresh so synced floors appear immediately.
     if (didSyncAny && typeof ws?.refresh === 'function') {
@@ -554,13 +557,18 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
 
   const setSyncListForAll = useCallback((checked) => {
     setWorkbookLines((prev) =>
-      prev.map((line) =>
-        String(line.gaugeMm || '').trim()
-          ? { ...line, draft: { ...(line.draft || {}), syncMinimumToPriceList: checked } }
-          : line
-      )
+      prev.map((line) => {
+        if (!String(line.gaugeMm || '').trim()) return line;
+        const draft = line.draft || {};
+        const patch = { syncMinimumToPriceList: checked };
+        // Auto-fill design key so bulk sync never silently fails on blank fields.
+        if (checked && !String(draft.syncDesignKey ?? '').trim() && materialKey !== 'stone-coated') {
+          patch.syncDesignKey = 'longspan';
+        }
+        return { ...line, draft: { ...draft, ...patch } };
+      })
     );
-  }, []);
+  }, [materialKey]);
 
   const addRidgeRow = () => {
     setRidgeCalcRows((prev) => [...prev, { id: newCalcRowId(), gaugeMm: '', materialKey: 'alu' }]);
@@ -1363,18 +1371,30 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
                               <input
                                 type="checkbox"
                                 checked={Boolean(dr.syncMinimumToPriceList)}
-                                onChange={(e) =>
-                                  updateLineDraft(line.key, { syncMinimumToPriceList: e.target.checked })
-                                }
+                                onChange={(e) => {
+                                  const checked = e.target.checked;
+                                  const patch = { syncMinimumToPriceList: checked };
+                                  // Auto-fill design key so sync never silently fails on a blank field.
+                                  if (checked && !String(dr.syncDesignKey ?? '').trim() && materialKey !== 'stone-coated') {
+                                    patch.syncDesignKey = 'longspan';
+                                  }
+                                  updateLineDraft(line.key, patch);
+                                }}
                               />
                               Sync list
                             </label>
                             <input
                               className={`${inp} text-[10px]`}
-                              placeholder="Design key"
+                              placeholder={materialKey !== 'stone-coated' ? 'longspan' : 'Design key'}
+                              title="Design key written to the floor price list (e.g. longspan, metcoppo). Defaults to longspan for coil materials."
                               value={dr.syncDesignKey ?? ''}
                               onChange={(e) => updateLineDraft(line.key, { syncDesignKey: e.target.value })}
                             />
+                            {listNgn > 0 && !dr.syncMinimumToPriceList ? (
+                              <p className="text-[8px] text-emerald-700 font-semibold">
+                                ✓ list ₦/m set — tick Sync list to push to floor
+                              </p>
+                            ) : null}
                           </td>
                         </tr>
                       );
