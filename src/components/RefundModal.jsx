@@ -119,6 +119,27 @@ const emptyLine = () => ({
   appliesToCategories: undefined,
 });
 
+/** Stable key for jobs on a quotation — when this changes, refund preview should re-run from the server. */
+function productionJobsFingerprintForQuotation(productionJobs, quotationRef) {
+  const ref = String(quotationRef || '').trim();
+  if (!ref) return '';
+  return (productionJobs || [])
+    .filter((j) => String(j.quotationRef || '').trim() === ref)
+    .map((j) =>
+      [
+        String(j.jobID || '').trim(),
+        String(j.status || '').trim().toLowerCase(),
+        Math.round(Number(j.actualMeters) || 0),
+        Math.round(Number(j.effectiveOutputMeters ?? j.actualMeters) || 0),
+        String(j.productID || '').trim(),
+        String(j.conversionAlertState || '').trim(),
+        j.coilSpecMismatchPending ? '1' : '0',
+      ].join('|')
+    )
+    .sort()
+    .join('~');
+}
+
 const emptyRequest = {
   customerID: '',
   customerName: '',
@@ -318,6 +339,9 @@ const RefundModal = ({
   const [quotationServerVerifiedRef, setQuotationServerVerifiedRef] = useState('');
   const [manualQuotationVerifyBusy, setManualQuotationVerifyBusy] = useState(false);
   const [manualQuotationVerifyError, setManualQuotationVerifyError] = useState('');
+
+  const productionFingerprintRef = useRef('');
+  const previewLoadedForQuoteRef = useRef('');
 
   useEffect(() => {
     if (!isOpen) setRefundGuideOpen(false);
@@ -622,6 +646,7 @@ const RefundModal = ({
       });
       setPreviewLoading(false);
       if (!ok || !data?.ok || !data?.preview) {
+        previewLoadedForQuoteRef.current = '';
         setMoneyContext(null);
         setPreviewRemainingNgn(null);
         setLastPreviewSnapshot(null);
@@ -631,6 +656,7 @@ const RefundModal = ({
       }
 
       const preview = data.preview;
+      previewLoadedForQuoteRef.current = quoteRef;
       setEligibleRefundCategoriesFromPreview(
         Array.isArray(preview.eligibleRefundCategories) ? preview.eligibleRefundCategories : null
       );
@@ -689,6 +715,8 @@ const RefundModal = ({
   );
 
   const resetPreviewStateForQuoteChange = useCallback(() => {
+    productionFingerprintRef.current = '';
+    previewLoadedForQuoteRef.current = '';
     setMoneyContext(null);
     setPreviewRemainingNgn(null);
     setLastPreviewSnapshot(null);
@@ -740,6 +768,40 @@ const RefundModal = ({
   useEffect(() => {
     generatePreviewRef.current = generatePreview;
   }, [generatePreview]);
+
+  const includeCommissionInPreviewRef = useRef(includeCommissionInPreview);
+  useEffect(() => {
+    includeCommissionInPreviewRef.current = includeCommissionInPreview;
+  }, [includeCommissionInPreview]);
+
+  /** When workspace `productionJobs` updates (e.g. job completed, metres posted), re-fetch preview so substitution / metres stay in sync. */
+  useEffect(() => {
+    if (!isOpen) {
+      productionFingerprintRef.current = '';
+      previewLoadedForQuoteRef.current = '';
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen || mode !== 'create') return;
+    const ref = String(form.quotationRef || '').trim();
+    if (!ref) {
+      productionFingerprintRef.current = '';
+      previewLoadedForQuoteRef.current = '';
+      return;
+    }
+    const fp = productionJobsFingerprintForQuotation(productionJobs, ref);
+    const prev = productionFingerprintRef.current;
+    if (fp === prev) return;
+    productionFingerprintRef.current = fp;
+    if (prev === '') {
+      if (fp !== '' && previewLoadedForQuoteRef.current === ref) {
+        void generatePreview(ref, includeCommissionInPreviewRef.current);
+      }
+      return;
+    }
+    void generatePreview(ref, includeCommissionInPreviewRef.current);
+  }, [isOpen, mode, form.quotationRef, productionJobs, generatePreview]);
 
   const handleQuoteChange = (ref) => {
     setQuotationServerVerifiedRef('');
@@ -1206,6 +1268,18 @@ const RefundModal = ({
             <p className="text-xs font-semibold text-slate-500" role="status">
               Updating refund preview…
             </p>
+          ) : null}
+          {mode === 'create' && String(form.quotationRef || '').trim() ? (
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              <button
+                type="button"
+                className="text-[11px] font-bold uppercase tracking-wide text-teal-700 hover:text-teal-900 underline decoration-teal-300 underline-offset-2 disabled:opacity-40 disabled:no-underline"
+                disabled={previewLoading}
+                onClick={() => void generatePreview(String(form.quotationRef).trim(), includeCommissionInPreview)}
+              >
+                Refresh preview (latest production & receipts)
+              </button>
+            </div>
           ) : null}
           {previewError ? (
             <div

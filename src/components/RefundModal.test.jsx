@@ -48,6 +48,21 @@ const baseProps = {
   productionJobs: [],
 };
 
+/** Stable reference so production fingerprint effect is not retriggered every parent re-render. */
+const SEED_PRODUCTION_JOBS = [
+  {
+    jobID: 'PJ-SEED',
+    quotationRef: 'QT-SEED',
+    status: 'Completed',
+    actualMeters: 100,
+    effectiveOutputMeters: 100,
+    productID: 'PR-1',
+    productName: 'Roofing sheet',
+    conversionAlertState: 'Ok',
+    coilSpecMismatchPending: false,
+  },
+];
+
 const pendingApproveRecord = {
   refundID: 'RF-1',
   customerID: 'CUS-001',
@@ -159,6 +174,8 @@ describe('RefundModal', () => {
                 customer_name: 'Co',
                 paid_ngn: 5000,
                 total_ngn: 5000,
+                total_refunded_ngn: 0,
+                suggested_preview_amount_ngn: 5000,
                 eligible_refund_categories: ['Overpayment'],
               },
             ],
@@ -182,6 +199,7 @@ describe('RefundModal', () => {
               substitutionPerMeterBreakdown: [],
               alreadyRefundedCategories: [],
               blockedRefundCategories: [],
+              eligibleRefundCategories: ['Overpayment'],
             },
           },
         };
@@ -200,14 +218,19 @@ describe('RefundModal', () => {
       return { ok: false, data: { ok: false } };
     });
 
-    renderWithToast(<RefundModal {...baseProps} mode="create" />);
+    renderWithToast(
+      <RefundModal {...baseProps} mode="create" productionJobs={SEED_PRODUCTION_JOBS} />
+    );
+
+    const quoteInput = await screen.findByLabelText(/search finished quotation/i);
+    await waitFor(() => expect(quoteInput).not.toBeDisabled());
+    await user.click(quoteInput);
+    await user.type(quoteInput, 'QT-SEED');
+    await user.click(await screen.findByRole('button', { name: /QT-SEED/i }));
+    await screen.findByDisplayValue(/Overpayment hint/i);
 
     await user.click(screen.getByTitle('How refunds work'));
     expect(await screen.findByText(/Suggested amounts are not final/i)).toBeInTheDocument();
-
-    const select = await screen.findByRole('combobox');
-    await user.selectOptions(select, 'QT-SEED');
-    await user.click(screen.getByRole('checkbox', { name: /^Overpayment$/i }));
 
     expect((await screen.findAllByText(/Test audit flag: verify receipts/i)).length).toBeGreaterThanOrEqual(1);
   });
@@ -228,6 +251,8 @@ describe('RefundModal', () => {
                 customer_name: 'Co',
                 paid_ngn: 5000,
                 total_ngn: 5000,
+                total_refunded_ngn: 0,
+                suggested_preview_amount_ngn: 5000,
                 eligible_refund_categories: ['Overpayment'],
               },
             ],
@@ -251,6 +276,7 @@ describe('RefundModal', () => {
               substitutionPerMeterBreakdown: [],
               alreadyRefundedCategories: [],
               blockedRefundCategories: [],
+              eligibleRefundCategories: ['Overpayment'],
             },
           },
         };
@@ -264,11 +290,15 @@ describe('RefundModal', () => {
       return { ok: false, data: { ok: false } };
     });
 
-    renderWithToast(<RefundModal {...baseProps} mode="create" />);
+    renderWithToast(
+      <RefundModal {...baseProps} mode="create" productionJobs={SEED_PRODUCTION_JOBS} />
+    );
 
-    const select = await screen.findByRole('combobox');
-    await user.selectOptions(select, 'QT-SEED');
-    await user.click(screen.getByRole('checkbox', { name: /^Overpayment$/i }));
+    const quoteInput = await screen.findByLabelText(/search finished quotation/i);
+    await waitFor(() => expect(quoteInput).not.toBeDisabled());
+    await user.click(quoteInput);
+    await user.type(quoteInput, 'QT-SEED');
+    await user.click(await screen.findByRole('button', { name: /QT-SEED/i }));
 
     await screen.findByDisplayValue('100');
 
