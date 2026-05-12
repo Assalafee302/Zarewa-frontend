@@ -28,6 +28,10 @@ import {
   quotationVoidPaidRefundEligible,
 } from '../lib/refundEligibility';
 import {
+  quotationLinesJsonShapeForGauge,
+  quotedGaugeLabelForSubstitutionComparison,
+} from '../lib/quotedGaugeForSubstitution';
+import {
   REFUND_REASON_CATEGORY_VALUES as REFUND_REASON_CATEGORIES,
   REFUND_PREVIEW_VERSION,
   MIN_REFUND_QUOTATION_REMAINING_NGN,
@@ -592,6 +596,21 @@ const RefundModal = ({
     if (!ref) return null;
     return quotations.find((x) => String(x.id) === ref) ?? null;
   }, [form.quotationRef, quotations]);
+
+  /** Thickest gauge among quote header + product lines — matches server substitution comparison. */
+  const refundQuotationGaugeDisplay = useMemo(() => {
+    const q = selectedQuotationSnapshot;
+    if (!q) return { value: '—', hint: '' };
+    const shape = quotationLinesJsonShapeForGauge(q);
+    const picked = shape ? String(quotedGaugeLabelForSubstitutionComparison(shape) || '').trim() : '';
+    const header = String(q.materialGauge || q.material_gauge || '').trim();
+    const value = picked || header || '—';
+    const hint =
+      header && picked && header !== picked
+        ? `Header shows ${header}; refund substitution compares ${picked} to the coil gauge below.`
+        : '';
+    return { value, hint };
+  }, [selectedQuotationSnapshot]);
 
   const refundProductionConversionSummary = useMemo(() => {
     const ref = String(form.quotationRef || '').trim();
@@ -1891,11 +1910,14 @@ const RefundModal = ({
                             <div className="flex justify-between gap-2">
                               <dt className="text-slate-500 shrink-0">Gauge</dt>
                               <dd className="text-right tabular-nums">
-                                {selectedQuotationSnapshot.materialGauge ||
-                                  selectedQuotationSnapshot.material_gauge ||
-                                  '—'}
+                                <span className="text-white">{refundQuotationGaugeDisplay.value}</span>
                               </dd>
                             </div>
+                            {refundQuotationGaugeDisplay.hint ? (
+                              <div className="sm:col-span-2">
+                                <p className="text-[8px] text-slate-500 leading-snug">{refundQuotationGaugeDisplay.hint}</p>
+                              </div>
+                            ) : null}
                             <div className="flex justify-between gap-2">
                               <dt className="text-slate-500 shrink-0">Colour</dt>
                               <dd className="text-right">
