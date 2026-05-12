@@ -376,6 +376,8 @@ const RefundModal = ({
 
   const productionFingerprintRef = useRef('');
   const previewLoadedForQuoteRef = useRef('');
+  /** Monotonic counter so out-of-order `/api/refunds/preview` responses cannot overwrite newer results (e.g. after production accessory correction). */
+  const refundsPreviewSeqRef = useRef(0);
 
   useEffect(() => {
     if (!isOpen) setRefundGuideOpen(false);
@@ -679,12 +681,13 @@ const RefundModal = ({
     });
   }, [selectedQuotationSnapshot, intelligence.summary?.accessoriesSummary?.lines]);
 
-  const fetchIntelligence = async (quoteRef) => {
+  const fetchIntelligence = async (quoteRef, previewSeq) => {
     if (!quoteRef) return;
     setLoadingIntelligence(true);
     // Fetch detailed intelligence for the sidebar
     const { ok, data } = await apiFetch(`/api/refunds/intelligence?quotationRef=${encodeURIComponent(quoteRef)}`);
     setLoadingIntelligence(false);
+    if (previewSeq != null && previewSeq !== refundsPreviewSeqRef.current) return;
     if (ok && data?.ok) {
       setIntelligence({
         receipts: data.receipts || [],
@@ -700,6 +703,7 @@ const RefundModal = ({
       if (!quoteRef) return;
       const includeComm =
         commissionOverride !== undefined ? Boolean(commissionOverride) : includeCommissionInPreview;
+      const seq = ++refundsPreviewSeqRef.current;
       setPreviewLoading(true);
       setPreviewError('');
       setWarnings([]);
@@ -711,6 +715,7 @@ const RefundModal = ({
           includeCustomerCommission: includeComm,
         }),
       });
+      if (seq !== refundsPreviewSeqRef.current) return;
       setPreviewLoading(false);
       if (!ok || !data?.ok || !data?.preview) {
         previewLoadedForQuoteRef.current = '';
@@ -777,7 +782,7 @@ const RefundModal = ({
         reasonCategory: deriveReasonCategoriesFromLines(breakdownRows),
       }));
 
-      fetchIntelligence(quoteRef);
+      fetchIntelligence(quoteRef, seq);
     },
     [includeCommissionInPreview]
   );
