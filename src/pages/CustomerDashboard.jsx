@@ -914,7 +914,7 @@ const CustomerDashboard = () => {
         })),
         summaryLines: [
           { label: 'Receipts in period', value: String(inRange.length) },
-          { label: 'Cash received (period, on file)', value: formatNgn(totalNgn) },
+          { label: 'Cash received (period)', value: formatNgn(totalNgn) },
         ],
       });
     } else {
@@ -1323,7 +1323,7 @@ const CustomerDashboard = () => {
                 />
               </div>
               <p className="text-[8px] text-gray-500 mt-1">
-                Share of invoice totals marked paid on file
+                Share of invoice totals covered by payment received
               </p>
             </div>
           </section>
@@ -2125,9 +2125,10 @@ const CustomerDashboard = () => {
                 <span className="font-black">{detail.row.total}</span>
               </p>
               <p>
-                <span className="text-gray-400 text-xs font-bold uppercase">Paid on file</span>{' '}
-                {formatNgn(detail.row.paidNgn || 0)}
+                <span className="text-gray-400 text-xs font-bold uppercase">Payment received</span>{' '}
+                <span className="font-black">{formatNgn(detail.row.paidNgn || 0)}</span>
               </p>
+              <p className="text-[10px] text-gray-500">Total amount paid on this quotation (receipts + advance applied)</p>
               <p className="text-xs text-gray-500">{detail.row.customerFeedback || '—'}</p>
               {detail.row.handledBy ? (
                 <p className="text-xs">

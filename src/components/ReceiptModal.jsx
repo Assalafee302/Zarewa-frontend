@@ -1004,7 +1004,10 @@ const ReceiptModal = ({
             (Number(selectedQuotation.paidNgn) || 0) > 0 &&
             priorRecordedOnQuotation.length === 0 ? (
               <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50/90 px-3 py-2.5 text-[10px] text-amber-950 leading-snug">
-                <p className="font-bold">Paid on file ({formatNgn(selectedQuotation.paidNgn)}) but no receipt lines loaded</p>
+                <p className="font-bold">
+                  Payment received ({formatNgn(selectedQuotation.paidNgn)} total for this quotation) but no receipt
+                  lines loaded
+                </p>
                 <p className="mt-1 opacity-95">
                   Refresh the page or reconnect so the ledger matches the server. Until then, check Sales → Receipts
                   before posting again.
@@ -1170,7 +1173,8 @@ const ReceiptModal = ({
                   <p className="text-[17px] font-bold leading-none text-[#134e4a] tabular-nums">{formatNgn(displayTotal)}</p>
                 </div>
                 <div className="rounded-lg border border-slate-200 bg-white p-2.5">
-                  <p className="text-[8px] font-semibold text-slate-400 uppercase mb-1">Paid on file</p>
+                  <p className="text-[8px] font-semibold text-slate-400 uppercase mb-0.5">Payment received</p>
+                  <p className="text-[7px] text-slate-500 mb-1 leading-tight">Total amount paid on this quotation (receipts + advance applied)</p>
                   <p className="text-[17px] font-bold leading-none text-sky-700 tabular-nums">{formatNgn(displayPaid)}</p>
                 </div>
                 <div className="rounded-lg border border-[#134e4a]/30 bg-[#134e4a] p-2.5 text-white">

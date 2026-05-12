@@ -1132,7 +1132,7 @@ const Procurement = () => {
       return;
     }
     if (remaining <= 0) {
-      showToast('This payable is already fully paid on file.', { variant: 'info' });
+      showToast('This payable is already fully paid in records.', { variant: 'info' });
       return;
     }
     if (apPayTotalNgn > remaining) {
