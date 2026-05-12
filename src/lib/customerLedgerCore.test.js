@@ -1,5 +1,21 @@
 import { describe, expect, it } from 'vitest';
-import { companionOverpayNgnByReceiptId, planReceiptWithQuotation } from './customerLedgerCore.js';
+import {
+  companionOverpayNgnByReceiptId,
+  planReceiptWithQuotation,
+  advanceBalanceFromEntries,
+  overpayCreditBalanceFromEntries,
+} from './customerLedgerCore.js';
+
+describe('advance vs overpay credit', () => {
+  it('does not treat OVERPAY_ADVANCE as deposit advance', () => {
+    const entries = [
+      { customerID: 'C1', type: 'ADVANCE_IN', amountNgn: 100_000 },
+      { customerID: 'C1', type: 'OVERPAY_ADVANCE', amountNgn: 50_000 },
+    ];
+    expect(advanceBalanceFromEntries(entries, 'C1')).toBe(100_000);
+    expect(overpayCreditBalanceFromEntries(entries, 'C1')).toBe(50_000);
+  });
+});
 
 describe('companionOverpayNgnByReceiptId', () => {
   it('pairs split receipt + overpay from one payment', () => {

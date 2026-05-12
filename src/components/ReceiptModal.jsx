@@ -622,7 +622,7 @@ const ReceiptModal = ({
         }
         if (res.overpay) {
           showToast(
-            `Receipt ${formatNgn(res.receipt?.amountNgn ?? 0)} + advance ${formatNgn(res.overpay.amountNgn)} (overpayment).`
+            `Receipt ${formatNgn(res.receipt?.amountNgn ?? 0)} + overpayment credit ${formatNgn(res.overpay.amountNgn)}.`
           );
         } else if (dueNgn != null && total < dueNgn) {
           showToast(`Part payment ${formatNgn(total)} posted. Remaining on quote ≈ ${formatNgn(dueNgn - total)}.`);
@@ -1094,7 +1094,7 @@ const ReceiptModal = ({
             </div>
             {lineTotalNgn > 0 && dueNgn != null && lineTotalNgn > dueNgn ? (
               <p className="mt-2 text-[10px] font-medium text-amber-800">
-                Total exceeds current balance due — excess will post to <strong>customer advance</strong> automatically.
+                Total exceeds current balance due — excess will post as <strong>overpayment credit</strong> (refund via Sales refunds, not deposit advance).
               </p>
             ) : null}
           </div>

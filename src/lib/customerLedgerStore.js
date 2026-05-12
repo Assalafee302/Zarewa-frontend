@@ -1,5 +1,5 @@
 /**
- * Customer ledger — advances, receipts against quotations, applications, overpayments → advance.
+ * Customer ledger — deposits, receipts, advance applications, and overpayment credits (tracked separately).
  * Source of truth is the in-memory ledger snapshot replaced from bootstrap.
  * localStorage is write-through cache only (not read as authority).
  */
@@ -7,6 +7,7 @@ import {
   sumForQuotationInEntries,
   amountDueOnQuotationFromEntries,
   advanceBalanceFromEntries,
+  overpayCreditBalanceFromEntries,
   ledgerReceiptTotalFromEntries,
   entriesForCustomerFromEntries,
   planAdvanceIn,
@@ -19,7 +20,7 @@ import {
 const STORAGE_KEY = 'zarewa.customerLedger.v1';
 let ledgerEntriesState = [];
 
-/** @typedef {'ADVANCE_IN'|'ADVANCE_APPLIED'|'RECEIPT'|'OVERPAY_ADVANCE'|'REFUND_ADVANCE'} LedgerEntryType */
+/** @typedef {'ADVANCE_IN'|'ADVANCE_APPLIED'|'RECEIPT'|'OVERPAY_ADVANCE'|'OVERPAY_REVERSAL'|'REFUND_ADVANCE'|'REFUND_OVERPAY'} LedgerEntryType */
 
 /**
  * @typedef {{
@@ -87,9 +88,14 @@ export function amountDueOnQuotation(q) {
   return amountDueOnQuotationFromEntries(loadLedgerEntries(), q);
 }
 
-/** Customer advance / deposit balance (liability). */
+/** Customer deposit advance balance (ADVANCE_IN, applications, refunds) — excludes quotation overpayments. */
 export function advanceBalanceNgn(customerID) {
   return advanceBalanceFromEntries(loadLedgerEntries(), customerID);
+}
+
+/** Credit from paying more than the quote balance (OVERPAY_ADVANCE); reduced by reversals and refund payouts. */
+export function overpayCreditBalanceNgn(customerID) {
+  return overpayCreditBalanceFromEntries(loadLedgerEntries(), customerID);
 }
 
 /** Sum of receipt-type revenue postings linked to quotations (this ledger only). */

@@ -49,6 +49,7 @@ import { formatNgn } from '../Data/mockData';
 import { refundApprovedAmount, refundOutstandingAmount } from '../lib/refundsStore';
 import {
   advanceBalanceNgn,
+  overpayCreditBalanceNgn,
   amountDueOnQuotation,
   entriesForCustomer,
   recordRefundAdvance,
@@ -149,7 +150,11 @@ function ledgerTypeLabel(t) {
     case 'RECEIPT':
       return 'Receipt';
     case 'OVERPAY_ADVANCE':
-      return 'Overpay → advance';
+      return 'Overpayment credit';
+    case 'OVERPAY_REVERSAL':
+      return 'Overpayment reversal';
+    case 'REFUND_OVERPAY':
+      return 'Overpayment refunded';
     case 'REFUND_ADVANCE':
       return 'Advance refunded';
     default:
@@ -484,6 +489,14 @@ const CustomerDashboard = () => {
     () => {
       void ledgerViewNonce;
       return advanceBalanceNgn(customerKey);
+    },
+    [customerKey, ledgerViewNonce]
+  );
+
+  const overpayCreditBalNgn = useMemo(
+    () => {
+      void ledgerViewNonce;
+      return overpayCreditBalanceNgn(customerKey);
     },
     [customerKey, ledgerViewNonce]
   );
@@ -1193,7 +1206,7 @@ const CustomerDashboard = () => {
             </div>
           ) : null}
 
-          <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-2.5 sm:gap-3 mb-8">
+          <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-6 gap-2.5 sm:gap-3 mb-8">
             <div className="rounded-zarewa border border-gray-100 bg-white p-3 sm:p-3.5 shadow-sm">
               <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-1">
                 Outstanding balance
@@ -1222,9 +1235,9 @@ const CustomerDashboard = () => {
                     role="note"
                   >
                     <p className="text-amber-900/90">
-                      Not revenue — liability until applied or refunded. Paying an approved{' '}
-                      <strong>sales refund</strong> to the customer reduces this when the money came from advance or
-                      overpay credit (see ledger timeline).
+                      Voluntary deposits only — liability until applied to a quotation or refunded with{' '}
+                      <strong>Refund advance</strong>. Paying an approved <strong>sales refund</strong> reduces deposit
+                      advance first, then any separate <strong>overpayment credit</strong> (see ledger timeline).
                     </p>
                     <p className="mt-2 border-t border-amber-200/70 pt-2 text-amber-900/85">
                       <strong>Use credit on another job:</strong> in <strong>Sales → Quotations</strong>, open the new
@@ -1249,6 +1262,34 @@ const CustomerDashboard = () => {
                   Refund advance (cash out)
                 </button>
               ) : null}
+            </div>
+            <div className="rounded-zarewa border border-violet-100 bg-violet-50/60 p-3 sm:p-3.5 shadow-sm">
+              <div className="flex items-start justify-between gap-1 mb-1">
+                <p className="text-[9px] font-bold text-violet-900 uppercase tracking-widest">
+                  Overpayment credit
+                </p>
+                <details className="relative shrink-0">
+                  <summary
+                    className="list-none cursor-pointer rounded-full p-0.5 text-violet-800/55 transition-colors hover:bg-violet-200/40 hover:text-violet-950 focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/40 [&::-webkit-details-marker]:hidden"
+                    aria-label="About overpayment credit"
+                  >
+                    <Info className="size-3.5" strokeWidth={2.25} aria-hidden />
+                  </summary>
+                  <div
+                    className="absolute right-0 top-full z-40 mt-1.5 w-[min(calc(100vw-2rem),17.5rem)] rounded-lg border border-violet-200/90 bg-white p-2.5 text-[9px] leading-snug text-violet-950 shadow-lg ring-1 ring-black/5"
+                    role="note"
+                  >
+                    <p className="text-violet-900/90">
+                      Arises when a receipt exceeds the balance due on a quotation. This is{' '}
+                      <strong>not</strong> a deposit advance — use <strong>Sales → Refunds</strong> (or treasury payout
+                      on approved refunds) to return it. It is tracked separately from <strong>Advance (deposit)</strong>.
+                    </p>
+                  </div>
+                </details>
+              </div>
+              <p className="text-xl font-black text-violet-950 tabular-nums leading-tight">
+                {formatNgn(overpayCreditBalNgn)}
+              </p>
             </div>
             <div className="rounded-zarewa border border-gray-100 bg-white p-3 sm:p-3.5 shadow-sm">
               <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-1">
