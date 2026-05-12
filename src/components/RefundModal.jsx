@@ -360,6 +360,8 @@ const RefundModal = ({
   const [eligibleRefundCategoriesFromPreview, setEligibleRefundCategoriesFromPreview] = useState(null);
   /** When true, next preview includes Customer commission (opt-in; capped server-side by floor + headroom). */
   const [includeCommissionInPreview, setIncludeCommissionInPreview] = useState(false);
+  /** Optional list ₦/m for the **produced** coil when `price_list_items` has no row for coil gauge + design (substitution preview). */
+  const [substitutionWorkbookPpmOverride, setSubstitutionWorkbookPpmOverride] = useState('');
   const [refundIntelExpanded, setRefundIntelExpanded] = useState(() => mode !== 'create');
   /** From refund preview: paid on quote vs overpay split (ledger RECEIPT + OVERPAY_ADVANCE). */
   const [moneyContext, setMoneyContext] = useState(null);
@@ -454,6 +456,7 @@ const RefundModal = ({
     setPreviewRemainingNgn(null);
     setEligibleRefundCategoriesFromPreview(null);
     setIncludeCommissionInPreview(false);
+    setSubstitutionWorkbookPpmOverride('');
     setManualQuotationVerifyBusy(false);
     setManualQuotationVerifyError('');
 
@@ -708,12 +711,15 @@ const RefundModal = ({
       setPreviewError('');
       setWarnings([]);
       setSubstitutionPerMeterBreakdown([]);
+      const subPpm = Number(String(substitutionWorkbookPpmOverride ?? '').replace(/,/g, ''));
+      const body = {
+        quotationRef: quoteRef,
+        includeCustomerCommission: includeComm,
+        ...(Number.isFinite(subPpm) && subPpm > 0 ? { substitutePricePerMeterNgn: Math.round(subPpm) } : {}),
+      };
       const { ok, data } = await apiFetch('/api/refunds/preview', {
         method: 'POST',
-        body: JSON.stringify({
-          quotationRef: quoteRef,
-          includeCustomerCommission: includeComm,
-        }),
+        body: JSON.stringify(body),
       });
       if (seq !== refundsPreviewSeqRef.current) return;
       setPreviewLoading(false);
@@ -784,7 +790,7 @@ const RefundModal = ({
 
       fetchIntelligence(quoteRef, seq);
     },
-    [includeCommissionInPreview]
+    [includeCommissionInPreview, substitutionWorkbookPpmOverride]
   );
 
   const resetPreviewStateForQuoteChange = useCallback(() => {
@@ -795,6 +801,7 @@ const RefundModal = ({
     setLastPreviewSnapshot(null);
     setEligibleRefundCategoriesFromPreview(null);
     setIncludeCommissionInPreview(false);
+    setSubstitutionWorkbookPpmOverride('');
   }, []);
 
   const applyVerifiedQuotationRef = useCallback(
@@ -2092,6 +2099,38 @@ const RefundModal = ({
                               </li>
                             ))}
                           </ul>
+                          {mode === 'create' && String(form.quotationRef || '').trim() ? (
+                            <div className="pt-2 border-t border-amber-800/40 space-y-1.5">
+                              <label className="block text-[9px] font-bold text-amber-100/90 uppercase tracking-wide">
+                                Workbook ₦/m override (produced coil)
+                              </label>
+                              <p className="text-[8px] text-amber-100/70 leading-snug">
+                                Use when list price is missing for the <strong className="text-amber-50">allocated coil</strong>{' '}
+                                gauge + design. Leave blank to use only master data.
+                              </p>
+                              <div className="flex flex-wrap items-end gap-2">
+                                <input
+                                  type="text"
+                                  inputMode="numeric"
+                                  autoComplete="off"
+                                  placeholder="e.g. 5200"
+                                  value={substitutionWorkbookPpmOverride}
+                                  onChange={(e) => setSubstitutionWorkbookPpmOverride(e.target.value)}
+                                  className="w-[7.5rem] rounded-md border border-amber-800/60 bg-amber-950/40 px-2 py-1.5 text-[11px] font-mono text-amber-50 placeholder:text-amber-200/40"
+                                />
+                                <button
+                                  type="button"
+                                  disabled={previewLoading}
+                                  onClick={() =>
+                                    void generatePreview(String(form.quotationRef).trim(), includeCommissionInPreview)
+                                  }
+                                  className="rounded-md bg-amber-200/90 px-2.5 py-1.5 text-[9px] font-bold uppercase tracking-wide text-amber-950 hover:bg-amber-100 disabled:opacity-50"
+                                >
+                                  Apply to preview
+                                </button>
+                              </div>
+                            </div>
+                          ) : null}
                         </div>
                       ) : null}
                     </div>
