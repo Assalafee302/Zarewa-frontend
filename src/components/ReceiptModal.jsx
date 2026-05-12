@@ -143,6 +143,7 @@ const ReceiptModal = ({
   const [qSearch, setQSearch] = useState('');
   const [showQSearch, setShowQSearch] = useState(false);
   const [postingHint, setPostingHint] = useState(null);
+  const [fullAmountAsReceipt, setFullAmountAsReceipt] = useState(false);
 
   const periodLocks = ws?.snapshot?.periodLocks ?? [];
   const voucherInLockedPeriod = useMemo(
@@ -352,6 +353,22 @@ const ReceiptModal = ({
     [paymentLines]
   );
 
+  const showFullReceiptOnQuoteOption = useMemo(() => {
+    if (!selectedQuotation || dueNgn == null) return false;
+    const t = Math.round(Number(lineTotalNgn) || 0);
+    if (t <= 0) return false;
+    const due = Math.round(Number(dueNgn) || 0);
+    return t > due + 0.5;
+  }, [selectedQuotation, dueNgn, lineTotalNgn]);
+
+  useEffect(() => {
+    setFullAmountAsReceipt(false);
+  }, [quotationRef]);
+
+  useEffect(() => {
+    if (!showFullReceiptOnQuoteOption) setFullAmountAsReceipt(false);
+  }, [showFullReceiptOnQuoteOption]);
+
   const balanceAfterNgn = useMemo(() => {
     if (dueNgn == null) return null;
     return Math.max(0, dueNgn - lineTotalNgn);
@@ -491,7 +508,7 @@ const ReceiptModal = ({
       const payerBit = who ? `${who} · ` : '';
       return `• ${payerBit}${accLabel}: ${formatNgn(parseNum(l.amount))}`;
     });
-    const summaryConfirm = [
+    const summaryParts = [
       'Save this receipt? Please confirm details:',
       '',
       `Customer: ${customerName || '—'}`,
@@ -501,8 +518,14 @@ const ReceiptModal = ({
       '',
       'Payment breakdown:',
       ...paymentBreakdownLines,
-    ].join('\n');
-    if (!window.confirm(summaryConfirm)) return;
+    ];
+    if (fullAmountAsReceipt && showFullReceiptOnQuoteOption) {
+      summaryParts.push(
+        '',
+        'Post this total as one receipt line on the quotation (not split into overpay credit). Paid on the quote may exceed the original amount.'
+      );
+    }
+    if (!window.confirm(summaryParts.join('\n'))) return;
 
     const refParts = validLines.map((l) => {
       const acc = treasuryAccountForLine(l, treasuryByIdStr, treasuryList);
@@ -553,6 +576,7 @@ const ReceiptModal = ({
           paymentLines: paymentLinesPayload,
         };
         if (branchId) receiptBody.branchId = branchId;
+        if (fullAmountAsReceipt) receiptBody.fullAmountAsReceipt = true;
 
         const idempotencyKey =
           typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
@@ -594,7 +618,11 @@ const ReceiptModal = ({
             return;
           }
           setPostingHint(null);
-          showToast(`Receipt ${formatNgn(total)} posted against ${selectedQuotation.id}.`);
+          showToast(
+            fullAmountAsReceipt
+              ? `Receipt ${formatNgn(total)} posted as one line on ${selectedQuotation.id}.`
+              : `Receipt ${formatNgn(total)} posted against ${selectedQuotation.id}.`
+          );
           await onLedgerChange?.();
           abandonUnsavedAndRun(() => onClose());
           return;
@@ -605,7 +633,11 @@ const ReceiptModal = ({
           return;
         }
         setPostingHint(null);
-        showToast(`Receipt ${formatNgn(total)} posted against ${selectedQuotation.id}.`);
+        showToast(
+          fullAmountAsReceipt
+            ? `Receipt ${formatNgn(total)} posted as one line on ${selectedQuotation.id}.`
+            : `Receipt ${formatNgn(total)} posted against ${selectedQuotation.id}.`
+        );
       } else {
         const res = recordReceiptWithQuotation({
           customerID,
@@ -615,6 +647,7 @@ const ReceiptModal = ({
           paymentMethod,
           bankReference,
           dateISO: voucherDate,
+          fullAmountAsReceipt,
         });
         if (!res.ok) {
           showToast(res.error, { variant: 'error' });
@@ -624,6 +657,8 @@ const ReceiptModal = ({
           showToast(
             `Receipt ${formatNgn(res.receipt?.amountNgn ?? 0)} + overpayment credit ${formatNgn(res.overpay.amountNgn)}.`
           );
+        } else if (fullAmountAsReceipt && total > (dueNgn ?? 0)) {
+          showToast(`Receipt ${formatNgn(total)} recorded as one line on ${selectedQuotation.id}.`);
         } else if (dueNgn != null && total < dueNgn) {
           showToast(`Part payment ${formatNgn(total)} posted. Remaining on quote ≈ ${formatNgn(dueNgn - total)}.`);
         } else {
@@ -1006,6 +1041,23 @@ const ReceiptModal = ({
                     ))}
                   </ul>
                 </div>
+              ) : null}
+              {showFullReceiptOnQuoteOption && !readOnly ? (
+                <label className="flex items-start gap-2.5 rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-[10px] text-slate-800 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    className="mt-0.5 shrink-0"
+                    checked={fullAmountAsReceipt}
+                    onChange={(e) => setFullAmountAsReceipt(e.target.checked)}
+                  />
+                  <span className="min-w-0 leading-snug">
+                    <span className="font-bold text-slate-900">Record full amount on quotation</span>
+                    <span className="block text-slate-600 mt-1">
+                      Post one receipt for {formatNgn(lineTotalNgn)} on this quote (matches the bank line). Nothing is
+                      posted as overpay credit; paid on the quote may exceed the original total.
+                    </span>
+                  </span>
+                </label>
               ) : null}
               <div className="grid grid-cols-12 gap-2.5 px-1 text-[9px] font-semibold text-slate-500 uppercase tracking-wider">
                 <div className="col-span-12 sm:col-span-3">Payee name</div>

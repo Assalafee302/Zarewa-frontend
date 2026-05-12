@@ -68,4 +68,22 @@ describe('companionOverpayNgnByReceiptId', () => {
     const m = companionOverpayNgnByReceiptId(entries);
     expect(m.get('LE-R')).toBe(3_500_000 - 3_332_840);
   });
+
+  it('planReceiptWithQuotation fullAmountAsReceipt posts one RECEIPT for full cash', () => {
+    const qt = { id: 'Q9', totalNgn: 3_336_000, paidNgn: 0 };
+    const plan = planReceiptWithQuotation([], {
+      customerID: 'C',
+      customerName: 'Cust',
+      quotationRow: qt,
+      amountNgn: 5_000_000,
+      paymentMethod: 'Transfer',
+      bankReference: 'REFX',
+      dateISO: '2026-01-15',
+      fullAmountAsReceipt: true,
+    });
+    expect(plan.ok).toBe(true);
+    expect(plan.rows).toHaveLength(1);
+    expect(plan.rows[0].type).toBe('RECEIPT');
+    expect(plan.rows[0].amountNgn).toBe(5_000_000);
+  });
 });
