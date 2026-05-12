@@ -43,7 +43,7 @@ const REFUND_CATEGORY_HINTS = {
   'Customer commission':
     'Not added automatically — use “Add commission to preview”. Capped by minimum selling ₦/m and refundable headroom.',
   'Substitution Difference':
-    'When quoted gauge differs from the coil actually allocated, credit follows quoted ₦/m (from the quote) minus workbook ₦/m for that coil gauge/design (see breakdown under the line).',
+    'When quoted gauge differs from the coil actually allocated, credit follows quoted ₦/m (from the quote) minus the material pricing workbook minimum ₦/m (floor) for that coil gauge/design when present, else the published list row (see breakdown under the line).',
 };
 
 function roundMoneyLocal(n) {
@@ -1763,7 +1763,7 @@ const RefundModal = ({
                                         </p>
                                         <p className="font-mono text-[11px] text-slate-900 mt-0.5 tabular-nums">
                                           ₦{qPpm.toLocaleString('en-NG')}/m (quoted) − ₦
-                                          {coilPpm.toLocaleString('en-NG')}/m (workbook, coil gauge)
+                                          {coilPpm.toLocaleString('en-NG')}/m (workbook floor, coil gauge)
                                           {' = '}
                                           ₦{dPpm.toLocaleString('en-NG')}/m × {m.toFixed(2)} m ={' '}
                                           <span className="font-bold">₦{credit.toLocaleString('en-NG')}</span>
@@ -1772,9 +1772,9 @@ const RefundModal = ({
                                     );
                                   })}
                                   <p className="text-[9px] text-slate-500 pt-0.5 border-t border-sky-100/80">
-                                    Quoted ₦/m comes from the quotation roofing lines. Coil ₦/m comes from the material
-                                    price workbook for the allocated roll gauge (and matching colour/design where
-                                    possible).
+                                    Quoted ₦/m comes from the quotation roofing lines. Coil ₦/m uses the material pricing
+                                    workbook minimum (floor) for the allocated roll when available; otherwise the
+                                    published price list row for that gauge and design.
                                   </p>
                                 </div>
                               ) : null}
@@ -2378,7 +2378,7 @@ const RefundModal = ({
                                   </>
                                 ) : null}
                                 {' '}
-                                vs workbook (coil) ₦{Number(row.producedListPricePerMeterNgn || 0).toLocaleString('en-NG')}
+                                vs workbook floor (coil) ₦{Number(row.producedListPricePerMeterNgn || 0).toLocaleString('en-NG')}
                                 /m
                               </div>
                             </li>
