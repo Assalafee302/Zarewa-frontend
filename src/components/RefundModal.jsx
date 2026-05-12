@@ -43,7 +43,7 @@ const REFUND_CATEGORY_HINTS = {
   'Customer commission':
     'Not added automatically — use “Add commission to preview”. Capped by minimum selling ₦/m and refundable headroom.',
   'Substitution Difference':
-    'When supplied material differs from what was quoted, credit may follow list ₦/m for quoted gauge/design vs the FG product (see per-metre breakdown).',
+    'When quoted gauge differs from the coil actually allocated, credit follows quoted ₦/m (from the quote) minus workbook ₦/m for that coil gauge/design (see breakdown under the line).',
 };
 
 function roundMoneyLocal(n) {
@@ -400,6 +400,8 @@ const RefundModal = ({
   const previewLoadedForQuoteRef = useRef('');
   /** Monotonic counter so out-of-order `/api/refunds/preview` responses cannot overwrite newer results (e.g. after production accessory correction). */
   const refundsPreviewSeqRef = useRef(0);
+  /** Line key from last preview that carried substitution credit — breakdown stays visible if category is renamed. */
+  const substitutionBreakdownLineKeyRef = useRef('');
 
   useEffect(() => {
     if (!isOpen) setRefundGuideOpen(false);
@@ -731,6 +733,7 @@ const RefundModal = ({
       setPreviewError('');
       setWarnings([]);
       setSubstitutionPerMeterBreakdown([]);
+      substitutionBreakdownLineKeyRef.current = '';
       const subPpm = Number(String(substitutionWorkbookPpmOverride ?? '').replace(/,/g, ''));
       const body = {
         quotationRef: quoteRef,
@@ -750,6 +753,7 @@ const RefundModal = ({
         setLastPreviewSnapshot(null);
         setEligibleRefundCategoriesFromPreview(null);
         setPreviewError(data?.error || 'Could not generate refund preview.');
+        substitutionBreakdownLineKeyRef.current = '';
         return;
       }
 
@@ -799,6 +803,15 @@ const RefundModal = ({
         appliesToCategories: s.appliesToCategories,
       }));
 
+      let substitutionAnchorLineKey = '';
+      for (let i = 0; i < positiveSuggested.length; i++) {
+        if (String(positiveSuggested[i]?.category || '').trim() === 'Substitution Difference') {
+          substitutionAnchorLineKey = `p-${i}-${String(positiveSuggested[i].category || 'line')}`;
+          break;
+        }
+      }
+      substitutionBreakdownLineKeyRef.current = substitutionAnchorLineKey;
+
       setForm((f) => ({
         ...f,
         customerID: preview.customerID,
@@ -822,6 +835,7 @@ const RefundModal = ({
     setEligibleRefundCategoriesFromPreview(null);
     setIncludeCommissionInPreview(false);
     setSubstitutionWorkbookPpmOverride('');
+    substitutionBreakdownLineKeyRef.current = '';
   }, []);
 
   const applyVerifiedQuotationRef = useCallback(
@@ -1714,8 +1728,10 @@ const RefundModal = ({
                                 className="w-full min-h-[2.75rem] resize-y border-none bg-transparent p-0 text-xs font-bold text-slate-800 outline-none focus:ring-0 leading-snug whitespace-pre-wrap"
                                 placeholder="Description (two lines OK for long substitution notes)…"
                               />
-                              {line.category === 'Substitution Difference' &&
-                              substitutionPerMeterBreakdown.length > 0 ? (
+                              {substitutionPerMeterBreakdown.length > 0 &&
+                              (String(line.category || '').trim() === 'Substitution Difference' ||
+                                (substitutionBreakdownLineKeyRef.current &&
+                                  line.lineKey === substitutionBreakdownLineKeyRef.current)) ? (
                                 <div className="rounded-lg border border-sky-100 bg-sky-50/90 px-2.5 py-2 text-[10px] leading-snug text-slate-700 space-y-1.5">
                                   <p className="font-bold uppercase tracking-wide text-sky-800/90">
                                     How this amount is calculated
@@ -1746,7 +1762,7 @@ const RefundModal = ({
                                           {gaugeNote}
                                         </p>
                                         <p className="font-mono text-[11px] text-slate-900 mt-0.5 tabular-nums">
-                                          ₦{qPpm.toLocaleString('en-NG')}/m (quoted blend) − ₦
+                                          ₦{qPpm.toLocaleString('en-NG')}/m (quoted) − ₦
                                           {coilPpm.toLocaleString('en-NG')}/m (workbook, coil gauge)
                                           {' = '}
                                           ₦{dPpm.toLocaleString('en-NG')}/m × {m.toFixed(2)} m ={' '}
