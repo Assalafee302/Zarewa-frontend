@@ -7,6 +7,7 @@ import {
   Scissors,
   Receipt as ReceiptIcon,
   RotateCcw,
+  RefreshCw,
   Banknote,
   Wallet,
   Pencil,
@@ -183,12 +184,14 @@ const Sales = () => {
   const [advanceViewEntry, setAdvanceViewEntry] = useState(null);
   const [advancePrintEntry, setAdvancePrintEntry] = useState(null);
   const [ledgerNonce, setLedgerNonce] = useState(0);
+  const [adminSalesReconcileBusy, setAdminSalesReconcileBusy] = useState(false);
   const [showCount, setShowCount] = useState(20);
   const [showArchivedQuotations, setShowArchivedQuotations] = useState(false);
   const [salesListSort, setSalesListSort] = useState({ field: 'id', dir: 'desc' });
   const dashboardAutoRoutedRef = useRef(false);
   const salesRole = loadSalesWorkspaceRole(ws?.session?.user?.roleKey);
   const roleKey = String(ws?.session?.user?.roleKey || '').toLowerCase();
+  const isAdminRole = roleKey === 'admin';
   const dashboardFlagEnabled = useMemo(() => {
     const pref = ws?.snapshot?.dashboardPrefs?.salesDashboardV1;
     if (pref === true || pref === 'true') return true;
@@ -260,6 +263,39 @@ const Sales = () => {
     bumpLedger();
     if (ws?.canMutate) await ws.refresh();
   }, [bumpLedger, ws.refresh, ws.canMutate]);
+
+  const runAdminSalesDerivedReconcile = useCallback(async () => {
+    if (!isAdminRole) return;
+    if (!ws?.canMutate) {
+      showToast('System offline (read-only). Reconnect and refresh, then try again.', { variant: 'error' });
+      return;
+    }
+    const proceed = window.confirm(
+      'Administrator maintenance: rebuild every Sales receipt mirror from ledger RECEIPT rows and recalculate paid amounts on all quotations in the current branch filter.\n\nThis does not change the ledger. It may take a while on large databases.\n\nContinue?'
+    );
+    if (!proceed) return;
+    setAdminSalesReconcileBusy(true);
+    try {
+      const { ok, data } = await apiFetch('/api/admin/reconcile-sales-derived', {
+        method: 'POST',
+        body: JSON.stringify({ confirm: true }),
+      });
+      if (!ok || !data?.ok) {
+        showToast(data?.error || 'Reconcile job failed.', { variant: 'error' });
+        return;
+      }
+      const failN = data.failures?.length ?? 0;
+      showToast(
+        `Rebuilt sales mirrors for ${data.processed ?? 0} quotations (${data.quotationsPaidChanged ?? 0} paid totals changed).${
+          failN > 0 ? ` ${failN} quotation(s) reported errors — check server audit log.` : ''
+        }`,
+        { variant: failN > 0 ? 'warning' : 'success' }
+      );
+      await onLedgerSynced();
+    } finally {
+      setAdminSalesReconcileBusy(false);
+    }
+  }, [isAdminRole, ws?.canMutate, showToast, onLedgerSynced]);
 
   const consumeQuotationCustomerPick = useCallback(() => setQuotationCustomerPick(null), []);
   const requestNewCustomerFromQuotation = useCallback(() => {
@@ -1097,6 +1133,18 @@ const Sales = () => {
               >
                 Ask AI
               </AiAskButton>
+              {isAdminRole ? (
+                <button
+                  type="button"
+                  disabled={adminSalesReconcileBusy}
+                  onClick={() => void runAdminSalesDerivedReconcile()}
+                  className="inline-flex items-center gap-2 rounded-lg border border-violet-200 bg-violet-50 px-3 py-2 text-[10px] font-semibold uppercase tracking-wide text-violet-950 shadow-sm hover:bg-violet-100/80 disabled:opacity-50"
+                  title="Admin only: rebuild sales_receipt rows from the customer ledger and recalculate quotation paid for this branch scope."
+                >
+                  <RefreshCw size={14} strokeWidth={2} className={adminSalesReconcileBusy ? 'animate-spin' : ''} />
+                  {adminSalesReconcileBusy ? 'Recalculating…' : 'Recalculate sales data'}
+                </button>
+              ) : null}
               {activeTab === 'quotations' && (
                 <button type="button" onClick={openNewModal} className={primaryActionBtnClass}>
                   <Plus size={16} strokeWidth={2} /> New quotation
