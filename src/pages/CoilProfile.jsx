@@ -81,6 +81,7 @@ export default function CoilProfile() {
     colour: '',
     gaugeLabel: '',
     materialTypeName: '',
+    currentKg: '',
     receivedKg: '',
   });
 
@@ -97,10 +98,12 @@ export default function CoilProfile() {
   useEffect(() => {
     if (actionModal !== 'edit' || !coil) return;
     const recv = asNum(coil.weightKg || coil.qtyReceived);
+    const cur = liveKg(coil);
     setEditForm({
       colour: String(coil.colour ?? '').trim(),
       gaugeLabel: String(coil.gaugeLabel ?? coil.gauge ?? '').trim(),
       materialTypeName: String(coil.materialTypeName ?? coil.materialType ?? '').trim(),
+      currentKg: cur > 0 ? String(cur) : '',
       receivedKg: recv > 0 ? String(recv) : '',
     });
   }, [actionModal, coil]);
@@ -290,12 +293,18 @@ export default function CoilProfile() {
     if (recvStr && (!Number.isFinite(recvNum) || recvNum < 0)) {
       return showToast('Received kg must be a valid non-negative number.', { variant: 'error' });
     }
+    const curStr = editForm.currentKg.trim();
+    const curNum = curStr ? Number(curStr) : NaN;
+    if (curStr && (!Number.isFinite(curNum) || curNum < 0)) {
+      return showToast('Current on-hand kg must be a valid non-negative number.', { variant: 'error' });
+    }
     const body = {
       colour: editForm.colour.trim(),
       gaugeLabel: editForm.gaugeLabel.trim(),
       materialTypeName: editForm.materialTypeName.trim(),
     };
     if (recvStr) body.receivedKg = recvNum;
+    if (curStr) body.currentWeightKg = curNum;
     setSavingAction(true);
     try {
       const { ok, data } = await apiFetch(`/api/coil-lots/${encodeURIComponent(coil.coilNo)}/master-data`, {
@@ -560,6 +569,17 @@ export default function CoilProfile() {
           <label className="block">
             <span className="text-[10px] font-bold text-slate-500 uppercase">Material type (description)</span>
             <input className="z-input w-full mt-0.5" value={editForm.materialTypeName} onChange={(e) => setEditForm((f) => ({ ...f, materialTypeName: e.target.value }))} />
+          </label>
+          <label className="block">
+            <span className="text-[10px] font-bold text-slate-500 uppercase">Current on-hand kg</span>
+            <input
+              className="z-input w-full mt-0.5"
+              type="number"
+              min="0"
+              step="0.01"
+              value={editForm.currentKg}
+              onChange={(e) => setEditForm((f) => ({ ...f, currentKg: e.target.value }))}
+            />
           </label>
           <label className="block">
             <span className="text-[10px] font-bold text-slate-500 uppercase">Received kg (GRN)</span>
