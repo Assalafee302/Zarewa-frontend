@@ -98,10 +98,26 @@ function quotationYmdForPickRow(q, quotationsArr) {
   return '';
 }
 
+/** Align refund table rows to intelligence accessory lines when labels differ trivially (nail vs nails). */
+function accessoryRefundNameKeys(raw) {
+  const base = String(raw ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, ' ');
+  if (!base) return [];
+  const v = new Set([base]);
+  if (base.length > 2 && base.endsWith('s') && !base.endsWith('ss')) {
+    v.add(base.slice(0, -1));
+  } else if (base.length > 0 && !base.endsWith('s')) {
+    v.add(base + 's');
+  }
+  return [...v];
+}
+
 function findAccessoryFulfillmentRow(quotLine, accSummaryLines) {
   if (quotLine.category !== 'accessories') return null;
   const name = String(quotLine.name || '').trim();
-  const nameLower = name.toLowerCase();
+  const nameKeys = new Set(accessoryRefundNameKeys(name));
   const lineId = String(quotLine.id || '').trim();
   for (const a of accSummaryLines) {
     const key = String(a.quoteLineId || '').trim();
@@ -109,7 +125,11 @@ function findAccessoryFulfillmentRow(quotLine, accSummaryLines) {
     if (name && key === `name:${name}`) return a;
   }
   for (const a of accSummaryLines) {
-    if (String(a.name || '').trim().toLowerCase() === nameLower) return a;
+    const an = String(a.name || '')
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, ' ');
+    if (an && nameKeys.has(an)) return a;
   }
   return null;
 }
@@ -1686,14 +1706,62 @@ const RefundModal = ({
                               </label>
                             ) : null}
                             <div className="min-w-0 flex-1 space-y-1.5">
-                              <input
-                                type="text"
+                              <textarea
+                                rows={2}
                                 disabled={readOnly}
                                 value={line.label}
                                 onChange={(e) => setLine(idx, { label: e.target.value })}
-                                className="w-full border-none bg-transparent p-0 text-xs font-bold text-slate-800 outline-none focus:ring-0"
-                                placeholder="Description..."
+                                className="w-full min-h-[2.75rem] resize-y border-none bg-transparent p-0 text-xs font-bold text-slate-800 outline-none focus:ring-0 leading-snug whitespace-pre-wrap"
+                                placeholder="Description (two lines OK for long substitution notes)…"
                               />
+                              {line.category === 'Substitution Difference' &&
+                              substitutionPerMeterBreakdown.length > 0 ? (
+                                <div className="rounded-lg border border-sky-100 bg-sky-50/90 px-2.5 py-2 text-[10px] leading-snug text-slate-700 space-y-1.5">
+                                  <p className="font-bold uppercase tracking-wide text-sky-800/90">
+                                    How this amount is calculated
+                                  </p>
+                                  {substitutionPerMeterBreakdown.map((row) => {
+                                    const qPpm = Number(row.quotedPricePerMeterNgn || 0);
+                                    const coilPpm = Number(row.producedListPricePerMeterNgn || 0);
+                                    const dPpm = Number(row.deltaPerMeterNgn || 0);
+                                    const m = Number(row.meters || 0);
+                                    const credit = Number(row.creditNgn || 0);
+                                    const qg = row.quotedGaugeForComparison;
+                                    const cg = row.coilGaugeFromAllocations;
+                                    const gaugeNote =
+                                      qg && cg ? (
+                                        <span className="text-slate-600">
+                                          {' '}
+                                          (quoted <span className="font-semibold">{qg}</span> vs coil{' '}
+                                          <span className="font-semibold">{cg}</span>)
+                                        </span>
+                                      ) : null;
+                                    return (
+                                      <div
+                                        key={row.jobId || `${row.productName}-${m}`}
+                                        className="border-t border-sky-100/80 pt-1.5 first:border-t-0 first:pt-0"
+                                      >
+                                        <p className="text-slate-800">
+                                          <span className="font-semibold">{row.productName || row.jobId || 'Job'}</span>
+                                          {gaugeNote}
+                                        </p>
+                                        <p className="font-mono text-[11px] text-slate-900 mt-0.5 tabular-nums">
+                                          ₦{qPpm.toLocaleString('en-NG')}/m (quoted blend) − ₦
+                                          {coilPpm.toLocaleString('en-NG')}/m (workbook, coil gauge)
+                                          {' = '}
+                                          ₦{dPpm.toLocaleString('en-NG')}/m × {m.toFixed(2)} m ={' '}
+                                          <span className="font-bold">₦{credit.toLocaleString('en-NG')}</span>
+                                        </p>
+                                      </div>
+                                    );
+                                  })}
+                                  <p className="text-[9px] text-slate-500 pt-0.5 border-t border-sky-100/80">
+                                    Quoted ₦/m comes from the quotation roofing lines. Coil ₦/m comes from the material
+                                    price workbook for the allocated roll gauge (and matching colour/design where
+                                    possible).
+                                  </p>
+                                </div>
+                              ) : null}
                               <div className="flex flex-wrap items-center gap-2">
                                 {isManual && !readOnly ? (
                                   <select
@@ -2294,7 +2362,8 @@ const RefundModal = ({
                                   </>
                                 ) : null}
                                 {' '}
-                                vs list at FG ₦{Number(row.producedListPricePerMeterNgn || 0).toLocaleString('en-NG')}/m
+                                vs workbook (coil) ₦{Number(row.producedListPricePerMeterNgn || 0).toLocaleString('en-NG')}
+                                /m
                               </div>
                             </li>
                           ))}
