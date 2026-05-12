@@ -2109,6 +2109,8 @@ const Sales = () => {
         quotations={quotations}
         refunds={refunds}
         productionJobs={ws?.snapshot?.productionJobs ?? []}
+        productionJobAccessoryUsage={ws?.snapshot?.productionJobAccessoryUsage ?? []}
+        productionJobCoils={ws?.snapshot?.productionJobCoils ?? []}
         receipts={mergedReceiptRows}
         cuttingLists={cuttingLists}
         availableStock={ws?.snapshot?.salesAvailableStock ?? []}

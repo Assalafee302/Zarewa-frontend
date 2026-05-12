@@ -140,6 +140,32 @@ function productionJobsFingerprintForQuotation(productionJobs, quotationRef) {
     .join('~');
 }
 
+/** Workspace accessory issue rows for this quote — when these change, refund preview + intelligence should refresh. */
+function accessoryUsageFingerprintForQuotation(productionJobAccessoryUsage, quotationRef) {
+  const ref = String(quotationRef || '').trim();
+  if (!ref) return '';
+  return (productionJobAccessoryUsage || [])
+    .filter((u) => String(u.quotationRef || u.quotation_ref || '').trim() === ref)
+    .map((u) =>
+      [
+        String(u.jobID || u.job_id || '').trim(),
+        String(u.quoteLineId || u.quote_line_id || '').trim(),
+        Math.round(Number(u.suppliedQty ?? u.supplied_qty) || 0),
+        String(u.name || '')
+          .trim()
+          .toLowerCase(),
+      ].join('|')
+    )
+    .sort()
+    .join('~');
+}
+
+function refundWorkspaceSnapshotFingerprint(productionJobs, productionJobAccessoryUsage, quotationRef) {
+  const j = productionJobsFingerprintForQuotation(productionJobs, quotationRef);
+  const a = accessoryUsageFingerprintForQuotation(productionJobAccessoryUsage, quotationRef);
+  return `${j}##${a}`;
+}
+
 const emptyRequest = {
   customerID: '',
   customerName: '',
@@ -281,6 +307,8 @@ function normalizeQuoteForRefundSelect(q) {
  *   availableStock?: object[];
  *   refunds?: object[];
  *   productionJobs?: object[];
+ *   productionJobAccessoryUsage?: object[];
+ *   productionJobCoils?: object[];
  * }} props
  */
 const RefundModal = ({
@@ -292,6 +320,8 @@ const RefundModal = ({
   quotations = [],
   refunds = [],
   productionJobs = [],
+  productionJobAccessoryUsage = [],
+  productionJobCoils = [],
 }) => {
   const { show: showToast } = useToast();
   const [form, setForm] = useState(() => initFormFromRecord(record));
@@ -567,6 +597,7 @@ const RefundModal = ({
     const ref = String(form.quotationRef || '').trim();
     if (!ref) return null;
     const jobs = (productionJobs || []).filter((j) => String(j.quotationRef || '').trim() === ref);
+    const coils = productionJobCoils || [];
     if (jobs.length === 0) {
       return {
         jobs: [],
@@ -574,16 +605,33 @@ const RefundModal = ({
       };
     }
     return {
-      jobs: jobs.map((j) => ({
-        jobID: j.jobID,
-        status: j.status,
-        conversionAlertState: String(j.conversionAlertState || 'Pending').trim() || 'Pending',
-        managerReviewRequired: Boolean(j.managerReviewRequired),
-        productName: String(j.productName || '').trim() || '—',
-      })),
+      jobs: jobs.map((j) => {
+        const jid = String(j.jobID || '').trim();
+        const jobCoils = coils
+          .filter((c) => String(c.jobID || c.job_id || '').trim() === jid)
+          .slice()
+          .sort((a, b) => (Number(a.sequenceNo ?? a.sequence_no) || 0) - (Number(b.sequenceNo ?? b.sequence_no) || 0));
+        return {
+          jobID: j.jobID,
+          status: j.status,
+          conversionAlertState: String(j.conversionAlertState || 'Pending').trim() || 'Pending',
+          managerReviewRequired: Boolean(j.managerReviewRequired),
+          productName: String(j.productName || '').trim() || '—',
+          coilRows: jobCoils.map((c) => ({
+            id: c.id,
+            coilNo: String(c.coilNo || c.coil_no || '').trim(),
+            gaugeLabel: String(c.gaugeLabel || c.gauge_label || '').trim(),
+            openingWeightKg: Number(c.openingWeightKg ?? c.opening_weight_kg),
+            closingWeightKg: Number(c.closingWeightKg ?? c.closing_weight_kg),
+            consumedWeightKg: Number(c.consumedWeightKg ?? c.consumed_weight_kg),
+            metersProduced: Number(c.metersProduced ?? c.meters_produced),
+            actualConversionKgPerM: c.actualConversionKgPerM ?? c.actual_conversion_kg_per_m,
+          })),
+        };
+      }),
       emptyMessage: null,
     };
-  }, [form.quotationRef, productionJobs]);
+  }, [form.quotationRef, productionJobs, productionJobCoils]);
 
   /** Products, accessories, and services from the quotation with accessory supplied / shortfall from intelligence. */
   const refundIntelQuotationOrderRows = useMemo(() => {
@@ -691,9 +739,10 @@ const RefundModal = ({
       const blocked = Array.isArray(preview.blockedRefundCategories) ? preview.blockedRefundCategories : [];
       setBlockedRefundCategories(blocked);
 
-      const breakdownRows = (preview.suggestedLines || []).map((s, idx) => ({
+      const positiveSuggested = (preview.suggestedLines || []).filter((s) => roundMoneyLocal(s.amountNgn) > 0);
+      const breakdownRows = positiveSuggested.map((s, idx) => ({
         lineKey: `p-${idx}-${String(s.category || 'line')}`,
-        include: roundMoneyLocal(s.amountNgn) > 0,
+        include: true,
         label: s.label ?? '',
         amountNgn: String(s.amountNgn ?? ''),
         category: s.category ?? '',
@@ -790,7 +839,7 @@ const RefundModal = ({
       previewLoadedForQuoteRef.current = '';
       return;
     }
-    const fp = productionJobsFingerprintForQuotation(productionJobs, ref);
+    const fp = refundWorkspaceSnapshotFingerprint(productionJobs, productionJobAccessoryUsage, ref);
     const prev = productionFingerprintRef.current;
     if (fp === prev) return;
     productionFingerprintRef.current = fp;
@@ -801,7 +850,7 @@ const RefundModal = ({
       return;
     }
     void generatePreview(ref, includeCommissionInPreviewRef.current);
-  }, [isOpen, mode, form.quotationRef, productionJobs, generatePreview]);
+  }, [isOpen, mode, form.quotationRef, productionJobs, productionJobAccessoryUsage, generatePreview]);
 
   const handleQuoteChange = (ref) => {
     setQuotationServerVerifiedRef('');
@@ -1906,6 +1955,45 @@ const RefundModal = ({
                                       <span className="text-rose-300 font-semibold">Manager review</span>
                                     ) : null}
                                   </div>
+                                  {Array.isArray(j.coilRows) && j.coilRows.length > 0 ? (
+                                    <ul className="mt-1.5 space-y-1 border-t border-slate-700/40 pt-1.5 text-[9px] text-slate-400">
+                                      {j.coilRows.map((c) => {
+                                        const open = Number(c.openingWeightKg);
+                                        const close = Number(c.closingWeightKg);
+                                        const used = Number(c.consumedWeightKg);
+                                        const m = Number(c.metersProduced);
+                                        const conv = c.actualConversionKgPerM;
+                                        const kgPair =
+                                          Number.isFinite(open) && Number.isFinite(close)
+                                            ? `${open.toFixed(1)}→${close.toFixed(1)} kg`
+                                            : null;
+                                        return (
+                                          <li key={c.id || `${j.jobID}-${c.coilNo}`} className="leading-snug">
+                                            <span className="font-mono text-slate-300">{c.coilNo || '—'}</span>
+                                            {c.gaugeLabel ? (
+                                              <span className="text-slate-500"> · {c.gaugeLabel}</span>
+                                            ) : null}
+                                            {kgPair ? <span className="text-slate-500"> · {kgPair}</span> : null}
+                                            {Number.isFinite(used) && used > 0 ? (
+                                              <span>
+                                                {' '}
+                                                · used <span className="text-slate-200">{used.toFixed(1)} kg</span>
+                                              </span>
+                                            ) : null}
+                                            {Number.isFinite(m) && m > 0 ? (
+                                              <span className="text-slate-500"> · {m.toFixed(2)} m</span>
+                                            ) : null}
+                                            {conv != null && Number(conv) > 0 ? (
+                                              <span className="text-slate-500">
+                                                {' '}
+                                                · conv {Number(conv).toFixed(3)} kg/m
+                                              </span>
+                                            ) : null}
+                                          </li>
+                                        );
+                                      })}
+                                    </ul>
+                                  ) : null}
                                 </li>
                               ))}
                             </ul>
@@ -2075,8 +2163,9 @@ const RefundModal = ({
                           </table>
                           <p className="text-[8px] text-slate-600 px-2.5 py-2 border-t border-slate-800/80 leading-relaxed">
                             Supplied / Short come from completed production jobs for{' '}
-                            <strong className="text-slate-500">accessories</strong> only. Products and services show in the
-                            quote for context; sheet metres are summarized under Production &amp; delivery.
+                            <strong className="text-slate-500">accessories</strong> only (matched by line id or item
+                            name). Products and services show in the quote for context; sheet metres are summarized under
+                            Production &amp; delivery.
                           </p>
                         </div>
                       )}
