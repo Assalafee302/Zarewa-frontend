@@ -87,7 +87,6 @@ export function WorkspaceProvider({ children }) {
         method: 'GET',
         credentials: 'include',
         headers,
-        cache: 'no-store',
       });
       if (r.status === 304) return dashboardSummary;
       const data = await r.json().catch(() => null);
@@ -328,11 +327,6 @@ export function WorkspaceProvider({ children }) {
     [snapshot?.unifiedWorkItems]
   );
 
-  /** Drop last tab’s bootstrap snapshot so a reload never treats stale sessionStorage as live data. */
-  useEffect(() => {
-    clearBootstrapCache();
-  }, []);
-
   useEffect(() => {
     refresh();
   }, [refresh]);
@@ -346,7 +340,6 @@ export function WorkspaceProvider({ children }) {
       void refresh();
       void refreshDashboardSummary();
     };
-    pull();
     const id = window.setInterval(pull, ms);
     const onVisible = () => {
       if (document.visibilityState === 'visible') {
