@@ -84,6 +84,16 @@ function parseNum(value) {
   return Number.isFinite(n) ? n : 0;
 }
 
+function quotationHasPositiveLines(q, cat) {
+  const arr = q?.quotationLines?.[cat];
+  if (!Array.isArray(arr)) return false;
+  return arr.some((row) => String(row?.name ?? '').trim() && parseNum(row?.qty) > 0);
+}
+
+function quotationIsAccessoriesOnly(q) {
+  return quotationHasPositiveLines(q, 'accessories') && !quotationHasPositiveLines(q, 'products');
+}
+
 function displayCuttingListStatus(s) {
   if (!s) return '—';
   if (s === 'Completed') return 'Finished';
@@ -447,6 +457,10 @@ const CuttingListModal = ({
     () => quotations.find((q) => q.id === quotationRef) ?? null,
     [quotations, quotationRef]
   );
+  const selectedQuotationAccessoriesOnly = useMemo(
+    () => quotationIsAccessoriesOnly(selectedQuotation),
+    [selectedQuotation]
+  );
 
   const materialSpec = useMemo(() => materialSpecFromQuotation(selectedQuotation), [selectedQuotation]);
 
@@ -707,7 +721,7 @@ const CuttingListModal = ({
       lengthM: line.lengthM,
       lineType: line.type,
     }));
-    if (normalizedLines.length === 0) {
+    if (normalizedLines.length === 0 && !selectedQuotationAccessoriesOnly) {
       showToast('Add at least one valid line (length and quantity) in any section.', { variant: 'error' });
       return;
     }
@@ -729,11 +743,12 @@ const CuttingListModal = ({
       customerID: selectedQuotation.customerID,
       customerName: selectedQuotation.customer,
       dateISO,
-      sheetsToCut: computedSheets,
+      sheetsToCut: selectedQuotationAccessoriesOnly ? 0 : computedSheets,
       machineName,
       handledBy: activeDisplayName || handledByLabel,
       lines: normalizedLines,
-      totalMeters,
+      totalMeters: selectedQuotationAccessoriesOnly ? 0 : totalMeters,
+      ...(selectedQuotationAccessoriesOnly ? { productName: 'Accessories only' } : {}),
       ...(isCreate ? { holdForProductionApproval } : {}),
       ...(!isCreate && cuttingListEditApprovalId.trim()
         ? { editApprovalId: cuttingListEditApprovalId.trim() }
@@ -1109,17 +1124,28 @@ const CuttingListModal = ({
             </div>
 
             <div className="space-y-4">
-              {CATEGORIES.map(({ type, title }) => (
-                <CategoryBlock
-                  key={type}
-                  title={title}
-                  lines={linesByCat[type]}
-                  readOnly={readOnly}
-                  onUpdateLine={(id, patch) => updateLine(type, id, patch)}
-                  onAddAfter={(id) => addLineAfter(type, id)}
-                  onRemoveLine={(id) => removeLine(type, id)}
-                />
-              ))}
+              {selectedQuotationAccessoriesOnly ? (
+                <div className="rounded-xl border border-emerald-200 bg-emerald-50/80 p-4 text-xs text-emerald-950">
+                  <p className="font-bold uppercase tracking-wider text-[10px]">Accessories-only release</p>
+                  <p className="mt-1 leading-snug">
+                    This quotation has accessory quantities and no sheet product lines, so the list will save with
+                    0 metres. Send it to production, start it as “Produced from offcut / accessories only”, then
+                    complete to issue accessory stock.
+                  </p>
+                </div>
+              ) : (
+                CATEGORIES.map(({ type, title }) => (
+                  <CategoryBlock
+                    key={type}
+                    title={title}
+                    lines={linesByCat[type]}
+                    readOnly={readOnly}
+                    onUpdateLine={(id, patch) => updateLine(type, id, patch)}
+                    onAddAfter={(id) => addLineAfter(type, id)}
+                    onRemoveLine={(id) => removeLine(type, id)}
+                  />
+                ))
+              )}
             </div>
           </div>
 

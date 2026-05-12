@@ -73,6 +73,21 @@ function clearProdAccessoryDraftStorage(jobId) {
   }
 }
 
+function parseLineQty(value) {
+  const n = Number(String(value ?? '').replace(/,/g, ''));
+  return Number.isFinite(n) ? n : 0;
+}
+
+function quotationHasPositiveLines(q, cat) {
+  const arr = q?.quotationLines?.[cat];
+  if (!Array.isArray(arr)) return false;
+  return arr.some((row) => String(row?.name ?? '').trim() && parseLineQty(row?.qty) > 0);
+}
+
+function quotationIsAccessoriesOnly(q) {
+  return quotationHasPositiveLines(q, 'accessories') && !quotationHasPositiveLines(q, 'products');
+}
+
 function createDraftLine(row = {}) {
   const hasPersistedId = row.id != null && row.id !== '';
   return {
@@ -432,7 +447,8 @@ export function LiveProductionMonitor({
       (linkedQuotation.stoneMeterQuote === true ||
         String(linkedQuotation.materialTypeId || '').trim() === 'MAT-005')
   );
-  const completionUsesOffcutMode = !isStoneMeterQuote && completionSourceMode === 'offcut';
+  const isAccessoriesOnlyQuote = quotationIsAccessoriesOnly(linkedQuotation);
+  const completionUsesOffcutMode = !isStoneMeterQuote && (completionSourceMode === 'offcut' || isAccessoriesOnlyQuote);
   const jobSt = normalizeJobStatus(selectedJob?.status);
   /** Same gate as post-completion FG metre adjustments — not plain production.manage. */
   const canEditCompletedCoilCorrections =
@@ -2980,7 +2996,7 @@ export function LiveProductionMonitor({
             </div>
 
             <div className={`${inModal ? 'space-y-1.5 p-2' : 'space-y-2 p-2 sm:p-2.5'}`}>
-              {!isStoneMeterQuote && (canCaptureRun || canEditPlannedAllocations) ? (
+              {!isStoneMeterQuote && !isAccessoriesOnlyQuote && (canCaptureRun || canEditPlannedAllocations) ? (
                 <div className="flex flex-wrap items-center gap-1 rounded-lg border border-slate-200 bg-slate-50/70 p-1">
                   <button
                     type="button"
