@@ -1168,6 +1168,7 @@ const QuotationModal = ({
             showToast(data?.error || 'Could not update quotation.', { variant: 'error' });
             return;
           }
+          if (data.quotation) ws.mergeQuotationIntoSnapshot(data.quotation);
           setQuotationEditApprovalId('');
           showToast(`Quotation ${editData.id} saved to database.`);
         } else {
@@ -1217,6 +1218,7 @@ const QuotationModal = ({
         showToast(data?.error || 'Could not update material details.', { variant: 'error' });
         return;
       }
+      if (data.quotation) ws.mergeQuotationIntoSnapshot(data.quotation);
       setQuotationEditApprovalId('');
       showToast(`Material details updated on ${editData.id} (totals unchanged).`);
       await onLedgerChange?.();
@@ -1247,6 +1249,7 @@ const QuotationModal = ({
         showToast(data?.error || 'Could not record MD approval.', { variant: 'error' });
         return;
       }
+      if (data.quotation) ws.mergeQuotationIntoSnapshot(data.quotation);
       showToast('MD price exception recorded for this quotation.');
       await onLedgerChange?.();
       abandonUnsavedAndRun(() => onClose());
@@ -1267,6 +1270,7 @@ const QuotationModal = ({
         showToast(data?.error || 'Could not revive quotation.', { variant: 'error' });
         return;
       }
+      if (data.quotation) ws.mergeQuotationIntoSnapshot(data.quotation);
       showToast(`Quotation ${editData.id} revived — back in the active pipeline as Pending.`);
       await onLedgerChange?.();
       if (typeof ws?.refresh === 'function') await ws.refresh();

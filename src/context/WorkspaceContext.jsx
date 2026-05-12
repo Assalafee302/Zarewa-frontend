@@ -80,6 +80,26 @@ export function WorkspaceProvider({ children }) {
     return data;
   }, []);
 
+  /**
+   * After PATCH /api/quotations/:id, merge the returned row into the live snapshot so paidNgn /
+   * paymentStatus (recalculated on the server from receipts) update immediately without waiting on bootstrap.
+   */
+  const mergeQuotationIntoSnapshot = useCallback((quotation) => {
+    if (!quotation?.id) return;
+    setSnapshot((prev) => {
+      if (!prev || !Array.isArray(prev.quotations) || prev.ok !== true) return prev;
+      const id = String(quotation.id);
+      const idx = prev.quotations.findIndex((q) => String(q.id) === id);
+      if (idx < 0) return prev;
+      const nextQuotations = [...prev.quotations];
+      nextQuotations[idx] = { ...nextQuotations[idx], ...quotation };
+      const next = { ...prev, quotations: nextQuotations };
+      writeBootstrapCache(next);
+      return next;
+    });
+    setRefreshEpoch((n) => n + 1);
+  }, []);
+
   const refreshDashboardSummary = useCallback(async () => {
     try {
       const headers = dashboardSummaryEtag ? { 'If-None-Match': dashboardSummaryEtag } : {};
@@ -438,6 +458,7 @@ export function WorkspaceProvider({ children }) {
       canAccessModule,
       editApprovalsPendingCount,
       refreshEditApprovalsPending,
+      mergeQuotationIntoSnapshot,
       login,
       loginWithFirebase,
       forgotPassword,
@@ -465,6 +486,7 @@ export function WorkspaceProvider({ children }) {
       canAccessModule,
       editApprovalsPendingCount,
       refreshEditApprovalsPending,
+      mergeQuotationIntoSnapshot,
       login,
       loginWithFirebase,
       forgotPassword,
