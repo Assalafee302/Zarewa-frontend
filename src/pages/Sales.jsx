@@ -44,7 +44,7 @@ import { useToast } from '../context/ToastContext';
 import { useCustomers } from '../context/CustomersContext';
 import { useInventory } from '../context/InventoryContext';
 import { useWorkspace } from '../context/WorkspaceContext';
-import { spotPricesRowsFromMasterData } from '../lib/spotPricesFromMasterData';
+import { spotPricesForSalesSidebar } from '../lib/spotPricesFromMasterData';
 import { apiFetch } from '../lib/apiBase';
 import { computeCuttingListMaterialReadiness } from '../lib/salesCuttingListMaterialReadiness';
 import {
@@ -241,8 +241,9 @@ const Sales = () => {
   );
 
   const spotPrices = useMemo(
-    () => spotPricesRowsFromMasterData(ws?.snapshot?.masterData),
-    [ws?.snapshot?.masterData]
+    () =>
+      spotPricesForSalesSidebar(ws?.snapshot?.masterData, ws?.snapshot?.priceListItems, ws?.session),
+    [ws?.snapshot?.masterData, ws?.snapshot?.priceListItems, ws?.session]
   );
 
   const refunds = useMemo(
@@ -1158,7 +1159,8 @@ const Sales = () => {
                           Spot price list
                         </p>
                         <p className="text-[11px] text-slate-500 mt-1 leading-snug">
-                          ₦ per metre from Setup → master data.
+                          ₦ per metre — same published list as Procurement → material pricing workbook (after sync),
+                          plus other Setup price list lines.
                         </p>
                       </div>
                       <button
