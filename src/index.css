@@ -243,7 +243,17 @@ summary {
  * Modal print preview: match on-screen layout to printed output (no gray mat / card chrome).
  * Printed styles still come from @media print + print: utilities.
  */
-.quotation-print-preview-mode .quotation-print-a4,
+.quotation-print-preview-mode .quotation-print-a4 {
+  max-width: 210mm;
+  /* Lock sheet width on screen so the quotation layout matches print; scroll horizontally if the viewport is narrower. */
+  min-width: 210mm;
+  margin-left: auto;
+  margin-right: auto;
+  background-color: #fff !important;
+  padding: 0 !important;
+  box-shadow: none !important;
+}
+
 .report-print-preview-mode .quotation-print-a4 {
   max-width: 210mm;
   margin-left: auto;
@@ -251,6 +261,12 @@ summary {
   background-color: #fff !important;
   padding: 0 !important;
   box-shadow: none !important;
+}
+
+@media screen {
+  .print-portal-scroll:has(.quotation-print-root) {
+    overflow-x: auto;
+  }
 }
 
 .quotation-print-preview-mode .quotation-print-a4 > div.relative.overflow-hidden,

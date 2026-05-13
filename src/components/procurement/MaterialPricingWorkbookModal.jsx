@@ -385,12 +385,48 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
     if (!printPreview) return undefined;
     const el = document.createElement('style');
     el.setAttribute('data-workbook-print', '1');
-    el.textContent = `@media print {
+    const customerPrintCss = `@page {
+  size: A4 portrait;
+  margin: 0;
+}
+@media print {
+  html, body {
+    width: 210mm;
+    height: 297mm;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #fff !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  body * { visibility: hidden !important; }
+  #workbook-print-root, #workbook-print-root * { visibility: visible !important; }
+  #workbook-print-root {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 210mm !important;
+    max-width: 210mm !important;
+    min-height: 297mm;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #fff !important;
+    overflow: visible !important;
+  }
+  .customer-a4-sheet {
+    page-break-after: avoid !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+  #workbook-print-actions, #workbook-print-actions * { display: none !important; }
+}`;
+    const defaultPrintCss = `@media print {
   body * { visibility: hidden !important; }
   #workbook-print-root, #workbook-print-root * { visibility: visible !important; }
   #workbook-print-root { position: absolute; left: 0; top: 0; width: 100%; background: #fff; }
   #workbook-print-actions, #workbook-print-actions * { display: none !important; }
 }`;
+    el.textContent = printPreview === 'customer' ? customerPrintCss : defaultPrintCss;
     document.head.appendChild(el);
     return () => {
       el.remove();
@@ -1639,16 +1675,31 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
               }}
             />
             <div
-              className="no-print fixed inset-0 z-[11070] overflow-y-auto overscroll-y-contain p-4 sm:p-8"
+              className={
+                printPreview === 'customer'
+                  ? 'no-print fixed inset-0 z-[11070] overflow-y-auto overscroll-y-contain bg-slate-400/35 py-8 sm:py-14 px-4 sm:px-10'
+                  : 'no-print fixed inset-0 z-[11070] overflow-y-auto overscroll-y-contain p-4 sm:p-8'
+              }
               onClick={() => {
                 setPrintPreview(null);
                 setPrintPack(null);
               }}
             >
-              <div className="mx-auto max-w-[min(1000px,100%)] pb-16" onClick={(e) => e.stopPropagation()}>
+              <div
+                className={
+                  printPreview === 'customer'
+                    ? 'mx-auto flex w-full max-w-[calc(210mm+4rem)] justify-center pb-20'
+                    : 'mx-auto max-w-[min(1000px,100%)] pb-16'
+                }
+                onClick={(e) => e.stopPropagation()}
+              >
                 <div
                   id="workbook-print-root"
-                  className="rounded-lg border border-slate-200 bg-white p-4 shadow-2xl print:rounded-none print:border-0 print:shadow-none print:p-0"
+                  className={
+                    printPreview === 'customer'
+                      ? 'box-border w-[210mm] max-w-full min-h-[297mm] shrink-0 rounded-sm border border-slate-500/40 bg-white shadow-2xl print:min-h-0 print:rounded-none print:border-0 print:shadow-none'
+                      : 'rounded-lg border border-slate-200 bg-white p-4 shadow-2xl print:rounded-none print:border-0 print:shadow-none print:p-0'
+                  }
                 >
                   {printPreview === 'official' ? (
                     <MaterialWorkbookOfficialPrintView
