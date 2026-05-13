@@ -425,20 +425,6 @@ const Account = () => {
       bankReconciliation.filter((l) => l.status === 'Review' || l.status === 'PendingManager').length,
     [bankReconciliation]
   );
-  const reconciledSubtotalNgn = useMemo(
-    () =>
-      salesReceipts
-        .filter((r) => Boolean(r.financeReconciliationSavedAtISO))
-        .reduce((sum, r) => sum + (Number(r.bankReceivedAmountNgn ?? r.cashReceivedNgn ?? r.amountNgn) || 0), 0),
-    [salesReceipts]
-  );
-  const nonReconciledSubtotalNgn = useMemo(
-    () =>
-      salesReceipts
-        .filter((r) => !r.financeReconciliationSavedAtISO)
-        .reduce((sum, r) => sum + (Number(r.cashReceivedNgn ?? r.amountNgn) || 0), 0),
-    [salesReceipts]
-  );
 
   const isAnyModalOpen =
     showPaymentEntry ||
@@ -1219,6 +1205,21 @@ const Account = () => {
     () =>
       ws?.hasWorkspaceData && Array.isArray(ws?.snapshot?.receipts) ? [...ws.snapshot.receipts] : [],
     [ws?.hasWorkspaceData, ws?.snapshot?.receipts]
+  );
+
+  const reconciledSubtotalNgn = useMemo(
+    () =>
+      salesReceipts
+        .filter((r) => Boolean(r.financeReconciliationSavedAtISO))
+        .reduce((sum, r) => sum + (Number(r.bankReceivedAmountNgn ?? r.cashReceivedNgn ?? r.amountNgn) || 0), 0),
+    [salesReceipts]
+  );
+  const nonReconciledSubtotalNgn = useMemo(
+    () =>
+      salesReceipts
+        .filter((r) => !r.financeReconciliationSavedAtISO)
+        .reduce((sum, r) => sum + (Number(r.cashReceivedNgn ?? r.amountNgn) || 0), 0),
+    [salesReceipts]
   );
 
   /** Saved reconciliation drops off the queue unless the user has finance approval (MD desk). */
