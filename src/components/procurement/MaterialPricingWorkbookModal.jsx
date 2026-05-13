@@ -221,6 +221,8 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
   const [ridgeCalcRows, setRidgeCalcRows] = useState([]);
   /** Base list price by material+gauge key. */
   const [ridgeBaseByMatGauge, setRidgeBaseByMatGauge] = useState({});
+  /** gauge mm → customer label from workbook rows (for ridge calculator dropdown). */
+  const [ridgeCustomerLabelByGauge, setRidgeCustomerLabelByGauge] = useState({});
   const [savingRidges, setSavingRidges] = useState(false);
   const [savingAccessories, setSavingAccessories] = useState(false);
   const [printPreview, setPrintPreview] = useState(null);
@@ -288,6 +290,7 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
         setRefAccessories(acc);
         const sheets = [aluSheetR?.data, aluzSheetR?.data].filter((s) => s?.ok);
         const baseMap = {};
+        const labelByGauge = {};
         for (const s of sheets) {
           const mk = String(s.materialKey || '').trim();
           for (const row of s.rows || []) {
@@ -298,9 +301,12 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
             if (listNgn <= 0) continue;
             const k = `${mk}::${g}`;
             if (!baseMap[k] || listNgn > baseMap[k]) baseMap[k] = listNgn;
+            const cust = String(row?.gaugeCustomerLabel || '').trim();
+            if (cust && !labelByGauge[g]) labelByGauge[g] = cust;
           }
         }
         setRidgeBaseByMatGauge(baseMap);
+        setRidgeCustomerLabelByGauge(labelByGauge);
         setRidgeCalcRows((prev) => (prev.length ? prev : [{ id: newCalcRowId(), gaugeMm: '', materialKey: 'alu' }]));
         if (!policyR.ok || !setupR.ok || !setupR.data?.ok) {
           showToast('Some reference data could not be loaded.', { variant: 'error' });
@@ -310,6 +316,7 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
         setRefRidgeAddOns([]);
         setRefAccessories([]);
         setRidgeBaseByMatGauge({});
+        setRidgeCustomerLabelByGauge({});
         showToast('Could not load ridge/accessory reference.', { variant: 'error' });
       } finally {
         setBusy(false);
@@ -574,6 +581,14 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
     setRidgeCalcRows((prev) => [...prev, { id: newCalcRowId(), gaugeMm: '', materialKey: 'alu' }]);
   };
 
+  const addRidgePolicyRow = () => {
+    setRefRidgeAddOns((prev) => [...prev, { id: '', girthMm: '', materialFamily: '', addOnNgn: '', listAddOnNgn: '' }]);
+  };
+
+  const removeRidgePolicyRow = (idx) => {
+    setRefRidgeAddOns((prev) => prev.filter((_, i) => i !== idx));
+  };
+
   const removeRidgeRow = (idx) => {
     setRidgeCalcRows((prev) => prev.filter((_, i) => i !== idx));
   };
@@ -584,13 +599,23 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
       return;
     }
     setSavingRidges(true);
+    const ridgePayload = refRidgeAddOns
+      .filter((r) => Number.isFinite(Number(r.girthMm)) && Number(r.girthMm) > 0)
+      .map((r) => {
+        const row = {
+          ...(r.id ? { id: r.id } : {}),
+          girthMm: Number(r.girthMm),
+          materialFamily: String(r.materialFamily || '').trim(),
+          addOnNgn: Math.max(0, Math.round(Number(r.addOnNgn) || 0)),
+        };
+        const listRaw = r.listAddOnNgn;
+        if (listRaw !== '' && listRaw != null && Number.isFinite(Number(listRaw))) {
+          row.listAddOnNgn = Math.max(0, Math.round(Number(listRaw)));
+        }
+        return row;
+      });
     const body = {
-      ridgeAddOns: refRidgeAddOns.map((r) => ({
-        ...(r.id ? { id: r.id } : {}),
-        girthMm: Number(r.girthMm) || 0,
-        materialFamily: String(r.materialFamily || '').trim(),
-        addOnNgn: Math.round(Number(r.addOnNgn) || 0),
-      })),
+      ridgeAddOns: ridgePayload,
     };
     const { ok, data } = await apiFetch('/api/pricing/policy', {
       method: 'PATCH',
@@ -656,36 +681,58 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
     void loadSheet();
   };
 
-  const ridgeGaugeOptions = useMemo(() => {
+  const ridgeGaugeSelectOptions = useMemo(() => {
     const out = new Set();
     Object.keys(ridgeBaseByMatGauge).forEach((k) => {
       const parts = k.split('::');
       if (parts[1]) out.add(parts[1]);
     });
-    return Array.from(out).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
-  }, [ridgeBaseByMatGauge]);
+    return Array.from(out)
+      .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
+      .map((g) => {
+        const nick = String(ridgeCustomerLabelByGauge[g] || '').trim();
+        return { value: g, label: nick ? `${g} mm — ${nick}` : `${g} mm` };
+      });
+  }, [ridgeBaseByMatGauge, ridgeCustomerLabelByGauge]);
+
+  const ridgeMatchedPolicyRow = useCallback((materialKeyValue, girthMm) => {
+    const g = Number(girthMm);
+    if (!Number.isFinite(g)) return null;
+    const rows = (refRidgeAddOns || []).filter((r) => Math.abs(Number(r?.girthMm) - g) < 0.001);
+    if (!rows.length) return null;
+    const mk = String(materialKeyValue || '').trim().toLowerCase();
+    const exact = rows.find((r) => {
+      const mf = String(r?.materialFamily || '').trim().toLowerCase();
+      return mf === mk;
+    });
+    if (exact) return exact;
+    const familyHint = rows.find((r) => {
+      const mf = String(r?.materialFamily || '').trim().toLowerCase();
+      return (mk === 'alu' && mf.includes('alu')) || (mk === 'aluzinc' && (mf.includes('zinc') || mf.includes('ppgi')));
+    });
+    if (familyHint) return familyHint;
+    return rows.find((r) => !String(r?.materialFamily || '').trim()) || null;
+  }, [refRidgeAddOns]);
 
   const ridgeAddOnFor = useCallback(
     (materialKeyValue, girthMm) => {
-      const g = Number(girthMm);
-      if (!Number.isFinite(g)) return 0;
-      const rows = (refRidgeAddOns || []).filter((r) => Math.abs(Number(r?.girthMm) - g) < 0.001);
-      if (!rows.length) return 0;
-      const mk = String(materialKeyValue || '').trim().toLowerCase();
-      const exact = rows.find((r) => {
-        const mf = String(r?.materialFamily || '').trim().toLowerCase();
-        return mf === mk;
-      });
-      if (exact) return Math.max(0, Math.round(Number(exact?.addOnNgn) || 0));
-      const familyHint = rows.find((r) => {
-        const mf = String(r?.materialFamily || '').trim().toLowerCase();
-        return (mk === 'alu' && mf.includes('alu')) || (mk === 'aluzinc' && (mf.includes('zinc') || mf.includes('ppgi')));
-      });
-      if (familyHint) return Math.max(0, Math.round(Number(familyHint?.addOnNgn) || 0));
-      const any = rows.find((r) => !String(r?.materialFamily || '').trim());
-      return Math.max(0, Math.round(Number(any?.addOnNgn) || 0));
+      const r = ridgeMatchedPolicyRow(materialKeyValue, girthMm);
+      return r ? Math.max(0, Math.round(Number(r?.addOnNgn) || 0)) : 0;
     },
-    [refRidgeAddOns]
+    [ridgeMatchedPolicyRow]
+  );
+
+  const ridgeCustomerListAddOnFor = useCallback(
+    (materialKeyValue, girthMm) => {
+      const r = ridgeMatchedPolicyRow(materialKeyValue, girthMm);
+      if (!r) return 0;
+      const lr = r.listAddOnNgn;
+      if (lr !== '' && lr != null && Number.isFinite(Number(lr))) {
+        return Math.max(0, Math.round(Number(lr)));
+      }
+      return Math.max(0, Math.round(Number(r?.addOnNgn) || 0));
+    },
+    [ridgeMatchedPolicyRow]
   );
 
   const ridgeAutoAmount = useCallback(
@@ -891,6 +938,15 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
             <>
               <button
                 type="button"
+                disabled={busy || !sheet || !canPolicyManage}
+                onClick={addRidgePolicyRow}
+                className="rounded-lg border border-dashed border-[#134e4a]/40 bg-teal-50/80 px-3 py-2 text-[10px] font-black uppercase text-[#134e4a] disabled:opacity-50 inline-flex items-center gap-1"
+              >
+                <Plus size={14} className="shrink-0" aria-hidden />
+                Add add-on rate
+              </button>
+              <button
+                type="button"
                 disabled={busy || !sheet}
                 onClick={addRidgeRow}
                 className="rounded-lg border border-dashed border-[#134e4a]/40 bg-teal-50/80 px-3 py-2 text-[10px] font-black uppercase text-[#134e4a] disabled:opacity-50 inline-flex items-center gap-1"
@@ -977,8 +1033,109 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
                 Ridge/flat-sheet calculator by gauge and material using your split rule:
                 <strong className="text-slate-800"> 150=÷8, 300=÷4, 400=÷3, 600=÷2 </strong>
                 plus configured add-ons. Base is the workbook published <strong className="text-slate-800">List ₦/m</strong> for the selected
-                gauge/material.
+                gauge/material. Gauge labels include the <strong className="text-slate-800">customer label</strong> from each workbook row when
+                set.
               </p>
+              <div className="rounded-lg border border-slate-200 bg-slate-50/70 p-3 space-y-2">
+                <p className="text-[10px] font-black uppercase tracking-wide text-slate-600">Add-on rates (policy)</p>
+                <div className="z-scroll-x overflow-x-auto rounded-lg border border-slate-200 bg-white">
+                  <table className="min-w-[720px] w-full border-collapse text-left text-xs">
+                    <thead className="bg-slate-50 text-[9px] font-black uppercase tracking-wide text-slate-600">
+                      <tr>
+                        <th className="px-2 py-2 border-b border-slate-200 w-10" aria-label="Remove" />
+                        <th className="px-2 py-2 border-b border-slate-200">Girth mm</th>
+                        <th className="px-2 py-2 border-b border-slate-200">Material family</th>
+                        <th className="px-2 py-2 border-b border-slate-200 text-right">Add-on ₦/m</th>
+                        <th className="px-2 py-2 border-b border-slate-200 text-right">Customer list ₦/m</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {refRidgeAddOns.length === 0 ? (
+                        <tr>
+                          <td colSpan={5} className="px-3 py-4 text-center text-slate-500">
+                            No add-on rows yet. Use <strong>Add add-on rate</strong> above, then <strong>Save add-ons</strong>.
+                          </td>
+                        </tr>
+                      ) : (
+                        refRidgeAddOns.map((row, ri) => (
+                          <tr key={row.id || `ridge-pol-${ri}`}>
+                            <td className="px-1 py-1 align-middle">
+                              <button
+                                type="button"
+                                title="Remove rate row"
+                                className="rounded p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
+                                onClick={() => removeRidgePolicyRow(ri)}
+                                disabled={!canPolicyManage}
+                              >
+                                <Trash2 size={16} aria-hidden />
+                              </button>
+                            </td>
+                            <td className="px-2 py-1">
+                              <input
+                                type="number"
+                                className="w-20 rounded border border-slate-200 px-2 py-1"
+                                value={row.girthMm}
+                                onChange={(e) =>
+                                  setRefRidgeAddOns((prev) =>
+                                    prev.map((x, idx) => (idx === ri ? { ...x, girthMm: e.target.value } : x))
+                                  )
+                                }
+                                disabled={!canPolicyManage}
+                              />
+                            </td>
+                            <td className="px-2 py-1">
+                              <input
+                                className="w-36 rounded border border-slate-200 px-2 py-1"
+                                placeholder="blank = any"
+                                value={row.materialFamily ?? ''}
+                                onChange={(e) =>
+                                  setRefRidgeAddOns((prev) =>
+                                    prev.map((x, idx) => (idx === ri ? { ...x, materialFamily: e.target.value } : x))
+                                  )
+                                }
+                                disabled={!canPolicyManage}
+                              />
+                            </td>
+                            <td className="px-2 py-1 text-right">
+                              <input
+                                type="number"
+                                min={0}
+                                className="w-24 rounded border border-slate-200 px-2 py-1 text-right font-mono tabular-nums"
+                                value={row.addOnNgn}
+                                onChange={(e) =>
+                                  setRefRidgeAddOns((prev) =>
+                                    prev.map((x, idx) => (idx === ri ? { ...x, addOnNgn: e.target.value } : x))
+                                  )
+                                }
+                                disabled={!canPolicyManage}
+                              />
+                            </td>
+                            <td className="px-2 py-1 text-right">
+                              <input
+                                type="number"
+                                min={0}
+                                placeholder="optional"
+                                className="w-24 rounded border border-slate-200 px-2 py-1 text-right font-mono tabular-nums"
+                                value={row.listAddOnNgn ?? ''}
+                                onChange={(e) =>
+                                  setRefRidgeAddOns((prev) =>
+                                    prev.map((x, idx) => (idx === ri ? { ...x, listAddOnNgn: e.target.value } : x))
+                                  )
+                                }
+                                disabled={!canPolicyManage}
+                              />
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+                <p className="text-[10px] text-slate-500">
+                  Customer list ₦/m is optional: when set, that add-on is what appears on the customer price list / print. Totals below use
+                  internal add-on; if the list value differs, the second line shows the customer-list total.
+                </p>
+              </div>
               <div className="z-scroll-x overflow-x-auto rounded-lg border border-slate-200 bg-white">
                 <table className="min-w-[620px] w-full border-collapse text-left text-xs">
                   <thead className="bg-slate-50 text-[9px] font-black uppercase tracking-wide text-slate-600">
@@ -996,7 +1153,7 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
                     {ridgeCalcRows.length === 0 ? (
                       <tr>
                         <td colSpan={7} className="px-3 py-6 text-center text-sm text-slate-500">
-                          No rows yet. Use Add ridge row.
+                          No rows yet. Use <strong>Add ridge row</strong>.
                         </td>
                       </tr>
                     ) : (
@@ -1023,9 +1180,9 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
                               }
                             >
                               <option value="">— Select —</option>
-                              {ridgeGaugeOptions.map((g) => (
-                                <option key={g} value={g}>
-                                  {g} mm
+                              {ridgeGaugeSelectOptions.map((opt) => (
+                                <option key={opt.value} value={opt.value}>
+                                  {opt.label}
                                 </option>
                               ))}
                             </select>
@@ -1049,9 +1206,31 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
                           </td>
                           {RIDGE_GIRTH_COLUMNS_MM.map((girth) => {
                             const amount = ridgeAutoAmount(r.materialKey, r.gaugeMm, girth);
+                            const base = Math.max(
+                              0,
+                              Math.round(Number(ridgeBaseByMatGauge[`${r.materialKey}::${r.gaugeMm}`]) || 0)
+                            );
+                            const divisor = 1200 / Number(girth || 0);
+                            const splitPart =
+                              base && Number.isFinite(divisor) && divisor > 0 ? Math.round(base / divisor) : 0;
+                            const calcAdd = ridgeAddOnFor(r.materialKey, girth);
+                            const listAdd = ridgeCustomerListAddOnFor(r.materialKey, girth);
+                            const listTotal =
+                              base && Number.isFinite(divisor) && divisor > 0 ? Math.round(base / divisor + listAdd) : 0;
+                            const showListLine = amount > 0 && listTotal > 0 && listTotal !== amount;
                             return (
-                              <td key={girth} className="px-3 py-2 text-right font-mono tabular-nums text-slate-900">
-                                {amount > 0 ? formatNgn(amount) : '—'}
+                              <td key={girth} className="px-3 py-2 text-right font-mono tabular-nums text-slate-900 align-top">
+                                <div>{amount > 0 ? formatNgn(amount) : '—'}</div>
+                                {amount > 0 ? (
+                                  <div className="mt-0.5 text-[9px] font-sans text-slate-500 normal-nums text-left sm:text-right">
+                                    Split {formatNgn(splitPart)} + add-on {formatNgn(calcAdd)}
+                                  </div>
+                                ) : null}
+                                {showListLine ? (
+                                  <div className="mt-0.5 text-[9px] font-sans text-[#134e4a] font-semibold normal-nums">
+                                    Customer list total {formatNgn(listTotal)}
+                                  </div>
+                                ) : null}
                               </td>
                             );
                           })}
@@ -1062,7 +1241,7 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
                 </table>
               </div>
               <p className="text-[10px] text-slate-500">
-                To update the add-on values used in this calculation, edit and save them with the button above.
+                Edit add-on rates in the policy table above, then <strong>Save add-ons</strong>. Calculator updates after refresh or reload.
               </p>
             </div>
           ) : isReferenceTab && materialKey === 'accessories' ? (

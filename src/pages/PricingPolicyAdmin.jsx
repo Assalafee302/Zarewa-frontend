@@ -57,6 +57,9 @@ export default function PricingPolicyAdmin() {
           girthMm: Number(r.girthMm),
           materialFamily: r.materialFamily || '',
           addOnNgn: Math.round(Number(r.addOnNgn) || 0),
+          ...(String(r.listAddOnNgn ?? '').trim() !== '' && Number.isFinite(Number(r.listAddOnNgn))
+            ? { listAddOnNgn: Math.max(0, Math.round(Number(r.listAddOnNgn))) }
+            : {}),
         })),
         profileAliases: aliases.map((a) => ({
           id: a.id,
@@ -189,7 +192,23 @@ export default function PricingPolicyAdmin() {
 
           <section className="rounded-2xl border border-slate-200/90 bg-white p-5 shadow-sm space-y-3">
             <h2 className="text-xs font-black uppercase text-[#134e4a]">Ridge add-ons</h2>
-            <p className="text-[11px] text-slate-600">Added after (sheet floor ÷ (1200 ÷ girth mm)). Material family blank = any.</p>
+            <p className="text-[11px] text-slate-600">
+              <strong>Add-on ₦/m</strong> is used in ridge floor math. <strong>Customer list ₦/m</strong> is optional: when set, that value is
+              what appears on the customer price list / print for the add-on row; leave blank to use the same as add-on.
+            </p>
+            <div className="flex flex-wrap items-center gap-2">
+              {canPolicy ? (
+                <button
+                  type="button"
+                  onClick={() =>
+                    setRidgeAddOns((prev) => [...prev, { id: '', girthMm: '', materialFamily: '', addOnNgn: '', listAddOnNgn: '' }])
+                  }
+                  className="rounded-lg border border-dashed border-[#134e4a]/40 bg-teal-50/80 px-3 py-2 text-[10px] font-black uppercase text-[#134e4a]"
+                >
+                  Add ridge row
+                </button>
+              ) : null}
+            </div>
             <div className="overflow-x-auto">
               <table className="min-w-full text-sm border-collapse">
                 <thead>
@@ -197,6 +216,7 @@ export default function PricingPolicyAdmin() {
                     <th className="py-2 pr-3">Girth mm</th>
                     <th className="py-2 pr-3">Material family</th>
                     <th className="py-2 pr-3">Add-on ₦/m</th>
+                    <th className="py-2 pr-3">Customer list ₦/m</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -236,6 +256,21 @@ export default function PricingPolicyAdmin() {
                           onChange={(e) => {
                             const next = [...ridgeAddOns];
                             next[i] = { ...next[i], addOnNgn: e.target.value };
+                            setRidgeAddOns(next);
+                          }}
+                          disabled={!canPolicy}
+                        />
+                      </td>
+                      <td className="py-2 pr-2">
+                        <input
+                          type="number"
+                          min={0}
+                          placeholder="Same as add-on"
+                          className="w-28 rounded border border-slate-200 px-2 py-1"
+                          value={r.listAddOnNgn ?? ''}
+                          onChange={(e) => {
+                            const next = [...ridgeAddOns];
+                            next[i] = { ...next[i], listAddOnNgn: e.target.value };
                             setRidgeAddOns(next);
                           }}
                           disabled={!canPolicy}

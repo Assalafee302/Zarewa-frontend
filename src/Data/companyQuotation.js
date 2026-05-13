@@ -13,6 +13,7 @@ export const ZAREWA_QUOTATION_BRANDING = {
   marketingSignatoryName: 'AUWAL',
   poBox: 'P.O. BOX 7068, KADUNA',
   email: 'zarewaglobal@gmail.com',
+  website: 'www.zarewaglobalservices.com',
   logoSrc: ZAREWA_LOGO_SRC,
   branches: [
     {

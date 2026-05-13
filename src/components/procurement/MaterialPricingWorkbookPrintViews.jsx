@@ -1,9 +1,17 @@
 import React from 'react';
-import { ZAREWA_COMPANY_ACCOUNT_NAME, ZAREWA_LOGO_SRC } from '../../Data/companyQuotation.js';
+import { ZAREWA_COMPANY_ACCOUNT_NAME, ZAREWA_LOGO_SRC, ZAREWA_QUOTATION_BRANDING } from '../../Data/companyQuotation.js';
 import { listPriceFromFloorAndCommission, premiumProfilePriceFromBase } from '../../lib/publishedPrice.js';
 
 function formatNgn(n) {
   return `₦${Math.round(Number(n) || 0).toLocaleString('en-NG')}`;
+}
+
+/** Published customer list add-on; optional override over internal add-on. */
+function customerRidgeListAddOnNgn(r) {
+  if (r?.listAddOnNgn != null && r.listAddOnNgn !== '' && Number.isFinite(Number(r.listAddOnNgn))) {
+    return Math.max(0, Math.round(Number(r.listAddOnNgn)));
+  }
+  return Math.max(0, Math.round(Number(r?.addOnNgn) || 0));
 }
 
 function fmtConv2(v) {
@@ -35,7 +43,40 @@ function listPriceFromRow(row) {
 
 function isWorkbookDesignKey(dk) {
   const s = String(dk ?? '').trim();
-  return s === '' || s.startsWith('wb-');
+  return s === '' || s.startsWith('wb-') || s.startsWith('wb_');
+}
+
+/** Legacy letterhead column titles (match printed price list). */
+const PROFILE_COL_LONGSPAN = 'Industrial 6 & Metral 1,000';
+const PROFILE_COL_PREMIUM = 'Metcoppo & Steptiles';
+const RIDGE_GIRTH_HEADERS_MM = [150, 300, 400, 600];
+
+function ridgeMatchedPolicyRowPrint(ridgeAddOns, materialKeyValue, girthMm) {
+  const ridges = ridgeAddOns || [];
+  const g = Number(girthMm);
+  if (!Number.isFinite(g)) return null;
+  const rows = ridges.filter((r) => Math.abs(Number(r?.girthMm) - g) < 0.001);
+  if (!rows.length) return null;
+  const mk = String(materialKeyValue || '').trim().toLowerCase();
+  const exact = rows.find((r) => String(r?.materialFamily || '').trim().toLowerCase() === mk);
+  if (exact) return exact;
+  const familyHint = rows.find((r) => {
+    const mf = String(r?.materialFamily || '').trim().toLowerCase();
+    return (mk === 'alu' && mf.includes('alu')) || (mk === 'aluzinc' && (mf.includes('zinc') || mf.includes('ppgi')));
+  });
+  if (familyHint) return familyHint;
+  return rows.find((r) => !String(r?.materialFamily || '').trim()) || null;
+}
+
+/** Customer-facing ridge ₦/m for one gauge × girth (split + published list add-on). */
+function ridgeCustomerGridCellNgn(listBaseNgn, materialKey, girthMm, ridgeAddOns) {
+  const base = Math.max(0, Math.round(Number(listBaseNgn) || 0));
+  if (!base) return 0;
+  const divisor = 1200 / Number(girthMm || 0);
+  if (!Number.isFinite(divisor) || divisor <= 0) return 0;
+  const r = ridgeMatchedPolicyRowPrint(ridgeAddOns, materialKey, girthMm);
+  const add = r ? customerRidgeListAddOnNgn(r) : 0;
+  return Math.round(base / divisor + add);
 }
 
 function workbookRowsForSheet(sheet) {
@@ -57,6 +98,29 @@ export function customerGaugeDisplayLabel(row) {
   return String(row?.gaugeMm ?? '');
 }
 
+/** One row per gauge mm: max published list + display label from row with that max. */
+function aggregatePublishedCoilByGauge(sheet) {
+  if (!sheet?.ok) return [];
+  const by = new Map();
+  for (const row of workbookRowsForSheet(sheet)) {
+    const listBase = listPriceFromRow(row);
+    if (!listBase || listBase <= 0) continue;
+    const g = String(row.gaugeMm || '').trim();
+    if (!g) continue;
+    const cur = by.get(g);
+    const label = customerGaugeDisplayLabel(row);
+    if (!cur || listBase > cur.listBase) {
+      by.set(g, { gaugeMm: g, gaugeLabel: label, listBase });
+    } else if (listBase === cur.listBase) {
+      const prefer = label.length > String(cur.gaugeLabel || '').length ? label : cur.gaugeLabel;
+      by.set(g, { ...cur, gaugeLabel: prefer });
+    }
+  }
+  return Array.from(by.values()).sort((a, b) =>
+    String(a.gaugeMm).localeCompare(String(b.gaugeMm), undefined, { numeric: true })
+  );
+}
+
 const SECTION_META = [
   { key: 'alu', title: 'Aluminium' },
   { key: 'aluzinc', title: 'Aluzinc (PPGI)' },
@@ -73,7 +137,7 @@ const COIL_SECTION_KEYS = ['alu', 'aluzinc'];
  *   effectiveDateLabel: string;
  *   lookbackDays: number;
  *   accessories: Array<{ name?: string; unit?: string; defaultUnitPriceNgn?: number }>;
- *   ridgeAddOns: Array<{ girthMm?: number | string; materialFamily?: string; addOnNgn?: number }>;
+ *   ridgeAddOns: Array<{ girthMm?: number | string; materialFamily?: string; addOnNgn?: number; listAddOnNgn?: number | null }>;
  * }} props
  */
 export function MaterialWorkbookOfficialPrintView({ sheets, branchName, effectiveDateLabel, lookbackDays, accessories, ridgeAddOns }) {
@@ -266,146 +330,170 @@ export function MaterialWorkbookOfficialPrintView({ sheets, branchName, effectiv
 }
 
 /**
- * Customer price list: gauge × Longspan × Metcoppo/Steptiles only (published amounts). Rows need a positive list price.
+ * Customer price list — classic letterhead + Profiles / Ridges & flashing / Accessories (matches legacy printed layout).
  */
 export function MaterialWorkbookCustomerPrintView({ sheets, branchName, effectiveDateLabel, accessories, ridgeAddOns }) {
-  const ridgeRows = ridgeAddOns || [];
+  const branding = ZAREWA_QUOTATION_BRANDING;
+  const hq = branding.branches?.[0];
+  const factoryBranches = (branding.branches || []).slice(1);
+
   const accRows = (accessories || []).filter((a) => {
     const up = Math.round(Number(a?.defaultUnitPriceNgn) || 0);
     return a && String(a.name || '').trim() && up > 0;
   });
 
-  const coilCustomerRows = (sheet) => {
-    const out = [];
-    for (const row of workbookRowsForSheet(sheet)) {
-      const listBase = listPriceFromRow(row);
-      if (!listBase || listBase <= 0) continue;
-      const premium = premiumProfilePriceFromBase(listBase);
-      out.push({
-        gaugeLabel: customerGaugeDisplayLabel(row),
-        longspan: listBase,
-        metcoppo: premium,
-      });
-    }
-    return out;
-  };
+  const aluSheet = sheets.find((s) => s?.materialKey === 'alu');
+  const aluzSheet = sheets.find((s) => s?.materialKey === 'aluzinc');
+  const stoneSheet = sheets.find((s) => s?.materialKey === 'stone-coated');
 
-  const renderCustomerMaterialSection = (key, title) => {
-    const sheet = sheets.find((s) => s?.materialKey === key);
-    if (!sheet?.ok) return null;
-    const rows = coilCustomerRows(sheet);
-    if (rows.length === 0) return null;
-    const isStone = Boolean(sheet.isStoneCoatedWorkbook);
-    const premiumHeader = isStone ? 'Metcoppo ₦/m' : 'Metcoppo / Steptiles ₦/m';
-    return (
-      <section key={key} className="min-w-0">
-        <h2 className="text-sm font-black text-[#0f766e] mb-2">{title}</h2>
-        <table className="w-full border-collapse text-left">
-          <thead className="bg-slate-100 text-[9px] font-black uppercase tracking-wide text-slate-700">
-            <tr>
-              <th className="border border-slate-400 px-3 py-2">Gauge / label</th>
-              <th className="border border-slate-400 px-3 py-2 text-right">Longspan ₦/m</th>
-              <th className="border border-slate-400 px-3 py-2 text-right">{premiumHeader}</th>
-            </tr>
-          </thead>
-          <tbody className="font-mono tabular-nums text-[12px]">
-            {rows.map((r, idx) => (
-              <tr key={`${r.gaugeLabel}-${idx}`}>
-                <td className="border border-slate-300 px-3 py-2 font-sans font-bold">{r.gaugeLabel}</td>
-                <td className="border border-slate-300 px-3 py-2 text-right">{formatNgn(r.longspan)}</td>
-                <td className="border border-slate-300 px-3 py-2 text-right">{formatNgn(r.metcoppo)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </section>
-    );
-  };
+  const aluProfiles = aggregatePublishedCoilByGauge(aluSheet || {});
+  const aluzProfiles = aggregatePublishedCoilByGauge(aluzSheet || {});
+  const stoneProfiles = aggregatePublishedCoilByGauge(stoneSheet || {});
+
+  const hasCoilProfiles = aluProfiles.length > 0 || aluzProfiles.length > 0;
+  const hasRidgeGrid = aluProfiles.length > 0 || aluzProfiles.length > 0;
+
+  const renderProfileGroupRows = (materialKey, rows) =>
+    rows.map((r) => {
+      const prem = premiumProfilePriceFromBase(r.listBase);
+      return (
+        <tr key={`${materialKey}-${r.gaugeMm}`}>
+          <td className="border border-black px-2 py-1 text-left font-semibold">{r.gaugeLabel}</td>
+          <td className="border border-black px-2 py-1 text-right font-mono tabular-nums">{formatNgn(r.listBase)}</td>
+          <td className="border border-black px-2 py-1 text-right font-mono tabular-nums">{formatNgn(prem)}</td>
+        </tr>
+      );
+    });
+
+  const renderRidgeGroupRows = (materialKey, rows) =>
+    rows.map((r) => (
+      <tr key={`ridge-${materialKey}-${r.gaugeMm}`}>
+        <td className="border border-black px-2 py-1 font-semibold">{r.gaugeLabel}</td>
+        {RIDGE_GIRTH_HEADERS_MM.map((gth) => {
+          const v = ridgeCustomerGridCellNgn(r.listBase, materialKey, gth, ridgeAddOns);
+          return (
+            <td key={gth} className="border border-black px-2 py-1 text-right font-mono tabular-nums text-[11px]">
+              {v > 0 ? formatNgn(v) : '—'}
+            </td>
+          );
+        })}
+      </tr>
+    ));
 
   return (
-    <div className="text-slate-900 text-[12px] leading-snug print:text-black">
+    <div className="customer-price-list-print text-black text-[11px] leading-snug print:text-black">
+      <style>{`
+        @media print {
+          .customer-price-list-print { padding: 0 10px 12px; }
+        }
+      `}</style>
       <div className="max-w-[920px] mx-auto">
-        <div className="flex items-start gap-4 border-b-2 border-[#134e4a] pb-4 mb-4">
-          <img src={ZAREWA_LOGO_SRC} alt="" className="h-16 w-auto object-contain shrink-0" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
-          <div className="flex-1">
-            <p className="text-[11px] font-black text-[#134e4a] tracking-wide">{ZAREWA_COMPANY_ACCOUNT_NAME}</p>
-            <h1 className="text-xl font-black text-[#134e4a] mt-1">Price list</h1>
-            <p className="text-[11px] font-semibold text-slate-700 mt-2">
-              <span className="text-slate-700">Effective:</span> {effectiveDateLabel}
-              {branchName ? (
-                <>
-                  {' '}
-                  · <span className="text-slate-700">Branch:</span> {branchName}
-                </>
-              ) : null}
+        <div className="flex gap-4 border-b-2 border-black pb-3 mb-1">
+          <img
+            src={ZAREWA_LOGO_SRC}
+            alt=""
+            className="h-20 w-20 shrink-0 object-contain"
+            onError={(e) => {
+              e.currentTarget.style.display = 'none';
+            }}
+          />
+          <div className="flex-1 min-w-0">
+            <h1 className="text-[15px] font-black uppercase tracking-tight leading-tight">{ZAREWA_COMPANY_ACCOUNT_NAME}</h1>
+            {hq ? <p className="mt-1.5 text-[10px] font-black uppercase tracking-wide text-slate-900">{hq.title}</p> : null}
+            {(hq?.lines || []).map((line) => (
+              <p key={line} className="text-[10px] leading-snug text-slate-900">
+                {line}
+              </p>
+            ))}
+            <p className="mt-1.5 text-[10px] leading-snug text-slate-900">
+              {branding.poBox}
+              {branding.email ? ` · Email: ${branding.email}` : ''}
+              {branding.website ? ` · ${branding.website}` : ''}
             </p>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8 print:mb-6 print:grid-cols-2 items-start">
-          {COIL_SECTION_KEYS.map((key) => {
-            const meta = SECTION_META.find((m) => m.key === key);
-            return meta ? renderCustomerMaterialSection(key, meta.title) : null;
-          })}
-        </div>
+        <h2 className="text-center text-[12px] font-black uppercase mt-4 mb-0 tracking-wide">
+          Price list effective from {effectiveDateLabel}
+        </h2>
+        <p className="text-center text-[10px] font-bold uppercase tracking-wide text-slate-900">All rates are in Naira per running metre</p>
+        {branchName ? (
+          <p className="text-center text-[9px] text-slate-700 mb-3">Branch: {branchName}</p>
+        ) : (
+          <div className="mb-3" aria-hidden />
+        )}
 
-        {(() => {
-          const meta = SECTION_META.find((m) => m.key === 'stone-coated');
-          if (!meta) return null;
-          const block = renderCustomerMaterialSection(meta.key, meta.title);
-          if (!block) return null;
-          return <div className="mb-8 print:mb-6">{block}</div>;
-        })()}
-
-        <section className="mb-8 print:mb-6">
-          <h2 className="text-sm font-black text-[#0f766e] mb-2">Ridge / flashing add-ons (₦/m)</h2>
-          <table className="w-full border-collapse text-left">
-            <thead className="bg-slate-100 text-[9px] font-black uppercase text-slate-700">
+        <h3 className="text-center text-[11px] font-black uppercase tracking-[0.2em] mb-1">Profiles</h3>
+        <table className="w-full border-collapse text-[11px] mb-1">
+          <thead>
+            <tr className="bg-slate-100">
+              <th className="border border-black px-2 py-1.5 text-left text-[9px] font-black uppercase">Material gauge</th>
+              <th className="border border-black px-2 py-1.5 text-right text-[8px] font-black uppercase leading-tight max-w-[140px]">
+                {PROFILE_COL_LONGSPAN}
+              </th>
+              <th className="border border-black px-2 py-1.5 text-right text-[8px] font-black uppercase leading-tight max-w-[120px]">
+                {PROFILE_COL_PREMIUM}
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {!hasCoilProfiles ? (
               <tr>
-                <th className="border border-slate-400 px-3 py-2">Girth mm</th>
-                <th className="border border-slate-400 px-3 py-2">Material</th>
-                <th className="border border-slate-400 px-3 py-2 text-right">₦/m</th>
+                <td colSpan={3} className="border border-black px-2 py-3 text-center text-slate-600">
+                  No published coil prices yet. Sync workbook lines to the price list for this branch, then print again.
+                </td>
               </tr>
-            </thead>
-            <tbody className="text-[12px]">
-              {ridgeRows.length === 0 ? (
-                <tr>
-                  <td colSpan={3} className="border border-slate-300 px-3 py-2 text-slate-500">
-                    No ridge or flashing add-ons configured yet. Add rows under <strong>Pricing policy</strong> (admin, ridge add-ons) so published ₦/m appears here.
-                  </td>
-                </tr>
-              ) : (
-                ridgeRows.map((r, i) => (
-                  <tr key={i}>
-                    <td className="border border-slate-300 px-3 py-2">{r.girthMm}</td>
-                    <td className="border border-slate-300 px-3 py-2">{r.materialFamily || '—'}</td>
-                    <td className="border border-slate-300 px-3 py-2 text-right font-mono tabular-nums">{formatNgn(r.addOnNgn)}</td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </section>
+            ) : (
+              <>
+                {aluProfiles.length > 0 ? (
+                  <>
+                    <tr>
+                      <td
+                        colSpan={3}
+                        className="border border-black bg-slate-200 px-2 py-1 text-[10px] font-black uppercase tracking-wide"
+                      >
+                        Aluminium coloured
+                      </td>
+                    </tr>
+                    {renderProfileGroupRows('alu', aluProfiles)}
+                  </>
+                ) : null}
+                {aluzProfiles.length > 0 ? (
+                  <>
+                    <tr>
+                      <td
+                        colSpan={3}
+                        className="border border-black bg-slate-200 px-2 py-1 text-[10px] font-black uppercase tracking-wide"
+                      >
+                        Aluzinc coloured
+                      </td>
+                    </tr>
+                    {renderProfileGroupRows('aluzinc', aluzProfiles)}
+                  </>
+                ) : null}
+              </>
+            )}
+          </tbody>
+        </table>
+        <p className="text-[9px] text-slate-600 mb-5 text-center">
+          {PROFILE_COL_PREMIUM} column is 3.5% above the first column, then rounded (under ₦5,000 → nearest ₦50; otherwise nearest ₦100).
+        </p>
 
-        {accRows.length > 0 ? (
-          <section className="mb-6">
-            <h2 className="text-sm font-black text-[#0f766e] mb-2">Accessories</h2>
-            <table className="w-full border-collapse text-left max-w-xl">
-              <thead className="bg-slate-100 text-[9px] font-black uppercase text-slate-700">
-                <tr>
-                  <th className="border border-slate-400 px-3 py-2">Item</th>
-                  <th className="border border-slate-400 px-3 py-2">Unit</th>
-                  <th className="border border-slate-400 px-3 py-2 text-right">₦</th>
+        {stoneProfiles.length > 0 ? (
+          <section className="mb-5">
+            <h3 className="text-center text-[11px] font-black uppercase tracking-[0.2em] mb-1">Stone-coated</h3>
+            <table className="w-full border-collapse text-[11px]">
+              <thead>
+                <tr className="bg-slate-100">
+                  <th className="border border-black px-2 py-1.5 text-left text-[9px] font-black uppercase">Material gauge</th>
+                  <th className="border border-black px-2 py-1.5 text-right text-[9px] font-black uppercase">₦/m</th>
                 </tr>
               </thead>
-              <tbody className="text-[12px]">
-                {accRows.map((a, i) => (
-                  <tr key={i}>
-                    <td className="border border-slate-300 px-3 py-2">{a.name}</td>
-                    <td className="border border-slate-300 px-3 py-2">{a.unit || '—'}</td>
-                    <td className="border border-slate-300 px-3 py-2 text-right font-mono tabular-nums">
-                      {formatNgn(a.defaultUnitPriceNgn)}
-                    </td>
+              <tbody>
+                {stoneProfiles.map((r) => (
+                  <tr key={`stone-${r.gaugeMm}`}>
+                    <td className="border border-black px-2 py-1 font-semibold">{r.gaugeLabel}</td>
+                    <td className="border border-black px-2 py-1 text-right font-mono tabular-nums">{formatNgn(r.listBase)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -413,9 +501,109 @@ export function MaterialWorkbookCustomerPrintView({ sheets, branchName, effectiv
           </section>
         ) : null}
 
-        <p className="text-[10px] text-slate-500 mt-6">
-          Prices subject to change. Confirm availability before quoting. Below-list sales may require Managing Director approval.
+        <h3 className="text-center text-[11px] font-black uppercase tracking-[0.2em] mb-1 mt-1">Ridges &amp; flashing</h3>
+        <p className="text-[9px] text-slate-600 text-center mb-1">
+          Published ₦/m per gauge and width (sheet list ÷ (1200 ÷ width mm) + ridge add-on from pricing policy).
         </p>
+        <table className="w-full border-collapse text-[11px] mb-5">
+          <thead>
+            <tr className="bg-slate-100">
+              <th className="border border-black px-2 py-1.5 text-left text-[9px] font-black uppercase">Materials gauge</th>
+              {RIDGE_GIRTH_HEADERS_MM.map((gth) => (
+                <th key={gth} className="border border-black px-2 py-1.5 text-right text-[9px] font-black uppercase">
+                  {gth}mm
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {!hasRidgeGrid ? (
+              <tr>
+                <td colSpan={5} className="border border-black px-2 py-3 text-center text-slate-600">
+                  Add published coil prices above to show ridge / flashing rates. Configure ridge add-ons under pricing policy if needed.
+                </td>
+              </tr>
+            ) : (
+              <>
+                {aluProfiles.length > 0 ? (
+                  <>
+                    <tr>
+                      <td
+                        colSpan={5}
+                        className="border border-black bg-slate-200 px-2 py-1 text-[10px] font-black uppercase tracking-wide"
+                      >
+                        Aluminium coloured
+                      </td>
+                    </tr>
+                    {renderRidgeGroupRows('alu', aluProfiles)}
+                  </>
+                ) : null}
+                {aluzProfiles.length > 0 ? (
+                  <>
+                    <tr>
+                      <td
+                        colSpan={5}
+                        className="border border-black bg-slate-200 px-2 py-1 text-[10px] font-black uppercase tracking-wide"
+                      >
+                        Aluzinc
+                      </td>
+                    </tr>
+                    {renderRidgeGroupRows('aluzinc', aluzProfiles)}
+                  </>
+                ) : null}
+              </>
+            )}
+          </tbody>
+        </table>
+
+        {accRows.length > 0 ? (
+          <section className="mb-4">
+            <h3 className="text-center text-[11px] font-black uppercase tracking-[0.2em] mb-1">Accessories</h3>
+            <table className="w-full border-collapse text-[11px]">
+              <thead>
+                <tr className="bg-slate-100">
+                  <th className="border border-black px-2 py-1.5 text-left text-[9px] font-black uppercase w-10">S/No</th>
+                  <th className="border border-black px-2 py-1.5 text-left text-[9px] font-black uppercase">Item</th>
+                  <th className="border border-black px-2 py-1.5 text-left text-[9px] font-black uppercase">Quantity</th>
+                  <th className="border border-black px-2 py-1.5 text-right text-[9px] font-black uppercase">Price in Naira</th>
+                </tr>
+              </thead>
+              <tbody>
+                {accRows.map((a, i) => (
+                  <tr key={i}>
+                    <td className="border border-black px-2 py-1 text-center font-mono tabular-nums">{i + 1}</td>
+                    <td className="border border-black px-2 py-1">{a.name}</td>
+                    <td className="border border-black px-2 py-1">{a.unit || '—'}</td>
+                    <td className="border border-black px-2 py-1 text-right font-mono tabular-nums">{formatNgn(a.defaultUnitPriceNgn)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </section>
+        ) : null}
+
+        <section className="mt-4 text-[10px] text-slate-900 leading-relaxed">
+          <p className="font-black uppercase mb-1">Notes</p>
+          <ol className="list-decimal pl-5 space-y-1.5">
+            <li>Prices are subject to change without prior notice.</li>
+            <li>Confirm material availability before confirming orders.</li>
+            <li>The company is not liable for loss or damage to goods in transit when transport is arranged by the customer.</li>
+            <li>Below-list sales may require Managing Director approval where applicable.</li>
+          </ol>
+        </section>
+
+        {factoryBranches.length > 0 ? (
+          <div className="mt-6 pt-3 border-t-2 border-black flex flex-col sm:flex-row gap-5 text-[9px] leading-snug text-slate-900">
+            {factoryBranches.map((b) => (
+              <div key={b.title} className="flex-1 min-w-0">
+                <p className="font-black uppercase mb-0.5">{b.title}</p>
+                {(b.lines || []).map((ln) => (
+                  <p key={ln}>{ln}</p>
+                ))}
+              </div>
+            ))}
+          </div>
+        ) : null}
       </div>
     </div>
   );
