@@ -68,6 +68,7 @@ import {
 } from '../lib/accountCore';
 import { editMutationNeedsSecondApprovalRole } from '../lib/editApprovalUi';
 import { treasuryAccountDisplayName } from '../lib/treasuryAccountsStore';
+import { AccountBankReconciliationPanel } from '../components/account/AccountBankReconciliationPanel.jsx';
 
 const Account = () => {
   const location = useLocation();
@@ -3030,6 +3031,30 @@ const Account = () => {
                       })}
                         </ul>
                       </section>
+
+                      {ws?.hasPermission?.('finance.view') ? (
+                        <section className="space-y-3 border-t border-slate-200/80 pt-6">
+                          <div>
+                            <h3 className="text-xs font-bold uppercase tracking-widest text-[#134e4a]">
+                              Daily bank line queue
+                            </h3>
+                            <p className="text-[11px] text-slate-600 mt-1 max-w-3xl">
+                              Compare treasury balances to your external reference (bank app / cash count). Add or match
+                              lines manually — bulk CSV import is optional later.
+                            </p>
+                          </div>
+                          <AccountBankReconciliationPanel
+                            lines={bankReconciliation}
+                            treasuryAccounts={bankAccounts}
+                            treasuryMovements={liveTreasuryMovements}
+                            canPost={Boolean(ws?.hasPermission?.('finance.post') && ws?.canMutate)}
+                            canApprove={Boolean(ws?.hasPermission?.('finance.approve'))}
+                            branchLabel={ws?.snapshot?.branch?.name || ws?.workspaceBranchId || ''}
+                            onWorkspaceRefresh={() => ws?.refresh?.()}
+                            showToast={showToast}
+                          />
+                        </section>
+                      ) : null}
                     </>
                   )}
                 </section>

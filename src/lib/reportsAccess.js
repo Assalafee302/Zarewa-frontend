@@ -1,6 +1,6 @@
 import { hasPermissionInList } from './moduleAccess';
 
-const MANAGEMENT_REPORTS_VIEWER_ROLE_KEYS = new Set(['admin', 'md', 'ceo', 'sales_manager']);
+const MANAGEMENT_REPORTS_VIEWER_ROLE_KEYS = new Set(['admin', 'md', 'ceo', 'sales_manager', 'finance_manager']);
 
 /** Mirrors server `userMayViewManagementReports` — management `/reports` module, not ad-hoc customer exports. */
 export function userMayViewManagementReportsClient(roleKey, permissions) {

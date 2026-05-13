@@ -12,7 +12,7 @@ import { EXPENSE_CATEGORY_OPTIONS } from '../../shared/expenseCategories.js';
 import { treasuryAccountDisplayName } from '../../lib/treasuryAccountsStore';
 
 /**
- * Workspace-only entry for expense payment requests (and optional direct expense for finance roles).
+ * Workspace-only entry for expense payment requests (and optional direct expense for finance or sales).
  * Does not navigate to /accounts — users without the Finance module can still submit requests for approval.
  */
 export function WorkspaceExpenseQuickActions() {
@@ -21,6 +21,8 @@ export function WorkspaceExpenseQuickActions() {
   const payRequestFileRef = useRef(null);
   const todayIso = useMemo(() => new Date().toISOString().slice(0, 10), []);
   const canFinance = ws?.canAccessModule?.('finance') !== false;
+  const canRecordDirectExpense =
+    Boolean(ws?.hasPermission?.('finance.post')) || Boolean(ws?.hasPermission?.('expenses.create'));
   const activeActorLabel = ws?.session?.user?.displayName ?? 'User';
 
   const bankAccounts = useMemo(
@@ -201,7 +203,7 @@ export function WorkspaceExpenseQuickActions() {
           >
             <Plus size={16} aria-hidden /> New expense request
           </button>
-          {canFinance ? (
+          {canRecordDirectExpense ? (
             <button
               type="button"
               onClick={openExpenseEntry}
@@ -211,7 +213,7 @@ export function WorkspaceExpenseQuickActions() {
             </button>
           ) : (
             <p className="text-[9px] text-slate-500 leading-snug rounded-lg border border-slate-100 bg-slate-50/80 px-2.5 py-2">
-              Direct expense entry (treasury) is limited to users with Finance access.
+              Direct expense entry (treasury) requires finance posting rights or sales expense permission.
             </p>
           )}
           {canFinance ? (
