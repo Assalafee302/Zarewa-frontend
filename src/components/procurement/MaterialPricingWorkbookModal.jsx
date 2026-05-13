@@ -197,6 +197,13 @@ function mergeDraftIntoSheet(sheet, workbookLines) {
   return { ...sheet, rows: built };
 }
 
+function workbookPdfToastError(err) {
+  const m = String(err?.message || '');
+  if (m.includes('Print preview is not ready')) return m;
+  if (m.startsWith('PDF export failed')) return m.length > 180 ? `${m.slice(0, 177)}…` : m;
+  return 'Could not create PDF.';
+}
+
 /**
  * Coil material pricing workbook: conversions, suggested ₦/m, minimum floor, change log.
  * @param {{ open: boolean; onClose: () => void; initialMaterialKey?: string }} props
@@ -768,10 +775,7 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
       showToast(`Saved ${filename}`);
     } catch (e) {
       console.error(e);
-      showToast(
-        String(e?.message || '').includes('ready') ? e.message : 'Could not create PDF.',
-        { variant: 'error' }
-      );
+      showToast(workbookPdfToastError(e), { variant: 'error' });
     } finally {
       setSharePdfBusy(false);
     }
@@ -797,10 +801,7 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
       }
     } catch (e) {
       console.error(e);
-      showToast(
-        String(e?.message || '').includes('ready') ? e.message : 'Could not create PDF.',
-        { variant: 'error' }
-      );
+      showToast(workbookPdfToastError(e), { variant: 'error' });
     } finally {
       setSharePdfBusy(false);
     }
@@ -826,10 +827,7 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
       );
     } catch (e) {
       console.error(e);
-      showToast(
-        String(e?.message || '').includes('ready') ? e.message : 'Could not create PDF.',
-        { variant: 'error' }
-      );
+      showToast(workbookPdfToastError(e), { variant: 'error' });
     } finally {
       setSharePdfBusy(false);
     }
@@ -848,10 +846,7 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
       window.location.href = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
     } catch (e) {
       console.error(e);
-      showToast(
-        String(e?.message || '').includes('ready') ? e.message : 'Could not create PDF.',
-        { variant: 'error' }
-      );
+      showToast(workbookPdfToastError(e), { variant: 'error' });
     } finally {
       setSharePdfBusy(false);
     }

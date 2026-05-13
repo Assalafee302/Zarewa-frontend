@@ -1,6 +1,10 @@
 import React from 'react';
 import { ZAREWA_COMPANY_ACCOUNT_NAME, ZAREWA_LOGO_SRC, ZAREWA_QUOTATION_BRANDING } from '../../Data/companyQuotation.js';
-import { listPriceFromFloorAndCommission, premiumProfilePriceFromBase } from '../../lib/publishedPrice.js';
+import {
+  listPriceFromFloorAndCommission,
+  premiumProfilePriceFromBase,
+  roundPublishedPrice,
+} from '../../lib/publishedPrice.js';
 
 function formatNgn(n) {
   return `₦${Math.round(Number(n) || 0).toLocaleString('en-NG')}`;
@@ -76,7 +80,7 @@ function ridgeCustomerGridCellNgn(listBaseNgn, materialKey, girthMm, ridgeAddOns
   if (!Number.isFinite(divisor) || divisor <= 0) return 0;
   const r = ridgeMatchedPolicyRowPrint(ridgeAddOns, materialKey, girthMm);
   const add = r ? customerRidgeListAddOnNgn(r) : 0;
-  return Math.round(base / divisor + add);
+  return roundPublishedPrice(base / divisor + add);
 }
 
 function workbookRowsForSheet(sheet) {
@@ -233,16 +237,16 @@ export function MaterialWorkbookOfficialPrintView({ sheets, branchName, effectiv
                           <td className="border border-slate-200 px-2 py-1 text-right font-mono tabular-nums">{formatNgn(oh)}</td>
                           <td className="border border-slate-200 px-2 py-1 text-right font-mono tabular-nums">{formatNgn(pr)}</td>
                           <td className="border border-slate-200 px-2 py-1 text-right font-mono font-semibold text-[#134e4a] tabular-nums">
-                            {displaySug != null && displaySug > 0 ? formatNgn(displaySug) : '—'}
+                            {displaySug != null && displaySug > 0 ? formatNgn(roundPublishedPrice(displaySug)) : '—'}
                           </td>
                           <td className="border border-slate-200 px-2 py-1 text-right font-mono tabular-nums">
-                            {minimumNgn > 0 ? formatNgn(minimumNgn) : '—'}
+                            {minimumNgn > 0 ? formatNgn(roundPublishedPrice(minimumNgn)) : '—'}
                           </td>
                           <td className="border border-slate-200 px-2 py-1 text-right font-mono tabular-nums">
-                            {comm > 0 ? formatNgn(comm) : '—'}
+                            {comm > 0 ? formatNgn(roundPublishedPrice(comm)) : '—'}
                           </td>
                           <td className="border border-slate-200 px-2 py-1 text-right font-mono font-semibold tabular-nums">
-                            {listP > 0 ? formatNgn(listP) : '—'}
+                            {listP > 0 ? formatNgn(roundPublishedPrice(listP)) : '—'}
                           </td>
                         </tr>
                       );
@@ -277,7 +281,9 @@ export function MaterialWorkbookOfficialPrintView({ sheets, branchName, effectiv
                   <tr key={i}>
                     <td className="border border-slate-200 px-2 py-1">{r.girthMm}</td>
                     <td className="border border-slate-200 px-2 py-1">{r.materialFamily || '—'}</td>
-                    <td className="border border-slate-200 px-2 py-1 text-right font-mono tabular-nums">{formatNgn(r.addOnNgn)}</td>
+                    <td className="border border-slate-200 px-2 py-1 text-right font-mono tabular-nums">
+                      {formatNgn(roundPublishedPrice(r.addOnNgn))}
+                    </td>
                   </tr>
                 ))
               )}
@@ -359,8 +365,12 @@ export function MaterialWorkbookCustomerPrintView({ sheets, branchName, effectiv
       return (
         <tr key={`${materialKey}-${r.gaugeMm}`}>
           <td className="border border-black px-2 py-1 text-left font-semibold print:px-1 print:py-0.5">{r.gaugeLabel}</td>
-          <td className="border border-black px-2 py-1 text-right font-mono tabular-nums print:px-1 print:py-0.5">{formatNgn(r.listBase)}</td>
-          <td className="border border-black px-2 py-1 text-right font-mono tabular-nums print:px-1 print:py-0.5">{formatNgn(prem)}</td>
+          <td className="border border-black px-2 py-1 text-right font-mono tabular-nums print:px-1 print:py-0.5">
+            {formatNgn(roundPublishedPrice(r.listBase))}
+          </td>
+          <td className="border border-black px-2 py-1 text-right font-mono tabular-nums print:px-1 print:py-0.5">
+            {formatNgn(roundPublishedPrice(prem))}
+          </td>
         </tr>
       );
     });
@@ -373,7 +383,7 @@ export function MaterialWorkbookCustomerPrintView({ sheets, branchName, effectiv
           const v = ridgeCustomerGridCellNgn(r.listBase, materialKey, gth, ridgeAddOns);
           return (
             <td key={gth} className="border border-black px-2 py-1 text-right font-mono tabular-nums print:px-1 print:py-0.5">
-              {v > 0 ? formatNgn(v) : '—'}
+              {v > 0 ? formatNgn(roundPublishedPrice(v)) : '—'}
             </td>
           );
         })}
@@ -517,7 +527,7 @@ export function MaterialWorkbookCustomerPrintView({ sheets, branchName, effectiv
                   <tr key={`stone-${r.gaugeMm}`}>
                     <td className="border border-black px-2 py-1 font-semibold print:px-1 print:py-0.5">{r.gaugeLabel}</td>
                     <td className="border border-black px-2 py-1 text-right font-mono tabular-nums print:px-1 print:py-0.5">
-                      {formatNgn(r.listBase)}
+                      {formatNgn(roundPublishedPrice(r.listBase))}
                     </td>
                   </tr>
                 ))}

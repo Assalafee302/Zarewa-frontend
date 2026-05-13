@@ -44,20 +44,46 @@ export function buildQuotationPdfFilename(projectName, documentKind, quotationId
  */
 export async function exportElementToPdfBlob(element, filenameHint = 'document.pdf') {
   const html2pdf = (await import('html2pdf.js')).default;
-  const opt = {
+
+  const maxCanvasPx = 8192;
+  const h = Math.max(1, element.scrollHeight || 1);
+  const w = Math.max(1, element.scrollWidth || 1);
+  /** html2canvas × scale must stay under browser canvas limits (tall print roots often fail at scale 2). */
+  const scaleFor = (base) =>
+    Math.min(base, Math.max(0.5, Math.floor((maxCanvasPx / Math.max(h, w)) * 100) / 100));
+
+  const buildOpt = (scale) => ({
     margin: [6, 6, 6, 6],
     filename: filenameHint,
     image: { type: 'jpeg', quality: 0.92 },
     html2canvas: {
-      scale: 2,
+      scale,
       useCORS: true,
+      allowTaint: false,
       logging: false,
-      letterRendering: true,
+      letterRendering: false,
+      scrollX: 0,
+      scrollY: 0,
+      windowWidth: w,
+      windowHeight: h,
     },
     jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-    pagebreak: { mode: ['css', 'legacy'] },
-  };
-  return html2pdf().set(opt).from(element).outputPdf('blob');
+    pagebreak: { mode: ['legacy'] },
+  });
+
+  const run = (scale) =>
+    html2pdf().set(buildOpt(scale)).from(element).outputPdf('blob');
+
+  try {
+    return await run(scaleFor(2));
+  } catch (e1) {
+    try {
+      return await run(scaleFor(1));
+    } catch (e2) {
+      const msg = String(e2?.message || e2 || e1?.message || e1 || 'unknown');
+      throw new Error(`PDF export failed (${msg})`);
+    }
+  }
 }
 
 export function downloadPdfBlob(blob, filename) {
