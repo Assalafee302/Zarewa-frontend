@@ -8,7 +8,12 @@ import { apiFetch } from '../../lib/apiBase';
 import { formatNgn } from '../../Data/mockData';
 import { listPriceFromFloorAndCommission } from '../../lib/publishedPrice.js';
 import { ZAREWA_COMPANY_ACCOUNT_NAME } from '../../Data/companyQuotation.js';
-import { workbookPrintRootToPdfBlob } from '../../lib/workbookPrintToPdf.js';
+import {
+  downloadPdfBlob,
+  exportElementToPdfBlob,
+  sanitizePdfFilenameBase,
+  sharePdfFileIfSupported,
+} from '../../lib/documentPdfExport.js';
 import {
   MaterialWorkbookCustomerPrintView,
   MaterialWorkbookOfficialPrintView,
@@ -744,33 +749,16 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
   );
 
   const priceListPdfFilename = useCallback(() => {
-    const dateSafe = String(effectiveDateLabel)
-      .replace(/[<>:"/\\|?*\u0000-\u001f\u007f]/g, '-')
-      .replace(/\s+/g, ' ')
-      .trim();
+    const datePart = sanitizePdfFilenameBase(effectiveDateLabel);
     const prefix = printPreview === 'customer' ? 'Price list' : 'Pricing workbook';
-    return `${prefix} — ${dateSafe}.pdf`;
+    return `${prefix} — ${datePart}.pdf`;
   }, [effectiveDateLabel, printPreview]);
-
-  const triggerPdfDownload = useCallback((blob, filename) => {
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    a.rel = 'noopener';
-    document.body.appendChild(a);
-    a.click();
-    window.setTimeout(() => {
-      URL.revokeObjectURL(url);
-      a.remove();
-    }, 2500);
-  }, []);
 
   const exportPriceListPdf = useCallback(async () => {
     const el = printRootRef.current;
     if (!el) throw new Error('Print preview is not ready.');
-    const blob = await workbookPrintRootToPdfBlob(el);
     const filename = priceListPdfFilename();
+    const blob = await exportElementToPdfBlob(el, filename);
     return { blob, filename };
   }, [priceListPdfFilename]);
 
@@ -779,7 +767,7 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
     setSharePdfBusy(true);
     try {
       const { blob, filename } = await exportPriceListPdf();
-      triggerPdfDownload(blob, filename);
+      downloadPdfBlob(blob, filename);
       showToast(`Saved ${filename}`);
     } catch (e) {
       console.error(e);
@@ -790,37 +778,26 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
     } finally {
       setSharePdfBusy(false);
     }
-  }, [printPreview, exportPriceListPdf, triggerPdfDownload, showToast]);
+  }, [printPreview, exportPriceListPdf, showToast]);
 
   const sharePdfNative = useCallback(async () => {
     if (!printPreview) return;
     setSharePdfBusy(true);
     try {
       const { blob, filename } = await exportPriceListPdf();
-      const file = new File([blob], filename, { type: 'application/pdf' });
       const title = printPreview === 'customer' ? 'Price list' : 'Pricing workbook';
-      if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
-        try {
-          if (typeof navigator.canShare === 'function' && !navigator.canShare({ files: [file] })) {
-            triggerPdfDownload(blob, filename);
-            showToast('PDF saved — open your app and attach this file to send it.');
-            return;
-          }
-          await navigator.share({
-            files: [file],
-            title: `${title} — ${effectiveDateLabel}`,
-            text: `${title} (PDF).`,
-          });
-          return;
-        } catch (e) {
-          if (String(e?.name || '') === 'AbortError') return;
-          triggerPdfDownload(blob, filename);
-          showToast('Could not share — PDF saved instead.');
-          return;
-        }
+      const shareMeta = {
+        title: `${title} — ${effectiveDateLabel}`,
+        text: `${title} (PDF).`,
+      };
+      const r = await sharePdfFileIfSupported(blob, filename, shareMeta);
+      if (r.ok || r.reason === 'aborted') return;
+      downloadPdfBlob(blob, filename);
+      if (r.reason === 'cannot-share-files' || r.reason === 'no-share') {
+        showToast('PDF saved — attach it in your chat or email app.');
+      } else {
+        showToast('Could not share — PDF saved instead.');
       }
-      triggerPdfDownload(blob, filename);
-      showToast('PDF saved.');
     } catch (e) {
       console.error(e);
       showToast(
@@ -830,38 +807,22 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
     } finally {
       setSharePdfBusy(false);
     }
-  }, [
-    printPreview,
-    exportPriceListPdf,
-    triggerPdfDownload,
-    showToast,
-    effectiveDateLabel,
-  ]);
+  }, [printPreview, exportPriceListPdf, showToast, effectiveDateLabel]);
 
   const sharePrintWhatsApp = useCallback(async () => {
     if (!printPreview) return;
     setSharePdfBusy(true);
     try {
       const { blob, filename } = await exportPriceListPdf();
-      const file = new File([blob], filename, { type: 'application/pdf' });
-      if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
-        try {
-          if (!navigator.canShare || navigator.canShare({ files: [file] })) {
-            await navigator.share({
-              files: [file],
-              title: `Price list — ${effectiveDateLabel}`,
-              text: 'Price list (PDF).',
-            });
-            return;
-          }
-        } catch (e) {
-          if (String(e?.name || '') === 'AbortError') return;
-        }
-      }
-      triggerPdfDownload(blob, filename);
+      const r = await sharePdfFileIfSupported(blob, filename, {
+        title: `Price list — ${effectiveDateLabel}`,
+        text: 'Price list (PDF).',
+      });
+      if (r.ok || r.reason === 'aborted') return;
+      downloadPdfBlob(blob, filename);
       window.open(
         `https://wa.me/?text=${encodeURIComponent(
-          `Price list PDF saved as "${filename}". In WhatsApp, attach that file from your Downloads folder (or share sheet).`
+          `Price list PDF saved as "${filename}". In WhatsApp, attach that file from your Downloads folder (or use Share PDF on your phone).`
         )}`,
         '_blank',
         'noopener,noreferrer'
@@ -875,14 +836,14 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
     } finally {
       setSharePdfBusy(false);
     }
-  }, [printPreview, exportPriceListPdf, triggerPdfDownload, showToast, effectiveDateLabel]);
+  }, [printPreview, exportPriceListPdf, showToast, effectiveDateLabel]);
 
   const sharePrintEmail = useCallback(async () => {
     if (!printPreview) return;
     setSharePdfBusy(true);
     try {
       const { blob, filename } = await exportPriceListPdf();
-      triggerPdfDownload(blob, filename);
+      downloadPdfBlob(blob, filename);
       const kind = printPreview === 'customer' ? 'Price list' : 'Pricing workbook';
       const subject = `${kind} — ${effectiveDateLabel}`;
       const b = String(branchName || branchId || '').trim();
@@ -900,7 +861,6 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
   }, [
     printPreview,
     exportPriceListPdf,
-    triggerPdfDownload,
     showToast,
     effectiveDateLabel,
     branchName,
