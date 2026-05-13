@@ -1,6 +1,6 @@
 /**
- * Client-side PDF export from a DOM subtree (quotation / receipt print roots).
- * Uses html2pdf.js (html2canvas + jsPDF) — loaded on demand to keep initial bundle smaller.
+ * Client-side PDF export from a DOM subtree (quotations, workbook print, etc.).
+ * Uses html2canvas on the **live** element (same layout as on-screen preview) + jsPDF — no html2pdf clone step.
  */
 
 /** Modern color spaces in computed values break html2canvas’s CSS parser. */
@@ -112,12 +112,8 @@ function neutralizeOklabStylesForHtml2Canvas(clonedDoc, clonedRoot, liveSourceRo
       : liveSourceRoot.querySelector?.('#workbook-print-root') || liveSourceRoot;
 
   const clonedWorkbook =
-    clonedRoot.id === 'workbook-print-root'
-      ? clonedRoot
-      : clonedDoc.getElementById('workbook-print-root') ||
-        clonedRoot.querySelector('#workbook-print-root') ||
-        clonedRoot.firstElementChild ||
-        clonedRoot;
+    clonedDoc.getElementById('workbook-print-root') ||
+    (clonedRoot?.querySelector?.('#workbook-print-root') ?? clonedRoot);
 
   const liveMap = buildPdfSyncNodeMap(liveWorkbook);
   const cloneMap = buildPdfSyncNodeMap(clonedWorkbook);
@@ -153,19 +149,50 @@ function pxToMm(px) {
 }
 
 /**
- * Page width so html2pdf’s capture box matches on-screen width (avoids reflow vs preview).
+ * PDF page width (mm) from the element’s laid-out width on screen.
  * @param {HTMLElement} el
- * @param {number[]} marginMm [top,right,bottom,left] as in html2pdf
  */
-function pdfPageWidthMmForElement(el, marginMm) {
-  const mr = Number(marginMm?.[1]) || 0;
-  const ml = Number(marginMm?.[3]) || 0;
+function pdfPageWidthMmFromElement(el) {
   const rect = el.getBoundingClientRect?.();
-  const px = Math.max(el.scrollWidth, el.offsetWidth, rect?.width || 0, 1);
-  const innerMm = Math.ceil(pxToMm(px) + 0.5);
-  /** Wider than A4 for internal workbook tables; cap so jsPDF stays reasonable. */
-  const innerClamped = Math.min(380, Math.max(180, innerMm));
-  return innerClamped + mr + ml;
+  const px = Math.max(1, el.scrollWidth, el.offsetWidth, rect?.width || 0);
+  const mm = Math.ceil(pxToMm(px) + 0.5);
+  return Math.min(420, Math.max(148, mm));
+}
+
+/**
+ * @param {HTMLCanvasElement} canvas
+ * @param {number} pageWidthMm
+ * @param {number} pageHeightMm
+ * @param {number} jpegQuality 0–1
+ */
+async function canvasToPagedPdfBlob(canvas, pageWidthMm, pageHeightMm, jpegQuality) {
+  const { jsPDF } = await import('jspdf');
+  const doc = new jsPDF({
+    unit: 'mm',
+    format: [pageWidthMm, pageHeightMm],
+    orientation: 'portrait',
+  });
+  let imgData;
+  try {
+    imgData = canvas.toDataURL('image/jpeg', jpegQuality);
+  } catch {
+    throw new Error(
+      'Could not rasterize preview to an image (blocked image data). Try Print and Save as PDF instead.'
+    );
+  }
+  const imgWidthMm = pageWidthMm;
+  const imgHeightMm = (canvas.height * imgWidthMm) / canvas.width;
+  let positionMm = 0;
+  let heightLeftMm = imgHeightMm;
+  doc.addImage(imgData, 'JPEG', 0, positionMm, imgWidthMm, imgHeightMm);
+  heightLeftMm -= pageHeightMm;
+  while (heightLeftMm > 0) {
+    positionMm -= pageHeightMm;
+    doc.addPage([pageWidthMm, pageHeightMm], 'portrait');
+    doc.addImage(imgData, 'JPEG', 0, positionMm, imgWidthMm, imgHeightMm);
+    heightLeftMm -= pageHeightMm;
+  }
+  return doc.output('blob');
 }
 
 /** Strip characters unsafe in Windows / macOS filenames. */
@@ -204,34 +231,28 @@ export function buildQuotationPdfFilename(projectName, documentKind, quotationId
 }
 
 /**
- * @param {HTMLElement} element
- * @param {string} filenameHint Used by html2pdf for internal save fallback; blob uses same logical name from caller.
+ * @param {HTMLElement} element Root node exactly as shown in the UI (not a detached clone).
  */
-export async function exportElementToPdfBlob(element, filenameHint = 'document.pdf') {
-  const mod = await import('html2pdf.js');
-  const html2pdf = mod.default ?? mod;
-  if (typeof html2pdf !== 'function') {
-    throw new Error('PDF library did not load (html2pdf.js).');
+export async function exportElementToPdfBlob(element) {
+  if (!element || !(element instanceof HTMLElement)) {
+    throw new Error('PDF export requires a visible HTML element.');
   }
 
-  const marginMm = [6, 6, 6, 6];
-  const pageWidthMm = pdfPageWidthMmForElement(element, marginMm);
+  const pageWidthMm = pdfPageWidthMmFromElement(element);
   const pageHeightMm = 297;
+  const jpegQuality = 0.94;
 
   stampPdfSyncIds(element);
   try {
+    const { default: html2canvas } = await import('html2canvas');
+
+    const w = Math.max(1, element.scrollWidth);
+    const h = Math.max(1, element.scrollHeight);
     const maxCanvasPx = 8192;
-    const h = Math.max(1, element.scrollHeight || 1);
-    const w = Math.max(1, element.scrollWidth || 1);
-    /**
-     * html2canvas output is roughly (w × scale) by (h × scale) px — both sides must stay under the
-     * browser canvas limit. Using max(h,w) was wrong and produced oversized canvases on tall quotes.
-     */
     const scaleFor = (desired) => {
       const cap = Math.min(maxCanvasPx / w, maxCanvasPx / h);
       return Math.min(desired, Math.max(0.35, Math.floor(cap * 100) / 100));
     };
-
     const scaleCandidates = [
       scaleFor(2),
       scaleFor(1.5),
@@ -242,34 +263,24 @@ export async function exportElementToPdfBlob(element, filenameHint = 'document.p
     ];
     const scales = [...new Set(scaleCandidates.filter((s) => s >= 0.35))].sort((a, b) => b - a);
 
-    const buildOpt = (scale) => ({
-      margin: marginMm,
-      filename: filenameHint,
-      image: { type: 'jpeg', quality: 0.94 },
-      enableLinks: false,
-      html2canvas: {
-        scale,
-        useCORS: true,
-        allowTaint: false,
-        logging: false,
-        letterRendering: false,
-        scrollX: 0,
-        scrollY: 0,
-        windowWidth: w,
-        windowHeight: h,
-        backgroundColor: '#ffffff',
-        onclone(clonedDoc, clonedRoot) {
-          neutralizeOklabStylesForHtml2Canvas(clonedDoc, clonedRoot, element);
-        },
-      },
-      jsPDF: { unit: 'mm', format: [pageWidthMm, pageHeightMm], orientation: 'portrait' },
-      pagebreak: { mode: ['legacy'] },
-    });
-
     let lastErr;
     for (const scale of scales) {
       try {
-        return await html2pdf().set(buildOpt(scale)).from(element).outputPdf('blob');
+        const canvas = await html2canvas(element, {
+          scale,
+          useCORS: true,
+          allowTaint: false,
+          logging: false,
+          backgroundColor: '#ffffff',
+          windowWidth: w,
+          windowHeight: h,
+          scrollX: 0,
+          scrollY: 0,
+          onclone(clonedDoc, cloneEl) {
+            neutralizeOklabStylesForHtml2Canvas(clonedDoc, cloneEl, element);
+          },
+        });
+        return await canvasToPagedPdfBlob(canvas, pageWidthMm, pageHeightMm, jpegQuality);
       } catch (e) {
         lastErr = e;
       }
