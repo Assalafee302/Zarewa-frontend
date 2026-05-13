@@ -743,10 +743,7 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
   const branchRecord = branches.find((b) => b.id === branchId);
   const branchName = branchRecord?.name || branchRecord?.code || branchId;
 
-  const effectiveDateLabel = useMemo(
-    () => new Date().toLocaleDateString('en-NG', { dateStyle: 'long' }),
-    [printPreview]
-  );
+  const effectiveDateLabel = new Date().toLocaleDateString('en-NG', { dateStyle: 'long' });
 
   const priceListPdfFilename = useCallback(() => {
     const datePart = sanitizePdfFilenameBase(effectiveDateLabel);

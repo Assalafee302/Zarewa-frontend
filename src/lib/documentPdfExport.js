@@ -5,9 +5,19 @@
 
 /** Strip characters unsafe in Windows / macOS filenames. */
 export function sanitizePdfFilenameBase(raw, maxLen = 72) {
-  const s = String(raw ?? '')
+  const unsafe = new Set('<>:"/\\|?*');
+  const stripped = String(raw ?? '')
+    .split('')
+    .filter((ch) => {
+      const code = ch.codePointAt(0);
+      if (code == null) return false;
+      if (code < 32 || code === 127) return false;
+      if (unsafe.has(ch)) return false;
+      return true;
+    })
+    .join('');
+  const s = stripped
     .trim()
-    .replace(/[<>:"/\\|?*\u0000-\u001f]/g, '')
     .replace(/\s+/g, ' ')
     .replace(/\.+$/g, '')
     .slice(0, maxLen)
