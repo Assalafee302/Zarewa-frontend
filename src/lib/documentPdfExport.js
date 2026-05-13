@@ -57,13 +57,50 @@ function sanitizeComputedValueForPdf(prop, val) {
   return val;
 }
 
+/** @param {Element} root */
+function stampPdfSyncIds(root) {
+  let i = 0;
+  /** @param {Element} el */
+  const walk = (el) => {
+    if (el.nodeType !== Node.ELEMENT_NODE) return;
+    el.setAttribute('data-pdf-sync', String(i++));
+    const kids = el.children;
+    for (let k = 0; k < kids.length; k++) walk(kids[k]);
+  };
+  walk(root);
+}
+
+/** @param {Element} root */
+function clearPdfSyncIds(root) {
+  if (root.nodeType === Node.ELEMENT_NODE && root.hasAttribute('data-pdf-sync')) {
+    root.removeAttribute('data-pdf-sync');
+  }
+  root.querySelectorAll('[data-pdf-sync]').forEach((el) => el.removeAttribute('data-pdf-sync'));
+}
+
+/** @param {Element} root */
+function buildPdfSyncNodeMap(root) {
+  /** @type {Map<string, Element>} */
+  const map = new Map();
+  /** @param {Element} el */
+  const walk = (el) => {
+    if (el.nodeType !== Node.ELEMENT_NODE) return;
+    const id = el.getAttribute('data-pdf-sync');
+    if (id != null) map.set(id, el);
+    const kids = el.children;
+    for (let k = 0; k < kids.length; k++) walk(kids[k]);
+  };
+  walk(root);
+  return map;
+}
+
 /**
  * html2canvas cannot parse Tailwind v4 / CSS Color 4 `oklab()` in linked stylesheets.
- * Remove author styles on the cloned iframe document and copy resolved computed styles from the live DOM.
+ * Strip author styles on the clone, then copy resolved computed styles from the live DOM using stable sync ids.
  *
  * @param {Document} clonedDoc
- * @param {HTMLElement} clonedRoot html2canvas root (e.g. html2pdf container wrapping the clone)
- * @param {HTMLElement} liveSourceRoot element passed to html2pdf `.from()` — still attached in the real document
+ * @param {HTMLElement} clonedRoot
+ * @param {HTMLElement} liveSourceRoot
  */
 function neutralizeOklabStylesForHtml2Canvas(clonedDoc, clonedRoot, liveSourceRoot) {
   clonedDoc.querySelectorAll('link[rel="stylesheet"]').forEach((n) => n.remove());
@@ -82,14 +119,12 @@ function neutralizeOklabStylesForHtml2Canvas(clonedDoc, clonedRoot, liveSourceRo
         clonedRoot.firstElementChild ||
         clonedRoot;
 
-  const liveNodes = [liveWorkbook, ...liveWorkbook.querySelectorAll('*')];
-  const clonedNodes = [clonedWorkbook, ...clonedWorkbook.querySelectorAll('*')];
-  const n = Math.min(liveNodes.length, clonedNodes.length);
+  const liveMap = buildPdfSyncNodeMap(liveWorkbook);
+  const cloneMap = buildPdfSyncNodeMap(clonedWorkbook);
 
-  for (let i = 0; i < n; i++) {
-    const live = liveNodes[i];
-    const clone = clonedNodes[i];
-    if (live.nodeType !== Node.ELEMENT_NODE || clone.nodeType !== Node.ELEMENT_NODE) continue;
+  for (const [id, live] of liveMap) {
+    const clone = cloneMap.get(id);
+    if (!clone || live.nodeType !== Node.ELEMENT_NODE || clone.nodeType !== Node.ELEMENT_NODE) continue;
     try {
       const cs = getComputedStyle(live);
       for (let j = 0; j < cs.length; j++) {
@@ -110,6 +145,27 @@ function neutralizeOklabStylesForHtml2Canvas(clonedDoc, clonedRoot, liveSourceRo
       /* ignore per-node */
     }
   }
+}
+
+/** Convert layout px → mm (CSS reference pixel ~ 1/96 inch). */
+function pxToMm(px) {
+  return (Number(px) || 0) * (25.4 / 96);
+}
+
+/**
+ * Page width so html2pdf’s capture box matches on-screen width (avoids reflow vs preview).
+ * @param {HTMLElement} el
+ * @param {number[]} marginMm [top,right,bottom,left] as in html2pdf
+ */
+function pdfPageWidthMmForElement(el, marginMm) {
+  const mr = Number(marginMm?.[1]) || 0;
+  const ml = Number(marginMm?.[3]) || 0;
+  const rect = el.getBoundingClientRect?.();
+  const px = Math.max(el.scrollWidth, el.offsetWidth, rect?.width || 0, 1);
+  const innerMm = Math.ceil(pxToMm(px) + 0.5);
+  /** Wider than A4 for internal workbook tables; cap so jsPDF stays reasonable. */
+  const innerClamped = Math.min(380, Math.max(180, innerMm));
+  return innerClamped + mr + ml;
 }
 
 /** Strip characters unsafe in Windows / macOS filenames. */
@@ -158,64 +214,73 @@ export async function exportElementToPdfBlob(element, filenameHint = 'document.p
     throw new Error('PDF library did not load (html2pdf.js).');
   }
 
-  const maxCanvasPx = 8192;
-  const h = Math.max(1, element.scrollHeight || 1);
-  const w = Math.max(1, element.scrollWidth || 1);
-  /**
-   * html2canvas output is roughly (w × scale) by (h × scale) px — both sides must stay under the
-   * browser canvas limit. Using max(h,w) was wrong and produced oversized canvases on tall quotes.
-   */
-  const scaleFor = (desired) => {
-    const cap = Math.min(maxCanvasPx / w, maxCanvasPx / h);
-    return Math.min(desired, Math.max(0.35, Math.floor(cap * 100) / 100));
-  };
+  const marginMm = [6, 6, 6, 6];
+  const pageWidthMm = pdfPageWidthMmForElement(element, marginMm);
+  const pageHeightMm = 297;
 
-  const scaleCandidates = [
-    scaleFor(2),
-    scaleFor(1.5),
-    scaleFor(1),
-    scaleFor(0.75),
-    scaleFor(0.5),
-    scaleFor(0.35),
-  ];
-  const scales = [...new Set(scaleCandidates.filter((s) => s >= 0.35))].sort((a, b) => b - a);
+  stampPdfSyncIds(element);
+  try {
+    const maxCanvasPx = 8192;
+    const h = Math.max(1, element.scrollHeight || 1);
+    const w = Math.max(1, element.scrollWidth || 1);
+    /**
+     * html2canvas output is roughly (w × scale) by (h × scale) px — both sides must stay under the
+     * browser canvas limit. Using max(h,w) was wrong and produced oversized canvases on tall quotes.
+     */
+    const scaleFor = (desired) => {
+      const cap = Math.min(maxCanvasPx / w, maxCanvasPx / h);
+      return Math.min(desired, Math.max(0.35, Math.floor(cap * 100) / 100));
+    };
 
-  const buildOpt = (scale) => ({
-    margin: [6, 6, 6, 6],
-    filename: filenameHint,
-    image: { type: 'jpeg', quality: 0.88 },
-    enableLinks: false,
-    html2canvas: {
-      scale,
-      useCORS: true,
-      allowTaint: false,
-      logging: false,
-      letterRendering: false,
-      scrollX: 0,
-      scrollY: 0,
-      windowWidth: w,
-      windowHeight: h,
-      backgroundColor: '#ffffff',
-      onclone(clonedDoc, clonedRoot) {
-        neutralizeOklabStylesForHtml2Canvas(clonedDoc, clonedRoot, element);
+    const scaleCandidates = [
+      scaleFor(2),
+      scaleFor(1.5),
+      scaleFor(1),
+      scaleFor(0.75),
+      scaleFor(0.5),
+      scaleFor(0.35),
+    ];
+    const scales = [...new Set(scaleCandidates.filter((s) => s >= 0.35))].sort((a, b) => b - a);
+
+    const buildOpt = (scale) => ({
+      margin: marginMm,
+      filename: filenameHint,
+      image: { type: 'jpeg', quality: 0.94 },
+      enableLinks: false,
+      html2canvas: {
+        scale,
+        useCORS: true,
+        allowTaint: false,
+        logging: false,
+        letterRendering: false,
+        scrollX: 0,
+        scrollY: 0,
+        windowWidth: w,
+        windowHeight: h,
+        backgroundColor: '#ffffff',
+        onclone(clonedDoc, clonedRoot) {
+          neutralizeOklabStylesForHtml2Canvas(clonedDoc, clonedRoot, element);
+        },
       },
-    },
-    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-    pagebreak: { mode: ['legacy'] },
-  });
+      jsPDF: { unit: 'mm', format: [pageWidthMm, pageHeightMm], orientation: 'portrait' },
+      pagebreak: { mode: ['legacy'] },
+    });
 
-  let lastErr;
-  for (const scale of scales) {
-    try {
-      return await html2pdf().set(buildOpt(scale)).from(element).outputPdf('blob');
-    } catch (e) {
-      lastErr = e;
+    let lastErr;
+    for (const scale of scales) {
+      try {
+        return await html2pdf().set(buildOpt(scale)).from(element).outputPdf('blob');
+      } catch (e) {
+        lastErr = e;
+      }
     }
-  }
 
-  const raw = String(lastErr?.message || lastErr || 'unknown');
-  const msg = raw.length > 220 ? `${raw.slice(0, 220)}…` : raw;
-  throw new Error(`PDF export failed (${msg})`);
+    const raw = String(lastErr?.message || lastErr || 'unknown');
+    const msg = raw.length > 220 ? `${raw.slice(0, 220)}…` : raw;
+    throw new Error(`PDF export failed (${msg})`);
+  } finally {
+    clearPdfSyncIds(element);
+  }
 }
 
 export function downloadPdfBlob(blob, filename) {
@@ -240,8 +305,9 @@ export async function sharePdfFileIfSupported(blob, filename, meta = {}) {
   if (typeof navigator === 'undefined' || typeof navigator.share !== 'function') {
     return { ok: false, reason: 'no-share' };
   }
+  const tryAnyway = Boolean(meta.tryAnywayIfCannotShare);
   if (typeof navigator.canShare === 'function' && !navigator.canShare({ files: [file] })) {
-    return { ok: false, reason: 'cannot-share-files' };
+    if (!tryAnyway) return { ok: false, reason: 'cannot-share-files' };
   }
   try {
     await navigator.share({

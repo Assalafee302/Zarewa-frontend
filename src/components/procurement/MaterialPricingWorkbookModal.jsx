@@ -790,6 +790,7 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
       const shareMeta = {
         title: `${title} — ${effectiveDateLabel}`,
         text: `${title} (PDF).`,
+        tryAnywayIfCannotShare: true,
       };
       const r = await sharePdfFileIfSupported(blob, filename, shareMeta);
       if (r.ok || r.reason === 'aborted') return;
@@ -815,15 +816,12 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
       const r = await sharePdfFileIfSupported(blob, filename, {
         title: `Price list — ${effectiveDateLabel}`,
         text: 'Price list (PDF).',
+        tryAnywayIfCannotShare: true,
       });
       if (r.ok || r.reason === 'aborted') return;
-      downloadPdfBlob(blob, filename);
-      window.open(
-        `https://wa.me/?text=${encodeURIComponent(
-          `Price list PDF saved as "${filename}". In WhatsApp, attach that file from your Downloads folder (or use Share PDF on your phone).`
-        )}`,
-        '_blank',
-        'noopener,noreferrer'
+      showToast(
+        'This browser cannot hand a PDF straight to WhatsApp. Use “Share PDF” on your phone and choose WhatsApp, or use “Download PDF” and attach the file in WhatsApp.',
+        { variant: 'info', duration: 9000 }
       );
     } catch (e) {
       console.error(e);
