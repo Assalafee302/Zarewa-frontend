@@ -13,6 +13,10 @@ import {
   UserPlus,
   Landmark,
   Wallet,
+  Share2,
+  MessageCircle,
+  Mail,
+  Download,
 } from 'lucide-react';
 import { ModalFrame } from './layout/ModalFrame';
 import { useTrackedUnsavedForm } from '../hooks/useTrackedUnsavedForm';
@@ -31,6 +35,13 @@ import { apiFetch } from '../lib/apiBase';
 import { guidanceForLedgerPostFailure, isVoucherDateInLockedPeriod } from '../lib/ledgerPostingGuidance';
 import { EditSecondApprovalInline } from './EditSecondApprovalInline';
 import QuotationPrintView from './QuotationPrintView';
+import {
+  buildQuotationPdfFilename,
+  downloadPdfBlob,
+  exportElementToPdfBlob,
+  sanitizePdfFilenameBase,
+  sharePdfFileIfSupported,
+} from '../lib/documentPdfExport';
 
 /** Master material types used on roofing quotes: coil stock + stone meter stock (not finished-good SKUs / consumables). */
 const QUOTATION_MATERIAL_INVENTORY_MODELS = new Set(['coil_kg', 'stone_meter']);
@@ -517,6 +528,8 @@ const QuotationModal = ({
   const [projectName, setProjectName] = useState('');
   const [showPrint, setShowPrint] = useState(false);
   const [printDocumentKind, setPrintDocumentKind] = useState('quotation');
+  const [pdfShareBusy, setPdfShareBusy] = useState(false);
+  const quotationPrintRootRef = useRef(null);
   const [applyAdvanceAmount, setApplyAdvanceAmount] = useState('');
   const [applyAdvanceHint, setApplyAdvanceHint] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -1033,6 +1046,91 @@ const QuotationModal = ({
     setPrintDocumentKind(kind);
     setShowPrint(true);
   };
+
+  const printDocShareLabel = useMemo(() => {
+    if (printDocumentKind === 'invoice') return 'Invoice';
+    if (printDocumentKind === 'receipt') return 'Receipt';
+    return 'Quotation';
+  }, [printDocumentKind]);
+
+  const runQuotationPdfExport = useCallback(
+    async (afterBlob) => {
+      if (!showPrint) return;
+      setPdfShareBusy(true);
+      try {
+        const el = quotationPrintRootRef.current;
+        if (!el) {
+          showToast('Print preview is not ready yet.', { variant: 'error' });
+          return;
+        }
+        const filename = buildQuotationPdfFilename(projectName, printDocumentKind, editData?.id);
+        const blob = await exportElementToPdfBlob(el, filename);
+        await afterBlob({ blob, filename });
+      } catch (e) {
+        console.error(e);
+        showToast('Could not create PDF. Try Print / Save as PDF from your browser.', { variant: 'error' });
+      } finally {
+        setPdfShareBusy(false);
+      }
+    },
+    [showPrint, projectName, printDocumentKind, editData?.id, showToast]
+  );
+
+  const shareQuotationPrintNative = useCallback(async () => {
+    await runQuotationPdfExport(async ({ blob, filename }) => {
+      const res = await sharePdfFileIfSupported(blob, filename, {
+        title: `${printDocShareLabel} — ${filename}`,
+        text: `${printDocShareLabel} — ${ZAREWA_COMPANY_ACCOUNT_NAME}`,
+      });
+      if (res.ok || res.reason === 'aborted') return;
+      downloadPdfBlob(blob, filename);
+      showToast(
+        `Saved ${filename}. This browser cannot open the system share sheet for PDFs here — use the file from your Downloads folder.`,
+        { variant: 'success' }
+      );
+    });
+  }, [runQuotationPdfExport, printDocShareLabel, showToast]);
+
+  const shareQuotationPrintWhatsApp = useCallback(async () => {
+    await runQuotationPdfExport(async ({ blob, filename }) => {
+      const res = await sharePdfFileIfSupported(blob, filename, {
+        title: filename,
+        text: `${printDocShareLabel} (PDF)`,
+      });
+      if (res.ok || res.reason === 'aborted') return;
+      downloadPdfBlob(blob, filename);
+      showToast(`Saved ${filename}. Open WhatsApp and attach this file from your device.`, { variant: 'success' });
+    });
+  }, [runQuotationPdfExport, printDocShareLabel, showToast]);
+
+  const shareQuotationPrintEmail = useCallback(async () => {
+    await runQuotationPdfExport(async ({ blob, filename }) => {
+      downloadPdfBlob(blob, filename);
+      const subject = `${printDocShareLabel} — ${sanitizePdfFilenameBase(projectName)}`;
+      const body = `Please attach the PDF that was just saved to your device:\n\n${filename}\n\n`;
+      window.location.href = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+      showToast(`Saved ${filename} — attach it in your email.`, { variant: 'success' });
+    });
+  }, [runQuotationPdfExport, printDocShareLabel, projectName, showToast]);
+
+  const shareQuotationPrintTelegram = useCallback(async () => {
+    await runQuotationPdfExport(async ({ blob, filename }) => {
+      const res = await sharePdfFileIfSupported(blob, filename, {
+        title: filename,
+        text: `${printDocShareLabel} (PDF)`,
+      });
+      if (res.ok || res.reason === 'aborted') return;
+      downloadPdfBlob(blob, filename);
+      showToast(`Saved ${filename}. Open Telegram and attach this file from your device.`, { variant: 'success' });
+    });
+  }, [runQuotationPdfExport, printDocShareLabel, showToast]);
+
+  const downloadQuotationPdf = useCallback(async () => {
+    await runQuotationPdfExport(async ({ blob, filename }) => {
+      downloadPdfBlob(blob, filename);
+      showToast(`Saved ${filename}.`, { variant: 'success' });
+    });
+  }, [runQuotationPdfExport, showToast]);
 
   const printLinePayload = useMemo(
     () => ({
@@ -1890,7 +1988,10 @@ const QuotationModal = ({
               onClick={() => setShowPrint(false)}
             >
               <div className="mx-auto max-w-[210mm] pb-16 print:m-0 print:max-w-none print:pb-0" onClick={(e) => e.stopPropagation()}>
-                <div className="quotation-print-root quotation-print-preview-mode rounded-lg border border-slate-200 bg-white shadow-2xl print:rounded-none print:border-0 print:shadow-none">
+                <div
+                  ref={quotationPrintRootRef}
+                  className="quotation-print-root quotation-print-preview-mode rounded-lg border border-slate-200 bg-white shadow-2xl print:rounded-none print:border-0 print:shadow-none"
+                >
                   <QuotationPrintView
                     documentKind={printDocumentKind}
                     quotationId={editData?.id ?? 'Draft'}
@@ -1909,21 +2010,74 @@ const QuotationModal = ({
                     balanceDueNgn={quotationBalanceAfterPaidNgn}
                   />
                 </div>
-                <div className="no-print mt-4 flex flex-wrap justify-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => window.print()}
-                    className="rounded-lg bg-[#134e4a] px-5 py-2.5 text-[10px] font-semibold uppercase tracking-wide text-white shadow-lg"
-                  >
-                    Print / Save as PDF
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setShowPrint(false)}
-                    className="rounded-lg border border-slate-200 bg-white px-5 py-2.5 text-[10px] font-semibold uppercase tracking-wide text-slate-700"
-                  >
-                    Close
-                  </button>
+                <div className="no-print mt-4 flex flex-col items-center gap-2">
+                  <div className="flex flex-wrap justify-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => window.print()}
+                      className="rounded-lg bg-[#134e4a] px-5 py-2.5 text-[10px] font-semibold uppercase tracking-wide text-white shadow-lg"
+                    >
+                      Print / Save as PDF
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowPrint(false)}
+                      className="rounded-lg border border-slate-200 bg-white px-5 py-2.5 text-[10px] font-semibold uppercase tracking-wide text-slate-700"
+                    >
+                      Close
+                    </button>
+                  </div>
+                  <div className="flex flex-wrap justify-center gap-2">
+                    <button
+                      type="button"
+                      disabled={pdfShareBusy}
+                      onClick={shareQuotationPrintNative}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-[9px] font-semibold uppercase tracking-wide text-slate-700 shadow-sm disabled:opacity-50"
+                    >
+                      <Share2 className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                      {pdfShareBusy ? 'Preparing…' : 'Share PDF'}
+                    </button>
+                    <button
+                      type="button"
+                      disabled={pdfShareBusy}
+                      onClick={shareQuotationPrintWhatsApp}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-300/80 bg-emerald-50/90 px-3 py-2 text-[9px] font-semibold uppercase tracking-wide text-emerald-900 shadow-sm disabled:opacity-50"
+                    >
+                      <MessageCircle className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                      WhatsApp
+                    </button>
+                    <button
+                      type="button"
+                      disabled={pdfShareBusy}
+                      onClick={shareQuotationPrintEmail}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-[9px] font-semibold uppercase tracking-wide text-slate-700 shadow-sm disabled:opacity-50"
+                    >
+                      <Mail className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                      Email
+                    </button>
+                    <button
+                      type="button"
+                      disabled={pdfShareBusy}
+                      onClick={shareQuotationPrintTelegram}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-sky-300/80 bg-sky-50/90 px-3 py-2 text-[9px] font-semibold uppercase tracking-wide text-sky-950 shadow-sm disabled:opacity-50"
+                    >
+                      Telegram
+                    </button>
+                    <button
+                      type="button"
+                      disabled={pdfShareBusy}
+                      onClick={downloadQuotationPdf}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-[9px] font-semibold uppercase tracking-wide text-slate-700 shadow-sm disabled:opacity-50"
+                    >
+                      <Download className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                      Download PDF
+                    </button>
+                  </div>
+                  <p className="max-w-md text-center text-[9px] text-slate-500">
+                    Share builds a PDF named from the project (e.g. <span className="font-mono">My-Project-Quotation-QT-1.pdf</span>).
+                    On phones, Share opens your system sheet so you can pick WhatsApp, Gmail, etc. On desktop, the file is saved
+                    for you to attach where you need it.
+                  </p>
                 </div>
               </div>
             </div>
