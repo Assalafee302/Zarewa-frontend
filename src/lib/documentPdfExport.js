@@ -31,6 +31,129 @@ function coerceCssColorForPdf(value) {
 }
 
 /**
+ * Computed properties to copy onto the html2canvas clone. Copying the full declaration list
+ * flattens cascade awkwardly and hurts colours; Tailwind utilities still need resolved layout paint.
+ */
+const PDF_COMPUTED_PROPS = [
+  'print-color-adjust',
+  '-webkit-print-color-adjust',
+  'color',
+  'background-color',
+  'background',
+  'opacity',
+  'visibility',
+  'font-family',
+  'font-size',
+  'font-weight',
+  'font-style',
+  'font-variant',
+  'line-height',
+  'letter-spacing',
+  'text-align',
+  'text-transform',
+  'text-indent',
+  'white-space',
+  'word-break',
+  'word-spacing',
+  'vertical-align',
+  'padding-top',
+  'padding-right',
+  'padding-bottom',
+  'padding-left',
+  'margin-top',
+  'margin-right',
+  'margin-bottom',
+  'margin-left',
+  'border-top-width',
+  'border-right-width',
+  'border-bottom-width',
+  'border-left-width',
+  'border-top-style',
+  'border-right-style',
+  'border-bottom-style',
+  'border-left-style',
+  'border-top-color',
+  'border-right-color',
+  'border-bottom-color',
+  'border-left-color',
+  'border-radius',
+  'box-sizing',
+  'display',
+  'width',
+  'height',
+  'max-width',
+  'min-width',
+  'max-height',
+  'min-height',
+  'flex-direction',
+  'flex-wrap',
+  'flex-grow',
+  'flex-shrink',
+  'flex-basis',
+  'justify-content',
+  'align-items',
+  'align-content',
+  'align-self',
+  'gap',
+  'grid-template-columns',
+  'grid-template-rows',
+  'grid-column',
+  'grid-row',
+  'justify-items',
+  'position',
+  'top',
+  'right',
+  'bottom',
+  'left',
+  'z-index',
+  'overflow',
+  'overflow-x',
+  'overflow-y',
+  'border-collapse',
+  'border-spacing',
+  'box-shadow',
+  'text-shadow',
+  'background-image',
+  'outline-width',
+  'outline-style',
+  'outline-color',
+  'text-decoration',
+  'text-decoration-line',
+  'text-decoration-color',
+  'text-decoration-style',
+  'fill',
+  'stroke',
+  'stroke-width',
+];
+
+/**
+ * Resolve a computed color value to rgb/rgba using the live document (handles oklch/oklab from Tailwind).
+ * @param {string} prop Longhand CSS property name, e.g. `border-top-color`.
+ * @param {string} value
+ */
+function resolveCssColorToRgb(prop, value) {
+  const v = String(value || '').trim();
+  if (!v || v === 'transparent') return v;
+  if (!MODERN_COLOR_FN_RE.test(v)) return v;
+  try {
+    const probe = document.createElement('span');
+    probe.setAttribute('data-pdf-color-probe', '1');
+    const safe = String(prop || 'color')
+      .toLowerCase()
+      .replace(/[^a-z-]/g, '');
+    if (!safe) return coerceCssColorForPdf(v);
+    probe.style.cssText = `position:fixed;left:-9999px;top:0;visibility:hidden;${safe}:${v}`;
+    document.body.appendChild(probe);
+    const out = getComputedStyle(probe).getPropertyValue(safe);
+    probe.remove();
+    if (out && typeof out === 'string' && out.trim() && !MODERN_COLOR_FN_RE.test(out)) return out.trim();
+  } catch {
+    /* ignore */
+  }
+  return coerceCssColorForPdf(v);
+}
+
+/**
  * @param {string} prop
  * @param {string} val
  */
@@ -52,7 +175,7 @@ function sanitizeComputedValueForPdf(prop, val) {
     p === 'lighting-color' ||
     p === 'stop-color'
   ) {
-    return coerceCssColorForPdf(v);
+    return resolveCssColorToRgb(p, v);
   }
   return val;
 }
@@ -103,9 +226,6 @@ function buildPdfSyncNodeMap(root) {
  * @param {HTMLElement} liveSourceRoot
  */
 function neutralizeOklabStylesForHtml2Canvas(clonedDoc, clonedRoot, liveSourceRoot) {
-  clonedDoc.querySelectorAll('link[rel="stylesheet"]').forEach((n) => n.remove());
-  clonedDoc.querySelectorAll('style').forEach((n) => n.remove());
-
   const liveWorkbook =
     liveSourceRoot.id === 'workbook-print-root'
       ? liveSourceRoot
@@ -115,6 +235,13 @@ function neutralizeOklabStylesForHtml2Canvas(clonedDoc, clonedRoot, liveSourceRo
     clonedDoc.getElementById('workbook-print-root') ||
     (clonedRoot?.querySelector?.('#workbook-print-root') ?? clonedRoot);
 
+  clonedDoc.querySelectorAll('link[rel="stylesheet"]').forEach((n) => n.remove());
+  /** Drop global/theme styles only — keep embedded style blocks inside the print subtree (letterhead, print tweaks). */
+  clonedDoc.querySelectorAll('style').forEach((n) => {
+    if (clonedWorkbook instanceof HTMLElement && clonedWorkbook.contains(n)) return;
+    n.remove();
+  });
+
   const liveMap = buildPdfSyncNodeMap(liveWorkbook);
   const cloneMap = buildPdfSyncNodeMap(clonedWorkbook);
 
@@ -123,11 +250,11 @@ function neutralizeOklabStylesForHtml2Canvas(clonedDoc, clonedRoot, liveSourceRo
     if (!clone || live.nodeType !== Node.ELEMENT_NODE || clone.nodeType !== Node.ELEMENT_NODE) continue;
     try {
       const cs = getComputedStyle(live);
-      for (let j = 0; j < cs.length; j++) {
-        const prop = cs.item(j);
+      for (const prop of PDF_COMPUTED_PROPS) {
         let val = cs.getPropertyValue(prop);
+        if (!val) continue;
         if (prop === 'background' && MODERN_COLOR_FN_RE.test(val)) {
-          val = coerceCssColorForPdf(cs.getPropertyValue('background-color'));
+          val = resolveCssColorToRgb('background-color', cs.getPropertyValue('background-color'));
         } else {
           val = sanitizeComputedValueForPdf(prop, val);
         }
@@ -163,9 +290,8 @@ function pdfPageWidthMmFromElement(el) {
  * @param {HTMLCanvasElement} canvas
  * @param {number} pageWidthMm
  * @param {number} pageHeightMm
- * @param {number} jpegQuality 0–1
  */
-async function canvasToPagedPdfBlob(canvas, pageWidthMm, pageHeightMm, jpegQuality) {
+async function canvasToPagedPdfBlob(canvas, pageWidthMm, pageHeightMm) {
   const { jsPDF } = await import('jspdf');
   const doc = new jsPDF({
     unit: 'mm',
@@ -174,7 +300,7 @@ async function canvasToPagedPdfBlob(canvas, pageWidthMm, pageHeightMm, jpegQuali
   });
   let imgData;
   try {
-    imgData = canvas.toDataURL('image/jpeg', jpegQuality);
+    imgData = canvas.toDataURL('image/png');
   } catch {
     throw new Error(
       'Could not rasterize preview to an image (blocked image data). Try Print and Save as PDF instead.'
@@ -184,12 +310,12 @@ async function canvasToPagedPdfBlob(canvas, pageWidthMm, pageHeightMm, jpegQuali
   const imgHeightMm = (canvas.height * imgWidthMm) / canvas.width;
   let positionMm = 0;
   let heightLeftMm = imgHeightMm;
-  doc.addImage(imgData, 'JPEG', 0, positionMm, imgWidthMm, imgHeightMm);
+  doc.addImage(imgData, 'PNG', 0, positionMm, imgWidthMm, imgHeightMm);
   heightLeftMm -= pageHeightMm;
   while (heightLeftMm > 0) {
     positionMm -= pageHeightMm;
     doc.addPage([pageWidthMm, pageHeightMm], 'portrait');
-    doc.addImage(imgData, 'JPEG', 0, positionMm, imgWidthMm, imgHeightMm);
+    doc.addImage(imgData, 'PNG', 0, positionMm, imgWidthMm, imgHeightMm);
     heightLeftMm -= pageHeightMm;
   }
   return doc.output('blob');
@@ -240,7 +366,6 @@ export async function exportElementToPdfBlob(element) {
 
   const pageWidthMm = pdfPageWidthMmFromElement(element);
   const pageHeightMm = 297;
-  const jpegQuality = 0.94;
 
   stampPdfSyncIds(element);
   try {
@@ -280,7 +405,7 @@ export async function exportElementToPdfBlob(element) {
             neutralizeOklabStylesForHtml2Canvas(clonedDoc, cloneEl, element);
           },
         });
-        return await canvasToPagedPdfBlob(canvas, pageWidthMm, pageHeightMm, jpegQuality);
+        return await canvasToPagedPdfBlob(canvas, pageWidthMm, pageHeightMm);
       } catch (e) {
         lastErr = e;
       }

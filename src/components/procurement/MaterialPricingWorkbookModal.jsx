@@ -1,19 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Download, Loader2, Mail, MessageCircle, Plus, Printer, Share2, Trash2, X } from 'lucide-react';
+import { Plus, Printer, Trash2, X } from 'lucide-react';
 import { ModalFrame } from '../layout';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { useToast } from '../../context/ToastContext';
 import { apiFetch } from '../../lib/apiBase';
 import { formatNgn } from '../../Data/mockData';
 import { listPriceFromFloorAndCommission } from '../../lib/publishedPrice.js';
-import { ZAREWA_COMPANY_ACCOUNT_NAME } from '../../Data/companyQuotation.js';
-import {
-  downloadPdfBlob,
-  exportElementToPdfBlob,
-  sanitizePdfFilenameBase,
-  sharePdfFileIfSupported,
-} from '../../lib/documentPdfExport.js';
 import {
   MaterialWorkbookCustomerPrintView,
   MaterialWorkbookOfficialPrintView,
@@ -197,13 +190,6 @@ function mergeDraftIntoSheet(sheet, workbookLines) {
   return { ...sheet, rows: built };
 }
 
-function workbookPdfToastError(err) {
-  const m = String(err?.message || '');
-  if (m.includes('Print preview is not ready')) return m;
-  if (m.startsWith('PDF export failed')) return m.length > 180 ? `${m.slice(0, 177)}…` : m;
-  return 'Could not create PDF.';
-}
-
 /**
  * Coil material pricing workbook: conversions, suggested ₦/m, minimum floor, change log.
  * @param {{ open: boolean; onClose: () => void; initialMaterialKey?: string }} props
@@ -227,7 +213,6 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
   const [workbookLines, setWorkbookLines] = useState([]);
   /** Preserve transient sync controls through post-save reloads. */
   const syncDraftRef = useRef(new Map());
-  const printRootRef = useRef(null);
   /** Ridge add-ons from pricing policy (reference tabs). */
   const [refRidgeAddOns, setRefRidgeAddOns] = useState([]);
   /** Accessories from master data (reference tab). */
@@ -243,8 +228,6 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
   const [printPreview, setPrintPreview] = useState(null);
   const [printPack, setPrintPack] = useState(null);
   const [printLoading, setPrintLoading] = useState(false);
-  const [sharePdfBusy, setSharePdfBusy] = useState(false);
-
   useEffect(() => {
     if (open) setMaterialKey(initialMaterialKey);
   }, [open, initialMaterialKey]);
@@ -751,111 +734,6 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
   const branchName = branchRecord?.name || branchRecord?.code || branchId;
 
   const effectiveDateLabel = new Date().toLocaleDateString('en-NG', { dateStyle: 'long' });
-
-  const priceListPdfFilename = useCallback(() => {
-    const datePart = sanitizePdfFilenameBase(effectiveDateLabel);
-    const prefix = printPreview === 'customer' ? 'Price list' : 'Pricing workbook';
-    return `${prefix} — ${datePart}.pdf`;
-  }, [effectiveDateLabel, printPreview]);
-
-  const exportPriceListPdf = useCallback(async () => {
-    const el = printRootRef.current;
-    if (!el) throw new Error('Print preview is not ready.');
-    const filename = priceListPdfFilename();
-    const blob = await exportElementToPdfBlob(el, filename);
-    return { blob, filename };
-  }, [priceListPdfFilename]);
-
-  const downloadPriceListPdf = useCallback(async () => {
-    if (!printPreview) return;
-    setSharePdfBusy(true);
-    try {
-      const { blob, filename } = await exportPriceListPdf();
-      downloadPdfBlob(blob, filename);
-      showToast(`Saved ${filename}`);
-    } catch (e) {
-      console.error(e);
-      showToast(workbookPdfToastError(e), { variant: 'error' });
-    } finally {
-      setSharePdfBusy(false);
-    }
-  }, [printPreview, exportPriceListPdf, showToast]);
-
-  const sharePdfNative = useCallback(async () => {
-    if (!printPreview) return;
-    setSharePdfBusy(true);
-    try {
-      const { blob, filename } = await exportPriceListPdf();
-      const title = printPreview === 'customer' ? 'Price list' : 'Pricing workbook';
-      const shareMeta = {
-        title: `${title} — ${effectiveDateLabel}`,
-        text: `${title} (PDF).`,
-        tryAnywayIfCannotShare: true,
-      };
-      const r = await sharePdfFileIfSupported(blob, filename, shareMeta);
-      if (r.ok || r.reason === 'aborted') return;
-      downloadPdfBlob(blob, filename);
-      if (r.reason === 'cannot-share-files' || r.reason === 'no-share') {
-        showToast('PDF saved — attach it in your chat or email app.');
-      } else {
-        showToast('Could not share — PDF saved instead.');
-      }
-    } catch (e) {
-      console.error(e);
-      showToast(workbookPdfToastError(e), { variant: 'error' });
-    } finally {
-      setSharePdfBusy(false);
-    }
-  }, [printPreview, exportPriceListPdf, showToast, effectiveDateLabel]);
-
-  const sharePrintWhatsApp = useCallback(async () => {
-    if (!printPreview) return;
-    setSharePdfBusy(true);
-    try {
-      const { blob, filename } = await exportPriceListPdf();
-      const r = await sharePdfFileIfSupported(blob, filename, {
-        title: `Price list — ${effectiveDateLabel}`,
-        text: 'Price list (PDF).',
-        tryAnywayIfCannotShare: true,
-      });
-      if (r.ok || r.reason === 'aborted') return;
-      showToast(
-        'This browser cannot hand a PDF straight to WhatsApp. Use “Share PDF” on your phone and choose WhatsApp, or use “Download PDF” and attach the file in WhatsApp.',
-        { variant: 'info', duration: 9000 }
-      );
-    } catch (e) {
-      console.error(e);
-      showToast(workbookPdfToastError(e), { variant: 'error' });
-    } finally {
-      setSharePdfBusy(false);
-    }
-  }, [printPreview, exportPriceListPdf, showToast, effectiveDateLabel]);
-
-  const sharePrintEmail = useCallback(async () => {
-    if (!printPreview) return;
-    setSharePdfBusy(true);
-    try {
-      const { blob, filename } = await exportPriceListPdf();
-      downloadPdfBlob(blob, filename);
-      const kind = printPreview === 'customer' ? 'Price list' : 'Pricing workbook';
-      const subject = `${kind} — ${effectiveDateLabel}`;
-      const b = String(branchName || branchId || '').trim();
-      const body = `Please attach the PDF that was just saved (${filename}) to this email.\n\n${ZAREWA_COMPANY_ACCOUNT_NAME}\nEffective: ${effectiveDateLabel}${b ? `\nBranch: ${b}` : ''}`;
-      window.location.href = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-    } catch (e) {
-      console.error(e);
-      showToast(workbookPdfToastError(e), { variant: 'error' });
-    } finally {
-      setSharePdfBusy(false);
-    }
-  }, [
-    printPreview,
-    exportPriceListPdf,
-    showToast,
-    effectiveDateLabel,
-    branchName,
-    branchId,
-  ]);
 
   const loadPrintPack = useCallback(
     async (kind) => {
@@ -1761,7 +1639,6 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
               >
                 <div
                   id="workbook-print-root"
-                  ref={printRootRef}
                   className={
                     printPreview === 'customer'
                       ? 'box-border w-[210mm] max-w-full min-h-[297mm] shrink-0 rounded-sm border border-slate-500/40 bg-white shadow-2xl print:min-h-0 print:rounded-none print:border-0 print:shadow-none'
@@ -1805,60 +1682,6 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
                       className="rounded-lg border border-slate-200 bg-white px-5 py-2.5 text-[10px] font-semibold uppercase tracking-wide text-slate-700"
                     >
                       Close
-                    </button>
-                  </div>
-                  <div className="flex flex-wrap justify-center gap-2">
-                    <button
-                      type="button"
-                      disabled={sharePdfBusy}
-                      onClick={sharePdfNative}
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-[9px] font-semibold uppercase tracking-wide text-slate-700 shadow-sm disabled:opacity-60"
-                    >
-                      {sharePdfBusy ? (
-                        <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" aria-hidden />
-                      ) : (
-                        <Share2 className="h-3.5 w-3.5 shrink-0" aria-hidden />
-                      )}
-                      Share PDF
-                    </button>
-                    <button
-                      type="button"
-                      disabled={sharePdfBusy}
-                      onClick={downloadPriceListPdf}
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-[9px] font-semibold uppercase tracking-wide text-slate-700 shadow-sm disabled:opacity-60"
-                    >
-                      {sharePdfBusy ? (
-                        <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" aria-hidden />
-                      ) : (
-                        <Download className="h-3.5 w-3.5 shrink-0" aria-hidden />
-                      )}
-                      Download PDF
-                    </button>
-                    <button
-                      type="button"
-                      disabled={sharePdfBusy}
-                      onClick={sharePrintWhatsApp}
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-300/80 bg-emerald-50/90 px-3 py-2 text-[9px] font-semibold uppercase tracking-wide text-emerald-900 shadow-sm disabled:opacity-60"
-                    >
-                      {sharePdfBusy ? (
-                        <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" aria-hidden />
-                      ) : (
-                        <MessageCircle className="h-3.5 w-3.5 shrink-0" aria-hidden />
-                      )}
-                      WhatsApp
-                    </button>
-                    <button
-                      type="button"
-                      disabled={sharePdfBusy}
-                      onClick={sharePrintEmail}
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-[9px] font-semibold uppercase tracking-wide text-slate-700 shadow-sm disabled:opacity-60"
-                    >
-                      {sharePdfBusy ? (
-                        <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" aria-hidden />
-                      ) : (
-                        <Mail className="h-3.5 w-3.5 shrink-0" aria-hidden />
-                      )}
-                      Email
                     </button>
                   </div>
                   <p className="text-center text-[9px] text-slate-500 max-w-md">
