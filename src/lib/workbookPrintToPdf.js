@@ -25,7 +25,14 @@ export async function workbookPrintRootToPdfBlob(element) {
   const pageWidthMm = 210;
   const pageHeightMm = 297;
   const pdf = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
-  const imgData = canvas.toDataURL('image/jpeg', 0.92);
+  let imgData;
+  try {
+    imgData = canvas.toDataURL('image/jpeg', 0.92);
+  } catch {
+    throw new Error(
+      'Could not build PDF (blocked image data). Use Print and choose Save as PDF in the print dialog.'
+    );
+  }
   const imgWidthMm = pageWidthMm;
   const imgHeightMm = (canvas.height * imgWidthMm) / canvas.width;
 
