@@ -43,16 +43,14 @@ export function treasuryAccountsFromSnapshot(snapshot) {
 }
 
 /**
- * Bank-first label for treasury selectors across payment/ledger flows.
- * Example: "Guaranty Trust Bank — Zaps Aluminum Enterprises"
+ * Treasury selector label: show bank name first and prefer it as the
+ * primary label to reduce ambiguity where account holder names are identical.
  */
 export function treasuryAccountDisplayName(account) {
   const bankName = String(account?.bankName ?? '').trim();
+  if (bankName) return bankName;
   const accountName = String(account?.name ?? '').trim();
-  if (bankName && accountName && bankName.toLowerCase() !== accountName.toLowerCase()) {
-    return `${bankName} — ${accountName}`;
-  }
-  return bankName || accountName || 'Treasury account';
+  return accountName || 'Treasury account';
 }
 
 export function defaultTreasuryAccounts() {
