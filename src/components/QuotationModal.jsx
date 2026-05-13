@@ -1063,12 +1063,18 @@ const QuotationModal = ({
           showToast('Print preview is not ready yet.', { variant: 'error' });
           return;
         }
+        await new Promise((resolve) => {
+          requestAnimationFrame(() => requestAnimationFrame(resolve));
+        });
         const filename = buildQuotationPdfFilename(projectName, printDocumentKind, editData?.id);
         const blob = await exportElementToPdfBlob(el, filename);
         await afterBlob({ blob, filename });
       } catch (e) {
         console.error(e);
-        showToast('Could not create PDF. Try Print / Save as PDF from your browser.', { variant: 'error' });
+        const detail = e instanceof Error ? e.message : String(e);
+        const short =
+          detail.length > 160 ? `${detail.slice(0, 160)}…` : detail || 'Unknown error';
+        showToast(`Could not create PDF: ${short}`, { variant: 'error' });
       } finally {
         setPdfShareBusy(false);
       }
