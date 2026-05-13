@@ -20,7 +20,6 @@ import {
   accruedApprovedPayablesRows,
   coilInventoryValuationRows,
   cogsMovementRows,
-  customerLedgerActivityRows,
   filterAccessoryUsageInRange,
   filterBankReconciliationInRange,
   filterExpensesInRange,
@@ -31,18 +30,21 @@ import {
   productionAttributedRevenueNgn,
   productionOutputDateISO,
   paymentReconciliationExceptionQueue,
+  refundPeriodOverviewRows,
+  refundPeriodOverviewSummary,
   purchaseOrderAccrualBridgeRows,
   quotationPaidNgnReceiptDiscrepancies,
   receiptAdvanceTreasuryReconciliationRows,
-  salesPeriodCashBridgeExportRows,
-  salesPeriodCashBridgeSummary,
+  salesPaymentsReceivedRows,
+  salesPaymentsReceivedSummary,
 } from '../lib/liveAnalytics';
 import { procurementKindFromPo } from '../lib/procurementPoKind';
 
 const PACK_PERIOD_COSTS_INVENTORY = 'Period costs & inventory (pack)';
 const PACK_CASH_BANK_AR = 'Cash, bank & AR reconciliation (pack)';
 const PACK_GL_AUDIT = 'General ledger audit (period)';
-const PACK_SALES_CUSTOMER = 'Sales & customer activity (period)';
+const PACK_SALES_CUSTOMER = 'Sales report';
+const PACK_REFUND_PERIOD = 'Refund report';
 const PACK_OPS_PROCUREMENT = 'Operations & procurement (pack)';
 const PACK_PRODUCTION_TRANSACTION = 'Production transaction register';
 
@@ -262,52 +264,6 @@ function rowsCashBankArPack(
   return rows;
 }
 
-function rowsSalesCustomerPack(ledgerEntries, productionJobs, quotations, refunds, startDate, endDate) {
-  const rows = [];
-  filterQuotationsInRange(quotations, startDate, endDate).forEach((q) => {
-    rows.push({
-      packSection: 'Quotations',
-      quotationID: q.id,
-      dateISO: q.dateISO,
-      customer: q.customer,
-      totalNgn: q.totalNgn,
-      status: q.status,
-    });
-  });
-  customerLedgerActivityRows(ledgerEntries, quotations, startDate, endDate).forEach((r) => {
-    rows.push({
-      packSection: 'Customer_ledger',
-      atISO: r.atISO,
-      type: r.type,
-      customerID: r.customerID,
-      customerName: r.customerName,
-      quotationRef: r.quotationRef,
-      amountNgn: r.amountNgn,
-      paymentMethod: r.paymentMethod,
-      bankReference: r.bankReference,
-      purpose: r.purpose,
-      branchId: r.branchId,
-    });
-  });
-  salesPeriodCashBridgeExportRows(ledgerEntries, productionJobs, quotations, refunds, startDate, endDate).forEach(
-    (r) => {
-      rows.push({
-        packSection: `Cash_AR_bridge:${r.reportSection}`,
-        category: r.category,
-        ledgerType: r.ledgerType,
-        dateISO: r.dateISO,
-        recordId: r.recordId,
-        customer: r.customer,
-        quotationRef: r.quotationRef,
-        amountNgn: r.amountNgn,
-        metresProduced: r.metresProduced,
-        remarks: r.remarks,
-      });
-    }
-  );
-  return rows;
-}
-
 function rowsOpsProcurementPack(liveProducts, purchaseOrders, coilLots, accessoryUsage, startDate, endDate) {
   const rows = [];
   liveProducts.forEach((p) => {
@@ -408,7 +364,14 @@ const MORE_OPERATIONAL_REPORTS = [
   {
     id: 'sales-customer-pack',
     title: PACK_SALES_CUSTOMER,
-    desc: 'Quotations in range, customer ledger lines, cash/AR/production bridge (includes refunds).',
+    desc: 'All payments received in period (quotation receipts only), grouped by materials produced vs not produced within period.',
+    icon: Table2,
+    formats: ['Excel', 'CSV'],
+  },
+  {
+    id: 'refund-period-report',
+    title: PACK_REFUND_PERIOD,
+    desc: 'Refund paid and unpaid analysis for selected period, with quotation and customer visibility.',
     icon: Table2,
     formats: ['Excel', 'CSV'],
   },
@@ -756,7 +719,32 @@ const Reports = () => {
         );
       }
       if (name === PACK_SALES_CUSTOMER) {
-        return rowsSalesCustomerPack(ledgerEntries, productionJobs, quotations, refunds, startDate, endDate);
+        return salesPaymentsReceivedRows(ledgerEntries, productionJobs, quotations, startDate, endDate).map((r) => ({
+          reportSection: 'Payments received (period)',
+          category: r.group,
+          ledgerType: 'RECEIPT',
+          dateISO: r.paymentDateISO,
+          recordId: r.ledgerEntryId,
+          customer: r.customerName,
+          quotationRef: r.quotationRef,
+          amountNgn: r.amountPaidNgn,
+          paymentMethod: r.paymentMethod,
+          remarks: r.bankReference,
+        }));
+      }
+      if (name === PACK_REFUND_PERIOD) {
+        return refundPeriodOverviewRows(refunds, ledgerEntries, startDate, endDate).map((r) => ({
+          reportSection: 'Refund overview (period)',
+          receiptPaymentDateISO: r.receiptPaymentDateISO,
+          customerName: r.customerName,
+          quotationRef: r.quotationRef,
+          amountRefundPaidNgn: r.amountRefundPaidNgn,
+          refundPaymentDateISO: r.refundPaymentDateISO,
+          amountRefundNotPaidNgn: r.amountRefundNotPaidNgn,
+          refundId: r.refundId,
+          status: r.status,
+          requestedAtISO: r.requestedAtISO,
+        }));
       }
       if (name === PACK_OPS_PROCUREMENT) {
         return rowsOpsProcurementPack(liveProducts, purchaseOrders, coilLots, accessoryUsage, startDate, endDate);
@@ -875,67 +863,74 @@ const Reports = () => {
         };
       }
       if (name === PACK_SALES_CUSTOMER) {
-        const raw = salesPeriodCashBridgeExportRows(
-          ledgerEntries,
-          productionJobs,
-          quotations,
-          refunds,
-          startDate,
-          endDate
-        );
-        const s = salesPeriodCashBridgeSummary(
-          ledgerEntries,
-          productionJobs,
-          quotations,
-          refunds,
-          startDate,
-          endDate
-        );
+        const raw = salesPaymentsReceivedRows(ledgerEntries, productionJobs, quotations, startDate, endDate);
+        const s = salesPaymentsReceivedSummary(raw);
         const rows = raw.map((r) => ({
-          section: r.reportSection,
-          category: r.category,
-          ledgerType: r.ledgerType,
-          dateISO: r.dateISO || '—',
-          recordId: r.recordId || '—',
-          customer: r.customer || '—',
-          quotation: r.quotationRef || '—',
-          amount:
-            r.reportSection === 'Production completed (period)' ? '—' : formatNgn(r.amountNgn),
-          metres: r.metresProduced === '' ? '—' : String(r.metresProduced),
-          remarks: r.remarks || '—',
+          group: r.group,
+          paymentDateISO: r.paymentDateISO || '—',
+          customerName: r.customerName || '—',
+          quotationRef: displayDocNumber(r.quotationRef) || r.quotationRef || '—',
+          amountPaidNgn: formatNgn(r.amountPaidNgn),
+          paymentMethod: r.paymentMethod || '—',
+          bankReference: r.bankReference || '—',
+          _amountPaidNgn: Number(r.amountPaidNgn) || 0,
         }));
-        const qInRange = filterQuotationsInRange(quotations, startDate, endDate).length;
-        const ledCount = customerLedgerActivityRows(ledgerEntries, quotations, startDate, endDate).length;
         return {
           title: PACK_SALES_CUSTOMER,
           columns: [
-            { key: 'section', label: 'Section' },
-            { key: 'category', label: 'Category' },
-            { key: 'ledgerType', label: 'Type' },
-            { key: 'dateISO', label: 'Date' },
-            { key: 'recordId', label: 'Record' },
-            { key: 'customer', label: 'Customer' },
-            { key: 'quotation', label: 'Quotation' },
-            { key: 'amount', label: 'Amount' },
-            { key: 'metres', label: 'Metres' },
-            { key: 'remarks', label: 'Remarks' },
+            { key: 'group', label: 'Category' },
+            { key: 'paymentDateISO', label: 'Payment date' },
+            { key: 'customerName', label: 'Customer' },
+            { key: 'quotationRef', label: 'Quotation' },
+            { key: 'amountPaidNgn', label: 'Amount paid' },
+            { key: 'paymentMethod', label: 'Method' },
+            { key: 'bankReference', label: 'Reference' },
+          ],
+          rows,
+          grouping: {
+            groupBy: 'group',
+            subtotalKey: '_amountPaidNgn',
+            subtotalColumnKey: 'amountPaidNgn',
+            groupLabel: 'Category',
+            subtotalLabel: 'Subtotal',
+            totalLabel: 'Total received',
+          },
+          summaryLines: [
+            { label: 'Rows', value: String(s.rowCount) },
+            { label: 'Total payment received', value: formatNgn(s.totalReceivedNgn) },
+            { label: 'Materials produced in period', value: formatNgn(s.producedNgn) },
+            { label: 'Materials not produced in period (credit)', value: formatNgn(s.notProducedNgn) },
+          ],
+        };
+      }
+      if (name === PACK_REFUND_PERIOD) {
+        const raw = refundPeriodOverviewRows(refunds, ledgerEntries, startDate, endDate);
+        const s = refundPeriodOverviewSummary(raw);
+        const rows = raw.map((r) => ({
+          receiptPaymentDateISO: r.receiptPaymentDateISO || '—',
+          customerName: r.customerName || '—',
+          quotationRef: displayDocNumber(r.quotationRef) || r.quotationRef || '—',
+          amountRefundPaidNgn: formatNgn(r.amountRefundPaidNgn),
+          refundPaymentDateISO: r.refundPaymentDateISO || '—',
+          amountRefundNotPaidNgn: formatNgn(r.amountRefundNotPaidNgn),
+          status: r.status || '—',
+        }));
+        return {
+          title: PACK_REFUND_PERIOD,
+          columns: [
+            { key: 'receiptPaymentDateISO', label: 'Receipt payment date' },
+            { key: 'customerName', label: 'Customer' },
+            { key: 'quotationRef', label: 'Quotation' },
+            { key: 'amountRefundPaidNgn', label: 'Refund paid' },
+            { key: 'refundPaymentDateISO', label: 'Refund payment date' },
+            { key: 'amountRefundNotPaidNgn', label: 'Refund not paid' },
+            { key: 'status', label: 'Status' },
           ],
           rows,
           summaryLines: [
-            { label: 'Print: cash/AR/production bridge', value: `${s.rowCount} rows` },
-            { label: 'Quotations in range (Excel)', value: String(qInRange) },
-            { label: 'Customer ledger lines in period (Excel)', value: String(ledCount) },
-            {
-              label: 'Receipts on quote — produced by period end',
-              value: formatNgn(s.cashInReceiptProducedNgn),
-            },
-            {
-              label: 'Receipts on quote — not produced by period end',
-              value: formatNgn(s.cashInReceiptNotProducedNgn),
-            },
-            { label: 'Refund payouts in period', value: formatNgn(s.refundPayoutsNgn) },
-            { label: 'Open receivables (live)', value: formatNgn(s.receivablesOpenNgn) },
-            { label: 'Production jobs completed in period', value: String(s.productionJobsCompleted) },
+            { label: 'Rows', value: String(s.rowCount) },
+            { label: 'Refund paid in period', value: formatNgn(s.refundPaidNgn) },
+            { label: 'Refund not paid (outstanding)', value: formatNgn(s.refundNotPaidNgn) },
           ],
         };
       }
@@ -1166,32 +1161,47 @@ const Reports = () => {
     }
 
     if (name === PACK_SALES_CUSTOMER && fmt === 'Excel') {
-      const qFlat = filterQuotationsInRange(quotations, startDate, endDate).map((q) => ({
-        quotationID: q.id,
-        dateISO: q.dateISO,
-        customer: q.customer,
-        totalNgn: q.totalNgn,
-        status: q.status,
+      const rows = salesPaymentsReceivedRows(ledgerEntries, productionJobs, quotations, startDate, endDate).map((r) => ({
+        category: r.group,
+        paymentDateISO: r.paymentDateISO,
+        customerName: r.customerName,
+        quotationRef: r.quotationRef,
+        amountPaidNgn: r.amountPaidNgn,
+        paymentMethod: r.paymentMethod,
+        bankReference: r.bankReference,
+        ledgerEntryId: r.ledgerEntryId,
       }));
-      const led = customerLedgerActivityRows(ledgerEntries, quotations, startDate, endDate);
-      const bridge = salesPeriodCashBridgeExportRows(
-        ledgerEntries,
-        productionJobs,
-        quotations,
-        refunds,
-        startDate,
-        endDate
-      );
-      if (!qFlat.length && !led.length && !bridge.length) {
+      if (!rows.length) {
         showToast('No rows for this pack in the selected range.', { variant: 'info' });
         return;
       }
       const wb = XLSX.utils.book_new();
-      if (qFlat.length) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(qFlat), 'Quotations');
-      if (led.length) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(led), 'Ledger');
-      if (bridge.length) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(bridge), 'Cash_AR_bridge');
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), 'Sales_report');
       XLSX.writeFile(wb, `${packSlug}.xlsx`);
-      showToast(`${name} exported as Excel (multi-sheet).`);
+      showToast(`${name} exported as Excel.`);
+      return;
+    }
+
+    if (name === PACK_REFUND_PERIOD && fmt === 'Excel') {
+      const rows = refundPeriodOverviewRows(refunds, ledgerEntries, startDate, endDate).map((r) => ({
+        receiptPaymentDateISO: r.receiptPaymentDateISO,
+        customerName: r.customerName,
+        quotationRef: r.quotationRef,
+        amountRefundPaidNgn: r.amountRefundPaidNgn,
+        refundPaymentDateISO: r.refundPaymentDateISO,
+        amountRefundNotPaidNgn: r.amountRefundNotPaidNgn,
+        refundId: r.refundId,
+        status: r.status,
+        requestedAtISO: r.requestedAtISO,
+      }));
+      if (!rows.length) {
+        showToast('No rows for this pack in the selected range.', { variant: 'info' });
+        return;
+      }
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), 'Refund_report');
+      XLSX.writeFile(wb, `${packSlug}.xlsx`);
+      showToast(`${name} exported as Excel.`);
       return;
     }
 

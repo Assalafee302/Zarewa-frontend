@@ -607,6 +607,160 @@ export function quotationHasCompletedProductionByEndDate(quotationRef, productio
   return false;
 }
 
+function quotationHasCompletedProductionInRange(quotationRef, productionJobs, startDateISO, endDateISO) {
+  const ref = String(quotationRef || '').trim();
+  if (!ref) return false;
+  for (const j of productionJobs || []) {
+    if (String(j.status || '').trim() !== 'Completed') continue;
+    if (String(j.quotationRef || '').trim() !== ref) continue;
+    const d = productionOutputDateISO(j);
+    if (!d) continue;
+    if (startDateISO && d < startDateISO) continue;
+    if (endDateISO && d > endDateISO) continue;
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Payments received in period (quotation receipts only), grouped by production completion timing
+ * within the selected period.
+ */
+export function salesPaymentsReceivedRows(
+  ledgerEntries = [],
+  productionJobs = [],
+  quotations = [],
+  startDate,
+  endDate
+) {
+  const quoteCustomer = new Map(
+    (quotations || []).map((q) => [String(q.id || '').trim(), q.customer || q.customerName || ''])
+  );
+  const inRange = filterLedgerEntriesInRange(ledgerEntries, startDate, endDate);
+  const rows = [];
+  for (const e of inRange) {
+    if (String(e.type || '').trim() !== 'RECEIPT') continue;
+    const qref = String(e.quotationRef || '').trim();
+    const amount = Math.round(Number(e.amountNgn) || 0);
+    if (amount <= 0) continue;
+    const producedInPeriod = qref
+      ? quotationHasCompletedProductionInRange(qref, productionJobs, startDate, endDate)
+      : false;
+    rows.push({
+      group: producedInPeriod ? 'Materials produced in period' : 'Materials not produced in period',
+      paymentDateISO: toIsoDate(e.atISO),
+      customerName: e.customerName || e.customerID || quoteCustomer.get(qref) || '',
+      quotationRef: qref,
+      amountPaidNgn: amount,
+      paymentMethod: e.paymentMethod || '',
+      bankReference: e.bankReference || '',
+      ledgerEntryId: e.id || '',
+    });
+  }
+  rows.sort(
+    (a, b) =>
+      String(a.group).localeCompare(String(b.group)) ||
+      String(a.paymentDateISO).localeCompare(String(b.paymentDateISO)) ||
+      String(a.quotationRef).localeCompare(String(b.quotationRef)) ||
+      String(a.ledgerEntryId).localeCompare(String(b.ledgerEntryId))
+  );
+  return rows;
+}
+
+export function salesPaymentsReceivedSummary(rows = []) {
+  const totalReceivedNgn = rows.reduce((s, r) => s + (Number(r.amountPaidNgn) || 0), 0);
+  const producedNgn = rows
+    .filter((r) => r.group === 'Materials produced in period')
+    .reduce((s, r) => s + (Number(r.amountPaidNgn) || 0), 0);
+  const notProducedNgn = rows
+    .filter((r) => r.group === 'Materials not produced in period')
+    .reduce((s, r) => s + (Number(r.amountPaidNgn) || 0), 0);
+  return {
+    rowCount: rows.length,
+    totalReceivedNgn,
+    producedNgn,
+    notProducedNgn,
+  };
+}
+
+/**
+ * Refund overview rows in selected period:
+ * - paid amount in period (payout history / paid date)
+ * - outstanding amount (approved/pending and still unpaid)
+ * - receipt date for quotation (sorting visibility)
+ */
+export function refundPeriodOverviewRows(refunds = [], ledgerEntries = [], startDate, endDate) {
+  const earliestReceiptByQuote = new Map();
+  for (const e of ledgerEntries || []) {
+    if (String(e.type || '').trim() !== 'RECEIPT') continue;
+    const qref = String(e.quotationRef || '').trim();
+    const iso = toIsoDate(e.atISO);
+    if (!qref || !iso) continue;
+    const prev = earliestReceiptByQuote.get(qref);
+    if (!prev || iso < prev) earliestReceiptByQuote.set(qref, iso);
+  }
+  const rows = [];
+  for (const r of refunds || []) {
+    const qref = String(r.quotationRef || '').trim();
+    const requestedISO = toIsoDate(r.requestedAtISO);
+    const paidISO = toIsoDate(r.paidAtISO);
+    const payoutHistory = Array.isArray(r.payoutHistory) ? r.payoutHistory : [];
+    let paidInPeriodNgn = 0;
+    let paidDateISO = '';
+    if (payoutHistory.length > 0) {
+      for (const p of payoutHistory) {
+        const iso = toIsoDate(p.postedAtISO);
+        const amt = Math.round(Number(p.amountNgn) || 0);
+        if (!iso || amt <= 0) continue;
+        if (startDate && iso < startDate) continue;
+        if (endDate && iso > endDate) continue;
+        paidInPeriodNgn += amt;
+        if (!paidDateISO || iso < paidDateISO) paidDateISO = iso;
+      }
+    } else {
+      const paidAmt = Math.round(Number(r.paidAmountNgn) || 0);
+      if (paidAmt > 0 && paidISO && (!startDate || paidISO >= startDate) && (!endDate || paidISO <= endDate)) {
+        paidInPeriodNgn += paidAmt;
+        paidDateISO = paidISO;
+      }
+    }
+    const unpaidOutstandingNgn = Math.max(0, Math.round(refundOutstandingAmount(r)));
+    const includeByPaid = paidInPeriodNgn > 0;
+    const includeByOpen =
+      unpaidOutstandingNgn > 0 &&
+      requestedISO &&
+      (!startDate || requestedISO >= startDate) &&
+      (!endDate || requestedISO <= endDate);
+    if (!includeByPaid && !includeByOpen) continue;
+    rows.push({
+      receiptPaymentDateISO: earliestReceiptByQuote.get(qref) || '',
+      customerName: r.customer || '',
+      quotationRef: qref,
+      amountRefundPaidNgn: paidInPeriodNgn,
+      refundPaymentDateISO: paidDateISO,
+      amountRefundNotPaidNgn: unpaidOutstandingNgn,
+      refundId: r.refundID || '',
+      status: r.status || '',
+      requestedAtISO: requestedISO,
+    });
+  }
+  rows.sort(
+    (a, b) =>
+      String(a.receiptPaymentDateISO || '9999-12-31').localeCompare(String(b.receiptPaymentDateISO || '9999-12-31')) ||
+      String(a.quotationRef).localeCompare(String(b.quotationRef)) ||
+      String(a.refundId).localeCompare(String(b.refundId))
+  );
+  return rows;
+}
+
+export function refundPeriodOverviewSummary(rows = []) {
+  return {
+    rowCount: rows.length,
+    refundPaidNgn: rows.reduce((s, r) => s + (Number(r.amountRefundPaidNgn) || 0), 0),
+    refundNotPaidNgn: rows.reduce((s, r) => s + (Number(r.amountRefundNotPaidNgn) || 0), 0),
+  };
+}
+
 /**
  * Flat rows for export/print: customer cash in the period (receipts + advances) by production status as of period end;
  * ledger reversals in period; refund payouts dated in period; refunds pending or awaiting payout; open receivables (live);
