@@ -264,7 +264,8 @@ summary {
 }
 
 @media screen {
-  .print-portal-scroll:has(.quotation-print-root) {
+  .print-portal-scroll:has(.quotation-print-root),
+  .print-portal-scroll:has(#workbook-print-root) {
     overflow-x: auto;
   }
 }
@@ -2266,6 +2267,12 @@ summary {
     size: A4 portrait;
   }
 
+  /* Material pricing workbook — customer / internal sheet (portal uses #workbook-print-root) */
+  @page workbook-pricing-a4 {
+    margin: 6mm 8mm;
+    size: A4 portrait;
+  }
+
   /* Do not set `size` here: unnamed @page applies to anonymous pages and can force portrait,
    * overriding named `page: cutting-list-a4-landscape` in Chromium. Named @page rules carry size. */
   @page {
@@ -2299,7 +2306,7 @@ summary {
    * and can add trailing blank pages. Keep any subtree that hosts a print root.
    */
   body
-    > *:not(:has(.quotation-print-root)):not(:has(.receipt-print-root)):not(:has(.report-print-root)):not(:has(.report-print-a4-landscape)):not(:has(.cutting-list-print-root)):not(:has(.cutting-list-a5-report-root)):not(:has(.cutting-list-a4-landscape-report-root)) {
+    > *:not(:has(.quotation-print-root)):not(:has(.receipt-print-root)):not(:has(.report-print-root)):not(:has(.report-print-a4-landscape)):not(:has(.cutting-list-print-root)):not(:has(.cutting-list-a5-report-root)):not(:has(.cutting-list-a4-landscape-report-root)):not(:has(#workbook-print-root)) {
     display: none !important;
   }
 
@@ -2344,8 +2351,40 @@ summary {
   .cutting-list-a5-report-root,
   .cutting-list-a5-report-root *,
   .cutting-list-a4-landscape-report-root,
-  .cutting-list-a4-landscape-report-root * {
+  .cutting-list-a4-landscape-report-root *,
+  #workbook-print-root,
+  #workbook-print-root * {
     visibility: visible;
+  }
+
+  #workbook-print-root {
+    position: relative !important;
+    left: auto !important;
+    top: auto !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    page: workbook-pricing-a4;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    border: none !important;
+    box-sizing: border-box !important;
+    z-index: auto !important;
+    pointer-events: auto !important;
+    overflow: visible !important;
+    break-after: avoid-page;
+    page-break-after: avoid;
+  }
+
+  .print-portal-scroll:has(#workbook-print-root) {
+    page: workbook-pricing-a4;
+  }
+
+  #workbook-print-actions,
+  #workbook-print-actions * {
+    display: none !important;
+    visibility: hidden !important;
   }
 
   .quotation-print-root {

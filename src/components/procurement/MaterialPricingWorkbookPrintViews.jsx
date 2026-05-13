@@ -391,9 +391,6 @@ export function MaterialWorkbookCustomerPrintView({ sheets, branchName, effectiv
           margin: 0 auto;
         }
         @media print {
-          .customer-price-list-print {
-            zoom: 0.88;
-          }
           .customer-a4-sheet {
             min-height: 0 !important;
             padding: 2.5mm 3.5mm 3mm !important;

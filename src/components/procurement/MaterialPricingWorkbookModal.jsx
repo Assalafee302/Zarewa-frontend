@@ -1,12 +1,13 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Plus, Printer, Trash2, X } from 'lucide-react';
+import { Link2, Mail, MessageCircle, Plus, Printer, Share2, Trash2, X } from 'lucide-react';
 import { ModalFrame } from '../layout';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { useToast } from '../../context/ToastContext';
 import { apiFetch } from '../../lib/apiBase';
 import { formatNgn } from '../../Data/mockData';
 import { listPriceFromFloorAndCommission } from '../../lib/publishedPrice.js';
+import { ZAREWA_COMPANY_ACCOUNT_NAME } from '../../Data/companyQuotation.js';
 import {
   MaterialWorkbookCustomerPrintView,
   MaterialWorkbookOfficialPrintView,
@@ -381,58 +382,6 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
     if (open && branchId) void loadSheet();
   }, [open, branchId, materialKey, loadSheet]);
 
-  useEffect(() => {
-    if (!printPreview) return undefined;
-    const el = document.createElement('style');
-    el.setAttribute('data-workbook-print', '1');
-    const customerPrintCss = `@page {
-  size: A4 portrait;
-  margin: 0;
-}
-@media print {
-  html, body {
-    width: 210mm;
-    height: 297mm;
-    margin: 0 !important;
-    padding: 0 !important;
-    background: #fff !important;
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
-  }
-  body * { visibility: hidden !important; }
-  #workbook-print-root, #workbook-print-root * { visibility: visible !important; }
-  #workbook-print-root {
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 210mm !important;
-    max-width: 210mm !important;
-    min-height: 297mm;
-    margin: 0 !important;
-    padding: 0 !important;
-    background: #fff !important;
-    overflow: visible !important;
-  }
-  .customer-a4-sheet {
-    page-break-after: avoid !important;
-    page-break-inside: avoid !important;
-    break-inside: avoid !important;
-  }
-  #workbook-print-actions, #workbook-print-actions * { display: none !important; }
-}`;
-    const defaultPrintCss = `@media print {
-  body * { visibility: hidden !important; }
-  #workbook-print-root, #workbook-print-root * { visibility: visible !important; }
-  #workbook-print-root { position: absolute; left: 0; top: 0; width: 100%; background: #fff; }
-  #workbook-print-actions, #workbook-print-actions * { display: none !important; }
-}`;
-    el.textContent = printPreview === 'customer' ? customerPrintCss : defaultPrintCss;
-    document.head.appendChild(el);
-    return () => {
-      el.remove();
-    };
-  }, [printPreview]);
-
   const buildPersistBody = (line) => {
     const dr = line.draft;
     if (!dr || !branchId) return null;
@@ -790,6 +739,90 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
     () => new Date().toLocaleDateString('en-NG', { dateStyle: 'long' }),
     [printPreview]
   );
+
+  const printShareUrl = useMemo(() => {
+    if (typeof window === 'undefined') return '';
+    try {
+      return window.location.href.split('#')[0];
+    } catch {
+      return '';
+    }
+  }, [printPreview]);
+
+  const buildPrintShareBody = useCallback(
+    (kind) => {
+      const b = String(branchName || branchId || '').trim();
+      const u = printShareUrl;
+      return `${kind} — ${ZAREWA_COMPANY_ACCOUNT_NAME} — effective ${effectiveDateLabel}${b ? ` — Branch: ${b}` : ''}
+
+${u}`;
+    },
+    [branchName, branchId, effectiveDateLabel, printShareUrl]
+  );
+
+  const sharePrintNative = useCallback(async () => {
+    if (!printPreview) return;
+    const kind = printPreview === 'customer' ? 'Customer price list' : 'Internal pricing workbook';
+    const text = buildPrintShareBody(kind);
+    const url = printShareUrl;
+    if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
+      try {
+        await navigator.share({ title: kind, text, url });
+      } catch (e) {
+        if (String(e?.name || '') !== 'AbortError') showToast('Could not share.', { variant: 'error' });
+      }
+    } else {
+      showToast('System share is not available in this browser. Use WhatsApp or Email.', {
+        variant: 'error',
+      });
+    }
+  }, [printPreview, buildPrintShareBody, printShareUrl, showToast]);
+
+  const sharePrintWhatsApp = useCallback(() => {
+    if (!printPreview) return;
+    const kind = printPreview === 'customer' ? 'Customer price list' : 'Internal pricing workbook';
+    window.open(
+      `https://wa.me/?text=${encodeURIComponent(buildPrintShareBody(kind))}`,
+      '_blank',
+      'noopener,noreferrer'
+    );
+  }, [printPreview, buildPrintShareBody]);
+
+  const sharePrintEmail = useCallback(() => {
+    if (!printPreview) return;
+    const kindShort = printPreview === 'customer' ? 'Zarewa price list' : 'Zarewa pricing workbook';
+    const body = buildPrintShareBody(
+      printPreview === 'customer' ? 'Customer price list' : 'Internal pricing workbook'
+    );
+    window.location.href = `mailto:?subject=${encodeURIComponent(`${kindShort} — ${effectiveDateLabel}`)}&body=${encodeURIComponent(body)}`;
+  }, [printPreview, buildPrintShareBody, effectiveDateLabel]);
+
+  const sharePrintTelegram = useCallback(() => {
+    if (!printPreview) return;
+    const text = buildPrintShareBody(
+      printPreview === 'customer' ? 'Customer price list' : 'Internal pricing workbook'
+    );
+    window.open(
+      `https://t.me/share/url?url=${encodeURIComponent(printShareUrl)}&text=${encodeURIComponent(text)}`,
+      '_blank',
+      'noopener,noreferrer'
+    );
+  }, [printPreview, buildPrintShareBody, printShareUrl]);
+
+  const copyPrintShareLink = useCallback(async () => {
+    if (!printShareUrl) {
+      showToast('No link to copy.', { variant: 'error' });
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(printShareUrl);
+      showToast('Link copied.');
+    } catch {
+      showToast('Could not copy link.', { variant: 'error' });
+    }
+  }, [printShareUrl, showToast]);
+
+  const canNativeShare = typeof navigator !== 'undefined' && typeof navigator.share === 'function';
 
   const loadPrintPack = useCallback(
     async (kind) => {
@@ -1677,8 +1710,8 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
             <div
               className={
                 printPreview === 'customer'
-                  ? 'no-print fixed inset-0 z-[11070] overflow-y-auto overscroll-y-contain bg-slate-400/35 py-8 sm:py-14 px-4 sm:px-10'
-                  : 'no-print fixed inset-0 z-[11070] overflow-y-auto overscroll-y-contain p-4 sm:p-8'
+                  ? 'print-portal-scroll fixed inset-0 z-[11070] overflow-y-auto overscroll-y-contain bg-slate-400/35 py-8 sm:py-14 px-4 sm:px-10'
+                  : 'print-portal-scroll fixed inset-0 z-[11070] overflow-y-auto overscroll-y-contain p-4 sm:p-8'
               }
               onClick={() => {
                 setPrintPreview(null);
@@ -1738,6 +1771,49 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
                       className="rounded-lg border border-slate-200 bg-white px-5 py-2.5 text-[10px] font-semibold uppercase tracking-wide text-slate-700"
                     >
                       Close
+                    </button>
+                  </div>
+                  <div className="flex flex-wrap justify-center gap-2">
+                    {canNativeShare ? (
+                      <button
+                        type="button"
+                        onClick={sharePrintNative}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-[9px] font-semibold uppercase tracking-wide text-slate-700 shadow-sm"
+                      >
+                        <Share2 className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                        Share
+                      </button>
+                    ) : null}
+                    <button
+                      type="button"
+                      onClick={sharePrintWhatsApp}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-300/80 bg-emerald-50/90 px-3 py-2 text-[9px] font-semibold uppercase tracking-wide text-emerald-900 shadow-sm"
+                    >
+                      <MessageCircle className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                      WhatsApp
+                    </button>
+                    <button
+                      type="button"
+                      onClick={sharePrintEmail}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-[9px] font-semibold uppercase tracking-wide text-slate-700 shadow-sm"
+                    >
+                      <Mail className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                      Email
+                    </button>
+                    <button
+                      type="button"
+                      onClick={sharePrintTelegram}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-sky-300/80 bg-sky-50/90 px-3 py-2 text-[9px] font-semibold uppercase tracking-wide text-sky-950 shadow-sm"
+                    >
+                      Telegram
+                    </button>
+                    <button
+                      type="button"
+                      onClick={copyPrintShareLink}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-[9px] font-semibold uppercase tracking-wide text-slate-700 shadow-sm"
+                    >
+                      <Link2 className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                      Copy link
                     </button>
                   </div>
                   <p className="text-center text-[9px] text-slate-500 max-w-md">
