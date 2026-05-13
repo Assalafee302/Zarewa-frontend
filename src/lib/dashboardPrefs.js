@@ -13,6 +13,15 @@ export const DEFAULT_DASHBOARD_PREFS = {
   /** When true, personal managerTargets apply; when false, company org targets apply when set (see bootstrap orgManagerTargets). */
   managerTargetsPersonalOverride: false,
   managerTargets: { ...DEFAULT_MANAGER_TARGETS_PER_MONTH },
+  /** Tracks A–G rollout checklist (server merges defaults in PATCH /api/session/dashboard-prefs). */
+  onboardingPlanAG: {
+    dismissed: false,
+    items: {
+      rbacReportsOk: false,
+      dailyBankQueue: false,
+      glCostCenter: false,
+    },
+  },
 };
 
 function mergeManagerTargets(raw) {
@@ -30,11 +39,21 @@ function mergeManagerTargets(raw) {
 /** Merge server (or saved) blob with defaults. */
 export function mergeDashboardPrefs(serverPrefs) {
   const s = serverPrefs && typeof serverPrefs === 'object' ? serverPrefs : {};
+  const rawOnb = s.onboardingPlanAG && typeof s.onboardingPlanAG === 'object' ? s.onboardingPlanAG : {};
+  const rawItems = rawOnb.items && typeof rawOnb.items === 'object' ? rawOnb.items : {};
+  const defItems = DEFAULT_DASHBOARD_PREFS.onboardingPlanAG.items;
   return {
     ...DEFAULT_DASHBOARD_PREFS,
     ...s,
     managerTargetsPersonalOverride: s.managerTargetsPersonalOverride === true,
     managerTargets: mergeManagerTargets(s.managerTargets),
+    onboardingPlanAG: {
+      dismissed: rawOnb.dismissed === true,
+      items: {
+        ...defItems,
+        ...rawItems,
+      },
+    },
   };
 }
 
@@ -77,13 +96,17 @@ export function effectiveManagerTargetsPerMonth(orgManagerTargets, mergedPrefs) 
 /** Avoid setState loops when bootstrap re-fetches but prefs values are unchanged. */
 export function dashboardPrefsShallowEqual(a, b) {
   if (!a || !b) return false;
+  const onbEq =
+    a.onboardingPlanAG?.dismissed === b.onboardingPlanAG?.dismissed &&
+    JSON.stringify(a.onboardingPlanAG?.items || {}) === JSON.stringify(b.onboardingPlanAG?.items || {});
   return (
     a.showCharts === b.showCharts &&
     a.showReportsStrip === b.showReportsStrip &&
     a.showAlertBanner === b.showAlertBanner &&
     a.managerTargetsPersonalOverride === b.managerTargetsPersonalOverride &&
     a.managerTargets?.nairaTargetPerMonth === b.managerTargets?.nairaTargetPerMonth &&
-    a.managerTargets?.meterTargetPerMonth === b.managerTargets?.meterTargetPerMonth
+    a.managerTargets?.meterTargetPerMonth === b.managerTargets?.meterTargetPerMonth &&
+    onbEq
   );
 }
 

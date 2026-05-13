@@ -313,6 +313,8 @@ const CustomerDashboard = () => {
   const [staffNotes, setStaffNotes] = useState([]);
   const [refundAdvanceOpen, setRefundAdvanceOpen] = useState(false);
   const [refundAdvanceAmt, setRefundAdvanceAmt] = useState('');
+  const [collectionsNote, setCollectionsNote] = useState('');
+  const [collectionsBusy, setCollectionsBusy] = useState(false);
 
    
   useEffect(() => {
@@ -1681,6 +1683,52 @@ const CustomerDashboard = () => {
                     ))}
                   </ul>
                 )}
+                {ws.hasPermission('finance.post') && outstandingLines.length > 0 ? (
+                  <div className="mt-5 pt-4 border-t border-gray-100">
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">
+                      Collections follow-up (finance queue)
+                    </p>
+                    <p className="text-[10px] text-slate-600 mb-2 leading-relaxed">
+                      Creates an office work item for finance using the current branch scope. Use for agreed call-back
+                      dates or payment promises.
+                    </p>
+                    <textarea
+                      className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs min-h-[4rem]"
+                      value={collectionsNote}
+                      onChange={(e) => setCollectionsNote(e.target.value)}
+                      placeholder="Note for finance (next step, amount discussed, date)…"
+                    />
+                    <button
+                      type="button"
+                      disabled={collectionsBusy}
+                      className="mt-2 z-btn-primary !text-[11px]"
+                      onClick={async () => {
+                        setCollectionsBusy(true);
+                        try {
+                          const { ok, data } = await apiFetch('/api/finance/collections-follow-up', {
+                            method: 'POST',
+                            body: JSON.stringify({
+                              customerId: customerKey,
+                              customerName: customer?.name || customer?.companyName || customerKey,
+                              note: collectionsNote.trim(),
+                            }),
+                          });
+                          if (!ok || !data?.ok) {
+                            showToast(data?.error || 'Could not create work item.', { variant: 'error' });
+                            return;
+                          }
+                          showToast('Collections work item created for finance.', { variant: 'success' });
+                          setCollectionsNote('');
+                          await ws.refresh?.();
+                        } finally {
+                          setCollectionsBusy(false);
+                        }
+                      }}
+                    >
+                      {collectionsBusy ? 'Sending…' : 'Queue for collections'}
+                    </button>
+                  </div>
+                ) : null}
               </div>
               <div className="rounded-zarewa border border-gray-100 bg-white p-5 shadow-sm lg:col-span-2">
                 <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">

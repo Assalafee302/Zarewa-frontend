@@ -11,9 +11,12 @@ import { WorkspaceUpdatesPanel } from '../components/dashboard/WorkspaceUpdatesP
 import UnifiedWorkItemsPanel from '../components/workspace/UnifiedWorkItemsPanel';
 import GmailStyleWorkspace from '../components/workspace/GmailStyleWorkspace';
 import { WorkspaceExpenseQuickActions } from '../components/workspace/WorkspaceExpenseQuickActions';
+import { PlanAgOnboardingCard } from '../components/dashboard/PlanAgOnboardingCard';
+import { useToast } from '../context/ToastContext';
 
 const Dashboard = () => {
   const ws = useWorkspace();
+  const { show: showToast } = useToast();
   const location = useLocation();
   const navigate = useNavigate();
   const [officeSummary, setOfficeSummary] = useState(null);
@@ -79,6 +82,14 @@ const Dashboard = () => {
             Ask AI
           </AiAskButton>
         </div>
+
+        <PlanAgOnboardingCard
+          snapshotPrefs={ws?.snapshot?.dashboardPrefs}
+          showToast={showToast}
+          onWorkspaceRefresh={() => void ws.refresh?.()}
+          hasFinance={ws.hasPermission('finance.view')}
+          hasReports={ws.hasPermission('reports.view')}
+        />
 
         {!canOffice ? (
           <div className="flex flex-col gap-3 rounded-xl border border-slate-200/90 bg-white px-4 py-3 shadow-sm sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">

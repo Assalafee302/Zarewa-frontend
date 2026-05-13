@@ -39,6 +39,7 @@ import {
   salesPaymentsReceivedSummary,
 } from '../lib/liveAnalytics';
 import { procurementKindFromPo } from '../lib/procurementPoKind';
+import { ReportsGlPilotSection } from '../components/reports/ReportsGlPilotSection.jsx';
 
 const PACK_PERIOD_COSTS_INVENTORY = 'Period costs & inventory (pack)';
 const PACK_CASH_BANK_AR = 'Cash, bank & AR reconciliation (pack)';
@@ -1079,6 +1080,7 @@ const Reports = () => {
           journalMemo: l.journalMemo,
           sourceKind: l.sourceKind,
           sourceId: l.sourceId,
+          costCenter: l.costCenter || '',
         }));
         if (tbRows.length) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(tbRows), 'Trial_balance');
         if (jRows.length) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(jRows), 'Journals');
@@ -1509,6 +1511,15 @@ const Reports = () => {
             </form>
           </div>
         </div>
+
+        {ws.hasPermission('finance.view') ? (
+          <ReportsGlPilotSection
+            startDate={startDate}
+            endDate={endDate}
+            hasFinanceView={ws.hasPermission('finance.view')}
+            showToast={showToast}
+          />
+        ) : null}
 
         <div className="space-y-0">
           <h3 className="z-section-title mb-2">Standard reports (audit)</h3>

@@ -69,6 +69,7 @@ import {
 import { editMutationNeedsSecondApprovalRole } from '../lib/editApprovalUi';
 import { treasuryAccountDisplayName } from '../lib/treasuryAccountsStore';
 import { AccountBankReconciliationPanel } from '../components/account/AccountBankReconciliationPanel.jsx';
+import { AccountGlManualJournalCard } from '../components/account/AccountGlManualJournalCard.jsx';
 
 const Account = () => {
   const location = useLocation();
@@ -1132,6 +1133,17 @@ const Account = () => {
         { pathname: location.pathname, search: tab === 'treasury' ? '' : `?tab=${encodeURIComponent(tab)}` },
         { replace: true, state: {} }
       );
+      return;
+    }
+
+    const glJid = st.highlightGlJournalId != null ? String(st.highlightGlJournalId).trim() : '';
+    if (glJid) {
+      handleAccountTabChange('audit');
+      navigate(
+        { pathname: location.pathname, search: '?tab=audit' },
+        { replace: true, state: {} }
+      );
+      showToast(`GL journal ${glJid} — use Audit and GL tools to open details.`, { variant: 'info' });
       return;
     }
 
@@ -4561,6 +4573,14 @@ const Account = () => {
                     ))}
                   </div>
                 </div>
+
+                {ws.hasPermission('finance.post') ? (
+                  <AccountGlManualJournalCard
+                    canPost
+                    showToast={showToast}
+                    onPosted={() => void ws.refresh()}
+                  />
+                ) : null}
 
                 <p className="text-[10px] text-slate-600 rounded-lg border border-slate-200/60 bg-slate-50/80 px-3 py-2">
                   Customer receipt settlement is on the{' '}

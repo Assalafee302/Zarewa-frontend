@@ -27,6 +27,7 @@ import CoilRegisterImportPanel from '../components/settings/CoilRegisterImportPa
 import TeamAccessPanel from '../components/settings/TeamAccessPanel';
 import SettingsProfilePanel from '../components/settings/SettingsProfilePanel';
 import AdminDataResetPanel from '../components/settings/AdminDataResetPanel';
+import { SettingsIntegrationApiPanel } from '../components/settings/SettingsIntegrationApiPanel';
 import {
   DEFAULT_MANAGER_TARGETS_PER_MONTH,
   mergeDashboardPrefs,
@@ -100,6 +101,7 @@ const Settings = () => {
 
   const showTeamTab = Boolean(ws?.hasPermission?.('settings.view'));
   const canEditOrgTargets = Boolean(ws?.hasPermission?.('settings.view'));
+  const showIntegrationApiPanel = showTeamTab;
   const showAdminDataReset = String(currentUser?.roleKey || '').toLowerCase() === 'admin';
 
   const settingsTabs = useMemo(() => {
@@ -293,6 +295,7 @@ const Settings = () => {
     showBranchAudit ||
     showCuttingThresholdControl ||
     showGovernanceLimitsControl ||
+    showIntegrationApiPanel ||
     auditLog.length > 0;
 
   const workspaceBranches = ws?.snapshot?.workspaceBranches ?? [];
@@ -716,6 +719,10 @@ const Settings = () => {
               path="governance"
               element={
                 <div className="space-y-8">
+                  {showIntegrationApiPanel ? (
+                    <SettingsIntegrationApiPanel showToast={showToast} onRefresh={() => void ws?.refresh?.()} />
+                  ) : null}
+
                   {!governanceHasContent ? (
                     <div className="rounded-3xl border border-dashed border-slate-200 bg-slate-50/60 px-6 py-10 text-center">
                       <p className="text-sm font-semibold text-slate-700">No controls in this section for your role</p>
