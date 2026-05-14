@@ -15,10 +15,12 @@ const CSRF_EXEMPT_MUTATION_PATHS = new Set([
 
 /** Base URL for API (empty = same origin, e.g. Vite proxy `/api` → backend). */
 export function apiUrl(path) {
-  const base = String(import.meta.env.VITE_API_BASE ?? '')
-    .trim()
-    .replace(/\/$/, '');
+  let base = String(import.meta.env.VITE_API_BASE ?? '').trim().replace(/\/+$/, '');
   const p = path.startsWith('/') ? path : `/${path}`;
+  /** Paths already include `/api/...`. If base ends with `/api`, joining would produce `/api/api/...` (Express 404). */
+  if (base && p.startsWith('/api/') && /\/api$/i.test(base)) {
+    base = base.replace(/\/api$/i, '');
+  }
   return `${base}${p}`;
 }
 
@@ -114,7 +116,7 @@ export async function apiFetch(path, options = {}) {
       ok: false,
       code: 'NON_JSON_RESPONSE',
       error: htmlExpressMissingRoute
-        ? 'API route not found (server returned an HTML 404). Use a current API build and restart it. With Vite, run the API on port 8787 (npm run server) so /api proxies correctly, or set VITE_API_BASE to your API origin. Production: redeploy and restart the Node server.'
+        ? 'API route not found (server returned an HTML 404). Common causes: (1) API server is an old build — redeploy backend with current routes and restart. (2) VITE_API_BASE ends with /api while the app calls /api/... — set the base to the site origin only (e.g. https://host) not https://host/api. Dev: run the API on port 8787 so Vite can proxy /api, or set VITE_API_BASE to the API origin.'
         : String(text || 'Invalid JSON').slice(0, 500),
     };
   }
