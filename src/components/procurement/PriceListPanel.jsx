@@ -5,6 +5,7 @@ import { useToast } from '../../context/ToastContext';
 import { apiFetch, apiUrl } from '../../lib/apiBase';
 import { formatNgn } from '../../Data/mockData';
 import { APP_DATA_TABLE_PAGE_SIZE, useAppTablePaging } from '../../lib/appDataTable';
+import { compareGaugeLabels, compareSelectLabels } from '../../lib/selectOptionSort';
 import { AppTablePager } from '../ui/AppDataTable';
 
 const STONE_COATED_GAUGES = ['0.20', '0.22', '0.24'];
@@ -46,10 +47,29 @@ export function PriceListPanel({ embedded = false }) {
   const canView = ws?.hasPermission?.('pricing.manage') || ws?.hasPermission?.('md.price_exception.approve');
 
   const masterData = ws?.snapshot?.masterData;
-  const gaugeOptions = useMemo(() => masterData?.gauges || [], [masterData?.gauges]);
-  const colourOptions = useMemo(() => masterData?.colours || [], [masterData?.colours]);
-  const profileOptions = useMemo(() => masterData?.profiles || [], [masterData?.profiles]);
-  const materialTypeOptions = useMemo(() => masterData?.materialTypes || [], [masterData?.materialTypes]);
+  const gaugeOptions = useMemo(
+    () =>
+      [...(masterData?.gauges || [])].sort((a, b) => compareGaugeLabels(String(a.label || ''), String(b.label || ''))),
+    [masterData?.gauges]
+  );
+  const colourOptions = useMemo(
+    () =>
+      [...(masterData?.colours || [])].sort((a, b) =>
+        compareSelectLabels(
+          a.abbreviation ? `${a.name} (${a.abbreviation})` : String(a.name || ''),
+          b.abbreviation ? `${b.name} (${b.abbreviation})` : String(b.name || '')
+        )
+      ),
+    [masterData?.colours]
+  );
+  const profileOptions = useMemo(
+    () => [...(masterData?.profiles || [])].sort((a, b) => compareSelectLabels(a.name, b.name)),
+    [masterData?.profiles]
+  );
+  const materialTypeOptions = useMemo(
+    () => [...(masterData?.materialTypes || [])].sort((a, b) => compareSelectLabels(a.name, b.name)),
+    [masterData?.materialTypes]
+  );
 
   const dlGauge = useId();
   const dlDesign = useId();

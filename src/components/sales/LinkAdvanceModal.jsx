@@ -10,6 +10,7 @@ import { amountDueOnQuotation, recordAdvanceAppliedToQuotation } from '../../lib
 import { formatNgn } from '../../Data/mockData';
 import { apiFetch } from '../../lib/apiBase';
 import { dismissAdvanceEntryId } from '../../lib/advanceEntryUiStore';
+import { compareSelectLabels } from '../../lib/selectOptionSort';
 
 /**
  * Apply a customer advance (from an ADVANCE_IN row) to a quotation.
@@ -68,7 +69,9 @@ export default function LinkAdvanceModal({
   const quoteOptions = useMemo(() => {
     const cid = advanceEntry?.customerID;
     const base = cid ? quotations.filter((q) => q.customerID === cid) : quotations;
-    return base.map((q) => ({ q, due: amountDueOnQuotation(q) }));
+    return base
+      .map((q) => ({ q, due: amountDueOnQuotation(q) }))
+      .sort((a, b) => compareSelectLabels(a.q.id, b.q.id));
   }, [quotations, advanceEntry?.customerID]);
 
   const selectedQ = useMemo(

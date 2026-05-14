@@ -33,6 +33,7 @@ import {
   treasuryAccountIdForApiPayload,
   treasuryAccountsFromSnapshot,
 } from '../lib/treasuryAccountsStore';
+import { compareSelectLabels } from '../lib/selectOptionSort';
 import { ReceiptPrintQuick, ReceiptPrintFull } from './receipt/ReceiptPrintViews';
 
 function newLineId() {
@@ -133,7 +134,12 @@ const ReceiptModal = ({
   const lastReceiptHydrateSigRef = useRef('');
   const [isPosting, setIsPosting] = useState(false);
 
-  const treasuryList = useMemo(() => treasuryAccountsFromSnapshot(ws?.snapshot), [
+  const treasuryList = useMemo(() => {
+    const raw = treasuryAccountsFromSnapshot(ws?.snapshot) || [];
+    return [...raw].sort((a, b) =>
+      compareSelectLabels(treasuryAccountDisplayName(a), treasuryAccountDisplayName(b))
+    );
+  }, [
     ws?.refreshEpoch,
     ws?.hasWorkspaceData,
   ]);

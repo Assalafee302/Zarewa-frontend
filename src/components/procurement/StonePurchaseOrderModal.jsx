@@ -4,6 +4,7 @@ import { ModalFrame } from '../layout/ModalFrame';
 import { ProcurementFormSection } from './ProcurementFormSection';
 import { apiFetch } from '../../lib/apiBase';
 import { formatNgn } from '../../Data/mockData';
+import { compareGaugeLabels, compareSelectLabels } from '../../lib/selectOptionSort';
 
 const STONE_MATERIAL_TYPE_ID = 'MAT-005';
 
@@ -54,16 +55,31 @@ export default function StonePurchaseOrderModal({
 
   const stoneProfiles = useMemo(() => {
     const rows = masterData?.profiles || [];
-    return rows.filter((p) => String(p.materialTypeId || '') === STONE_MATERIAL_TYPE_ID && p.active !== false);
+    return rows
+      .filter((p) => String(p.materialTypeId || '') === STONE_MATERIAL_TYPE_ID && p.active !== false)
+      .sort((a, b) => compareSelectLabels(a.name, b.name));
   }, [masterData?.profiles]);
 
   const colourOptions = useMemo(
-    () => (masterData?.colours || []).filter((c) => c.active !== false),
+    () =>
+      [...(masterData?.colours || []).filter((c) => c.active !== false)].sort((a, b) => {
+        const la = a.abbreviation ? `${a.name} (${a.abbreviation})` : a.name;
+        const lb = b.abbreviation ? `${b.name} (${b.abbreviation})` : b.name;
+        return compareSelectLabels(la, lb);
+      }),
     [masterData?.colours]
   );
   const gaugeOptions = useMemo(
-    () => (masterData?.gauges || []).filter((g) => g.active !== false),
+    () =>
+      [...(masterData?.gauges || []).filter((g) => g.active !== false)].sort((a, b) =>
+        compareGaugeLabels(a.label, b.label)
+      ),
     [masterData?.gauges]
+  );
+
+  const suppliersSorted = useMemo(
+    () => [...(suppliers || [])].sort((a, b) => compareSelectLabels(a.name, b.name)),
+    [suppliers]
   );
 
   useEffect(() => {
@@ -273,7 +289,7 @@ export default function StonePurchaseOrderModal({
                       className={`${headerInputClass} appearance-none pr-7`}
                     >
                       <option value="">Select supplier…</option>
-                      {suppliers.map((s) => (
+                      {suppliersSorted.map((s) => (
                         <option key={s.supplierID} value={s.supplierID}>
                           {s.name}
                         </option>

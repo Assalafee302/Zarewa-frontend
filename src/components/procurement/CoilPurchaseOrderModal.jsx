@@ -3,6 +3,7 @@ import { X, Plus, Trash2, ChevronDown, Save, UserPlus, Package, Info } from 'luc
 import { ModalFrame } from '../layout/ModalFrame';
 import { ProcurementFormSection } from './ProcurementFormSection';
 import { formatNgn } from '../../Data/mockData';
+import { compareGaugeLabels, compareSelectLabels } from '../../lib/selectOptionSort';
 
 const inputClass =
   'w-full bg-white border border-slate-200 rounded-lg py-1.5 px-2.5 text-[11px] font-semibold text-[#134e4a] outline-none focus:ring-2 focus:ring-[#134e4a]/15 min-h-[2rem]';
@@ -19,7 +20,7 @@ const labelClass =
 const MATERIAL_OPTS = [
   { value: 'aluminium', label: 'Aluminium' },
   { value: 'aluzinc', label: 'Aluzinc' },
-];
+].sort((a, b) => compareSelectLabels(a.label, b.label));
 
 function stockProductIdForMaterial(kind) {
   if (kind === 'aluzinc') return 'PRD-102';
@@ -151,7 +152,12 @@ export default function CoilPurchaseOrderModal({
         active: true,
       })
     );
-    return [...fromMaster, ...extras];
+    const merged = [...fromMaster, ...extras];
+    return [...merged].sort((a, b) => {
+      const la = a.abbreviation ? `${a.name} (${a.abbreviation})` : a.name;
+      const lb = b.abbreviation ? `${b.name} (${b.abbreviation})` : b.name;
+      return compareSelectLabels(la, lb);
+    });
   }, [masterData?.colours]);
 
   const gaugeOptions = useMemo(() => {
@@ -163,8 +169,14 @@ export default function CoilPurchaseOrderModal({
       gaugeMm: 0,
       active: true,
     }));
-    return [...fromMaster, ...extras];
+    return [...fromMaster, ...extras].sort((a, b) => compareGaugeLabels(a.label, b.label));
   }, [masterData?.gauges]);
+
+  const suppliersSorted = useMemo(
+    () => [...(suppliers || [])].sort((a, b) => compareSelectLabels(a.name, b.name)),
+    [suppliers]
+  );
+
   const grandTotal = lineTotals.reduce((s, n) => s + n, 0);
 
   const setLine = (idx, patch) => {
@@ -325,7 +337,7 @@ export default function CoilPurchaseOrderModal({
                     className={`${inputClass} appearance-none pr-8`}
                   >
                     <option value="">Select supplier…</option>
-                    {suppliers.map((s) => (
+                    {suppliersSorted.map((s) => (
                       <option key={s.supplierID} value={s.supplierID}>
                         {s.name}
                       </option>

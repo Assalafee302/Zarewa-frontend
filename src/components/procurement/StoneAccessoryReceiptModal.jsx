@@ -3,6 +3,7 @@ import { X } from 'lucide-react';
 import { ModalFrame } from '../layout';
 import { ProcurementFormSection } from './ProcurementFormSection';
 import { apiFetch } from '../../lib/apiBase';
+import { compareGaugeLabels, compareSelectLabels } from '../../lib/selectOptionSort';
 
 const STONE_MATERIAL_TYPE_ID = 'MAT-005';
 
@@ -16,14 +17,33 @@ export default function StoneAccessoryReceiptModal({ isOpen, onClose, masterData
 
   const stoneProfiles = useMemo(() => {
     const rows = masterData?.profiles || [];
-    return rows.filter((p) => String(p.materialTypeId || '') === STONE_MATERIAL_TYPE_ID && p.active !== false);
+    return rows
+      .filter((p) => String(p.materialTypeId || '') === STONE_MATERIAL_TYPE_ID && p.active !== false)
+      .sort((a, b) => compareSelectLabels(a.name, b.name));
   }, [masterData?.profiles]);
 
-  const colours = useMemo(() => (masterData?.colours || []).filter((c) => c.active !== false), [masterData?.colours]);
-  const gauges = useMemo(() => (masterData?.gauges || []).filter((g) => g.active !== false), [masterData?.gauges]);
+  const colours = useMemo(
+    () =>
+      [...(masterData?.colours || []).filter((c) => c.active !== false)].sort((a, b) => {
+        const la = a.abbreviation ? `${a.name} (${a.abbreviation})` : a.name;
+        const lb = b.abbreviation ? `${b.name} (${b.abbreviation})` : b.name;
+        return compareSelectLabels(la, lb);
+      }),
+    [masterData?.colours]
+  );
+  const gauges = useMemo(
+    () =>
+      [...(masterData?.gauges || []).filter((g) => g.active !== false)].sort((a, b) =>
+        compareGaugeLabels(a.label, b.label)
+      ),
+    [masterData?.gauges]
+  );
 
   const accessoryProducts = useMemo(
-    () => (Array.isArray(products) ? products : []).filter((p) => String(p.productID || '').startsWith('ACC-')),
+    () =>
+      [...(Array.isArray(products) ? products : []).filter((p) => String(p.productID || '').startsWith('ACC-'))].sort(
+        (a, b) => compareSelectLabels(a.name || a.productID, b.name || b.productID)
+      ),
     [products]
   );
 

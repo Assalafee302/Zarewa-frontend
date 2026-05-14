@@ -18,6 +18,7 @@ import { ModalFrame } from './layout/ModalFrame';
 import { useTrackedUnsavedForm } from '../hooks/useTrackedUnsavedForm';
 import { useCustomers } from '../context/CustomersContext';
 import { bankAccountsForCustomerPayment, treasuryAccountsFromSnapshot } from '../lib/treasuryAccountsStore';
+import { compareGaugeLabels, compareSelectLabels } from '../lib/selectOptionSort';
 import { ZAREWA_COMPANY_ACCOUNT_NAME } from '../Data/companyQuotation';
 import { formatNgn } from '../Data/mockData';
 import { useToast } from '../context/ToastContext';
@@ -139,13 +140,15 @@ function priceListMaterialKeyFromMeta(meta) {
   return '';
 }
 
-const QUOTATION_EDIT_TYPES = [
-  'Correction (typo / clerical)',
-  'Customer / billing change',
-  'Line items or pricing',
-  'Terms, dates, or delivery',
-  'Other',
-];
+const QUOTATION_EDIT_TYPES = Object.freeze(
+  [
+    'Correction (typo / clerical)',
+    'Customer / billing change',
+    'Line items or pricing',
+    'Terms, dates, or delivery',
+    'Other',
+  ].sort((a, b) => compareSelectLabels(a, b))
+);
 
 function formatDisplayDate(iso) {
   if (!iso || typeof iso !== 'string') return '—';
@@ -554,17 +557,27 @@ const QuotationModal = ({
   });
   const handleClose = () => wrapClose(() => onClose());
 
-  const treasuryPayAccountsLive = useMemo(
-    () => bankAccountsForCustomerPayment(treasuryAccountsFromSnapshot(ws?.snapshot)),
+  const treasuryPayAccountsLive = useMemo(() => {
+    const raw = bankAccountsForCustomerPayment(treasuryAccountsFromSnapshot(ws?.snapshot));
+    return [...raw].sort((a, b) =>
+      compareSelectLabels(
+        `${String(a.bankName || '').trim() || String(a.name || '').trim()} · ${String(a.accNo || '')}`,
+        `${String(b.bankName || '').trim() || String(b.name || '').trim()} · ${String(b.accNo || '')}`
+      )
+    );
+  }, [
     /** Epoch ties treasury list to intentional workspace refresh, not silent snapshot churn. */
-    [ws?.refreshEpoch, ws?.hasWorkspaceData]
-  );
+    ws?.refreshEpoch,
+    ws?.hasWorkspaceData,
+  ]);
 
   const materialTypeOptions = useMemo(() => {
     const rows = (liveMasterData?.materialTypes || [])
       .filter((row) => row.active)
       .filter((row) => QUOTATION_MATERIAL_INVENTORY_MODELS.has(String(row.inventoryModel || 'coil_kg').trim()));
-    return rows.map((row) => ({ value: row.id, label: row.name, inventoryModel: row.inventoryModel || '' }));
+    return rows
+      .map((row) => ({ value: row.id, label: row.name, inventoryModel: row.inventoryModel || '' }))
+      .sort((a, b) => compareSelectLabels(a.label, b.label));
   }, [liveMasterData?.materialTypes]);
 
   /** Filter profiles by selected material type (stone vs coil). */
@@ -573,24 +586,31 @@ const QuotationModal = ({
     const filtered = materialTypeId
       ? fromMaster.filter((row) => String(row.materialTypeId || '').trim() === materialTypeId)
       : fromMaster;
-    const opts = filtered.map((row) => ({ value: row.name, label: row.name }));
+    const opts = filtered
+      .map((row) => ({ value: row.name, label: row.name }))
+      .sort((a, b) => compareSelectLabels(a.label, b.label));
     if (opts.length > 0) return opts;
-    return DEFAULT_PROFILES.map((name) => ({
-      value: name,
-      label: name,
-    }));
+    return [...DEFAULT_PROFILES]
+      .sort((a, b) => compareSelectLabels(a, b))
+      .map((name) => ({
+        value: name,
+        label: name,
+      }));
   }, [liveMasterData?.profiles, materialTypeId]);
 
   const gaugeOptions = useMemo(() => {
     const fromMaster = (liveMasterData?.gauges || [])
       .filter((row) => row.active)
-      .map((row) => ({ value: row.label, label: row.label, id: row.id }));
+      .map((row) => ({ value: row.label, label: row.label, id: row.id }))
+      .sort((a, b) => compareGaugeLabels(a.label, b.label));
     if (fromMaster.length > 0) return fromMaster;
-    return DEFAULT_GAUGES.map((label) => ({
-      value: label,
-      label,
-      id: undefined,
-    }));
+    return [...DEFAULT_GAUGES]
+      .sort((a, b) => compareGaugeLabels(a, b))
+      .map((label) => ({
+        value: label,
+        label,
+        id: undefined,
+      }));
   }, [liveMasterData?.gauges]);
 
   const colourOptions = useMemo(() => {
@@ -601,14 +621,15 @@ const QuotationModal = ({
         label: row.abbreviation ? `${row.name} (${row.abbreviation})` : row.name,
         id: row.id,
       }));
-    const base =
+    const base = (
       fromMaster.length > 0
         ? fromMaster
-        : DEFAULT_COLOURS.map((name) => ({
+        : [...DEFAULT_COLOURS].sort((a, b) => compareSelectLabels(a, b)).map((name) => ({
             value: name,
             label: name,
             id: undefined,
-          }));
+          }))
+    ).sort((a, b) => compareSelectLabels(a.label, b.label));
     const inv = String(
       liveMasterData?.materialTypes?.find((row) => row.id === materialTypeId)?.inventoryModel || ''
     ).trim();
@@ -624,7 +645,8 @@ const QuotationModal = ({
     );
     if (!ids.size) return base;
     const filtered = base.filter((c) => c.id && ids.has(String(c.id).trim()));
-    return filtered.length ? filtered : base;
+    const narrowed = filtered.length ? filtered : base;
+    return [...narrowed].sort((a, b) => compareSelectLabels(a.label, b.label));
   }, [liveMasterData?.colours, liveMasterData?.materialTypes, liveMasterData?.priceList, materialTypeId]);
 
   const quoteItemRowsActive = useMemo(
@@ -655,7 +677,7 @@ const QuotationModal = ({
           name,
           defaultUnitPriceNgn: 0,
         }));
-      return [...fromMaster, ...extras];
+      return [...fromMaster, ...extras].sort((a, b) => compareSelectLabels(a.name, b.name));
     },
     [quoteItemRowsActive]
   );

@@ -3055,8 +3055,8 @@ const Procurement = () => {
                   className="w-full rounded-xl border border-slate-200 py-2.5 px-3 text-sm font-semibold bg-white"
                 >
                   <option value="">Not specified</option>
-                  <option value="Cash">Cash</option>
                   <option value="Bank transfer">Bank transfer</option>
+                  <option value="Cash">Cash</option>
                   <option value="Mixed (advance + balance)">Mixed (advance + balance)</option>
                   <option value="Other">Other</option>
                 </select>

@@ -3,6 +3,7 @@ import { Plus, Trash2, UserPlus, X, ChevronDown, Save } from 'lucide-react';
 import { ModalFrame } from '../layout/ModalFrame';
 import { ProcurementFormSection } from './ProcurementFormSection';
 import { formatNgn } from '../../Data/mockData';
+import { compareSelectLabels } from '../../lib/selectOptionSort';
 
 const labelClass =
   'text-[8px] font-semibold text-slate-400 uppercase tracking-wide ml-0.5 mb-0.5 block';
@@ -45,8 +46,16 @@ export default function AccessoryPurchaseOrderModal({
   const editPoId = editDraft?.poID ?? '';
 
   const accessoryProducts = useMemo(
-    () => (Array.isArray(products) ? products : []).filter((p) => String(p.productID || '').startsWith('ACC-')),
+    () =>
+      [...(Array.isArray(products) ? products : []).filter((p) => String(p.productID || '').startsWith('ACC-'))].sort(
+        (a, b) => compareSelectLabels(a.name || a.productID, b.name || b.productID)
+      ),
     [products]
+  );
+
+  const suppliersSorted = useMemo(
+    () => [...(suppliers || [])].sort((a, b) => compareSelectLabels(a.name, b.name)),
+    [suppliers]
   );
 
   useEffect(() => {
@@ -234,7 +243,7 @@ export default function AccessoryPurchaseOrderModal({
                       className={`${headerInputClass} appearance-none pr-8`}
                     >
                       <option value="">Select supplier…</option>
-                      {suppliers.map((s) => (
+                      {suppliersSorted.map((s) => (
                         <option key={s.supplierID} value={s.supplierID}>
                           {s.name}
                         </option>

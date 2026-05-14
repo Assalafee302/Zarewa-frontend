@@ -3,14 +3,9 @@
  * (Setup → material types, gauges, colours). Keep inventory model filter in sync
  * with QuotationModal QUOTATION_MATERIAL_INVENTORY_MODELS.
  */
-const QUOTATION_MATERIAL_INVENTORY_MODELS = new Set(['coil_kg', 'stone_meter']);
+import { compareGaugeLabels } from './selectOptionSort';
 
-function sortGaugeLabels(a, b) {
-  const na = parseFloat(String(a).replace(/[^\d.]/g, '')) || 0;
-  const nb = parseFloat(String(b).replace(/[^\d.]/g, '')) || 0;
-  if (na !== nb) return na - nb;
-  return String(a).localeCompare(String(b));
-}
+const QUOTATION_MATERIAL_INVENTORY_MODELS = new Set(['coil_kg', 'stone_meter']);
 
 /**
  * @param {{ materialTypes?: object[]; gauges?: object[]; colours?: object[] } | null | undefined} masterData
@@ -32,7 +27,7 @@ export function stockCheckSelectOptionsFromMasterData(masterData) {
     .map((row) => String(row.label || '').trim())
     .filter(Boolean);
   const gauges = [...new Set(gaugeLabels)]
-    .sort(sortGaugeLabels)
+    .sort(compareGaugeLabels)
     .map((label) => ({ value: label, label }));
 
   const colours = (md.colours || [])
@@ -62,7 +57,7 @@ export function stockCheckSelectOptionsFromCoilRows(coilRows) {
   const gauges = [
     ...new Set((coilRows || []).map((r) => String(r.gaugeLabel ?? '').trim()).filter((g) => g && g !== '—')),
   ]
-    .sort(sortGaugeLabels)
+    .sort(compareGaugeLabels)
     .map((label) => ({ value: label, label }));
   const colours = [
     ...new Set(

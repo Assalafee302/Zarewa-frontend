@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useMemo } from 'react';
+import { compareSelectLabels } from '../../lib/selectOptionSort';
 
 export default function ProcurementDashboardFilters({
   filters,
@@ -7,6 +8,22 @@ export default function ProcurementDashboardFilters({
   supplierOptions = [],
   transporterOptions = [],
 }) {
+  const branchSorted = useMemo(
+    () =>
+      [...branchOptions].sort((a, b) =>
+        compareSelectLabels(a.name || a.code || a.id, b.name || b.code || b.id)
+      ),
+    [branchOptions]
+  );
+  const supplierSorted = useMemo(
+    () => [...supplierOptions].sort((a, b) => compareSelectLabels(a.name, b.name)),
+    [supplierOptions]
+  );
+  const transporterSorted = useMemo(
+    () => [...transporterOptions].sort((a, b) => compareSelectLabels(a.name, b.name)),
+    [transporterOptions]
+  );
+
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-3">
       <div className="grid grid-cols-2 gap-2 md:grid-cols-4 xl:grid-cols-8">
@@ -22,7 +39,7 @@ export default function ProcurementDashboardFilters({
           <span className="mb-1 block font-bold uppercase tracking-wide text-slate-500">Branch</span>
           <select value={filters.branchId} onChange={(e) => onChange({ branchId: e.target.value })} className="z-input !py-1.5 !text-[11px]">
             <option value="all">All</option>
-            {branchOptions.map((b) => (
+            {branchSorted.map((b) => (
               <option key={b.id} value={b.id}>
                 {b.name || b.code || b.id}
               </option>
@@ -33,7 +50,7 @@ export default function ProcurementDashboardFilters({
           <span className="mb-1 block font-bold uppercase tracking-wide text-slate-500">Supplier</span>
           <select value={filters.supplierId} onChange={(e) => onChange({ supplierId: e.target.value })} className="z-input !py-1.5 !text-[11px]">
             <option value="all">All</option>
-            {supplierOptions.map((s) => (
+            {supplierSorted.map((s) => (
               <option key={s.supplierID} value={s.supplierID}>
                 {s.name}
               </option>
@@ -44,9 +61,9 @@ export default function ProcurementDashboardFilters({
           <span className="mb-1 block font-bold uppercase tracking-wide text-slate-500">Class</span>
           <select value={filters.materialClass} onChange={(e) => onChange({ materialClass: e.target.value })} className="z-input !py-1.5 !text-[11px]">
             <option value="all">All</option>
+            <option value="accessory">Accessory</option>
             <option value="coil">Coil</option>
             <option value="stone">Stone</option>
-            <option value="accessory">Accessory</option>
           </select>
         </label>
         <label className="text-[10px]">
@@ -61,7 +78,7 @@ export default function ProcurementDashboardFilters({
           <span className="mb-1 block font-bold uppercase tracking-wide text-slate-500">Transport</span>
           <select value={filters.transportAgentId} onChange={(e) => onChange({ transportAgentId: e.target.value })} className="z-input !py-1.5 !text-[11px]">
             <option value="all">All</option>
-            {transporterOptions.map((a) => (
+            {transporterSorted.map((a) => (
               <option key={a.id} value={a.id}>
                 {a.name}
               </option>

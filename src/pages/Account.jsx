@@ -68,6 +68,7 @@ import {
 } from '../lib/accountCore';
 import { editMutationNeedsSecondApprovalRole } from '../lib/editApprovalUi';
 import { treasuryAccountDisplayName } from '../lib/treasuryAccountsStore';
+import { compareSelectLabels } from '../lib/selectOptionSort';
 import { AccountBankReconciliationPanel } from '../components/account/AccountBankReconciliationPanel.jsx';
 import { AccountGlManualJournalCard } from '../components/account/AccountGlManualJournalCard.jsx';
 
@@ -292,6 +293,20 @@ const Account = () => {
         branchOptions.map((b) => [String(b.id || '').trim(), b.name || b.code || b.id || 'Unknown branch'])
       ),
     [branchOptions]
+  );
+  const branchOptionsSorted = useMemo(
+    () =>
+      [...branchOptions].sort((a, b) =>
+        compareSelectLabels(a.name || a.code || a.id, b.name || b.code || b.id)
+      ),
+    [branchOptions]
+  );
+  const bankAccountsSelectOrder = useMemo(
+    () =>
+      [...bankAccounts].sort((a, b) =>
+        compareSelectLabels(treasuryAccountDisplayName(a), treasuryAccountDisplayName(b))
+      ),
+    [bankAccounts]
   );
   const liveQuotations = useMemo(
     () => (ws?.hasWorkspaceData && Array.isArray(ws?.snapshot?.quotations) ? ws.snapshot.quotations : []),
@@ -3487,7 +3502,7 @@ const Account = () => {
                               className="mt-1 w-full bg-gray-50 border border-gray-100 rounded-lg py-2 px-2 text-xs font-semibold"
                             >
                               <option value="">Select…</option>
-                              {branchOptions.map((b) => (
+                              {branchOptionsSorted.map((b) => (
                                 <option key={b.id} value={b.id}>
                                   {b.name || b.code || b.id}
                                 </option>
@@ -3505,7 +3520,7 @@ const Account = () => {
                               className="mt-1 w-full bg-gray-50 border border-gray-100 rounded-lg py-2 px-2 text-xs font-semibold"
                             >
                               <option value="">Select…</option>
-                              {branchOptions.map((b) => (
+                              {branchOptionsSorted.map((b) => (
                                 <option key={b.id} value={b.id}>
                                   {b.name || b.code || b.id}
                                 </option>
@@ -3525,7 +3540,7 @@ const Account = () => {
                               className="mt-1 w-full bg-gray-50 border border-gray-100 rounded-lg py-2 px-2 text-xs font-semibold"
                             >
                               <option value="">Select…</option>
-                              {bankAccounts.map((a) => (
+                              {bankAccountsSelectOrder.map((a) => (
                                 <option key={a.id} value={String(a.id)}>
                                   {treasuryAccountDisplayName(a)} ({formatNgn(treasuryBookDisplayNgn(a))})
                                 </option>
@@ -3543,7 +3558,7 @@ const Account = () => {
                               className="mt-1 w-full bg-gray-50 border border-gray-100 rounded-lg py-2 px-2 text-xs font-semibold"
                             >
                               <option value="">Select…</option>
-                              {bankAccounts.map((a) => (
+                              {bankAccountsSelectOrder.map((a) => (
                                 <option key={a.id} value={String(a.id)}>
                                   {treasuryAccountDisplayName(a)}
                                 </option>
@@ -3713,7 +3728,7 @@ const Account = () => {
                                   className="bg-gray-50 border border-gray-100 rounded-lg py-1.5 px-2 text-xs"
                                 >
                                   <option value="">From account…</option>
-                                  {bankAccounts.map((a) => (
+                                  {bankAccountsSelectOrder.map((a) => (
                                     <option key={a.id} value={String(a.id)}>
                                       {treasuryAccountDisplayName(a)}
                                     </option>
@@ -3736,7 +3751,7 @@ const Account = () => {
                                   className="bg-gray-50 border border-gray-100 rounded-lg py-1.5 px-2 text-xs"
                                 >
                                   <option value="">To account…</option>
-                                  {bankAccounts.map((a) => (
+                                  {bankAccountsSelectOrder.map((a) => (
                                     <option key={a.id} value={String(a.id)}>
                                       {treasuryAccountDisplayName(a)}
                                     </option>
@@ -4693,7 +4708,7 @@ const Account = () => {
                 className="w-full bg-gray-50 border border-gray-100 rounded-xl py-3 px-4 text-sm font-bold outline-none"
               >
                 <option value="">Select account…</option>
-                {bankAccounts.map((a) => (
+                {bankAccountsSelectOrder.map((a) => (
                   <option key={a.id} value={a.id}>
                     {treasuryAccountDisplayName(a)} ({formatNgn(treasuryBookDisplayNgn(a))})
                   </option>
@@ -4713,7 +4728,7 @@ const Account = () => {
                 className="w-full bg-gray-50 border border-gray-100 rounded-xl py-3 px-4 text-sm font-bold outline-none"
               >
                 <option value="">Select account…</option>
-                {bankAccounts.map((a) => (
+                {bankAccountsSelectOrder.map((a) => (
                   <option key={a.id} value={a.id}>
                     {treasuryAccountDisplayName(a)}
                   </option>
@@ -5065,7 +5080,7 @@ const Account = () => {
                       className="w-full rounded-lg border border-slate-200 bg-white py-2 px-2 text-[11px] font-semibold"
                     >
                       <option value="">Select account…</option>
-                      {bankAccounts.map((a) => (
+                      {bankAccountsSelectOrder.map((a) => (
                         <option key={a.id} value={String(a.id)}>
                           {treasuryAccountDisplayName(a)} ({formatNgn(treasuryBookDisplayNgn(a))})
                         </option>
@@ -5210,7 +5225,7 @@ const Account = () => {
                       className="w-full rounded-lg border border-slate-200 bg-white py-2 px-2 text-[11px] font-semibold"
                     >
                       <option value="">Select account…</option>
-                      {bankAccounts.map((a) => (
+                      {bankAccountsSelectOrder.map((a) => (
                         <option key={a.id} value={String(a.id)}>
                           {treasuryAccountDisplayName(a)} ({formatNgn(treasuryBookDisplayNgn(a))})
                         </option>
@@ -5505,10 +5520,10 @@ const Account = () => {
                   className="w-full bg-gray-50 border border-gray-100 rounded-xl py-3 px-4 text-sm font-bold outline-none"
                 >
                   <option value="COGS — materials & stock">COGS — materials & stock</option>
-                  <option value="Operational — rent & utilities">Operational — rent & utilities</option>
                   <option value="Employee — payroll & commissions">Employee — payroll & commissions</option>
-                  <option value="Maintenance — plant & equipment">Maintenance — plant & equipment</option>
                   <option value="Logistics & haulage">Logistics & haulage</option>
+                  <option value="Maintenance — plant & equipment">Maintenance — plant & equipment</option>
+                  <option value="Operational — rent & utilities">Operational — rent & utilities</option>
                 </select>
               </div>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -5572,8 +5587,8 @@ const Account = () => {
                   }
                   className="w-full bg-gray-50 border border-gray-100 rounded-xl py-3 px-4 text-sm font-bold outline-none"
                 >
-                  <option value="Cash">Cash</option>
                   <option value="Bank Transfer">Bank Transfer</option>
+                  <option value="Cash">Cash</option>
                   <option value="POS">POS</option>
                 </select>
               </div>
@@ -5590,7 +5605,7 @@ const Account = () => {
                   className="w-full bg-gray-50 border border-gray-100 rounded-xl py-3 px-4 text-sm font-bold outline-none"
                 >
                   <option value="">Select account…</option>
-                  {bankAccounts.map((a) => (
+                  {bankAccountsSelectOrder.map((a) => (
                     <option key={a.id} value={a.id}>
                       {treasuryAccountDisplayName(a)} ({formatNgn(treasuryBookDisplayNgn(a))})
                     </option>
@@ -5725,7 +5740,7 @@ const Account = () => {
                             className="mt-0.5 w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[11px] font-semibold outline-none focus:ring-2 focus:ring-[#134e4a]/15"
                           >
                             <option value="">Select account…</option>
-                            {bankAccounts.map((a) => (
+                            {bankAccountsSelectOrder.map((a) => (
                               <option key={a.id} value={String(a.id)}>
                                 {treasuryAccountDisplayName(a)}
                               </option>
@@ -5914,7 +5929,7 @@ const Account = () => {
                                   }
                                   className="w-full mt-0.5 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[11px] font-semibold outline-none focus:ring-2 focus:ring-[#134e4a]/15 disabled:opacity-60"
                                 >
-                                  {bankAccounts.map((a) => (
+                                  {bankAccountsSelectOrder.map((a) => (
                                     <option key={a.id} value={a.id}>
                                       {treasuryAccountDisplayName(a)}
                                     </option>

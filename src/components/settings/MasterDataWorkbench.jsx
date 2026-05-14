@@ -6,6 +6,7 @@ import { useToast } from '../../context/ToastContext';
 import { EditSecondApprovalInline } from '../EditSecondApprovalInline';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { APP_DATA_TABLE_PAGE_SIZE, useAppTablePaging } from '../../lib/appDataTable';
+import { compareGaugeLabels, compareSelectLabels } from '../../lib/selectOptionSort';
 import { AppTablePager } from '../ui/AppDataTable';
 
 /** Logical clusters for the Data & catalog tab — each opens a modal with tables. */
@@ -411,10 +412,12 @@ export default function MasterDataWorkbench({ masterData }) {
 
   const productInventoryOptions = useMemo(
     () =>
-      (ws?.snapshot?.products || []).map((p) => ({
-        value: p.productID,
-        label: `${p.name || p.productID} (${p.productID})`,
-      })),
+      [...(ws?.snapshot?.products || [])]
+        .sort((a, b) => compareSelectLabels(a.name || a.productID, b.name || b.productID))
+        .map((p) => ({
+          value: p.productID,
+          label: `${p.name || p.productID} (${p.productID})`,
+        })),
     [ws?.snapshot?.products]
   );
 
@@ -424,44 +427,54 @@ export default function MasterDataWorkbench({ masterData }) {
   );
   const quoteItemOptions = useMemo(
     () =>
-      (masterData?.quoteItems || []).map((row) => ({
-        value: row.id,
-        label: `${row.name} (${row.itemType})`,
-        unit: row.unit,
-        name: row.name,
-      })),
+      (masterData?.quoteItems || [])
+        .map((row) => ({
+          value: row.id,
+          label: `${row.name} (${row.itemType})`,
+          unit: row.unit,
+          name: row.name,
+        }))
+        .sort((a, b) => compareSelectLabels(a.label, b.label)),
     [masterData?.quoteItems]
   );
   const colourOptions = useMemo(
     () =>
-      (masterData?.colours || []).map((row) => ({
-        value: row.id,
-        label: `${row.name} (${row.abbreviation})`,
-      })),
+      (masterData?.colours || [])
+        .map((row) => ({
+          value: row.id,
+          label: `${row.name} (${row.abbreviation})`,
+        }))
+        .sort((a, b) => compareSelectLabels(a.label, b.label)),
     [masterData?.colours]
   );
   const gaugeOptions = useMemo(
     () =>
-      (masterData?.gauges || []).map((row) => ({
-        value: row.id,
-        label: row.label,
-      })),
+      (masterData?.gauges || [])
+        .map((row) => ({
+          value: row.id,
+          label: row.label,
+        }))
+        .sort((a, b) => compareGaugeLabels(a.label, b.label)),
     [masterData?.gauges]
   );
   const materialOptions = useMemo(
     () =>
-      (masterData?.materialTypes || []).map((row) => ({
-        value: row.id,
-        label: row.name,
-      })),
+      (masterData?.materialTypes || [])
+        .map((row) => ({
+          value: row.id,
+          label: row.name,
+        }))
+        .sort((a, b) => compareSelectLabels(a.label, b.label)),
     [masterData?.materialTypes]
   );
   const profileOptions = useMemo(
     () =>
-      (masterData?.profiles || []).map((row) => ({
-        value: row.id,
-        label: row.name,
-      })),
+      (masterData?.profiles || [])
+        .map((row) => ({
+          value: row.id,
+          label: row.name,
+        }))
+        .sort((a, b) => compareSelectLabels(a.label, b.label)),
     [masterData?.profiles]
   );
 
@@ -478,8 +491,8 @@ export default function MasterDataWorkbench({ masterData }) {
           label: 'Item type',
           type: 'select',
           options: [
-            { value: 'product', label: 'Product' },
             { value: 'accessory', label: 'Accessory' },
+            { value: 'product', label: 'Product' },
             { value: 'service', label: 'Service' },
           ],
         },

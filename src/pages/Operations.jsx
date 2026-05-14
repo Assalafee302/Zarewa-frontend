@@ -36,6 +36,7 @@ import { productionJobNeedsManagerReviewAttention } from '../lib/productionRevie
 import { pickProductionJobForCuttingList } from '../lib/productionJobPick';
 import { productionQueueLineStatusPresentation } from '../lib/productionQueueLineStatus';
 import { procurementKindFromPo } from '../lib/procurementPoKind';
+import { compareSelectLabels } from '../lib/selectOptionSort';
 
 /** Current kg on the coil (after production use); uses API fields when present. */
 function liveCoilWeightKg(lot) {
@@ -106,6 +107,17 @@ function cuttingListIdNumericRank(id) {
   return digits ? Number(digits) : 0;
 }
 
+/** Lexical ISO datetime, newest first; rows without a timestamp sort last. */
+function compareIsoNewestFirst(isoA, isoB) {
+  const a = String(isoA ?? '').trim();
+  const b = String(isoB ?? '').trim();
+  const aEmpty = !a;
+  const bEmpty = !b;
+  if (aEmpty && bEmpty) return 0;
+  if (aEmpty !== bEmpty) return aEmpty ? 1 : -1;
+  return b.localeCompare(a);
+}
+
 /** Lower score = needs attention first (active + closed production lists). */
 function productionAttentionScore(row) {
   const completed = Boolean(row?.completed);
@@ -120,7 +132,7 @@ function productionAttentionScore(row) {
 }
 
 /**
- * @param {'attention'|'id'|'idDesc'|'customer'|'status'} sortKey
+ * @param {'attention'|'id'|'idDesc'|'registeredDesc'|'customer'|'status'} sortKey
  */
 function compareProductionQueueRows(a, b, sortKey) {
   if (sortKey === 'attention') {
@@ -147,6 +159,14 @@ function compareProductionQueueRows(a, b, sortKey) {
     const rb = cuttingListIdNumericRank(b.id);
     if (ra !== rb) return ra - rb;
     return String(a.id || '').localeCompare(String(b.id || ''));
+  }
+  if (sortKey === 'registeredDesc') {
+    const tc = compareIsoNewestFirst(a.queueRegisteredAtISO, b.queueRegisteredAtISO);
+    if (tc !== 0) return tc;
+    const na = cuttingListIdNumericRank(a.id);
+    const nb = cuttingListIdNumericRank(b.id);
+    if (na !== nb) return nb - na;
+    return String(b.id || '').localeCompare(String(a.id || ''));
   }
   if (sortKey === 'idDesc') {
     const na = cuttingListIdNumericRank(a.id);
@@ -533,7 +553,7 @@ const Operations = () => {
   const [searchQuery, setSearchQuery] = useState('');
   /** Closed-record list: all | completed | cancelled (in-progress jobs are above this list). */
   const [productionFilter, setProductionFilter] = useState('all');
-  const [productionActiveSortKey, setProductionActiveSortKey] = useState('id');
+  const [productionActiveSortKey, setProductionActiveSortKey] = useState('registeredDesc');
   const [productionClosedSortKey, setProductionClosedSortKey] = useState('id');
   useEffect(() => {
     if (!ws?.hasWorkspaceData) return;
@@ -587,9 +607,16 @@ const Operations = () => {
   }, [showStockAdjust]);
 
   const stockAdjustProductOptions = useMemo(() => {
-    if (!stockAdjustMaterialFamily) return inventoryRows;
-    const filtered = inventoryRows.filter((r) => productMaterialFamily(r) === stockAdjustMaterialFamily);
-    return filtered.length ? filtered : inventoryRows;
+    const base =
+      !stockAdjustMaterialFamily
+        ? inventoryRows
+        : (() => {
+            const filtered = inventoryRows.filter((r) => productMaterialFamily(r) === stockAdjustMaterialFamily);
+            return filtered.length ? filtered : inventoryRows;
+          })();
+    return [...base].sort((a, b) =>
+      compareSelectLabels(`${a.name || ''} ${a.productID || ''}`, `${b.name || ''} ${b.productID || ''}`)
+    );
   }, [inventoryRows, stockAdjustMaterialFamily]);
 
   const closeStockAdjustModal = useCallback(() => {
@@ -721,6 +748,7 @@ const Operations = () => {
           coilLabel: null,
           lineStatusLabel: 'Waiting',
           lineStatusChipClass: 'border-orange-500 bg-orange-50 text-orange-950',
+          queueRegisteredAtISO: cl.dateISO || '',
         }));
       return {
         mode: 'offline',
@@ -797,6 +825,7 @@ const Operations = () => {
         cuttingListStatus: cl.status || '',
         lineStatusLabel: lineStatus.label,
         lineStatusChipClass: lineStatus.chipClass,
+        queueRegisteredAtISO: job?.createdAtISO || cl.dateISO || '',
       };
     };
 
@@ -2167,6 +2196,7 @@ const Operations = () => {
                           onChange={(e) => setProductionActiveSortKey(e.target.value)}
                           className="max-w-[9.5rem] rounded-md border border-slate-200 bg-white px-2 py-1 text-[10px] font-semibold normal-case text-slate-800 outline-none focus-visible:ring-2 focus-visible:ring-[#134e4a]/25"
                         >
+                          <option value="registeredDesc">Newest registered</option>
                           <option value="id">Cutting list # (oldest first)</option>
                           <option value="idDesc">Cutting list # (newest first)</option>
                           <option value="attention">Attention</option>
@@ -2318,6 +2348,7 @@ const Operations = () => {
                               onChange={(e) => setProductionClosedSortKey(e.target.value)}
                               className="max-w-[9.5rem] rounded-md border border-slate-200 bg-white px-2 py-1 text-[10px] font-semibold normal-case text-slate-800 outline-none focus-visible:ring-2 focus-visible:ring-[#134e4a]/25"
                             >
+                              <option value="registeredDesc">Newest registered</option>
                               <option value="id">Cutting list # (oldest first)</option>
                               <option value="idDesc">Cutting list # (newest first)</option>
                               <option value="attention">Attention</option>

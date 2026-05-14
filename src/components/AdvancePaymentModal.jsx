@@ -12,6 +12,7 @@ import { formatNgn } from '../Data/mockData';
 import { apiFetch } from '../lib/apiBase';
 import { guidanceForLedgerPostFailure, isVoucherDateInLockedPeriod } from '../lib/ledgerPostingGuidance';
 import { treasuryAccountDisplayName, treasuryAccountsFromSnapshot } from '../lib/treasuryAccountsStore';
+import { compareSelectLabels } from '../lib/selectOptionSort';
 import { AdvancePaymentPrintView } from './receipt/ReceiptPrintViews';
 
 /**
@@ -37,10 +38,20 @@ const AdvancePaymentModal = ({
   const [showPrint, setShowPrint] = useState(false);
   const [postingHint, setPostingHint] = useState(null);
 
-  const treasuryList = useMemo(() => treasuryAccountsFromSnapshot(ws?.snapshot), [
+  const treasuryList = useMemo(() => {
+    const raw = treasuryAccountsFromSnapshot(ws?.snapshot) || [];
+    return [...raw].sort((a, b) =>
+      compareSelectLabels(treasuryAccountDisplayName(a), treasuryAccountDisplayName(b))
+    );
+  }, [
     ws?.refreshEpoch,
     ws?.hasWorkspaceData,
   ]);
+
+  const customersSorted = useMemo(
+    () => [...(customers || [])].sort((a, b) => compareSelectLabels(a.name, b.name)),
+    [customers]
+  );
   const periodLocks = ws?.snapshot?.periodLocks ?? [];
   const voucherInLockedPeriod = useMemo(
     () => Boolean(useLedgerApi && isVoucherDateInLockedPeriod(dateISO, periodLocks)),
@@ -238,7 +249,7 @@ const AdvancePaymentModal = ({
               className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-3 text-sm font-semibold text-[#134e4a] outline-none focus:ring-2 focus:ring-amber-500/20"
             >
               <option value="">Select customer…</option>
-              {customers.map((c) => (
+              {customersSorted.map((c) => (
                 <option key={c.customerID} value={c.customerID}>
                   {c.name} · {c.phoneNumber}
                 </option>

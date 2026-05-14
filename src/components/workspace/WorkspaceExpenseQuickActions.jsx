@@ -10,6 +10,7 @@ import { apiFetch } from '../../lib/apiBase';
 import { buildPaymentRequestBodyFromForm, initialExpenseRequestFormState } from '../../lib/expenseRequestFormCore.js';
 import { EXPENSE_CATEGORY_OPTIONS } from '../../shared/expenseCategories.js';
 import { treasuryAccountDisplayName } from '../../lib/treasuryAccountsStore';
+import { compareSelectLabels } from '../../lib/selectOptionSort';
 
 /**
  * Workspace-only entry for expense payment requests (and optional direct expense for finance or sales).
@@ -28,6 +29,16 @@ export function WorkspaceExpenseQuickActions() {
   const bankAccounts = useMemo(
     () => (ws?.hasWorkspaceData && Array.isArray(ws?.snapshot?.treasuryAccounts) ? ws.snapshot.treasuryAccounts : []),
     [ws?.hasWorkspaceData, ws?.snapshot?.treasuryAccounts]
+  );
+
+  const bankAccountsSorted = useMemo(
+    () => [...bankAccounts].sort((a, b) => compareSelectLabels(treasuryAccountDisplayName(a), treasuryAccountDisplayName(b))),
+    [bankAccounts]
+  );
+
+  const expenseCategoriesSorted = useMemo(
+    () => [...EXPENSE_CATEGORY_OPTIONS].sort((a, b) => compareSelectLabels(a, b)),
+    []
   );
 
   const [showPayRequestModal, setShowPayRequestModal] = useState(false);
@@ -279,10 +290,10 @@ export function WorkspaceExpenseQuickActions() {
                 className="w-full bg-gray-50 border border-gray-100 rounded-xl py-3 px-4 text-sm font-bold outline-none"
               >
                 <option value="COGS — materials & stock">COGS — materials & stock</option>
-                <option value="Operational — rent & utilities">Operational — rent & utilities</option>
                 <option value="Employee — payroll & commissions">Employee — payroll & commissions</option>
-                <option value="Maintenance — plant & equipment">Maintenance — plant & equipment</option>
                 <option value="Logistics & haulage">Logistics & haulage</option>
+                <option value="Maintenance — plant & equipment">Maintenance — plant & equipment</option>
+                <option value="Operational — rent & utilities">Operational — rent & utilities</option>
               </select>
             </div>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -316,7 +327,7 @@ export function WorkspaceExpenseQuickActions() {
                 className="w-full bg-gray-50 border border-gray-100 rounded-xl py-3 px-4 text-sm font-bold outline-none"
               >
                 <option value="">Select category…</option>
-                {EXPENSE_CATEGORY_OPTIONS.map((name) => (
+                {expenseCategoriesSorted.map((name) => (
                   <option key={name} value={name}>
                     {name}
                   </option>
@@ -330,8 +341,8 @@ export function WorkspaceExpenseQuickActions() {
                 onChange={(e) => setExpenseForm((f) => ({ ...f, paymentMethod: e.target.value }))}
                 className="w-full bg-gray-50 border border-gray-100 rounded-xl py-3 px-4 text-sm font-bold outline-none"
               >
-                <option value="Cash">Cash</option>
                 <option value="Bank Transfer">Bank Transfer</option>
+                <option value="Cash">Cash</option>
                 <option value="POS">POS</option>
               </select>
             </div>
@@ -344,7 +355,7 @@ export function WorkspaceExpenseQuickActions() {
                 className="w-full bg-gray-50 border border-gray-100 rounded-xl py-3 px-4 text-sm font-bold outline-none"
               >
                 <option value="">Select account…</option>
-                {bankAccounts.map((a) => (
+                {bankAccountsSorted.map((a) => (
                   <option key={a.id} value={a.id}>
                     {treasuryAccountDisplayName(a)} ({formatNgn(a.balance)})
                   </option>

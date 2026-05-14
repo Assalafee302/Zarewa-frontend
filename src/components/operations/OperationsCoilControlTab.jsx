@@ -13,6 +13,7 @@ import { useInventory } from '../../context/InventoryContext';
 import { useToast } from '../../context/ToastContext';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { apiFetch } from '../../lib/apiBase';
+import { compareSelectLabels } from '../../lib/selectOptionSort';
 import { ModalFrame } from '../layout/ModalFrame';
 import { AppTable, AppTableBody, AppTableTh, AppTableThead, AppTableTr, AppTableWrap } from '../ui/AppDataTable';
 
@@ -42,10 +43,16 @@ const KIND_LABELS = {
   supplier_defect: 'Supplier defect',
 };
 
+const SCRAP_REASON_OPTIONS = Object.freeze(
+  [...['Off-cut removed', 'Damage', 'Production error / trim', 'Return — unusable', 'Other']].sort((a, b) =>
+    compareSelectLabels(a, b)
+  )
+);
+
 const OUTBOUND_DEST = [
-  { id: 'supplier_return', label: 'Return to supplier' },
   { id: 'disposal', label: 'Disposal / scrap yard' },
   { id: 'other', label: 'Other' },
+  { id: 'supplier_return', label: 'Return to supplier' },
 ];
 
 const SUPPLIER_RESOLUTIONS = [
@@ -181,7 +188,23 @@ export default function OperationsCoilControlTab() {
     [coilLots]
   );
 
-  const events = useMemo(() => (Array.isArray(coilControlEvents) ? coilControlEvents : []), [coilControlEvents]);
+  const sortedCuttingListOptions = useMemo(
+    () => [...cuttingLists].sort((a, b) => compareSelectLabels(String(a.id), String(b.id))).slice(0, 200),
+    [cuttingLists]
+  );
+
+  const sortedInventoryRowsAll = useMemo(
+    () =>
+      [...(inventoryRows || [])].sort((a, b) =>
+        compareSelectLabels(`${a.name || ''} ${a.productID || ''}`, `${b.name || ''} ${b.productID || ''}`)
+      ),
+    [inventoryRows]
+  );
+
+  const sortedInventoryProductRows = useMemo(
+    () => sortedInventoryRowsAll.filter((r) => !String(r.productID || '').startsWith('FG-')),
+    [sortedInventoryRowsAll]
+  );
 
   const filteredEvents = useMemo(() => {
     if (historyFilter === 'all') return events;
@@ -636,7 +659,7 @@ export default function OperationsCoilControlTab() {
                   className="w-full rounded-xl border border-gray-100 bg-gray-50 py-3 px-4 text-sm outline-none"
                 >
                   <option value="">—</option>
-                  {cuttingLists.slice(0, 200).map((cl) => (
+                  {sortedCuttingListOptions.map((cl) => (
                     <option key={cl.id} value={cl.id}>
                       {cl.id}
                     </option>
@@ -734,7 +757,7 @@ export default function OperationsCoilControlTab() {
                   className="w-full rounded-xl border border-gray-100 bg-gray-50 py-3 px-4 text-sm outline-none"
                 >
                   <option value="">—</option>
-                  {cuttingLists.slice(0, 200).map((cl) => (
+                  {sortedCuttingListOptions.map((cl) => (
                     <option key={cl.id} value={cl.id}>
                       {cl.id}
                     </option>
@@ -756,7 +779,7 @@ export default function OperationsCoilControlTab() {
               onChange={(e) => setScrapForm((s) => ({ ...s, reason: e.target.value }))}
               className="w-full rounded-xl border border-gray-100 bg-gray-50 py-3 px-4 text-sm font-bold outline-none"
             >
-              {['Off-cut removed', 'Damage', 'Production error / trim', 'Return — unusable', 'Other'].map((r) => (
+              {SCRAP_REASON_OPTIONS.map((r) => (
                 <option key={r} value={r}>
                   {r}
                 </option>
@@ -784,7 +807,7 @@ export default function OperationsCoilControlTab() {
                 onChange={(e) => setScrapForm((s) => ({ ...s, scrapProductID: e.target.value }))}
                 className="w-full rounded-xl border border-gray-100 bg-gray-50 py-3 px-4 text-sm font-bold outline-none"
               >
-                {inventoryRows.map((r) => (
+                {sortedInventoryRowsAll.map((r) => (
                   <option key={r.productID} value={r.productID}>
                     {r.productID} — {r.name}
                   </option>
@@ -837,9 +860,7 @@ export default function OperationsCoilControlTab() {
               className="w-full rounded-xl border border-gray-100 bg-gray-50 py-3 px-4 text-sm font-bold outline-none"
             >
               <option value="">Select…</option>
-              {inventoryRows
-                .filter((r) => !String(r.productID || '').startsWith('FG-'))
-                .map((r) => (
+              {sortedInventoryProductRows.map((r) => (
                   <option key={r.productID} value={r.productID}>
                     {r.productID} — {r.name}
                   </option>
@@ -906,7 +927,7 @@ export default function OperationsCoilControlTab() {
                   className="w-full rounded-xl border border-gray-100 bg-gray-50 py-3 px-4 text-sm outline-none"
                 >
                   <option value="">—</option>
-                  {cuttingLists.slice(0, 200).map((cl) => (
+                  {sortedCuttingListOptions.map((cl) => (
                     <option key={cl.id} value={cl.id}>
                       {cl.id}
                     </option>
@@ -1086,7 +1107,7 @@ export default function OperationsCoilControlTab() {
                 className="w-full rounded-xl border border-gray-100 bg-gray-50 py-3 px-4 text-sm outline-none"
               >
                 <option value="">Cutting list —</option>
-                {cuttingLists.slice(0, 200).map((cl) => (
+                {sortedCuttingListOptions.map((cl) => (
                   <option key={cl.id} value={cl.id}>
                     {cl.id}
                   </option>
