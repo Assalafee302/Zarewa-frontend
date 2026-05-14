@@ -359,26 +359,21 @@ const ReceiptModal = ({
     [paymentLines]
   );
 
-  const showFullReceiptOnQuoteOption = useMemo(() => {
-    if (!selectedQuotation || dueNgn == null) return false;
-    const t = Math.round(Number(lineTotalNgn) || 0);
-    if (t <= 0) return false;
-    const due = Math.round(Number(dueNgn) || 0);
-    return t > due + 0.5;
-  }, [selectedQuotation, dueNgn, lineTotalNgn]);
+  /** Ledger / receipt ids for the voucher being edited — excluded from "prior" totals so guards are not self-referential. */
+  const editingReceiptEntryIds = useMemo(() => {
+    const s = new Set();
+    if (!isEdit || !editData) return s;
+    const le = editData?._ledgerEntry;
+    for (const x of [editData.id, editData.ledgerEntryId, le?.id]) {
+      const t = String(x || '').trim();
+      if (t) s.add(t);
+    }
+    return s;
+  }, [isEdit, editData?.id, editData?.ledgerEntryId, editData?._ledgerEntry?.id]);
 
   useEffect(() => {
     setFullAmountAsReceipt(false);
   }, [quotationRef]);
-
-  useEffect(() => {
-    if (!showFullReceiptOnQuoteOption) setFullAmountAsReceipt(false);
-  }, [showFullReceiptOnQuoteOption]);
-
-  const balanceAfterNgn = useMemo(() => {
-    if (dueNgn == null) return null;
-    return Math.max(0, dueNgn - lineTotalNgn);
-  }, [dueNgn, lineTotalNgn]);
 
   const treasuryByIdStr = useMemo(() => {
     const m = new Map();
@@ -394,12 +389,50 @@ const ReceiptModal = ({
     [quotationRef, importedReceiptsForHistory, ledgerNonce]
   );
 
+  const editingReceiptHistoricNgn = useMemo(() => {
+    if (!isEdit || editingReceiptEntryIds.size === 0) return 0;
+    return quotationPaymentHistory
+      .filter((r) => editingReceiptEntryIds.has(String(r.id || '').trim()))
+      .reduce((s, r) => s + (Math.round(Number(r.amountNgn) || 0) || 0), 0);
+  }, [isEdit, quotationPaymentHistory, editingReceiptEntryIds]);
+
+  /** When editing, lines can re-absorb this voucher's current on-quote amount plus residual due without tripping duplicate/over-due guards. */
+  const postingHeadroomNgn = useMemo(() => {
+    if (dueNgn == null) return null;
+    const due = Math.round(Number(dueNgn) || 0);
+    const hist = isEdit ? Math.round(Number(editingReceiptHistoricNgn) || 0) : 0;
+    return Math.max(0, due + hist);
+  }, [dueNgn, isEdit, editingReceiptHistoricNgn]);
+
+  const showFullReceiptOnQuoteOption = useMemo(() => {
+    if (!selectedQuotation || postingHeadroomNgn == null) return false;
+    const t = Math.round(Number(lineTotalNgn) || 0);
+    if (t <= 0) return false;
+    return t > postingHeadroomNgn + 0.5;
+  }, [selectedQuotation, postingHeadroomNgn, lineTotalNgn]);
+
+  useEffect(() => {
+    if (!showFullReceiptOnQuoteOption) setFullAmountAsReceipt(false);
+  }, [showFullReceiptOnQuoteOption]);
+
+  const balanceAfterNgn = useMemo(() => {
+    if (dueNgn == null) return null;
+    const due = Math.round(Number(dueNgn) || 0);
+    const line = Math.round(Number(lineTotalNgn) || 0);
+    if (isEdit && editingReceiptHistoricNgn > 0) {
+      return Math.max(0, due + Math.round(editingReceiptHistoricNgn) - line);
+    }
+    return Math.max(0, due - line);
+  }, [dueNgn, lineTotalNgn, isEdit, editingReceiptHistoricNgn]);
+
   /** Receipts + advance applied already booked on this quote (newest first), shown above new voucher lines. */
   const priorRecordedOnQuotation = useMemo(() => {
     void ledgerNonce;
     const qid = String(quotationRef || '').trim();
     if (!qid) return [];
-    const fromReceipts = quotationPaymentHistory.map((r) => ({
+    const fromReceipts = quotationPaymentHistory
+      .filter((r) => !editingReceiptEntryIds.has(String(r.id || '').trim()))
+      .map((r) => ({
       key: `rc-${r.id}`,
       sortIso: String(r.iso || '').slice(0, 10) || '0000-00-00',
       dateLabel: r.dateStr || formatDisplayDate(String(r.iso || '').slice(0, 10)),
@@ -434,7 +467,7 @@ const ReceiptModal = ({
         detail: e.note || e.bankReference || e.purpose || '—',
       }));
     return [...fromReceipts, ...advanceApplied, ...overpayAppliedFromPool].sort((a, b) => b.sortIso.localeCompare(a.sortIso));
-  }, [quotationPaymentHistory, quotationRef, ledgerNonce]);
+  }, [quotationPaymentHistory, quotationRef, ledgerNonce, editingReceiptEntryIds]);
 
   const printLinesPayload = useMemo(() => {
     return paymentLines
@@ -460,11 +493,18 @@ const ReceiptModal = ({
   const receiptGuardSignals = useMemo(() => {
     const total = Math.round(Number(lineTotalNgn) || 0);
     const due = Math.round(Number(dueNgn) || 0);
+    const headroom = postingHeadroomNgn != null ? Math.round(Number(postingHeadroomNgn) || 0) : due;
     if (total <= 0) return [];
     const out = [];
     const normalizedRemarks = normalizeRefToken(remarks);
-    if (due > 0 && total > due) {
-      out.push(`Entered amount ${formatNgn(total)} exceeds current balance due ${formatNgn(due)}.`);
+    if (headroom > 0 && total > headroom) {
+      if (isEdit && editingReceiptHistoricNgn > 0) {
+        out.push(
+          `Entered amount ${formatNgn(total)} exceeds available headroom ${formatNgn(headroom)} (balance due ${formatNgn(due)} plus this voucher's current amount on the quote ${formatNgn(Math.round(editingReceiptHistoricNgn))}).`
+        );
+      } else {
+        out.push(`Entered amount ${formatNgn(total)} exceeds current balance due ${formatNgn(due)}.`);
+      }
     }
     if (priorRecordedTotalNgn > 0 && total === priorRecordedTotalNgn) {
       out.push(
@@ -484,7 +524,16 @@ const ReceiptModal = ({
       }
     }
     return out;
-  }, [dueNgn, lineTotalNgn, priorRecordedOnQuotation, priorRecordedTotalNgn, remarks]);
+  }, [
+    dueNgn,
+    lineTotalNgn,
+    priorRecordedOnQuotation,
+    priorRecordedTotalNgn,
+    remarks,
+    postingHeadroomNgn,
+    isEdit,
+    editingReceiptHistoricNgn,
+  ]);
 
   const saveReceipt = async (e) => {
     e.preventDefault();
@@ -729,16 +778,18 @@ const ReceiptModal = ({
   const fillRemainingBalanceLine = () => {
     if (readOnly) return;
     const due = Math.max(0, Math.round(Number(dueNgn) || 0));
-    if (due <= 0) {
+    const hist = isEdit ? Math.max(0, Math.round(Number(editingReceiptHistoricNgn) || 0)) : 0;
+    const fillAmt = due + hist;
+    if (fillAmt <= 0) {
       showToast('No remaining balance to fill.', { variant: 'info' });
       return;
     }
     const next = paymentLines.map((line, idx) => ({
       ...line,
-      amount: idx === 0 ? String(due) : '',
+      amount: idx === 0 ? String(fillAmt) : '',
     }));
     setPaymentLines(next.length ? next : [emptyPaymentLine(voucherDate, defaultAccountId)]);
-    showToast(`Filled first line with remaining balance ${formatNgn(due)}.`);
+    showToast(`Filled first line with ${formatNgn(fillAmt)}${hist > 0 ? ' (balance due plus this voucher on quote)' : ''}.`);
   };
   const removeLine = (id) =>
     setPaymentLines((prev) => (prev.length <= 1 ? prev : prev.filter((r) => r.id !== id)));
@@ -980,7 +1031,7 @@ const ReceiptModal = ({
               </h3>
             </div>
 
-            {quotationRef && priorRecordedOnQuotation.length > 0 ? (
+            {quotationRef && (priorRecordedOnQuotation.length > 0 || (isEdit && editingReceiptHistoricNgn > 0)) ? (
               <div className="mb-4 rounded-xl border border-sky-200/90 bg-sky-50/70 p-3.5 space-y-2">
                 <p className="text-[9px] font-semibold text-sky-950 uppercase tracking-widest">
                   Already posted history (read-only)
@@ -988,8 +1039,31 @@ const ReceiptModal = ({
                 <p className="text-[10px] text-sky-900/90 leading-snug">
                   Prior receipt payments and advance applied to this quote. Add lines below only for{' '}
                   <strong>new</strong> money you are posting now.
+                  {isEdit && editingReceiptHistoricNgn > 0 ? (
+                    <span className="block mt-1 text-sky-950/95">
+                      The voucher you are editing is listed separately below; it is not counted in &quot;other&quot;
+                      history totals used for duplicate checks.
+                    </span>
+                  ) : null}
                 </p>
                 <ul className="space-y-1.5 max-h-[min(36vh,200px)] overflow-y-auto custom-scrollbar">
+                  {isEdit && editingReceiptHistoricNgn > 0 ? (
+                    <li className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 rounded-lg border border-amber-200/90 bg-amber-50/90 px-2.5 py-2 text-[11px]">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                          <span className="rounded bg-amber-200/90 px-1.5 py-0.5 text-[8px] font-bold uppercase text-amber-950">
+                            This voucher (editing)
+                          </span>
+                        </div>
+                        <p className="mt-0.5 text-[10px] text-slate-600">
+                          Amount currently on this quote from this receipt (excluded from &quot;prior others&quot; in posting checks).
+                        </p>
+                      </div>
+                      <span className="shrink-0 text-sm font-black tabular-nums text-emerald-800">
+                        {formatNgn(editingReceiptHistoricNgn)}
+                      </span>
+                    </li>
+                  ) : null}
                   {priorRecordedOnQuotation.map((row) => (
                     <li
                       key={row.key}
@@ -1020,7 +1094,8 @@ const ReceiptModal = ({
             {quotationRef &&
             selectedQuotation &&
             (Number(selectedQuotation.paidNgn) || 0) > 0 &&
-            priorRecordedOnQuotation.length === 0 ? (
+            priorRecordedOnQuotation.length === 0 &&
+            !(isEdit && editingReceiptHistoricNgn > 0) ? (
               <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50/90 px-3 py-2.5 text-[10px] text-amber-950 leading-snug">
                 <p className="font-bold">
                   Payment received ({formatNgn(selectedQuotation.paidNgn)} total for this quotation) but no receipt
@@ -1165,9 +1240,10 @@ const ReceiptModal = ({
                 );
               })}
             </div>
-            {lineTotalNgn > 0 && dueNgn != null && lineTotalNgn > dueNgn ? (
+            {lineTotalNgn > 0 && postingHeadroomNgn != null && lineTotalNgn > postingHeadroomNgn ? (
               <p className="mt-2 text-[10px] font-medium text-amber-800">
-                Total exceeds current balance due — excess will post as <strong>overpayment credit</strong> (refund via Sales refunds, not deposit advance).
+                Total exceeds allocatable amount on this quote — excess will post as <strong>overpayment credit</strong>{' '}
+                (refund via Sales refunds, not deposit advance).
               </p>
             ) : null}
           </div>
