@@ -3153,6 +3153,7 @@ const Account = () => {
                         ]
                           .filter(Boolean)
                           .join(' · ');
+                        const payeeTitle = [r.payeeName, r.payeeBankName, r.payeeAccountNo].filter(Boolean).join(' · ');
                         return (
                           <li
                             key={r.refundID}
@@ -3168,6 +3169,21 @@ const Account = () => {
                                 <p className="text-[8px] text-slate-500 mt-0.5 leading-snug line-clamp-2" title={meta2}>
                                   {meta2}
                                 </p>
+                                {r.payeeAccountNo ? (
+                                  <p
+                                    className="text-[8px] font-semibold text-sky-900/90 mt-0.5 truncate"
+                                    title={payeeTitle || undefined}
+                                  >
+                                    Pay to:{' '}
+                                    <span className="font-mono tabular-nums">{r.payeeAccountNo}</span>
+                                    {r.payeeName || r.payeeBankName ? (
+                                      <span className="font-sans text-sky-900/85">
+                                        {' '}
+                                        ({[r.payeeName, r.payeeBankName].filter(Boolean).join(' · ')})
+                                      </span>
+                                    ) : null}
+                                  </p>
+                                ) : null}
                               </div>
                               <div className="flex flex-col items-end gap-1 shrink-0">
                                 <span className="text-[11px] font-black text-[#134e4a] tabular-nums">
@@ -5032,6 +5048,19 @@ const Account = () => {
                 <p className="font-mono font-bold text-[#134e4a]">{refundPayTarget.refundID}</p>
                 <p className="font-bold text-gray-800">{refundPayTarget.customer}</p>
                 <p className="text-xs text-gray-600">{refundPayTarget.reason}</p>
+                {(refundPayTarget.payeeName || refundPayTarget.payeeAccountNo || refundPayTarget.payeeBankName) ? (
+                  <div className="mt-2 rounded-xl border border-sky-200/90 bg-sky-50/95 px-3 py-2.5 text-[11px] text-sky-950 space-y-1">
+                    <p className="text-[9px] font-bold uppercase tracking-wide text-sky-900/90">Pay to (from request)</p>
+                    {refundPayTarget.payeeName ? (
+                      <p className="font-bold text-sky-950">{refundPayTarget.payeeName}</p>
+                    ) : null}
+                    <p className="font-mono text-[11px] font-semibold tabular-nums leading-snug">
+                      {[refundPayTarget.payeeBankName, refundPayTarget.payeeAccountNo].filter(Boolean).join(' · ') ||
+                        refundPayTarget.payeeAccountNo ||
+                        '—'}
+                    </p>
+                  </div>
+                ) : null}
                 <div className="grid grid-cols-3 gap-3 pt-2 text-[10px] text-gray-600 tabular-nums">
                   <div>
                     <p className="uppercase text-gray-400">Approved</p>
