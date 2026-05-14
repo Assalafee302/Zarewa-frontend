@@ -497,8 +497,8 @@ const CuttingListModal = ({
 
   const cuttingCategoriesUi = useMemo(() => {
     if (!isStoneMeterCuttingList) return CATEGORIES;
-    /** Stone flatsheet is m² stock / production completion — not coil cutting. Only roof + coil flat sheet appear here. */
-    return CATEGORIES.filter((c) => c.type !== 'Cladding');
+    /** Stone flatsheet uses the same line bucket as "Cladding" in the DB; label it clearly. It prints and stays on the list but does not drive coil job planned metres (server). */
+    return CATEGORIES.map((c) => (c.type === 'Cladding' ? { ...c, title: 'Stone flatsheet' } : c));
   }, [isStoneMeterCuttingList]);
 
   const draftBranchCode = useMemo(() => branchCodeForDraft(ws?.session), [ws?.session]);
@@ -579,8 +579,8 @@ const CuttingListModal = ({
       receiptsForQuotation: quoteReceipts,
       productionFooterName: editData?.handledBy || activeDisplayName || handledByLabel,
       treasuryMovements: Array.isArray(ws?.snapshot?.treasuryMovements) ? ws.snapshot.treasuryMovements : [],
-      claddingSectionTitle: '',
-      omitCladdingSection: isStoneMeterCuttingList,
+      claddingSectionTitle: isStoneMeterCuttingList ? 'Stone flatsheet' : '',
+      omitCladdingSection: false,
     }),
     [
       savedCuttingListId,

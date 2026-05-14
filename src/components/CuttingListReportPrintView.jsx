@@ -502,8 +502,10 @@ export default function CuttingListReportPrintView({
   receiptsForQuotation = [],
   productionFooterName = '',
   treasuryMovements = [],
-  /** When true (stone_meter quotes), omit the Cladding block — stone flatsheet is not coil-cut here. */
+  /** When true, omit the Cladding block from cut tables and waybill (non–stone-meter lists rarely need this). */
   omitCladdingSection = false,
+  /** When set (e.g. "Stone flatsheet"), replaces the Cladding table title on print / waybill. */
+  claddingSectionTitle = '',
 }) {
   const b = ZAREWA_QUOTATION_BRANDING;
 
