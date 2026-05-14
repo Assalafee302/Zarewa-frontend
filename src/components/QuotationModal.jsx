@@ -37,9 +37,10 @@ import { useToast } from '../context/ToastContext';
 import { useWorkspace } from '../context/WorkspaceContext';
 import {
   advanceBalanceNgn,
-  amountDueOnQuotation,
+  loadLedgerEntries,
   recordAdvanceAppliedToQuotation,
 } from '../lib/customerLedgerStore';
+import { bookedPaidNgnForQuotationFromMirrors } from '../lib/liveAnalytics';
 import { apiFetch } from '../lib/apiBase';
 import { guidanceForLedgerPostFailure, isVoucherDateInLockedPeriod } from '../lib/ledgerPostingGuidance';
 import { EditSecondApprovalInline } from './EditSecondApprovalInline';
@@ -1210,16 +1211,6 @@ const QuotationModal = ({
     [selectedCustomerId]
   );
 
-  const quoteDueNgn = useMemo(() => {
-    if (!editData?.id) return 0;
-    return amountDueOnQuotation(editData);
-  }, [editData]);
-
-  const maxApplyAdvance = useMemo(
-    () => Math.max(0, Math.min(advanceBal, quoteDueNgn)),
-    [advanceBal, quoteDueNgn]
-  );
-
   const applyAdvanceDateISO = useMemo(
     () => String(editData?.dateISO || new Date().toISOString().slice(0, 10)),
     [editData?.dateISO]
@@ -1330,8 +1321,37 @@ const QuotationModal = ({
     [editData?.pricingViolations, editData?.id]
   );
 
-  const quotationPaidNgn = Math.round(Number(editData?.paidNgn) || 0);
+  const quotationPaidNgn = useMemo(() => {
+    const id = editData?.id;
+    if (!id || !ws?.hasWorkspaceData) return Math.round(Number(editData?.paidNgn) || 0);
+    const receipts = Array.isArray(ws?.snapshot?.receipts) ? ws.snapshot.receipts : [];
+    const ledgerSnap = Array.isArray(ws?.snapshot?.ledgerEntries) ? ws.snapshot.ledgerEntries : [];
+    const ledger = ledgerSnap.length > 0 ? ledgerSnap : loadLedgerEntries();
+    const rolled = bookedPaidNgnForQuotationFromMirrors(receipts, ledger, id);
+    const liveRow = ws.snapshot.quotations?.find((q) => String(q.id) === String(id));
+    const stored = Math.round(Number(liveRow?.paidNgn ?? editData?.paidNgn) || 0);
+    if (rolled === 0 && stored > 0) return stored;
+    return rolled;
+  }, [
+    editData?.id,
+    editData?.paidNgn,
+    ws?.hasWorkspaceData,
+    ws?.snapshot?.quotations,
+    ws?.snapshot?.receipts,
+    ws?.snapshot?.ledgerEntries,
+    ws?.refreshEpoch,
+  ]);
   const quotationBalanceAfterPaidNgn = Math.max(0, grandTotalNgn - quotationPaidNgn);
+
+  const quoteDueNgn = useMemo(() => {
+    if (!editData?.id) return 0;
+    return Math.max(0, Math.round(grandTotalNgn) - quotationPaidNgn);
+  }, [editData?.id, grandTotalNgn, quotationPaidNgn]);
+
+  const maxApplyAdvance = useMemo(
+    () => Math.max(0, Math.min(advanceBal, quoteDueNgn)),
+    [advanceBal, quoteDueNgn]
+  );
 
   const openPrintPreview = (kind) => {
     if (!ws?.canMutate) {

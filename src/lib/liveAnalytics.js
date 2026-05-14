@@ -1226,6 +1226,18 @@ function sumAdvanceAppliedNgnForQuotation(ledgerEntries, quotationId) {
 }
 
 /**
+ * Booked paid on a quotation from workspace mirrors — matches server `syncQuotationPaidFromReceipts`
+ * (sum of `sales_receipts` for the quote + `ADVANCE_APPLIED` + `OVERPAY_APPLIED` on the ledger).
+ * Use for UI that must reflect edits/overpay application before the denormalized `quotations.paidNgn` row catches up.
+ */
+export function bookedPaidNgnForQuotationFromMirrors(salesReceipts, ledgerEntries, quotationId) {
+  return (
+    Math.round(sumReceiptsNgnForQuotation(salesReceipts, quotationId)) +
+    Math.round(sumAdvanceAppliedNgnForQuotation(ledgerEntries, quotationId))
+  );
+}
+
+/**
  * Quotations where `paidNgn` ≠ sum of **sales receipts** for that quote + ledger applications (`ADVANCE_APPLIED`, `OVERPAY_APPLIED`)
  * (matches server `syncQuotationPaidFromReceipts`).
  */

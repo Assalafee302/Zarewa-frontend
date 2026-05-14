@@ -34,6 +34,7 @@ import {
   treasuryAccountsFromSnapshot,
 } from '../lib/treasuryAccountsStore';
 import { compareSelectLabels } from '../lib/selectOptionSort';
+import { bookedPaidNgnForQuotationFromMirrors } from '../lib/liveAnalytics';
 import { ReceiptPrintQuick, ReceiptPrintFull } from './receipt/ReceiptPrintViews';
 
 function newLineId() {
@@ -322,6 +323,32 @@ const ReceiptModal = ({
     [quotations, quotationRef]
   );
 
+  /** Same definition as server `syncQuotationPaidFromReceipts` — updates as soon as receipts/ledger in snapshot refresh. */
+  const bookedPaidRollupNgn = useMemo(() => {
+    const qid = String(quotationRef || '').trim();
+    if (!qid || !ws?.hasWorkspaceData) return null;
+    const receipts = Array.isArray(ws?.snapshot?.receipts) ? ws.snapshot.receipts : [];
+    const ledgerSnap = Array.isArray(ws?.snapshot?.ledgerEntries) ? ws.snapshot.ledgerEntries : [];
+    const ledger = ledgerSnap.length > 0 ? ledgerSnap : loadLedgerEntries();
+    return bookedPaidNgnForQuotationFromMirrors(receipts, ledger, qid);
+  }, [
+    quotationRef,
+    ws?.hasWorkspaceData,
+    ws?.snapshot?.receipts,
+    ws?.snapshot?.ledgerEntries,
+    ws?.refreshEpoch,
+    ledgerNonce,
+  ]);
+
+  const quotationRowForPayments = useMemo(() => {
+    if (!selectedQuotation) return null;
+    const stored = Math.round(Number(selectedQuotation.paidNgn) || 0);
+    let paid = bookedPaidRollupNgn;
+    if (paid == null) paid = stored;
+    else if (paid === 0 && stored > 0) paid = stored;
+    return { ...selectedQuotation, paidNgn: paid };
+  }, [selectedQuotation, bookedPaidRollupNgn]);
+
   const selectableQuotations = useMemo(
     () => quotations.filter((qt) => (Number(amountDueOnQuotation(qt)) || 0) > 0.0001),
     [quotations]
@@ -350,9 +377,9 @@ const ReceiptModal = ({
   }, [customers, customerID]);
 
   const dueNgn = useMemo(() => {
-    if (!selectedQuotation) return null;
-    return amountDueOnQuotation(selectedQuotation);
-  }, [selectedQuotation]);
+    if (!quotationRowForPayments) return null;
+    return amountDueOnQuotation(quotationRowForPayments);
+  }, [quotationRowForPayments]);
 
   const lineTotalNgn = useMemo(
     () => paymentLines.reduce((s, l) => s + parseNum(l.amount), 0),
@@ -405,11 +432,11 @@ const ReceiptModal = ({
   }, [dueNgn, isEdit, editingReceiptHistoricNgn]);
 
   const showFullReceiptOnQuoteOption = useMemo(() => {
-    if (!selectedQuotation || postingHeadroomNgn == null) return false;
+    if (!quotationRowForPayments || postingHeadroomNgn == null) return false;
     const t = Math.round(Number(lineTotalNgn) || 0);
     if (t <= 0) return false;
     return t > postingHeadroomNgn + 0.5;
-  }, [selectedQuotation, postingHeadroomNgn, lineTotalNgn]);
+  }, [quotationRowForPayments, postingHeadroomNgn, lineTotalNgn]);
 
   useEffect(() => {
     if (!showFullReceiptOnQuoteOption) setFullAmountAsReceipt(false);
@@ -542,7 +569,7 @@ const ReceiptModal = ({
       showToast('Configure treasury accounts first.', { variant: 'error' });
       return;
     }
-    if (!quotationRef || !selectedQuotation) {
+    if (!quotationRef || !selectedQuotation || !quotationRowForPayments) {
       showToast('Select a quotation — customer is taken from the quote.', { variant: 'error' });
       return;
     }
@@ -709,7 +736,7 @@ const ReceiptModal = ({
         const res = recordReceiptWithQuotation({
           customerID,
           customerName,
-          quotationRow: selectedQuotation,
+          quotationRow: quotationRowForPayments,
           amountNgn: total,
           paymentMethod,
           bankReference,
@@ -745,7 +772,7 @@ const ReceiptModal = ({
     'w-full bg-white border border-slate-200 rounded-lg py-2 px-3 text-xs font-semibold text-[#134e4a] outline-none focus:ring-2 focus:ring-emerald-500/15';
 
   const displayTotal = selectedQuotation?.totalNgn ?? 0;
-  const displayPaid = selectedQuotation?.paidNgn ?? 0;
+  const displayPaid = quotationRowForPayments?.paidNgn ?? selectedQuotation?.paidNgn ?? 0;
   const displayBalance = dueNgn != null ? dueNgn : Math.max(0, displayTotal - displayPaid);
 
   const receiptIdPreview = isEdit ? editData.id : `RC-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-NEW`;
@@ -1093,12 +1120,12 @@ const ReceiptModal = ({
             ) : null}
             {quotationRef &&
             selectedQuotation &&
-            (Number(selectedQuotation.paidNgn) || 0) > 0 &&
+            (Number(quotationRowForPayments?.paidNgn ?? selectedQuotation.paidNgn) || 0) > 0 &&
             priorRecordedOnQuotation.length === 0 &&
             !(isEdit && editingReceiptHistoricNgn > 0) ? (
               <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50/90 px-3 py-2.5 text-[10px] text-amber-950 leading-snug">
                 <p className="font-bold">
-                  Payment received ({formatNgn(selectedQuotation.paidNgn)} total for this quotation) but no receipt
+                  Payment received ({formatNgn(quotationRowForPayments?.paidNgn ?? selectedQuotation.paidNgn)} total for this quotation) but no receipt
                   lines loaded
                 </p>
                 <p className="mt-1 opacity-95">
