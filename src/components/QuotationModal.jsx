@@ -22,6 +22,7 @@ import { compareGaugeLabels, compareSelectLabels } from '../lib/selectOptionSort
 import {
   STONE_METER_INVENTORY_MODEL,
   STONE_PROFILE_FALLBACK,
+  STONE_DEFAULT_COLOUR_KEYS,
   QUOTATION_MATERIAL_RULES_CODE,
   applyStoneMeterMaterialChangeCleanup,
   accessoryLineAllowedForStone,
@@ -798,21 +799,61 @@ const QuotationModal = ({
     const inv = String(
       liveMasterData?.materialTypes?.find((row) => row.id === materialTypeId)?.inventoryModel || ''
     ).trim();
+    if (inv !== 'stone_meter' || !materialTypeId) return base;
+
     const activePriceList = Array.isArray(liveMasterData?.priceList)
       ? liveMasterData.priceList.filter((row) => row.active)
       : [];
-    if (inv !== 'stone_meter' || !materialTypeId || !activePriceList.length) return base;
-    const ids = new Set(
-      activePriceList
-        .filter((r) => String(r.materialTypeId || '').trim() === materialTypeId)
-        .map((r) => String(r.colourId || '').trim())
-        .filter(Boolean)
+    const activeMaterialPl = activePriceList.filter(
+      (r) => String(r.materialTypeId || '').trim() === materialTypeId
     );
-    if (!ids.size) return base;
-    const filtered = base.filter((c) => c.id && ids.has(String(c.id).trim()));
+    const ids = new Set(
+      activeMaterialPl.map((r) => String(r.colourId || '').trim()).filter(Boolean)
+    );
+
+    const mtMeta = liveMasterData?.materialTypes?.find((row) => row.id === materialTypeId) || null;
+    const mtKey = priceListMaterialKeyFromMeta(mtMeta);
+    const workbookKeys = new Set();
+    const branchId = String(editData?.branchId ?? '').trim();
+    if (mtKey && priceListItems.length > 0) {
+      for (const row of priceListItems) {
+        const rmt = String(row.materialTypeKey ?? '').trim().toLowerCase();
+        if (rmt && mtKey && rmt !== mtKey && !mtKey.includes(rmt) && !rmt.includes(mtKey)) continue;
+        const rb = String(row.branchId ?? '').trim();
+        if (rb && branchId && rb !== branchId) continue;
+        const ck = String(row.colourKey ?? '').trim();
+        if (!ck) continue;
+        const n = Math.round(Number(row.unitPricePerMeterNgn) || 0);
+        if (n <= 0) continue;
+        workbookKeys.add(pricingNormKey(ck));
+      }
+    }
+
+    const hasSetup = ids.size > 0;
+    const hasWb = workbookKeys.size > 0;
+    if (!hasSetup && !hasWb) {
+      const narrowedDefault = base.filter((c) => STONE_DEFAULT_COLOUR_KEYS.has(normQuoteItemKey(c.value)));
+      const use = narrowedDefault.length ? narrowedDefault : base;
+      return [...use].sort((a, b) => compareSelectLabels(a.label, b.label));
+    }
+
+    const bySetup = (c) => Boolean(c.id) && ids.has(String(c.id).trim());
+    const byWb = (c) => workbookKeys.has(pricingNormKey(c.value));
+    let filtered;
+    if (hasSetup && hasWb) filtered = base.filter((c) => bySetup(c) || byWb(c));
+    else if (hasSetup) filtered = base.filter(bySetup);
+    else filtered = base.filter(byWb);
+
     const narrowed = filtered.length ? filtered : base;
     return [...narrowed].sort((a, b) => compareSelectLabels(a.label, b.label));
-  }, [liveMasterData?.colours, liveMasterData?.materialTypes, liveMasterData?.priceList, materialTypeId]);
+  }, [
+    liveMasterData?.colours,
+    liveMasterData?.materialTypes,
+    liveMasterData?.priceList,
+    materialTypeId,
+    priceListItems,
+    editData?.branchId,
+  ]);
 
   const quoteItemRowsActive = useMemo(
     () => (liveMasterData?.quoteItems || []).filter((row) => row.active),
@@ -850,10 +891,13 @@ const QuotationModal = ({
   );
 
   const productOptions = useMemo(() => {
-    const fromMaster = mergeQuoteLineOptions('product', []);
-    const base =
-      fromMaster.length > 0 ? fromMaster : mergeQuoteLineOptions('product', DEFAULT_PRODUCT_ITEMS);
-    if (!isStoneMeter) return base;
+    const fromMasterOnly = mergeQuoteLineOptions('product', []);
+    if (!isStoneMeter) {
+      return fromMasterOnly.length > 0
+        ? fromMasterOnly
+        : mergeQuoteLineOptions('product', DEFAULT_PRODUCT_ITEMS);
+    }
+    const base = mergeQuoteLineOptions('product', DEFAULT_PRODUCT_ITEMS);
     const hasFlat = quotationHasFlatSheetLine(productRows);
     return base.filter((row) => productLineAllowedForStone(row.name, hasFlat));
   }, [mergeQuoteLineOptions, isStoneMeter, productRows]);
