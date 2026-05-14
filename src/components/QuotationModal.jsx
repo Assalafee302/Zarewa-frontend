@@ -104,6 +104,7 @@ const DEFAULT_PRODUCT_ITEMS = [
   'Flat sheet',
   'Stone flatsheet 1.4',
   'Stone flatsheet 1.5',
+  'Stone flatsheet 2',
   'Offcut',
   'Wall eaves',
   'Crimp',
@@ -508,10 +509,18 @@ function OrderLinesSection({
                           }
                           onChange={(e) => {
                             const v = e.target.value;
-                            updateRow(row.id, {
-                              stoneFlatsheetLengthM:
-                                v === '1.4' ? 1.4 : v === '1.5' ? 1.5 : v === '2' ? 2 : '',
-                            });
+                            const len =
+                              v === '1.4' ? 1.4 : v === '1.5' ? 1.5 : v === '2' ? 2 : '';
+                            const patch = {
+                              stoneFlatsheetLengthM: len === '' ? '' : len,
+                            };
+                            if (
+                              len !== '' &&
+                              normQuoteItemKey(String(row.name || '')) === 'stone flatsheet'
+                            ) {
+                              patch.name = `Stone flatsheet ${len}`;
+                            }
+                            updateRow(row.id, patch);
                           }}
                           className="w-full rounded-lg border border-slate-200 bg-white py-1.5 pl-1 pr-1 text-[10px] font-semibold text-[#134e4a] outline-none focus:ring-2 focus:ring-[#134e4a]/15"
                         >

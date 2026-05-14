@@ -600,13 +600,13 @@ export function LiveProductionMonitor({
   const recordedMeters = useMemo(() => {
     if (isStoneMeterQuote && jobSt === 'Running') {
       const m = Number(String(stoneMetersConsumed).replace(/,/g, ''));
-      return Number.isFinite(m) && m > 0 ? m : 0;
+      return Number.isFinite(m) && Math.abs(m) > 1e-9 ? m : 0;
     }
     if (isStoneMeterQuote && jobSt === 'Completed') {
       const posted = Number(selectedJob?.effectiveOutputMeters ?? selectedJob?.actualMeters ?? 0);
-      if (Number.isFinite(posted) && posted > 0) return posted;
+      if (Number.isFinite(posted) && Math.abs(posted) > 1e-9) return posted;
       const m = Number(String(stoneMetersConsumed).replace(/,/g, ''));
-      return Number.isFinite(m) && m > 0 ? m : 0;
+      return Number.isFinite(m) && Math.abs(m) > 1e-9 ? m : 0;
     }
     if (completionUsesOffcutMode && jobSt === 'Running') {
       const m = Number(String(offcutMetersProduced).replace(/,/g, ''));
@@ -651,7 +651,7 @@ export function LiveProductionMonitor({
     if (!selectedJob?.jobID) return false;
     if (isStoneMeterQuote) {
       const m = Number(String(stoneMetersConsumed).replace(/,/g, ''));
-      if (!Number.isFinite(m) || m <= 0) return false;
+      if (!Number.isFinite(m) || Math.abs(m) < 1e-9) return false;
       return jobSt === 'Running' || (jobSt === 'Completed' && canEditCompletedCoilCorrections);
     }
     if (completionUsesOffcutMode) {
@@ -1118,8 +1118,14 @@ export function LiveProductionMonitor({
     }
     if (isStoneMeterQuote) {
       const m = Number(String(stoneMetersConsumed).replace(/,/g, ''));
-      if (!Number.isFinite(m) || m <= 0) {
-        return { validLineCount: 0, errors: ['Enter stone metres consumed.'], canComplete: false };
+      if (!Number.isFinite(m) || Math.abs(m) < 1e-9) {
+        return {
+          validLineCount: 0,
+          errors: [
+            'Enter stone metres consumed as a non-zero number (positive uses stock; negative returns metres to stock).',
+          ],
+          canComplete: false,
+        };
       }
       return { validLineCount: 1, errors: [], canComplete: true };
     }
@@ -3455,8 +3461,8 @@ export function LiveProductionMonitor({
                     </label>
                   ) : null}
                   <p className="text-[9px] leading-snug text-slate-500">
-                    If completion fails: ensure quotation header has design, colour, and gauge; confirm stone metres
-                    exist in stock; clear price-list MD approval or production release holds if the server reports them.
+                    Positive metres draw stone stock (balance may go negative). Negative metres return stock. Ensure
+                    the quotation header matches the stone SKU (design, colour, gauge).
                   </p>
                 </div>
               ) : null}
