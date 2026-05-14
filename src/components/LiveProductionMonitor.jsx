@@ -602,6 +602,12 @@ export function LiveProductionMonitor({
       const m = Number(String(stoneMetersConsumed).replace(/,/g, ''));
       return Number.isFinite(m) && m > 0 ? m : 0;
     }
+    if (isStoneMeterQuote && jobSt === 'Completed') {
+      const posted = Number(selectedJob?.effectiveOutputMeters ?? selectedJob?.actualMeters ?? 0);
+      if (Number.isFinite(posted) && posted > 0) return posted;
+      const m = Number(String(stoneMetersConsumed).replace(/,/g, ''));
+      return Number.isFinite(m) && m > 0 ? m : 0;
+    }
     if (completionUsesOffcutMode && jobSt === 'Running') {
       const m = Number(String(offcutMetersProduced).replace(/,/g, ''));
       return Number.isFinite(m) && m >= 0 ? m : 0;
@@ -626,6 +632,8 @@ export function LiveProductionMonitor({
     jobSt,
     offcutInventoryMetersNum,
     offcutMetersProduced,
+    selectedJob?.actualMeters,
+    selectedJob?.effectiveOutputMeters,
     stoneMetersConsumed,
   ]);
   const recordedConsumedKg = useMemo(

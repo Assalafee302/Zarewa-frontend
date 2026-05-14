@@ -36,6 +36,11 @@ import {
   REFUND_PREVIEW_VERSION,
   MIN_REFUND_QUOTATION_REMAINING_NGN,
 } from '../shared/refundConstants.js';
+import {
+  normQuoteItemKey,
+  productLineKey,
+  resolveStoneFlatsheetLengthM,
+} from '../lib/stoneCoatedQuotationPolicy';
 
 const REFUND_CATEGORY_HINTS = {
   'Unproduced meterage':
@@ -85,6 +90,30 @@ function formatQuoteUnitPriceLabel(unitPrice) {
   const n = Number(String(unitPrice ?? '').replace(/,/g, ''));
   if (!Number.isFinite(n)) return '—';
   return `₦${Math.round(n).toLocaleString('en-NG')}`;
+}
+
+/** Match quotation product row to refund intel `stoneFlatsheetSummary.lines` (quote line id or name + length). */
+function findStoneFlatsheetIntelRow(line, stoneLines) {
+  if (!line || !Array.isArray(stoneLines) || stoneLines.length === 0) return null;
+  if (productLineKey(line.name) !== 'stone flatsheet') return null;
+  const lid = String(line.id || '').trim();
+  if (lid) {
+    const byId = stoneLines.find((r) => String(r.quoteLineId || '').trim() === lid);
+    if (byId) return byId;
+  }
+  const len = resolveStoneFlatsheetLengthM({
+    name: line.name,
+    stoneFlatsheetLengthM: line.stoneFlatsheetLengthM,
+    lengthM: line.lengthM,
+  });
+  const nm = normQuoteItemKey(line.name);
+  return (
+    stoneLines.find((r) => {
+      if (normQuoteItemKey(r.name) !== nm) return false;
+      if (len != null && r.lengthM != null && Math.abs(Number(r.lengthM) - len) > 1e-3) return false;
+      return true;
+    }) || null
+  );
 }
 
 /** Align intelligence accessory summary to a flattened quotation line (by id or name). */
@@ -686,11 +715,19 @@ const RefundModal = ({
     const flat = flattenQuotationLineItems(q);
     if (flat.length === 0) return [];
     const accLines = intelligence.summary?.accessoriesSummary?.lines || [];
+    const stoneLines = intelligence.summary?.stoneFlatsheetSummary?.lines || [];
     return flat.map((line, idx) => {
       const acc = findAccessoryFulfillmentRow(line, accLines);
+      const sf = findStoneFlatsheetIntelRow(line, stoneLines);
       const ordered = acc != null ? Number(acc.ordered) || 0 : parseQuoteQtyNumeric(line.qty);
-      const supplied = acc != null ? Number(acc.supplied) || 0 : null;
-      const shortfall = acc != null ? Math.max(0, Number(acc.shortfall) || 0) : null;
+      let supplied = acc != null ? Number(acc.supplied) || 0 : null;
+      let shortfall = acc != null ? Math.max(0, Number(acc.shortfall) || 0) : null;
+      if (sf) {
+        supplied = Number(sf.suppliedM2) || 0;
+        const ordM2 = Number(sf.orderedM2) || 0;
+        const ded = Number(sf.deductionM2) || 0;
+        shortfall = Math.max(0, ordM2 - supplied - ded);
+      }
       return {
         key: `${line.category}-${line.id || line.name}-${idx}`,
         categoryLabel:
@@ -701,10 +738,15 @@ const RefundModal = ({
         ordered,
         supplied,
         shortfall,
-        isAccessoryTracked: !!acc,
+        isAccessoryTracked: Boolean(acc) || Boolean(sf),
+        isStoneFlatsheetM2: Boolean(sf),
       };
     });
-  }, [selectedQuotationSnapshot, intelligence.summary?.accessoriesSummary?.lines]);
+  }, [
+    selectedQuotationSnapshot,
+    intelligence.summary?.accessoriesSummary?.lines,
+    intelligence.summary?.stoneFlatsheetSummary?.lines,
+  ]);
 
   const fetchIntelligence = async (quoteRef, previewSeq) => {
     if (!quoteRef) return;
@@ -2300,13 +2342,21 @@ const RefundModal = ({
                                     {row.unitPriceLabel}
                                   </td>
                                   <td className="py-1.5 px-1 text-[9px] text-right tabular-nums text-emerald-400/95">
-                                    {row.isAccessoryTracked ? row.supplied?.toLocaleString() ?? '—' : '—'}
+                                    {row.isAccessoryTracked
+                                      ? row.isStoneFlatsheetM2
+                                        ? `${(Number(row.supplied) || 0).toLocaleString('en-NG', { maximumFractionDigits: 3 })} m²`
+                                        : row.supplied?.toLocaleString() ?? '—'
+                                      : '—'}
                                   </td>
                                   <td className="py-1.5 pr-2.5 pl-1 text-[9px] text-right tabular-nums">
                                     {row.isAccessoryTracked && row.shortfall != null && row.shortfall > 0 ? (
-                                      <span className="font-bold text-rose-400">{row.shortfall.toLocaleString()}</span>
+                                      <span className="font-bold text-rose-400">
+                                        {row.isStoneFlatsheetM2
+                                          ? `${row.shortfall.toLocaleString('en-NG', { maximumFractionDigits: 3 })} m²`
+                                          : row.shortfall.toLocaleString()}
+                                      </span>
                                     ) : row.isAccessoryTracked && row.shortfall === 0 ? (
-                                      <span className="text-slate-500">0</span>
+                                      <span className="text-slate-500">{row.isStoneFlatsheetM2 ? '0 m²' : '0'}</span>
                                     ) : (
                                       <span className="text-slate-600">—</span>
                                     )}
@@ -2316,12 +2366,11 @@ const RefundModal = ({
                             </tbody>
                           </table>
                           <p className="text-[8px] text-slate-600 px-2.5 py-2 border-t border-slate-800/80 leading-relaxed">
-                            Supplied / Short come from completed production jobs for{' '}
-                            <strong className="text-slate-500">accessories</strong> only (matched by line id or item
-                            name). Products and services show in the quote for context. Coil roofing output is under
-                            <strong className="text-slate-500"> Produced metres</strong>; stone flatsheet m² issued from
-                            stock appears under <strong className="text-slate-500">Stone flatsheet</strong> when the job
-                            is completed.
+                            Supplied / Short for <strong className="text-slate-500">accessories</strong> come from
+                            completed production (line id or name). <strong className="text-slate-500">Stone flatsheet</strong>{' '}
+                            product rows show m² supplied / short from the same production usage when the line matches.
+                            Coil roofing output is under <strong className="text-slate-500">Produced metres</strong>; a
+                            per-line stone summary also appears under <strong className="text-slate-500">Stone flatsheet (m²)</strong>.
                           </p>
                         </div>
                       )}
