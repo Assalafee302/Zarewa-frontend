@@ -23,6 +23,7 @@ import { apiFetch } from '../lib/apiBase';
 import { formatNgn } from '../Data/mockData';
 import { receiptCashReceivedNgn, normalizeReceiptMatchDashes } from '../lib/salesReceiptsList';
 import { STONE_METER_INVENTORY_MODEL } from '../lib/stoneCoatedQuotationPolicy';
+import { normalizeJobStatus } from '../lib/productionJobPick';
 
 /** Compare quote / receipt links when pasted refs use en-dash etc. */
 function normQuoteKey(s) {
@@ -325,6 +326,7 @@ const CuttingListModal = ({
   onPersist,
   onCuttingListUpdated,
   handledByLabel = 'Sales',
+  linkedProductionJob = null,
 }) => {
   const { show: showToast } = useToast();
   const ws = useWorkspace();
@@ -336,8 +338,11 @@ const CuttingListModal = ({
     editData?.productionEditLocked ??
       (editData?.productionRegistered && String(editData?.status || '').trim().toLowerCase() === 'finished')
   );
+  const productionJobRunningLock = Boolean(
+    linkedProductionJob && normalizeJobStatus(linkedProductionJob.status) === 'Running'
+  );
   const productionOnQueue = Boolean(editData?.productionRegistered && !productionCompletedLock);
-  const readOnly = accessMode === 'view' || productionCompletedLock;
+  const readOnly = accessMode === 'view' || productionCompletedLock || productionJobRunningLock;
   const [quotationRef, setQuotationRef] = useState('');
   const [dateISO, setDateISO] = useState('');
   const [machineName, setMachineName] = useState('Machine 01 (Longspan)');
@@ -713,20 +718,24 @@ const CuttingListModal = ({
 
   const headerBadge = productionCompletedLock
     ? 'bg-amber-100 text-amber-900 ring-1 ring-amber-300/50'
-    : readOnly
-      ? 'bg-slate-200 text-slate-700'
-      : productionOnQueue
-        ? 'bg-teal-100 text-teal-900 ring-1 ring-teal-300/50'
-        : 'bg-orange-100 text-orange-800 ring-1 ring-orange-400/30';
+    : productionJobRunningLock
+      ? 'bg-violet-100 text-violet-900 ring-1 ring-violet-300/50'
+      : accessMode === 'view'
+        ? 'bg-slate-200 text-slate-700'
+        : productionOnQueue
+          ? 'bg-teal-100 text-teal-900 ring-1 ring-teal-300/50'
+          : 'bg-orange-100 text-orange-800 ring-1 ring-orange-400/30';
   const headerBadgeText = productionCompletedLock
     ? 'Locked'
-    : readOnly
-      ? 'View'
-      : productionOnQueue
-        ? 'Production'
-        : editData?.id
-          ? 'Edit'
-          : 'New';
+    : productionJobRunningLock
+      ? 'Running'
+      : accessMode === 'view'
+        ? 'View'
+        : productionOnQueue
+          ? 'Production'
+          : editData?.id
+            ? 'Edit'
+            : 'New';
   const isCreate = !editData?.id;
 
   const submit = async (e) => {
@@ -916,7 +925,12 @@ const CuttingListModal = ({
             Production is finished for this list — editing is blocked to protect the completed record.
           </div>
         ) : null}
-        {productionOnQueue ? (
+        {productionJobRunningLock ? (
+          <div className="no-print px-5 py-2 bg-violet-50 border-b border-violet-200 text-[10px] font-medium text-violet-950">
+            Production is Running for this list — editing is blocked until the job finishes or is corrected on Operations. You can still print or close this window.
+          </div>
+        ) : null}
+        {productionOnQueue && !productionJobRunningLock ? (
           <div className="no-print px-5 py-2 bg-teal-50 border-b border-teal-200 text-[10px] font-medium text-teal-900">
             On the production queue — you can still update lengths and quantities until the run is completed.
           </div>

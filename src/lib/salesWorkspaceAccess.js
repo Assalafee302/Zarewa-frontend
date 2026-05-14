@@ -1,3 +1,5 @@
+import { normalizeJobStatus } from './productionJobPick.js';
+
 export const SALES_ROLE_LABELS = {
   admin: 'Administrator',
   finance_manager: 'Finance manager',
@@ -70,14 +72,18 @@ export function receiptEditBlockedReason(record, role) {
   return 'You do not have permission to edit this receipt. Ask a branch manager or finance if a correction is needed.';
 }
 
-export function canEditCuttingList(c) {
+export function canEditCuttingList(c, linkedJob = null) {
   if (!c?.id) return true;
+  if (linkedJob && normalizeJobStatus(linkedJob.status) === 'Running') return false;
   if (c.productionEditLocked) return false;
   if (c.productionRegistered && String(c.status || '').trim().toLowerCase() === 'finished') return false;
   return true;
 }
 
-export function cuttingListEditBlockedReason(c) {
-  if (canEditCuttingList(c)) return null;
+export function cuttingListEditBlockedReason(c, linkedJob = null) {
+  if (linkedJob && normalizeJobStatus(linkedJob.status) === 'Running') {
+    return 'Production is Running for this list — editing is blocked. Finish or pause the job on Operations / production, then try again.';
+  }
+  if (canEditCuttingList(c, linkedJob)) return null;
   return 'Production is finished for this cutting list — editing is blocked to protect the completed record.';
 }

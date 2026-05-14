@@ -1825,8 +1825,8 @@ const Sales = () => {
                                         setCuttingAccessMode('edit');
                                         setShowCuttingModal(true);
                                       }}
-                                      editDisabled={!canEditCuttingList(c)}
-                                      editTitle={cuttingListEditBlockedReason(c) ?? ''}
+                                      editDisabled={!canEditCuttingList(c, job)}
+                                      editTitle={cuttingListEditBlockedReason(c, job) ?? ''}
                                       onPush={
                                         !c.productionRegistered && !c.productionEditLocked
                                           ? () => pushCuttingListToProduction(c)
@@ -2146,6 +2146,11 @@ const Sales = () => {
         onPersist={persistCuttingList}
         onCuttingListUpdated={(cl) => setSelectedItem(cl)}
         handledByLabel={salesRoleLabel}
+        linkedProductionJob={
+          selectedItem?.id
+            ? pickProductionJobForCuttingList(selectedItem.id, productionJobs, cuttingLists)
+            : null
+        }
       />
       <RefundModal
         key={refundModalKey}
