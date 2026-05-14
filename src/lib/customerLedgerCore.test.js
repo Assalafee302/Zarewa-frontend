@@ -4,6 +4,7 @@ import {
   planReceiptWithQuotation,
   advanceBalanceFromEntries,
   overpayCreditBalanceFromEntries,
+  overpayCreditRemainingOnQuotationFromEntries,
 } from './customerLedgerCore.js';
 
 describe('advance vs overpay credit', () => {
@@ -14,6 +15,16 @@ describe('advance vs overpay credit', () => {
     ];
     expect(advanceBalanceFromEntries(entries, 'C1')).toBe(100_000);
     expect(overpayCreditBalanceFromEntries(entries, 'C1')).toBe(50_000);
+  });
+
+  it('overpayCreditRemainingOnQuotationFromEntries ignores other quotations', () => {
+    const entries = [
+      { customerID: 'C1', quotationRef: 'Q1', type: 'OVERPAY_ADVANCE', amountNgn: 10_000 },
+      { customerID: 'C1', quotationRef: 'Q2', type: 'OVERPAY_ADVANCE', amountNgn: 99_000 },
+      { customerID: 'C1', quotationRef: 'Q1', type: 'OVERPAY_REVERSAL', amountNgn: 3_000 },
+    ];
+    expect(overpayCreditRemainingOnQuotationFromEntries(entries, 'C1', 'Q1')).toBe(7_000);
+    expect(overpayCreditRemainingOnQuotationFromEntries(entries, 'C1', 'Q2')).toBe(99_000);
   });
 });
 

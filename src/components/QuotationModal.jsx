@@ -1579,7 +1579,7 @@ const QuotationModal = ({
           const applied = Number(data.autoOverpayAppliedNgn) || 0;
           let msg = `Quotation ${editData.id} saved to database.`;
           if (applied > 0) {
-            msg += ` ${formatNgn(applied)} of overpayment credit was applied to the new balance automatically (no new receipt).`;
+            msg += ` ${formatNgn(applied)} of this quotation's overpayment credit was applied to the new balance automatically (no new receipt).`;
           }
           showToast(msg);
         } else {
