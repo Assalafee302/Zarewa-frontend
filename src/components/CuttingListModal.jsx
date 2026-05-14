@@ -22,6 +22,7 @@ import { useTrackedUnsavedForm } from '../hooks/useTrackedUnsavedForm';
 import { apiFetch } from '../lib/apiBase';
 import { formatNgn } from '../Data/mockData';
 import { receiptCashReceivedNgn, normalizeReceiptMatchDashes } from '../lib/salesReceiptsList';
+import { STONE_METER_INVENTORY_MODEL } from '../lib/stoneCoatedQuotationPolicy';
 
 /** Compare quote / receipt links when pasted refs use en-dash etc. */
 function normQuoteKey(s) {
@@ -479,6 +480,21 @@ const CuttingListModal = ({
     return String(row?.name ?? '').trim();
   }, [selectedQuotation, ws?.snapshot?.masterData?.materialTypes]);
 
+  const isStoneMeterCuttingList = useMemo(() => {
+    const q = selectedQuotation;
+    if (!q) return false;
+    if (q.stoneMeterQuote) return true;
+    const mid = String(q.materialTypeId || '').trim();
+    const types = ws?.snapshot?.masterData?.materialTypes ?? [];
+    const row = types.find((t) => String(t?.id ?? '').trim() === mid);
+    return String(row?.inventoryModel || '').trim() === STONE_METER_INVENTORY_MODEL;
+  }, [selectedQuotation, ws?.snapshot?.masterData?.materialTypes]);
+
+  const cuttingCategoriesUi = useMemo(() => {
+    if (!isStoneMeterCuttingList) return CATEGORIES;
+    return CATEGORIES.map((c) => (c.type === 'Cladding' ? { ...c, title: 'Stone flatsheet' } : c));
+  }, [isStoneMeterCuttingList]);
+
   const draftBranchCode = useMemo(() => branchCodeForDraft(ws?.session), [ws?.session]);
 
   /** Next CL serial if you save *now* — branch-wide; not reserved; same preview for every unsaved draft until one saves. */
@@ -557,6 +573,7 @@ const CuttingListModal = ({
       receiptsForQuotation: quoteReceipts,
       productionFooterName: editData?.handledBy || activeDisplayName || handledByLabel,
       treasuryMovements: Array.isArray(ws?.snapshot?.treasuryMovements) ? ws.snapshot.treasuryMovements : [],
+      claddingSectionTitle: isStoneMeterCuttingList ? 'Stone flatsheet' : '',
     }),
     [
       savedCuttingListId,
@@ -564,6 +581,7 @@ const CuttingListModal = ({
       selectedQuotation,
       materialSpec,
       materialTypeLabel,
+      isStoneMeterCuttingList,
       dateISO,
       machineName,
       editData,
@@ -1134,7 +1152,7 @@ const CuttingListModal = ({
                   </p>
                 </div>
               ) : (
-                CATEGORIES.map(({ type, title }) => (
+                cuttingCategoriesUi.map(({ type, title }) => (
                   <CategoryBlock
                     key={type}
                     title={title}

@@ -26,7 +26,9 @@ import {
   applyStoneMeterMaterialChangeCleanup,
   accessoryLineAllowedForStone,
   normQuoteItemKey,
+  normalizeStoneFlatsheetLengthM,
   productLineAllowedForStone,
+  productLineKey,
   quotationHasFlatSheetLine,
 } from '../lib/stoneCoatedQuotationPolicy';
 import { ZAREWA_COMPANY_ACCOUNT_NAME } from '../Data/companyQuotation';
@@ -172,7 +174,7 @@ function newLineId() {
 }
 
 function emptyOrderLine() {
-  return { id: newLineId(), name: '', qty: '', unitPrice: '', customLine: false };
+  return { id: newLineId(), name: '', qty: '', unitPrice: '', customLine: false, stoneFlatsheetLengthM: '' };
 }
 
 function parseLineNum(s) {
@@ -271,6 +273,9 @@ function quotationRulesErrorMessage(data) {
   if (d.invalidHeader?.profile) bits.push('(Profile invalid)');
   if (d.invalidHeader?.gauge) bits.push('(Gauge invalid)');
   if (d.invalidHeader?.colour) bits.push('(Colour invalid)');
+  if (Array.isArray(d.stoneFlatsheetLengthMissing) && d.stoneFlatsheetLengthMissing.length) {
+    bits.push('(Stone flatsheet: choose 1.4 m or 2 m length per line)');
+  }
   return bits.join(' ');
 }
 
@@ -308,6 +313,7 @@ function OrderLinesSection({
   setRows,
   readOnly,
   resolveUnitPrice,
+  showStoneFlatsheetLength = false,
 }) {
   const addRow = () => setRows((prev) => [...prev, emptyOrderLine()]);
   const updateRow = (id, patch) =>
@@ -333,7 +339,14 @@ function OrderLinesSection({
                 key={row.id}
                 className="flex flex-wrap items-baseline justify-between gap-2 border-b border-slate-100/90 pb-2 text-xs last:border-0"
               >
-                <span className="font-semibold text-[#134e4a]">{row.name?.trim() || '—'}</span>
+                <span className="font-semibold text-[#134e4a]">
+                  {row.name?.trim() || '—'}
+                  {showStoneFlatsheetLength &&
+                  productLineKey(row.name) === 'stone flatsheet' &&
+                  normalizeStoneFlatsheetLengthM(row.stoneFlatsheetLengthM) != null
+                    ? ` · ${normalizeStoneFlatsheetLengthM(row.stoneFlatsheetLengthM)} m`
+                    : null}
+                </span>
                 <span className="tabular-nums text-slate-600">
                   {row.qty || '0'} × {formatNgn(parseLineNum(row.unitPrice))} ={' '}
                   <span className="font-bold text-[#134e4a]">{formatNgn(lineAmountNgn(row))}</span>
@@ -348,6 +361,9 @@ function OrderLinesSection({
           <>
             <div className="flex items-center gap-2 mb-2 px-1 text-[8px] font-semibold text-slate-400 uppercase tracking-wider min-w-0">
               <div className="min-w-0 flex-1">Item</div>
+              {showStoneFlatsheetLength && title === 'Products' ? (
+                <div className="w-[4.25rem] shrink-0 text-center">Len</div>
+              ) : null}
               <div className="w-14 sm:w-16 shrink-0 text-center">Qty</div>
               <div className="w-[4.25rem] sm:w-24 shrink-0 text-center">Unit ₦</div>
               <div className="w-[5.25rem] sm:w-28 shrink-0 text-right tabular-nums">Amount</div>
@@ -362,6 +378,10 @@ function OrderLinesSection({
               const isCustomLine =
                 row.customLine === true ||
                 (Boolean(String(row.name || '').trim()) && !matchedOption);
+              const isStoneFlatsheetRow =
+                showStoneFlatsheetLength &&
+                title === 'Products' &&
+                productLineKey(String(row.name || '')) === 'stone flatsheet';
               return (
                 <div
                   key={row.id}
@@ -373,7 +393,18 @@ function OrderLinesSection({
                         <input
                           type="text"
                           value={row.name}
-                          onChange={(e) => updateRow(row.id, { name: e.target.value, customLine: true })}
+                          onChange={(e) => {
+                            const nm = e.target.value;
+                            const patch = { name: nm, customLine: true };
+                            if (
+                              showStoneFlatsheetLength &&
+                              title === 'Products' &&
+                              productLineKey(nm) !== 'stone flatsheet'
+                            ) {
+                              patch.stoneFlatsheetLengthM = '';
+                            }
+                            updateRow(row.id, patch);
+                          }}
                           placeholder="Custom name"
                           title="Custom line item"
                           className="min-w-0 flex-1 bg-white border border-slate-200 rounded-lg py-1.5 px-2 text-[11px] font-semibold text-[#134e4a] outline-none focus:ring-2 focus:ring-[#134e4a]/10"
@@ -385,6 +416,7 @@ function OrderLinesSection({
                             updateRow(row.id, {
                               customLine: false,
                               name: matchedOption ? row.name : '',
+                              stoneFlatsheetLengthM: '',
                             })
                           }
                           className="shrink-0 text-[9px] font-semibold text-[#134e4a] underline decoration-[#134e4a]/30 underline-offset-2 hover:text-[#0f3d39] whitespace-nowrap"
@@ -403,15 +435,21 @@ function OrderLinesSection({
                                 typeof resolveUnitPrice === 'function'
                                   ? resolveUnitPrice(option?.name || '', option || null)
                                   : option?.defaultUnitPriceNgn || 0;
+                              const nextName = option?.name || '';
+                              const keepLen =
+                                showStoneFlatsheetLength &&
+                                title === 'Products' &&
+                                productLineKey(nextName) === 'stone flatsheet';
                               updateRow(row.id, {
                                 customLine: false,
-                                name: option?.name || '',
+                                name: nextName,
                                 unitPrice:
                                   suggestedPrice > 0
                                     ? String(suggestedPrice)
                                     : option?.defaultUnitPriceNgn > 0
                                       ? String(option.defaultUnitPriceNgn)
                                       : row.unitPrice,
+                                stoneFlatsheetLengthM: keepLen ? row.stoneFlatsheetLengthM : '',
                               });
                             }}
                             className="w-full min-w-0 bg-white border border-slate-200 rounded-lg py-1.5 pl-2 pr-7 text-[11px] font-semibold text-[#134e4a] appearance-none outline-none focus:ring-2 focus:ring-[#134e4a]/15 cursor-pointer"
@@ -439,6 +477,37 @@ function OrderLinesSection({
                       </>
                     )}
                   </div>
+                  {showStoneFlatsheetLength && title === 'Products' ? (
+                    <div className="w-[4.25rem] shrink-0">
+                      {isStoneFlatsheetRow ? (
+                        <select
+                          aria-label="Stone flatsheet length"
+                          value={
+                            row.stoneFlatsheetLengthM === 1.4 || row.stoneFlatsheetLengthM === '1.4'
+                              ? '1.4'
+                              : row.stoneFlatsheetLengthM === 2 ||
+                                  row.stoneFlatsheetLengthM === '2' ||
+                                  row.stoneFlatsheetLengthM === '2.0'
+                                ? '2'
+                                : ''
+                          }
+                          onChange={(e) => {
+                            const v = e.target.value;
+                            updateRow(row.id, {
+                              stoneFlatsheetLengthM: v === '1.4' ? 1.4 : v === '2' ? 2 : '',
+                            });
+                          }}
+                          className="w-full rounded-lg border border-slate-200 bg-white py-1.5 pl-1 pr-1 text-[10px] font-semibold text-[#134e4a] outline-none focus:ring-2 focus:ring-[#134e4a]/15"
+                        >
+                          <option value="">—</option>
+                          <option value="1.4">1.4 m</option>
+                          <option value="2">2 m</option>
+                        </select>
+                      ) : (
+                        <div className="h-8" aria-hidden />
+                      )}
+                    </div>
+                  ) : null}
                   <input
                     type="number"
                     min="0"
@@ -1286,6 +1355,10 @@ const QuotationModal = ({
         colour: materialColor,
         design: materialDesign,
         profile: materialDesign,
+        ...(productLineKey(row.name) === 'stone flatsheet' &&
+        normalizeStoneFlatsheetLengthM(row.stoneFlatsheetLengthM) != null
+          ? { stoneFlatsheetLengthM: normalizeStoneFlatsheetLengthM(row.stoneFlatsheetLengthM) }
+          : {}),
       })),
       accessories: accessoryRows.map((row) => ({
         id: row.id,
@@ -2000,6 +2073,7 @@ const QuotationModal = ({
             setRows={setProductRows}
             readOnly={readOnly}
             resolveUnitPrice={resolveUnitPrice}
+            showStoneFlatsheetLength={isStoneMeter}
           />
           <OrderLinesSection
             title="Accessories"

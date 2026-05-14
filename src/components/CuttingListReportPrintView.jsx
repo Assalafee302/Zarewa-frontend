@@ -1,3 +1,4 @@
+import React, { useMemo } from 'react';
 import { ZAREWA_QUOTATION_BRANDING } from '../Data/companyQuotation';
 import { formatNgn } from '../Data/mockData';
 import { receiptCashReceivedNgn, receiptLedgerReceiptTreasurySplits } from '../lib/salesReceiptsList';
@@ -243,6 +244,7 @@ function WaybillPanel({
   totalChunks,
   grouped,
   cutStartIndex,
+  waybillCategories = WAYBILL_CUT_LINE_CATEGORIES,
 }) {
   const customer = selectedQuotation?.customer ?? '—';
   const project = selectedQuotation?.projectName ?? '—';
@@ -346,7 +348,7 @@ function WaybillPanel({
               grouped={grouped}
               cutStartIndex={cutStartIndex}
               fullRightColumn
-              categories={WAYBILL_CUT_LINE_CATEGORIES}
+              categories={waybillCategories}
             />
           </div>
         </div>
@@ -500,16 +502,30 @@ export default function CuttingListReportPrintView({
   receiptsForQuotation = [],
   productionFooterName = '',
   treasuryMovements = [],
+  /** When set (e.g. stone-coated jobs), replaces the "Cladding" table title on factory + waybill panes. */
+  claddingSectionTitle = '',
 }) {
   const b = ZAREWA_QUOTATION_BRANDING;
 
+  const printCutCategories = useMemo(() => {
+    const t = String(claddingSectionTitle || '').trim();
+    if (!t) return PRINT_CUT_LINE_CATEGORIES;
+    return PRINT_CUT_LINE_CATEGORIES.map((c) => (c.type === 'Cladding' ? { ...c, title: t } : c));
+  }, [claddingSectionTitle]);
+
+  const waybillCutCategories = useMemo(() => {
+    const t = String(claddingSectionTitle || '').trim();
+    if (!t) return WAYBILL_CUT_LINE_CATEGORIES;
+    return WAYBILL_CUT_LINE_CATEGORIES.map((c) => (c.type === 'Cladding' ? { ...c, title: t } : c));
+  }, [claddingSectionTitle]);
+
   const flatLines = mergeCuttingLinesByLengthDesc(
-    flattenCuttingLinesByCategories(linesByCat, PRINT_CUT_LINE_CATEGORIES),
-    PRINT_CUT_LINE_CATEGORIES
+    flattenCuttingLinesByCategories(linesByCat, printCutCategories),
+    printCutCategories
   );
   const flatLinesWaybill = mergeCuttingLinesByLengthDesc(
-    flattenCuttingLinesByCategories(linesByCat, WAYBILL_CUT_LINE_CATEGORIES),
-    WAYBILL_CUT_LINE_CATEGORIES
+    flattenCuttingLinesByCategories(linesByCat, waybillCutCategories),
+    waybillCutCategories
   );
 
   const chunk = flatLines.length > 0 ? flatLines : [];
@@ -517,7 +533,7 @@ export default function CuttingListReportPrintView({
   const cutStartIndexByType = {};
   {
     let running = 0;
-    for (const { type } of PRINT_CUT_LINE_CATEGORIES) {
+    for (const { type } of printCutCategories) {
       cutStartIndexByType[type] = running;
       running += (grouped[type] ?? []).length;
     }
@@ -645,7 +661,7 @@ export default function CuttingListReportPrintView({
               </div>
 
               <div className="cl-factory-col-cut cl-factory-panel cl-factory-panel--accent cl-factory-panel--cut-list min-w-0">
-                {PRINT_CUT_LINE_CATEGORIES.map(({ type, title }) => {
+                {printCutCategories.map(({ type, title }) => {
                   const slice = grouped[type];
                   if (!slice?.length) return null;
                   const block = (
@@ -679,6 +695,7 @@ export default function CuttingListReportPrintView({
               chunkIndex={0}
               grouped={grouped}
               cutStartIndex={0}
+              waybillCategories={waybillCutCategories}
             />
           </div>
         </div>

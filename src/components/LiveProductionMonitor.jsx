@@ -32,6 +32,7 @@ import { useToast } from '../context/ToastContext';
 import { useWorkspace } from '../context/WorkspaceContext';
 import { editMutationNeedsSecondApprovalRole } from '../lib/editApprovalUi';
 import { EditSecondApprovalInline } from './EditSecondApprovalInline';
+import { normalizeStoneFlatsheetLengthM, productLineKey } from '../lib/stoneCoatedQuotationPolicy';
 
 /** Matches server: closing below this (kg) may use “Finish roll” on completion to clear the tail from stock. */
 const COIL_TAIL_FINISH_MAX_KG = 85;
@@ -68,6 +69,44 @@ function clearProdAccessoryDraftStorage(jobId) {
   if (typeof sessionStorage === 'undefined' || !jobId) return;
   try {
     sessionStorage.removeItem(prodAccessoryDraftStorageKey(jobId));
+  } catch {
+    // ignore
+  }
+}
+
+const PROD_SF_DRAFT_STORAGE_PREFIX = 'zarewa.prodStoneFlatsheetDraft.v1:';
+
+function prodSfDraftStorageKey(jobId) {
+  return PROD_SF_DRAFT_STORAGE_PREFIX + encodeURIComponent(String(jobId || ''));
+}
+
+function readProdSfDraftMap(jobId) {
+  if (typeof sessionStorage === 'undefined' || !jobId) return {};
+  try {
+    const raw = sessionStorage.getItem(prodSfDraftStorageKey(jobId));
+    const parsed = raw ? JSON.parse(raw) : null;
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function writeProdSfDraftEntry(jobId, stableKey, patch) {
+  if (typeof sessionStorage === 'undefined' || !jobId || !stableKey) return;
+  try {
+    const map = readProdSfDraftMap(jobId);
+    const prev = map[stableKey] && typeof map[stableKey] === 'object' ? map[stableKey] : {};
+    map[stableKey] = { ...prev, ...patch };
+    sessionStorage.setItem(prodSfDraftStorageKey(jobId), JSON.stringify(map));
+  } catch {
+    // quota / private mode
+  }
+}
+
+function clearProdSfDraftStorage(jobId) {
+  if (typeof sessionStorage === 'undefined' || !jobId) return;
+  try {
+    sessionStorage.removeItem(prodSfDraftStorageKey(jobId));
   } catch {
     // ignore
   }
@@ -638,6 +677,7 @@ export function LiveProductionMonitor({
   const conversionPreviewSeqRef = useRef(0);
   /** When job/quote identity changes, accessory draft resets merge-from-prev; null = not yet tracked in this mount. */
   const accessoryDraftJobRef = useRef(null);
+  const sfDraftJobRef = useRef(null);
   const [conversionPreview, setConversionPreview] = useState(null);
   const [conversionPreviewError, setConversionPreviewError] = useState('');
   const [conversionPreviewLoading, setConversionPreviewLoading] = useState(false);
@@ -684,6 +724,7 @@ export function LiveProductionMonitor({
     setFgAdjNote('');
     setStoneMetersConsumed('');
     setStoneAllocAck(false);
+    setStoneFlatsheetCompletionDraft([]);
   }, [selectedJob?.jobID]);
 
   useEffect(() => {
@@ -714,7 +755,29 @@ export function LiveProductionMonitor({
       }));
   }, [selectedJob?.quotationRef, ws?.snapshot?.quotations]);
 
+  const quotedStoneFlatsheetLines = useMemo(() => {
+    const ref = selectedJob?.quotationRef;
+    if (!ref || !Array.isArray(ws?.snapshot?.quotations)) return [];
+    const q = ws.snapshot.quotations.find((x) => x.id === ref);
+    const prod = q?.quotationLines?.products;
+    if (!Array.isArray(prod)) return [];
+    return prod
+      .map((r) => {
+        const n = String(r?.name ?? '').trim();
+        const qm = Number(String(r?.qty ?? '').replace(/,/g, '')) || 0;
+        const lengthM = normalizeStoneFlatsheetLengthM(r?.stoneFlatsheetLengthM ?? r?.lengthM);
+        return {
+          quoteLineId: String(r.id ?? '').trim(),
+          name: n || 'Stone flatsheet',
+          orderedM2: qm,
+          lengthM,
+        };
+      })
+      .filter((r) => productLineKey(r.name) === 'stone flatsheet' && r.orderedM2 > 0 && r.lengthM != null);
+  }, [selectedJob?.quotationRef, ws?.snapshot?.quotations]);
+
   const [accessoryCompletionDraft, setAccessoryCompletionDraft] = useState([]);
+  const [stoneFlatsheetCompletionDraft, setStoneFlatsheetCompletionDraft] = useState([]);
 
   useEffect(() => {
     const quotationRef = selectedJob?.quotationRef;
@@ -796,6 +859,111 @@ export function LiveProductionMonitor({
     });
   }, [selectedJob?.jobID, selectedJob?.quotationRef, quotedAccessoryLines, ws?.snapshot?.productionJobAccessoryUsage]);
 
+  useEffect(() => {
+    const quotationRef = selectedJob?.quotationRef;
+    const jobId = selectedJob?.jobID;
+    if (!quotationRef || !jobId || !quotedStoneFlatsheetLines.length) {
+      sfDraftJobRef.current = null;
+      setStoneFlatsheetCompletionDraft([]);
+      return;
+    }
+    const prevTracked = sfDraftJobRef.current;
+    const jobSwitch =
+      prevTracked != null &&
+      (prevTracked.jobId !== jobId || prevTracked.quotationRef !== quotationRef);
+    sfDraftJobRef.current = { jobId, quotationRef };
+
+    const usage = (ws?.snapshot?.productionJobStoneFlatsheetUsage || []).filter(
+      (u) => u.quotationRef === quotationRef
+    );
+    const hasPostedSfRowsForJob = usage.some((u) => u.jobID === jobId);
+
+    setStoneFlatsheetCompletionDraft((prev) => {
+      if (hasPostedSfRowsForJob) {
+        clearProdSfDraftStorage(jobId);
+      }
+      const prevByKey = jobSwitch ? new Map() : new Map(prev.map((r) => [r.key, r]));
+      const storedMap = hasPostedSfRowsForJob ? {} : readProdSfDraftMap(jobId);
+
+      return quotedStoneFlatsheetLines.map((line) => {
+        const stableKey = line.quoteLineId || `name:${line.name}`;
+        let prior = 0;
+        for (const u of usage) {
+          if (u.jobID === jobId) continue;
+          if (String(u.quoteLineId || '') === stableKey) {
+            prior += (Number(u.suppliedM2) || 0) + (Number(u.deductionM2) || 0);
+          }
+        }
+        const remaining = Math.max(0, line.orderedM2 - prior);
+
+        const postedRows = usage.filter((u) => {
+          if (u.jobID !== jobId) return false;
+          const uq = String(u.quoteLineId || '').trim();
+          return uq === stableKey || (line.quoteLineId && uq === String(line.quoteLineId).trim());
+        });
+        const hasPostedForLine = postedRows.length > 0;
+        const postedSupplied = hasPostedForLine
+          ? postedRows.reduce((s, u) => s + (Number(u.suppliedM2) || 0), 0)
+          : null;
+        const postedDeduction = hasPostedForLine
+          ? postedRows.reduce((s, u) => s + (Number(u.deductionM2) || 0), 0)
+          : null;
+
+        const old = prevByKey.get(stableKey);
+        let suppliedThisJobM2 = remaining;
+        let deductionThisJobM2 = 0;
+
+        if (hasPostedForLine) {
+          suppliedThisJobM2 = postedSupplied ?? 0;
+          deductionThisJobM2 = postedDeduction ?? 0;
+        } else if (old && !jobSwitch) {
+          const rawS = old.suppliedThisJobM2;
+          const rawD = old.deductionThisJobM2;
+          const ns = Number(String(rawS).replace(/,/g, ''));
+          const nd = Number(String(rawD).replace(/,/g, ''));
+          if (Number.isFinite(ns)) {
+            suppliedThisJobM2 = Math.min(Math.max(0, ns), remaining);
+          } else if (rawS != null && String(rawS).trim() !== '') {
+            suppliedThisJobM2 = rawS;
+          }
+          if (Number.isFinite(nd) && nd >= 0) {
+            deductionThisJobM2 = nd;
+          } else if (rawD != null && String(rawD).trim() !== '') {
+            deductionThisJobM2 = rawD;
+          }
+        } else {
+          const stored = storedMap[stableKey];
+          if (stored && typeof stored === 'object') {
+            const rawS = stored.s;
+            const rawD = stored.d;
+            const ns = Number(String(rawS).replace(/,/g, ''));
+            const nd = Number(String(rawD).replace(/,/g, ''));
+            if (Number.isFinite(ns)) {
+              suppliedThisJobM2 = Math.min(Math.max(0, ns), remaining);
+            }
+            if (Number.isFinite(nd) && nd >= 0) deductionThisJobM2 = nd;
+          }
+        }
+
+        return {
+          key: stableKey,
+          quoteLineId: line.quoteLineId,
+          name: line.name,
+          lengthM: line.lengthM,
+          orderedM2: line.orderedM2,
+          priorConsumedM2: prior,
+          suppliedThisJobM2,
+          deductionThisJobM2,
+        };
+      });
+    });
+  }, [
+    selectedJob?.jobID,
+    selectedJob?.quotationRef,
+    quotedStoneFlatsheetLines,
+    ws?.snapshot?.productionJobStoneFlatsheetUsage,
+  ]);
+
   const accessoriesSuppliedForApi = useMemo(
     () =>
       accessoryCompletionDraft.map((r) => ({
@@ -811,6 +979,22 @@ export function LiveProductionMonitor({
     selectedJob?.jobID
   );
 
+  const stoneFlatsheetSuppliedForApi = useMemo(
+    () =>
+      stoneFlatsheetCompletionDraft.map((r) => ({
+        quoteLineId: r.quoteLineId,
+        name: r.name,
+        suppliedM2: Number(String(r.suppliedThisJobM2).replace(/,/g, '')) || 0,
+        deductionM2: Number(String(r.deductionThisJobM2).replace(/,/g, '')) || 0,
+      })),
+    [stoneFlatsheetCompletionDraft]
+  );
+  const stoneFlatsheetDraftPage = useAppTablePaging(
+    stoneFlatsheetCompletionDraft,
+    APP_DATA_TABLE_PAGE_SIZE,
+    selectedJob?.jobID
+  );
+
   const conversionPreviewKey = useMemo(() => {
     if (!canRunConversionPreview || !selectedJob?.jobID) return '';
     if (isStoneMeterQuote) {
@@ -819,6 +1003,7 @@ export function LiveProductionMonitor({
         stone: true,
         stoneMetersConsumed: Number(String(stoneMetersConsumed).replace(/,/g, '')),
         accessoriesSupplied: accessoriesSuppliedForApi,
+        stoneFlatsheetSupplied: stoneFlatsheetSuppliedForApi,
       });
     }
     if (completionUsesOffcutMode) {
@@ -840,6 +1025,7 @@ export function LiveProductionMonitor({
     });
   }, [
     accessoriesSuppliedForApi,
+    stoneFlatsheetSuppliedForApi,
     canRunConversionPreview,
     completionUsesOffcutMode,
     draftAllocations,
@@ -874,6 +1060,7 @@ export function LiveProductionMonitor({
           ? {
               stoneMetersConsumed: parsed.stoneMetersConsumed,
               accessoriesSupplied: parsed.accessoriesSupplied || [],
+              stoneFlatsheetSupplied: parsed.stoneFlatsheetSupplied || [],
             }
           : parsed.offcut
             ? {
@@ -1297,6 +1484,7 @@ export function LiveProductionMonitor({
         completedAtISO: new Date().toISOString().slice(0, 10),
         stoneMetersConsumed: Number(String(stoneMetersConsumed).replace(/,/g, '')),
         accessoriesSupplied: accessoriesSuppliedForApi,
+        stoneFlatsheetSupplied: stoneFlatsheetSuppliedForApi,
         allocations: [],
       };
     }
@@ -1461,6 +1649,55 @@ export function LiveProductionMonitor({
         setSavingAction('');
         setPostCompletionEditApprovalId('');
         showToast('Completed job accessory correction saved.');
+      } catch (e) {
+        setSavingAction('');
+        showToast(e?.message || 'Save failed.', { variant: 'error' });
+      }
+      return;
+    }
+
+    if (type === 'completedStoneFlatsheetCorrection') {
+      if (!stoneFlatsheetCompletionDraft.length) {
+        setSavingAction('');
+        showToast('No stone flatsheet lines found on the quotation for correction.', { variant: 'info' });
+        return;
+      }
+      const reason = window.prompt(
+        'Reason for correcting stone flatsheet m² on this completed job (at least 12 characters — audited like other completion fixes):'
+      );
+      if (!reason || reason.trim().length < 12) {
+        setSavingAction('');
+        showToast('Correction requires a reason of at least 12 characters.', { variant: 'error' });
+        return;
+      }
+      const rk = ws?.session?.user?.roleKey;
+      if (editMutationNeedsSecondApprovalRole(rk) && !postCompletionEditApprovalId.trim()) {
+        setSavingAction('');
+        showToast(
+          'After completion, stone flatsheet corrections need an Edit OKs code — request approval, enter the 6-digit code, then save again.',
+          { variant: 'error' }
+        );
+        return;
+      }
+      try {
+        const res = await apiFetch(`${jobApi}/completion-stone-flatsheet-corrections`, {
+          method: 'POST',
+          body: JSON.stringify({
+            reason: reason.trim(),
+            stoneFlatsheetSupplied: stoneFlatsheetSuppliedForApi,
+            ...(postCompletionEditApprovalId.trim() ? { editApprovalId: postCompletionEditApprovalId.trim() } : {}),
+          }),
+        });
+        if (!res.ok || !res.data?.ok) {
+          setSavingAction('');
+          showToast(res.data?.error || 'Could not apply stone flatsheet correction.', { variant: 'error' });
+          await ws.refresh();
+          return;
+        }
+        await ws.refresh();
+        setSavingAction('');
+        setPostCompletionEditApprovalId('');
+        showToast('Stone flatsheet correction saved.');
       } catch (e) {
         setSavingAction('');
         showToast(e?.message || 'Save failed.', { variant: 'error' });
@@ -2037,6 +2274,22 @@ export function LiveProductionMonitor({
                     >
                       <Save size={15} />
                       {savingAction === 'completedAccessoryCorrection' ? 'Saving…' : 'Save accessories'}
+                    </button>
+                  ) : null}
+                  {selectedJob.status === 'Completed' && canEditCompletedAccessoryCorrections && isStoneMeterQuote ? (
+                    <button
+                      type="button"
+                      onClick={() => void persist('completedStoneFlatsheetCorrection')}
+                      disabled={savingAction !== '' || !stoneFlatsheetCompletionDraft.length}
+                      title="Correct stone flatsheet m² after completion. Requires a 12+ character reason. Adjusts stock; does not reverse posted GL automatically."
+                      className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-semibold transition-colors disabled:opacity-45 ${
+                        savingAction === 'completedStoneFlatsheetCorrection'
+                          ? 'bg-sky-100 text-sky-900'
+                          : 'border border-sky-400 bg-sky-50 text-sky-950 hover:bg-sky-100'
+                      }`}
+                    >
+                      <Save size={15} />
+                      {savingAction === 'completedStoneFlatsheetCorrection' ? 'Saving…' : 'Save stone flatsheet'}
                     </button>
                   ) : null}
                   <button
@@ -2687,6 +2940,110 @@ export function LiveProductionMonitor({
             </div>
           ) : null}
 
+          {(canCaptureRun || canEditCompletedAccessoryCorrections) &&
+          isStoneMeterQuote &&
+          stoneFlatsheetCompletionDraft.length > 0 ? (
+            <div className="rounded-lg border border-sky-200/80 bg-sky-50/40 p-2 sm:p-2.5 space-y-1.5">
+              <p className="text-[9px] font-black uppercase tracking-widest text-sky-900">
+                Stone flatsheet (m²){jobSt === 'Completed' ? ' — correction' : ''}
+              </p>
+              <p className="text-[9px] text-slate-600 leading-snug">
+                Ordered m² on the quote vs already consumed on other completed jobs. Supplied + deduction counts against
+                remaining m² and reduces the stone flatsheet stock SKU for this colour and length.
+              </p>
+              <div className="min-w-0 max-w-full rounded-lg border border-slate-200 bg-white">
+                <div className="z-scroll-x min-w-0 max-w-full overflow-x-auto overscroll-x-contain [-webkit-overflow-scrolling:touch]">
+                  <table className="w-full min-w-[640px] border-collapse text-left text-sm">
+                    <thead className="border-b border-slate-200 bg-slate-50 text-xs font-bold uppercase tracking-wide text-slate-600">
+                      <tr>
+                        <th className="px-2 py-2">Item</th>
+                        <th className="px-2 py-2 text-right">Len</th>
+                        <th className="px-2 py-2 text-right">Ordered m²</th>
+                        <th className="px-2 py-2 text-right">Prior m²</th>
+                        <th className="px-2 py-2 text-right">Remaining</th>
+                        <th className="px-2 py-2 text-right">Supplied</th>
+                        <th className="px-2 py-2 text-right">Deduction</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {stoneFlatsheetDraftPage.slice.map((row) => {
+                        const remaining = Math.max(0, row.orderedM2 - row.priorConsumedM2);
+                        return (
+                          <tr key={row.key} className="hover:bg-sky-50/20">
+                            <td className="max-w-0 px-2 py-2 font-semibold text-slate-800 whitespace-nowrap truncate" title={row.name}>
+                              {row.name}
+                            </td>
+                            <td className="px-2 py-2 text-right tabular-nums text-slate-600">{row.lengthM} m</td>
+                            <td className="px-2 py-2 text-right tabular-nums text-slate-600">{row.orderedM2}</td>
+                            <td className="px-2 py-2 text-right tabular-nums text-slate-600">{row.priorConsumedM2}</td>
+                            <td className="px-2 py-2 text-right tabular-nums text-slate-600">{remaining}</td>
+                            <td className="px-2 py-2 text-right whitespace-nowrap">
+                              <input
+                                type="text"
+                                inputMode="decimal"
+                                value={row.suppliedThisJobM2}
+                                onChange={(e) => {
+                                  const v = e.target.value;
+                                  const jId = selectedJob?.jobID;
+                                  setStoneFlatsheetCompletionDraft((prev) =>
+                                    prev.map((r) => {
+                                      if (r.key !== row.key) return r;
+                                      if (jId && selectedJob?.status === 'Running') {
+                                        writeProdSfDraftEntry(jId, row.key, { s: v, d: r.deductionThisJobM2 });
+                                      }
+                                      return { ...r, suppliedThisJobM2: v };
+                                    })
+                                  );
+                                }}
+                                className="w-[4.5rem] rounded-md border border-slate-200 bg-white px-1.5 py-1 text-right font-mono text-xs font-bold text-sky-900 outline-none focus:ring-2 focus:ring-sky-500/20"
+                                aria-label={`Supplied m² this job for ${row.name}`}
+                              />
+                            </td>
+                            <td className="px-2 py-2 text-right whitespace-nowrap">
+                              <input
+                                type="text"
+                                inputMode="decimal"
+                                value={row.deductionThisJobM2}
+                                onChange={(e) => {
+                                  const v = e.target.value;
+                                  const jId = selectedJob?.jobID;
+                                  setStoneFlatsheetCompletionDraft((prev) =>
+                                    prev.map((r) => {
+                                      if (r.key !== row.key) return r;
+                                      if (jId && selectedJob?.status === 'Running') {
+                                        writeProdSfDraftEntry(jId, row.key, { s: r.suppliedThisJobM2, d: v });
+                                      }
+                                      return { ...r, deductionThisJobM2: v };
+                                    })
+                                  );
+                                }}
+                                className="w-[4.5rem] rounded-md border border-slate-200 bg-white px-1.5 py-1 text-right font-mono text-xs font-bold text-sky-900 outline-none focus:ring-2 focus:ring-sky-500/20"
+                                aria-label={`Deduction m² this job for ${row.name}`}
+                              />
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+                {stoneFlatsheetCompletionDraft.length > APP_DATA_TABLE_PAGE_SIZE ? (
+                  <div className="border-t border-slate-100 px-2 py-2">
+                    <AppTablePager
+                      showingFrom={stoneFlatsheetDraftPage.showingFrom}
+                      showingTo={stoneFlatsheetDraftPage.showingTo}
+                      total={stoneFlatsheetDraftPage.total}
+                      hasPrev={stoneFlatsheetDraftPage.hasPrev}
+                      hasNext={stoneFlatsheetDraftPage.hasNext}
+                      onPrev={stoneFlatsheetDraftPage.goPrev}
+                      onNext={stoneFlatsheetDraftPage.goNext}
+                    />
+                  </div>
+                ) : null}
+              </div>
+            </div>
+          ) : null}
+
           {canCaptureRun && requiresManagerOverrunApproval ? (
             <div className="rounded-lg border border-amber-200 bg-amber-50/90 p-2 sm:p-2.5 space-y-1.5">
               <div className="flex items-start gap-1.5">
@@ -2739,6 +3096,28 @@ export function LiveProductionMonitor({
                       <span className="font-semibold">{u.name}</span>
                       <span className="font-mono tabular-nums">
                         supplied {u.suppliedQty} / ordered {u.orderedQty}
+                      </span>
+                    </li>
+                  ))}
+              </ul>
+            </div>
+          ) : null}
+
+          {readOnly &&
+          selectedJob?.status === 'Completed' &&
+          (ws?.snapshot?.productionJobStoneFlatsheetUsage || []).some((u) => u.jobID === selectedJob.jobID) ? (
+            <div className="rounded-lg border border-slate-200 bg-slate-50/80 p-2 sm:p-2.5 space-y-1">
+              <p className="text-[9px] font-black uppercase tracking-widest text-slate-500">Stone flatsheet posted</p>
+              <ul className="space-y-1 text-[10px] text-slate-700">
+                {(ws?.snapshot?.productionJobStoneFlatsheetUsage || [])
+                  .filter((u) => u.jobID === selectedJob.jobID)
+                  .map((u) => (
+                    <li key={u.id} className="flex flex-col gap-0.5 border-b border-slate-100 pb-1 last:border-0 last:pb-0">
+                      <span className="font-semibold">
+                        {u.name} · {u.lengthM} m
+                      </span>
+                      <span className="font-mono tabular-nums">
+                        supplied {u.suppliedM2} m² · deduction {u.deductionM2} m² · ordered {u.orderedM2} m²
                       </span>
                     </li>
                   ))}
@@ -3727,6 +4106,38 @@ export function LiveProductionMonitor({
                 >
                   <Save size={12} />
                   {savingAction === 'completedCoilCorrection' ? 'Saving…' : 'Save correction'}
+                </button>
+              ) : null}
+              {selectedJob.status === 'Completed' && canEditCompletedAccessoryCorrections ? (
+                <button
+                  type="button"
+                  onClick={() => void persist('completedAccessoryCorrection')}
+                  disabled={savingAction !== ''}
+                  title="Correct accessory issues after completion."
+                  className={`inline-flex items-center gap-0.5 rounded-md px-2 py-0.5 text-[10px] font-semibold transition-colors disabled:opacity-45 ${
+                    savingAction === 'completedAccessoryCorrection'
+                      ? 'bg-amber-100 text-amber-900'
+                      : 'border border-amber-400 bg-amber-50 text-amber-950 hover:bg-amber-100'
+                  }`}
+                >
+                  <Save size={12} />
+                  {savingAction === 'completedAccessoryCorrection' ? 'Saving…' : 'Accessories'}
+                </button>
+              ) : null}
+              {selectedJob.status === 'Completed' && canEditCompletedAccessoryCorrections && isStoneMeterQuote ? (
+                <button
+                  type="button"
+                  onClick={() => void persist('completedStoneFlatsheetCorrection')}
+                  disabled={savingAction !== '' || !stoneFlatsheetCompletionDraft.length}
+                  title="Correct stone flatsheet m² after completion."
+                  className={`inline-flex items-center gap-0.5 rounded-md px-2 py-0.5 text-[10px] font-semibold transition-colors disabled:opacity-45 ${
+                    savingAction === 'completedStoneFlatsheetCorrection'
+                      ? 'bg-sky-100 text-sky-900'
+                      : 'border border-sky-400 bg-sky-50 text-sky-950 hover:bg-sky-100'
+                  }`}
+                >
+                  <Save size={12} />
+                  {savingAction === 'completedStoneFlatsheetCorrection' ? 'Saving…' : 'Stone FS'}
                 </button>
               ) : null}
               <button
