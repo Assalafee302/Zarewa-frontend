@@ -695,44 +695,87 @@ const QuotationModal = ({
 
   /** Filter profiles by selected material type (stone vs coil). */
   const profileOptions = useMemo(() => {
+    const stoneAllowKeys = new Set(STONE_PROFILE_FALLBACK.map(normQuoteItemKey));
     const fromMaster = (liveMasterData?.profiles || []).filter((row) => row.active);
     const filtered = materialTypeId
       ? fromMaster.filter((row) => String(row.materialTypeId || '').trim() === materialTypeId)
       : fromMaster;
-    const opts = filtered
+    const baseOpts = filtered
       .map((row) => ({ value: row.name, label: row.name }))
       .sort((a, b) => compareSelectLabels(a.label, b.label));
-    if (opts.length > 0) return opts;
+
     if (isStoneMeter) {
-      return [...STONE_PROFILE_FALLBACK]
-        .sort((a, b) => compareSelectLabels(a, b))
-        .map((name) => ({
-          value: name,
-          label: name,
-        }));
+      let opts = baseOpts.filter((o) => stoneAllowKeys.has(normQuoteItemKey(o.value)));
+      const activePriceList = Array.isArray(liveMasterData?.priceList)
+        ? liveMasterData.priceList.filter((row) => row.active)
+        : [];
+      const activeMaterialPl = materialTypeId
+        ? activePriceList.filter((r) => String(r.materialTypeId || '').trim() === materialTypeId)
+        : [];
+      const profileIdSet = new Set(
+        activeMaterialPl.map((r) => String(r.profileId || '').trim()).filter(Boolean)
+      );
+      if (profileIdSet.size > 0 && opts.length > 0) {
+        const byId = new Map(
+          (liveMasterData?.profiles || []).map((p) => [String(p.id || '').trim(), p.name])
+        );
+        const allowedFromPrice = new Set(
+          [...profileIdSet].map((id) => normQuoteItemKey(byId.get(id))).filter(Boolean)
+        );
+        const narrowed = opts.filter((o) => allowedFromPrice.has(normQuoteItemKey(o.value)));
+        if (narrowed.length) opts = narrowed;
+      }
+      if (!opts.length) {
+        return [...STONE_PROFILE_FALLBACK]
+          .sort((a, b) => compareSelectLabels(a, b))
+          .map((name) => ({
+            value: name,
+            label: name,
+          }));
+      }
+      return [...opts].sort((a, b) => compareSelectLabels(a.label, b.label));
     }
+
+    if (baseOpts.length > 0) return baseOpts;
     return [...DEFAULT_PROFILES]
       .sort((a, b) => compareSelectLabels(a, b))
       .map((name) => ({
         value: name,
         label: name,
       }));
-  }, [liveMasterData?.profiles, materialTypeId, isStoneMeter]);
+  }, [liveMasterData?.profiles, liveMasterData?.priceList, materialTypeId, isStoneMeter]);
 
   const gaugeOptions = useMemo(() => {
     const fromMaster = (liveMasterData?.gauges || [])
       .filter((row) => row.active)
       .map((row) => ({ value: row.label, label: row.label, id: row.id }))
       .sort((a, b) => compareGaugeLabels(a.label, b.label));
-    if (fromMaster.length > 0) return fromMaster;
-    return [...DEFAULT_GAUGES]
-      .sort((a, b) => compareGaugeLabels(a, b))
-      .map((label) => ({
-        value: label,
-        label,
-        id: undefined,
-      }));
-  }, [liveMasterData?.gauges]);
+    const base =
+      fromMaster.length > 0
+        ? fromMaster
+        : [...DEFAULT_GAUGES]
+            .sort((a, b) => compareGaugeLabels(a, b))
+            .map((label) => ({
+              value: label,
+              label,
+              id: undefined,
+            }));
+
+    if (!isStoneMeter || !materialTypeId) return base;
+
+    const activePriceList = Array.isArray(liveMasterData?.priceList)
+      ? liveMasterData.priceList.filter((row) => row.active)
+      : [];
+    const gaugeIds = new Set(
+      activePriceList
+        .filter((r) => String(r.materialTypeId || '').trim() === materialTypeId)
+        .map((r) => String(r.gaugeId || '').trim())
+        .filter(Boolean)
+    );
+    if (!gaugeIds.size) return base;
+    const narrowed = base.filter((g) => g.id && gaugeIds.has(String(g.id).trim()));
+    return narrowed.length ? narrowed : base;
+  }, [liveMasterData?.gauges, liveMasterData?.priceList, isStoneMeter, materialTypeId]);
 
   const colourOptions = useMemo(() => {
     const fromMaster = (liveMasterData?.colours || [])
@@ -1028,11 +1071,9 @@ const QuotationModal = ({
       const profRows = (liveMasterData?.profiles || []).filter(
         (r) => r.active && String(r.materialTypeId || '').trim() === next
       );
-      const allowedProfileKeys = new Set(
-        profRows.length
-          ? profRows.map((r) => normQuoteItemKey(r.name))
-          : STONE_PROFILE_FALLBACK.map(normQuoteItemKey)
-      );
+      const stoneAllow = new Set(STONE_PROFILE_FALLBACK.map(normQuoteItemKey));
+      const fromDb = profRows.map((r) => normQuoteItemKey(r.name)).filter((k) => stoneAllow.has(k));
+      const allowedProfileKeys = new Set(fromDb.length ? fromDb : [...stoneAllow]);
       const cleaned = applyStoneMeterMaterialChangeCleanup({
         toStoneMeter: true,
         products: productRows,
@@ -1139,6 +1180,20 @@ const QuotationModal = ({
     const ok = profileOptions.some((p) => p.value === materialDesign);
     if (!ok) setMaterialDesign('');
   }, [materialTypeId, profileOptions, materialDesign]);
+
+  useEffect(() => {
+    if (!materialGauge) return;
+    if (!gaugeOptions.length) return;
+    const ok = gaugeOptions.some((g) => String(g.value) === String(materialGauge));
+    if (!ok) setMaterialGauge('');
+  }, [materialTypeId, gaugeOptions, materialGauge]);
+
+  useEffect(() => {
+    if (!materialColor) return;
+    if (!colourOptions.length) return;
+    const ok = colourOptions.some((c) => String(c.value) === String(materialColor));
+    if (!ok) setMaterialColor('');
+  }, [materialTypeId, colourOptions, materialColor]);
 
   useEffect(() => {
     return () => {
