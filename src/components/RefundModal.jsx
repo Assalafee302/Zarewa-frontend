@@ -371,7 +371,7 @@ const RefundModal = ({
   const [intelligence, setIntelligence] = useState({
     receipts: [],
     cuttingLists: [],
-    summary: { producedMeters: 0, accessoriesSummary: { lines: [] } },
+    summary: { producedMeters: 0, accessoriesSummary: { lines: [] }, stoneFlatsheetSummary: { totalSuppliedM2: 0, totalDeductionM2: 0, lines: [] } },
     dataQualityIssues: [],
   });
   const [loadingIntelligence, setLoadingIntelligence] = useState(false);
@@ -717,7 +717,11 @@ const RefundModal = ({
       setIntelligence({
         receipts: data.receipts || [],
         cuttingLists: data.cuttingLists || [],
-        summary: data.summary || { producedMeters: 0, accessoriesSummary: { lines: [] } },
+        summary: data.summary || {
+          producedMeters: 0,
+          accessoriesSummary: { lines: [] },
+          stoneFlatsheetSummary: { totalSuppliedM2: 0, totalDeductionM2: 0, lines: [] },
+        },
         dataQualityIssues: Array.isArray(data.dataQualityIssues) ? data.dataQualityIssues : [],
       });
     }
@@ -2314,8 +2318,10 @@ const RefundModal = ({
                           <p className="text-[8px] text-slate-600 px-2.5 py-2 border-t border-slate-800/80 leading-relaxed">
                             Supplied / Short come from completed production jobs for{' '}
                             <strong className="text-slate-500">accessories</strong> only (matched by line id or item
-                            name). Products and services show in the quote for context; sheet metres are summarized under
-                            Production &amp; delivery.
+                            name). Products and services show in the quote for context. Coil roofing output is under
+                            <strong className="text-slate-500"> Produced metres</strong>; stone flatsheet m² issued from
+                            stock appears under <strong className="text-slate-500">Stone flatsheet</strong> when the job
+                            is completed.
                           </p>
                         </div>
                       )}
@@ -2333,7 +2339,51 @@ const RefundModal = ({
                           <p className="text-xs font-black text-sky-400">
                             {intelligence.summary?.producedMeters?.toLocaleString() || 0} m
                           </p>
+                          <p className="text-[8px] text-slate-500 mt-1 leading-snug">
+                            Coil / longspan metres from completed jobs — not stone flatsheet m².
+                          </p>
                         </div>
+                        {(Number(intelligence.summary?.stoneFlatsheetSummary?.totalSuppliedM2) > 0 ||
+                          (intelligence.summary?.stoneFlatsheetSummary?.lines || []).length > 0) ? (
+                          <div className="p-2.5 rounded-xl bg-slate-800/80 border border-slate-700 sm:col-span-2">
+                            <p className="text-[8px] font-bold text-slate-500 uppercase mb-0.5">Stone flatsheet (m²)</p>
+                            <p className="text-xs font-black text-emerald-300/95">
+                              {(Number(intelligence.summary?.stoneFlatsheetSummary?.totalSuppliedM2) || 0).toLocaleString(
+                                'en-NG',
+                                { maximumFractionDigits: 3 }
+                              )}{' '}
+                              m² supplied
+                              {(Number(intelligence.summary?.stoneFlatsheetSummary?.totalDeductionM2) || 0) > 0 ? (
+                                <span className="text-slate-400 font-semibold">
+                                  {' '}
+                                  ·{' '}
+                                  {(Number(intelligence.summary?.stoneFlatsheetSummary?.totalDeductionM2) || 0).toLocaleString(
+                                    'en-NG',
+                                    { maximumFractionDigits: 3 }
+                                  )}{' '}
+                                  m² deduction
+                                </span>
+                              ) : null}
+                            </p>
+                            {(intelligence.summary?.stoneFlatsheetSummary?.lines || []).length > 0 ? (
+                              <ul className="mt-2 space-y-1 text-[9px] text-slate-300">
+                                {intelligence.summary.stoneFlatsheetSummary.lines.map((ln) => (
+                                  <li key={`${ln.quoteLineId}-${ln.name}-${ln.lengthM}`} className="flex flex-wrap gap-x-2 justify-between gap-y-0.5">
+                                    <span className="truncate font-medium text-slate-200" title={ln.name}>
+                                      {ln.name}
+                                      {ln.lengthM ? ` · ${ln.lengthM} m` : ''}
+                                    </span>
+                                    <span className="tabular-nums text-slate-400 shrink-0">
+                                      ord {(Number(ln.orderedM2) || 0).toLocaleString('en-NG', { maximumFractionDigits: 3 })}{' '}
+                                      → sup {(Number(ln.suppliedM2) || 0).toLocaleString('en-NG', { maximumFractionDigits: 3 })}{' '}
+                                      m²
+                                    </span>
+                                  </li>
+                                ))}
+                              </ul>
+                            ) : null}
+                          </div>
+                        ) : null}
                       </div>
                     </div>
 
