@@ -1,6 +1,6 @@
 /**
  * Pure customer-ledger rules (Zarewa payment model). Used by localStorage store and API server.
- * @typedef {'ADVANCE_IN'|'ADVANCE_APPLIED'|'RECEIPT'|'OVERPAY_ADVANCE'|'OVERPAY_REVERSAL'|'REFUND_ADVANCE'|'REFUND_OVERPAY'|'RECEIPT_REVERSAL'|'ADVANCE_REVERSAL'} LedgerEntryType
+ * @typedef {'ADVANCE_IN'|'ADVANCE_APPLIED'|'RECEIPT'|'OVERPAY_ADVANCE'|'OVERPAY_APPLIED'|'OVERPAY_REVERSAL'|'REFUND_ADVANCE'|'REFUND_OVERPAY'|'RECEIPT_REVERSAL'|'ADVANCE_REVERSAL'} LedgerEntryType
  */
 
 /**
@@ -17,9 +17,10 @@ export function ledgerAttributedPaidNgnForQuotation(entries, quotationId) {
   const id = String(quotationId || '').trim();
   if (!id) return 0;
   const applied = sumForQuotationInEntries(entries, id, 'ADVANCE_APPLIED');
+  const overpayApplied = sumForQuotationInEntries(entries, id, 'OVERPAY_APPLIED');
   const receipts = sumForQuotationInEntries(entries, id, 'RECEIPT');
   const receiptReversals = sumForQuotationInEntries(entries, id, 'RECEIPT_REVERSAL');
-  return Math.round(applied + receipts - receiptReversals);
+  return Math.round(applied + overpayApplied + receipts - receiptReversals);
 }
 
 /**

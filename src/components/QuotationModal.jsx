@@ -19,6 +19,16 @@ import { useTrackedUnsavedForm } from '../hooks/useTrackedUnsavedForm';
 import { useCustomers } from '../context/CustomersContext';
 import { bankAccountsForCustomerPayment, treasuryAccountsFromSnapshot } from '../lib/treasuryAccountsStore';
 import { compareGaugeLabels, compareSelectLabels } from '../lib/selectOptionSort';
+import {
+  STONE_METER_INVENTORY_MODEL,
+  STONE_PROFILE_FALLBACK,
+  QUOTATION_MATERIAL_RULES_CODE,
+  applyStoneMeterMaterialChangeCleanup,
+  accessoryLineAllowedForStone,
+  normQuoteItemKey,
+  productLineAllowedForStone,
+  quotationHasFlatSheetLine,
+} from '../lib/stoneCoatedQuotationPolicy';
 import { ZAREWA_COMPANY_ACCOUNT_NAME } from '../Data/companyQuotation';
 import { formatNgn } from '../Data/mockData';
 import { useToast } from '../context/ToastContext';
@@ -86,6 +96,7 @@ const DEFAULT_PRODUCT_ITEMS = [
   'Fascia',
   'Cladding',
   'Flat sheet',
+  'Stone flatsheet',
   'Offcut',
   'Wall eaves',
   'Crimp',
@@ -253,6 +264,24 @@ function rowsForPrint(rows, placeholderWhenEmpty = true) {
   });
 }
 
+function quotationRulesErrorMessage(data) {
+  if (!data || data.code !== QUOTATION_MATERIAL_RULES_CODE) return data?.error || '';
+  const d = data.details || {};
+  const bits = [data.error].filter(Boolean);
+  if (d.invalidHeader?.profile) bits.push('(Profile invalid)');
+  if (d.invalidHeader?.gauge) bits.push('(Gauge invalid)');
+  if (d.invalidHeader?.colour) bits.push('(Colour invalid)');
+  return bits.join(' ');
+}
+
+function quoteItemUnitIsArea(unit) {
+  const s = String(unit || '')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, '');
+  return s === 'm2' || s === 'm²' || s === 'sqm' || s === 'sq.m' || s === 'm^2';
+}
+
 function normalizeOptionItems(optionItems) {
   return (optionItems || []).map((item) => {
     if (typeof item === 'string') {
@@ -260,12 +289,14 @@ function normalizeOptionItems(optionItems) {
         id: item,
         name: item,
         defaultUnitPriceNgn: 0,
+        unit: '',
       };
     }
     return {
       id: item.id || item.name,
       name: item.name || '',
       defaultUnitPriceNgn: Number(item.defaultUnitPriceNgn) || 0,
+      unit: String(item.unit || '').trim(),
     };
   });
 }
@@ -413,6 +444,11 @@ function OrderLinesSection({
                     min="0"
                     step="any"
                     placeholder="0"
+                    title={
+                      quoteItemUnitIsArea(matchedOption?.unit)
+                        ? 'Quantity in square metres (m²) for this price-list item'
+                        : undefined
+                    }
                     value={row.qty}
                     onChange={(e) => updateRow(row.id, { qty: e.target.value })}
                     className="w-14 sm:w-16 shrink-0 bg-white border border-slate-200 py-1.5 px-1 rounded-lg text-[11px] text-center font-semibold text-[#134e4a] outline-none tabular-nums"
@@ -533,6 +569,7 @@ const QuotationModal = ({
     [ws?.snapshot?.priceListItems]
   );
   const lastQuotationHydrateSigRef = useRef('');
+  const prevMaterialTypeIdForStoneRef = useRef(null);
 
   const quotationHydrateSig = useMemo(
     () => (isOpen ? quotationHydrateSignature(editData) : ''),
@@ -580,6 +617,13 @@ const QuotationModal = ({
       .sort((a, b) => compareSelectLabels(a.label, b.label));
   }, [liveMasterData?.materialTypes]);
 
+  const isStoneMeter = useMemo(() => {
+    const inv = String(
+      liveMasterData?.materialTypes?.find((row) => row.id === materialTypeId)?.inventoryModel || ''
+    ).trim();
+    return inv === STONE_METER_INVENTORY_MODEL;
+  }, [liveMasterData?.materialTypes, materialTypeId]);
+
   /** Filter profiles by selected material type (stone vs coil). */
   const profileOptions = useMemo(() => {
     const fromMaster = (liveMasterData?.profiles || []).filter((row) => row.active);
@@ -590,13 +634,21 @@ const QuotationModal = ({
       .map((row) => ({ value: row.name, label: row.name }))
       .sort((a, b) => compareSelectLabels(a.label, b.label));
     if (opts.length > 0) return opts;
+    if (isStoneMeter) {
+      return [...STONE_PROFILE_FALLBACK]
+        .sort((a, b) => compareSelectLabels(a, b))
+        .map((name) => ({
+          value: name,
+          label: name,
+        }));
+    }
     return [...DEFAULT_PROFILES]
       .sort((a, b) => compareSelectLabels(a, b))
       .map((name) => ({
         value: name,
         label: name,
       }));
-  }, [liveMasterData?.profiles, materialTypeId]);
+  }, [liveMasterData?.profiles, materialTypeId, isStoneMeter]);
 
   const gaugeOptions = useMemo(() => {
     const fromMaster = (liveMasterData?.gauges || [])
@@ -662,6 +714,7 @@ const QuotationModal = ({
           id: row.id,
           name: row.name,
           defaultUnitPriceNgn: row.defaultUnitPriceNgn,
+          unit: String(row.unit || '').trim(),
         }));
       const seen = new Set(fromMaster.map((x) => x.name.trim().toLowerCase()));
       const slug = (s) =>
@@ -676,6 +729,7 @@ const QuotationModal = ({
           id: `preset-${itemType}-${slug(name) || `n${idx}`}`,
           name,
           defaultUnitPriceNgn: 0,
+          unit: '',
         }));
       return [...fromMaster, ...extras].sort((a, b) => compareSelectLabels(a.name, b.name));
     },
@@ -684,14 +738,19 @@ const QuotationModal = ({
 
   const productOptions = useMemo(() => {
     const fromMaster = mergeQuoteLineOptions('product', []);
-    if (fromMaster.length > 0) return fromMaster;
-    return mergeQuoteLineOptions('product', DEFAULT_PRODUCT_ITEMS);
-  }, [mergeQuoteLineOptions]);
+    const base =
+      fromMaster.length > 0 ? fromMaster : mergeQuoteLineOptions('product', DEFAULT_PRODUCT_ITEMS);
+    if (!isStoneMeter) return base;
+    const hasFlat = quotationHasFlatSheetLine(productRows);
+    return base.filter((row) => productLineAllowedForStone(row.name, hasFlat));
+  }, [mergeQuoteLineOptions, isStoneMeter, productRows]);
   const accessoryOptions = useMemo(() => {
     const fromMaster = mergeQuoteLineOptions('accessory', []);
-    if (fromMaster.length > 0) return fromMaster;
-    return mergeQuoteLineOptions('accessory', DEFAULT_ACCESSORY_ITEMS);
-  }, [mergeQuoteLineOptions]);
+    const base =
+      fromMaster.length > 0 ? fromMaster : mergeQuoteLineOptions('accessory', DEFAULT_ACCESSORY_ITEMS);
+    if (!isStoneMeter) return base;
+    return base.filter((row) => accessoryLineAllowedForStone(row.name));
+  }, [mergeQuoteLineOptions, isStoneMeter]);
   const serviceOptions = useMemo(() => {
     const fromMaster = mergeQuoteLineOptions('service', []);
     if (fromMaster.length > 0) return fromMaster;
@@ -835,10 +894,13 @@ const QuotationModal = ({
   useEffect(() => {
     if (!isOpen) {
       lastQuotationHydrateSigRef.current = '';
+      prevMaterialTypeIdForStoneRef.current = null;
       return;
     }
     if (lastQuotationHydrateSigRef.current === quotationHydrateSig) return;
     lastQuotationHydrateSigRef.current = quotationHydrateSig;
+
+    prevMaterialTypeIdForStoneRef.current = String(editData?.materialTypeId ?? '').trim();
 
     setApplyAdvanceAmount('');
     setApplyAdvanceHint(null);
@@ -874,7 +936,111 @@ const QuotationModal = ({
       setAccessoryRows([emptyOrderLine()]);
       setServiceRows([emptyOrderLine()]);
     }
-  }, [isOpen, quotationHydrateSig, customers, treasuryPayAccountsLive]);
+  }, [isOpen, quotationHydrateSig, customers, treasuryPayAccountsLive, editData?.materialTypeId]);
+
+  /** Stone-coated: strip incompatible lines / reset header when material type changes. */
+  useEffect(() => {
+    if (!isOpen || readOnly) return;
+    const prev = prevMaterialTypeIdForStoneRef.current;
+    const next = String(materialTypeId ?? '').trim();
+    if (prev === next) return;
+
+    const prevInv = String(
+      liveMasterData?.materialTypes?.find((r) => r.id === prev)?.inventoryModel || ''
+    ).trim();
+    const nextInv = String(
+      liveMasterData?.materialTypes?.find((r) => r.id === next)?.inventoryModel || ''
+    ).trim();
+    const fromStone = prevInv === STONE_METER_INVENTORY_MODEL;
+    const toStone = nextInv === STONE_METER_INVENTORY_MODEL;
+    const alerts = [];
+
+    if (toStone) {
+      const profRows = (liveMasterData?.profiles || []).filter(
+        (r) => r.active && String(r.materialTypeId || '').trim() === next
+      );
+      const allowedProfileKeys = new Set(
+        profRows.length
+          ? profRows.map((r) => normQuoteItemKey(r.name))
+          : STONE_PROFILE_FALLBACK.map(normQuoteItemKey)
+      );
+      const cleaned = applyStoneMeterMaterialChangeCleanup({
+        toStoneMeter: true,
+        products: productRows,
+        accessories: accessoryRows,
+        materialGauge,
+        materialColor,
+        materialDesign,
+        allowedProfileKeys,
+      });
+      if (
+        cleaned.removedProducts.length ||
+        cleaned.removedAccessories.length ||
+        cleaned.clearedHeader.profile
+      ) {
+        setProductRows(cleaned.products.length ? cleaned.products : [emptyOrderLine()]);
+        setAccessoryRows(cleaned.accessories.length ? cleaned.accessories : [emptyOrderLine()]);
+        setMaterialGauge(cleaned.materialGauge);
+        setMaterialColor(cleaned.materialColor);
+        setMaterialDesign(cleaned.materialDesign);
+        captureEdited();
+        if (cleaned.removedProducts.length) {
+          alerts.push(`Removed product line(s): ${cleaned.removedProducts.join(', ')}.`);
+        }
+        if (cleaned.removedAccessories.length) {
+          alerts.push(`Removed accessory line(s): ${cleaned.removedAccessories.join(', ')}.`);
+        }
+        if (cleaned.clearedHeader.profile) alerts.push('Profile reset for stone coated.');
+      }
+    }
+
+    if (fromStone && !toStone) {
+      let md = materialDesign;
+      let mg = materialGauge;
+      let mc = materialColor;
+      let changed = false;
+      if (md && !profileOptions.some((p) => String(p.value) === String(md))) {
+        md = '';
+        changed = true;
+      }
+      if (mg && !gaugeOptions.some((g) => String(g.value) === String(mg))) {
+        mg = '';
+        changed = true;
+      }
+      if (mc && !colourOptions.some((c) => String(c.value) === String(mc))) {
+        mc = '';
+        changed = true;
+      }
+      if (changed) {
+        setMaterialDesign(md);
+        setMaterialGauge(mg);
+        setMaterialColor(mc);
+        captureEdited();
+        alerts.push('Material header fields were reset for the new material type.');
+      }
+    }
+
+    if (alerts.length) {
+      showToast(alerts.join(' '), { variant: 'warning' });
+    }
+    prevMaterialTypeIdForStoneRef.current = next;
+  }, [
+    isOpen,
+    readOnly,
+    materialTypeId,
+    liveMasterData?.materialTypes,
+    liveMasterData?.profiles,
+    productRows,
+    accessoryRows,
+    materialGauge,
+    materialColor,
+    materialDesign,
+    profileOptions,
+    gaugeOptions,
+    colourOptions,
+    showToast,
+    captureEdited,
+  ]);
 
   /** Late-loaded customer directory: fill picker label without re-hydrating line items. */
   useEffect(() => {
@@ -1187,19 +1353,28 @@ const QuotationModal = ({
             }),
           });
           if (!ok || !data?.ok) {
-            showToast(data?.error || 'Could not update quotation.', { variant: 'error' });
+            showToast(quotationRulesErrorMessage(data) || data?.error || 'Could not update quotation.', {
+              variant: 'error',
+            });
             return;
           }
           if (data.quotation) ws.mergeQuotationIntoSnapshot(data.quotation);
           setQuotationEditApprovalId('');
-          showToast(`Quotation ${editData.id} saved to database.`);
+          const applied = Number(data.autoOverpayAppliedNgn) || 0;
+          let msg = `Quotation ${editData.id} saved to database.`;
+          if (applied > 0) {
+            msg += ` ${formatNgn(applied)} of overpayment credit was applied to the new balance automatically (no new receipt).`;
+          }
+          showToast(msg);
         } else {
           const { ok, data } = await apiFetch('/api/quotations', {
             method: 'POST',
             body: JSON.stringify(body),
           });
           if (!ok || !data?.ok) {
-            showToast(data?.error || 'Could not create quotation.', { variant: 'error' });
+            showToast(quotationRulesErrorMessage(data) || data?.error || 'Could not create quotation.', {
+              variant: 'error',
+            });
             return;
           }
           showToast(`Quotation ${data.quotationId} created.`);
@@ -1237,7 +1412,9 @@ const QuotationModal = ({
         body: JSON.stringify(body),
       });
       if (!ok || !data?.ok) {
-        showToast(data?.error || 'Could not update material details.', { variant: 'error' });
+        showToast(quotationRulesErrorMessage(data) || data?.error || 'Could not update material details.', {
+          variant: 'error',
+        });
         return;
       }
       if (data.quotation) ws.mergeQuotationIntoSnapshot(data.quotation);

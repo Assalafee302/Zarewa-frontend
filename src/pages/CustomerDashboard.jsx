@@ -149,6 +149,8 @@ function ledgerTypeLabel(t) {
       return 'Advance applied';
     case 'RECEIPT':
       return 'Receipt';
+    case 'OVERPAY_APPLIED':
+      return 'Overpay applied to quote';
     case 'OVERPAY_ADVANCE':
       return 'Overpayment credit';
     case 'OVERPAY_REVERSAL':

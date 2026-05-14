@@ -421,7 +421,19 @@ const ReceiptModal = ({
         amountNgn: Math.round(Number(e.amountNgn) || 0),
         detail: e.note || e.bankReference || e.purpose || '—',
       }));
-    return [...fromReceipts, ...advanceApplied].sort((a, b) => b.sortIso.localeCompare(a.sortIso));
+    const overpayAppliedFromPool = loadLedgerEntries()
+      .filter((e) => e.type === 'OVERPAY_APPLIED' && String(e.quotationRef || '').trim() === qid)
+      .map((e) => ({
+        key: `oa-${e.id}`,
+        sortIso: (e.atISO || '').slice(0, 10) || '0000-00-00',
+        dateLabel: formatDisplayDate((e.atISO || '').slice(0, 10)),
+        entryId: e.id,
+        label: 'Overpay applied',
+        sublabel: 'Credit moved from overpayment pool',
+        amountNgn: Math.round(Number(e.amountNgn) || 0),
+        detail: e.note || e.bankReference || e.purpose || '—',
+      }));
+    return [...fromReceipts, ...advanceApplied, ...overpayAppliedFromPool].sort((a, b) => b.sortIso.localeCompare(a.sortIso));
   }, [quotationPaymentHistory, quotationRef, ledgerNonce]);
 
   const printLinesPayload = useMemo(() => {
