@@ -28,6 +28,7 @@ import {
   accessoryLineAllowedForStone,
   normQuoteItemKey,
   normalizeStoneFlatsheetLengthM,
+  resolveStoneFlatsheetLengthM,
   productLineAllowedForStone,
   productLineKey,
   quotationHasFlatSheetLine,
@@ -100,7 +101,8 @@ const DEFAULT_PRODUCT_ITEMS = [
   'Fascia',
   'Cladding',
   'Flat sheet',
-  'Stone flatsheet',
+  'Stone flatsheet 1.4',
+  'Stone flatsheet 1.5',
   'Offcut',
   'Wall eaves',
   'Crimp',
@@ -276,7 +278,7 @@ function quotationRulesErrorMessage(data) {
   if (d.invalidHeader?.gauge) bits.push('(Gauge invalid)');
   if (d.invalidHeader?.colour) bits.push('(Colour invalid)');
   if (Array.isArray(d.stoneFlatsheetLengthMissing) && d.stoneFlatsheetLengthMissing.length) {
-    bits.push('(Stone flatsheet: choose 1.4 m or 2 m length per line)');
+    bits.push('(Stone flatsheet: choose 1.4 m, 1.5 m, or 2 m — product name or length per line)');
   }
   return bits.join(' ');
 }
@@ -345,8 +347,8 @@ function OrderLinesSection({
                   {row.name?.trim() || '—'}
                   {showStoneFlatsheetLength &&
                   productLineKey(row.name) === 'stone flatsheet' &&
-                  normalizeStoneFlatsheetLengthM(row.stoneFlatsheetLengthM) != null
-                    ? ` · ${normalizeStoneFlatsheetLengthM(row.stoneFlatsheetLengthM)} m`
+                  resolveStoneFlatsheetLengthM(row) != null
+                    ? ` · ${resolveStoneFlatsheetLengthM(row)} m`
                     : null}
                 </span>
                 <span className="tabular-nums text-slate-600">
@@ -384,6 +386,8 @@ function OrderLinesSection({
                 showStoneFlatsheetLength &&
                 title === 'Products' &&
                 productLineKey(String(row.name || '')) === 'stone flatsheet';
+              const needsStoneFlatsheetLengthPicker =
+                isStoneFlatsheetRow && normQuoteItemKey(String(row.name || '')) === 'stone flatsheet';
               return (
                 <div
                   key={row.id}
@@ -438,10 +442,10 @@ function OrderLinesSection({
                                   ? resolveUnitPrice(option?.name || '', option || null)
                                   : option?.defaultUnitPriceNgn || 0;
                               const nextName = option?.name || '';
+                              const lmPick = resolveStoneFlatsheetLengthM({ name: nextName });
+                              const isSfLine = productLineKey(nextName) === 'stone flatsheet';
                               const keepLen =
-                                showStoneFlatsheetLength &&
-                                title === 'Products' &&
-                                productLineKey(nextName) === 'stone flatsheet';
+                                showStoneFlatsheetLength && title === 'Products' && isSfLine;
                               updateRow(row.id, {
                                 customLine: false,
                                 name: nextName,
@@ -451,7 +455,13 @@ function OrderLinesSection({
                                     : option?.defaultUnitPriceNgn > 0
                                       ? String(option.defaultUnitPriceNgn)
                                       : row.unitPrice,
-                                stoneFlatsheetLengthM: keepLen ? row.stoneFlatsheetLengthM : '',
+                                stoneFlatsheetLengthM: keepLen
+                                  ? lmPick != null
+                                    ? lmPick
+                                    : normQuoteItemKey(nextName) === 'stone flatsheet'
+                                      ? row.stoneFlatsheetLengthM
+                                      : ''
+                                  : '',
                               });
                             }}
                             className="w-full min-w-0 bg-white border border-slate-200 rounded-lg py-1.5 pl-2 pr-7 text-[11px] font-semibold text-[#134e4a] appearance-none outline-none focus:ring-2 focus:ring-[#134e4a]/15 cursor-pointer"
@@ -481,28 +491,32 @@ function OrderLinesSection({
                   </div>
                   {showStoneFlatsheetLength && title === 'Products' ? (
                     <div className="w-[4.25rem] shrink-0">
-                      {isStoneFlatsheetRow ? (
+                      {needsStoneFlatsheetLengthPicker ? (
                         <select
                           aria-label="Stone flatsheet length"
                           value={
                             row.stoneFlatsheetLengthM === 1.4 || row.stoneFlatsheetLengthM === '1.4'
                               ? '1.4'
-                              : row.stoneFlatsheetLengthM === 2 ||
-                                  row.stoneFlatsheetLengthM === '2' ||
-                                  row.stoneFlatsheetLengthM === '2.0'
-                                ? '2'
-                                : ''
+                              : row.stoneFlatsheetLengthM === 1.5 || row.stoneFlatsheetLengthM === '1.5'
+                                ? '1.5'
+                                : row.stoneFlatsheetLengthM === 2 ||
+                                    row.stoneFlatsheetLengthM === '2' ||
+                                    row.stoneFlatsheetLengthM === '2.0'
+                                  ? '2'
+                                  : ''
                           }
                           onChange={(e) => {
                             const v = e.target.value;
                             updateRow(row.id, {
-                              stoneFlatsheetLengthM: v === '1.4' ? 1.4 : v === '2' ? 2 : '',
+                              stoneFlatsheetLengthM:
+                                v === '1.4' ? 1.4 : v === '1.5' ? 1.5 : v === '2' ? 2 : '',
                             });
                           }}
                           className="w-full rounded-lg border border-slate-200 bg-white py-1.5 pl-1 pr-1 text-[10px] font-semibold text-[#134e4a] outline-none focus:ring-2 focus:ring-[#134e4a]/15"
                         >
                           <option value="">—</option>
                           <option value="1.4">1.4 m</option>
+                          <option value="1.5">1.5 m</option>
                           <option value="2">2 m</option>
                         </select>
                       ) : (
@@ -1475,8 +1489,8 @@ const QuotationModal = ({
         design: materialDesign,
         profile: materialDesign,
         ...(productLineKey(row.name) === 'stone flatsheet' &&
-        normalizeStoneFlatsheetLengthM(row.stoneFlatsheetLengthM) != null
-          ? { stoneFlatsheetLengthM: normalizeStoneFlatsheetLengthM(row.stoneFlatsheetLengthM) }
+        resolveStoneFlatsheetLengthM(row) != null
+          ? { stoneFlatsheetLengthM: resolveStoneFlatsheetLengthM(row) }
           : {}),
       })),
       accessories: accessoryRows.map((row) => ({

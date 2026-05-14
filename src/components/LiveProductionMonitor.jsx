@@ -32,7 +32,7 @@ import { useToast } from '../context/ToastContext';
 import { useWorkspace } from '../context/WorkspaceContext';
 import { editMutationNeedsSecondApprovalRole } from '../lib/editApprovalUi';
 import { EditSecondApprovalInline } from './EditSecondApprovalInline';
-import { normalizeStoneFlatsheetLengthM, productLineKey } from '../lib/stoneCoatedQuotationPolicy';
+import { productLineKey, resolveStoneFlatsheetLengthM } from '../lib/stoneCoatedQuotationPolicy';
 
 /** Matches server: closing below this (kg) may use “Finish roll” on completion to clear the tail from stock. */
 const COIL_TAIL_FINISH_MAX_KG = 85;
@@ -765,7 +765,7 @@ export function LiveProductionMonitor({
       .map((r) => {
         const n = String(r?.name ?? '').trim();
         const qm = Number(String(r?.qty ?? '').replace(/,/g, '')) || 0;
-        const lengthM = normalizeStoneFlatsheetLengthM(r?.stoneFlatsheetLengthM ?? r?.lengthM);
+        const lengthM = resolveStoneFlatsheetLengthM(r);
         return {
           quoteLineId: String(r.id ?? '').trim(),
           name: n || 'Stone flatsheet',
