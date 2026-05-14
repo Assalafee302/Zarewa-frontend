@@ -2,7 +2,7 @@
  * Canonical refund reason categories (Sales UI, preview filters, duplicate checks).
  * Bump when preview suggestion rules change materially (stored on refund snapshot).
  */
-export const REFUND_PREVIEW_VERSION = 4;
+export const REFUND_PREVIEW_VERSION = 8;
 
 /** Refund quotation picker: remaining refundable must be strictly greater than this (₦). */
 export const MIN_REFUND_QUOTATION_REMAINING_NGN = 1000;
@@ -15,6 +15,7 @@ export const REFUND_REASON_CATEGORY_VALUES = [
   'Installation issue',
   'Additional services',
   'Accessory shortfall',
+  'Stone flatsheet shortfall',
   'Calculation error',
   'Substitution Difference',
   'Customer commission',
@@ -28,6 +29,8 @@ export const REFUND_CATEGORY_LEGACY_ALIASES = {
   'meterage shortfall': 'Unproduced meterage',
   'transport refund': 'Transport issue',
   'accessory refund': 'Accessory shortfall',
+  'stone shortfall': 'Stone flatsheet shortfall',
+  'stone flatsheet refund': 'Stone flatsheet shortfall',
   'substitution pricing': 'Substitution Difference',
   'agent commission': 'Customer commission',
   commission: 'Customer commission',

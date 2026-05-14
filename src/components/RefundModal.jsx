@@ -45,6 +45,8 @@ import {
 const REFUND_CATEGORY_HINTS = {
   'Unproduced meterage':
     'Quoted line metres exceed production metres (completed/cancelled jobs). Distinct from order cancellation (cancelled production only).',
+  'Stone flatsheet shortfall':
+    'Quoted stone flatsheet m² exceeds supplied + deduction recorded on completed/cancelled production jobs (same basis as the intelligence panel).',
   'Customer commission':
     'Not added automatically — use “Add commission to preview”. Capped by minimum selling ₦/m and refundable headroom.',
   'Substitution Difference':
