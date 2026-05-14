@@ -492,7 +492,8 @@ const CuttingListModal = ({
 
   const cuttingCategoriesUi = useMemo(() => {
     if (!isStoneMeterCuttingList) return CATEGORIES;
-    return CATEGORIES.map((c) => (c.type === 'Cladding' ? { ...c, title: 'Stone flatsheet' } : c));
+    /** Stone flatsheet is m² stock / production completion — not coil cutting. Only roof + coil flat sheet appear here. */
+    return CATEGORIES.filter((c) => c.type !== 'Cladding');
   }, [isStoneMeterCuttingList]);
 
   const draftBranchCode = useMemo(() => branchCodeForDraft(ws?.session), [ws?.session]);
@@ -538,7 +539,7 @@ const CuttingListModal = ({
 
   const flatLinesWithType = useMemo(() => {
     const out = [];
-    for (const { type } of CATEGORIES) {
+    for (const { type } of cuttingCategoriesUi) {
       for (const line of linesByCat[type]) {
         const sheets = parseNum(line.sheets);
         const lengthM = parseNum(line.lengthM);
@@ -546,7 +547,7 @@ const CuttingListModal = ({
       }
     }
     return out;
-  }, [linesByCat]);
+  }, [linesByCat, cuttingCategoriesUi]);
 
   const totalMeters = useMemo(
     () => flatLinesWithType.reduce((sum, line) => sum + line.sheets * line.lengthM, 0),
@@ -573,7 +574,8 @@ const CuttingListModal = ({
       receiptsForQuotation: quoteReceipts,
       productionFooterName: editData?.handledBy || activeDisplayName || handledByLabel,
       treasuryMovements: Array.isArray(ws?.snapshot?.treasuryMovements) ? ws.snapshot.treasuryMovements : [],
-      claddingSectionTitle: isStoneMeterCuttingList ? 'Stone flatsheet' : '',
+      claddingSectionTitle: '',
+      omitCladdingSection: isStoneMeterCuttingList,
     }),
     [
       savedCuttingListId,

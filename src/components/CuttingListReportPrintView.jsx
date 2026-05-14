@@ -502,22 +502,28 @@ export default function CuttingListReportPrintView({
   receiptsForQuotation = [],
   productionFooterName = '',
   treasuryMovements = [],
-  /** When set (e.g. stone-coated jobs), replaces the "Cladding" table title on factory + waybill panes. */
-  claddingSectionTitle = '',
+  /** When true (stone_meter quotes), omit the Cladding block — stone flatsheet is not coil-cut here. */
+  omitCladdingSection = false,
 }) {
   const b = ZAREWA_QUOTATION_BRANDING;
 
   const printCutCategories = useMemo(() => {
+    const base = omitCladdingSection
+      ? PRINT_CUT_LINE_CATEGORIES.filter((c) => c.type !== 'Cladding')
+      : PRINT_CUT_LINE_CATEGORIES;
     const t = String(claddingSectionTitle || '').trim();
-    if (!t) return PRINT_CUT_LINE_CATEGORIES;
-    return PRINT_CUT_LINE_CATEGORIES.map((c) => (c.type === 'Cladding' ? { ...c, title: t } : c));
-  }, [claddingSectionTitle]);
+    if (!t) return base;
+    return base.map((c) => (c.type === 'Cladding' ? { ...c, title: t } : c));
+  }, [claddingSectionTitle, omitCladdingSection]);
 
   const waybillCutCategories = useMemo(() => {
+    const base = omitCladdingSection
+      ? WAYBILL_CUT_LINE_CATEGORIES.filter((c) => c.type !== 'Cladding')
+      : WAYBILL_CUT_LINE_CATEGORIES;
     const t = String(claddingSectionTitle || '').trim();
-    if (!t) return WAYBILL_CUT_LINE_CATEGORIES;
-    return WAYBILL_CUT_LINE_CATEGORIES.map((c) => (c.type === 'Cladding' ? { ...c, title: t } : c));
-  }, [claddingSectionTitle]);
+    if (!t) return base;
+    return base.map((c) => (c.type === 'Cladding' ? { ...c, title: t } : c));
+  }, [claddingSectionTitle, omitCladdingSection]);
 
   const flatLines = mergeCuttingLinesByLengthDesc(
     flattenCuttingLinesByCategories(linesByCat, printCutCategories),
