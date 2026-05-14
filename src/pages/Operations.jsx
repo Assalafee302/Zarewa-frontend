@@ -36,6 +36,11 @@ import { productionJobNeedsManagerReviewAttention } from '../lib/productionRevie
 import { pickProductionJobForCuttingList } from '../lib/productionJobPick';
 import { productionQueueLineStatusPresentation } from '../lib/productionQueueLineStatus';
 import { procurementKindFromPo } from '../lib/procurementPoKind';
+import {
+  liveJobMaterialPresentation,
+  normQuoteKeyForLiveJob,
+  resolveLiveJobMaterialKind,
+} from '../lib/productionLiveJobMaterialKind';
 import { compareSelectLabels } from '../lib/selectOptionSort';
 
 /** Current kg on the coil (after production use); uses API fields when present. */
@@ -716,6 +721,17 @@ const Operations = () => {
       ws?.hasWorkspaceData && Array.isArray(ws?.snapshot?.cuttingLists) ? ws.snapshot.cuttingLists : [],
     [ws?.hasWorkspaceData, ws?.snapshot?.cuttingLists]
   );
+  const workspaceQuotations = useMemo(
+    () => (ws?.hasWorkspaceData && Array.isArray(ws?.snapshot?.quotations) ? ws.snapshot.quotations : []),
+    [ws?.hasWorkspaceData, ws?.snapshot?.quotations]
+  );
+  const workspaceMaterialTypes = useMemo(
+    () =>
+      ws?.hasWorkspaceData && Array.isArray(ws?.snapshot?.masterData?.materialTypes)
+        ? ws.snapshot.masterData.materialTypes
+        : [],
+    [ws?.hasWorkspaceData, ws?.snapshot?.masterData?.materialTypes]
+  );
   const productionQueueModel = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
     const matches = (item) => {
@@ -769,6 +785,20 @@ const Operations = () => {
       const jobID = job?.jobID;
       const nCoils = jobID ? coilCount(jobID) : 0;
       const lineStatus = productionQueueLineStatusPresentation(cl, job);
+      const qMat =
+        workspaceQuotations.find(
+          (row) => row?.id && normQuoteKeyForLiveJob(row.id) === normQuoteKeyForLiveJob(cl.quotationRef)
+        ) || null;
+      const liveMatKind = resolveLiveJobMaterialKind({
+        quotation: qMat,
+        cuttingList: cl,
+        materialTypes: workspaceMaterialTypes,
+      });
+      const liveMatBase = liveJobMaterialPresentation(liveMatKind);
+      const liveMatUi =
+        status === 'Planned'
+          ? liveMatBase
+          : { ...liveMatBase, cardClass: 'border-sky-100 bg-white/90' };
       const specParts = [
         cl.quotationRef ? `Quote ${cl.quotationRef}` : null,
         cl.productName || cl.productID || null,
@@ -826,6 +856,9 @@ const Operations = () => {
         lineStatusLabel: lineStatus.label,
         lineStatusChipClass: lineStatus.chipClass,
         queueRegisteredAtISO: job?.createdAtISO || cl.dateISO || '',
+        liveJobCardClass: liveMatUi.cardClass,
+        liveJobMaterialChipLabel: liveMatUi.chipLabel,
+        liveJobMaterialChipClass: liveMatUi.chipClass,
       };
     };
 
@@ -840,7 +873,15 @@ const Operations = () => {
         { key: 'closed', title: 'Completed or cancelled', rows: closed.filter(matches) },
       ],
     };
-  }, [cuttingLists, productionJobCoils, productionJobs, ws?.hasWorkspaceData, searchQuery]);
+  }, [
+    cuttingLists,
+    productionJobCoils,
+    productionJobs,
+    searchQuery,
+    workspaceMaterialTypes,
+    workspaceQuotations,
+    ws?.hasWorkspaceData,
+  ]);
   const conversionStats = useMemo(() => {
     if (!productionConversionChecks.length) {
       return { efficiencyPct: null, flagged: 0, watch: 0, total: 0 };
@@ -2269,7 +2310,9 @@ const Operations = () => {
                           {productionActivePage.slice.map((item) => (
                             <li
                               key={item.id}
-                              className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-sky-100 bg-white/90 px-2.5 py-2"
+                              className={`flex flex-wrap items-center justify-between gap-2 rounded-lg border px-2.5 py-2 ${
+                                item.liveJobCardClass || 'border-sky-100 bg-white/90'
+                              }`}
                             >
                               <div className="min-w-0">
                                 <p className="font-mono text-[11px] font-bold text-[#134e4a]">{item.id}</p>
@@ -2282,6 +2325,16 @@ const Operations = () => {
                                   >
                                     {item.lineStatusLabel || '—'}
                                   </span>
+                                  {item.liveJobMaterialChipLabel ? (
+                                    <span
+                                      className={`shrink-0 text-[7px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded-md border ${
+                                        item.liveJobMaterialChipClass || 'border-slate-200 bg-slate-50 text-slate-600'
+                                      }`}
+                                      title="Job material class"
+                                    >
+                                      {item.liveJobMaterialChipLabel}
+                                    </span>
+                                  ) : null}
                                   <span className="text-[9px] text-slate-600 truncate">{item.customer}</span>
                                 </div>
                               </div>
