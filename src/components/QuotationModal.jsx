@@ -64,6 +64,7 @@ const DEFAULT_PROFILES = [
   'Bond',
   'Milano',
   'Classic',
+  'Single',
   'Shingle',
   'Roman',
   'Crimp curve',
