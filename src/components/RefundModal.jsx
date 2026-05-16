@@ -2249,10 +2249,15 @@ const RefundModal = ({
                       ) : null}
                       {(intelligence.dataQualityIssues || []).length > 0 ? (
                         <div className="pt-2 border-t border-amber-900/40 rounded-lg bg-amber-950/25 p-2.5 space-y-1.5">
-                          <p className="text-[9px] font-bold text-amber-200 uppercase">Master data (substitution)</p>
+                          <p className="text-[9px] font-bold text-amber-200 uppercase">System alerts</p>
                           <ul className="space-y-1">
                             {(intelligence.dataQualityIssues || []).map((issue, idx) => (
-                              <li key={issue.jobId || issue.code || idx} className="text-[10px] text-amber-50/95 leading-snug">
+                              <li
+                                key={issue.jobId || issue.code || idx}
+                                className={`text-[10px] leading-snug ${
+                                  issue.severity === 'critical' ? 'text-rose-100' : 'text-amber-50/95'
+                                }`}
+                              >
                                 • {typeof issue === 'string' ? issue : issue.message}
                               </li>
                             ))}

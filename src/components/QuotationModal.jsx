@@ -1594,6 +1594,12 @@ const QuotationModal = ({
             return;
           }
           showToast(`Quotation ${data.quotationId} created.`);
+          if (Array.isArray(data.duplicateWarnings) && data.duplicateWarnings.length > 0) {
+            showToast(
+              data.duplicateWarnings.map((w) => w.message).join(' '),
+              { variant: 'info', duration: 12_000 }
+            );
+          }
         }
         await onLedgerChange?.();
         abandonUnsavedAndRun(() => onClose());

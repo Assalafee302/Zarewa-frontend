@@ -234,6 +234,33 @@ const CustomerDashboard = () => {
   /** Refreshes each render so overdue / receipt windows stay correct across midnight without a full reload. */
   const todayIso = localDateISO();
   const [ledgerViewNonce, setLedgerViewNonce] = useState(0);
+  const [paymentIntegrity, setPaymentIntegrity] = useState(null);
+
+  useEffect(() => {
+    if (!customerKey) {
+      setPaymentIntegrity(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const { ok, data } = await apiFetch(
+        `/api/customers/${encodeURIComponent(customerKey)}/payment-integrity`
+      );
+      if (cancelled) return;
+      if (ok && data?.ok) {
+        setPaymentIntegrity({
+          hasIssues: Boolean(data.hasIssues),
+          criticalCount: Number(data.criticalCount) || 0,
+          issues: Array.isArray(data.issues) ? data.issues : [],
+        });
+      } else {
+        setPaymentIntegrity(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [customerKey, ledgerViewNonce]);
 
   const quotationRows = useMemo(
     () =>
@@ -1188,6 +1215,27 @@ const CustomerDashboard = () => {
                 Delete customer
               </button>
             </section>
+          ) : null}
+
+          {paymentIntegrity?.hasIssues ? (
+            <div className="mb-6 flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50/90 px-4 py-3 text-sm text-amber-950">
+              <AlertTriangle className="shrink-0 mt-0.5 text-amber-700" size={18} />
+              <div className="min-w-0 flex-1">
+                <p className="font-bold">
+                  Payment data issue{paymentIntegrity.criticalCount > 0 ? ' — review before refunding' : ''}
+                </p>
+                <ul className="mt-1.5 space-y-1 text-xs text-amber-900/95 list-disc pl-4">
+                  {paymentIntegrity.issues.slice(0, 4).map((iss, idx) => (
+                    <li key={iss.code || idx}>{iss.message}</li>
+                  ))}
+                </ul>
+                {paymentIntegrity.issues.length > 4 ? (
+                  <p className="text-[10px] text-amber-800/80 mt-1">
+                    +{paymentIntegrity.issues.length - 4} more — see refund screen per quotation.
+                  </p>
+                ) : null}
+              </div>
+            </div>
           ) : null}
 
           {overdueCount > 0 ? (

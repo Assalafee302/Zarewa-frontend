@@ -682,6 +682,40 @@ const ReceiptModal = ({
           body: JSON.stringify(receiptBody),
           headers: { 'Idempotency-Key': idempotencyKey },
         });
+        if (!ok && data?.code === 'QUOTATION_ALREADY_SETTLED') {
+          const proceed = window.confirm(
+            `${data?.error || 'This quotation is already paid.'}\n\nPost anyway? The full amount will go to overpayment credit on this quotation only.`
+          );
+          if (!proceed) {
+            showToast('Posting cancelled.', { variant: 'info' });
+            return;
+          }
+          const settledKey =
+            typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+              ? crypto.randomUUID()
+              : `rc-settled-${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
+          const retrySettled = await apiFetch('/api/ledger/receipt', {
+            method: 'POST',
+            body: JSON.stringify({
+              ...receiptBody,
+              confirmSettledQuoteOverpay: true,
+            }),
+            headers: { 'Idempotency-Key': settledKey },
+          });
+          if (!retrySettled.ok || !retrySettled.data?.ok) {
+            setPostingHint(guidanceForLedgerPostFailure(retrySettled.data) || null);
+            showToast(
+              formatLedgerApiError(retrySettled.data, retrySettled.status, 'Could not post receipt.'),
+              { variant: 'error' }
+            );
+            return;
+          }
+          setPostingHint(null);
+          showToast(`Receipt ${formatNgn(total)} posted as overpayment credit on ${selectedQuotation.id}.`);
+          await onLedgerChange?.();
+          abandonUnsavedAndRun(() => onClose());
+          return;
+        }
         if (!ok && data?.code === 'POSSIBLE_DUPLICATE_RECEIPT') {
           const lines = (data?.duplicateSignals || [])
             .map((sig) => `- ${sig.message}`)
@@ -703,6 +737,7 @@ const ReceiptModal = ({
               ...receiptBody,
               forceDuplicatePost: true,
               duplicateOverrideReason: reason.trim(),
+              confirmSettledQuoteOverpay: true,
             }),
             headers: { 'Idempotency-Key': secondKey },
           });
