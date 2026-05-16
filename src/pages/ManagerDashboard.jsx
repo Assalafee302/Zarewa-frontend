@@ -21,6 +21,7 @@ import {
   HelpCircle,
   Package,
   PencilLine,
+  Unlock,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -662,6 +663,7 @@ const ManagerDashboard = () => {
       clear: 'Clearance approved.',
       approve_production: 'Production override saved. Cutting list can proceed in Sales.',
       flag: 'Moved to flagged queue for audit.',
+      release_payments: 'Payment hold released — sales can post receipts on this quotation again.',
     };
     showToast(labels[decision] || 'Updated.', { variant: 'success' });
     await fetchData();
@@ -1413,6 +1415,27 @@ const ManagerDashboard = () => {
                           Approve records manager clearance. Disapprove or Flag both move the quote to the{' '}
                           <span className="text-white/70">Flagged</span> inbox with your reason.
                         </p>
+                        {(selectedUnifiedWorkItem?.managerClearedAtIso ||
+                          selectedUnifiedWorkItem?.managerFlaggedAtIso ||
+                          auditData?.summary?.managerClearedAtIso ||
+                          auditData?.summary?.managerFlaggedAtIso) ? (
+                          <button
+                            type="button"
+                            disabled={decisionBusy}
+                            onClick={() => {
+                              const ok = window.confirm(
+                                'Release payment hold on this quotation? Sales will be able to post receipts again until you clear or flag it.'
+                              );
+                              if (ok) handleReview(selectedIntel.quoteId, 'release_payments');
+                            }}
+                            className="w-full flex items-center justify-center gap-2 p-3 rounded-xl bg-sky-700 hover:bg-sky-600 text-white border border-white/10 disabled:opacity-50 transition-colors mb-2"
+                          >
+                            <Unlock size={16} />
+                            <span className="text-[10px] font-black uppercase tracking-widest">
+                              Release for payments
+                            </span>
+                          </button>
+                        ) : null}
                         <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
                           <button
                             type="button"

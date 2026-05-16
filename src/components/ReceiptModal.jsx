@@ -423,13 +423,30 @@ const ReceiptModal = ({
       .reduce((s, r) => s + (Math.round(Number(r.amountNgn) || 0) || 0), 0);
   }, [isEdit, quotationPaymentHistory, editingReceiptEntryIds]);
 
-  /** When editing, lines can re-absorb this voucher's current on-quote amount plus residual due without tripping duplicate/over-due guards. */
+  /** Max new cash that can be posted on this quote (edit mode: due only — historic voucher amount is already on the ledger). */
   const postingHeadroomNgn = useMemo(() => {
     if (dueNgn == null) return null;
-    const due = Math.round(Number(dueNgn) || 0);
-    const hist = isEdit ? Math.round(Number(editingReceiptHistoricNgn) || 0) : 0;
-    return Math.max(0, due + hist);
-  }, [dueNgn, isEdit, editingReceiptHistoricNgn]);
+    return Math.max(0, Math.round(Number(dueNgn) || 0));
+  }, [dueNgn]);
+
+  const quotationLedgerHold = useMemo(() => {
+    if (!selectedQuotation) return null;
+    if (selectedQuotation.managerFlaggedAtISO) {
+      return {
+        kind: 'flagged',
+        detail:
+          selectedQuotation.managerFlagReason?.trim() ||
+          'This quotation is flagged by manager for review.',
+      };
+    }
+    if (selectedQuotation.managerClearedAtISO) {
+      return {
+        kind: 'cleared',
+        detail: 'This quotation has been cleared by manager and is closed for further payments.',
+      };
+    }
+    return null;
+  }, [selectedQuotation]);
 
   const showFullReceiptOnQuoteOption = useMemo(() => {
     if (!quotationRowForPayments || postingHeadroomNgn == null) return false;
@@ -446,11 +463,8 @@ const ReceiptModal = ({
     if (dueNgn == null) return null;
     const due = Math.round(Number(dueNgn) || 0);
     const line = Math.round(Number(lineTotalNgn) || 0);
-    if (isEdit && editingReceiptHistoricNgn > 0) {
-      return Math.max(0, due + Math.round(editingReceiptHistoricNgn) - line);
-    }
     return Math.max(0, due - line);
-  }, [dueNgn, lineTotalNgn, isEdit, editingReceiptHistoricNgn]);
+  }, [dueNgn, lineTotalNgn]);
 
   /** Receipts + advance applied already booked on this quote (newest first), shown above new voucher lines. */
   const priorRecordedOnQuotation = useMemo(() => {
@@ -525,13 +539,7 @@ const ReceiptModal = ({
     const out = [];
     const normalizedRemarks = normalizeRefToken(remarks);
     if (headroom > 0 && total > headroom) {
-      if (isEdit && editingReceiptHistoricNgn > 0) {
-        out.push(
-          `Entered amount ${formatNgn(total)} exceeds available headroom ${formatNgn(headroom)} (balance due ${formatNgn(due)} plus this voucher's current amount on the quote ${formatNgn(Math.round(editingReceiptHistoricNgn))}).`
-        );
-      } else {
-        out.push(`Entered amount ${formatNgn(total)} exceeds current balance due ${formatNgn(due)}.`);
-      }
+      out.push(`Entered amount ${formatNgn(total)} exceeds current balance due ${formatNgn(due)}.`);
     }
     if (priorRecordedTotalNgn > 0 && total === priorRecordedTotalNgn) {
       out.push(
@@ -558,8 +566,6 @@ const ReceiptModal = ({
     priorRecordedTotalNgn,
     remarks,
     postingHeadroomNgn,
-    isEdit,
-    editingReceiptHistoricNgn,
   ]);
 
   const saveReceipt = async (e) => {
@@ -571,6 +577,11 @@ const ReceiptModal = ({
     }
     if (!quotationRef || !selectedQuotation || !quotationRowForPayments) {
       showToast('Select a quotation — customer is taken from the quote.', { variant: 'error' });
+      return;
+    }
+    if (useLedgerApi && quotationLedgerHold) {
+      setPostingHint(guidanceForLedgerPostFailure({ code: 'LEDGER_POST_BLOCKED', error: quotationLedgerHold.detail }) || null);
+      showToast(quotationLedgerHold.detail, { variant: 'error' });
       return;
     }
     if (!customerID) {
@@ -839,9 +850,7 @@ const ReceiptModal = ({
     setPaymentLines((prev) => [...prev, emptyPaymentLine(voucherDate, defaultAccountId)]);
   const fillRemainingBalanceLine = () => {
     if (readOnly) return;
-    const due = Math.max(0, Math.round(Number(dueNgn) || 0));
-    const hist = isEdit ? Math.max(0, Math.round(Number(editingReceiptHistoricNgn) || 0)) : 0;
-    const fillAmt = due + hist;
+    const fillAmt = Math.max(0, Math.round(Number(dueNgn) || 0));
     if (fillAmt <= 0) {
       showToast('No remaining balance to fill.', { variant: 'info' });
       return;
@@ -851,7 +860,7 @@ const ReceiptModal = ({
       amount: idx === 0 ? String(fillAmt) : '',
     }));
     setPaymentLines(next.length ? next : [emptyPaymentLine(voucherDate, defaultAccountId)]);
-    showToast(`Filled first line with ${formatNgn(fillAmt)}${hist > 0 ? ' (balance due plus this voucher on quote)' : ''}.`);
+    showToast(`Filled first line with ${formatNgn(fillAmt)} (new money only).`);
   };
   const removeLine = (id) =>
     setPaymentLines((prev) => (prev.length <= 1 ? prev : prev.filter((r) => r.id !== id)));
@@ -914,6 +923,26 @@ const ReceiptModal = ({
         {!ws?.canMutate ? (
           <div className="px-5 py-2 bg-amber-50 border-b border-amber-200 text-[10px] font-semibold text-amber-900">
             System offline (read-only). Reconnect and refresh before posting or printing receipts.
+          </div>
+        ) : null}
+
+        {!readOnly && useLedgerApi && quotationLedgerHold ? (
+          <div className="px-5 py-3 bg-rose-50/90 border-b border-rose-200 text-[10px] text-rose-950 space-y-2">
+            <p className="text-[11px] font-bold">Customer ledger posting is paused</p>
+            <p className="leading-snug opacity-95">{quotationLedgerHold.detail}</p>
+            <p className="leading-snug">
+              {quotationLedgerHold.kind === 'cleared' && (dueNgn ?? 0) > 0
+                ? 'This quote was manager-cleared while money is still due. A manager must use Release for payments on the Manager dashboard before you can post the balance.'
+                : 'Open the Manager dashboard → Transaction Intel, finish or withdraw any refund, then release the hold if payments should continue.'}
+            </p>
+            <div className="flex flex-wrap gap-x-3 gap-y-1">
+              <Link to="/manager" className="font-semibold text-rose-900 underline underline-offset-2">
+                Manager dashboard
+              </Link>
+              <Link to="/sales?tab=customers" className="font-semibold text-rose-900 underline underline-offset-2">
+                Sales — customers
+              </Link>
+            </div>
           </div>
         ) : null}
 
@@ -1375,7 +1404,12 @@ const ReceiptModal = ({
             ) : null}
             <button
               type="submit"
-              disabled={readOnly || isPosting}
+              disabled={
+                readOnly ||
+                isPosting ||
+                (useLedgerApi && Boolean(quotationLedgerHold)) ||
+                (useLedgerApi && voucherInLockedPeriod)
+              }
               className="bg-white/10 px-4 py-2.5 rounded-lg text-[9px] font-semibold uppercase tracking-wide border border-white/15 hover:bg-white/20 disabled:opacity-40"
             >
               <Save size={14} className="inline mr-1.5" /> {isPosting ? 'Saving…' : 'Save'}
