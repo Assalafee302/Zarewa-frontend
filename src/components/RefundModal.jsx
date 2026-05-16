@@ -876,6 +876,17 @@ const RefundModal = ({
       }
       substitutionBreakdownLineKeyRef.current = substitutionAnchorLineKey;
 
+      const headroom =
+        preview.remainingRefundableNgn != null
+          ? Math.round(Number(preview.remainingRefundableNgn))
+          : null;
+      const includedSum = breakdownRows.reduce(
+        (s, row) => s + (row.include === false ? 0 : roundMoneyLocal(row.amountNgn)),
+        0
+      );
+      const initialAmount =
+        headroom != null && headroom > 0 ? Math.min(includedSum, headroom) : includedSum;
+
       setForm((f) => ({
         ...f,
         customerID: preview.customerID,
@@ -883,6 +894,7 @@ const RefundModal = ({
         alreadyRefundedCategories: preview.alreadyRefundedCategories || [],
         calculationLines: breakdownRows.length > 0 ? breakdownRows : [emptyLine()],
         reasonCategory: deriveReasonCategoriesFromLines(breakdownRows),
+        amountNgn: initialAmount > 0 ? String(initialAmount) : f.amountNgn,
       }));
 
       fetchIntelligence(quoteRef, seq);
@@ -1130,6 +1142,19 @@ const RefundModal = ({
       return;
     }
 
+    const includedSum = sumLines(form.calculationLines);
+    if (
+      previewRemainingNgn != null &&
+      previewRemainingNgn > 0 &&
+      (amountNgn > previewRemainingNgn + AMOUNT_LINE_TOL ||
+        includedSum > previewRemainingNgn + AMOUNT_LINE_TOL)
+    ) {
+      setPreviewError(
+        `Refund cannot exceed remaining refundable on this quotation (₦${previewRemainingNgn.toLocaleString('en-NG')}). Uncheck extra lines or lower amounts.`
+      );
+      return;
+    }
+
     const calculationLines = form.calculationLines
       .filter((l) => l.include !== false)
       .map((l) => {
@@ -1259,6 +1284,12 @@ const RefundModal = ({
     `₦${Math.round(Number(n) || 0).toLocaleString('en-NG', { maximumFractionDigits: 0 })}`;
 
   const lineSum = sumLines(form.calculationLines);
+  const exceedsRefundableHeadroom =
+    mode === 'create' &&
+    previewRemainingNgn != null &&
+    previewRemainingNgn > 0 &&
+    (lineSum > previewRemainingNgn + AMOUNT_LINE_TOL ||
+      (Number(form.amountNgn) > 0 && Number(form.amountNgn) > previewRemainingNgn + AMOUNT_LINE_TOL));
   const sumMismatch =
     mode === 'create' &&
     lineSum > 0 &&
@@ -1679,9 +1710,10 @@ const RefundModal = ({
                         Refund breakdown
                       </h3>
                       <p className="text-[10px] text-slate-500 mt-0.5 max-w-xl leading-snug">
-                        All suggested refund lines from the preview are listed below. Uncheck any line you do not want on
-                        this request. Customer commission is{' '}
-                        <span className="font-semibold text-slate-700">not</span> included until you add it.
+                        Suggested lines are capped to remaining refundable on this quotation only. Uncheck any line you
+                        do not want. Overpayment and unproduced metreage cannot exceed that cap together. Customer
+                        commission is <span className="font-semibold text-slate-700">not</span> included until you add
+                        it.
                       </p>
                     </div>
                   </div>
@@ -1903,19 +1935,35 @@ const RefundModal = ({
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Included lines total</p>
-                        <p className="text-2xl font-black tabular-nums tracking-tighter text-slate-900">
+                        <p
+                          className={`text-2xl font-black tabular-nums tracking-tighter ${
+                            exceedsRefundableHeadroom ? 'text-rose-700' : 'text-slate-900'
+                          }`}
+                        >
                           ₦{lineSum.toLocaleString()}
                         </p>
+                        {exceedsRefundableHeadroom && previewRemainingNgn != null ? (
+                          <p className="text-[10px] font-semibold text-rose-700 mt-1 leading-snug">
+                            Included lines exceed remaining refundable (₦
+                            {previewRemainingNgn.toLocaleString('en-NG')}) on this quotation only. Uncheck or reduce
+                            lines — overpayment and unproduced metreage share the same cap.
+                          </p>
+                        ) : null}
                       </div>
                       {!readOnly ? (
                         <button
                           type="button"
-                          onClick={() =>
+                          onClick={() => {
+                            const sum = sumLines(form.calculationLines);
+                            const cap =
+                              previewRemainingNgn != null && previewRemainingNgn > 0
+                                ? Math.min(sum, previewRemainingNgn)
+                                : sum;
                             setForm((f) => ({
                               ...f,
-                              amountNgn: String(sumLines(f.calculationLines)),
-                            }))
-                          }
+                              amountNgn: String(cap),
+                            }));
+                          }}
                           className="rounded-xl bg-slate-900 px-4 py-2 text-[10px] font-bold uppercase tracking-wide text-white shadow-lg shadow-slate-200 transition-all hover:bg-slate-800 active:scale-95"
                         >
                           Apply total
@@ -1945,8 +1993,13 @@ const RefundModal = ({
                         </p>
                       ) : null}
                       {previewRemainingNgn != null && mode === 'create' ? (
-                        <p className="mt-2 text-[10px] font-semibold text-white/85">
+                        <p
+                          className={`mt-2 text-[10px] font-semibold ${
+                            exceedsRefundableHeadroom ? 'text-amber-200' : 'text-white/85'
+                          }`}
+                        >
                           Remaining refundable on quotation: ₦{previewRemainingNgn.toLocaleString('en-NG')}
+                          {exceedsRefundableHeadroom ? ' — lower lines or requested amount to continue' : ''}
                         </p>
                       ) : null}
                       {mode !== 'create' && recordOutstandingAmount > 0 ? (
@@ -2740,7 +2793,11 @@ const RefundModal = ({
             {!readOnly && (
               <button
                 type="submit"
-                disabled={saving || (mode === 'create' && !form.quotationRef)}
+                disabled={
+                  saving ||
+                  (mode === 'create' && !form.quotationRef) ||
+                  (mode === 'create' && exceedsRefundableHeadroom)
+                }
                 onClick={handleFormSubmit}
                 className="group bg-rose-600 text-white px-8 py-2.5 rounded-xl text-[11px] font-bold uppercase tracking-widest shadow-xl shadow-rose-200 hover:brightness-105 active:scale-95 transition-all flex items-center gap-2 disabled:opacity-50 disabled:grayscale disabled:scale-100"
               >
