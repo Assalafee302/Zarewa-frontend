@@ -1710,10 +1710,10 @@ const RefundModal = ({
                         Refund breakdown
                       </h3>
                       <p className="text-[10px] text-slate-500 mt-0.5 max-w-xl leading-snug">
-                        Suggested lines are capped to remaining refundable on this quotation only. Uncheck any line you
-                        do not want. Overpayment and unproduced metreage cannot exceed that cap together. Customer
-                        commission is <span className="font-semibold text-slate-700">not</span> included until you add
-                        it.
+                        Each applicable refund category can be included, but all lines share one cap: remaining
+                        refundable on this quotation only. Uncheck lines you do not want; totals cannot exceed that
+                        cap. Customer commission is <span className="font-semibold text-slate-700">not</span> included
+                        until you add it.
                       </p>
                     </div>
                   </div>
@@ -1946,7 +1946,7 @@ const RefundModal = ({
                           <p className="text-[10px] font-semibold text-rose-700 mt-1 leading-snug">
                             Included lines exceed remaining refundable (₦
                             {previewRemainingNgn.toLocaleString('en-NG')}) on this quotation only. Uncheck or reduce
-                            lines — overpayment and unproduced metreage share the same cap.
+                            line amounts — all applicable categories share this one cap.
                           </p>
                         ) : null}
                       </div>
