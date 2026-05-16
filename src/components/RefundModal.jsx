@@ -629,16 +629,23 @@ const RefundModal = ({
 
   const refundMoneyBreakdown = useMemo(() => {
     const ref = form.quotationRef;
-    if (!ref) return { booked: 0, overpay: 0, cashIn: 0 };
+    if (!ref) return { booked: 0, overpay: 0, cashIn: 0, quoteTotal: 0 };
     const pick =
       quotationPickMerged.find((q) => q.id === ref) ||
       normalizeQuoteForRefundSelect(quotations.find((x) => String(x.id) === ref));
+    const quoteTotal = moneyContext
+      ? Number(moneyContext.quoteTotalNgn) || 0
+      : Number(pick?.total_ngn ?? pick?.totalNgn) || 0;
+    const cashIn = moneyContext
+      ? Number(moneyContext.quotationCashInNgn) || 0
+      : Number(intelligence.summary?.quotationCashInNgn) ||
+        Number(pick?.paid_ngn ?? 0) + (Number(intelligence.summary?.overpayAdvanceNgn) || 0);
     const booked = moneyContext ? moneyContext.paidOnQuoteNgn : pick?.paid_ngn ?? 0;
-    const overpay = moneyContext
-      ? moneyContext.overpayAdvanceNgn
-      : Number(intelligence.summary?.overpayAdvanceNgn) || 0;
-    const cashIn = moneyContext ? moneyContext.quotationCashInNgn : booked + overpay;
-    return { booked, overpay, cashIn };
+    const overpay =
+      moneyContext?.overpaymentExcessNgn != null
+        ? Number(moneyContext.overpaymentExcessNgn) || 0
+        : Math.max(0, cashIn - quoteTotal);
+    return { booked, overpay, cashIn, quoteTotal };
   }, [form.quotationRef, quotationPickMerged, quotations, moneyContext, intelligence.summary]);
 
   /** Sum of cash from sales receipts linked to this quotation (intelligence payload). */
@@ -840,6 +847,7 @@ const RefundModal = ({
         overpayAdvanceNgn: Number(preview.overpayAdvanceNgn) || 0,
         quotationCashInNgn: Number(preview.quotationCashInNgn) || 0,
         quoteTotalNgn: Number(preview.quoteTotalNgn) || 0,
+        overpaymentExcessNgn: Number(preview.overpaymentExcessNgn) || 0,
       });
 
       setWarnings(preview.warnings || []);
@@ -2213,14 +2221,15 @@ const RefundModal = ({
                       {refundMoneyBreakdown.overpay > 0 ? (
                         <div className="pt-2 border-t border-slate-700/80 space-y-1">
                           <div className="flex flex-wrap items-baseline justify-between gap-2">
-                            <p className="text-[9px] font-bold text-slate-500 uppercase">Customer advance (overage)</p>
+                            <p className="text-[9px] font-bold text-slate-500 uppercase">Paid above quote total</p>
                             <p className="text-sm font-black text-amber-300 tabular-nums">
                               ₦{refundMoneyBreakdown.overpay.toLocaleString()}
                             </p>
                           </div>
                           <p className="text-[9px] text-slate-400 leading-snug">
-                            Total cash recorded ₦{refundMoneyBreakdown.cashIn.toLocaleString()} — overage is not on the
-                            quote; refund via customer advance if needed.
+                            Total received on this quotation ₦{refundMoneyBreakdown.cashIn.toLocaleString()} minus quote
+                            total — refund as <strong className="text-slate-300">Overpayment</strong> (this quotation
+                            only, not other customer balance).
                           </p>
                         </div>
                       ) : null}
@@ -2233,7 +2242,8 @@ const RefundModal = ({
                             ₦{previewRemainingNgn.toLocaleString('en-NG')}
                           </p>
                           <p className="text-[8px] text-slate-500 leading-snug mt-0.5">
-                            After existing blocking refund reservations. Your request cannot exceed this.
+                            Cash received on this quote minus quote total (when paid above total), minus refund
+                            requests already on file. Your request cannot exceed this.
                           </p>
                         </div>
                       ) : null}
