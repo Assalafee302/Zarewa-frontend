@@ -848,6 +848,10 @@ const RefundModal = ({
         quotationCashInNgn: Number(preview.quotationCashInNgn) || 0,
         quoteTotalNgn: Number(preview.quoteTotalNgn) || 0,
         overpaymentExcessNgn: Number(preview.overpaymentExcessNgn) || 0,
+        refundHardCapNgn:
+          preview.refundHardCapNgn != null
+            ? Math.round(Number(preview.refundHardCapNgn))
+            : Math.round(Number(preview.quotationCashInNgn) || 0),
       });
 
       setWarnings(preview.warnings || []);
@@ -876,16 +880,11 @@ const RefundModal = ({
       }
       substitutionBreakdownLineKeyRef.current = substitutionAnchorLineKey;
 
-      const headroom =
-        preview.remainingRefundableNgn != null
-          ? Math.round(Number(preview.remainingRefundableNgn))
-          : null;
       const includedSum = breakdownRows.reduce(
         (s, row) => s + (row.include === false ? 0 : roundMoneyLocal(row.amountNgn)),
         0
       );
-      const initialAmount =
-        headroom != null && headroom > 0 ? Math.min(includedSum, headroom) : includedSum;
+      const initialAmount = includedSum > 0 ? includedSum : 0;
 
       setForm((f) => ({
         ...f,
@@ -1143,14 +1142,23 @@ const RefundModal = ({
     }
 
     const includedSum = sumLines(form.calculationLines);
-    if (
-      previewRemainingNgn != null &&
-      previewRemainingNgn > 0 &&
-      (amountNgn > previewRemainingNgn + AMOUNT_LINE_TOL ||
-        includedSum > previewRemainingNgn + AMOUNT_LINE_TOL)
-    ) {
+    const hardCap =
+      moneyContext?.refundHardCapNgn != null
+        ? Math.round(Number(moneyContext.refundHardCapNgn))
+        : previewRemainingNgn;
+    if (hardCap != null && hardCap > 0 && amountNgn > hardCap + AMOUNT_LINE_TOL) {
       setPreviewError(
-        `Refund cannot exceed remaining refundable on this quotation (₦${previewRemainingNgn.toLocaleString('en-NG')}). Uncheck extra lines or lower amounts.`
+        `Refund cannot exceed cash received on this quotation after prior refunds (max ₦${hardCap.toLocaleString('en-NG')}).`
+      );
+      return;
+    }
+    const overpayMax = moneyContext?.overpaymentExcessNgn ?? 0;
+    const overpayLine = (form.calculationLines || []).find(
+      (l) => l.include !== false && String(l.category || '').trim() === 'Overpayment'
+    );
+    if (overpayLine && Number(overpayLine.amountNgn) > overpayMax + AMOUNT_LINE_TOL) {
+      setPreviewError(
+        `Overpayment refund cannot exceed ₦${overpayMax.toLocaleString('en-NG')} (payment minus quote total on this quotation).`
       );
       return;
     }
@@ -1284,12 +1292,24 @@ const RefundModal = ({
     `₦${Math.round(Number(n) || 0).toLocaleString('en-NG', { maximumFractionDigits: 0 })}`;
 
   const lineSum = sumLines(form.calculationLines);
+  const refundHardCapNgn =
+    moneyContext?.refundHardCapNgn != null
+      ? Math.round(Number(moneyContext.refundHardCapNgn))
+      : null;
+  const overpayMaxNgn = moneyContext?.overpaymentExcessNgn ?? 0;
+  const overpayLineAmountNgn = (form.calculationLines || []).reduce((sum, row) => {
+    if (row.include === false) return sum;
+    if (String(row.category || '').trim() !== 'Overpayment') return sum;
+    return sum + roundMoneyLocal(row.amountNgn);
+  }, 0);
+  const exceedsOverpayLine = overpayLineAmountNgn > overpayMaxNgn + AMOUNT_LINE_TOL;
+  const exceedsHardCap =
+    refundHardCapNgn != null &&
+    refundHardCapNgn > 0 &&
+    (lineSum > refundHardCapNgn + AMOUNT_LINE_TOL ||
+      (Number(form.amountNgn) > 0 && Number(form.amountNgn) > refundHardCapNgn + AMOUNT_LINE_TOL));
   const exceedsRefundableHeadroom =
-    mode === 'create' &&
-    previewRemainingNgn != null &&
-    previewRemainingNgn > 0 &&
-    (lineSum > previewRemainingNgn + AMOUNT_LINE_TOL ||
-      (Number(form.amountNgn) > 0 && Number(form.amountNgn) > previewRemainingNgn + AMOUNT_LINE_TOL));
+    mode === 'create' && (exceedsHardCap || exceedsOverpayLine);
   const sumMismatch =
     mode === 'create' &&
     lineSum > 0 &&
@@ -1710,10 +1730,10 @@ const RefundModal = ({
                         Refund breakdown
                       </h3>
                       <p className="text-[10px] text-slate-500 mt-0.5 max-w-xl leading-snug">
-                        Each applicable refund category can be included, but all lines share one cap: remaining
-                        refundable on this quotation only. Uncheck lines you do not want; totals cannot exceed that
-                        cap. Customer commission is <span className="font-semibold text-slate-700">not</span> included
-                        until you add it.
+                        Overpayment is payment above the quote total; other categories (unproduced metreage,
+                        substitution, services, etc.) are separate reasons with their own amounts. Combined refund
+                        cannot exceed cash received on this quotation. Customer commission is{' '}
+                        <span className="font-semibold text-slate-700">not</span> included until you add it.
                       </p>
                     </div>
                   </div>
@@ -1942,11 +1962,11 @@ const RefundModal = ({
                         >
                           ₦{lineSum.toLocaleString()}
                         </p>
-                        {exceedsRefundableHeadroom && previewRemainingNgn != null ? (
+                        {exceedsRefundableHeadroom ? (
                           <p className="text-[10px] font-semibold text-rose-700 mt-1 leading-snug">
-                            Included lines exceed remaining refundable (₦
-                            {previewRemainingNgn.toLocaleString('en-NG')}) on this quotation only. Uncheck or reduce
-                            line amounts — all applicable categories share this one cap.
+                            {exceedsOverpayLine
+                              ? `Overpayment line cannot exceed ₦${overpayMaxNgn.toLocaleString('en-NG')} (payment minus quote total on this quotation).`
+                              : `Included lines exceed cash received on this quotation (max ₦${(refundHardCapNgn ?? 0).toLocaleString('en-NG')} after prior refunds).`}
                           </p>
                         ) : null}
                       </div>
@@ -1955,13 +1975,9 @@ const RefundModal = ({
                           type="button"
                           onClick={() => {
                             const sum = sumLines(form.calculationLines);
-                            const cap =
-                              previewRemainingNgn != null && previewRemainingNgn > 0
-                                ? Math.min(sum, previewRemainingNgn)
-                                : sum;
                             setForm((f) => ({
                               ...f,
-                              amountNgn: String(cap),
+                              amountNgn: String(sum > 0 ? sum : 0),
                             }));
                           }}
                           className="rounded-xl bg-slate-900 px-4 py-2 text-[10px] font-bold uppercase tracking-wide text-white shadow-lg shadow-slate-200 transition-all hover:bg-slate-800 active:scale-95"
