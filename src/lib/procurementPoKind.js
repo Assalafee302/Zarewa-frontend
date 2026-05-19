@@ -3,19 +3,41 @@
  * Mirrors server/procurementPoKind.js for bootstrap payloads that omit procurementKind.
  */
 
+import {
+  deriveProcurementKindFromLineTypes,
+  deriveProcurementKindFromPoLines,
+  inferLineTypeFromProduct,
+  poLinePriceSuffix,
+} from './poLineTypes.js';
+
+export function poLineKindForRow(line, poKind = 'coil') {
+  const lt = String(line?.lineType || '').trim();
+  if (lt === 'stone_meter' || lt === 'stone_flatsheet') return 'stone';
+  if (lt === 'accessory') return 'accessory';
+  if (lt === 'coil_meter' || lt === 'coil_kg') return 'coil';
+  if (poKind === 'mixed') {
+    const inferred = inferLineTypeFromProduct(line?.productID, null, line);
+    if (inferred === 'stone_meter' || inferred === 'stone_flatsheet') return 'stone';
+    if (inferred === 'accessory') return 'accessory';
+    return 'coil';
+  }
+  return poKind;
+}
+
 export function deriveProcurementKindFromProductIds(productIds) {
   const ids = (productIds || []).map((x) => String(x ?? '').trim()).filter(Boolean);
   if (ids.length === 0) return 'coil';
-  if (ids.every((id) => /^STONE-/i.test(id))) return 'stone';
-  if (ids.every((id) => /^ACC-/i.test(id))) return 'accessory';
-  return 'coil';
+  const lineTypes = ids.map((id) => inferLineTypeFromProduct(id));
+  return deriveProcurementKindFromLineTypes(lineTypes);
 }
 
 /** @param {{ procurementKind?: string; lines?: { productID?: string }[] }} po */
 export function procurementKindFromPo(po) {
   const k = String(po?.procurementKind || '').trim().toLowerCase();
-  if (k === 'stone' || k === 'accessory' || k === 'coil') return k;
-  const pids = (po?.lines || []).map((l) => l.productID).filter(Boolean);
+  if (k === 'stone' || k === 'accessory' || k === 'coil' || k === 'mixed') return k;
+  const lines = po?.lines || [];
+  if (lines.length) return deriveProcurementKindFromPoLines(lines);
+  const pids = lines.map((l) => l.productID).filter(Boolean);
   return deriveProcurementKindFromProductIds(pids);
 }
 
@@ -25,24 +47,35 @@ export function procurementKindFromPo(po) {
  * @param {'coil' | 'stone' | 'accessory'} kind
  */
 export function poLineBenchmarkPriceNgn(line, kind) {
+  const rowKind = kind === 'mixed' ? poLineKindForRow(line, kind) : kind;
   const up = Math.round(Number(line?.unitPriceNgn) || 0);
   const upkg = Math.round(Number(line?.unitPricePerKgNgn) || 0);
-  if (kind === 'stone') return up > 0 ? up : upkg;
-  if (kind === 'accessory') return up > 0 ? up : upkg;
+  if (rowKind === 'stone') return up > 0 ? up : upkg;
+  if (rowKind === 'accessory') return up > 0 ? up : upkg;
   return upkg > 0 ? upkg : up;
 }
 
-/** @param {'coil' | 'stone' | 'accessory'} kind */
+/** @param {'coil' | 'stone' | 'accessory' | 'mixed'} kind */
 export function poLineQtyLabel(line, kind) {
   const q = Number(line?.qtyOrdered) || 0;
+  const lt = String(line?.lineType || '').trim();
+  if (lt === 'stone_meter' || (kind === 'stone' && lt !== 'stone_flatsheet')) return `${q.toLocaleString()} m`;
+  if (lt === 'stone_flatsheet') return `${q.toLocaleString()} sheets`;
+  if (lt === 'accessory' || kind === 'accessory') return `${q.toLocaleString()} units`;
+  if (lt === 'coil_meter') return `${q.toLocaleString()} m`;
   if (kind === 'stone') return `${q.toLocaleString()} m`;
   if (kind === 'accessory') return `${q.toLocaleString()} units`;
   return `${q.toLocaleString()} kg`;
 }
 
-/** @param {'coil' | 'stone' | 'accessory'} kind */
-export function poLinePriceSuffix(kind) {
+/** @param {'coil' | 'stone' | 'accessory' | 'mixed'} kind */
+export function poLinePriceSuffixForRow(line, kind) {
+  const lt = String(line?.lineType || '').trim();
+  if (lt) return poLinePriceSuffix(lt);
   if (kind === 'stone') return '/m';
   if (kind === 'accessory') return '/unit';
   return '/kg';
 }
+
+/** Header-level PO kind suffix (legacy callers). */
+export { poLinePriceSuffix };

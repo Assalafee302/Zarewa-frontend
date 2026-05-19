@@ -34,7 +34,8 @@ import { AppTablePager, AppTableWrap } from '../components/ui/AppDataTable';
 import { productionJobNeedsManagerReviewAttention } from '../lib/productionReview';
 import { pickProductionJobForCuttingList } from '../lib/productionJobPick';
 import { productionQueueLineStatusPresentation } from '../lib/productionQueueLineStatus';
-import { procurementKindFromPo } from '../lib/procurementPoKind';
+import { procurementKindFromPo, poLineQtyLabel } from '../lib/procurementPoKind';
+import { grnKindForPoLine, isCoilMeterBasisLine } from '../lib/poLineTypes.js';
 import {
   liveJobMaterialPresentation,
   normQuoteKeyForLiveJob,
@@ -1083,12 +1084,8 @@ const Operations = () => {
   }, [location.state, location.pathname, navigate, canAdjustInventory]);
 
   const transitOrdersAll = useMemo(
-    () =>
-      purchaseOrders.filter(
-        (p) =>
-          PO_RECEIVABLE_STATUSES.includes(p.status) && procurementKindFromPo(p) === stockReceiveKind
-      ),
-    [purchaseOrders, stockReceiveKind]
+    () => purchaseOrders.filter((p) => PO_RECEIVABLE_STATUSES.includes(p.status)),
+    [purchaseOrders]
   );
 
   const transitSearchNorm = transitSearch.trim().toLowerCase();
@@ -1205,37 +1202,34 @@ const Operations = () => {
     }
 
     const yy = String(new Date().getFullYear()).slice(-2);
-    const poKind = procurementKindFromPo(po);
-
     setGrnLines((prev) => {
       const openLines = po.lines.filter((l) => Number(l.qtyOrdered) > Number(l.qtyReceived));
       const prevByKey = new Map(prev.map((r) => [r.lineKey, r]));
       const numsInForm = prev.map((r) => r.coilNo).filter(Boolean);
       let nextSeq = maxClSequenceForYear(coilLots, yy, numsInForm);
 
-      if (poKind === 'stone' || poKind === 'accessory') {
-        return openLines.map((l) => {
-          const remaining = Number(l.qtyOrdered) - Number(l.qtyReceived);
-          const old = prevByKey.get(l.lineKey);
-          return {
-            lineKey: l.lineKey,
-            productID: l.productID,
-            productName: l.productName,
-            color: l.color,
-            gauge: l.gauge,
-            remaining,
-            qtyReceived: old?.qtyReceived ?? '',
-            coilNo: '',
-            grnKind: poKind,
-          };
-        });
-      }
-
       return openLines.map((l) => {
         const remaining = Number(l.qtyOrdered) - Number(l.qtyReceived);
         const old = prevByKey.get(l.lineKey);
-        const meterBasis = isMeterBasisCoilLine(l);
-        if (old) {
+        const grnKind = grnKindForPoLine(l);
+        const meterBasis = grnKind === 'coil' && isCoilMeterBasisLine(l);
+        if (grnKind === 'coil') {
+          if (old) {
+            return {
+              lineKey: l.lineKey,
+              productID: l.productID,
+              productName: l.productName,
+              color: l.color,
+              gauge: l.gauge,
+              remaining,
+              qtyReceived: old.qtyReceived,
+              coilNo: old.coilNo,
+              weightKg: old.weightKg ?? '',
+              meterBasis,
+              grnKind,
+            };
+          }
+          nextSeq += 1;
           return {
             lineKey: l.lineKey,
             productID: l.productID,
@@ -1243,14 +1237,13 @@ const Operations = () => {
             color: l.color,
             gauge: l.gauge,
             remaining,
-            qtyReceived: old.qtyReceived,
-            coilNo: old.coilNo,
-            weightKg: old.weightKg ?? '',
+            qtyReceived: '',
+            coilNo: `CL-${yy}-${String(nextSeq).padStart(4, '0')}`,
+            weightKg: '',
             meterBasis,
-            grnKind: 'coil',
+            grnKind,
           };
         }
-        nextSeq += 1;
         return {
           lineKey: l.lineKey,
           productID: l.productID,
@@ -1258,11 +1251,11 @@ const Operations = () => {
           color: l.color,
           gauge: l.gauge,
           remaining,
-          qtyReceived: '',
-          coilNo: `CL-${yy}-${String(nextSeq).padStart(4, '0')}`,
+          qtyReceived: old?.qtyReceived ?? '',
+          coilNo: '',
           weightKg: '',
-          meterBasis,
-          grnKind: 'coil',
+          meterBasis: false,
+          grnKind,
         };
       });
     });
@@ -1585,7 +1578,7 @@ const Operations = () => {
                 <p className="text-[10px] font-medium text-slate-400">
                   {transitSearch.trim()
                     ? 'No purchase orders match your search.'
-                    : `No ${stockReceiveKind === 'coil' ? 'coil' : stockReceiveKind === 'stone' ? 'stone-coated' : 'accessory'} orders in receivable status — switch category or check Procurement.`}
+                    : 'No purchase orders in receivable status — check Procurement.'}
                 </p>
               ) : (
                 <>
@@ -1635,8 +1628,17 @@ const Operations = () => {
                       (sum, l) => sum + Math.max(0, Number(l.qtyOrdered) - Number(l.qtyReceived)),
                       0
                     );
+                    const openLineCount = (p.lines || []).filter(
+                      (l) => Number(l.qtyOrdered) > Number(l.qtyReceived)
+                    ).length;
                     const openLabel =
-                      pk === 'stone' ? `${openQty.toLocaleString()} m open` : pk === 'accessory' ? `${openQty.toLocaleString()} units open` : `${openQty.toLocaleString()} kg open`;
+                      pk === 'mixed'
+                        ? `${openLineCount} open line(s)`
+                        : pk === 'stone'
+                          ? `${openQty.toLocaleString()} m open`
+                          : pk === 'accessory'
+                            ? `${openQty.toLocaleString()} units open`
+                            : `${openQty.toLocaleString()} kg open`;
                     const meta2 = [
                       p.status,
                       p.transportAgentName || null,
@@ -1719,7 +1721,15 @@ const Operations = () => {
                           ) : (
                             grnLines.map((row, idx) => {
                               const maxU =
-                                row.grnKind === 'stone' ? 'm' : row.grnKind === 'accessory' ? 'units' : 'kg';
+                                row.grnKind === 'stone'
+                                  ? 'm'
+                                  : row.grnKind === 'stone_flatsheet'
+                                    ? 'sheets'
+                                    : row.grnKind === 'accessory'
+                                      ? 'units'
+                                      : row.meterBasis
+                                        ? 'm'
+                                        : 'kg';
                               const gaugeS = String(row.gauge ?? '').trim() || '—';
                               const colourS = String(row.color ?? '').trim() || '—';
                               return (
@@ -1737,7 +1747,13 @@ const Operations = () => {
                                   >
                                     Open{' '}
                                     {row.remaining.toLocaleString()}
-                                    {maxU === 'm' ? ' m' : maxU === 'units' ? ' u' : ' kg'}
+                                    {maxU === 'm'
+                                      ? ' m'
+                                      : maxU === 'units'
+                                        ? ' u'
+                                        : maxU === 'sheets'
+                                          ? ' sheets'
+                                          : ' kg'}
                                   </span>
                                 </div>
                                 <p className="text-[10px] font-bold text-slate-800 leading-tight">
@@ -1745,10 +1761,16 @@ const Operations = () => {
                                   <span className="text-slate-400 font-semibold"> · </span>
                                   <span className="font-black text-slate-950">{colourS}</span>
                                 </p>
-                                {row.grnKind === 'stone' || row.grnKind === 'accessory' ? (
+                                {row.grnKind === 'stone' ||
+                                row.grnKind === 'accessory' ||
+                                row.grnKind === 'stone_flatsheet' ? (
                                   <div>
                                     <label className="sr-only">
-                                      {row.grnKind === 'stone' ? 'Metres received' : 'Units received'}
+                                      {row.grnKind === 'stone'
+                                        ? 'Metres received'
+                                        : row.grnKind === 'stone_flatsheet'
+                                          ? 'Sheets received'
+                                          : 'Units received'}
                                     </label>
                                     <input
                                       type="number"
@@ -1761,9 +1783,20 @@ const Operations = () => {
                                           prev.map((r, i) => (i === idx ? { ...r, qtyReceived: v } : r))
                                         );
                                       }}
-                                      placeholder={row.grnKind === 'stone' ? 'Metres' : 'Units'}
+                                      placeholder={
+                                        row.grnKind === 'stone'
+                                          ? 'Metres'
+                                          : row.grnKind === 'stone_flatsheet'
+                                            ? 'Sheets'
+                                            : 'Units'
+                                      }
                                       className="w-full rounded border border-slate-200 py-1.5 px-2 text-xs font-black text-[#134e4a]"
                                     />
+                                    {row.grnKind === 'stone_flatsheet' ? (
+                                      <p className="mt-1 text-[9px] font-semibold text-slate-600">
+                                        Posted to stock as m² (sheets × length × 1.2 m width).
+                                      </p>
+                                    ) : null}
                                   </div>
                                 ) : (
                                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">

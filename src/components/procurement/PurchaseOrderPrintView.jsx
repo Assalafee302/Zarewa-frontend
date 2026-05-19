@@ -2,8 +2,9 @@ import { formatNgn } from '../../Data/mockData';
 import {
   procurementKindFromPo,
   poLineBenchmarkPriceNgn,
-  poLinePriceSuffix,
+  poLinePriceSuffixForRow,
   poLineQtyLabel,
+  poLineKindForRow,
 } from '../../lib/procurementPoKind';
 import { purchaseOrderOrderedValueNgn } from '../../lib/liveAnalytics';
 import { StandardReportPrintShell } from '../reports/StandardReportPrintShell';
@@ -11,12 +12,14 @@ import { StandardReportPrintShell } from '../reports/StandardReportPrintShell';
 function kindTitle(kind) {
   if (kind === 'stone') return 'Stone-coated';
   if (kind === 'accessory') return 'Accessories';
+  if (kind === 'mixed') return 'Mixed';
   return 'Coil';
 }
 
 function lineLineAmountNgn(line, kind) {
   const qty = Number(line?.qtyOrdered) || 0;
-  const unit = poLineBenchmarkPriceNgn(line, kind);
+  const rowKind = poLineKindForRow(line, kind);
+  const unit = poLineBenchmarkPriceNgn(line, rowKind);
   return Math.round(qty * unit);
 }
 
@@ -117,8 +120,8 @@ export default function PurchaseOrderPrintView({ po, printedAtIso = '' }) {
                 </td>
                 <td className={`${TD} tabular-nums`}>{poLineQtyLabel(line, kind)}</td>
                 <td className={`${TD} text-right tabular-nums`}>
-                  {formatNgn(poLineBenchmarkPriceNgn(line, kind))}
-                  {poLinePriceSuffix(kind)}
+                  {formatNgn(poLineBenchmarkPriceNgn(line, poLineKindForRow(line, kind)))}
+                  {poLinePriceSuffixForRow(line, kind)}
                 </td>
                 <td className={`${TD} text-right font-semibold tabular-nums text-[#134e4a]`}>
                   {formatNgn(lineLineAmountNgn(line, kind))}

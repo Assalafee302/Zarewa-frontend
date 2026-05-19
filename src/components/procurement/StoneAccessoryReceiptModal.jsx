@@ -149,10 +149,14 @@ export default function StoneAccessoryReceiptModal({ isOpen, onClose, masterData
     <ModalFrame
       isOpen={isOpen}
       onClose={onClose}
-      title="Stone & accessory receipts"
-      description="Post metre stock for stone-coated tiles or receive accessories without a purchase order."
+      title="Emergency stone & accessory receipt"
+      description="Direct receipt without a purchase order — for corrections only. Prefer a purchase order for normal buying."
     >
       <div className="w-full max-w-lg rounded-[28px] border border-slate-200 bg-white shadow-xl overflow-hidden">
+        <div className="mx-5 mt-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[10px] font-semibold text-amber-950 leading-snug">
+          Prefer a purchase order in Procurement, then receive in Operations. Use this form only when stock must be
+          posted without a PO (admin / MD).
+        </div>
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 bg-slate-50/80">
           <h2 className="text-sm font-bold text-[#134e4a]">Non-coil receipts</h2>
           <button

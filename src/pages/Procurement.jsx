@@ -24,6 +24,8 @@ import {
 
 import { MainPanel, PageHeader, PageShell, PageTabs, ModalFrame } from '../components/layout';
 import { AiAskButton } from '../components/AiAskButton';
+import PurchaseOrderModal from '../components/procurement/PurchaseOrderModal';
+import { purchaseOrderToUnifiedDraft } from '../lib/purchaseOrderDraft';
 import CoilPurchaseOrderModal from '../components/procurement/CoilPurchaseOrderModal';
 import StonePurchaseOrderModal from '../components/procurement/StonePurchaseOrderModal';
 import AccessoryPurchaseOrderModal from '../components/procurement/AccessoryPurchaseOrderModal';
@@ -180,6 +182,7 @@ function purchaseOrderToAccessoryModalDraft(po) {
 }
 
 function poLineSummaryLabel(kind) {
+  if (kind === 'mixed') return 'mixed line(s)';
   if (kind === 'stone') return 'stone line(s)';
   if (kind === 'accessory') return 'accessory line(s)';
   return 'coil line(s)';
@@ -380,6 +383,8 @@ const Procurement = () => {
    
 
   const [showMaterialPricingWorkbook, setShowMaterialPricingWorkbook] = useState(false);
+  const [showUnifiedPoModal, setShowUnifiedPoModal] = useState(false);
+  const [unifiedPoEditDraft, setUnifiedPoEditDraft] = useState(null);
   const [showCoilPoModal, setShowCoilPoModal] = useState(false);
   const [coilPoEditDraft, setCoilPoEditDraft] = useState(null);
   const [showStonePoModal, setShowStonePoModal] = useState(false);
@@ -654,8 +659,8 @@ const Procurement = () => {
 
   const openPrimaryAction = () => {
     if (activeTab === 'purchases') {
-      setCoilPoEditDraft(null);
-      setShowCoilPoModal(true);
+      setUnifiedPoEditDraft(null);
+      setShowUnifiedPoModal(true);
     } else if (activeTab === 'suppliers') openSupplierModal();
   };
 
@@ -663,6 +668,9 @@ const Procurement = () => {
     activeTab === 'purchases' ? null : activeTab === 'suppliers' ? 'New supplier' : null;
 
   const canManagePo = Boolean(ws?.hasPermission?.('purchase_orders.manage'));
+  const canDirectStoneAccessoryReceipt = ['admin', 'md'].includes(
+    String(ws?.session?.user?.roleKey || '').toLowerCase()
+  );
 
   const poTransportAwaitingTreasuryRows = useMemo(
     () =>
@@ -1000,6 +1008,10 @@ const Procurement = () => {
     () => filteredPOs.filter((p) => procurementKindFromPo(p) === 'accessory'),
     [filteredPOs]
   );
+  const mixedPOsFiltered = useMemo(
+    () => filteredPOs.filter((p) => procurementKindFromPo(p) === 'mixed'),
+    [filteredPOs]
+  );
 
   const coilPOsSorted = useMemo(
     () => sortPurchaseOrdersList(coilPOsFiltered, poListSort.field, poListSort.dir),
@@ -1012,6 +1024,10 @@ const Procurement = () => {
   const accessoryPOsSorted = useMemo(
     () => sortPurchaseOrdersList(accessoryPOsFiltered, poListSort.field, poListSort.dir),
     [accessoryPOsFiltered, poListSort]
+  );
+  const mixedPOsSorted = useMemo(
+    () => sortPurchaseOrdersList(mixedPOsFiltered, poListSort.field, poListSort.dir),
+    [mixedPOsFiltered, poListSort]
   );
 
   const coilPoPurchasesPage = useAppTablePaging(
@@ -1030,6 +1046,13 @@ const Procurement = () => {
   );
   const accessoryPoPurchasesPage = useAppTablePaging(
     accessoryPOsSorted,
+    PROCUREMENT_PURCHASES_COLUMN_PAGE_SIZE,
+    poListSort.field,
+    poListSort.dir,
+    searchQuery
+  );
+  const mixedPoPurchasesPage = useAppTablePaging(
+    mixedPOsSorted,
     PROCUREMENT_PURCHASES_COLUMN_PAGE_SIZE,
     poListSort.field,
     poListSort.dir,
@@ -1064,17 +1087,33 @@ const Procurement = () => {
 
   const openPoEditor = (p) => {
     setProcurementPoForApprovalUi(p.poID);
-    const kind = procurementKindFromPo(p);
-    if (kind === 'stone') {
-      setStonePoEditDraft(purchaseOrderToStoneModalDraft(p, invProducts));
-      setShowStonePoModal(true);
-    } else if (kind === 'accessory') {
-      setAccessoryPoEditDraft(purchaseOrderToAccessoryModalDraft(p));
-      setShowAccessoryPoModal(true);
-    } else {
-      setCoilPoEditDraft(purchaseOrderToCoilModalDraft(p));
-      setShowCoilPoModal(true);
+    setUnifiedPoEditDraft(purchaseOrderToUnifiedDraft(p, invProducts));
+    setShowUnifiedPoModal(true);
+  };
+
+  const submitUnifiedPo = async (payload) => {
+    if (payload.poID) {
+      const { poID, ...rest } = payload;
+      const res = await updatePurchaseOrder({
+        poID,
+        ...rest,
+        editApprovalId: procurementPoEditApprovalId || undefined,
+      });
+      if (!res.ok) {
+        showToast(res.error || 'Could not update PO', { variant: 'error' });
+        return false;
+      }
+      setProcurementPoEditApprovalId('');
+      showToast(`${poID} updated.`);
+      return true;
     }
+    const res = await createPurchaseOrder({ ...payload, status: 'Pending' });
+    if (!res.ok) {
+      showToast(res.error || 'Could not save PO', { variant: 'error' });
+      return false;
+    }
+    showToast(`${res.poID} created — approve, then assign transport.`);
+    return true;
   };
 
   const apPayTotalNgn = useMemo(
@@ -1204,6 +1243,7 @@ const Procurement = () => {
 
   const isAnyModalOpen =
     showMaterialPricingWorkbook ||
+    showUnifiedPoModal ||
     showCoilPoModal ||
     showStonePoModal ||
     showAccessoryPoModal ||
@@ -1281,41 +1321,21 @@ const Procurement = () => {
                   <div className="flex w-max gap-1 pb-1 sm:w-auto sm:flex-wrap sm:justify-end sm:pb-0">
                     <button
                       type="button"
-                      onClick={() => {
-                        setCoilPoEditDraft(null);
-                        setShowCoilPoModal(true);
-                      }}
+                      onClick={openPrimaryAction}
                       className="inline-flex items-center justify-center gap-1 rounded-lg bg-[#134e4a] text-white px-2.5 py-1.5 text-[9px] font-semibold uppercase tracking-wider shadow-sm hover:brightness-105"
                     >
-                      <Plus size={12} strokeWidth={2} /> Coil PO
+                      <Plus size={12} strokeWidth={2} /> New purchase order
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setStonePoEditDraft(null);
-                        setShowStonePoModal(true);
-                      }}
-                      className="inline-flex items-center justify-center gap-1 rounded-lg border border-teal-300 bg-teal-50 text-[#134e4a] px-2.5 py-1.5 text-[9px] font-semibold uppercase tracking-wider hover:bg-teal-100"
-                    >
-                      <Plus size={12} strokeWidth={2} /> Stone PO
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setAccessoryPoEditDraft(null);
-                        setShowAccessoryPoModal(true);
-                      }}
-                      className="inline-flex items-center justify-center gap-1 rounded-lg border border-slate-300 bg-white text-[#134e4a] px-2.5 py-1.5 text-[9px] font-semibold uppercase tracking-wider hover:bg-slate-50"
-                    >
-                      <Plus size={12} strokeWidth={2} /> Accessory PO
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setShowStoneAccessoryReceiptModal(true)}
-                      className="inline-flex items-center justify-center gap-1 rounded-lg border border-teal-200 bg-white text-[#134e4a] px-2.5 py-1.5 text-[9px] font-semibold uppercase tracking-wider hover:bg-teal-50/80"
-                    >
-                      Stone / accessory receipt
-                    </button>
+                    {canDirectStoneAccessoryReceipt ? (
+                      <button
+                        type="button"
+                        onClick={() => setShowStoneAccessoryReceiptModal(true)}
+                        className="inline-flex items-center justify-center gap-1 rounded-lg border border-amber-200 bg-amber-50/90 text-amber-950 px-2.5 py-1.5 text-[9px] font-semibold uppercase tracking-wider hover:bg-amber-100/80"
+                        title="Emergency direct receipt without PO — prefer a purchase order for normal buying"
+                      >
+                        Emergency receipt
+                      </button>
+                    ) : null}
                   </div>
                 </div>
               ) : null}
@@ -1681,7 +1701,7 @@ const Procurement = () => {
                     Click a PO row to open the side panel — approve, reject, transport, transport fee, and edit
                     actions are there (fewer buttons on each row keeps the list lighter).
                   </p>
-                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 min-w-0">
+                  <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 gap-4 min-w-0">
                     {[
                       {
                         title: 'Coil (kg)',
@@ -1700,6 +1720,12 @@ const Procurement = () => {
                         list: accessoryPOsSorted,
                         page: accessoryPoPurchasesPage,
                         empty: 'No accessory POs.',
+                      },
+                      {
+                        title: 'Mixed',
+                        list: mixedPOsSorted,
+                        page: mixedPoPurchasesPage,
+                        empty: 'No mixed purchase orders.',
                       },
                     ].map((col) => (
                       <div key={col.title} className="min-w-0 flex flex-col">
@@ -2052,8 +2078,36 @@ const Procurement = () => {
         initialMaterialKey="alu"
       />
 
+      <PurchaseOrderModal
+        isOpen={showUnifiedPoModal}
+        editDraft={unifiedPoEditDraft}
+        onClose={() => {
+          setShowUnifiedPoModal(false);
+          setUnifiedPoEditDraft(null);
+        }}
+        suppliers={suppliers}
+        masterData={ws?.snapshot?.masterData ?? null}
+        products={invProducts}
+        editApprovalSlot={
+          unifiedPoEditDraft?.poID ? (
+            <EditSecondApprovalInline
+              entityKind="purchase_order"
+              entityId={unifiedPoEditDraft.poID}
+              value={procurementPoEditApprovalId}
+              onChange={setProcurementPoEditApprovalId}
+            />
+          ) : null
+        }
+        onQuickAddSupplier={() => {
+          setShowUnifiedPoModal(false);
+          setUnifiedPoEditDraft(null);
+          openSupplierModal();
+        }}
+        onSubmit={submitUnifiedPo}
+      />
+
       <CoilPurchaseOrderModal
-        isOpen={showCoilPoModal}
+        isOpen={false && showCoilPoModal}
         editDraft={coilPoEditDraft}
         onClose={() => {
           setShowCoilPoModal(false);
@@ -2103,7 +2157,7 @@ const Procurement = () => {
       />
 
       <StonePurchaseOrderModal
-        isOpen={showStonePoModal}
+        isOpen={false && showStonePoModal}
         editDraft={stonePoEditDraft}
         onClose={() => {
           setShowStonePoModal(false);
@@ -2154,7 +2208,7 @@ const Procurement = () => {
       />
 
       <AccessoryPurchaseOrderModal
-        isOpen={showAccessoryPoModal}
+        isOpen={false && showAccessoryPoModal}
         editDraft={accessoryPoEditDraft}
         onClose={() => {
           setShowAccessoryPoModal(false);

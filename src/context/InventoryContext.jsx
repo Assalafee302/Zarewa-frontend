@@ -40,6 +40,7 @@ function normalizePoLine(l, idx, catalog = []) {
   return {
     ...l,
     lineKey: l.lineKey || `L${idx}-${l.productID}`,
+    lineType: l.lineType || l.line_type || '',
     productName: l.productName || p?.name || l.productID,
     qtyOrdered: kg,
     unitPricePerKgNgn: hasExplicitPerKg ? perKg : legacyUnit,
