@@ -145,12 +145,6 @@ const ManagerDashboard = () => {
     () => (Array.isArray(ws?.snapshot?.unifiedWorkItems) ? ws.snapshot.unifiedWorkItems : []),
     [ws?.snapshot?.unifiedWorkItems]
   );
-  const branchNameById = useMemo(() => {
-    const branches = ws?.snapshot?.workspaceBranches ?? ws?.session?.branches ?? [];
-    return Object.fromEntries(
-      branches.map((b) => [String(b.id || '').trim(), String(b.name || b.code || b.id || '').trim()])
-    );
-  }, [ws?.snapshot?.workspaceBranches, ws?.session?.branches]);
   const unifiedBySource = useMemo(() => {
     const out = new Map();
     for (const item of unifiedWorkItems) {
@@ -846,28 +840,23 @@ const ManagerDashboard = () => {
     setSelectedIntel(null);
   };
 
+  const inboxRowBase =
+    'group w-full text-left flex items-center gap-2 sm:gap-3 px-3 py-2.5 border-b border-slate-100 last:border-0 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset';
+
   const renderInboxRow = (row) => {
     if (activeTab === 'edit_approvals') {
       const e = row;
-      const workItem = resolveManagerWorkItem('edit_approvals', e);
       return (
         <div
           key={e.id}
-          className="flex flex-wrap items-start justify-between gap-2 p-4 border-b border-slate-100 last:border-0"
+          className={`${inboxRowBase} hover:bg-slate-50/80`}
         >
-          <div className="min-w-0">
-            <p className="text-[10px] font-mono font-bold text-slate-700">{e.id}</p>
-            <p className="text-[11px] font-semibold text-slate-800 mt-1">
-              {e.entityKind} · <span className="font-mono">{e.entityId}</span>
-            </p>
-            <p className="text-[9px] text-slate-500 mt-1">
-              Requested by{' '}
-              {formatPersonName(e.requestedByDisplay || e.requestedByUserId || '—')}
-            </p>
-            {workItem?.referenceNo ? (
-              <p className="text-[9px] text-slate-400 mt-1 font-mono">Record {workItem.referenceNo}</p>
-            ) : null}
-          </div>
+          <span className="shrink-0 text-[10px] font-mono font-bold text-slate-700">{e.id}</span>
+          <span className="min-w-0 flex-1 truncate text-[11px] font-semibold text-slate-800">
+            {e.entityKind} · <span className="font-mono">{e.entityId}</span>
+            {' · '}
+            {formatPersonName(e.requestedByDisplay || e.requestedByUserId || '—')}
+          </span>
           <button
             type="button"
             className="shrink-0 rounded-lg bg-[#134e4a] px-3 py-1.5 text-[10px] font-black uppercase text-white hover:brightness-105"
@@ -891,49 +880,34 @@ const ManagerDashboard = () => {
       );
     }
     if (activeTab === 'clearance') {
-      const workItem = resolveManagerWorkItem('clearance', row);
       return (
         <button
           key={row.id}
           type="button"
           onClick={() => openQuotationIntel(row.id, row)}
-          className={`group w-full text-left p-4 border-b border-slate-100 last:border-0 transition-colors hover:bg-teal-50/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#134e4a]/25 focus-visible:ring-inset ${
+          className={`${inboxRowBase} hover:bg-teal-50/60 focus-visible:ring-[#134e4a]/25 ${
             selectedIntel?.kind === 'quotation' && selectedIntel.quoteId === row.id ? 'bg-teal-50/80' : ''
           }`}
         >
-          <div className="flex justify-between gap-2 mb-1">
-            <span className="text-xs font-bold text-[#134e4a] tabular-nums">{row.id}</span>
-            <span className="text-[10px] font-semibold text-slate-400 tabular-nums">
-              {row.date_iso ? new Date(row.date_iso).toLocaleDateString() : '—'}
-            </span>
-          </div>
-          <p className="text-[11px] font-semibold text-slate-700 truncate mb-2">
+          <span className="shrink-0 text-xs font-bold text-[#134e4a] tabular-nums">{row.id}</span>
+          <span className="min-w-0 flex-1 truncate text-[11px] font-semibold text-slate-700">
             {formatPersonName(row.customer_name)}
-          </p>
-          {workItem?.referenceNo ? (
-            <p className="text-[9px] text-slate-400 mb-2 font-mono">Record {workItem.referenceNo}</p>
-          ) : null}
-          {row.branch_id ? (
-            <p className="text-[9px] text-slate-400 mb-2">{branchNameById[row.branch_id] || row.branch_id}</p>
-          ) : null}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] font-bold text-teal-800 bg-teal-100/90 px-2 py-0.5 rounded-md tabular-nums">
-                {formatNgn(row.paid_ngn)}
-              </span>
-              <span className="text-[9px] text-slate-500">of {formatNgn(row.total_ngn)}</span>
-            </div>
-            <ChevronRight
-              size={14}
-              className="text-slate-300 group-hover:text-[#134e4a] transition-transform group-hover:translate-x-0.5 shrink-0"
-            />
-          </div>
+          </span>
+          <span className="shrink-0 text-[10px] font-semibold text-slate-600 tabular-nums whitespace-nowrap">
+            {formatNgn(row.paid_ngn)} / {formatNgn(row.total_ngn)}
+          </span>
+          <span className="shrink-0 text-[10px] text-slate-400 tabular-nums whitespace-nowrap hidden sm:inline">
+            {row.date_iso ? new Date(row.date_iso).toLocaleDateString() : '—'}
+          </span>
+          <ChevronRight
+            size={14}
+            className="shrink-0 text-slate-300 group-hover:text-[#134e4a] transition-transform group-hover:translate-x-0.5"
+          />
         </button>
       );
     }
     if (activeTab === 'production') {
       const qref = row.quotation_ref;
-      const workItem = resolveManagerWorkItem('production', row, { quoteId: qref });
       return (
         <button
           key={row.id}
@@ -945,103 +919,77 @@ const ManagerDashboard = () => {
               { cuttingListId: row.id, fromProductionGate: true }
             )
           }
-          className={`group w-full text-left p-4 border-b border-slate-100 last:border-0 transition-colors hover:bg-amber-50/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/30 focus-visible:ring-inset ${
+          className={`${inboxRowBase} hover:bg-amber-50/60 focus-visible:ring-amber-400/30 ${
             selectedIntel?.kind === 'quotation' && selectedIntel.quoteId === qref ? 'bg-amber-50/80' : ''
           }`}
         >
-          <div className="flex justify-between gap-2 mb-1">
-            <span className="text-[10px] font-bold text-amber-800 uppercase tracking-wide">Cutting list</span>
-            <span className="text-xs font-mono font-bold text-slate-600">{row.id}</span>
-          </div>
-          <p className="text-xs font-bold text-[#134e4a] mb-1">{qref}</p>
-          <p className="text-[11px] font-semibold text-slate-700 truncate mb-2">
+          <span className="shrink-0 text-xs font-mono font-bold text-slate-600">{row.id}</span>
+          <span className="min-w-0 flex-1 truncate text-[11px] font-semibold text-slate-700">
+            <span className="font-bold text-[#134e4a]">{qref}</span>
+            {' · '}
             {formatPersonName(row.customer_name)}
-          </p>
-          {workItem?.referenceNo ? (
-            <p className="text-[9px] text-slate-400 mb-2 font-mono">Record {workItem.referenceNo}</p>
-          ) : null}
-          {row.branch_id ? (
-            <p className="text-[9px] text-slate-400 mb-2">{branchNameById[row.branch_id] || row.branch_id}</p>
-          ) : null}
-          <div className="flex items-center justify-between text-[10px]">
-            <span className="text-slate-500">
-              Paid {formatNgn(row.paid_ngn)} / {formatNgn(row.total_ngn)}
-            </span>
-            <span className="font-bold text-amber-700 tabular-nums">{row.total_meters?.toLocaleString?.() ?? row.total_meters} m</span>
-          </div>
+          </span>
+          <span className="shrink-0 text-[10px] text-slate-500 tabular-nums whitespace-nowrap">
+            {formatNgn(row.paid_ngn)} / {formatNgn(row.total_ngn)}
+            {' · '}
+            <span className="font-bold text-amber-700">{row.total_meters?.toLocaleString?.() ?? row.total_meters} m</span>
+          </span>
+          <ChevronRight
+            size={14}
+            className="shrink-0 text-slate-300 group-hover:text-amber-700 transition-transform group-hover:translate-x-0.5"
+          />
         </button>
       );
     }
     if (activeTab === 'flagged') {
-      const workItem = resolveManagerWorkItem('flagged', row);
       return (
         <button
           key={row.id}
           type="button"
           onClick={() => openQuotationIntel(row.id, row)}
-          className={`group w-full text-left p-4 border-b border-slate-100 last:border-0 transition-colors hover:bg-rose-50/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-300/40 focus-visible:ring-inset ${
+          className={`${inboxRowBase} hover:bg-rose-50/50 focus-visible:ring-rose-300/40 ${
             selectedIntel?.kind === 'quotation' && selectedIntel.quoteId === row.id ? 'bg-rose-50/70' : ''
           }`}
         >
-          <div className="flex justify-between gap-2 mb-1">
-            <span className="text-xs font-bold text-rose-900">{row.id}</span>
-            <AlertTriangle size={14} className="text-rose-500 shrink-0" />
-          </div>
-          <p className="text-[11px] font-semibold text-slate-700 truncate mb-2">
-            {formatPersonName(row.customer_name)}
-          </p>
-          {workItem?.referenceNo ? (
-            <p className="text-[9px] text-slate-400 mb-2 font-mono">Record {workItem.referenceNo}</p>
-          ) : null}
-          {row.branch_id ? (
-            <p className="text-[9px] text-slate-400 mb-2">{branchNameById[row.branch_id] || row.branch_id}</p>
-          ) : null}
-          <p className="text-[10px] text-rose-800/90 line-clamp-2 leading-snug">{row.manager_flag_reason || 'No reason on file.'}</p>
-          <p className="text-[9px] text-slate-400 mt-2">
-            {row.manager_flagged_at_iso ? new Date(row.manager_flagged_at_iso).toLocaleString() : '—'}
-          </p>
+          <span className="shrink-0 text-xs font-bold text-rose-900">{row.id}</span>
+          <span className="min-w-0 flex-1 truncate text-[11px] text-slate-700">
+            <span className="font-semibold">{formatPersonName(row.customer_name)}</span>
+            {' · '}
+            <span className="text-rose-800/90">{row.manager_flag_reason || 'No reason on file.'}</span>
+          </span>
+          <AlertTriangle size={14} className="shrink-0 text-rose-500" />
         </button>
       );
     }
     if (activeTab === 'refunds') {
-      const workItem = resolveManagerWorkItem('refunds', row);
       return (
         <button
           key={row.refund_id}
           type="button"
           onClick={() => setSelectedIntel({ kind: 'refund', refundId: row.refund_id, row: { ...row } })}
-          className={`group w-full text-left p-4 border-b border-slate-100 last:border-0 transition-colors hover:bg-amber-50/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/40 focus-visible:ring-inset ${
+          className={`${inboxRowBase} hover:bg-amber-50/50 focus-visible:ring-amber-300/40 ${
             selectedIntel?.kind === 'refund' && selectedIntel.refundId === row.refund_id ? 'bg-amber-50/80' : ''
           }`}
         >
-          <div className="flex justify-between gap-2 mb-1">
-            <span className="text-xs font-mono font-bold text-slate-800">{row.refund_id}</span>
-            <span className="text-[10px] font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-md">{formatNgn(row.amount_ngn)}</span>
-          </div>
-          <p className="text-[11px] font-semibold text-slate-700 truncate">
+          <span className="shrink-0 text-xs font-mono font-bold text-slate-800">{row.refund_id}</span>
+          <span className="min-w-0 flex-1 truncate text-[11px] font-semibold text-slate-700">
             {formatPersonName(row.customer_name)}
-          </p>
-          {workItem?.referenceNo ? (
-            <p className="text-[9px] text-slate-400 mt-1 font-mono">Record {workItem.referenceNo}</p>
-          ) : null}
-          {row.branch_id ? (
-            <p className="text-[9px] text-slate-400 mt-1">{branchNameById[row.branch_id] || row.branch_id}</p>
-          ) : null}
-          <p className="text-[10px] text-slate-500 mt-1">
-            {row.quotation_ref} · {formatRefundReasonCategory(row.reason_category)}
-          </p>
-          <div className="flex items-center justify-between mt-2">
-            <span className="text-[9px] font-bold text-slate-400 uppercase">Transaction intel</span>
-            <ChevronRight
-              size={14}
-              className="text-slate-300 group-hover:text-amber-700 transition-transform group-hover:translate-x-0.5 shrink-0"
-            />
-          </div>
+            {' · '}
+            <span className="font-normal text-slate-500">
+              {row.quotation_ref} · {formatRefundReasonCategory(row.reason_category)}
+            </span>
+          </span>
+          <span className="shrink-0 text-[10px] font-bold text-amber-700 tabular-nums whitespace-nowrap">
+            {formatNgn(row.amount_ngn)}
+          </span>
+          <ChevronRight
+            size={14}
+            className="shrink-0 text-slate-300 group-hover:text-amber-700 transition-transform group-hover:translate-x-0.5"
+          />
         </button>
       );
     }
     if (activeTab === 'payments') {
-      const workItem = resolveManagerWorkItem('payments', row);
       return (
         <button
           key={row.request_id}
@@ -1051,34 +999,24 @@ const ManagerDashboard = () => {
             setRefundIntelExtras(null);
             setSelectedIntel({ kind: 'payment', requestId: row.request_id, row: { ...row } });
           }}
-          className={`group w-full text-left p-4 border-b border-slate-100 last:border-0 transition-colors hover:bg-slate-50/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300/50 focus-visible:ring-inset ${
+          className={`${inboxRowBase} hover:bg-slate-50/80 focus-visible:ring-slate-300/50 ${
             selectedIntel?.kind === 'payment' && selectedIntel.requestId === row.request_id ? 'bg-slate-100/90' : ''
           }`}
         >
-          <div className="flex justify-between gap-2 mb-1">
-            <span className="text-xs font-bold text-slate-800">{row.request_id}</span>
-            <span className="text-[10px] font-bold text-rose-700 bg-rose-50 px-2 py-0.5 rounded-md">
-              {formatNgn(row.amount_requested_ngn)}
-            </span>
-          </div>
-          <p className="text-[11px] font-semibold text-slate-600 line-clamp-2">{row.description}</p>
-          {workItem?.referenceNo ? (
-            <p className="text-[9px] text-slate-400 mt-1 font-mono">Record {workItem.referenceNo}</p>
-          ) : null}
-          {row.branch_id ? (
-            <p className="text-[9px] text-slate-400 mt-1">{branchNameById[row.branch_id] || row.branch_id}</p>
-          ) : null}
-          <p className="text-[9px] text-slate-400 mt-2 uppercase tracking-wide">{row.request_date}</p>
-          <p className="text-[9px] text-slate-400 mt-1">Status: {row.approval_status ?? row.status ?? 'Pending'}</p>
-          <div className="flex items-center justify-end mt-1">
-            <ChevronRight size={14} className="text-slate-300 group-hover:text-slate-600 shrink-0" />
-          </div>
+          <span className="shrink-0 text-xs font-bold text-slate-800">{row.request_id}</span>
+          <span className="min-w-0 flex-1 truncate text-[11px] font-semibold text-slate-600">{row.description}</span>
+          <span className="shrink-0 text-[10px] font-bold text-rose-700 tabular-nums whitespace-nowrap">
+            {formatNgn(row.amount_requested_ngn)}
+          </span>
+          <span className="shrink-0 text-[10px] text-slate-400 whitespace-nowrap hidden md:inline">
+            {row.request_date || row.approval_status || row.status || 'Pending'}
+          </span>
+          <ChevronRight size={14} className="shrink-0 text-slate-300 group-hover:text-slate-600" />
         </button>
       );
     }
     if (activeTab === 'conversions') {
       const alert = String(row.conversion_alert_state || '');
-      const workItem = resolveManagerWorkItem('conversions', row);
       return (
         <button
           key={row.job_id}
@@ -1088,39 +1026,37 @@ const ManagerDashboard = () => {
             setRefundIntelExtras(null);
             setSelectedIntel({ kind: 'conversion', jobId: row.job_id, row: { ...row } });
           }}
-          className={`group w-full text-left p-4 border-b border-slate-100 last:border-0 transition-colors hover:bg-violet-50/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-300/40 focus-visible:ring-inset ${
+          className={`${inboxRowBase} hover:bg-violet-50/60 focus-visible:ring-violet-300/40 ${
             selectedIntel?.kind === 'conversion' && selectedIntel.jobId === row.job_id ? 'bg-violet-50/80' : ''
           }`}
         >
-          <div className="flex justify-between gap-2 mb-1">
-            <span className="text-[10px] font-mono font-bold text-slate-700">{row.job_id}</span>
-            <span
-              className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-md ${
-                alert === 'High'
-                  ? 'bg-rose-100 text-rose-800'
-                  : alert === 'Low'
-                    ? 'bg-amber-100 text-amber-900'
-                    : 'bg-slate-100 text-slate-600'
-              }`}
-            >
-              {alert || 'Review'}
-            </span>
-          </div>
-          <p className="text-xs font-bold text-[#134e4a] mb-0.5">{row.quotation_ref || '—'}</p>
-          <p className="text-[11px] font-semibold text-slate-700 truncate">
-            {formatPersonName(row.customer_name)}
-          </p>
-          {workItem?.referenceNo ? (
-            <p className="text-[9px] text-slate-400 mt-1 font-mono">Record {workItem.referenceNo}</p>
-          ) : null}
-          {row.branch_id ? (
-            <p className="text-[9px] text-slate-400 mt-1">{branchNameById[row.branch_id] || row.branch_id}</p>
-          ) : null}
-          <p className="text-[10px] text-slate-500 mt-1 line-clamp-1">{row.product_name}</p>
-          <p className="text-[9px] text-slate-400 mt-2 tabular-nums">
+          <span className="shrink-0 text-[10px] font-mono font-bold text-slate-700">{row.job_id}</span>
+          <span className="min-w-0 flex-1 truncate text-[11px] text-slate-700">
+            <span className="font-bold text-[#134e4a]">{row.quotation_ref || '—'}</span>
+            {' · '}
+            <span className="font-semibold">{formatPersonName(row.customer_name)}</span>
+            {row.product_name ? (
+              <>
+                {' · '}
+                <span className="text-slate-500">{row.product_name}</span>
+              </>
+            ) : null}
+          </span>
+          <span
+            className={`shrink-0 text-[9px] font-black uppercase px-2 py-0.5 rounded-md whitespace-nowrap ${
+              alert === 'High'
+                ? 'bg-rose-100 text-rose-800'
+                : alert === 'Low'
+                  ? 'bg-amber-100 text-amber-900'
+                  : 'bg-slate-100 text-slate-600'
+            }`}
+          >
+            {alert || 'Review'}
+          </span>
+          <span className="shrink-0 text-[10px] text-slate-500 tabular-nums whitespace-nowrap hidden sm:inline">
             {row.actual_meters != null ? `${Number(row.actual_meters).toLocaleString()} m` : '—'}
-            {row.completed_at_iso ? ` · ${new Date(row.completed_at_iso).toLocaleString()}` : ''}
-          </p>
+          </span>
+          <ChevronRight size={14} className="shrink-0 text-slate-300 group-hover:text-violet-700" />
         </button>
       );
     }
@@ -1517,111 +1453,44 @@ const ManagerDashboard = () => {
                 }`}
               >
                 {selectedIntel?.kind === 'quotation' ? (
-                <div className="space-y-5 animate-in fade-in duration-200">
-                  <div>
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-teal-400/90 mb-1">Quotation</p>
-                    <h2 className="text-xl font-black text-white leading-tight">{selectedIntel.quoteId}</h2>
-                    <p className="text-sm font-semibold text-white/70 mt-1 truncate">
-                      {formatPersonName(
-                        selectedIntel.row?.customer_name || 'Customer name not on this list row'
-                      )}
-                    </p>
-                    {selectedIntel.fromProductionGate ? (
-                      <p className="text-[10px] text-amber-300/90 mt-2 leading-snug">
-                        Opened from production gate (low payment). Use production override only after you accept the risk.
-                      </p>
-                    ) : null}
-                  </div>
+                <>
                   {renderOfficialRecordBanner(selectedUnifiedWorkItem)}
-
-                  {loadingAudit ? (
-                    <div className="flex flex-col items-center justify-center gap-3 py-14 rounded-2xl border border-white/10 bg-white/[0.04]">
-                      <RefreshCw className="text-teal-400 animate-spin" size={28} />
-                      <span className="text-[11px] font-bold text-white/50">Loading quotation detail…</span>
-                    </div>
-                  ) : (
-                    <>
-                      <div className="rounded-2xl border border-white/15 bg-white/[0.07] p-4 space-y-3">
-                        <p className="text-[10px] font-black text-teal-400 uppercase tracking-widest">Clearance decision</p>
-                        <p className="text-[10px] text-white/50 leading-relaxed">
-                          Approve records manager clearance. Disapprove or Flag both move the quote to the{' '}
-                          <span className="text-white/70">Flagged</span> inbox with your reason.
-                        </p>
-                        {(selectedUnifiedWorkItem?.managerClearedAtIso ||
-                          selectedUnifiedWorkItem?.managerFlaggedAtIso ||
-                          auditData?.summary?.managerClearedAtIso ||
-                          auditData?.summary?.managerFlaggedAtIso) ? (
-                          <button
-                            type="button"
-                            disabled={decisionBusy}
-                            onClick={() => {
-                              const ok = window.confirm(
-                                'Release payment hold on this quotation? Sales will be able to post receipts again until you clear or flag it.'
-                              );
-                              if (ok) handleReview(selectedIntel.quoteId, 'release_payments');
-                            }}
-                            className="w-full flex items-center justify-center gap-2 p-3 rounded-xl bg-sky-700 hover:bg-sky-600 text-white border border-white/10 disabled:opacity-50 transition-colors mb-2"
-                          >
-                            <Unlock size={16} />
-                            <span className="text-[10px] font-black uppercase tracking-widest">
-                              Release for payments
-                            </span>
-                          </button>
-                        ) : null}
-                        <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-                          <button
-                            type="button"
-                            disabled={decisionBusy}
-                            onClick={() => handleReview(selectedIntel.quoteId, 'clear')}
-                            className="flex flex-col items-center gap-1.5 p-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white disabled:opacity-50 transition-colors"
-                          >
-                            <CheckCircle2 size={18} />
-                            <span className="text-[9px] font-black uppercase tracking-widest">Approve</span>
-                          </button>
-                          <button
-                            type="button"
-                            disabled={decisionBusy}
-                            onClick={() => {
-                              const reason = window.prompt('Why are you disapproving this clearance? (required)');
-                              if (reason && reason.trim()) handleReview(selectedIntel.quoteId, 'flag', reason.trim());
-                            }}
-                            className="flex flex-col items-center gap-1.5 p-3.5 rounded-xl bg-slate-600 hover:bg-slate-500 text-white border border-white/10 disabled:opacity-50 transition-colors"
-                          >
-                            <RotateCcw size={18} />
-                            <span className="text-[9px] font-black uppercase tracking-widest">Disapprove</span>
-                          </button>
-                          <button
-                            type="button"
-                            disabled={decisionBusy}
-                            onClick={() => {
-                              const reason = window.prompt('Reason for audit flag? (required)');
-                              if (reason && reason.trim()) handleReview(selectedIntel.quoteId, 'flag', reason.trim());
-                            }}
-                            className="flex flex-col items-center gap-1.5 p-3.5 rounded-xl bg-rose-600/85 hover:bg-rose-500 text-white disabled:opacity-50 transition-colors"
-                          >
-                            <Flag size={18} />
-                            <span className="text-[9px] font-black uppercase tracking-widest">Flag</span>
-                          </button>
-                        </div>
-                        {selectedIntel.fromProductionGate ? (
-                          <button
-                            type="button"
-                            disabled={decisionBusy}
-                            onClick={() => handleReview(selectedIntel.quoteId, 'approve_production')}
-                            className="w-full flex items-center justify-center gap-2 p-3 rounded-xl bg-teal-700 hover:bg-teal-600 text-white border border-white/10 disabled:opacity-50 transition-colors"
-                          >
-                            <Zap size={16} />
-                            <span className="text-[10px] font-black uppercase tracking-widest">
-                              Production override (low payment)
-                            </span>
-                          </button>
-                        ) : null}
-                      </div>
-
-                      <ManagementAuditSections auditData={auditData} loadingAudit={false} formatNgn={formatNgn} />
-                    </>
-                  )}
-                </div>
+                  <ClearanceManagerApprovalPreview
+                    quoteId={selectedIntel.quoteId}
+                    inboxRow={selectedIntel.row}
+                    auditData={auditData}
+                    paymentIntel={refundIntelExtras}
+                    loadingAudit={loadingAudit}
+                    loadingIntel={loadingRefundIntel}
+                    formatNgn={formatNgn}
+                    decisionBusy={decisionBusy}
+                    reviewContext={selectedIntel.reviewContext || 'clearance'}
+                    fromProductionGate={Boolean(selectedIntel.fromProductionGate)}
+                    cuttingListId={selectedIntel.cuttingListId || ''}
+                    showReleasePayments={Boolean(
+                      selectedUnifiedWorkItem?.managerClearedAtIso ||
+                        selectedUnifiedWorkItem?.managerFlaggedAtIso ||
+                        auditData?.summary?.managerClearedAtIso ||
+                        auditData?.summary?.managerFlaggedAtIso
+                    )}
+                    onApprove={() => handleReview(selectedIntel.quoteId, 'clear')}
+                    onDisapprove={() => {
+                      const reason = window.prompt('Why are you disapproving this clearance? (required)');
+                      if (reason && reason.trim()) handleReview(selectedIntel.quoteId, 'flag', reason.trim());
+                    }}
+                    onFlag={() => {
+                      const reason = window.prompt('Reason for audit flag? (required)');
+                      if (reason && reason.trim()) handleReview(selectedIntel.quoteId, 'flag', reason.trim());
+                    }}
+                    onReleasePayments={() => {
+                      const ok = window.confirm(
+                        'Release payment hold on this quotation? Sales will be able to post receipts again until you clear or flag it.'
+                      );
+                      if (ok) handleReview(selectedIntel.quoteId, 'release_payments');
+                    }}
+                    onProductionOverride={() => handleReview(selectedIntel.quoteId, 'approve_production')}
+                  />
+                </>
               ) : selectedIntel?.kind === 'refund' ? (
                 <>
                   {renderOfficialRecordBanner(selectedUnifiedWorkItem)}
