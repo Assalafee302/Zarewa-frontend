@@ -24,6 +24,7 @@ import { MainPanel, PageHeader, PageShell, PageTabs, ModalFrame } from '../compo
 import { AiAskButton } from '../components/AiAskButton';
 import { ProductionRegisterEditModal } from '../components/operations/ProductionRegisterEditModal';
 import { OperationsProductionOverview } from '../components/operations/OperationsProductionOverview';
+import MaterialExceptions from './MaterialExceptions';
 import { useInventory } from '../context/InventoryContext';
 import { useToast } from '../context/ToastContext';
 import { useWorkspace } from '../context/WorkspaceContext';
@@ -553,6 +554,7 @@ const Operations = () => {
   const canAdjustInventory = Boolean(ws?.hasPermission?.('inventory.adjust'));
 
   const [activeTab, setActiveTab] = useState('overview');
+  const [materialIncidentFocusId, setMaterialIncidentFocusId] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   /** Closed-record list: all | completed | cancelled (in-progress jobs are above this list). */
   const [productionFilter, setProductionFilter] = useState('all');
@@ -1020,6 +1022,7 @@ const Operations = () => {
     () => [
       { id: 'overview', icon: <LayoutDashboard size={16} />, label: 'Overview' },
       { id: 'inventory', icon: <Box size={16} />, label: 'Stock management' },
+      { id: 'materialExceptions', icon: <Package size={16} />, label: 'Material exceptions' },
       { id: 'production', icon: <Scissors size={16} />, label: 'Production line' },
     ],
     []
@@ -1059,9 +1062,10 @@ const Operations = () => {
       return;
     }
 
-    if (t === 'coilControl') {
-      setActiveTab('inventory');
-      setStockReceiveKind('coil');
+    if (t === 'coilControl' || t === 'materialExceptions') {
+      setActiveTab('materialExceptions');
+      const mexId = String(st.materialIncidentId || '').trim();
+      setMaterialIncidentFocusId(mexId);
       navigate(location.pathname, { replace: true, state: {} });
       return;
     }
@@ -2168,6 +2172,12 @@ const Operations = () => {
             </div>
           </div>
         </div>
+        ) : null}
+
+        {activeTab === 'materialExceptions' ? (
+          <div className="col-span-full order-2">
+            <MaterialExceptions embedded initialView="register" focusIncidentId={materialIncidentFocusId} />
+          </div>
         ) : null}
 
         {activeTab === 'production' ? (

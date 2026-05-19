@@ -48,6 +48,7 @@ const PACK_SALES_CUSTOMER = 'Sales report';
 const PACK_REFUND_PERIOD = 'Refund report';
 const PACK_OPS_PROCUREMENT = 'Operations & procurement (pack)';
 const PACK_PRODUCTION_TRANSACTION = 'Production transaction register';
+const PACK_MATERIAL_EXCEPTIONS = 'Material exceptions (offcut)';
 
 function rowsPeriodCostsInventoryPack(expenses, paymentRequests, coilLots, movements, startDate, endDate) {
   const rows = [];
@@ -387,6 +388,13 @@ const MORE_OPERATIONAL_REPORTS = [
     id: 'production-transaction-register',
     title: PACK_PRODUCTION_TRANSACTION,
     desc: 'Completed jobs in period: qt, production date, customer, coil colour/gauge, weights, metres, conversion, paid/refund (quote), material cost.',
+    icon: Table2,
+    formats: ['Excel', 'CSV'],
+  },
+  {
+    id: 'material-exceptions-pack',
+    title: PACK_MATERIAL_EXCEPTIONS,
+    desc: 'Loss by type, offcut aging (open pool metres), and pool reconciliation (incident + legacy buckets).',
     icon: Table2,
     formats: ['Excel', 'CSV'],
   },
@@ -1248,6 +1256,72 @@ const Reports = () => {
       if (accUsage.length) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(accUsage), 'Acc_usage');
       XLSX.writeFile(wb, `${packSlug}.xlsx`);
       showToast(`${name} exported as Excel (multi-sheet).`);
+      return;
+    }
+
+    if (name === PACK_MATERIAL_EXCEPTIONS) {
+      const [lossRes, agingRes, reconRes] = await Promise.all([
+        apiFetch('/api/material-incidents/reports/loss'),
+        apiFetch('/api/material-incidents/reports/aging'),
+        apiFetch('/api/material-incidents/reports/reconciliation'),
+      ]);
+      if (!lossRes.ok || !agingRes.ok || !reconRes.ok) {
+        showToast('Could not load material exception reports.', { variant: 'error' });
+        return;
+      }
+      const lossRows = (lossRes.data?.rows || []).map((r) => ({
+        section: 'Loss_by_type',
+        incidentType: r.incidentType,
+        reasonCode: r.reasonCode,
+        kgDeducted: r.kgDeducted,
+        totalMeters: r.totalMeters,
+        count: r.count,
+      }));
+      const agingRows = (agingRes.data?.rows || []).map((r) => ({
+        section: 'Offcut_aging',
+        id: r.id,
+        incidentType: r.incidentType,
+        gaugeLabel: r.gaugeLabel,
+        colour: r.colour,
+        metersAvailable: r.metersAvailable,
+        ageDays: r.ageDays,
+        dateISO: r.dateISO,
+      }));
+      const recon = reconRes.data || {};
+      const reconRows = [
+        {
+          section: 'Pool_reconciliation',
+          incidentMeters: recon.incidentMetersAvailable,
+          legacyMeters: recon.legacyPoolMetersAvailable,
+          totalMeters: recon.totalMetersAvailable,
+          openIncidents: recon.openIncidentCount,
+        },
+        ...(recon.bySpec || []).map((s) => ({
+          section: 'By_spec',
+          materialFamily: s.materialFamily,
+          gaugeLabel: s.gaugeLabel,
+          colour: s.colour,
+          profileLabel: s.profileLabel,
+          metersAvailable: s.metersAvailable,
+          incidentCount: s.incidentCount,
+        })),
+      ];
+      const flat = [...lossRows, ...agingRows, ...reconRows];
+      if (!flat.length) {
+        showToast('No material exception data for this branch.', { variant: 'info' });
+        return;
+      }
+      if (fmt === 'Excel') {
+        const wb = XLSX.utils.book_new();
+        if (lossRows.length) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(lossRows), 'Loss');
+        if (agingRows.length) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(agingRows), 'Aging');
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(reconRows), 'Reconciliation');
+        XLSX.writeFile(wb, `${packSlug}.xlsx`);
+        showToast(`${name} exported as Excel (multi-sheet).`);
+        return;
+      }
+      downloadRows(name, flat, fmt);
+      showToast(`${name} exported as ${fmt}.`);
       return;
     }
 

@@ -91,6 +91,8 @@ export function InventoryProvider({ children }) {
   const [movements, setMovements] = useState([]);
   const [coilLots, setCoilLots] = useState([]);
   const [coilControlEvents, setCoilControlEvents] = useState([]);
+  const [materialIncidents, setMaterialIncidents] = useState([]);
+  const [materialPoolSummary, setMaterialPoolSummary] = useState(null);
   const [wipByProduct, setWipByProduct] = useState({});
   const [inTransitLoads, setInTransitLoads] = useState([]);
 
@@ -106,6 +108,8 @@ export function InventoryProvider({ children }) {
       setMovements([]);
       setCoilLots([]);
       setCoilControlEvents([]);
+      setMaterialIncidents([]);
+      setMaterialPoolSummary(null);
       setWipByProduct({});
       setInTransitLoads([]);
       return;
@@ -126,6 +130,12 @@ export function InventoryProvider({ children }) {
     } else {
       setCoilControlEvents([]);
     }
+    if (Array.isArray(s.materialIncidents)) {
+      setMaterialIncidents(s.materialIncidents.map((e) => ({ ...e })));
+    } else {
+      setMaterialIncidents([]);
+    }
+    setMaterialPoolSummary(s.materialPoolSummary ?? null);
     if (Array.isArray(s.coilLots)) {
       setCoilLots(
         s.coilLots.map((lot) => ({
@@ -862,6 +872,9 @@ export function InventoryProvider({ children }) {
       movements,
       coilLots,
       coilControlEvents,
+      materialIncidents,
+      materialPoolSummary,
+      refreshInventory: ws?.refresh,
       wipByProduct,
       getProduct,
       createPurchaseOrder,
@@ -882,6 +895,9 @@ export function InventoryProvider({ children }) {
       movements,
       coilLots,
       coilControlEvents,
+      materialIncidents,
+      materialPoolSummary,
+      ws?.refresh,
       wipByProduct,
       getProduct,
       createPurchaseOrder,

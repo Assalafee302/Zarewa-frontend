@@ -20,6 +20,7 @@ import {
   Paperclip,
   HelpCircle,
   Package,
+  ClipboardList,
   PencilLine,
   Unlock,
 } from 'lucide-react';
@@ -64,6 +65,11 @@ const INBOX_TABS = [
   { key: 'flagged', label: 'Flagged', description: 'Quotations marked for audit' },
   { key: 'refunds', label: 'Refunds', description: 'Pending refund requests' },
   { key: 'payments', label: 'Payment requests', description: 'Expense / payment approvals' },
+  {
+    key: 'material',
+    label: 'Material exceptions',
+    description: 'Offcut / return incidents awaiting branch manager approval',
+  },
 ];
 
 const ManagerDashboard = () => {
@@ -81,6 +87,7 @@ const ManagerDashboard = () => {
     pendingRefunds: [],
     pendingExpenses: [],
     pendingConversionReviews: [],
+    pendingMaterialIncidents: [],
   });
   /** @type {[null | { kind: string; quoteId?: string; refundId?: string; requestId?: string; jobId?: string; row: object; cuttingListId?: string; fromProductionGate?: boolean }, Function]} */
   const [selectedIntel, setSelectedIntel] = useState(null);
@@ -168,6 +175,7 @@ const ManagerDashboard = () => {
       if (kind === 'payments') return unifiedBySource.get(`payment_request:${String(row.request_id || '').trim()}`) || null;
       if (kind === 'conversions') return unifiedBySource.get(`conversion_review:${String(row.job_id || '').trim()}`) || null;
       if (kind === 'edit_approvals') return unifiedBySource.get(`edit_approval:${String(row.id || '').trim()}`) || null;
+      if (kind === 'material') return unifiedBySource.get(`material_incident:${String(row.id || '').trim()}`) || null;
       return null;
     },
     [unifiedBySource]
@@ -356,6 +364,8 @@ const ManagerDashboard = () => {
     return items;
   }, [ws?.hasWorkspaceData, ws.snapshot, items]);
 
+  const materialIncidentQueue = items.pendingMaterialIncidents ?? [];
+
   const displaySnapshots = useMemo(() => {
     const periodMeta = MANAGER_METRIC_PERIODS.find((p) => p.key === metricPeriod);
     const monthsSpan = periodMeta?.monthsSpan ?? 1;
@@ -416,6 +426,7 @@ const ManagerDashboard = () => {
           pendingRefunds: d.pendingRefunds ?? [],
           pendingExpenses: d.pendingExpenses ?? [],
           pendingConversionReviews: d.pendingConversionReviews ?? [],
+          pendingMaterialIncidents: d.pendingMaterialIncidents ?? [],
         });
       } else {
         const msg =
@@ -585,6 +596,7 @@ const ManagerDashboard = () => {
       flagged: displayItems.flagged.length,
       refunds: displayItems.pendingRefunds.length,
       payments: displayItems.pendingExpenses.length,
+      material: materialIncidentQueue.length,
       edit_approvals: editApprovalPending.length,
     }),
     [displayItems, editApprovalPending.length]
@@ -598,6 +610,7 @@ const ManagerDashboard = () => {
       tabCounts.flagged +
       tabCounts.refunds +
       tabCounts.payments +
+      tabCounts.material +
       tabCounts.edit_approvals,
     [tabCounts]
   );
@@ -609,10 +622,11 @@ const ManagerDashboard = () => {
     else if (activeTab === 'flagged') list = displayItems.flagged;
     else if (activeTab === 'refunds') list = displayItems.pendingRefunds;
     else if (activeTab === 'payments') list = displayItems.pendingExpenses;
+    else if (activeTab === 'material') list = materialIncidentQueue;
     else if (activeTab === 'conversions') list = displayItems.pendingConversionReviews ?? [];
     else if (activeTab === 'edit_approvals') list = editApprovalPending;
     return list.filter((row) => matchesInboxSearch(inboxSearch, row, activeTab));
-  }, [activeTab, displayItems, inboxSearch, editApprovalPending]);
+  }, [activeTab, displayItems, inboxSearch, editApprovalPending, materialIncidentQueue]);
 
   const producedSalesProgress =
     displaySnapshots.targets?.nairaTarget > 0
@@ -937,6 +951,36 @@ const ManagerDashboard = () => {
             <span className="text-rose-800/90">{row.manager_flag_reason || 'No reason on file.'}</span>
           </span>
           <AlertTriangle size={14} className="shrink-0 text-rose-500" />
+        </button>
+      );
+    }
+    if (activeTab === 'material') {
+      return (
+        <button
+          key={row.id}
+          type="button"
+          onClick={() =>
+            navigate('/operations', {
+              state: { focusOpsTab: 'materialExceptions', materialIncidentId: row.id },
+            })
+          }
+          className={`${inboxRowBase} hover:bg-teal-50/60 focus-visible:ring-[#134e4a]/25`}
+        >
+          <span className="shrink-0 text-xs font-mono font-bold text-[#134e4a]">{row.id}</span>
+          <span className="min-w-0 flex-1 truncate text-[11px] font-semibold text-slate-700">
+            {String(row.incident_type || '').replace(/_/g, ' ')}
+            {' · '}
+            {row.gauge_label} {row.colour}
+            {' · '}
+            <span className="font-bold tabular-nums">{Number(row.total_meters || 0).toFixed(1)} m</span>
+          </span>
+          <span className="shrink-0 text-[10px] text-slate-400 tabular-nums whitespace-nowrap hidden sm:inline">
+            {row.date_iso ? new Date(row.date_iso).toLocaleDateString() : '—'}
+          </span>
+          <ChevronRight
+            size={14}
+            className="shrink-0 text-slate-300 group-hover:text-[#134e4a] transition-transform group-hover:translate-x-0.5"
+          />
         </button>
       );
     }
@@ -1328,6 +1372,8 @@ const ManagerDashboard = () => {
                     <BarChart3 size={36} className="opacity-25 mb-3 text-violet-600" />
                   ) : activeTab === 'refunds' ? (
                     <RotateCcw size={36} className="opacity-25 mb-3 text-amber-600" />
+                  ) : activeTab === 'material' ? (
+                    <ClipboardList size={36} className="opacity-25 mb-3 text-teal-600" />
                   ) : activeTab === 'edit_approvals' ? (
                     <ShieldCheck size={36} className="opacity-25 mb-3 text-teal-600" />
                   ) : (

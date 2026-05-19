@@ -29,6 +29,10 @@ import {
   ReceiptsAdvancesPanel,
 } from '../components/sales/SalesReceiptsSidebar';
 import { mergeReceiptRowsForSales } from '../lib/salesReceiptsList';
+import {
+  paymentCountByQuotationRef,
+  quotationListPaymentMeta,
+} from '../lib/quotationPaymentSummary';
 import LinkAdvanceModal from '../components/sales/LinkAdvanceModal';
 import { ModalFrame } from '../components/layout';
 import { AdvancePaymentPrintView } from '../components/receipt/ReceiptPrintViews';
@@ -71,8 +75,6 @@ import {
   loadSalesWorkspaceRole,
   canEditQuotation,
   quotationEditBlockedReason,
-  canEditReceipt,
-  receiptEditBlockedReason,
   canEditCuttingList,
   cuttingListEditBlockedReason,
 } from '../lib/salesWorkspaceAccess';
@@ -106,7 +108,7 @@ import {
 } from '../lib/stockCheckMasterOptions';
 const TAB_LABELS = {
   quotations: 'Quotations',
-  receipts: 'Receipts',
+  receipts: 'Payments',
   cuttinglist: 'Cutting list',
   refund: 'Refunds',
   customers: 'Customers',
@@ -173,7 +175,7 @@ const Sales = () => {
   const [selectedItem, setSelectedItem] = useState(null);
   const [actionMenuKey, setActionMenuKey] = useState(null);
   const [quotationAccessMode, setQuotationAccessMode] = useState('edit');
-  const [receiptAccessMode, setReceiptAccessMode] = useState('edit');
+  const [receiptAccessMode, setReceiptAccessMode] = useState('add');
   const [cuttingAccessMode, setCuttingAccessMode] = useState('edit');
   const [customerAddOpen, setCustomerAddOpen] = useState(false);
   const [customerCreateFromQuotation, setCustomerCreateFromQuotation] = useState(false);
@@ -564,6 +566,11 @@ const Sales = () => {
     [importedReceipts, quotations, ledgerSyncKey]
   );
 
+  const paymentCountByQuoteRef = useMemo(
+    () => paymentCountByQuotationRef(mergedReceiptRows),
+    [mergedReceiptRows]
+  );
+
   const quotationsRef = useRef(quotations);
   const mergedReceiptRowsRef = useRef(mergedReceiptRows);
   const refundsRef = useRef(refunds);
@@ -706,7 +713,7 @@ const Sales = () => {
         setShowQuotationModal(true);
       } else if (action === 'receipt') {
         setActiveTab('receipts');
-        setReceiptAccessMode('edit');
+        setReceiptAccessMode('add');
         setShowReceiptModal(true);
       } else if (action === 'cutting') {
         setActiveTab('cuttinglist');
@@ -810,6 +817,34 @@ const Sales = () => {
   };
 
   /** Sidebar / deep-link: start a new refund request with quotation + customer pre-filled. */
+  const openAddPaymentForQuotation = useCallback((q) => {
+    if (!ws?.canMutate) {
+      showToast('System offline (read-only). Reconnect, refresh, then try again.', { variant: 'error' });
+      return;
+    }
+    setSelectedItem(q);
+    setReceiptAccessMode('add');
+    setShowReceiptModal(true);
+  }, [showToast, ws?.canMutate]);
+
+  const openAddPaymentForReceiptRow = useCallback(
+    (r) => {
+      const ref = String(r?.quotationRef || '').trim();
+      const q = quotationsRef.current.find((x) => String(x.id || '').trim() === ref);
+      if (q) {
+        openAddPaymentForQuotation(q);
+        return;
+      }
+      if (!ref) {
+        showToast('This payment has no quotation link — pick a quote in the payment form.', { variant: 'info' });
+      }
+      setSelectedItem({ quotationRef: ref, customer: r?.customer, customerID: r?.customerID });
+      setReceiptAccessMode('add');
+      setShowReceiptModal(true);
+    },
+    [openAddPaymentForQuotation, showToast]
+  );
+
   const openRefundCreateForQuotation = useCallback(
     (q) => {
       setActiveTab('refund');
@@ -842,7 +877,7 @@ const Sales = () => {
       setShowQuotationModal(true);
     }
     if (activeTab === 'receipts') {
-      setReceiptAccessMode('edit');
+      setReceiptAccessMode('add');
       setShowReceiptModal(true);
     }
     if (activeTab === 'cuttinglist') {
@@ -1063,7 +1098,7 @@ const Sales = () => {
   const salesTabs = useMemo(
     () => [
       { id: 'quotations', icon: <FileText size={16} />, label: 'Quotations' },
-      { id: 'receipts', icon: <ReceiptIcon size={16} />, label: 'Receipts' },
+      { id: 'receipts', icon: <ReceiptIcon size={16} />, label: 'Payments' },
       { id: 'cuttinglist', icon: <Scissors size={16} />, label: 'Cutting list' },
       { id: 'refund', icon: <RotateCcw size={16} />, label: 'Refunds' },
       { id: 'customers', icon: <UserCircle size={16} />, label: 'Customers' },
@@ -1127,7 +1162,7 @@ const Sales = () => {
               {activeTab === 'receipts' && (
                 <>
                   <button type="button" onClick={openNewModal} className={primaryActionBtnClass}>
-                    <Plus size={16} strokeWidth={2} /> New receipt
+                    <Plus size={16} strokeWidth={2} /> Record payment
                   </button>
                   <button
                     type="button"
@@ -1501,15 +1536,8 @@ const Sales = () => {
                     ) : (
                       <ul className="space-y-1.5">
                         {filteredQuotations.map((q) => {
-                          const paid = q.paidNgn ?? 0;
-                          const totalN = q.totalNgn ?? 0;
-                          const balance = Math.max(0, totalN - paid);
-                          const meta2 = [
-                            q.date,
-                            `Paid ${formatNgn(paid)}`,
-                            `Bal ${formatNgn(balance)}`,
-                            `Tot ${formatNgn(totalN)}`,
-                          ].join(' · ');
+                          const payCount = paymentCountByQuoteRef.get(String(q.id || '').trim()) || 0;
+                          const meta2 = quotationListPaymentMeta(q, payCount);
                           return (
                             <li key={q.id} className={salesListItemClass(`q-${q.id}`, actionMenuKey)}>
                               <div className="flex flex-wrap items-start justify-between gap-2 min-w-0">
@@ -1553,11 +1581,7 @@ const Sales = () => {
                                         }}
                                         editDisabled={!canEditQuotation(q, salesRole)}
                                         editTitle={quotationEditBlockedReason(q, salesRole) ?? ''}
-                                        onAddReceipt={() => {
-                                          setSelectedItem(q);
-                                          setReceiptAccessMode('edit');
-                                          setShowReceiptModal(true);
-                                        }}
+                                        onAddPayment={() => openAddPaymentForQuotation(q)}
                                         onReviewAudit={
                                           ws?.hasPermission?.('manager.audit') ||
                                           ['admin', 'md', 'ceo'].includes(ws?.session?.user?.roleKey)
@@ -1607,7 +1631,7 @@ const Sales = () => {
                         <SalesListSearchInput
                           value={searchQuery}
                           onChange={setSearchQuery}
-                          placeholder="Search receipt ID, customer, quotation, date…"
+                          placeholder="Search payment ID, customer, quotation, date…"
                         />
                         <SalesListSortBar
                           fields={SALES_TABLE_SORT_FIELD_OPTIONS.receipts}
@@ -1624,7 +1648,7 @@ const Sales = () => {
                     {filteredMergedReceipts.length === 0 ? (
                       <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50/50 py-14 px-6 text-center">
                         <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest">
-                          No receipts match your search
+                          No payments match your search
                         </p>
                       </div>
                     ) : (
@@ -1663,13 +1687,8 @@ const Sales = () => {
                                           setReceiptAccessMode('view');
                                           setShowReceiptModal(true);
                                         }}
-                                        onEdit={() => {
-                                          setSelectedItem(r);
-                                          setReceiptAccessMode('edit');
-                                          setShowReceiptModal(true);
-                                        }}
-                                        editDisabled={!canEditReceipt(r, salesRole)}
-                                        editTitle={receiptEditBlockedReason(r, salesRole) ?? ''}
+                                        showEdit={false}
+                                        onAddPayment={() => openAddPaymentForReceiptRow(r)}
                                         onDelete={
                                           canDeleteSalesRecord ? () => deleteReceipt(String(r.id || '').trim()) : undefined
                                         }
@@ -1711,7 +1730,7 @@ const Sales = () => {
                           onClick={() => setShowCount((c) => c + 20)}
                           className="px-6 py-2 rounded-lg border border-slate-200 text-[10px] font-bold uppercase tracking-widest text-[#134e4a] hover:bg-slate-50 transition-colors"
                         >
-                          Show more receipts
+                          Show more payments
                         </button>
                       </div>
                     )}

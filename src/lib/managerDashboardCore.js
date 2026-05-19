@@ -73,6 +73,8 @@ export function matchesInboxSearch(query, row, tabKey) {
     parts.push(row.id, row.customer_name, row.status);
   } else if (tabKey === 'production') {
     parts.push(row.id, row.quotation_ref, row.customer_name);
+  } else if (tabKey === 'material') {
+    parts.push(row.id, row.incident_type, row.gauge_label, row.colour, row.storekeeper_remark);
   } else if (tabKey === 'refunds') {
     parts.push(row.refund_id, row.customer_name, row.quotation_ref, formatRefundReasonCategory(row.reason_category));
   } else if (tabKey === 'payments') {

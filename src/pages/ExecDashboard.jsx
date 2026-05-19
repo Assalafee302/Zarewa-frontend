@@ -117,6 +117,10 @@ export default function ExecDashboard() {
                 <p className="text-[10px] font-bold uppercase text-amber-900/70">Bank lines in review</p>
                 <p className="text-2xl font-black text-amber-950">{data.bankReconciliationLinesInReview ?? 0}</p>
               </div>
+              <div>
+                <p className="text-[10px] font-bold uppercase text-amber-900/70">Material incidents pending</p>
+                <p className="text-2xl font-black text-amber-950">{data.materialIncidentsPendingApproval ?? 0}</p>
+              </div>
             </div>
           </section>
 

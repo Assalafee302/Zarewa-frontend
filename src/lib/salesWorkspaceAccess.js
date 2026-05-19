@@ -69,9 +69,9 @@ export function canEditReceipt(record, role) {
 export function receiptEditBlockedReason(record, role) {
   if (canEditReceipt(record, role)) return null;
   if (record?.source === 'ledger') {
-    return 'Ledger payments are read-only — use a reversing entry in Finance if a correction is needed.';
+    return 'Posted payments cannot be changed here — Finance reverses the entry and you post again if needed.';
   }
-  return 'You do not have permission to edit this receipt. Ask a branch manager or finance if a correction is needed.';
+  return 'You do not have permission to change this payment. Ask a branch manager or finance if a correction is needed.';
 }
 
 export function canEditCuttingList(c, linkedJob = null) {

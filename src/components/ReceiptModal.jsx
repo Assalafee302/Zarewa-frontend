@@ -35,6 +35,10 @@ import {
 } from '../lib/treasuryAccountsStore';
 import { compareSelectLabels } from '../lib/selectOptionSort';
 import { bookedPaidNgnForQuotationFromMirrors } from '../lib/liveAnalytics';
+import {
+  isExistingSalesPaymentRow,
+  isQuotationAddPaymentContext,
+} from '../lib/quotationPaymentSummary';
 import { ReceiptPrintQuick, ReceiptPrintFull } from './receipt/ReceiptPrintViews';
 import { EditSecondApprovalInline } from './EditSecondApprovalInline';
 import { editMutationNeedsSecondApprovalRole } from '../lib/editApprovalUi';
@@ -124,11 +128,34 @@ const ReceiptModal = ({
   const { customers } = useCustomers();
   const { show: showToast } = useToast();
   const ws = useWorkspace();
-  const isEdit = Boolean(editData?.id);
   const readOnly = accessMode === 'view';
+  const isAddPayment =
+    !readOnly && (accessMode === 'add' || accessMode === 'edit' || !editData?.id);
+  const isExistingPayment = isExistingSalesPaymentRow(editData);
+  const isAddOnQuotation = isQuotationAddPaymentContext(editData);
+  /** @deprecated alias — true when modal opened with any row id (quote or payment). */
+  const isEdit = Boolean(editData?.id);
   const roleKey = ws?.session?.user?.roleKey;
   const receiptAmendNeedsApproval =
-    isEdit && !readOnly && editMutationNeedsSecondApprovalRole(roleKey);
+    isExistingPayment && isAddPayment && editMutationNeedsSecondApprovalRole(roleKey);
+
+  const modalTitle = readOnly
+    ? 'View payment'
+    : isAddOnQuotation
+      ? 'Add payment'
+      : isExistingPayment
+        ? 'Add payment on quote'
+        : 'Record payment';
+
+  const modalSubtitle = readOnly
+    ? `${editData?.id ?? '—'} · ${editData?.customer ?? 'Customer'}`
+    : isAddOnQuotation
+      ? `${editData?.id ?? '—'} · ${editData?.customer ?? 'Customer'}`
+      : isExistingPayment
+        ? `After ${editData?.id} · ${editData?.customer ?? 'Customer'}`
+        : 'New payment — pick quotation';
+
+  const modeBadgeLabel = readOnly ? 'View only' : 'Post new money';
 
   const [quotationRef, setQuotationRef] = useState('');
   const [receiptEditApprovalId, setReceiptEditApprovalId] = useState('');
@@ -689,7 +716,7 @@ const ReceiptModal = ({
         };
         if (branchId) receiptBody.branchId = branchId;
         if (fullAmountAsReceipt) receiptBody.fullAmountAsReceipt = true;
-        if (isEdit && editData?.id) {
+        if (isExistingPayment && editData?.id) {
           receiptBody.amendSalesReceiptId = String(editData.id);
           if (receiptEditApprovalId.trim()) {
             receiptBody.editApprovalId = receiptEditApprovalId.trim();
@@ -834,7 +861,9 @@ const ReceiptModal = ({
   const displayPaid = quotationRowForPayments?.paidNgn ?? selectedQuotation?.paidNgn ?? 0;
   const displayBalance = dueNgn != null ? dueNgn : Math.max(0, displayTotal - displayPaid);
 
-  const receiptIdPreview = isEdit ? editData.id : `RC-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-NEW`;
+  const receiptIdPreview = isExistingPayment
+    ? editData.id
+    : `RC-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-NEW`;
 
   const openPrint = (kind) => {
     if (!ws?.canMutate) {
@@ -879,7 +908,7 @@ const ReceiptModal = ({
     setPaymentLines((prev) => (prev.length <= 1 ? prev : prev.filter((r) => r.id !== id)));
 
   const deleteCurrentReceipt = async () => {
-    if (!isEdit || !onDeleteReceipt || isPosting) return;
+    if (!isExistingPayment || readOnly || !onDeleteReceipt || isPosting) return;
     const ok = await onDeleteReceipt(editData);
     if (ok) abandonUnsavedAndRun(() => onClose());
   };
@@ -901,7 +930,7 @@ const ReceiptModal = ({
             </div>
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2 gap-y-1">
-                <h2 className="text-base font-bold text-[#134e4a] tracking-tight">Payment receipt</h2>
+                <h2 className="text-base font-bold text-[#134e4a] tracking-tight">{modalTitle}</h2>
                 <span
                   className={`shrink-0 rounded-md px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide ${
                     readOnly
@@ -909,11 +938,11 @@ const ReceiptModal = ({
                       : 'bg-emerald-100 text-emerald-800 ring-1 ring-emerald-600/20'
                   }`}
                 >
-                  {readOnly ? 'View' : 'Edit'}
+                  {modeBadgeLabel}
                 </span>
               </div>
               <p className="text-[9px] font-semibold text-slate-400 uppercase tracking-widest truncate mt-0.5">
-                {isEdit ? `${editData.id} · ${editData.customer ?? 'Customer'}` : 'New receipt'}
+                {modalSubtitle}
               </p>
             </div>
           </div>
@@ -929,13 +958,17 @@ const ReceiptModal = ({
         {readOnly ? (
           <div className="px-5 py-2 bg-slate-50 border-b border-slate-200 text-[10px] font-medium text-slate-600">
             {editData?.source === 'ledger'
-              ? 'This row is a live ledger payment — view and print only. Corrections go through Finance.'
-              : 'View only for sales. Imported rows are not the live ledger; new posts are recorded on the customer ledger.'}
+              ? 'Posted payment — view and print only. To fix a mistake, Finance reverses this entry and you post the correct amount again.'
+              : 'View only. Imported history rows are not the live ledger; new money is always a separate post.'}
+          </div>
+        ) : !readOnly && isAddPayment ? (
+          <div className="px-5 py-2 bg-sky-50 border-b border-sky-200 text-[10px] font-medium text-sky-950">
+            Enter only <strong>new money</strong> below. Prior payments on this quote are read-only. Wrong amounts are corrected in Finance (reverse + post again), not by editing old rows.
           </div>
         ) : null}
         {!ws?.canMutate ? (
           <div className="px-5 py-2 bg-amber-50 border-b border-amber-200 text-[10px] font-semibold text-amber-900">
-            System offline (read-only). Reconnect and refresh before posting or printing receipts.
+            System offline (read-only). Reconnect and refresh before posting or printing payments.
           </div>
         ) : null}
 
@@ -1372,7 +1405,13 @@ const ReceiptModal = ({
                 </div>
                 <div className="rounded-lg border border-slate-200 bg-white p-2.5">
                   <p className="text-[8px] font-semibold text-slate-400 uppercase mb-0.5">Payment received</p>
-                  <p className="text-[7px] text-slate-500 mb-1 leading-tight">Total amount paid on this quotation (receipts + advance applied)</p>
+                  <p className="text-[7px] text-slate-500 mb-1 leading-tight">
+                    {quotationPaymentHistory.length === 0
+                      ? 'No payment posts yet on this quote'
+                      : quotationPaymentHistory.length === 1
+                        ? '1 payment posted (cash receipts on this quote)'
+                        : `${quotationPaymentHistory.length} payments posted (cash receipts on this quote)`}
+                  </p>
                   <p className="text-[17px] font-bold leading-none text-sky-700 tabular-nums">{formatNgn(displayPaid)}</p>
                 </div>
                 <div className="rounded-lg border border-[#134e4a]/30 bg-[#134e4a] p-2.5 text-white">
@@ -1416,14 +1455,14 @@ const ReceiptModal = ({
             <p className="text-2xl font-bold text-white tabular-nums">{formatNgn(lineTotalNgn)}</p>
           </div>
           <div className="flex gap-2 flex-wrap">
-            {isEdit && !readOnly && onDeleteReceipt ? (
+            {isExistingPayment && !readOnly && onDeleteReceipt ? (
               <button
                 type="button"
                 disabled={isPosting}
                 onClick={deleteCurrentReceipt}
                 className="bg-rose-700/90 px-4 py-2.5 rounded-lg text-[9px] font-semibold uppercase tracking-wide border border-rose-300/40 hover:bg-rose-700 disabled:opacity-40"
               >
-                <Trash2 size={14} className="inline mr-1.5" /> Delete receipt
+                <Trash2 size={14} className="inline mr-1.5" /> Delete payment
               </button>
             ) : null}
             <button
@@ -1436,12 +1475,12 @@ const ReceiptModal = ({
               }
               className="bg-white/10 px-4 py-2.5 rounded-lg text-[9px] font-semibold uppercase tracking-wide border border-white/15 hover:bg-white/20 disabled:opacity-40"
             >
-              <Save size={14} className="inline mr-1.5" /> {isPosting ? 'Saving…' : 'Save'}
+              <Save size={14} className="inline mr-1.5" /> {isPosting ? 'Posting…' : 'Post payment'}
             </button>
             <button
               type="button"
               onClick={() => openPrint('quick')}
-              disabled={!ws?.canMutate || !isEdit}
+              disabled={!ws?.canMutate || !quotationRef}
               className="bg-white/90 text-emerald-800 px-3 py-2.5 rounded-lg text-[9px] font-semibold uppercase tracking-wide shadow-sm disabled:opacity-40"
             >
               <Printer size={14} className="inline mr-1" /> Summary (A4)
@@ -1449,7 +1488,7 @@ const ReceiptModal = ({
             <button
               type="button"
               onClick={() => openPrint('full')}
-              disabled={!ws?.canMutate || !isEdit}
+              disabled={!ws?.canMutate || !quotationRef}
               className="bg-white text-emerald-700 px-3 py-2.5 rounded-lg text-[9px] font-semibold uppercase tracking-wide shadow-sm disabled:opacity-40"
             >
               <Printer size={14} className="inline mr-1" /> Full detail (A4)
@@ -1481,7 +1520,7 @@ const ReceiptModal = ({
                       customerName={customerName || '—'}
                       quotationRef={quotationRef || '—'}
                       quotationPaymentHistory={quotationPaymentHistory}
-                      highlightReceiptId={isEdit ? String(editData.id) : ''}
+                      highlightReceiptId={isExistingPayment ? String(editData.id) : ''}
                       lines={printLinesPayload}
                       totalNgn={lineTotalNgn}
                       reference={remarks}
@@ -1495,7 +1534,7 @@ const ReceiptModal = ({
                       quotationRef={quotationRef || '—'}
                       projectName={selectedQuotation?.projectName ?? ''}
                       quotationPaymentHistory={quotationPaymentHistory}
-                      highlightReceiptId={isEdit ? String(editData.id) : ''}
+                      highlightReceiptId={isExistingPayment ? String(editData.id) : ''}
                       lines={printLinesPayload}
                       totalNgn={lineTotalNgn}
                       reference={remarks}

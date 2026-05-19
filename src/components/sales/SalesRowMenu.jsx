@@ -47,15 +47,19 @@ export function SalesRowMenu({
   openKey,
   setOpenKey,
   onView,
-  onEdit,
-  editDisabled,
-  editTitle,
+  onEdit = () => {},
+  editDisabled = false,
+  editTitle = '',
+  showEdit = true,
+  onAddPayment,
+  /** @deprecated use onAddPayment */
   onAddReceipt,
   onReviewAudit,
   onPush,
   onDelete,
   deleteLabel = 'Delete',
 }) {
+  const addPaymentHandler = onAddPayment ?? onAddReceipt;
   const open = openKey === rowKey;
   const anchorRef = useRef(null);
   const pos = useMenuPosition(open, anchorRef);
@@ -86,18 +90,18 @@ export function SalesRowMenu({
               <Eye size={14} className="text-slate-400 shrink-0" />
               View
             </button>
-            {onAddReceipt && (
+            {addPaymentHandler && (
               <button
                 type="button"
                 role="menuitem"
                 className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-medium text-emerald-700 hover:bg-emerald-50"
                 onClick={() => {
-                  onAddReceipt();
+                  addPaymentHandler();
                   setOpenKey(null);
                 }}
               >
                 <ReceiptIcon size={14} className="text-emerald-400 shrink-0" />
-                Add Receipt
+                Add payment
               </button>
             )}
             {onReviewAudit && (
@@ -128,22 +132,24 @@ export function SalesRowMenu({
                 Push
               </button>
             )}
-            <button
-              type="button"
-              role="menuitem"
-              disabled={editDisabled}
-              title={editDisabled ? editTitle : undefined}
-              className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-white"
-              onClick={() => {
-                if (!editDisabled) {
-                  onEdit();
-                  setOpenKey(null);
-                }
-              }}
-            >
-              <PencilLine size={14} className="text-slate-400 shrink-0" />
-              Edit
-            </button>
+            {showEdit ? (
+              <button
+                type="button"
+                role="menuitem"
+                disabled={editDisabled}
+                title={editDisabled ? editTitle : undefined}
+                className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-white"
+                onClick={() => {
+                  if (!editDisabled) {
+                    onEdit();
+                    setOpenKey(null);
+                  }
+                }}
+              >
+                <PencilLine size={14} className="text-slate-400 shrink-0" />
+                Edit
+              </button>
+            ) : null}
             {onDelete ? (
               <button
                 type="button"

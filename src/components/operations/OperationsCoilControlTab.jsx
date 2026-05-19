@@ -38,6 +38,7 @@ const KIND_LABELS = {
   adjust_add_kg: 'Coil adjust +kg',
   adjust_remove_kg: 'Coil adjust −kg',
   return_inward_pool: 'Return inward (offcut pool)',
+  pool_issue_production: 'Pool issue (production)',
   return_outward: 'Return outward',
   coil_open_trim: 'Coil open — head trim',
   supplier_defect: 'Supplier defect',
@@ -221,13 +222,16 @@ export default function OperationsCoilControlTab() {
   }, [events, historyFilter]);
 
   const poolTotals = useMemo(() => {
-    let meters = 0;
+    let inward = 0;
+    let issue = 0;
+    let outward = 0;
     for (const e of events) {
-      if (e.eventKind === 'return_inward_pool' && e.meters != null && Number.isFinite(Number(e.meters))) {
-        meters += Number(e.meters);
-      }
+      const m = e.meters != null && Number.isFinite(Number(e.meters)) ? Number(e.meters) : 0;
+      if (e.eventKind === 'return_inward_pool') inward += m;
+      else if (e.eventKind === 'pool_issue_production') issue += m;
+      else if (e.eventKind === 'return_outward') outward += m;
     }
-    return { meters };
+    return { meters: Math.max(0, inward - issue - outward), inward, issue, outward };
   }, [events]);
 
   const submitAdjust = async (e) => {
@@ -524,9 +528,13 @@ export default function OperationsCoilControlTab() {
             <h2 className="text-sm font-black uppercase tracking-wide text-[#134e4a]">Coil control register</h2>
           </div>
           <p className="text-[10px] font-semibold text-slate-600">
-            Offcut pool (returns inward):{' '}
-            <span className="font-mono tabular-nums text-[#134e4a]">{poolTotals.meters.toFixed(2)} m</span> total
-            recorded
+            Offcut pool (net):{' '}
+            <span className="font-mono tabular-nums text-[#134e4a]">{poolTotals.meters.toFixed(2)} m</span>
+            <span className="text-slate-500 font-normal">
+              {' '}
+              (in {poolTotals.inward?.toFixed(2) ?? '0'} − out {poolTotals.issue?.toFixed(2) ?? '0'} − supplier{' '}
+              {poolTotals.outward?.toFixed(2) ?? '0'})
+            </span>
           </p>
         </div>
         <div className="mb-3 flex flex-wrap gap-1">

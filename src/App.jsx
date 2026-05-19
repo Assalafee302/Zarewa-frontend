@@ -14,6 +14,7 @@ import SupplierProfile from './pages/SupplierProfile';
 import TransportAgentProfile from './pages/TransportAgentProfile';
 import CoilProfile from './pages/CoilProfile';
 import Operations from './pages/Operations';
+import MaterialExceptions from './pages/MaterialExceptions';
 import Account from './pages/Account';
 import Customers from './pages/Customers';
 import CustomerDashboard from './pages/CustomerDashboard';
@@ -839,6 +840,14 @@ function AppShell() {
               element={
                 <ModuleRouteGuard moduleKey="operations">
                   <CoilProfile />
+                </ModuleRouteGuard>
+              }
+            />
+            <Route
+              path="/operations/material-exceptions"
+              element={
+                <ModuleRouteGuard moduleKey="operations">
+                  <MaterialExceptions />
                 </ModuleRouteGuard>
               }
             />

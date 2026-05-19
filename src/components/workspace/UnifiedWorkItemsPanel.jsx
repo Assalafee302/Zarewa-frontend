@@ -37,6 +37,9 @@ function fallbackRoute(item) {
   if (item.linkedThreadId) return { to: '/', state: { selectedThreadId: String(item.linkedThreadId) } };
   if (item.documentType === 'payment_request') return { to: '/accounts', state: { accountsTab: 'requests' } };
   if (item.documentType === 'material_request') return { to: '/operations', state: { focusOpsTab: 'inventory' } };
+  if (item.documentType === 'material_incident') {
+    return { to: '/operations', state: { focusOpsTab: 'materialExceptions', materialIncidentId: item.sourceId } };
+  }
   if (String(item.documentType || '').startsWith('hr_')) return { to: '/' };
   return { to: '/' };
 }

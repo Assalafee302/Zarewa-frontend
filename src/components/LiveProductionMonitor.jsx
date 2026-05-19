@@ -32,6 +32,7 @@ import { useToast } from '../context/ToastContext';
 import { useWorkspace } from '../context/WorkspaceContext';
 import { editMutationNeedsSecondApprovalRole } from '../lib/editApprovalUi';
 import { EditSecondApprovalInline } from './EditSecondApprovalInline';
+import OffcutIncidentPicker from './material/OffcutIncidentPicker';
 import { productLineKey, resolveStoneFlatsheetLengthM } from '../lib/stoneCoatedQuotationPolicy';
 
 /** Matches server: closing below this (kg) may use “Finish roll” on completion to clear the tail from stock. */
@@ -360,6 +361,8 @@ export function LiveProductionMonitor({
   const [offcutMetersProduced, setOffcutMetersProduced] = useState('');
   /** Metres taken from offcut/scab stock (not coil tail), summed with coil metres for one job. */
   const [offcutInventoryMetersInput, setOffcutInventoryMetersInput] = useState('');
+  /** @type {[Array<{materialIncidentId: string, meters: number}>, Function]} */
+  const [offcutSupplySelections, setOffcutSupplySelections] = useState([]);
 
   const productionJobs = useMemo(
     () => (ws?.hasWorkspaceData && Array.isArray(ws?.snapshot?.productionJobs) ? ws.snapshot.productionJobs : []),
@@ -428,6 +431,21 @@ export function LiveProductionMonitor({
     if (status === base.status) return base;
     return { ...base, status };
   }, [selectedJobId, sortedJobs, focusClTrim]);
+
+  const selectedJobOffcutSupply = useMemo(() => {
+    const raw = selectedJob?.offcutSupply;
+    if (Array.isArray(raw) && raw.length) return raw;
+    const j = selectedJob?.offcutSupplyJson;
+    if (typeof j === 'string' && j.trim()) {
+      try {
+        const parsed = JSON.parse(j);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch {
+        return [];
+      }
+    }
+    return [];
+  }, [selectedJob?.offcutSupply, selectedJob?.offcutSupplyJson]);
 
   useEffect(() => {
     setSignoffEditApprovalId('');
@@ -596,6 +614,12 @@ export function LiveProductionMonitor({
     const m = Number(String(offcutInventoryMetersInput).replace(/,/g, ''));
     return Number.isFinite(m) && m >= 0 ? m : 0;
   }, [offcutInventoryMetersInput]);
+
+  useEffect(() => {
+    if (!offcutSupplySelections.length) return;
+    const sum = offcutSupplySelections.reduce((s, x) => s + (Number(x.meters) || 0), 0);
+    setOffcutInventoryMetersInput(sum > 0 ? String(sum) : '');
+  }, [offcutSupplySelections]);
 
   const recordedMeters = useMemo(() => {
     if (isStoneMeterQuote && jobSt === 'Running') {
@@ -1519,6 +1543,7 @@ export function LiveProductionMonitor({
       allocations: draftAllocations.map((row) => completionLineFromDraft(row)),
       accessoriesSupplied: accessoriesSuppliedForApi,
       offcutInventoryMeters: invOff,
+      ...(offcutSupplySelections.length > 0 ? { offcutSupply: offcutSupplySelections } : {}),
       ...(requiresManagerOverrunApproval && overrunRemark.length >= 3
         ? { meterOverrunRemark: overrunRemark }
         : {}),
@@ -2193,6 +2218,14 @@ export function LiveProductionMonitor({
                   >
                     {selectedJob.status}
                   </span>
+                  {selectedJobOffcutSupply.length > 0 ? (
+                    <span className="inline-flex items-center rounded-md border border-teal-200 bg-teal-50 px-1.5 py-0.5 text-[8px] font-bold uppercase text-teal-900 shadow-sm">
+                      Supplied from offcut:{' '}
+                      {selectedJobOffcutSupply
+                        .map((s) => `${s.materialIncidentId || s.incidentId} (${Number(s.meters || 0)} m)`)
+                        .join(', ')}
+                    </span>
+                  ) : null}
                   {selectedJob.quotationRef ? (
                     <span className="inline-flex items-center rounded-md border border-slate-200/80 bg-white/90 px-1.5 py-0.5 text-[8px] font-semibold text-slate-700 shadow-sm">
                       Quote{' '}
@@ -3439,6 +3472,21 @@ export function LiveProductionMonitor({
                     If this is above zero, keep at least one coil line with metres. For runs with no coil at all, use
                     &ldquo;Produced from offcut / accessories only&rdquo; instead.
                   </p>
+                  <div className="border-t border-slate-100 pt-2 mt-2">
+                    <p className="text-[10px] font-bold uppercase text-[#134e4a] mb-1">Issue from offcut incidents</p>
+                    <OffcutIncidentPicker
+                      gaugeLabel={quotationMaterialSpec?.gaugeLabel}
+                      colour={quotationMaterialSpec?.colour}
+                      value={offcutSupplySelections}
+                      onChange={setOffcutSupplySelections}
+                    />
+                    {offcutSupplySelections.length > 0 ? (
+                      <p className="mt-1 text-[9px] font-semibold text-emerald-800">
+                        Supplied from offcut:{' '}
+                        {offcutSupplySelections.map((s) => `${s.materialIncidentId} (${s.meters} m)`).join(', ')}
+                      </p>
+                    ) : null}
+                  </div>
                 </div>
               ) : null}
               {isStoneMeterQuote ? (

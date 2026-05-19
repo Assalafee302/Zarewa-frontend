@@ -48,6 +48,7 @@ import { apiFetch } from '../lib/apiBase';
 import { guidanceForLedgerPostFailure, isVoucherDateInLockedPeriod } from '../lib/ledgerPostingGuidance';
 import { EditSecondApprovalInline } from './EditSecondApprovalInline';
 import QuotationPrintView from './QuotationPrintView';
+import OffcutAvailabilityPanel from './material/OffcutAvailabilityPanel';
 
 /** Master material types used on roofing quotes: coil stock + stone meter stock (not finished-good SKUs / consumables). */
 const QUOTATION_MATERIAL_INVENTORY_MODELS = new Set(['coil_kg', 'stone_meter']);
@@ -2081,6 +2082,9 @@ const QuotationModal = ({
               <Calendar size={12} className="absolute right-2 bottom-2.5 text-slate-300 pointer-events-none" />
             </div>
           </div>
+          {materialGauge && materialColor && !isStoneMeter ? (
+            <OffcutAvailabilityPanel gaugeLabel={materialGauge} colour={materialColor} />
+          ) : null}
 
           {allowMaterialSpecCorrectionInView ? (
             <div className="rounded-xl border border-teal-200/90 bg-teal-50/50 p-4 mb-5">

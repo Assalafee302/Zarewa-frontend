@@ -23,7 +23,7 @@ export function DashboardQuickActionsPanel({ onSalesAction, onOpenProcurement, o
           className="flex items-center gap-3 bg-gray-50 text-[#134e4a] p-4 rounded-xl border border-gray-100 hover:bg-white hover:shadow-md transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#134e4a]/25 focus-visible:ring-offset-2"
         >
           <FileText size={18} className="text-slate-500 shrink-0" />
-          <span className="font-bold text-[11px] uppercase text-left">New receipt</span>
+          <span className="font-bold text-[11px] uppercase text-left">Record payment</span>
         </button>
         <button
           type="button"
