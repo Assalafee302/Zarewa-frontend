@@ -31,6 +31,8 @@ export function isQuotationFullyPaid(q) {
 const FULL_EDIT_PAID_QUOTATION_ROLES = new Set([
   'admin',
   'sales_manager',
+  'sales_staff',
+  'cashier',
   'operations_officer',
   'procurement_officer',
 ]);

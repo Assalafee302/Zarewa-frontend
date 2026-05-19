@@ -36,6 +36,8 @@ import {
 import { compareSelectLabels } from '../lib/selectOptionSort';
 import { bookedPaidNgnForQuotationFromMirrors } from '../lib/liveAnalytics';
 import { ReceiptPrintQuick, ReceiptPrintFull } from './receipt/ReceiptPrintViews';
+import { EditSecondApprovalInline } from './EditSecondApprovalInline';
+import { editMutationNeedsSecondApprovalRole } from '../lib/editApprovalUi';
 
 function newLineId() {
   return `pl-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
@@ -124,8 +126,12 @@ const ReceiptModal = ({
   const ws = useWorkspace();
   const isEdit = Boolean(editData?.id);
   const readOnly = accessMode === 'view';
+  const roleKey = ws?.session?.user?.roleKey;
+  const receiptAmendNeedsApproval =
+    isEdit && !readOnly && editMutationNeedsSecondApprovalRole(roleKey);
 
   const [quotationRef, setQuotationRef] = useState('');
+  const [receiptEditApprovalId, setReceiptEditApprovalId] = useState('');
   const [voucherDate, setVoucherDate] = useState('');
   const [remarks, setRemarks] = useState('');
   const [paymentLines, setPaymentLines] = useState([]);
@@ -302,6 +308,7 @@ const ReceiptModal = ({
     } else {
       setPaymentLines([emptyPaymentLine(vd, defaultAccountId)]);
     }
+    setReceiptEditApprovalId('');
   }, [isOpen, receiptHydrateSig]);
 
   /** Treasury default account arrived after open: fill blank line account ids without full re-hydrate. */
@@ -682,6 +689,12 @@ const ReceiptModal = ({
         };
         if (branchId) receiptBody.branchId = branchId;
         if (fullAmountAsReceipt) receiptBody.fullAmountAsReceipt = true;
+        if (isEdit && editData?.id) {
+          receiptBody.amendSalesReceiptId = String(editData.id);
+          if (receiptEditApprovalId.trim()) {
+            receiptBody.editApprovalId = receiptEditApprovalId.trim();
+          }
+        }
 
         const idempotencyKey =
           typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
@@ -1383,6 +1396,17 @@ const ReceiptModal = ({
             )}
           </div>
         </div>
+
+        {receiptAmendNeedsApproval ? (
+          <div className="px-5 pt-4 shrink-0">
+            <EditSecondApprovalInline
+              entityKind="sales_receipt"
+              entityId={String(editData.id)}
+              value={receiptEditApprovalId}
+              onChange={setReceiptEditApprovalId}
+            />
+          </div>
+        ) : null}
 
         <div className="px-5 py-4 bg-emerald-600 flex justify-between items-center text-white shrink-0 flex-wrap gap-3">
           <div>

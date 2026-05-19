@@ -63,7 +63,7 @@ const DEFAULT_HOME_BY_ROLE = {
   finance_manager: '/accounts',
   sales_manager: '/sales',
   sales_staff: '/sales',
-  cashier: '/sales',
+  cashier: '/accounts',
   operations_officer: '/operations',
 };
 

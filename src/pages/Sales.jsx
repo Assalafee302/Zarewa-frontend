@@ -38,6 +38,7 @@ import AdvancePaymentModal from '../components/AdvancePaymentModal';
 import CuttingListModal from '../components/CuttingListModal';
 import RefundModal from '../components/RefundModal';
 import { MainPanel, PageHeader, PageShell, PageTabs } from '../components/layout';
+import { WorkspaceExpenseQuickActions } from '../components/workspace/WorkspaceExpenseQuickActions';
 import { AiAskButton } from '../components/AiAskButton';
 import { formatNgn } from '../Data/mockData';
 import { useToast } from '../context/ToastContext';
@@ -1360,7 +1361,7 @@ const Sales = () => {
                 waitingNoMatch={cuttingListMaterialReadiness.waitingNoMatch}
                 onOpenCuttingList={openCuttingListFromMaterialAlert}
               />
-            ) : (
+            ) : activeTab === 'refund' ? (
               <section className="rounded-xl border border-dashed border-slate-200 bg-slate-50/40 p-5">
                 <p className="text-[9px] font-bold text-[#134e4a] uppercase tracking-wider mb-1.5">
                   Potential refunds ({quotationsRefundPotentialRows.length})
@@ -1410,7 +1411,8 @@ const Sales = () => {
                   </>
                 )}
               </section>
-            )}
+            ) : null}
+            <WorkspaceExpenseQuickActions />
           </aside>
         )}
 
