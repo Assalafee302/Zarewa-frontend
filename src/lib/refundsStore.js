@@ -3,6 +3,8 @@
  * Live data comes from workspace snapshot; localStorage is legacy-only if present.
  */
 
+import { formatPersonName } from './formatPersonName.js';
+
 const STORAGE_KEY = 'zarewa.sales.refunds';
 
 /** @typedef {'Pending'|'Approved'|'Rejected'|'Cancelled'|'Paid'} RefundStatus */
@@ -57,7 +59,7 @@ export function normalizeRefund(r) {
   return {
     refundID: r.refundID,
     customerID: r.customerID ?? '',
-    customer: r.customer ?? '',
+    customer: formatPersonName(r.customer ?? ''),
     quotationRef: r.quotationRef ?? '',
     cuttingListRef: r.cuttingListRef ?? '',
     product: r.product ?? '—',
@@ -73,17 +75,17 @@ export function normalizeRefund(r) {
       r.status === 'Paid' || r.status === 'Rejected' || r.status === 'Approved' || r.status === 'Cancelled'
         ? r.status
         : 'Pending',
-    requestedBy: r.requestedBy ?? '—',
+    requestedBy: formatPersonName(r.requestedBy ?? '—'),
     requestedAtISO: r.requestedAtISO ?? '',
     approvalDate: r.approvalDate ?? '',
-    approvedBy: r.approvedBy ?? '',
+    approvedBy: formatPersonName(r.approvedBy ?? ''),
     approvedAmountNgn,
     managerComments: r.managerComments ?? '',
     paidAmountNgn,
     paidAtISO: r.paidAtISO ?? '',
-    paidBy: r.paidBy ?? '',
+    paidBy: formatPersonName(r.paidBy ?? ''),
     paymentNote: r.paymentNote ?? '',
-    payeeName: String(r.payeeName ?? r.payee_name ?? '').trim(),
+    payeeName: formatPersonName(String(r.payeeName ?? r.payee_name ?? '').trim()),
     payeeAccountNo: String(r.payeeAccountNo ?? r.payee_account_no ?? '').trim(),
     payeeBankName: String(r.payeeBankName ?? r.payee_bank_name ?? '').trim(),
     payoutHistory: Array.isArray(r.payoutHistory) ? r.payoutHistory.map(normalizePayoutLine) : [],

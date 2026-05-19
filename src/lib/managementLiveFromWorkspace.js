@@ -4,6 +4,7 @@
  */
 
 import { DEFAULT_MANAGER_TARGETS_PER_MONTH } from './dashboardPrefs.js';
+import { formatPersonName } from './formatPersonName.js';
 import { productionAttributedRevenueNgn, productionOutputDateISO } from './liveAnalytics.js';
 
 /** @typedef {'month' | '4months' | 'half' | 'year'} ManagerMetricPeriodKey */
@@ -62,7 +63,7 @@ export function buildManagementQueuesFromSnapshot(snapshot) {
     })
     .map((q) => ({
       id: q.id,
-      customer_name: q.customer,
+      customer_name: formatPersonName(q.customer),
       total_ngn: Number(q.totalNgn) || 0,
       paid_ngn: Number(q.paidNgn) || 0,
       date_iso: q.dateISO,
@@ -75,7 +76,7 @@ export function buildManagementQueuesFromSnapshot(snapshot) {
     .filter((q) => Boolean(q.managerFlaggedAtISO))
     .map((q) => ({
       id: q.id,
-      customer_name: q.customer,
+      customer_name: formatPersonName(q.customer),
       total_ngn: Number(q.totalNgn) || 0,
       manager_flag_reason: q.managerFlagReason || '',
       manager_flagged_at_iso: q.managerFlaggedAtISO,
@@ -101,7 +102,7 @@ export function buildManagementQueuesFromSnapshot(snapshot) {
       const q = quoteById.get(cl.quotationRef);
       return {
         id: cl.id,
-        customer_name: cl.customer || q.customer,
+        customer_name: formatPersonName(cl.customer || q.customer),
         quotation_ref: cl.quotationRef,
         total_meters: cl.totalMeters,
         paid_ngn: Number(q.paidNgn) || 0,
@@ -114,7 +115,7 @@ export function buildManagementQueuesFromSnapshot(snapshot) {
     .filter((r) => String(r.status) === 'Pending')
     .map((r) => ({
       refund_id: r.refundID,
-      customer_name: r.customer,
+      customer_name: formatPersonName(r.customer),
       quotation_ref: r.quotationRef,
       amount_ngn: r.amountNgn,
       requested_at_iso: r.requestedAtISO,
@@ -152,7 +153,7 @@ export function buildManagementQueuesFromSnapshot(snapshot) {
       job_id: j.jobID,
       cutting_list_id: j.cuttingListId,
       quotation_ref: j.quotationRef,
-      customer_name: j.customerName,
+      customer_name: formatPersonName(j.customerName),
       product_name: j.productName,
       conversion_alert_state: j.conversionAlertState,
       manager_review_required: j.managerReviewRequired ? 1 : 0,
@@ -219,8 +220,9 @@ export function buildManagerSnapshotsFromWorkspace(
   const topByRevenue = [...revByCustomer.entries()]
     .map(([customer_id, rev]) => ({
       customer_id,
-      customer_name:
-        quotations.find((x) => x.customerID === customer_id)?.customer || customer_id || '—',
+      customer_name: formatPersonName(
+        quotations.find((x) => x.customerID === customer_id)?.customer || customer_id || '—'
+      ),
       revenue: rev,
     }))
     .filter((r) => r.revenue > 0)

@@ -52,6 +52,7 @@ import { Card, Button } from '../components/ui';
 import { ModalFrame, PageShell } from '../components/layout';
 import { DashboardKpiStrip } from '../components/dashboard/DashboardKpiStrip';
 import { ManagementAuditSections } from '../components/management/ManagementAuditSections';
+import { RefundManagerApprovalPreview } from '../components/management/RefundManagerApprovalPreview';
 
 const INBOX_TABS = [
   { key: 'clearance', label: 'Clearance', description: 'Paid quotes awaiting manager clearance' },
@@ -107,6 +108,12 @@ const ManagerDashboard = () => {
     [ws?.session?.user?.roleKey, ws?.permissions]
   );
   const canExecInvOpenAdjust = Boolean(ws?.hasPermission?.('inventory.adjust'));
+
+  const selectedRefundRecord = useMemo(() => {
+    if (selectedIntel?.kind !== 'refund' || !selectedIntel.refundId) return null;
+    const list = ws?.hasWorkspaceData && Array.isArray(ws?.snapshot?.refunds) ? ws.snapshot.refunds : [];
+    return list.find((r) => String(r.refundID) === String(selectedIntel.refundId)) || null;
+  }, [selectedIntel?.kind, selectedIntel?.refundId, ws?.hasWorkspaceData, ws?.snapshot?.refunds]);
 
   const inboxTabs = useMemo(() => {
     const t = [...INBOX_TABS];
@@ -1435,12 +1442,28 @@ const ManagerDashboard = () => {
             setRefundIntelExtras(null);
           }}
         >
-          <div className="z-modal-panel max-w-5xl w-full p-0 overflow-hidden">
-            <Card className="flex flex-col bg-slate-900 border-slate-800 shadow-xl overflow-hidden max-h-[min(92vh,960px)]">
-              <div className="p-4 border-b border-white/10 flex items-center justify-between gap-2">
-                <h3 className="text-[11px] font-black text-white/50 uppercase tracking-[0.2em] flex items-center gap-2">
-                  <History size={14} className="text-teal-400" />
-                  Transaction intel
+          <div
+            className={`z-modal-panel w-full p-0 overflow-hidden ${selectedIntel?.kind === 'refund' ? 'max-w-6xl' : 'max-w-5xl'}`}
+          >
+            <Card
+              className={`flex flex-col shadow-xl overflow-hidden max-h-[min(92vh,960px)] ${
+                selectedIntel?.kind === 'refund'
+                  ? 'bg-slate-100 border-slate-200'
+                  : 'bg-slate-900 border-slate-800'
+              }`}
+            >
+              <div
+                className={`p-4 border-b flex items-center justify-between gap-2 ${
+                  selectedIntel?.kind === 'refund' ? 'border-slate-200 bg-white' : 'border-white/10'
+                }`}
+              >
+                <h3
+                  className={`text-[11px] font-black uppercase tracking-[0.2em] flex items-center gap-2 ${
+                    selectedIntel?.kind === 'refund' ? 'text-slate-500' : 'text-white/50'
+                  }`}
+                >
+                  <History size={14} className={selectedIntel?.kind === 'refund' ? 'text-[#134e4a]' : 'text-teal-400'} />
+                  {selectedIntel?.kind === 'refund' ? 'Refund approval review' : 'Transaction intel'}
                 </h3>
                 <button
                   type="button"
@@ -1449,13 +1472,21 @@ const ManagerDashboard = () => {
                     setAuditData(null);
                     setRefundIntelExtras(null);
                   }}
-                  className="text-[10px] font-bold uppercase text-white/40 hover:text-white transition-colors"
+                  className={`text-[10px] font-bold uppercase transition-colors ${
+                    selectedIntel?.kind === 'refund'
+                      ? 'text-slate-400 hover:text-slate-800'
+                      : 'text-white/40 hover:text-white'
+                  }`}
                 >
                   Close
                 </button>
               </div>
 
-              <div className="flex-1 overflow-y-auto p-4 space-y-5 custom-scrollbar text-white min-h-0">
+              <div
+                className={`flex-1 overflow-y-auto p-4 custom-scrollbar min-h-0 ${
+                  selectedIntel?.kind === 'refund' ? 'bg-slate-100 space-y-3' : 'space-y-5 text-white'
+                }`}
+              >
                 {selectedIntel?.kind === 'quotation' ? (
                 <div className="space-y-5 animate-in fade-in duration-200">
                   <div>
@@ -1561,118 +1592,30 @@ const ManagerDashboard = () => {
                   )}
                 </div>
               ) : selectedIntel?.kind === 'refund' ? (
-                <div className="space-y-5 animate-in fade-in duration-200">
-                  <div>
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-amber-300/90 mb-1">Refund request</p>
-                    <h2 className="text-lg font-black text-white font-mono leading-tight">{selectedIntel.refundId}</h2>
-                    <p className="text-sm font-semibold text-white/70 mt-1 truncate">{selectedIntel.row?.customer_name}</p>
-                    <p className="text-xs text-white/50 mt-2 tabular-nums">{formatNgn(selectedIntel.row?.amount_ngn)}</p>
-                    <p className="text-[10px] text-white/40 mt-2">
-                      {selectedIntel.row?.quotation_ref ? `Quote ${selectedIntel.row.quotation_ref}` : '—'} ·{' '}
-                      {formatRefundReasonCategory(selectedIntel.row?.reason_category)}
-                    </p>
-                  </div>
+                <>
                   {renderOfficialRecordBanner(selectedUnifiedWorkItem)}
-
-                  {loadingRefundIntel ? (
-                    <div className="flex items-center justify-center py-12">
-                      <RefreshCw className="text-amber-400 animate-spin" size={28} />
-                    </div>
-                  ) : refundIntelExtras ? (
-                    <>
-                      <section>
-                        <p className="text-[10px] font-black text-white/40 uppercase tracking-widest mb-2">Receipts (quote context)</p>
-                        <div className="space-y-2">
-                          {!refundIntelExtras.receipts?.length ? (
-                            <p className="text-xs text-white/35 py-2">None.</p>
-                          ) : (
-                            refundIntelExtras.receipts.map((rcpt, idx) => (
-                              <div
-                                key={rcpt.id || idx}
-                                className="flex gap-3 p-3 rounded-xl bg-white/[0.06] border border-white/10"
-                              >
-                                <div className="p-2 bg-emerald-500/15 rounded-lg shrink-0">
-                                  <DollarSign size={14} className="text-emerald-400" />
-                                </div>
-                                <div className="min-w-0 flex-1">
-                                  <p className="text-sm font-black text-white tabular-nums">
-                                    {formatNgn(receiptCashReceivedNgn(rcpt))}
-                                  </p>
-                                  <p className="text-[9px] text-white/30 mt-1 font-mono">{rcpt.id}</p>
-                                </div>
-                              </div>
-                            ))
-                          )}
-                        </div>
-                      </section>
-                      <section>
-                        <p className="text-[10px] font-black text-white/40 uppercase tracking-widest mb-2">Cutting lists</p>
-                        {!refundIntelExtras.cuttingLists?.length ? (
-                          <p className="text-xs text-white/35 py-2">None linked.</p>
-                        ) : (
-                          <div className="space-y-2">
-                            {refundIntelExtras.cuttingLists.map((cl, idx) => (
-                              <div key={cl.id || idx} className="p-3 rounded-xl bg-white/[0.06] border border-white/10 text-[10px]">
-                                <p className="font-bold text-white">{cl.id}</p>
-                                <p className="text-white/40 mt-1 tabular-nums">{cl.totalMeters?.toLocaleString?.()} m</p>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </section>
-                    </>
-                  ) : selectedIntel.row?.quotation_ref ? null : (
-                    <p className="text-[10px] text-white/35">No quotation linked — context panels unavailable.</p>
-                  )}
-
-                  {selectedIntel.row?.quotation_ref ? (
-                    <div className="space-y-3">
-                      <p className="text-[10px] font-black text-violet-300/90 uppercase tracking-widest">
-                        Full quotation picture (orders, payments, balance, production, refunds)
-                      </p>
-                      <ManagementAuditSections auditData={auditData} loadingAudit={loadingAudit} formatNgn={formatNgn} />
-                    </div>
-                  ) : null}
-
-                  <div className="pt-4 border-t border-white/10 space-y-3">
-                    <p className="text-[10px] font-black text-teal-400 uppercase tracking-widest">Decision</p>
-                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                      <button
-                        type="button"
-                        disabled={decisionBusy}
-                        onClick={() => handleRefundDecision('Approved')}
-                        className="flex flex-col items-center gap-1.5 p-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white disabled:opacity-50 transition-colors"
-                      >
-                        <CheckCircle2 size={18} />
-                        <span className="text-[9px] font-black uppercase tracking-widest">Approve</span>
-                      </button>
-                      <button
-                        type="button"
-                        disabled={decisionBusy}
-                        onClick={() => handleRefundDecision('Rejected')}
-                        className="flex flex-col items-center gap-1.5 p-3.5 rounded-xl bg-rose-600/80 hover:bg-rose-500 text-white disabled:opacity-50 transition-colors"
-                      >
-                        <RotateCcw size={18} />
-                        <span className="text-[9px] font-black uppercase tracking-widest">Reject</span>
-                      </button>
-                    </div>
-                    <button
-                      type="button"
-                      disabled={decisionBusy}
-                      onClick={() =>
-                        navigate('/sales', {
-                          state: {
-                            focusSalesTab: 'refund',
-                            openSalesRecord: { type: 'refund', id: selectedIntel.refundId },
-                          },
-                        })
-                      }
-                      className="w-full text-[10px] font-bold uppercase tracking-wide text-white/40 hover:text-white/70 py-2"
-                    >
-                      Open full refund flow in Sales
-                    </button>
-                  </div>
-                </div>
+                  <RefundManagerApprovalPreview
+                    refundId={selectedIntel.refundId}
+                    inboxRow={selectedIntel.row}
+                    refundRecord={selectedRefundRecord}
+                    auditData={auditData}
+                    loadingAudit={loadingAudit}
+                    refundIntel={refundIntelExtras}
+                    loadingIntel={loadingRefundIntel}
+                    formatNgn={formatNgn}
+                    decisionBusy={decisionBusy}
+                    onApprove={() => handleRefundDecision('Approved')}
+                    onReject={() => handleRefundDecision('Rejected')}
+                    onOpenSales={() =>
+                      navigate('/sales', {
+                        state: {
+                          focusSalesTab: 'refund',
+                          openSalesRecord: { type: 'refund', id: selectedIntel.refundId },
+                        },
+                      })
+                    }
+                  />
+                </>
               ) : selectedIntel?.kind === 'payment' ? (
                 <div className="space-y-5 animate-in fade-in duration-200">
                   <div>
@@ -1883,8 +1826,18 @@ const ManagerDashboard = () => {
               ) : null}
               </div>
 
-              <div className="p-3 border-t border-white/10 bg-black/30">
-                <p className="text-[9px] font-semibold text-white/25 text-center uppercase tracking-widest">
+              <div
+                className={`p-3 border-t ${
+                  selectedIntel?.kind === 'refund'
+                    ? 'border-slate-200 bg-white'
+                    : 'border-white/10 bg-black/30'
+                }`}
+              >
+                <p
+                  className={`text-[9px] font-semibold text-center uppercase tracking-widest ${
+                    selectedIntel?.kind === 'refund' ? 'text-slate-400' : 'text-white/25'
+                  }`}
+                >
                   Management · Zarewa
                 </p>
               </div>
