@@ -22,6 +22,8 @@ export function WorkspaceExpenseQuickActions() {
   const payRequestFileRef = useRef(null);
   const todayIso = useMemo(() => new Date().toISOString().slice(0, 10), []);
   const canFinance = ws?.canAccessModule?.('finance') !== false;
+  const canSubmitExpenseRequest =
+    Boolean(ws?.hasPermission?.('expenses.create')) || Boolean(ws?.hasPermission?.('finance.post'));
   const canRecordDirectExpense =
     Boolean(ws?.hasPermission?.('finance.post')) || Boolean(ws?.hasPermission?.('expenses.create'));
   const activeActorLabel = ws?.session?.user?.displayName ?? 'User';
@@ -194,6 +196,21 @@ export function WorkspaceExpenseQuickActions() {
   };
 
   if (!ws?.session) return null;
+
+  if (!canSubmitExpenseRequest) {
+    return (
+      <div className="rounded-zarewa border border-slate-200/75 bg-white p-5 shadow-[var(--shadow-sequence)] ring-1 ring-teal-500/10">
+        <h3 className="text-[11px] font-bold uppercase tracking-[0.12em] text-[#134e4a] flex items-center gap-2">
+          <ClipboardList size={14} strokeWidth={2} aria-hidden />
+          Expenses &amp; requests
+        </h3>
+        <p className="mt-2 text-[10px] text-slate-600 leading-snug">
+          Your account does not have <strong>expenses.create</strong> permission. Ask an administrator to assign the
+          Sales officer role (or add expense request permission), then sign out and back in.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <>
