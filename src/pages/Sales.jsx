@@ -97,6 +97,7 @@ import {
   roughMetersFromKg,
 } from '../lib/salesStockCore';
 import {
+  canonicalColourName,
   stockCheckSelectOptionsFromCoilRows,
   stockCheckSelectOptionsFromMasterData,
   stockRowMatchesColourFilter,
@@ -301,6 +302,7 @@ const Sales = () => {
   );
 
   const coilInventoryRows = useMemo(() => {
+    const masterData = ws?.snapshot?.masterData ?? null;
     const seenIds = new Set();
     const rows = [];
 
@@ -320,12 +322,13 @@ const Sales = () => {
         const gaugeLabel = String(lot.gaugeLabel || '').trim() || attrs?.gauge || '—';
         const gNum = firstGaugeNumeric(gaugeLabel);
         const colourRaw = String(lot.colour || '').trim() || String(attrs?.colour || '').trim();
+        const colourLabel = canonicalColourName(masterData, colourRaw) || colourRaw;
         const materialType =
           String(lot.materialTypeName || '').trim() || attrs?.materialType || p?.name || lot.productID;
         const estM = roughMetersFromKg(kgNum, gNum);
         pushRow({
           id: lot.coilNo,
-          colour: colourShort(colourRaw),
+          colour: colourShort(colourLabel),
           colourRaw,
           gaugeLabel,
           materialType,
@@ -370,9 +373,10 @@ const Sales = () => {
           const share = Math.max(0, Math.round(kgTotal / n));
           tokens.forEach((tok, i) => {
             const estM = roughMetersFromKg(share, gNum);
+            const colourLabel = canonicalColourName(masterData, tok) || tok;
             pushRow({
               id: `${p.productID}-${i + 1}`,
-              colour: colourShort(tok),
+              colour: colourShort(colourLabel),
               colourRaw: tok,
               gaugeLabel,
               materialType: attrs?.materialType ?? p.name,
@@ -406,7 +410,7 @@ const Sales = () => {
     });
 
     return rows;
-  }, [coilLots, invProducts, yardRegister]);
+  }, [coilLots, invProducts, yardRegister, ws?.snapshot?.masterData]);
 
   /** Book-only kg SKU lines are not receipted coils — exclude from cutting-list “coil match” to avoid false positives. */
   const coilInventoryRowsForMaterialReadiness = useMemo(
@@ -440,7 +444,7 @@ const Sales = () => {
 
   const stockSearchOptions = useMemo(() => {
     const fromMaster = stockCheckSelectOptionsFromMasterData(ws?.snapshot?.masterData);
-    const fromCoil = stockCheckSelectOptionsFromCoilRows(coilInventoryRows);
+    const fromCoil = stockCheckSelectOptionsFromCoilRows(coilInventoryRows, ws?.snapshot?.masterData);
     return {
       types: fromMaster.types.length ? fromMaster.types : fromCoil.types,
       gauges: fromMaster.gauges.length ? fromMaster.gauges : fromCoil.gauges,

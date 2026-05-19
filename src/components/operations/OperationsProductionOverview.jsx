@@ -135,11 +135,12 @@ export function OperationsProductionOverview({
   conversionStats,
   productionQueueStats,
   hasWorkspaceData,
+  masterData,
   onGoProduction,
   onGoInventory,
   onRequestCoils,
 }) {
-  const coilStock = useMemo(() => buildCoilStockOverview(coilLots), [coilLots]);
+  const coilStock = useMemo(() => buildCoilStockOverview(coilLots, masterData), [coilLots, masterData]);
   const stoneStock = useMemo(() => buildSkuStockOverview(inventoryRows, 'stone'), [inventoryRows]);
   const accessoryStock = useMemo(() => buildSkuStockOverview(inventoryRows, 'accessory'), [inventoryRows]);
 

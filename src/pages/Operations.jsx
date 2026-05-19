@@ -40,6 +40,7 @@ import {
   resolveLiveJobMaterialKind,
 } from '../lib/productionLiveJobMaterialKind';
 import { compareSelectLabels } from '../lib/selectOptionSort';
+import { canonicalColourName } from '../lib/stockCheckMasterOptions';
 
 /** Current kg on the coil (after production use); uses API fields when present. */
 function liveCoilWeightKg(lot) {
@@ -651,6 +652,7 @@ const Operations = () => {
   );
 
   const inventoryStats = useMemo(() => {
+    const masterData = ws?.snapshot?.masterData ?? null;
     const activeCoils = coilLots.filter((c) => c.currentStatus !== 'Consumed');
     let aluzincKg = 0;
     let aluminiumKg = 0;
@@ -665,7 +667,7 @@ const Operations = () => {
       else aluzincKg += live;
 
       const gauge = c.gaugeLabel || '—';
-      const colour = c.colour || '—';
+      const colour = canonicalColourName(masterData, c.colour || '') || c.colour || '—';
       const material = c.materialTypeName || c.productID || '—';
       const key = `${gauge}|${colour}|${material}`;
       buckets.set(key, {
@@ -684,7 +686,7 @@ const Operations = () => {
       lowStock,
       topMaterials,
     };
-  }, [coilLots]);
+  }, [coilLots, ws?.snapshot?.masterData]);
   const productionJobs = useMemo(
     () => (ws?.hasWorkspaceData && Array.isArray(ws?.snapshot?.productionJobs) ? ws.snapshot.productionJobs : []),
     [ws?.hasWorkspaceData, ws?.snapshot?.productionJobs]
@@ -1523,6 +1525,7 @@ const Operations = () => {
                 conversionStats={conversionStats}
                 productionQueueStats={productionQueueStats}
                 hasWorkspaceData={Boolean(ws?.hasWorkspaceData)}
+                masterData={ws?.snapshot?.masterData ?? null}
                 onGoProduction={() => setActiveTab('production')}
                 onGoInventory={goOverviewInventory}
                 onRequestCoils={() => setShowCoilRequest(true)}

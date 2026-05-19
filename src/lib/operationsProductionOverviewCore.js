@@ -1,3 +1,5 @@
+import { canonicalColourName } from './stockCheckMasterOptions.js';
+
 /** @param {object} lot */
 export function liveCoilWeightKgForOverview(lot) {
   if (lot.currentWeightKg != null && lot.currentWeightKg !== '') {
@@ -22,8 +24,9 @@ function coilFamily(materialTypeName) {
 
 /**
  * @param {object[]} coilLots
+ * @param {{ colours?: object[] } | null | undefined} [masterData]
  */
-export function buildCoilStockOverview(coilLots) {
+export function buildCoilStockOverview(coilLots, masterData = null) {
   const active = (coilLots || []).filter((c) => c.currentStatus !== 'Consumed');
   const families = {
     aluminium: { totalKg: 0, lowCount: 0, buckets: new Map() },
@@ -38,7 +41,7 @@ export function buildCoilStockOverview(coilLots) {
     if (kg > 0 && kg < 100) bucket.lowCount += 1;
 
     const gauge = c.gaugeLabel || '—';
-    const colour = c.colour || '—';
+    const colour = canonicalColourName(masterData, c.colour || '') || c.colour || '—';
     const key = `${gauge}|${colour}`;
     const prev = bucket.buckets.get(key) || { gauge, colour, kg: 0, coilCount: 0 };
     prev.kg += kg;
