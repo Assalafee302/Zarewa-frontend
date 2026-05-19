@@ -55,6 +55,7 @@ import { DashboardKpiStrip } from '../components/dashboard/DashboardKpiStrip';
 import { ManagementAuditSections } from '../components/management/ManagementAuditSections';
 import { RefundManagerApprovalPreview } from '../components/management/RefundManagerApprovalPreview';
 import { ClearanceManagerApprovalPreview } from '../components/management/ClearanceManagerApprovalPreview';
+import { OfficialRecordBanner } from '../components/management/OfficialRecordBanner';
 
 const INBOX_TABS = [
   { key: 'clearance', label: 'Clearance', description: 'Paid quotes awaiting manager clearance' },
@@ -233,34 +234,12 @@ const ManagerDashboard = () => {
     }
     return null;
   }, [selectedIntel, unifiedBySource]);
-  const renderOfficialRecordBanner = (item) => {
-    if (!item) return null;
-    return (
-      <div className="rounded-2xl border border-white/15 bg-white/[0.07] p-3">
-        <p className="text-[10px] font-black uppercase tracking-widest text-teal-300/90">Official record</p>
-        <div className="flex items-start justify-between gap-3 mt-2">
-          <div className="min-w-0">
-            <p className="text-xs font-mono font-bold text-white">{item.referenceNo || item.id}</p>
-            <p className="text-[10px] text-white/50 mt-1 capitalize">
-              {item.documentClass} · {item.documentType?.replace?.(/_/g, ' ')}
-            </p>
-            {item.keyDecisionSummary ? (
-              <p className="text-[10px] text-teal-100/85 mt-2 line-clamp-2">{item.keyDecisionSummary}</p>
-            ) : null}
-          </div>
-          {item.routePath || selectedIntel?.kind === 'payment' ? (
-            <button
-              type="button"
-              onClick={() => openUnifiedWorkItem(item)}
-              className="shrink-0 rounded-lg border border-white/10 bg-white/10 px-3 py-2 text-[9px] font-black uppercase tracking-wide text-white hover:bg-white/15"
-            >
-              Open record
-            </button>
-          ) : null}
-        </div>
-      </div>
-    );
-  };
+  const officialRecordFallbackId = useMemo(() => {
+    if (!selectedIntel) return '';
+    if (selectedIntel.kind === 'quotation') return String(selectedIntel.quoteId || '').trim();
+    if (selectedIntel.kind === 'refund') return String(selectedIntel.row?.quotation_ref || '').trim();
+    return '';
+  }, [selectedIntel]);
 
   const paymentIntelLineItems = useMemo(() => {
     const raw = selectedIntel?.row?.line_items;
@@ -1454,7 +1433,13 @@ const ManagerDashboard = () => {
               >
                 {selectedIntel?.kind === 'quotation' ? (
                 <>
-                  {renderOfficialRecordBanner(selectedUnifiedWorkItem)}
+                  <OfficialRecordBanner
+                    item={selectedUnifiedWorkItem}
+                    light={intelModalLight}
+                    quoteFallbackId={officialRecordFallbackId}
+                    showOpenRecord={selectedIntel?.kind === 'payment'}
+                    onOpenRecord={openUnifiedWorkItem}
+                  />
                   <ClearanceManagerApprovalPreview
                     quoteId={selectedIntel.quoteId}
                     inboxRow={selectedIntel.row}
@@ -1493,7 +1478,13 @@ const ManagerDashboard = () => {
                 </>
               ) : selectedIntel?.kind === 'refund' ? (
                 <>
-                  {renderOfficialRecordBanner(selectedUnifiedWorkItem)}
+                  <OfficialRecordBanner
+                    item={selectedUnifiedWorkItem}
+                    light={intelModalLight}
+                    quoteFallbackId={officialRecordFallbackId}
+                    showOpenRecord={selectedIntel?.kind === 'payment'}
+                    onOpenRecord={openUnifiedWorkItem}
+                  />
                   <RefundManagerApprovalPreview
                     refundId={selectedIntel.refundId}
                     inboxRow={selectedIntel.row}
@@ -1620,7 +1611,13 @@ const ManagerDashboard = () => {
                       </button>
                     </div>
                   </div>
-                  {renderOfficialRecordBanner(selectedUnifiedWorkItem)}
+                  <OfficialRecordBanner
+                    item={selectedUnifiedWorkItem}
+                    light={intelModalLight}
+                    quoteFallbackId={officialRecordFallbackId}
+                    showOpenRecord={selectedIntel?.kind === 'payment'}
+                    onOpenRecord={openUnifiedWorkItem}
+                  />
                   <div className="pt-4 border-t border-white/10 space-y-3">
                     <p className="text-[10px] font-black text-teal-400 uppercase tracking-widest">Decision</p>
                     <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
@@ -1677,7 +1674,13 @@ const ManagerDashboard = () => {
                         : ''}
                     </p>
                   </div>
-                  {renderOfficialRecordBanner(selectedUnifiedWorkItem)}
+                  <OfficialRecordBanner
+                    item={selectedUnifiedWorkItem}
+                    light={intelModalLight}
+                    quoteFallbackId={officialRecordFallbackId}
+                    showOpenRecord={selectedIntel?.kind === 'payment'}
+                    onOpenRecord={openUnifiedWorkItem}
+                  />
 
                   {selectedIntel.row?.quotation_ref ? (
                     <div className="space-y-3">

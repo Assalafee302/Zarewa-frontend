@@ -24,7 +24,27 @@ export function flattenQuotationLineItems(quotation) {
       const unitPrice = item.unitPrice ?? item.unit_price_ngn ?? item.price ?? '';
       const lineTotal = item.lineTotal ?? item.line_total_ngn ?? item.total ?? '';
       const id = item.id != null && String(item.id).trim() ? String(item.id).trim() : '';
-      out.push({ category: cat, name, qty, unit, unitPrice, lineTotal, id });
+      const gauge = item.gauge ?? item.gaugeLabel ?? item.gauge_label ?? '';
+      const colour = item.colour ?? item.color ?? '';
+      const design = item.design ?? '';
+      const profile = item.profile ?? '';
+      const materialType =
+        item.materialType ?? item.materialTypeName ?? item.material_type_name ?? item.material ?? '';
+      out.push({
+        category: cat,
+        name,
+        qty,
+        unit,
+        unitPrice,
+        lineTotal,
+        id,
+        gauge,
+        colour,
+        color: colour,
+        design,
+        profile,
+        materialType,
+      });
     }
   }
   return out;
