@@ -1500,13 +1500,14 @@ const Operations = () => {
         <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50/80 px-3 py-2.5 text-[10px] font-medium text-amber-950 leading-snug">
           {!canReceiveInventory ? (
             <p>
-              <strong>Receiving into stock</strong> (GRN / goods in transit) requires a{' '}
-              <strong>branch manager</strong> account or above.
+              <strong>Receiving into stock</strong> (GRN / goods in transit) requires the{' '}
+              <strong>inventory.receive</strong> permission (store / operations or branch manager role).
             </p>
           ) : null}
           {!canAdjustInventory ? (
             <p className={!canReceiveInventory ? 'mt-1.5' : ''}>
-              <strong>Stock adjustments</strong> require a <strong>branch manager</strong> account or above.
+              <strong>Stock adjustments</strong> require the <strong>inventory.adjust</strong> permission (store /
+              operations or branch manager role).
             </p>
           ) : null}
         </div>

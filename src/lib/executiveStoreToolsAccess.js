@@ -1,15 +1,25 @@
 import { hasPermissionInList } from './moduleAccess.js';
 
-/** Roles that should see executive shortcuts to production / stock tools (with matching permissions below). */
-const EXEC_STORE_SHORTCUT_ROLES = new Set(['admin', 'md', 'sales_manager']);
+/** Roles that may see manager-dashboard shortcuts to production / stock (permission check is primary). */
+const EXEC_STORE_SHORTCUT_ROLES = new Set(['admin', 'md', 'sales_manager', 'operations_officer']);
+
+function hasStoreFloorPermissions(permissions) {
+  return (
+    hasPermissionInList(permissions, 'production.manage') ||
+    hasPermissionInList(permissions, 'operations.manage') ||
+    hasPermissionInList(permissions, 'inventory.receive') ||
+    hasPermissionInList(permissions, 'inventory.adjust')
+  );
+}
 
 /**
- * Branch manager, MD, or administrator (or wildcard permission).
+ * Branch manager, MD, administrator, or store/production staff with matching permissions.
  * @param {string | undefined} roleKey
  * @param {string[] | undefined} permissions
  */
 export function canSeeExecutiveStoreRoleShortcut(roleKey, permissions) {
   if (hasPermissionInList(permissions, '*')) return true;
+  if (hasStoreFloorPermissions(permissions)) return true;
   const r = String(roleKey || '').toLowerCase();
   return EXEC_STORE_SHORTCUT_ROLES.has(r);
 }
