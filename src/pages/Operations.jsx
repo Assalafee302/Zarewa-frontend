@@ -16,7 +16,6 @@ import {
   ChevronUp,
   Scale,
   Search,
-  Disc3,
 } from 'lucide-react';
 
 import { WorkspacePanelToolbar } from '../components/workspace';
@@ -24,8 +23,7 @@ import { WORKSPACE_EMPTY_LIST_CLASS } from '../lib/workspaceListStyle';
 import { MainPanel, PageHeader, PageShell, PageTabs, ModalFrame } from '../components/layout';
 import { AiAskButton } from '../components/AiAskButton';
 import { ProductionRegisterEditModal } from '../components/operations/ProductionRegisterEditModal';
-import OperationsCoilControlTab from '../components/operations/OperationsCoilControlTab';
-import { OperationsInventoryAttentionPanel } from '../components/operations/OperationsInventoryAttentionPanel';
+import { OperationsProductionOverview } from '../components/operations/OperationsProductionOverview';
 import { useInventory } from '../context/InventoryContext';
 import { useToast } from '../context/ToastContext';
 import { useWorkspace } from '../context/WorkspaceContext';
@@ -189,7 +187,6 @@ function compareProductionQueueRows(a, b, sortKey) {
 const PANEL_TITLE = {
   overview: 'Production overview',
   production: 'Production queue',
-  coilControl: 'Coil control',
 };
 
 /** Rows per page for production line lists (live jobs, closed queue, manager review). */
@@ -554,7 +551,7 @@ const Operations = () => {
   const canReceiveInventory = Boolean(ws?.hasPermission?.('inventory.receive'));
   const canAdjustInventory = Boolean(ws?.hasPermission?.('inventory.adjust'));
 
-  const [activeTab, setActiveTab] = useState('production');
+  const [activeTab, setActiveTab] = useState('overview');
   const [searchQuery, setSearchQuery] = useState('');
   /** Closed-record list: all | completed | cancelled (in-progress jobs are above this list). */
   const [productionFilter, setProductionFilter] = useState('all');
@@ -688,18 +685,6 @@ const Operations = () => {
       topMaterials,
     };
   }, [coilLots]);
-  const overviewInventoryPreview = useMemo(
-    () =>
-      inventoryRows.map((row) => ({
-        key: row.productID || row.name,
-        name: row.name || row.productID || '—',
-        stockLevel: Number(row.stockLevel) || 0,
-        low: Number(row.stockLevel) < Number(row.lowStockThreshold || 0),
-        unit: row.unit || '',
-      })),
-    [inventoryRows]
-  );
-
   const productionJobs = useMemo(
     () => (ws?.hasWorkspaceData && Array.isArray(ws?.snapshot?.productionJobs) ? ws.snapshot.productionJobs : []),
     [ws?.hasWorkspaceData, ws?.snapshot?.productionJobs]
@@ -1000,11 +985,10 @@ const Operations = () => {
     };
   }, [productionQueueModel]);
 
-  const operationsInventoryAttention = ws?.snapshot?.operationsInventoryAttention;
-
-  const goProcurementFromAttention = useCallback(() => {
-    navigate('/procurement', { state: { focusTab: 'suppliers' } });
-  }, [navigate]);
+  const goOverviewInventory = useCallback((kind) => {
+    setActiveTab('inventory');
+    if (kind === 'stone' || kind === 'accessory' || kind === 'coil') setStockReceiveKind(kind);
+  }, []);
 
   const toggleCoilReceiptSort = useCallback((key) => {
     setCoilReceiptSort((prev) => {
@@ -1028,7 +1012,6 @@ const Operations = () => {
       { id: 'overview', icon: <LayoutDashboard size={16} />, label: 'Overview' },
       { id: 'inventory', icon: <Box size={16} />, label: 'Stock management' },
       { id: 'production', icon: <Scissors size={16} />, label: 'Production line' },
-      { id: 'coilControl', icon: <Disc3 size={16} />, label: 'Coil control' },
     ],
     []
   );
@@ -1068,7 +1051,8 @@ const Operations = () => {
     }
 
     if (t === 'coilControl') {
-      setActiveTab('coilControl');
+      setActiveTab('inventory');
+      setStockReceiveKind('coil');
       navigate(location.pathname, { replace: true, state: {} });
       return;
     }
@@ -1484,7 +1468,7 @@ const Operations = () => {
     <PageShell blurred={isAnyModalOpen}>
       <PageHeader
         title="Store & production"
-        subtitle="Receive in-transit coils into stock, adjustments & coil requests. Coil control posts ledger moves, scrap/offcut (metres + book refs), return inward to the offcut pool, and supplier defect logs."
+        subtitle="Overview of coil, stone-coated, and accessory stock, production readiness, and the live queue. Use Stock management to receive goods and adjust inventory."
         tabs={<PageTabs tabs={opsTabs} value={activeTab} onChange={handleOpsTab} />}
         actions={
           <>
@@ -1495,9 +1479,7 @@ const Operations = () => {
                   ? 'Summarize stock risk, in-transit receipts, and the most important store actions.'
                   : activeTab === 'production'
                     ? 'Which production jobs or conversion checks need attention first, and why?'
-                    : activeTab === 'coilControl'
-                      ? 'Which coil ledger adjustments, scrap/offcut entries, return inward pool lines, or supplier defects need attention first?'
-                      : 'Summarize operational priorities for this workspace.'
+                    : 'Summarize coil and accessory stock, pending production, and what coils to buy for this workspace.'
               }
               pageContext={{
                 source: 'operations-page',
@@ -1511,14 +1493,6 @@ const Operations = () => {
           </>
         }
       />
-
-      <div className="mb-4 lg:mb-6">
-        <OperationsInventoryAttentionPanel
-          attention={operationsInventoryAttention}
-          hasWorkspaceData={Boolean(ws?.hasWorkspaceData)}
-          onGoProcurement={goProcurementFromAttention}
-        />
-      </div>
 
       {activeTab === 'inventory' && (!canReceiveInventory || !canAdjustInventory) ? (
         <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50/80 px-3 py-2.5 text-[10px] font-medium text-amber-950 leading-snug">
@@ -1541,32 +1515,18 @@ const Operations = () => {
           <div className="col-span-full order-1">
             <MainPanel>
               <WorkspacePanelToolbar title={PANEL_TITLE.overview} />
-              <div className="space-y-4">
-                <div className="rounded-xl border border-slate-200/80 bg-slate-50/40 p-4">
-                  <h3 className="text-sm font-black uppercase tracking-wide text-[#134e4a]">
-                    Inventory snapshot
-                  </h3>
-                  <p className="mt-1 text-[11px] font-medium text-slate-600">
-                    Live stock against reorder threshold.
-                  </p>
-                  <div className="mt-3 space-y-2 max-h-[min(420px,58vh)] overflow-y-auto pr-1 custom-scrollbar">
-                    {overviewInventoryPreview.map((item) => (
-                      <div
-                        key={item.key}
-                        className={`z-list-row flex flex-wrap items-center justify-between gap-2 sm:gap-3 text-sm font-semibold text-slate-800 ${
-                          item.low ? 'border-amber-200/80 bg-amber-50/40' : ''
-                        }`}
-                      >
-                        <span className="text-slate-800 truncate min-w-0">{item.name}</span>
-                        <span className={`tabular-nums shrink-0 ${item.low ? 'text-amber-900' : 'text-[#134e4a]'}`}>
-                          {item.stockLevel.toLocaleString()} {item.unit}
-                          {item.low ? ' · Low' : ''}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
+              <OperationsProductionOverview
+                coilLots={coilLots}
+                inventoryRows={inventoryRows}
+                cuttingLists={cuttingLists}
+                productionQueueModel={productionQueueModel}
+                conversionStats={conversionStats}
+                productionQueueStats={productionQueueStats}
+                hasWorkspaceData={Boolean(ws?.hasWorkspaceData)}
+                onGoProduction={() => setActiveTab('production')}
+                onGoInventory={goOverviewInventory}
+                onRequestCoils={() => setShowCoilRequest(true)}
+              />
             </MainPanel>
           </div>
         ) : null}
@@ -2199,23 +2159,17 @@ const Operations = () => {
         </div>
         ) : null}
 
-        {activeTab === 'production' || activeTab === 'coilControl' ? (
+        {activeTab === 'production' ? (
         <div className="lg:col-span-4 order-1 lg:order-2">
           <MainPanel>
-            {activeTab === 'production' ? (
-              <WorkspacePanelToolbar
-                title={PANEL_TITLE[activeTab] ?? 'Records'}
-                searchValue={searchQuery}
-                onSearchChange={setSearchQuery}
-                searchPlaceholder="Search lists, customers, status…"
-              />
-            ) : activeTab === 'coilControl' ? (
-              <WorkspacePanelToolbar title={PANEL_TITLE.coilControl} />
-            ) : null}
+            <WorkspacePanelToolbar
+              title={PANEL_TITLE.production}
+              searchValue={searchQuery}
+              onSearchChange={setSearchQuery}
+              searchPlaceholder="Search lists, customers, status…"
+            />
 
             <div className="space-y-4">
-              {activeTab === 'coilControl' ? <OperationsCoilControlTab /> : null}
-
               {activeTab === 'production' ? (
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6 items-start -mt-1">
                   {/* Left 1/3 — in progress / need action */}
