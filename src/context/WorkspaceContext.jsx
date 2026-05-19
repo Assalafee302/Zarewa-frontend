@@ -7,6 +7,8 @@ import { replaceLedgerEntries } from '../lib/customerLedgerStore';
 import { canAccessModuleWithPermissions, hasPermissionInList } from '../lib/moduleAccess';
 import { userCanApproveEditMutationsClient } from '../lib/editApprovalUi';
 import { userMayViewManagementReportsClient } from '../lib/reportsAccess';
+import { normalizeWorkspacePersonNames } from '../lib/normalizeWorkspacePersonNames';
+import { formatPersonName } from '../lib/formatPersonName';
 
 const WorkspaceContext = createContext(null);
 
@@ -67,17 +69,18 @@ export function WorkspaceProvider({ children }) {
   const [editApprovalsPendingCount, setEditApprovalsPendingCount] = useState(0);
 
   const applySnapshot = useCallback((data, mode = 'ok') => {
-    setSnapshot(data);
+    const normalized = normalizeWorkspacePersonNames(data);
+    setSnapshot(normalized);
     setStatus(mode);
     setLastError(null);
-    if (Array.isArray(data?.ledgerEntries)) {
-      replaceLedgerEntries(data.ledgerEntries);
+    if (Array.isArray(normalized?.ledgerEntries)) {
+      replaceLedgerEntries(normalized.ledgerEntries);
     }
     if (mode === 'ok') {
-      writeBootstrapCache(data);
+      writeBootstrapCache(normalized);
     }
     setRefreshEpoch((n) => n + 1);
-    return data;
+    return normalized;
   }, []);
 
   /**
@@ -92,7 +95,9 @@ export function WorkspaceProvider({ children }) {
       const idx = prev.quotations.findIndex((q) => String(q.id) === id);
       if (idx < 0) return prev;
       const nextQuotations = [...prev.quotations];
-      nextQuotations[idx] = { ...nextQuotations[idx], ...quotation };
+      const merged = { ...nextQuotations[idx], ...quotation };
+      if (merged.customer) merged.customer = formatPersonName(merged.customer);
+      nextQuotations[idx] = merged;
       const next = { ...prev, quotations: nextQuotations };
       writeBootstrapCache(next);
       return next;

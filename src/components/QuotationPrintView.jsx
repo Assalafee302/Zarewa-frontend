@@ -1,4 +1,5 @@
 /* eslint-disable react-refresh/only-export-components -- print helpers are colocated with the view */
+import { formatPersonName } from '../lib/formatPersonName';
 import {
   ZAREWA_QUOTATION_BRANDING,
   DEFAULT_QUOTATION_PRINT_LINES,
@@ -198,6 +199,7 @@ export default function QuotationPrintView({
       : QUOTATION_TERMS_FOOTER;
 
   const signatureCompany = b.signatureLegalName ?? b.legalName;
+  const displayCustomerName = formatPersonName(customerName);
   const customerLabel =
     documentKind === 'receipt' ? 'Customer' : 'Customer name';
 
@@ -289,7 +291,7 @@ export default function QuotationPrintView({
               </div>
 
               <div className="grid grid-cols-2 gap-2">
-                <MetaField label={customerLabel}>{customerName}</MetaField>
+                <MetaField label={customerLabel}>{displayCustomerName}</MetaField>
                 <MetaField label="Project">{projectName?.trim() ? projectName.trim() : '—'}</MetaField>
               </div>
 

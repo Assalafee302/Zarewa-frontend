@@ -60,6 +60,7 @@ import { buildWorkspaceNotifications } from './lib/workspaceNotifications';
 import { AiAssistantProvider, useAiAssistant } from './context/AiAssistantContext';
 import { notificationPrompt } from './lib/aiAssistUi';
 import { searchWorkspaceSnapshot } from './lib/workspaceSearchLocal';
+import { formatPersonName } from './lib/formatPersonName';
 
 /** Blocks the whole app when bootstrap falls back to cached session (API unreachable). */
 function DegradedWorkspaceLock() {
@@ -237,7 +238,7 @@ function AppShell() {
     }
   });
   const signedInUser = ws?.session?.user;
-  const userName = signedInUser?.displayName ?? 'Zarewa Admin';
+  const userName = formatPersonName(signedInUser?.displayName ?? 'Zarewa Admin');
   const userRole = signedInUser?.roleLabel ?? 'Superuser';
   const userInitials = useMemo(() => {
     const raw = String(userName || '')

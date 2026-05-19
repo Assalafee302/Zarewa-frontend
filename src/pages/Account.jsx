@@ -4639,7 +4639,7 @@ const Account = () => {
                       >
                         <div className="flex flex-wrap items-start justify-between gap-2 min-w-0">
                           <div className="min-w-0 leading-tight flex-1">
-                            <p className="text-[11px] font-bold text-[#134e4a] truncate uppercase">{item.customer}</p>
+                            <p className="text-[11px] font-bold text-[#134e4a] truncate">{item.customer}</p>
                             <p className="text-[8px] text-slate-500 mt-0.5 leading-snug line-clamp-2" title={meta2}>
                               {meta2}
                             </p>

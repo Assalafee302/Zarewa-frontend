@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { X } from 'lucide-react';
+import { formatPersonName } from '../../lib/formatPersonName';
 
 /**
  * Gmail-style recipient row: chips + typeahead into directory users.
@@ -46,7 +47,7 @@ export function OfficeRecipientStrip({ label, selectedIds, onChange, directory, 
                 key={u.id}
                 className="inline-flex items-center gap-0.5 rounded-full border border-slate-200 bg-slate-100 pl-2.5 pr-1 py-0.5 text-[12px] font-medium text-slate-800"
               >
-                {u.displayName || u.username}
+                {formatPersonName(u.displayName || u.username)}
                 <button
                   type="button"
                   onClick={() => remove(u.id)}
@@ -83,7 +84,9 @@ export function OfficeRecipientStrip({ label, selectedIds, onChange, directory, 
                       onMouseDown={(e) => e.preventDefault()}
                       onClick={() => add(u.id)}
                     >
-                      <span className="font-medium text-slate-900">{u.displayName || u.username}</span>
+                      <span className="font-medium text-slate-900">
+                        {formatPersonName(u.displayName || u.username)}
+                      </span>
                       <span className="text-slate-500 text-[11px] ml-2">
                         {u.roleKey || '—'}
                         {branchNameById?.[u.branchId] ? ` · ${branchNameById[u.branchId]}` : ''}

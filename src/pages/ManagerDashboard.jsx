@@ -48,11 +48,13 @@ import {
   managementPeriodStartISO,
 } from '../lib/managementLiveFromWorkspace';
 import { formatRefundReasonCategory, matchesInboxSearch } from '../lib/managerDashboardCore';
+import { formatPersonName } from '../lib/formatPersonName';
 import { Card, Button } from '../components/ui';
 import { ModalFrame, PageShell } from '../components/layout';
 import { DashboardKpiStrip } from '../components/dashboard/DashboardKpiStrip';
 import { ManagementAuditSections } from '../components/management/ManagementAuditSections';
 import { RefundManagerApprovalPreview } from '../components/management/RefundManagerApprovalPreview';
+import { ClearanceManagerApprovalPreview } from '../components/management/ClearanceManagerApprovalPreview';
 
 const INBOX_TABS = [
   { key: 'clearance', label: 'Clearance', description: 'Paid quotes awaiting manager clearance' },
@@ -114,6 +116,18 @@ const ManagerDashboard = () => {
     const list = ws?.hasWorkspaceData && Array.isArray(ws?.snapshot?.refunds) ? ws.snapshot.refunds : [];
     return list.find((r) => String(r.refundID) === String(selectedIntel.refundId)) || null;
   }, [selectedIntel?.kind, selectedIntel?.refundId, ws?.hasWorkspaceData, ws?.snapshot?.refunds]);
+
+  const intelModalLight = selectedIntel?.kind === 'refund' || selectedIntel?.kind === 'quotation';
+  const intelModalTitle =
+    selectedIntel?.kind === 'refund'
+      ? 'Refund approval review'
+      : selectedIntel?.kind === 'quotation'
+        ? selectedIntel.reviewContext === 'flagged'
+          ? 'Flagged quotation review'
+          : selectedIntel.reviewContext === 'production'
+            ? 'Production gate review'
+            : 'Clearance review'
+        : 'Transaction intel';
 
   const inboxTabs = useMemo(() => {
     const t = [...INBOX_TABS];
@@ -549,19 +563,23 @@ const ManagerDashboard = () => {
   ]);
 
   useEffect(() => {
-    if (selectedIntel?.kind !== 'refund') {
+    const kind = selectedIntel?.kind;
+    if (kind !== 'refund' && kind !== 'quotation') {
       setRefundIntelExtras(null);
       setLoadingRefundIntel(false);
       return;
     }
-    const qref = String(selectedIntel.row?.quotation_ref || '').trim();
+    const qref =
+      kind === 'refund'
+        ? String(selectedIntel.row?.quotation_ref || '').trim()
+        : String(selectedIntel.quoteId || '').trim();
     if (!qref) {
       setRefundIntelExtras(null);
       setLoadingRefundIntel(false);
-      setAuditData(null);
+      if (kind === 'refund') setAuditData(null);
       return;
     }
-    void fetchAudit(qref);
+    if (kind === 'refund') void fetchAudit(qref);
     let cancelled = false;
     setLoadingRefundIntel(true);
     (async () => {
@@ -643,15 +661,19 @@ const ManagerDashboard = () => {
       if (!quotationId) return;
       const baseRow = row ? { ...row } : { id: quotationId, customer_name: '' };
       setRefundIntelExtras(null);
+      const reviewContext =
+        extra.reviewContext ||
+        (extra.fromProductionGate ? 'production' : activeTab === 'flagged' ? 'flagged' : 'clearance');
       setSelectedIntel({
         kind: 'quotation',
         quoteId: quotationId,
         row: baseRow,
+        reviewContext,
         ...extra,
       });
       fetchAudit(quotationId);
     },
-    [fetchAudit]
+    [fetchAudit, activeTab]
   );
 
   const handleReview = async (quotationId, decision, reason = '') => {
@@ -839,7 +861,8 @@ const ManagerDashboard = () => {
               {e.entityKind} · <span className="font-mono">{e.entityId}</span>
             </p>
             <p className="text-[9px] text-slate-500 mt-1">
-              Requested by {e.requestedByDisplay || e.requestedByUserId || '—'}
+              Requested by{' '}
+              {formatPersonName(e.requestedByDisplay || e.requestedByUserId || '—')}
             </p>
             {workItem?.referenceNo ? (
               <p className="text-[9px] text-slate-400 mt-1 font-mono">Record {workItem.referenceNo}</p>
@@ -884,7 +907,9 @@ const ManagerDashboard = () => {
               {row.date_iso ? new Date(row.date_iso).toLocaleDateString() : '—'}
             </span>
           </div>
-          <p className="text-[11px] font-semibold text-slate-700 truncate mb-2">{row.customer_name}</p>
+          <p className="text-[11px] font-semibold text-slate-700 truncate mb-2">
+            {formatPersonName(row.customer_name)}
+          </p>
           {workItem?.referenceNo ? (
             <p className="text-[9px] text-slate-400 mb-2 font-mono">Record {workItem.referenceNo}</p>
           ) : null}
@@ -929,7 +954,9 @@ const ManagerDashboard = () => {
             <span className="text-xs font-mono font-bold text-slate-600">{row.id}</span>
           </div>
           <p className="text-xs font-bold text-[#134e4a] mb-1">{qref}</p>
-          <p className="text-[11px] font-semibold text-slate-700 truncate mb-2">{row.customer_name}</p>
+          <p className="text-[11px] font-semibold text-slate-700 truncate mb-2">
+            {formatPersonName(row.customer_name)}
+          </p>
           {workItem?.referenceNo ? (
             <p className="text-[9px] text-slate-400 mb-2 font-mono">Record {workItem.referenceNo}</p>
           ) : null}
@@ -960,7 +987,9 @@ const ManagerDashboard = () => {
             <span className="text-xs font-bold text-rose-900">{row.id}</span>
             <AlertTriangle size={14} className="text-rose-500 shrink-0" />
           </div>
-          <p className="text-[11px] font-semibold text-slate-700 truncate mb-2">{row.customer_name}</p>
+          <p className="text-[11px] font-semibold text-slate-700 truncate mb-2">
+            {formatPersonName(row.customer_name)}
+          </p>
           {workItem?.referenceNo ? (
             <p className="text-[9px] text-slate-400 mb-2 font-mono">Record {workItem.referenceNo}</p>
           ) : null}
@@ -989,7 +1018,9 @@ const ManagerDashboard = () => {
             <span className="text-xs font-mono font-bold text-slate-800">{row.refund_id}</span>
             <span className="text-[10px] font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-md">{formatNgn(row.amount_ngn)}</span>
           </div>
-          <p className="text-[11px] font-semibold text-slate-700 truncate">{row.customer_name}</p>
+          <p className="text-[11px] font-semibold text-slate-700 truncate">
+            {formatPersonName(row.customer_name)}
+          </p>
           {workItem?.referenceNo ? (
             <p className="text-[9px] text-slate-400 mt-1 font-mono">Record {workItem.referenceNo}</p>
           ) : null}
@@ -1076,7 +1107,9 @@ const ManagerDashboard = () => {
             </span>
           </div>
           <p className="text-xs font-bold text-[#134e4a] mb-0.5">{row.quotation_ref || '—'}</p>
-          <p className="text-[11px] font-semibold text-slate-700 truncate">{row.customer_name}</p>
+          <p className="text-[11px] font-semibold text-slate-700 truncate">
+            {formatPersonName(row.customer_name)}
+          </p>
           {workItem?.referenceNo ? (
             <p className="text-[9px] text-slate-400 mt-1 font-mono">Record {workItem.referenceNo}</p>
           ) : null}
@@ -1414,7 +1447,7 @@ const ManagerDashboard = () => {
                     <span className="text-xs font-black text-slate-400 w-5">{idx + 1}</span>
                     <div className="flex-1 min-w-0">
                       <div className="flex justify-between text-[11px] font-bold text-slate-800 mb-1 gap-2">
-                        <span className="truncate">{c.customer_name}</span>
+                        <span className="truncate">{formatPersonName(c.customer_name)}</span>
                         <span className="tabular-nums shrink-0 text-[#134e4a]">{formatNgn(c.revenue)}</span>
                       </div>
                       <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
@@ -1443,27 +1476,25 @@ const ManagerDashboard = () => {
           }}
         >
           <div
-            className={`z-modal-panel w-full p-0 overflow-hidden ${selectedIntel?.kind === 'refund' ? 'max-w-6xl' : 'max-w-5xl'}`}
+            className={`z-modal-panel w-full p-0 overflow-hidden ${intelModalLight ? 'max-w-6xl' : 'max-w-5xl'}`}
           >
             <Card
               className={`flex flex-col shadow-xl overflow-hidden max-h-[min(92vh,960px)] ${
-                selectedIntel?.kind === 'refund'
-                  ? 'bg-slate-100 border-slate-200'
-                  : 'bg-slate-900 border-slate-800'
+                intelModalLight ? 'bg-slate-100 border-slate-200' : 'bg-slate-900 border-slate-800'
               }`}
             >
               <div
                 className={`p-4 border-b flex items-center justify-between gap-2 ${
-                  selectedIntel?.kind === 'refund' ? 'border-slate-200 bg-white' : 'border-white/10'
+                  intelModalLight ? 'border-slate-200 bg-white' : 'border-white/10'
                 }`}
               >
                 <h3
                   className={`text-[11px] font-black uppercase tracking-[0.2em] flex items-center gap-2 ${
-                    selectedIntel?.kind === 'refund' ? 'text-slate-500' : 'text-white/50'
+                    intelModalLight ? 'text-slate-500' : 'text-white/50'
                   }`}
                 >
-                  <History size={14} className={selectedIntel?.kind === 'refund' ? 'text-[#134e4a]' : 'text-teal-400'} />
-                  {selectedIntel?.kind === 'refund' ? 'Refund approval review' : 'Transaction intel'}
+                  <History size={14} className={intelModalLight ? 'text-[#134e4a]' : 'text-teal-400'} />
+                  {intelModalTitle}
                 </h3>
                 <button
                   type="button"
@@ -1473,9 +1504,7 @@ const ManagerDashboard = () => {
                     setRefundIntelExtras(null);
                   }}
                   className={`text-[10px] font-bold uppercase transition-colors ${
-                    selectedIntel?.kind === 'refund'
-                      ? 'text-slate-400 hover:text-slate-800'
-                      : 'text-white/40 hover:text-white'
+                    intelModalLight ? 'text-slate-400 hover:text-slate-800' : 'text-white/40 hover:text-white'
                   }`}
                 >
                   Close
@@ -1484,7 +1513,7 @@ const ManagerDashboard = () => {
 
               <div
                 className={`flex-1 overflow-y-auto p-4 custom-scrollbar min-h-0 ${
-                  selectedIntel?.kind === 'refund' ? 'bg-slate-100 space-y-3' : 'space-y-5 text-white'
+                  intelModalLight ? 'bg-slate-100 space-y-3' : 'space-y-5 text-white'
                 }`}
               >
                 {selectedIntel?.kind === 'quotation' ? (
@@ -1493,7 +1522,9 @@ const ManagerDashboard = () => {
                     <p className="text-[10px] font-bold uppercase tracking-widest text-teal-400/90 mb-1">Quotation</p>
                     <h2 className="text-xl font-black text-white leading-tight">{selectedIntel.quoteId}</h2>
                     <p className="text-sm font-semibold text-white/70 mt-1 truncate">
-                      {selectedIntel.row?.customer_name || 'Customer name not on this list row'}
+                      {formatPersonName(
+                        selectedIntel.row?.customer_name || 'Customer name not on this list row'
+                      )}
                     </p>
                     {selectedIntel.fromProductionGate ? (
                       <p className="text-[10px] text-amber-300/90 mt-2 leading-snug">
@@ -1751,7 +1782,9 @@ const ManagerDashboard = () => {
                     <p className="text-[10px] font-bold uppercase tracking-widest text-violet-300/90 mb-1">Conversion review</p>
                     <h2 className="text-lg font-black text-white font-mono leading-tight">{selectedIntel.jobId}</h2>
                     <p className="text-xs font-bold text-teal-300/90 mt-2">{selectedIntel.row?.quotation_ref || '—'}</p>
-                    <p className="text-sm font-semibold text-white/70 mt-1 truncate">{selectedIntel.row?.customer_name}</p>
+                    <p className="text-sm font-semibold text-white/70 mt-1 truncate">
+                      {formatPersonName(selectedIntel.row?.customer_name)}
+                    </p>
                     <p className="text-[10px] text-white/45 mt-2">{selectedIntel.row?.product_name}</p>
                     <div className="flex flex-wrap gap-2 mt-3">
                       <span className="text-[9px] font-black uppercase px-2 py-1 rounded-md bg-white/10">
@@ -1828,14 +1861,12 @@ const ManagerDashboard = () => {
 
               <div
                 className={`p-3 border-t ${
-                  selectedIntel?.kind === 'refund'
-                    ? 'border-slate-200 bg-white'
-                    : 'border-white/10 bg-black/30'
+                  intelModalLight ? 'border-slate-200 bg-white' : 'border-white/10 bg-black/30'
                 }`}
               >
                 <p
                   className={`text-[9px] font-semibold text-center uppercase tracking-widest ${
-                    selectedIntel?.kind === 'refund' ? 'text-slate-400' : 'text-white/25'
+                    intelModalLight ? 'text-slate-400' : 'text-white/25'
                   }`}
                 >
                   Management · Zarewa

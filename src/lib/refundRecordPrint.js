@@ -1,3 +1,5 @@
+import { formatPersonName } from './formatPersonName.js';
+
 /**
  * Print-friendly refund request / record (filing copy).
  * @param {object} record
@@ -7,10 +9,10 @@ export function printRefundRecord(record, formatNgn) {
   if (!record) return false;
   const refundID = String(record.refundID || record.refund_id || '—');
   const status = String(record.status || '—');
-  const customerName = String(record.customerName || record.customer_name || '—');
+  const customerName = formatPersonName(record.customerName || record.customer_name || '—');
   const quotationRef = String(record.quotationRef || record.quotation_ref || '—').trim();
   const requestedAt = String(record.requestedAtISO || record.requested_at_iso || '—');
-  const requestedBy = String(record.requestedBy || record.requested_by || '').trim();
+  const requestedBy = formatPersonName(String(record.requestedBy || record.requested_by || '').trim());
   let reasonCats = [];
   try {
     const raw = record.reason_category || record.reasonCategory;
@@ -22,12 +24,12 @@ export function printRefundRecord(record, formatNgn) {
   const amountReq = Number(record.amountNgn ?? record.amount_ngn ?? 0) || 0;
   const approvedAmt = Number(record.approvedAmountNgn ?? record.approved_amount_ngn ?? 0) || 0;
   const approvalDate = String(record.approvalDate || '').trim();
-  const approvedBy = String(record.approvedBy || '').trim();
+  const approvedBy = formatPersonName(String(record.approvedBy || '').trim());
   const managerComments = String(record.managerComments || '').trim();
   const paidAt = String(record.paidAtISO || record.paid_at_iso || '').trim();
   const paidAmt = Number(record.paidAmountNgn ?? 0) || 0;
-  const paidBy = String(record.paidBy || '').trim();
-  const payeeName = String(record.payeeName || record.payee_name || '').trim();
+  const paidBy = formatPersonName(String(record.paidBy || '').trim());
+  const payeeName = formatPersonName(String(record.payeeName || record.payee_name || '').trim());
   const payeeAccountNo = String(record.payeeAccountNo || record.payee_account_no || '').trim();
   const payeeBankName = String(record.payeeBankName || record.payee_bank_name || '').trim();
 

@@ -126,7 +126,7 @@ export function RefundManagerApprovalPreview({
           <p className="text-[10px] font-bold uppercase tracking-widest text-amber-700">Refund approval</p>
           <h2 className="font-mono text-lg font-black leading-tight text-slate-900">{refundId}</h2>
           <p className="mt-0.5 truncate text-sm font-semibold text-slate-700">
-            {refund?.customer || inboxRow?.customer_name || '—'}
+            {formatPersonName(refund?.customer || inboxRow?.customer_name || '—')}
           </p>
           <p className="mt-1 text-[11px] text-slate-500">
             {refund?.quotationRef || inboxRow?.quotation_ref ? (
@@ -146,7 +146,9 @@ export function RefundManagerApprovalPreview({
           <p className="text-xl font-black tabular-nums text-rose-700">{formatNgn(refund?.amountNgn ?? inboxRow?.amount_ngn)}</p>
           <p className="text-[10px] text-slate-500">
             {(refund?.requestedAtISO || inboxRow?.requested_at_iso || '').slice(0, 16).replace('T', ' ') || '—'}
-            {refund?.requestedBy && refund.requestedBy !== '—' ? ` · ${refund.requestedBy}` : ''}
+            {refund?.requestedBy && refund.requestedBy !== '—'
+              ? ` · ${formatPersonName(refund.requestedBy)}`
+              : ''}
           </p>
         </div>
       </div>
@@ -430,7 +432,7 @@ export function RefundManagerApprovalPreview({
               <div className="mb-2 rounded-lg border border-teal-200 bg-teal-50/50 p-2">
                 <p className="text-[9px] font-black uppercase text-teal-800">Pay to</p>
                 <p className="text-[11px] font-semibold text-slate-900">
-                  {[refund.payeeName, refund.payeeBankName].filter(Boolean).join(' · ') || '—'}
+                  {[formatPersonName(refund.payeeName), refund.payeeBankName].filter(Boolean).join(' · ') || '—'}
                 </p>
                 {refund.payeeAccountNo ? (
                   <p className="font-mono text-[10px] text-slate-600">{refund.payeeAccountNo}</p>

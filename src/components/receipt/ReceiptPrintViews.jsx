@@ -1,3 +1,4 @@
+import { formatPersonName } from '../../lib/formatPersonName';
 import { ZAREWA_COMPANY_ACCOUNT_NAME } from '../../Data/companyQuotation';
 import { StandardReportPrintShell } from '../reports/StandardReportPrintShell';
 
@@ -68,6 +69,7 @@ export function ReceiptPrintQuick({
 }) {
   const lineSum = lines.reduce((s, l) => s + (Number(l.amount) || 0), 0);
   const total = Number(totalNgn) || lineSum;
+  const displayCustomerName = formatPersonName(customerName);
   return (
     <StandardReportPrintShell
       documentTypeLabel="Financial document"
@@ -86,7 +88,7 @@ export function ReceiptPrintQuick({
       <section className="grid gap-3 border-b border-slate-100 pb-4 text-[11px] sm:grid-cols-2 print:pb-3 print:text-[10pt]">
         <div>
           <p className="font-bold uppercase tracking-wide text-slate-500">Customer</p>
-          <p className="mt-0.5 font-semibold text-slate-900">{customerName}</p>
+          <p className="mt-0.5 font-semibold text-slate-900">{displayCustomerName}</p>
         </div>
         <div>
           <p className="font-bold uppercase tracking-wide text-slate-500">Quotation</p>
@@ -117,7 +119,7 @@ export function ReceiptPrintQuick({
           <tbody>
             {lines.map((l, i) => (
               <tr key={i} className="quotation-print-line border-b border-slate-100">
-                <td className={`${TD} font-medium`}>{l.payeeName || 'Payment'}</td>
+                <td className={`${TD} font-medium`}>{formatPersonName(l.payeeName || 'Payment')}</td>
                 <td className={`${TD} text-slate-600`}>{l.accountLabel || '—'}</td>
                 <td className={`${TD} text-right font-semibold tabular-nums text-[#134e4a]`}>{fmt(l.amount)}</td>
               </tr>
@@ -148,6 +150,8 @@ export function ReceiptPrintFull({
   handledBy = '—',
 }) {
   const total = Number(totalNgn) || lines.reduce((s, l) => s + (Number(l.amount) || 0), 0);
+  const displayCustomerName = formatPersonName(customerName);
+  const displayHandledBy = formatPersonName(handledBy);
   return (
     <StandardReportPrintShell
       documentTypeLabel="Financial document"
@@ -169,7 +173,7 @@ export function ReceiptPrintFull({
             </span>
           ) : null}
           <span className="mt-1 block">
-            Prepared by <span className="font-semibold text-slate-600">{handledBy}</span>
+            Prepared by <span className="font-semibold text-slate-600">{displayHandledBy}</span>
           </span>
           <span className="mt-2 block text-[9px] text-slate-400">
             {ZAREWA_COMPANY_ACCOUNT_NAME}. Ledger and imported payment rows; highlighted line matches this printout.
@@ -180,7 +184,7 @@ export function ReceiptPrintFull({
       <section className="grid gap-3 border-b border-slate-100 pb-4 text-[11px] sm:grid-cols-2 print:pb-3 print:text-[10pt]">
         <div>
           <p className="font-bold uppercase tracking-wide text-slate-500">Received from</p>
-          <p className="mt-0.5 font-semibold text-slate-900">{customerName}</p>
+          <p className="mt-0.5 font-semibold text-slate-900">{displayCustomerName}</p>
           {customerPhone && customerPhone !== '—' ? (
             <p className="mt-0.5 text-slate-600">{customerPhone}</p>
           ) : null}
@@ -253,7 +257,7 @@ export function ReceiptPrintFull({
           <tbody>
             {lines.map((l, i) => (
               <tr key={i} className="quotation-print-line border-b border-slate-100">
-                <td className={`${TD} font-medium`}>{l.payeeName || '—'}</td>
+                <td className={`${TD} font-medium`}>{formatPersonName(l.payeeName || '—')}</td>
                 <td className={`${TD} text-slate-600`}>{l.accountLabel || '—'}</td>
                 <td className={`${TD} text-right font-semibold tabular-nums text-[#134e4a]`}>{fmt(l.amount)}</td>
               </tr>
@@ -280,6 +284,8 @@ export function AdvancePaymentPrintView({
   purpose = '—',
   handledBy = '—',
 }) {
+  const displayCustomerName = formatPersonName(customerName);
+  const displayHandledBy = formatPersonName(handledBy);
   return (
     <StandardReportPrintShell
       documentTypeLabel="Financial document"
@@ -299,7 +305,7 @@ export function AdvancePaymentPrintView({
         <dl className="grid gap-3 sm:grid-cols-2">
           <div>
             <dt className="text-[9px] font-bold uppercase tracking-wide text-slate-500">Customer</dt>
-            <dd className="mt-0.5 font-semibold text-slate-900">{customerName}</dd>
+            <dd className="mt-0.5 font-semibold text-slate-900">{displayCustomerName}</dd>
           </div>
           <div>
             <dt className="text-[9px] font-bold uppercase tracking-wide text-slate-500">Date</dt>
@@ -319,7 +325,7 @@ export function AdvancePaymentPrintView({
           </div>
           <div className="sm:col-span-2">
             <dt className="text-[9px] font-bold uppercase tracking-wide text-slate-500">Recorded by</dt>
-            <dd className="mt-0.5">{handledBy}</dd>
+            <dd className="mt-0.5">{displayHandledBy}</dd>
           </div>
         </dl>
       </section>

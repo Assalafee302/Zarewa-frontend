@@ -5,7 +5,7 @@ describe('formatPersonName', () => {
   it('title-cases each word', () => {
     expect(formatPersonName('john doe')).toBe('John Doe');
     expect(formatPersonName('JOHN DOE')).toBe('John Doe');
-    expect(formatPersonName('  mary-jane o\'brien  ')).toBe("Mary-Jane O'brien");
+    expect(formatPersonName('  mary-jane o\'brien  ')).toBe("Mary-Jane O'Brien");
   });
 
   it('preserves empty and placeholder values', () => {

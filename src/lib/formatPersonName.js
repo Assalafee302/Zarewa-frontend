@@ -6,7 +6,7 @@ export function formatPersonName(raw) {
   const s = String(raw ?? '').trim();
   if (!s || s === '—' || s === '-') return s;
 
-  const cap = (part) => {
+  const capSegment = (part) => {
     if (!part) return part;
     return part.charAt(0).toLocaleUpperCase('en') + part.slice(1).toLocaleLowerCase('en');
   };
@@ -14,11 +14,13 @@ export function formatPersonName(raw) {
   const capToken = (token) =>
     token
       .split('-')
-      .map(cap)
-      .join('-')
-      .split("'")
-      .map(cap)
-      .join("'");
+      .map((piece) =>
+        piece
+          .split("'")
+          .map(capSegment)
+          .join("'")
+      )
+      .join('-');
 
   return s.split(/\s+/).map(capToken).join(' ');
 }
