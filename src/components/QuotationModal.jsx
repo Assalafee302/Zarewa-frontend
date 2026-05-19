@@ -19,6 +19,7 @@ import { useTrackedUnsavedForm } from '../hooks/useTrackedUnsavedForm';
 import { useCustomers } from '../context/CustomersContext';
 import { bankAccountsForCustomerPayment, treasuryAccountsFromSnapshot } from '../lib/treasuryAccountsStore';
 import { compareGaugeLabels, compareSelectLabels } from '../lib/selectOptionSort';
+import { colourSelectOptionsFromRows } from '../lib/colourCanonicalization.js';
 import {
   STONE_METER_INVENTORY_MODEL,
   STONE_PROFILE_FALLBACK,
@@ -804,13 +805,13 @@ const QuotationModal = ({
   }, [liveMasterData?.gauges, liveMasterData?.priceList, isStoneMeter, materialTypeId]);
 
   const colourOptions = useMemo(() => {
-    const fromMaster = (liveMasterData?.colours || [])
-      .filter((row) => row.active)
-      .map((row) => ({
-        value: row.name,
-        label: row.abbreviation ? `${row.name} (${row.abbreviation})` : row.name,
+    const fromMaster = colourSelectOptionsFromRows(liveMasterData?.colours || [], liveMasterData).map(
+      (row) => ({
+        value: row.value,
+        label: row.label,
         id: row.id,
-      }));
+      })
+    );
     const base = (
       fromMaster.length > 0
         ? fromMaster

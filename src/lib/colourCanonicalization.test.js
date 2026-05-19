@@ -13,4 +13,8 @@ describe('colourCanonicalization', () => {
     expect(canonicalColourName(masterData, 'Grey Beige')).toBe('Gray Beige');
     expect(normalizeColourKey('Grey Beige')).toBe(normalizeColourKey('Gray Beige'));
   });
+
+  it('maps nut bron typo to Nut Brown', () => {
+    expect(canonicalColourName(masterData, 'nut bron')).toBe('Nut Brown');
+  });
 });

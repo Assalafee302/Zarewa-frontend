@@ -4,6 +4,7 @@ import { ModalFrame } from '../layout/ModalFrame';
 import { ProcurementFormSection } from './ProcurementFormSection';
 import { formatNgn } from '../../Data/mockData';
 import { compareGaugeLabels, compareSelectLabels } from '../../lib/selectOptionSort';
+import { colourSelectOptionsFromRows } from '../../lib/colourCanonicalization.js';
 
 const inputClass =
   'w-full bg-white border border-slate-200 rounded-lg py-1.5 px-2.5 text-[11px] font-semibold text-[#134e4a] outline-none focus:ring-2 focus:ring-[#134e4a]/15 min-h-[2rem]';
@@ -142,22 +143,18 @@ export default function CoilPurchaseOrderModal({
     });
   }, [lines]);
   const colourOptions = useMemo(() => {
-    const fromMaster = (masterData?.colours || []).filter((row) => row.active);
-    const seen = new Set(fromMaster.map((row) => row.name.trim().toLowerCase()));
+    const fromMaster = colourSelectOptionsFromRows(masterData?.colours || [], masterData);
+    const seen = new Set(fromMaster.map((row) => String(row.value).trim().toLowerCase()));
     const extras = FALLBACK_COLOURS.filter((row) => !seen.has(row.name.trim().toLowerCase())).map(
       (row, i) => ({
         id: `fb-col-${i}`,
         name: row.name,
         abbreviation: row.abbreviation,
-        active: true,
+        value: row.name,
+        label: row.abbreviation ? `${row.name} (${row.abbreviation})` : row.name,
       })
     );
-    const merged = [...fromMaster, ...extras];
-    return [...merged].sort((a, b) => {
-      const la = a.abbreviation ? `${a.name} (${a.abbreviation})` : a.name;
-      const lb = b.abbreviation ? `${b.name} (${b.abbreviation})` : b.name;
-      return compareSelectLabels(la, lb);
-    });
+    return [...fromMaster, ...extras].sort((a, b) => compareSelectLabels(a.label, b.label));
   }, [masterData?.colours]);
 
   const gaugeOptions = useMemo(() => {

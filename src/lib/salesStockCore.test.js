@@ -25,6 +25,16 @@ describe('salesStockCore', () => {
     expect(colourShort(' Red ')).toBe('Red');
   });
 
+  it('canonicalizes before shortening so IV and Ivory Beige share one chip', () => {
+    const masterData = {
+      colours: [
+        { colour_id: 'COL-001', name: 'Ivory Beige', abbreviation: 'IV', active: true },
+      ],
+    };
+    expect(colourShort('IV', masterData)).toBe(colourShort('Ivory Beige', masterData));
+    expect(colourShort('IV', masterData)).toBe('Ivory B…');
+  });
+
   it('returns availability verdicts', () => {
     expect(buildStockVerdict(false, [])).toBeNull();
     expect(buildStockVerdict(true, []).kind).toBe('none');

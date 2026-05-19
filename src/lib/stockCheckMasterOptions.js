@@ -4,7 +4,13 @@
  * with QuotationModal QUOTATION_MATERIAL_INVENTORY_MODELS.
  */
 import { compareGaugeLabels } from './selectOptionSort';
-import { canonicalColourName } from './colourCanonicalization.js';
+import {
+  canonicalColourName,
+  colourSelectOptionsFromRows,
+  mergeStockColourSelectOptions,
+} from './colourCanonicalization.js';
+
+export { mergeStockColourSelectOptions };
 
 export { canonicalColourName };
 
@@ -33,16 +39,10 @@ export function stockCheckSelectOptionsFromMasterData(masterData) {
     .sort(compareGaugeLabels)
     .map((label) => ({ value: label, label }));
 
-  const colours = (md.colours || [])
-    .filter((row) => row.active !== false)
-    .map((row) => {
-      const name = String(row.name || '').trim();
-      if (!name) return null;
-      const label = row.abbreviation ? `${name} (${row.abbreviation})` : name;
-      return { value: name, label };
-    })
-    .filter(Boolean)
-    .sort((a, b) => a.label.localeCompare(b.label));
+  const colours = colourSelectOptionsFromRows(md.colours || [], md).map((o) => ({
+    value: o.value,
+    label: o.label,
+  }));
 
   return { types, gauges, colours };
 }

@@ -1,3 +1,5 @@
+import { canonicalColourName } from './colourCanonicalization.js';
+
 export function firstGaugeNumeric(gaugeStr) {
   const m = String(gaugeStr ?? '').match(/(\d+(?:\.\d+)?)/);
   return m ? parseFloat(m[1], 10) : null;
@@ -11,9 +13,14 @@ export function roughMetersFromKg(kg, gaugeMm) {
   return Math.max(0, Math.round(kg / kgPerM));
 }
 
-export function colourShort(colourStr) {
-  const s = String(colourStr ?? '').trim();
+/**
+ * @param {string | null | undefined} colourStr
+ * @param {{ colours?: object[] } | null | undefined} [masterData]
+ */
+export function colourShort(colourStr, masterData = null) {
+  let s = String(colourStr ?? '').trim();
   if (!s) return '—';
+  if (masterData) s = canonicalColourName(masterData, s) || s;
   const tok = s.split(/[·,]/)[0].trim();
   return tok.length > 8 ? `${tok.slice(0, 7)}…` : tok;
 }

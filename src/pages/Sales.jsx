@@ -98,6 +98,7 @@ import {
 } from '../lib/salesStockCore';
 import {
   canonicalColourName,
+  mergeStockColourSelectOptions,
   stockCheckSelectOptionsFromCoilRows,
   stockCheckSelectOptionsFromMasterData,
   stockRowMatchesColourFilter,
@@ -328,7 +329,7 @@ const Sales = () => {
         const estM = roughMetersFromKg(kgNum, gNum);
         pushRow({
           id: lot.coilNo,
-          colour: colourShort(colourLabel),
+          colour: colourShort(colourRaw, masterData),
           colourRaw,
           gaugeLabel,
           materialType,
@@ -357,7 +358,7 @@ const Sales = () => {
             const estM = roughMetersFromKg(kgTotal, gNum);
             pushRow({
               id: p.productID,
-              colour: colourShort(attrs?.colour),
+              colour: colourShort(colourRawAll, masterData),
               colourRaw: colourRawAll,
               gaugeLabel,
               materialType: attrs?.materialType ?? p.name,
@@ -376,7 +377,7 @@ const Sales = () => {
             const colourLabel = canonicalColourName(masterData, tok) || tok;
             pushRow({
               id: `${p.productID}-${i + 1}`,
-              colour: colourShort(colourLabel),
+              colour: colourShort(tok, masterData),
               colourRaw: tok,
               gaugeLabel,
               materialType: attrs?.materialType ?? p.name,
@@ -397,7 +398,7 @@ const Sales = () => {
       const yColour = String(y.colour || '').trim();
       pushRow({
         id: y.id,
-        colour: y.colour,
+        colour: colourShort(yColour, masterData),
         colourRaw: yColour,
         gaugeLabel: y.gaugeLabel,
         materialType: y.materialType,
@@ -445,10 +446,11 @@ const Sales = () => {
   const stockSearchOptions = useMemo(() => {
     const fromMaster = stockCheckSelectOptionsFromMasterData(ws?.snapshot?.masterData);
     const fromCoil = stockCheckSelectOptionsFromCoilRows(coilInventoryRows, ws?.snapshot?.masterData);
+    const colours = mergeStockColourSelectOptions(ws?.snapshot?.masterData, coilInventoryRows);
     return {
       types: fromMaster.types.length ? fromMaster.types : fromCoil.types,
       gauges: fromMaster.gauges.length ? fromMaster.gauges : fromCoil.gauges,
-      colours: fromMaster.colours.length ? fromMaster.colours : fromCoil.colours,
+      colours,
     };
   }, [ws?.snapshot?.masterData, coilInventoryRows]);
 

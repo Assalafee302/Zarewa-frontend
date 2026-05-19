@@ -40,7 +40,7 @@ import {
   resolveLiveJobMaterialKind,
 } from '../lib/productionLiveJobMaterialKind';
 import { compareSelectLabels } from '../lib/selectOptionSort';
-import { canonicalColourName } from '../lib/stockCheckMasterOptions';
+import { canonicalColourName } from '../lib/colourCanonicalization.js';
 
 /** Current kg on the coil (after production use); uses API fields when present. */
 function liveCoilWeightKg(lot) {
@@ -651,8 +651,15 @@ const Operations = () => {
     productMovementModal?.productID
   );
 
+  const setupMasterData = ws?.snapshot?.masterData ?? null;
+
+  const coilColourLabel = useCallback(
+    (raw) => canonicalColourName(setupMasterData, raw) || String(raw ?? '').trim() || '—',
+    [setupMasterData]
+  );
+
   const inventoryStats = useMemo(() => {
-    const masterData = ws?.snapshot?.masterData ?? null;
+    const masterData = setupMasterData;
     const activeCoils = coilLots.filter((c) => c.currentStatus !== 'Consumed');
     let aluzincKg = 0;
     let aluminiumKg = 0;
@@ -686,7 +693,7 @@ const Operations = () => {
       lowStock,
       topMaterials,
     };
-  }, [coilLots, ws?.snapshot?.masterData]);
+  }, [coilLots, setupMasterData]);
   const productionJobs = useMemo(
     () => (ws?.hasWorkspaceData && Array.isArray(ws?.snapshot?.productionJobs) ? ws.snapshot.productionJobs : []),
     [ws?.hasWorkspaceData, ws?.snapshot?.productionJobs]
@@ -1972,8 +1979,8 @@ const Operations = () => {
                                     <span className="text-[11px] font-bold text-[#134e4a] truncate font-mono">
                                       {c.coilNo}
                                     </span>
-                                    <span className="text-[10px] text-slate-800 truncate" title={String(c.colour || '')}>
-                                      {c.colour || '—'}
+                                    <span className="text-[10px] text-slate-800 truncate" title={coilColourLabel(c.colour)}>
+                                      {coilColourLabel(c.colour)}
                                     </span>
                                     <span className="text-[10px] text-slate-800 truncate tabular-nums">
                                       {c.gaugeLabel || '—'}
