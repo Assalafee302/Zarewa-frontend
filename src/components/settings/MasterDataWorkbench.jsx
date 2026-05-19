@@ -7,6 +7,7 @@ import { EditSecondApprovalInline } from '../EditSecondApprovalInline';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { APP_DATA_TABLE_PAGE_SIZE, useAppTablePaging } from '../../lib/appDataTable';
 import { compareGaugeLabels, compareSelectLabels } from '../../lib/selectOptionSort';
+import { clusterDuplicateSetupColours, pickCanonicalSetupColourRow } from '../../lib/colourCanonicalization.js';
 import { AppTablePager } from '../ui/AppDataTable';
 
 /** Logical clusters for the Data & catalog tab — each opens a modal with tables. */
@@ -478,6 +479,32 @@ export default function MasterDataWorkbench({ masterData }) {
     [masterData?.profiles]
   );
 
+  const colourDuplicateHint = useMemo(() => {
+    const rows = (masterData?.colours || [])
+      .filter((c) => c.active !== false)
+      .map((c) => ({
+        colour_id: c.id,
+        name: c.name,
+        abbreviation: c.abbreviation,
+        active: c.active,
+        sort_order: c.sortOrder,
+      }));
+    const groups = clusterDuplicateSetupColours(rows);
+    if (!groups.length) return '';
+    return groups
+      .map((group) => {
+        const keep = pickCanonicalSetupColourRow(group);
+        const retire = group
+          .filter((r) => r.colour_id !== keep?.colour_id)
+          .map((r) => r.name)
+          .filter(Boolean);
+        if (!keep?.name || !retire.length) return '';
+        return `Keep “${keep.name}”; merge or deactivate: ${retire.map((n) => `“${n}”`).join(', ')}`;
+      })
+      .filter(Boolean)
+      .join(' · ');
+  }, [masterData?.colours]);
+
   const sections = useMemo(
     () => [
     {
@@ -515,7 +542,9 @@ export default function MasterDataWorkbench({ masterData }) {
     {
       kind: 'colours',
       title: 'Colours',
-      description: 'Full colour names and abbreviations used in quotations, procurement, and production.',
+      description: colourDuplicateHint
+        ? `Possible duplicates detected — ${colourDuplicateHint}. Restart the API after deploy to auto-merge legacy rows.`
+        : 'Full colour names and abbreviations used in quotations, procurement, and production.',
       rows: masterData?.colours || [],
       fields: [
         { key: 'name', label: 'Colour name' },
@@ -640,6 +669,7 @@ export default function MasterDataWorkbench({ masterData }) {
     ],
     [
       masterData,
+      colourDuplicateHint,
       procurementCatalogRows,
       productInventoryOptions,
       quoteItemOptions,
