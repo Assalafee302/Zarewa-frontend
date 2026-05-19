@@ -674,6 +674,62 @@ const ManagerDashboard = () => {
     }
   };
 
+  const handleClearAllClearance = async () => {
+    const rows = filteredInboxRows;
+    const eligible = rows.filter((row) => {
+      const paid = Math.round(Number(row.paid_ngn) || 0);
+      const total = Math.round(Number(row.total_ngn) || 0);
+      return total <= 0 || paid >= total;
+    });
+    const skippedBalance = rows.length - eligible.length;
+    if (eligible.length === 0) {
+      showToast(
+        skippedBalance > 0
+          ? 'None of the visible quotes are fully paid — post remaining balances before clearance.'
+          : 'No quotations to clear.',
+        { variant: 'error' }
+      );
+      return;
+    }
+    const skipNote =
+      skippedBalance > 0
+        ? `\n\n${skippedBalance} quote(s) with balance due will be skipped.`
+        : '';
+    const ok = window.confirm(
+      `Approve manager clearance for ${eligible.length} quotation(s)?${skipNote}`
+    );
+    if (!ok) return;
+
+    setDecisionBusy(true);
+    let cleared = 0;
+    let failed = 0;
+    for (const row of eligible) {
+      const { ok: reqOk, data } = await apiFetch('/api/management/review', {
+        method: 'POST',
+        body: JSON.stringify({ quotationId: row.id, decision: 'clear', reason: '' }),
+      });
+      if (reqOk && data?.ok !== false) cleared += 1;
+      else failed += 1;
+    }
+    setDecisionBusy(false);
+    await fetchData();
+    await (ws.refresh?.() ?? Promise.resolve());
+    setSelectedIntel(null);
+    setAuditData(null);
+
+    if (failed === 0) {
+      const suffix = skippedBalance > 0 ? ` (${skippedBalance} skipped — balance due.)` : '';
+      showToast(`Clearance approved for ${cleared} quotation(s).${suffix}`, { variant: 'success' });
+    } else if (cleared > 0) {
+      showToast(
+        `Cleared ${cleared}; ${failed} could not be cleared.${skippedBalance > 0 ? ` ${skippedBalance} skipped (balance due).` : ''}`,
+        { variant: 'success' }
+      );
+    } else {
+      showToast('Could not clear any quotations.', { variant: 'error' });
+    }
+  };
+
   const handleRefundDecision = async (status) => {
     if (selectedIntel?.kind !== 'refund') return;
     const note =
@@ -1246,16 +1302,30 @@ const ManagerDashboard = () => {
                   </h2>
                   <p className="text-[11px] text-slate-500 mt-1">{tabMeta?.description}</p>
                 </div>
-                <div className="relative w-full sm:w-64">
-                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                  <input
-                    type="search"
-                    value={inboxSearch}
-                    onChange={(e) => setInboxSearch(e.target.value)}
-                    placeholder="Filter this queue…"
-                    className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-800 outline-none focus:ring-2 focus:ring-[#134e4a]/15"
-                  />
-                </div>
+                <motion.div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto sm:items-center">
+                  {activeTab === 'clearance' && filteredInboxRows.length > 0 ? (
+                    <Button
+                      type="button"
+                      size="sm"
+                      disabled={decisionBusy || loading}
+                      onClick={handleClearAllClearance}
+                      className="shrink-0 w-full sm:w-auto"
+                    >
+                      <CheckCircle2 size={14} />
+                      Clear all
+                    </Button>
+                  ) : null}
+                  <div className="relative w-full sm:w-64">
+                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input
+                      type="search"
+                      value={inboxSearch}
+                      onChange={(e) => setInboxSearch(e.target.value)}
+                      placeholder="Filter this queue…"
+                      className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-800 outline-none focus:ring-2 focus:ring-[#134e4a]/15"
+                    />
+                  </div>
+                </motion.div>
               </div>
               <div className="flex gap-1 mt-4 overflow-x-auto pb-1 -mx-1 px-1 custom-scrollbar">
                 {inboxTabs.map((t) => {
