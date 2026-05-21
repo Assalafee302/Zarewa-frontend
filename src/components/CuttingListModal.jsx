@@ -407,19 +407,19 @@ const CuttingListModal = ({
         (cl) => normQuoteKey(cl.quotationRef) === normQuoteKey(quoteId) && String(cl.id) !== String(editingId)
       );
 
+    const editingQuoteId = String(editData?.quotationRef || '').trim();
     const base = quotations.filter((q) => {
       if (!q?.id || takenByAnother(q.id)) return false;
       const total = Number(q.totalNgn ?? q.total_ngn) || 0;
-      return total > 0;
+      if (total <= 0) return false;
+      const meetsPay = meetsCuttingListPayThreshold(q, receipts, ledgerEntries, minPaidFraction);
+      if (meetsPay) return true;
+      // Keep the linked quote visible when editing an existing list (may be under threshold).
+      return Boolean(editingQuoteId && q.id === editingQuoteId);
     });
-    const sorted = [...base].sort((a, b) => {
-      const aOk = meetsCuttingListPayThreshold(a, receipts, ledgerEntries, minPaidFraction) ? 0 : 1;
-      const bOk = meetsCuttingListPayThreshold(b, receipts, ledgerEntries, minPaidFraction) ? 0 : 1;
-      if (aOk !== bOk) return aOk - bOk;
-      return a.id.localeCompare(b.id);
-    });
-    if (editData?.quotationRef) {
-      const current = quotations.find((x) => x.id === editData.quotationRef);
+    const sorted = [...base].sort((a, b) => a.id.localeCompare(b.id));
+    if (editingQuoteId) {
+      const current = quotations.find((x) => x.id === editingQuoteId);
       if (current && !sorted.some((x) => x.id === current.id)) {
         return [current, ...sorted.filter((x) => x.id !== current.id)];
       }
@@ -456,8 +456,11 @@ const CuttingListModal = ({
       (cl) => normQuoteKey(cl.quotationRef) === normQuoteKey(q.id) && String(cl.id) !== String(editData?.id ?? '')
     );
     if (linked) return { kind: 'has_list', q, listId: linked.id, branchId: linked.branchId ?? '' };
+    if (!meetsCuttingListPayThreshold(q, receipts, ledgerEntries, minPaidFraction)) {
+      return { kind: 'under_paid', q };
+    }
     return null;
-  }, [quoteSearch, quotations, selectableQuotations, cuttingLists, editData?.id]);
+  }, [quoteSearch, quotations, selectableQuotations, cuttingLists, editData?.id, receipts, ledgerEntries, minPaidFraction]);
 
   const selectedQuotation = useMemo(
     () => quotations.find((q) => q.id === quotationRef) ?? null,
@@ -973,10 +976,10 @@ const CuttingListModal = ({
                 <div className="md:col-span-2 space-y-2 relative z-20">
                   <label className={label}>Quotation</label>
                   <p className="text-[9px] text-slate-500 leading-snug -mt-1 mb-1">
-                    Search by quotation ID, customer, or customer code, then click a row to link. If less than{' '}
-                    <span className="font-semibold text-slate-700">{minPaidPercentLabel}%</span> of the quote is paid on the customer ledger, a manager must use{' '}
-                    <span className="font-semibold text-slate-700">Manager dashboard</span> → Transaction Intel →{' '}
-                    <span className="font-semibold text-slate-700">Override</span> before you can save a cutting list here.
+                    Search by quotation ID, customer, or customer code. Only quotations with at least{' '}
+                    <span className="font-semibold text-slate-700">{minPaidPercentLabel}%</span> paid appear in this list. If a quote is
+                    underpaid, a manager must use <span className="font-semibold text-slate-700">Manager dashboard</span> → Transaction Intel →{' '}
+                    <span className="font-semibold text-slate-700">Override</span> before it can be linked here.
                   </p>
                   {productionCompletedLock ? (
                     <div className={`${field} bg-slate-50 text-slate-700`}>{quotationRef || '—'}</div>
@@ -1045,6 +1048,16 @@ const CuttingListModal = ({
                                   <p className="font-bold text-[11px]">Quotation {knownQuotePickerBlocker.q.id} has zero total</p>
                                   <p className="text-[9px] leading-snug mt-1">Add priced lines to the quotation before creating a cutting list.</p>
                                 </div>
+                              ) : knownQuotePickerBlocker?.kind === 'under_paid' ? (
+                                <div className="text-left rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-amber-950">
+                                  <p className="font-bold text-[11px] text-amber-900">
+                                    {knownQuotePickerBlocker.q.id} is under {minPaidPercentLabel}% paid
+                                  </p>
+                                  <p className="text-[9px] text-amber-900/90 leading-snug mt-1">
+                                    Record more payments on this quotation, or ask a manager for a production override on the Manager
+                                    dashboard. Underpaid quotes are hidden from this list.
+                                  </p>
+                                </div>
                               ) : (
                                 <p className="text-center font-semibold text-slate-400 uppercase">No matching quotations</p>
                               )}
@@ -1093,8 +1106,8 @@ const CuttingListModal = ({
                   )}
                   {isCreate && selectableQuotations.length === 0 ? (
                     <p className="text-[10px] font-medium text-amber-800 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
-                      No open quotations in workspace. Create a quotation with a line total, or ensure an existing order has no cutting list
-                      yet.
+                      No quotations are ready for a new cutting list. You need an order with a line total, at least{' '}
+                      {minPaidPercentLabel}% paid, and no existing cutting list on that quote.
                     </p>
                   ) : null}
                 </div>
