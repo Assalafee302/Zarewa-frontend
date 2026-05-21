@@ -574,7 +574,11 @@ export function InventoryProvider({ children }) {
           return { ok: false, error: data?.error || 'GRN failed on server.' };
         }
         await ws.refresh();
-        return { ok: true, coilNos: data.coilNos || [] };
+        return {
+          ok: true,
+          coilNos: data.coilNos || [],
+          mdShortReceiptAlerts: data.mdShortReceiptAlerts || [],
+        };
       }
 
       /* Offline / demo GRN (no API): synthetic coil IDs (CL-YY-####) from a local counter only.

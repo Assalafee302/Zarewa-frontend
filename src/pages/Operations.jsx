@@ -36,7 +36,12 @@ import { productionJobNeedsManagerReviewAttention } from '../lib/productionRevie
 import { pickProductionJobForCuttingList } from '../lib/productionJobPick';
 import { productionQueueLineStatusPresentation } from '../lib/productionQueueLineStatus';
 import { procurementKindFromPo, poLineQtyLabel } from '../lib/procurementPoKind';
-import { grnKindForPoLine, isCoilMeterBasisLine } from '../lib/poLineTypes.js';
+import {
+  grnKindForPoLine,
+  isCoilMeterBasisLine,
+  poLineIsOpenForReceiving,
+  poLineOpenQtyForReceiving,
+} from '../lib/poLineTypes.js';
 import {
   liveJobMaterialPresentation,
   normQuoteKeyForLiveJob,
@@ -1138,7 +1143,12 @@ const Operations = () => {
   }, [location.state, location.pathname, navigate, canAdjustInventory]);
 
   const transitOrdersAll = useMemo(
-    () => purchaseOrders.filter((p) => PO_RECEIVABLE_STATUSES.includes(p.status)),
+    () =>
+      purchaseOrders.filter(
+        (p) =>
+          PO_RECEIVABLE_STATUSES.includes(p.status) &&
+          (p.lines || []).some((l) => poLineIsOpenForReceiving(l))
+      ),
     [purchaseOrders]
   );
 
@@ -1257,13 +1267,13 @@ const Operations = () => {
 
     const yy = String(new Date().getFullYear()).slice(-2);
     setGrnLines((prev) => {
-      const openLines = po.lines.filter((l) => Number(l.qtyOrdered) > Number(l.qtyReceived));
+      const openLines = po.lines.filter((l) => poLineIsOpenForReceiving(l));
       const prevByKey = new Map(prev.map((r) => [r.lineKey, r]));
       const numsInForm = prev.map((r) => r.coilNo).filter(Boolean);
       let nextSeq = maxClSequenceForYear(coilLots, yy, numsInForm);
 
       return openLines.map((l) => {
-        const remaining = Number(l.qtyOrdered) - Number(l.qtyReceived);
+        const remaining = poLineOpenQtyForReceiving(l);
         const old = prevByKey.get(l.lineKey);
         const grnKind = grnKindForPoLine(l);
         const meterBasis = grnKind === 'coil' && isCoilMeterBasisLine(l);
@@ -1355,7 +1365,17 @@ const Operations = () => {
       return;
     }
     const coils = res.coilNos?.filter(Boolean).join(', ') || '';
-    showToast(`Receipt posted — stock updated${coils ? ` · ${coils}` : ''}.`);
+    const shortAlerts = Array.isArray(res.mdShortReceiptAlerts) ? res.mdShortReceiptAlerts : [];
+    if (shortAlerts.length > 0) {
+      const first = shortAlerts[0];
+      const shortKg = Number(first?.shortKg) || 0;
+      showToast(
+        `Receipt posted${coils ? ` · ${coils}` : ''}. MD alerted: received ${Number(first?.receivedKg || 0).toLocaleString()} kg vs ${Number(first?.orderedKg || 0).toLocaleString()} kg ordered (${shortKg.toLocaleString()} kg short).`,
+        { variant: 'warning' }
+      );
+    } else {
+      showToast(`Receipt posted — stock updated${coils ? ` · ${coils}` : ''}.`);
+    }
     setReceiveDraft({ poID: '', location: '' });
     setGrnLines([]);
     setGrnConversionOverride(false);
@@ -1678,13 +1698,8 @@ const Operations = () => {
                   <ul className="space-y-1.5">
                   {transitOrders.map((p) => {
                     const pk = procurementKindFromPo(p);
-                    const openQty = p.lines.reduce(
-                      (sum, l) => sum + Math.max(0, Number(l.qtyOrdered) - Number(l.qtyReceived)),
-                      0
-                    );
-                    const openLineCount = (p.lines || []).filter(
-                      (l) => Number(l.qtyOrdered) > Number(l.qtyReceived)
-                    ).length;
+                    const openQty = p.lines.reduce((sum, l) => sum + poLineOpenQtyForReceiving(l), 0);
+                    const openLineCount = (p.lines || []).filter((l) => poLineIsOpenForReceiving(l)).length;
                     const openLabel =
                       pk === 'mixed'
                         ? `${openLineCount} open line(s)`
