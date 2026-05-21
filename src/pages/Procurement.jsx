@@ -834,7 +834,13 @@ const Procurement = () => {
           }
         );
         if (!ok || !data?.ok) {
-          showToast(data?.error || 'Could not update supplier.', { variant: 'error' });
+          const dupId = data?.existingSupplierId;
+          showToast(
+            data?.code === 'DUPLICATE_SUPPLIER_REGISTRATION' && dupId
+              ? `${data.error || 'Duplicate supplier.'} Use ${dupId} instead.`
+              : data?.error || 'Could not update supplier.',
+            { variant: 'error' }
+          );
           return;
         }
       } else {
@@ -850,7 +856,13 @@ const Procurement = () => {
           }),
         });
         if (!ok || !data?.ok) {
-          showToast(data?.error || 'Could not create supplier.', { variant: 'error' });
+          const dupId = data?.existingSupplierId;
+          showToast(
+            data?.code === 'DUPLICATE_SUPPLIER_REGISTRATION' && dupId
+              ? `${data.error || 'Duplicate supplier.'} Use ${dupId} instead.`
+              : data?.error || 'Could not create supplier.',
+            { variant: 'error' }
+          );
           return;
         }
       }
