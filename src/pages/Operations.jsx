@@ -16,6 +16,7 @@ import {
   ChevronUp,
   Scale,
   Search,
+  Printer,
 } from 'lucide-react';
 
 import { WorkspacePanelToolbar } from '../components/workspace';
@@ -43,6 +44,7 @@ import {
 } from '../lib/productionLiveJobMaterialKind';
 import { compareSelectLabels } from '../lib/selectOptionSort';
 import { canonicalColourName } from '../lib/colourCanonicalization.js';
+import { printProductionFollowUpList } from '../lib/productionFollowUpPrint.js';
 
 /** Current kg on the coil (after production use); uses API fields when present. */
 function liveCoilWeightKg(lot) {
@@ -996,6 +998,28 @@ const Operations = () => {
       overdue: active.filter((r) => r.overdue).length,
     };
   }, [productionQueueModel]);
+
+  const productionFollowUpPrintRows = useMemo(() => {
+    if (productionQueueModel.mode === 'offline') {
+      return productionQueueModel.sections.flatMap((s) => s.rows || []);
+    }
+    return productionActiveSorted;
+  }, [productionQueueModel, productionActiveSorted]);
+
+  const handlePrintProductionFollowUp = useCallback(() => {
+    if (!productionFollowUpPrintRows.length) {
+      showToast('No waiting or in-production jobs to print.', 'info');
+      return;
+    }
+    const ok = printProductionFollowUpList({
+      rows: productionFollowUpPrintRows,
+      quotations: workspaceQuotations,
+      title: 'Production follow-up — waiting & in progress',
+    });
+    if (!ok) {
+      showToast('Allow pop-ups to print the follow-up list.', 'warning');
+    }
+  }, [productionFollowUpPrintRows, showToast, workspaceQuotations]);
 
   const goOverviewInventory = useCallback((kind) => {
     setActiveTab('inventory');
@@ -2238,21 +2262,33 @@ const Operations = () => {
                           allocate coils, save run log, start, complete, or cancel (releases reservations when abandoned).
                         </p>
                       </div>
-                      <label className="flex shrink-0 items-center gap-1.5 text-[9px] font-bold uppercase tracking-wide text-slate-500">
-                        Sort
-                        <select
-                          value={productionActiveSortKey}
-                          onChange={(e) => setProductionActiveSortKey(e.target.value)}
-                          className="max-w-[9.5rem] rounded-md border border-slate-200 bg-white px-2 py-1 text-[10px] font-semibold normal-case text-slate-800 outline-none focus-visible:ring-2 focus-visible:ring-[#134e4a]/25"
+                      <div className="flex shrink-0 flex-wrap items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={handlePrintProductionFollowUp}
+                          disabled={productionFollowUpPrintRows.length === 0}
+                          className="inline-flex items-center gap-1.5 rounded-md border border-[#134e4a]/25 bg-white px-2.5 py-1.5 text-[9px] font-bold uppercase tracking-wide text-[#134e4a] shadow-sm hover:bg-teal-50/80 disabled:cursor-not-allowed disabled:opacity-45 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#134e4a]/25"
+                          title="Print all waiting or in-production jobs (quotation, cutting list, customer, project, colour, gauge)"
                         >
-                          <option value="registeredDesc">Newest registered</option>
-                          <option value="id">Cutting list # (oldest first)</option>
-                          <option value="idDesc">Cutting list # (newest first)</option>
-                          <option value="attention">Attention</option>
-                          <option value="customer">Customer A–Z</option>
-                          <option value="status">Status A–Z</option>
-                        </select>
-                      </label>
+                          <Printer size={12} aria-hidden />
+                          Print follow-up
+                        </button>
+                        <label className="flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-wide text-slate-500">
+                          Sort
+                          <select
+                            value={productionActiveSortKey}
+                            onChange={(e) => setProductionActiveSortKey(e.target.value)}
+                            className="max-w-[9.5rem] rounded-md border border-slate-200 bg-white px-2 py-1 text-[10px] font-semibold normal-case text-slate-800 outline-none focus-visible:ring-2 focus-visible:ring-[#134e4a]/25"
+                          >
+                            <option value="registeredDesc">Newest registered</option>
+                            <option value="id">Cutting list # (oldest first)</option>
+                            <option value="idDesc">Cutting list # (newest first)</option>
+                            <option value="attention">Attention</option>
+                            <option value="customer">Customer A–Z</option>
+                            <option value="status">Status A–Z</option>
+                          </select>
+                        </label>
+                      </div>
                     </div>
 
                     <div className="grid grid-cols-2 gap-2">
