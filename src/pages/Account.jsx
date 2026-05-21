@@ -2674,7 +2674,10 @@ const Account = () => {
         }
       />
 
-      <div className="grid min-w-0 grid-cols-1 gap-8 lg:gap-10 lg:grid-cols-4">
+      <div
+        className={`grid min-w-0 grid-cols-1 gap-8 lg:gap-10 ${activeTab === 'receipts' ? '' : 'lg:grid-cols-4'}`}
+      >
+        {activeTab !== 'receipts' ? (
         <div className="lg:col-span-1 space-y-6">
           <div className="rounded-zarewa border border-slate-200/80 border-l-[3px] border-l-[#134e4a] bg-white p-6 shadow-[var(--shadow-sequence)]">
             <h3 className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-400 mb-3">
@@ -2755,8 +2758,9 @@ const Account = () => {
             reporting once the ledger is live.
           </div>
         </div>
+        ) : null}
 
-        <div className="lg:col-span-3">
+        <div className={activeTab === 'receipts' ? 'min-w-0' : 'lg:col-span-3 min-w-0'}>
           <FinanceSequencePanel>
             <>
             {activeTab === 'receipts' && (
@@ -2820,7 +2824,8 @@ const Account = () => {
                           {sortedFilteredSalesReceipts.length !== 1 ? 's' : ''} in view
                         </div>
                       </div>
-                      <section className="space-y-2">
+                      <div className="grid min-w-0 grid-cols-1 gap-6 lg:grid-cols-2 lg:gap-8 lg:items-start">
+                      <section className="space-y-2 min-w-0">
                         <div className="flex items-center justify-between gap-2 rounded-lg border border-amber-200/70 bg-amber-50/65 px-3 py-2">
                           <div>
                             <p className="text-[10px] font-black uppercase tracking-wide text-amber-900">
@@ -2935,7 +2940,7 @@ const Account = () => {
                           })}
                         </ul>
                       </section>
-                      <section className="space-y-2 pt-2">
+                      <section className="space-y-2 min-w-0">
                         <div className="flex items-center justify-between gap-2 rounded-lg border border-emerald-200/70 bg-emerald-50/65 px-3 py-2">
                           <div>
                             <p className="text-[10px] font-black uppercase tracking-wide text-emerald-900">
@@ -3058,6 +3063,7 @@ const Account = () => {
                       })}
                         </ul>
                       </section>
+                      </div>
 
                       {ws?.hasPermission?.('finance.view') ? (
                         <section className="space-y-3 border-t border-slate-200/80 pt-6">
