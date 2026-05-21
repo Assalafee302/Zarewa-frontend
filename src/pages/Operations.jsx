@@ -559,16 +559,24 @@ const Operations = () => {
   const [activeTab, setActiveTab] = useState('overview');
   const [materialIncidentFocusId, setMaterialIncidentFocusId] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
-  /** Closed-record list: all | completed | cancelled (in-progress jobs are above this list). */
+  /** Closed-record list: all | completed | cancelled | coils_allocated (in-progress jobs are above). */
   const [productionFilter, setProductionFilter] = useState('all');
+  /** In-progress panel: all | coils_allocated | no_coil | running | planned */
+  const [productionActiveFilter, setProductionActiveFilter] = useState('all');
   const [productionActiveSortKey, setProductionActiveSortKey] = useState('registeredDesc');
   const [productionClosedSortKey, setProductionClosedSortKey] = useState('id');
   useEffect(() => {
     if (!ws?.hasWorkspaceData) return;
-    const onlineFilters = new Set(['all', 'completed', 'cancelled']);
+    const onlineFilters = new Set(['all', 'completed', 'cancelled', 'coils_allocated']);
     if (onlineFilters.has(productionFilter)) return;
     setProductionFilter('all');
   }, [ws?.hasWorkspaceData, productionFilter]);
+  useEffect(() => {
+    if (!ws?.hasWorkspaceData) return;
+    const activeFilters = new Set(['all', 'coils_allocated', 'no_coil', 'running', 'planned']);
+    if (activeFilters.has(productionActiveFilter)) return;
+    setProductionActiveFilter('all');
+  }, [ws?.hasWorkspaceData, productionActiveFilter]);
   const [showStockAdjust, setShowStockAdjust] = useState(false);
   const [showCoilRequest, setShowCoilRequest] = useState(false);
   /** `job` = live API job row; `pending` = offline cutting list queue (no traceability). */
@@ -735,9 +743,10 @@ const Operations = () => {
     const q = searchQuery.trim().toLowerCase();
     const matches = (item) => {
       if (!q) return true;
+      const coilBlob = Array.isArray(item.reservedCoilNos) ? item.reservedCoilNos.join(' ') : '';
       const blob = `${item.id} ${item.customer} ${item.spec} ${item.quotationRef || ''} ${item.cuttingListId || ''} ${
         item.lineStatusLabel || ''
-      } ${item.status || ''}`.toLowerCase();
+      } ${item.status || ''} ${item.coilLabel || ''} ${coilBlob}`.toLowerCase();
       return blob.includes(q);
     };
 
@@ -771,7 +780,8 @@ const Operations = () => {
       };
     }
 
-    const coilCount = (jobID) => productionJobCoils.filter((c) => c.jobID === jobID).length;
+    const coilsForJob = (jobID) =>
+      jobID ? productionJobCoils.filter((c) => c.jobID === jobID) : [];
 
     const registered = cuttingLists.filter((cl) => cl.productionRegistered);
 
@@ -782,7 +792,11 @@ const Operations = () => {
       const isCancelled = status === 'Cancelled';
       const closedRecord = isCompleted || isCancelled;
       const jobID = job?.jobID;
-      const nCoils = jobID ? coilCount(jobID) : 0;
+      const jobCoils = coilsForJob(jobID);
+      const nCoils = jobCoils.length;
+      const reservedCoilNos = jobCoils.map((c) => String(c.coilNo || '').trim()).filter(Boolean);
+      const reservedKg = jobCoils.reduce((s, c) => s + (Number(c.openingWeightKg) || 0), 0);
+      const hasCoilsAllocated = nCoils > 0;
       const lineStatus = productionQueueLineStatusPresentation(cl, job);
       const qMat =
         workspaceQuotations.find(
@@ -816,6 +830,9 @@ const Operations = () => {
             : `${plannedM.toLocaleString()}m planned`,
         status,
         coilCount: nCoils,
+        hasCoilsAllocated,
+        reservedCoilNos,
+        reservedKg,
         coilLabel: !job
           ? 'Syncing production data…'
           : closedRecord
@@ -920,9 +937,19 @@ const Operations = () => {
     return productionQueueModel.sections.find((s) => s.key === 'active')?.rows || [];
   }, [productionQueueModel]);
 
+  const productionActiveFiltered = useMemo(() => {
+    return productionActiveRows.filter((row) => {
+      if (productionActiveFilter === 'coils_allocated') return Boolean(row.hasCoilsAllocated);
+      if (productionActiveFilter === 'no_coil') return Boolean(row.needsCoil);
+      if (productionActiveFilter === 'running') return row.status === 'Running';
+      if (productionActiveFilter === 'planned') return row.status === 'Planned';
+      return true;
+    });
+  }, [productionActiveRows, productionActiveFilter]);
+
   const productionActiveSorted = useMemo(
-    () => [...productionActiveRows].sort((a, b) => compareProductionQueueRows(a, b, productionActiveSortKey)),
-    [productionActiveRows, productionActiveSortKey]
+    () => [...productionActiveFiltered].sort((a, b) => compareProductionQueueRows(a, b, productionActiveSortKey)),
+    [productionActiveFiltered, productionActiveSortKey]
   );
 
   /** Main table: closed jobs only (completed or cancelled). In-progress appears in the panel above. */
@@ -951,6 +978,7 @@ const Operations = () => {
       if (productionFilter === 'completed') return row.status === 'Completed';
       if (productionFilter === 'cancelled') return row.status === 'Cancelled';
       if (productionFilter === 'done') return row.status === 'Completed';
+      if (productionFilter === 'coils_allocated') return Boolean(row.hasCoilsAllocated);
       return true;
     });
   }, [productionQueueModel, productionFilter, searchQuery]);
@@ -967,6 +995,7 @@ const Operations = () => {
     productionActiveSorted,
     PRODUCTION_TABLE_PAGE_SIZE,
     productionActiveSortKey,
+    productionActiveFilter,
     searchQuery,
     ws?.hasWorkspaceData
   );
@@ -994,6 +1023,7 @@ const Operations = () => {
       waiting: active.filter((r) => r.priority === 'Waiting' || r.priority === 'Wait' || r.status === 'Planned')
         .length,
       noCoil: active.filter((r) => r.needsCoil).length,
+      coilsAllocated: active.filter((r) => r.hasCoilsAllocated).length,
       needsReview: active.filter((r) => r.managerReviewRequired).length,
       overdue: active.filter((r) => r.overdue).length,
     };
@@ -2244,7 +2274,7 @@ const Operations = () => {
               title={PANEL_TITLE.production}
               searchValue={searchQuery}
               onSearchChange={setSearchQuery}
-              searchPlaceholder="Search lists, customers, status…"
+              searchPlaceholder="Search lists, customers, coil no., status…"
             />
 
             <div className="space-y-4">
@@ -2291,11 +2321,17 @@ const Operations = () => {
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                       <div className="rounded-lg border border-slate-200 bg-white p-2.5">
                         <p className="text-[8px] font-bold uppercase tracking-wide text-slate-500">Jobs waiting</p>
                         <p className="mt-0.5 text-lg font-black text-[#134e4a] tabular-nums">
                           {productionQueueStats.waiting}
+                        </p>
+                      </div>
+                      <div className="rounded-lg border border-teal-200 bg-teal-50/60 p-2.5">
+                        <p className="text-[8px] font-bold uppercase tracking-wide text-teal-800">Coils reserved</p>
+                        <p className="mt-0.5 text-lg font-black text-teal-900 tabular-nums">
+                          {productionQueueStats.coilsAllocated}
                         </p>
                       </div>
                       <div className="rounded-lg border border-amber-200 bg-amber-50/60 p-2.5">
@@ -2310,13 +2346,42 @@ const Operations = () => {
                           {productionQueueStats.needsReview}
                         </p>
                       </div>
-                      <div className="rounded-lg border border-rose-200 bg-rose-50/50 p-2.5">
+                      <div className="rounded-lg border border-rose-200 bg-rose-50/50 p-2.5 sm:col-span-2">
                         <p className="text-[8px] font-bold uppercase tracking-wide text-rose-800">Overdue</p>
                         <p className="mt-0.5 text-lg font-black text-rose-800 tabular-nums">
                           {productionQueueStats.overdue}
                         </p>
                       </div>
                     </div>
+
+                    {ws?.hasWorkspaceData ? (
+                      <div
+                        className="inline-flex flex-wrap gap-1 rounded-lg border border-slate-200 bg-white p-1"
+                        role="group"
+                        aria-label="Filter in-progress production jobs"
+                      >
+                        {[
+                          { id: 'all', label: 'All in progress' },
+                          { id: 'coils_allocated', label: 'Coils reserved' },
+                          { id: 'no_coil', label: 'No coil yet' },
+                          { id: 'running', label: 'Running' },
+                          { id: 'planned', label: 'Planned' },
+                        ].map((f) => (
+                          <button
+                            key={f.id}
+                            type="button"
+                            onClick={() => setProductionActiveFilter(f.id)}
+                            className={`px-2.5 py-1.5 rounded-md text-[8px] font-semibold uppercase tracking-wide transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#134e4a]/25 ${
+                              productionActiveFilter === f.id
+                                ? 'bg-[#134e4a] text-white shadow-sm'
+                                : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                            }`}
+                          >
+                            {f.label}
+                          </button>
+                        ))}
+                      </div>
+                    ) : null}
 
                     {ws?.hasWorkspaceData && jobsNeedingManagerReview.length > 0 ? (
                       <div className="rounded-lg border border-red-200 bg-red-50/90 px-3 py-3 text-sm text-red-950 shadow-sm">
@@ -2349,7 +2414,14 @@ const Operations = () => {
 
                     {ws?.hasWorkspaceData && productionActiveRows.length > 0 ? (
                       <div className="rounded-xl border border-sky-200 bg-sky-50/50 p-3 shadow-sm flex flex-col">
-                        <p className="text-[10px] font-bold uppercase tracking-widest text-sky-900">Live jobs</p>
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-sky-900">
+                          Live jobs
+                          {productionActiveFilter !== 'all' ? (
+                            <span className="ml-1.5 font-semibold normal-case text-sky-800/90">
+                              ({productionActiveFiltered.length} of {productionActiveRows.length})
+                            </span>
+                          ) : null}
+                        </p>
                         <ul className="mt-2 space-y-1.5">
                           {productionActivePage.slice.map((item) => (
                             <li
@@ -2381,6 +2453,28 @@ const Operations = () => {
                                   ) : null}
                                   <span className="text-[9px] text-slate-600 truncate">{item.customer}</span>
                                 </div>
+                                {item.hasCoilsAllocated ? (
+                                  <p
+                                    className="mt-1 text-[8px] font-mono text-teal-900/90 leading-snug"
+                                    title={
+                                      item.reservedKg > 0
+                                        ? `${item.reservedKg.toLocaleString(undefined, { maximumFractionDigits: 1 })} kg opening reserved on this job`
+                                        : undefined
+                                    }
+                                  >
+                                    {item.reservedCoilNos?.length
+                                      ? item.reservedCoilNos.join(' · ')
+                                      : item.coilLabel || 'Coils allocated'}
+                                    {item.reservedKg > 0 ? (
+                                      <span className="text-teal-800/80">
+                                        {' '}
+                                        · {item.reservedKg.toLocaleString(undefined, { maximumFractionDigits: 0 })} kg
+                                      </span>
+                                    ) : null}
+                                  </p>
+                                ) : item.coilLabel ? (
+                                  <p className="mt-1 text-[8px] text-amber-900/90">{item.coilLabel}</p>
+                                ) : null}
                               </div>
                               <div className="flex shrink-0 flex-wrap items-center justify-end gap-1">
                                 <button
@@ -2400,6 +2494,12 @@ const Operations = () => {
                             </li>
                           ))}
                         </ul>
+                        {productionActiveFiltered.length === 0 ? (
+                          <p className="mt-2 text-[10px] text-slate-500 leading-relaxed">
+                            No in-progress jobs match this filter. Try &ldquo;All in progress&rdquo; or search by coil
+                            number (e.g. 1975).
+                          </p>
+                        ) : null}
                         <AppTablePager
                           showingFrom={productionActivePage.showingFrom}
                           showingTo={productionActivePage.showingTo}
@@ -2413,7 +2513,9 @@ const Operations = () => {
                       </div>
                     ) : ws?.hasWorkspaceData ? (
                       <p className="text-[10px] text-slate-500 leading-relaxed">
-                        No in-progress jobs in this workspace. Closed and finished records are on the right.
+                        {productionActiveRows.length > 0 && productionActiveFiltered.length === 0
+                          ? 'No in-progress jobs match this filter — switch to All in progress or search by coil number.'
+                          : 'No in-progress jobs in this workspace. Closed and finished records are on the right.'}
                       </p>
                     ) : (
                       <p className="text-[10px] text-slate-500 leading-relaxed">
@@ -2463,6 +2565,7 @@ const Operations = () => {
                       {(ws?.hasWorkspaceData
                         ? [
                             { id: 'all', label: 'All closed' },
+                            { id: 'coils_allocated', label: 'Coils on record' },
                             { id: 'completed', label: 'Completed' },
                             { id: 'cancelled', label: 'Cancelled' },
                           ]
