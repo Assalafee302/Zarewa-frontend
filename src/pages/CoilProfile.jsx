@@ -84,6 +84,9 @@ export default function CoilProfile() {
     currentKg: '',
     receivedKg: '',
   });
+  const [holdersMeta, setHoldersMeta] = useState(null);
+  const [holdersLoading, setHoldersLoading] = useState(false);
+  const [reconcilingReservation, setReconcilingReservation] = useState(false);
 
   const coil = useMemo(
     () => coilLots.find((c) => coilKey(c.coilNo) === coilNoKey),
@@ -118,6 +121,29 @@ export default function CoilProfile() {
   );
 
   const linkedJobs = useMemo(() => productionJobCoils.filter((r) => coilKey(r.coilNo) === coilNoKey), [productionJobCoils, coilNoKey]);
+
+  const refreshProductionHolders = React.useCallback(async () => {
+    if (!coil?.coilNo || !ws?.hasWorkspaceData) {
+      setHoldersMeta(null);
+      return;
+    }
+    setHoldersLoading(true);
+    try {
+      const { ok, data } = await apiFetch(
+        `/api/coil-lots/${encodeURIComponent(coil.coilNo)}/production-holders`
+      );
+      if (ok && data?.ok) setHoldersMeta(data);
+      else setHoldersMeta(null);
+    } catch {
+      setHoldersMeta(null);
+    } finally {
+      setHoldersLoading(false);
+    }
+  }, [coil?.coilNo, ws?.hasWorkspaceData]);
+
+  useEffect(() => {
+    refreshProductionHolders();
+  }, [refreshProductionHolders]);
   const linkedChecks = useMemo(
     () => conversionChecks.filter((r) => coilKey(r.coilNo) === coilNoKey),
     [conversionChecks, coilNoKey]
@@ -164,7 +190,11 @@ export default function CoilProfile() {
   }, [linkedChecks]);
 
   const jobRows = useMemo(() => {
-    return linkedJobs.map((r) => {
+    const source =
+      Array.isArray(holdersMeta?.holders) && holdersMeta.holders.length > 0
+        ? holdersMeta.holders
+        : linkedJobs;
+    return source.map((r) => {
       const opening = asNum(r.openingWeightKg);
       const closing = asNum(r.closingWeightKg);
       const kgUsed = opening > 0 && closing >= 0 && opening >= closing ? opening - closing : null;
@@ -173,6 +203,7 @@ export default function CoilProfile() {
       const keyJob = String(r.jobID || '').trim();
       const keyCl = String(r.cuttingListId || '').trim();
       const check = checkByKey.get(keyJob) || checkByKey.get(keyCl) || null;
+      const jobStatus = String(r.jobStatus || r.status || '').trim();
       return {
         ...r,
         kgUsed,
@@ -180,10 +211,11 @@ export default function CoilProfile() {
         actualConv: check?.actualConversionKgPerM ?? derivedConv,
         standardConv: check?.standardConversionKgPerM ?? null,
         supplierConv: check?.supplierConversionKgPerM ?? null,
-        status: r.status || (linkedCuttingSet.has(keyCl) ? 'Linked' : ''),
+        status: jobStatus || (linkedCuttingSet.has(keyCl) ? 'Linked' : ''),
+        jobStatus,
       };
     });
-  }, [linkedJobs, checkByKey, linkedCuttingSet]);
+  }, [linkedJobs, checkByKey, linkedCuttingSet, holdersMeta?.holders]);
 
   const movementRows = useMemo(() => {
     const id = coilNo.toLowerCase();
@@ -219,7 +251,16 @@ export default function CoilProfile() {
   const currentKg = liveKg(coil);
   const receivedKg = asNum(coil.weightKg || coil.qtyReceived);
   const reservedKg = asNum(coil.qtyReserved);
+  const expectedReservedKg =
+    holdersMeta != null ? asNum(holdersMeta.expectedReservedKg) : null;
+  const orphanReservedKg =
+    holdersMeta != null
+      ? Math.max(0, asNum(holdersMeta.orphanReservedKg))
+      : Math.max(0, reservedKg - (expectedReservedKg ?? 0));
   const freeKg = Math.max(0, currentKg - reservedKg);
+  const canReconcileReservation = Boolean(
+    ws?.canMutate && (ws?.hasPermission?.('production.manage') || ws?.hasPermission?.('operations.manage'))
+  );
   const purchaseConversion = asNum(coil.supplierConversionKgPerM) || null;
   const avgActualConversion = avg(linkedChecks.map((c) => Number(c.actualConversionKgPerM)));
   const avgStandardConversion = avg(
@@ -281,6 +322,32 @@ export default function CoilProfile() {
       setReturnForm({ kg: '', reason: 'Unused from production', note: '' });
     } finally {
       setSavingAction(false);
+    }
+  };
+
+  const submitReconcileReservation = async () => {
+    if (!coil || !canReconcileReservation) return;
+    setReconcilingReservation(true);
+    try {
+      const { ok, data } = await apiFetch(
+        `/api/coil-lots/${encodeURIComponent(coil.coilNo)}/reconcile-reservation`,
+        { method: 'POST', body: JSON.stringify({}) }
+      );
+      if (!ok || !data?.ok) {
+        showToast(data?.error || 'Could not reconcile reservation.', { variant: 'error' });
+        return;
+      }
+      await ws.refresh?.();
+      await refreshProductionHolders();
+      if (data.unchanged) {
+        showToast('Reserved kg already matches active production jobs.', { variant: 'info' });
+      } else {
+        showToast(
+          `Reservation updated: ${Number(data.qtyReservedBefore || 0).toFixed(0)} → ${Number(data.qtyReservedAfter || 0).toFixed(0)} kg (${Number(data.freedKg || 0).toFixed(0)} kg freed).`
+        );
+      }
+    } finally {
+      setReconcilingReservation(false);
     }
   };
 
@@ -413,13 +480,47 @@ export default function CoilProfile() {
               <p>Parent coil: <strong>{coil.parentCoilNo || '—'}</strong></p>
               <p>Received: <strong>{coil.receivedAtISO || '—'}</strong></p>
             </div>
+            {orphanReservedKg > 0.05 ? (
+              <div className="mt-4 rounded-lg border border-amber-300 bg-amber-50 px-3 py-3 text-xs text-amber-950">
+                <p className="font-bold text-amber-900">
+                  Orphan reservation — {orphanReservedKg.toLocaleString(undefined, { maximumFractionDigits: 1 })} kg
+                </p>
+                <p className="mt-1 leading-relaxed text-amber-900/90">
+                  The coil book shows <strong>{reservedKg.toLocaleString()}</strong> kg reserved, but planned/running
+                  production jobs only account for{' '}
+                  <strong>{(expectedReservedKg ?? 0).toLocaleString()}</strong> kg. That is why production register
+                  shows <strong>0 kg free</strong> even when no job appears in the queue filter. Common causes: coil
+                  register import with a reserved qty, or a cancelled job that did not release stock cleanly.
+                </p>
+                {canReconcileReservation ? (
+                  <button
+                    type="button"
+                    className="mt-2 z-btn-secondary text-[10px]"
+                    disabled={reconcilingReservation}
+                    onClick={submitReconcileReservation}
+                  >
+                    {reconcilingReservation ? 'Reconciling…' : 'Clear orphan reservation'}
+                  </button>
+                ) : null}
+              </div>
+            ) : null}
+            {holdersLoading ? (
+              <p className="mt-3 text-[10px] text-slate-500">Loading production holders…</p>
+            ) : null}
           </section>
 
           <section id="coil-links" className="rounded-zarewa border border-gray-100 bg-white shadow-sm p-5 mb-8 scroll-mt-28">
             <h3 className="text-xs font-bold text-[#134e4a] uppercase tracking-widest mb-4">Production links</h3>
+            <p className="text-[10px] text-slate-500 mb-3 leading-relaxed">
+              All jobs that ever allocated this coil (from server). Active planned/running openings should match
+              reserved kg on the overview.
+            </p>
             <div className="space-y-2">
               {jobRows.length === 0 ? (
-                <p className="text-xs text-slate-500">No linked cutting list / job records yet.</p>
+                <p className="text-xs text-slate-500">
+                  No production job rows for this coil. If reserved kg is still positive, use{' '}
+                  <strong className="text-amber-900">Clear orphan reservation</strong> above.
+                </p>
               ) : (
                 jobRows.map((row, idx) => (
                   <div key={`${row.jobID || row.cuttingListId || 'job'}-${idx}`} className="rounded-lg border border-slate-200 px-3 py-2 text-xs">
@@ -434,6 +535,15 @@ export default function CoilProfile() {
                       </span>
                     </div>
                     <div className="mt-1 text-slate-600 flex flex-wrap gap-x-3 gap-y-1">
+                      <span>
+                        open kg:{' '}
+                        <strong>
+                          {asNum(row.openingWeightKg) > 0
+                            ? asNum(row.openingWeightKg).toLocaleString(undefined, { maximumFractionDigits: 1 })
+                            : '—'}
+                        </strong>
+                      </span>
+                      <span>job: <strong>{row.jobStatus || row.status || '—'}</strong></span>
                       <span>kg used: <strong>{row.kgUsed != null ? row.kgUsed.toLocaleString(undefined, { maximumFractionDigits: 2 }) : '—'}</strong></span>
                       <span>meter: <strong>{row.meters > 0 ? row.meters.toLocaleString() : '—'}</strong></span>
                       <span>conversion: <strong>{fmt3(row.actualConv)}</strong></span>
