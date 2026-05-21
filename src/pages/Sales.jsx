@@ -28,7 +28,11 @@ import {
   ReceiptsTransactionsPanel,
   ReceiptsAdvancesPanel,
 } from '../components/sales/SalesReceiptsSidebar';
-import { mergeReceiptRowsForSales } from '../lib/salesReceiptsList';
+import {
+  mergeReceiptRowsForSales,
+  cuttingListByQuotationRefMap,
+  receiptCuttingListLinkMeta,
+} from '../lib/salesReceiptsList';
 import {
   paymentCountByQuotationRef,
   quotationListPaymentMeta,
@@ -144,6 +148,12 @@ function quoteApprovalChipBorder(st) {
 function receiptSourceChipBorder(src) {
   if (src === 'ledger') return 'border-emerald-200 bg-emerald-50 text-emerald-900';
   return 'border-slate-200 bg-slate-50 text-slate-600';
+}
+
+function receiptCuttingListChipBorder(kind) {
+  if (kind === 'linked') return 'border-teal-200 bg-teal-50 text-teal-900';
+  if (kind === 'none') return 'border-amber-200 bg-amber-50 text-amber-900';
+  return 'border-slate-200 bg-slate-50 text-slate-500';
 }
 
 function refundStatusChipBorder(st) {
@@ -566,9 +576,29 @@ const Sales = () => {
     [importedReceipts, quotations, ledgerSyncKey]
   );
 
+  const cuttingListByQuoteRef = useMemo(
+    () => cuttingListByQuotationRefMap(cuttingLists),
+    [cuttingLists]
+  );
+
+  const mergedReceiptRowsWithCuttingMeta = useMemo(
+    () =>
+      mergedReceiptRows.map((r) => {
+        const link = receiptCuttingListLinkMeta(r, cuttingListByQuoteRef);
+        return {
+          ...r,
+          _cuttingListLinkKind: link.kind,
+          _cuttingListId: link.cuttingListId || '',
+          _cuttingListLabel: link.label,
+          _cuttingListTitle: link.title,
+        };
+      }),
+    [mergedReceiptRows, cuttingListByQuoteRef]
+  );
+
   const paymentCountByQuoteRef = useMemo(
-    () => paymentCountByQuotationRef(mergedReceiptRows),
-    [mergedReceiptRows]
+    () => paymentCountByQuotationRef(mergedReceiptRowsWithCuttingMeta),
+    [mergedReceiptRowsWithCuttingMeta]
   );
 
   const quotationsRef = useRef(quotations);
@@ -585,10 +615,22 @@ const Sales = () => {
 
   const filteredMergedReceipts = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
-    const filtered = mergedReceiptRows.filter((row) => {
+    const filtered = mergedReceiptRowsWithCuttingMeta.filter((row) => {
       if (!q) return true;
       const blob = [
-        row.id, row.customer, row.quotationRef, row.date, row.dateISO, row.amount, row.source, row._payBadge, row._subLabel, row._detailNote,
+        row.id,
+        row.customer,
+        row.quotationRef,
+        row.date,
+        row.dateISO,
+        row.amount,
+        row.source,
+        row._payBadge,
+        row._subLabel,
+        row._detailNote,
+        row._cuttingListLabel,
+        row._cuttingListId,
+        row._cuttingListLinkKind === 'linked' ? 'linked cutting list' : 'no cutting list',
       ]
         .join(' ')
         .toLowerCase();
@@ -596,7 +638,7 @@ const Sales = () => {
     });
     const sorted = sortReceiptsList(filtered, salesListSort.field, salesListSort.dir);
     return sorted.slice(0, showCount);
-  }, [mergedReceiptRows, searchQuery, showCount, salesListSort]);
+  }, [mergedReceiptRowsWithCuttingMeta, searchQuery, showCount, salesListSort]);
 
   const filteredCuttingLists = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
@@ -1631,7 +1673,7 @@ const Sales = () => {
                         <SalesListSearchInput
                           value={searchQuery}
                           onChange={setSearchQuery}
-                          placeholder="Search payment ID, customer, quotation, date…"
+                          placeholder="Search payment ID, customer, quotation, cutting list…"
                         />
                         <SalesListSortBar
                           fields={SALES_TABLE_SORT_FIELD_OPTIONS.receipts}
@@ -1655,6 +1697,12 @@ const Sales = () => {
                       <ul className="space-y-1.5">
                         {filteredMergedReceipts.map((r) => {
                           const meta2 = [r.quotationRef, r.date, r._payBadge].filter(Boolean).join(' · ');
+                          const quotePayCount =
+                            paymentCountByQuoteRef.get(String(r.quotationRef || '').trim()) || 0;
+                          const cuttingChipLabel =
+                            r._cuttingListLinkKind === 'linked' && r._cuttingListId
+                              ? `CL ${r._cuttingListId}`
+                              : r._cuttingListLabel;
                           return (
                             <li key={r.id} className={salesListItemClass(`rc-${r.id}`, actionMenuKey)}>
                               <div className="flex flex-wrap items-start justify-between gap-2 min-w-0">
@@ -1696,26 +1744,38 @@ const Sales = () => {
                                       />
                                     </div>
                                   </div>
-                                  {(meta2 || r.financeDeliveryClearedAtISO) ? (
-                                    <div className="mt-0.5 flex min-w-0 flex-wrap items-center gap-2 sm:flex-nowrap">
-                                      {meta2 ? (
-                                        <p
-                                          className="text-[8px] text-slate-500 leading-snug truncate min-w-0 flex-1"
-                                          title={meta2}
-                                        >
-                                          {meta2}
-                                        </p>
-                                      ) : null}
-                                      {r.financeDeliveryClearedAtISO ? (
-                                        <span
-                                          className={`${CHIP} border-emerald-200 bg-emerald-50 text-emerald-900 shrink-0 whitespace-nowrap`}
-                                          title={r.financeDeliveryClearedAtISO}
-                                        >
-                                          Cleared for delivery (Finance)
-                                        </span>
-                                      ) : null}
-                                    </div>
-                                  ) : null}
+                                  <div className="mt-0.5 flex min-w-0 flex-wrap items-center gap-1.5">
+                                    {meta2 ? (
+                                      <p
+                                        className="text-[8px] text-slate-500 leading-snug truncate min-w-0 flex-1 basis-full sm:basis-auto"
+                                        title={meta2}
+                                      >
+                                        {meta2}
+                                      </p>
+                                    ) : null}
+                                    <span
+                                      className={`${CHIP} ${receiptCuttingListChipBorder(r._cuttingListLinkKind)} whitespace-nowrap`}
+                                      title={r._cuttingListTitle}
+                                    >
+                                      {cuttingChipLabel}
+                                    </span>
+                                    {quotePayCount > 1 ? (
+                                      <span
+                                        className={`${CHIP} border-violet-200 bg-violet-50 text-violet-900 whitespace-nowrap`}
+                                        title={`${quotePayCount} payments recorded on quotation ${r.quotationRef} — review for duplicates.`}
+                                      >
+                                        {quotePayCount}× on quote
+                                      </span>
+                                    ) : null}
+                                    {r.financeDeliveryClearedAtISO ? (
+                                      <span
+                                        className={`${CHIP} border-emerald-200 bg-emerald-50 text-emerald-900 shrink-0 whitespace-nowrap`}
+                                        title={r.financeDeliveryClearedAtISO}
+                                      >
+                                        Cleared for delivery (Finance)
+                                      </span>
+                                    ) : null}
+                                  </div>
                                 </div>
                               </div>
                             </li>

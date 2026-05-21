@@ -15,6 +15,7 @@ export const SALES_TABLE_SORT_FIELD_OPTIONS = {
     { id: 'customer', label: 'Customer' },
     { id: 'amount', label: 'Amount' },
     { id: 'quotation', label: 'Quotation' },
+    { id: 'cuttingList', label: 'Cutting list' },
     { id: 'source', label: 'Source' },
   ],
   cuttinglist: [
@@ -100,6 +101,17 @@ export function sortReceiptsList(rows, field, dir) {
         return compareNum(a.amountNgn, b.amountNgn, dir);
       case 'quotation':
         return compareLocale(a.quotationRef, b.quotationRef, dir);
+      case 'cuttingList': {
+        const rank = (row) => {
+          const k = String(row?._cuttingListLinkKind || '');
+          if (k === 'linked') return 0;
+          if (k === 'none') return 1;
+          return 2;
+        };
+        const c = rank(a) - rank(b);
+        if (c !== 0) return dir === 'asc' ? c : -c;
+        return compareLocale(a._cuttingListId, b._cuttingListId, dir);
+      }
       case 'source':
         return compareLocale(a.source, b.source, dir);
       default:

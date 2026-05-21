@@ -275,3 +275,56 @@ function formatPrintDate(iso) {
   const [y, m, d] = String(iso).slice(0, 10).split('-');
   return d && m && y ? `${d}/${m}/${y}` : iso;
 }
+
+/** Normalized quotation ref for matching receipts to cutting lists (dash variants, case). */
+export function normSalesQuotationRefKey(s) {
+  return normalizeReceiptMatchDashes(String(s ?? '').trim()).toLowerCase();
+}
+
+/**
+ * Map normalized quotation ref → cutting list row (one list per quote in practice).
+ * @param {object[]} cuttingLists workspace snapshot cuttingLists
+ */
+export function cuttingListByQuotationRefMap(cuttingLists) {
+  const map = new Map();
+  for (const cl of cuttingLists || []) {
+    const key = normSalesQuotationRefKey(cl?.quotationRef);
+    if (!key || map.has(key)) continue;
+    map.set(key, {
+      id: String(cl.id || '').trim(),
+      status: String(cl.status || '').trim(),
+    });
+  }
+  return map;
+}
+
+/**
+ * Cutting-list link status for a payment row (linked via quotation_ref).
+ * @param {{ quotationRef?: string }} receiptRow
+ * @param {Map<string, { id: string, status?: string }>} quoteToCuttingList from cuttingListByQuotationRefMap
+ */
+export function receiptCuttingListLinkMeta(receiptRow, quoteToCuttingList) {
+  const qref = String(receiptRow?.quotationRef || '').trim();
+  if (!qref) {
+    return {
+      kind: 'no_quote',
+      label: 'No quotation',
+      title: 'Payment is not linked to a quotation — no cutting list can apply.',
+    };
+  }
+  const linked = quoteToCuttingList?.get(normSalesQuotationRefKey(qref));
+  if (linked?.id) {
+    const st = linked.status ? ` · ${linked.status}` : '';
+    return {
+      kind: 'linked',
+      label: 'Cutting list',
+      cuttingListId: linked.id,
+      title: `Quotation ${qref} has cutting list ${linked.id}${st}`,
+    };
+  }
+  return {
+    kind: 'none',
+    label: 'No cutting list',
+    title: `Quotation ${qref} has no cutting list yet — extra payments here may be duplicates.`,
+  };
+}
