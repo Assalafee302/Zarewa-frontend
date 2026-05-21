@@ -56,6 +56,7 @@ import { ZAREWA_LOGO_SRC } from './Data/companyQuotation';
 import { BranchWorkspaceBar } from './components/layout/BranchWorkspaceBar';
 import { apiFetch } from './lib/apiBase';
 import { AiAssistantDock } from './components/AiAssistantDock';
+import { HelpChatDock } from './components/HelpChatDock';
 import { AiAskButton } from './components/AiAskButton';
 import { buildWorkspaceNotifications } from './lib/workspaceNotifications';
 import { AiAssistantProvider, useAiAssistant } from './context/AiAssistantContext';
@@ -914,6 +915,7 @@ function AppShell() {
             <Route path="*" element={<NotFound />} />
           </Routes>
         </main>
+        <HelpChatDock />
         <AiAssistantDock />
       </div>
       <DegradedWorkspaceLock />
