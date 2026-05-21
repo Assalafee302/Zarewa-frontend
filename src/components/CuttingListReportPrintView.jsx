@@ -237,6 +237,7 @@ function WaybillPanel({
   cutDate,
   selectedQuotation,
   materialInfoValue,
+  waybillAccessories = [],
   sheetsToCut,
   totalMeters,
   continuation,
@@ -296,6 +297,15 @@ function WaybillPanel({
                 <dd>{project}</dd>
                 <dt>Material</dt>
                 <dd>{materialInfoValue}</dd>
+                {waybillAccessories.length > 0 ? (
+                  <>
+                    <dt>Accessories</dt>
+                    <dd>
+                      <span className="cl-waybill-accessories-included">Included</span>
+                      <span className="cl-waybill-accessories-list">{waybillAccessories.join(' · ')}</span>
+                    </dd>
+                  </>
+                ) : null}
                 <dt>Sheet</dt>
                 <dd className="tabular-nums">{sheetsLabel}</dd>
                 <dt>Metres</dt>
@@ -552,12 +562,16 @@ export default function CuttingListReportPrintView({
 
   const ql = selectedQuotation?.quotationLines;
   const products = ql?.products ?? [];
+  const accessoryRows = billingRowsWithContent(ql?.accessories ?? []);
   const mergedQuotationLineRows = [
     ...billingRowsWithContent(products),
-    ...billingRowsWithContent(ql?.accessories ?? []),
+    ...accessoryRows,
     ...billingRowsWithContent(ql?.services ?? []),
   ];
   const grand = sumLineRows(mergedQuotationLineRows);
+  const waybillAccessories = accessoryRows
+    .map((r) => String(r.name ?? '').trim())
+    .filter(Boolean);
 
   const materialLine = [
     materialSpec?.profile || selectedQuotation?.materialDesign,
@@ -571,6 +585,9 @@ export default function CuttingListReportPrintView({
   const materialInfoValue = [typeFromMaster, materialLine].filter(Boolean).join(' · ') || '—';
 
   const cutDate = dateISO || selectedQuotation?.dateISO || '—';
+  const customerName =
+    String(selectedQuotation?.customer ?? selectedQuotation?.customer_name ?? '').trim() || '—';
+  const projectName = String(selectedQuotation?.projectName ?? '').trim() || '—';
 
   const waybillShared = {
     b,
@@ -579,6 +596,7 @@ export default function CuttingListReportPrintView({
     cutDate,
     selectedQuotation,
     materialInfoValue,
+    waybillAccessories,
     sheetsToCut: printSheetsWaybill,
     totalMeters: printMetresWaybill,
     totalChunks: 1,
@@ -621,9 +639,15 @@ export default function CuttingListReportPrintView({
                       ariaLabel="Cutting list references"
                     />
                     <div className="cl-factory-subbar cl-factory-subbar--double">
-                      <span className="cl-factory-subbar-seg">
-                        <span className="cl-factory-subbar-k">Project</span>
-                        <span className="cl-factory-subbar-v">{selectedQuotation?.projectName ?? '—'}</span>
+                      <span className="cl-factory-subbar-seg cl-factory-subbar-seg--stacked">
+                        <span className="cl-factory-subbar-line">
+                          <span className="cl-factory-subbar-k">Customer</span>
+                          <span className="cl-factory-subbar-v">{customerName}</span>
+                        </span>
+                        <span className="cl-factory-subbar-line">
+                          <span className="cl-factory-subbar-k">Project</span>
+                          <span className="cl-factory-subbar-v">{projectName}</span>
+                        </span>
                       </span>
                       <span className="cl-factory-subbar-seg">
                         <span className="cl-factory-subbar-k">Material</span>

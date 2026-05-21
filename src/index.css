@@ -1157,6 +1157,22 @@ summary {
   min-width: 0;
 }
 
+.cl-waybill-accessories-included {
+  display: block;
+  font-size: 5pt;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--cl-orange, #ea580c);
+  margin-bottom: 0.2mm;
+}
+
+.cl-waybill-accessories-list {
+  display: block;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
 .cl-waybill-labeled-lines {
   display: flex;
   flex-direction: column;
@@ -1717,6 +1733,17 @@ summary {
 }
 
 .cl-factory-subbar-seg {
+  min-width: 0;
+}
+
+.cl-factory-subbar-seg--stacked {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35mm;
+}
+
+.cl-factory-subbar-line {
+  display: block;
   min-width: 0;
 }
 
