@@ -74,6 +74,7 @@ import { AccountGlManualJournalCard } from '../components/account/AccountGlManua
 import {
   isReceiptPendingClearance,
   isReceiptReversed,
+  RECEIPT_CLEARANCE_RESET_CONFIRM_PHRASE,
   receiptClearanceBadgeLabel,
 } from '../lib/receiptClearance.js';
 
@@ -193,6 +194,7 @@ const Account = () => {
   const [receiptsSortDir, setReceiptsSortDir] = useState('desc');
   const [waitingReceiptsPage, setWaitingReceiptsPage] = useState(0);
   const [confirmedReceiptsPage, setConfirmedReceiptsPage] = useState(0);
+  const [receiptClearanceResetBusy, setReceiptClearanceResetBusy] = useState(false);
 
   useEffect(() => {
     if (!expenseOutflowEdit?.rows?.length) {
@@ -1382,6 +1384,77 @@ const Account = () => {
   const canFinanceReceiptSettlement = Boolean(
     ws?.hasPermission?.('finance.pay') || ws?.hasPermission?.('finance.post')
   );
+
+  const branchClearedReceiptCount = useMemo(
+    () =>
+      salesReceipts.filter(
+        (r) => !isReceiptReversed(r) && Boolean(r.financeReconciliationSavedAtISO)
+      ).length,
+    [salesReceipts]
+  );
+
+  const resetAllReceiptClearance = useCallback(async () => {
+    if (!canReviseFinalizedReceiptSettlement) {
+      showToast('Finance approval permission is required to reset receipt clearance.', {
+        variant: 'error',
+      });
+      return;
+    }
+    if (!ws?.canMutate) {
+      showToast('Connect to the API server to reset receipt clearance.', { variant: 'error' });
+      return;
+    }
+    const count = branchClearedReceiptCount;
+    if (count <= 0) {
+      showToast('No finance-cleared receipts in this branch.', { variant: 'info' });
+      return;
+    }
+    const proceed = window.confirm(
+      `Reset finance clearance on ${count} receipt(s) in this branch?\n\n` +
+        'They will return to Pending clearance so you can clear them one by one (oldest first).\n\n' +
+        'Treasury postings and ledger entries are NOT reversed — only clearance status is reset.'
+    );
+    if (!proceed) return;
+    const phrase = window.prompt(
+      `Type ${RECEIPT_CLEARANCE_RESET_CONFIRM_PHRASE} to confirm:`
+    );
+    if (phrase == null) return;
+    if (String(phrase).trim() !== RECEIPT_CLEARANCE_RESET_CONFIRM_PHRASE) {
+      showToast('Confirmation phrase did not match — reset cancelled.', { variant: 'error' });
+      return;
+    }
+    setReceiptClearanceResetBusy(true);
+    try {
+      const { ok, status, data } = await apiFetch('/api/sales-receipts/reset-clearance', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ confirmPhrase: RECEIPT_CLEARANCE_RESET_CONFIRM_PHRASE }),
+      });
+      if (!ok || !data?.ok) {
+        showToast(data?.error || `Could not reset clearance (${status}).`, { variant: 'error' });
+        return;
+      }
+      const n = Number(data.resetCount) || 0;
+      showToast(
+        n > 0
+          ? `${n} receipt(s) moved back to Pending clearance. Sort by Receipt date · Ascending to work oldest first.`
+          : 'No cleared receipts were found to reset.',
+        { variant: n > 0 ? 'success' : 'info' }
+      );
+      setReceiptsSortKey('date');
+      setReceiptsSortDir('asc');
+      setWaitingReceiptsPage(0);
+      setConfirmedReceiptsPage(0);
+      await ws.refresh();
+    } finally {
+      setReceiptClearanceResetBusy(false);
+    }
+  }, [
+    branchClearedReceiptCount,
+    canReviseFinalizedReceiptSettlement,
+    showToast,
+    ws,
+  ]);
 
   const openReceiptFinance = useCallback(
     (r) => {
@@ -2867,6 +2940,23 @@ const Account = () => {
                           >
                             {receiptsSortDir === 'asc' ? 'Ascending' : 'Descending'}
                           </button>
+                          {canReviseFinalizedReceiptSettlement && ws?.canMutate ? (
+                            <button
+                              type="button"
+                              disabled={receiptClearanceResetBusy || branchClearedReceiptCount <= 0}
+                              onClick={() => resetAllReceiptClearance()}
+                              className="inline-flex items-center gap-1 rounded-lg border border-amber-300 bg-amber-50 px-2 py-1 text-[9px] font-black uppercase tracking-wide text-amber-950 hover:bg-amber-100 disabled:opacity-40"
+                              title={
+                                branchClearedReceiptCount > 0
+                                  ? `Reset ${branchClearedReceiptCount} cleared receipt(s) to Pending clearance`
+                                  : 'No cleared receipts in this branch'
+                              }
+                            >
+                              <RotateCcw size={12} className="shrink-0" />
+                              Reset all clearance
+                              {branchClearedReceiptCount > 0 ? ` (${branchClearedReceiptCount})` : ''}
+                            </button>
+                          ) : null}
                         </div>
                         <div className="text-[10px] text-slate-600 tabular-nums">
                           {sortedFilteredSalesReceipts.length} receipt
@@ -2996,7 +3086,8 @@ const Account = () => {
                               Confirmed
                             </p>
                             <p className="text-[9px] text-emerald-800/90">
-                              Receipts already confirmed and reconciled by finance.
+                              Receipts already confirmed and reconciled by finance. Use Reset all clearance to
+                              re-queue them and clear oldest-first (sort Receipt date · Ascending).
                             </p>
                           </div>
                           <div className="flex flex-wrap items-center gap-2 text-[10px] text-emerald-900">

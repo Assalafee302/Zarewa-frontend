@@ -11,7 +11,6 @@ import {
   liveProductionAttributedSalesSeriesByMonth,
   productionAttributedRevenueNgn,
   productionOutputDateISO,
-  totalLiquidityNgn,
 } from '../../lib/liveAnalytics';
 import { liquidityClearanceSplit } from '../../lib/receiptClearance.js';
 
@@ -160,7 +159,6 @@ export function DashboardKpiStrip({ sectionClassName = 'mb-8', metricsWindow, om
   const showMetresAndSales = !(omitMetresAndSales && useWindow);
 
   const liquidityBreakdown = useMemo(() => liveLiquidityBreakdown(treasuryAccounts), [treasuryAccounts]);
-  const liquidityTotal = useMemo(() => totalLiquidityNgn(treasuryAccounts), [treasuryAccounts]);
   const liquiditySplit = useMemo(
     () => liquidityClearanceSplit(treasuryAccounts, salesReceipts),
     [treasuryAccounts, salesReceipts]

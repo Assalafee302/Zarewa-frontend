@@ -492,7 +492,11 @@ const ReceiptModal = ({
   }, [quotationRowForPayments, postingHeadroomNgn, lineTotalNgn]);
 
   useEffect(() => {
-    if (!showFullReceiptOnQuoteOption) setFullAmountAsReceipt(false);
+    if (showFullReceiptOnQuoteOption) {
+      setFullAmountAsReceipt(true);
+    } else {
+      setFullAmountAsReceipt(false);
+    }
   }, [showFullReceiptOnQuoteOption]);
 
   const balanceAfterNgn = useMemo(() => {
@@ -569,14 +573,9 @@ const ReceiptModal = ({
 
   const receiptGuardSignals = useMemo(() => {
     const total = Math.round(Number(lineTotalNgn) || 0);
-    const due = Math.round(Number(dueNgn) || 0);
-    const headroom = postingHeadroomNgn != null ? Math.round(Number(postingHeadroomNgn) || 0) : due;
     if (total <= 0) return [];
     const out = [];
     const normalizedRemarks = normalizeRefToken(remarks);
-    if (headroom > 0 && total > headroom) {
-      out.push(`Entered amount ${formatNgn(total)} exceeds current balance due ${formatNgn(due)}.`);
-    }
     if (priorRecordedTotalNgn > 0 && total === priorRecordedTotalNgn) {
       out.push(
         `Entered amount equals already-posted history total (${formatNgn(priorRecordedTotalNgn)}). This can duplicate an earlier payment.`
@@ -595,25 +594,11 @@ const ReceiptModal = ({
       }
     }
     return out;
-  }, [
-    dueNgn,
-    lineTotalNgn,
-    priorRecordedOnQuotation,
-    priorRecordedTotalNgn,
-    remarks,
-    postingHeadroomNgn,
-  ]);
+  }, [lineTotalNgn, priorRecordedOnQuotation, priorRecordedTotalNgn, remarks]);
 
   const saveReceipt = async (e) => {
     e.preventDefault();
     if (readOnly) return;
-    if (isExistingPayment) {
-      showToast(
-        'This payment is already posted. Finance must reverse it if wrong, then you post the correct amount as a new receipt.',
-        { variant: 'error' }
-      );
-      return;
-    }
     if (treasuryList.length === 0) {
       showToast('Configure treasury accounts first.', { variant: 'error' });
       return;
@@ -734,7 +719,15 @@ const ReceiptModal = ({
           paymentLines: paymentLinesPayload,
         };
         if (branchId) receiptBody.branchId = branchId;
-        if (fullAmountAsReceipt) receiptBody.fullAmountAsReceipt = true;
+        const payOverQuoteBalance =
+          postingHeadroomNgn != null && total > Math.round(Number(postingHeadroomNgn) || 0) + 0.5;
+        const quoteAlreadySettled = postingHeadroomNgn != null && postingHeadroomNgn <= 0;
+        if (fullAmountAsReceipt || payOverQuoteBalance || quoteAlreadySettled) {
+          receiptBody.fullAmountAsReceipt = true;
+        }
+        if (quoteAlreadySettled && total > 0) {
+          receiptBody.confirmSettledQuoteOverpay = true;
+        }
         if (total >= RECEIPT_AMOUNT_CONFIRM_THRESHOLD_NGN) {
           receiptBody.confirmAmountNgn = total;
         }
@@ -751,7 +744,7 @@ const ReceiptModal = ({
         });
         if (!ok && data?.code === 'QUOTATION_ALREADY_SETTLED') {
           const proceed = window.confirm(
-            `${data?.error || 'This quotation is already paid.'}\n\nPost anyway? The full amount will go to overpayment credit on this quotation only.`
+            `${data?.error || 'This quotation is already paid.'}\n\nPost anyway? The full amount will be recorded on this quotation.`
           );
           if (!proceed) {
             showToast('Posting cancelled.', { variant: 'info' });
@@ -766,6 +759,7 @@ const ReceiptModal = ({
             body: JSON.stringify({
               ...receiptBody,
               confirmSettledQuoteOverpay: true,
+              fullAmountAsReceipt: true,
             }),
             headers: { 'Idempotency-Key': settledKey },
           });
@@ -1392,9 +1386,9 @@ const ReceiptModal = ({
               })}
             </div>
             {lineTotalNgn > 0 && postingHeadroomNgn != null && lineTotalNgn > postingHeadroomNgn ? (
-              <p className="mt-2 text-[10px] font-medium text-amber-800">
-                Total exceeds allocatable amount on this quote — excess will post as <strong>overpayment credit</strong>{' '}
-                (refund via Sales refunds, not deposit advance).
+              <p className="mt-2 text-[10px] font-medium text-emerald-900">
+                Total is above the remaining balance on this quote — the <strong>full amount</strong> will be
+                recorded on the quotation (paid on the quote may exceed the original total).
               </p>
             ) : null}
             {!readOnly && lineTotalNgn >= RECEIPT_AMOUNT_CONFIRM_THRESHOLD_NGN ? (
