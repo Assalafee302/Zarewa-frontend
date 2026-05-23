@@ -13,6 +13,7 @@ import {
   productionOutputDateISO,
   totalLiquidityNgn,
 } from '../../lib/liveAnalytics';
+import { liquidityClearanceSplit } from '../../lib/receiptClearance.js';
 
 const MONTH_SHORT = [
   'Jan',
@@ -125,6 +126,11 @@ export function DashboardKpiStrip({ sectionClassName = 'mb-8', metricsWindow, om
         : [],
     [ws?.hasWorkspaceData, ws?.snapshot?.treasuryAccounts]
   );
+  const salesReceipts = useMemo(
+    () =>
+      ws?.hasWorkspaceData && Array.isArray(ws?.snapshot?.receipts) ? ws.snapshot.receipts : [],
+    [ws?.hasWorkspaceData, ws?.snapshot?.receipts]
+  );
 
   const metersSeries = useMemo(() => liveMetersSeries(productionJobs, 6), [productionJobs]);
   const metersCurrent = metersSeries[metersSeries.length - 1];
@@ -155,6 +161,10 @@ export function DashboardKpiStrip({ sectionClassName = 'mb-8', metricsWindow, om
 
   const liquidityBreakdown = useMemo(() => liveLiquidityBreakdown(treasuryAccounts), [treasuryAccounts]);
   const liquidityTotal = useMemo(() => totalLiquidityNgn(treasuryAccounts), [treasuryAccounts]);
+  const liquiditySplit = useMemo(
+    () => liquidityClearanceSplit(treasuryAccounts, salesReceipts),
+    [treasuryAccounts, salesReceipts]
+  );
   const salesByMonth = useMemo(
     () => liveProductionAttributedSalesSeriesByMonth(quotations, productionJobs, 6),
     [quotations, productionJobs]
@@ -248,11 +258,17 @@ export function DashboardKpiStrip({ sectionClassName = 'mb-8', metricsWindow, om
         >
           <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-2">
             <Landmark size={14} className="text-[#134e4a]" />
-            Cash & bank (total)
+            Cash & bank (cleared)
           </p>
           <p className="text-2xl font-bold text-[#134e4a] tracking-tight tabular-nums leading-tight">
-            {formatNgn(liquidityTotal)}
+            {formatNgn(liquiditySplit.clearedBookNgn)}
           </p>
+          {liquiditySplit.pendingClearanceNgn > 0 ? (
+            <p className="text-[10px] font-medium text-amber-800 mt-1 tabular-nums">
+              Pending clearance: {formatNgn(liquiditySplit.pendingClearanceNgn)}
+              <span className="text-slate-500 font-normal"> · Book {formatNgn(liquiditySplit.bookTotalNgn)}</span>
+            </p>
+          ) : null}
           <ul className="mt-3 flex-1 space-y-0 border-t border-slate-100 pt-3">
             {liquidityBreakdown.map((row) => (
               <li

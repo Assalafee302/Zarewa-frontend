@@ -42,6 +42,7 @@ import { ModalFrame } from '../components/layout';
 import { AdvancePaymentPrintView } from '../components/receipt/ReceiptPrintViews';
 import QuotationModal from '../components/QuotationModal';
 import ReceiptModal from '../components/ReceiptModal';
+import { isReceiptCleared, isReceiptPendingClearance } from '../lib/receiptClearance.js';
 import AdvancePaymentModal from '../components/AdvancePaymentModal';
 import CuttingListModal from '../components/CuttingListModal';
 import RefundModal from '../components/RefundModal';
@@ -1767,12 +1768,27 @@ const Sales = () => {
                                         {quotePayCount}× on quote
                                       </span>
                                     ) : null}
-                                    {r.financeDeliveryClearedAtISO ? (
+                                    {isReceiptPendingClearance(r) ? (
+                                      <span
+                                        className={`${CHIP} border-amber-200 bg-amber-50 text-amber-900 shrink-0 whitespace-nowrap`}
+                                        title="Finance must confirm this payment against bank/cash"
+                                      >
+                                        Pending clearance
+                                      </span>
+                                    ) : isReceiptCleared(r) ? (
                                       <span
                                         className={`${CHIP} border-emerald-200 bg-emerald-50 text-emerald-900 shrink-0 whitespace-nowrap`}
+                                        title={r.financeReconciliationSavedAtISO || ''}
+                                      >
+                                        Cleared
+                                      </span>
+                                    ) : null}
+                                    {r.financeDeliveryClearedAtISO ? (
+                                      <span
+                                        className={`${CHIP} border-emerald-200/70 bg-emerald-50/80 text-emerald-800 shrink-0 whitespace-nowrap`}
                                         title={r.financeDeliveryClearedAtISO}
                                       >
-                                        Cleared for delivery (Finance)
+                                        Delivery OK
                                       </span>
                                     ) : null}
                                   </div>

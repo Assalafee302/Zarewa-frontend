@@ -71,6 +71,11 @@ import { treasuryAccountDisplayName } from '../lib/treasuryAccountsStore';
 import { compareSelectLabels } from '../lib/selectOptionSort';
 import { AccountBankReconciliationPanel } from '../components/account/AccountBankReconciliationPanel.jsx';
 import { AccountGlManualJournalCard } from '../components/account/AccountGlManualJournalCard.jsx';
+import {
+  isReceiptPendingClearance,
+  isReceiptReversed,
+  receiptClearanceBadgeLabel,
+} from '../lib/receiptClearance.js';
 
 const Account = () => {
   const location = useLocation();
@@ -169,6 +174,7 @@ const Account = () => {
   const [bankReconciliation, setBankReconciliation] = useState([]);
 
   const [receiptFinanceRow, setReceiptFinanceRow] = useState(null);
+  const [receiptReverseBusy, setReceiptReverseBusy] = useState(false);
   const [receiptBankAmtInput, setReceiptBankAmtInput] = useState('');
   const [receiptClearDelivery, setReceiptClearDelivery] = useState(false);
   const [receiptFinanceBusy, setReceiptFinanceBusy] = useState(false);
@@ -1238,14 +1244,14 @@ const Account = () => {
   const reconciledSubtotalNgn = useMemo(
     () =>
       salesReceipts
-        .filter((r) => Boolean(r.financeReconciliationSavedAtISO))
+        .filter((r) => !isReceiptReversed(r) && Boolean(r.financeReconciliationSavedAtISO))
         .reduce((sum, r) => sum + (Number(r.bankReceivedAmountNgn ?? r.cashReceivedNgn ?? r.amountNgn) || 0), 0),
     [salesReceipts]
   );
   const nonReconciledSubtotalNgn = useMemo(
     () =>
       salesReceipts
-        .filter((r) => !r.financeReconciliationSavedAtISO)
+        .filter((r) => isReceiptPendingClearance(r))
         .reduce((sum, r) => sum + (Number(r.cashReceivedNgn ?? r.amountNgn) || 0), 0),
     [salesReceipts]
   );
@@ -1323,11 +1329,14 @@ const Account = () => {
   }, [filteredSalesReceipts, receiptsSortKey, receiptsSortDir]);
 
   const waitingConfirmationReceipts = useMemo(
-    () => sortedFilteredSalesReceipts.filter((r) => !r.financeReconciliationSavedAtISO),
+    () => sortedFilteredSalesReceipts.filter((r) => isReceiptPendingClearance(r)),
     [sortedFilteredSalesReceipts]
   );
   const confirmedReceipts = useMemo(
-    () => sortedFilteredSalesReceipts.filter((r) => Boolean(r.financeReconciliationSavedAtISO)),
+    () =>
+      sortedFilteredSalesReceipts.filter(
+        (r) => !isReceiptReversed(r) && Boolean(r.financeReconciliationSavedAtISO)
+      ),
     [sortedFilteredSalesReceipts]
   );
 
@@ -1406,6 +1415,46 @@ const Account = () => {
     receiptFinanceRow?.financeReconciliationSavedAtISO && !canReviseFinalizedReceiptSettlement
   );
 
+  const reverseReceiptFinanceRow = useCallback(async () => {
+    const row = receiptFinanceRow;
+    if (!row?.id || receiptReverseBusy) return;
+    if (!ws?.hasPermission?.('finance.reverse') && !ws?.hasPermission?.('finance.pay')) {
+      showToast('Finance permission is required to reverse a receipt.', { variant: 'error' });
+      return;
+    }
+    if (!ws?.canMutate) {
+      showToast('Connect to the API server to reverse receipts.', { variant: 'error' });
+      return;
+    }
+    const note = window.prompt(
+      `Reverse receipt ${row.id}? This keeps an audit trail. Enter reason (required):`,
+      'Wrong amount recorded — reversing before correct post'
+    );
+    if (note == null) return;
+    if (!String(note).trim()) {
+      showToast('A reason is required to reverse a receipt.', { variant: 'error' });
+      return;
+    }
+    setReceiptReverseBusy(true);
+    try {
+      const entryId = String(row.ledgerEntryId || row.id || '').trim();
+      const { ok, data } = await apiFetch('/api/ledger/reverse-receipt', {
+        method: 'POST',
+        body: JSON.stringify({ entryId, note: String(note).trim() }),
+      });
+      if (!ok || !data?.ok) {
+        showToast(data?.error || 'Could not reverse receipt.', { variant: 'error' });
+        return;
+      }
+      showToast('Receipt reversed. Post the correct amount from Sales if needed.');
+      setReceiptFinanceRow(null);
+      setPaymentCorrectionDrafts({});
+      await ws.refresh();
+    } finally {
+      setReceiptReverseBusy(false);
+    }
+  }, [receiptFinanceRow, receiptReverseBusy, showToast, ws]);
+
   const saveReceiptFinance = useCallback(
     async (e) => {
       e?.preventDefault?.();
@@ -1477,7 +1526,7 @@ const Account = () => {
           showToast((data?.error || `Could not save settlement (${status}).`) + hint, { variant: 'error' });
           return;
         }
-        showToast('Saved — treasury balances updated and reconciliation finalized.');
+        showToast('Receipt cleared — treasury updated and reconciliation finalized.');
         setReceiptFinanceEditApprovalId('');
         setReceiptFinanceRow(null);
         setPaymentCorrectionDrafts({});
@@ -2693,11 +2742,11 @@ const Account = () => {
             </div>
             <div className="mt-3 space-y-1 border-t border-slate-200 pt-2.5 text-[10px]">
               <p className="flex items-center justify-between gap-2 text-slate-600">
-                <span>Reconciled subtotal</span>
+                <span>Cleared receipts</span>
                 <span className="font-bold tabular-nums text-emerald-700">{formatNgn(reconciledSubtotalNgn)}</span>
               </p>
               <p className="flex items-center justify-between gap-2 text-slate-600">
-                <span>Non-reconciled subtotal</span>
+                <span>Pending clearance</span>
                 <span className="font-bold tabular-nums text-amber-700">{formatNgn(nonReconciledSubtotalNgn)}</span>
               </p>
             </div>
@@ -2829,10 +2878,10 @@ const Account = () => {
                         <div className="flex items-center justify-between gap-2 rounded-lg border border-amber-200/70 bg-amber-50/65 px-3 py-2">
                           <div>
                             <p className="text-[10px] font-black uppercase tracking-wide text-amber-900">
-                              Waiting confirmation
+                              Pending clearance
                             </p>
                             <p className="text-[9px] text-amber-800/90">
-                              Sales-entered receipts pending finance confirmation/reconciliation.
+                              Sales recorded these payments — Finance must confirm bank/cash before refunds and cleared balances.
                             </p>
                           </div>
                           <div className="flex flex-wrap items-center gap-2 text-[10px] text-amber-900">
@@ -2876,7 +2925,7 @@ const Account = () => {
                               r.cashReceivedNgn != null ? Number(r.cashReceivedNgn) || allocated : allocated;
                             const bank =
                               r.bankReceivedAmountNgn != null ? Number(r.bankReceivedAmountNgn) : null;
-                            const cleared = Boolean(r.financeDeliveryClearedAtISO);
+                            const clearanceLabel = receiptClearanceBadgeLabel(r);
                             const paySplits = receiptLedgerReceiptTreasurySplits(r, liveTreasuryMovements);
                             return (
                               <li
@@ -2916,22 +2965,22 @@ const Account = () => {
                                       <span className="text-amber-800"> · Bank {formatNgn(bank)}</span>
                                     ) : null}
                                   </span>
-                                  {cleared ? (
-                                    <span className="text-[9px] font-bold uppercase px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-900">
-                                      Cleared delivery
-                                    </span>
-                                  ) : (
-                                    <span className="text-[9px] font-bold uppercase px-2 py-0.5 rounded-full bg-amber-100 text-amber-900">
-                                      Pending
-                                    </span>
-                                  )}
+                                  <span
+                                    className={`text-[9px] font-bold uppercase px-2 py-0.5 rounded-full ${
+                                      clearanceLabel === 'Pending clearance'
+                                        ? 'bg-amber-100 text-amber-900'
+                                        : 'bg-slate-100 text-slate-700'
+                                    }`}
+                                  >
+                                    {clearanceLabel}
+                                  </span>
                                   {canFinanceReceiptSettlement && ws?.canMutate ? (
                                     <button
                                       type="button"
                                       onClick={() => openReceiptFinance(r)}
                                       className="text-[9px] font-bold uppercase px-3 py-1.5 rounded-lg bg-[#134e4a] text-white hover:bg-[#0f3d3a]"
                                     >
-                                      Confirm & reconcile
+                                      Clear receipt
                                     </button>
                                   ) : null}
                                 </div>
@@ -5836,7 +5885,7 @@ const Account = () => {
       >
         <div className="z-modal-panel max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6 sm:p-8">
           <div className="flex justify-between items-start gap-3 mb-4">
-            <h3 className="text-lg font-bold text-[#134e4a]">Receipt settlement</h3>
+            <h3 className="text-lg font-bold text-[#134e4a]">Clear receipt</h3>
             <button
               type="button"
               onClick={() => {
@@ -6092,6 +6141,18 @@ const Account = () => {
                   onChange={setReceiptFinanceEditApprovalId}
                 />
               ) : null}
+              {!receiptSettlementReadOnly &&
+              !receiptFinanceRow?.financeReconciliationSavedAtISO &&
+              (ws?.hasPermission?.('finance.reverse') || ws?.hasPermission?.('finance.pay')) ? (
+                <button
+                  type="button"
+                  disabled={receiptFinanceBusy || receiptReverseBusy || !ws?.canMutate}
+                  onClick={() => void reverseReceiptFinanceRow()}
+                  className="w-full rounded-xl border border-rose-200 bg-rose-50 py-2.5 text-[10px] font-bold uppercase tracking-wide text-rose-900 hover:bg-rose-100 disabled:opacity-50"
+                >
+                  {receiptReverseBusy ? 'Reversing…' : 'Reverse mistaken receipt'}
+                </button>
+              ) : null}
               <button
                 type="submit"
                 disabled={receiptFinanceBusy || receiptSettlementReadOnly || !ws?.canMutate}
@@ -6101,7 +6162,7 @@ const Account = () => {
                   ? 'Saving…'
                   : receiptSettlementReadOnly
                     ? 'Finalized'
-                    : 'Save reconciliation'}
+                    : 'Confirm & clear receipt'}
               </button>
             </form>
           ) : null}

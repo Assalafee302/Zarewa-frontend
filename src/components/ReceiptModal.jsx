@@ -42,6 +42,7 @@ import {
 import { ReceiptPrintQuick, ReceiptPrintFull } from './receipt/ReceiptPrintViews';
 import { EditSecondApprovalInline } from './EditSecondApprovalInline';
 import { editMutationNeedsSecondApprovalRole } from '../lib/editApprovalUi';
+import { RECEIPT_AMOUNT_CONFIRM_THRESHOLD_NGN } from '../lib/receiptClearance.js';
 
 function newLineId() {
   return `pl-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
@@ -184,6 +185,7 @@ const ReceiptModal = ({
   const [showQSearch, setShowQSearch] = useState(false);
   const [postingHint, setPostingHint] = useState(null);
   const [fullAmountAsReceipt, setFullAmountAsReceipt] = useState(false);
+  const [confirmAmount, setConfirmAmount] = useState('');
 
   const periodLocks = ws?.snapshot?.periodLocks ?? [];
   const voucherInLockedPeriod = useMemo(
@@ -605,6 +607,13 @@ const ReceiptModal = ({
   const saveReceipt = async (e) => {
     e.preventDefault();
     if (readOnly) return;
+    if (isExistingPayment) {
+      showToast(
+        'This payment is already posted. Finance must reverse it if wrong, then you post the correct amount as a new receipt.',
+        { variant: 'error' }
+      );
+      return;
+    }
     if (treasuryList.length === 0) {
       showToast('Configure treasury accounts first.', { variant: 'error' });
       return;
@@ -631,6 +640,16 @@ const ReceiptModal = ({
     if (total <= 0) {
       showToast('Total must be greater than zero.', { variant: 'error' });
       return;
+    }
+    if (total >= RECEIPT_AMOUNT_CONFIRM_THRESHOLD_NGN) {
+      const confirmed = parseNum(confirmAmount);
+      if (confirmed !== total) {
+        showToast(
+          `Re-enter the same total (₦${total.toLocaleString('en-NG')}) in Confirm amount before posting.`,
+          { variant: 'error' }
+        );
+        return;
+      }
     }
     if (postingRef.current) return;
     if (receiptGuardSignals.length > 0 && !readOnly) {
@@ -716,11 +735,8 @@ const ReceiptModal = ({
         };
         if (branchId) receiptBody.branchId = branchId;
         if (fullAmountAsReceipt) receiptBody.fullAmountAsReceipt = true;
-        if (isExistingPayment && editData?.id) {
-          receiptBody.amendSalesReceiptId = String(editData.id);
-          if (receiptEditApprovalId.trim()) {
-            receiptBody.editApprovalId = receiptEditApprovalId.trim();
-          }
+        if (total >= RECEIPT_AMOUNT_CONFIRM_THRESHOLD_NGN) {
+          receiptBody.confirmAmountNgn = total;
         }
 
         const idempotencyKey =
@@ -762,7 +778,9 @@ const ReceiptModal = ({
             return;
           }
           setPostingHint(null);
-          showToast(`Receipt ${formatNgn(total)} posted as overpayment credit on ${selectedQuotation.id}.`);
+          showToast(
+            `₦${total.toLocaleString('en-NG')} recorded on ${selectedQuotation.id} — awaiting Finance clearance.`
+          );
           await onLedgerChange?.();
           abandonUnsavedAndRun(() => onClose());
           return;
@@ -799,9 +817,7 @@ const ReceiptModal = ({
           }
           setPostingHint(null);
           showToast(
-            fullAmountAsReceipt
-              ? `Receipt ${formatNgn(total)} posted as one line on ${selectedQuotation.id}.`
-              : `Receipt ${formatNgn(total)} posted against ${selectedQuotation.id}.`
+            `₦${total.toLocaleString('en-NG')} recorded on ${selectedQuotation.id} — awaiting Finance clearance.`
           );
           await onLedgerChange?.();
           abandonUnsavedAndRun(() => onClose());
@@ -814,9 +830,7 @@ const ReceiptModal = ({
         }
         setPostingHint(null);
         showToast(
-          fullAmountAsReceipt
-            ? `Receipt ${formatNgn(total)} posted as one line on ${selectedQuotation.id}.`
-            : `Receipt ${formatNgn(total)} posted against ${selectedQuotation.id}.`
+          `₦${total.toLocaleString('en-NG')} recorded on ${selectedQuotation.id} — awaiting Finance clearance.`
         );
       } else {
         const res = recordReceiptWithQuotation({
@@ -1382,6 +1396,23 @@ const ReceiptModal = ({
                 Total exceeds allocatable amount on this quote — excess will post as <strong>overpayment credit</strong>{' '}
                 (refund via Sales refunds, not deposit advance).
               </p>
+            ) : null}
+            {!readOnly && lineTotalNgn >= RECEIPT_AMOUNT_CONFIRM_THRESHOLD_NGN ? (
+              <div className="mt-3 rounded-xl border border-amber-200/90 bg-amber-50/80 p-3">
+                <label className={label}>Confirm amount (re-enter total)</label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={confirmAmount}
+                  onChange={(e) => setConfirmAmount(e.target.value)}
+                  placeholder={formatNgn(lineTotalNgn)}
+                  className={field}
+                />
+                <p className="mt-1 text-[9px] text-amber-950/90 leading-snug">
+                  Payments of {formatNgn(RECEIPT_AMOUNT_CONFIRM_THRESHOLD_NGN)} and above require typing the same total
+                  again to prevent digit mistakes (e.g. ₦148,000 vs ₦14,800).
+                </p>
+              </div>
             ) : null}
           </div>
 

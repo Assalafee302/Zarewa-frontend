@@ -147,8 +147,9 @@ function draftFromServerRow(row, recCost, rv, isStone) {
     commissionNgnPerM: row?.commissionNgnPerM != null && Number(row.commissionNgnPerM) > 0 ? String(row.commissionNgnPerM) : '',
     minimumPricePerMeterNgn: row?.minimumPricePerMeterNgn != null ? String(row.minimumPricePerMeterNgn) : '',
     notes: row?.notes || '',
-    syncMinimumToPriceList: false,
-    syncDesignKey: isStone ? 'stone-coated' : '',
+    syncMinimumToPriceList: Boolean(row?.syncMinimumToPriceList),
+    syncDesignKey:
+      String(row?.syncDesignKey || '').trim() || (isStone ? 'stone-coated' : ''),
   };
 }
 
