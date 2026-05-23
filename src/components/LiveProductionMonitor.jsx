@@ -1956,9 +1956,10 @@ export function LiveProductionMonitor({
         if (!startRes.ok || !startRes.data?.ok) {
           let msg =
             startRes.data?.error ||
-            'Coils saved, but production could not be started (e.g. price-list MD approval). Fix the issue, then use Save & start again.';
+            'Coils saved, but production could not be started (e.g. below-floor price needs branch manager approval). Fix the issue, then use Save & start again.';
           if (
-            startRes.data?.code === 'PRICE_LIST_MD_APPROVAL_REQUIRED' &&
+            (startRes.data?.code === 'PRICE_LIST_BM_APPROVAL_REQUIRED' ||
+              startRes.data?.code === 'PRICE_LIST_MD_APPROVAL_REQUIRED') &&
             Array.isArray(startRes.data?.violations) &&
             startRes.data.violations.length
           ) {

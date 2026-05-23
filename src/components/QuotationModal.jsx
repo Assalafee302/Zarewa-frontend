@@ -45,6 +45,17 @@ import {
 } from '../lib/customerLedgerStore';
 import { bookedPaidNgnForQuotationFromMirrors } from '../lib/liveAnalytics';
 import { apiFetch } from '../lib/apiBase';
+import {
+  isMeterSheetProductLine,
+  materialKeyFromMaterialTypeRow,
+  resolveMaterialWorkbookPriceFromRows,
+} from '../lib/materialWorkbookQuotationPrice';
+import {
+  quotationBmPriceExceptionApproved,
+  quotationFlaggedForMdPriceReview,
+  quotationMdPriceReviewConfirmed,
+  quotationRefundBlockedPendingMdPriceConfirm,
+} from '../lib/quotationPriceException';
 import { guidanceForLedgerPostFailure, isVoucherDateInLockedPeriod } from '../lib/ledgerPostingGuidance';
 import { EditSecondApprovalInline } from './EditSecondApprovalInline';
 import QuotationPrintView from './QuotationPrintView';
@@ -148,17 +159,9 @@ function gaugeMmKeyFromQuotationGauge(label) {
   return m ? m[1] : pricingNormKey(s);
 }
 
-/** Map master material type row → `price_list_items.material_type_key` from workbook sync. */
+/** Map master material type row → workbook `material_key`. */
 function priceListMaterialKeyFromMeta(meta) {
-  const id = String(meta?.id || '').trim();
-  if (id === 'MAT-001') return 'alu';
-  if (id === 'MAT-002') return 'aluzinc';
-  if (id === 'MAT-005') return 'stone-coated';
-  const n = pricingNormKey(meta?.name || '');
-  if (n.includes('aluzinc')) return 'aluzinc';
-  if (n.includes('alumin')) return 'alu';
-  if (n.includes('stone')) return 'stone-coated';
-  return '';
+  return materialKeyFromMaterialTypeRow(meta);
 }
 
 const QUOTATION_EDIT_TYPES = Object.freeze(
@@ -321,6 +324,7 @@ function OrderLinesSection({
   setRows,
   readOnly,
   resolveUnitPrice,
+  resolveWorkbookLineMeta,
   showStoneFlatsheetLength = false,
 }) {
   const addRow = () => setRows((prev) => [...prev, emptyOrderLine()]);
@@ -441,11 +445,15 @@ function OrderLinesSection({
                             value={matchedOption?.id || ''}
                             onChange={(e) => {
                               const option = normalizedOptions.find((item) => item.id === e.target.value);
+                              const nextName = option?.name || '';
                               const suggestedPrice =
                                 typeof resolveUnitPrice === 'function'
-                                  ? resolveUnitPrice(option?.name || '', option || null)
+                                  ? resolveUnitPrice(nextName, option || null)
                                   : option?.defaultUnitPriceNgn || 0;
-                              const nextName = option?.name || '';
+                              const wbMeta =
+                                typeof resolveWorkbookLineMeta === 'function'
+                                  ? resolveWorkbookLineMeta(nextName)
+                                  : null;
                               const lmPick = resolveStoneFlatsheetLengthM({ name: nextName });
                               const isSfLine = productLineKey(nextName) === 'stone flatsheet';
                               const keepLen =
@@ -459,6 +467,12 @@ function OrderLinesSection({
                                     : option?.defaultUnitPriceNgn > 0
                                       ? String(option.defaultUnitPriceNgn)
                                       : row.unitPrice,
+                                ...(wbMeta?.floorPerMeter
+                                  ? { floorPricePerMeter: wbMeta.floorPerMeter }
+                                  : {}),
+                                ...(wbMeta?.suggestedListPerMeter
+                                  ? { recommendedPricePerMeter: wbMeta.suggestedListPerMeter }
+                                  : {}),
                                 stoneFlatsheetLengthM: keepLen
                                   ? lmPick != null
                                     ? lmPick
@@ -555,6 +569,14 @@ function OrderLinesSection({
                     min="0"
                     step="any"
                     placeholder="0"
+                    title={(() => {
+                      const wb =
+                        typeof resolveWorkbookLineMeta === 'function'
+                          ? resolveWorkbookLineMeta(row.name)
+                          : null;
+                      if (!wb?.floorPerMeter) return undefined;
+                      return `Workbook floor ${formatNgn(wb.floorPerMeter)}/m · suggested list ${formatNgn(wb.suggestedListPerMeter)}/m (floor + commission)`;
+                    })()}
                     value={row.unitPrice}
                     onChange={(e) => updateRow(row.id, { unitPrice: e.target.value })}
                     className="w-[4.25rem] sm:w-24 shrink-0 bg-white border border-slate-200 py-1.5 px-1 rounded-lg text-[11px] text-center font-semibold text-[#134e4a] outline-none tabular-nums"
@@ -658,12 +680,17 @@ const QuotationModal = ({
   const [saving, setSaving] = useState(false);
   const [savingMaterial, setSavingMaterial] = useState(false);
   const [reviving, setReviving] = useState(false);
-  const [mdApproving, setMdApproving] = useState(false);
+  const [bmApproving, setBmApproving] = useState(false);
+  const [mdConfirming, setMdConfirming] = useState(false);
   const [quotationEditApprovalId, setQuotationEditApprovalId] = useState('');
   const liveMasterData = ws?.snapshot?.masterData ?? null;
   const priceListItems = useMemo(
     () => (Array.isArray(ws?.snapshot?.priceListItems) ? ws.snapshot.priceListItems : []),
     [ws?.snapshot?.priceListItems]
+  );
+  const materialPricingRows = useMemo(
+    () => (Array.isArray(ws?.snapshot?.materialPricingRows) ? ws.snapshot.materialPricingRows : []),
+    [ws?.snapshot?.materialPricingRows]
   );
   const lastQuotationHydrateSigRef = useRef('');
   const prevMaterialTypeIdForStoneRef = useRef(null);
@@ -992,13 +1019,46 @@ const QuotationModal = ({
     [liveMasterData?.materialTypes, materialTypeId]
   );
 
+  const resolveWorkbookLineMeta = useCallback(
+    (itemName) => {
+      if (!isMeterSheetProductLine(itemName)) return null;
+      const hit = resolveMaterialWorkbookPriceFromRows(materialPricingRows, {
+        materialKey: priceListMaterialKeyFromMeta(selectedMaterialTypeMeta),
+        gaugeMm: materialGauge,
+        branchId: String(editData?.branchId ?? '').trim(),
+        designLabel: materialDesign,
+      });
+      if (!hit?.floorPerMeter) return null;
+      return {
+        floorPerMeter: hit.floorPerMeter,
+        suggestedListPerMeter: hit.suggestedListPerMeter,
+      };
+    },
+    [
+      materialPricingRows,
+      selectedMaterialTypeMeta,
+      materialGauge,
+      materialDesign,
+      editData?.branchId,
+    ]
+  );
+
   const resolveUnitPrice = useCallback(
     (itemName, option) => {
-      const itemLc = String(itemName || '').trim().toLowerCase();
-      const usesWorkbookFloor = itemLc === 'roofing sheet' || itemLc === 'flat sheet';
+      const usesWorkbook = isMeterSheetProductLine(itemName);
+
+      if (usesWorkbook) {
+        const hit = resolveMaterialWorkbookPriceFromRows(materialPricingRows, {
+          materialKey: priceListMaterialKeyFromMeta(selectedMaterialTypeMeta),
+          gaugeMm: materialGauge,
+          branchId: String(editData?.branchId ?? '').trim(),
+          designLabel: materialDesign,
+        });
+        if (hit?.suggestedListPerMeter > 0) return hit.suggestedListPerMeter;
+      }
 
       let workbookN = 0;
-      if (usesWorkbookFloor && priceListItems.length > 0) {
+      if (usesWorkbook && priceListItems.length > 0) {
         const gaugeK = gaugeMmKeyFromQuotationGauge(materialGauge);
         const designK = pricingNormKey(materialDesign);
         const mtKey = priceListMaterialKeyFromMeta(selectedMaterialTypeMeta);
@@ -1013,10 +1073,8 @@ const QuotationModal = ({
           const rb = String(row.branchId ?? '').trim();
 
           if (rb && branchId && rb !== branchId) continue;
-
           if (gaugeK && rg && rg !== gaugeK) continue;
           if (designK && rd && rd !== designK) continue;
-
           if (rmt && mtKey) {
             if (rmt !== mtKey && !mtKey.includes(rmt) && !rmt.includes(mtKey)) continue;
           } else if (rmt && !mtKey) {
@@ -1062,6 +1120,7 @@ const QuotationModal = ({
       return setupN;
     },
     [
+      materialPricingRows,
       priceListItems,
       priceListRows,
       materialGauge,
@@ -1073,6 +1132,53 @@ const QuotationModal = ({
       selectedMaterialTypeMeta,
     ]
   );
+
+  const productionClosedForQuote = useMemo(() => {
+    const qid = String(editData?.id ?? '').trim();
+    if (!qid) return false;
+    if (String(editData?.status ?? '').trim().toLowerCase() === 'void') return true;
+    const jobs = Array.isArray(ws?.snapshot?.productionJobs) ? ws.snapshot.productionJobs : [];
+    return jobs.some((j) => {
+      const ref = String(j.quotationRef ?? j.quotation_ref ?? '').trim();
+      if (ref !== qid) return false;
+      const st = String(j.status ?? '').trim().toLowerCase();
+      return st === 'completed' || st === 'cancelled';
+    });
+  }, [editData?.id, editData?.status, ws?.snapshot?.productionJobs]);
+
+  const canApproveBmPriceException = useMemo(() => {
+    const rk = String(ws?.session?.user?.roleKey ?? '').trim().toLowerCase();
+    return rk === 'sales_manager' || rk === 'branch_manager';
+  }, [ws?.session?.user?.roleKey]);
+
+  const validateProductWorkbookFloors = useCallback(() => {
+    if (quotationBmPriceExceptionApproved(editData)) return null;
+    const blocked = [];
+    for (const row of productRows) {
+      if (!isMeterSheetProductLine(row.name)) continue;
+      const hit = resolveMaterialWorkbookPriceFromRows(materialPricingRows, {
+        materialKey: priceListMaterialKeyFromMeta(selectedMaterialTypeMeta),
+        gaugeMm: materialGauge,
+        branchId: String(editData?.branchId ?? '').trim(),
+        designLabel: materialDesign,
+      });
+      const floor = hit?.floorPerMeter;
+      if (!floor || floor <= 0) continue;
+      const unit = parseLineNum(row.unitPrice);
+      if (unit > 0 && unit + 0.0001 < floor) {
+        blocked.push({ name: row.name, unit, floor });
+      }
+    }
+    return blocked.length ? blocked : null;
+  }, [
+    editData,
+    productRows,
+    materialPricingRows,
+    selectedMaterialTypeMeta,
+    materialGauge,
+    materialDesign,
+    editData?.branchId,
+  ]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -1540,6 +1646,15 @@ const QuotationModal = ({
       showToast('Select material type, gauge, and colour — required on every quotation.', { variant: 'error' });
       return;
     }
+    const belowFloor = validateProductWorkbookFloors();
+    if (belowFloor) {
+      const first = belowFloor[0];
+      showToast(
+        `${first.name}: unit price ${formatNgn(first.unit)} is below the workbook floor ${formatNgn(first.floor)}/m. Use the suggested list price or ask the branch manager to approve a below-floor exception.`,
+        { variant: 'error' }
+      );
+      return;
+    }
     if (useQuotationApi) {
       setSaving(true);
       try {
@@ -1571,9 +1686,12 @@ const QuotationModal = ({
             }),
           });
           if (!ok || !data?.ok) {
-            showToast(quotationRulesErrorMessage(data) || data?.error || 'Could not update quotation.', {
-              variant: 'error',
-            });
+            showToast(
+              data?.code === 'quotation_below_workbook_floor'
+                ? data.error
+                : quotationRulesErrorMessage(data) || data?.error || 'Could not update quotation.',
+              { variant: 'error' }
+            );
             return;
           }
           if (data.quotation) ws.mergeQuotationIntoSnapshot(data.quotation);
@@ -1590,9 +1708,12 @@ const QuotationModal = ({
             body: JSON.stringify(body),
           });
           if (!ok || !data?.ok) {
-            showToast(quotationRulesErrorMessage(data) || data?.error || 'Could not create quotation.', {
-              variant: 'error',
-            });
+            showToast(
+              data?.code === 'quotation_below_workbook_floor'
+                ? data.error
+                : quotationRulesErrorMessage(data) || data?.error || 'Could not create quotation.',
+              { variant: 'error' }
+            );
             return;
           }
           showToast(`Quotation ${data.quotationId} created.`);
@@ -1651,33 +1772,75 @@ const QuotationModal = ({
     }
   };
 
-  const onMdPriceExceptionApprove = async () => {
+  const onBmPriceExceptionApprove = async () => {
     if (!editData?.id || !useQuotationApi || !ws?.canMutate) return;
-    if (!ws?.hasPermission?.('md.price_exception.approve')) {
-      showToast('Only the Managing Director (or delegated role) can record this approval.', { variant: 'error' });
+    if (!canApproveBmPriceException || !ws?.hasPermission?.('refunds.approve')) {
+      showToast('Only a branch manager may approve a below-floor price exception.', { variant: 'error' });
       return;
     }
-    if (!window.confirm('Record Managing Director approval for this below-policy quotation? Production may then start.'))
+    if (
+      !window.confirm(
+        'Approve below-floor pricing for this quotation? Production may start. The Managing Director must confirm after production before any customer refund.'
+      )
+    )
       return;
-    setMdApproving(true);
+    setBmApproving(true);
     try {
       const { ok, data } = await apiFetch(
-        `/api/quotations/${encodeURIComponent(editData.id)}/md-price-exception`,
+        `/api/quotations/${encodeURIComponent(editData.id)}/bm-price-exception`,
         {
           method: 'PATCH',
           body: JSON.stringify({}),
         }
       );
       if (!ok || !data?.ok) {
-        showToast(data?.error || 'Could not record MD approval.', { variant: 'error' });
+        showToast(data?.error || 'Could not record branch manager approval.', { variant: 'error' });
         return;
       }
       if (data.quotation) ws.mergeQuotationIntoSnapshot(data.quotation);
-      showToast('MD price exception recorded for this quotation.');
+      showToast('Branch manager approval recorded — flagged for MD review before refund.');
       await onLedgerChange?.();
       abandonUnsavedAndRun(() => onClose());
     } finally {
-      setMdApproving(false);
+      setBmApproving(false);
+    }
+  };
+
+  const onMdPriceExceptionConfirm = async () => {
+    if (!editData?.id || !useQuotationApi || !ws?.canMutate) return;
+    if (!ws?.hasPermission?.('md.price_exception.approve')) {
+      showToast('Only the Managing Director can confirm this below-floor exception.', { variant: 'error' });
+      return;
+    }
+    if (!productionClosedForQuote) {
+      showToast('Complete or cancel production on this quotation before MD confirmation.', { variant: 'error' });
+      return;
+    }
+    if (
+      !window.confirm(
+        'Confirm MD review of the below-floor price exception? Customer refunds on this quotation may proceed after this step.'
+      )
+    )
+      return;
+    setMdConfirming(true);
+    try {
+      const { ok, data } = await apiFetch(
+        `/api/quotations/${encodeURIComponent(editData.id)}/md-price-exception-confirm`,
+        {
+          method: 'PATCH',
+          body: JSON.stringify({}),
+        }
+      );
+      if (!ok || !data?.ok) {
+        showToast(data?.error || 'Could not record MD confirmation.', { variant: 'error' });
+        return;
+      }
+      if (data.quotation) ws.mergeQuotationIntoSnapshot(data.quotation);
+      showToast('MD price review confirmed — refunds may proceed.');
+      await onLedgerChange?.();
+      abandonUnsavedAndRun(() => onClose());
+    } finally {
+      setMdConfirming(false);
     }
   };
 
@@ -1778,16 +1941,25 @@ const QuotationModal = ({
             <div className="mb-4 rounded-xl border border-amber-300 bg-amber-50/95 px-4 py-3 space-y-2">
               <p className="text-[10px] font-black text-amber-950 uppercase tracking-wide">Pricing policy</p>
               <p className="text-[10px] text-amber-950/90 leading-relaxed">
-                {editData?.mdPriceExceptionApprovedAtISO
-                  ? 'MD price exception is on file — production may proceed if other gates are satisfied.'
-                  : 'One or more lines are below the published floor or the automatic trading band. Production stays blocked until the Managing Director records a price exception.'}
+                {quotationBmPriceExceptionApproved(editData)
+                  ? quotationRefundBlockedPendingMdPriceConfirm(editData)
+                    ? 'Branch manager approved below-floor pricing — production may proceed. After production, the Managing Director must confirm before any customer refund.'
+                    : quotationMdPriceReviewConfirmed(editData) && quotationFlaggedForMdPriceReview(editData)
+                      ? 'Below-floor exception approved and MD review confirmed — production and refunds may proceed if other gates are satisfied.'
+                      : 'Branch manager approval is on file — production may proceed if other gates are satisfied.'
+                  : 'One or more lines are below the material pricing workbook floor (or the trading band on services). Production stays blocked until a branch manager approves a below-floor price exception.'}
               </p>
               <ul className="text-[10px] text-amber-950 space-y-1.5 list-disc pl-4">
                 {pricingViolationsList.map((v, i) => (
                   <li key={i}>
                     <span className="font-semibold capitalize">{v.lineCategory || 'line'}</span> #{Number(v.lineIndex) + 1}:{' '}
-                    {v.code === 'below_floor' ? 'Below list floor' : 'Below allowed band (quoted deeper than recommended − trading band)'} — quoted{' '}
-                    {formatNgn(v.quotedPerMeter)}/m; minimum without MD{' '}
+                    {v.code === 'below_floor'
+                      ? v.lineCategory === 'products'
+                        ? 'Below workbook floor'
+                        : 'Below list floor'
+                      : 'Below allowed band (quoted deeper than recommended − trading band)'}{' '}
+                    — quoted{' '}
+                    {formatNgn(v.quotedPerMeter)}/m; minimum without exception{' '}
                     {formatNgn(v.minAllowedPerMeter ?? v.floorPerMeter)}/m (floor {formatNgn(v.floorPerMeter)}/m, trading band ₦
                     {v.bandNgn ?? '—'}).
                   </li>
@@ -1795,17 +1967,40 @@ const QuotationModal = ({
               </ul>
               {useQuotationApi &&
               ws?.canMutate &&
-              ws?.hasPermission?.('md.price_exception.approve') &&
+              canApproveBmPriceException &&
+              ws?.hasPermission?.('refunds.approve') &&
               editData?.id &&
-              !editData?.mdPriceExceptionApprovedAtISO ? (
+              !quotationBmPriceExceptionApproved(editData) ? (
                 <button
                   type="button"
-                  onClick={onMdPriceExceptionApprove}
-                  disabled={mdApproving}
+                  onClick={onBmPriceExceptionApprove}
+                  disabled={bmApproving}
                   className="inline-flex items-center justify-center rounded-lg bg-amber-800 px-3 py-2 text-[10px] font-bold uppercase tracking-wide text-white hover:bg-amber-900 disabled:opacity-40"
                 >
-                  {mdApproving ? 'Recording…' : 'Record MD price exception approval'}
+                  {bmApproving ? 'Recording…' : 'Branch manager: approve below-floor pricing'}
                 </button>
+              ) : null}
+              {useQuotationApi &&
+              ws?.canMutate &&
+              ws?.hasPermission?.('md.price_exception.approve') &&
+              editData?.id &&
+              quotationRefundBlockedPendingMdPriceConfirm(editData) &&
+              productionClosedForQuote ? (
+                <button
+                  type="button"
+                  onClick={onMdPriceExceptionConfirm}
+                  disabled={mdConfirming}
+                  className="inline-flex items-center justify-center rounded-lg bg-[#134e4a] px-3 py-2 text-[10px] font-bold uppercase tracking-wide text-white hover:bg-[#0f3d39] disabled:opacity-40 mt-2"
+                >
+                  {mdConfirming ? 'Confirming…' : 'MD: confirm review (required before refund)'}
+                </button>
+              ) : null}
+              {useQuotationApi &&
+              quotationRefundBlockedPendingMdPriceConfirm(editData) &&
+              !productionClosedForQuote ? (
+                <p className="text-[9px] text-amber-900/85 mt-2">
+                  MD confirmation unlocks after production is completed or cancelled on this quotation.
+                </p>
               ) : null}
             </div>
           ) : null}
@@ -2227,6 +2422,7 @@ const QuotationModal = ({
             setRows={setProductRows}
             readOnly={readOnly}
             resolveUnitPrice={resolveUnitPrice}
+            resolveWorkbookLineMeta={resolveWorkbookLineMeta}
             showStoneFlatsheetLength={isStoneMeter}
           />
           <OrderLinesSection
