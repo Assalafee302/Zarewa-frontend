@@ -916,7 +916,7 @@ function AppShell() {
           </Routes>
         </main>
       </div>
-      <HelpChatDock sidebarCollapsed={sidebarCollapsed} />
+      <HelpChatDock />
       <AiAssistantDock />
       <DegradedWorkspaceLock />
     </div>

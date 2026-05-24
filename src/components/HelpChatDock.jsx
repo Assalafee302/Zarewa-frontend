@@ -1,44 +1,81 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { LifeBuoy, X, Send } from 'lucide-react';
+import { BookOpen, LifeBuoy, Loader2, Send, Sparkles, X } from 'lucide-react';
+import { useAiAssistant } from '../context/AiAssistantContext';
 import { useWorkspace } from '../context/WorkspaceContext';
 import { apiFetch } from '../lib/apiBase';
 import {
-  HELP_QUICK_QUESTIONS,
+  buildHelpSearchText,
   formatHelpArticleReply,
+  formatHelpArticlesReply,
   helpArticleLinks,
-  matchHelpArticle,
+  isComplexHelpQuery,
+  matchHelpArticles,
+  mergeHelpLinks,
+  quickQuestionsForPath,
 } from '../lib/helpKnowledge';
 
 const INTRO =
-  'Ask how to do something in Zarewa — for example recording a payment, fixing a mistake, quotations, or refunds. I answer from built-in guides and can use AI when your server has it configured.';
+  'Ask how to complete a workflow in Zarewa — payments, quotations, procurement, production, refunds, or reconciliation. I use step-by-step guides and can call AI for complicated multi-department questions.';
 
 function seedMessages() {
-  return [{ role: 'assistant', content: INTRO }];
+  return [{ role: 'assistant', content: INTRO, source: 'intro' }];
 }
 
-/** Render simple **bold** segments in help replies. */
+function sourceLabel(source) {
+  if (source === 'ai') return 'AI answer';
+  if (source === 'kb') return 'Built-in guide';
+  if (source === 'api') return 'Server guide';
+  return 'Help';
+}
+
+/** Render **bold** segments and numbered step lists in help replies. */
 function HelpMessageBody({ content }) {
   const text = String(content || '');
-  const parts = text.split(/(\*\*[^*]+\*\*)/g);
+  const blocks = text.split(/\n\n+/);
+
   return (
-    <span className="whitespace-pre-wrap">
-      {parts.map((part, i) => {
-        if (part.startsWith('**') && part.endsWith('**')) {
+    <div className="space-y-2 text-[13px] leading-relaxed text-slate-800">
+      {blocks.map((block, blockIdx) => {
+        const trimmed = block.trim();
+        if (!trimmed) return null;
+
+        if (/^\*\*Steps:\*\*$/i.test(trimmed)) return null;
+
+        const stepLines = trimmed.split('\n').filter((line) => /^\d+\.\s/.test(line.trim()));
+        if (stepLines.length >= 2 && stepLines.length === trimmed.split('\n').length) {
           return (
-            <strong key={i} className="font-bold text-gray-900">
-              {part.slice(2, -2)}
-            </strong>
+            <ol key={blockIdx} className="list-decimal space-y-1.5 pl-5 marker:font-bold marker:text-teal-800">
+              {stepLines.map((line, i) => (
+                <li key={i}>{line.replace(/^\d+\.\s*/, '')}</li>
+              ))}
+            </ol>
           );
         }
-        return <span key={i}>{part}</span>;
+
+        const parts = trimmed.split(/(\*\*[^*]+\*\*)/g);
+        return (
+          <p key={blockIdx} className="whitespace-pre-wrap">
+            {parts.map((part, i) => {
+              if (part.startsWith('**') && part.endsWith('**')) {
+                return (
+                  <strong key={i} className="font-bold text-[#134e4a]">
+                    {part.slice(2, -2)}
+                  </strong>
+                );
+              }
+              return <span key={i}>{part}</span>;
+            })}
+          </p>
+        );
       })}
-    </span>
+    </div>
   );
 }
 
-export function HelpChatDock({ sidebarCollapsed = false }) {
+export function HelpChatDock() {
   const ws = useWorkspace();
+  const ai = useAiAssistant();
   const location = useLocation();
   const user = ws?.session?.user;
   const [open, setOpen] = useState(false);
@@ -48,15 +85,33 @@ export function HelpChatDock({ sidebarCollapsed = false }) {
   const [error, setError] = useState('');
   const listEndRef = useRef(null);
   const messagesRef = useRef(messages);
+  const textareaRef = useRef(null);
+
+  const aiDockVisible = Boolean(user && user.roleKey !== 'ceo' && ai?.available === true);
+  const quickQuestions = useMemo(
+    () => quickQuestionsForPath(location.pathname),
+    [location.pathname]
+  );
 
   useEffect(() => {
     messagesRef.current = messages;
   }, [messages]);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) return undefined;
     listEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    const onKey = (e) => {
+      if (e.key === 'Escape') setOpen(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
   }, [open, messages, busy]);
+
+  useEffect(() => {
+    if (open) {
+      window.requestAnimationFrame(() => textareaRef.current?.focus?.());
+    }
+  }, [open]);
 
   const resetConversation = useCallback(() => {
     const next = seedMessages();
@@ -64,6 +119,44 @@ export function HelpChatDock({ sidebarCollapsed = false }) {
     setMessages(next);
     setError('');
   }, []);
+
+  const tryLocalAnswer = useCallback(
+    (text, history) => {
+      const searchText = buildHelpSearchText(text, history);
+      const matches = matchHelpArticles(searchText, {
+        limit: 3,
+        minScore: 4,
+        pathname: location.pathname,
+      });
+      if (!matches.length) return null;
+
+      const complex = isComplexHelpQuery(text);
+      const top = matches[0];
+      const second = matches[1];
+
+      if (matches.length >= 2 && second && second.score >= top.score - 3 && (complex || top.score < 10)) {
+        const articles = matches.slice(0, 2).map((m) => m.article);
+        return {
+          role: 'assistant',
+          content: formatHelpArticlesReply(articles),
+          links: mergeHelpLinks(articles),
+          source: 'kb',
+        };
+      }
+
+      if (top.score >= 7 || (!complex && top.score >= 4)) {
+        return {
+          role: 'assistant',
+          content: formatHelpArticleReply(top.article),
+          links: helpArticleLinks(top.article),
+          source: 'kb',
+        };
+      }
+
+      return null;
+    },
+    [location.pathname]
+  );
 
   const sendText = useCallback(
     async (rawText) => {
@@ -79,23 +172,26 @@ export function HelpChatDock({ sidebarCollapsed = false }) {
       setBusy(true);
 
       try {
-        const localMatch = matchHelpArticle(text);
-        if (localMatch && localMatch.score >= 4) {
-          const assistantMsg = {
-            role: 'assistant',
-            content: formatHelpArticleReply(localMatch.article),
-            links: helpArticleLinks(localMatch.article),
-            source: 'kb',
-          };
-          const nextMessages = [...messagesRef.current, assistantMsg];
+        const history = [...messagesRef.current].filter(
+          (m) => m.role === 'user' || m.role === 'assistant'
+        );
+        const local = tryLocalAnswer(text, history);
+        const complex = isComplexHelpQuery(text);
+        const topScore =
+          matchHelpArticles(buildHelpSearchText(text, history), {
+            limit: 1,
+            minScore: 4,
+            pathname: location.pathname,
+          })[0]?.score ?? 0;
+
+        if (local && (topScore >= 7 || !complex)) {
+          const nextMessages = [...messagesRef.current, local];
           messagesRef.current = nextMessages;
           setMessages(nextMessages);
           return;
         }
 
-        const historyForApi = [...messagesRef.current]
-          .filter((m) => m.role === 'user' || m.role === 'assistant')
-          .map((m) => ({ role: m.role, content: m.content }));
+        const historyForApi = history.map((m) => ({ role: m.role, content: m.content }));
 
         const { ok, data } = await apiFetch('/api/help/chat', {
           method: 'POST',
@@ -107,6 +203,12 @@ export function HelpChatDock({ sidebarCollapsed = false }) {
         });
 
         if (!ok || !data?.ok) {
+          if (local) {
+            const nextMessages = [...messagesRef.current, local];
+            messagesRef.current = nextMessages;
+            setMessages(nextMessages);
+            return;
+          }
           throw new Error(data?.error || 'Request failed');
         }
 
@@ -125,7 +227,7 @@ export function HelpChatDock({ sidebarCollapsed = false }) {
         setBusy(false);
       }
     },
-    [busy, location.pathname]
+    [busy, location.pathname, tryLocalAnswer]
   );
 
   const send = useCallback(async () => {
@@ -139,51 +241,55 @@ export function HelpChatDock({ sidebarCollapsed = false }) {
     [busy, messages.length]
   );
 
-  const launcherClass = sidebarCollapsed
-    ? 'left-[max(1.25rem,env(safe-area-inset-left))] lg:left-[calc(4rem+1.25rem)]'
-    : 'left-[max(1.25rem,env(safe-area-inset-left))] lg:left-[calc(16rem+1.25rem)]';
-
   if (!user) return null;
+
+  const launcherClass = aiDockVisible
+    ? 'right-[calc(max(1.25rem,env(safe-area-inset-right))+4.25rem)]'
+    : 'right-[max(1.25rem,env(safe-area-inset-right))]';
 
   return (
     <>
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className={`fixed z-[165] flex h-14 w-14 items-center justify-center rounded-2xl border border-slate-200 bg-white text-[#134e4a] shadow-lg transition hover:bg-teal-50 active:scale-[0.98] bottom-[max(1.25rem,env(safe-area-inset-bottom))] ${launcherClass}`}
+        className={`fixed z-[165] flex h-14 w-14 items-center justify-center rounded-2xl border-2 border-teal-100 bg-white text-[#134e4a] shadow-lg ring-1 ring-teal-900/5 transition hover:border-teal-200 hover:bg-teal-50 hover:shadow-xl active:scale-[0.98] bottom-[max(1.25rem,env(safe-area-inset-bottom))] ${launcherClass}`}
         aria-label="Open help assistant"
-        title="Help — how do I…?"
+        title="Help — workflows & how-to"
       >
         <LifeBuoy size={24} strokeWidth={2} aria-hidden />
       </button>
 
       {open ? (
         <div
-          className="fixed inset-0 z-[175] flex items-end justify-start bg-slate-900/40 p-3 sm:p-4 sm:items-center sm:justify-start"
+          className="fixed inset-0 z-[175] flex items-end justify-end bg-slate-900/45 p-3 sm:p-4 sm:items-center sm:justify-end backdrop-blur-[1px]"
           role="presentation"
           onMouseDown={(e) => {
             if (e.target === e.currentTarget) setOpen(false);
           }}
         >
           <div
-            className="flex h-[min(32rem,85dvh)] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl"
+            className="flex h-[min(36rem,88dvh)] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-2xl"
             role="dialog"
             aria-label="Help assistant"
             onMouseDown={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between border-b border-gray-100 bg-slate-800 px-4 py-3 text-white">
-              <div className="flex items-center gap-2 min-w-0">
-                <LifeBuoy size={18} className="shrink-0 text-teal-200" aria-hidden />
+            <div className="flex items-center justify-between border-b border-teal-900/10 bg-gradient-to-r from-[#134e4a] to-[#0f766e] px-4 py-3.5 text-white">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/15 ring-1 ring-white/20">
+                  <LifeBuoy size={20} className="text-teal-100" aria-hidden />
+                </div>
                 <div className="min-w-0">
-                  <p className="text-[11px] font-black uppercase tracking-wider">Help assistant</p>
-                  <p className="truncate text-[10px] font-medium text-slate-300">How-to guides for Zarewa</p>
+                  <p className="text-xs font-black uppercase tracking-wider">Help assistant</p>
+                  <p className="truncate text-[11px] font-medium text-teal-100/90">
+                    Step-by-step workflows for Zarewa
+                  </p>
                 </div>
               </div>
               <div className="flex items-center gap-1">
                 <button
                   type="button"
                   onClick={resetConversation}
-                  className="rounded-lg px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-white/85 transition hover:bg-white/10"
+                  className="rounded-lg px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wide text-white/90 transition hover:bg-white/10"
                   aria-label="Reset help conversation"
                 >
                   Reset
@@ -199,19 +305,20 @@ export function HelpChatDock({ sidebarCollapsed = false }) {
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto overscroll-contain px-3 py-3 space-y-3">
+            <div className="flex-1 overflow-y-auto overscroll-contain bg-gradient-to-b from-slate-50/80 to-white px-4 py-4 space-y-3">
               {showQuickQuestions ? (
-                <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3">
-                  <p className="text-[10px] font-black uppercase tracking-wider text-slate-700">
-                    Common questions
+                <div className="rounded-2xl border border-slate-200 bg-white px-3.5 py-3.5 shadow-sm">
+                  <p className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-slate-600">
+                    <BookOpen size={12} aria-hidden />
+                    Suggested for this page
                   </p>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {HELP_QUICK_QUESTIONS.map((item) => (
+                  <div className="mt-2.5 flex flex-wrap gap-2">
+                    {quickQuestions.map((item) => (
                       <button
                         key={item.label}
                         type="button"
                         onClick={() => void sendText(item.query)}
-                        className="rounded-lg border border-white bg-white px-2.5 py-1.5 text-[10px] font-bold text-slate-800 shadow-sm transition hover:bg-teal-50"
+                        className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-[11px] font-bold text-slate-800 transition hover:border-teal-200 hover:bg-teal-50 hover:text-[#134e4a]"
                       >
                         {item.label}
                       </button>
@@ -220,48 +327,69 @@ export function HelpChatDock({ sidebarCollapsed = false }) {
                 </div>
               ) : null}
 
-              {messages.map((m, i) => (
-                <div
-                  key={`${m.role}-${i}`}
-                  className={`rounded-xl px-3 py-2 text-[13px] leading-snug ${
-                    m.role === 'user'
-                      ? 'ml-6 bg-slate-100 text-slate-900 border border-slate-200'
-                      : 'mr-2 bg-white text-gray-800 border border-gray-100 shadow-sm'
-                  }`}
-                >
-                  <HelpMessageBody content={m.content} />
-                  {m.role === 'assistant' && Array.isArray(m.links) && m.links.length > 0 ? (
-                    <div className="mt-2 flex flex-wrap gap-1.5">
-                      {m.links.map((link) => (
-                        <Link
-                          key={`${link.to}-${link.label}`}
-                          to={link.to}
-                          state={link.state}
-                          onClick={() => setOpen(false)}
-                          className="inline-flex rounded-md border border-teal-200 bg-teal-50 px-2 py-0.5 text-[10px] font-bold text-[#134e4a] hover:bg-teal-100"
-                        >
-                          {link.label}
-                        </Link>
-                      ))}
+              {messages.map((m, i) => {
+                const isUser = m.role === 'user';
+                return (
+                  <div
+                    key={`${m.role}-${i}`}
+                    className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}
+                  >
+                    <div
+                      className={`max-w-[92%] rounded-2xl px-3.5 py-2.5 ${
+                        isUser
+                          ? 'bg-[#134e4a] text-white shadow-md'
+                          : 'border border-slate-200/90 bg-white text-slate-800 shadow-sm'
+                      }`}
+                    >
+                      {!isUser && m.source && m.source !== 'intro' ? (
+                        <p className="mb-1.5 flex items-center gap-1 text-[9px] font-black uppercase tracking-wider text-teal-700/80">
+                          {m.source === 'ai' ? <Sparkles size={10} /> : <BookOpen size={10} />}
+                          {sourceLabel(m.source)}
+                        </p>
+                      ) : null}
+                      {isUser ? (
+                        <p className="text-[13px] leading-snug whitespace-pre-wrap">{m.content}</p>
+                      ) : (
+                        <HelpMessageBody content={m.content} />
+                      )}
+                      {!isUser && Array.isArray(m.links) && m.links.length > 0 ? (
+                        <div className="mt-3 flex flex-wrap gap-1.5 border-t border-slate-100 pt-2">
+                          {m.links.map((link) => (
+                            <Link
+                              key={`${link.to}-${link.label}`}
+                              to={link.to}
+                              state={link.state}
+                              onClick={() => setOpen(false)}
+                              className="inline-flex rounded-lg border border-teal-200 bg-teal-50 px-2.5 py-1 text-[10px] font-bold text-[#134e4a] transition hover:bg-teal-100"
+                            >
+                              {link.label} →
+                            </Link>
+                          ))}
+                        </div>
+                      ) : null}
                     </div>
-                  ) : null}
-                </div>
-              ))}
+                  </div>
+                );
+              })}
 
               {busy ? (
-                <p className="text-[11px] font-semibold text-gray-400 px-1">Finding an answer…</p>
+                <div className="flex items-center gap-2 px-1 text-[11px] font-semibold text-slate-400">
+                  <Loader2 size={14} className="animate-spin" aria-hidden />
+                  Building your answer…
+                </div>
               ) : null}
               {error ? (
-                <p className="rounded-lg border border-red-100 bg-red-50 px-3 py-2 text-[12px] text-red-800">
+                <p className="rounded-xl border border-red-100 bg-red-50 px-3 py-2.5 text-[12px] text-red-800">
                   {error}
                 </p>
               ) : null}
               <div ref={listEndRef} />
             </div>
 
-            <div className="border-t border-gray-100 p-3">
+            <div className="border-t border-slate-100 bg-white p-3.5">
               <div className="flex gap-2">
                 <textarea
+                  ref={textareaRef}
                   value={draft}
                   onChange={(e) => setDraft(e.target.value)}
                   onKeyDown={(e) => {
@@ -271,22 +399,22 @@ export function HelpChatDock({ sidebarCollapsed = false }) {
                     }
                   }}
                   rows={2}
-                  placeholder="e.g. How do I record a payment?"
-                  className="min-h-[2.75rem] flex-1 resize-none rounded-xl border border-gray-200 px-3 py-2 text-[13px] outline-none focus:border-teal-300 focus:ring-2 focus:ring-teal-500/20"
+                  placeholder="Ask about a workflow… e.g. PO to GRN to payment"
+                  className="min-h-[3rem] flex-1 resize-none rounded-xl border border-slate-200 px-3.5 py-2.5 text-[13px] outline-none transition focus:border-teal-400 focus:ring-2 focus:ring-teal-500/15"
                   disabled={busy}
                 />
                 <button
                   type="button"
                   onClick={() => void send()}
                   disabled={busy || !draft.trim()}
-                  className="flex h-11 w-11 shrink-0 items-center justify-center self-end rounded-xl bg-slate-800 text-white shadow-sm transition hover:brightness-110 disabled:opacity-40"
+                  className="flex h-12 w-12 shrink-0 items-center justify-center self-end rounded-xl bg-[#134e4a] text-white shadow-md transition hover:brightness-110 disabled:opacity-40"
                   aria-label="Send help question"
                 >
-                  <Send size={18} />
+                  {busy ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
                 </button>
               </div>
-              <p className="mt-2 text-[10px] text-gray-400 leading-snug">
-                Built-in guides work offline. Unmatched questions may use your server AI if configured.
+              <p className="mt-2.5 text-[10px] leading-snug text-slate-400">
+                Guides work offline for common tasks. Complex multi-step questions use your server AI when configured.
               </p>
             </div>
           </div>
