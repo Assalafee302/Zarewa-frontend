@@ -1208,8 +1208,13 @@ const Procurement = () => {
     const newPaidTotal = (Number(selectedAp.paidNgn) || 0) + apPayTotalNgn;
     const fullySettled = newPaidTotal >= (Number(selectedAp.amountNgn) || 0);
     const poRef = selectedAp.poRef?.trim?.() ?? '';
+    const poForAdvance = poRef ? purchaseOrders.find((p) => p.poID === poRef) : null;
+    const hasQuotedTransport =
+      poForAdvance &&
+      Boolean(String(poForAdvance.transportAgentId || poForAdvance.transportAgentName || '').trim()) &&
+      Number(poForAdvance.transportAmountNgn) > 0;
     const shouldAdvancePo = Boolean(
-      fullySettled && poRef && purchaseOrders.find((p) => p.poID === poRef)?.status === 'Approved'
+      fullySettled && poForAdvance?.status === 'Approved' && hasQuotedTransport
     );
     let procurementNote = '';
     if (ws?.canMutate) {

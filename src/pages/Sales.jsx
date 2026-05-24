@@ -251,10 +251,28 @@ const Sales = () => {
   const refunds = useMemo(
     () =>
       ws?.hasWorkspaceData && Array.isArray(ws?.snapshot?.refunds)
-        ? ws.snapshot.refunds.map((r) => normalizeRefund(r))
+        ? ws.snapshot.refunds
+            .filter((r) => r && typeof r === 'object')
+            .map((r) => normalizeRefund(r))
         : [],
     [ws?.hasWorkspaceData, ws?.snapshot?.refunds]
   );
+
+  const salesTab = TAB_LABELS[activeTab] ? activeTab : 'quotations';
+
+  useEffect(() => {
+    if (!TAB_LABELS[activeTab]) {
+      setActiveTab('quotations');
+    }
+  }, [activeTab]);
+
+  useEffect(() => {
+    const tab = location.state?.focusSalesTab;
+    if (tab === 'dashboard') {
+      setActiveTab('quotations');
+      navigate(location.pathname, { replace: true, state: { ...location.state, focusSalesTab: undefined } });
+    }
+  }, [location.state, location.pathname, navigate]);
 
   const ledgerSyncKey = ledgerNonce + (ws?.refreshEpoch ?? 0);
 
@@ -723,7 +741,7 @@ const Sales = () => {
   );
 
   const handleTabChange = (id) => {
-    setActiveTab(id);
+    setActiveTab(TAB_LABELS[id] ? id : 'quotations');
     setSearchQuery('');
     setCustomerAddOpen(false);
     setShowCount(20);
@@ -905,7 +923,7 @@ const Sales = () => {
       setRefundModalKey((k) => k + 1);
       setShowRefundModal(true);
     },
-    [showToast, ws.hasPermission]
+    [showToast, ws?.hasPermission]
   );
 
   // Logic to handle opening modals for "New"
@@ -915,19 +933,19 @@ const Sales = () => {
       return;
     }
     setSelectedItem(null);
-    if (activeTab === 'quotations') {
+    if (salesTab === 'quotations') {
       setQuotationAccessMode('edit');
       setShowQuotationModal(true);
     }
-    if (activeTab === 'receipts') {
+    if (salesTab === 'receipts') {
       setReceiptAccessMode('add');
       setShowReceiptModal(true);
     }
-    if (activeTab === 'cuttinglist') {
+    if (salesTab === 'cuttinglist') {
       setCuttingAccessMode('edit');
       setShowCuttingModal(true);
     }
-    if (activeTab === 'refund') {
+    if (salesTab === 'refund') {
       if (!ws?.hasPermission?.('refunds.request')) {
         showToast('Your role cannot submit refund requests.', { variant: 'error' });
         return;
@@ -936,7 +954,7 @@ const Sales = () => {
       setRefundModalKey((k) => k + 1);
       setShowRefundModal(true);
     }
-    if (activeTab === 'customers') {
+    if (salesTab === 'customers') {
       setCustomerAddOpen(true);
     }
   };
@@ -1160,25 +1178,25 @@ const Sales = () => {
         tabs={
           <div className="flex w-full min-w-0 flex-col items-stretch gap-3 sm:items-end">
             <div className="flex w-full min-w-0 justify-start sm:justify-end">
-              <PageTabs tabs={salesTabs} value={activeTab} onChange={handleTabChange} />
+              <PageTabs tabs={salesTabs} value={salesTab} onChange={handleTabChange} />
             </div>
             <div className="flex w-full min-w-0 flex-wrap items-center justify-end gap-2">
               <AiAskButton
                 mode="sales"
                 prompt={
-                  activeTab === 'quotations'
+                  salesTab === 'quotations'
                     ? 'Which quotations need follow-up now, and what should sales do next?'
-                    : activeTab === 'receipts'
+                    : salesTab === 'receipts'
                       ? 'Summarize the receipt and settlement issues visible on this page.'
-                      : activeTab === 'cuttinglist'
+                      : salesTab === 'cuttinglist'
                         ? 'Explain cutting-list readiness and the main blockers for production.'
-                        : activeTab === 'refund'
+                        : salesTab === 'refund'
                           ? 'Summarize the refund queue and explain what needs action.'
                           : 'Summarize customer activity and tell me who needs attention.'
                 }
                 pageContext={{
                   source: 'sales-page',
-                  activeTab,
+                  salesTab,
                   searchQuery,
                 }}
                 className="inline-flex items-center gap-2 rounded-lg border border-teal-100 bg-teal-50 px-3 py-2 text-[10px] font-semibold uppercase tracking-wide text-[#134e4a] shadow-sm hover:bg-teal-100/70"
@@ -1197,12 +1215,12 @@ const Sales = () => {
                   {adminSalesReconcileBusy ? 'Recalculating…' : 'Recalculate sales data'}
                 </button>
               ) : null}
-              {activeTab === 'quotations' && (
+              {salesTab === 'quotations' && (
                 <button type="button" onClick={openNewModal} className={primaryActionBtnClass}>
                   <Plus size={16} strokeWidth={2} /> New quotation
                 </button>
               )}
-              {activeTab === 'receipts' && (
+              {salesTab === 'receipts' && (
                 <>
                   <button type="button" onClick={openNewModal} className={primaryActionBtnClass}>
                     <Plus size={16} strokeWidth={2} /> Record payment
@@ -1223,17 +1241,17 @@ const Sales = () => {
                   </button>
                 </>
               )}
-              {activeTab === 'cuttinglist' && (
+              {salesTab === 'cuttinglist' && (
                 <button type="button" onClick={openNewModal} className={primaryActionBtnClass}>
                   <Plus size={16} strokeWidth={2} /> New cutting list
                 </button>
               )}
-              {activeTab === 'refund' && (
+              {salesTab === 'refund' && (
                 <button type="button" onClick={openNewModal} className={primaryActionBtnClass}>
                   <Plus size={16} strokeWidth={2} /> New refund
                 </button>
               )}
-              {activeTab === 'customers' && (
+              {salesTab === 'customers' && (
                 <button type="button" onClick={openNewModal} className={primaryActionBtnClass}>
                   <Plus size={16} strokeWidth={2} /> Add customer
                 </button>
@@ -1244,9 +1262,9 @@ const Sales = () => {
       />
 
       <div className="grid grid-cols-1 gap-6 lg:gap-8 min-w-0 lg:grid-cols-4">
-        {activeTab !== 'customers' && (
+        {salesTab !== 'customers' && (
           <aside className="lg:col-span-1 hidden lg:flex flex-col gap-5 sticky top-6">
-            {activeTab === 'quotations' ? (
+            {salesTab === 'quotations' ? (
               <>
                 {/* Spot prices */}
                 <section className="rounded-xl border border-slate-200/90 bg-white shadow-sm overflow-hidden">
@@ -1283,7 +1301,7 @@ const Sales = () => {
                               <span className="text-[9px] text-slate-500 ml-1">{row.productType}</span>
                             </div>
                             <span className="text-xs font-bold text-[#134e4a] tabular-nums text-right whitespace-nowrap pt-0.5">
-                              ₦{row.priceNgn.toLocaleString()}/m
+                              ₦{Number(row.priceNgn || 0).toLocaleString()}/m
                             </span>
                           </div>
                         ))
@@ -1432,20 +1450,20 @@ const Sales = () => {
                   </div>
                 </section>
               </>
-            ) : activeTab === 'receipts' ? (
+            ) : salesTab === 'receipts' ? (
               <ReceiptsAdvancesPanel 
                 className="!h-auto !min-h-0 shadow-sm"
                 ledgerNonce={ledgerNonce}
                 onSelectAdvance={setAdvanceViewEntry}
                 onLinkAdvance={setLinkAdvanceEntry}
               />
-            ) : activeTab === 'cuttinglist' ? (
+            ) : salesTab === 'cuttinglist' ? (
               <SalesCuttingListMaterialPanel
                 ready={cuttingListMaterialReadiness.ready}
                 waitingNoMatch={cuttingListMaterialReadiness.waitingNoMatch}
                 onOpenCuttingList={openCuttingListFromMaterialAlert}
               />
-            ) : activeTab === 'refund' ? (
+            ) : salesTab === 'refund' ? (
               <section className="rounded-xl border border-dashed border-slate-200 bg-slate-50/40 p-5">
                 <p className="text-[9px] font-bold text-[#134e4a] uppercase tracking-wider mb-1.5">
                   Potential refunds ({quotationsRefundPotentialRows.length})
@@ -1502,12 +1520,12 @@ const Sales = () => {
 
         <div
           className={
-            activeTab === 'customers' ? 'lg:col-span-4 min-w-0' : 'lg:col-span-3 min-w-0'
+            salesTab === 'customers' ? 'lg:col-span-4 min-w-0' : 'lg:col-span-3 min-w-0'
           }
         >
           <MainPanel
             className={`!rounded-xl !border-slate-200/90 !shadow-sm !bg-white !backdrop-blur-none border !border-solid !p-0 overflow-hidden ${
-              activeTab === 'receipts'
+              salesTab === 'receipts'
                 ? 'min-h-[min(520px,72vh)]'
                 : 'min-h-[min(480px,72vh)] sm:min-h-[560px]'
             }`}
@@ -1517,10 +1535,10 @@ const Sales = () => {
               <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between mb-4">
                 <div className="shrink-0">
                   <h2 className="text-[10px] font-bold uppercase tracking-widest text-[#134e4a]">
-                    {TAB_LABELS[activeTab] ?? 'Records'}
+                    {TAB_LABELS[salesTab] ?? 'Records'}
                   </h2>
                   <p className="text-[9px] font-semibold text-slate-400 mt-1 tabular-nums">
-                    {activeTab === 'quotations' && (
+                    {salesTab === 'quotations' && (
                       <>
                         {listStats.quotations.shown} showing
                         {listStats.quotations.pendingApproval > 0
@@ -1528,9 +1546,9 @@ const Sales = () => {
                           : ''}
                       </>
                     )}
-                    {activeTab === 'receipts' && <>{listStats.receipts.shown} records</>}
-                    {activeTab === 'cuttinglist' && <>{listStats.cuttinglist.shown} records</>}
-                    {activeTab === 'refund' && (
+                    {salesTab === 'receipts' && <>{listStats.receipts.shown} records</>}
+                    {salesTab === 'cuttinglist' && <>{listStats.cuttinglist.shown} records</>}
+                    {salesTab === 'refund' && (
                       <>
                         {listStats.refund.shown} records
                         {listStats.refund.pending > 0 ? ` · ${listStats.refund.pending} pending` : ''}
@@ -1539,7 +1557,7 @@ const Sales = () => {
                           : ''}
                       </>
                     )}
-                    {activeTab === 'customers' && (
+                    {salesTab === 'customers' && (
                       <>
                         {listStats.customers.shown} showing · {listStats.customers.total} total
                       </>
@@ -1549,7 +1567,7 @@ const Sales = () => {
               </div>
 
               <div className="space-y-2">
-                {activeTab === 'quotations' ? (
+                {salesTab === 'quotations' ? (
                   <SalesListTableFrame
                     toolbar={
                       <>
@@ -1667,7 +1685,7 @@ const Sales = () => {
                   </SalesListTableFrame>
                 ) : null}
 
-                {activeTab === 'receipts' ? (
+                {salesTab === 'receipts' ? (
                   <SalesListTableFrame
                     toolbar={
                       <>
@@ -1813,7 +1831,7 @@ const Sales = () => {
                   </SalesListTableFrame>
                 ) : null}
 
-                {activeTab === 'cuttinglist' ? (
+                {salesTab === 'cuttinglist' ? (
                   <SalesListTableFrame
                     toolbar={
                       <>
@@ -1918,7 +1936,7 @@ const Sales = () => {
                   </SalesListTableFrame>
                 ) : null}
 
-                {activeTab === 'refund' ? (
+                {salesTab === 'refund' ? (
                   <SalesListTableFrame
                     toolbar={
                       <>
@@ -2021,7 +2039,7 @@ const Sales = () => {
                   </SalesListTableFrame>
                 ) : null}
 
-                {activeTab === 'customers' ? (
+                {salesTab === 'customers' ? (
                   <SalesCustomersTab
                     searchQuery={searchQuery}
                     onSearchChange={setSearchQuery}
@@ -2231,4 +2249,45 @@ const Sales = () => {
   );
 };
 
-export default Sales;
+class SalesRouteErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, message: '' };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true, message: String(error?.message || error || '') };
+  }
+
+  componentDidCatch(error) {
+    console.error('Sales route crashed during render.', error);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <PageShell>
+          <MainPanel className="!rounded-xl !border-slate-200/90 !shadow-sm !bg-white !p-6">
+            <h2 className="text-lg font-bold text-[#134e4a]">Sales temporarily unavailable</h2>
+            <p className="mt-2 text-sm text-slate-600">
+              A screen error occurred while loading Sales. Refresh the page. If this persists, share the time with
+              support so we can trace the bad row.
+            </p>
+            {this.state.message ? (
+              <p className="mt-2 text-[10px] font-mono text-slate-500 break-all">{this.state.message}</p>
+            ) : null}
+          </MainPanel>
+        </PageShell>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+export default function SalesPage() {
+  return (
+    <SalesRouteErrorBoundary>
+      <Sales />
+    </SalesRouteErrorBoundary>
+  );
+}

@@ -53,6 +53,37 @@ export function refundStatusIsWithdrawn(status) {
  * @returns {object}
  */
 export function normalizeRefund(r) {
+  if (!r || typeof r !== 'object') {
+    return {
+      refundID: '',
+      customerID: '',
+      customer: '—',
+      quotationRef: '',
+      cuttingListRef: '',
+      product: '—',
+      reasonCategory: '',
+      reason: '—',
+      amountNgn: 0,
+      calculationLines: [],
+      suggestedLines: [],
+      previewSnapshot: null,
+      calculationNotes: '',
+      status: 'Pending',
+      requestedBy: '—',
+      requestedAtISO: '',
+      approvalDate: '',
+      approvedBy: '',
+      approvedAmountNgn: 0,
+      managerComments: '',
+      paidAmountNgn: 0,
+      paidAtISO: '',
+      paidBy: '',
+      paymentNote: '',
+      payeeName: '',
+      payeeAccountNo: '',
+      payoutLines: [],
+    };
+  }
   const amountNgn = Number(r.amountNgn) || 0;
   const paidAmountNgn = Number(r.paidAmountNgn) || 0;
   const approvedAmountNgn = refundApprovedAmount({ ...r, amountNgn, paidAmountNgn });

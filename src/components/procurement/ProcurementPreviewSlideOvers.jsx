@@ -11,6 +11,10 @@ import {
   poLineQtyLabel,
 } from '../../lib/procurementPoKind';
 import { purchaseOrderOrderedValueNgn } from '../../lib/liveAnalytics';
+import {
+  purchaseOrderCanAssignTransport,
+  purchaseOrderTransportActionLabel,
+} from '../../lib/purchaseOrderWorkflow';
 
 function kindTitle(kind) {
   if (kind === 'stone') return 'Stone-coated';
@@ -52,7 +56,7 @@ export function ProcurementPoPreviewSlideOver({
   const kind = procurementKindFromPo(po);
   const ordered = purchaseOrderOrderedValueNgn(po);
   const pending = po.status === 'Pending';
-  const canTransport = po.status === 'Approved' || po.status === 'On loading';
+  const canTransport = purchaseOrderCanAssignTransport(po);
   const hasWorkflowFooter =
     (canEdit && onEdit) ||
     (pending && onApprove && onReject) ||
@@ -273,7 +277,7 @@ export function ProcurementPoPreviewSlideOver({
                   onClick={() => onAssignTransport(po)}
                   className={`${poActionBtn} border border-violet-300 bg-violet-50 text-violet-900 hover:bg-violet-100`}
                 >
-                  {po.status === 'On loading' ? 'Edit transport' : 'Assign transport'}
+                  {purchaseOrderTransportActionLabel(po)}
                 </button>
               ) : null}
             </div>
