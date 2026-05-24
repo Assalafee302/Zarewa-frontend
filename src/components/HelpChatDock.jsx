@@ -28,6 +28,7 @@ import {
 import { buildHelpCoachingHints, mergePersonalizedPrompts } from '../lib/helpRecommend';
 import { detectHelpIntent, synthesizeHelpReply, synthesizeMetaReply } from '../lib/helpSynthesize';
 import { classifyAgentRoute, routeLabel } from '../lib/helpAgentIntent';
+import { HELP_BOT_NAME, HELP_BOT_TAGLINE } from '../lib/helpBotBrand';
 
 const LOCAL_REPLY_DELAY_MS = 240;
 
@@ -46,8 +47,8 @@ function buildIntro(user, pathname) {
   const name = String(user?.displayName || '').trim().split(/\s+/)[0];
   const page = pageLabel(pathname);
   return name
-    ? `Hi ${name} — ask me anything about **${page}** workflows.`
-    : `Hi — ask me anything about **${page}** workflows.`;
+    ? `Hi ${name} — I'm **${HELP_BOT_NAME}**. Ask me anything about **${page}** workflows.`
+    : `Hi — I'm **${HELP_BOT_NAME}**. Ask me anything about **${page}** workflows.`;
 }
 
 function seedMessages(user, pathname) {
@@ -68,7 +69,7 @@ function sourceMeta(source, agentRoute) {
     return { label: routeLabel(agentRoute), icon: Zap, tone: 'data' };
   }
   if (agentRoute === 'meta' || source === 'meta') {
-    return { label: 'About coach', icon: Bot, tone: 'meta' };
+    return { label: `About ${HELP_BOT_NAME}`, icon: Bot, tone: 'meta' };
   }
   if (source === 'ai' || agentRoute === 'chitchat') {
     return { label: source === 'ai' ? 'AI answer' : routeLabel(agentRoute), icon: Sparkles, tone: 'ai' };
@@ -267,39 +268,75 @@ export function HelpChatDock() {
     }
   }, [sendHelpSignal]);
 
+  const [livePersonalization, setLivePersonalization] = useState(null);
+
   const aiDockVisible = Boolean(user && user.roleKey !== 'ceo' && ai?.available === true);
   const snapshot = ws?.snapshot;
+  const helpPersonalization = livePersonalization || snapshot?.helpPersonalization;
   const pageName = pageLabel(location.pathname);
-  const externalAi = Boolean(snapshot?.helpPersonalization?.externalAi);
+  const externalAi = Boolean(helpPersonalization?.externalAi);
 
   const quickQuestions = useMemo(() => {
     const pathPrompts = quickQuestionsForPath(location.pathname);
-    const bootPrompts = snapshot?.helpPersonalization?.prompts;
+    const bootPrompts = helpPersonalization?.prompts;
     if (Array.isArray(bootPrompts) && bootPrompts.length) {
       return mergePersonalizedPrompts(
         pathPrompts,
         bootPrompts,
-        snapshot?.helpPersonalization?.learnedBoosts || {},
+        helpPersonalization?.learnedBoosts || {},
         location.pathname
       ).slice(0, 8);
     }
     return pathPrompts;
-  }, [location.pathname, snapshot?.helpPersonalization]);
+  }, [location.pathname, helpPersonalization]);
 
-  const coachingHints = useMemo(
-    () => buildHelpCoachingHints(snapshot, location.pathname).slice(0, 3),
-    [snapshot, location.pathname]
-  );
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const { ok, data } = await apiFetch(
+          `/api/help/personalization?pathname=${encodeURIComponent(location.pathname)}`
+        );
+        if (!cancelled && ok && data?.ok !== false) {
+          setLivePersonalization(data);
+        }
+      } catch {
+        /* bootstrap fallback */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [location.pathname, user]);
+
+  const coachingHints = useMemo(() => {
+    if (Array.isArray(helpPersonalization?.recommendations) && helpPersonalization.recommendations.length) {
+      return helpPersonalization.recommendations.slice(0, 5);
+    }
+    if (Array.isArray(helpPersonalization?.coachingHints) && helpPersonalization.coachingHints.length) {
+      return helpPersonalization.coachingHints.slice(0, 5);
+    }
+    return buildHelpCoachingHints(snapshot, location.pathname).slice(0, 3);
+  }, [helpPersonalization, snapshot, location.pathname]);
 
   const dockSuggestions = useMemo(() => {
+    if (Array.isArray(helpPersonalization?.recommendations) && helpPersonalization.recommendations.length) {
+      const recs = helpPersonalization.recommendations;
+      return {
+        hints: recs.filter((r) => r.score >= 9).slice(0, 3),
+        prompts: recs.filter((r) => r.score < 9).slice(0, 5).map((r) => ({ label: r.title, query: r.query })),
+      };
+    }
     const hints = coachingHints;
     const hintKeys = new Set(hints.map((h) => String(h.title || '').toLowerCase()));
     const prompts = quickQuestions
       .filter((q) => !hintKeys.has(String(q.label || '').toLowerCase()))
       .slice(0, 5);
     return { hints, prompts };
-  }, [coachingHints, quickQuestions]);
-  const transactionProfile = snapshot?.helpPersonalization?.transactionProfile;
+  }, [coachingHints, quickQuestions, helpPersonalization?.recommendations]);
+
+  const transactionProfile = helpPersonalization?.transactionProfile;
 
   useEffect(() => {
     messagesRef.current = messages;
@@ -366,7 +403,7 @@ export function HelpChatDock() {
             pathname: location.pathname,
             userDisplay: user?.displayName,
             roleKey: user?.roleKey,
-            pace: snapshot?.helpPersonalization?.behaviorProfile?.pace,
+            pace: helpPersonalization?.behaviorProfile?.pace,
             intent,
             transactionProfile,
           }),
@@ -383,7 +420,7 @@ export function HelpChatDock() {
         limit: 3,
         minScore: 4,
         pathname: location.pathname,
-        learnedBoosts: snapshot?.helpPersonalization?.learnedBoosts || {},
+        learnedBoosts: helpPersonalization?.learnedBoosts || {},
       });
       if (!matches.length) return null;
 
@@ -405,7 +442,7 @@ export function HelpChatDock() {
           userDisplay: user?.displayName,
           roleKey: user?.roleKey,
           user: { permissions: user?.permissions, roleKey: user?.roleKey },
-          pace: snapshot?.helpPersonalization?.behaviorProfile?.pace,
+          pace: helpPersonalization?.behaviorProfile?.pace,
           intent,
           transactionProfile,
         }),
@@ -419,8 +456,8 @@ export function HelpChatDock() {
     [
       externalAi,
       location.pathname,
-      snapshot?.helpPersonalization?.behaviorProfile?.pace,
-      snapshot?.helpPersonalization?.learnedBoosts,
+      helpPersonalization?.behaviorProfile?.pace,
+      helpPersonalization?.learnedBoosts,
       transactionProfile,
       user?.displayName,
       user?.permissions,
@@ -503,7 +540,7 @@ export function HelpChatDock() {
             limit: 1,
             minScore: 4,
             pathname: location.pathname,
-            learnedBoosts: snapshot?.helpPersonalization?.learnedBoosts || {},
+            learnedBoosts: helpPersonalization?.learnedBoosts || {},
           })[0] ?? null;
         const topScore = topMatch?.score ?? 0;
 
@@ -555,6 +592,8 @@ export function HelpChatDock() {
           links: Array.isArray(data.links) ? data.links : [],
           source: data.source || 'api',
           agentRoute: data.agentRoute || null,
+          sources: Array.isArray(data.sources) ? data.sources : [],
+          coaching: data.coaching || null,
           logId: data.logId || null,
           shownAt: Date.now(),
         };
@@ -573,7 +612,7 @@ export function HelpChatDock() {
       externalAi,
       location.pathname,
       signalPendingFollowUp,
-      snapshot?.helpPersonalization?.learnedBoosts,
+      helpPersonalization?.learnedBoosts,
       tryLocalAnswer,
     ]
   );
@@ -601,8 +640,8 @@ export function HelpChatDock() {
         type="button"
         onClick={() => setOpen(true)}
         className={`z-help-launcher fixed z-[165] flex h-[3.75rem] w-[3.75rem] items-center justify-center rounded-2xl border border-teal-200/60 bg-gradient-to-br from-[#134e4a] via-[#0f766e] to-[#115e59] text-teal-50 transition hover:scale-[1.03] active:scale-[0.98] bottom-[max(1.25rem,env(safe-area-inset-bottom))] ${launcherClass}`}
-        aria-label="Open Zarewa Coach"
-        title="Zarewa Coach — workflows & how-to"
+        aria-label={`Open ${HELP_BOT_NAME}`}
+        title={`${HELP_BOT_NAME} — ${HELP_BOT_TAGLINE}`}
       >
         <LifeBuoy size={26} strokeWidth={2} aria-hidden />
         {coachingHints.length > 0 ? (
@@ -623,7 +662,7 @@ export function HelpChatDock() {
           <div
             className="z-help-panel flex h-[min(40rem,92dvh)] w-full max-w-[26rem] flex-col overflow-hidden rounded-[1.35rem] border border-white/20 bg-white shadow-[0_28px_80px_-24px_rgba(15,23,42,0.45)] sm:my-auto sm:mr-[max(0.5rem,env(safe-area-inset-right))]"
             role="dialog"
-            aria-label="Zarewa Coach"
+            aria-label={HELP_BOT_NAME}
             onMouseDown={(e) => e.stopPropagation()}
           >
             {/* Header */}
@@ -637,10 +676,10 @@ export function HelpChatDock() {
                   </div>
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
-                      <p className="text-sm font-black tracking-tight">Zarewa Coach</p>
+                      <p className="text-sm font-black tracking-tight">{HELP_BOT_NAME}</p>
                       <span className="inline-flex items-center gap-1 rounded-full bg-white/15 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-teal-50/95 ring-1 ring-white/15">
                         <span className="h-1.5 w-1.5 rounded-full bg-emerald-300 shadow-[0_0_8px_rgba(110,231,183,0.9)]" />
-                        Online
+                        {HELP_BOT_TAGLINE}
                       </span>
                     </div>
                     <p className="mt-0.5 truncate text-[11px] font-medium text-teal-100/90">{pageName}</p>
@@ -750,6 +789,16 @@ export function HelpChatDock() {
                             <HelpMessageBody content={m.content} />
                           )}
 
+                          {!isUser && Array.isArray(m.sources) && m.sources.length > 0 ? (
+                            <p className="mt-2 text-[9px] text-slate-400">
+                              Sources: {m.sources.map((s) => s.title).join(' · ')}
+                            </p>
+                          ) : null}
+                          {!isUser && m.coaching?.active ? (
+                            <p className="mt-1 text-[9px] font-semibold uppercase tracking-wide text-teal-700">
+                              Coaching · step {(m.coaching.stepIndex || 0) + 1}/{m.coaching.totalSteps || '?'}
+                            </p>
+                          ) : null}
                           {!isUser && Array.isArray(m.links) && m.links.length > 0 ? (
                             <div className="mt-3 flex flex-wrap gap-1.5 border-t border-slate-100/90 pt-2.5">
                               {m.links.map((link) => (
