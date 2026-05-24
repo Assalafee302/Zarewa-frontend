@@ -58,7 +58,7 @@ describe('companionOverpayNgnByReceiptId', () => {
     expect(m.get('R1')).toBe(167_160);
   });
 
-  it('matches planReceiptWithQuotation two-row output', () => {
+  it('planReceiptWithQuotation always posts one RECEIPT for full cash (no split at post)', () => {
     const qt = { id: 'Q9', totalNgn: 3_332_840, paidNgn: 0 };
     const plan = planReceiptWithQuotation([], {
       customerID: 'C',
@@ -70,31 +70,8 @@ describe('companionOverpayNgnByReceiptId', () => {
       dateISO: '2026-01-15',
     });
     expect(plan.ok).toBe(true);
-    expect(plan.rows).toHaveLength(2);
-    const entries = plan.rows.map((row, i) => ({
-      ...row,
-      id: i === 0 ? 'LE-R' : 'LE-O',
-      atISO: row.atISO || '2026-01-15T12:00:00.000Z',
-    }));
-    const m = companionOverpayNgnByReceiptId(entries);
-    expect(m.get('LE-R')).toBe(3_500_000 - 3_332_840);
-  });
-
-  it('planReceiptWithQuotation fullAmountAsReceipt posts one RECEIPT for full cash', () => {
-    const qt = { id: 'Q9', totalNgn: 3_336_000, paidNgn: 0 };
-    const plan = planReceiptWithQuotation([], {
-      customerID: 'C',
-      customerName: 'Cust',
-      quotationRow: qt,
-      amountNgn: 5_000_000,
-      paymentMethod: 'Transfer',
-      bankReference: 'REFX',
-      dateISO: '2026-01-15',
-      fullAmountAsReceipt: true,
-    });
-    expect(plan.ok).toBe(true);
     expect(plan.rows).toHaveLength(1);
     expect(plan.rows[0].type).toBe('RECEIPT');
-    expect(plan.rows[0].amountNgn).toBe(5_000_000);
+    expect(plan.rows[0].amountNgn).toBe(3_500_000);
   });
 });

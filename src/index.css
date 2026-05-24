@@ -2400,8 +2400,25 @@ summary {
     z-index: auto !important;
     pointer-events: auto !important;
     overflow: visible !important;
-    break-after: avoid-page;
-    page-break-after: avoid;
+    min-height: 0 !important;
+    height: auto !important;
+  }
+
+  #workbook-print-root:has(.customer-price-list-print) {
+    break-after: auto;
+    page-break-after: auto;
+  }
+
+  .print-portal-scroll:has(#workbook-print-root) > div {
+    padding-bottom: 0 !important;
+    min-height: 0 !important;
+    height: auto !important;
+  }
+
+  .customer-price-list-print,
+  .customer-price-list-print .customer-a4-sheet {
+    min-height: 0 !important;
+    height: auto !important;
   }
 
   .print-portal-scroll:has(#workbook-print-root) {

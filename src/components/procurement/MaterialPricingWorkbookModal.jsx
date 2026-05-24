@@ -1633,8 +1633,8 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
               <div
                 className={
                   printPreview === 'customer'
-                    ? 'mx-auto flex w-full max-w-[calc(210mm+4rem)] justify-center pb-20'
-                    : 'mx-auto max-w-[min(1000px,100%)] pb-16'
+                    ? 'mx-auto flex w-full max-w-[calc(210mm+4rem)] flex-col items-center justify-center pb-20 print:pb-0'
+                    : 'mx-auto max-w-[min(1000px,100%)] pb-16 print:pb-0'
                 }
                 onClick={(e) => e.stopPropagation()}
               >
@@ -1642,7 +1642,7 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
                   id="workbook-print-root"
                   className={
                     printPreview === 'customer'
-                      ? 'box-border w-[210mm] max-w-full min-h-[297mm] shrink-0 rounded-sm border border-slate-500/40 bg-white shadow-2xl print:min-h-0 print:rounded-none print:border-0 print:shadow-none'
+                      ? 'box-border w-[210mm] max-w-full min-h-[297mm] shrink-0 rounded-sm border border-slate-500/40 bg-white shadow-2xl print:min-h-0 print:w-full print:max-w-full print:rounded-none print:border-0 print:shadow-none'
                       : 'rounded-lg border border-slate-200 bg-white p-4 shadow-2xl print:rounded-none print:border-0 print:shadow-none print:p-0'
                   }
                 >

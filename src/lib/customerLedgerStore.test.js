@@ -56,7 +56,7 @@ describe('customerLedgerStore', () => {
     expect(amountDueOnQuotation({ ...SAMPLE_QT, paidNgn: 150_000 })).toBe(350_000);
   });
 
-  it('overpayment splits receipt and overpay advance', () => {
+  it('overpayment posts one RECEIPT for full cash (no split at post)', () => {
     const res = recordReceiptWithQuotation({
       customerID: 'CUS-2',
       customerName: 'B',
@@ -67,10 +67,11 @@ describe('customerLedgerStore', () => {
       dateISO: '2026-03-02',
     });
     expect(res.ok).toBe(true);
-    expect(res.receipt.amountNgn).toBe(500_000);
-    expect(res.overpay.amountNgn).toBe(50_000);
-    expect(advanceBalanceNgn('CUS-2')).toBe(50_000);
-    expect(amountDueOnQuotation({ id: 'QT-TEST-1', totalNgn: 500_000, paidNgn: 500_000 })).toBe(0);
+    expect(res.receipt.amountNgn).toBe(550_000);
+    expect(res.overpay).toBeNull();
+    expect(advanceBalanceNgn('CUS-2')).toBe(0);
+    expect(loadLedgerEntries().filter((e) => e.type === 'OVERPAY_ADVANCE')).toHaveLength(0);
+    expect(amountDueOnQuotation({ id: 'QT-TEST-1', totalNgn: 500_000, paidNgn: 550_000 })).toBe(0);
   });
 
   it('loadLedgerEntries returns array', () => {
