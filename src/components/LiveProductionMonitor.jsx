@@ -505,7 +505,10 @@ export function LiveProductionMonitor({
         String(linkedQuotation.materialTypeId || '').trim() === 'MAT-005')
   );
   const isAccessoriesOnlyQuote = quotationIsAccessoriesOnly(linkedQuotation);
-  const completionUsesOffcutMode = !isStoneMeterQuote && (completionSourceMode === 'offcut' || isAccessoriesOnlyQuote);
+  const isStoneAccessoriesOnlyQuote = isStoneMeterQuote && isAccessoriesOnlyQuote;
+  const completionUsesOffcutMode =
+    isStoneAccessoriesOnlyQuote ||
+    (!isStoneMeterQuote && (completionSourceMode === 'offcut' || isAccessoriesOnlyQuote));
   const jobSt = normalizeJobStatus(selectedJob?.status);
   /** Same gate as post-completion FG metre adjustments — not plain production.manage. */
   const canEditCompletedCoilCorrections =
@@ -622,11 +625,11 @@ export function LiveProductionMonitor({
   }, [offcutSupplySelections]);
 
   const recordedMeters = useMemo(() => {
-    if (isStoneMeterQuote && jobSt === 'Running') {
+    if (isStoneMeterQuote && !completionUsesOffcutMode && jobSt === 'Running') {
       const m = Number(String(stoneMetersConsumed).replace(/,/g, ''));
       return Number.isFinite(m) && Math.abs(m) > 1e-9 ? m : 0;
     }
-    if (isStoneMeterQuote && jobSt === 'Completed') {
+    if (isStoneMeterQuote && !completionUsesOffcutMode && jobSt === 'Completed') {
       const posted = Number(selectedJob?.effectiveOutputMeters ?? selectedJob?.actualMeters ?? 0);
       if (Number.isFinite(posted) && Math.abs(posted) > 1e-9) return posted;
       const m = Number(String(stoneMetersConsumed).replace(/,/g, ''));
@@ -673,7 +676,7 @@ export function LiveProductionMonitor({
 
   const canRunConversionPreview = useMemo(() => {
     if (!selectedJob?.jobID) return false;
-    if (isStoneMeterQuote) {
+    if (isStoneMeterQuote && !completionUsesOffcutMode) {
       const m = Number(String(stoneMetersConsumed).replace(/,/g, ''));
       if (!Number.isFinite(m) || Math.abs(m) < 1e-9) return false;
       return jobSt === 'Running' || (jobSt === 'Completed' && canEditCompletedCoilCorrections);
@@ -1029,7 +1032,7 @@ export function LiveProductionMonitor({
 
   const conversionPreviewKey = useMemo(() => {
     if (!canRunConversionPreview || !selectedJob?.jobID) return '';
-    if (isStoneMeterQuote) {
+    if (isStoneMeterQuote && !isAccessoriesOnlyQuote) {
       return JSON.stringify({
         job: selectedJob.jobID,
         stone: true,
@@ -1061,6 +1064,7 @@ export function LiveProductionMonitor({
     canRunConversionPreview,
     completionUsesOffcutMode,
     draftAllocations,
+    isAccessoriesOnlyQuote,
     isStoneMeterQuote,
     offcutInventoryMetersNum,
     offcutMetersProduced,
@@ -1140,7 +1144,7 @@ export function LiveProductionMonitor({
       }
       return { validLineCount: 1, errors: [], canComplete: true };
     }
-    if (isStoneMeterQuote) {
+    if (isStoneMeterQuote && !completionUsesOffcutMode) {
       const m = Number(String(stoneMetersConsumed).replace(/,/g, ''));
       if (!Number.isFinite(m) || Math.abs(m) < 1e-9) {
         return {
@@ -1517,7 +1521,7 @@ export function LiveProductionMonitor({
   };
 
   const buildCompleteBody = () => {
-    if (isStoneMeterQuote) {
+    if (isStoneMeterQuote && !completionUsesOffcutMode) {
       return {
         completedAtISO: new Date().toISOString().slice(0, 10),
         stoneMetersConsumed: Number(String(stoneMetersConsumed).replace(/,/g, '')),
@@ -3368,11 +3372,19 @@ export function LiveProductionMonitor({
               <div className="flex min-w-0 items-start gap-2">
                 <div className="min-w-0">
                   <p className="text-[10px] font-bold uppercase tracking-widest text-[#134e4a]">
-                    {isStoneMeterQuote ? 'Stone-coated run' : completionUsesOffcutMode ? 'Offcut / accessories run' : 'Coils &amp; run log'}
+                    {isStoneAccessoriesOnlyQuote
+                      ? 'Stone accessories only'
+                      : isStoneMeterQuote
+                        ? 'Stone-coated run'
+                        : completionUsesOffcutMode
+                          ? 'Offcut / accessories run'
+                          : 'Coils &amp; run log'}
                   </p>
                   <p className="mt-px flex flex-wrap items-center gap-1 text-[10px] leading-tight text-slate-600">
                     <span className="line-clamp-2">
-                      {isStoneMeterQuote
+                      {isStoneAccessoriesOnlyQuote
+                        ? 'No roofing metres — issue accessories and complete (optional FG metres).'
+                        : isStoneMeterQuote
                         ? 'Metres only → Save & start → Complete.'
                         : completionUsesOffcutMode
                           ? 'No coil selection required. Enter output metres (optional) and complete.'
@@ -3490,7 +3502,7 @@ export function LiveProductionMonitor({
                   </div>
                 </div>
               ) : null}
-              {isStoneMeterQuote ? (
+              {isStoneMeterQuote && !isStoneAccessoriesOnlyQuote ? (
                 <div className="rounded-lg border border-teal-100 bg-teal-50/50 p-3 text-[11px] text-slate-700 space-y-2">
                   <p>
                     <strong className="text-[#134e4a]">Stone-coated</strong> stock is tracked in metres (no coil
@@ -3518,7 +3530,9 @@ export function LiveProductionMonitor({
               {completionUsesOffcutMode ? (
                 <div className="rounded-lg border border-amber-200 bg-amber-50/70 p-3 text-[11px] text-slate-700 space-y-2">
                   <p>
-                    Offcut / accessories completion skips coil validation and marks this run complete directly.
+                    {isStoneAccessoriesOnlyQuote
+                      ? 'Stone-coated accessories only — no roofing metres to draw from stone stock. Issue accessories below, then complete.'
+                      : 'Offcut / accessories completion skips coil validation and marks this run complete directly.'}
                   </p>
                   <label className="block text-[10px] font-bold uppercase tracking-wide text-slate-500">
                     Output metres produced (optional)
