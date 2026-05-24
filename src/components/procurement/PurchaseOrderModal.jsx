@@ -13,6 +13,13 @@ import {
 } from '../../lib/poLineTypes.js';
 import { emptyPoLine } from '../../lib/purchaseOrderDraft.js';
 import PoUnifiedLineRow from './PoUnifiedLineRow.jsx';
+import { PurchaseOrderBranchConfirm } from './PurchaseOrderBranchConfirm.jsx';
+import { useWorkspace } from '../../context/WorkspaceContext';
+import {
+  isBranchScopedCreateBlocked,
+  userNeedsPurchaseBranchDoubleConfirm,
+  workspaceActiveBranchLabel,
+} from '../../lib/workspaceBranchCreate';
 
 const STONE_MATERIAL_TYPE_ID = 'MAT-005';
 const labelClass =
@@ -52,7 +59,11 @@ export default function PurchaseOrderModal({
   const [lines, setLines] = useState([emptyPoLine('coil_kg')]);
   const [formError, setFormError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [branchConfirmed, setBranchConfirmed] = useState(false);
+  const ws = useWorkspace();
   const editPoId = editDraft?.poID ?? '';
+  const isNewPo = !editPoId;
+  const poBranchBlocked = isNewPo && isBranchScopedCreateBlocked(ws);
 
   const colourOptions = useMemo(
     () => colourSelectOptionsFromRows(masterData?.colours || [], masterData),
@@ -98,6 +109,7 @@ export default function PurchaseOrderModal({
     setExpectedDelivery('');
     setLines([emptyPoLine('coil_kg')]);
     setFormError('');
+    setBranchConfirmed(false);
   }, [isOpen, editPoId, editDraft]);
 
   const setLine = (idx, patch) => setLines((rows) => rows.map((r, i) => (i === idx ? { ...r, ...patch } : r)));
@@ -229,6 +241,24 @@ export default function PurchaseOrderModal({
   const handleSubmit = async (e) => {
     e.preventDefault();
     setFormError('');
+    if (isNewPo && poBranchBlocked) {
+      setFormError(ws?.branchScopedCreateMessage || 'Select a single branch workspace before creating a purchase order.');
+      return;
+    }
+    if (isNewPo && !branchConfirmed) {
+      setFormError('Confirm the branch for this purchase using the checkbox above.');
+      return;
+    }
+    if (isNewPo && userNeedsPurchaseBranchDoubleConfirm(ws?.session?.user?.roleKey)) {
+      const { label } = workspaceActiveBranchLabel(ws);
+      if (
+        !window.confirm(
+          `Save this purchase order for ${label}?\n\nStock receipts, payments, and reports will stay in that branch. Cancel if you meant a different factory.`
+        )
+      ) {
+        return;
+      }
+    }
     if (!supplierID.trim()) {
       setFormError('Select a supplier.');
       return;
@@ -294,6 +324,9 @@ export default function PurchaseOrderModal({
         </div>
         <form className="flex flex-col flex-1 min-h-0" onSubmit={handleSubmit}>
           <div className="flex-1 overflow-y-auto p-5 space-y-6">
+            {isNewPo ? (
+              <PurchaseOrderBranchConfirm confirmed={branchConfirmed} onConfirmedChange={setBranchConfirmed} />
+            ) : null}
             <ProcurementFormSection letter="A" title="Supplier & dates" action={<button type="button" onClick={onQuickAddSupplier} className="text-[9px] font-semibold text-[#134e4a] uppercase"><UserPlus size={12} className="inline" /> New supplier</button>}>
               <div className="grid md:grid-cols-3 gap-4">
                 <div><label className={labelClass}>Supplier *</label><select required value={supplierID} onChange={(e) => setSupplierID(e.target.value)} className={headerInputClass}><option value="">Select…</option>{suppliersSorted.map((s) => <option key={s.supplierID} value={s.supplierID}>{s.name}</option>)}</select></div>
@@ -311,7 +344,13 @@ export default function PurchaseOrderModal({
             <div><p className="text-[9px] uppercase text-white/60">Total</p><p className="text-xl font-bold">{formatNgn(grandTotal)}</p></div>
             <div className="flex gap-2">
               <button type="button" onClick={onClose} disabled={busy} className="px-4 py-2 rounded-lg bg-white/10 text-[9px] uppercase">Cancel</button>
-              <button type="submit" disabled={busy} className="px-4 py-2 rounded-lg bg-white text-[#134e4a] text-[9px] uppercase inline-flex gap-1 items-center"><Save size={14} /> Save</button>
+              <button
+                type="submit"
+                disabled={busy || (isNewPo && (poBranchBlocked || !branchConfirmed))}
+                className="px-4 py-2 rounded-lg bg-white text-[#134e4a] text-[9px] uppercase inline-flex gap-1 items-center disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Save size={14} /> Save
+              </button>
             </div>
           </div>
         </form>
