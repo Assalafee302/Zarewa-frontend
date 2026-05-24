@@ -49,6 +49,7 @@ import {
   managementPeriodStartISO,
 } from '../lib/managementLiveFromWorkspace';
 import { formatRefundReasonCategory, matchesInboxSearch } from '../lib/managerDashboardCore';
+import { isEffectivelyFullyPaid } from '../lib/paymentOutstandingTolerance';
 import { formatPersonName } from '../lib/formatPersonName';
 import { Card, Button } from '../components/ui';
 import { ModalFrame, PageShell } from '../components/layout';
@@ -823,7 +824,7 @@ const ManagerDashboard = () => {
     const eligible = rows.filter((row) => {
       const paid = Math.round(Number(row.paid_ngn) || 0);
       const total = Math.round(Number(row.total_ngn) || 0);
-      return total <= 0 || paid >= total;
+      return total <= 0 || isEffectivelyFullyPaid(paid, total);
     });
     const skippedBalance = rows.length - eligible.length;
     if (eligible.length === 0) {

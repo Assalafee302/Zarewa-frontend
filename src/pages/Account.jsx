@@ -45,6 +45,7 @@ import {
   refundOutstandingAmount,
 } from '../lib/refundsStore';
 import { liveReceivablesNgn, openAuditQueue } from '../lib/liveAnalytics';
+import { effectiveOutstandingNgn, isEffectivelyFullyPaid } from '../lib/paymentOutstandingTolerance.js';
 import {
   findSalesReceiptByMatchToken,
   receiptCashReceivedNgn,
@@ -862,7 +863,7 @@ const Account = () => {
 
   const openRequestPayment = (req) => {
     const paidAmountNgn = Number(req.paidAmountNgn) || 0;
-    const outstanding = Math.max(0, (Number(req.amountRequestedNgn) || 0) - paidAmountNgn);
+    const outstanding = effectiveOutstandingNgn(Number(req.amountRequestedNgn) || 0, paidAmountNgn);
     if (req.approvalStatus !== 'Approved') {
       showToast('Approve this request before recording treasury payout.', { variant: 'info' });
       return;
@@ -961,7 +962,7 @@ const Account = () => {
   const confirmProcessPaymentModal = async () => {
     if (!selectedPayment?.id) return;
 
-    const outstanding = Math.max(0, (selectedPayment.total ?? 0) - (selectedPayment.paid ?? 0));
+    const outstanding = effectiveOutstandingNgn(selectedPayment.total ?? 0, selectedPayment.paid ?? 0);
     const validLines = requestPayLines
       .map((line) => ({
         treasuryAccountId: Number(line.treasuryAccountId),
@@ -1035,7 +1036,10 @@ const Account = () => {
         }
       }
       await ws.refresh();
-      const fullyPaid = requestPayTotalNgn >= outstanding;
+      const fullyPaid = isEffectivelyFullyPaid(
+        (selectedPayment.paid ?? 0) + requestPayTotalNgn,
+        selectedPayment.total ?? 0
+      );
       setShowPaymentEntry(false);
       setSelectedPayment(null);
       setRequestPayLines([]);
@@ -1075,7 +1079,10 @@ const Account = () => {
       return;
     }
 
-    const fullyPaid = requestPayTotalNgn >= outstanding;
+    const fullyPaid = isEffectivelyFullyPaid(
+      (selectedPayment.paid ?? 0) + requestPayTotalNgn,
+      selectedPayment.total ?? 0
+    );
     setShowPaymentEntry(false);
     setSelectedPayment(null);
     setRequestPayLines([]);
@@ -2539,7 +2546,7 @@ const Account = () => {
       activePayRequests.filter((req) => {
         if (req.approvalStatus !== 'Approved') return false;
         const paidAmountNgn = Number(req.paidAmountNgn) || 0;
-        const outstandingNgn = Math.max(0, (Number(req.amountRequestedNgn) || 0) - paidAmountNgn);
+        const outstandingNgn = effectiveOutstandingNgn(Number(req.amountRequestedNgn) || 0, paidAmountNgn);
         return outstandingNgn > 0;
       }),
     [activePayRequests]
@@ -3476,9 +3483,9 @@ const Account = () => {
                     <ul className="space-y-1.5">
                       {payRequestsAwaitingTreasuryPayout.map((req) => {
                         const paidAmountNgn = Number(req.paidAmountNgn) || 0;
-                        const outstandingNgn = Math.max(
-                          0,
-                          (Number(req.amountRequestedNgn) || 0) - paidAmountNgn
+                        const outstandingNgn = effectiveOutstandingNgn(
+                          Number(req.amountRequestedNgn) || 0,
+                          paidAmountNgn
                         );
                         const meta2 = [
                           `Linked ${req.expenseID}`,

@@ -1,5 +1,6 @@
 import { purchaseOrderOrderedValueNgn } from './liveAnalytics';
 import { procurementKindFromPo } from './procurementPoKind';
+import { effectiveOutstandingNgn } from './paymentOutstandingTolerance.js';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -64,7 +65,7 @@ export function buildProcurementDashboardModel({
   const outstandingSupplierPaymentsNgn = nonRejected.reduce((s, po) => {
     const ordered = purchaseOrderOrderedValueNgn(po);
     const paid = Number(po?.supplierPaidNgn) || 0;
-    return s + Math.max(0, ordered - paid);
+    return s + effectiveOutstandingNgn(ordered, paid);
   }, 0);
   const activeSupplierIds = new Set(nonRejected.map((po) => String(po?.supplierID || '').trim()).filter(Boolean));
   const activeSuppliers = activeSupplierIds.size;
@@ -139,7 +140,7 @@ export function buildProcurementDashboardModel({
   const apRows = Array.isArray(accountsPayable) ? accountsPayable : [];
   apRows.forEach((r) => {
     const due = asDate(r?.dueDateISO || r?.dueDate || r?.invoiceDateISO);
-    const outstanding = Math.max(0, (Number(r?.amountNgn) || 0) - (Number(r?.paidNgn) || 0));
+    const outstanding = effectiveOutstandingNgn(Number(r?.amountNgn) || 0, Number(r?.paidNgn) || 0);
     if (!(outstanding > 0) || !due) return;
     const days = Math.floor((now.getTime() - due.getTime()) / DAY_MS);
     if (days <= 30) aging['0_30'] += outstanding;

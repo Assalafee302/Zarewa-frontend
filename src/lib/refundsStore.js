@@ -4,6 +4,7 @@
  */
 
 import { formatPersonName } from './formatPersonName.js';
+import { effectiveOutstandingNgn } from './paymentOutstandingTolerance.js';
 
 const STORAGE_KEY = 'zarewa.sales.refunds';
 
@@ -38,8 +39,9 @@ export function refundApprovedAmount(r) {
 }
 
 export function refundOutstandingAmount(r) {
+  const approved = refundApprovedAmount(r);
   const paid = Number(r?.paidAmountNgn) || 0;
-  return Math.max(0, refundApprovedAmount(r) - paid);
+  return effectiveOutstandingNgn(approved, paid);
 }
 
 /** Rejected finance decision or cancel-before-pay — does not reserve quotation headroom or block a new request. */
@@ -120,7 +122,7 @@ export function normalizeRefund(r) {
     payeeAccountNo: String(r.payeeAccountNo ?? r.payee_account_no ?? '').trim(),
     payeeBankName: String(r.payeeBankName ?? r.payee_bank_name ?? '').trim(),
     payoutHistory: Array.isArray(r.payoutHistory) ? r.payoutHistory.map(normalizePayoutLine) : [],
-    outstandingAmountNgn: Math.max(0, approvedAmountNgn - paidAmountNgn),
+    outstandingAmountNgn: effectiveOutstandingNgn(approvedAmountNgn, paidAmountNgn),
   };
 }
 
