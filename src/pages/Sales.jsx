@@ -200,6 +200,9 @@ const Sales = () => {
   const [showCount, setShowCount] = useState(20);
   const [showArchivedQuotations, setShowArchivedQuotations] = useState(false);
   const [salesListSort, setSalesListSort] = useState({ field: 'id', dir: 'desc' });
+  const [stockMatType, setStockMatType] = useState('');
+  const [stockGaugeFilter, setStockGaugeFilter] = useState('');
+  const [stockColourFilter, setStockColourFilter] = useState('');
   const salesRole = loadSalesWorkspaceRole(ws?.session?.user?.roleKey);
   const roleKey = String(ws?.session?.user?.roleKey || '').toLowerCase();
   const isAdminRole = roleKey === 'admin';
@@ -265,14 +268,6 @@ const Sales = () => {
       setActiveTab('quotations');
     }
   }, [activeTab]);
-
-  useEffect(() => {
-    const tab = location.state?.focusSalesTab;
-    if (tab === 'dashboard') {
-      setActiveTab('quotations');
-      navigate(location.pathname, { replace: true, state: { ...location.state, focusSalesTab: undefined } });
-    }
-  }, [location.state, location.pathname, navigate]);
 
   const ledgerSyncKey = ledgerNonce + (ws?.refreshEpoch ?? 0);
 
@@ -469,10 +464,6 @@ const Sales = () => {
     setCuttingAccessMode('view');
     setShowCuttingModal(true);
   }, []);
-
-  const [stockMatType, setStockMatType] = useState('');
-  const [stockGaugeFilter, setStockGaugeFilter] = useState('');
-  const [stockColourFilter, setStockColourFilter] = useState('');
 
   const stockSearchOptions = useMemo(() => {
     const fromMaster = stockCheckSelectOptionsFromMasterData(ws?.snapshot?.masterData);
@@ -695,9 +686,10 @@ const Sales = () => {
   }, [refunds, searchQuery, showCount, salesListSort]);
 
   const filteredCustomersCount = useMemo(() => {
+    const list = Array.isArray(customerRecords) ? customerRecords : [];
     const q = searchQuery.trim().toLowerCase();
-    if (!q) return customerRecords.length;
-    return customerRecords.filter((c) => {
+    if (!q) return list.length;
+    return list.filter((c) => {
       const blob = [
         c.customerID,
         c.name,
@@ -728,7 +720,10 @@ const Sales = () => {
         pending: filteredRefunds.filter((x) => x.status === 'Pending').length,
         awaitingPay: filteredRefunds.filter((x) => x.status === 'Approved' && refundOutstandingAmount(x) > 0).length,
       },
-      customers: { shown: filteredCustomersCount, total: customerRecords.length },
+      customers: {
+        shown: filteredCustomersCount,
+        total: Array.isArray(customerRecords) ? customerRecords.length : 0,
+      },
     }),
     [
       filteredQuotations,
@@ -837,7 +832,8 @@ const Sales = () => {
       return;
     }
 
-    const hasTab = tab && Object.prototype.hasOwnProperty.call(TAB_LABELS, tab);
+    const resolvedTab = tab === 'dashboard' ? 'quotations' : tab;
+    const hasTab = resolvedTab && Object.prototype.hasOwnProperty.call(TAB_LABELS, resolvedTab);
     const hasSearch = typeof gsq === 'string' && gsq.trim();
     if (!openCustomerCreate && !hasTab && !hasSearch) return;
 
@@ -845,7 +841,7 @@ const Sales = () => {
       setActiveTab('customers');
       setCustomerAddOpen(true);
     } else if (hasTab) {
-      setActiveTab(tab);
+      setActiveTab(resolvedTab);
     }
     if (hasSearch) setSearchQuery(gsq.trim());
     else if (hasTab || openCustomerCreate) setSearchQuery('');
