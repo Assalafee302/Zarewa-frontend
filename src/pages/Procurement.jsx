@@ -659,6 +659,10 @@ const Procurement = () => {
 
   const openPrimaryAction = () => {
     if (activeTab === 'purchases') {
+      if (ws?.blocksBranchScopedCreate) {
+        showToast(ws.branchScopedCreateMessage, { variant: 'error', duration: 12_000 });
+        return;
+      }
       setUnifiedPoEditDraft(null);
       setShowUnifiedPoModal(true);
     } else if (activeTab === 'suppliers') openSupplierModal();
@@ -1339,7 +1343,9 @@ const Procurement = () => {
                     <button
                       type="button"
                       onClick={openPrimaryAction}
-                      className="inline-flex items-center justify-center gap-1 rounded-lg bg-[#134e4a] text-white px-2.5 py-1.5 text-[9px] font-semibold uppercase tracking-wider shadow-sm hover:brightness-105"
+                      disabled={ws?.blocksBranchScopedCreate}
+                      title={ws?.blocksBranchScopedCreate ? ws.branchScopedCreateMessage : undefined}
+                      className={`inline-flex items-center justify-center gap-1 rounded-lg bg-[#134e4a] text-white px-2.5 py-1.5 text-[9px] font-semibold uppercase tracking-wider shadow-sm hover:brightness-105${ws?.blocksBranchScopedCreate ? ' opacity-50 cursor-not-allowed' : ''}`}
                     >
                       <Plus size={12} strokeWidth={2} /> New purchase order
                     </button>

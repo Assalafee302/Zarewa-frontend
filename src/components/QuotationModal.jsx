@@ -1655,6 +1655,10 @@ const QuotationModal = ({
       );
       return;
     }
+    if (useQuotationApi && !editData?.id && ws?.blocksBranchScopedCreate) {
+      showToast(ws.branchScopedCreateMessage, { variant: 'error', duration: 12_000 });
+      return;
+    }
     if (useQuotationApi) {
       setSaving(true);
       try {

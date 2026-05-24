@@ -928,6 +928,10 @@ const Sales = () => {
       showToast('System offline (read-only). Reconnect, refresh, then try again.', { variant: 'error' });
       return;
     }
+    if (salesTab === 'quotations' && ws?.blocksBranchScopedCreate) {
+      showToast(ws.branchScopedCreateMessage, { variant: 'error', duration: 12_000 });
+      return;
+    }
     setSelectedItem(null);
     if (salesTab === 'quotations') {
       setQuotationAccessMode('edit');
@@ -1212,7 +1216,13 @@ const Sales = () => {
                 </button>
               ) : null}
               {salesTab === 'quotations' && (
-                <button type="button" onClick={openNewModal} className={primaryActionBtnClass}>
+                <button
+                  type="button"
+                  onClick={openNewModal}
+                  disabled={ws?.blocksBranchScopedCreate}
+                  title={ws?.blocksBranchScopedCreate ? ws.branchScopedCreateMessage : undefined}
+                  className={`${primaryActionBtnClass}${ws?.blocksBranchScopedCreate ? ' opacity-50 cursor-not-allowed' : ''}`}
+                >
                   <Plus size={16} strokeWidth={2} /> New quotation
                 </button>
               )}

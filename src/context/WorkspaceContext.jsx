@@ -9,6 +9,10 @@ import { userCanApproveEditMutationsClient } from '../lib/editApprovalUi';
 import { userMayViewManagementReportsClient } from '../lib/reportsAccess';
 import { normalizeWorkspacePersonNames } from '../lib/normalizeWorkspacePersonNames';
 import { formatPersonName } from '../lib/formatPersonName';
+import {
+  branchScopedCreateBlockedMessage,
+  isBranchScopedCreateBlocked,
+} from '../lib/workspaceBranchCreate';
 
 const WorkspaceContext = createContext(null);
 
@@ -395,6 +399,14 @@ export function WorkspaceProvider({ children }) {
   const session = snapshot?.session ?? null;
   const branchScope = snapshot?.branchScope ?? null;
   const viewAllBranches = Boolean(session?.viewAllBranches);
+  const blocksBranchScopedCreate = isBranchScopedCreateBlocked({ viewAllBranches, session, snapshot });
+  const branchScopedCreateMessage = useMemo(
+    () =>
+      blocksBranchScopedCreate
+        ? branchScopedCreateBlockedMessage({ viewAllBranches, session, snapshot })
+        : '',
+    [blocksBranchScopedCreate, viewAllBranches, session, snapshot]
+  );
   const permissions = useMemo(
     () => snapshot?.permissions ?? session?.permissions ?? [],
     [snapshot?.permissions, session?.permissions]
@@ -475,6 +487,8 @@ export function WorkspaceProvider({ children }) {
       session,
       branchScope,
       viewAllBranches,
+      blocksBranchScopedCreate,
+      branchScopedCreateMessage,
       permissions,
       hasPermission,
       canAccessModule,
@@ -505,6 +519,8 @@ export function WorkspaceProvider({ children }) {
       session,
       branchScope,
       viewAllBranches,
+      blocksBranchScopedCreate,
+      branchScopedCreateMessage,
       permissions,
       hasPermission,
       canAccessModule,

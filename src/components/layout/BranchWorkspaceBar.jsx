@@ -96,7 +96,12 @@ export function BranchWorkspaceBar() {
       ) : null}
 
       {viewAll && canHqRollup ? (
-        <span className="hidden text-[10px] font-semibold text-teal-700 lg:inline">HQ roll-up</span>
+        <span
+          className="hidden max-w-[280px] text-[10px] font-semibold leading-snug text-amber-800 lg:inline"
+          title={ws.branchScopedCreateMessage}
+        >
+          HQ roll-up (read-only) — turn off All branches to create quotations or POs
+        </span>
       ) : null}
 
       {error ? (

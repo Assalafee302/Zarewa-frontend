@@ -9,6 +9,7 @@ import React, {
 } from 'react';
 import { apiFetch } from '../lib/apiBase';
 import { procurementKindFromPo } from '../lib/procurementPoKind';
+import { branchScopedCreateBlockedMessage, isBranchScopedCreateBlocked } from '../lib/workspaceBranchCreate';
 import { useWorkspace } from './WorkspaceContext';
 
 const InventoryContext = createContext(null);
@@ -198,6 +199,9 @@ export function InventoryProvider({ children }) {
       lines,
       status = 'Approved',
     }) => {
+      if (isBranchScopedCreateBlocked(ws)) {
+        return { ok: false, error: branchScopedCreateBlockedMessage(ws) };
+      }
       const normalizedLines = lines
         .filter((l) => l.productID && Number(l.qtyOrdered) > 0)
         .map((l, idx) =>
@@ -287,7 +291,7 @@ export function InventoryProvider({ children }) {
       });
       return { ok: true, poID: createdId };
     },
-    [appendMovement, products, ws.refresh, ws.canMutate]
+    [appendMovement, products, ws]
   );
 
   const updatePurchaseOrder = useCallback(
