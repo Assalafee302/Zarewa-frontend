@@ -1,23 +1,22 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { BookOpen, LifeBuoy, Loader2, Send, Sparkles, X } from 'lucide-react';
+import { BookOpen, LifeBuoy, Loader2, Send, Sparkles, ThumbsDown, ThumbsUp, X } from 'lucide-react';
 import { useAiAssistant } from '../context/AiAssistantContext';
 import { useWorkspace } from '../context/WorkspaceContext';
 import { apiFetch } from '../lib/apiBase';
 import {
   buildHelpSearchText,
-  formatHelpArticleReply,
-  formatHelpArticlesReply,
-  helpArticleLinks,
   isComplexHelpQuery,
   matchHelpArticles,
   mergeHelpLinks,
   quickQuestionsForPath,
 } from '../lib/helpKnowledge';
 import { buildHelpCoachingHints, mergePersonalizedPrompts } from '../lib/helpRecommend';
+import { detectHelpIntent, synthesizeHelpReply, synthesizeMetaReply } from '../lib/helpSynthesize';
+import { classifyAgentRoute } from '../lib/helpAgentIntent';
 
 const INTRO =
-  'Ask how to complete a workflow in Zarewa — payments, quotations, procurement, production, refunds, or reconciliation. I use step-by-step guides and can call AI for complicated multi-department questions.';
+  'Hi — I’m your Zarewa workflow coach. Ask in plain language (e.g. “customer paid but receipt is wrong”). I’ll answer directly first, then only the steps you need — and I learn from your 👍/👎 ratings.';
 
 function seedMessages() {
   return [{ role: 'assistant', content: INTRO, source: 'intro' }];
@@ -25,6 +24,8 @@ function seedMessages() {
 
 function sourceLabel(source) {
   if (source === 'ai') return 'AI answer';
+  if (source === 'meta') return 'About this assistant';
+  if (source === 'synth') return 'Smart guide';
   if (source === 'kb') return 'Built-in guide';
   if (source === 'api') return 'Server guide';
   return 'Help';
@@ -87,6 +88,33 @@ export function HelpChatDock() {
   const listEndRef = useRef(null);
   const messagesRef = useRef(messages);
   const textareaRef = useRef(null);
+  const draftStartedAtRef = useRef(null);
+
+  const sendHelpSignal = useCallback(async (logId, signal, readMs = 0) => {
+    if (!logId) return;
+    try {
+      await apiFetch('/api/help/signal', {
+        method: 'POST',
+        body: JSON.stringify({ logId, signal, readMs }),
+      });
+    } catch {
+      /* learning signal — non-blocking */
+    }
+  }, []);
+
+  const signalPendingFollowUp = useCallback(() => {
+    const msgs = messagesRef.current;
+    for (let i = msgs.length - 1; i >= 0; i -= 1) {
+      const m = msgs[i];
+      if (m.role !== 'assistant' || !m.logId || m.feedback || m.source === 'intro') continue;
+      const readMs = m.shownAt ? Date.now() - m.shownAt : 0;
+      void sendHelpSignal(m.logId, 'follow_up', readMs);
+      msgs[i] = { ...m, feedback: 'follow_up' };
+      messagesRef.current = msgs;
+      setMessages([...msgs]);
+      break;
+    }
+  }, [sendHelpSignal]);
 
   const aiDockVisible = Boolean(user && user.roleKey !== 'ceo' && ai?.available === true);
   const snapshot = ws?.snapshot;
@@ -107,6 +135,19 @@ export function HelpChatDock() {
     () => buildHelpCoachingHints(snapshot, location.pathname),
     [snapshot, location.pathname]
   );
+  const behaviorNotes = useMemo(
+    () => (Array.isArray(snapshot?.helpPersonalization?.behaviorNotes) ? snapshot.helpPersonalization.behaviorNotes : []),
+    [snapshot?.helpPersonalization?.behaviorNotes]
+  );
+  const transactionSummary = useMemo(
+    () =>
+      Array.isArray(snapshot?.helpPersonalization?.transactionProfile?.activitySummary)
+        ? snapshot.helpPersonalization.transactionProfile.activitySummary
+        : [],
+    [snapshot?.helpPersonalization?.transactionProfile]
+  );
+  const learningEnabled = Boolean(snapshot?.helpPersonalization?.behaviorLearningEnabled);
+  const transactionProfile = snapshot?.helpPersonalization?.transactionProfile;
 
   useEffect(() => {
     messagesRef.current = messages;
@@ -137,46 +178,143 @@ export function HelpChatDock() {
 
   const tryLocalAnswer = useCallback(
     (text, history) => {
+      const intent = detectHelpIntent(text, history);
+      const agentRoute = classifyAgentRoute(text, history);
+
+      if (agentRoute === 'meta' || intent === 'meta') {
+        return {
+          role: 'assistant',
+          content: synthesizeMetaReply({
+            userDisplay: user?.displayName,
+            externalAiEnabled: snapshot?.helpPersonalization?.externalAi,
+          }),
+          links: [{ label: 'Settings & guides', to: '/settings' }],
+          source: 'meta',
+          matchedArticleIds: [],
+          topScore: 0,
+        };
+      }
+
+      if (intent === 'greeting' || intent === 'thanks') {
+        return {
+          role: 'assistant',
+          content: synthesizeHelpReply({
+            message: text,
+            history,
+            articles: [],
+            pathname: location.pathname,
+            userDisplay: user?.displayName,
+            roleKey: user?.roleKey,
+            pace: snapshot?.helpPersonalization?.behaviorProfile?.pace,
+            intent,
+            transactionProfile,
+          }),
+          links: [{ label: 'Settings & guides', to: '/settings' }],
+          source: 'synth',
+          matchedArticleIds: [],
+          topScore: 0,
+        };
+      }
+
       const searchText = buildHelpSearchText(text, history);
       const matches = matchHelpArticles(searchText, {
         limit: 3,
         minScore: 4,
         pathname: location.pathname,
+        learnedBoosts: snapshot?.helpPersonalization?.learnedBoosts || {},
       });
       if (!matches.length) return null;
 
       const complex = isComplexHelpQuery(text);
       const top = matches[0];
       const second = matches[1];
-
+      let articles = [top.article];
       if (matches.length >= 2 && second && second.score >= top.score - 3 && (complex || top.score < 10)) {
-        const articles = matches.slice(0, 2).map((m) => m.article);
-        return {
-          role: 'assistant',
-          content: formatHelpArticlesReply(articles),
-          links: mergeHelpLinks(articles),
-          source: 'kb',
-        };
+        articles = matches.slice(0, 2).map((m) => m.article);
       }
 
-      if (top.score >= 7 || (!complex && top.score >= 4)) {
-        return {
-          role: 'assistant',
-          content: formatHelpArticleReply(top.article),
-          links: helpArticleLinks(top.article),
-          source: 'kb',
-        };
-      }
+      return {
+        role: 'assistant',
+        content: synthesizeHelpReply({
+          message: text,
+          history,
+          articles,
+          pathname: location.pathname,
+          userDisplay: user?.displayName,
+          roleKey: user?.roleKey,
+          user: { permissions: user?.permissions, roleKey: user?.roleKey },
+          pace: snapshot?.helpPersonalization?.behaviorProfile?.pace,
+          intent,
+          transactionProfile,
+        }),
+        links: mergeHelpLinks(articles),
+        source: 'synth',
+        matchedArticleIds: articles.map((a) => a.id),
+        topScore: top.score,
+      };
+    },
+    [
+      location.pathname,
+      snapshot?.helpPersonalization?.behaviorProfile?.pace,
+      snapshot?.helpPersonalization?.learnedBoosts,
+      snapshot?.helpPersonalization?.transactionProfile,
+      user?.displayName,
+      user?.roleKey,
+    ]
+  );
 
-      return null;
+  const attachLocalHelpLog = useCallback(
+    async (assistantMsg, userText, clientDraftMs) => {
+      try {
+        const { ok, data } = await apiFetch('/api/help/log-query', {
+          method: 'POST',
+          body: JSON.stringify({
+            message: userText,
+            pathname: location.pathname,
+            matchedArticleIds: assistantMsg.matchedArticleIds || [],
+            source: assistantMsg.source || 'kb',
+            topScore: assistantMsg.topScore || 0,
+            clientDraftMs,
+            responseMs: 0,
+          }),
+        });
+        if (ok && data?.logId) {
+          return { ...assistantMsg, logId: data.logId, shownAt: Date.now() };
+        }
+      } catch {
+        /* non-blocking */
+      }
+      return { ...assistantMsg, shownAt: Date.now() };
     },
     [location.pathname]
+  );
+
+  const submitFeedback = useCallback(
+    async (index, helpful) => {
+      const m = messagesRef.current[index];
+      if (!m?.logId || m.feedback) return;
+      const readMs = m.shownAt ? Date.now() - m.shownAt : 0;
+      await sendHelpSignal(m.logId, helpful ? 'helpful' : 'not_helpful', readMs);
+      const next = messagesRef.current.map((msg, i) =>
+        i === index ? { ...msg, feedback: helpful ? 'helpful' : 'not_helpful' } : msg
+      );
+      messagesRef.current = next;
+      setMessages(next);
+    },
+    [sendHelpSignal]
   );
 
   const sendText = useCallback(
     async (rawText) => {
       const text = String(rawText || '').trim();
       if (!text || busy) return;
+
+      signalPendingFollowUp();
+
+      const clientDraftMs = draftStartedAtRef.current
+        ? Math.max(0, Date.now() - draftStartedAtRef.current)
+        : 0;
+      draftStartedAtRef.current = null;
 
       const userMsg = { role: 'user', content: text };
       const optimistic = [...messagesRef.current, userMsg];
@@ -191,16 +329,19 @@ export function HelpChatDock() {
           (m) => m.role === 'user' || m.role === 'assistant'
         );
         const local = tryLocalAnswer(text, history);
+        const intent = detectHelpIntent(text, history);
         const complex = isComplexHelpQuery(text);
         const topScore =
           matchHelpArticles(buildHelpSearchText(text, history), {
             limit: 1,
             minScore: 4,
             pathname: location.pathname,
+            learnedBoosts: snapshot?.helpPersonalization?.learnedBoosts || {},
           })[0]?.score ?? 0;
 
-        if (local && (topScore >= 7 || !complex)) {
-          const nextMessages = [...messagesRef.current, local];
+        if (local && (topScore >= 4 || intent === 'greeting' || intent === 'thanks')) {
+          const logged = await attachLocalHelpLog(local, text, clientDraftMs);
+          const nextMessages = [...messagesRef.current, logged];
           messagesRef.current = nextMessages;
           setMessages(nextMessages);
           return;
@@ -214,12 +355,14 @@ export function HelpChatDock() {
             message: text,
             messages: historyForApi,
             pathname: location.pathname,
+            clientDraftMs,
           }),
         });
 
         if (!ok || !data?.ok) {
           if (local) {
-            const nextMessages = [...messagesRef.current, local];
+            const logged = await attachLocalHelpLog(local, text, clientDraftMs);
+            const nextMessages = [...messagesRef.current, logged];
             messagesRef.current = nextMessages;
             setMessages(nextMessages);
             return;
@@ -232,6 +375,8 @@ export function HelpChatDock() {
           content: String(data.message || ''),
           links: Array.isArray(data.links) ? data.links : [],
           source: data.source || 'api',
+          logId: data.logId || null,
+          shownAt: Date.now(),
         };
         const nextMessages = [...messagesRef.current, assistantMsg];
         messagesRef.current = nextMessages;
@@ -242,7 +387,7 @@ export function HelpChatDock() {
         setBusy(false);
       }
     },
-    [busy, location.pathname, tryLocalAnswer]
+    [attachLocalHelpLog, busy, location.pathname, signalPendingFollowUp, snapshot?.helpPersonalization?.learnedBoosts, tryLocalAnswer]
   );
 
   const send = useCallback(async () => {
@@ -321,10 +466,36 @@ export function HelpChatDock() {
             </div>
 
             <div className="flex-1 overflow-y-auto overscroll-contain bg-gradient-to-b from-slate-50/80 to-white px-4 py-4 space-y-3">
+              {showQuickQuestions && transactionSummary.length > 0 ? (
+                <div className="rounded-2xl border border-indigo-200/80 bg-indigo-50/90 px-3.5 py-3 shadow-sm">
+                  <p className="text-[10px] font-black uppercase tracking-wider text-indigo-900">
+                    Your recent work in Zarewa
+                  </p>
+                  <ul className="mt-2 space-y-1.5 text-[11px] text-indigo-900/90">
+                    {transactionSummary.map((line) => (
+                      <li key={line}>{line}</li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+
+              {showQuickQuestions && behaviorNotes.length > 0 ? (
+                <div className="rounded-2xl border border-teal-200/80 bg-teal-50/90 px-3.5 py-3 shadow-sm">
+                  <p className="text-[10px] font-black uppercase tracking-wider text-teal-900">
+                    {learningEnabled ? 'Personalized for you' : 'Help tips'}
+                  </p>
+                  <ul className="mt-2 space-y-1.5 text-[11px] text-teal-900/90">
+                    {behaviorNotes.map((note) => (
+                      <li key={note}>{note}</li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+
               {showQuickQuestions && coachingHints.length > 0 ? (
                 <div className="rounded-2xl border border-amber-200/80 bg-amber-50/90 px-3.5 py-3 shadow-sm">
                   <p className="text-[10px] font-black uppercase tracking-wider text-amber-900">
-                    Suggested from your workspace
+                    Suggested from your transactions & workspace
                   </p>
                   <ul className="mt-2 space-y-2">
                     {coachingHints.map((hint) => (
@@ -380,7 +551,7 @@ export function HelpChatDock() {
                     >
                       {!isUser && m.source && m.source !== 'intro' ? (
                         <p className="mb-1.5 flex items-center gap-1 text-[9px] font-black uppercase tracking-wider text-teal-700/80">
-                          {m.source === 'ai' ? <Sparkles size={10} /> : <BookOpen size={10} />}
+                          {m.source === 'ai' || m.source === 'synth' ? <Sparkles size={10} /> : <BookOpen size={10} />}
                           {sourceLabel(m.source)}
                         </p>
                       ) : null}
@@ -396,12 +567,52 @@ export function HelpChatDock() {
                               key={`${link.to}-${link.label}`}
                               to={link.to}
                               state={link.state}
-                              onClick={() => setOpen(false)}
+                              onClick={() => {
+                                if (m.logId) {
+                                  void sendHelpSignal(
+                                    m.logId,
+                                    'link_click',
+                                    m.shownAt ? Date.now() - m.shownAt : 0
+                                  );
+                                }
+                                setOpen(false);
+                              }}
                               className="inline-flex rounded-lg border border-teal-200 bg-teal-50 px-2.5 py-1 text-[10px] font-bold text-[#134e4a] transition hover:bg-teal-100"
                             >
                               {link.label} →
                             </Link>
                           ))}
+                        </div>
+                      ) : null}
+                      {!isUser && m.logId && m.source !== 'intro' ? (
+                        <div className="mt-2.5 flex items-center gap-2 border-t border-slate-100 pt-2">
+                          <span className="text-[9px] font-semibold uppercase tracking-wide text-slate-400">
+                            {m.feedback === 'helpful'
+                              ? 'Thanks — noted'
+                              : m.feedback === 'not_helpful'
+                                ? 'We will improve this'
+                                : 'Was this helpful?'}
+                          </span>
+                          {!m.feedback || m.feedback === 'follow_up' ? (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => void submitFeedback(i, true)}
+                                className="rounded-lg border border-slate-200 p-1.5 text-teal-700 transition hover:bg-teal-50"
+                                aria-label="Mark answer helpful"
+                              >
+                                <ThumbsUp size={12} />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => void submitFeedback(i, false)}
+                                className="rounded-lg border border-slate-200 p-1.5 text-slate-500 transition hover:bg-slate-50"
+                                aria-label="Mark answer not helpful"
+                              >
+                                <ThumbsDown size={12} />
+                              </button>
+                            </>
+                          ) : null}
                         </div>
                       ) : null}
                     </div>
@@ -428,7 +639,13 @@ export function HelpChatDock() {
                 <textarea
                   ref={textareaRef}
                   value={draft}
-                  onChange={(e) => setDraft(e.target.value)}
+                  onFocus={() => {
+                    if (!draftStartedAtRef.current) draftStartedAtRef.current = Date.now();
+                  }}
+                  onChange={(e) => {
+                    if (!draftStartedAtRef.current) draftStartedAtRef.current = Date.now();
+                    setDraft(e.target.value);
+                  }}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && !e.shiftKey) {
                       e.preventDefault();
@@ -451,7 +668,7 @@ export function HelpChatDock() {
                 </button>
               </div>
               <p className="mt-2.5 text-[10px] leading-snug text-slate-400">
-                Guides work offline for common tasks. Complex multi-step questions use your server AI when configured.
+                Guides work offline for common tasks. The assistant learns from your questions, reactions, and recent work in Zarewa.
               </p>
             </div>
           </div>
