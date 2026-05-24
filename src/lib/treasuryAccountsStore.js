@@ -39,6 +39,7 @@ export function treasuryAccountsFromSnapshot(snapshot) {
     bankBranch: String(a.bankBranch ?? ''),
     sortCodeOrSwift: String(a.sortCodeOrSwift ?? ''),
     notes: String(a.notes ?? ''),
+    branchId: String(a.branchId ?? '').trim(),
   }));
 }
 

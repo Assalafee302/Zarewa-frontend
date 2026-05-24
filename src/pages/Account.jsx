@@ -307,6 +307,11 @@ const Account = () => {
       ),
     [branchOptions]
   );
+  const workspaceBranchLabel = useMemo(() => {
+    const id = String(ws?.branchScope || ws?.session?.currentBranchId || '').trim();
+    if (!id || ws?.viewAllBranches) return '';
+    return branchNameById[id] || id;
+  }, [ws?.branchScope, ws?.session?.currentBranchId, ws?.viewAllBranches, branchNameById]);
   const branchOptionsSorted = useMemo(
     () =>
       [...branchOptions].sort((a, b) =>
@@ -1995,6 +2000,7 @@ const Account = () => {
     const accName = newBank.name.trim();
     if (!accName) return;
     if (ws?.canMutate) {
+      const workspaceBranchId = String(ws?.branchScope || ws?.session?.currentBranchId || '').trim();
       const body = {
         name: accName,
         bankName: newBank.bankName.trim(),
@@ -2007,6 +2013,7 @@ const Account = () => {
         bankBranch: newBank.bankBranch.trim(),
         sortCodeOrSwift: newBank.sortCodeOrSwift.trim(),
         notes: newBank.notes.trim(),
+        ...(workspaceBranchId && !isEditTreasury ? { branchId: workspaceBranchId } : {}),
       };
       if (newBank.id != null && newBank.id !== '') {
         const nid = typeof newBank.id === 'number' ? newBank.id : Number(newBank.id);
@@ -3316,6 +3323,14 @@ const Account = () => {
 
             {activeTab === 'treasury' && (
               <div className="space-y-6 animate-in fade-in duration-300">
+                {workspaceBranchLabel ? (
+                  <p className="text-[11px] text-slate-600 leading-relaxed rounded-xl border border-slate-200/80 bg-slate-50/80 px-4 py-3">
+                    Bank and cash accounts shown here belong to{' '}
+                    <strong className="text-[#134e4a]">{workspaceBranchLabel}</strong>. Switch workspace to Yola or
+                    Maiduguri to manage that branch&apos;s treasury, then use <strong>New account</strong> to register
+                    local bank or till accounts.
+                  </p>
+                ) : null}
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div className="rounded-xl border border-slate-200/75 bg-white px-3 py-2.5 shadow-[0_10px_36px_-28px_rgba(15,23,42,0.12)]">
                     <p className="text-[9px] font-bold text-slate-500 uppercase tracking-wide">Cash inflows</p>
@@ -3612,8 +3627,18 @@ const Account = () => {
                   {filteredBankAccounts.length === 0 ? (
                     <div className="sm:col-span-2 lg:col-span-3 z-empty-state py-12">
                       <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">
-                        No accounts match your search
+                        {bankAccounts.length === 0
+                          ? workspaceBranchLabel
+                            ? `No treasury accounts for ${workspaceBranchLabel}`
+                            : 'No treasury accounts in this workspace'
+                          : 'No accounts match your search'}
                       </p>
+                      {bankAccounts.length === 0 && workspaceBranchLabel && canManageTreasury ? (
+                        <p className="text-[11px] text-slate-500 mt-2 max-w-md mx-auto leading-relaxed">
+                          Use <strong>New account</strong> above to add this branch&apos;s bank or cash till. Existing
+                          Yola accounts stay on the Yola workspace; Maiduguri needs its own accounts here.
+                        </p>
+                      ) : null}
                     </div>
                   ) : (
                     filteredBankAccounts.map((acc) => (
@@ -3630,9 +3655,16 @@ const Account = () => {
                             <div className="p-2 bg-white rounded-lg shadow-sm text-[#134e4a]">
                               {acc.type === 'Bank' ? <Landmark size={18} /> : <CreditCard size={18} />}
                             </div>
-                            <span className="text-[9px] font-bold text-gray-400 uppercase tracking-tighter">
-                              {acc.accNo}
-                            </span>
+                            <div className="text-right">
+                              {ws?.viewAllBranches && acc.branchId ? (
+                                <span className="block text-[8px] font-bold text-sky-800 uppercase tracking-wide mb-0.5">
+                                  {branchNameById[acc.branchId] || acc.branchId}
+                                </span>
+                              ) : null}
+                              <span className="text-[9px] font-bold text-gray-400 uppercase tracking-tighter">
+                                {acc.accNo}
+                              </span>
+                            </div>
                           </div>
                           <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-0.5">
                             {acc.name}
@@ -5609,6 +5641,11 @@ const Account = () => {
               </button>
             </div>
             <form className="space-y-4" onSubmit={saveBankAccount}>
+              {workspaceBranchLabel && !(newBank.id != null && newBank.id !== '') ? (
+                <p className="text-[11px] text-slate-600 rounded-xl border border-teal-100 bg-teal-50/60 px-3 py-2">
+                  This account will be registered for <strong>{workspaceBranchLabel}</strong>.
+                </p>
+              ) : null}
               <div>
                 <label className="text-[10px] font-bold text-gray-400 uppercase ml-1 block mb-1">
                   Account name
