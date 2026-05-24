@@ -2717,3 +2717,91 @@ summary {
     page-break-inside: avoid;
   }
 }
+
+/* ── Help assistant dock ───────────────────────────────────────────── */
+@keyframes z-help-panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes z-help-msg-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes z-help-launcher-pulse {
+  0%,
+  100% {
+    box-shadow:
+      0 14px 36px -12px rgba(19, 78, 74, 0.55),
+      0 0 0 0 rgba(45, 212, 191, 0.35);
+  }
+  50% {
+    box-shadow:
+      0 18px 42px -10px rgba(19, 78, 74, 0.6),
+      0 0 0 10px rgba(45, 212, 191, 0);
+  }
+}
+
+@keyframes z-help-dot-bounce {
+  0%,
+  80%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.45;
+  }
+  40% {
+    transform: translateY(-5px);
+    opacity: 1;
+  }
+}
+
+.z-help-launcher {
+  animation: z-help-launcher-pulse 3.2s ease-in-out infinite;
+}
+
+.z-help-panel {
+  animation: z-help-panel-in 0.38s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.z-help-msg {
+  animation: z-help-msg-in 0.28s ease-out both;
+}
+
+.z-help-typing-dot {
+  animation: z-help-dot-bounce 1.15s ease-in-out infinite;
+}
+
+.z-help-typing-dot:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.z-help-typing-dot:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+.z-help-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(153 246 228 / 0.55) transparent;
+}
+
+.z-help-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+.z-help-scroll::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgb(153 246 228 / 0.55);
+}

@@ -1,6 +1,20 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { BookOpen, LifeBuoy, Loader2, Send, Sparkles, ThumbsDown, ThumbsUp, X } from 'lucide-react';
+import {
+  ArrowRight,
+  BookOpen,
+  Bot,
+  ChevronRight,
+  LifeBuoy,
+  Loader2,
+  RotateCcw,
+  Send,
+  Sparkles,
+  ThumbsDown,
+  ThumbsUp,
+  X,
+  Zap,
+} from 'lucide-react';
 import { useAiAssistant } from '../context/AiAssistantContext';
 import { useWorkspace } from '../context/WorkspaceContext';
 import { apiFetch } from '../lib/apiBase';
@@ -13,66 +27,203 @@ import {
 } from '../lib/helpKnowledge';
 import { buildHelpCoachingHints, mergePersonalizedPrompts } from '../lib/helpRecommend';
 import { detectHelpIntent, synthesizeHelpReply, synthesizeMetaReply } from '../lib/helpSynthesize';
-import { classifyAgentRoute } from '../lib/helpAgentIntent';
+import { classifyAgentRoute, routeLabel } from '../lib/helpAgentIntent';
 
-const INTRO =
-  'Hi — I’m your Zarewa workflow coach. Ask in plain language (e.g. “customer paid but receipt is wrong”). I’ll answer directly first, then only the steps you need — and I learn from your 👍/👎 ratings.';
+const LOCAL_REPLY_DELAY_MS = 240;
 
-function seedMessages() {
-  return [{ role: 'assistant', content: INTRO, source: 'intro' }];
+function pageLabel(pathname) {
+  const p = String(pathname || '');
+  if (p.startsWith('/sales')) return 'Sales';
+  if (p.startsWith('/accounts')) return 'Finance';
+  if (p.startsWith('/operations')) return 'Operations';
+  if (p.startsWith('/procurement')) return 'Procurement';
+  if (p.startsWith('/manager')) return 'Manager';
+  if (p.startsWith('/settings')) return 'Settings';
+  return 'Zarewa';
 }
 
-function sourceLabel(source) {
-  if (source === 'ai') return 'AI answer';
-  if (source === 'meta') return 'About this assistant';
-  if (source === 'synth') return 'Smart guide';
-  if (source === 'kb') return 'Built-in guide';
-  if (source === 'api') return 'Server guide';
-  return 'Help';
+function buildIntro(user, pathname) {
+  const name = String(user?.displayName || '').trim().split(/\s+/)[0];
+  const page = pageLabel(pathname);
+  return name
+    ? `Hi ${name} — ask me anything about **${page}** workflows.`
+    : `Hi — ask me anything about **${page}** workflows.`;
 }
 
-/** Render **bold** segments and numbered step lists in help replies. */
+function seedMessages(user, pathname) {
+  return [{ role: 'assistant', content: buildIntro(user, pathname), source: 'intro' }];
+}
+
+function userInitials(user) {
+  const parts = String(user?.displayName || user?.username || 'U')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+  if (parts.length >= 2) return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+  return (parts[0]?.[0] || 'U').toUpperCase();
+}
+
+function sourceMeta(source, agentRoute) {
+  if (agentRoute === 'erp_data' || agentRoute === 'hybrid') {
+    return { label: routeLabel(agentRoute), icon: Zap, tone: 'data' };
+  }
+  if (agentRoute === 'meta' || source === 'meta') {
+    return { label: 'About coach', icon: Bot, tone: 'meta' };
+  }
+  if (source === 'ai' || agentRoute === 'chitchat') {
+    return { label: source === 'ai' ? 'AI answer' : routeLabel(agentRoute), icon: Sparkles, tone: 'ai' };
+  }
+  return null;
+}
+
+function renderInlineMarkdown(text) {
+  const parts = String(text || '').split(/(\*\*[^*]+\*\*|_[^_]+_)/g);
+  return parts.map((part, i) => {
+    if (part.startsWith('**') && part.endsWith('**')) {
+      return (
+        <strong key={i} className="font-bold text-[#0f766e]">
+          {part.slice(2, -2)}
+        </strong>
+      );
+    }
+    if (part.startsWith('_') && part.endsWith('_') && part.length > 2) {
+      return (
+        <em key={i} className="text-slate-600 not-italic">
+          {part.slice(1, -1)}
+        </em>
+      );
+    }
+    return <span key={i}>{part}</span>;
+  });
+}
+
+/** Render **bold**, _italic_, numbered lists, and bullet lines in help replies. */
 function HelpMessageBody({ content }) {
   const text = String(content || '');
   const blocks = text.split(/\n\n+/);
 
   return (
-    <div className="space-y-2 text-[13px] leading-relaxed text-slate-800">
+    <div className="space-y-2.5 text-[13.5px] leading-[1.55] text-slate-800">
       {blocks.map((block, blockIdx) => {
         const trimmed = block.trim();
         if (!trimmed) return null;
 
         if (/^\*\*Steps:\*\*$/i.test(trimmed)) return null;
 
-        const stepLines = trimmed.split('\n').filter((line) => /^\d+\.\s/.test(line.trim()));
-        if (stepLines.length >= 2 && stepLines.length === trimmed.split('\n').length) {
+        const lines = trimmed.split('\n');
+        const stepLines = lines.filter((line) => /^\d+\.\s/.test(line.trim()));
+        if (stepLines.length >= 1 && stepLines.length === lines.length) {
           return (
-            <ol key={blockIdx} className="list-decimal space-y-1.5 pl-5 marker:font-bold marker:text-teal-800">
+            <ol
+              key={blockIdx}
+              className="ml-0.5 space-y-2 border-l-2 border-teal-200/80 pl-4 marker:font-bold marker:text-teal-700"
+              style={{ listStyle: 'decimal', listStylePosition: 'outside' }}
+            >
               {stepLines.map((line, i) => (
-                <li key={i}>{line.replace(/^\d+\.\s*/, '')}</li>
+                <li key={i} className="pl-1">
+                  {renderInlineMarkdown(line.replace(/^\d+\.\s*/, ''))}
+                </li>
               ))}
             </ol>
           );
         }
 
-        const parts = trimmed.split(/(\*\*[^*]+\*\*)/g);
+        const bulletLines = lines.filter((line) => /^[-•]\s/.test(line.trim()));
+        if (bulletLines.length >= 1 && bulletLines.length === lines.length) {
+          return (
+            <ul key={blockIdx} className="space-y-1.5 pl-1">
+              {bulletLines.map((line, i) => (
+                <li key={i} className="flex gap-2">
+                  <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-teal-500" aria-hidden />
+                  <span>{renderInlineMarkdown(line.replace(/^[-•]\s*/, ''))}</span>
+                </li>
+              ))}
+            </ul>
+          );
+        }
+
         return (
           <p key={blockIdx} className="whitespace-pre-wrap">
-            {parts.map((part, i) => {
-              if (part.startsWith('**') && part.endsWith('**')) {
-                return (
-                  <strong key={i} className="font-bold text-[#134e4a]">
-                    {part.slice(2, -2)}
-                  </strong>
-                );
-              }
-              return <span key={i}>{part}</span>;
-            })}
+            {renderInlineMarkdown(trimmed)}
           </p>
         );
       })}
     </div>
   );
+}
+
+
+function HelpAvatar({ role, user }) {
+  if (role === 'user') {
+    return (
+      <div
+        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#134e4a] to-[#0f766e] text-[11px] font-black text-white shadow-md ring-2 ring-white"
+        aria-hidden
+      >
+        {userInitials(user)}
+      </div>
+    );
+  }
+  return (
+    <div
+      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-teal-100 to-emerald-50 text-[#134e4a] shadow-sm ring-2 ring-white"
+      aria-hidden
+    >
+      <LifeBuoy size={16} strokeWidth={2.2} />
+    </div>
+  );
+}
+
+function TypingIndicator() {
+  return (
+    <div className="z-help-msg flex items-end gap-2.5">
+      <HelpAvatar role="assistant" />
+      <div className="rounded-2xl rounded-bl-md border border-slate-200/80 bg-white px-4 py-3 shadow-sm">
+        <div className="flex items-center gap-1.5" aria-label="Assistant is typing">
+          <span className="z-help-typing-dot h-2 w-2 rounded-full bg-teal-500/70" />
+          <span className="z-help-typing-dot h-2 w-2 rounded-full bg-teal-500/70" />
+          <span className="z-help-typing-dot h-2 w-2 rounded-full bg-teal-500/70" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function InsightSection({ icon: Icon, title, tone, children, defaultOpen = true }) {
+  const [open, setOpen] = useState(defaultOpen);
+  const tones = {
+    indigo: 'border-indigo-200/70 bg-gradient-to-br from-indigo-50/95 to-white',
+    teal: 'border-teal-200/70 bg-gradient-to-br from-teal-50/95 to-white',
+    amber: 'border-amber-200/70 bg-gradient-to-br from-amber-50/95 to-white',
+    slate: 'border-slate-200/80 bg-gradient-to-br from-slate-50/90 to-white',
+  };
+  const iconTones = {
+    indigo: 'bg-indigo-100 text-indigo-700',
+    teal: 'bg-teal-100 text-teal-800',
+    amber: 'bg-amber-100 text-amber-800',
+    slate: 'bg-slate-100 text-slate-700',
+  };
+
+  return (
+    <section className={`overflow-hidden rounded-2xl border shadow-sm ${tones[tone] || tones.slate}`}>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="flex w-full items-center gap-2.5 px-3.5 py-3 text-left transition hover:bg-white/40"
+      >
+        <span className={`flex h-7 w-7 items-center justify-center rounded-lg ${iconTones[tone] || iconTones.slate}`}>
+          <Icon size={14} strokeWidth={2.2} aria-hidden />
+        </span>
+        <span className="flex-1 text-[11px] font-black uppercase tracking-wider text-slate-800">{title}</span>
+        <ChevronRight size={14} className={`text-slate-400 transition ${open ? 'rotate-90' : ''}`} aria-hidden />
+      </button>
+      {open ? <div className="border-t border-white/60 px-3.5 pb-3.5 pt-2.5">{children}</div> : null}
+    </section>
+  );
+}
+
+function delay(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 export function HelpChatDock() {
@@ -81,7 +232,7 @@ export function HelpChatDock() {
   const location = useLocation();
   const user = ws?.session?.user;
   const [open, setOpen] = useState(false);
-  const [messages, setMessages] = useState(seedMessages);
+  const [messages, setMessages] = useState(() => seedMessages(user, location.pathname));
   const [draft, setDraft] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -118,6 +269,9 @@ export function HelpChatDock() {
 
   const aiDockVisible = Boolean(user && user.roleKey !== 'ceo' && ai?.available === true);
   const snapshot = ws?.snapshot;
+  const pageName = pageLabel(location.pathname);
+  const externalAi = Boolean(snapshot?.helpPersonalization?.externalAi);
+
   const quickQuestions = useMemo(() => {
     const pathPrompts = quickQuestionsForPath(location.pathname);
     const bootPrompts = snapshot?.helpPersonalization?.prompts;
@@ -131,22 +285,20 @@ export function HelpChatDock() {
     }
     return pathPrompts;
   }, [location.pathname, snapshot?.helpPersonalization]);
+
   const coachingHints = useMemo(
-    () => buildHelpCoachingHints(snapshot, location.pathname),
+    () => buildHelpCoachingHints(snapshot, location.pathname).slice(0, 3),
     [snapshot, location.pathname]
   );
-  const behaviorNotes = useMemo(
-    () => (Array.isArray(snapshot?.helpPersonalization?.behaviorNotes) ? snapshot.helpPersonalization.behaviorNotes : []),
-    [snapshot?.helpPersonalization?.behaviorNotes]
-  );
-  const transactionSummary = useMemo(
-    () =>
-      Array.isArray(snapshot?.helpPersonalization?.transactionProfile?.activitySummary)
-        ? snapshot.helpPersonalization.transactionProfile.activitySummary
-        : [],
-    [snapshot?.helpPersonalization?.transactionProfile]
-  );
-  const learningEnabled = Boolean(snapshot?.helpPersonalization?.behaviorLearningEnabled);
+
+  const dockSuggestions = useMemo(() => {
+    const hints = coachingHints;
+    const hintKeys = new Set(hints.map((h) => String(h.title || '').toLowerCase()));
+    const prompts = quickQuestions
+      .filter((q) => !hintKeys.has(String(q.label || '').toLowerCase()))
+      .slice(0, 5);
+    return { hints, prompts };
+  }, [coachingHints, quickQuestions]);
   const transactionProfile = snapshot?.helpPersonalization?.transactionProfile;
 
   useEffect(() => {
@@ -169,12 +321,20 @@ export function HelpChatDock() {
     }
   }, [open]);
 
+  useEffect(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${Math.min(el.scrollHeight, 128)}px`;
+  }, [draft, open]);
+
   const resetConversation = useCallback(() => {
-    const next = seedMessages();
+    const next = seedMessages(user, location.pathname);
     messagesRef.current = next;
     setMessages(next);
     setError('');
-  }, []);
+    setDraft('');
+  }, [location.pathname, user]);
 
   const tryLocalAnswer = useCallback(
     (text, history) => {
@@ -186,10 +346,11 @@ export function HelpChatDock() {
           role: 'assistant',
           content: synthesizeMetaReply({
             userDisplay: user?.displayName,
-            externalAiEnabled: snapshot?.helpPersonalization?.externalAi,
+            externalAiEnabled: externalAi,
           }),
-          links: [{ label: 'Settings & guides', to: '/settings' }],
+          links: [],
           source: 'meta',
+          agentRoute: 'meta',
           matchedArticleIds: [],
           topScore: 0,
         };
@@ -209,8 +370,9 @@ export function HelpChatDock() {
             intent,
             transactionProfile,
           }),
-          links: [{ label: 'Settings & guides', to: '/settings' }],
+          links: [],
           source: 'synth',
+          agentRoute: 'chitchat',
           matchedArticleIds: [],
           topScore: 0,
         };
@@ -249,16 +411,19 @@ export function HelpChatDock() {
         }),
         links: mergeHelpLinks(articles),
         source: 'synth',
+        agentRoute: classifyAgentRoute(text, history),
         matchedArticleIds: articles.map((a) => a.id),
         topScore: top.score,
       };
     },
     [
+      externalAi,
       location.pathname,
       snapshot?.helpPersonalization?.behaviorProfile?.pace,
       snapshot?.helpPersonalization?.learnedBoosts,
-      snapshot?.helpPersonalization?.transactionProfile,
+      transactionProfile,
       user?.displayName,
+      user?.permissions,
       user?.roleKey,
     ]
   );
@@ -324,22 +489,34 @@ export function HelpChatDock() {
       setError('');
       setBusy(true);
 
+      const chatStarted = Date.now();
+
       try {
         const history = [...messagesRef.current].filter(
           (m) => m.role === 'user' || m.role === 'assistant'
         );
-        const local = tryLocalAnswer(text, history);
         const intent = detectHelpIntent(text, history);
+        const agentRoute = classifyAgentRoute(text, history);
         const complex = isComplexHelpQuery(text);
-        const topScore =
+        const topMatch =
           matchHelpArticles(buildHelpSearchText(text, history), {
             limit: 1,
             minScore: 4,
             pathname: location.pathname,
             learnedBoosts: snapshot?.helpPersonalization?.learnedBoosts || {},
-          })[0]?.score ?? 0;
+          })[0] ?? null;
+        const topScore = topMatch?.score ?? 0;
 
-        if (local && (topScore >= 4 || intent === 'greeting' || intent === 'thanks')) {
+        const preferServer =
+          agentRoute === 'erp_data' ||
+          agentRoute === 'hybrid' ||
+          (intent === 'follow_up' && history.length > 2) ||
+          (complex && topScore < 8 && externalAi);
+
+        const local = preferServer ? null : tryLocalAnswer(text, history);
+
+        if (local && (topScore >= 4 || intent === 'greeting' || intent === 'thanks' || intent === 'meta')) {
+          await delay(Math.max(0, LOCAL_REPLY_DELAY_MS - (Date.now() - chatStarted)));
           const logged = await attachLocalHelpLog(local, text, clientDraftMs);
           const nextMessages = [...messagesRef.current, logged];
           messagesRef.current = nextMessages;
@@ -360,8 +537,10 @@ export function HelpChatDock() {
         });
 
         if (!ok || !data?.ok) {
-          if (local) {
-            const logged = await attachLocalHelpLog(local, text, clientDraftMs);
+          const fallbackLocal = tryLocalAnswer(text, history);
+          if (fallbackLocal) {
+            await delay(Math.max(0, LOCAL_REPLY_DELAY_MS - (Date.now() - chatStarted)));
+            const logged = await attachLocalHelpLog(fallbackLocal, text, clientDraftMs);
             const nextMessages = [...messagesRef.current, logged];
             messagesRef.current = nextMessages;
             setMessages(nextMessages);
@@ -375,6 +554,7 @@ export function HelpChatDock() {
           content: String(data.message || ''),
           links: Array.isArray(data.links) ? data.links : [],
           source: data.source || 'api',
+          agentRoute: data.agentRoute || null,
           logId: data.logId || null,
           shownAt: Date.now(),
         };
@@ -387,7 +567,15 @@ export function HelpChatDock() {
         setBusy(false);
       }
     },
-    [attachLocalHelpLog, busy, location.pathname, signalPendingFollowUp, snapshot?.helpPersonalization?.learnedBoosts, tryLocalAnswer]
+    [
+      attachLocalHelpLog,
+      busy,
+      externalAi,
+      location.pathname,
+      signalPendingFollowUp,
+      snapshot?.helpPersonalization?.learnedBoosts,
+      tryLocalAnswer,
+    ]
   );
 
   const send = useCallback(async () => {
@@ -412,230 +600,241 @@ export function HelpChatDock() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className={`fixed z-[165] flex h-14 w-14 items-center justify-center rounded-2xl border-2 border-teal-100 bg-white text-[#134e4a] shadow-lg ring-1 ring-teal-900/5 transition hover:border-teal-200 hover:bg-teal-50 hover:shadow-xl active:scale-[0.98] bottom-[max(1.25rem,env(safe-area-inset-bottom))] ${launcherClass}`}
-        aria-label="Open help assistant"
-        title="Help — workflows & how-to"
+        className={`z-help-launcher fixed z-[165] flex h-[3.75rem] w-[3.75rem] items-center justify-center rounded-2xl border border-teal-200/60 bg-gradient-to-br from-[#134e4a] via-[#0f766e] to-[#115e59] text-teal-50 transition hover:scale-[1.03] active:scale-[0.98] bottom-[max(1.25rem,env(safe-area-inset-bottom))] ${launcherClass}`}
+        aria-label="Open Zarewa Coach"
+        title="Zarewa Coach — workflows & how-to"
       >
-        <LifeBuoy size={24} strokeWidth={2} aria-hidden />
+        <LifeBuoy size={26} strokeWidth={2} aria-hidden />
+        {coachingHints.length > 0 ? (
+          <span className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-amber-400 text-[9px] font-black text-amber-950 ring-2 ring-white">
+            !
+          </span>
+        ) : null}
       </button>
 
       {open ? (
         <div
-          className="fixed inset-0 z-[175] flex items-end justify-end bg-slate-900/45 p-3 sm:p-4 sm:items-center sm:justify-end backdrop-blur-[1px]"
+          className="fixed inset-0 z-[175] flex items-end justify-end bg-slate-900/50 p-2 sm:p-4 sm:items-stretch sm:justify-end backdrop-blur-[2px]"
           role="presentation"
           onMouseDown={(e) => {
             if (e.target === e.currentTarget) setOpen(false);
           }}
         >
           <div
-            className="flex h-[min(36rem,88dvh)] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-2xl"
+            className="z-help-panel flex h-[min(40rem,92dvh)] w-full max-w-[26rem] flex-col overflow-hidden rounded-[1.35rem] border border-white/20 bg-white shadow-[0_28px_80px_-24px_rgba(15,23,42,0.45)] sm:my-auto sm:mr-[max(0.5rem,env(safe-area-inset-right))]"
             role="dialog"
-            aria-label="Help assistant"
+            aria-label="Zarewa Coach"
             onMouseDown={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between border-b border-teal-900/10 bg-gradient-to-r from-[#134e4a] to-[#0f766e] px-4 py-3.5 text-white">
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/15 ring-1 ring-white/20">
-                  <LifeBuoy size={20} className="text-teal-100" aria-hidden />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-xs font-black uppercase tracking-wider">Help assistant</p>
-                  <p className="truncate text-[11px] font-medium text-teal-100/90">
-                    Step-by-step workflows for Zarewa
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center gap-1">
-                <button
-                  type="button"
-                  onClick={resetConversation}
-                  className="rounded-lg px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wide text-white/90 transition hover:bg-white/10"
-                  aria-label="Reset help conversation"
-                >
-                  Reset
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setOpen(false)}
-                  className="rounded-lg p-2 text-white/90 transition hover:bg-white/10"
-                  aria-label="Close help"
-                >
-                  <X size={20} />
-                </button>
-              </div>
-            </div>
-
-            <div className="flex-1 overflow-y-auto overscroll-contain bg-gradient-to-b from-slate-50/80 to-white px-4 py-4 space-y-3">
-              {showQuickQuestions && transactionSummary.length > 0 ? (
-                <div className="rounded-2xl border border-indigo-200/80 bg-indigo-50/90 px-3.5 py-3 shadow-sm">
-                  <p className="text-[10px] font-black uppercase tracking-wider text-indigo-900">
-                    Your recent work in Zarewa
-                  </p>
-                  <ul className="mt-2 space-y-1.5 text-[11px] text-indigo-900/90">
-                    {transactionSummary.map((line) => (
-                      <li key={line}>{line}</li>
-                    ))}
-                  </ul>
-                </div>
-              ) : null}
-
-              {showQuickQuestions && behaviorNotes.length > 0 ? (
-                <div className="rounded-2xl border border-teal-200/80 bg-teal-50/90 px-3.5 py-3 shadow-sm">
-                  <p className="text-[10px] font-black uppercase tracking-wider text-teal-900">
-                    {learningEnabled ? 'Personalized for you' : 'Help tips'}
-                  </p>
-                  <ul className="mt-2 space-y-1.5 text-[11px] text-teal-900/90">
-                    {behaviorNotes.map((note) => (
-                      <li key={note}>{note}</li>
-                    ))}
-                  </ul>
-                </div>
-              ) : null}
-
-              {showQuickQuestions && coachingHints.length > 0 ? (
-                <div className="rounded-2xl border border-amber-200/80 bg-amber-50/90 px-3.5 py-3 shadow-sm">
-                  <p className="text-[10px] font-black uppercase tracking-wider text-amber-900">
-                    Suggested from your transactions & workspace
-                  </p>
-                  <ul className="mt-2 space-y-2">
-                    {coachingHints.map((hint) => (
-                      <li key={hint.id}>
-                        <button
-                          type="button"
-                          onClick={() => void sendText(hint.query)}
-                          className="w-full rounded-xl border border-amber-100 bg-white px-3 py-2 text-left transition hover:border-teal-200 hover:bg-teal-50/50"
-                        >
-                          <span className="block text-[11px] font-bold text-[#134e4a]">{hint.title}</span>
-                          <span className="mt-0.5 block text-[10px] text-amber-900/80">{hint.reason}</span>
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ) : null}
-
-              {showQuickQuestions ? (
-                <div className="rounded-2xl border border-slate-200 bg-white px-3.5 py-3.5 shadow-sm">
-                  <p className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-slate-600">
-                    <BookOpen size={12} aria-hidden />
-                    Suggested for this page
-                  </p>
-                  <div className="mt-2.5 flex flex-wrap gap-2">
-                    {quickQuestions.map((item) => (
-                      <button
-                        key={item.label}
-                        type="button"
-                        onClick={() => void sendText(item.query)}
-                        className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-[11px] font-bold text-slate-800 transition hover:border-teal-200 hover:bg-teal-50 hover:text-[#134e4a]"
-                      >
-                        {item.label}
-                      </button>
-                    ))}
+            {/* Header */}
+            <header className="relative overflow-hidden border-b border-teal-900/10 px-4 py-4 text-white">
+              <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-[#134e4a] via-[#0f766e] to-[#115e59]" aria-hidden />
+              <div className="pointer-events-none absolute -right-8 -top-10 h-32 w-32 rounded-full bg-teal-300/20 blur-2xl" aria-hidden />
+              <div className="relative flex items-start justify-between gap-3">
+                <div className="flex min-w-0 items-center gap-3">
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white/15 ring-1 ring-white/25 backdrop-blur-sm">
+                    <LifeBuoy size={22} className="text-teal-100" aria-hidden />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="text-sm font-black tracking-tight">Zarewa Coach</p>
+                      <span className="inline-flex items-center gap-1 rounded-full bg-white/15 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-teal-50/95 ring-1 ring-white/15">
+                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-300 shadow-[0_0_8px_rgba(110,231,183,0.9)]" />
+                        Online
+                      </span>
+                    </div>
+                    <p className="mt-0.5 truncate text-[11px] font-medium text-teal-100/90">{pageName}</p>
                   </div>
                 </div>
-              ) : null}
-
-              {messages.map((m, i) => {
-                const isUser = m.role === 'user';
-                return (
-                  <div
-                    key={`${m.role}-${i}`}
-                    className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}
+                <div className="flex shrink-0 items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={resetConversation}
+                    className="inline-flex items-center gap-1 rounded-xl px-2.5 py-2 text-[10px] font-bold uppercase tracking-wide text-white/90 transition hover:bg-white/10"
+                    aria-label="Reset conversation"
                   >
-                    <div
-                      className={`max-w-[92%] rounded-2xl px-3.5 py-2.5 ${
-                        isUser
-                          ? 'bg-[#134e4a] text-white shadow-md'
-                          : 'border border-slate-200/90 bg-white text-slate-800 shadow-sm'
-                      }`}
-                    >
-                      {!isUser && m.source && m.source !== 'intro' ? (
-                        <p className="mb-1.5 flex items-center gap-1 text-[9px] font-black uppercase tracking-wider text-teal-700/80">
-                          {m.source === 'ai' || m.source === 'synth' ? <Sparkles size={10} /> : <BookOpen size={10} />}
-                          {sourceLabel(m.source)}
-                        </p>
-                      ) : null}
-                      {isUser ? (
-                        <p className="text-[13px] leading-snug whitespace-pre-wrap">{m.content}</p>
-                      ) : (
-                        <HelpMessageBody content={m.content} />
-                      )}
-                      {!isUser && Array.isArray(m.links) && m.links.length > 0 ? (
-                        <div className="mt-3 flex flex-wrap gap-1.5 border-t border-slate-100 pt-2">
-                          {m.links.map((link) => (
-                            <Link
-                              key={`${link.to}-${link.label}`}
-                              to={link.to}
-                              state={link.state}
-                              onClick={() => {
-                                if (m.logId) {
-                                  void sendHelpSignal(
-                                    m.logId,
-                                    'link_click',
-                                    m.shownAt ? Date.now() - m.shownAt : 0
-                                  );
-                                }
-                                setOpen(false);
-                              }}
-                              className="inline-flex rounded-lg border border-teal-200 bg-teal-50 px-2.5 py-1 text-[10px] font-bold text-[#134e4a] transition hover:bg-teal-100"
+                    <RotateCcw size={12} aria-hidden />
+                    Reset
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setOpen(false)}
+                    className="rounded-xl p-2 text-white/90 transition hover:bg-white/10"
+                    aria-label="Close coach"
+                  >
+                    <X size={20} />
+                  </button>
+                </div>
+              </div>
+            </header>
+
+            {/* Messages */}
+            <div className="z-help-scroll flex-1 overflow-y-auto overscroll-contain bg-gradient-to-b from-slate-50 via-white to-slate-50/80 px-3.5 py-4 sm:px-4">
+              <div className="space-y-4">
+                {showQuickQuestions && (dockSuggestions.hints.length > 0 || dockSuggestions.prompts.length > 0) ? (
+                  <InsightSection icon={BookOpen} title="Try asking" tone="slate" defaultOpen>
+                    {dockSuggestions.hints.length > 0 ? (
+                      <ul className="mb-2.5 space-y-2">
+                        {dockSuggestions.hints.map((hint) => (
+                          <li key={hint.id}>
+                            <button
+                              type="button"
+                              onClick={() => void sendText(hint.query)}
+                              className="group w-full rounded-xl border border-slate-200/90 bg-white px-3 py-2 text-left shadow-sm transition hover:border-teal-200 hover:bg-teal-50/60"
                             >
-                              {link.label} →
-                            </Link>
-                          ))}
-                        </div>
-                      ) : null}
-                      {!isUser && m.logId && m.source !== 'intro' ? (
-                        <div className="mt-2.5 flex items-center gap-2 border-t border-slate-100 pt-2">
-                          <span className="text-[9px] font-semibold uppercase tracking-wide text-slate-400">
-                            {m.feedback === 'helpful'
-                              ? 'Thanks — noted'
-                              : m.feedback === 'not_helpful'
-                                ? 'We will improve this'
-                                : 'Was this helpful?'}
-                          </span>
-                          {!m.feedback || m.feedback === 'follow_up' ? (
-                            <>
-                              <button
-                                type="button"
-                                onClick={() => void submitFeedback(i, true)}
-                                className="rounded-lg border border-slate-200 p-1.5 text-teal-700 transition hover:bg-teal-50"
-                                aria-label="Mark answer helpful"
-                              >
-                                <ThumbsUp size={12} />
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => void submitFeedback(i, false)}
-                                className="rounded-lg border border-slate-200 p-1.5 text-slate-500 transition hover:bg-slate-50"
-                                aria-label="Mark answer not helpful"
-                              >
-                                <ThumbsDown size={12} />
-                              </button>
-                            </>
+                              <span className="flex items-center justify-between gap-2">
+                                <span className="text-[12px] font-bold text-[#134e4a]">{hint.title}</span>
+                                <ArrowRight size={14} className="shrink-0 text-teal-600 opacity-0 transition group-hover:opacity-100" />
+                              </span>
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : null}
+                    {dockSuggestions.prompts.length > 0 ? (
+                      <div className="flex flex-wrap gap-2">
+                        {dockSuggestions.prompts.map((item) => (
+                          <button
+                            key={item.label}
+                            type="button"
+                            onClick={() => void sendText(item.query)}
+                            className="rounded-xl border border-slate-200/90 bg-white px-3 py-2 text-[11px] font-bold text-slate-800 shadow-sm transition hover:border-teal-300 hover:bg-teal-50 hover:text-[#134e4a]"
+                          >
+                            {item.label}
+                          </button>
+                        ))}
+                      </div>
+                    ) : null}
+                  </InsightSection>
+                ) : null}
+
+                {messages.map((m, i) => {
+                  const isUser = m.role === 'user';
+                  const meta = !isUser && m.source && m.source !== 'intro' ? sourceMeta(m.source, m.agentRoute) : null;
+                  const MetaIcon = meta?.icon || BookOpen;
+                  const badgeClass =
+                    meta?.tone === 'data'
+                      ? 'bg-violet-50 text-violet-800 ring-violet-200/80'
+                      : meta?.tone === 'ai'
+                        ? 'bg-indigo-50 text-indigo-800 ring-indigo-200/80'
+                        : meta?.tone === 'meta'
+                          ? 'bg-slate-100 text-slate-700 ring-slate-200/80'
+                          : 'bg-teal-50 text-teal-800 ring-teal-200/80';
+
+                  return (
+                    <div
+                      key={`${m.role}-${i}-${m.shownAt || i}`}
+                      className={`z-help-msg flex items-end gap-2.5 ${isUser ? 'flex-row-reverse' : ''}`}
+                      style={{ animationDelay: `${Math.min(i * 40, 200)}ms` }}
+                    >
+                      <HelpAvatar role={m.role} user={user} />
+                      <div className={`max-w-[88%] ${isUser ? 'items-end' : 'items-start'} flex flex-col`}>
+                        <div
+                          className={`rounded-2xl px-3.5 py-3 shadow-sm ${
+                            isUser
+                              ? 'rounded-br-md bg-gradient-to-br from-[#134e4a] to-[#0f766e] text-white'
+                              : 'rounded-bl-md border border-slate-200/80 bg-white text-slate-800'
+                          }`}
+                        >
+                          {meta ? (
+                            <p
+                              className={`mb-2 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-black uppercase tracking-wider ring-1 ${badgeClass}`}
+                            >
+                              <MetaIcon size={10} aria-hidden />
+                              {meta.label}
+                            </p>
+                          ) : null}
+                          {isUser ? (
+                            <p className="text-[13.5px] leading-snug whitespace-pre-wrap">{m.content}</p>
+                          ) : (
+                            <HelpMessageBody content={m.content} />
+                          )}
+
+                          {!isUser && Array.isArray(m.links) && m.links.length > 0 ? (
+                            <div className="mt-3 flex flex-wrap gap-1.5 border-t border-slate-100/90 pt-2.5">
+                              {m.links.map((link) => (
+                                <Link
+                                  key={`${link.to}-${link.label}`}
+                                  to={link.to}
+                                  state={link.state}
+                                  onClick={() => {
+                                    if (m.logId) {
+                                      void sendHelpSignal(
+                                        m.logId,
+                                        'link_click',
+                                        m.shownAt ? Date.now() - m.shownAt : 0
+                                      );
+                                    }
+                                    setOpen(false);
+                                  }}
+                                  className="inline-flex items-center gap-1 rounded-lg border border-teal-200/80 bg-gradient-to-r from-teal-50 to-emerald-50/80 px-2.5 py-1.5 text-[10px] font-bold text-[#134e4a] transition hover:border-teal-300 hover:from-teal-100"
+                                >
+                                  {link.label}
+                                  <ArrowRight size={10} aria-hidden />
+                                </Link>
+                              ))}
+                            </div>
+                          ) : null}
+
+                          {!isUser && m.logId && m.source !== 'intro' ? (
+                            <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-slate-100/90 pt-2.5">
+                              <span className="text-[9px] font-semibold uppercase tracking-wide text-slate-400">
+                                {m.feedback === 'helpful'
+                                  ? 'Thanks — noted ✓'
+                                  : m.feedback === 'not_helpful'
+                                    ? 'We will improve this'
+                                    : 'Helpful?'}
+                              </span>
+                              {!m.feedback || m.feedback === 'follow_up' ? (
+                                <div className="flex items-center gap-1.5">
+                                  <button
+                                    type="button"
+                                    onClick={() => void submitFeedback(i, true)}
+                                    className="rounded-lg border border-teal-200/80 bg-teal-50/80 p-1.5 text-teal-700 transition hover:bg-teal-100"
+                                    aria-label="Mark answer helpful"
+                                  >
+                                    <ThumbsUp size={13} />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => void submitFeedback(i, false)}
+                                    className="rounded-lg border border-slate-200 bg-slate-50 p-1.5 text-slate-500 transition hover:bg-slate-100"
+                                    aria-label="Mark answer not helpful"
+                                  >
+                                    <ThumbsDown size={13} />
+                                  </button>
+                                </div>
+                              ) : null}
+                            </div>
                           ) : null}
                         </div>
-                      ) : null}
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
 
-              {busy ? (
-                <div className="flex items-center gap-2 px-1 text-[11px] font-semibold text-slate-400">
-                  <Loader2 size={14} className="animate-spin" aria-hidden />
-                  Building your answer…
-                </div>
-              ) : null}
-              {error ? (
-                <p className="rounded-xl border border-red-100 bg-red-50 px-3 py-2.5 text-[12px] text-red-800">
-                  {error}
-                </p>
-              ) : null}
-              <div ref={listEndRef} />
+                {busy ? <TypingIndicator /> : null}
+
+                {error ? (
+                  <div className="rounded-2xl border border-red-200/80 bg-red-50 px-3.5 py-3 text-[12px] text-red-800 shadow-sm">
+                    <p className="font-semibold">Could not reach the coach</p>
+                    <p className="mt-1 text-red-700/90">{error}</p>
+                    <button
+                      type="button"
+                      onClick={() => setError('')}
+                      className="mt-2 text-[11px] font-bold text-red-900 underline underline-offset-2"
+                    >
+                      Dismiss
+                    </button>
+                  </div>
+                ) : null}
+              </div>
+              <div ref={listEndRef} className="h-1" />
             </div>
 
-            <div className="border-t border-slate-100 bg-white p-3.5">
-              <div className="flex gap-2">
+            {/* Composer */}
+            <footer className="border-t border-slate-100 bg-white/95 px-3.5 py-3.5 backdrop-blur-sm sm:px-4">
+              <div className="flex items-end gap-2 rounded-2xl border border-slate-200/90 bg-slate-50/80 p-2 shadow-inner">
                 <textarea
                   ref={textareaRef}
                   value={draft}
@@ -652,25 +851,22 @@ export function HelpChatDock() {
                       void send();
                     }
                   }}
-                  rows={2}
-                  placeholder="Ask about a workflow… e.g. PO to GRN to payment"
-                  className="min-h-[3rem] flex-1 resize-none rounded-xl border border-slate-200 px-3.5 py-2.5 text-[13px] outline-none transition focus:border-teal-400 focus:ring-2 focus:ring-teal-500/15"
+                  rows={1}
+                  placeholder="Ask anything… typos are OK"
+                  className="max-h-32 min-h-[2.75rem] flex-1 resize-none bg-transparent px-2 py-2 text-[13.5px] text-slate-800 outline-none placeholder:text-slate-400"
                   disabled={busy}
                 />
                 <button
                   type="button"
                   onClick={() => void send()}
                   disabled={busy || !draft.trim()}
-                  className="flex h-12 w-12 shrink-0 items-center justify-center self-end rounded-xl bg-[#134e4a] text-white shadow-md transition hover:brightness-110 disabled:opacity-40"
-                  aria-label="Send help question"
+                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#134e4a] to-[#0f766e] text-white shadow-md transition hover:brightness-110 disabled:opacity-35"
+                  aria-label="Send message"
                 >
                   {busy ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
                 </button>
               </div>
-              <p className="mt-2.5 text-[10px] leading-snug text-slate-400">
-                Guides work offline for common tasks. The assistant learns from your questions, reactions, and recent work in Zarewa.
-              </p>
-            </div>
+            </footer>
           </div>
         </div>
       ) : null}
