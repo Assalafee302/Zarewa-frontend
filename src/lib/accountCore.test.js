@@ -9,6 +9,9 @@ import {
   treasuryMovementStatementLabel,
   treasuryMovementSourceBadge,
   treasuryOutflowLinesForRefund,
+  treasuryOutflowLinesForPurchaseOrder,
+  treasuryOutflowLinesForAccountsPayable,
+  isPayFromCorrectionTreasuryRow,
 } from './accountCore';
 
 describe('accountCore', () => {
@@ -43,6 +46,57 @@ describe('accountCore', () => {
       },
     ]);
     expect(lines.map((l) => l.id)).toEqual(['m1']);
+  });
+
+  it('lists supplier payment treasury lines for a PO', () => {
+    const lines = treasuryOutflowLinesForPurchaseOrder('PO-1', [
+      {
+        id: 'm1',
+        type: 'SUPPLIER_PAYMENT',
+        sourceKind: 'PURCHASE_ORDER',
+        sourceId: 'PO-1',
+        amountNgn: -1000,
+      },
+      {
+        id: 'm2',
+        type: 'TRANSPORT_PAYMENT',
+        sourceKind: 'PURCHASE_ORDER',
+        sourceId: 'PO-1',
+        amountNgn: -200,
+      },
+    ]);
+    expect(lines.map((l) => l.id)).toEqual(['m1', 'm2']);
+    const supplierOnly = treasuryOutflowLinesForPurchaseOrder('PO-1', [
+      { id: 'm1', type: 'SUPPLIER_PAYMENT', sourceKind: 'PURCHASE_ORDER', sourceId: 'PO-1', amountNgn: -1 },
+      { id: 'm2', type: 'TRANSPORT_PAYMENT', sourceKind: 'PURCHASE_ORDER', sourceId: 'PO-1', amountNgn: -2 },
+    ], { types: ['SUPPLIER_PAYMENT'] });
+    expect(supplierOnly.map((l) => l.id)).toEqual(['m1']);
+  });
+
+  it('lists AP payment treasury lines', () => {
+    const lines = treasuryOutflowLinesForAccountsPayable('AP-9', [
+      { id: 'a1', type: 'AP_PAYMENT', sourceKind: 'ACCOUNTS_PAYABLE', sourceId: 'AP-9', amountNgn: -500 },
+    ]);
+    expect(lines.map((l) => l.id)).toEqual(['a1']);
+  });
+
+  it('flags pay-from correction eligibility', () => {
+    expect(
+      isPayFromCorrectionTreasuryRow({
+        movementId: 'TM-1',
+        type: 'AP_PAYMENT',
+        sourceKind: 'ACCOUNTS_PAYABLE',
+        sourceId: 'AP-1',
+      })
+    ).toBe(true);
+    expect(
+      isPayFromCorrectionTreasuryRow({
+        movementId: 'TM-2',
+        type: 'RECEIPT_IN',
+        sourceKind: 'LEDGER_RECEIPT',
+        sourceId: 'R-1',
+      })
+    ).toBe(false);
   });
 
   it('flags treasury outflow rows for the payments register', () => {

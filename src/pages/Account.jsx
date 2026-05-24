@@ -60,10 +60,14 @@ import {
   normalizePaymentRequest,
   treasuryMovementStatementLabel,
   treasuryMovementSourceBadge,
+  treasuryOutflowLinesForAccountsPayable,
   treasuryOutflowLinesForExpense,
   treasuryOutflowLinesForPaymentRequest,
+  treasuryOutflowLinesForPurchaseOrder,
   treasuryOutflowLinesForRefund,
   treasuryOutflowPaymentTableRows,
+  payFromCorrectionHeadlineForMovementType,
+  isPayFromCorrectionTreasuryRow,
   TREASURY_STATEMENT_TYPE_LABEL,
 } from '../lib/accountCore';
 import { editMutationNeedsSecondApprovalRole } from '../lib/editApprovalUi';
@@ -1689,76 +1693,95 @@ const Account = () => {
     showToast('Expense recorded and synced.');
   };
 
-  const openExpenseOutflowEdit = useCallback(
-    (ex) => {
-      const lines = treasuryOutflowLinesForExpense(ex.expenseID, liveTreasuryMovements);
-      if (!lines.length) {
-        showToast('No treasury payout is recorded for this expense yet.', { variant: 'info' });
+  const mapTreasuryMovementToPayFromRow = useCallback(
+    (m) => ({
+      movementId: String(m.id),
+      amountNgn: Number(m.amountNgn) || 0,
+      treasuryAccountId: String(m.treasuryAccountId ?? ''),
+      postedDate: String(m.postedAtISO || '').slice(0, 10) || todayIso,
+      note: '',
+    }),
+    [todayIso]
+  );
+
+  const openPayFromCorrection = useCallback(
+    ({ headline, subline, lines, focusMovementId }) => {
+      if (!lines?.length) {
+        showToast('No treasury payout recorded yet.', { variant: 'info' });
         return;
       }
-      setExpenseOutflowLineIdx(0);
+      const rows = lines.map(mapTreasuryMovementToPayFromRow);
+      let lineIdx = 0;
+      if (focusMovementId) {
+        const i = rows.findIndex((r) => r.movementId === String(focusMovementId));
+        if (i >= 0) lineIdx = i;
+      }
+      setExpenseOutflowLineIdx(lineIdx);
       setExpenseOutflowEditApprovalId('');
-      setExpenseOutflowEdit({
+      setExpenseOutflowEdit({ headline, subline, rows });
+    },
+    [mapTreasuryMovementToPayFromRow, showToast]
+  );
+
+  const openExpenseOutflowEdit = useCallback(
+    (ex) => {
+      openPayFromCorrection({
         headline: 'Direct expense — bank/cash paid from',
         subline: `${ex.expenseID} · ${ex.category || ex.expenseType || ''}`,
-        rows: lines.map((m) => ({
-          movementId: String(m.id),
-          amountNgn: Number(m.amountNgn) || 0,
-          treasuryAccountId: String(m.treasuryAccountId ?? ''),
-          postedDate: String(m.postedAtISO || '').slice(0, 10) || todayIso,
-          note: '',
-        })),
+        lines: treasuryOutflowLinesForExpense(ex.expenseID, liveTreasuryMovements),
       });
     },
-    [liveTreasuryMovements, showToast, todayIso]
+    [liveTreasuryMovements, openPayFromCorrection]
   );
 
   const openPaymentRequestOutflowEdit = useCallback(
     (req) => {
-      const lines = treasuryOutflowLinesForPaymentRequest(req.requestID, liveTreasuryMovements);
-      if (!lines.length) {
-        showToast('No treasury payout recorded for this request yet.', { variant: 'info' });
-        return;
-      }
-      setExpenseOutflowLineIdx(0);
-      setExpenseOutflowEditApprovalId('');
-      setExpenseOutflowEdit({
+      openPayFromCorrection({
         headline: 'Payment request — bank/cash paid from',
         subline: `${req.requestID} · ${req.description || req.expenseCategory || ''}`,
-        rows: lines.map((m) => ({
-          movementId: String(m.id),
-          amountNgn: Number(m.amountNgn) || 0,
-          treasuryAccountId: String(m.treasuryAccountId ?? ''),
-          postedDate: String(m.postedAtISO || '').slice(0, 10) || todayIso,
-          note: '',
-        })),
+        lines: treasuryOutflowLinesForPaymentRequest(req.requestID, liveTreasuryMovements),
       });
     },
-    [liveTreasuryMovements, showToast, todayIso]
+    [liveTreasuryMovements, openPayFromCorrection]
   );
 
   const openRefundOutflowEdit = useCallback(
     (rf) => {
-      const lines = treasuryOutflowLinesForRefund(rf.refundID, liveTreasuryMovements);
-      if (!lines.length) {
-        showToast('No treasury payout is recorded for this refund yet.', { variant: 'info' });
-        return;
-      }
-      setExpenseOutflowLineIdx(0);
-      setExpenseOutflowEditApprovalId('');
-      setExpenseOutflowEdit({
+      openPayFromCorrection({
         headline: 'Customer refund — bank/cash paid from',
         subline: `${rf.refundID} · ${rf.customer || ''}`,
-        rows: lines.map((m) => ({
-          movementId: String(m.id),
-          amountNgn: Number(m.amountNgn) || 0,
-          treasuryAccountId: String(m.treasuryAccountId ?? ''),
-          postedDate: String(m.postedAtISO || '').slice(0, 10) || todayIso,
-          note: '',
-        })),
+        lines: treasuryOutflowLinesForRefund(rf.refundID, liveTreasuryMovements),
       });
     },
-    [liveTreasuryMovements, showToast, todayIso]
+    [liveTreasuryMovements, openPayFromCorrection]
+  );
+
+  const openPurchaseOrderOutflowEdit = useCallback(
+    (poId, movementType) => {
+      const types =
+        movementType === 'TRANSPORT_PAYMENT'
+          ? ['TRANSPORT_PAYMENT']
+          : movementType === 'SUPPLIER_PAYMENT'
+            ? ['SUPPLIER_PAYMENT']
+            : undefined;
+      openPayFromCorrection({
+        headline: payFromCorrectionHeadlineForMovementType(movementType || 'SUPPLIER_PAYMENT'),
+        subline: `PO ${poId}`,
+        lines: treasuryOutflowLinesForPurchaseOrder(poId, liveTreasuryMovements, types ? { types } : {}),
+      });
+    },
+    [liveTreasuryMovements, openPayFromCorrection]
+  );
+
+  const openAccountsPayableOutflowEdit = useCallback(
+    (apId) => {
+      openPayFromCorrection({
+        headline: 'Purchase (AP) payment — bank/cash paid from',
+        subline: `AP ${apId}`,
+        lines: treasuryOutflowLinesForAccountsPayable(apId, liveTreasuryMovements),
+      });
+    },
+    [liveTreasuryMovements, openPayFromCorrection]
   );
 
   const updateExpenseOutflowRowField = useCallback((idx, patch) => {
@@ -2312,6 +2335,59 @@ const Account = () => {
   const refundById = useMemo(
     () => Object.fromEntries((customerRefunds || []).map((r) => [r.refundID, r])),
     [customerRefunds]
+  );
+
+  const openPayFromEditForTableRow = useCallback(
+    (row) => {
+      if (!row?.movementId) return;
+      const ex = row.sourceKind === 'EXPENSE' ? expenseById[row.sourceId] : null;
+      const pr = row.sourceKind === 'PAYMENT_REQUEST' ? payRequestById[row.sourceId] : null;
+      const rf = row.sourceKind === 'REFUND' ? refundById[row.sourceId] : null;
+      if (ex) {
+        openExpenseOutflowEdit(ex);
+        return;
+      }
+      if (pr) {
+        openPaymentRequestOutflowEdit(pr);
+        return;
+      }
+      if (rf) {
+        openRefundOutflowEdit(rf);
+        return;
+      }
+      if (row.sourceKind === 'PURCHASE_ORDER' && row.sourceId) {
+        openPurchaseOrderOutflowEdit(row.sourceId, row.type);
+        return;
+      }
+      if (row.sourceKind === 'ACCOUNTS_PAYABLE' && row.sourceId) {
+        openAccountsPayableOutflowEdit(row.sourceId);
+        return;
+      }
+      const m = liveTreasuryMovements.find((x) => String(x.id) === String(row.movementId));
+      if (!m) {
+        showToast('Treasury line not found.', { variant: 'info' });
+        return;
+      }
+      openPayFromCorrection({
+        headline: payFromCorrectionHeadlineForMovementType(row.type),
+        subline: row.description || row.sourceId || row.movementId,
+        lines: [m],
+        focusMovementId: row.movementId,
+      });
+    },
+    [
+      expenseById,
+      payRequestById,
+      refundById,
+      liveTreasuryMovements,
+      openExpenseOutflowEdit,
+      openPaymentRequestOutflowEdit,
+      openRefundOutflowEdit,
+      openPurchaseOrderOutflowEdit,
+      openAccountsPayableOutflowEdit,
+      openPayFromCorrection,
+      showToast,
+    ]
   );
 
   const prPayoutPrimaryMovementId = useMemo(() => {
@@ -4063,8 +4139,10 @@ const Account = () => {
                   </div>
                   <p className="text-[9px] text-slate-500 leading-snug">
                     Also uses the page header search. The table lists posted treasury <strong>debits</strong> (refunds,
-                    supplier/AP payments, expense requests, transport, direct expenses, receipt reversals).{' '}
-                    <strong>Delete</strong> and <strong>Reverse payout</strong> require the right finance permissions;
+                    supplier/AP payments, expense requests, transport, direct expenses, receipt reversals). Use{' '}
+                    <strong>Edit</strong> on a row to correct which bank or cash account was debited (expenses and
+                    purchases). <strong>Delete</strong> and <strong>Reverse payout</strong> require the right finance
+                    permissions;
                     officers need a manager <strong>KPI approval code</strong> (below) before those actions succeed.
                     Administrators and MD are exempt.
                   </p>
@@ -4074,8 +4152,8 @@ const Account = () => {
                   <div className="rounded-lg border border-amber-200 bg-amber-50/90 px-3 py-2.5 space-y-2">
                     <p className="text-[10px] text-amber-950 font-semibold leading-snug">
                       Officer / finance roles: rollout delete, payment-request or refund payout reversal, and the KPI
-                      gate below apply to you. Request an edit approval from a manager for the same expense, payment
-                      request, or refund ID, then paste the code.
+                      gate below apply to you. Request an edit approval from a manager for the same expense, purchase
+                      payment, payment request, or refund ID, then paste the code.
                     </p>
                     {paymentsApprovalEntity ? (
                       <div className="space-y-1.5">
@@ -4252,9 +4330,7 @@ const Account = () => {
                           const showPayFrom =
                             canFinanceReceiptSettlement &&
                             ws?.canMutate &&
-                            ((row.type === 'EXPENSE' && row.sourceKind === 'EXPENSE' && ex) ||
-                              (row.type === 'PAYMENT_REQUEST_OUT' && row.sourceKind === 'PAYMENT_REQUEST' && pr) ||
-                              (row.type === 'REFUND_PAYOUT' && row.sourceKind === 'REFUND' && rf));
+                            isPayFromCorrectionTreasuryRow(row);
                           const paidPr = pr ? Number(pr.paidAmountNgn) || 0 : 0;
                           const paidRf = rf ? Number(rf.paidAmountNgn) || 0 : 0;
                           const isPrPrimary =
@@ -4318,11 +4394,7 @@ const Account = () => {
                                     <button
                                       type="button"
                                       title="Pay-from (bank/cash correction)"
-                                      onClick={() => {
-                                        if (ex) openExpenseOutflowEdit(ex);
-                                        else if (pr) openPaymentRequestOutflowEdit(pr);
-                                        else if (rf) openRefundOutflowEdit(rf);
-                                      }}
+                                      onClick={() => openPayFromEditForTableRow(row)}
                                       className="text-[8px] font-bold uppercase tracking-wide text-[#134e4a] bg-teal-100 hover:bg-teal-200 px-1.5 py-0.5 rounded"
                                     >
                                       Edit

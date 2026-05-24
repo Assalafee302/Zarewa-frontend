@@ -88,6 +88,73 @@ export function treasuryOutflowLinesForRefund(refundId, movements) {
   );
 }
 
+/**
+ * Treasury payout lines for supplier or transport settlement on a purchase order.
+ * @param {string} poId
+ * @param {Array<object>} movements
+ * @param {{ types?: string[] }} [opts]
+ */
+export function treasuryOutflowLinesForPurchaseOrder(poId, movements, opts = {}) {
+  const pid = String(poId || '').trim();
+  if (!pid || !Array.isArray(movements)) return [];
+  const types = new Set(
+    opts.types?.length
+      ? opts.types
+      : ['SUPPLIER_PAYMENT', 'TRANSPORT_PAYMENT']
+  );
+  return movements.filter(
+    (m) =>
+      types.has(String(m.type || '')) &&
+      String(m.sourceKind || '') === 'PURCHASE_ORDER' &&
+      String(m.sourceId || '').trim() === pid &&
+      !m.reversesMovementId
+  );
+}
+
+/**
+ * Treasury payout lines for accounts-payable supplier settlement.
+ * @param {string} apId
+ * @param {Array<object>} movements
+ */
+export function treasuryOutflowLinesForAccountsPayable(apId, movements) {
+  const aid = String(apId || '').trim();
+  if (!aid || !Array.isArray(movements)) return [];
+  return movements.filter(
+    (m) =>
+      String(m.type || '') === 'AP_PAYMENT' &&
+      String(m.sourceKind || '') === 'ACCOUNTS_PAYABLE' &&
+      String(m.sourceId || '').trim() === aid &&
+      !m.reversesMovementId
+  );
+}
+
+/** Modal headline for pay-from correction by treasury movement type. */
+export function payFromCorrectionHeadlineForMovementType(type) {
+  const t = String(type || '');
+  if (t === 'EXPENSE') return 'Direct expense — bank/cash paid from';
+  if (t === 'PAYMENT_REQUEST_OUT') return 'Payment request — bank/cash paid from';
+  if (t === 'REFUND_PAYOUT') return 'Customer refund — bank/cash paid from';
+  if (t === 'SUPPLIER_PAYMENT') return 'Supplier payment — bank/cash paid from';
+  if (t === 'TRANSPORT_PAYMENT') return 'Transport payment — bank/cash paid from';
+  if (t === 'AP_PAYMENT') return 'Purchase (AP) payment — bank/cash paid from';
+  return 'Payment — bank/cash paid from';
+}
+
+/** Whether finance can correct pay-from account on this treasury outflow row. */
+export function isPayFromCorrectionTreasuryRow(row) {
+  if (!row?.movementId) return false;
+  const t = String(row.type || '');
+  const sk = String(row.sourceKind || '');
+  return (
+    (t === 'EXPENSE' && sk === 'EXPENSE') ||
+    (t === 'PAYMENT_REQUEST_OUT' && sk === 'PAYMENT_REQUEST') ||
+    (t === 'REFUND_PAYOUT' && sk === 'REFUND') ||
+    (t === 'SUPPLIER_PAYMENT' && sk === 'PURCHASE_ORDER') ||
+    (t === 'TRANSPORT_PAYMENT' && sk === 'PURCHASE_ORDER') ||
+    (t === 'AP_PAYMENT' && sk === 'ACCOUNTS_PAYABLE')
+  );
+}
+
 /** Treasury movement types shown on Finance → Payments (money leaving the business). */
 export const TREASURY_PAYMENTS_TABLE_OUTFLOW_TYPES = new Set([
   'EXPENSE',
