@@ -446,6 +446,8 @@ export default function TeamAccessPanel({ appUsers, currentUserId, onRefresh }) 
               <tbody className="divide-y divide-slate-100">
                 {pagedUsers.map((user) => {
                   const busy = rowBusyId === user.id;
+                  const userBranchId = String(user.branchId || '').trim();
+                  const branchInList = userBranchId && branches.some((b) => b.id === userBranchId);
                   const who = `${user.displayName} · ${user.username}${user.hasCustomPermissions ? ' · custom perms' : ''}`;
                   return (
                     <Fragment key={user.id}>
@@ -468,11 +470,18 @@ export default function TeamAccessPanel({ appUsers, currentUserId, onRefresh }) 
                         ) : (
                           <select
                             className="z-input !py-1.5 !text-[11px] max-w-[11rem]"
-                            value={user.branchId || ''}
+                            value={userBranchId}
                             disabled={busy}
                             onChange={(e) => void patchWorkspaceBranch(user, e.target.value)}
                           >
-                            <option value="">Assign branch…</option>
+                            <option value="" disabled={Boolean(userBranchId)}>
+                              {userBranchId ? 'Select branch…' : 'Assign branch…'}
+                            </option>
+                            {!branchInList && userBranchId ? (
+                              <option value={userBranchId}>
+                                {branchNameById[userBranchId] || userBranchId}
+                              </option>
+                            ) : null}
                             {branches.map((b) => (
                               <option key={b.id} value={b.id}>
                                 {branchNameById[b.id] || b.id}
