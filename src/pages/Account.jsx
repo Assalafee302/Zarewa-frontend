@@ -151,6 +151,7 @@ const Account = () => {
     toId: '',
     amountNgn: '',
     reference: '',
+    dateISO: new Date().toISOString().slice(0, 10),
   });
   const [interBranchLoans, setInterBranchLoans] = useState([]);
   const [interBranchBalances, setInterBranchBalances] = useState([]);
@@ -1130,6 +1131,7 @@ const Account = () => {
             : '',
         amountNgn: '',
         reference: '',
+        dateISO: new Date().toISOString().slice(0, 10),
       });
       setShowTransferModal(true);
     }
@@ -1246,6 +1248,19 @@ const Account = () => {
       ws?.hasWorkspaceData && Array.isArray(ws?.snapshot?.receipts) ? [...ws.snapshot.receipts] : [],
     [ws?.hasWorkspaceData, ws?.snapshot?.receipts]
   );
+
+  const refundPayPaymentConfirmers = useMemo(() => {
+    const qref = String(refundPayTarget?.quotationRef || '').trim();
+    if (!qref) return [];
+    const names = new Set();
+    for (const receipt of salesReceipts) {
+      if (String(receipt.quotationRef || '').trim() !== qref) continue;
+      if (!receipt.financeReconciliationSavedAtISO) continue;
+      const name = String(receipt.financeReconciliationSavedBy || '').trim();
+      if (name) names.add(name);
+    }
+    return [...names];
+  }, [refundPayTarget?.quotationRef, salesReceipts]);
 
   const reconciledSubtotalNgn = useMemo(
     () =>
@@ -2047,6 +2062,7 @@ const Account = () => {
           toId,
           amountNgn: amount,
           reference: transferForm.reference.trim(),
+          dateISO: transferForm.dateISO,
           createdBy: activeActorLabel,
         }),
       });
@@ -2064,7 +2080,13 @@ const Account = () => {
       );
       return;
     }
-    setTransferForm({ fromId: '', toId: '', amountNgn: '', reference: '' });
+    setTransferForm({
+      fromId: '',
+      toId: '',
+      amountNgn: '',
+      reference: '',
+      dateISO: new Date().toISOString().slice(0, 10),
+    });
     setShowTransferModal(false);
     showToast('Fund movement posted — both accounts updated.');
   };
@@ -3016,23 +3038,6 @@ const Account = () => {
                           >
                             {receiptsSortDir === 'asc' ? 'Ascending' : 'Descending'}
                           </button>
-                          {canReviseFinalizedReceiptSettlement && ws?.canMutate ? (
-                            <button
-                              type="button"
-                              disabled={receiptClearanceResetBusy || branchClearedReceiptCount <= 0}
-                              onClick={() => resetAllReceiptClearance()}
-                              className="inline-flex items-center gap-1 rounded-lg border border-amber-300 bg-amber-50 px-2 py-1 text-[9px] font-black uppercase tracking-wide text-amber-950 hover:bg-amber-100 disabled:opacity-40"
-                              title={
-                                branchClearedReceiptCount > 0
-                                  ? `Reset ${branchClearedReceiptCount} cleared receipt(s) to Pending clearance`
-                                  : 'No cleared receipts in this branch'
-                              }
-                            >
-                              <RotateCcw size={12} className="shrink-0" />
-                              Reset all clearance
-                              {branchClearedReceiptCount > 0 ? ` (${branchClearedReceiptCount})` : ''}
-                            </button>
-                          ) : null}
                         </div>
                         <div className="text-[10px] text-slate-600 tabular-nums">
                           {sortedFilteredSalesReceipts.length} receipt
@@ -3162,8 +3167,7 @@ const Account = () => {
                               Confirmed
                             </p>
                             <p className="text-[9px] text-emerald-800/90">
-                              Receipts already confirmed and reconciled by finance. Use Reset all clearance to
-                              re-queue them and clear oldest-first (sort Receipt date · Ascending).
+                              Receipts already confirmed and reconciled by finance.
                             </p>
                           </div>
                           <div className="flex flex-wrap items-center gap-2 text-[10px] text-emerald-900">
@@ -4076,6 +4080,7 @@ const Account = () => {
                           : '',
                       amountNgn: '',
                       reference: '',
+                      dateISO: new Date().toISOString().slice(0, 10),
                     });
                     setShowTransferModal(true);
                   }}
@@ -4986,6 +4991,20 @@ const Account = () => {
             </div>
             <div>
               <label className="text-[10px] font-bold text-gray-400 uppercase ml-1 block mb-1">
+                Transfer date
+              </label>
+              <input
+                required
+                type="date"
+                value={transferForm.dateISO}
+                onChange={(e) =>
+                  setTransferForm((f) => ({ ...f, dateISO: e.target.value }))
+                }
+                className="w-full bg-gray-50 border border-gray-100 rounded-xl py-3 px-4 text-sm font-bold outline-none"
+              />
+            </div>
+            <div>
+              <label className="text-[10px] font-bold text-gray-400 uppercase ml-1 block mb-1">
                 Reference / narration
               </label>
               <input
@@ -5266,6 +5285,18 @@ const Account = () => {
                 <p className="font-mono font-bold text-[#134e4a]">{refundPayTarget.refundID}</p>
                 <p className="font-bold text-gray-800">{refundPayTarget.customer}</p>
                 <p className="text-xs text-gray-600">{refundPayTarget.reason}</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 text-[10px]">
+                  <div>
+                    <p className="uppercase text-gray-400 font-bold tracking-wide">Refund requested by</p>
+                    <p className="font-semibold text-gray-800">{refundPayTarget.requestedBy || '—'}</p>
+                  </div>
+                  <div>
+                    <p className="uppercase text-gray-400 font-bold tracking-wide">Payment confirmed by</p>
+                    <p className="font-semibold text-gray-800">
+                      {refundPayPaymentConfirmers.length > 0 ? refundPayPaymentConfirmers.join(' · ') : '—'}
+                    </p>
+                  </div>
+                </div>
                 {(refundPayTarget.payeeName || refundPayTarget.payeeAccountNo || refundPayTarget.payeeBankName) ? (
                   <div className="mt-2 rounded-xl border border-sky-200/90 bg-sky-50/95 px-3 py-2.5 text-[11px] text-sky-950 space-y-1">
                     <p className="text-[9px] font-bold uppercase tracking-wide text-sky-900/90">Pay to (from request)</p>

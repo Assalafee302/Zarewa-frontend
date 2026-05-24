@@ -433,10 +433,6 @@ const ReceiptModal = ({
     return s;
   }, [isEdit, editData?.id, editData?.ledgerEntryId, editData?._ledgerEntry?.id]);
 
-  useEffect(() => {
-    setFullAmountAsReceipt(false);
-  }, [quotationRef]);
-
   const treasuryByIdStr = useMemo(() => {
     const m = new Map();
     treasuryList.forEach((a) => m.set(String(a.id), a));
