@@ -16,7 +16,7 @@ function ui(appearance) {
 export function ManagerPoAuditSections({ auditData, loadingAudit, formatNgn, appearance = 'dark' }) {
   const u = ui(appearance);
 
-  if (loadingAudit) {
+  if (loadingAudit && (!auditData || auditData.ok === false)) {
     return (
       <div className="flex items-center justify-center py-16">
         <RefreshCw className={`${u.spin} animate-spin`} size={28} />

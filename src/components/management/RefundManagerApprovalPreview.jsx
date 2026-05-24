@@ -64,7 +64,7 @@ export function RefundManagerApprovalPreview({
   onReject,
   onOpenSales,
 }) {
-  const loading = loadingAudit || loadingIntel;
+  const loading = loadingAudit || (loadingIntel && !refundIntel);
   const refund = useMemo(() => {
     if (refundRecord) return normalizeRefund(refundRecord);
     if (!inboxRow) return null;

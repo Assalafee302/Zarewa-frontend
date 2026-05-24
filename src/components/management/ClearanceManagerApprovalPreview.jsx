@@ -33,7 +33,8 @@ export function ClearanceManagerApprovalPreview({
   onReleasePayments,
   onProductionOverride,
 }) {
-  const loading = loadingAudit || loadingIntel;
+  /** Keep line items visible during background refund-intel refresh when data is already loaded. */
+  const loading = loadingAudit || (loadingIntel && !paymentIntel);
   const paidNgn = Number(inboxRow?.paid_ngn ?? auditData?.summary?.paidNgn) || 0;
   const totalNgn = Number(inboxRow?.total_ngn ?? auditData?.summary?.orderTotalNgn) || 0;
   const pct = percentPaid(paidNgn, totalNgn);

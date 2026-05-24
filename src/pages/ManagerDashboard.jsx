@@ -82,6 +82,9 @@ const ManagerDashboard = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const quoteDeepLinked = useRef('');
+  const poDeepLinked = useRef('');
+  const managerQueuesHydratedRef = useRef(false);
+  const lastRefundIntelQrefRef = useRef('');
   const ws = useWorkspace();
   const { show: showToast } = useToast();
   const [loading, setLoading] = useState(true);
@@ -421,8 +424,8 @@ const ManagerDashboard = () => {
     metricPeriod,
   ]);
 
-  const fetchData = async () => {
-    setLoading(true);
+  const fetchData = async ({ background = false } = {}) => {
+    if (!background) setLoading(true);
     setLoadError(null);
     try {
       const [itemsRes, attentionRes] = await Promise.all([
@@ -473,11 +476,12 @@ const ManagerDashboard = () => {
       setEditApprovalPending(editAppr);
     } finally {
       setLoading(false);
+      managerQueuesHydratedRef.current = true;
     }
   };
 
   useEffect(() => {
-    fetchData();
+    void fetchData({ background: managerQueuesHydratedRef.current });
   }, [ws?.refreshEpoch]);
 
   const fetchAudit = useCallback(async (quoteId) => {
@@ -551,6 +555,8 @@ const ManagerDashboard = () => {
   useEffect(() => {
     const po = (searchParams.get('poId') || searchParams.get('poID') || '').trim();
     if (!po || loading) return;
+    if (poDeepLinked.current === po) return;
+    poDeepLinked.current = po;
     setActiveTab('attention');
     setSelectedIntel({ kind: 'purchase_order', poId: po, row: { poID: po } });
     void fetchPoAudit(po);
@@ -593,26 +599,34 @@ const ManagerDashboard = () => {
     selectedIntel?.row?.customer_name,
   ]);
 
+  const selectedIntelKind = selectedIntel?.kind;
+  const selectedIntelQuoteId = selectedIntel?.quoteId;
+  const selectedIntelRefundQref = selectedIntel?.row?.quotation_ref;
+
   useEffect(() => {
-    const kind = selectedIntel?.kind;
+    const kind = selectedIntelKind;
     if (kind !== 'refund' && kind !== 'quotation') {
       setRefundIntelExtras(null);
       setLoadingRefundIntel(false);
+      lastRefundIntelQrefRef.current = '';
       return;
     }
     const qref =
       kind === 'refund'
-        ? String(selectedIntel.row?.quotation_ref || '').trim()
-        : String(selectedIntel.quoteId || '').trim();
+        ? String(selectedIntelRefundQref || '').trim()
+        : String(selectedIntelQuoteId || '').trim();
     if (!qref) {
       setRefundIntelExtras(null);
       setLoadingRefundIntel(false);
+      lastRefundIntelQrefRef.current = '';
       if (kind === 'refund') setAuditData(null);
       return;
     }
     if (kind === 'refund') void fetchAudit(qref);
+    const sameQref = lastRefundIntelQrefRef.current === qref;
+    lastRefundIntelQrefRef.current = qref;
+    if (!sameQref) setLoadingRefundIntel(true);
     let cancelled = false;
-    setLoadingRefundIntel(true);
     (async () => {
       const { ok, data } = await apiFetch(`/api/refunds/intelligence?quotationRef=${encodeURIComponent(qref)}`);
       if (cancelled) return;
@@ -623,7 +637,7 @@ const ManagerDashboard = () => {
     return () => {
       cancelled = true;
     };
-  }, [selectedIntel, fetchAudit]);
+  }, [selectedIntelKind, selectedIntelQuoteId, selectedIntelRefundQref, fetchAudit]);
 
   useEffect(() => {
     if (selectedIntel?.kind !== 'conversion') return;
@@ -707,6 +721,8 @@ const ManagerDashboard = () => {
         reviewContext,
         ...extra,
       });
+      setAuditData(null);
+      lastRefundIntelQrefRef.current = '';
       fetchAudit(quotationId);
     },
     [fetchAudit, activeTab]

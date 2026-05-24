@@ -81,7 +81,7 @@ export function ManagementAuditSections({ auditData, loadingAudit, formatNgn, ap
   const u = auditUi(appearance);
   const ledgerTheme = u.L ? 'light' : 'dark';
 
-  if (loadingAudit) {
+  if (loadingAudit && (!auditData || auditData.ok === false)) {
     return (
       <div className="flex items-center justify-center py-16">
         <RefreshCw className={`${u.spin} animate-spin`} size={28} />
