@@ -45,6 +45,14 @@ const TransportAgentProfile = () => {
   const ws = useWorkspace();
   const [selectedPo, setSelectedPo] = useState(null);
 
+  const workspaceBranchLabel = useMemo(() => {
+    const id = String(ws?.branchScope || ws?.session?.currentBranchId || '').trim();
+    if (!id || ws?.viewAllBranches) return '';
+    const branches = ws?.snapshot?.workspaceBranches ?? ws?.session?.branches ?? [];
+    const hit = branches.find((b) => String(b.id || '') === id);
+    return hit?.name || hit?.code || id;
+  }, [ws?.branchScope, ws?.session?.currentBranchId, ws?.viewAllBranches, ws?.snapshot?.workspaceBranches, ws?.session?.branches]);
+
   const agent = useMemo(() => {
     const list = ws?.snapshot?.transportAgents;
     if (!Array.isArray(list)) return undefined;
@@ -324,8 +332,10 @@ const TransportAgentProfile = () => {
                 ))}
               </ul>
             ) : (
-              <p className="text-sm text-slate-500 text-center py-8 border border-dashed border-slate-200 rounded-lg">
-                No purchase orders linked to this agent yet.
+              <p className="text-sm text-slate-500 text-center py-8 border border-dashed border-slate-200 rounded-lg leading-relaxed px-4">
+                {workspaceBranchLabel
+                  ? `No PO haulage linked to this agent in ${workspaceBranchLabel}. Transporters are shared company-wide; other branches may have separate assignments.`
+                  : 'No purchase orders linked to this agent in the current workspace scope.'}
               </p>
             )}
           </section>

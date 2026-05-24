@@ -58,6 +58,14 @@ const SupplierProfile = () => {
   const ws = useWorkspace();
   const [selectedPo, setSelectedPo] = useState(null);
 
+  const workspaceBranchLabel = useMemo(() => {
+    const id = String(ws?.branchScope || ws?.session?.currentBranchId || '').trim();
+    if (!id || ws?.viewAllBranches) return '';
+    const branches = ws?.snapshot?.workspaceBranches ?? ws?.session?.branches ?? [];
+    const hit = branches.find((b) => String(b.id || '') === id);
+    return hit?.name || hit?.code || id;
+  }, [ws?.branchScope, ws?.session?.currentBranchId, ws?.viewAllBranches, ws?.snapshot?.workspaceBranches, ws?.session?.branches]);
+
   const supplier = useMemo(() => {
     const apiList = ws?.snapshot?.suppliers;
     if (!Array.isArray(apiList)) return undefined;
@@ -594,7 +602,11 @@ const SupplierProfile = () => {
               </h3>
               <div className="space-y-1.5 max-h-[460px] overflow-y-auto custom-scrollbar pr-1">
                 {orders.length === 0 ? (
-                  <p className="text-sm text-slate-500">No purchase orders for this supplier.</p>
+                  <p className="text-sm text-slate-500 leading-relaxed">
+                    {workspaceBranchLabel
+                      ? `No purchase orders with this supplier in ${workspaceBranchLabel}. The supplier is shared company-wide; other branches may have their own POs and payments.`
+                      : 'No purchase orders for this supplier in the current workspace scope.'}
+                  </p>
                 ) : (
                   orders.map((po) => (
                     <button
