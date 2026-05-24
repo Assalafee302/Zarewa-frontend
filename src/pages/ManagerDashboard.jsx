@@ -54,11 +54,17 @@ import { Card, Button } from '../components/ui';
 import { ModalFrame, PageShell } from '../components/layout';
 import { DashboardKpiStrip } from '../components/dashboard/DashboardKpiStrip';
 import { ManagementAuditSections } from '../components/management/ManagementAuditSections';
+import { ManagerPoAuditSections } from '../components/management/ManagerPoAuditSections';
 import { RefundManagerApprovalPreview } from '../components/management/RefundManagerApprovalPreview';
 import { ClearanceManagerApprovalPreview } from '../components/management/ClearanceManagerApprovalPreview';
 import { OfficialRecordBanner } from '../components/management/OfficialRecordBanner';
 
 const INBOX_TABS = [
+  {
+    key: 'attention',
+    label: 'Attention',
+    description: 'Unified priority queue — clearance, flags, refunds, payments, production, edits',
+  },
   { key: 'clearance', label: 'Clearance', description: 'Paid quotes awaiting manager clearance' },
   { key: 'production', label: 'Production gate', description: 'Draft cutting lists under 70% paid' },
   { key: 'conversions', label: 'Conversion review', description: 'High / low conversion or jobs awaiting manager sign-off' },
@@ -97,7 +103,11 @@ const ManagerDashboard = () => {
   const [loadingRefundIntel, setLoadingRefundIntel] = useState(false);
   const [decisionBusy, setDecisionBusy] = useState(false);
   const [inboxSearch, setInboxSearch] = useState('');
-  const [activeTab, setActiveTab] = useState('clearance');
+  const [activeTab, setActiveTab] = useState('attention');
+  const [attentionItems, setAttentionItems] = useState([]);
+  const [attentionSummary, setAttentionSummary] = useState(null);
+  const [poAuditData, setPoAuditData] = useState(null);
+  const [loadingPoAudit, setLoadingPoAudit] = useState(false);
   const [editApprovalPending, setEditApprovalPending] = useState([]);
   const [conversionSignoffRemark, setConversionSignoffRemark] = useState('');
   const [conversionSignoffEditApprovalId, setConversionSignoffEditApprovalId] = useState('');
@@ -125,7 +135,10 @@ const ManagerDashboard = () => {
     return list.find((r) => String(r.refundID) === String(selectedIntel.refundId)) || null;
   }, [selectedIntel?.kind, selectedIntel?.refundId, ws?.hasWorkspaceData, ws?.snapshot?.refunds]);
 
-  const intelModalLight = selectedIntel?.kind === 'refund' || selectedIntel?.kind === 'quotation';
+  const intelModalLight =
+    selectedIntel?.kind === 'refund' ||
+    selectedIntel?.kind === 'quotation' ||
+    selectedIntel?.kind === 'purchase_order';
   const intelModalTitle =
     selectedIntel?.kind === 'refund'
       ? 'Refund approval review'
@@ -135,7 +148,9 @@ const ManagerDashboard = () => {
           : selectedIntel.reviewContext === 'production'
             ? 'Production gate review'
             : 'Clearance review'
-        : 'Transaction intel';
+        : selectedIntel?.kind === 'purchase_order'
+          ? 'Purchase order lifecycle'
+          : 'Transaction intel';
 
   const inboxTabs = useMemo(() => {
     const t = [...INBOX_TABS];
@@ -410,7 +425,18 @@ const ManagerDashboard = () => {
     setLoading(true);
     setLoadError(null);
     try {
-      const itemsRes = await apiFetch('/api/management/items');
+      const [itemsRes, attentionRes] = await Promise.all([
+        apiFetch('/api/management/items'),
+        apiFetch('/api/management/attention'),
+      ]);
+
+      if (attentionRes.ok && attentionRes.data?.ok !== false) {
+        setAttentionItems(Array.isArray(attentionRes.data.items) ? attentionRes.data.items : []);
+        setAttentionSummary(attentionRes.data.summary || null);
+      } else {
+        setAttentionItems([]);
+        setAttentionSummary(null);
+      }
 
       const itemsOk =
         itemsRes.ok &&
@@ -465,6 +491,15 @@ const ManagerDashboard = () => {
     setLoadingAudit(false);
   }, []);
 
+  const fetchPoAudit = useCallback(async (poId) => {
+    if (!poId) return;
+    setLoadingPoAudit(true);
+    const { ok, data } = await apiFetch(`/api/management/po-audit?poId=${encodeURIComponent(poId)}`);
+    if (ok && data) setPoAuditData(data);
+    else setPoAuditData({ ok: false, error: data?.error || 'Could not load PO audit.' });
+    setLoadingPoAudit(false);
+  }, []);
+
   /** Deep link: ?quoteRef= from Sales (cutting list, etc.) */
   useEffect(() => {
     const ref = (searchParams.get('quoteRef') || '').trim();
@@ -501,13 +536,25 @@ const ManagerDashboard = () => {
     fetchAudit,
   ]);
 
-  /** Deep link: ?inbox=edit_approvals opens the second-party edit approval queue. */
+  /** Deep link: ?inbox=attention | edit_approvals */
   useEffect(() => {
     const inbox = (searchParams.get('inbox') || '').trim().toLowerCase();
+    if (inbox === 'attention') {
+      setActiveTab('attention');
+      return;
+    }
     if (inbox !== 'edit_approvals') return;
     if (!userCanApproveEditMutationsClient(ws?.session?.user?.roleKey, ws?.permissions)) return;
     setActiveTab('edit_approvals');
   }, [searchParams, ws?.session?.user?.roleKey, ws?.permissions]);
+
+  useEffect(() => {
+    const po = (searchParams.get('poId') || searchParams.get('poID') || '').trim();
+    if (!po || loading) return;
+    setActiveTab('attention');
+    setSelectedIntel({ kind: 'purchase_order', poId: po, row: { poID: po } });
+    void fetchPoAudit(po);
+  }, [searchParams, loading, fetchPoAudit]);
 
   useEffect(() => {
     setConversionSignoffRemark('');
@@ -590,6 +637,7 @@ const ManagerDashboard = () => {
 
   const tabCounts = useMemo(
     () => ({
+      attention: attentionItems.length,
       clearance: displayItems.pendingClearance.length,
       production: displayItems.productionOverrides.length,
       conversions: (displayItems.pendingConversionReviews ?? []).length,
@@ -599,7 +647,7 @@ const ManagerDashboard = () => {
       material: materialIncidentQueue.length,
       edit_approvals: editApprovalPending.length,
     }),
-    [displayItems, editApprovalPending.length]
+    [attentionItems.length, displayItems, editApprovalPending.length]
   );
 
   const totalOpenActions = useMemo(
@@ -617,7 +665,8 @@ const ManagerDashboard = () => {
 
   const filteredInboxRows = useMemo(() => {
     let list = [];
-    if (activeTab === 'clearance') list = displayItems.pendingClearance;
+    if (activeTab === 'attention') list = attentionItems;
+    else if (activeTab === 'clearance') list = displayItems.pendingClearance;
     else if (activeTab === 'production') list = displayItems.productionOverrides;
     else if (activeTab === 'flagged') list = displayItems.flagged;
     else if (activeTab === 'refunds') list = displayItems.pendingRefunds;
@@ -626,7 +675,7 @@ const ManagerDashboard = () => {
     else if (activeTab === 'conversions') list = displayItems.pendingConversionReviews ?? [];
     else if (activeTab === 'edit_approvals') list = editApprovalPending;
     return list.filter((row) => matchesInboxSearch(inboxSearch, row, activeTab));
-  }, [activeTab, displayItems, inboxSearch, editApprovalPending, materialIncidentQueue]);
+  }, [activeTab, attentionItems, displayItems, inboxSearch, editApprovalPending, materialIncidentQueue]);
 
   const producedSalesProgress =
     displaySnapshots.targets?.nairaTarget > 0
@@ -661,6 +710,69 @@ const ManagerDashboard = () => {
       fetchAudit(quotationId);
     },
     [fetchAudit, activeTab]
+  );
+
+  const openAttentionItem = useCallback(
+    (item) => {
+      if (!item) return;
+      const row = item.row || {};
+      const kind = item.kind;
+      if (kind === 'clearance' || kind === 'flagged') {
+        const qid = item.quotationRef || row.id;
+        openQuotationIntel(qid, row, {
+          reviewContext: kind === 'flagged' ? 'flagged' : 'clearance',
+        });
+        setActiveTab(kind === 'flagged' ? 'flagged' : 'clearance');
+        return;
+      }
+      if (kind === 'production') {
+        const qref = item.quotationRef || row.quotation_ref;
+        openQuotationIntel(
+          qref,
+          { id: qref, customer_name: row.customer_name },
+          { cuttingListId: item.cuttingListId || row.id, fromProductionGate: true }
+        );
+        setActiveTab('production');
+        return;
+      }
+      if (kind === 'conversions') {
+        setAuditData(null);
+        setRefundIntelExtras(null);
+        setSelectedIntel({ kind: 'conversion', jobId: item.jobId || row.job_id, row: { ...row } });
+        setActiveTab('conversions');
+        return;
+      }
+      if (kind === 'refunds') {
+        setSelectedIntel({ kind: 'refund', refundId: item.refundId || row.refund_id, row: { ...row } });
+        setActiveTab('refunds');
+        return;
+      }
+      if (kind === 'payments') {
+        setAuditData(null);
+        setRefundIntelExtras(null);
+        setSelectedIntel({ kind: 'payment', requestId: item.requestId || row.request_id, row: { ...row } });
+        setActiveTab('payments');
+        return;
+      }
+      if (kind === 'material') {
+        navigate('/operations', {
+          state: { focusOpsTab: 'materialExceptions', materialIncidentId: item.title || row.id },
+        });
+        return;
+      }
+      if (kind === 'edit_approvals') {
+        setActiveTab('edit_approvals');
+        return;
+      }
+      if (item.poId) {
+        const po = item.poId;
+        setAuditData(null);
+        setRefundIntelExtras(null);
+        setSelectedIntel({ kind: 'purchase_order', poId: po, row: { poID: po, ...row } });
+        void fetchPoAudit(po);
+      }
+    },
+    [fetchPoAudit, navigate, openQuotationIntel]
   );
 
   const handleReview = async (quotationId, decision, reason = '') => {
@@ -837,6 +949,34 @@ const ManagerDashboard = () => {
     'group w-full text-left flex items-center gap-2 sm:gap-3 px-3 py-2.5 border-b border-slate-100 last:border-0 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset';
 
   const renderInboxRow = (row) => {
+    if (activeTab === 'attention') {
+      const it = row;
+      const reasons = Array.isArray(it.reasons) ? it.reasons : [];
+      return (
+        <button
+          key={it.id}
+          type="button"
+          onClick={() => openAttentionItem(it)}
+          className={`${inboxRowBase} hover:bg-violet-50/50 focus-visible:ring-violet-300/40`}
+        >
+          <span className="shrink-0 rounded-md bg-violet-100 px-1.5 py-0.5 text-[8px] font-black uppercase text-violet-900">
+            {it.kind}
+          </span>
+          <span className="min-w-0 flex-1 truncate text-[11px] font-semibold text-slate-800">
+            <span className="font-mono font-bold text-[#134e4a]">{it.title}</span>
+            {' · '}
+            {it.subtitle}
+          </span>
+          {it.amountNgn != null ? (
+            <span className="shrink-0 text-[10px] font-bold tabular-nums text-slate-700">{formatNgn(it.amountNgn)}</span>
+          ) : null}
+          <span className="hidden lg:inline shrink-0 max-w-[8rem] truncate text-[9px] text-slate-500">
+            {reasons[0] || ''}
+          </span>
+          <ChevronRight size={14} className="shrink-0 text-slate-300" />
+        </button>
+      );
+    }
     if (activeTab === 'edit_approvals') {
       const e = row;
       return (
@@ -1521,7 +1661,20 @@ const ManagerDashboard = () => {
                     }}
                     onProductionOverride={() => handleReview(selectedIntel.quoteId, 'approve_production')}
                   />
+                  <ManagementAuditSections
+                    auditData={auditData}
+                    loadingAudit={loadingAudit}
+                    formatNgn={formatNgn}
+                    appearance="light"
+                  />
                 </>
+              ) : selectedIntel?.kind === 'purchase_order' ? (
+                <ManagerPoAuditSections
+                  auditData={poAuditData}
+                  loadingAudit={loadingPoAudit}
+                  formatNgn={formatNgn}
+                  appearance="light"
+                />
               ) : selectedIntel?.kind === 'refund' ? (
                 <>
                   <OfficialRecordBanner
@@ -1551,6 +1704,12 @@ const ManagerDashboard = () => {
                         },
                       })
                     }
+                  />
+                  <ManagementAuditSections
+                    auditData={auditData}
+                    loadingAudit={loadingAudit}
+                    formatNgn={formatNgn}
+                    appearance="light"
                   />
                 </>
               ) : selectedIntel?.kind === 'payment' ? (

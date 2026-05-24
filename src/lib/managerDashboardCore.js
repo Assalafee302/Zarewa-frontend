@@ -69,7 +69,10 @@ export function matchesInboxSearch(query, row, tabKey) {
   const s = String(query || '').trim().toLowerCase();
   if (!s) return true;
   const parts = [];
-  if (tabKey === 'clearance' || tabKey === 'flagged') {
+  if (tabKey === 'attention') {
+    parts.push(row.title, row.subtitle, row.kind, row.quotationRef, row.poId, row.refundId, row.requestId);
+    if (Array.isArray(row.reasons)) parts.push(...row.reasons);
+  } else if (tabKey === 'clearance' || tabKey === 'flagged') {
     parts.push(row.id, row.customer_name, row.status);
   } else if (tabKey === 'production') {
     parts.push(row.id, row.quotation_ref, row.customer_name);

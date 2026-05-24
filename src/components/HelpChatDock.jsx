@@ -14,6 +14,7 @@ import {
   mergeHelpLinks,
   quickQuestionsForPath,
 } from '../lib/helpKnowledge';
+import { buildHelpCoachingHints, mergePersonalizedPrompts } from '../lib/helpRecommend';
 
 const INTRO =
   'Ask how to complete a workflow in Zarewa — payments, quotations, procurement, production, refunds, or reconciliation. I use step-by-step guides and can call AI for complicated multi-department questions.';
@@ -88,9 +89,23 @@ export function HelpChatDock() {
   const textareaRef = useRef(null);
 
   const aiDockVisible = Boolean(user && user.roleKey !== 'ceo' && ai?.available === true);
-  const quickQuestions = useMemo(
-    () => quickQuestionsForPath(location.pathname),
-    [location.pathname]
+  const snapshot = ws?.snapshot;
+  const quickQuestions = useMemo(() => {
+    const pathPrompts = quickQuestionsForPath(location.pathname);
+    const bootPrompts = snapshot?.helpPersonalization?.prompts;
+    if (Array.isArray(bootPrompts) && bootPrompts.length) {
+      return mergePersonalizedPrompts(
+        pathPrompts,
+        bootPrompts,
+        snapshot?.helpPersonalization?.learnedBoosts || {},
+        location.pathname
+      ).slice(0, 8);
+    }
+    return pathPrompts;
+  }, [location.pathname, snapshot?.helpPersonalization]);
+  const coachingHints = useMemo(
+    () => buildHelpCoachingHints(snapshot, location.pathname),
+    [snapshot, location.pathname]
   );
 
   useEffect(() => {
@@ -306,6 +321,28 @@ export function HelpChatDock() {
             </div>
 
             <div className="flex-1 overflow-y-auto overscroll-contain bg-gradient-to-b from-slate-50/80 to-white px-4 py-4 space-y-3">
+              {showQuickQuestions && coachingHints.length > 0 ? (
+                <div className="rounded-2xl border border-amber-200/80 bg-amber-50/90 px-3.5 py-3 shadow-sm">
+                  <p className="text-[10px] font-black uppercase tracking-wider text-amber-900">
+                    Suggested from your workspace
+                  </p>
+                  <ul className="mt-2 space-y-2">
+                    {coachingHints.map((hint) => (
+                      <li key={hint.id}>
+                        <button
+                          type="button"
+                          onClick={() => void sendText(hint.query)}
+                          className="w-full rounded-xl border border-amber-100 bg-white px-3 py-2 text-left transition hover:border-teal-200 hover:bg-teal-50/50"
+                        >
+                          <span className="block text-[11px] font-bold text-[#134e4a]">{hint.title}</span>
+                          <span className="mt-0.5 block text-[10px] text-amber-900/80">{hint.reason}</span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+
               {showQuickQuestions ? (
                 <div className="rounded-2xl border border-slate-200 bg-white px-3.5 py-3.5 shadow-sm">
                   <p className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-slate-600">

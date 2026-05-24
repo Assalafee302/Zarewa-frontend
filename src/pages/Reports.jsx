@@ -40,6 +40,7 @@ import {
 } from '../lib/liveAnalytics';
 import { procurementKindFromPo } from '../lib/procurementPoKind';
 import { ReportsGlPilotSection } from '../components/reports/ReportsGlPilotSection.jsx';
+import { ExecutiveReportPacksSection } from '../components/reports/ExecutiveReportPacksSection.jsx';
 
 const PACK_PERIOD_COSTS_INVENTORY = 'Period costs & inventory (pack)';
 const PACK_CASH_BANK_AR = 'Cash, bank & AR reconciliation (pack)';
@@ -1661,6 +1662,8 @@ const Reports = () => {
             procurement kind on POs, GRN/inventory lots (coil and stone), and accessory usage lines for the period.
             Print shows a focused table plus counts for the rest (full detail stays in Excel/CSV).
           </p>
+
+          <ExecutiveReportPacksSection showToast={showToast} />
 
           <section className="z-soft-panel p-5 sm:p-6 mb-8">
             <div className="flex flex-wrap items-center justify-between gap-2">

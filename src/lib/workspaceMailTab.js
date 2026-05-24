@@ -37,7 +37,8 @@ export function mailTabForWorkItem(item) {
   return 'updates';
 }
 
-export const MAIL_TAB_ORDER = ['primary', 'finance', 'operations', 'management', 'updates', 'all'];
+/** All first so HQ users see the full registry before category filters (General, Finance, …). */
+export const MAIL_TAB_ORDER = ['all', 'primary', 'finance', 'operations', 'management', 'updates'];
 
 export const MAIL_TAB_LABELS = {
   primary: 'General',

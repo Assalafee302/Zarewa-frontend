@@ -1,6 +1,7 @@
 import React, { Fragment } from 'react';
 import { RefreshCw } from 'lucide-react';
 import { flattenQuotationLineItems, ledgerTypeStyle } from '../../lib/managerDashboardCore';
+import { ManagementActivityTimeline } from './ManagementActivityTimeline';
 
 function auditUi(appearance) {
   const L = appearance === 'light';
@@ -393,6 +394,31 @@ export function ManagementAuditSections({ auditData, loadingAudit, formatNgn, ap
           )}
         </div>
       </section>
+
+      <section className="mt-4">
+        <p className={u.secTeal}>Activity &amp; approvals</p>
+        <ManagementActivityTimeline
+          events={auditData.activityTimeline}
+          appearance={appearance}
+          formatNgn={formatNgn}
+        />
+      </section>
+
+      {Array.isArray(auditData.editApprovals) && auditData.editApprovals.length > 0 ? (
+        <section className="mt-4">
+          <p className={u.sec}>Edit approvals</p>
+          <div className={u.divide}>
+            {auditData.editApprovals.map((ea) => (
+              <div key={ea.id} className={u.lineRow}>
+                <span className={u.name}>{ea.status}</span>
+                <span className={u.amt}>
+                  {ea.requestedByDisplay || '—'} · {String(ea.requestedAtISO || '').slice(0, 10)}
+                </span>
+              </div>
+            ))}
+          </div>
+        </section>
+      ) : null}
     </Fragment>
   );
 }

@@ -31,21 +31,34 @@ export function BranchWorkspaceBar() {
     [currentId, ws.updateWorkspace]
   );
 
-  const onToggleRollup = useCallback(
-    async (e) => {
-      const next = e.target.checked;
-      setError(null);
-      setBusy(true);
-      const r = await ws.updateWorkspace({ viewAllBranches: next });
-      setBusy(false);
-      if (!r.ok) setError(r.error || 'Update failed');
-    },
-    [ws.updateWorkspace]
-  );
-
   if (!ws.apiOnline || branches.length === 0) return null;
 
   const activeBranch = branches.find((b) => b.id === currentId) || branches[0] || null;
+
+  const onWorkspaceScopeChange = useCallback(
+    async (e) => {
+      const v = String(e.target.value || '').trim();
+      if (!v) return;
+      if (v === '__ALL__') {
+        if (viewAll) return;
+        setError(null);
+        setBusy(true);
+        const r = await ws.updateWorkspace({ viewAllBranches: true });
+        setBusy(false);
+        if (!r.ok) setError(r.error || 'Update failed');
+        return;
+      }
+      if (v === currentId && !viewAll) return;
+      setError(null);
+      setBusy(true);
+      const r = await ws.updateWorkspace({ currentBranchId: v, viewAllBranches: false });
+      setBusy(false);
+      if (!r.ok) setError(r.error || 'Update failed');
+    },
+    [currentId, viewAll, ws.updateWorkspace]
+  );
+
+  const scopeSelectValue = viewAll && canHqRollup ? '__ALL__' : currentId || (branches[0]?.id ?? '');
 
   return (
     <div className="flex w-full min-w-0 flex-col gap-1 sm:w-auto sm:flex-row sm:items-center sm:gap-3">
@@ -54,15 +67,18 @@ export function BranchWorkspaceBar() {
           <Building2 size={16} className="shrink-0 text-[#134e4a]/70" aria-hidden />
           <div className="min-w-0 flex-1">
             <label htmlFor="zarewa-branch-workspace" className="sr-only">
-              Active branch
+              Workspace scope
             </label>
             <select
               id="zarewa-branch-workspace"
-              value={currentId || (branches[0]?.id ?? '')}
-              onChange={onBranchChange}
+              value={scopeSelectValue}
+              onChange={canHqRollup ? onWorkspaceScopeChange : onBranchChange}
               disabled={busy}
-              className="w-full min-w-0 max-w-none cursor-pointer truncate bg-transparent text-[10px] font-bold uppercase tracking-wide text-[#134e4a] outline-none disabled:opacity-50 sm:z-toolbar-shell sm:text-[11px] sm:max-w-[240px]"
+              className="w-full min-w-0 max-w-none cursor-pointer truncate bg-transparent text-[10px] font-bold uppercase tracking-wide text-[#134e4a] outline-none disabled:opacity-50 sm:z-toolbar-shell sm:text-[11px] sm:max-w-[280px]"
             >
+              {canHqRollup ? (
+                <option value="__ALL__">All branches (HQ roll-up)</option>
+              ) : null}
               {branches.map((b) => (
                 <option key={b.id} value={b.id}>
                   {b.name || b.code || b.id}
@@ -81,19 +97,6 @@ export function BranchWorkspaceBar() {
           </div>
         </div>
       )}
-
-      {canHqRollup ? (
-        <label className="flex w-full cursor-pointer items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border border-slate-200/70 bg-white px-2 py-1.5 text-[9px] font-bold uppercase tracking-wide text-gray-600 shadow-sm sm:w-auto sm:gap-2 sm:rounded-xl sm:border-gray-100/80 sm:bg-white/80 sm:px-3 sm:py-2 sm:text-[10px]">
-          <input
-            type="checkbox"
-            checked={viewAll}
-            onChange={onToggleRollup}
-            disabled={busy}
-            className="h-3.5 w-3.5 rounded border-gray-300 text-[#134e4a] focus:ring-[#134e4a]"
-          />
-          All branches
-        </label>
-      ) : null}
 
       {viewAll && canHqRollup ? (
         <span

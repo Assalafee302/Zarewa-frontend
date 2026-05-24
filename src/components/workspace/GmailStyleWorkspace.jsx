@@ -116,7 +116,7 @@ export default function GmailStyleWorkspace({
   const ws = useWorkspace();
   const { show: showToast } = useToast();
 
-  const [mailTab, setMailTab] = useState('primary');
+  const [mailTab, setMailTab] = useState('all');
   const [listMode, setListMode] = useState('registry');
   const [selectedWorkItem, setSelectedWorkItem] = useState(null);
   const [officeNavCollapsed, setOfficeNavCollapsed] = useState(() => {
