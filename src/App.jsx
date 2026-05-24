@@ -915,9 +915,9 @@ function AppShell() {
             <Route path="*" element={<NotFound />} />
           </Routes>
         </main>
-        <HelpChatDock />
-        <AiAssistantDock />
       </div>
+      <HelpChatDock sidebarCollapsed={sidebarCollapsed} />
+      <AiAssistantDock />
       <DegradedWorkspaceLock />
     </div>
   );

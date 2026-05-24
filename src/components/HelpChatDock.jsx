@@ -37,7 +37,7 @@ function HelpMessageBody({ content }) {
   );
 }
 
-export function HelpChatDock() {
+export function HelpChatDock({ sidebarCollapsed = false }) {
   const ws = useWorkspace();
   const location = useLocation();
   const user = ws?.session?.user;
@@ -139,6 +139,10 @@ export function HelpChatDock() {
     [busy, messages.length]
   );
 
+  const launcherClass = sidebarCollapsed
+    ? 'left-[max(1.25rem,env(safe-area-inset-left))] lg:left-[calc(4rem+1.25rem)]'
+    : 'left-[max(1.25rem,env(safe-area-inset-left))] lg:left-[calc(16rem+1.25rem)]';
+
   if (!user) return null;
 
   return (
@@ -146,7 +150,7 @@ export function HelpChatDock() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="fixed z-[165] flex h-14 w-14 items-center justify-center rounded-2xl border border-slate-200 bg-white text-[#134e4a] shadow-lg transition hover:bg-teal-50 active:scale-[0.98] bottom-[max(1.25rem,env(safe-area-inset-bottom))] left-[max(1.25rem,env(safe-area-inset-left))]"
+        className={`fixed z-[165] flex h-14 w-14 items-center justify-center rounded-2xl border border-slate-200 bg-white text-[#134e4a] shadow-lg transition hover:bg-teal-50 active:scale-[0.98] bottom-[max(1.25rem,env(safe-area-inset-bottom))] ${launcherClass}`}
         aria-label="Open help assistant"
         title="Help — how do I…?"
       >

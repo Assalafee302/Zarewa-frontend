@@ -12,7 +12,13 @@ import { formatPersonName } from '../lib/formatPersonName';
 
 const WorkspaceContext = createContext(null);
 
-const BOOTSTRAP_CACHE_KEY = 'zarewa.bootstrap.cache.v2';
+const BOOTSTRAP_CACHE_KEY_PREFIX = 'zarewa.bootstrap.cache.v3';
+
+function bootstrapCacheKey(session) {
+  const bid = String(session?.currentBranchId || 'default').trim() || 'default';
+  const all = session?.viewAllBranches ? ':all' : '';
+  return `${BOOTSTRAP_CACHE_KEY_PREFIX}:${bid}${all}`;
+}
 
 /** Pull server changes from other users without a full page reload (ms). Override with `VITE_WORKSPACE_POLL_MS`. */
 function workspacePollIntervalMs() {
@@ -28,9 +34,9 @@ function workspacePollIntervalMs() {
   return 30000;
 }
 
-function readBootstrapCache() {
+function readBootstrapCache(session) {
   try {
-    const raw = sessionStorage.getItem(BOOTSTRAP_CACHE_KEY);
+    const raw = sessionStorage.getItem(bootstrapCacheKey(session));
     if (!raw) return null;
     const data = JSON.parse(raw);
     if (!data || typeof data !== 'object' || !data.ok) return null;
@@ -44,7 +50,7 @@ function readBootstrapCache() {
 function writeBootstrapCache(data) {
   try {
     if (data?.ok && data?.session?.user) {
-      sessionStorage.setItem(BOOTSTRAP_CACHE_KEY, JSON.stringify(data));
+      sessionStorage.setItem(bootstrapCacheKey(data.session), JSON.stringify(data));
     }
   } catch {
     /* ignore */
@@ -53,7 +59,14 @@ function writeBootstrapCache(data) {
 
 function clearBootstrapCache() {
   try {
-    sessionStorage.removeItem(BOOTSTRAP_CACHE_KEY);
+    const prefix = `${BOOTSTRAP_CACHE_KEY_PREFIX}:`;
+    const keys = [];
+    for (let i = 0; i < sessionStorage.length; i++) {
+      const k = sessionStorage.key(i);
+      if (k && k.startsWith(prefix)) keys.push(k);
+    }
+    for (const k of keys) sessionStorage.removeItem(k);
+    sessionStorage.removeItem('zarewa.bootstrap.cache.v2');
   } catch {
     /* ignore */
   }
@@ -152,7 +165,7 @@ export function WorkspaceProvider({ children }) {
       if (!ok || !data?.ok) throw new Error(data?.error || 'Bootstrap failed');
       return applySnapshot(data, 'ok');
     } catch (e) {
-      const cached = readBootstrapCache();
+      const cached = readBootstrapCache(snapshot?.session);
       if (cached) {
         setLastError(String(e.message || e));
         return applySnapshot(cached, 'degraded');
@@ -162,7 +175,7 @@ export function WorkspaceProvider({ children }) {
       setLastError(String(e.message || e));
       return null;
     }
-  }, [applySnapshot]);
+  }, [applySnapshot, snapshot?.session]);
 
   const login = useCallback(
     async (username, password) => {
@@ -380,6 +393,8 @@ export function WorkspaceProvider({ children }) {
   }, [status, refresh, refreshDashboardSummary]);
 
   const session = snapshot?.session ?? null;
+  const branchScope = snapshot?.branchScope ?? null;
+  const viewAllBranches = Boolean(session?.viewAllBranches);
   const permissions = useMemo(
     () => snapshot?.permissions ?? session?.permissions ?? [],
     [snapshot?.permissions, session?.permissions]
@@ -458,6 +473,8 @@ export function WorkspaceProvider({ children }) {
       apiUrl,
       authRequired: status === 'auth_required',
       session,
+      branchScope,
+      viewAllBranches,
       permissions,
       hasPermission,
       canAccessModule,
@@ -486,6 +503,8 @@ export function WorkspaceProvider({ children }) {
       usingCachedData,
       canMutate,
       session,
+      branchScope,
+      viewAllBranches,
       permissions,
       hasPermission,
       canAccessModule,
