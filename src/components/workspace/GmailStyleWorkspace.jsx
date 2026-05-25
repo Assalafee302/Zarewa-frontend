@@ -318,11 +318,11 @@ export default function GmailStyleWorkspace({
       aria-current={active ? 'page' : undefined}
       aria-label={navCollapsed ? label : undefined}
       title={label}
-      className={`relative flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm font-medium transition-colors lg:rounded-l-none lg:rounded-r-full ${
+      className={`relative flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium transition-colors ${
         active
-          ? 'bg-teal-100/90 font-semibold text-teal-950 shadow-sm ring-1 ring-teal-200/60 lg:ring-0'
-          : 'text-slate-600 hover:bg-white/80 hover:text-slate-900'
-      } ${navCollapsed ? 'lg:justify-center lg:gap-0 lg:px-2 lg:py-2.5' : ''}`}
+          ? 'bg-white font-semibold text-teal-900 shadow-sm ring-1 ring-teal-200/80'
+          : 'text-slate-600 hover:bg-white/70 hover:text-slate-900'
+      } ${navCollapsed ? 'lg:justify-center lg:gap-0 lg:px-2' : ''}`}
     >
       <span className={`flex w-6 shrink-0 justify-center ${active ? 'text-teal-800' : 'text-slate-500'}`}>{icon}</span>
       {!navCollapsed ? <span className="min-w-0 flex-1 truncate">{label}</span> : null}
@@ -653,15 +653,15 @@ export default function GmailStyleWorkspace({
                 lastUpdatedLabel={lastUpdatedLabel}
                 degraded={Boolean(ws?.usingCachedData)}
               />
-              <div className="z-scroll-x flex max-w-full shrink-0 items-center gap-1.5 overflow-x-auto border-b border-slate-200 bg-white px-2 py-2">
+              <div className="z-scroll-x flex max-w-full shrink-0 items-center gap-1 overflow-x-auto border-b border-slate-200 bg-white px-3 py-2">
                 {WORKSPACE_CATEGORY_ORDER.map((key) => (
                   <button
                     key={key}
                     type="button"
                     onClick={() => setCategory(key)}
-                    className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-colors ${
+                    className={`shrink-0 rounded-md px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-colors ${
                       activeCategory === key
-                        ? 'bg-teal-100 text-teal-950 shadow-sm ring-1 ring-teal-200/70'
+                        ? 'bg-teal-800 text-white shadow-sm'
                         : 'text-slate-600 hover:bg-slate-100'
                     }`}
                   >
@@ -734,14 +734,14 @@ export default function GmailStyleWorkspace({
                 )}
               </div>
             ) : (
-              <div className="flex min-h-0 min-w-0 flex-1 flex-col bg-white">
+              <div className="fixed inset-0 z-40 flex min-h-0 min-w-0 flex-1 flex-col bg-white lg:static lg:inset-auto lg:z-auto">
                 <WorkspaceReadingPaneHeader
                   onBack={clearReadingPane}
                   title={detailTitle}
                   item={normalizedSelected}
                   threadId={mailThreadId}
                 />
-                <div className="min-h-0 flex-1 overflow-hidden">{readingInner}</div>
+                <div className="min-h-0 flex-1 overflow-hidden pb-16 lg:pb-0">{readingInner}</div>
               </div>
             )}
           </div>

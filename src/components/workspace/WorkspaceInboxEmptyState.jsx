@@ -1,10 +1,10 @@
 import React from 'react';
-import { AlertCircle, CheckCircle2, Clock } from 'lucide-react';
+import { AlertCircle, CheckCircle2, Clock, Search } from 'lucide-react';
 
 const EMPTY_STATES = {
   needs_action: {
-    title: 'No action required',
-    description: "You're all caught up. Nothing needs your approval or response right now.",
+    title: "You're all caught up",
+    description: 'No items require your action right now.',
     icon: CheckCircle2,
   },
   all: {
@@ -18,24 +18,29 @@ const EMPTY_STATES = {
     icon: CheckCircle2,
   },
   unfiled: {
-    title: 'No unfiled items',
-    description: 'All records are properly classified and filed.',
+    title: 'All clear',
+    description: 'No records need filing right now.',
     icon: CheckCircle2,
   },
   monitoring: {
-    title: 'Nothing to monitor',
-    description: 'No branch-wide queue items need monitoring in this view.',
+    title: 'No monitoring alerts',
+    description: 'No monitoring alerts for this branch.',
     icon: Clock,
   },
   memos: {
-    title: 'No internal memos',
-    description: 'Compose an internal memo to start a conversation thread.',
+    title: 'No internal memos yet',
+    description: 'Compose a memo to start an official workspace thread.',
     icon: AlertCircle,
   },
   category: {
     title: 'No items in this category',
     description: 'Try another category or adjust your filters.',
     icon: Clock,
+  },
+  search: {
+    title: 'No results found',
+    description: 'Try a reference number, customer name, memo subject, or status.',
+    icon: Search,
   },
   default: {
     title: 'Nothing here',
@@ -50,16 +55,27 @@ export function WorkspaceInboxEmptyState({
   categoryEmptyMessage = '',
   onCompose,
   canCompose = false,
+  variant = '',
 }) {
-  const key = view === 'memos' ? 'memos' : category !== 'all' ? 'category' : view;
+  const key =
+    variant === 'search'
+      ? 'search'
+      : view === 'memos'
+        ? 'memos'
+        : category !== 'all'
+          ? 'category'
+          : view;
   const preset = EMPTY_STATES[key] || EMPTY_STATES.default;
   const Icon = preset.icon;
   const description =
     category !== 'all' && categoryEmptyMessage ? categoryEmptyMessage : preset.description;
 
   return (
-    <div className="flex h-full min-h-[220px] flex-col items-center justify-center bg-gradient-to-b from-slate-50/90 to-white px-6">
-      <div className="max-w-sm rounded-2xl border border-slate-200/90 bg-white px-6 py-8 text-center shadow-sm">
+    <div
+      className="flex h-full min-h-[220px] flex-col items-center justify-center bg-gradient-to-b from-slate-50/90 to-white px-6"
+      role="status"
+    >
+      <div className="max-w-sm rounded-xl border border-slate-200/90 bg-white px-6 py-8 text-center shadow-sm">
         <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-teal-50 text-teal-800">
           <Icon size={22} strokeWidth={1.75} aria-hidden />
         </div>
@@ -69,7 +85,7 @@ export function WorkspaceInboxEmptyState({
           <button
             type="button"
             onClick={onCompose}
-            className="mt-4 inline-flex items-center justify-center rounded-xl bg-[#134e4a] px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-[#0f3d3a]"
+            className="mt-4 inline-flex items-center justify-center rounded-lg bg-teal-800 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-teal-900"
           >
             Compose Memo
           </button>

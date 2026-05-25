@@ -263,8 +263,13 @@ function AppShell() {
         setCommandPaletteOpen(true);
       }
     };
+    const onOpenPalette = () => setCommandPaletteOpen(true);
     window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    window.addEventListener('zarewa:open-command-palette', onOpenPalette);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      window.removeEventListener('zarewa:open-command-palette', onOpenPalette);
+    };
   }, []);
 
   useEffect(() => {

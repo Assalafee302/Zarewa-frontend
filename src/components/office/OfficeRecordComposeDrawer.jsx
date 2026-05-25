@@ -62,6 +62,7 @@ export function OfficeRecordComposeDrawer({ isOpen, onDismiss, presentation = 'd
   const [showReview, setShowReview] = useState(false);
   const [attachmentDragOver, setAttachmentDragOver] = useState(false);
   const [attachmentError, setAttachmentError] = useState('');
+  const [draftSyncStatus, setDraftSyncStatus] = useState('idle');
 
   const workspaceBranchId = String(
     ws?.session?.workspaceBranchId || ws?.snapshot?.workspaceBranchId || ''
@@ -194,6 +195,7 @@ export function OfficeRecordComposeDrawer({ isOpen, onDismiss, presentation = 'd
     const uid = String(ws?.session?.user?.id || '').trim();
     if (!uid) return;
     const t = window.setTimeout(() => {
+      setDraftSyncStatus('saving');
       const draftPayload = {
         subject: newSubject,
         body: newBody,
@@ -210,6 +212,10 @@ export function OfficeRecordComposeDrawer({ isOpen, onDismiss, presentation = 'd
         updatedAtIso: new Date().toISOString(),
       };
       saveComposeMemoDraft(uid, draftPayload);
+      if (!ws?.apiOnline) {
+        setDraftSyncStatus('offline');
+        return;
+      }
       if (ws?.apiOnline && workspaceBranchId && composeDraftHasContent(draftPayload)) {
         void saveComposeDraft({
           id: serverDraftId || undefined,
@@ -225,7 +231,10 @@ export function OfficeRecordComposeDrawer({ isOpen, onDismiss, presentation = 'd
           smartGuidedFields,
         }).then((saved) => {
           if (saved?.id) setServerDraftId(String(saved.id));
-        });
+          setDraftSyncStatus('saved');
+        }).catch(() => setDraftSyncStatus('unsynced'));
+      } else {
+        setDraftSyncStatus('saved');
       }
     }, 600);
     return () => window.clearTimeout(t);
@@ -709,7 +718,7 @@ export function OfficeRecordComposeDrawer({ isOpen, onDismiss, presentation = 'd
         {isFloating ? (
           <button
             type="button"
-            className="text-sm font-medium text-[#5f6368] hover:text-[#202124]"
+            className="text-sm font-medium text-slate-600 hover:text-slate-900"
             onClick={closeCompose}
           >
             Discard
@@ -719,6 +728,17 @@ export function OfficeRecordComposeDrawer({ isOpen, onDismiss, presentation = 'd
             Cancel
           </button>
         )}
+        <span className="hidden text-[10px] text-slate-500 sm:inline" aria-live="polite">
+          {draftSyncStatus === 'saving'
+            ? 'Saving…'
+            : draftSyncStatus === 'saved'
+              ? 'Saved'
+              : draftSyncStatus === 'offline'
+                ? 'Offline draft'
+                : draftSyncStatus === 'unsynced'
+                  ? 'Draft not synced'
+                  : ''}
+        </span>
         <button
           type="submit"
           disabled={sending}

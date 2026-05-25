@@ -685,19 +685,23 @@ export function OfficeThreadConversationDrawer({ threadId, isOpen = true, onDism
                   {(detail.messages || []).map((m) => (
                     <li
                       key={m.id}
-                      className={`rounded-xl px-3 py-2 text-[13px] ${
+                      className={`rounded-lg border-l-4 px-4 py-3 text-[13px] shadow-sm ${
                         m.kind === 'system'
-                          ? 'border border-amber-100 bg-amber-50 text-amber-950'
-                          : 'border border-slate-200 bg-white text-slate-800'
+                          ? 'border-l-amber-400 border border-amber-100 bg-amber-50/80 text-amber-950'
+                          : 'border-l-teal-700 border border-slate-200 bg-white text-slate-800'
                       }`}
                     >
-                      <p className="mb-1 text-[9px] font-bold uppercase text-slate-400">
-                        {m.kind === 'system'
-                          ? 'System update'
-                          : nameByUserId[m.authorUserId] || m.authorUserId || '—'}{' '}
-                        · {m.createdAtIso ? new Date(m.createdAtIso).toLocaleString() : ''}
-                      </p>
-                      <p className="whitespace-pre-wrap">{m.body}</p>
+                      <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2 border-b border-slate-100 pb-2">
+                        <p className="text-xs font-semibold text-slate-900">
+                          {m.kind === 'system'
+                            ? 'System update'
+                            : nameByUserId[m.authorUserId] || m.authorUserId || '—'}
+                        </p>
+                        <time className="text-[10px] text-slate-500">
+                          {m.createdAtIso ? new Date(m.createdAtIso).toLocaleString() : ''}
+                        </time>
+                      </div>
+                      <p className="whitespace-pre-wrap leading-relaxed">{m.body}</p>
                     </li>
                   ))}
                 </ul>
