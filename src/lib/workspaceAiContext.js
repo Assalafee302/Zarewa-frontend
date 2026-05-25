@@ -1,7 +1,7 @@
 /**
  * Context hooks for Runa / AI assistants on the Workspace command center.
- * AI must never bypass permissions — this only exposes what the user already sees.
  */
+import { sanitizeRunaPageContext } from './workspaceSanitize.js';
 
 /**
  * @param {object} params
@@ -22,7 +22,7 @@ export function buildWorkspaceAiContext({
   canMutate = true,
   degraded = false,
 }) {
-  return {
+  return sanitizeRunaPageContext({
     surface: 'workspace_command_center',
     folder,
     category,
@@ -46,13 +46,15 @@ export function buildWorkspaceAiContext({
           requiresResponse: selectedWorkItem.requiresResponse,
           actionLabel: selectedWorkItem.actionLabel,
           linkedThreadId: selectedWorkItem.linkedThreadId,
+          redacted: Boolean(selectedWorkItem.redacted),
+          confidentiality: selectedWorkItem.confidentiality,
         }
       : null,
     selectedThreadId: selectedThreadId ? String(selectedThreadId) : null,
     counts: intelligence?.counts || null,
     suggestions: intelligence?.suggestions?.map((s) => s.label) || [],
     visibleActions: deriveVisibleActions({ selectedWorkItem, canOffice, canMutate, permissions }),
-  };
+  });
 }
 
 /**

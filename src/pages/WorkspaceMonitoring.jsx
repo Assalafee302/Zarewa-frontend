@@ -98,6 +98,10 @@ export default function WorkspaceMonitoring() {
                 ))}
               </ul>
             </section>
+            <section className="rounded-xl border border-dashed border-slate-200 bg-slate-50/50 p-4 text-sm text-slate-600">
+              <p className="font-semibold text-slate-800">Coming next</p>
+              <p className="mt-1 text-xs">Memo response delays, approval turnaround, and branch comparison charts will appear here as data matures.</p>
+            </section>
           </>
         )}
       </div>

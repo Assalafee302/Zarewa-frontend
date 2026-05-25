@@ -13,6 +13,7 @@ import {
   branchScopedCreateBlockedMessage,
   isBranchScopedCreateBlocked,
 } from '../lib/workspaceBranchCreate';
+import { sanitizeWorkItemForCache } from '../lib/workspaceSanitize.js';
 
 const WorkspaceContext = createContext(null);
 
@@ -30,10 +31,7 @@ function sanitizeBootstrapForCache(data) {
   const items = Array.isArray(data.unifiedWorkItems) ? data.unifiedWorkItems : [];
   return {
     ...data,
-    unifiedWorkItems: items.map((item) => {
-      const { body, ...rest } = item && typeof item === 'object' ? item : {};
-      return { ...rest, body: '' };
-    }),
+    unifiedWorkItems: items.map((item) => sanitizeWorkItemForCache(item)),
   };
 }
 

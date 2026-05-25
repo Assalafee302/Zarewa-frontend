@@ -29,6 +29,7 @@ const Dashboard = () => {
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [mailThreadId, setMailThreadId] = useState(null);
   const [refreshingIntel, setRefreshingIntel] = useState(false);
+  const [serverCounts, setServerCounts] = useState(null);
   const canOffice = Boolean(ws?.canAccessModule?.('office'));
 
   const userId = String(ws?.session?.user?.id || '').trim();
@@ -40,17 +41,30 @@ const Dashboard = () => {
     return raw.filter((item) => workItemShowsOnWorkspaceUnifiedInbox(item, inboxCtx));
   }, [ws?.snapshot?.unifiedWorkItems, userId, roleKey, ws?.permissions]);
 
-  const intelligence = useMemo(
-    () =>
-      computeWorkspaceIntelligence({
-        items: visibleWorkItems,
-        userId,
-        inboxCtx: { userId, roleKey, permissions: ws?.permissions ?? [] },
-        officeSummary,
-        canMonitor: roleKey === 'admin' || roleKey === 'ceo' || roleKey === 'md' || roleKey === 'sales_manager',
-      }),
-    [visibleWorkItems, userId, roleKey, ws?.permissions, officeSummary]
-  );
+  const intelligence = useMemo(() => {
+    const client = computeWorkspaceIntelligence({
+      items: visibleWorkItems,
+      userId,
+      inboxCtx: { userId, roleKey, permissions: ws?.permissions ?? [] },
+      officeSummary,
+      canMonitor: roleKey === 'admin' || roleKey === 'ceo' || roleKey === 'md' || roleKey === 'sales_manager',
+    });
+    if (serverCounts?.counts) {
+      return { ...client, counts: { ...client.counts, ...serverCounts.counts } };
+    }
+    return client;
+  }, [visibleWorkItems, userId, roleKey, ws?.permissions, officeSummary, serverCounts]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const { ok, data } = await apiFetch('/api/workspace/counts');
+      if (!cancelled && ok && data?.ok) setServerCounts(data);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [ws?.refreshEpoch]);
 
   useEffect(() => {
     const st = location.state;
@@ -88,6 +102,8 @@ const Dashboard = () => {
     setRefreshingIntel(true);
     try {
       await ws.refresh?.();
+      const countsRes = await apiFetch('/api/workspace/counts');
+      if (countsRes.ok && countsRes.data?.ok) setServerCounts(countsRes.data);
       if (canOffice) {
         const { ok, data } = await apiFetch('/api/office/summary');
         if (ok && data?.ok) setOfficeSummary(data);

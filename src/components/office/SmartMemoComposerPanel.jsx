@@ -12,8 +12,21 @@ export function SmartMemoComposerPanel({
   attachmentCount = 0,
   onApplySuggestion,
   onImproveMemo,
+  onMemoAssist,
   improving = false,
   quickMode = false,
+  officeKey = '',
+  priority = 'normal',
+  dueDate = '',
+  requiresResponse = false,
+  requiresApproval = false,
+  confidentiality = 'internal',
+  onOfficeKeyChange,
+  onPriorityChange,
+  onDueDateChange,
+  onRequiresResponseChange,
+  onRequiresApprovalChange,
+  onConfidentialityChange,
 }) {
   const suggestions = useMemo(
     () =>
@@ -63,6 +76,112 @@ export function SmartMemoComposerPanel({
           Improve memo
         </button>
       </div>
+
+      <div className="flex flex-wrap gap-1">
+        {[
+          ['improve', 'Improve'],
+          ['make_shorter', 'Shorter'],
+          ['make_formal', 'Formal'],
+          ['fix_grammar', 'Grammar'],
+          ['suggest_route', 'Route'],
+        ].map(([action, label]) => (
+          <button
+            key={action}
+            type="button"
+            disabled={improving || (!subject.trim() && !body.trim())}
+            onClick={() => (action === 'improve' ? onImproveMemo?.() : onMemoAssist?.(action))}
+            className="rounded-md border border-slate-200 bg-white px-2 py-1 text-[10px] font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {!quickMode ? (
+        <div className="grid grid-cols-1 gap-2 rounded-lg border border-slate-200/80 bg-white p-2.5 text-[11px] sm:grid-cols-2">
+          <label className="block font-medium text-slate-700">
+            Memo type
+            <select
+              className="mt-1 w-full rounded border border-slate-200 px-2 py-1 text-[12px]"
+              value={memoType}
+              onChange={(e) => onMemoTypeChange?.(e.target.value)}
+            >
+              {Object.entries(SMART_MEMO_TYPES).map(([key, meta]) => (
+                <option key={key} value={key}>
+                  {meta.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="block font-medium text-slate-700">
+            Responsible office
+            <select
+              className="mt-1 w-full rounded border border-slate-200 px-2 py-1 text-[12px]"
+              value={officeKey}
+              onChange={(e) => onOfficeKeyChange?.(e.target.value)}
+            >
+              <option value="office_admin">Office administration</option>
+              <option value="branch_manager">Branch manager</option>
+              <option value="sales">Sales office</option>
+              <option value="procurement">Procurement office</option>
+              <option value="operations">Operations office</option>
+              <option value="finance">Finance office</option>
+              <option value="hr">HR office</option>
+            </select>
+          </label>
+          <label className="block font-medium text-slate-700">
+            Priority
+            <select
+              className="mt-1 w-full rounded border border-slate-200 px-2 py-1 text-[12px] capitalize"
+              value={priority}
+              onChange={(e) => onPriorityChange?.(e.target.value)}
+            >
+              <option value="normal">Normal</option>
+              <option value="high">High</option>
+              <option value="urgent">Urgent</option>
+            </select>
+          </label>
+          <label className="block font-medium text-slate-700">
+            Due date
+            <input
+              type="date"
+              className="mt-1 w-full rounded border border-slate-200 px-2 py-1 text-[12px]"
+              value={dueDate}
+              onChange={(e) => onDueDateChange?.(e.target.value)}
+            />
+          </label>
+          <label className="block font-medium text-slate-700">
+            Confidentiality
+            <select
+              className="mt-1 w-full rounded border border-slate-200 px-2 py-1 text-[12px]"
+              value={confidentiality}
+              onChange={(e) => onConfidentialityChange?.(e.target.value)}
+            >
+              <option value="internal">Internal</option>
+              <option value="restricted">Restricted</option>
+              <option value="confidential">Confidential</option>
+            </select>
+          </label>
+          <div className="flex flex-col justify-end gap-1.5">
+            <label className="inline-flex items-center gap-2 text-[11px]">
+              <input
+                type="checkbox"
+                checked={requiresResponse}
+                onChange={(e) => onRequiresResponseChange?.(e.target.checked)}
+              />
+              Requires response
+            </label>
+            <label className="inline-flex items-center gap-2 text-[11px]">
+              <input
+                type="checkbox"
+                checked={requiresApproval}
+                onChange={(e) => onRequiresApprovalChange?.(e.target.checked)}
+              />
+              Requires approval
+            </label>
+          </div>
+        </div>
+      ) : null}
 
       <div className="flex flex-wrap gap-1.5">
         {Object.entries(SMART_MEMO_TYPES)

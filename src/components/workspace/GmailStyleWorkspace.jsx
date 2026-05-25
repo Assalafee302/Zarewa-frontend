@@ -253,7 +253,14 @@ export default function GmailStyleWorkspace({
         body: JSON.stringify({ ids }),
       });
       if (ok && data?.ok) {
-        showToast(`Marked ${data.updated ?? ids.length} item(s) as read.`);
+        const failed = data.failed ?? 0;
+        if (failed > 0) {
+          showToast(`Marked ${data.updated ?? data.succeeded ?? ids.length} read. ${failed} could not be updated.`, {
+            variant: 'info',
+          });
+        } else {
+          showToast(`Marked ${data.updated ?? data.succeeded ?? ids.length} item(s) as read.`);
+        }
         setSelectedIds(new Set());
         await ws.refresh?.();
       } else {
@@ -275,7 +282,14 @@ export default function GmailStyleWorkspace({
         body: JSON.stringify({ ids }),
       });
       if (ok && data?.ok) {
-        showToast(`Archived ${data.updated ?? ids.length} item(s).`);
+        const failed = data.failed ?? 0;
+        if (failed > 0) {
+          showToast(`Archived ${data.updated ?? data.succeeded ?? ids.length}. ${failed} could not be archived.`, {
+            variant: 'info',
+          });
+        } else {
+          showToast(`Archived ${data.updated ?? data.succeeded ?? ids.length} item(s).`);
+        }
         setSelectedIds(new Set());
         await ws.refresh?.();
       } else {

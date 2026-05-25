@@ -1,4 +1,7 @@
-import { isConfidentialLevel } from './workspaceConfidentialAccess.js';
+import {
+  isConfidentialLevel,
+  RESTRICTED_WORK_ITEM_PLACEHOLDER,
+} from './workspaceConfidentialAccess.js';
 import { categoryForWorkItem, categoryMetaForWorkItem } from './workspaceCategoryRegistry.js';
 import { workItemNeedsActionForUser } from './workspaceInboxBuckets.js';
 import { workItemIsPersonalForUser } from './workItemPersonalInbox.js';
@@ -79,11 +82,12 @@ export function normalizeWorkItem(raw, ctx = {}) {
   const summary = String(item.summary || '').replace(/\s+/g, ' ').trim();
   const bodyPreview = String(item.body || '').replace(/\s+/g, ' ').trim().slice(0, 160);
   const confidential = isConfidentialLevel(item.confidentiality);
-  const previewText = confidential
-    ? 'Restricted — permission required'
+  const redacted = Boolean(item.redacted);
+  const previewText = redacted
+    ? RESTRICTED_WORK_ITEM_PLACEHOLDER.previewText
     : String(item.previewText || summary || bodyPreview || humanizeDocumentType(documentType)).trim();
-  const title = confidential
-    ? String(item.title || 'Restricted memo').trim() || 'Restricted memo'
+  const title = redacted
+    ? RESTRICTED_WORK_ITEM_PLACEHOLDER.title
     : String(item.title || '').trim() || `${humanizeDocumentType(documentType)} · ${referenceNo}`;
   const status = String(item.status || 'open').trim() || 'open';
   const priority = String(item.priority || 'normal').trim() || 'normal';

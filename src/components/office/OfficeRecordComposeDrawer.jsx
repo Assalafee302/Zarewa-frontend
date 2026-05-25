@@ -14,6 +14,7 @@ import {
   saveComposeMemoDraft,
 } from '../../lib/workspaceComposeDraft';
 import { deleteComposeDraft, fetchComposeDrafts, saveComposeDraft } from '../../lib/composeMemoDraftApi';
+import { callMemoAssist } from '../../lib/memoAssistApi';
 import { SmartMemoComposerPanel } from './SmartMemoComposerPanel';
 import {
   buildSmartMemoChecklist,
@@ -55,6 +56,12 @@ export function OfficeRecordComposeDrawer({ isOpen, onDismiss, presentation = 'd
   const [improvingMemo, setImprovingMemo] = useState(false);
   const [quickComposeMode, setQuickComposeMode] = useState(false);
   const [serverDraftId, setServerDraftId] = useState('');
+  const [memoDueDate, setMemoDueDate] = useState('');
+  const [requiresResponse, setRequiresResponse] = useState(false);
+  const [requiresApproval, setRequiresApproval] = useState(false);
+  const [showReview, setShowReview] = useState(false);
+  const [attachmentDragOver, setAttachmentDragOver] = useState(false);
+  const [attachmentError, setAttachmentError] = useState('');
 
   const workspaceBranchId = String(
     ws?.session?.workspaceBranchId || ws?.snapshot?.workspaceBranchId || ''
@@ -249,9 +256,28 @@ export function OfficeRecordComposeDrawer({ isOpen, onDismiss, presentation = 'd
 
   const resolvedMemoType = smartMemoType || detectSmartMemoType(newSubject, newBody);
 
-  const onImproveMemo = async () => {
+  const onImproveMemo = async (action = 'improve') => {
     setImprovingMemo(true);
     try {
+      const assist = await callMemoAssist({
+        action,
+        subject: newSubject,
+        body: newBody,
+        memoType: resolvedMemoType,
+        guidedFields: smartGuidedFields,
+        attachmentCount: memoAttachments.length,
+      });
+      if (assist.ok) {
+        if (assist.suggestedSubject) setNewSubject(String(assist.suggestedSubject));
+        if (assist.improvedBody) setNewBody(String(assist.improvedBody));
+        if (assist.responsibleOffice) setNewOfficeKey(String(assist.responsibleOffice));
+        if (assist.priority) setSmartPriority(String(assist.priority));
+        if (assist.filingCategory) setSmartFilingCategory(String(assist.filingCategory));
+        if (assist.expenseCategory) setSmartExpenseCategory(String(assist.expenseCategory));
+        if (assist.warnings?.length) showToast(assist.warnings[0], { variant: 'info' });
+        showToast(action === 'improve' ? 'Memo improved.' : 'Suggestion applied.');
+        return;
+      }
       const { ok, status, data } = await apiFetch('/api/office/ai/polish-memo', {
         method: 'POST',
         body: JSON.stringify({ subject: newSubject, body: newBody }),
@@ -263,7 +289,7 @@ export function OfficeRecordComposeDrawer({ isOpen, onDismiss, presentation = 'd
         return;
       }
       if (status !== 503) {
-        showToast(data?.error || 'Could not improve memo.', { variant: 'error' });
+        showToast(data?.error || assist.error || 'Could not improve memo.', { variant: 'error' });
         return;
       }
       const improved = improveMemoRuleBased(newSubject, newBody, resolvedMemoType);
@@ -276,10 +302,20 @@ export function OfficeRecordComposeDrawer({ isOpen, onDismiss, presentation = 'd
   };
 
   const addMemoFiles = (files) => {
+    setAttachmentError('');
     const list = Array.from(files || []);
-    for (const f of list.slice(0, 5)) {
+    if (memoAttachments.length + list.length > 5) {
+      setAttachmentError('Maximum 5 supporting documents per memo.');
+      return;
+    }
+    for (const f of list.slice(0, 5 - memoAttachments.length)) {
+      const allowed = /\.(pdf|png|jpe?g|gif|webp|docx?|xlsx?|txt)$/i;
+      if (!allowed.test(f.name)) {
+        setAttachmentError(`${f.name}: file type not allowed.`);
+        continue;
+      }
       if (f.size > 2.5 * 1024 * 1024) {
-        showToast(`${f.name} is too large (max 2.5 MB).`, { variant: 'error' });
+        setAttachmentError(`${f.name} is too large (max 2.5 MB).`);
         continue;
       }
       const reader = new FileReader();
@@ -299,6 +335,10 @@ export function OfficeRecordComposeDrawer({ isOpen, onDismiss, presentation = 'd
 
   const submit = async (e) => {
     e.preventDefault();
+    if (!showReview) {
+      setShowReview(true);
+      return;
+    }
     const subject = newSubject.trim();
     if (subject.length < 2) {
       showToast('Memo subject is required.', { variant: 'error' });
@@ -346,6 +386,9 @@ export function OfficeRecordComposeDrawer({ isOpen, onDismiss, presentation = 'd
           attachments: memoAttachments,
           payload: {
             confidentiality: newConfidentiality,
+            requiresResponse,
+            requiresApproval,
+            dueDateIso: memoDueDate || undefined,
             ...smartPayload,
             ...(selectedComposeTemplateId
               ? {
@@ -396,6 +439,18 @@ export function OfficeRecordComposeDrawer({ isOpen, onDismiss, presentation = 'd
         guidedFields={smartGuidedFields}
         onGuidedFieldChange={(key, val) => setSmartGuidedFields((prev) => ({ ...prev, [key]: val }))}
         attachmentCount={memoAttachments.length}
+        officeKey={newOfficeKey}
+        onOfficeKeyChange={setNewOfficeKey}
+        priority={smartPriority}
+        onPriorityChange={setSmartPriority}
+        dueDate={memoDueDate}
+        onDueDateChange={setMemoDueDate}
+        requiresResponse={requiresResponse}
+        onRequiresResponseChange={setRequiresResponse}
+        requiresApproval={requiresApproval}
+        onRequiresApprovalChange={setRequiresApproval}
+        confidentiality={newConfidentiality}
+        onConfidentialityChange={setNewConfidentiality}
         onApplySuggestion={({ officeKey, priority, filingCategory, expenseCategory, memoType }) => {
           if (officeKey) setNewOfficeKey(officeKey);
           if (priority) setSmartPriority(priority);
@@ -403,10 +458,29 @@ export function OfficeRecordComposeDrawer({ isOpen, onDismiss, presentation = 'd
           if (expenseCategory) setSmartExpenseCategory(expenseCategory);
           if (memoType) setSmartMemoType(memoType);
         }}
-        onImproveMemo={() => void onImproveMemo()}
+        onImproveMemo={() => void onImproveMemo('improve')}
+        onMemoAssist={(action) => void onImproveMemo(action)}
         improving={improvingMemo}
         quickMode={quickComposeMode}
       />
+      {showReview ? (
+        <div className="border-b border-amber-200 bg-amber-50/80 px-4 py-3 text-[12px] text-amber-950">
+          <p className="font-semibold">Review before send</p>
+          <ul className="mt-2 space-y-1 text-[11px]">
+            <li>Recipients: {toIds.length || 0} · Copy: {ccIds.length || 0}</li>
+            <li>Office: {newOfficeKey} · Priority: {smartPriority}</li>
+            <li>Confidentiality: {newConfidentiality}</li>
+            {memoDueDate ? <li>Due: {memoDueDate}</li> : null}
+            {memoAttachments.length ? <li>Attachments: {memoAttachments.length}</li> : null}
+          </ul>
+          {buildSmartMemoChecklist(resolvedMemoType, smartGuidedFields, memoAttachments.length).warning ? (
+            <p className="mt-2 text-amber-900">{buildSmartMemoChecklist(resolvedMemoType, smartGuidedFields, memoAttachments.length).warning}</p>
+          ) : null}
+          <button type="button" className="mt-2 text-[11px] font-semibold underline" onClick={() => setShowReview(false)}>
+            Edit memo
+          </button>
+        </div>
+      ) : null}
       <div className="flex shrink-0 items-center justify-end gap-2 border-b border-slate-100 px-3 py-1.5">
         <label className="inline-flex items-center gap-1.5 text-[10px] text-slate-600">
           <input
@@ -563,7 +637,19 @@ export function OfficeRecordComposeDrawer({ isOpen, onDismiss, presentation = 'd
             ))}
           </div>
         ) : null}
-        <div className="py-2">
+        <div
+          className={`py-2 ${attachmentDragOver ? 'rounded-lg bg-teal-50/50 ring-2 ring-teal-200' : ''}`}
+          onDragOver={(e) => {
+            e.preventDefault();
+            setAttachmentDragOver(true);
+          }}
+          onDragLeave={() => setAttachmentDragOver(false)}
+          onDrop={(e) => {
+            e.preventDefault();
+            setAttachmentDragOver(false);
+            addMemoFiles(e.dataTransfer.files);
+          }}
+        >
           <textarea
             value={newBody}
             onChange={(e) => setNewBody(e.target.value)}
@@ -586,8 +672,10 @@ export function OfficeRecordComposeDrawer({ isOpen, onDismiss, presentation = 'd
               <Paperclip size={14} />
               Supporting documents
             </button>
-            <input ref={memoFileRef} type="file" multiple className="hidden" onChange={(e) => addMemoFiles(e.target.files)} />
+            <input ref={memoFileRef} type="file" multiple accept=".pdf,.png,.jpg,.jpeg,.gif,.webp,.doc,.docx,.xlsx,.xls,.txt" className="hidden" onChange={(e) => addMemoFiles(e.target.files)} />
           </div>
+          {attachmentError ? <p className="mt-1 text-[11px] text-rose-700">{attachmentError}</p> : null}
+          <p className="mt-1 text-[10px] text-slate-500">Drag and drop files here (max 5, 2.5 MB each)</p>
           {memoAttachments.length > 0 ? (
             <ul className={`mt-2 space-y-1 text-[11px] ${isFloating ? 'text-[#5f6368]' : 'text-slate-600'}`}>
               {memoAttachments.map((a, i) => (
@@ -641,7 +729,7 @@ export function OfficeRecordComposeDrawer({ isOpen, onDismiss, presentation = 'd
           }
         >
           <Send size={16} className={isFloating ? 'opacity-95' : ''} />
-          {sending ? 'Sending…' : 'Send Memo'}
+          {sending ? 'Sending…' : showReview ? 'Confirm send' : 'Review & send'}
         </button>
       </div>
     </form>
