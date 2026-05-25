@@ -16,12 +16,25 @@ import {
 
 const WorkspaceContext = createContext(null);
 
-const BOOTSTRAP_CACHE_KEY_PREFIX = 'zarewa.bootstrap.cache.v3';
+const BOOTSTRAP_CACHE_KEY_PREFIX = 'zarewa.bootstrap.cache.v4';
 
 function bootstrapCacheKey(session) {
+  const uid = String(session?.user?.id || 'anon').trim() || 'anon';
   const bid = String(session?.currentBranchId || 'default').trim() || 'default';
   const all = session?.viewAllBranches ? ':all' : '';
-  return `${BOOTSTRAP_CACHE_KEY_PREFIX}:${bid}${all}`;
+  return `${BOOTSTRAP_CACHE_KEY_PREFIX}:${uid}:${bid}${all}`;
+}
+
+function sanitizeBootstrapForCache(data) {
+  if (!data?.ok) return data;
+  const items = Array.isArray(data.unifiedWorkItems) ? data.unifiedWorkItems : [];
+  return {
+    ...data,
+    unifiedWorkItems: items.map((item) => {
+      const { body, ...rest } = item && typeof item === 'object' ? item : {};
+      return { ...rest, body: '' };
+    }),
+  };
 }
 
 /** Pull server changes from other users without a full page reload (ms). Override with `VITE_WORKSPACE_POLL_MS`. */
@@ -54,7 +67,7 @@ function readBootstrapCache(session) {
 function writeBootstrapCache(data) {
   try {
     if (data?.ok && data?.session?.user) {
-      sessionStorage.setItem(bootstrapCacheKey(data.session), JSON.stringify(data));
+      sessionStorage.setItem(bootstrapCacheKey(data.session), JSON.stringify(sanitizeBootstrapForCache(data)));
     }
   } catch {
     /* ignore */
@@ -71,6 +84,7 @@ function clearBootstrapCache() {
     }
     for (const k of keys) sessionStorage.removeItem(k);
     sessionStorage.removeItem('zarewa.bootstrap.cache.v2');
+    sessionStorage.removeItem('zarewa.bootstrap.cache.v3');
   } catch {
     /* ignore */
   }

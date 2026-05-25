@@ -26,6 +26,7 @@ import NotFound from './pages/NotFound';
 import LoginScreen from './components/auth/LoginScreen';
 import ModuleRouteGuard from './components/ModuleRouteGuard';
 import ManagerDashboard from './pages/ManagerDashboard';
+import WorkspaceMonitoring from './pages/WorkspaceMonitoring';
 import ExecDashboard from './pages/ExecDashboard';
 import PriceListAdmin from './pages/PriceListAdmin';
 import PricingPolicyAdmin from './pages/PricingPolicyAdmin';
@@ -57,6 +58,7 @@ import { BranchWorkspaceBar } from './components/layout/BranchWorkspaceBar';
 import { apiFetch } from './lib/apiBase';
 import { AiAssistantDock } from './components/AiAssistantDock';
 import { HelpChatDock } from './components/HelpChatDock';
+import { WorkspaceCommandPalette } from './components/workspace/WorkspaceCommandPalette';
 import { AiAskButton } from './components/AiAskButton';
 import { buildWorkspaceNotifications } from './lib/workspaceNotifications';
 import { AiAssistantProvider, useAiAssistant } from './context/AiAssistantContext';
@@ -222,6 +224,7 @@ function AppShell() {
     () => notificationItems.filter((n) => n.severity === 'warning').length,
     [notificationItems]
   );
+  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const searchRef = useRef(null);
   const [headerSearch, setHeaderSearch] = useState('');
   const [searchHits, setSearchHits] = useState([]);
@@ -257,7 +260,7 @@ function AppShell() {
     const onKey = (e) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault();
-        searchRef.current?.focus();
+        setCommandPaletteOpen(true);
       }
     };
     window.addEventListener('keydown', onKey);
@@ -777,6 +780,7 @@ function AppShell() {
         <main id="main-content" className="min-h-0 min-w-0 w-full max-w-full outline-none" tabIndex={-1}>
           <Routes>
             <Route path="/" element={<HomeRoute />} />
+            <Route path="/workspace/monitoring" element={<WorkspaceMonitoring />} />
             <Route path="/exec" element={<ExecDashboard />} />
             <Route path="/price-list" element={<PriceListAdmin />} />
             <Route path="/pricing-policy" element={<PricingPolicyAdmin />} />
@@ -916,6 +920,12 @@ function AppShell() {
           </Routes>
         </main>
       </div>
+      <WorkspaceCommandPalette
+        isOpen={commandPaletteOpen}
+        onClose={() => setCommandPaletteOpen(false)}
+        ws={ws}
+        hasPermission={(p) => ws?.hasPermission?.(p)}
+      />
       <HelpChatDock />
       <AiAssistantDock />
       <DegradedWorkspaceLock />

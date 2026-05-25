@@ -7,17 +7,31 @@ import { OfficeRecipientStrip } from './OfficeRecipientStrip';
 import { useToast } from '../../context/ToastContext';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { apiFetch } from '../../lib/apiBase';
+import {
+  clearComposeMemoDraft,
+  composeDraftHasContent,
+  loadComposeMemoDraft,
+  saveComposeMemoDraft,
+} from '../../lib/workspaceComposeDraft';
+import { deleteComposeDraft, fetchComposeDrafts, saveComposeDraft } from '../../lib/composeMemoDraftApi';
+import { SmartMemoComposerPanel } from './SmartMemoComposerPanel';
+import {
+  buildSmartMemoChecklist,
+  buildSmartMemoPayload,
+  buildSmartMemoSuggestions,
+  detectSmartMemoType,
+  improveMemoRuleBased,
+} from '../../lib/smartMemoComposer';
 
 /**
- * @param {{ isOpen: boolean, onDismiss?: () => void, presentation?: 'drawer' | 'gmail' }} props
- * — `gmail`: floating bottom-right compose window (non-modal), like Gmail.
+ * @param {{ isOpen: boolean, onDismiss?: () => void, presentation?: 'drawer' | 'floating' | 'gmail', onSent?: (threadId?: string) => void }} props
  */
-export function OfficeRecordComposeDrawer({ isOpen, onDismiss, presentation = 'drawer' }) {
+export function OfficeRecordComposeDrawer({ isOpen, onDismiss, presentation = 'drawer', onSent }) {
   const ws = useWorkspace();
   const { show: showToast } = useToast();
   const canOffice = Boolean(ws?.canAccessModule?.('office'));
   const memoFileRef = useRef(null);
-  const isGmail = presentation === 'gmail';
+  const isFloating = presentation === 'floating' || presentation === 'gmail';
 
   const [directory, setDirectory] = useState([]);
   const [newSubject, setNewSubject] = useState('');
@@ -33,6 +47,18 @@ export function OfficeRecordComposeDrawer({ isOpen, onDismiss, presentation = 'd
   const [composeTemplates, setComposeTemplates] = useState([]);
   const [selectedComposeTemplateId, setSelectedComposeTemplateId] = useState('');
   const [composeTemplateFields, setComposeTemplateFields] = useState({});
+  const [smartMemoType, setSmartMemoType] = useState('');
+  const [smartGuidedFields, setSmartGuidedFields] = useState({});
+  const [smartPriority, setSmartPriority] = useState('normal');
+  const [smartFilingCategory, setSmartFilingCategory] = useState('');
+  const [smartExpenseCategory, setSmartExpenseCategory] = useState('');
+  const [improvingMemo, setImprovingMemo] = useState(false);
+  const [quickComposeMode, setQuickComposeMode] = useState(false);
+  const [serverDraftId, setServerDraftId] = useState('');
+
+  const workspaceBranchId = String(
+    ws?.session?.workspaceBranchId || ws?.snapshot?.workspaceBranchId || ''
+  ).trim();
 
   const branchNameById = useMemo(() => {
     const branches = ws?.snapshot?.workspaceBranches ?? ws?.session?.branches ?? [];
@@ -70,13 +96,30 @@ export function OfficeRecordComposeDrawer({ isOpen, onDismiss, presentation = 'd
     setMemoAttachments([]);
     setSelectedComposeTemplateId('');
     setComposeTemplateFields({});
+    setSmartMemoType('');
+    setSmartGuidedFields({});
+    setSmartPriority('normal');
+    setSmartFilingCategory('');
+    setSmartExpenseCategory('');
+    setServerDraftId('');
     if (memoFileRef.current) memoFileRef.current.value = '';
   }, []);
 
-  const closeCompose = useCallback(() => {
-    onDismiss?.();
-    resetForm();
-  }, [onDismiss, resetForm]);
+  const closeCompose = useCallback(
+    (force = false) => {
+      const uid = String(ws?.session?.user?.id || '').trim();
+      const hasDraft = composeDraftHasContent({
+        subject: newSubject,
+        body: newBody,
+        toIds,
+      });
+      if (!force && hasDraft && !window.confirm('Discard this memo draft?')) return;
+      if (uid) clearComposeMemoDraft(uid);
+      onDismiss?.();
+      resetForm();
+    },
+    [onDismiss, resetForm, newSubject, newBody, toIds, ws?.session?.user?.id]
+  );
 
   const loadComposeTemplates = useCallback(async () => {
     const { ok, data } = await apiFetch('/api/office/compose-templates');
@@ -86,13 +129,151 @@ export function OfficeRecordComposeDrawer({ isOpen, onDismiss, presentation = 'd
 
   useEffect(() => {
     if (!isOpen || !canOffice) return;
+    const uid = String(ws?.session?.user?.id || '').trim();
+    const localDraft = uid ? loadComposeMemoDraft(uid) : null;
+    let cancelled = false;
+
+    const applyDraft = (draft) => {
+      if (!draft || !composeDraftHasContent(draft)) return;
+      setNewSubject(draft.subject || '');
+      setNewBody(draft.body || '');
+      setToIds(Array.isArray(draft.toIds) ? draft.toIds : []);
+      setCcIds(Array.isArray(draft.ccIds) ? draft.ccIds : []);
+      setNewDocumentClass(draft.documentClass || 'correspondence');
+      setNewOfficeKey(draft.officeKey || 'office_admin');
+      setNewConfidentiality(draft.confidentiality || 'internal');
+      if (draft.memoDate) setMemoDate(draft.memoDate);
+      if (draft.templateId) setSelectedComposeTemplateId(draft.templateId);
+      if (draft.templateFields) setComposeTemplateFields(draft.templateFields);
+      if (draft.smartMemoType) setSmartMemoType(draft.smartMemoType);
+      if (draft.smartGuidedFields) setSmartGuidedFields(draft.smartGuidedFields);
+      if (draft.id) setServerDraftId(String(draft.id));
+    };
+
+    applyDraft(localDraft);
+
+    void (async () => {
+      if (!uid || !workspaceBranchId) return;
+      const serverDrafts = await fetchComposeDrafts(workspaceBranchId);
+      if (cancelled || !serverDrafts.length) return;
+      const latest = serverDrafts[0];
+      const payload = latest.payload || {};
+      const serverDraft = {
+        id: latest.id,
+        subject: latest.subject,
+        body: latest.body,
+        toIds: payload.toIds,
+        ccIds: payload.ccIds,
+        documentClass: payload.documentClass,
+        officeKey: payload.officeKey,
+        confidentiality: latest.confidentiality,
+        smartMemoType: latest.smartMemoType,
+        smartGuidedFields: payload.smartGuidedFields,
+      };
+      const localUpdated = localDraft?.updatedAtIso ? Date.parse(localDraft.updatedAtIso) : 0;
+      const serverUpdated = latest.updatedAtIso ? Date.parse(latest.updatedAtIso) : 0;
+      if (serverUpdated >= localUpdated) applyDraft(serverDraft);
+    })();
+
     void loadDirectory();
     void loadComposeTemplates();
-  }, [isOpen, canOffice, loadDirectory, loadComposeTemplates]);
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, canOffice, loadDirectory, loadComposeTemplates, ws?.session?.user?.id, workspaceBranchId]);
+
+  useEffect(() => {
+    if (!isOpen || !canOffice) return;
+    const uid = String(ws?.session?.user?.id || '').trim();
+    if (!uid) return;
+    const t = window.setTimeout(() => {
+      const draftPayload = {
+        subject: newSubject,
+        body: newBody,
+        toIds,
+        ccIds,
+        documentClass: newDocumentClass,
+        officeKey: newOfficeKey,
+        confidentiality: newConfidentiality,
+        memoDate,
+        templateId: selectedComposeTemplateId,
+        templateFields: composeTemplateFields,
+        smartMemoType,
+        smartGuidedFields,
+        updatedAtIso: new Date().toISOString(),
+      };
+      saveComposeMemoDraft(uid, draftPayload);
+      if (ws?.apiOnline && workspaceBranchId && composeDraftHasContent(draftPayload)) {
+        void saveComposeDraft({
+          id: serverDraftId || undefined,
+          branchId: workspaceBranchId,
+          subject: newSubject,
+          body: newBody,
+          toIds,
+          ccIds,
+          confidentiality: newConfidentiality,
+          officeKey: newOfficeKey,
+          documentClass: newDocumentClass,
+          smartMemoType,
+          smartGuidedFields,
+        }).then((saved) => {
+          if (saved?.id) setServerDraftId(String(saved.id));
+        });
+      }
+    }, 600);
+    return () => window.clearTimeout(t);
+  }, [
+    isOpen,
+    canOffice,
+    newSubject,
+    newBody,
+    toIds,
+    ccIds,
+    newDocumentClass,
+    newOfficeKey,
+    newConfidentiality,
+    memoDate,
+    selectedComposeTemplateId,
+    composeTemplateFields,
+    smartMemoType,
+    smartGuidedFields,
+    ws?.session?.user?.id,
+    ws?.apiOnline,
+    workspaceBranchId,
+    serverDraftId,
+  ]);
 
   useEffect(() => {
     if (!isOpen) resetForm();
   }, [isOpen, resetForm]);
+
+  const resolvedMemoType = smartMemoType || detectSmartMemoType(newSubject, newBody);
+
+  const onImproveMemo = async () => {
+    setImprovingMemo(true);
+    try {
+      const { ok, status, data } = await apiFetch('/api/office/ai/polish-memo', {
+        method: 'POST',
+        body: JSON.stringify({ subject: newSubject, body: newBody }),
+      });
+      if (ok && data?.ok) {
+        if (data.subject) setNewSubject(String(data.subject));
+        if (data.body) setNewBody(String(data.body));
+        showToast('Memo improved.');
+        return;
+      }
+      if (status !== 503) {
+        showToast(data?.error || 'Could not improve memo.', { variant: 'error' });
+        return;
+      }
+      const improved = improveMemoRuleBased(newSubject, newBody, resolvedMemoType);
+      setNewSubject(improved.subject);
+      setNewBody(improved.body);
+      showToast('Memo formatted using templates (AI not configured).');
+    } finally {
+      setImprovingMemo(false);
+    }
+  };
 
   const addMemoFiles = (files) => {
     const list = Array.from(files || []);
@@ -120,7 +301,7 @@ export function OfficeRecordComposeDrawer({ isOpen, onDismiss, presentation = 'd
     e.preventDefault();
     const subject = newSubject.trim();
     if (subject.length < 2) {
-      showToast('Subject is required.', { variant: 'error' });
+      showToast('Memo subject is required.', { variant: 'error' });
       return;
     }
     const selectedTpl = composeTemplates.find((t) => t.id === selectedComposeTemplateId);
@@ -138,6 +319,17 @@ export function OfficeRecordComposeDrawer({ isOpen, onDismiss, presentation = 'd
       showToast('Reconnect to send — workspace is read-only.', { variant: 'info' });
       return;
     }
+    const checklist = buildSmartMemoChecklist(resolvedMemoType, smartGuidedFields, memoAttachments.length);
+    if (checklist.warning && !window.confirm(`${checklist.warning}\n\nSend memo anyway?`)) {
+      return;
+    }
+    const smartPayload = buildSmartMemoPayload({
+      memoType: resolvedMemoType,
+      priority: smartPriority,
+      filingCategory: smartFilingCategory || buildSmartMemoSuggestions({ subject, body: newBody, memoType: resolvedMemoType }).filingCategory,
+      expenseCategory: smartExpenseCategory || buildSmartMemoSuggestions({ subject, body: newBody, memoType: resolvedMemoType }).expenseCategory,
+      guidedFields: smartGuidedFields,
+    });
     setSending(true);
     try {
       const { ok, data } = await apiFetch('/api/office/threads', {
@@ -154,6 +346,7 @@ export function OfficeRecordComposeDrawer({ isOpen, onDismiss, presentation = 'd
           attachments: memoAttachments,
           payload: {
             confidentiality: newConfidentiality,
+            ...smartPayload,
             ...(selectedComposeTemplateId
               ? {
                   composeTemplateId: selectedComposeTemplateId,
@@ -169,42 +362,77 @@ export function OfficeRecordComposeDrawer({ isOpen, onDismiss, presentation = 'd
         return;
       }
       showToast('Memo sent.');
-      closeCompose();
+      const uid = String(ws?.session?.user?.id || '').trim();
+      if (uid) clearComposeMemoDraft(uid);
+      if (serverDraftId) void deleteComposeDraft(serverDraftId);
+      const threadId = data?.thread?.id || data?.threadId || data?.id;
+      onSent?.(threadId ? String(threadId) : undefined);
+      closeCompose(true);
       await ws.refresh();
     } finally {
       setSending(false);
     }
   };
 
-  const metaSelectClass = isGmail
+  const metaSelectClass = isFloating
     ? 'mt-1 w-full rounded border border-[#dadce0] bg-white px-2 py-1.5 text-[13px] text-[#202124] outline-none focus:border-teal-600 focus:ring-1 focus:ring-teal-600/40'
     : 'mt-1 w-full rounded-lg border border-slate-200 px-2 py-1.5 text-sm';
 
-  const metaLabelClass = isGmail ? 'block text-[11px] font-medium text-[#5f6368]' : 'block text-[11px] font-semibold text-slate-600';
+  const metaLabelClass = isFloating ? 'block text-[11px] font-medium text-[#5f6368]' : 'block text-[11px] font-semibold text-slate-600';
 
   const bodyArea = !canOffice ? (
     <div
-      className={`flex-1 overflow-y-auto text-sm text-slate-600 ${isGmail ? 'px-4 py-6' : 'px-4 py-6'}`}
+      className={`flex-1 overflow-y-auto text-sm text-slate-600 ${isFloating ? 'px-4 py-6' : 'px-4 py-6'}`}
     >
       <p>You do not have access to Office Desk on this account.</p>
     </div>
   ) : (
     <form onSubmit={submit} className="flex min-h-0 flex-1 flex-col">
+      <SmartMemoComposerPanel
+        subject={newSubject}
+        body={newBody}
+        memoType={smartMemoType || undefined}
+        onMemoTypeChange={setSmartMemoType}
+        guidedFields={smartGuidedFields}
+        onGuidedFieldChange={(key, val) => setSmartGuidedFields((prev) => ({ ...prev, [key]: val }))}
+        attachmentCount={memoAttachments.length}
+        onApplySuggestion={({ officeKey, priority, filingCategory, expenseCategory, memoType }) => {
+          if (officeKey) setNewOfficeKey(officeKey);
+          if (priority) setSmartPriority(priority);
+          if (filingCategory) setSmartFilingCategory(filingCategory);
+          if (expenseCategory) setSmartExpenseCategory(expenseCategory);
+          if (memoType) setSmartMemoType(memoType);
+        }}
+        onImproveMemo={() => void onImproveMemo()}
+        improving={improvingMemo}
+        quickMode={quickComposeMode}
+      />
+      <div className="flex shrink-0 items-center justify-end gap-2 border-b border-slate-100 px-3 py-1.5">
+        <label className="inline-flex items-center gap-1.5 text-[10px] text-slate-600">
+          <input
+            type="checkbox"
+            checked={quickComposeMode}
+            onChange={(e) => setQuickComposeMode(e.target.checked)}
+            className="rounded border-slate-300 text-teal-800"
+          />
+          Quick mode
+        </label>
+      </div>
       <div
-        className={`min-h-0 flex-1 overflow-y-auto ${isGmail ? 'px-4 py-1 [&_.border-b]:border-[#f1f3f4]' : 'px-3 py-3 sm:px-4'}`}
+        className={`min-h-0 flex-1 overflow-y-auto ${isFloating ? 'px-4 py-1 [&_.border-b]:border-[#f1f3f4]' : 'px-3 py-3 sm:px-4'}`}
       >
         <div
-          className={`flex gap-3 py-2.5 ${isGmail ? 'border-b border-[#f1f3f4]' : 'border-b border-slate-200/90'}`}
+          className={`flex gap-3 py-2.5 ${isFloating ? 'border-b border-[#f1f3f4]' : 'border-b border-slate-200/90'}`}
         >
           <span
-            className={`w-12 shrink-0 pt-2 text-right text-[13px] font-medium ${isGmail ? 'text-[#5f6368]' : 'text-slate-500'}`}
+            className={`w-12 shrink-0 pt-2 text-right text-[13px] font-medium ${isFloating ? 'text-[#5f6368]' : 'text-slate-500'}`}
           >
             From
           </span>
-          <p className={`flex-1 pt-2 text-[13px] ${isGmail ? 'text-[#202124]' : 'text-slate-900'}`}>{fromLine}</p>
+          <p className={`flex-1 pt-2 text-[13px] ${isFloating ? 'text-[#202124]' : 'text-slate-900'}`}>{fromLine}</p>
         </div>
         <OfficeRecipientStrip
-          label="To"
+          label="Recipients"
           selectedIds={toIds}
           onChange={setToIds}
           directory={directory}
@@ -212,32 +440,32 @@ export function OfficeRecordComposeDrawer({ isOpen, onDismiss, presentation = 'd
           placeholder="Recipients…"
         />
         <OfficeRecipientStrip
-          label="Cc"
+          label="Copy"
           selectedIds={ccIds}
           onChange={setCcIds}
           directory={directory}
           branchNameById={branchNameById}
           placeholder="Cc…"
         />
-        <div className={`flex items-center gap-3 py-2 ${isGmail ? 'border-b border-[#f1f3f4]' : 'border-b border-slate-200/90'}`}>
+        <div className={`flex items-center gap-3 py-2 ${isFloating ? 'border-b border-[#f1f3f4]' : 'border-b border-slate-200/90'}`}>
           <span
-            className={`w-12 shrink-0 text-right text-[13px] font-medium ${isGmail ? 'text-[#5f6368]' : 'text-slate-500'}`}
+            className={`w-12 shrink-0 text-right text-[13px] font-medium ${isFloating ? 'text-[#5f6368]' : 'text-slate-500'}`}
           >
-            Subject
+            Memo Subject
           </span>
           <input
             required
             value={newSubject}
             onChange={(e) => setNewSubject(e.target.value)}
             className={`min-w-0 flex-1 border-0 border-b border-transparent bg-transparent py-2 text-[13px] outline-none ${
-              isGmail
+              isFloating
                 ? 'text-[#202124] placeholder:text-[#80868b] focus:border-teal-600'
                 : 'focus:border-teal-600/40'
             }`}
-            placeholder="Subject"
+            placeholder="Memo subject"
           />
         </div>
-        <div className={`grid grid-cols-1 gap-3 py-3 sm:grid-cols-2 ${isGmail ? 'border-b border-[#f1f3f4]' : 'border-b border-slate-100'}`}>
+        <div className={`grid grid-cols-1 gap-3 py-3 sm:grid-cols-2 ${isFloating ? 'border-b border-[#f1f3f4]' : 'border-b border-slate-100'}`}>
           <label className={metaLabelClass}>
             Document class
             <select value={newDocumentClass} onChange={(e) => setNewDocumentClass(e.target.value)} className={metaSelectClass}>
@@ -260,7 +488,7 @@ export function OfficeRecordComposeDrawer({ isOpen, onDismiss, presentation = 'd
             </select>
           </label>
         </div>
-        <div className={`grid grid-cols-1 gap-3 py-3 sm:grid-cols-2 ${isGmail ? 'border-b border-[#f1f3f4]' : 'border-b border-slate-100'}`}>
+        <div className={`grid grid-cols-1 gap-3 py-3 sm:grid-cols-2 ${isFloating ? 'border-b border-[#f1f3f4]' : 'border-b border-slate-100'}`}>
           <label className={metaLabelClass}>
             Confidentiality
             <select value={newConfidentiality} onChange={(e) => setNewConfidentiality(e.target.value)} className={metaSelectClass}>
@@ -275,7 +503,7 @@ export function OfficeRecordComposeDrawer({ isOpen, onDismiss, presentation = 'd
           </label>
         </div>
         {composeTemplates.length > 0 ? (
-          <div className={`space-y-3 py-3 ${isGmail ? 'border-b border-[#f1f3f4]' : 'border-b border-slate-100'}`}>
+          <div className={`space-y-3 py-3 ${isFloating ? 'border-b border-[#f1f3f4]' : 'border-b border-slate-100'}`}>
             <label className={metaLabelClass}>
               Operations template (optional)
               <select
@@ -295,7 +523,7 @@ export function OfficeRecordComposeDrawer({ isOpen, onDismiss, presentation = 'd
               </select>
             </label>
             {selectedComposeTemplateId ? (
-              <p className={`text-[11px] leading-relaxed ${isGmail ? 'text-[#5f6368]' : 'text-slate-600'}`}>
+              <p className={`text-[11px] leading-relaxed ${isFloating ? 'text-[#5f6368]' : 'text-slate-600'}`}>
                 {composeTemplates.find((x) => x.id === selectedComposeTemplateId)?.summary}
               </p>
             ) : null}
@@ -339,10 +567,10 @@ export function OfficeRecordComposeDrawer({ isOpen, onDismiss, presentation = 'd
           <textarea
             value={newBody}
             onChange={(e) => setNewBody(e.target.value)}
-            rows={isGmail ? 10 : 8}
-            placeholder="Compose email…"
+            rows={isFloating ? 10 : 8}
+            placeholder="Memo body…"
             className={
-              isGmail
+              isFloating
                 ? 'min-h-[200px] w-full resize-y border-0 bg-white px-0 py-2 text-[13px] leading-relaxed text-[#202124] outline-none placeholder:text-[#80868b]'
                 : 'min-h-[160px] w-full rounded-lg border border-slate-100 bg-slate-50/50 px-3 py-2 text-[13px] leading-relaxed outline-none focus:ring-2 focus:ring-teal-500/20'
             }
@@ -352,16 +580,16 @@ export function OfficeRecordComposeDrawer({ isOpen, onDismiss, presentation = 'd
               type="button"
               onClick={() => memoFileRef.current?.click()}
               className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[12px] font-medium ${
-                isGmail ? 'text-[#5f6368] hover:bg-[#f1f3f4]' : 'rounded-lg border border-slate-200 bg-white px-3 py-2 text-[11px] font-bold text-slate-700'
+                isFloating ? 'text-[#5f6368] hover:bg-[#f1f3f4]' : 'rounded-lg border border-slate-200 bg-white px-3 py-2 text-[11px] font-bold text-slate-700'
               }`}
             >
               <Paperclip size={14} />
-              Attach files
+              Supporting documents
             </button>
             <input ref={memoFileRef} type="file" multiple className="hidden" onChange={(e) => addMemoFiles(e.target.files)} />
           </div>
           {memoAttachments.length > 0 ? (
-            <ul className={`mt-2 space-y-1 text-[11px] ${isGmail ? 'text-[#5f6368]' : 'text-slate-600'}`}>
+            <ul className={`mt-2 space-y-1 text-[11px] ${isFloating ? 'text-[#5f6368]' : 'text-slate-600'}`}>
               {memoAttachments.map((a, i) => (
                 <li key={`${a.name}-${i}`} className="flex items-center justify-between gap-2">
                   <span className="truncate">{a.name}</span>
@@ -377,20 +605,20 @@ export function OfficeRecordComposeDrawer({ isOpen, onDismiss, presentation = 'd
             </ul>
           ) : null}
         </div>
-        <p className={`pb-3 text-[11px] ${isGmail ? 'text-[#5f6368]' : 'text-slate-500'}`}>
+        <p className={`pb-3 text-[11px] ${isFloating ? 'text-[#5f6368]' : 'text-slate-500'}`}>
           After sending, open the thread from{' '}
           <Link to="/" className="font-semibold text-[#134e4a] underline-offset-2 hover:underline">
-            Memos
+            Internal Memos
           </Link>{' '}
           on the workspace.
         </p>
       </div>
       <div
         className={`flex shrink-0 items-center gap-2 border-t px-4 py-3 ${
-          isGmail ? 'justify-between border-[#f1f3f4] bg-[#f6f8fc]' : 'border-slate-200 bg-white'
+          isFloating ? 'justify-between border-[#f1f3f4] bg-[#f6f8fc]' : 'border-slate-200 bg-white'
         }`}
       >
-        {isGmail ? (
+        {isFloating ? (
           <button
             type="button"
             className="text-sm font-medium text-[#5f6368] hover:text-[#202124]"
@@ -407,13 +635,13 @@ export function OfficeRecordComposeDrawer({ isOpen, onDismiss, presentation = 'd
           type="submit"
           disabled={sending}
           className={
-            isGmail
+            isFloating
               ? 'inline-flex min-w-[88px] items-center justify-center gap-2 rounded-full bg-[#134e4a] px-6 py-2 text-sm font-medium text-white shadow-sm hover:bg-[#0f3d3a] disabled:opacity-50'
               : 'z-btn-primary flex-1 justify-center gap-2'
           }
         >
-          <Send size={16} className={isGmail ? 'opacity-95' : ''} />
-          {sending ? 'Sending…' : 'Send'}
+          <Send size={16} className={isFloating ? 'opacity-95' : ''} />
+          {sending ? 'Sending…' : 'Send Memo'}
         </button>
       </div>
     </form>
@@ -423,7 +651,7 @@ export function OfficeRecordComposeDrawer({ isOpen, onDismiss, presentation = 'd
     <div className="flex shrink-0 items-center justify-between gap-3 border-b border-slate-200 px-4 py-3">
       <div>
         <p className="text-[10px] font-black uppercase tracking-widest text-teal-900/80">Office</p>
-        <h2 className="text-base font-bold text-slate-900">New official record</h2>
+        <h2 className="text-base font-bold text-slate-900">Compose Memo</h2>
       </div>
       <button type="button" onClick={closeCompose} className="rounded-lg p-2 text-slate-500 hover:bg-slate-100" aria-label="Close panel">
         <X size={20} />
@@ -433,7 +661,7 @@ export function OfficeRecordComposeDrawer({ isOpen, onDismiss, presentation = 'd
 
   const gmailTitleBar = (
     <div className="flex shrink-0 cursor-default items-center justify-between rounded-t-xl bg-gradient-to-r from-teal-900 to-teal-800 px-1 py-0.5 pl-3 text-white shadow-inner">
-      <DialogPrimitive.Title className="text-sm font-medium tracking-tight">New memo</DialogPrimitive.Title>
+      <DialogPrimitive.Title className="text-sm font-medium tracking-tight">Compose Memo</DialogPrimitive.Title>
       <div className="flex items-center">
         <button
           type="button"
@@ -447,7 +675,7 @@ export function OfficeRecordComposeDrawer({ isOpen, onDismiss, presentation = 'd
     </div>
   );
 
-  if (isGmail) {
+  if (isFloating) {
     return (
       <DialogPrimitive.Root
         open={isOpen}
@@ -475,8 +703,8 @@ export function OfficeRecordComposeDrawer({ isOpen, onDismiss, presentation = 'd
     <SlideOverPanel
       isOpen={isOpen}
       onClose={closeCompose}
-      title="New official record"
-      description="Compose an internal memo or official correspondence"
+      title="Compose Memo"
+      description="Create an internal official memo"
       maxWidthClass="max-w-lg"
     >
       {drawerHeader}
@@ -485,18 +713,21 @@ export function OfficeRecordComposeDrawer({ isOpen, onDismiss, presentation = 'd
   );
 }
 
-export function GmailComposeTriggerButton({ onClick, className = '', 'aria-label': ariaLabel }) {
+export function ComposeMemoButton({ onClick, className = '', 'aria-label': ariaLabel }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      aria-label={ariaLabel}
+      aria-label={ariaLabel || 'Compose Memo'}
       className={`group inline-flex w-full items-center gap-3 rounded-2xl border border-teal-200/80 bg-gradient-to-br from-white to-teal-50/90 px-4 py-3 text-left text-sm font-semibold text-teal-950 shadow-sm ring-1 ring-teal-900/[0.06] transition hover:border-teal-300 hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700 sm:pl-5 ${className}`}
     >
       <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-teal-800 text-white shadow-sm transition group-hover:bg-teal-900">
         <Pen size={20} strokeWidth={2} aria-hidden />
       </span>
-      <span>Compose</span>
+      <span>Compose Memo</span>
     </button>
   );
 }
+
+/** @deprecated Use ComposeMemoButton */
+export const GmailComposeTriggerButton = ComposeMemoButton;

@@ -20,7 +20,14 @@ import {
   initialExpenseRequestFormState,
 } from '../../lib/expenseRequestFormCore.js';
 import { suggestExpenseCategoryFromMemoText } from '../../lib/officeDesk/expenseCategorySuggestions.js';
+import {
+  canConvertMemoToExpense,
+  canConvertMemoToProcurement,
+  MANAGER_REPLY_TEMPLATES,
+  SMART_MEMO_TYPES,
+} from '../../lib/smartMemoComposer.js';
 import { ThreadDrawerTransactionIntel } from './ThreadDrawerTransactionIntel';
+import { WorkspaceThreadAuditTimeline } from '../workspace/WorkspaceThreadAuditTimeline';
 import { workItemShowsOfficeDrawerTransactionIntel } from '../../lib/transactionIntelFromWorkItem';
 
 /**
@@ -41,6 +48,7 @@ export function OfficeThreadConversationDrawer({ threadId, isOpen = true, onDism
   const [threadFiling, setThreadFiling] = useState(null);
   const [filingAnalyzeBusy, setFilingAnalyzeBusy] = useState(false);
   const [convertOpen, setConvertOpen] = useState(false);
+  const [procurementConvertBusy, setProcurementConvertBusy] = useState(false);
   const [expenseForm, setExpenseForm] = useState(() => initialExpenseRequestFormState());
 
   const nameByUserId = useMemo(() => {
@@ -138,7 +146,9 @@ export function OfficeThreadConversationDrawer({ threadId, isOpen = true, onDism
   }, [isOpen, isInline, hasThread]);
 
   const threadPayload = detail?.thread?.payload || {};
+  const smartMemo = threadPayload.smartMemo || null;
   const attachmentList = Array.isArray(threadPayload.attachments) ? threadPayload.attachments : [];
+  const userPermissions = ws?.session?.user?.permissions || [];
 
   const printThreadView = useCallback(() => {
     if (!detail?.thread) return;
@@ -334,12 +344,56 @@ export function OfficeThreadConversationDrawer({ threadId, isOpen = true, onDism
     const desc = [selectedThread.subject, detail?.messages?.[0]?.body || selectedThread.body || '']
       .filter(Boolean)
       .join('\n\n');
+    const guided = smartMemo?.guidedFields || {};
+    const amountNgn = Number(guided.amountNgn ?? guided.estimatedCostNgn ?? 0);
+    const expenseCategory =
+      String(smartMemo?.expenseCategory || '').trim() ||
+      suggestExpenseCategoryFromMemoText({
+        subject: selectedThread.subject,
+        body: detail?.messages?.[0]?.body || selectedThread.body || '',
+        description: desc,
+      }).category ||
+      '';
+    const lines =
+      amountNgn > 0
+        ? [{ item: guided.expensePurpose || selectedThread.subject || 'Memo expense', unit: 1, unitPriceNgn: amountNgn }]
+        : initialExpenseRequestFormState().lines;
     setExpenseForm({
       ...initialExpenseRequestFormState(),
       description: desc.slice(0, 4000),
       requestReference: `OFFICE-${selectedThread.id}`,
+      expenseCategory,
+      lines,
     });
     setConvertOpen(true);
+  };
+
+  const submitProcurementConvert = async () => {
+    const id = String(threadId || '').trim();
+    if (!id) return;
+    const itemList = String(smartMemo?.guidedFields?.itemList || '').trim();
+    if (!itemList && !window.confirm('No item list found in memo guided fields. Convert anyway with memo body text?')) {
+      return;
+    }
+    setProcurementConvertBusy(true);
+    try {
+      const { ok, data } = await apiFetch(
+        `/api/office/threads/${encodeURIComponent(id)}/convert-material-request`,
+        {
+          method: 'POST',
+          body: JSON.stringify({ itemList: itemList || undefined }),
+        }
+      );
+      if (!ok || !data?.ok) {
+        showToast(data?.error || 'Could not convert to material request.', { variant: 'error' });
+        return;
+      }
+      showToast(`Material request ${data.materialRequestId} created — track under Operations.`);
+      await ws.refresh?.();
+      await loadThread(id);
+    } finally {
+      setProcurementConvertBusy(false);
+    }
   };
 
   const printConvertDraft = () => {
@@ -395,10 +449,14 @@ export function OfficeThreadConversationDrawer({ threadId, isOpen = true, onDism
   };
 
   const title = detail?.thread?.subject || 'Memo';
+  const memoTypeKey = smartMemo?.memoType || 'general_internal';
+  const memoTypeLabel = SMART_MEMO_TYPES[memoTypeKey]?.label || memoTypeKey.replace(/_/g, ' ');
   const canConvert =
     detail?.thread &&
     detail.thread.status !== 'converted' &&
     detail.thread.createdByUserId === ws?.session?.user?.id;
+  const canConvertExpense = canConvert && canConvertMemoToExpense(memoTypeKey, userPermissions);
+  const canConvertProcurement = canConvert && canConvertMemoToProcurement(memoTypeKey, userPermissions);
 
   if (isInline && !hasThread) return null;
 
@@ -490,6 +548,16 @@ export function OfficeThreadConversationDrawer({ threadId, isOpen = true, onDism
                 {selectedThreadWorkItem?.confidentiality ? (
                   <p className="text-[10px] text-slate-500 capitalize">{selectedThreadWorkItem.confidentiality}</p>
                 ) : null}
+                {smartMemo ? (
+                  <div className="rounded-lg border border-teal-100 bg-teal-50/50 px-2.5 py-2 text-[11px] text-teal-950">
+                    <p className="font-semibold">{memoTypeLabel}</p>
+                    <p className="mt-0.5 capitalize text-teal-900/80">
+                      Priority: {smartMemo.priority || 'normal'}
+                      {smartMemo.filingCategory ? ` · Filing: ${smartMemo.filingCategory}` : ''}
+                      {smartMemo.expenseCategory ? ` · Expense: ${smartMemo.expenseCategory}` : ''}
+                    </p>
+                  </div>
+                ) : null}
                 {(threadPayload.memoDateIso || threadPayload.uploadedAtIso) && (
                   <p className="text-[11px] text-slate-600">
                     {threadPayload.memoDateIso ? (
@@ -554,7 +622,7 @@ export function OfficeThreadConversationDrawer({ threadId, isOpen = true, onDism
                     <Printer size={14} />
                     Full internal pack (A4)
                   </button>
-                  {canConvert ? (
+                  {canConvertExpense ? (
                     <button
                       type="button"
                       onClick={() => openConvert()}
@@ -562,6 +630,17 @@ export function OfficeThreadConversationDrawer({ threadId, isOpen = true, onDism
                     >
                       <ArrowLeftRight size={14} />
                       Convert to expense
+                    </button>
+                  ) : null}
+                  {canConvertProcurement ? (
+                    <button
+                      type="button"
+                      disabled={procurementConvertBusy}
+                      onClick={() => void submitProcurementConvert()}
+                      className="inline-flex items-center gap-2 rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-[10px] font-black uppercase text-sky-900 disabled:opacity-40"
+                    >
+                      <ArrowLeftRight size={14} />
+                      {procurementConvertBusy ? 'Converting…' : 'Convert to procurement'}
                     </button>
                   ) : null}
                 </div>
@@ -597,6 +676,10 @@ export function OfficeThreadConversationDrawer({ threadId, isOpen = true, onDism
                 </div>
               ) : null}
 
+              <div className="shrink-0 border-b border-slate-100 px-4 py-3">
+                <WorkspaceThreadAuditTimeline threadId={detail?.thread?.id} />
+              </div>
+
               <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
                 <ul className="space-y-3">
                   {(detail.messages || []).map((m) => (
@@ -621,6 +704,25 @@ export function OfficeThreadConversationDrawer({ threadId, isOpen = true, onDism
               </div>
 
               <div className="shrink-0 space-y-2 border-t border-slate-200 bg-white px-4 py-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <label className="text-[10px] font-semibold uppercase text-slate-500">Manager reply</label>
+                  <select
+                    className="min-w-0 flex-1 rounded-lg border border-slate-200 px-2 py-1.5 text-[11px]"
+                    defaultValue=""
+                    onChange={(e) => {
+                      const tpl = MANAGER_REPLY_TEMPLATES.find((t) => t.id === e.target.value);
+                      if (tpl) setReplyText(tpl.body);
+                      e.target.value = '';
+                    }}
+                  >
+                    <option value="">Insert template…</option>
+                    {MANAGER_REPLY_TEMPLATES.map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
                 <div className="flex flex-wrap gap-2">
                   <button
                     type="button"

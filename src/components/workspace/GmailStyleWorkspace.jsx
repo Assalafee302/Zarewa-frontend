@@ -1,5 +1,15 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, Archive, ChevronLeft, ChevronRight, Inbox, Layers, Mail, MessageSquare, RefreshCw } from 'lucide-react';
+import {
+  AlertTriangle,
+  Archive,
+  BarChart3,
+  ChevronLeft,
+  ChevronRight,
+  Inbox,
+  Layers,
+  MessageSquare,
+  RefreshCw,
+} from 'lucide-react';
 import { apiFetch } from '../../lib/apiBase';
 import { useToast } from '../../context/ToastContext';
 import { useWorkspace } from '../../context/WorkspaceContext';
@@ -12,156 +22,128 @@ import {
   workItemShowsInUnfiledTray,
 } from '../../lib/workspaceInboxBuckets';
 import { workItemShowsOfficeDrawerTransactionIntel } from '../../lib/transactionIntelFromWorkItem';
-import { MAIL_TAB_LABELS, MAIL_TAB_ORDER, mailTabForWorkItem } from '../../lib/workspaceMailTab';
-import { GmailComposeTriggerButton } from '../office/OfficeRecordComposeDrawer';
+import {
+  WORKSPACE_CATEGORIES,
+  WORKSPACE_CATEGORY_LABELS,
+  WORKSPACE_CATEGORY_ORDER,
+} from '../../lib/workspaceCategoryRegistry';
+import { DEFAULT_INBOX_FILTERS, filterWorkItemsForInbox, itemsForWorkspaceView } from '../../lib/workspaceInboxFilters';
+import { normalizeWorkItem, normalizeWorkItems } from '../../lib/workspaceWorkItemModel';
+import { ComposeMemoButton } from '../office/OfficeRecordComposeDrawer';
 import { OfficeThreadConversationDrawer } from '../office/OfficeThreadConversationDrawer';
 import { ThreadDrawerTransactionIntel } from '../office/ThreadDrawerTransactionIntel';
 import WorkspaceCoilMaterialPanel from './WorkspaceCoilMaterialPanel';
 import WorkspaceEditApprovalPanel from './WorkspaceEditApprovalPanel';
 import WorkspaceWorkItemPreview from './WorkspaceWorkItemPreview';
+import WorkItemRow from './WorkItemRow';
+import { WorkspaceInboxEmptyState, WorkspaceInboxSkeleton } from './WorkspaceInboxEmptyState';
+import { WorkspaceInboxToolbar } from './WorkspaceInboxToolbar';
+import { WorkspaceReadingPaneHeader } from './WorkspaceReadingPaneHeader';
+import { VirtualizedInboxList } from './WorkspaceCommandPalette';
 
-function formatInboxRowDate(iso) {
-  const s = String(iso || '').trim();
-  if (!s) return '';
-  try {
-    const d = new Date(s);
-    if (Number.isNaN(d.getTime())) return '';
-    const now = new Date();
-    const sameDay =
-      d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate();
-    if (sameDay) return d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
-    return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-  } catch {
-    return '';
-  }
-}
-
-function humanizeDocType(documentType) {
-  return String(documentType || 'Item')
-    .replace(/_/g, ' ')
-    .replace(/\b\w/g, (c) => c.toUpperCase());
-}
-
-function officeLabel(item) {
-  return item.officeLabel || item.responsibleOfficeKey || item.officeKey || 'Office';
-}
-
-function statusTone(status) {
-  const s = String(status || '').toLowerCase();
-  if (s.includes('reject') || s.includes('flag')) return 'text-rose-700';
-  if (s.includes('approve') || s.includes('closed') || s.includes('complete')) return 'text-emerald-700';
-  if (s.includes('pending') || s.includes('review') || s.includes('open')) return 'text-amber-800';
-  return 'text-slate-600';
-}
-
-function WorkspaceListEmptyState() {
-  return (
-    <div className="flex h-full min-h-[200px] flex-col items-center justify-center bg-gradient-to-b from-slate-50/90 to-white px-6">
-      <div className="max-w-sm rounded-2xl border border-slate-200/90 bg-white px-6 py-8 text-center shadow-sm">
-        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-teal-50 text-teal-800">
-          <Layers size={22} strokeWidth={1.75} aria-hidden />
-        </div>
-        <p className="mt-4 text-sm font-semibold text-slate-800">Nothing here</p>
-        <p className="mt-2 text-xs leading-relaxed text-slate-500">Try another folder or category tab.</p>
-      </div>
-    </div>
-  );
-}
-
-/** Top bar when a memo / record is open — list is hidden; this returns to the list. */
-function WorkspaceDetailToolbar({ onBack, title }) {
-  return (
-    <div className="flex shrink-0 items-center gap-2 border-b border-slate-200 bg-white px-2 py-2.5 sm:px-3">
-      <button
-        type="button"
-        onClick={onBack}
-        className="flex shrink-0 items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50"
-        aria-label="Back to inbox"
-      >
-        <ChevronLeft size={20} aria-hidden />
-        <span className="hidden sm:inline">Inbox</span>
-      </button>
-      <span className="min-w-0 flex-1 truncate text-sm font-semibold text-slate-900">{title || '—'}</span>
-    </div>
-  );
-}
-
-function WorkspaceIntelReadingPane({ item }) {
-  const ws = useWorkspace();
-  return (
-    <div className="flex h-full min-h-0 flex-col bg-white">
-      <div className="min-h-0 flex-1 overflow-hidden">
-        <ThreadDrawerTransactionIntel
-          workItem={item}
-          variant="standalone"
-          onManagementDecisionSuccess={() => void ws.refresh?.()}
-        />
-      </div>
-    </div>
-  );
-}
+const NAV_COLLAPSED_KEY = 'zarewa.workspace.navCollapsed';
 
 /**
- * Workspace inbox: folder rail, list + category chips, full-width detail when an item is open.
- * Opening a message collapses the list; use Inbox / back to return. Row clicks stay in-page.
+ * Zarewa Workspace Inbox — operational command center for work items and internal memos.
+ * Internal component name kept as GmailStyleWorkspace for import stability.
  */
 export default function GmailStyleWorkspace({
   officeSummary = null,
   workItemsView,
   onWorkItemsViewChange,
+  listMode: listModeProp = 'registry',
+  onListModeChange,
   mailThreadId,
   onMailThreadIdChange,
   onCompose,
+  onAiContextChange,
+  categoryFilter: categoryFilterProp,
+  onCategoryFilterChange,
 }) {
   const ws = useWorkspace();
   const { show: showToast } = useToast();
 
-  const [mailTab, setMailTab] = useState('all');
-  const [listMode, setListMode] = useState('registry');
+  const [categoryFilter, setCategoryFilter] = useState(categoryFilterProp || 'all');
+  const [listMode, setListMode] = useState(listModeProp);
+  useEffect(() => {
+    setListMode(listModeProp);
+  }, [listModeProp]);
+
+  const setListModeBoth = useCallback(
+    (mode) => {
+      setListMode(mode);
+      onListModeChange?.(mode);
+    },
+    [onListModeChange]
+  );
   const [selectedWorkItem, setSelectedWorkItem] = useState(null);
-  const [officeNavCollapsed, setOfficeNavCollapsed] = useState(() => {
+  const [inboxFilters, setInboxFilters] = useState(DEFAULT_INBOX_FILTERS);
+  const [navCollapsed, setNavCollapsed] = useState(() => {
     try {
-      return typeof sessionStorage !== 'undefined' && sessionStorage.getItem('gmailWorkspaceNavCollapsed') === '1';
+      return sessionStorage.getItem(NAV_COLLAPSED_KEY) === '1';
     } catch {
       return false;
     }
   });
-
   const [threads, setThreads] = useState([]);
   const [threadsLoading, setThreadsLoading] = useState(false);
   const [mineOnly, setMineOnly] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [mobileFolderOpen, setMobileFolderOpen] = useState(false);
+  const [selectedIds, setSelectedIds] = useState(() => new Set());
+  const [bulkBusy, setBulkBusy] = useState(false);
 
   const userId = String(ws?.session?.user?.id || '').trim();
   const roleKey = ws?.session?.user?.roleKey;
   const unifiedWorkItems = ws?.snapshot?.unifiedWorkItems;
   const permissionsFromCtx = ws?.permissions;
+  const canMonitor = Boolean(
+    roleKey === 'admin' || roleKey === 'ceo' || roleKey === 'md' || roleKey === 'sales_manager'
+  );
 
-  const { allItems, inboxCtx } = useMemo(() => {
+  const branchNames = useMemo(() => {
+    const branches = ws?.snapshot?.workspaceBranches ?? ws?.session?.branches ?? [];
+    return Object.fromEntries(
+      branches.map((b) => [String(b.id || '').trim(), String(b.name || b.code || b.id || '').trim()])
+    );
+  }, [ws?.snapshot?.workspaceBranches, ws?.session?.branches]);
+
+  const inboxCtx = useMemo(
+    () => ({ userId, roleKey, permissions: permissionsFromCtx ?? [] }),
+    [userId, roleKey, permissionsFromCtx]
+  );
+
+  const allItems = useMemo(() => {
     const raw = Array.isArray(unifiedWorkItems) ? unifiedWorkItems : [];
-    const permissions = permissionsFromCtx ?? [];
-    const inboxCtxInner = { userId, roleKey, permissions };
-    const all = raw.filter((item) => workItemShowsOnWorkspaceUnifiedInbox(item, inboxCtxInner));
-    return { allItems: all, inboxCtx: inboxCtxInner };
-  }, [unifiedWorkItems, userId, roleKey, permissionsFromCtx]);
+    return raw.filter((item) => workItemShowsOnWorkspaceUnifiedInbox(item, inboxCtx));
+  }, [unifiedWorkItems, inboxCtx]);
 
-  const viewItems = useMemo(() => {
-    const v = String(workItemsView || 'needs_action');
-    if (v === 'all') return allItems;
-    if (v === 'file') return allItems.filter((item) => workItemShowsInFileTray(item, inboxCtx));
-    if (v === 'unfiled') return allItems.filter((item) => workItemShowsInUnfiledTray(item, inboxCtx));
-    return allItems.filter((item) => workItemNeedsActionForUser(item, userId));
-  }, [allItems, userId, workItemsView, inboxCtx]);
+  const viewItems = useMemo(
+    () =>
+      itemsForWorkspaceView(workItemsView, allItems, inboxCtx, {
+        workItemShowsInFileTray,
+        workItemShowsInUnfiledTray,
+      }),
+    [allItems, inboxCtx, workItemsView]
+  );
 
-  const tabFilteredItems = useMemo(() => {
+  const filteredItems = useMemo(() => {
     if (listMode !== 'registry') return [];
-    if (mailTab === 'all') return viewItems;
-    return viewItems.filter((item) => mailTabForWorkItem(item) === mailTab);
-  }, [viewItems, mailTab, listMode]);
+    const withFilters = filterWorkItemsForInbox(viewItems, inboxFilters, { userId, branchNames });
+    const cat = categoryFilterProp ?? categoryFilter;
+    if (cat === 'all') return withFilters;
+    return withFilters.filter((item) => normalizeWorkItem(item, { userId, branchNames }).category === cat);
+  }, [viewItems, inboxFilters, categoryFilter, categoryFilterProp, listMode, userId, branchNames]);
+
+  const normalizedRows = useMemo(
+    () => normalizeWorkItems(filteredItems.slice(0, 100), { userId, branchNames }),
+    [filteredItems, userId, branchNames]
+  );
 
   const fileSections = useMemo(() => {
-    if (String(workItemsView) !== 'file' || listMode !== 'registry') return [];
-    return groupFileTrayItemsByCategory(tabFilteredItems.slice(0, 120));
-  }, [workItemsView, listMode, tabFilteredItems]);
+    if (String(workItemsView) !== 'file' && String(workItemsView) !== 'unfiled') return [];
+    return groupFileTrayItemsByCategory(normalizedRows.slice(0, 120));
+  }, [workItemsView, normalizedRows]);
 
   const needsActionCount = useMemo(
     () => allItems.filter((item) => workItemNeedsActionForUser(item, userId)).length,
@@ -173,13 +155,28 @@ export default function GmailStyleWorkspace({
     [allItems, inboxCtx]
   );
 
+  const activeCategory = categoryFilterProp ?? categoryFilter;
+
   useEffect(() => {
     try {
-      sessionStorage.setItem('gmailWorkspaceNavCollapsed', officeNavCollapsed ? '1' : '0');
+      sessionStorage.setItem(NAV_COLLAPSED_KEY, navCollapsed ? '1' : '0');
     } catch {
       /* ignore */
     }
-  }, [officeNavCollapsed]);
+  }, [navCollapsed]);
+
+  useEffect(() => {
+    if (categoryFilterProp != null) setCategoryFilter(categoryFilterProp);
+  }, [categoryFilterProp]);
+
+  useEffect(() => {
+    onAiContextChange?.({
+      folder: listMode === 'memos' ? 'memos' : workItemsView,
+      category: activeCategory,
+      selectedWorkItem: selectedWorkItem ? normalizeWorkItem(selectedWorkItem, { userId, branchNames }) : null,
+      selectedThreadId: mailThreadId,
+    });
+  }, [listMode, workItemsView, activeCategory, selectedWorkItem, mailThreadId, onAiContextChange, userId, branchNames]);
 
   const loadThreads = useCallback(async () => {
     setThreadsLoading(true);
@@ -187,7 +184,7 @@ export default function GmailStyleWorkspace({
     const { ok, data } = await apiFetch(`/api/office/threads${q}`);
     setThreadsLoading(false);
     if (!ok || !data?.ok) {
-      showToast(data?.error || 'Could not load threads.', { variant: 'error' });
+      showToast(data?.error || 'Could not load internal memos.', { variant: 'error' });
       setThreads([]);
       return;
     }
@@ -200,9 +197,7 @@ export default function GmailStyleWorkspace({
   }, [listMode, loadThreads]);
 
   useEffect(() => {
-    if (mailThreadId) {
-      setSelectedWorkItem(null);
-    }
+    if (mailThreadId) setSelectedWorkItem(null);
   }, [mailThreadId]);
 
   const clearReadingPane = useCallback(() => {
@@ -223,53 +218,132 @@ export default function GmailStyleWorkspace({
     [onMailThreadIdChange]
   );
 
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await ws.refresh?.();
+      if (listMode === 'memos') await loadThreads();
+    } finally {
+      setRefreshing(false);
+    }
+  }, [ws, listMode, loadThreads]);
+
+  useEffect(() => {
+    setSelectedIds(new Set());
+  }, [workItemsView, listMode, activeCategory]);
+
+  const toggleSelectId = useCallback((id) => {
+    const key = String(id || '').trim();
+    if (!key) return;
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }, []);
+
+  const handleBulkRead = useCallback(async () => {
+    const ids = [...selectedIds];
+    if (!ids.length) return;
+    setBulkBusy(true);
+    try {
+      const { ok, data } = await apiFetch('/api/work-items/bulk/read', {
+        method: 'POST',
+        body: JSON.stringify({ ids }),
+      });
+      if (ok && data?.ok) {
+        showToast(`Marked ${data.updated ?? ids.length} item(s) as read.`);
+        setSelectedIds(new Set());
+        await ws.refresh?.();
+      } else {
+        showToast(data?.error || 'Bulk read failed.', { variant: 'error' });
+      }
+    } finally {
+      setBulkBusy(false);
+    }
+  }, [selectedIds, showToast, ws]);
+
+  const handleBulkArchive = useCallback(async () => {
+    const ids = [...selectedIds];
+    if (!ids.length) return;
+    if (!window.confirm(`Archive ${ids.length} selected item(s)?`)) return;
+    setBulkBusy(true);
+    try {
+      const { ok, data } = await apiFetch('/api/work-items/bulk/archive', {
+        method: 'POST',
+        body: JSON.stringify({ ids }),
+      });
+      if (ok && data?.ok) {
+        showToast(`Archived ${data.updated ?? ids.length} item(s).`);
+        setSelectedIds(new Set());
+        await ws.refresh?.();
+      } else {
+        showToast(data?.error || 'Bulk archive failed.', { variant: 'error' });
+      }
+    } finally {
+      setBulkBusy(false);
+    }
+  }, [selectedIds, showToast, ws]);
+
+  const setCategory = useCallback(
+    (cat) => {
+      if (onCategoryFilterChange) onCategoryFilterChange(cat);
+      else setCategoryFilter(cat);
+    },
+    [onCategoryFilterChange]
+  );
+
   const navBtn = (active, onClick, icon, label, badge) => (
     <button
       type="button"
-      onClick={onClick}
+      onClick={() => {
+        onClick();
+        setMobileFolderOpen(false);
+      }}
       aria-current={active ? 'page' : undefined}
-      aria-label={officeNavCollapsed ? label : undefined}
+      aria-label={navCollapsed ? label : undefined}
       title={label}
       className={`relative flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm font-medium transition-colors lg:rounded-l-none lg:rounded-r-full ${
         active
           ? 'bg-teal-100/90 font-semibold text-teal-950 shadow-sm ring-1 ring-teal-200/60 lg:ring-0'
           : 'text-slate-600 hover:bg-white/80 hover:text-slate-900'
-      } ${officeNavCollapsed ? 'lg:justify-center lg:gap-0 lg:px-2 lg:py-2.5' : ''}`}
+      } ${navCollapsed ? 'lg:justify-center lg:gap-0 lg:px-2 lg:py-2.5' : ''}`}
     >
       <span className={`flex w-6 shrink-0 justify-center ${active ? 'text-teal-800' : 'text-slate-500'}`}>{icon}</span>
-      {!officeNavCollapsed ? <span className="min-w-0 flex-1 truncate">{label}</span> : null}
+      {!navCollapsed ? <span className="min-w-0 flex-1 truncate">{label}</span> : null}
       {badge != null && badge > 0 ? (
         <span
           className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums ${
             active ? 'bg-white text-teal-900' : 'bg-slate-200/80 text-slate-700'
-          } ${
-            officeNavCollapsed
-              ? 'lg:absolute lg:right-0.5 lg:top-0.5 lg:min-h-[18px] lg:min-w-[18px] lg:px-0.5 lg:py-0 lg:text-[9px] lg:leading-[18px]'
-              : ''
-          }`}
+          } ${navCollapsed ? 'lg:absolute lg:right-0.5 lg:top-0.5 lg:min-h-[18px] lg:min-w-[18px] lg:px-0.5 lg:py-0 lg:text-[9px] lg:leading-[18px]' : ''}`}
         >
-          {officeNavCollapsed && badge > 9 ? '9+' : badge}
+          {navCollapsed && badge > 9 ? '9+' : badge}
         </span>
       ) : null}
     </button>
   );
 
   const detailOpen = Boolean(mailThreadId || selectedWorkItem);
+  const normalizedSelected = selectedWorkItem
+    ? normalizeWorkItem(selectedWorkItem, { userId, branchNames })
+    : null;
+
   const detailTitle = useMemo(() => {
-    if (selectedWorkItem) return String(selectedWorkItem.title || '').trim() || 'Record';
+    if (normalizedSelected) return normalizedSelected.title;
     if (mailThreadId) {
       const t = threads.find((x) => x.id === mailThreadId);
       if (t?.subject) return String(t.subject);
-      return 'Memo';
+      return 'Internal memo';
     }
     return '';
-  }, [mailThreadId, selectedWorkItem, threads]);
+  }, [mailThreadId, normalizedSelected, threads]);
 
   const readingInner = mailThreadId ? (
     <OfficeThreadConversationDrawer variant="inline" threadId={mailThreadId} isOpen onDismiss={clearReadingPane} />
-  ) : selectedWorkItem ? (
+  ) : normalizedSelected ? (
     (() => {
-      const dt = String(selectedWorkItem.documentType || '').trim().toLowerCase();
+      const dt = normalizedSelected.documentType;
       const onDone = () => void ws.refresh?.();
       if (dt === 'edit_approval') {
         return <WorkspaceEditApprovalPanel item={selectedWorkItem} onDone={onDone} />;
@@ -278,7 +352,17 @@ export default function GmailStyleWorkspace({
         return <WorkspaceCoilMaterialPanel item={selectedWorkItem} onDone={onDone} />;
       }
       if (workItemShowsOfficeDrawerTransactionIntel(dt)) {
-        return <WorkspaceIntelReadingPane item={selectedWorkItem} />;
+        return (
+          <div className="flex h-full min-h-0 flex-col bg-white">
+            <div className="min-h-0 flex-1 overflow-hidden">
+              <ThreadDrawerTransactionIntel
+                workItem={selectedWorkItem}
+                variant="standalone"
+                onManagementDecisionSuccess={() => void ws.refresh?.()}
+              />
+            </div>
+          </div>
+        );
       }
       return (
         <WorkspaceWorkItemPreview
@@ -292,155 +376,251 @@ export default function GmailStyleWorkspace({
     })()
   ) : null;
 
+  const folderNav = (
+    <>
+      {navBtn(
+        workItemsView === 'needs_action' && listMode === 'registry',
+        () => {
+          clearReadingPane();
+          setListModeBoth('registry');
+          onWorkItemsViewChange?.('needs_action');
+        },
+        <Inbox size={18} />,
+        'Action Inbox',
+        needsActionCount
+      )}
+      {navBtn(
+        workItemsView === 'all' && listMode === 'registry',
+        () => {
+          clearReadingPane();
+          setListModeBoth('registry');
+          onWorkItemsViewChange?.('all');
+        },
+        <Layers size={18} />,
+        'Work Tray',
+        null
+      )}
+      {navBtn(
+        listMode === 'memos',
+        () => {
+          setListModeBoth('memos');
+          clearReadingPane();
+        },
+        <MessageSquare size={18} />,
+        'Internal Memos',
+        officeSummary?.unreadApprox ?? null
+      )}
+      {navBtn(
+        workItemsView === 'file' && listMode === 'registry',
+        () => {
+          clearReadingPane();
+          setListModeBoth('registry');
+          onWorkItemsViewChange?.('file');
+        },
+        <Archive size={18} />,
+        'Filed',
+        null
+      )}
+      {navBtn(
+        workItemsView === 'unfiled' && listMode === 'registry',
+        () => {
+          clearReadingPane();
+          setListModeBoth('registry');
+          onWorkItemsViewChange?.('unfiled');
+        },
+        <AlertTriangle size={18} />,
+        'Unfiled',
+        unfiledCount
+      )}
+      {canMonitor
+        ? navBtn(
+            workItemsView === 'monitoring' && listMode === 'registry',
+            () => {
+              clearReadingPane();
+              setListModeBoth('registry');
+              onWorkItemsViewChange?.('monitoring');
+            },
+            <BarChart3 size={18} />,
+            'Monitoring',
+            null
+          )
+        : null}
+    </>
+  );
+
+  const categoryEmptyMessage = WORKSPACE_CATEGORIES[activeCategory]?.emptyMessage || '';
+
   const renderRegistryRows = () => {
+    if (!ws?.hasWorkspaceData) return <WorkspaceInboxSkeleton rows={8} />;
+
     if (String(workItemsView) === 'file' || String(workItemsView) === 'unfiled') {
       if (fileSections.length === 0) {
-        return <WorkspaceListEmptyState />;
+        return (
+          <WorkspaceInboxEmptyState
+            view={workItemsView}
+            category={activeCategory}
+            categoryEmptyMessage={categoryEmptyMessage}
+          />
+        );
       }
       return (
         <div className="divide-y divide-slate-100">
           {fileSections.map((section) => (
-            <div key={section.category} className="px-1 py-3">
-              <p className="px-3 pb-2 text-[11px] font-bold uppercase tracking-wide text-slate-500">{section.category}</p>
-              {section.groups.map((g) => (
-                <div key={`${section.category}-${g.subcategory}`} className="mb-3">
-                  <p className="px-3 pb-1 text-[10px] font-semibold uppercase text-slate-400">{g.subcategory}</p>
-                  <ul>
-                    {g.items.map((item) => (
-                      <MemoRow
-                        key={item.id}
-                        item={item}
-                        mailThreadId={mailThreadId}
-                        selectedWorkItemId={selectedWorkItem?.id}
-                        onActivate={onRegistryRowActivate}
-                      />
-                    ))}
-                  </ul>
-                </div>
-              ))}
-            </div>
+            <FileSectionGroup
+              key={section.category}
+              section={section}
+              selectedWorkItemId={selectedWorkItem?.id}
+              mailThreadId={mailThreadId}
+              onActivate={onRegistryRowActivate}
+            />
           ))}
         </div>
       );
     }
 
-    const slice = tabFilteredItems.slice(0, 80);
-    if (slice.length === 0) {
-      return <WorkspaceListEmptyState />;
+    if (normalizedRows.length === 0) {
+      return (
+        <WorkspaceInboxEmptyState
+          view={workItemsView}
+          category={activeCategory}
+          categoryEmptyMessage={categoryEmptyMessage}
+          canCompose={listMode === 'memos'}
+          onCompose={onCompose}
+        />
+      );
     }
+
     return (
-      <ul className="divide-y divide-slate-100">
-        {slice.map((item) => (
-          <MemoRow
-            key={item.id}
-            item={item}
-            mailThreadId={mailThreadId}
-            selectedWorkItemId={selectedWorkItem?.id}
-            onActivate={onRegistryRowActivate}
+      <>
+        {selectedIds.size > 0 ? (
+          <BulkSelectionBar
+            selectedCount={selectedIds.size}
+            bulkBusy={bulkBusy}
+            onMarkRead={() => void handleBulkRead()}
+            onArchive={() => void handleBulkArchive()}
+            onClear={() => setSelectedIds(new Set())}
           />
-        ))}
-      </ul>
+        ) : null}
+        {normalizedRows.length > 40 ? (
+          <VirtualizedInboxList
+            items={normalizedRows}
+            rowHeight={88}
+            maxVisible={14}
+            renderRow={(item) => {
+              const tid = officeThreadIdFromWorkItem(item);
+              const selected =
+                selectedWorkItem?.id === item.id ||
+                (Boolean(tid) && mailThreadId === tid) ||
+                (selectedWorkItem?.id === item.id &&
+                  workItemShowsOfficeDrawerTransactionIntel(item.documentType));
+              return (
+                <WorkItemRow
+                  key={item.id}
+                  item={item}
+                  selected={selected}
+                  onActivate={onRegistryRowActivate}
+                  selectable
+                  checked={selectedIds.has(item.id)}
+                  onToggleSelect={() => toggleSelectId(item.id)}
+                />
+              );
+            }}
+            emptyState={
+              <WorkspaceInboxEmptyState
+                view={workItemsView}
+                category={activeCategory}
+                categoryEmptyMessage={categoryEmptyMessage}
+              />
+            }
+          />
+        ) : (
+          <ul className="divide-y divide-slate-100">
+            {normalizedRows.map((item) => {
+              const tid = officeThreadIdFromWorkItem(item);
+              const selected =
+                selectedWorkItem?.id === item.id ||
+                (Boolean(tid) && mailThreadId === tid) ||
+                (selectedWorkItem?.id === item.id &&
+                  workItemShowsOfficeDrawerTransactionIntel(item.documentType));
+              return (
+                <WorkItemRow
+                  key={item.id}
+                  item={item}
+                  selected={selected}
+                  onActivate={onRegistryRowActivate}
+                  selectable
+                  checked={selectedIds.has(item.id)}
+                  onToggleSelect={() => toggleSelectId(item.id)}
+                />
+              );
+            })}
+          </ul>
+        )}
+      </>
     );
   };
 
+  const lastUpdatedLabel = ws?.snapshot?.generatedAtIso
+    ? formatWorkItemDate(ws.snapshot.generatedAtIso)
+    : '';
+
   return (
-    <div className="max-w-full min-w-0 overflow-hidden rounded-xl border border-slate-200/90 bg-white shadow-sm ring-1 ring-slate-900/[0.04]">
+    <div
+      className="max-w-full min-w-0 overflow-hidden rounded-xl border border-slate-200/90 bg-white shadow-sm ring-1 ring-slate-900/[0.04]"
+      data-workspace-folder={listMode === 'memos' ? 'memos' : workItemsView}
+      data-workspace-category={activeCategory}
+    >
       <div className="flex h-[min(72vh,820px)] min-h-[420px] w-full min-w-0 flex-col bg-white lg:flex-row">
+        {/* Mobile folder selector */}
+        <div className="border-b border-slate-200 bg-slate-50 px-3 py-2 lg:hidden">
+          <button
+            type="button"
+            onClick={() => setMobileFolderOpen((o) => !o)}
+            className="flex w-full items-center justify-between rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800"
+          >
+            Workspace Inbox
+            <ChevronRight size={16} className={mobileFolderOpen ? 'rotate-90' : ''} />
+          </button>
+          {mobileFolderOpen ? (
+            <nav className="mt-2 flex flex-col gap-1 rounded-lg border border-slate-200 bg-white p-2">{folderNav}</nav>
+          ) : null}
+          <div className="mt-2">
+            <ComposeMemoButton onClick={() => onCompose?.()} className="w-full" />
+          </div>
+        </div>
+
+        {/* Desktop folder rail */}
         <aside
-          className={`z-scroll-x flex w-full max-w-full shrink-0 flex-row gap-1 overflow-x-auto border-b border-slate-200 bg-slate-50/95 px-2 py-2 transition-[width] duration-200 ease-out lg:flex-col lg:gap-0 lg:overflow-x-visible lg:border-b-0 lg:border-r lg:px-0 lg:py-3 ${
-            officeNavCollapsed ? 'lg:w-[3.25rem]' : 'lg:w-56'
+          className={`hidden shrink-0 flex-col border-r border-slate-200 bg-slate-50/95 transition-[width] duration-200 ease-out lg:flex ${
+            navCollapsed ? 'w-[3.25rem]' : 'w-56'
           }`}
-          aria-label="Workspace folders"
+          aria-label="Workspace inbox areas"
         >
-          <div className="hidden shrink-0 items-center justify-end border-b border-slate-200/80 px-2 py-1.5 lg:flex">
+          <div className="flex shrink-0 items-center justify-end border-b border-slate-200/80 px-2 py-1.5">
             <button
               type="button"
-              onClick={() => setOfficeNavCollapsed((c) => !c)}
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-slate-200/90 bg-white text-slate-600 shadow-sm transition hover:border-teal-200 hover:bg-teal-50/80 hover:text-teal-900"
-              aria-expanded={!officeNavCollapsed}
-              aria-controls="gmail-workspace-folder-nav"
-              title={officeNavCollapsed ? 'Expand folder navigation' : 'Collapse folder navigation'}
+              onClick={() => setNavCollapsed((c) => !c)}
+              className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200/90 bg-white text-slate-600 shadow-sm hover:border-teal-200 hover:bg-teal-50/80"
+              aria-expanded={!navCollapsed}
+              title={navCollapsed ? 'Expand navigation' : 'Collapse navigation'}
             >
-              {officeNavCollapsed ? <ChevronRight size={18} aria-hidden /> : <ChevronLeft size={18} aria-hidden />}
+              {navCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
             </button>
           </div>
-          <div
-            className={`flex shrink-0 flex-col gap-2 px-2 pb-2 lg:px-3 ${
-              officeNavCollapsed ? 'lg:items-center lg:px-1.5 lg:pb-1.5' : ''
-            }`}
-          >
-            <GmailComposeTriggerButton
+          <div className={`flex shrink-0 flex-col gap-2 px-2 pb-2 lg:px-3 ${navCollapsed ? 'lg:items-center' : ''}`}>
+            <ComposeMemoButton
               onClick={() => onCompose?.()}
-              aria-label={officeNavCollapsed ? 'Compose' : undefined}
+              aria-label={navCollapsed ? 'Compose Memo' : undefined}
               className={`shrink-0 lg:w-full ${
-                officeNavCollapsed
-                  ? 'lg:!w-11 lg:justify-center lg:gap-0 lg:px-2 lg:py-2 lg:[&>span:last-child]:hidden'
-                  : ''
+                navCollapsed ? 'lg:!w-11 lg:justify-center lg:[&>span:last-child]:hidden' : ''
               }`}
             />
           </div>
-          <nav
-            id="gmail-workspace-folder-nav"
-            className="flex min-w-0 flex-1 flex-row lg:flex-col lg:gap-0.5"
-            aria-label="Workspace inbox folders"
-          >
-            {navBtn(
-              workItemsView === 'needs_action' && listMode === 'registry',
-              () => {
-                clearReadingPane();
-                setListMode('registry');
-                onWorkItemsViewChange?.('needs_action');
-              },
-              <Inbox size={18} />,
-              'Action inbox',
-              needsActionCount
-            )}
-            {navBtn(
-              workItemsView === 'all' && listMode === 'registry',
-              () => {
-                clearReadingPane();
-                setListMode('registry');
-                onWorkItemsViewChange?.('all');
-              },
-              <Mail size={18} />,
-              'Tray',
-              null
-            )}
-            {navBtn(
-              workItemsView === 'file' && listMode === 'registry',
-              () => {
-                clearReadingPane();
-                setListMode('registry');
-                onWorkItemsViewChange?.('file');
-              },
-              <Archive size={18} />,
-              'File',
-              null
-            )}
-            {navBtn(
-              workItemsView === 'unfiled' && listMode === 'registry',
-              () => {
-                clearReadingPane();
-                setListMode('registry');
-                onWorkItemsViewChange?.('unfiled');
-              },
-              <AlertTriangle size={18} />,
-              'Unfiled',
-              unfiledCount
-            )}
-            {navBtn(
-              listMode === 'memos',
-              () => {
-                setListMode('memos');
-                clearReadingPane();
-              },
-              <MessageSquare size={18} />,
-              'Memos',
-              threads.length
-            )}
+          <nav className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto px-1" aria-label="Inbox folders">
+            {folderNav}
           </nav>
-          {officeSummary && !officeNavCollapsed ? (
-            <div className="mt-auto hidden px-3 pb-2 text-[10px] text-slate-500 lg:block">
+          {officeSummary && !navCollapsed ? (
+            <div className="mt-auto px-3 pb-3 text-[10px] text-slate-500">
               <span className="font-mono font-semibold text-slate-700">{officeSummary.pendingActionApprox ?? 0}</span>{' '}
               pending ·{' '}
               <span className="font-mono font-semibold text-slate-700">{officeSummary.unreadApprox ?? 0}</span> unread
@@ -450,33 +630,44 @@ export default function GmailStyleWorkspace({
 
         <div className="flex min-h-0 min-w-0 flex-1 flex-col">
           {!detailOpen && listMode === 'registry' ? (
-            <div className="z-scroll-x flex max-w-full shrink-0 items-center gap-1.5 overflow-x-auto border-b border-slate-200 bg-white px-2 py-2.5">
-              {MAIL_TAB_ORDER.map((key) => (
-                <button
-                  key={key}
-                  type="button"
-                  onClick={() => setMailTab(key)}
-                  className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-colors ${
-                    mailTab === key
-                      ? 'bg-teal-100 text-teal-950 shadow-sm ring-1 ring-teal-200/70'
-                      : 'text-slate-600 hover:bg-slate-100'
-                  }`}
-                >
-                  {MAIL_TAB_LABELS[key] || key}
-                </button>
-              ))}
-            </div>
+            <>
+              <WorkspaceInboxToolbar
+                filters={inboxFilters}
+                onFiltersChange={setInboxFilters}
+                onRefresh={() => void handleRefresh()}
+                refreshing={refreshing}
+                lastUpdatedLabel={lastUpdatedLabel}
+                degraded={Boolean(ws?.usingCachedData)}
+              />
+              <div className="z-scroll-x flex max-w-full shrink-0 items-center gap-1.5 overflow-x-auto border-b border-slate-200 bg-white px-2 py-2">
+                {WORKSPACE_CATEGORY_ORDER.map((key) => (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => setCategory(key)}
+                    className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-colors ${
+                      activeCategory === key
+                        ? 'bg-teal-100 text-teal-950 shadow-sm ring-1 ring-teal-200/70'
+                        : 'text-slate-600 hover:bg-slate-100'
+                    }`}
+                  >
+                    {WORKSPACE_CATEGORY_LABELS[key] || key}
+                  </button>
+                ))}
+              </div>
+            </>
           ) : null}
+
           {!detailOpen && listMode === 'memos' ? (
             <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-slate-200 bg-white px-3 py-2.5">
-              <p className="text-sm font-semibold text-slate-800">Memos</p>
+              <p className="text-sm font-semibold text-slate-800">Internal Memos</p>
               <div className="flex items-center gap-2">
                 <label className="inline-flex items-center gap-1.5 text-[11px] text-slate-600">
                   <input
                     type="checkbox"
                     checked={mineOnly}
                     onChange={(e) => setMineOnly(e.target.checked)}
-                    className="rounded border-slate-300 text-teal-800 focus:ring-teal-600/30"
+                    className="rounded border-slate-300 text-teal-800"
                   />
                   Mine only
                 </label>
@@ -495,48 +686,48 @@ export default function GmailStyleWorkspace({
 
           <div className="flex min-h-0 flex-1 flex-col">
             {!detailOpen ? (
-              <div className="flex min-h-0 min-w-0 flex-1 flex-col bg-white">
-                <div className="min-h-0 flex-1 overflow-y-auto">
-                  {listMode === 'memos' ? (
-                    <ul className="divide-y divide-slate-100">
-                      {threadsLoading && threads.length === 0 ? (
-                        <li className="px-4 py-8 text-center text-sm text-slate-500">Loading…</li>
-                      ) : threads.length === 0 ? (
-                        <li className="px-4 py-8 text-center text-sm text-slate-500">No threads.</li>
-                      ) : (
-                        threads.slice(0, 60).map((t) => {
-                          const active = mailThreadId === t.id;
-                          return (
-                            <li key={t.id}>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setSelectedWorkItem(null);
-                                  onMailThreadIdChange?.(t.id);
-                                }}
-                                className={`flex w-full flex-col items-start gap-0.5 px-4 py-3 text-left transition-colors ${
-                                  active ? 'bg-teal-50 ring-1 ring-inset ring-teal-100' : 'hover:bg-slate-50'
-                                }`}
-                              >
-                                <span className="text-[13px] font-medium text-slate-900 line-clamp-1">{t.subject}</span>
-                                <span className="text-[11px] text-slate-500 line-clamp-1">
-                                  {t.id} · {t.status}
-                                </span>
-                              </button>
-                            </li>
-                          );
-                        })
-                      )}
-                    </ul>
+              <div className="min-h-0 flex-1 overflow-y-auto bg-white">
+                {listMode === 'memos' ? (
+                  threadsLoading && threads.length === 0 ? (
+                    <WorkspaceInboxSkeleton rows={5} />
+                  ) : threads.length === 0 ? (
+                    <WorkspaceInboxEmptyState view="memos" canCompose onCompose={onCompose} />
                   ) : (
-                    renderRegistryRows()
-                  )}
-                </div>
+                    <ul className="divide-y divide-slate-100">
+                      {threads.slice(0, 60).map((t) => (
+                        <li key={t.id}>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedWorkItem(null);
+                              onMailThreadIdChange?.(t.id);
+                            }}
+                            className={`flex w-full flex-col items-start gap-0.5 px-4 py-3 text-left transition-colors ${
+                              mailThreadId === t.id ? 'bg-teal-50 ring-1 ring-inset ring-teal-100' : 'hover:bg-slate-50'
+                            }`}
+                          >
+                            <span className="line-clamp-1 text-[13px] font-semibold text-slate-900">{t.subject}</span>
+                            <span className="line-clamp-1 text-[11px] text-slate-500">
+                              {t.id} · {String(t.status || 'open').replace(/_/g, ' ')}
+                            </span>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )
+                ) : (
+                  renderRegistryRows()
+                )}
               </div>
             ) : (
               <div className="flex min-h-0 min-w-0 flex-1 flex-col bg-white">
-                <WorkspaceDetailToolbar onBack={clearReadingPane} title={detailTitle} />
-                <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">{readingInner}</div>
+                <WorkspaceReadingPaneHeader
+                  onBack={clearReadingPane}
+                  title={detailTitle}
+                  item={normalizedSelected}
+                  threadId={mailThreadId}
+                />
+                <div className="min-h-0 flex-1 overflow-hidden">{readingInner}</div>
               </div>
             )}
           </div>
@@ -546,52 +737,64 @@ export default function GmailStyleWorkspace({
   );
 }
 
-function MemoRow({ item, mailThreadId, selectedWorkItemId, onActivate }) {
-  const ref = item.referenceNo || item.id;
-  const metaParts = [ref, officeLabel(item), item.branchId].filter(Boolean);
-  const metaLine = metaParts.join(' · ');
-  const summaryBit = item.summary ? String(item.summary).replace(/\s+/g, ' ').trim() : '';
-  const preview = [metaLine, summaryBit].filter(Boolean).join(' — ') || metaLine;
-  const rowDate = formatInboxRowDate(item.updatedAtIso || item.createdAtIso);
-  const kindLabel = humanizeDocType(item.documentType);
-  const statusClass = statusTone(item.status);
-  const tab = mailTabForWorkItem(item);
-  const tabLabel = MAIL_TAB_LABELS[tab] || tab;
-  const tid = officeThreadIdFromWorkItem(item);
-  const intelSelected =
-    selectedWorkItemId === item.id && workItemShowsOfficeDrawerTransactionIntel(item.documentType);
-  const selected =
-    intelSelected || selectedWorkItemId === item.id || (Boolean(tid) && mailThreadId === tid);
-
+function FileSectionGroup({ section, selectedWorkItemId, mailThreadId, onActivate }) {
   return (
-    <li>
+    <div className="px-1 py-3">
+      <p className="px-3 pb-2 text-[11px] font-bold uppercase tracking-wide text-slate-500">{section.category}</p>
+      {section.groups.map((g) => (
+        <div key={`${section.category}-${g.subcategory}`} className="mb-3">
+          <p className="px-3 pb-1 text-[10px] font-semibold uppercase text-slate-400">{g.subcategory}</p>
+          <ul>
+            {g.items.map((raw) => {
+              const item = normalizeWorkItem(raw);
+              const tid = officeThreadIdFromWorkItem(item);
+              const selected = selectedWorkItemId === item.id || (Boolean(tid) && mailThreadId === tid);
+              return <WorkItemRow key={item.id} item={item} selected={selected} onActivate={onActivate} />;
+            })}
+          </ul>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function formatWorkItemDate(iso) {
+  try {
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return '';
+    return d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+  } catch {
+    return '';
+  }
+}
+
+function BulkSelectionBar({ selectedCount, bulkBusy, onMarkRead, onArchive, onClear }) {
+  return (
+    <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-teal-100 bg-teal-50/80 px-3 py-2">
+      <span className="text-xs font-semibold text-teal-950">{selectedCount} selected</span>
       <button
         type="button"
-        onClick={() => onActivate(item)}
-        className={`flex w-full items-start gap-3 px-3 py-3 text-left transition-colors md:gap-4 md:px-4 ${
-          selected ? 'bg-teal-50 ring-1 ring-inset ring-teal-100/90' : 'hover:bg-slate-50'
-        }`}
+        disabled={bulkBusy}
+        onClick={onMarkRead}
+        className="rounded-lg border border-teal-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-teal-900 hover:bg-teal-50 disabled:opacity-50"
       >
-        <div className="mt-0.5 flex min-w-0 flex-1 flex-col gap-1">
-          <div className="flex items-baseline justify-between gap-2">
-            <span className="truncate text-[13px] font-medium text-slate-900">{item.title}</span>
-            {rowDate ? <span className="shrink-0 text-xs tabular-nums text-slate-500">{rowDate}</span> : null}
-          </div>
-          <div className="flex flex-wrap items-center gap-1">
-            <span className="rounded-md bg-teal-50 px-1.5 py-0.5 text-[10px] font-semibold text-teal-900 ring-1 ring-teal-100">
-              {tabLabel}
-            </span>
-            <span className={`text-xs font-medium ${statusClass}`}>
-              {String(item.status || 'open').replace(/_/g, ' ')}
-            </span>
-          </div>
-          <p className="line-clamp-2 text-[13px] leading-snug text-slate-600">
-            <span className="font-medium text-slate-700">{kindLabel}</span>
-            <span className="text-slate-400"> — </span>
-            {preview}
-          </p>
-        </div>
+        Mark read
       </button>
-    </li>
+      <button
+        type="button"
+        disabled={bulkBusy}
+        onClick={onArchive}
+        className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+      >
+        Archive
+      </button>
+      <button
+        type="button"
+        onClick={onClear}
+        className="ml-auto text-[11px] font-semibold text-slate-500 hover:text-slate-800"
+      >
+        Clear
+      </button>
+    </div>
   );
 }

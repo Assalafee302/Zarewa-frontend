@@ -1,50 +1,12 @@
 /**
- * Gmail-style category tabs for workspace registry items (not thread-only list).
- * @param {Record<string, unknown>} item
- * @returns {'primary'|'finance'|'operations'|'management'|'updates'}
+ * @deprecated Import from workspaceCategoryRegistry.js instead.
+ * Re-exports for backward compatibility during workspace redesign.
  */
-export function mailTabForWorkItem(item) {
-  const dt = String(item?.documentType || '').trim().toLowerCase();
-  const sk = String(item?.sourceKind || '').trim().toLowerCase();
-  const dc = String(item?.documentClass || '').trim().toLowerCase();
-
-  if (sk === 'office_thread' || String(item?.linkedThreadId || '').trim()) return 'primary';
-  if (dc === 'correspondence' || dt === 'memo') return 'primary';
-
-  if (
-    dt === 'payment_request' ||
-    dt === 'refund_request' ||
-    dt === 'bank_recon_exceptions' ||
-    dt === 'po_transport_payment'
-  ) {
-    return 'finance';
-  }
-
-  if (dt.startsWith('hr_') || sk === 'hr_request') return 'updates';
-
-  if (dt === 'material_request' || sk === 'coil_request') return 'operations';
-
-  if (
-    dt === 'quotation_clearance' ||
-    dt === 'production_gate' ||
-    dt === 'flagged_transaction' ||
-    dt === 'conversion_review' ||
-    dt === 'edit_approval'
-  ) {
-    return 'management';
-  }
-
-  return 'updates';
-}
-
-/** All first so HQ users see the full registry before category filters (General, Finance, …). */
-export const MAIL_TAB_ORDER = ['all', 'primary', 'finance', 'operations', 'management', 'updates'];
-
-export const MAIL_TAB_LABELS = {
-  primary: 'General',
-  finance: 'Finance',
-  operations: 'Operations',
-  management: 'Governance',
-  updates: 'Other',
-  all: 'All',
-};
+export {
+  categoryForWorkItem,
+  categoryMetaForWorkItem,
+  workItemMatchesCategory,
+  mailTabForWorkItem,
+  WORKSPACE_CATEGORY_ORDER as MAIL_TAB_ORDER,
+  WORKSPACE_CATEGORY_LABELS as MAIL_TAB_LABELS,
+} from './workspaceCategoryRegistry.js';

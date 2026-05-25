@@ -569,6 +569,14 @@ export function HelpChatDock() {
             message: text,
             messages: historyForApi,
             pathname: location.pathname,
+            pageContext: (() => {
+              try {
+                const raw = sessionStorage.getItem('zarewa.workspace.pageContext');
+                return raw ? JSON.parse(raw) : null;
+              } catch {
+                return null;
+              }
+            })(),
             clientDraftMs,
           }),
         });

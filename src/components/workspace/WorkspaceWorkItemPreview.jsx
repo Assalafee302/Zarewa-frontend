@@ -1,6 +1,6 @@
 import React from 'react';
 import { officeThreadIdFromWorkItem } from '../../lib/officeThreadFromWorkItem';
-import { mailTabForWorkItem, MAIL_TAB_LABELS } from '../../lib/workspaceMailTab';
+import { categoryMetaForWorkItem } from '../../lib/workspaceCategoryRegistry';
 
 function formatWhen(iso) {
   const s = String(iso || '').trim();
@@ -35,8 +35,8 @@ export default function WorkspaceWorkItemPreview({ item, onOpenThread }) {
     );
   }
 
-  const tab = mailTabForWorkItem(item);
-  const tabLabel = MAIL_TAB_LABELS[tab] || tab;
+  const categoryMeta = categoryMetaForWorkItem(item);
+  const tabLabel = categoryMeta.label;
   const office = item.officeLabel || item.responsibleOfficeKey || item.officeKey || 'Workspace';
   const tid = officeThreadIdFromWorkItem(item);
   const ref = item.referenceNo || item.id;
@@ -48,7 +48,7 @@ export default function WorkspaceWorkItemPreview({ item, onOpenThread }) {
         <span className="rounded-md bg-teal-100/90 px-2 py-0.5 text-[11px] font-semibold text-teal-950 ring-1 ring-teal-200/60">
           {tabLabel}
         </span>
-        <span className="rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-700">Registry</span>
+        <span className="rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-700">Work item</span>
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
         <h1 className="text-xl font-semibold leading-snug tracking-tight text-slate-900">{item.title || '—'}</h1>
