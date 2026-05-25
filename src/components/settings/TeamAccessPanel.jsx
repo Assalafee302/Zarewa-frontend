@@ -376,7 +376,9 @@ export default function TeamAccessPanel({ appUsers, currentUserId, onRefresh }) 
         showToast(data?.error || 'Could not create user.', { variant: 'error' });
         return;
       }
-      showToast('User created. Share the password securely with them.');
+      showToast(
+        'User created. Share the temporary password securely—they must change it on first sign-in, then complete the role training guide.'
+      );
       setCreateOpen(false);
       setCreateForm({
         username: '',

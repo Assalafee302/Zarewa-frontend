@@ -332,13 +332,52 @@ export function WorkspaceProvider({ children }) {
     setStatus('auth_required');
   }, []);
 
-  const changePassword = useCallback(async (currentPassword, newPassword) => {
-    const { ok, data } = await apiFetch('/api/session/change-password', {
+  const changePassword = useCallback(
+    async (currentPassword, newPassword) => {
+      const { ok, data } = await apiFetch('/api/session/change-password', {
+        method: 'POST',
+        body: JSON.stringify({ currentPassword, newPassword }),
+      });
+      if (!ok || !data?.ok) {
+        return { ok: false, error: data?.error || 'Could not change password.' };
+      }
+      if (data?.user) {
+        setSnapshot((prev) => {
+          if (!prev?.session?.user) return prev;
+          const next = {
+            ...prev,
+            session: { ...prev.session, user: { ...prev.session.user, ...data.user } },
+          };
+          writeBootstrapCache(next);
+          return next;
+        });
+        setRefreshEpoch((n) => n + 1);
+      }
+      await refresh();
+      return { ok: true };
+    },
+    [refresh]
+  );
+
+  const completeTraining = useCallback(async () => {
+    const { ok, data } = await apiFetch('/api/session/complete-training', {
       method: 'POST',
-      body: JSON.stringify({ currentPassword, newPassword }),
+      body: JSON.stringify({}),
     });
     if (!ok || !data?.ok) {
-      return { ok: false, error: data?.error || 'Could not change password.' };
+      return { ok: false, error: data?.error || 'Could not save training completion.' };
+    }
+    if (data?.user) {
+      setSnapshot((prev) => {
+        if (!prev?.session?.user) return prev;
+        const next = {
+          ...prev,
+          session: { ...prev.session, user: { ...prev.session.user, ...data.user } },
+        };
+        writeBootstrapCache(next);
+        return next;
+      });
+      setRefreshEpoch((n) => n + 1);
     }
     await refresh();
     return { ok: true };
@@ -513,6 +552,7 @@ export function WorkspaceProvider({ children }) {
       resetPassword,
       logout,
       changePassword,
+      completeTraining,
       updateProfile,
       updateWorkspace,
       getUnifiedWorkItemById,
@@ -545,6 +585,7 @@ export function WorkspaceProvider({ children }) {
       resetPassword,
       logout,
       changePassword,
+      completeTraining,
       updateProfile,
       updateWorkspace,
       getUnifiedWorkItemById,

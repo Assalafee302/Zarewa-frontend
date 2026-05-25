@@ -24,6 +24,7 @@ import Settings from './pages/Settings';
 import EditApprovalsPage from './pages/EditApprovalsPage';
 import NotFound from './pages/NotFound';
 import LoginScreen from './components/auth/LoginScreen';
+import UserOnboardingGate from './components/auth/UserOnboardingGate';
 import ModuleRouteGuard from './components/ModuleRouteGuard';
 import ManagerDashboard from './pages/ManagerDashboard';
 import WorkspaceMonitoring from './pages/WorkspaceMonitoring';
@@ -973,11 +974,13 @@ function AuthGate() {
 
   return (
     <UnsavedWorkProvider>
-      <InventoryProvider>
-        <CustomersProvider>
-          <AppShell />
-        </CustomersProvider>
-      </InventoryProvider>
+      <UserOnboardingGate>
+        <InventoryProvider>
+          <CustomersProvider>
+            <AppShell />
+          </CustomersProvider>
+        </InventoryProvider>
+      </UserOnboardingGate>
     </UnsavedWorkProvider>
   );
 }
