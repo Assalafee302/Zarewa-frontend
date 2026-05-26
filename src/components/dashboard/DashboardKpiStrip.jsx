@@ -13,6 +13,7 @@ import {
   productionOutputDateISO,
 } from '../../lib/liveAnalytics';
 import { liquidityClearanceSplit } from '../../lib/receiptClearance.js';
+import { treasuryAccountsForWorkspace } from '../../lib/treasuryAccountsStore';
 
 const MONTH_SHORT = [
   'Jan',
@@ -119,11 +120,18 @@ export function DashboardKpiStrip({ sectionClassName = 'mb-8', metricsWindow, om
   const treasuryAccounts = useMemo(
     () =>
       ws?.hasWorkspaceData
-        ? Array.isArray(ws?.snapshot?.treasuryAccounts)
-          ? ws.snapshot.treasuryAccounts
-          : []
+        ? treasuryAccountsForWorkspace(ws?.snapshot, ws?.session, {
+            branchScope: ws?.branchScope,
+            viewAllBranches: ws?.viewAllBranches,
+          })
         : [],
-    [ws?.hasWorkspaceData, ws?.snapshot?.treasuryAccounts]
+    [
+      ws?.hasWorkspaceData,
+      ws?.snapshot,
+      ws?.session?.currentBranchId,
+      ws?.branchScope,
+      ws?.viewAllBranches,
+    ]
   );
   const salesReceipts = useMemo(
     () =>

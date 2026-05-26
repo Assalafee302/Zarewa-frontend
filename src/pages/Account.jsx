@@ -73,8 +73,10 @@ import {
   TREASURY_STATEMENT_TYPE_LABEL,
 } from '../lib/accountCore';
 import {
+  treasuryAccountBranchLabel,
   treasuryAccountDisplayName,
   treasuryAccountsForWorkspace,
+  workspaceTreasuryBranchId,
 } from '../lib/treasuryAccountsStore';
 import { compareSelectLabels } from '../lib/selectOptionSort';
 import { AccountBankReconciliationPanel } from '../components/account/AccountBankReconciliationPanel.jsx';
@@ -147,6 +149,7 @@ const Account = () => {
     bankBranch: '',
     sortCodeOrSwift: '',
     notes: '',
+    branchId: workspaceTreasuryBranchId(ws?.session, { branchScope: ws?.branchScope }) || 'BR-KD',
   });
   const [newBank, setNewBank] = useState(emptyBankForm);
 
@@ -312,11 +315,17 @@ const Account = () => {
       ),
     [branchOptions]
   );
+  const workspaceBranchId = useMemo(
+    () => workspaceTreasuryBranchId(ws?.session, { branchScope: ws?.branchScope }) || 'BR-KD',
+    [ws?.session?.currentBranchId, ws?.branchScope]
+  );
   const workspaceBranchLabel = useMemo(() => {
-    const id = String(ws?.branchScope || ws?.session?.currentBranchId || '').trim();
-    if (!id || ws?.viewAllBranches) return '';
-    return branchNameById[id] || id;
-  }, [ws?.branchScope, ws?.session?.currentBranchId, ws?.viewAllBranches, branchNameById]);
+    if (!workspaceBranchId || ws?.viewAllBranches) return '';
+    return branchNameById[workspaceBranchId] || workspaceBranchId;
+  }, [workspaceBranchId, ws?.viewAllBranches, branchNameById]);
+  const roleKey = String(ws?.session?.user?.roleKey || '').trim().toLowerCase();
+  const canAssignTreasuryBranch = roleKey === 'admin' || roleKey === 'md' || roleKey === 'ceo';
+  const showAllTreasuryInTab = Boolean(ws?.viewAllBranches && canAssignTreasuryBranch);
   const branchOptionsSorted = useMemo(
     () =>
       [...branchOptions].sort((a, b) =>
@@ -324,7 +333,7 @@ const Account = () => {
       ),
     [branchOptions]
   );
-  const bankAccountsForPayout = useMemo(
+  const bankAccountsForBranch = useMemo(
     () =>
       treasuryAccountsForWorkspace(
         { treasuryAccounts: bankAccounts, branchScope: ws?.branchScope },
@@ -333,6 +342,11 @@ const Account = () => {
       ),
     [bankAccounts, ws?.session, ws?.branchScope, ws?.viewAllBranches]
   );
+  const bankAccountsVisible = useMemo(
+    () => (showAllTreasuryInTab ? bankAccounts : bankAccountsForBranch),
+    [showAllTreasuryInTab, bankAccounts, bankAccountsForBranch]
+  );
+  const bankAccountsForPayout = bankAccountsForBranch;
   const bankAccountsSelectOrder = useMemo(
     () =>
       [...bankAccountsForPayout].sort((a, b) =>
@@ -1163,11 +1177,11 @@ const Account = () => {
     }
     if (activeTab === 'movements') {
       setTransferForm({
-        fromId: bankAccounts[0] ? String(bankAccounts[0].id) : '',
-        toId: bankAccounts[1]
-          ? String(bankAccounts[1].id)
-          : bankAccounts[0]
-            ? String(bankAccounts[0].id)
+        fromId: bankAccountsForBranch[0] ? String(bankAccountsForBranch[0].id) : '',
+        toId: bankAccountsForBranch[1]
+          ? String(bankAccountsForBranch[1].id)
+          : bankAccountsForBranch[0]
+            ? String(bankAccountsForBranch[0].id)
             : '',
         amountNgn: '',
         reference: '',
@@ -1236,7 +1250,7 @@ const Account = () => {
       handleAccountTabChange('disbursements');
       setExpenseForm((f) => ({
         ...f,
-        debitAccountId: String(bankAccounts[0]?.id ?? ''),
+        debitAccountId: String(bankAccountsForBranch[0]?.id ?? ''),
       }));
       setShowExpenseModal(true);
       navigate({ pathname: location.pathname, search: '?tab=disbursements' }, { replace: true, state: {} });
@@ -1259,7 +1273,7 @@ const Account = () => {
         date: String(req?.requestDate || correction.requestDate || todayIso).slice(0, 10),
         category: chosenCategory,
         paymentMethod: 'Bank Transfer',
-        debitAccountId: String(bankAccounts[0]?.id ?? ''),
+        debitAccountId: String(bankAccountsForBranch[0]?.id ?? ''),
         reference: suggestedReference || 'Correction entry',
       });
       setShowExpenseModal(true);
@@ -1736,7 +1750,7 @@ const Account = () => {
       date: '',
       category: '',
       paymentMethod: 'Bank Transfer',
-      debitAccountId: String(bankAccounts[0]?.id ?? ''),
+      debitAccountId: String(bankAccountsForBranch[0]?.id ?? ''),
       reference: '',
     });
     setShowExpenseModal(false);
@@ -1954,6 +1968,7 @@ const Account = () => {
       bankBranch: acc.bankBranch || '',
       sortCodeOrSwift: acc.sortCodeOrSwift || '',
       notes: acc.notes || '',
+      branchId: String(acc.branchId || workspaceBranchId).trim() || workspaceBranchId,
     });
     setShowAddBank(true);
   };
@@ -2030,7 +2045,11 @@ const Account = () => {
     const accName = newBank.name.trim();
     if (!accName) return;
     if (ws?.canMutate) {
-      const workspaceBranchId = String(ws?.session?.currentBranchId || '').trim();
+      const assignBranchId = String(
+        canAssignTreasuryBranch
+          ? newBank.branchId || workspaceBranchId
+          : workspaceBranchId
+      ).trim();
       const body = {
         name: accName,
         bankName: newBank.bankName.trim(),
@@ -2043,7 +2062,7 @@ const Account = () => {
         bankBranch: newBank.bankBranch.trim(),
         sortCodeOrSwift: newBank.sortCodeOrSwift.trim(),
         notes: newBank.notes.trim(),
-        ...(workspaceBranchId && !isEditTreasury ? { branchId: workspaceBranchId } : {}),
+        ...(assignBranchId ? { branchId: assignBranchId } : {}),
       };
       if (newBank.id != null && newBank.id !== '') {
         const nid = typeof newBank.id === 'number' ? newBank.id : Number(newBank.id);
@@ -2605,8 +2624,8 @@ const Account = () => {
 
   const filteredBankAccounts = useMemo(() => {
     const qq = searchQuery.trim().toLowerCase();
-    if (!qq) return bankAccounts;
-    return bankAccounts.filter((a) => {
+    if (!qq) return bankAccountsVisible;
+    return bankAccountsVisible.filter((a) => {
       const blob = [
         a.name,
         a.type,
@@ -2622,7 +2641,7 @@ const Account = () => {
         .toLowerCase();
       return blob.includes(qq);
     });
-  }, [bankAccounts, searchQuery]);
+  }, [bankAccountsVisible, searchQuery]);
 
   const togglePaymentsSort = useCallback((key) => {
     setPaymentsTableSortKey((prevKey) => {
@@ -3657,13 +3676,13 @@ const Account = () => {
                   {filteredBankAccounts.length === 0 ? (
                     <div className="sm:col-span-2 lg:col-span-3 z-empty-state py-12">
                       <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">
-                        {bankAccounts.length === 0
+                        {bankAccountsVisible.length === 0
                           ? workspaceBranchLabel
                             ? `No treasury accounts for ${workspaceBranchLabel}`
                             : 'No treasury accounts in this workspace'
                           : 'No accounts match your search'}
                       </p>
-                      {bankAccounts.length === 0 && workspaceBranchLabel && canManageTreasury ? (
+                      {bankAccountsVisible.length === 0 && workspaceBranchLabel && canManageTreasury ? (
                         <p className="text-[11px] text-slate-500 mt-2 max-w-md mx-auto leading-relaxed">
                           Use <strong>New account</strong> above to add this branch&apos;s bank or cash till. Existing
                           Yola accounts stay on the Yola workspace; Maiduguri needs its own accounts here.
@@ -3686,9 +3705,10 @@ const Account = () => {
                               {acc.type === 'Bank' ? <Landmark size={18} /> : <CreditCard size={18} />}
                             </div>
                             <div className="text-right">
-                              {ws?.viewAllBranches && acc.branchId ? (
+                              {(showAllTreasuryInTab || String(acc.branchId || '') !== workspaceBranchId) &&
+                              acc.branchId ? (
                                 <span className="block text-[8px] font-bold text-sky-800 uppercase tracking-wide mb-0.5">
-                                  {branchNameById[acc.branchId] || acc.branchId}
+                                  {treasuryAccountBranchLabel(acc.branchId, branchNameById)}
                                 </span>
                               ) : null}
                               <span className="text-[9px] font-bold text-gray-400 uppercase tracking-tighter">
@@ -4134,11 +4154,11 @@ const Account = () => {
                   type="button"
                   onClick={() => {
                     setTransferForm({
-                      fromId: bankAccounts[0] ? String(bankAccounts[0].id) : '',
-                      toId: bankAccounts[1]
-                        ? String(bankAccounts[1].id)
-                        : bankAccounts[0]
-                          ? String(bankAccounts[0].id)
+                      fromId: bankAccountsForBranch[0] ? String(bankAccountsForBranch[0].id) : '',
+                      toId: bankAccountsForBranch[1]
+                        ? String(bankAccountsForBranch[1].id)
+                        : bankAccountsForBranch[0]
+                          ? String(bankAccountsForBranch[0].id)
                           : '',
                       amountNgn: '',
                       reference: '',
@@ -4777,7 +4797,7 @@ const Account = () => {
                                         date: String(req.requestDate || todayIso).slice(0, 10),
                                         category: String(req.expenseCategory || '').trim(),
                                         paymentMethod: 'Bank Transfer',
-                                        debitAccountId: String(bankAccounts[0]?.id ?? ''),
+                                        debitAccountId: String(bankAccountsForBranch[0]?.id ?? ''),
                                         reference: String(
                                           req.requestReference || req.requestID || 'Correction entry'
                                         ).trim(),
@@ -5684,7 +5704,29 @@ const Account = () => {
               </button>
             </div>
             <form className="space-y-4" onSubmit={saveBankAccount}>
-              {workspaceBranchLabel && !(newBank.id != null && newBank.id !== '') ? (
+              {canAssignTreasuryBranch ? (
+                <div>
+                  <label className="text-[10px] font-bold text-gray-400 uppercase ml-1 block mb-1">
+                    Branch that uses this account
+                  </label>
+                  <select
+                    required
+                    value={newBank.branchId || workspaceBranchId}
+                    onChange={(e) => setNewBank((b) => ({ ...b, branchId: e.target.value }))}
+                    className="w-full bg-gray-50 border border-gray-100 rounded-xl py-3 px-4 text-sm font-bold outline-none"
+                  >
+                    {branchOptionsSorted.map((b) => (
+                      <option key={b.id} value={b.id}>
+                        {b.name || b.code || b.id}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-[10px] text-slate-500 mt-1.5 leading-relaxed">
+                    Only this branch will see the account in receipts and payouts. Use this to move Yola banks off
+                    Kaduna if they were registered incorrectly.
+                  </p>
+                </div>
+              ) : workspaceBranchLabel ? (
                 <p className="text-[11px] text-slate-600 rounded-xl border border-teal-100 bg-teal-50/60 px-3 py-2">
                   This account will be registered for <strong>{workspaceBranchLabel}</strong>.
                 </p>

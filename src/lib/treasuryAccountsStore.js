@@ -48,13 +48,14 @@ export function treasuryAccountsForWorkspace(snapshot, session, opts = {}) {
     branchScope: snapshot?.branchScope ?? opts.branchScope,
   });
   if (!branchId) return accounts;
-  const viewAll = Boolean(session?.viewAllBranches ?? opts.viewAllBranches);
-  const scope = String(snapshot?.branchScope ?? opts.branchScope ?? '').trim();
-  if (!viewAll && scope && scope !== 'ALL' && scope === branchId) return accounts;
-  return accounts.filter((a) => {
-    const ab = String(a.branchId ?? '').trim() || 'BR-KD';
-    return ab === branchId;
-  });
+  return accounts.filter((a) => String(a.branchId ?? '').trim() === branchId);
+}
+
+/** @param {string} branchId */
+export function treasuryAccountBranchLabel(branchId, branchNameById = {}) {
+  const id = String(branchId ?? '').trim();
+  if (!id) return 'Unassigned branch';
+  return branchNameById[id] || id;
 }
 
 /** @param {{ treasuryAccounts?: object[] } | null | undefined} snapshot */

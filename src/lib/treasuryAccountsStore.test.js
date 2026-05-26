@@ -23,13 +23,32 @@ describe('treasuryAccountsForWorkspace', () => {
     expect(list[0].name).toBe('Kaduna Main');
   });
 
-  it('returns bootstrap list unchanged when already single-branch scoped', () => {
-    const scoped = { ...snapshot, branchScope: 'BR-YL' };
+  it('always filters by workspace branch even when bootstrap scope is single-branch', () => {
+    const scoped = {
+      branchScope: 'BR-KD',
+      treasuryAccounts: [
+        { id: 1, name: 'Kaduna Main', bankName: 'GTBank', branchId: 'BR-KD', type: 'Bank', accNo: '1' },
+        { id: 2, name: 'Yola Main', bankName: 'Zenith', branchId: 'BR-YL', type: 'Bank', accNo: '2' },
+      ],
+    };
     const list = treasuryAccountsForWorkspace(scoped, {
-      currentBranchId: 'BR-YL',
+      currentBranchId: 'BR-KD',
       viewAllBranches: false,
     });
-    expect(list).toHaveLength(2);
+    expect(list).toHaveLength(1);
+    expect(list[0].name).toBe('Kaduna Main');
+  });
+
+  it('excludes accounts with empty branchId from a branch workspace', () => {
+    const scoped = {
+      treasuryAccounts: [
+        { id: 1, name: 'Legacy', bankName: 'GTBank', branchId: '', type: 'Bank', accNo: '1' },
+        { id: 2, name: 'Kaduna', bankName: 'GTBank', branchId: 'BR-KD', type: 'Bank', accNo: '2' },
+      ],
+    };
+    const list = treasuryAccountsForWorkspace(scoped, { currentBranchId: 'BR-KD' });
+    expect(list).toHaveLength(1);
+    expect(list[0].name).toBe('Kaduna');
   });
 
   it('workspaceTreasuryBranchId prefers session branch over ALL scope', () => {
