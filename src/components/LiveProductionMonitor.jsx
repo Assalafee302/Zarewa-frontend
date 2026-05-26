@@ -180,6 +180,22 @@ function formatKgPerMCompact(value) {
   return Number.isFinite(next) && next > 0 ? next.toFixed(4) : '—';
 }
 
+/** kg available for this job: on-hand minus reservations, plus opening already saved on this job for the coil. */
+function coilFreeKgForJob(lot, addBackKg = 0) {
+  if (!lot) return 0;
+  return Math.max(
+    0,
+    Number(lot.qtyRemaining || 0) - Number(lot.qtyReserved || 0) + (Number(addBackKg) || 0)
+  );
+}
+
+/** Default opening kg when picking a coil — same value as free kg in the picker (2 decimal places). */
+function suggestedOpeningKgFromFree(freeKg) {
+  const n = Number(freeKg);
+  if (!Number.isFinite(n) || n <= 0) return '';
+  return String(Math.round(n * 100) / 100);
+}
+
 /** Metres implied by free kg using supplier conversion, else scaled from supplier nominal length vs received kg. */
 function estimatedMetresFromFreeKg(coil, freeKg) {
   const kg = Number(freeKg);
@@ -1369,7 +1385,7 @@ export function LiveProductionMonitor({
         continue;
       }
       const addBack = savedOpeningKgByCoil.get(cn) ?? 0;
-      const freeKg = Math.max(0, Number(lot.qtyRemaining || 0) - Number(lot.qtyReserved || 0) + addBack);
+      const freeKg = coilFreeKgForJob(lot, addBack);
       const est = estimatedMetresFromFreeKg(lot, freeKg);
       if (est == null) anyUnknown = true;
       else sumEst += est;
@@ -1583,11 +1599,15 @@ export function LiveProductionMonitor({
             const lot = coilByNo[newCoil];
             if (lot) {
               const addBack = savedOpeningKgByCoil.get(newCoil) ?? 0;
-              const free = Number(lot.qtyRemaining || 0) - Number(lot.qtyReserved || 0) + addBack;
-              if (Number.isFinite(free) && free > 0) {
-                const suggested = Math.max(1, Math.round(free * 0.995));
-                next.openingWeightKg = String(suggested);
-              }
+              const draftUsedElsewhere = prev.reduce((sum, r) => {
+                if (r.id === id) return sum;
+                if (String(r.coilNo ?? '').trim() !== newCoil) return sum;
+                const op = Number(String(r.openingWeightKg ?? '').replace(/,/g, ''));
+                return sum + (Number.isFinite(op) && op > 0 ? op : 0);
+              }, 0);
+              const freeKg = Math.max(0, coilFreeKgForJob(lot, addBack) - draftUsedElsewhere);
+              const suggested = suggestedOpeningKgFromFree(freeKg);
+              if (suggested) next.openingWeightKg = suggested;
             }
           }
         }
@@ -3684,12 +3704,7 @@ export function LiveProductionMonitor({
                 ? draftAllocations.map((row, index) => {
                 const lot = coilByNo[row.coilNo];
                 const addBackThisJob = row.coilNo ? savedOpeningKgByCoil.get(row.coilNo) ?? 0 : 0;
-                const freeKg = lot
-                  ? Math.max(
-                      0,
-                      Number(lot.qtyRemaining || 0) - Number(lot.qtyReserved || 0) + addBackThisJob
-                    )
-                  : 0;
+                const freeKg = lot ? coilFreeKgForJob(lot, addBackThisJob) : 0;
                 const draftRow = isDraftAllocationRow(row);
                 const coilsSelectedOnOtherLines = new Set(
                   draftAllocations
@@ -3797,10 +3812,7 @@ export function LiveProductionMonitor({
                             <optgroup label="Recommended (matches quotation)">
                               {recommendedCoils.map((coil) => {
                                 const addBack = savedOpeningKgByCoil.get(coil.coilNo) ?? 0;
-                                const optFree = Math.max(
-                                  0,
-                                  Number(coil.qtyRemaining || 0) - Number(coil.qtyReserved || 0) + addBack
-                                );
+                                const optFree = coilFreeKgForJob(coil, addBack);
                                 return (
                                   <option
                                     key={coil.coilNo}
@@ -3819,10 +3831,7 @@ export function LiveProductionMonitor({
                             >
                               {otherCoilsForSelect.map((coil) => {
                                 const addBack = savedOpeningKgByCoil.get(coil.coilNo) ?? 0;
-                                const optFree = Math.max(
-                                  0,
-                                  Number(coil.qtyRemaining || 0) - Number(coil.qtyReserved || 0) + addBack
-                                );
+                                const optFree = coilFreeKgForJob(coil, addBack);
                                 return (
                                   <option
                                     key={coil.coilNo}
