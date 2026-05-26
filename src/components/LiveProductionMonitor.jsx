@@ -35,6 +35,10 @@ import { EditSecondApprovalInline } from './EditSecondApprovalInline';
 import OffcutIncidentPicker from './material/OffcutIncidentPicker';
 import { productLineKey, resolveStoneFlatsheetLengthM } from '../lib/stoneCoatedQuotationPolicy';
 import { formatProductionPriceBlockMessage } from '../lib/productionPriceBlock';
+import {
+  quotationIsAccessoriesOnlyForProduction,
+  quotedAccessoryLinesForProduction,
+} from '../lib/quotationProductionLines';
 import { QuotationPriceExceptionPanel } from './QuotationPriceExceptionPanel';
 
 /** Matches server: closing below this (kg) may use “Finish roll” on completion to clear the tail from stock. */
@@ -118,16 +122,6 @@ function clearProdSfDraftStorage(jobId) {
 function parseLineQty(value) {
   const n = Number(String(value ?? '').replace(/,/g, ''));
   return Number.isFinite(n) ? n : 0;
-}
-
-function quotationHasPositiveLines(q, cat) {
-  const arr = q?.quotationLines?.[cat];
-  if (!Array.isArray(arr)) return false;
-  return arr.some((row) => String(row?.name ?? '').trim() && parseLineQty(row?.qty) > 0);
-}
-
-function quotationIsAccessoriesOnly(q) {
-  return quotationHasPositiveLines(q, 'accessories') && !quotationHasPositiveLines(q, 'products');
 }
 
 function createDraftLine(row = {}) {
@@ -534,7 +528,7 @@ export function LiveProductionMonitor({
       (linkedQuotation.stoneMeterQuote === true ||
         String(linkedQuotation.materialTypeId || '').trim() === 'MAT-005')
   );
-  const isAccessoriesOnlyQuote = quotationIsAccessoriesOnly(linkedQuotation);
+  const isAccessoriesOnlyQuote = quotationIsAccessoriesOnlyForProduction(linkedQuotation);
   const isStoneAccessoriesOnlyQuote = isStoneMeterQuote && isAccessoriesOnlyQuote;
   const completionUsesOffcutMode =
     isStoneAccessoriesOnlyQuote ||
@@ -712,6 +706,13 @@ export function LiveProductionMonitor({
     offcutSupplyMetersTotal,
   ]);
 
+  useEffect(() => {
+    if (!isAccessoriesOnlyQuote || isStoneMeterQuote) return;
+    if (jobSt === 'Planned' || jobSt === 'Running') {
+      setCompletionSourceMode('offcut');
+    }
+  }, [isAccessoriesOnlyQuote, isStoneMeterQuote, jobSt]);
+
   const recordedMeters = useMemo(() => {
     if (isStoneMeterQuote && !completionUsesOffcutMode && jobSt === 'Running') {
       const m = Number(String(stoneMetersConsumed).replace(/,/g, ''));
@@ -862,23 +863,18 @@ export function LiveProductionMonitor({
   }, [selectedJob?.jobID, selectedJob?.status, selectedJob?.offcutInventoryMeters]);
 
   const quotedAccessoryLines = useMemo(() => {
-    const ref = selectedJob?.quotationRef;
+    const ref = String(selectedJob?.quotationRef ?? '').trim();
     if (!ref || !Array.isArray(ws?.snapshot?.quotations)) return [];
     const q = ws.snapshot.quotations.find((x) => x.id === ref);
-    const acc = q?.quotationLines?.accessories;
-    if (!Array.isArray(acc)) return [];
-    return acc
-      .filter((r) => {
-        const n = String(r?.name ?? '').trim();
-        const qn = Number(String(r?.qty ?? '').replace(/,/g, '')) || 0;
-        return n && qn > 0;
-      })
-      .map((r) => ({
-        quoteLineId: String(r.id ?? '').trim(),
-        name: String(r.name ?? '').trim(),
-        ordered: Number(String(r.qty ?? '').replace(/,/g, '')) || 0,
-      }));
+    return quotedAccessoryLinesForProduction(q);
   }, [selectedJob?.quotationRef, ws?.snapshot?.quotations]);
+
+  const showAccessoryIssuedSection =
+    quotedAccessoryLines.length > 0 &&
+    !readOnly &&
+    (canCaptureRun ||
+      canEditCompletedAccessoryCorrections ||
+      (isAccessoriesOnlyQuote && (canEditPlannedAllocations || jobSt === 'Running')));
 
   const quotedStoneFlatsheetLines = useMemo(() => {
     const ref = selectedJob?.quotationRef;
@@ -3050,10 +3046,22 @@ export function LiveProductionMonitor({
             </div>
           </div>
 
-          {(canCaptureRun || canEditCompletedAccessoryCorrections) && accessoryCompletionDraft.length > 0 ? (
+          {isAccessoriesOnlyQuote && !quotedAccessoryLines.length && !readOnly ? (
+            <div className="rounded-lg border border-amber-200 bg-amber-50/90 px-3 py-2.5 text-[10px] text-amber-950">
+              <p className="font-bold uppercase tracking-wide">Accessories-only quotation</p>
+              <p className="mt-1 leading-snug">
+                Accessory lines were not found on the workspace snapshot for{' '}
+                <span className="font-mono font-semibold">{selectedJob?.quotationRef}</span>. Use{' '}
+                <strong className="font-semibold">Refresh workspace</strong> or reopen the quotation in Sales, then
+                return here.
+              </p>
+            </div>
+          ) : null}
+
+          {showAccessoryIssuedSection && accessoryCompletionDraft.length > 0 ? (
             <div className="rounded-lg border border-teal-200/80 bg-teal-50/40 p-2 sm:p-2.5 space-y-1.5">
               <p className="text-[9px] font-black uppercase tracking-widest text-[#134e4a]">
-                Accessories issued{jobSt === 'Completed' ? ' (correction)' : ' (this completion)'}
+                Accessories on quotation{jobSt === 'Completed' ? ' (correction)' : ''}
               </p>
               <p className="text-[9px] text-slate-600 leading-snug">
                 Ordered on the quote vs already posted from other completed jobs. Adjust &ldquo;This job&rdquo; to match
@@ -3090,7 +3098,11 @@ export function LiveProductionMonitor({
                                 onChange={(e) => {
                                   const v = e.target.value;
                                   const jId = selectedJob?.jobID;
-                                  if (jId && selectedJob?.status === 'Running') {
+                                  if (
+                                    jId &&
+                                    (selectedJob?.status === 'Running' ||
+                                      (isAccessoriesOnlyQuote && jobSt === 'Planned'))
+                                  ) {
                                     writeProdAccessoryDraftEntry(jId, row.key, v);
                                   }
                                   setAccessoryCompletionDraft((prev) =>
@@ -3663,8 +3675,10 @@ export function LiveProductionMonitor({
                 <div className="rounded-lg border border-amber-200 bg-amber-50/70 p-3 text-[11px] text-slate-700 space-y-2">
                   <p>
                     {isStoneAccessoriesOnlyQuote
-                      ? 'Stone-coated accessories only — no roofing metres to draw from stone stock. Issue accessories below, then complete.'
-                      : 'Offcut / accessories completion — no coil required. Issue offcut incidents below (or enter output metres), then complete.'}
+                      ? 'Stone-coated accessories only — no roofing metres to draw from stone stock. Enter accessories in the table above, then complete.'
+                      : isAccessoriesOnlyQuote
+                        ? 'Accessories-only quotation — no coil required. Enter quantities in the accessories table above, then complete.'
+                        : 'Offcut / accessories completion — no coil required. Issue offcut incidents below (or enter output metres), then complete.'}
                   </p>
                   <div className="border-t border-amber-200/60 pt-2">
                     <p className="text-[10px] font-bold uppercase text-[#134e4a] mb-1">Issue from offcut incidents</p>

@@ -1,23 +1,9 @@
 import { normalizeReceiptMatchDashes } from './salesReceiptsList';
 import { STONE_METER_INVENTORY_MODEL } from './stoneCoatedQuotationPolicy';
+import { quotationIsAccessoriesOnlyForProduction } from './quotationProductionLines';
 
 function normQuoteKey(s) {
   return normalizeReceiptMatchDashes(String(s ?? '').trim()).toLowerCase();
-}
-
-function parseLineQty(value) {
-  const n = Number(String(value ?? '').replace(/,/g, ''));
-  return Number.isFinite(n) ? n : 0;
-}
-
-function quotationHasPositiveLines(q, cat) {
-  const arr = q?.quotationLines?.[cat];
-  if (!Array.isArray(arr)) return false;
-  return arr.some((row) => String(row?.name ?? '').trim() && parseLineQty(row?.qty) > 0);
-}
-
-function quotationIsAccessoriesOnly(q) {
-  return quotationHasPositiveLines(q, 'accessories') && !quotationHasPositiveLines(q, 'products');
 }
 
 function materialTypeLabelFromQuotation(q, materialTypes) {
@@ -59,7 +45,7 @@ export function resolveLiveJobMaterialKind({ quotation, cuttingList, materialTyp
   const pn = String(cuttingList?.productName || '').trim();
   const pnLower = pn.toLowerCase();
 
-  if (q && quotationIsAccessoriesOnly(q)) return 'accessories';
+  if (q && quotationIsAccessoriesOnlyForProduction(q)) return 'accessories';
   if (pnLower.includes('accessories only')) return 'accessories';
 
   if (q && isStoneMeterJob(q, materialTypes)) return 'stone';
