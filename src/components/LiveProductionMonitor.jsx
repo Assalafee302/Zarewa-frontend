@@ -638,6 +638,64 @@ export function LiveProductionMonitor({
     setOffcutInventoryMetersInput(sum > 0 ? String(sum) : '');
   }, [offcutSupplySelections]);
 
+  const offcutSupplyMetersTotal = useMemo(
+    () => offcutSupplySelections.reduce((s, x) => s + (Number(x.meters) || 0), 0),
+    [offcutSupplySelections]
+  );
+
+  const hasCoilRunLogCompletion = useMemo(
+    () =>
+      draftAllocations.some((row) => {
+        const coil = String(row.coilNo ?? '').trim();
+        const opening = Number(row.openingWeightKg);
+        const closing = Number(row.closingWeightKg);
+        const meters = Number(row.metersProduced);
+        return (
+          coil &&
+          Number.isFinite(opening) &&
+          opening > 0 &&
+          Number.isFinite(closing) &&
+          closing >= 0 &&
+          closing <= opening &&
+          Number.isFinite(meters) &&
+          meters > 0
+        );
+      }),
+    [draftAllocations]
+  );
+
+  /** Offcut-only or accessories-only completion — no coil run log required. */
+  const resolvesToOffcutCompletion = useMemo(() => {
+    if (isStoneMeterQuote) return completionUsesOffcutMode;
+    if (completionUsesOffcutMode) return true;
+    if (offcutSupplyMetersTotal > 0 && !hasCoilRunLogCompletion) return true;
+    if (offcutInventoryMetersNum > 0 && !hasCoilRunLogCompletion) return true;
+    return false;
+  }, [
+    completionUsesOffcutMode,
+    hasCoilRunLogCompletion,
+    isStoneMeterQuote,
+    offcutInventoryMetersNum,
+    offcutSupplyMetersTotal,
+  ]);
+
+  useEffect(() => {
+    if (isStoneMeterQuote || completionUsesOffcutMode) return;
+    if (
+      offcutSupplyMetersTotal > 0 &&
+      !hasCoilRunLogCompletion &&
+      (jobSt === 'Planned' || jobSt === 'Running')
+    ) {
+      setCompletionSourceMode('offcut');
+    }
+  }, [
+    completionUsesOffcutMode,
+    hasCoilRunLogCompletion,
+    isStoneMeterQuote,
+    jobSt,
+    offcutSupplyMetersTotal,
+  ]);
+
   const recordedMeters = useMemo(() => {
     if (isStoneMeterQuote && !completionUsesOffcutMode && jobSt === 'Running') {
       const m = Number(String(stoneMetersConsumed).replace(/,/g, ''));
@@ -649,9 +707,10 @@ export function LiveProductionMonitor({
       const m = Number(String(stoneMetersConsumed).replace(/,/g, ''));
       return Number.isFinite(m) && Math.abs(m) > 1e-9 ? m : 0;
     }
-    if (completionUsesOffcutMode && jobSt === 'Running') {
+    if (resolvesToOffcutCompletion && jobSt === 'Running') {
       const m = Number(String(offcutMetersProduced).replace(/,/g, ''));
-      return Number.isFinite(m) && m >= 0 ? m : 0;
+      if (Number.isFinite(m) && m >= 0) return m;
+      return offcutSupplyMetersTotal > 0 ? offcutSupplyMetersTotal : 0;
     }
     const coilM = draftAllocations.reduce((sum, row) => {
       const meters = Number(row.metersProduced);
@@ -695,21 +754,22 @@ export function LiveProductionMonitor({
       if (!Number.isFinite(m) || Math.abs(m) < 1e-9) return false;
       return jobSt === 'Running' || (jobSt === 'Completed' && canEditCompletedCoilCorrections);
     }
-    if (completionUsesOffcutMode) {
+    if (resolvesToOffcutCompletion) {
       const m = Number(String(offcutMetersProduced).replace(/,/g, ''));
-      if (!Number.isFinite(m) || m < 0) return false;
-      return jobSt === 'Running';
+      if (Number.isFinite(m) && m >= 0) return jobSt === 'Running';
+      return offcutSupplyMetersTotal > 0 && jobSt === 'Running';
     }
     const hasPreviewRows = draftAllocations.some((row) => draftRowConversionPreviewReady(row));
     if (!hasPreviewRows) return false;
     return jobSt === 'Running' || (jobSt === 'Completed' && canEditCompletedCoilCorrections);
   }, [
     canEditCompletedCoilCorrections,
-    completionUsesOffcutMode,
     draftAllocations,
     isStoneMeterQuote,
     jobSt,
     offcutMetersProduced,
+    offcutSupplyMetersTotal,
+    resolvesToOffcutCompletion,
     selectedJob?.jobID,
     stoneMetersConsumed,
   ]);
@@ -1055,12 +1115,17 @@ export function LiveProductionMonitor({
         stoneFlatsheetSupplied: stoneFlatsheetSuppliedForApi,
       });
     }
-    if (completionUsesOffcutMode) {
+    if (resolvesToOffcutCompletion) {
+      const parsed = Number(String(offcutMetersProduced).replace(/,/g, ''));
+      const outputM =
+        Number.isFinite(parsed) && parsed >= 0 ? parsed : offcutSupplyMetersTotal > 0 ? offcutSupplyMetersTotal : 0;
       return JSON.stringify({
         job: selectedJob.jobID,
         offcut: true,
-        offcutMetersProduced: Number(String(offcutMetersProduced).replace(/,/g, '')) || 0,
+        offcutMetersProduced: outputM,
+        offcutInventoryMeters: offcutSupplyMetersTotal > 0 ? offcutSupplyMetersTotal : outputM,
         accessoriesSupplied: accessoriesSuppliedForApi,
+        offcutSupply: offcutSupplySelections,
       });
     }
     const previewLines = draftAllocations
@@ -1076,12 +1141,14 @@ export function LiveProductionMonitor({
     accessoriesSuppliedForApi,
     stoneFlatsheetSuppliedForApi,
     canRunConversionPreview,
-    completionUsesOffcutMode,
     draftAllocations,
     isAccessoriesOnlyQuote,
     isStoneMeterQuote,
     offcutInventoryMetersNum,
     offcutMetersProduced,
+    offcutSupplySelections,
+    offcutSupplyMetersTotal,
+    resolvesToOffcutCompletion,
     selectedJob,
     stoneMetersConsumed,
   ]);
@@ -1116,7 +1183,11 @@ export function LiveProductionMonitor({
             ? {
                 completeMode: 'offcut',
                 offcutMetersProduced: parsed.offcutMetersProduced,
+                offcutInventoryMeters: parsed.offcutInventoryMeters,
                 accessoriesSupplied: parsed.accessoriesSupplied || [],
+                ...(Array.isArray(parsed.offcutSupply) && parsed.offcutSupply.length
+                  ? { offcutSupply: parsed.offcutSupply }
+                  : {}),
               }
           : {
               allocations: parsed.lines,
@@ -1147,8 +1218,14 @@ export function LiveProductionMonitor({
   }, [conversionPreviewKey, selectedJob?.jobID]);
 
   const completionValidation = useMemo(() => {
-    if (completionUsesOffcutMode) {
+    if (resolvesToOffcutCompletion) {
       const rawMeters = String(offcutMetersProduced).trim();
+      if (!rawMeters && offcutSupplyMetersTotal > 0) {
+        return { validLineCount: 1, errors: [], canComplete: true };
+      }
+      if (!rawMeters && isAccessoriesOnlyQuote) {
+        return { validLineCount: 1, errors: [], canComplete: true };
+      }
       if (!rawMeters) {
         return { validLineCount: 1, errors: [], canComplete: true };
       }
@@ -1214,17 +1291,19 @@ export function LiveProductionMonitor({
     });
     if (offcutInventoryMetersNum > 0 && validLineCount === 0) {
       errors.push(
-        'Add at least one completed coil line when using metres from offcut stock, or use “Produced from offcut / accessories only”.'
+        'Add at least one completed coil line when using metres from offcut stock, or switch to “Produced from offcut / accessories only”.'
       );
     }
     return { validLineCount, errors, canComplete: validLineCount > 0 && errors.length === 0 };
   }, [
-    completionUsesOffcutMode,
     draftAllocations,
+    isAccessoriesOnlyQuote,
     isStoneMeterQuote,
     offcutInventoryMetersInput,
     offcutInventoryMetersNum,
     offcutMetersProduced,
+    offcutSupplyMetersTotal,
+    resolvesToOffcutCompletion,
     stoneMetersConsumed,
   ]);
 
@@ -1253,9 +1332,9 @@ export function LiveProductionMonitor({
   const plannedAllocSaveReady = useMemo(
     () =>
       isStoneMeterQuote ||
-      completionUsesOffcutMode ||
+      resolvesToOffcutCompletion ||
       draftAllocations.some((r) => r.coilNo?.trim() && Number(r.openingWeightKg) > 0),
-    [completionUsesOffcutMode, draftAllocations, isStoneMeterQuote]
+    [draftAllocations, isStoneMeterQuote, resolvesToOffcutCompletion]
   );
   const canManageConversionSignoff =
     Boolean(ws?.hasPermission?.('production.release')) ||
@@ -1544,14 +1623,23 @@ export function LiveProductionMonitor({
         allocations: [],
       };
     }
-    if (completionUsesOffcutMode) {
-      const parsedMeters = Number(String(offcutMetersProduced).replace(/,/g, ''));
+    if (resolvesToOffcutCompletion) {
+      const parsedField = Number(String(offcutMetersProduced).replace(/,/g, ''));
+      const outputM =
+        Number.isFinite(parsedField) && parsedField >= 0
+          ? parsedField
+          : offcutSupplyMetersTotal > 0
+            ? offcutSupplyMetersTotal
+            : 0;
+      const offInv = offcutSupplyMetersTotal > 0 ? offcutSupplyMetersTotal : outputM;
       return {
         completedAtISO: new Date().toISOString().slice(0, 10),
         completeMode: 'offcut',
-        offcutMetersProduced: Number.isFinite(parsedMeters) && parsedMeters >= 0 ? parsedMeters : 0,
+        offcutMetersProduced: outputM,
+        offcutInventoryMeters: offInv,
         accessoriesSupplied: accessoriesSuppliedForApi,
         allocations: [],
+        ...(offcutSupplySelections.length > 0 ? { offcutSupply: offcutSupplySelections } : {}),
       };
     }
     const invOff = offcutInventoryMetersNum;
@@ -1890,7 +1978,7 @@ export function LiveProductionMonitor({
         showToast(`Stone-coated job saved and production started for ${listLabel}.`);
         return;
       }
-      if (completionUsesOffcutMode && selectedJob.status === 'Planned') {
+      if (resolvesToOffcutCompletion && selectedJob.status === 'Planned') {
         const startRes = await apiFetch(`${jobApi}/start`, {
           method: 'POST',
           body: JSON.stringify({ startedAtISO: new Date().toISOString().slice(0, 10), startMode: 'offcut' }),
@@ -2002,7 +2090,10 @@ export function LiveProductionMonitor({
       return;
     } else if (type === 'start') {
       path = `${jobApi}/start`;
-      body = { startedAtISO: new Date().toISOString().slice(0, 10) };
+      body = {
+        startedAtISO: new Date().toISOString().slice(0, 10),
+        ...(resolvesToOffcutCompletion ? { startMode: 'offcut' } : {}),
+      };
     } else {
       if (!completionValidation.canComplete) {
         showToast(
@@ -3553,16 +3644,37 @@ export function LiveProductionMonitor({
                   <p>
                     {isStoneAccessoriesOnlyQuote
                       ? 'Stone-coated accessories only — no roofing metres to draw from stone stock. Issue accessories below, then complete.'
-                      : 'Offcut / accessories completion skips coil validation and marks this run complete directly.'}
+                      : 'Offcut / accessories completion — no coil required. Issue offcut incidents below (or enter output metres), then complete.'}
                   </p>
+                  <div className="border-t border-amber-200/60 pt-2">
+                    <p className="text-[10px] font-bold uppercase text-[#134e4a] mb-1">Issue from offcut incidents</p>
+                    <OffcutIncidentPicker
+                      gaugeLabel={quotationMaterialSpec?.gaugeLabel}
+                      colour={quotationMaterialSpec?.colour}
+                      value={offcutSupplySelections}
+                      onChange={setOffcutSupplySelections}
+                    />
+                    {offcutSupplySelections.length > 0 ? (
+                      <p className="mt-1 text-[9px] font-semibold text-emerald-900">
+                        {offcutSupplyMetersTotal.toFixed(2)} m from offcut incidents
+                        {offcutSupplySelections
+                          .map((s) => `${s.materialIncidentId} (${s.meters} m)`)
+                          .join(' · ')}
+                      </p>
+                    ) : null}
+                  </div>
                   <label className="block text-[10px] font-bold uppercase tracking-wide text-slate-500">
-                    Output metres produced (optional)
+                    Finished-goods output metres (optional)
                     <input
                       type="text"
                       inputMode="decimal"
                       value={offcutMetersProduced}
                       onChange={(e) => setOffcutMetersProduced(e.target.value)}
-                      placeholder="Leave blank for 0"
+                      placeholder={
+                        offcutSupplyMetersTotal > 0
+                          ? `Defaults to ${offcutSupplyMetersTotal.toFixed(2)} m from incidents`
+                          : 'Leave blank for 0'
+                      }
                       className="mt-1 w-full max-w-[12rem] rounded-md border border-slate-200 bg-white px-2 py-1.5 font-mono text-sm font-bold text-[#134e4a]"
                     />
                   </label>
