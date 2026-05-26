@@ -5314,6 +5314,7 @@ const Account = () => {
       <ModalFrame
         isOpen={showRefundPayModal}
         onClose={() => {
+          if (treasuryPayoutSubmitting) return;
           setShowRefundPayModal(false);
           setRefundPayTarget(null);
           setRefundPaidBy('');
