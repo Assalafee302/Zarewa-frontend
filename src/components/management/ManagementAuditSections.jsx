@@ -1,7 +1,6 @@
 import React, { Fragment } from 'react';
 import { RefreshCw } from 'lucide-react';
 import { formatActorAttribution, formatStageActor } from '../../lib/actorAttribution';
-import { formatActorAttribution } from '../../lib/actorAttribution';
 import { flattenQuotationLineItems, ledgerTypeStyle } from '../../lib/managerDashboardCore';
 import { ManagementActivityTimeline } from './ManagementActivityTimeline';
 

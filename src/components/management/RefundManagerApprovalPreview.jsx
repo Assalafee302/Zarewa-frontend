@@ -127,8 +127,6 @@ export function RefundManagerApprovalPreview({
 
   const accLines = intelSum?.accessoriesSummary?.lines || [];
   const stone = intelSum?.stoneFlatsheetSummary;
-  const stageActors = auditData?.stageActors || {};
-  const salesReceipts = Array.isArray(auditData?.salesReceipts) ? auditData.salesReceipts : [];
 
   return (
     <div className="animate-in fade-in space-y-3 duration-200">
