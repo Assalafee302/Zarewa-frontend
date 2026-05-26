@@ -1,6 +1,7 @@
 import React, { Fragment, useMemo } from 'react';
 import { RefreshCw, CheckCircle2, RotateCcw } from 'lucide-react';
 import { flattenQuotationLineItems, formatRefundReasonCategory, ledgerTypeStyle } from '../../lib/managerDashboardCore';
+import { formatActorAttribution, formatStageActor } from '../../lib/actorAttribution';
 import { formatPersonName } from '../../lib/formatPersonName';
 import { normalizeRefund } from '../../lib/refundsStore';
 
@@ -41,6 +42,12 @@ function DetailRow({ label, value, mono }) {
       </span>
     </div>
   );
+}
+
+function ActorCaption({ name, dateIso, className = 'text-[9px] text-slate-500' }) {
+  const line = formatActorAttribution(name, dateIso);
+  if (!line) return null;
+  return <p className={className}>By {line}</p>;
 }
 
 function sumCalcLines(lines) {
@@ -90,6 +97,8 @@ export function RefundManagerApprovalPreview({
   const productionLogs = Array.isArray(auditData?.productionLogs) ? auditData.productionLogs : [];
   const checks = Array.isArray(auditData?.conversionChecks) ? auditData.conversionChecks : [];
   const coils = Array.isArray(auditData?.jobCoils) ? auditData.jobCoils : [];
+  const stageActors = auditData?.stageActors || {};
+  const salesReceipts = Array.isArray(auditData?.salesReceipts) ? auditData.salesReceipts : [];
   const intelSum = refundIntel?.summary;
   const dataQuality = Array.isArray(refundIntel?.dataQualityIssues) ? refundIntel.dataQualityIssues : [];
   const calcLines = refund?.calculationLines || [];
@@ -118,6 +127,8 @@ export function RefundManagerApprovalPreview({
 
   const accLines = intelSum?.accessoriesSummary?.lines || [];
   const stone = intelSum?.stoneFlatsheetSummary;
+  const stageActors = auditData?.stageActors || {};
+  const salesReceipts = Array.isArray(auditData?.salesReceipts) ? auditData.salesReceipts : [];
 
   return (
     <div className="animate-in fade-in space-y-3 duration-200">
@@ -177,17 +188,33 @@ export function RefundManagerApprovalPreview({
                     <span className="font-bold text-slate-800">Project:</span> {auditData.quotation.projectName}
                   </p>
                 ) : null}
-                {(sum?.managerClearedAtIso || sum?.managerFlaggedAtIso || sum?.managerProductionApprovedAtIso) && (
-                  <p className="mb-2 text-[10px] text-slate-500">
-                    {sum.managerClearedAtIso ? `Cleared ${sum.managerClearedAtIso.slice(0, 10)}` : ''}
-                    {sum.managerProductionApprovedAtIso
-                      ? ` · Prod override ${sum.managerProductionApprovedAtIso.slice(0, 10)}`
-                      : ''}
-                    {sum.managerFlaggedAtIso ? (
-                      <span className="text-rose-600"> · Flagged {sum.managerFlaggedAtIso.slice(0, 10)}</span>
-                    ) : null}
-                  </p>
-                )}
+                <div className="mb-2 space-y-0.5 rounded-lg border border-slate-100 bg-slate-50/80 px-2 py-1.5">
+                  {[
+                    formatStageActor(stageActors.quotation),
+                    formatStageActor(stageActors.managerClear),
+                    formatStageActor(stageActors.managerProduction),
+                    formatStageActor(stageActors.managerFlag),
+                    formatStageActor(stageActors.bmPriceException),
+                    formatStageActor(stageActors.mdPriceException),
+                  ]
+                    .filter(Boolean)
+                    .map((line) => (
+                      <p key={line} className="text-[9px] leading-snug text-slate-600">
+                        {line}
+                      </p>
+                    ))}
+                  {![
+                    stageActors.quotation?.by,
+                    stageActors.managerClear?.by,
+                    stageActors.managerProduction?.by,
+                    stageActors.managerFlag?.by,
+                    stageActors.bmPriceException?.by,
+                    stageActors.mdPriceException?.by,
+                    auditData.quotation?.handledBy,
+                  ].some(Boolean) ? (
+                    <p className="text-[9px] text-slate-400">No named actors on file for quote milestones.</p>
+                  ) : null}
+                </div>
                 <p className="mb-1 text-[9px] font-black uppercase tracking-wide text-slate-400">
                   Order lines ({lines.length})
                 </p>
@@ -233,6 +260,24 @@ export function RefundManagerApprovalPreview({
                 <Stat label="Overpay applied" value={formatNgn(intelSum.overpayAppliedNgn)} />
               </div>
             ) : null}
+            {salesReceipts.length > 0 ? (
+              <Fragment>
+                <p className="mb-1 text-[9px] font-black uppercase tracking-wide text-slate-400">
+                  Sales receipts ({salesReceipts.length})
+                </p>
+                <div className="mb-3 divide-y divide-slate-100 overflow-hidden rounded-lg border border-slate-200">
+                  {salesReceipts.map((rc) => (
+                    <div key={rc.id} className="px-2 py-1.5">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-mono text-[10px] font-semibold text-slate-800">{rc.id}</span>
+                        <span className="text-xs font-bold tabular-nums text-slate-900">{formatNgn(rc.amount_ngn)}</span>
+                      </div>
+                      <ActorCaption name={rc.handled_by} dateIso={rc.date_iso} />
+                    </div>
+                  ))}
+                </div>
+              </Fragment>
+            ) : null}
             <p className="mb-1 text-[9px] font-black uppercase tracking-wide text-slate-400">
               Ledger ({ledger.length})
             </p>
@@ -258,6 +303,7 @@ export function RefundManagerApprovalPreview({
                       {(e.payment_method || e.purpose || e.note) && (
                         <p className="mt-0.5 truncate text-[10px] text-slate-500">{hint}</p>
                       )}
+                      <ActorCaption name={e.created_by_name} dateIso={e.at_iso} />
                     </div>
                   );
                 })}
@@ -326,13 +372,16 @@ export function RefundManagerApprovalPreview({
             ) : (
               <div className="mb-3 flex flex-wrap gap-1.5">
                 {cuttingLists.map((cl) => (
-                  <span
+                  <div
                     key={cl.id}
-                    className="rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-[10px] font-mono text-slate-800"
+                    className="rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-[10px] text-slate-800"
                     title={`${cl.status || ''} · ${Number(cl.total_meters || 0).toLocaleString()} m`}
                   >
-                    {cl.id} · {Number(cl.total_meters || 0).toLocaleString()} m
-                  </span>
+                    <span className="font-mono font-bold">
+                      {cl.id} · {Number(cl.total_meters || 0).toLocaleString()} m
+                    </span>
+                    <ActorCaption name={cl.handled_by} dateIso={cl.date_iso} className="text-[8px] text-slate-500" />
+                  </div>
                 ))}
               </div>
             )}
@@ -356,6 +405,7 @@ export function RefundManagerApprovalPreview({
                         </span>
                       </div>
                       <p className="mt-0.5 text-[10px] font-semibold text-slate-800">{job.product_name || '—'}</p>
+                      <ActorCaption name={job.operator_name} dateIso={job.completed_at_iso || job.created_at_iso} />
                       <p className="text-[10px] text-slate-500">
                         Planned {Number(job.planned_meters || 0).toLocaleString()} m · Actual{' '}
                         {Number(job.actual_meters || 0).toLocaleString()} m ·{' '}
@@ -365,6 +415,13 @@ export function RefundManagerApprovalPreview({
                         Conversion: {job.conversion_alert_state || '—'}
                         {job.manager_review_required ? ' · needs review' : ''}
                       </p>
+                      {job.manager_review_signed_by_name ? (
+                        <ActorCaption
+                          name={job.manager_review_signed_by_name}
+                          dateIso={job.manager_review_signed_at_iso}
+                          className="text-[8px] font-semibold text-emerald-800"
+                        />
+                      ) : null}
                       {jobCoils.length > 0 ? (
                         <p className="mt-1 text-[9px] text-slate-600">
                           Coils:{' '}
@@ -376,11 +433,18 @@ export function RefundManagerApprovalPreview({
                       {jobChecks.length > 0 ? (
                         <ul className="mt-1 space-y-0.5 border-t border-slate-200/80 pt-1">
                           {jobChecks.map((ch, i) => (
-                            <li key={i} className="font-mono text-[9px] text-slate-600">
-                              {ch.coil_no} · {ch.alert_state}
-                              {ch.actual_conversion_kg_per_m != null
-                                ? ` · ${Number(ch.actual_conversion_kg_per_m).toFixed(3)} kg/m`
-                                : ''}
+                            <li key={i} className="text-[9px] text-slate-600">
+                              <span className="font-mono">
+                                {ch.coil_no} · {ch.alert_state}
+                                {ch.actual_conversion_kg_per_m != null
+                                  ? ` · ${Number(ch.actual_conversion_kg_per_m).toFixed(3)} kg/m`
+                                  : ''}
+                              </span>
+                              <ActorCaption
+                                name={job.operator_name}
+                                dateIso={ch.checked_at_iso}
+                                className="text-[8px] text-slate-500"
+                              />
                             </li>
                           ))}
                         </ul>
@@ -397,6 +461,19 @@ export function RefundManagerApprovalPreview({
             <DetailRow label="Product / scope" value={refund?.product} />
             <DetailRow label="Categories" value={formatRefundReasonCategory(refund?.reasonCategory)} />
             <DetailRow label="Reason" value={refund?.reason} />
+            <DetailRow
+              label="Requested by"
+              value={formatActorAttribution(refund?.requestedBy, refund?.requestedAtISO)}
+            />
+            {refund?.approvedBy ? (
+              <DetailRow
+                label="Approved by"
+                value={formatActorAttribution(refund.approvedBy, refund.approvalDate)}
+              />
+            ) : null}
+            {refund?.paidBy ? (
+              <DetailRow label="Paid by" value={formatActorAttribution(refund.paidBy, refund.paidAtISO)} />
+            ) : null}
             {refund?.cuttingListRef ? <DetailRow label="Cutting list" value={refund.cuttingListRef} mono /> : null}
 
             {calcLines.length > 0 ? (
@@ -462,6 +539,17 @@ export function RefundManagerApprovalPreview({
                       <p className="text-[10px] text-slate-700">
                         {r.status} · {r.product || '—'}
                       </p>
+                      <ActorCaption name={r.requested_by} dateIso={r.requested_at_iso} />
+                      {r.approved_by ? (
+                        <ActorCaption
+                          name={r.approved_by}
+                          dateIso={r.approval_date}
+                          className="text-[8px] text-emerald-800"
+                        />
+                      ) : null}
+                      {r.paid_by ? (
+                        <ActorCaption name={r.paid_by} dateIso={r.paid_at_iso} className="text-[8px] text-teal-800" />
+                      ) : null}
                     </div>
                   ))}
                 </div>

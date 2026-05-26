@@ -1,5 +1,7 @@
 import React, { Fragment } from 'react';
 import { RefreshCw } from 'lucide-react';
+import { formatActorAttribution, formatStageActor } from '../../lib/actorAttribution';
+import { formatActorAttribution } from '../../lib/actorAttribution';
 import { flattenQuotationLineItems, ledgerTypeStyle } from '../../lib/managerDashboardCore';
 import { ManagementActivityTimeline } from './ManagementActivityTimeline';
 
@@ -117,6 +119,10 @@ export function ManagementAuditSections({ auditData, loadingAudit, formatNgn, ap
 
   const cuttingLists = Array.isArray(auditData.cuttingLists) ? auditData.cuttingLists : [];
   const productionLogs = Array.isArray(auditData.productionLogs) ? auditData.productionLogs : [];
+  const stageActors = auditData.stageActors || {};
+  const salesReceipts = Array.isArray(auditData.salesReceipts) ? auditData.salesReceipts : [];
+
+  const actorSub = u.L ? 'text-[9px] text-slate-500' : 'text-[9px] text-white/40';
 
   return (
     <Fragment>
@@ -158,17 +164,29 @@ export function ManagementAuditSections({ auditData, loadingAudit, formatNgn, ap
               </p>
             </div>
           </div>
-          {(sum.managerClearedAtIso || sum.managerFlaggedAtIso || sum.managerProductionApprovedAtIso) && (
-            <div className={u.mgrRow}>
-              {sum.managerClearedAtIso ? <span>Cleared {sum.managerClearedAtIso.slice(0, 10)}</span> : null}
-              {sum.managerProductionApprovedAtIso ? (
-                <span>Prod override {sum.managerProductionApprovedAtIso.slice(0, 10)}</span>
-              ) : null}
-              {sum.managerFlaggedAtIso ? (
-                <span className={u.mgrFlag}>Flagged {sum.managerFlaggedAtIso.slice(0, 10)}</span>
-              ) : null}
+          {[
+            formatStageActor(stageActors.quotation),
+            formatStageActor(stageActors.managerClear),
+            formatStageActor(stageActors.managerProduction),
+            formatStageActor(stageActors.managerFlag),
+            formatStageActor(stageActors.bmPriceException),
+            formatStageActor(stageActors.mdPriceException),
+          ].some(Boolean) ? (
+            <div className={`${u.mgrRow} flex-col items-start gap-0.5`}>
+              {[
+                formatStageActor(stageActors.quotation),
+                formatStageActor(stageActors.managerClear),
+                formatStageActor(stageActors.managerProduction),
+                formatStageActor(stageActors.managerFlag),
+                formatStageActor(stageActors.bmPriceException),
+                formatStageActor(stageActors.mdPriceException),
+              ]
+                .filter(Boolean)
+                .map((line) => (
+                  <span key={line}>{line}</span>
+                ))}
             </div>
-          )}
+          ) : null}
         </section>
       ) : null}
 
@@ -216,22 +234,25 @@ export function ManagementAuditSections({ auditData, loadingAudit, formatNgn, ap
               {ledger.map((e, idx) => {
                 const hint = [e.payment_method, e.purpose, e.bank_reference, e.note].filter(Boolean).join(' · ');
                 return (
-                  <div
-                    key={e.id || idx}
-                    className="flex items-center justify-between gap-2 px-2.5 py-1.5"
-                    title={hint || undefined}
-                  >
-                    <span
-                      className={`shrink-0 rounded px-1.5 py-0.5 text-[7px] font-black uppercase ${ledgerTypeStyle(e.type, ledgerTheme)}`}
-                    >
-                      {(e.type || '—').slice(0, 12)}
-                    </span>
-                    <p className="min-w-0 flex-1 truncate text-right text-xs font-semibold tabular-nums text-slate-900">
-                      {formatNgn(e.amount_ngn)}
-                    </p>
-                    <span className="shrink-0 font-mono text-[9px] text-slate-400">
-                      {e.at_iso?.slice(0, 10) || '—'}
-                    </span>
+                  <div key={e.id || idx} className="px-2.5 py-1.5" title={hint || undefined}>
+                    <div className="flex items-center justify-between gap-2">
+                      <span
+                        className={`shrink-0 rounded px-1.5 py-0.5 text-[7px] font-black uppercase ${ledgerTypeStyle(e.type, ledgerTheme)}`}
+                      >
+                        {(e.type || '—').slice(0, 12)}
+                      </span>
+                      <p className="min-w-0 flex-1 truncate text-right text-xs font-semibold tabular-nums text-slate-900">
+                        {formatNgn(e.amount_ngn)}
+                      </p>
+                      <span className="shrink-0 font-mono text-[9px] text-slate-400">
+                        {e.at_iso?.slice(0, 10) || '—'}
+                      </span>
+                    </div>
+                    {formatActorAttribution(e.created_by_name, e.at_iso) ? (
+                      <p className="mt-0.5 text-[9px] text-slate-500">
+                        By {formatActorAttribution(e.created_by_name, e.at_iso)}
+                      </p>
+                    ) : null}
                   </div>
                 );
               })}
@@ -276,7 +297,16 @@ export function ManagementAuditSections({ auditData, loadingAudit, formatNgn, ap
                 <p className={u.refundMeta}>
                   {r.status} · {r.product || '—'}
                 </p>
-                <p className={u.refundWhen}>{r.requested_at_iso?.slice(0, 16)?.replace('T', ' ')}</p>
+                {formatActorAttribution(r.requested_by, r.requested_at_iso) ? (
+                  <p className={u.refundWhen}>By {formatActorAttribution(r.requested_by, r.requested_at_iso)}</p>
+                ) : (
+                  <p className={u.refundWhen}>{r.requested_at_iso?.slice(0, 16)?.replace('T', ' ')}</p>
+                )}
+                {r.approved_by ? (
+                  <p className={`text-[9px] ${u.L ? 'text-emerald-800' : 'text-emerald-300/90'}`}>
+                    Approved by {formatActorAttribution(r.approved_by, r.approval_date)}
+                  </p>
+                ) : null}
                 {r.reason ? <p className={u.refundReason}>{r.reason}</p> : null}
               </div>
             ))}
@@ -316,6 +346,11 @@ export function ManagementAuditSections({ auditData, loadingAudit, formatNgn, ap
                 </div>
                 <p className={u.clId}>{cl.id}</p>
                 <p className={u.clM}>{Number(cl.total_meters || 0).toLocaleString()} m</p>
+                {formatActorAttribution(cl.handled_by, cl.date_iso) ? (
+                  <p className={`mt-0.5 text-[9px] ${u.L ? 'text-slate-500' : 'text-white/40'}`}>
+                    By {formatActorAttribution(cl.handled_by, cl.date_iso)}
+                  </p>
+                ) : null}
               </div>
             ))
           )}
@@ -340,6 +375,11 @@ export function ManagementAuditSections({ auditData, loadingAudit, formatNgn, ap
                       <span className={u.jobStatus}>{job.status}</span>
                     </div>
                     <p className={u.jobProduct}>{job.product_name || '—'}</p>
+                    {formatActorAttribution(job.operator_name, job.completed_at_iso || job.created_at_iso) ? (
+                      <p className={`text-[9px] ${u.L ? 'text-slate-500' : 'text-white/40'}`}>
+                        Operator: {formatActorAttribution(job.operator_name, job.completed_at_iso || job.created_at_iso)}
+                      </p>
+                    ) : null}
                     <p className={u.jobSub}>
                       List {job.cutting_list_id || '—'} · {job.machine_name || '—'}
                     </p>
@@ -355,8 +395,14 @@ export function ManagementAuditSections({ auditData, loadingAudit, formatNgn, ap
                     {job.completed_at_iso ? (
                       <p className={u.done}>Done {job.completed_at_iso.slice(0, 16).replace('T', ' ')}</p>
                     ) : null}
-                    {job.manager_review_signed_at_iso ? (
-                      <p className={u.sign}>Signed off {job.manager_review_signed_at_iso.slice(0, 10)}</p>
+                    {job.manager_review_signed_by_name || job.manager_review_signed_at_iso ? (
+                      <p className={u.sign}>
+                        Signed off{' '}
+                        {formatActorAttribution(
+                          job.manager_review_signed_by_name,
+                          job.manager_review_signed_at_iso
+                        ) || job.manager_review_signed_at_iso?.slice(0, 10)}
+                      </p>
                     ) : null}
                   </div>
                   {jobCoilRows.length ? (

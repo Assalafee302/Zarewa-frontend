@@ -1148,7 +1148,7 @@ const QuotationModal = ({
 
   const canApproveBmPriceException = useMemo(() => {
     const rk = String(ws?.session?.user?.roleKey ?? '').trim().toLowerCase();
-    return rk === 'sales_manager' || rk === 'branch_manager';
+    return rk === 'sales_manager' || rk === 'branch_manager' || rk === 'admin';
   }, [ws?.session?.user?.roleKey]);
 
   const validateProductWorkbookFloors = useCallback(() => {

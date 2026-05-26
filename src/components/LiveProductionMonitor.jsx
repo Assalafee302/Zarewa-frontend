@@ -34,6 +34,8 @@ import { editMutationNeedsSecondApprovalRole } from '../lib/editApprovalUi';
 import { EditSecondApprovalInline } from './EditSecondApprovalInline';
 import OffcutIncidentPicker from './material/OffcutIncidentPicker';
 import { productLineKey, resolveStoneFlatsheetLengthM } from '../lib/stoneCoatedQuotationPolicy';
+import { formatProductionPriceBlockMessage } from '../lib/productionPriceBlock';
+import { QuotationPriceExceptionPanel } from './QuotationPriceExceptionPanel';
 
 /** Matches server: closing below this (kg) may use “Finish roll” on completion to clear the tail from stock. */
 const COIL_TAIL_FINISH_MAX_KG = 85;
@@ -499,6 +501,18 @@ export function LiveProductionMonitor({
     if (!ref || !Array.isArray(ws?.snapshot?.quotations)) return null;
     return ws.snapshot.quotations.find((q) => q.id === ref) ?? null;
   }, [selectedJob?.quotationRef, ws?.snapshot?.quotations]);
+  const productionClosedForQuote = useMemo(() => {
+    const qid = String(selectedJob?.quotationRef ?? '').trim();
+    if (!qid) return false;
+    if (String(linkedQuotation?.status ?? '').trim().toLowerCase() === 'void') return true;
+    const jobs = Array.isArray(ws?.snapshot?.productionJobs) ? ws.snapshot.productionJobs : [];
+    return jobs.some((j) => {
+      const ref = String(j.quotationRef ?? j.quotation_ref ?? '').trim();
+      if (ref !== qid) return false;
+      const st = String(j.status ?? '').trim().toLowerCase();
+      return st === 'completed' || st === 'cancelled';
+    });
+  }, [selectedJob?.quotationRef, linkedQuotation?.status, ws?.snapshot?.productionJobs]);
   const isStoneMeterQuote = Boolean(
     linkedQuotation &&
       (linkedQuotation.stoneMeterQuote === true ||
@@ -1861,8 +1875,11 @@ export function LiveProductionMonitor({
         setSavingAction('');
         if (!startRes.ok || !startRes.data?.ok) {
           showToast(
-            startRes.data?.error ||
-              'Stone step saved, but production could not be started (e.g. price-list approval). Fix the issue, then use Save & start again.',
+            formatProductionPriceBlockMessage(
+              startRes.data,
+              startRes.data?.error ||
+                'Stone step saved, but production could not be started (e.g. below-floor price approval). Use the pricing banner above, then Save & start again.'
+            ),
             { variant: 'error' }
           );
           await ws.refresh();
@@ -1881,8 +1898,11 @@ export function LiveProductionMonitor({
         setSavingAction('');
         if (!startRes.ok || !startRes.data?.ok) {
           showToast(
-            startRes.data?.error ||
-              'Could not start offcut/accessories run (e.g. price-list approval). Fix the issue, then use Save & start again.',
+            formatProductionPriceBlockMessage(
+              startRes.data,
+              startRes.data?.error ||
+                'Could not start offcut/accessories run (e.g. below-floor price approval). Use the pricing banner above, then try again.'
+            ),
             { variant: 'error' }
           );
           await ws.refresh();
@@ -1958,24 +1978,14 @@ export function LiveProductionMonitor({
         });
         setSavingAction('');
         if (!startRes.ok || !startRes.data?.ok) {
-          let msg =
-            startRes.data?.error ||
-            'Coils saved, but production could not be started (e.g. below-floor price needs branch manager approval). Fix the issue, then use Save & start again.';
-          if (
-            (startRes.data?.code === 'PRICE_LIST_BM_APPROVAL_REQUIRED' ||
-              startRes.data?.code === 'PRICE_LIST_MD_APPROVAL_REQUIRED') &&
-            Array.isArray(startRes.data?.violations) &&
-            startRes.data.violations.length
-          ) {
-            const detail = startRes.data.violations
-              .map(
-                (v) =>
-                  `${v.lineCategory || 'line'} #${Number(v.lineIndex) + 1} (${v.code}): quoted ₦${v.quotedPerMeter}/m < min ₦${v.minAllowedPerMeter ?? v.floorPerMeter}/m`
-              )
-              .join(' · ');
-            msg = `${msg} — ${detail}`;
-          }
-          showToast(msg, { variant: 'error' });
+          showToast(
+            formatProductionPriceBlockMessage(
+              startRes.data,
+              startRes.data?.error ||
+                'Coils saved, but production could not be started. Approve below-floor pricing in the banner above, then use Save & start again.'
+            ),
+            { variant: 'error' }
+          );
           await ws.refresh();
           return;
         }
@@ -2069,7 +2079,10 @@ export function LiveProductionMonitor({
     });
     setSavingAction('');
     if (!ok || !data?.ok) {
-      showToast(data?.error || 'Could not update production.', { variant: 'error' });
+      showToast(
+        formatProductionPriceBlockMessage(data, data?.error || 'Could not update production.'),
+        { variant: 'error' }
+      );
       return;
     }
     await ws.refresh();
@@ -2771,6 +2784,14 @@ export function LiveProductionMonitor({
                     );
                   })()}
                 </div>
+              ) : null}
+
+              {selectedJob?.quotationRef ? (
+                <QuotationPriceExceptionPanel
+                  quotationId={selectedJob.quotationRef}
+                  quotation={linkedQuotation}
+                  productionClosedForQuote={productionClosedForQuote}
+                />
               ) : null}
 
               {allocationUniqueRollCapacityInsight &&
