@@ -34,6 +34,7 @@ import {
 } from '../components/layout';
 import { AiAskButton } from '../components/AiAskButton';
 import { EditSecondApprovalInline } from '../components/EditSecondApprovalInline';
+import { editMutationNeedsSecondApprovalRole } from '../lib/editApprovalUi';
 import { formatNgn } from '../Data/mockData';
 import { useToast } from '../context/ToastContext';
 import { useWorkspace } from '../context/WorkspaceContext';
@@ -71,7 +72,6 @@ import {
   isPayFromCorrectionTreasuryRow,
   TREASURY_STATEMENT_TYPE_LABEL,
 } from '../lib/accountCore';
-import { editMutationNeedsSecondApprovalRole } from '../lib/editApprovalUi';
 import { treasuryAccountDisplayName } from '../lib/treasuryAccountsStore';
 import { compareSelectLabels } from '../lib/selectOptionSort';
 import { AccountBankReconciliationPanel } from '../components/account/AccountBankReconciliationPanel.jsx';
@@ -1289,15 +1289,12 @@ const Account = () => {
     [salesReceipts]
   );
 
-  /** Saved reconciliation drops off the queue unless the user has finance approval (MD desk). */
-  const canReviseFinalizedReceiptSettlement = Boolean(ws?.hasPermission?.('finance.approve'));
+  /** MD / finance.approve may revise reconciled receipts without a manager token. */
+  const canBypassReceiptRevisionApproval = Boolean(
+    ws?.hasPermission?.('finance.approve') || ws?.hasPermission?.('*')
+  );
 
-  const receiptsVisibleInReconciliationQueue = useMemo(() => {
-    return salesReceipts.filter((r) => {
-      if (!r.financeReconciliationSavedAtISO) return true;
-      return canReviseFinalizedReceiptSettlement;
-    });
-  }, [salesReceipts, canReviseFinalizedReceiptSettlement]);
+  const receiptsVisibleInReconciliationQueue = useMemo(() => salesReceipts, [salesReceipts]);
 
   const filteredSalesReceipts = useMemo(() => {
     const qq = (receiptsTableSearch.trim() || searchQuery.trim()).toLowerCase();
@@ -1425,7 +1422,7 @@ const Account = () => {
   );
 
   const resetAllReceiptClearance = useCallback(async () => {
-    if (!canReviseFinalizedReceiptSettlement) {
+    if (!canBypassReceiptRevisionApproval) {
       showToast('Finance approval permission is required to reset receipt clearance.', {
         variant: 'error',
       });
@@ -1482,7 +1479,7 @@ const Account = () => {
     }
   }, [
     branchClearedReceiptCount,
-    canReviseFinalizedReceiptSettlement,
+    canBypassReceiptRevisionApproval,
     showToast,
     ws,
   ]);
@@ -1515,8 +1512,10 @@ const Account = () => {
     [liveTreasuryMovements, todayIso]
   );
 
-  const receiptSettlementReadOnly = Boolean(
-    receiptFinanceRow?.financeReconciliationSavedAtISO && !canReviseFinalizedReceiptSettlement
+  const receiptRevisionNeedsManagerApproval = Boolean(
+    receiptFinanceRow?.financeReconciliationSavedAtISO &&
+      !canBypassReceiptRevisionApproval &&
+      editMutationNeedsSecondApprovalRole(ws?.session?.user?.roleKey)
   );
 
   const reverseReceiptFinanceRow = useCallback(async () => {
@@ -1563,9 +1562,6 @@ const Account = () => {
     async (e) => {
       e?.preventDefault?.();
       if (!receiptFinanceRow?.id) return;
-      if (receiptFinanceRow.financeReconciliationSavedAtISO && !canReviseFinalizedReceiptSettlement) {
-        return;
-      }
       if (!ws?.canMutate) {
         showToast(
           ws?.usingCachedData
@@ -1647,7 +1643,6 @@ const Account = () => {
       paymentCorrectionDrafts,
       liveTreasuryMovements,
       todayIso,
-      canReviseFinalizedReceiptSettlement,
       ws.refresh,
       showToast,
     ]
@@ -3268,7 +3263,7 @@ const Account = () => {
                                   <span className="text-amber-800"> · Bank {formatNgn(bank)}</span>
                                 ) : null}
                               </span>
-                              {r.financeReconciliationSavedAtISO && canReviseFinalizedReceiptSettlement ? (
+                              {r.financeReconciliationSavedAtISO ? (
                                 <span className="text-[9px] font-bold uppercase px-2 py-0.5 rounded-full bg-slate-200 text-slate-800">
                                   Reconciled
                                 </span>
@@ -3288,7 +3283,7 @@ const Account = () => {
                                   onClick={() => openReceiptFinance(r)}
                                   className="text-[9px] font-bold uppercase px-3 py-1.5 rounded-lg bg-[#134e4a] text-white hover:bg-[#0f3d3a]"
                                 >
-                                  Confirm & reconcile
+                                  {r.financeReconciliationSavedAtISO ? 'Revise' : 'Confirm & reconcile'}
                                 </button>
                               ) : null}
                             </div>
@@ -6140,16 +6135,16 @@ const Account = () => {
           {receiptFinanceRow ? (
             <form className="space-y-4" onSubmit={saveReceiptFinance}>
               <p className="text-[10px] text-slate-600 font-mono break-all">{receiptFinanceRow.id}</p>
-              {receiptSettlementReadOnly ? (
-                <p className="text-[10px] text-slate-700 bg-slate-100 border border-slate-200 rounded-lg px-3 py-2">
-                  This reconciliation was finalized. It is not editable here. Users with finance approval (MD) can
-                  open it from the list to revise.
+              {receiptRevisionNeedsManagerApproval ? (
+                <p className="text-[10px] text-amber-900 bg-amber-50/90 border border-amber-200/80 rounded-lg px-3 py-2">
+                  <span className="font-bold">Second edit.</span> This receipt was already reconciled once. Request
+                  manager approval below before saving changes.
                 </p>
               ) : null}
-              {receiptFinanceRow.financeReconciliationSavedAtISO && canReviseFinalizedReceiptSettlement ? (
-                <p className="text-[10px] text-amber-900 bg-amber-50/90 border border-amber-200/80 rounded-lg px-3 py-2">
-                  <span className="font-bold">Finance approval view.</span> This receipt was already reconciled; saving
-                  again will update treasury books and re-finalize the record.
+              {receiptFinanceRow.financeReconciliationSavedAtISO && canBypassReceiptRevisionApproval ? (
+                <p className="text-[10px] text-teal-900 bg-teal-50/90 border border-teal-200/80 rounded-lg px-3 py-2">
+                  <span className="font-bold">Finance approval.</span> You may revise this reconciled receipt without a
+                  separate manager token.
                 </p>
               ) : null}
               {(() => {
@@ -6161,7 +6156,7 @@ const Account = () => {
                   receiptFinanceRow.cashReceivedNgn != null
                     ? Number(receiptFinanceRow.cashReceivedNgn) || 0
                     : Number(receiptFinanceRow.amountNgn) || 0;
-                const formDisabled = receiptSettlementReadOnly || receiptFinanceBusy;
+                const formDisabled = receiptFinanceBusy;
 
                 if (settleSplits.length > 0) {
                   return (
@@ -6170,8 +6165,8 @@ const Account = () => {
                         <span className="font-bold">Payment breakdown</span> — set amount, bank or cash, and date for
                         each line.{' '}
                         <span className="font-semibold">
-                          One save below updates treasury balances, records the bank total, and finalizes this receipt
-                          (it leaves the queue until finance approval reopens it).
+                          One save below updates treasury balances, records the bank total, and finalizes this receipt.
+                          A second change needs manager approval.
                         </span>
                       </div>
                       {settleSplits.map((s) => {
@@ -6346,15 +6341,15 @@ const Account = () => {
                   Total for delivery sign-off — bank / aggregate (₦)
                 </label>
                 <p className="text-[9px] text-slate-500 mb-1.5 leading-snug ml-1">
-                  Saved together with payment lines above (when present). Finalizing removes this receipt from the desk
-                  queue unless you have finance approval access.
+                  Saved together with payment lines above (when present). First clearance does not need manager approval;
+                  revising after that does (unless you have finance approval access).
                 </p>
                 <input
                   required
                   type="text"
                   inputMode="numeric"
                   value={receiptBankAmtInput}
-                  disabled={receiptSettlementReadOnly || receiptFinanceBusy}
+                  disabled={receiptFinanceBusy}
                   onChange={(e) => setReceiptBankAmtInput(e.target.value)}
                   className="w-full bg-gray-50 border border-gray-100 rounded-xl py-3 px-4 text-sm font-bold outline-none disabled:opacity-60"
                 />
@@ -6364,14 +6359,14 @@ const Account = () => {
                   type="checkbox"
                   className="mt-0.5 h-4 w-4 rounded border-slate-300"
                   checked={receiptClearDelivery}
-                  disabled={receiptSettlementReadOnly || receiptFinanceBusy}
+                  disabled={receiptFinanceBusy}
                   onChange={(e) => setReceiptClearDelivery(e.target.checked)}
                 />
                 <span>
                   Cleared for delivery — finance confirms this receipt is good to release downstream.
                 </span>
               </label>
-              {receiptFinanceRow?.id && !receiptSettlementReadOnly ? (
+              {receiptFinanceRow?.id && receiptRevisionNeedsManagerApproval ? (
                 <EditSecondApprovalInline
                   entityKind="sales_receipt"
                   entityId={receiptFinanceRow.id}
@@ -6379,8 +6374,7 @@ const Account = () => {
                   onChange={setReceiptFinanceEditApprovalId}
                 />
               ) : null}
-              {!receiptSettlementReadOnly &&
-              !receiptFinanceRow?.financeReconciliationSavedAtISO &&
+              {!receiptFinanceRow?.financeReconciliationSavedAtISO &&
               (ws?.hasPermission?.('finance.reverse') || ws?.hasPermission?.('finance.pay')) ? (
                 <button
                   type="button"
@@ -6393,13 +6387,13 @@ const Account = () => {
               ) : null}
               <button
                 type="submit"
-                disabled={receiptFinanceBusy || receiptSettlementReadOnly || !ws?.canMutate}
+                disabled={receiptFinanceBusy || !ws?.canMutate}
                 className="z-btn-primary w-full justify-center py-3 disabled:opacity-50"
               >
                 {receiptFinanceBusy
                   ? 'Saving…'
-                  : receiptSettlementReadOnly
-                    ? 'Finalized'
+                  : receiptFinanceRow?.financeReconciliationSavedAtISO
+                    ? 'Save revision'
                     : 'Confirm & clear receipt'}
               </button>
             </form>
