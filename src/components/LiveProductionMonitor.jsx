@@ -40,6 +40,11 @@ import {
   quotedAccessoryLinesForProduction,
 } from '../lib/quotationProductionLines';
 import { QuotationPriceExceptionPanel } from './QuotationPriceExceptionPanel';
+import { ProductionConversionReasonFields } from './operations/ProductionConversionReasonFields';
+import {
+  conversionVarianceReasonLabel,
+  findConversionReasonOption,
+} from '../shared/productionConversionReasons';
 
 /** Matches server: closing below this (kg) may use “Finish roll” on completion to clear the tail from stock. */
 const COIL_TAIL_FINISH_MAX_KG = 85;
@@ -375,6 +380,8 @@ export function LiveProductionMonitor({
   const [offcutInventoryMetersInput, setOffcutInventoryMetersInput] = useState('');
   /** @type {[Array<{materialIncidentId: string, meters: number}>, Function]} */
   const [offcutSupplySelections, setOffcutSupplySelections] = useState([]);
+  const [conversionReasonCode, setConversionReasonCode] = useState('');
+  const [conversionReasonText, setConversionReasonText] = useState('');
 
   const productionJobs = useMemo(
     () => (ws?.hasWorkspaceData && Array.isArray(ws?.snapshot?.productionJobs) ? ws.snapshot.productionJobs : []),
@@ -1229,6 +1236,54 @@ export function LiveProductionMonitor({
     };
   }, [conversionPreviewKey, selectedJob?.jobID]);
 
+  const conversionReasonBand = useMemo(() => {
+    const preview = conversionPreview?.aggregatedAlertState;
+    if (preview === 'High' || preview === 'Low') return preview;
+    const posted = selectedJob?.conversionAlertState;
+    if (posted === 'High' || posted === 'Low') return posted;
+    const saved = selectedJob?.conversionVarianceBand;
+    if (saved === 'High' || saved === 'Low') return saved;
+    return '';
+  }, [
+    conversionPreview?.aggregatedAlertState,
+    selectedJob?.conversionAlertState,
+    selectedJob?.conversionVarianceBand,
+  ]);
+
+  const needsConversionVarianceReason =
+    canCaptureRun &&
+    !isStoneMeterQuote &&
+    !resolvesToOffcutCompletion &&
+    (conversionReasonBand === 'High' || conversionReasonBand === 'Low');
+
+  const storedConversionReasonLabel = useMemo(() => {
+    const code = selectedJob?.conversionVarianceReasonCode;
+    if (!code) return '';
+    return conversionVarianceReasonLabel(
+      code,
+      selectedJob?.conversionVarianceReasonText,
+      selectedJob?.conversionVarianceBand || selectedJob?.conversionAlertState
+    );
+  }, [
+    selectedJob?.conversionVarianceReasonCode,
+    selectedJob?.conversionVarianceReasonText,
+    selectedJob?.conversionVarianceBand,
+    selectedJob?.conversionAlertState,
+  ]);
+
+  useEffect(() => {
+    setConversionReasonCode(selectedJob?.conversionVarianceReasonCode || '');
+    setConversionReasonText(selectedJob?.conversionVarianceReasonText || '');
+  }, [selectedJob?.jobID, selectedJob?.conversionVarianceReasonCode, selectedJob?.conversionVarianceReasonText]);
+
+  useEffect(() => {
+    if (!conversionReasonCode || !conversionReasonBand) return;
+    if (!findConversionReasonOption(conversionReasonCode, conversionReasonBand)) {
+      setConversionReasonCode('');
+      setConversionReasonText('');
+    }
+  }, [conversionReasonBand, conversionReasonCode]);
+
   const completionValidation = useMemo(() => {
     if (resolvesToOffcutCompletion) {
       const rawMeters = String(offcutMetersProduced).trim();
@@ -1668,6 +1723,12 @@ export function LiveProductionMonitor({
       ...(offcutSupplySelections.length > 0 ? { offcutSupply: offcutSupplySelections } : {}),
       ...(requiresManagerOverrunApproval && overrunRemark.length >= 3
         ? { meterOverrunRemark: overrunRemark }
+        : {}),
+      ...(needsConversionVarianceReason
+        ? {
+            conversionVarianceReasonCode: conversionReasonCode,
+            conversionVarianceReasonText: conversionReasonText.trim(),
+          }
         : {}),
     };
   };
@@ -2141,6 +2202,24 @@ export function LiveProductionMonitor({
           `Metres recorded exceed plan by ${overProducedMeters.toFixed(2)}m. Continue as manager-approved overrun?`
         );
         if (!proceedOverrun) {
+          setSavingAction('');
+          return;
+        }
+      }
+      if (needsConversionVarianceReason) {
+        if (!conversionReasonCode) {
+          showToast('Select a conversion reason (High/Low alert) before completing.', { variant: 'error' });
+          setSavingAction('');
+          return;
+        }
+        const reasonOpt = findConversionReasonOption(conversionReasonCode, conversionReasonBand);
+        if (!reasonOpt) {
+          showToast('Selected conversion reason is not valid for this alert band.', { variant: 'error' });
+          setSavingAction('');
+          return;
+        }
+        if (reasonOpt.requiresText && conversionReasonText.trim().length < 8) {
+          showToast('For “Other”, enter a short description (at least 8 characters).', { variant: 'error' });
           setSavingAction('');
           return;
         }
@@ -3240,6 +3319,24 @@ export function LiveProductionMonitor({
             </div>
           ) : null}
 
+          {needsConversionVarianceReason ? (
+            <ProductionConversionReasonFields
+              band={conversionReasonBand}
+              code={conversionReasonCode}
+              onCodeChange={setConversionReasonCode}
+              text={conversionReasonText}
+              onTextChange={setConversionReasonText}
+              disabled={!ws?.canMutate || Boolean(savingAction)}
+            />
+          ) : null}
+
+          {storedConversionReasonLabel && jobSt === 'Completed' ? (
+            <div className="rounded-lg border border-slate-200 bg-slate-50/90 px-2.5 py-2 text-xs text-slate-800">
+              <p className="text-[9px] font-black uppercase tracking-widest text-slate-500">Storekeeper conversion reason</p>
+              <p className="mt-1 text-[11px] font-medium leading-snug">{storedConversionReasonLabel}</p>
+            </div>
+          ) : null}
+
           {canCaptureRun && requiresManagerOverrunApproval ? (
             <div className="rounded-lg border border-amber-200 bg-amber-50/90 p-2 sm:p-2.5 space-y-1.5">
               <div className="flex items-start gap-1.5">
@@ -3454,6 +3551,13 @@ export function LiveProductionMonitor({
                     Conversion is outside the expected band (High/Low versus references). Review the four-reference
                     checks below, then sign off with a short remark when satisfied.
                   </p>
+                  {storedConversionReasonLabel ? (
+                    <p className="mt-2 rounded-md border border-red-200/80 bg-white/70 px-2 py-1.5 text-[11px] text-red-950/90">
+                      <span className="font-bold uppercase tracking-wide text-[9px] text-red-800/80">Storekeeper reason</span>
+                      <br />
+                      {storedConversionReasonLabel}
+                    </p>
+                  ) : null}
                 </div>
               </div>
               {canManageConversionSignoff ? (
