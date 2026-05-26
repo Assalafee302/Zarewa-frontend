@@ -172,6 +172,7 @@ describe('RefundModal', () => {
                 id: 'QT-SEED',
                 customer_id: 'C1',
                 customer_name: 'Co',
+                handled_by: 'Mary Sales',
                 paid_ngn: 5000,
                 total_ngn: 5000,
                 total_refunded_ngn: 0,
@@ -226,7 +227,7 @@ describe('RefundModal', () => {
     await waitFor(() => expect(quoteInput).not.toBeDisabled());
     await user.click(quoteInput);
     await user.type(quoteInput, 'QT-SEED');
-    await user.click(await screen.findByRole('button', { name: /QT-SEED/i }));
+    await user.click(await screen.findByRole('button', { name: /QT-SEED · Co · Mary Sales/i }));
     await screen.findByDisplayValue(/Overpayment hint/i);
 
     await user.click(screen.getByTitle('How refunds work'));
@@ -249,6 +250,7 @@ describe('RefundModal', () => {
                 id: 'QT-SEED',
                 customer_id: 'C1',
                 customer_name: 'Co',
+                handled_by: 'Mary Sales',
                 paid_ngn: 5000,
                 total_ngn: 5000,
                 total_refunded_ngn: 0,
@@ -298,9 +300,11 @@ describe('RefundModal', () => {
     await waitFor(() => expect(quoteInput).not.toBeDisabled());
     await user.click(quoteInput);
     await user.type(quoteInput, 'QT-SEED');
-    await user.click(await screen.findByRole('button', { name: /QT-SEED/i }));
+    await user.click(await screen.findByRole('button', { name: /QT-SEED · Co · Mary Sales/i }));
 
-    await screen.findByDisplayValue('100');
+    await waitFor(() => {
+      expect(screen.getByDisplayValue('100')).toBeInTheDocument();
+    });
 
     const requested = screen.getByPlaceholderText('0');
     await user.clear(requested);

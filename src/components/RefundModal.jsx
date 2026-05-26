@@ -320,6 +320,11 @@ function scaleCalculationLinesToApprovedAmount(lines, targetNgn) {
   return next;
 }
 
+/** Sales staff who prepared the quotation (`handled_by` in DB). */
+function quotationPreparedByLabel(q) {
+  return String(q?.handled_by ?? q?.handledBy ?? '').trim();
+}
+
 /** API rows use snake_case; workspace snapshot uses camelCase — unify for the quotation dropdown. */
 function normalizeQuoteForRefundSelect(q) {
   if (!q?.id) return null;
@@ -338,6 +343,7 @@ function normalizeQuoteForRefundSelect(q) {
   return {
     id: String(q.id),
     customer_name: q.customer_name ?? q.customer ?? '—',
+    handled_by: quotationPreparedByLabel(q),
     paid_ngn: paid,
     total_ngn: total,
     total_refunded_ngn: Number.isFinite(totalRefunded) ? totalRefunded : 0,
@@ -623,7 +629,8 @@ const RefundModal = ({
     return quotationPickList.filter((row) => {
       const id = String(row.id || '').toLowerCase();
       const name = String(row.customer_name || '').toLowerCase();
-      return id.includes(q) || name.includes(q);
+      const preparedBy = String(row.handled_by || '').toLowerCase();
+      return id.includes(q) || name.includes(q) || preparedBy.includes(q);
     });
   }, [quotationPickList, quotationSearchText]);
 
@@ -669,6 +676,12 @@ const RefundModal = ({
     if (!ref) return null;
     return quotations.find((x) => String(x.id) === ref) ?? null;
   }, [form.quotationRef, quotations]);
+
+  const selectedQuotationPreparedBy = useMemo(() => {
+    const fromPick = quotationPreparedByLabel(selectedQuoteMoneyRow);
+    if (fromPick) return fromPick;
+    return quotationPreparedByLabel(selectedQuotationSnapshot);
+  }, [selectedQuoteMoneyRow, selectedQuotationSnapshot]);
 
   /** Thickest gauge among quote header + product lines — matches server substitution comparison. */
   const refundQuotationGaugeDisplay = useMemo(() => {
@@ -1561,7 +1574,9 @@ const RefundModal = ({
                               type="text"
                               autoComplete="off"
                               placeholder={
-                                loadingQuotes ? 'Loading quotations…' : 'Type quotation id or customer name'
+                                loadingQuotes
+                                  ? 'Loading quotations…'
+                                  : 'Type quotation id, customer, or prepared by'
                               }
                               disabled={loadingQuotes}
                               value={quotationSearchText}
@@ -1593,6 +1608,7 @@ const RefundModal = ({
                                 {quotationSearchFiltered.map((q) => {
                                   const ymd = quotationYmdForPickRow(q, quotations);
                                   const dateBit = ymd ? ` · ${ymd}` : '';
+                                  const preparedBy = String(q.handled_by || '').trim();
                                   const remNgn = Math.max(
                                     0,
                                     Math.round(q.paid_ngn) - Math.round(q.total_refunded_ngn || 0)
@@ -1611,6 +1627,7 @@ const RefundModal = ({
                                     >
                                       <span className="block truncate">
                                         {q.id} · {q.customer_name}
+                                        {preparedBy ? ` · ${preparedBy}` : ''}
                                       </span>
                                       <span className="block text-[10px] font-medium text-slate-500 truncate">
                                         ₦{q.paid_ngn.toLocaleString()} paid
@@ -2073,6 +2090,11 @@ const RefundModal = ({
                           <p className="text-[9px] font-bold text-slate-500 uppercase mb-1">Customer</p>
                           <p className="text-sm font-bold text-white truncate">{form.customerName || '—'}</p>
                           <p className="text-[10px] font-medium text-slate-400 font-mono">{form.customerID || '—'}</p>
+                          {selectedQuotationPreparedBy ? (
+                            <p className="text-[10px] font-medium text-slate-400 mt-1 truncate">
+                              Prepared by <span className="text-slate-200">{selectedQuotationPreparedBy}</span>
+                            </p>
+                          ) : null}
                         </div>
                         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 sm:justify-items-end sm:text-right">
                           <div>
@@ -2118,6 +2140,15 @@ const RefundModal = ({
                             <div className="flex justify-between gap-2">
                               <dt className="text-slate-500 shrink-0">Status</dt>
                               <dd className="text-right">{selectedQuotationSnapshot.status || '—'}</dd>
+                            </div>
+                            <div className="flex justify-between gap-2 sm:col-span-2">
+                              <dt className="text-slate-500 shrink-0">Prepared by</dt>
+                              <dd
+                                className="text-right truncate max-w-[14rem] sm:max-w-[18rem]"
+                                title={selectedQuotationPreparedBy}
+                              >
+                                {selectedQuotationPreparedBy || '—'}
+                              </dd>
                             </div>
                             <div className="flex justify-between gap-2 sm:col-span-2">
                               <dt className="text-slate-500 shrink-0">Project / site</dt>
