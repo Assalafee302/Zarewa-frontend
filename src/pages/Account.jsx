@@ -72,7 +72,10 @@ import {
   isPayFromCorrectionTreasuryRow,
   TREASURY_STATEMENT_TYPE_LABEL,
 } from '../lib/accountCore';
-import { treasuryAccountDisplayName } from '../lib/treasuryAccountsStore';
+import {
+  treasuryAccountDisplayName,
+  treasuryAccountsForWorkspace,
+} from '../lib/treasuryAccountsStore';
 import { compareSelectLabels } from '../lib/selectOptionSort';
 import { AccountBankReconciliationPanel } from '../components/account/AccountBankReconciliationPanel.jsx';
 import { AccountGlManualJournalCard } from '../components/account/AccountGlManualJournalCard.jsx';
@@ -125,6 +128,7 @@ const Account = () => {
   const [requestPayNote, setRequestPayNote] = useState('');
   const [cancelRefundBusyId, setCancelRefundBusyId] = useState('');
   const [cancelPayRequestBusyId, setCancelPayRequestBusyId] = useState('');
+  const [treasuryPayoutSubmitting, setTreasuryPayoutSubmitting] = useState(false);
   const [transportPayEditApprovalId, setTransportPayEditApprovalId] = useState('');
   const [customerRefunds, setCustomerRefunds] = useState([]);
 
@@ -320,12 +324,21 @@ const Account = () => {
       ),
     [branchOptions]
   );
+  const bankAccountsForPayout = useMemo(
+    () =>
+      treasuryAccountsForWorkspace(
+        { treasuryAccounts: bankAccounts, branchScope: ws?.branchScope },
+        ws?.session,
+        { branchScope: ws?.branchScope, viewAllBranches: ws?.viewAllBranches }
+      ),
+    [bankAccounts, ws?.session, ws?.branchScope, ws?.viewAllBranches]
+  );
   const bankAccountsSelectOrder = useMemo(
     () =>
-      [...bankAccounts].sort((a, b) =>
+      [...bankAccountsForPayout].sort((a, b) =>
         compareSelectLabels(treasuryAccountDisplayName(a), treasuryAccountDisplayName(b))
       ),
-    [bankAccounts]
+    [bankAccountsForPayout]
   );
   const liveQuotations = useMemo(
     () => (ws?.hasWorkspaceData && Array.isArray(ws?.snapshot?.quotations) ? ws.snapshot.quotations : []),
@@ -724,7 +737,7 @@ const Account = () => {
   };
 
   const addRefundPayLine = () => {
-    setRefundPayLines((prev) => [...prev, createRequestPayLine(bankAccounts[0]?.id ?? '')]);
+    setRefundPayLines((prev) => [...prev, createRequestPayLine(bankAccountsForPayout[0]?.id ?? '')]);
   };
 
   const removeRefundPayLine = (lineId) => {
@@ -734,7 +747,7 @@ const Account = () => {
   const openRefundPay = (row) => {
     setRefundPayTarget(row);
     setRefundPaidBy('');
-    setRefundPayLines([createRequestPayLine(bankAccounts[0]?.id ?? '', refundOutstandingAmount(row))]);
+    setRefundPayLines([createRequestPayLine(bankAccountsForPayout[0]?.id ?? '', refundOutstandingAmount(row))]);
     setRefundPaymentNote(row.paymentNote || '');
     setShowRefundPayModal(true);
   };
@@ -775,7 +788,7 @@ const Account = () => {
 
   const confirmRefundPaid = async (e) => {
     e.preventDefault();
-    if (!refundPayTarget?.refundID) return;
+    if (!refundPayTarget?.refundID || treasuryPayoutSubmitting) return;
     const paidBy = refundPaidBy.trim() || activeActorLabel;
     const rid = refundPayTarget.refundID;
     const outstanding = refundOutstandingAmount(refundPayTarget);
@@ -798,7 +811,7 @@ const Account = () => {
       showToast('Refund payout exceeds the approved outstanding balance.', { variant: 'error' });
       return;
     }
-    const refundShortAccount = bankAccounts.find((account) => {
+    const refundShortAccount = bankAccountsForPayout.find((account) => {
       const applied = validLines
         .filter((line) => line.treasuryAccountId === account.id)
         .reduce((sum, line) => sum + line.amountNgn, 0);
@@ -809,20 +822,25 @@ const Account = () => {
       return;
     }
     if (ws?.canMutate) {
-      const { ok, data } = await apiFetch(`/api/refunds/${encodeURIComponent(rid)}/pay`, {
-        method: 'POST',
-        body: JSON.stringify({
-          paidBy,
-          paidAtISO: new Date().toISOString().slice(0, 10),
-          note: refundPaymentNote.trim(),
-          paymentLines: validLines,
-        }),
-      });
-      if (!ok || !data?.ok) {
-        showToast(data?.error || 'Could not record refund payout.', { variant: 'error' });
-        return;
+      setTreasuryPayoutSubmitting(true);
+      try {
+        const { ok, data } = await apiFetch(`/api/refunds/${encodeURIComponent(rid)}/pay`, {
+          method: 'POST',
+          body: JSON.stringify({
+            paidBy,
+            paidAtISO: new Date().toISOString().slice(0, 10),
+            note: refundPaymentNote.trim(),
+            paymentLines: validLines,
+          }),
+        });
+        if (!ok || !data?.ok) {
+          showToast(data?.error || 'Could not record refund payout.', { variant: 'error' });
+          return;
+        }
+        await ws.refresh();
+      } finally {
+        setTreasuryPayoutSubmitting(false);
       }
-      await ws.refresh();
     } else {
       showToast(
         ws?.usingCachedData
@@ -854,7 +872,7 @@ const Account = () => {
   };
 
   const addRequestPayLine = () => {
-    setRequestPayLines((prev) => [...prev, createRequestPayLine(bankAccounts[0]?.id ?? '')]);
+    setRequestPayLines((prev) => [...prev, createRequestPayLine(bankAccountsForPayout[0]?.id ?? '')]);
   };
 
   const removeRequestPayLine = (lineId) => {
@@ -889,7 +907,7 @@ const Account = () => {
       date: req.requestDate,
       desc: req.expenseID,
     });
-    setRequestPayLines([createRequestPayLine(bankAccounts[0]?.id ?? '', outstanding)]);
+    setRequestPayLines([createRequestPayLine(bankAccountsForPayout[0]?.id ?? '', outstanding)]);
     setRequestPayNote(req.paymentNote || '');
     setShowPaymentEntry(true);
   };
@@ -954,13 +972,13 @@ const Account = () => {
       category: row.transportAgentName ? `${row.transportAgentName} · Haulage` : 'PO transport / haulage',
       branchId: row.branchId || '',
     });
-    setRequestPayLines([createRequestPayLine(bankAccounts[0]?.id ?? '', outstanding)]);
+    setRequestPayLines([createRequestPayLine(bankAccountsForPayout[0]?.id ?? '', outstanding)]);
     setRequestPayNote(row.transportFinanceAdvice || '');
     setShowPaymentEntry(true);
   };
 
   const confirmProcessPaymentModal = async () => {
-    if (!selectedPayment?.id) return;
+    if (!selectedPayment?.id || treasuryPayoutSubmitting) return;
 
     const outstanding = effectiveOutstandingNgn(selectedPayment.total ?? 0, selectedPayment.paid ?? 0);
     const validLines = requestPayLines
@@ -983,7 +1001,7 @@ const Account = () => {
       showToast('Payout total exceeds the outstanding balance for this item.', { variant: 'error' });
       return;
     }
-    const requestShortAccount = bankAccounts.find((account) => {
+    const requestShortAccount = bankAccountsForPayout.find((account) => {
       const applied = validLines
         .filter((line) => line.treasuryAccountId === account.id)
         .reduce((sum, line) => sum + line.amountNgn, 0);
@@ -1012,30 +1030,35 @@ const Account = () => {
         );
         return;
       }
-      const dateISO = new Date().toISOString().slice(0, 10);
-      const poId = String(selectedPayment.id);
-      for (const line of validLines) {
-        const { ok, data } = await apiFetch(`/api/purchase-orders/${encodeURIComponent(poId)}/post-transport`, {
-          method: 'POST',
-          body: JSON.stringify({
-            treasuryAccountId: line.treasuryAccountId,
-            amountNgn: line.amountNgn,
-            reference: line.reference || poId,
-            dateISO,
-            note: requestPayNote.trim() || 'PO transport / haulage',
-            createdBy: activeActorLabel,
-            ...(transportPayEditApprovalId.trim()
-              ? { editApprovalId: transportPayEditApprovalId.trim() }
-              : {}),
-          }),
-        });
-        if (!ok || !data?.ok) {
-          showToast(data?.error || 'Could not record transport treasury payment.', { variant: 'error' });
-          await ws.refresh();
-          return;
+      setTreasuryPayoutSubmitting(true);
+      try {
+        const dateISO = new Date().toISOString().slice(0, 10);
+        const poId = String(selectedPayment.id);
+        for (const line of validLines) {
+          const { ok, data } = await apiFetch(`/api/purchase-orders/${encodeURIComponent(poId)}/post-transport`, {
+            method: 'POST',
+            body: JSON.stringify({
+              treasuryAccountId: line.treasuryAccountId,
+              amountNgn: line.amountNgn,
+              reference: line.reference || poId,
+              dateISO,
+              note: requestPayNote.trim() || 'PO transport / haulage',
+              createdBy: activeActorLabel,
+              ...(transportPayEditApprovalId.trim()
+                ? { editApprovalId: transportPayEditApprovalId.trim() }
+                : {}),
+            }),
+          });
+          if (!ok || !data?.ok) {
+            showToast(data?.error || 'Could not record transport treasury payment.', { variant: 'error' });
+            await ws.refresh();
+            return;
+          }
         }
+        await ws.refresh();
+      } finally {
+        setTreasuryPayoutSubmitting(false);
       }
-      await ws.refresh();
       const fullyPaid = isEffectivelyFullyPaid(
         (selectedPayment.paid ?? 0) + requestPayTotalNgn,
         selectedPayment.total ?? 0
@@ -1056,19 +1079,24 @@ const Account = () => {
     if (selectedPayment.type !== 'payment_request') return;
 
     if (ws?.canMutate) {
-      const { ok, data } = await apiFetch(`/api/payment-requests/${encodeURIComponent(selectedPayment.id)}/pay`, {
-        method: 'POST',
-        body: JSON.stringify({
-          paidAtISO: new Date().toISOString().slice(0, 10),
-          note: requestPayNote.trim(),
-          paymentLines: validLines,
-        }),
-      });
-      if (!ok || !data?.ok) {
-        showToast(data?.error || 'Could not record payout for this request.', { variant: 'error' });
-        return;
+      setTreasuryPayoutSubmitting(true);
+      try {
+        const { ok, data } = await apiFetch(`/api/payment-requests/${encodeURIComponent(selectedPayment.id)}/pay`, {
+          method: 'POST',
+          body: JSON.stringify({
+            paidAtISO: new Date().toISOString().slice(0, 10),
+            note: requestPayNote.trim(),
+            paymentLines: validLines,
+          }),
+        });
+        if (!ok || !data?.ok) {
+          showToast(data?.error || 'Could not record payout for this request.', { variant: 'error' });
+          return;
+        }
+        await ws.refresh();
+      } finally {
+        setTreasuryPayoutSubmitting(false);
       }
-      await ws.refresh();
     } else {
       showToast(
         ws?.usingCachedData
@@ -2002,7 +2030,7 @@ const Account = () => {
     const accName = newBank.name.trim();
     if (!accName) return;
     if (ws?.canMutate) {
-      const workspaceBranchId = String(ws?.branchScope || ws?.session?.currentBranchId || '').trim();
+      const workspaceBranchId = String(ws?.session?.currentBranchId || '').trim();
       const body = {
         name: accName,
         bankName: newBank.bankName.trim(),
@@ -5453,8 +5481,12 @@ const Account = () => {
               <p className="text-[10px] text-gray-500 leading-relaxed">
                 Saving this payout writes the treasury movements and keeps the refund open until the approved balance is fully paid.
               </p>
-              <button type="submit" className="z-btn-primary w-full justify-center py-3">
-                Post refund payout
+              <button
+                type="submit"
+                disabled={treasuryPayoutSubmitting}
+                className="z-btn-primary w-full justify-center py-3 disabled:opacity-70 disabled:cursor-not-allowed"
+              >
+                {treasuryPayoutSubmitting ? 'Posting payout…' : 'Post refund payout'}
               </button>
             </form>
           ) : null}
@@ -5464,6 +5496,7 @@ const Account = () => {
       <ModalFrame
         isOpen={showPaymentEntry}
         onClose={() => {
+          if (treasuryPayoutSubmitting) return;
           setShowPaymentEntry(false);
           setSelectedPayment(null);
           setRequestPayLines([]);
@@ -5478,14 +5511,16 @@ const Account = () => {
             </h3>
             <button
               type="button"
+              disabled={treasuryPayoutSubmitting}
               onClick={() => {
+                if (treasuryPayoutSubmitting) return;
                 setShowPaymentEntry(false);
                 setSelectedPayment(null);
                 setRequestPayLines([]);
                 setRequestPayNote('');
                 setTransportPayEditApprovalId('');
               }}
-              className="text-gray-300 hover:text-rose-500"
+              className="text-gray-300 hover:text-rose-500 disabled:opacity-40 disabled:cursor-not-allowed"
             >
               <X size={24} />
             </button>
@@ -5609,9 +5644,14 @@ const Account = () => {
               <button
                 type="button"
                 onClick={confirmProcessPaymentModal}
-                className="w-full bg-[#134e4a] text-white py-4 rounded-xl font-bold text-xs uppercase tracking-widest shadow-xl mt-4"
+                disabled={treasuryPayoutSubmitting}
+                className="w-full bg-[#134e4a] text-white py-4 rounded-xl font-bold text-xs uppercase tracking-widest shadow-xl mt-4 disabled:opacity-70 disabled:cursor-not-allowed"
               >
-                {selectedPayment?.type === 'po_transport' ? 'Confirm transport payout' : 'Confirm transaction'}
+                {treasuryPayoutSubmitting
+                  ? 'Posting payout…'
+                  : selectedPayment?.type === 'po_transport'
+                    ? 'Confirm transport payout'
+                    : 'Confirm transaction'}
               </button>
             </div>
           )}

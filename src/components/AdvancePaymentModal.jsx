@@ -11,7 +11,7 @@ import { recordAdvancePayment } from '../lib/customerLedgerStore';
 import { formatNgn } from '../Data/mockData';
 import { apiFetch } from '../lib/apiBase';
 import { guidanceForLedgerPostFailure, isVoucherDateInLockedPeriod } from '../lib/ledgerPostingGuidance';
-import { treasuryAccountDisplayName, treasuryAccountsFromSnapshot } from '../lib/treasuryAccountsStore';
+import { treasuryAccountDisplayName, treasuryAccountsForWorkspace } from '../lib/treasuryAccountsStore';
 import { compareSelectLabels } from '../lib/selectOptionSort';
 import { AdvancePaymentPrintView } from './receipt/ReceiptPrintViews';
 
@@ -39,13 +39,20 @@ const AdvancePaymentModal = ({
   const [postingHint, setPostingHint] = useState(null);
 
   const treasuryList = useMemo(() => {
-    const raw = treasuryAccountsFromSnapshot(ws?.snapshot) || [];
+    const raw =
+      treasuryAccountsForWorkspace(ws?.snapshot, ws?.session, {
+        branchScope: ws?.branchScope,
+        viewAllBranches: ws?.viewAllBranches,
+      }) || [];
     return [...raw].sort((a, b) =>
       compareSelectLabels(treasuryAccountDisplayName(a), treasuryAccountDisplayName(b))
     );
   }, [
     ws?.refreshEpoch,
     ws?.hasWorkspaceData,
+    ws?.branchScope,
+    ws?.viewAllBranches,
+    ws?.session?.currentBranchId,
   ]);
 
   const customersSorted = useMemo(

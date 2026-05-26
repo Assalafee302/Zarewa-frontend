@@ -9,7 +9,7 @@ import { useWorkspace } from '../../context/WorkspaceContext';
 import { apiFetch } from '../../lib/apiBase';
 import { buildPaymentRequestBodyFromForm, initialExpenseRequestFormState } from '../../lib/expenseRequestFormCore.js';
 import { EXPENSE_CATEGORY_OPTIONS } from '../../shared/expenseCategories.js';
-import { treasuryAccountDisplayName } from '../../lib/treasuryAccountsStore';
+import { treasuryAccountDisplayName, treasuryAccountsForWorkspace } from '../../lib/treasuryAccountsStore';
 import { compareSelectLabels } from '../../lib/selectOptionSort';
 
 /**
@@ -29,8 +29,20 @@ export function WorkspaceExpenseQuickActions() {
   const activeActorLabel = ws?.session?.user?.displayName ?? 'User';
 
   const bankAccounts = useMemo(
-    () => (ws?.hasWorkspaceData && Array.isArray(ws?.snapshot?.treasuryAccounts) ? ws.snapshot.treasuryAccounts : []),
-    [ws?.hasWorkspaceData, ws?.snapshot?.treasuryAccounts]
+    () =>
+      ws?.hasWorkspaceData
+        ? treasuryAccountsForWorkspace(ws?.snapshot, ws?.session, {
+            branchScope: ws?.branchScope,
+            viewAllBranches: ws?.viewAllBranches,
+          })
+        : [],
+    [
+      ws?.hasWorkspaceData,
+      ws?.snapshot,
+      ws?.session?.currentBranchId,
+      ws?.branchScope,
+      ws?.viewAllBranches,
+    ]
   );
 
   const bankAccountsSorted = useMemo(

@@ -23,6 +23,40 @@ export function treasuryAccountIdForApiPayload(id) {
   return s;
 }
 
+/**
+ * Active workspace branch for treasury pickers (never "ALL").
+ * @param {{ currentBranchId?: string } | null | undefined} session
+ * @param {{ branchScope?: string | null } | null | undefined} [opts]
+ */
+export function workspaceTreasuryBranchId(session, opts = {}) {
+  const fromSession = String(session?.currentBranchId ?? '').trim();
+  if (fromSession) return fromSession;
+  const scope = String(opts.branchScope ?? '').trim();
+  return scope && scope !== 'ALL' ? scope : '';
+}
+
+/**
+ * Treasury accounts for payment / receipt pickers — scoped to the active workspace branch.
+ * Bootstrap may include every branch when HQ "view all" is on; pickers must not mix branches.
+ * @param {{ treasuryAccounts?: object[]; branchScope?: string } | null | undefined} snapshot
+ * @param {{ currentBranchId?: string; viewAllBranches?: boolean } | null | undefined} session
+ * @param {{ branchScope?: string | null; viewAllBranches?: boolean } | null | undefined} [opts]
+ */
+export function treasuryAccountsForWorkspace(snapshot, session, opts = {}) {
+  const accounts = treasuryAccountsFromSnapshot(snapshot);
+  const branchId = workspaceTreasuryBranchId(session, {
+    branchScope: snapshot?.branchScope ?? opts.branchScope,
+  });
+  if (!branchId) return accounts;
+  const viewAll = Boolean(session?.viewAllBranches ?? opts.viewAllBranches);
+  const scope = String(snapshot?.branchScope ?? opts.branchScope ?? '').trim();
+  if (!viewAll && scope && scope !== 'ALL' && scope === branchId) return accounts;
+  return accounts.filter((a) => {
+    const ab = String(a.branchId ?? '').trim() || 'BR-KD';
+    return ab === branchId;
+  });
+}
+
 /** @param {{ treasuryAccounts?: object[] } | null | undefined} snapshot */
 export function treasuryAccountsFromSnapshot(snapshot) {
   if (!snapshot || !Array.isArray(snapshot.treasuryAccounts)) return [];

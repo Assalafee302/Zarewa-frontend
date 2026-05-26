@@ -31,7 +31,7 @@ import {
 import {
   treasuryAccountDisplayName,
   treasuryAccountIdForApiPayload,
-  treasuryAccountsFromSnapshot,
+  treasuryAccountsForWorkspace,
 } from '../lib/treasuryAccountsStore';
 import { compareSelectLabels } from '../lib/selectOptionSort';
 import { bookedPaidNgnForQuotationFromMirrors } from '../lib/liveAnalytics';
@@ -170,13 +170,20 @@ const ReceiptModal = ({
   const [isPosting, setIsPosting] = useState(false);
 
   const treasuryList = useMemo(() => {
-    const raw = treasuryAccountsFromSnapshot(ws?.snapshot) || [];
+    const raw =
+      treasuryAccountsForWorkspace(ws?.snapshot, ws?.session, {
+        branchScope: ws?.branchScope,
+        viewAllBranches: ws?.viewAllBranches,
+      }) || [];
     return [...raw].sort((a, b) =>
       compareSelectLabels(treasuryAccountDisplayName(a), treasuryAccountDisplayName(b))
     );
   }, [
     ws?.refreshEpoch,
     ws?.hasWorkspaceData,
+    ws?.branchScope,
+    ws?.viewAllBranches,
+    ws?.session?.currentBranchId,
   ]);
 
   const defaultAccountId = treasuryList[0]?.id ?? '';

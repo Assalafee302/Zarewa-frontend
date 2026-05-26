@@ -65,7 +65,7 @@ import {
   SUPPLIER_BANK_ROW_TEMPLATE,
   SUPPLIER_CONTACT_ROW_TEMPLATE,
 } from '../lib/supplierProfileForm';
-import { treasuryAccountDisplayName } from '../lib/treasuryAccountsStore';
+import { treasuryAccountDisplayName, treasuryAccountsForWorkspace } from '../lib/treasuryAccountsStore';
 
 /** Rows per column for Coil / Stone-coated / Accessories lists on Purchases. */
 const PROCUREMENT_PURCHASES_COLUMN_PAGE_SIZE = 10;
@@ -520,8 +520,23 @@ const Procurement = () => {
 
 
 
-  const treasuryAccounts =
-    ws?.hasWorkspaceData && Array.isArray(ws?.snapshot?.treasuryAccounts) ? ws.snapshot.treasuryAccounts : [];
+  const treasuryAccounts = useMemo(
+    () =>
+      ws?.hasWorkspaceData
+        ? treasuryAccountsForWorkspace(ws?.snapshot, ws?.session, {
+            branchScope: ws?.branchScope,
+            viewAllBranches: ws?.viewAllBranches,
+          })
+        : [],
+    [
+      ws?.hasWorkspaceData,
+      ws?.snapshot,
+      ws?.session?.currentBranchId,
+      ws?.branchScope,
+      ws?.viewAllBranches,
+      ws?.refreshEpoch,
+    ]
+  );
 
   const payables = useMemo(
     () =>

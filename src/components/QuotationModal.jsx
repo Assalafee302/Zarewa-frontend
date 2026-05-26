@@ -17,7 +17,7 @@ import {
 import { ModalFrame } from './layout/ModalFrame';
 import { useTrackedUnsavedForm } from '../hooks/useTrackedUnsavedForm';
 import { useCustomers } from '../context/CustomersContext';
-import { bankAccountsForCustomerPayment, treasuryAccountsFromSnapshot } from '../lib/treasuryAccountsStore';
+import { bankAccountsForCustomerPayment, treasuryAccountsForWorkspace } from '../lib/treasuryAccountsStore';
 import { compareGaugeLabels, compareSelectLabels } from '../lib/selectOptionSort';
 import { colourSelectOptionsFromRows } from '../lib/colourCanonicalization.js';
 import {
@@ -719,7 +719,12 @@ const QuotationModal = ({
   const handleClose = () => wrapClose(() => onClose());
 
   const treasuryPayAccountsLive = useMemo(() => {
-    const raw = bankAccountsForCustomerPayment(treasuryAccountsFromSnapshot(ws?.snapshot));
+    const raw = bankAccountsForCustomerPayment(
+      treasuryAccountsForWorkspace(ws?.snapshot, ws?.session, {
+        branchScope: ws?.branchScope,
+        viewAllBranches: ws?.viewAllBranches,
+      })
+    );
     return [...raw].sort((a, b) =>
       compareSelectLabels(
         `${String(a.bankName || '').trim() || String(a.name || '').trim()} · ${String(a.accNo || '')}`,
@@ -730,6 +735,9 @@ const QuotationModal = ({
     /** Epoch ties treasury list to intentional workspace refresh, not silent snapshot churn. */
     ws?.refreshEpoch,
     ws?.hasWorkspaceData,
+    ws?.branchScope,
+    ws?.viewAllBranches,
+    ws?.session?.currentBranchId,
   ]);
 
   const materialTypeOptions = useMemo(() => {
