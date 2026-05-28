@@ -50,7 +50,11 @@ export function documentTitleForPath(pathname) {
   }
 
   if (p === '/hr' || p.startsWith('/hr/')) {
-    const sec = p.split('/')[2] || 'dashboard';
+    const parts = p.split('/').filter(Boolean);
+    if (parts[1] === 'staff' && parts[2]) {
+      return `Human Resources – Staff profile | ${DOCUMENT_TITLE_BASE}`;
+    }
+    const sec = parts[1] || 'dashboard';
     const labels = {
       dashboard: 'Dashboard',
       staff: 'Staff',

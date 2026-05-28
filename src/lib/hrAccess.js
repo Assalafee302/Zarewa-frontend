@@ -99,3 +99,48 @@ export function canViewOrgSensitiveHr(permissions) {
   if (hasPermissionInList(permissions, '*')) return true;
   return SENSITIVE_VIEW.some((p) => hrHasPermission(permissions, p));
 }
+
+/** @param {string[] | undefined} permissions */
+export function canReviewHrRequests(permissions) {
+  return hrHasPermission(permissions, 'hr.requests.review') || hrHasPermission(permissions, 'hr.staff.manage');
+}
+
+/** @param {string[] | undefined} permissions */
+export function canGmApproveHrRequests(permissions) {
+  return hrHasPermission(permissions, 'hr.requests.gm_approve');
+}
+
+/** @param {string[] | undefined} permissions */
+export function canEndorseBranchHr(permissions) {
+  return (
+    hrHasPermission(permissions, 'hr.branch.endorse_staff') || hrHasPermission(permissions, 'hr.leave.endorse')
+  );
+}
+
+/** @param {string[] | undefined} permissions */
+export function canMarkHrAttendance(permissions) {
+  return (
+    hrHasPermission(permissions, 'hr.attendance.mark') ||
+    hrHasPermission(permissions, 'hr.daily_roll.mark') ||
+    hrHasPermission(permissions, 'hr.attendance.manage')
+  );
+}
+
+/** @param {string[] | undefined} permissions */
+export function canManageHrLeave(permissions) {
+  return hrHasPermission(permissions, 'hr.leave.manage') || hrHasPermission(permissions, 'hr.staff.manage');
+}
+
+/** @param {string[] | undefined} permissions */
+export function canManageHrDeductions(permissions) {
+  return (
+    hrHasPermission(permissions, 'hr.deductions.manage') ||
+    hrHasPermission(permissions, 'hr.attendance.manage') ||
+    hrHasPermission(permissions, 'hr.staff.manage')
+  );
+}
+
+/** @param {string[] | undefined} permissions */
+export function canRequestMyLeave(permissions) {
+  return hrHasPermission(permissions, 'hr.my_leave.request') || canAccessMyProfileHr(permissions);
+}

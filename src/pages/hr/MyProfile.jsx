@@ -3,6 +3,8 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 import { HrSectionShell } from '../../components/hr/HrSectionShell';
 import HrPlaceholder from './HrPlaceholder';
 import MyProfileOverview from './MyProfileOverview';
+import MyLeave from './MyLeave';
+import MyAttendance from './MyAttendance';
 
 const NAV = [
   { to: '/my-profile/overview', label: 'Overview', end: true },
@@ -32,9 +34,9 @@ export default function MyProfile() {
         <Route index element={<Navigate to="overview" replace />} />
         <Route path="overview" element={<MyProfileOverview />} />
         <Route path="employment" element={<HrPlaceholder section="Employment details" />} />
-        <Route path="leave" element={<HrPlaceholder section="My leave" detail="Apply for leave using the step-by-step wizard in the next phase." />} />
+        <Route path="leave" element={<MyLeave />} />
         <Route path="loans" element={<HrPlaceholder section="My loans" />} />
-        <Route path="attendance" element={<HrPlaceholder section="My attendance" />} />
+        <Route path="attendance" element={<MyAttendance />} />
         <Route path="payslips" element={<HrPlaceholder section="My payslips" detail="Unlock with your password to download payslip PDFs." />} />
         <Route path="documents" element={<HrPlaceholder section="My documents" />} />
         <Route path="benefits" element={<HrPlaceholder section="Benefits & allowances" />} />

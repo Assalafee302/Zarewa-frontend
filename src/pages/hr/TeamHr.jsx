@@ -2,6 +2,8 @@ import React from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { HrSectionShell } from '../../components/hr/HrSectionShell';
 import HrPlaceholder from './HrPlaceholder';
+import TeamHrRequests from './TeamHrRequests';
+import TeamHrAttendance from './TeamHrAttendance';
 
 const NAV = [
   { to: '/team-hr/staff', label: 'Team staff', end: true },
@@ -26,8 +28,8 @@ export default function TeamHr() {
       >
         <Route index element={<Navigate to="staff" replace />} />
         <Route path="staff" element={<HrPlaceholder section="Team staff" detail="Branch staff list without salary columns." />} />
-        <Route path="attendance" element={<HrPlaceholder section="Daily attendance" detail="Mark in-time, out-time, and status for your branch team." />} />
-        <Route path="requests" element={<HrPlaceholder section="Requests to endorse" />} />
+        <Route path="attendance" element={<TeamHrAttendance />} />
+        <Route path="requests" element={<TeamHrRequests />} />
         <Route path="leave-calendar" element={<HrPlaceholder section="Team leave calendar" />} />
         <Route path="incidents" element={<HrPlaceholder section="Incident memos" detail="Raise incident memos that can become discipline cases in HR." />} />
         <Route path="transfers" element={<HrPlaceholder section="Transfer recommendations" />} />

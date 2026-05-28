@@ -3,6 +3,11 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 import { HrSectionShell } from '../../components/hr/HrSectionShell';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import HrDashboard from './HrDashboard';
+import HrStaffDirectory from './HrStaffDirectory';
+import HrStaffProfile from './HrStaffProfile';
+import HrRequests from './HrRequests';
+import HrLeave from './HrLeave';
+import HrAttendance from './HrAttendance';
 import HrPlaceholder from './HrPlaceholder';
 import ExecutiveHr from './ExecutiveHr';
 
@@ -43,10 +48,11 @@ export default function HumanResources() {
       >
         <Route index element={<Navigate to="dashboard" replace />} />
         <Route path="dashboard" element={<HrDashboard />} />
-        <Route path="staff" element={<HrPlaceholder section="Staff directory" />} />
-        <Route path="requests" element={<HrPlaceholder section="HR requests" />} />
-        <Route path="leave" element={<HrPlaceholder section="Leave" />} />
-        <Route path="attendance" element={<HrPlaceholder section="Attendance" />} />
+        <Route path="staff" element={<HrStaffDirectory />} />
+        <Route path="staff/:userId" element={<HrStaffProfile />} />
+        <Route path="requests" element={<HrRequests />} />
+        <Route path="leave" element={<HrLeave />} />
+        <Route path="attendance" element={<HrAttendance />} />
         <Route path="payroll" element={<HrPlaceholder section="Payroll" detail="Payroll runs, GMHR approval, and finance payout connect here. Use password unlock for line amounts." />} />
         <Route path="loans" element={<HrPlaceholder section="Staff loans" />} />
         <Route path="benefits" element={<HrPlaceholder section="Benefits & allowances" />} />
