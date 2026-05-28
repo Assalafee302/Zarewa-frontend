@@ -165,6 +165,13 @@ export default function BusinessIntelligence() {
           setErr('API server is unreachable. Confirm the backend is running and VITE_API_BASE points to it.');
           return;
         }
+        const apiErr = String(d?.error || '');
+        if (/asOfISO is not defined/i.test(apiErr)) {
+          setErr(
+            `${apiErr} — Your API is still on an old backend build (before commit 42372a4). On the server: git pull origin main, then restart Node (pm2/systemd/Hostinger). Open /api/health and confirm capabilities.businessIntelligence is "42372a4".`
+          );
+          return;
+        }
         setErr(
           d?.error ||
             (status ? `Could not load business intelligence (HTTP ${status}).` : 'Could not load business intelligence.')
