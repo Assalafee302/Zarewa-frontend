@@ -1,12 +1,28 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { ChevronLeft } from 'lucide-react';
 import { wsBadge, wsPriorityBadge, wsStatusBadge } from '../../lib/workspaceUiTokens';
+import { ZareApprovalHint } from '../ZareApprovalHint';
+import { approvalBlockContextForWorkItem, userCanApproveWorkItem } from '../../lib/zareApprovalHints';
 
 /**
  * Reading pane header for work items and conversation threads.
  */
-export function WorkspaceReadingPaneHeader({ onBack, title, item = null, threadId = null }) {
+export function WorkspaceReadingPaneHeader({
+  onBack,
+  title,
+  item = null,
+  threadId = null,
+  workspaceCtx = null,
+}) {
   const restricted = Boolean(item?.redacted);
+
+  const approvalContext = useMemo(() => {
+    if (!item?.requiresApproval || restricted || !workspaceCtx) return null;
+    const base = approvalBlockContextForWorkItem(item, workspaceCtx);
+    const canApprove = userCanApproveWorkItem(item, workspaceCtx);
+    if (canApprove && !base.branchMismatch) return null;
+    return { ...base, canApprove };
+  }, [item, restricted, workspaceCtx]);
 
   return (
     <div className="flex shrink-0 flex-col gap-3 border-b border-slate-200 bg-white px-3 py-3 sm:px-4">
@@ -86,6 +102,7 @@ export function WorkspaceReadingPaneHeader({ onBack, title, item = null, threadI
               {item.actionLabel}
             </p>
           ) : null}
+          {approvalContext ? <ZareApprovalHint context={approvalContext} className="mt-2" /> : null}
         </div>
       ) : restricted ? (
         <p className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-xs text-slate-600">

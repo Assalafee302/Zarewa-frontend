@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { apiFetch } from '../lib/apiBase';
 import { formatNgn } from '../Data/mockData';
+import { ZareApprovalHint } from './ZareApprovalHint';
 import {
   quotationBmPriceExceptionApproved,
   quotationFlaggedForMdPriceReview,
@@ -209,11 +210,18 @@ export function QuotationPriceExceptionPanel({
         </button>
       ) : null}
       {!bmApproved && (!canApproveBmPriceException || !ws?.hasPermission?.('refunds.approve')) ? (
-        <p className="text-[9px] text-amber-900/85">
-          Ask your branch manager (or an administrator) to open Sales → Quotations →{' '}
-          <span className="font-mono font-semibold">{qid}</span> and approve the below-floor exception, or use the button
-          above if your role allows it.
-        </p>
+        <ZareApprovalHint
+          compact
+          context={{
+            referenceNo: qid,
+            documentType: 'quotation',
+            status: 'pricing_blocked',
+            canApprove: canApproveBmPriceException && ws?.hasPermission?.('refunds.approve'),
+            missingPermission:
+              'Below-floor pricing needs branch manager or administrator approval (refunds.approve).',
+            zareQuery: `Why can't I approve below-floor pricing on quotation ${qid}?`,
+          }}
+        />
       ) : null}
       {ws?.canMutate &&
       ws?.hasPermission?.('md.price_exception.approve') &&

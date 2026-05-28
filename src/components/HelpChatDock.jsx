@@ -29,6 +29,10 @@ import { buildHelpCoachingHints, mergePersonalizedPrompts } from '../lib/helpRec
 import { detectHelpIntent, synthesizeHelpReply, synthesizeMetaReply } from '../lib/helpSynthesize';
 import { classifyAgentRoute, routeLabel } from '../lib/helpAgentIntent';
 import { HELP_BOT_NAME, HELP_BOT_TAGLINE } from '../lib/helpBotBrand';
+import { useHelpChat } from '../context/HelpChatContext';
+import { TRANSACTION_ISSUE_CHIPS } from '../lib/helpTransactionHelp';
+import { sanitizeZarePageContext } from '../lib/workspaceSanitize';
+import { HELP_BOT_ALT_TAGLINE } from '../lib/helpBotBrand';
 
 const LOCAL_REPLY_DELAY_MS = 240;
 
@@ -43,16 +47,21 @@ function pageLabel(pathname) {
   return 'Zarewa';
 }
 
-function buildIntro(user, pathname) {
+function buildIntro(user, pathname, mode) {
   const name = String(user?.displayName || '').trim().split(/\s+/)[0];
   const page = pageLabel(pathname);
+  if (mode === 'transaction_help') {
+    return name
+      ? `Hi ${name} — I'm **${HELP_BOT_NAME}**, your ERP operations assistant. Tell me what went wrong with this transaction, or pick an issue below.`
+      : `Hi — I'm **${HELP_BOT_NAME}**. Tell me what went wrong with this transaction, or pick an issue below.`;
+  }
   return name
-    ? `Hi ${name} — I'm **${HELP_BOT_NAME}**. Ask me anything about **${page}** workflows.`
-    : `Hi — I'm **${HELP_BOT_NAME}**. Ask me anything about **${page}** workflows.`;
+    ? `Hi ${name} — I'm **${HELP_BOT_NAME}**, your ERP operations assistant. Ask me about **${page}** workflows, approvals, memos, or what to do next.`
+    : `Hi — I'm **${HELP_BOT_NAME}**, your ERP operations assistant. Ask me about **${page}** workflows or what to do next.`;
 }
 
-function seedMessages(user, pathname) {
-  return [{ role: 'assistant', content: buildIntro(user, pathname), source: 'intro' }];
+function seedMessages(user, pathname, mode) {
+  return [{ role: 'assistant', content: buildIntro(user, pathname, mode), source: 'intro' }];
 }
 
 function userInitials(user) {
@@ -230,10 +239,13 @@ function delay(ms) {
 export function HelpChatDock() {
   const ws = useWorkspace();
   const ai = useAiAssistant();
+  const helpChat = useHelpChat();
   const location = useLocation();
   const user = ws?.session?.user;
+  const [helpMode, setHelpMode] = useState('default');
+  const [pendingPageContext, setPendingPageContext] = useState(null);
   const [open, setOpen] = useState(false);
-  const [messages, setMessages] = useState(() => seedMessages(user, location.pathname));
+  const [messages, setMessages] = useState(() => seedMessages(user, location.pathname, 'default'));
   const [draft, setDraft] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -337,6 +349,30 @@ export function HelpChatDock() {
   }, [coachingHints, quickQuestions, helpPersonalization?.recommendations]);
 
   const transactionProfile = helpPersonalization?.transactionProfile;
+  const dailyBriefing = helpPersonalization?.dailyBriefing;
+
+  const briefingSnapshot = useMemo(() => {
+    if (!snapshot) return null;
+    const items = Array.isArray(snapshot.unifiedWorkItems) ? snapshot.unifiedWorkItems : [];
+    return {
+      operationsInventoryAttention: snapshot.operationsInventoryAttention,
+      productionMetrics: snapshot.productionMetrics,
+      officeSummary: snapshot.officeSummary
+        ? { unreadApprox: Number(snapshot.officeSummary.unreadApprox) || 0 }
+        : null,
+      unifiedWorkItems: items.map((i) => ({
+        requiresApproval: Boolean(i?.requiresApproval),
+        requiresResponse: Boolean(i?.requiresResponse),
+        status: i?.status,
+        slaState: i?.slaState,
+        isOverdue: Boolean(i?.isOverdue),
+        filingStatus: i?.filingStatus,
+        unfiled: Boolean(i?.unfiled),
+        documentType: i?.documentType,
+        category: i?.category,
+      })),
+    };
+  }, [snapshot]);
 
   useEffect(() => {
     messagesRef.current = messages;
@@ -366,12 +402,12 @@ export function HelpChatDock() {
   }, [draft, open]);
 
   const resetConversation = useCallback(() => {
-    const next = seedMessages(user, location.pathname);
+    const next = seedMessages(user, location.pathname, helpMode);
     messagesRef.current = next;
     setMessages(next);
     setError('');
     setDraft('');
-  }, [location.pathname, user]);
+  }, [helpMode, location.pathname, user]);
 
   const tryLocalAnswer = useCallback(
     (text, history) => {
@@ -569,14 +605,24 @@ export function HelpChatDock() {
             message: text,
             messages: historyForApi,
             pathname: location.pathname,
-            pageContext: (() => {
-              try {
-                const raw = sessionStorage.getItem('zarewa.workspace.pageContext');
-                return raw ? JSON.parse(raw) : null;
-              } catch {
-                return null;
-              }
-            })(),
+            pageContext: sanitizeZarePageContext(
+              (() => {
+                try {
+                  const raw = sessionStorage.getItem('zarewa.workspace.pageContext');
+                  const base = raw ? JSON.parse(raw) : {};
+                  return {
+                    ...base,
+                    ...(pendingPageContext || {}),
+                    pathname: location.pathname,
+                    mode: helpMode,
+                    briefingSnapshot,
+                    dailyBriefing,
+                  };
+                } catch {
+                  return { ...(pendingPageContext || {}), pathname: location.pathname, mode: helpMode };
+                }
+              })()
+            ),
             clientDraftMs,
           }),
         });
@@ -622,8 +668,29 @@ export function HelpChatDock() {
       signalPendingFollowUp,
       helpPersonalization?.learnedBoosts,
       tryLocalAnswer,
+      helpMode,
+      pendingPageContext,
     ]
   );
+
+  useEffect(() => {
+    const req = helpChat?.request;
+    if (!req) return;
+    const mode = req.mode || 'default';
+    setHelpMode(mode);
+    setPendingPageContext(req.pageContext || null);
+    if (req.resetConversation) {
+      const next = seedMessages(user, location.pathname, mode);
+      messagesRef.current = next;
+      setMessages(next);
+    }
+    setOpen(true);
+    const prompt = req.prompt;
+    helpChat.clearRequest?.();
+    if (req.autoSend && prompt) {
+      window.setTimeout(() => void sendText(prompt), 120);
+    }
+  }, [helpChat?.request, helpChat, location.pathname, sendText, user]);
 
   const send = useCallback(async () => {
     const text = draft.trim();
@@ -689,6 +756,7 @@ export function HelpChatDock() {
                         <span className="h-1.5 w-1.5 rounded-full bg-emerald-300 shadow-[0_0_8px_rgba(110,231,183,0.9)]" />
                         {HELP_BOT_TAGLINE}
                       </span>
+                      <span className="hidden text-[9px] text-teal-100/80 sm:inline">{HELP_BOT_ALT_TAGLINE}</span>
                     </div>
                     <p className="mt-0.5 truncate text-[11px] font-medium text-teal-100/90">{pageName}</p>
                   </div>
@@ -718,6 +786,43 @@ export function HelpChatDock() {
             {/* Messages */}
             <div className="z-help-scroll flex-1 overflow-y-auto overscroll-contain bg-gradient-to-b from-slate-50 via-white to-slate-50/80 px-3.5 py-4 sm:px-4">
               <div className="space-y-4">
+                {showQuickQuestions && Array.isArray(dailyBriefing) && dailyBriefing.length > 0 ? (
+                  <InsightSection icon={Sparkles} title="Today's briefing" tone="indigo" defaultOpen>
+                    <ul className="space-y-1.5 text-[12px] text-slate-700">
+                      {dailyBriefing.map((line, i) => (
+                        <li key={i} className="flex gap-2">
+                          <span className="font-bold text-teal-700">{i + 1}.</span>
+                          <span>{line}</span>
+                        </li>
+                      ))}
+                    </ul>
+                    <button
+                      type="button"
+                      onClick={() => void sendText('What should I do next based on my briefing?')}
+                      className="mt-2 text-[11px] font-bold text-teal-800 hover:underline"
+                    >
+                      Ask Zare what to do next
+                    </button>
+                  </InsightSection>
+                ) : null}
+
+                {showQuickQuestions && helpMode === 'transaction_help' ? (
+                  <InsightSection icon={Zap} title="Report an issue" tone="amber" defaultOpen>
+                    <div className="flex flex-wrap gap-2">
+                      {TRANSACTION_ISSUE_CHIPS.map((chip) => (
+                        <button
+                          key={chip.id}
+                          type="button"
+                          onClick={() => void sendText(`Help me with: ${chip.label}`)}
+                          className="rounded-xl border border-amber-200/90 bg-white px-3 py-2 text-[11px] font-bold text-slate-800 shadow-sm transition hover:border-teal-300 hover:bg-teal-50"
+                        >
+                          {chip.label}
+                        </button>
+                      ))}
+                    </div>
+                  </InsightSection>
+                ) : null}
+
                 {showQuickQuestions && (dockSuggestions.hints.length > 0 || dockSuggestions.prompts.length > 0) ? (
                   <InsightSection icon={BookOpen} title="Try asking" tone="slate" defaultOpen>
                     {dockSuggestions.hints.length > 0 ? (

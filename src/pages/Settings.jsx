@@ -28,6 +28,7 @@ import TeamAccessPanel from '../components/settings/TeamAccessPanel';
 import SettingsProfilePanel from '../components/settings/SettingsProfilePanel';
 import AdminDataResetPanel from '../components/settings/AdminDataResetPanel';
 import { SettingsIntegrationApiPanel } from '../components/settings/SettingsIntegrationApiPanel';
+import { ZareIntelligencePanel } from '../components/settings/ZareIntelligencePanel';
 import {
   DEFAULT_MANAGER_TARGETS_PER_MONTH,
   mergeDashboardPrefs,
@@ -103,6 +104,10 @@ const Settings = () => {
   const canEditOrgTargets = Boolean(ws?.hasPermission?.('settings.view'));
   const showIntegrationApiPanel = showTeamTab;
   const showAdminDataReset = String(currentUser?.roleKey || '').toLowerCase() === 'admin';
+  const showZareIntelligence =
+    permissions.includes('*') ||
+    permissions.includes('settings.manage') ||
+    permissions.includes('audit.view');
 
   const settingsTabs = useMemo(() => {
     const tabs = [
@@ -113,6 +118,9 @@ const Settings = () => {
     if (showTeamTab) {
       tabs.push({ id: 'team', label: 'Team & access', icon: <Users size={14} /> });
     }
+    if (showZareIntelligence) {
+      tabs.push({ id: 'zare-intelligence', label: 'Zare intelligence', icon: <LifeBuoy size={14} /> });
+    }
     tabs.push(
       { id: 'data', label: 'Data & catalog', icon: <Database size={14} /> },
       ...(showAdminDataReset
@@ -122,7 +130,7 @@ const Settings = () => {
       { id: 'guide', label: 'Team guide', icon: <BookOpen size={14} /> }
     );
     return tabs;
-  }, [showTeamTab, showAdminDataReset]);
+  }, [showTeamTab, showAdminDataReset, showZareIntelligence]);
 
   const allowedSections = useMemo(() => new Set(settingsTabs.map((t) => t.id)), [settingsTabs]);
 
@@ -1088,6 +1096,16 @@ const Settings = () => {
                     })}
                   </div>
                 </section>
+              }
+            />
+            <Route
+              path="zare-intelligence"
+              element={
+                showZareIntelligence ? (
+                  <ZareIntelligencePanel />
+                ) : (
+                  <Navigate to="/settings/profile" replace />
+                )
               }
             />
             <Route path="*" element={<Navigate to="profile" replace />} />

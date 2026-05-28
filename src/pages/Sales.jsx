@@ -49,6 +49,7 @@ import RefundModal from '../components/RefundModal';
 import { MainPanel, PageHeader, PageShell, PageTabs } from '../components/layout';
 import { WorkspaceExpenseQuickActions } from '../components/workspace/WorkspaceExpenseQuickActions';
 import { AiAskButton } from '../components/AiAskButton';
+import { ZareHelpButton } from '../components/ZareHelpButton';
 import { formatNgn } from '../Data/mockData';
 import { useToast } from '../context/ToastContext';
 import { useCustomers } from '../context/CustomersContext';
@@ -1181,6 +1182,17 @@ const Sales = () => {
               <PageTabs tabs={salesTabs} value={salesTab} onChange={handleTabChange} />
             </div>
             <div className="flex w-full min-w-0 flex-wrap items-center justify-end gap-2">
+              {salesTab === 'receipts' ? (
+                <ZareHelpButton
+                  transactionContext={{
+                    module: 'sales',
+                    currentPage: 'receipts',
+                    transactionType: 'receipt',
+                    pathname: '/sales',
+                  }}
+                  compact
+                />
+              ) : null}
               <AiAskButton
                 mode="sales"
                 prompt={

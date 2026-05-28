@@ -43,6 +43,8 @@ import { ReceiptPrintQuick, ReceiptPrintFull } from './receipt/ReceiptPrintViews
 import { EditSecondApprovalInline } from './EditSecondApprovalInline';
 import { editMutationNeedsSecondApprovalRole } from '../lib/editApprovalUi';
 import { RECEIPT_AMOUNT_CONFIRM_THRESHOLD_NGN } from '../lib/receiptClearance.js';
+import { ZareHelpButton } from './ZareHelpButton';
+import { buildZareTransactionContext } from '../lib/zareTransactionContext';
 
 function newLineId() {
   return `pl-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
@@ -933,13 +935,31 @@ const ReceiptModal = ({
               </p>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={handleClose}
-            className="p-2.5 bg-slate-50 hover:bg-red-50 text-slate-400 hover:text-red-600 rounded-xl transition-all shrink-0"
-          >
-            <X size={20} />
-          </button>
+          <div className="flex shrink-0 items-center gap-2">
+            <ZareHelpButton
+              compact
+              transactionContext={buildZareTransactionContext({
+                module: 'sales',
+                currentPage: 'receipt',
+                pathname: '/sales',
+                transactionType: 'receipt',
+                referenceNo: editData?.id,
+                status: readOnly ? 'posted' : 'draft',
+                readOnly,
+                canEdit: !readOnly && Boolean(ws?.canMutate),
+                canReverse: readOnly,
+                showFinancialSummary: Boolean(editData?.amountNgn),
+                amountSummary: editData?.amountNgn != null ? `₦${Number(editData.amountNgn).toLocaleString()}` : '',
+              })}
+            />
+            <button
+              type="button"
+              onClick={handleClose}
+              className="p-2.5 bg-slate-50 hover:bg-red-50 text-slate-400 hover:text-red-600 rounded-xl transition-all shrink-0"
+            >
+              <X size={20} />
+            </button>
+          </div>
         </div>
 
         {readOnly ? (

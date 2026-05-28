@@ -2,6 +2,8 @@ import React, { useCallback, useState } from 'react';
 import { useToast } from '../../context/ToastContext';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { apiFetch } from '../../lib/apiBase';
+import { ZareApprovalHint } from '../ZareApprovalHint';
+import { userCanApproveEditMutationsClient } from '../../lib/editApprovalUi';
 
 /**
  * Grant edit-token approval from the workspace inbox (no Manager page).
@@ -11,6 +13,9 @@ export default function WorkspaceEditApprovalPanel({ item, onDone }) {
   const { show: showToast } = useToast();
   const [busy, setBusy] = useState(false);
   const id = String(item?.sourceId || item?.referenceNo || '').trim();
+  const permissions = ws?.permissions ?? [];
+  const roleKey = ws?.session?.user?.roleKey;
+  const canApproveEdit = userCanApproveEditMutationsClient(roleKey, permissions);
 
   const approve = useCallback(async () => {
     if (!id) return;
@@ -54,10 +59,23 @@ export default function WorkspaceEditApprovalPanel({ item, onDone }) {
       <p className="mt-4 text-xs leading-relaxed text-slate-500">
         Approving issues a short-lived token so the requester can complete their controlled save.
       </p>
+      {!canApproveEdit ? (
+        <ZareApprovalHint
+          className="mt-4"
+          context={{
+            referenceNo: id,
+            documentType: 'edit_approval',
+            status: item?.status,
+            canApprove: false,
+            missingPermission: 'Only designated managers can grant edit-approval tokens.',
+            zareQuery: `Why can't I approve edit approval ${id}?`,
+          }}
+        />
+      ) : null}
       <div className="mt-6 flex flex-wrap gap-2">
         <button
           type="button"
-          disabled={busy}
+          disabled={busy || !canApproveEdit}
           onClick={() => void approve()}
           className="inline-flex items-center gap-2 rounded-xl bg-[#134e4a] px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-[#0f3d3a] disabled:opacity-50"
         >

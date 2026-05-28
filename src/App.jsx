@@ -63,6 +63,7 @@ import { WorkspaceCommandPalette } from './components/workspace/WorkspaceCommand
 import { AiAskButton } from './components/AiAskButton';
 import { buildWorkspaceNotifications } from './lib/workspaceNotifications';
 import { AiAssistantProvider, useAiAssistant } from './context/AiAssistantContext';
+import { HelpChatProvider } from './context/HelpChatContext';
 import { notificationPrompt } from './lib/aiAssistUi';
 import { searchWorkspaceSnapshot } from './lib/workspaceSearchLocal';
 import { formatPersonName } from './lib/formatPersonName';
@@ -990,11 +991,13 @@ function App() {
     <Router>
       <WorkspaceProvider>
         <ToastProvider>
-          <AiAssistantProvider>
-            <DocumentTitleSync />
-            <PrintSessionCleanup />
-            <AuthGate />
-          </AiAssistantProvider>
+          <HelpChatProvider>
+            <AiAssistantProvider>
+              <DocumentTitleSync />
+              <PrintSessionCleanup />
+              <AuthGate />
+            </AiAssistantProvider>
+          </HelpChatProvider>
         </ToastProvider>
       </WorkspaceProvider>
     </Router>

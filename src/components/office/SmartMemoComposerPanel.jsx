@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { AlertTriangle, CheckCircle2, Sparkles, Wand2 } from 'lucide-react';
 import { buildSmartMemoSuggestions, SMART_MEMO_TYPES } from '../../lib/smartMemoComposer';
 import { WS_SECTION_LABEL } from '../../lib/workspaceUiTokens';
+import { ZareComposeAssistBar } from './ZareComposeAssistBar';
 
 function ComposerStep({ step, title, children, defaultOpen = true }) {
   return (
@@ -68,7 +69,16 @@ export function SmartMemoComposerPanel({
   };
 
   return (
-    <div className="space-y-3 border-b border-slate-200 bg-slate-50/40 px-3 py-3 sm:px-4">
+    <div className="space-y-0 border-b border-slate-200 bg-slate-50/40">
+      <ZareComposeAssistBar
+        subject={subject}
+        body={body}
+        memoType={memoType}
+        onMemoAssist={onMemoAssist}
+        improving={improving}
+        attachmentCount={attachmentCount}
+      />
+      <div className="space-y-3 px-3 py-3 sm:px-4">
       <div className="flex items-start justify-between gap-2 rounded-lg border border-teal-100 bg-white px-3 py-2.5">
         <div className="min-w-0">
           <p className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-teal-900">
@@ -308,13 +318,14 @@ export function SmartMemoComposerPanel({
         </div>
       ) : null}
 
-      {suggestions.runaHints?.length ? (
+      {(suggestions.zareHints || suggestions.runaHints)?.length ? (
         <div className="rounded border border-teal-100 bg-teal-50/50 px-2.5 py-2 text-[10px] leading-relaxed text-teal-900">
-          {suggestions.runaHints.map((h, i) => (
+          {(suggestions.zareHints || suggestions.runaHints).map((h, i) => (
             <p key={i}>{h}</p>
           ))}
         </div>
       ) : null}
+      </div>
     </div>
   );
 }

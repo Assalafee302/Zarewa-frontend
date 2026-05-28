@@ -33,6 +33,7 @@ import {
   ModalFrame,
 } from '../components/layout';
 import { AiAskButton } from '../components/AiAskButton';
+import { ZareHelpButton } from '../components/ZareHelpButton';
 import { EditSecondApprovalInline } from '../components/EditSecondApprovalInline';
 import { editMutationNeedsSecondApprovalRole } from '../lib/editApprovalUi';
 import { formatNgn } from '../Data/mockData';
@@ -2925,6 +2926,17 @@ const Account = () => {
               <button type="button" onClick={headerAction} className="z-btn-primary shrink-0">
                 <Plus size={16} /> {newRecordLabel}
               </button>
+            ) : null}
+            {activeTab === 'receipts' || activeTab === 'treasury' ? (
+              <ZareHelpButton
+                transactionContext={{
+                  module: 'finance',
+                  currentPage: activeTab,
+                  pathname: '/accounts',
+                  transactionType: activeTab === 'receipts' ? 'receipt_settlement' : 'payment',
+                }}
+                compact
+              />
             ) : null}
             <AiAskButton
               mode="finance"
@@ -5897,15 +5909,27 @@ const Account = () => {
 
       <ModalFrame isOpen={showExpenseModal} onClose={() => setShowExpenseModal(false)}>
         <div className="z-modal-panel max-w-lg p-8 overflow-y-auto">
-            <div className="flex justify-between items-center mb-6">
+            <div className="flex justify-between items-center mb-6 gap-3">
               <h3 className="text-xl font-bold text-[#134e4a]">Expense entry</h3>
-              <button
-                type="button"
-                onClick={() => setShowExpenseModal(false)}
-                className="p-2 text-gray-400 hover:text-red-500 rounded-xl"
-              >
-                <X size={22} />
-              </button>
+              <div className="flex items-center gap-2">
+                <ZareHelpButton
+                  compact
+                  transactionContext={{
+                    module: 'finance',
+                    currentPage: 'expense',
+                    pathname: '/accounts',
+                    transactionType: 'expense',
+                    status: 'draft',
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowExpenseModal(false)}
+                  className="p-2 text-gray-400 hover:text-red-500 rounded-xl"
+                >
+                  <X size={22} />
+                </button>
+              </div>
             </div>
             <form className="space-y-4" onSubmit={saveExpense}>
               <div>

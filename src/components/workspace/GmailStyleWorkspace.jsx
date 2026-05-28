@@ -113,6 +113,18 @@ export default function GmailStyleWorkspace({
     [userId, roleKey, permissionsFromCtx]
   );
 
+  const workspaceApprovalCtx = useMemo(
+    () => ({
+      permissions: permissionsFromCtx ?? [],
+      roleKey,
+      branchId: String(ws?.session?.workspaceBranchId || ws?.snapshot?.workspaceBranchId || '').trim(),
+      viewAllBranches: Boolean(ws?.session?.viewAllBranches),
+      canMutate: Boolean(ws?.canMutate),
+      branchNames,
+    }),
+    [permissionsFromCtx, roleKey, ws?.session?.workspaceBranchId, ws?.snapshot?.workspaceBranchId, ws?.session?.viewAllBranches, ws?.canMutate, branchNames]
+  );
+
   const allItems = useMemo(() => {
     const raw = Array.isArray(unifiedWorkItems) ? unifiedWorkItems : [];
     return raw.filter((item) => workItemShowsOnWorkspaceUnifiedInbox(item, inboxCtx));
@@ -740,6 +752,7 @@ export default function GmailStyleWorkspace({
                   title={detailTitle}
                   item={normalizedSelected}
                   threadId={mailThreadId}
+                  workspaceCtx={workspaceApprovalCtx}
                 />
                 <div className="min-h-0 flex-1 overflow-hidden pb-16 lg:pb-0">{readingInner}</div>
               </div>

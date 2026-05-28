@@ -1,7 +1,7 @@
 /**
- * Context hooks for Runa / AI assistants on the Workspace command center.
+ * Context hooks for Zare / AI assistants on the Workspace command center.
  */
-import { sanitizeRunaPageContext } from './workspaceSanitize.js';
+import { sanitizeZarePageContext } from './workspaceSanitize.js';
 
 /**
  * @param {object} params
@@ -22,7 +22,7 @@ export function buildWorkspaceAiContext({
   canMutate = true,
   degraded = false,
 }) {
-  return sanitizeRunaPageContext({
+  return sanitizeZarePageContext({
     surface: 'workspace_command_center',
     folder,
     category,

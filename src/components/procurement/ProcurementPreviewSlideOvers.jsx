@@ -15,6 +15,7 @@ import {
   purchaseOrderCanAssignTransport,
   purchaseOrderTransportActionLabel,
 } from '../../lib/purchaseOrderWorkflow';
+import { ZareApprovalHint } from '../ZareApprovalHint';
 
 function kindTitle(kind) {
   if (kind === 'stone') return 'Stone-coated';
@@ -48,6 +49,7 @@ export function ProcurementPoPreviewSlideOver({
   onApprove,
   onReject,
   onAssignTransport,
+  canApprovePo = true,
 }) {
   const [showPrint, setShowPrint] = useState(false);
   const [printStampIso, setPrintStampIso] = useState('');
@@ -239,6 +241,22 @@ export function ProcurementPoPreviewSlideOver({
         {hasWorkflowFooter ? (
           <div className="shrink-0 border-t border-slate-200 bg-white px-4 py-3 space-y-2">
             <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400">Actions</p>
+            {pending && (!canApprovePo || !wsCanMutate) ? (
+              <ZareApprovalHint
+                compact
+                context={{
+                  referenceNo: po.poID,
+                  documentType: 'purchase_order',
+                  status: po.status,
+                  canApprove: canApprovePo && wsCanMutate,
+                  canMutate: wsCanMutate,
+                  missingPermission: !canApprovePo
+                    ? 'Purchase order approval requires purchase_orders.manage permission.'
+                    : undefined,
+                  zareQuery: `Why can't I approve PO ${po.poID}?`,
+                }}
+              />
+            ) : null}
             <div className="flex flex-wrap gap-1.5">
               {canEdit && onEdit ? (
                 <button

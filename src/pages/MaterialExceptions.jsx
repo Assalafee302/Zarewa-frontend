@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ClipboardList, Plus, Printer, ShieldCheck } from 'lucide-react';
 import { PageHeader, PageShell } from '../components/layout';
+import { ZareApprovalHint } from '../components/ZareApprovalHint';
 import OperationsCoilControlTab from '../components/operations/OperationsCoilControlTab';
 import MaterialIncidentPrintView from '../components/material/MaterialIncidentPrintView';
 import { useInventory } from '../context/InventoryContext';
@@ -461,7 +462,15 @@ export default function MaterialExceptions({ embedded = false, initialView = 're
       {view === 'pending' && (
         <section className="space-y-3">
           {!canApprove ? (
-            <p className="text-xs text-slate-500">Pending items require branch manager approval.</p>
+            <ZareApprovalHint
+              context={{
+                documentType: 'material_incident',
+                status: 'submitted',
+                canApprove: false,
+                missingPermission: 'Material incident approval requires branch manager or operations authority.',
+                zareQuery: 'Why can’t I approve material incidents?',
+              }}
+            />
           ) : null}
           {pendingRows.map((r) => (
             <div key={r.id} className="rounded-xl border border-amber-200 bg-amber-50/50 p-4 flex flex-wrap justify-between gap-3">

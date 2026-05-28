@@ -9,6 +9,8 @@ export function isVoucherDateInLockedPeriod(voucherDateIso, periodLocks) {
   return locks.some((l) => String(l.periodKey || '').trim() === pk);
 }
 
+import { explainHelpError } from './helpErrorExplain.js';
+
 /**
  * Single-line message for toast/UI when a ledger POST fails.
  * @param {{ ok?: boolean; code?: string; error?: string; message?: string } | null | undefined} body
@@ -16,9 +18,10 @@ export function isVoucherDateInLockedPeriod(voucherDateIso, periodLocks) {
  * @param {string} [fallback]
  */
 export function formatLedgerApiError(body, httpStatus, fallback = 'Request failed.') {
-  const primary = String(body?.error || body?.message || '').trim();
   const code = String(body?.code || '').trim();
-  let out = primary || fallback;
+  const primary = String(body?.error || body?.message || '').trim();
+  const zare = explainHelpError(code || primary);
+  let out = zare?.explanation || primary || fallback;
   if (code && !out.toLowerCase().includes(code.toLowerCase())) {
     out = `${out} (${code})`;
   }

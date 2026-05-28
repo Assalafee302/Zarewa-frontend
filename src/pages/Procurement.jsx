@@ -24,6 +24,7 @@ import {
 
 import { MainPanel, PageHeader, PageShell, PageTabs, ModalFrame } from '../components/layout';
 import { AiAskButton } from '../components/AiAskButton';
+import { ZareHelpButton } from '../components/ZareHelpButton';
 import PurchaseOrderModal from '../components/procurement/PurchaseOrderModal';
 import { purchaseOrderToUnifiedDraft } from '../lib/purchaseOrderDraft';
 import CoilPurchaseOrderModal from '../components/procurement/CoilPurchaseOrderModal';
@@ -1329,6 +1330,17 @@ const Procurement = () => {
           activeTab === 'conversion' ||
           newButtonLabel ? (
             <div className="flex w-full min-w-0 flex-wrap items-center justify-end gap-2">
+              {(activeTab === 'purchases' || activeTab === 'payables') && (
+                <ZareHelpButton
+                  compact
+                  transactionContext={{
+                    module: 'procurement',
+                    currentPage: activeTab,
+                    pathname: '/procurement',
+                    transactionType: activeTab === 'payables' ? 'supplier_payment' : 'purchase_order',
+                  }}
+                />
+              )}
               <AiAskButton
                 mode="procurement"
                 prompt={
@@ -3206,6 +3218,7 @@ const Procurement = () => {
         }}
         canEdit={ws?.hasPermission?.('purchase_orders.manage') ?? true}
         wsCanMutate={ws?.canMutate}
+        canApprovePo={Boolean(ws?.hasPermission?.('purchase_orders.manage') && ws?.canMutate)}
         onApprove={async (p) => {
           setProcurementPoForApprovalUi(p.poID);
           const r = await setPurchaseOrderStatus(p.poID, 'Approved', {

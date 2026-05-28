@@ -3,7 +3,9 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Pen, RefreshCw, Search, ShieldCheck } from 'lucide-react';
 import { PageShell } from '../components/layout';
 import { BranchWorkspaceBar } from '../components/layout/BranchWorkspaceBar';
-import { AiAskButton } from '../components/AiAskButton';
+import { useHelpChat } from '../context/HelpChatContext';
+import { HELP_BOT_NAME } from '../lib/helpBotBrand';
+import { LifeBuoy } from 'lucide-react';
 import { OfficeRecordComposeDrawer } from '../components/office/OfficeRecordComposeDrawer';
 import { OfficeThreadConversationDrawer } from '../components/office/OfficeThreadConversationDrawer';
 import { useWorkspace } from '../context/WorkspaceContext';
@@ -31,6 +33,7 @@ function formatLastRefreshed(iso) {
 
 const Dashboard = () => {
   const ws = useWorkspace();
+  const helpChat = useHelpChat();
   const { show: showToast } = useToast();
   const location = useLocation();
   const navigate = useNavigate();
@@ -199,19 +202,25 @@ const Dashboard = () => {
                   Compose Memo
                 </button>
               ) : null}
-              <AiAskButton
-                mode="search"
-                prompt="What needs my attention today across the workspace, and where should I go first?"
-                pageContext={{
-                  ...aiPageContext,
-                  source: 'dashboard-page',
-                  pendingCoilRequestCount: pendingCoilRequests.length,
-                }}
-                resetConversation
+              <button
+                type="button"
+                onClick={() =>
+                  helpChat?.openZare?.({
+                    prompt: 'What needs my attention today across the workspace, and where should I go first?',
+                    pageContext: {
+                      ...aiPageContext,
+                      source: 'dashboard-page',
+                      pendingCoilRequestCount: pendingCoilRequests.length,
+                    },
+                    autoSend: true,
+                    resetConversation: true,
+                  })
+                }
                 className="inline-flex shrink-0 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-xs font-semibold text-teal-900 hover:bg-teal-50"
               >
-                Ask Runa
-              </AiAskButton>
+                <LifeBuoy size={14} aria-hidden />
+                Ask {HELP_BOT_NAME}
+              </button>
             </div>
           </div>
 
