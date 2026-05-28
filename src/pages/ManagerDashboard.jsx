@@ -43,6 +43,7 @@ import {
   canSeeExecutiveProductionEditShortcut,
 } from '../lib/executiveStoreToolsAccess';
 import { EditSecondApprovalInline } from '../components/EditSecondApprovalInline';
+import { ZareApprovalHint } from '../components/ZareApprovalHint';
 import {
   buildManagementQueuesFromSnapshot,
   buildManagerSnapshotsFromWorkspace,
@@ -138,6 +139,10 @@ const ManagerDashboard = () => {
     () => userMayViewManagementReportsClient(ws?.session?.user?.roleKey, ws?.permissions),
     [ws?.session?.user?.roleKey, ws?.permissions]
   );
+  const canApprovePaymentRequests =
+    Boolean(ws?.hasPermission?.('finance.approve')) || Boolean(ws?.hasPermission?.('*'));
+  const canApproveRefunds =
+    Boolean(ws?.hasPermission?.('refunds.approve')) || Boolean(ws?.hasPermission?.('finance.approve'));
 
   const selectedRefundRecord = useMemo(() => {
     if (selectedIntel?.kind !== 'refund' || !selectedIntel.refundId) return null;
@@ -1719,6 +1724,20 @@ const ManagerDashboard = () => {
                     showOpenRecord={selectedIntel?.kind === 'payment'}
                     onOpenRecord={openUnifiedWorkItem}
                   />
+                  {!canApproveRefunds ? (
+                    <ZareApprovalHint
+                      context={{
+                        referenceNo: selectedIntel.refundId,
+                        documentType: 'refund_request',
+                        status: selectedIntel.row?.status || 'Pending',
+                        canApprove: false,
+                        canMutate: ws?.canMutate !== false,
+                        missingPermission:
+                          'Refund approval requires refunds.approve or finance.approve permission.',
+                        zareQuery: `Why can't I approve refund ${selectedIntel.refundId}?`,
+                      }}
+                    />
+                  ) : null}
                   <RefundManagerApprovalPreview
                     refundId={selectedIntel.refundId}
                     inboxRow={selectedIntel.row}
@@ -1860,6 +1879,20 @@ const ManagerDashboard = () => {
                   />
                   <div className="pt-4 border-t border-white/10 space-y-3">
                     <p className="text-[10px] font-black text-teal-400 uppercase tracking-widest">Decision</p>
+                    {!canApprovePaymentRequests ? (
+                      <ZareApprovalHint
+                        context={{
+                          referenceNo: selectedIntel.requestId,
+                          documentType: 'payment_request',
+                          status: selectedIntel.row?.approval_status || 'Pending',
+                          canApprove: false,
+                          canMutate: ws?.canMutate !== false,
+                          missingPermission:
+                            'Payment request approval requires finance.approve permission.',
+                          zareQuery: `Why can't I approve payment request ${selectedIntel.requestId}?`,
+                        }}
+                      />
+                    ) : null}
                     <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                       <button
                         type="button"

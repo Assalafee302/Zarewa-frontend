@@ -14,6 +14,9 @@ import {
 import { ModalFrame } from './layout/ModalFrame';
 import { useTrackedUnsavedForm } from '../hooks/useTrackedUnsavedForm';
 import { useToast } from '../context/ToastContext';
+import { useWorkspace } from '../context/WorkspaceContext';
+import { ZareApprovalHint } from './ZareApprovalHint';
+import { quotationRefundBlockedPendingMdPriceConfirm } from '../lib/quotationPriceException';
 import { apiFetch } from '../lib/apiBase';
 import { printRefundRecord } from '../lib/refundRecordPrint';
 import {
@@ -386,6 +389,9 @@ const RefundModal = ({
   productionJobCoils = [],
 }) => {
   const { show: showToast } = useToast();
+  const ws = useWorkspace();
+  const canApproveRefunds =
+    Boolean(ws?.hasPermission?.('refunds.approve')) || Boolean(ws?.hasPermission?.('finance.approve'));
   const [form, setForm] = useState(() => initFormFromRecord(record));
   const [eligibleQuotes, setEligibleQuotes] = useState([]);
   const [loadingQuotes, setLoadingQuotes] = useState(false);
@@ -1048,6 +1054,13 @@ const RefundModal = ({
 
   const readOnly = mode === 'view';
   const showApproval = mode === 'approve' && record?.status === 'Pending';
+  const approvalQuoteRef = String(record?.quotationRef || record?.quotation_ref || '').trim();
+  const approvalQuoteRow = useMemo(() => {
+    if (!approvalQuoteRef) return null;
+    return (quotations || []).find((x) => String(x.id) === approvalQuoteRef) || null;
+  }, [approvalQuoteRef, quotations]);
+  const refundBlockedByMdPricing =
+    Boolean(approvalQuoteRow) && quotationRefundBlockedPendingMdPriceConfirm(approvalQuoteRow);
   const identityLocked = mode !== 'create';
 
   const refundHydrateKey = useMemo(
@@ -2729,6 +2742,23 @@ const RefundModal = ({
 
                   {showApproval && (
                     <div className="pt-4 border-t border-slate-100 space-y-4">
+                      {!canApproveRefunds || ws?.canMutate === false || refundBlockedByMdPricing ? (
+                        <ZareApprovalHint
+                          context={{
+                            referenceNo: record?.refundID,
+                            documentType: 'refund_request',
+                            status: record?.status,
+                            canApprove: canApproveRefunds && ws?.canMutate !== false && !refundBlockedByMdPricing,
+                            canMutate: ws?.canMutate !== false,
+                            missingPermission: !canApproveRefunds
+                              ? 'Refund approval requires refunds.approve or finance.approve.'
+                              : refundBlockedByMdPricing
+                                ? 'Managing Director must confirm below-floor pricing after production before this refund can be approved.'
+                                : undefined,
+                            zareQuery: `Why can't I approve refund ${record?.refundID || ''}?`,
+                          }}
+                        />
+                      ) : null}
                       <div
                         className="rounded-xl border border-amber-200/80 bg-amber-50/90 p-3 space-y-2"
                         role="region"

@@ -34,6 +34,7 @@ import {
 } from '../components/layout';
 import { AiAskButton } from '../components/AiAskButton';
 import { ZareHelpButton } from '../components/ZareHelpButton';
+import { ZareApprovalHint } from '../components/ZareApprovalHint';
 import { EditSecondApprovalInline } from '../components/EditSecondApprovalInline';
 import { editMutationNeedsSecondApprovalRole } from '../lib/editApprovalUi';
 import { formatNgn } from '../Data/mockData';
@@ -304,6 +305,8 @@ const Account = () => {
   const payRequestFileRef = useRef(null);
   const activeActorLabel = ws?.session?.user?.displayName ?? 'Finance';
   const canPayRequests = ws?.hasPermission?.('finance.pay');
+  const canApprovePaymentRequests =
+    Boolean(ws?.hasPermission?.('finance.approve')) || Boolean(ws?.hasPermission?.('*'));
   const todayIso = useMemo(() => new Date().toISOString().slice(0, 10), []);
   const branchOptions = useMemo(
     () => ws?.snapshot?.workspaceBranches ?? ws?.session?.branches ?? [],
@@ -4695,6 +4698,24 @@ const Account = () => {
                                 <p className="text-[8px] text-slate-500 mt-0.5 line-clamp-2" title={meta2}>
                                   {meta2}
                                 </p>
+                                {['pending', 'submitted'].includes(
+                                  String(req.approvalStatus || '').trim().toLowerCase()
+                                ) && !canApprovePaymentRequests ? (
+                                  <ZareApprovalHint
+                                    compact
+                                    className="mt-2"
+                                    context={{
+                                      referenceNo: req.requestID,
+                                      documentType: 'payment_request',
+                                      status: req.approvalStatus,
+                                      canApprove: false,
+                                      canMutate: ws?.canMutate !== false,
+                                      missingPermission:
+                                        'Expense payment requests need finance.approve before treasury payout.',
+                                      zareQuery: `Why can't I approve payment request ${req.requestID}?`,
+                                    }}
+                                  />
+                                ) : null}
                               </div>
                               <div className="flex flex-col items-end gap-1 shrink-0">
                                 <span className="text-[11px] font-black text-[#134e4a] tabular-nums">
