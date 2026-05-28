@@ -139,16 +139,44 @@ export default function BusinessIntelligence() {
   const load = useCallback(async () => {
     setBusy(true);
     setErr('');
-    const { ok, data: d } = await apiFetch(
-      `/api/analytics/business-intelligence?period=${encodeURIComponent(periodKey)}`
-    );
-    setBusy(false);
-    if (!ok || !d?.ok) {
+    try {
+      const { ok, status, data: d } = await apiFetch(
+        `/api/analytics/business-intelligence?period=${encodeURIComponent(periodKey)}`
+      );
+      setBusy(false);
+      if (!ok || !d?.ok) {
+        setData(null);
+        if (status === 404 || d?.code === 'NON_JSON_RESPONSE') {
+          setErr(
+            d?.error ||
+              'Business intelligence API not found. Redeploy and restart the backend (commit with /api/analytics/business-intelligence), then refresh.'
+          );
+          return;
+        }
+        if (status === 403) {
+          setErr(d?.error || 'You do not have permission to view management reports.');
+          return;
+        }
+        if (status === 401) {
+          setErr('Session expired. Sign in again and retry.');
+          return;
+        }
+        if (status === 502 || status === 503) {
+          setErr('API server is unreachable. Confirm the backend is running and VITE_API_BASE points to it.');
+          return;
+        }
+        setErr(
+          d?.error ||
+            (status ? `Could not load business intelligence (HTTP ${status}).` : 'Could not load business intelligence.')
+        );
+        return;
+      }
+      setData(d);
+    } catch (e) {
+      setBusy(false);
       setData(null);
-      setErr(d?.error || 'Could not load business intelligence.');
-      return;
+      setErr(String(e?.message || e) || 'Network error while loading business intelligence.');
     }
-    setData(d);
   }, [periodKey]);
 
   useEffect(() => {
