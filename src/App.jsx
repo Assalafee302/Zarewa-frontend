@@ -27,6 +27,7 @@ import LoginScreen from './components/auth/LoginScreen';
 import UserOnboardingGate from './components/auth/UserOnboardingGate';
 import ModuleRouteGuard from './components/ModuleRouteGuard';
 import ManagerDashboard from './pages/ManagerDashboard';
+import BusinessIntelligence from './pages/BusinessIntelligence';
 import WorkspaceMonitoring from './pages/WorkspaceMonitoring';
 import ExecDashboard from './pages/ExecDashboard';
 import PriceListAdmin from './pages/PriceListAdmin';
@@ -907,6 +908,7 @@ function AppShell() {
                 </ModuleRouteGuard>
               }
             />
+            <Route path="/analytics" element={<BusinessIntelligence />} />
             <Route
               path="/office"
               element={

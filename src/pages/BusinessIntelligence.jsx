@@ -1,0 +1,487 @@
+import React, { useCallback, useEffect, useState } from 'react';
+import { Navigate } from 'react-router-dom';
+import {
+  AlertTriangle,
+  BarChart3,
+  Layers,
+  RefreshCw,
+  Sparkles,
+  TrendingDown,
+  TrendingUp,
+  Wallet,
+} from 'lucide-react';
+import { MainPanel, PageHeader } from '../components/layout';
+import { formatNgn } from '../Data/mockData';
+import { useHelpChat } from '../context/HelpChatContext';
+import { useWorkspace } from '../context/WorkspaceContext';
+import { apiFetch } from '../lib/apiBase';
+import { userMayViewManagementReportsClient } from '../lib/reportsAccess';
+
+const PERIOD_OPTIONS = [
+  { key: 'month', label: 'This month', shortLabel: 'Month' },
+  { key: '4months', label: 'Last 4 months', shortLabel: '4 mo' },
+  { key: 'half', label: 'Last 6 months', shortLabel: 'Half yr' },
+  { key: 'year', label: 'Last 12 months', shortLabel: 'Year' },
+];
+
+function severityTone(sev) {
+  if (sev === 'high') return 'border-rose-200 bg-rose-50 text-rose-900';
+  if (sev === 'medium') return 'border-amber-200 bg-amber-50 text-amber-950';
+  return 'border-slate-200 bg-slate-50 text-slate-800';
+}
+
+function riskTone(risk) {
+  if (risk === 'critical') return 'text-rose-700 bg-rose-50 ring-rose-100';
+  if (risk === 'watch') return 'text-amber-800 bg-amber-50 ring-amber-100';
+  return 'text-emerald-800 bg-emerald-50 ring-emerald-100';
+}
+
+function stressTone(stress) {
+  if (stress === 'deficit') return 'text-rose-700';
+  if (stress === 'tight') return 'text-amber-700';
+  return 'text-emerald-700';
+}
+
+function KpiTile({ label, value, sub, icon }) {
+  return (
+    <div className="rounded-2xl border border-slate-200/90 bg-gradient-to-br from-white to-slate-50/80 p-4 shadow-sm">
+      <p className="text-[10px] font-black uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+        {icon}
+        {label}
+      </p>
+      <p className="mt-2 text-2xl font-black tabular-nums text-[#134e4a]">{value}</p>
+      {sub ? <p className="mt-1 text-[11px] text-slate-500">{sub}</p> : null}
+    </div>
+  );
+}
+
+function MixBar({ label, pct, amount, colorClass }) {
+  return (
+    <div>
+      <div className="flex justify-between text-xs font-bold text-slate-800 mb-1">
+        <span>{label}</span>
+        <span className="tabular-nums">
+          {pct}% · {formatNgn(amount)}
+        </span>
+      </div>
+      <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
+        <div className={`h-full rounded-full ${colorClass}`} style={{ width: `${Math.min(100, pct)}%` }} />
+      </div>
+    </div>
+  );
+}
+
+function InventoryFamilyCard({ fam }) {
+  return (
+    <div className="rounded-2xl border border-slate-200/90 bg-white p-5 shadow-sm">
+      <div className="flex items-start justify-between gap-2">
+        <div>
+          <h3 className="text-sm font-black uppercase tracking-wider text-[#134e4a]">{fam.label}</h3>
+          <p className="text-[10px] text-slate-500 font-mono mt-0.5">{fam.productID}</p>
+        </div>
+        <span className={`rounded-lg px-2 py-1 text-[9px] font-black uppercase ring-1 ${riskTone(fam.risk)}`}>
+          {fam.risk === 'critical' ? 'Low cover' : fam.risk === 'watch' ? 'Watch' : 'OK'}
+        </span>
+      </div>
+      <dl className="mt-4 grid grid-cols-2 gap-3 text-sm">
+        <div>
+          <dt className="text-[10px] font-bold uppercase text-slate-500">Kg on hand</dt>
+          <dd className="font-black tabular-nums text-slate-900">{fam.kgOnHand.toLocaleString()}</dd>
+        </div>
+        <div>
+          <dt className="text-[10px] font-bold uppercase text-slate-500">Weeks cover</dt>
+          <dd className="font-black tabular-nums text-slate-900">{fam.weeksCover ?? '—'}</dd>
+        </div>
+        <div>
+          <dt className="text-[10px] font-bold uppercase text-slate-500">Consumed (period)</dt>
+          <dd className="font-black tabular-nums text-slate-900">{fam.kgConsumedPeriod.toLocaleString()} kg</dd>
+        </div>
+        <div>
+          <dt className="text-[10px] font-bold uppercase text-slate-500">Incoming PO</dt>
+          <dd className="font-black tabular-nums text-slate-900">{fam.incomingKg.toLocaleString()} kg</dd>
+        </div>
+        <div className="col-span-2">
+          <dt className="text-[10px] font-bold uppercase text-slate-500">Valuation (coil cost)</dt>
+          <dd className="font-black tabular-nums text-[#134e4a]">{formatNgn(fam.valuationNgn || 0)}</dd>
+        </div>
+      </dl>
+      {fam.topGaugeColour?.length ? (
+        <div className="mt-4 border-t border-slate-100 pt-3">
+          <p className="text-[10px] font-bold uppercase text-slate-500 mb-2">Top gauge · colour</p>
+          <ul className="space-y-1 text-[11px] text-slate-700">
+            {fam.topGaugeColour.slice(0, 4).map((b) => (
+              <li key={`${b.gauge}-${b.colour}`} className="flex justify-between gap-2">
+                <span className="truncate">
+                  {b.gauge} · {b.colour}
+                </span>
+                <span className="tabular-nums shrink-0 font-semibold">{Math.round(b.kg).toLocaleString()} kg</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+export default function BusinessIntelligence() {
+  const ws = useWorkspace();
+  const { openZare } = useHelpChat() || {};
+  const [periodKey, setPeriodKey] = useState('month');
+  const [data, setData] = useState(null);
+  const [busy, setBusy] = useState(true);
+  const [err, setErr] = useState('');
+
+  const roleKey = ws?.session?.user?.roleKey;
+  const permissions = ws?.session?.user?.permissions;
+  const mayView = userMayViewManagementReportsClient(roleKey, permissions);
+
+  const load = useCallback(async () => {
+    setBusy(true);
+    setErr('');
+    const { ok, data: d } = await apiFetch(
+      `/api/analytics/business-intelligence?period=${encodeURIComponent(periodKey)}`
+    );
+    setBusy(false);
+    if (!ok || !d?.ok) {
+      setData(null);
+      setErr(d?.error || 'Could not load business intelligence.');
+      return;
+    }
+    setData(d);
+  }, [periodKey]);
+
+  useEffect(() => {
+    if (mayView) void load();
+  }, [load, mayView]);
+
+  if (!mayView) {
+    return <Navigate to="/" replace />;
+  }
+
+  const sales = data?.sales;
+  const inv = data?.inventory;
+  const pred = data?.predictive;
+  const aluMix = sales?.mixRows?.find((r) => r.family === 'aluminium');
+  const azMix = sales?.mixRows?.find((r) => r.family === 'aluzinc');
+
+  return (
+    <MainPanel>
+      <PageHeader
+        title="Business intelligence"
+        subtitle="Sales mix, aluminium & aluzinc coil analytics, and predictive cash signals — produced sales basis matches Manager KPIs."
+        toolbar={
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-wrap gap-1" role="group" aria-label="Analysis period">
+              {PERIOD_OPTIONS.map((p) => (
+                <button
+                  key={p.key}
+                  type="button"
+                  onClick={() => setPeriodKey(p.key)}
+                  className={`px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-wide border transition-colors ${
+                    periodKey === p.key
+                      ? 'bg-[#134e4a] text-white border-[#134e4a]'
+                      : 'bg-white text-slate-600 border-slate-200 hover:border-teal-200'
+                  }`}
+                >
+                  {p.shortLabel}
+                </button>
+              ))}
+            </div>
+            <button
+              type="button"
+              onClick={() => void load()}
+              disabled={busy}
+              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-[11px] font-black uppercase text-[#134e4a] disabled:opacity-50"
+            >
+              <RefreshCw size={14} className={busy ? 'animate-spin' : ''} />
+              Refresh
+            </button>
+            {openZare ? (
+              <button
+                type="button"
+                onClick={() =>
+                  openZare({
+                    prompt: 'Analyze my business — sales, aluminium and aluzinc inventory, and cash flow outlook.',
+                    autoSend: true,
+                  })
+                }
+                className="inline-flex items-center gap-2 rounded-xl border border-teal-200 bg-teal-50 px-4 py-2 text-[11px] font-black uppercase text-[#134e4a]"
+              >
+                <Sparkles size={14} />
+                Ask Zare
+              </button>
+            ) : null}
+          </div>
+        }
+      />
+
+      {err ? (
+        <p className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">{err}</p>
+      ) : null}
+
+      {data ? (
+        <div className="space-y-6 min-w-0">
+          {pred?.alerts?.length ? (
+            <section className="rounded-2xl border border-amber-200/80 bg-amber-50/40 p-4">
+              <h2 className="text-[11px] font-black uppercase tracking-wider text-amber-950 flex items-center gap-2">
+                <AlertTriangle size={14} />
+                Priority signals
+              </h2>
+              <ul className="mt-3 space-y-2">
+                {pred.alerts.map((a) => (
+                  <li
+                    key={a.id}
+                    className={`rounded-xl border px-3 py-2 text-xs ${severityTone(a.severity)}`}
+                  >
+                    <span className="font-black uppercase text-[9px] mr-2">{a.category}</span>
+                    {a.message}
+                    {a.metric ? <span className="ml-1 font-bold tabular-nums">({a.metric})</span> : null}
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
+
+          <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <KpiTile
+              label="Produced sales"
+              value={formatNgn(sales?.producedRevenueNgn || 0)}
+              sub={data.periodLabel}
+              icon={<BarChart3 size={12} className="text-teal-600" />}
+            />
+            <KpiTile
+              label="Collected (receipts)"
+              value={formatNgn(sales?.collectedNgn || 0)}
+              sub={
+                sales?.collectionRatePct != null
+                  ? `${sales.collectionRatePct}% of quoted in period`
+                  : 'Receipts in period'
+              }
+              icon={<Wallet size={12} className="text-teal-600" />}
+            />
+            <KpiTile
+              label="Receivables outstanding"
+              value={formatNgn(sales?.outstandingReceivablesNgn || 0)}
+              sub="All open quotes"
+              icon={<TrendingDown size={12} className="text-amber-600" />}
+            />
+            <KpiTile
+              label="Cleared cash (book)"
+              value={formatNgn(pred?.clearedCashNgn || 0)}
+              sub={`90d outlook: ${pred?.cashHorizons?.find((h) => h.days === 90)?.stress || '—'}`}
+              icon={<Wallet size={12} className="text-teal-600" />}
+            />
+          </section>
+
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+            <section className="rounded-2xl border border-slate-200/90 bg-white p-5 shadow-sm">
+              <h2 className="text-[11px] font-black uppercase tracking-wider text-[#134e4a] flex items-center gap-2">
+                <BarChart3 size={14} />
+                Sales mix — aluminium vs aluzinc
+              </h2>
+              <p className="text-[11px] text-slate-500 mt-1 mb-4">Produced revenue share by metal family</p>
+              <div className="space-y-4">
+                <MixBar
+                  label="Aluminium"
+                  pct={aluMix?.sharePct || 0}
+                  amount={aluMix?.revenueNgn || 0}
+                  colorClass="bg-sky-600"
+                />
+                <MixBar
+                  label="Aluzinc (PPGI)"
+                  pct={azMix?.sharePct || 0}
+                  amount={azMix?.revenueNgn || 0}
+                  colorClass="bg-[#134e4a]"
+                />
+                {(sales?.mixRows || [])
+                  .filter((r) => r.family === 'other' && r.revenueNgn > 0)
+                  .map((r) => (
+                    <MixBar
+                      key={r.family}
+                      label="Other"
+                      pct={r.sharePct}
+                      amount={r.revenueNgn}
+                      colorClass="bg-slate-400"
+                    />
+                  ))}
+              </div>
+              <dl className="mt-5 grid grid-cols-2 gap-3 border-t border-slate-100 pt-4 text-xs">
+                <div>
+                  <dt className="text-slate-500 font-bold uppercase text-[10px]">Quoted (period)</dt>
+                  <dd className="font-black tabular-nums">{formatNgn(sales?.quotedNgn || 0)}</dd>
+                </div>
+                <div>
+                  <dt className="text-slate-500 font-bold uppercase text-[10px]">Sales momentum</dt>
+                  <dd className={`font-black tabular-nums flex items-center gap-1 ${pred?.salesMomentumPct != null && pred.salesMomentumPct < 0 ? 'text-rose-700' : 'text-emerald-700'}`}>
+                    {pred?.salesMomentumPct != null ? (
+                      <>
+                        {pred.salesMomentumPct >= 0 ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
+                        {pred.salesMomentumPct >= 0 ? '+' : ''}
+                        {pred.salesMomentumPct}%
+                      </>
+                    ) : (
+                      '—'
+                    )}
+                  </dd>
+                </div>
+              </dl>
+            </section>
+
+            <section className="rounded-2xl border border-slate-200/90 bg-white p-5 shadow-sm">
+              <h2 className="text-[11px] font-black uppercase tracking-wider text-[#134e4a] flex items-center gap-2">
+                <Layers size={14} />
+                Quote-to-production funnel
+              </h2>
+              <ul className="mt-4 space-y-2 text-sm">
+                {[
+                  ['Quotations', sales?.funnel?.quotations],
+                  ['Approved / paid path', sales?.funnel?.approved],
+                  ['With payment', sales?.funnel?.withPayment],
+                  ['Cutting lists', sales?.funnel?.cuttingLists],
+                  ['Production completed', sales?.funnel?.productionCompleted],
+                ].map(([label, val]) => (
+                  <li key={label} className="flex justify-between gap-2 border-b border-slate-50 pb-2">
+                    <span className="text-slate-600">{label}</span>
+                    <span className="font-black tabular-nums text-slate-900">{val ?? 0}</span>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          </div>
+
+          <section>
+            <h2 className="text-[11px] font-black uppercase tracking-wider text-[#134e4a] mb-3 flex items-center gap-2">
+              <Layers size={14} />
+              Coil inventory intelligence
+            </h2>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              {(inv?.families || []).map((fam) => (
+                <InventoryFamilyCard key={fam.family} fam={fam} />
+              ))}
+            </div>
+            <p className="text-[10px] text-slate-400 mt-2">
+              Total coil kg tracked: {(inv?.totalCoilKg || 0).toLocaleString()} · Alu{' '}
+              {inv?.aluminiumSharePct ?? 0}% / Aluzinc {inv?.aluzincSharePct ?? 0}% of stock
+            </p>
+          </section>
+
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+            <section className="rounded-2xl border border-teal-200/80 bg-teal-50/30 p-5">
+              <h2 className="text-[11px] font-black uppercase tracking-wider text-[#134e4a]">Cash forecast</h2>
+              <p className="text-[11px] text-slate-600 mt-1">
+                Based on 4-month average treasury flows + pending outflows
+              </p>
+              <ul className="mt-4 space-y-3">
+                {(pred?.cashHorizons || []).map((h) => (
+                  <li key={h.days} className="rounded-xl bg-white/80 border border-white px-3 py-2.5 text-sm">
+                    <div className="flex justify-between font-bold text-slate-800">
+                      <span>{h.days}-day horizon</span>
+                      <span className={`tabular-nums ${stressTone(h.stress)}`}>{h.stress}</span>
+                    </div>
+                    <p className="text-[11px] text-slate-600 mt-1 tabular-nums">
+                      Projected balance {formatNgn(h.projectedBalanceNgn)} · net{' '}
+                      {formatNgn(h.projectedNetNgn)}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+              <dl className="mt-4 grid grid-cols-2 gap-2 text-xs">
+                <div>
+                  <dt className="text-slate-500 uppercase text-[10px] font-bold">Avg inflow / mo</dt>
+                  <dd className="font-black tabular-nums">{formatNgn(pred?.avgMonthlyInflowNgn || 0)}</dd>
+                </div>
+                <div>
+                  <dt className="text-slate-500 uppercase text-[10px] font-bold">Avg outflow / mo</dt>
+                  <dd className="font-black tabular-nums">{formatNgn(pred?.avgMonthlyOutflowNgn || 0)}</dd>
+                </div>
+                <div>
+                  <dt className="text-slate-500 uppercase text-[10px] font-bold">Est. gross margin</dt>
+                  <dd className="font-black tabular-nums">
+                    {pred?.grossMarginPct != null ? `${pred.grossMarginPct}%` : '—'}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-slate-500 uppercase text-[10px] font-bold">Pending outflows</dt>
+                  <dd className="font-black tabular-nums">{formatNgn(pred?.pendingOutflowsNgn || 0)}</dd>
+                </div>
+              </dl>
+            </section>
+
+            <section className="rounded-2xl border border-slate-200/90 bg-white p-5 shadow-sm">
+              <h2 className="text-[11px] font-black uppercase tracking-wider text-[#134e4a]">
+                Revenue trend (6 months)
+              </h2>
+              <ul className="mt-4 space-y-2">
+                {(sales?.revenueTrend || []).map((row) => {
+                  const max = Math.max(...(sales.revenueTrend || []).map((r) => r.producedSalesNgn), 1);
+                  return (
+                    <li key={row.key}>
+                      <div className="flex justify-between text-[11px] font-bold text-slate-700 mb-1">
+                        <span>{row.key}</span>
+                        <span className="tabular-nums text-[#134e4a]">{formatNgn(row.producedSalesNgn)}</span>
+                      </div>
+                      <div className="h-1.5 rounded-full bg-slate-100 overflow-hidden">
+                        <div
+                          className="h-full bg-[#134e4a] rounded-full"
+                          style={{ width: `${(row.producedSalesNgn / max) * 100}%` }}
+                        />
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+
+              <h3 className="text-[10px] font-black uppercase tracking-wider text-slate-500 mt-6 mb-2">
+                Receivables aging
+              </h3>
+              <dl className="grid grid-cols-2 gap-2 text-xs">
+                {[
+                  ['0–30 days', sales?.receivablesAging?.['0_30']],
+                  ['31–60 days', sales?.receivablesAging?.['31_60']],
+                  ['61–90 days', sales?.receivablesAging?.['61_90']],
+                  ['90+ days', sales?.receivablesAging?.over_90],
+                ].map(([label, val]) => (
+                  <div key={label}>
+                    <dt className="text-slate-500">{label}</dt>
+                    <dd className="font-black tabular-nums">{formatNgn(val || 0)}</dd>
+                  </div>
+                ))}
+              </dl>
+            </section>
+          </div>
+
+          <section className="rounded-2xl border border-slate-200/90 bg-white p-5 shadow-sm">
+            <h2 className="text-[11px] font-black uppercase tracking-wider text-[#134e4a] mb-4">
+              Top customers ({data.periodLabel?.toLowerCase()})
+            </h2>
+            {(sales?.topCustomers || []).length === 0 ? (
+              <p className="text-sm text-slate-500">No quotation activity in this period yet.</p>
+            ) : (
+              <ul className="space-y-3">
+                {sales.topCustomers.slice(0, 8).map((c, idx) => (
+                  <li key={c.customerID || idx} className="flex items-center gap-3">
+                    <span className="text-xs font-black text-slate-400 w-5">{idx + 1}</span>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex justify-between text-sm font-bold gap-2">
+                        <span className="truncate">{c.customerName}</span>
+                        <span className="tabular-nums text-[#134e4a] shrink-0">{formatNgn(c.revenueNgn)}</span>
+                      </div>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+
+          <p className="text-[10px] text-slate-400">
+            Generated {data.generatedAtISO ? new Date(data.generatedAtISO).toLocaleString() : '—'} · Branch scope{' '}
+            {data.branchScope}
+          </p>
+        </div>
+      ) : !err && busy ? (
+        <p className="text-sm text-slate-500">Loading analytics…</p>
+      ) : null}
+    </MainPanel>
+  );
+}

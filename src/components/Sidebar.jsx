@@ -12,6 +12,7 @@ import {
   LayoutDashboard,
   BarChart3,
   Settings,
+  Sparkles,
   ChevronLeft,
   ChevronRight,
   ShieldCheck,
@@ -20,6 +21,7 @@ import {
   UserCircle,
 } from 'lucide-react';
 import { useWorkspace } from '../context/WorkspaceContext';
+import { userMayViewManagementReportsClient } from '../lib/reportsAccess';
 import { ZAREWA_LOGO_SRC } from '../Data/companyQuotation';
 
 function pathMatches(locationPath, basePath) {
@@ -59,6 +61,10 @@ const Sidebar = ({ mobileOpen = false, onCloseMobile, collapsed = false, onToggl
         ? 'bg-white/10 text-[#2dd4bf] shadow-inner'
         : 'text-white/40 hover:text-white hover:bg-white/5'
     }`;
+
+  const roleKey = ws?.session?.user?.roleKey;
+  const permissions = ws?.session?.user?.permissions;
+  const mayViewBi = userMayViewManagementReportsClient(roleKey, permissions);
 
   const fullMenuItems = [
     {
@@ -103,6 +109,12 @@ const Sidebar = ({ mobileOpen = false, onCloseMobile, collapsed = false, onToggl
       visible: ws?.canAccessModule?.('reports') ?? true,
     },
     {
+      icon: <Sparkles size={18} />,
+      label: 'Business intelligence',
+      path: '/analytics',
+      visible: mayViewBi,
+    },
+    {
       icon: <Users size={18} />,
       label: 'Human Resources',
       path: '/hr',
@@ -133,7 +145,6 @@ const Sidebar = ({ mobileOpen = false, onCloseMobile, collapsed = false, onToggl
     },
   ];
 
-  const roleKey = ws?.session?.user?.roleKey;
   let menuItems =
     roleKey === 'ceo'
       ? [

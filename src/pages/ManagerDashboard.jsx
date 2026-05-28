@@ -23,6 +23,7 @@ import {
   ClipboardList,
   PencilLine,
   Unlock,
+  Sparkles,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -51,6 +52,7 @@ import {
 import { formatRefundReasonCategory, matchesInboxSearch } from '../lib/managerDashboardCore';
 import { isEffectivelyFullyPaid } from '../lib/paymentOutstandingTolerance';
 import { formatPersonName } from '../lib/formatPersonName';
+import { userMayViewManagementReportsClient } from '../lib/reportsAccess';
 import { Card, Button } from '../components/ui';
 import { ModalFrame, PageShell } from '../components/layout';
 import { DashboardKpiStrip } from '../components/dashboard/DashboardKpiStrip';
@@ -132,6 +134,10 @@ const ManagerDashboard = () => {
     [ws?.session?.user?.roleKey, ws?.permissions]
   );
   const canExecInvOpenAdjust = Boolean(ws?.hasPermission?.('inventory.adjust'));
+  const showBiShortcut = useMemo(
+    () => userMayViewManagementReportsClient(ws?.session?.user?.roleKey, ws?.permissions),
+    [ws?.session?.user?.roleKey, ws?.permissions]
+  );
 
   const selectedRefundRecord = useMemo(() => {
     if (selectedIntel?.kind !== 'refund' || !selectedIntel.refundId) return null;
@@ -1397,6 +1403,18 @@ const ManagerDashboard = () => {
                 Edit stock
               </button>
             ) : null}
+          </div>
+        ) : null}
+        {showBiShortcut ? (
+          <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-white/10 pt-4">
+            <button
+              type="button"
+              onClick={() => navigate('/analytics')}
+              className="inline-flex items-center gap-2 rounded-lg border border-teal-300/40 bg-teal-400/10 px-3 py-2 text-[10px] font-black uppercase tracking-wide text-teal-100 hover:bg-teal-400/20"
+            >
+              <Sparkles size={14} aria-hidden />
+              Business intelligence
+            </button>
           </div>
         ) : null}
         <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
