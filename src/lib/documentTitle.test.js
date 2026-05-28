@@ -21,8 +21,13 @@ describe('documentTitleForPath', () => {
     expect(documentTitleForPath('/deliveries')).toContain('Store & production');
   });
 
-  it('uses page-not-found title for removed HR / accounting paths', () => {
-    expect(documentTitleForPath('/hr/staff')).toMatch(/page not found/i);
+  it('maps HR module paths', () => {
+    expect(documentTitleForPath('/hr/dashboard')).toContain('Human Resources');
+    expect(documentTitleForPath('/my-profile/overview')).toContain('My profile');
+    expect(documentTitleForPath('/team-hr/staff')).toContain('Team HR');
+  });
+
+  it('uses page-not-found title for removed accounting paths', () => {
     expect(documentTitleForPath('/accounting/ledger')).toMatch(/page not found/i);
   });
 

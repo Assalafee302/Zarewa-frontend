@@ -31,7 +31,11 @@ import WorkspaceMonitoring from './pages/WorkspaceMonitoring';
 import ExecDashboard from './pages/ExecDashboard';
 import PriceListAdmin from './pages/PriceListAdmin';
 import PricingPolicyAdmin from './pages/PricingPolicyAdmin';
+import HumanResources from './pages/hr/HumanResources';
+import MyProfile from './pages/hr/MyProfile';
+import TeamHr from './pages/hr/TeamHr';
 import DocumentTitleSync from './components/DocumentTitleSync';
+import { canAccessMyProfileHr } from './lib/hrAccess';
 import PrintSessionCleanup from './components/PrintSessionCleanup';
 import {
   Search,
@@ -716,6 +720,20 @@ function AppShell() {
                         ) : null}
                       </div>
                       <div className="py-1">
+                        {canAccessMyProfileHr(ws?.permissions) ? (
+                          <button
+                            type="button"
+                            role="menuitem"
+                            className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-[13px] font-semibold text-slate-800 transition hover:bg-teal-50/80"
+                            onClick={() => {
+                              setUserMenuOpen(false);
+                              guardedNavigate('/my-profile');
+                            }}
+                          >
+                            <User size={16} className="shrink-0 text-gray-400" aria-hidden />
+                            My profile (HR)
+                          </button>
+                        ) : null}
                         <button
                           type="button"
                           role="menuitem"
@@ -921,8 +939,31 @@ function AppShell() {
                 </ModuleRouteGuard>
               }
             />
-            <Route path="/hr/*" element={<Navigate to="/" replace />} />
-            <Route path="/hr-next/*" element={<Navigate to="/" replace />} />
+            <Route
+              path="/my-profile/*"
+              element={
+                <ModuleRouteGuard moduleKey="my_profile_hr">
+                  <MyProfile />
+                </ModuleRouteGuard>
+              }
+            />
+            <Route
+              path="/team-hr/*"
+              element={
+                <ModuleRouteGuard moduleKey="team_hr">
+                  <TeamHr />
+                </ModuleRouteGuard>
+              }
+            />
+            <Route
+              path="/hr/*"
+              element={
+                <ModuleRouteGuard moduleKey="hr">
+                  <HumanResources />
+                </ModuleRouteGuard>
+              }
+            />
+            <Route path="/hr-next/*" element={<Navigate to="/hr" replace />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </main>

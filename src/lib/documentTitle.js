@@ -24,6 +24,51 @@ export function documentTitleForPath(pathname) {
   if (p === '/edit-approvals') return `Edit approvals | ${DOCUMENT_TITLE_BASE}`;
   if (p === '/manager') return `Management dashboard | ${DOCUMENT_TITLE_BASE}`;
 
+  if (p === '/my-profile' || p.startsWith('/my-profile/')) {
+    const sec = p.split('/')[2] || 'overview';
+    const labels = {
+      overview: 'Overview',
+      employment: 'Employment',
+      leave: 'My leave',
+      loans: 'My loans',
+      attendance: 'Attendance',
+      payslips: 'Payslips',
+      documents: 'Documents',
+      benefits: 'Benefits',
+      policies: 'Policies',
+      help: 'HR help',
+    };
+    return `My profile – ${labels[sec] || 'HR'} | ${DOCUMENT_TITLE_BASE}`;
+  }
+
+  if (p === '/team-hr' || p.startsWith('/team-hr/')) {
+    return `Team HR | ${DOCUMENT_TITLE_BASE}`;
+  }
+
+  if (p === '/hr/executive' || p.startsWith('/hr/executive/')) {
+    return `Executive HR | ${DOCUMENT_TITLE_BASE}`;
+  }
+
+  if (p === '/hr' || p.startsWith('/hr/')) {
+    const sec = p.split('/')[2] || 'dashboard';
+    const labels = {
+      dashboard: 'Dashboard',
+      staff: 'Staff',
+      requests: 'Requests',
+      leave: 'Leave',
+      attendance: 'Attendance',
+      payroll: 'Payroll',
+      loans: 'Loans',
+      benefits: 'Benefits',
+      transfers: 'Transfers',
+      discipline: 'Discipline',
+      letters: 'Letters',
+      reports: 'Reports',
+      settings: 'Settings',
+    };
+    return `Human Resources – ${labels[sec] || sec} | ${DOCUMENT_TITLE_BASE}`;
+  }
+
   if (p.startsWith('/settings')) {
     const sec = p.split('/')[2] || 'profile';
     const labels = {

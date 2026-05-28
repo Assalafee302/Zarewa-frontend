@@ -16,6 +16,8 @@ import {
   ChevronRight,
   ShieldCheck,
   ClipboardCheck,
+  Users,
+  UserCircle,
 } from 'lucide-react';
 import { useWorkspace } from '../context/WorkspaceContext';
 import { ZAREWA_LOGO_SRC } from '../Data/companyQuotation';
@@ -99,6 +101,21 @@ const Sidebar = ({ mobileOpen = false, onCloseMobile, collapsed = false, onToggl
       label: 'Reports',
       path: '/reports',
       visible: ws?.canAccessModule?.('reports') ?? true,
+    },
+    {
+      icon: <Users size={18} />,
+      label: 'Human Resources',
+      path: '/hr',
+      active: pathMatches(p, '/hr'),
+      visible: ws?.canAccessModule?.('hr') ?? false,
+    },
+    {
+      icon: <UserCircle size={18} />,
+      label: 'Team HR',
+      path: '/team-hr',
+      active: pathMatches(p, '/team-hr'),
+      visible:
+        (ws?.canAccessModule?.('team_hr') ?? false) && !(ws?.canAccessModule?.('hr') ?? false),
     },
     {
       icon: <ClipboardCheck size={18} />,

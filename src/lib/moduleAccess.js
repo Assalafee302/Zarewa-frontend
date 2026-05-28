@@ -30,6 +30,39 @@ export const MODULE_ACCESS_POLICY = {
   edit_approvals: ['dashboard.view'],
   settings: ['settings.view', 'period.manage'],
   office: ['office.use'],
+  hr: [
+    'hr.directory.view',
+    'hr.staff.manage',
+    'hr.requests.review',
+    'hr.requests.hr_review',
+    'hr.requests.gm_approve',
+    'hr.requests.final_approve',
+    'hr.payroll.prepare',
+    'hr.payroll.manage',
+    'hr.payroll.gm_approve',
+    'hr.payroll.md_approve',
+    'hr.payroll.view_sensitive',
+    'hr.reports.view',
+    'hr.settings.manage',
+  ],
+  team_hr: [
+    'hr.team.view',
+    'hr.attendance.mark',
+    'hr.daily_roll.mark',
+    'hr.leave.endorse',
+    'hr.loan.endorse',
+    'hr.branch.endorse_staff',
+  ],
+  my_profile_hr: [
+    'hr.self',
+    'hr.my_profile.view',
+    'hr.my_leave.request',
+    'hr.my_loan.request',
+    'hr.my_attendance.view',
+    'hr.my_payslip.view',
+    'hr.my_documents.view',
+  ],
+  executive_hr: ['hr.executive.view', 'hr.branch_contribution.mark'],
 };
 
 export function canAccessModuleWithPermissions(permissions, moduleKey) {
@@ -53,7 +86,15 @@ export function canAccessModuleWithPermissions(permissions, moduleKey) {
       return MODULE_ACCESS_POLICY.settings.some(has);
     case 'office':
       return MODULE_ACCESS_POLICY.office.some(has) || has('*');
+    case 'hr':
+      return MODULE_ACCESS_POLICY.hr.some(has);
+    case 'team_hr':
+      return MODULE_ACCESS_POLICY.team_hr.some(has);
+    case 'my_profile_hr':
+      return MODULE_ACCESS_POLICY.my_profile_hr.some(has);
+    case 'executive_hr':
+      return MODULE_ACCESS_POLICY.executive_hr.some(has);
     default:
-      return true;
+      return false;
   }
 }

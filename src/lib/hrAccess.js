@@ -1,0 +1,101 @@
+/**
+ * Client HR permission helpers (keep in sync with server/hrPermissions.js).
+ */
+
+import { hasPermissionInList } from './moduleAccess.js';
+
+export const HR_MODULE_PERMISSIONS = [
+  'hr.directory.view',
+  'hr.staff.manage',
+  'hr.requests.review',
+  'hr.requests.hr_review',
+  'hr.requests.gm_approve',
+  'hr.requests.final_approve',
+  'hr.payroll.prepare',
+  'hr.payroll.manage',
+  'hr.payroll.gm_approve',
+  'hr.payroll.md_approve',
+  'hr.payroll.view_sensitive',
+  'hr.executive.view',
+  'hr.reports.view',
+  'hr.settings.manage',
+];
+
+export const TEAM_HR_PERMISSIONS = [
+  'hr.team.view',
+  'hr.attendance.mark',
+  'hr.daily_roll.mark',
+  'hr.leave.endorse',
+  'hr.loan.endorse',
+  'hr.branch.endorse_staff',
+];
+
+export const MY_PROFILE_HR_PERMISSIONS = [
+  'hr.self',
+  'hr.my_profile.view',
+  'hr.my_leave.request',
+  'hr.my_loan.request',
+  'hr.my_attendance.view',
+  'hr.my_payslip.view',
+  'hr.my_documents.view',
+];
+
+export const EXECUTIVE_HR_PERMISSIONS = ['hr.executive.view', 'hr.branch_contribution.mark'];
+
+const SENSITIVE_VIEW = [
+  'hr.payroll.view_sensitive',
+  'hr.payroll.prepare',
+  'hr.payroll.manage',
+  'hr.payroll.gm_approve',
+  'hr.payroll.md_approve',
+  'hr.staff.manage',
+  'hr.executive.view',
+];
+
+/**
+ * @param {string[] | undefined} permissions
+ * @param {string} permission
+ */
+export function hrHasPermission(permissions, permission) {
+  if (!permission) return false;
+  if (hasPermissionInList(permissions, '*')) return true;
+  if (hasPermissionInList(permissions, permission)) return true;
+  if (permission === 'hr.requests.review') {
+    return hasPermissionInList(permissions, 'hr.requests.hr_review');
+  }
+  if (permission === 'hr.requests.gm_approve') {
+    return hasPermissionInList(permissions, 'hr.requests.final_approve');
+  }
+  return false;
+}
+
+/** @param {string[] | undefined} permissions */
+export function canAccessHrModule(permissions) {
+  if (hasPermissionInList(permissions, '*')) return true;
+  return HR_MODULE_PERMISSIONS.some((p) => hrHasPermission(permissions, p));
+}
+
+/** @param {string[] | undefined} permissions */
+export function canAccessTeamHr(permissions) {
+  if (hasPermissionInList(permissions, '*')) return true;
+  return TEAM_HR_PERMISSIONS.some((p) => hrHasPermission(permissions, p));
+}
+
+/** @param {string[] | undefined} permissions */
+export function canAccessMyProfileHr(permissions) {
+  if (hasPermissionInList(permissions, '*')) return true;
+  if (MY_PROFILE_HR_PERMISSIONS.some((p) => hrHasPermission(permissions, p))) return true;
+  return canAccessHrModule(permissions) || canAccessTeamHr(permissions);
+}
+
+/** @param {string[] | undefined} permissions */
+export function canAccessExecutiveHr(permissions) {
+  if (hasPermissionInList(permissions, '*')) return true;
+  return EXECUTIVE_HR_PERMISSIONS.some((p) => hrHasPermission(permissions, p));
+}
+
+/** @param {string[] | undefined} permissions */
+export function canViewOrgSensitiveHr(permissions) {
+  if (hasPermissionInList(permissions, '*')) return true;
+  return SENSITIVE_VIEW.some((p) => hrHasPermission(permissions, p));
+}

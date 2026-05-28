@@ -19,9 +19,16 @@ describe('moduleAccess', () => {
     expect(MODULE_ACCESS_POLICY.finance.length).toBeGreaterThan(0);
   });
 
-  it('finance permissions grant finance module; unknown module keys stay permissive', () => {
+  it('finance permissions grant finance module; unknown module keys are denied', () => {
     expect(canAccessModuleWithPermissions(['finance.view'], 'finance')).toBe(true);
-    expect(canAccessModuleWithPermissions(['finance.view'], 'legacy_hr')).toBe(true);
+    expect(canAccessModuleWithPermissions(['finance.view'], 'legacy_hr')).toBe(false);
+  });
+
+  it('hr module requires HR permissions', () => {
+    expect(canAccessModuleWithPermissions(['hr.directory.view'], 'hr')).toBe(true);
+    expect(canAccessModuleWithPermissions(['sales.view'], 'hr')).toBe(false);
+    expect(canAccessModuleWithPermissions(['hr.team.view'], 'team_hr')).toBe(true);
+    expect(canAccessModuleWithPermissions(['hr.self'], 'my_profile_hr')).toBe(true);
   });
 
   it('dashboard.view enables edit approvals visibility', () => {

@@ -13,6 +13,9 @@ export function inferAiModeFromPath(pathname) {
   if (path.startsWith('/procurement')) return 'procurement';
   if (path.startsWith('/operations') || path.startsWith('/deliveries')) return 'operations';
   if (path.startsWith('/accounts')) return 'finance';
+  if (path.startsWith('/hr') || path.startsWith('/my-profile') || path.startsWith('/team-hr')) {
+    return 'hr';
+  }
   return 'search';
 }
 

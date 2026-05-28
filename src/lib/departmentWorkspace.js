@@ -9,6 +9,8 @@ export const WORKSPACE_ROLE_KEYS = [
   'sales_staff',
   'cashier',
   'operations_officer',
+  'hr_admin',
+  'gmhr',
 ];
 
 const LEGACY_DEPARTMENT_TO_ROLE = {
@@ -38,6 +40,8 @@ export const WORKSPACE_DEPARTMENT_LABELS = {
   sales_staff: 'Sales officer',
   cashier: 'Cashier',
   operations_officer: 'Operations officer',
+  hr_admin: 'HR / Admin',
+  gmhr: 'GM HR',
   general: 'General / cross-functional',
   customer: 'Customer relations',
   sales: 'Sales',
@@ -89,6 +93,10 @@ export function pathToModuleKey(pathname) {
   if (p === '/accounts') return 'finance';
   if (p === '/reports') return 'reports';
   if (p === '/settings' || p.startsWith('/settings/')) return 'settings';
+  if (p === '/my-profile' || p.startsWith('/my-profile/')) return 'my_profile_hr';
+  if (p === '/team-hr' || p.startsWith('/team-hr/')) return 'team_hr';
+  if (p === '/hr/executive' || p.startsWith('/hr/executive/')) return 'executive_hr';
+  if (p === '/hr' || p.startsWith('/hr/')) return 'hr';
   return null;
 }
 
