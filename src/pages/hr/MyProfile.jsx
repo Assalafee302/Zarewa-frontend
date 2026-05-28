@@ -5,6 +5,7 @@ import HrPlaceholder from './HrPlaceholder';
 import MyProfileOverview from './MyProfileOverview';
 import MyLeave from './MyLeave';
 import MyAttendance from './MyAttendance';
+import MyPayslips from './MyPayslips';
 
 const NAV = [
   { to: '/my-profile/overview', label: 'Overview', end: true },
@@ -37,7 +38,7 @@ export default function MyProfile() {
         <Route path="leave" element={<MyLeave />} />
         <Route path="loans" element={<HrPlaceholder section="My loans" />} />
         <Route path="attendance" element={<MyAttendance />} />
-        <Route path="payslips" element={<HrPlaceholder section="My payslips" detail="Unlock with your password to download payslip PDFs." />} />
+        <Route path="payslips" element={<MyPayslips />} />
         <Route path="documents" element={<HrPlaceholder section="My documents" />} />
         <Route path="benefits" element={<HrPlaceholder section="Benefits & allowances" />} />
         <Route path="policies" element={<HrPlaceholder section="Policies" detail="Handbook and IT security acknowledgements are recorded when you sign in." />} />

@@ -8,6 +8,7 @@ import HrStaffProfile from './HrStaffProfile';
 import HrRequests from './HrRequests';
 import HrLeave from './HrLeave';
 import HrAttendance from './HrAttendance';
+import HrPayroll from './HrPayroll';
 import HrPlaceholder from './HrPlaceholder';
 import ExecutiveHr from './ExecutiveHr';
 
@@ -53,7 +54,7 @@ export default function HumanResources() {
         <Route path="requests" element={<HrRequests />} />
         <Route path="leave" element={<HrLeave />} />
         <Route path="attendance" element={<HrAttendance />} />
-        <Route path="payroll" element={<HrPlaceholder section="Payroll" detail="Payroll runs, GMHR approval, and finance payout connect here. Use password unlock for line amounts." />} />
+        <Route path="payroll" element={<HrPayroll />} />
         <Route path="loans" element={<HrPlaceholder section="Staff loans" />} />
         <Route path="benefits" element={<HrPlaceholder section="Benefits & allowances" />} />
         <Route path="transfers" element={<HrPlaceholder section="Transfers" />} />

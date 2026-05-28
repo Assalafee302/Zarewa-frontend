@@ -44,6 +44,16 @@ export function HrRequestsPanel({
   const [busyId, setBusyId] = useState('');
   const [reviewId, setReviewId] = useState('');
   const [reviewNote, setReviewNote] = useState('');
+  const [reasonCode, setReasonCode] = useState('policy');
+
+  const REASON_CODES = [
+    { value: 'policy', label: 'Policy' },
+    { value: 'documentation', label: 'Documentation' },
+    { value: 'attendance', label: 'Attendance' },
+    { value: 'performance', label: 'Performance' },
+    { value: 'finance', label: 'Finance' },
+    { value: 'other', label: 'Other' },
+  ];
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -75,10 +85,15 @@ export function HrRequestsPanel({
   const runReview = async (requestId, status, approve) => {
     const path = hrRequestReviewPath(requestId, status);
     if (!path) return;
+    const note = reviewNote.trim();
+    if (note.length < 3) {
+      setError('A review note of at least 3 characters is required.');
+      return;
+    }
     setBusyId(requestId);
     const { ok, data } = await apiFetch(path, {
       method: 'PATCH',
-      body: JSON.stringify({ approve, note: reviewNote.trim() || undefined }),
+      body: JSON.stringify({ approve, note, reasonCode }),
     });
     setBusyId('');
     if (!ok || !data?.ok) {
@@ -218,11 +233,23 @@ export function HrRequestsPanel({
                       </div>
                       {reviewId === r.id ? (
                         <div className="mt-2 space-y-2 rounded-lg border border-slate-100 bg-slate-50 p-2">
+                          <select
+                            value={reasonCode}
+                            onChange={(e) => setReasonCode(e.target.value)}
+                            className="w-full rounded-lg border border-slate-200 px-2 py-1 text-xs"
+                            aria-label="Reason code"
+                          >
+                            {REASON_CODES.map((rc) => (
+                              <option key={rc.value} value={rc.value}>
+                                {rc.label}
+                              </option>
+                            ))}
+                          </select>
                           <textarea
                             value={reviewNote}
                             onChange={(e) => setReviewNote(e.target.value)}
                             rows={2}
-                            placeholder="Optional note"
+                            placeholder="Review note (required, min 3 characters)"
                             className="w-full rounded-lg border border-slate-200 px-2 py-1 text-xs"
                           />
                           <div className="flex gap-1">

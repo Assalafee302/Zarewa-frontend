@@ -144,3 +144,40 @@ export function canManageHrDeductions(permissions) {
 export function canRequestMyLeave(permissions) {
   return hrHasPermission(permissions, 'hr.my_leave.request') || canAccessMyProfileHr(permissions);
 }
+
+/** @param {string[] | undefined} permissions */
+export function canPreparePayroll(permissions) {
+  return hrHasPermission(permissions, 'hr.payroll.prepare') || hrHasPermission(permissions, 'hr.payroll.manage');
+}
+
+/** @param {string[] | undefined} permissions */
+export function canGmApprovePayroll(permissions) {
+  return hrHasPermission(permissions, 'hr.payroll.gm_approve');
+}
+
+/** @param {string[] | undefined} permissions */
+export function canMdApprovePayroll(permissions) {
+  return hrHasPermission(permissions, 'hr.payroll.md_approve');
+}
+
+/** @param {string[] | undefined} permissions */
+export function canPayPayroll(permissions) {
+  return hrHasPermission(permissions, 'hr.payroll.pay');
+}
+
+/** @param {string[] | undefined} permissions */
+export function canExportPayroll(permissions) {
+  return hrHasPermission(permissions, 'hr.payroll.export') || canPayPayroll(permissions);
+}
+
+/** @param {string[] | undefined} permissions */
+export function canMarkBranchContribution(permissions) {
+  return (
+    hrHasPermission(permissions, 'hr.branch_contribution.mark') || canAccessExecutiveHr(permissions)
+  );
+}
+
+/** @param {string[] | undefined} permissions */
+export function canViewMyPayslips(permissions) {
+  return hrHasPermission(permissions, 'hr.my_payslip.view') || canAccessMyProfileHr(permissions);
+}

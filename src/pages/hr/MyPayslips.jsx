@@ -1,0 +1,92 @@
+import React, { useEffect, useState } from 'react';
+import { apiFetch } from '../../lib/apiBase';
+import { useWorkspace } from '../../context/WorkspaceContext';
+import { HrSensitiveGate } from '../../components/hr/HrSensitiveGate';
+import { useHrSensitiveAccess } from '../../hooks/useHrSensitiveAccess';
+import { canViewOrgSensitiveHr } from '../../lib/hrAccess';
+import { formatNgn } from '../../lib/hrFormat';
+import { formatPeriodYyyymm } from '../../lib/hrPayroll';
+import {
+  AppTable,
+  AppTableBody,
+  AppTableTd,
+  AppTableTh,
+  AppTableThead,
+  AppTableTr,
+  AppTableWrap,
+} from '../../components/ui/AppDataTable';
+
+export default function MyPayslips() {
+  const ws = useWorkspace();
+  const sensitive = useHrSensitiveAccess();
+  const showSensitiveInline = canViewOrgSensitiveHr(ws?.permissions);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [payslips, setPayslips] = useState([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      const fetcher = showSensitiveInline || sensitive.isUnlocked ? sensitive.fetchWithSensitive : apiFetch;
+      const { ok, data } = await fetcher('/api/hr/payslips');
+      if (cancelled) return;
+      if (!ok || !data?.ok) {
+        setError(data?.error || 'Could not load payslips.');
+        setPayslips([]);
+      } else {
+        setPayslips(data.payslips || []);
+        setError('');
+      }
+      setLoading(false);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [ws?.refreshEpoch, sensitive.isUnlocked, showSensitiveInline, sensitive.fetchWithSensitive]);
+
+  const body = (
+    <>
+      {loading ? <p className="text-sm text-slate-600">Loading payslips…</p> : null}
+      {!loading && payslips.length === 0 ? (
+        <p className="text-sm text-slate-600">No locked or paid payslips on file yet.</p>
+      ) : null}
+      {!loading && payslips.length > 0 ? (
+        <AppTableWrap>
+          <AppTable role="numeric">
+            <AppTableThead>
+              <AppTableTh>Period</AppTableTh>
+              <AppTableTh>Status</AppTableTh>
+              <AppTableTh align="right">Gross</AppTableTh>
+              <AppTableTh align="right">Net pay</AppTableTh>
+            </AppTableThead>
+            <AppTableBody>
+              {payslips.map((p) => (
+                <AppTableTr key={`${p.runId}-${p.periodYyyymm}`}>
+                  <AppTableTd>{formatPeriodYyyymm(p.periodYyyymm)}</AppTableTd>
+                  <AppTableTd>{p.runStatus}</AppTableTd>
+                  <AppTableTd align="right">
+                    {p.amountsRedacted ? '—' : formatNgn(p.grossNgn)}
+                  </AppTableTd>
+                  <AppTableTd align="right">{p.amountsRedacted ? '—' : formatNgn(p.netNgn)}</AppTableTd>
+                </AppTableTr>
+              ))}
+            </AppTableBody>
+          </AppTable>
+        </AppTableWrap>
+      ) : null}
+    </>
+  );
+
+  return (
+    <div className="space-y-4">
+      <p className="text-sm text-slate-600">
+        Payslips appear after HQ locks payroll and finance marks the run paid. Unlock to view amounts.
+      </p>
+      {error ? (
+        <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-800">{error}</div>
+      ) : null}
+      {showSensitiveInline ? body : <HrSensitiveGate label="View your payslip amounts">{body}</HrSensitiveGate>}
+    </div>
+  );
+}
