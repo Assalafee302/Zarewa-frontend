@@ -80,6 +80,7 @@ const CoilProfile = lazy(() => import('./pages/CoilProfile'));
 const Operations = lazy(() => import('./pages/Operations'));
 const MaterialExceptions = lazy(() => import('./pages/MaterialExceptions'));
 const Account = lazy(() => import('./pages/Account'));
+const Sales = lazy(() => import('./pages/Sales'));
 const Customers = lazy(() => import('./pages/Customers'));
 const CustomerDashboard = lazy(() => import('./pages/CustomerDashboard'));
 const Reports = lazy(() => import('./pages/Reports'));
