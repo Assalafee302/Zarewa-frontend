@@ -9,6 +9,10 @@ import HrRequests from './HrRequests';
 import HrLeave from './HrLeave';
 import HrAttendance from './HrAttendance';
 import HrPayroll from './HrPayroll';
+import HrStaffRegister from './HrStaffRegister';
+import HrTransfers from './HrTransfers';
+import HrDiscipline from './HrDiscipline';
+import HrLoans from './HrLoans';
 import HrPlaceholder from './HrPlaceholder';
 import ExecutiveHr from './ExecutiveHr';
 
@@ -50,15 +54,16 @@ export default function HumanResources() {
         <Route index element={<Navigate to="dashboard" replace />} />
         <Route path="dashboard" element={<HrDashboard />} />
         <Route path="staff" element={<HrStaffDirectory />} />
+        <Route path="staff/register" element={<HrStaffRegister />} />
         <Route path="staff/:userId" element={<HrStaffProfile />} />
         <Route path="requests" element={<HrRequests />} />
         <Route path="leave" element={<HrLeave />} />
         <Route path="attendance" element={<HrAttendance />} />
         <Route path="payroll" element={<HrPayroll />} />
-        <Route path="loans" element={<HrPlaceholder section="Staff loans" />} />
+        <Route path="loans" element={<HrLoans />} />
         <Route path="benefits" element={<HrPlaceholder section="Benefits & allowances" />} />
-        <Route path="transfers" element={<HrPlaceholder section="Transfers" />} />
-        <Route path="discipline" element={<HrPlaceholder section="Discipline" />} />
+        <Route path="transfers" element={<HrTransfers />} />
+        <Route path="discipline" element={<HrDiscipline />} />
         <Route path="letters" element={<HrPlaceholder section="Letters & documents" />} />
         <Route path="reports" element={<HrPlaceholder section="HR reports" />} />
         <Route path="settings" element={<HrPlaceholder section="HR settings" />} />

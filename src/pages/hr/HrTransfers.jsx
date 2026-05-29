@@ -1,11 +1,15 @@
 import React, { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { HrStaffFormFields } from '../../components/hr/HrStaffFormFields';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { useHrListLoad } from '../../hooks/useHrListLoad';
 import { canManageHrTransfers } from '../../lib/hrAccess';
 import { apiFetch } from '../../lib/apiBase';
-import { fetchHrBranchTransfers, formToProfilePatch, staffToForm, updateHrStaffProfile } from '../../lib/hrStaff';
+import {
+  fetchHrBranchTransfers,
+  formToProfilePatch,
+  staffToForm,
+  updateHrStaffProfile,
+} from '../../lib/hrStaff';
 import { emptyStaffForm } from '../../lib/hrStaffConstants';
 import {
   AppTable,
@@ -34,13 +38,14 @@ export default function HrTransfers() {
   }, [branches]);
 
   const [staff, setStaff] = useState([]);
+  const [transfers, setTransfers] = useState([]);
   const [selectedUserId, setSelectedUserId] = useState('');
   const [transferForm, setTransferForm] = useState(() => emptyStaffForm());
   const [transferBusy, setTransferBusy] = useState(false);
   const [transferMsg, setTransferMsg] = useState('');
   const [transferErr, setTransferErr] = useState('');
 
-  useHrListLoad(async () => {
+  const { loading: staffLoading } = useHrListLoad(async () => {
     const { ok, data } = await apiFetch('/api/hr/staff');
     if (!ok || !data?.ok) {
       setStaff([]);
@@ -51,16 +56,6 @@ export default function HrTransfers() {
   }, []);
 
   const { loading, error, reload: reloadTransfers } = useHrListLoad(async () => {
-    const { ok, data } = await fetchHrBranchTransfers();
-    if (!ok || !data?.ok) {
-      return { error: data?.error || 'Could not load transfers.', hasData: false };
-    }
-    return { hasData: true, transfers: data.transfers || [] };
-  }, []);
-
-  const [transfers, setTransfers] = useState([]);
-
-  useHrListLoad(async () => {
     const { ok, data } = await fetchHrBranchTransfers();
     if (!ok || !data?.ok) {
       setTransfers([]);
@@ -139,6 +134,7 @@ export default function HrTransfers() {
               value={selectedUserId}
               onChange={(e) => onSelectStaff(e.target.value)}
               required
+              disabled={staffLoading}
             >
               <option value="">Select staff…</option>
               {staff.map((s) => (

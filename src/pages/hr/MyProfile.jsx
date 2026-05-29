@@ -6,6 +6,7 @@ import MyProfileOverview from './MyProfileOverview';
 import MyLeave from './MyLeave';
 import MyAttendance from './MyAttendance';
 import MyPayslips from './MyPayslips';
+import MyLoans from './MyLoans';
 
 const NAV = [
   { to: '/my-profile/overview', label: 'Overview', end: true },
@@ -36,7 +37,7 @@ export default function MyProfile() {
         <Route path="overview" element={<MyProfileOverview />} />
         <Route path="employment" element={<HrPlaceholder section="Employment details" />} />
         <Route path="leave" element={<MyLeave />} />
-        <Route path="loans" element={<HrPlaceholder section="My loans" />} />
+        <Route path="loans" element={<MyLoans />} />
         <Route path="attendance" element={<MyAttendance />} />
         <Route path="payslips" element={<MyPayslips />} />
         <Route path="documents" element={<HrPlaceholder section="My documents" />} />

@@ -9,6 +9,7 @@ import { HrSensitiveGate } from '../../components/hr/HrSensitiveGate';
 import { useHrSensitiveAccess } from '../../hooks/useHrSensitiveAccess';
 import { canManageHrStaff, canViewOrgSensitiveHr, hrHasPermission } from '../../lib/hrAccess';
 import { formatNgn, payrollGroupLabel, yearsOfServiceFromIso } from '../../lib/hrFormat';
+import { HrSalaryIncrementPanel } from '../../components/hr/HrSalaryIncrementPanel';
 import { formToProfilePatch, staffToForm, updateHrStaffProfile } from '../../lib/hrStaff';
 import {
   AppTable,
@@ -363,7 +364,17 @@ export default function HrStaffProfile() {
       ) : null}
 
       {tab === 'compensation' ? (
-        <CompensationTab staff={staff} showSensitiveInline={showSensitiveInline} />
+        <div className="space-y-6">
+          <CompensationTab staff={staff} showSensitiveInline={showSensitiveInline} />
+          {canManage ? (
+            <HrSalaryIncrementPanel
+              userId={userId}
+              staff={staff}
+              canViewAmounts={showSensitiveInline || sensitive.isUnlocked || !staff.compensationRedacted}
+              onUpdated={reloadProfile}
+            />
+          ) : null}
+        </div>
       ) : null}
 
       {tab === 'leave' ? (

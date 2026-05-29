@@ -119,3 +119,37 @@ export async function recordHrDisciplinaryEvent(userId, body) {
     body: JSON.stringify(body),
   });
 }
+
+export async function fetchHrSalaryHistory(userId) {
+  return apiFetch(`/api/hr/staff/${encodeURIComponent(userId)}/salary-history`);
+}
+
+export async function applyHrSalaryIncrement(userId, body) {
+  return apiFetch(`/api/hr/staff/${encodeURIComponent(userId)}/salary-increment`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+export async function createHrLoanRequest(userId, payload) {
+  const amountNgn = Math.round(Number(payload.amountNgn) || 0);
+  const repaymentMonths = Math.round(Number(payload.repaymentMonths) || 0);
+  const deductionPerMonthNgn =
+    Math.round(Number(payload.deductionPerMonthNgn) || 0) ||
+    (repaymentMonths > 0 ? Math.ceil(amountNgn / repaymentMonths) : 0);
+  return apiFetch('/api/hr/requests', {
+    method: 'POST',
+    body: JSON.stringify({
+      userId,
+      kind: 'loan',
+      title: payload.title || `Staff loan — ₦${amountNgn.toLocaleString('en-NG')}`,
+      body: payload.purpose || null,
+      payload: {
+        amountNgn,
+        repaymentMonths,
+        deductionPerMonthNgn,
+        purpose: payload.purpose || null,
+      },
+    }),
+  });
+}
