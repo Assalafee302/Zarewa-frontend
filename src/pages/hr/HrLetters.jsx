@@ -5,6 +5,8 @@ import { useHrListLoad } from '../../hooks/useHrListLoad';
 import { canGenerateHrLetters } from '../../lib/hrAccess';
 import { apiFetch } from '../../lib/apiBase';
 import { downloadEmploymentLetterPdf, fetchHrLetters, generateHrLetter } from '../../lib/hrExtended';
+import { HrAddFormButton, HrFormModal } from '../../components/hr/HrFormModal';
+import { HR_BTN_PRIMARY, HR_FIELD_CLASS } from '../../components/hr/hrFormStyles';
 import {
   AppTable,
   AppTableBody,
@@ -15,12 +17,10 @@ import {
   AppTableWrap,
 } from '../../components/ui/AppDataTable';
 
-const fieldCls =
-  'mt-1 block w-full rounded-xl border border-slate-200 px-3 py-2 text-sm shadow-sm focus:border-[#134e4a] focus:outline-none focus:ring-2 focus:ring-[#134e4a]/15';
-
 export default function HrLetters() {
   const ws = useWorkspace();
   const canGenerate = canGenerateHrLetters(ws?.permissions);
+  const [modalOpen, setModalOpen] = useState(false);
   const [staff, setStaff] = useState([]);
   const [letters, setLetters] = useState([]);
   const [userId, setUserId] = useState('');
@@ -28,6 +28,7 @@ export default function HrLetters() {
   const [preview, setPreview] = useState('');
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
+  const [formErr, setFormErr] = useState('');
 
   useHrListLoad(async () => {
     const { ok, data } = await apiFetch('/api/hr/staff');
@@ -50,11 +51,12 @@ export default function HrLetters() {
     if (!canGenerate || !userId) return;
     setBusy(true);
     setMessage('');
+    setFormErr('');
     setPreview('');
     const { ok, data } = await generateHrLetter({ userId, letterKind });
     setBusy(false);
     if (!ok || !data?.ok) {
-      setMessage(data?.error || 'Could not generate letter.');
+      setFormErr(data?.error || 'Could not generate letter.');
       return;
     }
     setPreview(data.contentText || '');
@@ -64,20 +66,33 @@ export default function HrLetters() {
 
   return (
     <div className="space-y-6">
-      <p className="text-sm text-slate-600">
-        Issue employment confirmation letters for staff. Letters are stored on the employee file and can be copied for
-        printing.
-      </p>
-      {error ? (
-        <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-800">{error}</div>
-      ) : null}
-      {canGenerate ? (
-        <form onSubmit={onGenerate} className="rounded-xl border border-slate-100 bg-slate-50/80 p-4 space-y-3">
-          <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-500">Generate letter</h3>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <p className="text-sm text-slate-600 max-w-2xl">
+          Issue employment confirmation letters for staff. Letters are stored on the employee file and can be copied or
+          downloaded as PDF.
+        </p>
+        {canGenerate ? <HrAddFormButton onClick={() => setModalOpen(true)}>Generate letter</HrAddFormButton> : null}
+      </div>
+
+      <HrFormModal
+        isOpen={modalOpen}
+        onClose={() => {
+          setModalOpen(false);
+          setPreview('');
+          setFormErr('');
+        }}
+        title="Generate employment letter"
+        size="md"
+      >
+        <form onSubmit={onGenerate} className="space-y-3">
+          {formErr ? (
+            <div className="rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-sm text-red-800">{formErr}</div>
+          ) : null}
+          {message ? <p className="text-sm text-emerald-800">{message}</p> : null}
           <div className="grid gap-3 sm:grid-cols-2">
-            <label className="text-xs font-semibold text-slate-600">
+            <label className="text-xs font-semibold text-slate-600 sm:col-span-2">
               Staff member
-              <select className={fieldCls} value={userId} onChange={(e) => setUserId(e.target.value)} required>
+              <select className={HR_FIELD_CLASS} value={userId} onChange={(e) => setUserId(e.target.value)} required>
                 <option value="">Select…</option>
                 {staff.map((s) => (
                   <option key={s.userId} value={s.userId}>
@@ -86,28 +101,27 @@ export default function HrLetters() {
                 ))}
               </select>
             </label>
-            <label className="text-xs font-semibold text-slate-600">
+            <label className="text-xs font-semibold text-slate-600 sm:col-span-2">
               Letter type
-              <select className={fieldCls} value={letterKind} onChange={(e) => setLetterKind(e.target.value)}>
+              <select className={HR_FIELD_CLASS} value={letterKind} onChange={(e) => setLetterKind(e.target.value)}>
                 <option value="employment">Employment confirmation</option>
                 <option value="experience">Experience (template)</option>
               </select>
             </label>
           </div>
-          <button
-            type="submit"
-            disabled={busy}
-            className="rounded-xl bg-[#134e4a] px-4 py-2 text-sm font-bold text-white hover:bg-[#0f3d3a] disabled:opacity-50"
-          >
+          <button type="submit" disabled={busy} className={HR_BTN_PRIMARY}>
             {busy ? 'Generating…' : 'Generate letter'}
           </button>
-          {message ? <p className="text-sm text-emerald-800">{message}</p> : null}
+          {preview ? (
+            <pre className="whitespace-pre-wrap rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-800 max-h-48 overflow-y-auto">
+              {preview}
+            </pre>
+          ) : null}
         </form>
-      ) : null}
-      {preview ? (
-        <pre className="whitespace-pre-wrap rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-800">
-          {preview}
-        </pre>
+      </HrFormModal>
+
+      {error ? (
+        <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-800">{error}</div>
       ) : null}
       <AppTableWrap>
         <AppTable>
@@ -123,14 +137,14 @@ export default function HrLetters() {
           <AppTableBody>
             {loading && !letters.length ? (
               <AppTableTr>
-                <AppTableTd colSpan={4}>
+                <AppTableTd colSpan={5}>
                   <span className="text-slate-500">Loading…</span>
                 </AppTableTd>
               </AppTableTr>
             ) : null}
             {!loading && !letters.length ? (
               <AppTableTr>
-                <AppTableTd colSpan={4}>
+                <AppTableTd colSpan={5}>
                   <span className="text-slate-500">No letters issued yet.</span>
                 </AppTableTd>
               </AppTableTr>

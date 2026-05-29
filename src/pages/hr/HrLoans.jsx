@@ -1,7 +1,8 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { HrLoanApplicationForm } from '../../components/hr/HrLoanApplicationForm';
 import { HrRequestsPanel } from '../../components/hr/HrRequestsPanel';
+import { HrAddFormButton, HrFormModal } from '../../components/hr/HrFormModal';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import {
   canGmApproveHrRequests,
@@ -12,6 +13,7 @@ import {
 export default function HrLoans() {
   const ws = useWorkspace();
   const perms = ws?.permissions || [];
+  const [loanModalOpen, setLoanModalOpen] = useState(false);
 
   const allowedScopes = useMemo(() => {
     const scopes = [];
@@ -23,15 +25,27 @@ export default function HrLoans() {
 
   return (
     <div className="space-y-8">
-      <p className="text-sm text-slate-600">
-        Staff apply for loans from{' '}
-        <Link to="/my-profile/loans" className="font-semibold text-[#134e4a] hover:underline">
-          My profile → My loans
-        </Link>{' '}
-        (when self-service is enabled). HR can originate applications here and track approvals below.
-      </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <p className="text-sm text-slate-600 max-w-2xl">
+          Staff apply for loans from{' '}
+          <Link to="/my-profile/loans" className="font-semibold text-[#134e4a] hover:underline">
+            My profile → My loans
+          </Link>{' '}
+          (when self-service is enabled). HR can originate applications here and track approvals below.
+        </p>
+        {canManageHrStaff(perms) ? (
+          <HrAddFormButton onClick={() => setLoanModalOpen(true)}>New staff loan</HrAddFormButton>
+        ) : null}
+      </div>
 
-      {canManageHrStaff(perms) ? <HrLoanApplicationForm /> : null}
+      <HrFormModal
+        isOpen={loanModalOpen}
+        onClose={() => setLoanModalOpen(false)}
+        title="New staff loan application"
+        size="lg"
+      >
+        <HrLoanApplicationForm onSuccess={() => setLoanModalOpen(false)} onCancel={() => setLoanModalOpen(false)} />
+      </HrFormModal>
 
       <section className="space-y-3">
         <h3 className="text-sm font-black uppercase tracking-wide text-[#134e4a]">Loan requests</h3>
