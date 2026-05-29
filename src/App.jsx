@@ -61,7 +61,6 @@ import { ZAREWA_LOGO_SRC } from './Data/companyQuotation';
 import { BranchWorkspaceBar } from './components/layout/BranchWorkspaceBar';
 import { apiFetch } from './lib/apiBase';
 import { AiAssistantDock } from './components/AiAssistantDock';
-import { HelpChatDock } from './components/HelpChatDock';
 import { WorkspaceCommandPalette } from './components/workspace/WorkspaceCommandPalette';
 import { AiAskButton } from './components/AiAskButton';
 import { buildWorkspaceNotifications } from './lib/workspaceNotifications';
@@ -74,6 +73,9 @@ import { formatPersonName } from './lib/formatPersonName';
 const HumanResources = lazy(() => import('./pages/hr/HumanResources'));
 const MyProfile = lazy(() => import('./pages/hr/MyProfile'));
 const TeamHr = lazy(() => import('./pages/hr/TeamHr'));
+const HelpChatDock = lazy(() =>
+  import('./components/HelpChatDock.jsx').then((m) => ({ default: m.HelpChatDock }))
+);
 
 /** Blocks the whole app when bootstrap falls back to cached session (API unreachable). */
 function DegradedWorkspaceLock() {
@@ -984,7 +986,9 @@ function AppShell() {
         ws={ws}
         hasPermission={(p) => ws?.hasPermission?.(p)}
       />
-      <HelpChatDock />
+      <Suspense fallback={null}>
+        <HelpChatDock />
+      </Suspense>
       <AiAssistantDock />
       <DegradedWorkspaceLock />
     </div>
