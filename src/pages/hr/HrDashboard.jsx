@@ -100,29 +100,74 @@ export default function HrDashboard() {
       {readiness ? (
         <HrCard
           title="Production readiness"
-          subtitle={readiness.productionReady ? 'All modules initialised' : 'Action required before cutover'}
+          subtitle={
+            readiness.canCutover
+              ? 'Ready for UAT sign-off'
+              : readiness.productionReady
+                ? 'Migrations OK — resolve data gates'
+                : 'Run database migration on the server'
+          }
         >
           <p className="text-sm text-slate-700">
-            {readiness.productionReady ? (
-              <span className="font-semibold text-emerald-800">System ready for UAT cutover checks.</span>
+            {readiness.canCutover ? (
+              <span className="font-semibold text-emerald-800">
+                All infrastructure and data gates pass — proceed with the UAT smoke checklist.
+              </span>
+            ) : readiness.productionReady ? (
+              <span className="font-semibold text-amber-800">
+                Submodule tables are present. Clear the blockers below before production cutover.
+              </span>
             ) : (
-              <span className="font-semibold text-amber-800">Run database migration on the server if modules show missing.</span>
+              <span className="font-semibold text-amber-800">
+                Run <code className="rounded bg-amber-100 px-1 text-xs">npm run db:migrate</code> on the server if
+                modules show missing.
+              </span>
             )}
           </p>
           {readiness.modules ? (
-            <div className="mt-3 flex flex-wrap gap-2">
-              {Object.entries(readiness.modules)
-                .filter(([k]) => k !== 'allReady')
-                .map(([k, v]) => (
+            <div className="mt-3">
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Infrastructure</p>
+              <div className="mt-1.5 flex flex-wrap gap-2">
+                {Object.entries(readiness.modules)
+                  .filter(([k]) => k !== 'allReady')
+                  .map(([k, v]) => (
+                    <span
+                      key={k}
+                      className={`rounded-full border px-2.5 py-0.5 text-[10px] font-bold uppercase ${
+                        v ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : 'border-amber-200 bg-amber-50 text-amber-800'
+                      }`}
+                    >
+                      {k}: {v ? 'ok' : 'missing'}
+                    </span>
+                  ))}
+              </div>
+            </div>
+          ) : null}
+          {readiness.gates ? (
+            <div className="mt-3">
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Data gates</p>
+              <div className="mt-1.5 flex flex-wrap gap-2">
+                {[
+                  ['Special org nodes', readiness.gates.specialNodesPresent],
+                  ['Cleanup queue clear', readiness.gates.cleanupPassDone],
+                  [`Profile quality ≥85% (${readiness.gates.qualityCoveragePct ?? 0}%)`, readiness.gates.qualityCoveragePct >= 85],
+                  ['Sensitive masking', readiness.gates.sensitiveMaskingReady],
+                ].map(([label, pass]) => (
                   <span
-                    key={k}
-                    className={`rounded-full border px-2.5 py-0.5 text-[10px] font-bold uppercase ${
-                      v ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : 'border-amber-200 bg-amber-50 text-amber-800'
+                    key={label}
+                    className={`rounded-full border px-2.5 py-0.5 text-[10px] font-bold ${
+                      pass ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : 'border-amber-200 bg-amber-50 text-amber-800'
                     }`}
                   >
-                    {k}: {v ? 'ok' : 'missing'}
+                    {label}: {pass ? 'pass' : 'action needed'}
                   </span>
                 ))}
+                {Number(readiness.gates.overdueRequests || 0) > 0 ? (
+                  <span className="rounded-full border border-red-200 bg-red-50 px-2.5 py-0.5 text-[10px] font-bold text-red-800">
+                    {readiness.gates.overdueRequests} overdue request(s)
+                  </span>
+                ) : null}
+              </div>
             </div>
           ) : null}
           {(readiness.blockers || []).length > 0 ? (
@@ -132,6 +177,14 @@ export default function HrDashboard() {
               ))}
             </ul>
           ) : null}
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Link to="/hr/staff" className={HR_BTN_SECONDARY}>
+              Staff directory
+            </Link>
+            <Link to="/hr/requests" className={HR_BTN_SECONDARY}>
+              HR requests
+            </Link>
+          </div>
         </HrCard>
       ) : null}
 
