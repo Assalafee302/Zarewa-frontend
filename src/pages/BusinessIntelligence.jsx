@@ -203,6 +203,12 @@ function SkuActionList({ title, rows, tone }) {
             {row.valuationNgn > 0 ? (
               <p className="text-[10px] text-slate-500 tabular-nums">{formatNgn(row.valuationNgn)} on hand</p>
             ) : null}
+            {row.suggestedOrderKg > 0 ? (
+              <p className="text-[10px] font-bold text-emerald-800 tabular-nums">
+                Suggested order: {row.suggestedOrderKg.toLocaleString()} kg
+                {row.projectedStockoutISO ? ` · stockout ~${row.projectedStockoutISO}` : ''}
+              </p>
+            ) : null}
           </li>
         ))}
       </ul>
@@ -255,7 +261,7 @@ export default function BusinessIntelligence() {
         const apiErr = String(d?.error || '');
         if (/asOfISO is not defined/i.test(apiErr)) {
           setErr(
-            `${apiErr} — Your API is still on an old backend build. On the server: git pull origin main, then restart Node. Open /api/health and confirm capabilities.businessIntelligence is "bi-v3".`
+            `${apiErr} — Your API is still on an old backend build. On the server: git pull origin main, then restart Node. Open /api/health and confirm capabilities.businessIntelligence is "bi-v4".`
           );
           return;
         }
@@ -321,14 +327,18 @@ export default function BusinessIntelligence() {
   const azMix = sales?.mixRows?.find((r) => r.family === 'aluzinc');
   const matPerf = sales?.materialPerformance;
   const sku = inv?.skuIntelligence;
+  const skuForecast = invForecast;
   const procurement = data?.procurement;
   const branches = data?.branchBreakdown?.byBranch || [];
+  const prodForecast = data?.productionForecast;
+  const invForecast = data?.inventoryForecast;
+  const expenses = data?.expenseAnalysis;
 
   return (
     <MainPanel>
       <PageHeader
         title="Business intelligence"
-        subtitle="Payments-based customer ranking, gauge/colour material winners, coil buy/liquidate signals, and cash outlook."
+        subtitle="Production & inventory forecasts, expense analysis, material winners, and cash outlook."
         toolbar={
           <div className="flex flex-wrap items-center gap-2">
             <div className="flex flex-wrap gap-1" role="group" aria-label="Analysis period">
@@ -419,28 +429,159 @@ export default function BusinessIntelligence() {
               icon={<BarChart3 size={12} className="text-teal-600" />}
             />
             <KpiTile
-              label="Collected (receipts)"
-              value={formatNgn(sales?.collectedNgn || 0)}
+              label="30d production forecast"
+              value={formatNgn(
+                prodForecast?.horizons?.find((h) => h.days === 30)?.projectedProducedRevenueNgn || 0
+              )}
               sub={
-                sales?.collectionRatePct != null
-                  ? `${sales.collectionRatePct}% of quoted in period`
-                  : 'Receipts in period'
+                prodForecast?.growthRatePct != null
+                  ? `Trend ${prodForecast.growthRatePct >= 0 ? '+' : ''}${prodForecast.growthRatePct}% vs prior quarter`
+                  : 'Based on 6-month run-rate'
               }
-              icon={<Wallet size={12} className="text-teal-600" />}
+              icon={<TrendingUp size={12} className="text-teal-600" />}
             />
             <KpiTile
-              label="Receivables outstanding"
-              value={formatNgn(sales?.outstandingReceivablesNgn || 0)}
-              sub="All open quotes"
-              icon={<TrendingDown size={12} className="text-amber-600" />}
+              label="Expenses (period)"
+              value={formatNgn(expenses?.periodTotalNgn || 0)}
+              sub={
+                expenses?.expenseToProducedSalesPct != null
+                  ? `${expenses.expenseToProducedSalesPct}% of produced sales`
+                  : expenses?.periodChangePct != null
+                    ? `${expenses.periodChangePct >= 0 ? '+' : ''}${expenses.periodChangePct}% vs prior period`
+                    : 'Operating expenses'
+              }
+              icon={<Wallet size={12} className="text-amber-600" />}
             />
             <KpiTile
-              label="Cleared cash (book)"
-              value={formatNgn(pred?.clearedCashNgn || 0)}
-              sub={`90d outlook: ${pred?.cashHorizons?.find((h) => h.days === 90)?.stress || '—'}`}
-              icon={<Wallet size={12} className="text-teal-600" />}
+              label="Coil stockout risk"
+              value={
+                invForecast?.familyForecasts?.find((f) => f.horizons?.[0]?.stockoutRisk)?.label?.slice(0, 12) ||
+                'OK'
+              }
+              sub={
+                invForecast?.familyForecasts
+                  ?.map((f) => (f.stockoutDays != null ? `${f.label}: ~${f.stockoutDays}d` : null))
+                  .filter(Boolean)
+                  .join(' · ') || 'Cover from consumption rate'
+              }
+              icon={<Layers size={12} className="text-amber-600" />}
             />
           </section>
+
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+            <section className="rounded-2xl border border-teal-200/80 bg-teal-50/30 p-5 shadow-sm lg:col-span-1">
+              <h2 className="text-[11px] font-black uppercase tracking-wider text-[#134e4a]">
+                Production forecast
+              </h2>
+              <p className="text-[11px] text-slate-600 mt-1 mb-4">Produced sales & metres (run-rate + trend)</p>
+              <ul className="space-y-2 text-[11px]">
+                {(prodForecast?.horizons || []).map((h) => (
+                  <li key={h.days} className="rounded-lg bg-white/80 border border-white px-3 py-2">
+                    <div className="flex justify-between font-bold text-slate-800">
+                      <span>{h.days}-day</span>
+                      <span className="tabular-nums text-[#134e4a]">{formatNgn(h.projectedProducedRevenueNgn)}</span>
+                    </div>
+                    <p className="text-slate-600 tabular-nums">{h.projectedMetres.toLocaleString()} m projected</p>
+                  </li>
+                ))}
+              </ul>
+              {prodForecast?.pipeline?.openQuotedNgn > 0 ? (
+                <p className="mt-3 text-[10px] text-slate-600 border-t border-teal-100 pt-3">
+                  Pipeline: {formatNgn(prodForecast.pipeline.openQuotedNgn)} quoted not yet produced → ~
+                  {formatNgn(prodForecast.pipeline.forecastProducedRevenueNgn)} at{' '}
+                  {prodForecast.pipeline.assumedConversionPct}% conversion
+                </p>
+              ) : null}
+              {prodForecast?.funnelConversion?.quoteToProductionPct != null ? (
+                <p className="mt-2 text-[10px] text-slate-500">
+                  Funnel: {prodForecast.funnelConversion.quoteToProductionPct}% quotes reach production ·{' '}
+                  {prodForecast.funnelConversion.quoteToPaymentPct}% with payment
+                </p>
+              ) : null}
+            </section>
+
+            <section className="rounded-2xl border border-violet-200/80 bg-violet-50/25 p-5 shadow-sm lg:col-span-1">
+              <h2 className="text-[11px] font-black uppercase tracking-wider text-[#134e4a]">
+                Inventory forecast
+              </h2>
+              <p className="text-[11px] text-slate-600 mt-1 mb-4">Consumption burn & stockout timing by metal</p>
+              <div className="space-y-3">
+                {(invForecast?.familyForecasts || []).map((fam) => (
+                  <div key={fam.family} className="rounded-lg bg-white/80 border border-white px-3 py-2 text-[11px]">
+                    <p className="font-bold text-slate-800">{fam.label}</p>
+                    <p className="text-slate-600 tabular-nums">
+                      {fam.kgOnHand.toLocaleString()} kg on hand · {fam.dailyConsumptionKg} kg/day ·{' '}
+                      {fam.incomingKg.toLocaleString()} kg incoming
+                    </p>
+                    {fam.suggestedOrderKg > 0 ? (
+                      <p className="text-emerald-800 font-semibold mt-1">
+                        Suggested order ~{fam.suggestedOrderKg.toLocaleString()} kg (4-week target)
+                      </p>
+                    ) : null}
+                    {fam.projectedStockoutISO ? (
+                      <p className="text-amber-800 mt-0.5">Stockout ~{fam.projectedStockoutISO} if no reorder</p>
+                    ) : null}
+                    <ul className="mt-2 space-y-1 text-[10px] text-slate-500">
+                      {(fam.horizons || []).map((h) => (
+                        <li key={h.days}>
+                          {h.days}d: burn {h.projectedConsumptionKg.toLocaleString()} kg →{' '}
+                          {h.stockoutRisk ? (
+                            <span className="text-rose-700 font-bold">shortfall</span>
+                          ) : (
+                            <span>{h.projectedKgOnHand.toLocaleString()} kg left</span>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            <section className="rounded-2xl border border-amber-200/80 bg-amber-50/30 p-5 shadow-sm lg:col-span-1">
+              <h2 className="text-[11px] font-black uppercase tracking-wider text-[#134e4a]">Expense analysis</h2>
+              <p className="text-[11px] text-slate-600 mt-1 mb-4">{data.periodLabel} operating spend</p>
+              <dl className="grid grid-cols-2 gap-2 text-[11px] mb-4">
+                <div>
+                  <dt className="text-slate-500 font-bold uppercase text-[10px]">Total</dt>
+                  <dd className="font-black tabular-nums">{formatNgn(expenses?.periodTotalNgn || 0)}</dd>
+                </div>
+                <div>
+                  <dt className="text-slate-500 font-bold uppercase text-[10px]">Avg / month</dt>
+                  <dd className="font-black tabular-nums">{formatNgn(expenses?.avgMonthlyExpenseNgn || 0)}</dd>
+                </div>
+                <div>
+                  <dt className="text-slate-500 font-bold uppercase text-[10px]">Next 30d est.</dt>
+                  <dd className="font-black tabular-nums">{formatNgn(expenses?.projectedNext30DaysNgn || 0)}</dd>
+                </div>
+                <div>
+                  <dt className="text-slate-500 font-bold uppercase text-[10px]">vs prior period</dt>
+                  <dd className="font-black tabular-nums">
+                    {expenses?.periodChangePct != null
+                      ? `${expenses.periodChangePct >= 0 ? '+' : ''}${expenses.periodChangePct}%`
+                      : '—'}
+                  </dd>
+                </div>
+              </dl>
+              {(expenses?.topCategories || []).length > 0 ? (
+                <div>
+                  <p className="text-[10px] font-bold uppercase text-slate-500 mb-2">Top categories</p>
+                  <ul className="space-y-1 text-[11px] max-h-36 overflow-y-auto">
+                    {expenses.topCategories.slice(0, 8).map((c) => (
+                      <li key={c.category} className="flex justify-between gap-2">
+                        <span className="truncate text-slate-700">{c.category}</span>
+                        <span className="shrink-0 font-bold tabular-nums">
+                          {c.sharePct}% · {formatNgn(c.amountNgn)}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : (
+                <p className="text-sm text-slate-500">No expenses recorded in this period.</p>
+              )}
+            </section>
+          </div>
 
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
             <section className="rounded-2xl border border-slate-200/90 bg-white p-5 shadow-sm">
@@ -551,27 +692,43 @@ export default function BusinessIntelligence() {
             </p>
           </section>
 
-          {sku ? (
+          {sku || skuForecast ? (
             <section className="rounded-2xl border border-slate-200/90 bg-white p-5 shadow-sm">
               <h2 className="text-[11px] font-black uppercase tracking-wider text-[#134e4a] mb-1">
                 Coil SKU actions — buy, watch & liquidate
               </h2>
               <p className="text-[11px] text-slate-500 mb-4">
-                Gauge × colour combinations ranked by stock cover vs production pull
+                Gauge × colour combinations with suggested order kg and stockout dates
               </p>
               <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
                 <div>
                   <p className="text-[10px] font-black uppercase text-sky-800 mb-2">Aluminium</p>
                   <div className="space-y-3">
-                    <SkuActionList title="Buy next" rows={sku.aluminium?.buyNext} tone="buy" />
-                    <SkuActionList title="Reduce / free cash" rows={sku.aluminium?.reduceStock} tone="liquidate" />
+                    <SkuActionList
+                      title="Buy next"
+                      rows={skuForecast?.aluminium?.buyNext || sku?.aluminium?.buyNext}
+                      tone="buy"
+                    />
+                    <SkuActionList
+                      title="Reduce / free cash"
+                      rows={skuForecast?.aluminium?.reduceStock || sku?.aluminium?.reduceStock}
+                      tone="liquidate"
+                    />
                   </div>
                 </div>
                 <div>
                   <p className="text-[10px] font-black uppercase text-[#134e4a] mb-2">Aluzinc</p>
                   <div className="space-y-3">
-                    <SkuActionList title="Buy next" rows={sku.aluzinc?.buyNext} tone="buy" />
-                    <SkuActionList title="Reduce / free cash" rows={sku.aluzinc?.reduceStock} tone="liquidate" />
+                    <SkuActionList
+                      title="Buy next"
+                      rows={skuForecast?.aluzinc?.buyNext || sku?.aluzinc?.buyNext}
+                      tone="buy"
+                    />
+                    <SkuActionList
+                      title="Reduce / free cash"
+                      rows={skuForecast?.aluzinc?.reduceStock || sku?.aluzinc?.reduceStock}
+                      tone="liquidate"
+                    />
                   </div>
                 </div>
               </div>
