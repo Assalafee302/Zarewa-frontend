@@ -46,7 +46,9 @@ export default function CreateOfficeRecordWizard({ open, onClose, onCreated, ini
       recordTypeLabel: sug.memoTypeLabel || typeMeta?.label,
       suggestedTitle: improved.subject || subject,
       improvedBody: improved.body,
-      missingFields: (sug.checklist || []).filter((c) => c.required && !c.satisfied).map((c) => c.label),
+      missingFields: (sug.checklist?.items || sug.checklist?.missingRequired || [])
+        .filter((c) => c.required && !c.satisfied)
+        .map((c) => c.label),
     };
   }, [subject, body, freeText, recordType, guidedFields, zareDismissed, step, typeMeta?.label]);
 
