@@ -10,6 +10,7 @@ import {
   staffToForm,
   updateHrStaffProfile,
 } from '../../lib/hrStaff';
+import { fetchHrTransferRecommendations, reviewHrTransferRecommendation } from '../../lib/hrExtended';
 import { emptyStaffForm } from '../../lib/hrStaffConstants';
 import {
   AppTable,
@@ -39,6 +40,7 @@ export default function HrTransfers() {
 
   const [staff, setStaff] = useState([]);
   const [transfers, setTransfers] = useState([]);
+  const [recommendations, setRecommendations] = useState([]);
   const [selectedUserId, setSelectedUserId] = useState('');
   const [transferForm, setTransferForm] = useState(() => emptyStaffForm());
   const [transferBusy, setTransferBusy] = useState(false);
@@ -56,14 +58,20 @@ export default function HrTransfers() {
   }, []);
 
   const { loading, error, reload: reloadTransfers } = useHrListLoad(async () => {
-    const { ok, data } = await fetchHrBranchTransfers();
-    if (!ok || !data?.ok) {
+    const [tr, rec] = await Promise.all([fetchHrBranchTransfers(), fetchHrTransferRecommendations()]);
+    if (!tr.ok || !tr.data?.ok) {
       setTransfers([]);
-      return { error: data?.error || 'Could not load transfers.', hasData: false };
+      return { error: tr.data?.error || 'Could not load transfers.', hasData: false };
     }
-    setTransfers(data.transfers || []);
+    setTransfers(tr.data.transfers || []);
+    if (rec.ok && rec.data?.ok) setRecommendations(rec.data.recommendations || []);
     return { hasData: true };
   }, []);
+
+  const reviewRec = async (id, status) => {
+    const { ok, data } = await reviewHrTransferRecommendation(id, { status });
+    if (ok && data?.ok) await reloadTransfers();
+  };
 
   const selectedStaff = staff.find((s) => s.userId === selectedUserId);
 
@@ -224,6 +232,47 @@ export default function HrTransfers() {
         </AppTableWrap>
       ) : !loading ? (
         <p className="text-sm text-slate-600">No branch transfers recorded yet.</p>
+      ) : null}
+
+      {recommendations.length > 0 ? (
+        <div className="space-y-3">
+          <h3 className="text-sm font-black uppercase tracking-wide text-[#134e4a]">Branch manager recommendations</h3>
+          <AppTableWrap>
+            <AppTable>
+              <AppTableThead>
+                <AppTableTr>
+                  <AppTableTh>Staff</AppTableTh>
+                  <AppTableTh>Route</AppTableTh>
+                  <AppTableTh>Status</AppTableTh>
+                  {canManage ? <AppTableTh /> : null}
+                </AppTableTr>
+              </AppTableThead>
+              <AppTableBody>
+                {recommendations.map((r) => (
+                  <AppTableTr key={r.id}>
+                    <AppTableTd>{r.staffDisplayName}</AppTableTd>
+                    <AppTableTd>
+                      {branchName[r.fromBranchId] || r.fromBranchId} → {branchName[r.toBranchId] || r.toBranchId}
+                    </AppTableTd>
+                    <AppTableTd>{r.status}</AppTableTd>
+                    {canManage && r.status === 'pending' ? (
+                      <AppTableTd className="space-x-2">
+                        <button type="button" className="text-xs font-bold text-emerald-700" onClick={() => reviewRec(r.id, 'approved')}>
+                          Approve
+                        </button>
+                        <button type="button" className="text-xs font-bold text-red-700" onClick={() => reviewRec(r.id, 'rejected')}>
+                          Reject
+                        </button>
+                      </AppTableTd>
+                    ) : canManage ? (
+                      <AppTableTd />
+                    ) : null}
+                  </AppTableTr>
+                ))}
+              </AppTableBody>
+            </AppTable>
+          </AppTableWrap>
+        </div>
       ) : null}
     </div>
   );

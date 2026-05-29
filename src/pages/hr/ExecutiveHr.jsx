@@ -2,8 +2,14 @@ import React from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import ModuleRouteGuard from '../../components/ModuleRouteGuard';
 import { HrSectionShell } from '../../components/hr/HrSectionShell';
-import HrPlaceholder from './HrPlaceholder';
 import ExecutiveHrContributions from './ExecutiveHrContributions';
+import ExecutiveHrPayrollSummary from './ExecutiveHrPayrollSummary';
+import ExecutiveHrExceptionalLoans from './ExecutiveHrExceptionalLoans';
+import ExecutiveHrSalaryStructure from './ExecutiveHrSalaryStructure';
+import ExecutiveHrSpecialChanges from './ExecutiveHrSpecialChanges';
+import ExecutiveHrVariance from './ExecutiveHrVariance';
+import ExecutiveHrApprovals from './ExecutiveHrApprovals';
+import HrReports from './HrReports';
 
 const NAV = [
   { to: '/hr/executive/payroll', label: 'Payroll summary', end: true },
@@ -32,14 +38,14 @@ export default function ExecutiveHr() {
       <Routes>
         <Route element={<ExecutiveShell />}>
           <Route index element={<Navigate to="payroll" replace />} />
-          <Route path="payroll" element={<HrPlaceholder section="Payroll summary" detail="Use Human Resources → Payroll for run management." />} />
+          <Route path="payroll" element={<ExecutiveHrPayrollSummary />} />
           <Route path="contributions" element={<ExecutiveHrContributions />} />
-          <Route path="exceptional-loans" element={<HrPlaceholder section="Exceptional loans awaiting approval" />} />
-          <Route path="salary-structure" element={<HrPlaceholder section="Salary structure approvals" />} />
-          <Route path="special-changes" element={<HrPlaceholder section="Special salary changes" />} />
-          <Route path="variance" element={<HrPlaceholder section="Payroll variance" />} />
-          <Route path="approvals" element={<HrPlaceholder section="Sensitive approvals" />} />
-          <Route path="reports" element={<HrPlaceholder section="Executive HR reports" />} />
+          <Route path="exceptional-loans" element={<ExecutiveHrExceptionalLoans />} />
+          <Route path="salary-structure" element={<ExecutiveHrSalaryStructure />} />
+          <Route path="special-changes" element={<ExecutiveHrSpecialChanges />} />
+          <Route path="variance" element={<ExecutiveHrVariance />} />
+          <Route path="approvals" element={<ExecutiveHrApprovals />} />
+          <Route path="reports" element={<HrReports executive />} />
         </Route>
       </Routes>
     </ModuleRouteGuard>

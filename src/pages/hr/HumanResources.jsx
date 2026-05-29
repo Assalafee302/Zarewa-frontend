@@ -13,7 +13,10 @@ import HrStaffRegister from './HrStaffRegister';
 import HrTransfers from './HrTransfers';
 import HrDiscipline from './HrDiscipline';
 import HrLoans from './HrLoans';
-import HrPlaceholder from './HrPlaceholder';
+import HrLetters from './HrLetters';
+import HrBenefits from './HrBenefits';
+import HrReports from './HrReports';
+import HrSettings from './HrSettings';
 import ExecutiveHr from './ExecutiveHr';
 
 const HR_NAV = [
@@ -61,12 +64,12 @@ export default function HumanResources() {
         <Route path="attendance" element={<HrAttendance />} />
         <Route path="payroll" element={<HrPayroll />} />
         <Route path="loans" element={<HrLoans />} />
-        <Route path="benefits" element={<HrPlaceholder section="Benefits & allowances" />} />
+        <Route path="benefits" element={<HrBenefits />} />
         <Route path="transfers" element={<HrTransfers />} />
         <Route path="discipline" element={<HrDiscipline />} />
-        <Route path="letters" element={<HrPlaceholder section="Letters & documents" />} />
-        <Route path="reports" element={<HrPlaceholder section="HR reports" />} />
-        <Route path="settings" element={<HrPlaceholder section="HR settings" />} />
+        <Route path="letters" element={<HrLetters />} />
+        <Route path="reports" element={<HrReports />} />
+        <Route path="settings" element={<HrSettings />} />
         <Route path="executive/*" element={<ExecutiveHr />} />
       </Route>
     </Routes>

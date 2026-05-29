@@ -10,6 +10,7 @@ import { useHrSensitiveAccess } from '../../hooks/useHrSensitiveAccess';
 import { canManageHrStaff, canViewOrgSensitiveHr, hrHasPermission } from '../../lib/hrAccess';
 import { formatNgn, payrollGroupLabel, yearsOfServiceFromIso } from '../../lib/hrFormat';
 import { HrSalaryIncrementPanel } from '../../components/hr/HrSalaryIncrementPanel';
+import { HrPromotionFromMatrix } from '../../components/hr/HrPromotionFromMatrix';
 import { formToProfilePatch, staffToForm, updateHrStaffProfile } from '../../lib/hrStaff';
 import {
   AppTable,
@@ -367,12 +368,20 @@ export default function HrStaffProfile() {
         <div className="space-y-6">
           <CompensationTab staff={staff} showSensitiveInline={showSensitiveInline} />
           {canManage ? (
-            <HrSalaryIncrementPanel
-              userId={userId}
-              staff={staff}
-              canViewAmounts={showSensitiveInline || sensitive.isUnlocked || !staff.compensationRedacted}
-              onUpdated={reloadProfile}
-            />
+            <>
+              <HrPromotionFromMatrix
+                userId={userId}
+                staff={staff}
+                canViewAmounts={showSensitiveInline || sensitive.isUnlocked || !staff.compensationRedacted}
+                onUpdated={reloadProfile}
+              />
+              <HrSalaryIncrementPanel
+                userId={userId}
+                staff={staff}
+                canViewAmounts={showSensitiveInline || sensitive.isUnlocked || !staff.compensationRedacted}
+                onUpdated={reloadProfile}
+              />
+            </>
           ) : null}
         </div>
       ) : null}

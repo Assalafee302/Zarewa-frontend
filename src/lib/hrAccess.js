@@ -196,3 +196,32 @@ export function canManageHrTransfers(permissions) {
 export function canManageHrDiscipline(permissions) {
   return hrHasPermission(permissions, 'hr.discipline.manage') || canManageHrStaff(permissions);
 }
+
+/** @param {string[] | undefined} permissions */
+export function canManageHrBenefits(permissions) {
+  return hrHasPermission(permissions, 'hr.benefits.manage') || canManageHrStaff(permissions);
+}
+
+/** @param {string[] | undefined} permissions */
+export function canGenerateHrLetters(permissions) {
+  return hrHasPermission(permissions, 'hr.letters.generate') || canManageHrStaff(permissions);
+}
+
+/** @param {string[] | undefined} permissions */
+export function canManageHrSettings(permissions) {
+  return hrHasPermission(permissions, 'hr.settings.manage') || canManageHrStaff(permissions);
+}
+
+/** @param {string[] | undefined} permissions */
+export function canViewHrReports(permissions) {
+  return hrHasPermission(permissions, 'hr.reports.view') || canManageHrStaff(permissions);
+}
+
+/** @param {string[] | undefined} permissions */
+export function canApproveExceptionalLoans(permissions) {
+  return (
+    hrHasPermission(permissions, 'hr.exceptional_loan.approve') ||
+    hrHasPermission(permissions, 'hr.requests.gm_approve') ||
+    canAccessExecutiveHr(permissions)
+  );
+}

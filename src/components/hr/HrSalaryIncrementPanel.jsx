@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useHrListLoad } from '../../hooks/useHrListLoad';
 import { applyHrSalaryIncrement, fetchHrSalaryHistory } from '../../lib/hrStaff';
+import { fetchDraftPayrollRuns, recomputePayrollRun } from '../../lib/hrExtended';
 import { formatNgn } from '../../lib/hrFormat';
 import {
   AppTable,
@@ -30,6 +31,8 @@ export function HrSalaryIncrementPanel({ userId, staff, canViewAmounts, onUpdate
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
+  const [draftRuns, setDraftRuns] = useState([]);
+  const [recomputeBusy, setRecomputeBusy] = useState(false);
 
   useEffect(() => {
     if (!staff) return;
@@ -39,6 +42,24 @@ export function HrSalaryIncrementPanel({ userId, staff, canViewAmounts, onUpdate
     setSalaryLevel(staff.salaryLevel != null ? String(staff.salaryLevel) : '');
     setSalaryStep(staff.salaryStep != null ? String(staff.salaryStep) : '1');
   }, [staff?.userId, staff?.baseSalaryNgn]);
+
+  useHrListLoad(async () => {
+    const { ok, data } = await fetchDraftPayrollRuns();
+    if (ok && data?.ok) setDraftRuns(data.runs || []);
+    return { hasData: true };
+  }, []);
+
+  const recomputeDrafts = async () => {
+    if (!draftRuns.length) return;
+    setRecomputeBusy(true);
+    let okCount = 0;
+    for (const run of draftRuns) {
+      const { ok, data } = await recomputePayrollRun(run.id);
+      if (ok && data?.ok) okCount += 1;
+    }
+    setRecomputeBusy(false);
+    setMessage(`Recomputed ${okCount} draft payroll run(s).`);
+  };
 
   const { loading, reload } = useHrListLoad(async () => {
     const { ok, data } = await fetchHrSalaryHistory(userId);
@@ -74,7 +95,9 @@ export function HrSalaryIncrementPanel({ userId, staff, canViewAmounts, onUpdate
       setError(data?.error || 'Could not apply increment.');
       return;
     }
-    setMessage('Salary increment recorded. Recompute open payroll runs to reflect new amounts.');
+    setMessage('Salary increment recorded.');
+    const { ok: drOk, data: drData } = await fetchDraftPayrollRuns();
+    if (drOk && drData?.ok) setDraftRuns(drData.runs || []);
     setReason('');
     await reload();
     onUpdated?.();
@@ -95,6 +118,16 @@ export function HrSalaryIncrementPanel({ userId, staff, canViewAmounts, onUpdate
         {message ? (
           <div className="rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-2 text-sm text-emerald-900">
             {message}
+            {draftRuns.length ? (
+              <button
+                type="button"
+                disabled={recomputeBusy}
+                onClick={recomputeDrafts}
+                className="mt-2 block rounded-lg bg-[#134e4a] px-3 py-1.5 text-xs font-bold text-white disabled:opacity-50"
+              >
+                {recomputeBusy ? 'Recomputing…' : `Recompute ${draftRuns.length} draft payroll run(s)`}
+              </button>
+            ) : null}
           </div>
         ) : null}
         <div className="grid gap-3 sm:grid-cols-2">

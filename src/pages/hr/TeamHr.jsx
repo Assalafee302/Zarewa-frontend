@@ -1,7 +1,10 @@
 import React from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { HrSectionShell } from '../../components/hr/HrSectionShell';
-import HrPlaceholder from './HrPlaceholder';
+import TeamHrStaff from './TeamHrStaff';
+import TeamHrLeaveCalendar from './TeamHrLeaveCalendar';
+import TeamHrIncidents from './TeamHrIncidents';
+import TeamHrTransfers from './TeamHrTransfers';
 import TeamHrRequests from './TeamHrRequests';
 import TeamHrAttendance from './TeamHrAttendance';
 
@@ -27,12 +30,12 @@ export default function TeamHr() {
         }
       >
         <Route index element={<Navigate to="staff" replace />} />
-        <Route path="staff" element={<HrPlaceholder section="Team staff" detail="Branch staff list without salary columns." />} />
+        <Route path="staff" element={<TeamHrStaff />} />
         <Route path="attendance" element={<TeamHrAttendance />} />
         <Route path="requests" element={<TeamHrRequests />} />
-        <Route path="leave-calendar" element={<HrPlaceholder section="Team leave calendar" />} />
-        <Route path="incidents" element={<HrPlaceholder section="Incident memos" detail="Raise incident memos that can become discipline cases in HR." />} />
-        <Route path="transfers" element={<HrPlaceholder section="Transfer recommendations" />} />
+        <Route path="leave-calendar" element={<TeamHrLeaveCalendar />} />
+        <Route path="incidents" element={<TeamHrIncidents />} />
+        <Route path="transfers" element={<TeamHrTransfers />} />
       </Route>
     </Routes>
   );
