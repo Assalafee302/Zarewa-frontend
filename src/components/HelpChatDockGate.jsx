@@ -1,10 +1,24 @@
-import React, { Suspense, lazy, Component } from 'react';
+import React, { Suspense, lazy, Component, useEffect } from 'react';
 import { useHelpChat } from '../context/HelpChatContext';
 import { useWorkspace } from '../context/WorkspaceContext';
 import { ZareHelpFab } from './ZareHelpFab';
+import { debugBootLog } from '../lib/debugBoot.js';
 
 const HelpChatDock = lazy(() =>
-  import('./HelpChatDock.jsx').then((m) => ({ default: m.HelpChatDock }))
+  import('./HelpChatDock.jsx')
+    .then((m) => {
+      debugBootLog('HelpChatDockGate.jsx:dock-import-ok', 'HelpChatDock chunk loaded', {}, 'E');
+      return { default: m.HelpChatDock };
+    })
+    .catch((err) => {
+      debugBootLog(
+        'HelpChatDockGate.jsx:dock-import-fail',
+        'HelpChatDock chunk failed',
+        { message: String(err?.message || err), stack: String(err?.stack || '').slice(0, 600) },
+        'E'
+      );
+      throw err;
+    })
 );
 
 class HelpChatDockErrorBoundary extends Component {
@@ -19,6 +33,15 @@ class HelpChatDockErrorBoundary extends Component {
 
   componentDidCatch(error, info) {
     console.error('[Zarewa] Zare help dock failed to load', error, info?.componentStack);
+    debugBootLog(
+      'HelpChatDockGate.jsx:boundary',
+      'HelpChatDock render error',
+      {
+        message: String(error?.message || error),
+        stack: String(error?.stack || '').slice(0, 600),
+      },
+      'E'
+    );
   }
 
   render() {
@@ -36,6 +59,16 @@ export function HelpChatDockGate() {
   const { dockMounted } = useHelpChat() || {};
   const ws = useWorkspace();
   const user = ws?.session?.user;
+
+  useEffect(() => {
+    if (!user) return;
+    debugBootLog(
+      'HelpChatDockGate.jsx:mount',
+      'HelpChatDockGate active for user',
+      { dockMounted: Boolean(dockMounted) },
+      'E'
+    );
+  }, [user, dockMounted]);
 
   if (!user) return null;
 

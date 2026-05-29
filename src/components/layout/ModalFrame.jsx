@@ -10,7 +10,7 @@ import { X } from 'lucide-react';
 const ELEVATED_SURFACE_CLASS =
   'relative z-10 flex min-h-0 w-full max-w-[min(1200px,calc(100dvw-1.5rem))] items-start justify-center rounded-2xl shadow-[0_28px_80px_-36px_rgba(15,23,42,0.45)] outline-none sm:rounded-[32px]';
 const PLAIN_SURFACE_CLASS =
-  'relative z-10 flex min-h-0 w-full max-w-[min(1200px,calc(100dvw-1.5rem))] items-start justify-center outline-none';
+  'relative z-10 flex min-h-0 w-full max-h-[min(92dvh,960px)] max-w-[min(1200px,calc(100dvw-1.5rem))] items-stretch justify-center outline-none';
 
 export function ModalFrame({
   isOpen,

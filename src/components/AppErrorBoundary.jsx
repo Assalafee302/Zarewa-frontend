@@ -1,4 +1,5 @@
 import React from 'react';
+import { debugBootLog } from '../lib/debugBoot.js';
 
 /**
  * Catches render errors so users see a recovery screen instead of a blank page.
@@ -15,6 +16,16 @@ export class AppErrorBoundary extends React.Component {
 
   componentDidCatch(error, info) {
     console.error('[Zarewa] UI error', error, info?.componentStack);
+    debugBootLog(
+      'AppErrorBoundary.jsx:didCatch',
+      'React error boundary caught error',
+      {
+        message: String(error?.message || error),
+        stack: String(error?.stack || '').slice(0, 800),
+        componentStack: String(info?.componentStack || '').slice(0, 400),
+      },
+      'A'
+    );
   }
 
   render() {

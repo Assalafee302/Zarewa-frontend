@@ -45,9 +45,23 @@ import { HelpChatProvider } from './context/HelpChatContext';
 import { notificationPrompt } from './lib/aiAssistUi';
 import { searchWorkspaceSnapshot } from './lib/workspaceSearchLocal';
 import { formatPersonName } from './lib/formatPersonName';
+import { debugBootLog } from './lib/debugBoot.js';
 
 const AiAssistantDock = lazy(() =>
-  import('./components/AiAssistantDock.jsx').then((m) => ({ default: m.AiAssistantDock }))
+  import('./components/AiAssistantDock.jsx')
+    .then((m) => {
+      debugBootLog('App.jsx:ai-dock-import-ok', 'AiAssistantDock chunk loaded', {}, 'E');
+      return { default: m.AiAssistantDock };
+    })
+    .catch((err) => {
+      debugBootLog(
+        'App.jsx:ai-dock-import-fail',
+        'AiAssistantDock chunk failed',
+        { message: String(err?.message || err), stack: String(err?.stack || '').slice(0, 600) },
+        'E'
+      );
+      throw err;
+    })
 );
 const WorkspaceCommandPalette = lazy(() =>
   import('./components/workspace/WorkspaceCommandPalette.jsx').then((m) => ({
@@ -1028,6 +1042,22 @@ function LoadingScreen() {
 
 function AuthGate() {
   const ws = useWorkspace();
+
+  useEffect(() => {
+    const screen = !ws
+      ? 'no-ws'
+      : ws.status === 'checking'
+        ? 'checking'
+        : ws.authRequired || (ws.status === 'offline' && !ws.snapshot)
+          ? 'login'
+          : 'appshell';
+    debugBootLog(
+      'App.jsx:AuthGate',
+      'Auth gate screen',
+      { screen, status: ws?.status, authRequired: Boolean(ws?.authRequired) },
+      'A'
+    );
+  }, [ws, ws?.status, ws?.authRequired, ws?.snapshot]);
 
   if (!ws) {
     return <LoadingScreen />;

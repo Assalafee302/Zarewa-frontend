@@ -31,7 +31,8 @@ export function HrSensitiveUnlockModal({
 
   return (
     <ModalFrame isOpen={open} onClose={onClose} title={title} description={description} surface="plain">
-      <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-5 shadow-xl">
+      <div className="z-modal-panel flex max-h-[min(90dvh,480px)] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl">
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain p-5 [-webkit-overflow-scrolling:touch]">
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="flex items-start gap-3 rounded-xl border border-amber-100 bg-amber-50/80 px-3 py-3 text-sm text-amber-950">
           <Lock size={18} className="mt-0.5 shrink-0 text-amber-700" aria-hidden />
@@ -73,6 +74,7 @@ export function HrSensitiveUnlockModal({
           </button>
         </div>
       </form>
+      </div>
       </div>
     </ModalFrame>
   );
