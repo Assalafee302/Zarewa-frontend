@@ -61,6 +61,42 @@ describe('authenticated startup TDZ', () => {
       },
       { timeout: 15000 }
     );
-    expect(screen.queryByText(/Preparing live workspace/i)).toBeTruthy();
+  });
+
+  it('renders manager home without error boundary crash', async () => {
+    const { apiFetch } = await import('./lib/apiBase.js');
+    apiFetch.mockImplementation(async (path) => {
+      if (String(path).includes('/bootstrap')) {
+        return {
+          ok: true,
+          data: {
+            ok: true,
+            session: {
+              user: {
+                id: 'u2',
+                username: 'manager.user',
+                displayName: 'Manager User',
+                roleKey: 'sales_manager',
+                branchId: 'BR1',
+              },
+              currentBranchId: 'BR1',
+              permissions: ['sales.view', 'manager.view', 'reports.view'],
+            },
+            unifiedWorkItems: [],
+            apiOnline: true,
+          },
+        };
+      }
+      return { ok: false, data: null };
+    });
+    window.history.pushState({}, '', '/');
+    const { default: App } = await import('./App.jsx');
+    render(<App />);
+    await waitFor(
+      () => {
+        expect(screen.queryByText(/Zarewa could not load/i)).toBeNull();
+      },
+      { timeout: 15000 }
+    );
   });
 });

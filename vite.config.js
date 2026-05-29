@@ -18,6 +18,26 @@ export default defineConfig({
   },
   build: {
     chunkSizeWarningLimit: 2400,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            if (id.includes('lucide-react')) return 'vendor-lucide';
+            if (id.includes('react-dom')) return 'vendor-react-dom';
+            if (id.includes('react-router')) return 'vendor-router';
+            if (id.includes('/react/')) return 'vendor-react';
+            if (id.includes('framer-motion')) return 'vendor-motion';
+            if (id.includes('@radix-ui')) return 'vendor-radix';
+            if (id.includes('recharts')) return 'vendor-recharts';
+            if (id.includes('firebase')) return 'vendor-firebase';
+            return;
+          }
+          if (id.includes('/src/context/')) return 'app-contexts';
+          if (id.includes('/src/lib/apiBase') || id.includes('/src/lib/firebase')) return 'app-platform';
+          if (id.includes('/src/components/ui/')) return 'app-ui';
+        },
+      },
+    },
   },
   server: {
     host: true,

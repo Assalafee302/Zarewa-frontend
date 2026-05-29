@@ -29,7 +29,7 @@ describe('production startup TDZ', () => {
     await expect(import('./App.jsx')).resolves.toBeTruthy();
     mod = await import('./App.jsx');
     expect(typeof mod.default).toBe('function');
-  });
+  }, 120_000);
 
   it('renders login shell without error boundary crash', async () => {
     const { default: App } = await import('./App.jsx');

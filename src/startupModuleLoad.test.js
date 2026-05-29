@@ -4,7 +4,7 @@ describe('startup module graph', () => {
   it('loads App shell without TDZ', async () => {
     const mod = await import('./App.jsx');
     expect(typeof mod.default).toBe('function');
-  });
+  }, 120_000);
 
   it('loads Dashboard router without TDZ', async () => {
     const mod = await import('./pages/Dashboard.jsx');

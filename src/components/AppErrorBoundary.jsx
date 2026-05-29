@@ -23,7 +23,7 @@ export class AppErrorBoundary extends React.Component {
     };
     debugBootLog('AppErrorBoundary.jsx:didCatch', 'React error boundary caught error', payload, 'A');
     try {
-      sessionStorage.setItem('zarewa.boot.error', JSON.stringify({ ...payload, at: Date.now() }));
+      sessionStorage.setItem('zarewa.boot.error', JSON.stringify({ ...payload, build: typeof __ZAREWA_BUILD_ID__ !== 'undefined' ? __ZAREWA_BUILD_ID__ : '', at: Date.now() }));
     } catch {
       /* ignore */
     }

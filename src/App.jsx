@@ -46,6 +46,10 @@ import { notificationPrompt } from './lib/aiAssistUi';
 import { searchWorkspaceSnapshot } from './lib/workspaceSearchLocal';
 import { formatPersonName } from './lib/formatPersonName';
 import { debugBootLog } from './lib/debugBoot.js';
+import Dashboard from './pages/Dashboard';
+import Careers from './pages/Careers';
+import ManagerDashboard from './pages/ManagerDashboard';
+import ExecDashboard from './pages/ExecDashboard';
 
 const AiAssistantDock = lazy(() =>
   import('./components/AiAssistantDock.jsx')
@@ -69,8 +73,6 @@ const WorkspaceCommandPalette = lazy(() =>
   }))
 );
 
-const Dashboard = lazy(() => import('./pages/Dashboard'));
-const Sales = lazy(() => import('./pages/Sales'));
 const Procurement = lazy(() => import('./pages/Procurement'));
 const SupplierProfile = lazy(() => import('./pages/SupplierProfile'));
 const TransportAgentProfile = lazy(() => import('./pages/TransportAgentProfile'));
@@ -85,10 +87,8 @@ const OfficeDesk = lazy(() => import('./pages/OfficeDesk'));
 const Settings = lazy(() => import('./pages/Settings'));
 const EditApprovalsPage = lazy(() => import('./pages/EditApprovalsPage'));
 const NotFound = lazy(() => import('./pages/NotFound'));
-const ManagerDashboard = lazy(() => import('./pages/ManagerDashboard'));
 const BusinessIntelligence = lazy(() => import('./pages/BusinessIntelligence'));
 const WorkspaceMonitoring = lazy(() => import('./pages/WorkspaceMonitoring'));
-const ExecDashboard = lazy(() => import('./pages/ExecDashboard'));
 const PriceListAdmin = lazy(() => import('./pages/PriceListAdmin'));
 const PricingPolicyAdmin = lazy(() => import('./pages/PricingPolicyAdmin'));
 const HelpChatDockGate = lazy(() =>
@@ -1094,7 +1094,10 @@ function App() {
               <AiAssistantProvider>
                 <DocumentTitleSync />
                 <PrintSessionCleanup />
-                <AuthGate />
+                <Routes>
+                  <Route path="/careers" element={<Careers />} />
+                  <Route path="*" element={<AuthGate />} />
+                </Routes>
               </AiAssistantProvider>
             </HelpChatProvider>
           </ToastProvider>
