@@ -6,8 +6,10 @@ const HelpChatContext = createContext(null);
 
 export function HelpChatProvider({ children }) {
   const [request, setRequest] = useState(null);
+  const [dockMounted, setDockMounted] = useState(false);
 
   const openZare = useCallback((opts = {}) => {
+    setDockMounted(true);
     const transaction =
       opts.transactionContext && typeof opts.transactionContext === 'object'
         ? sanitizeTransactionContextForZare(opts.transactionContext)
@@ -35,10 +37,11 @@ export function HelpChatProvider({ children }) {
   const value = useMemo(
     () => ({
       request,
+      dockMounted,
       openZare,
       clearRequest,
     }),
-    [clearRequest, openZare, request]
+    [clearRequest, dockMounted, openZare, request]
   );
 
   return <HelpChatContext.Provider value={value}>{children}</HelpChatContext.Provider>;

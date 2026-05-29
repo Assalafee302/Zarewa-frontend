@@ -70,12 +70,11 @@ import { notificationPrompt } from './lib/aiAssistUi';
 import { searchWorkspaceSnapshot } from './lib/workspaceSearchLocal';
 import { formatPersonName } from './lib/formatPersonName';
 
+import { HelpChatDockGate } from './components/HelpChatDockGate';
+
 const HumanResources = lazy(() => import('./pages/hr/HumanResources'));
 const MyProfile = lazy(() => import('./pages/hr/MyProfile'));
 const TeamHr = lazy(() => import('./pages/hr/TeamHr'));
-const HelpChatDock = lazy(() =>
-  import('./components/HelpChatDock.jsx').then((m) => ({ default: m.HelpChatDock }))
-);
 
 /** Blocks the whole app when bootstrap falls back to cached session (API unreachable). */
 function DegradedWorkspaceLock() {
@@ -986,9 +985,7 @@ function AppShell() {
         ws={ws}
         hasPermission={(p) => ws?.hasPermission?.(p)}
       />
-      <Suspense fallback={null}>
-        <HelpChatDock />
-      </Suspense>
+      <HelpChatDockGate />
       <AiAssistantDock />
       <DegradedWorkspaceLock />
     </div>
