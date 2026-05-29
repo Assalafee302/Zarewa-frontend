@@ -115,7 +115,14 @@ export function zareIntentToAgentRoute(zareIntent) {
   }
   if (intent === 'cannot_approve' || intent === 'approval_help') return 'clearance';
   if (intent === 'smart_search') return 'erp_data';
-  if (intent === 'next_step_guidance' || intent === 'workflow_help' || intent === 'memo_writing_help') return 'guide';
+  if (
+    intent === 'next_step_guidance' ||
+    intent === 'workflow_help' ||
+    intent === 'memo_writing_help' ||
+    intent === 'staff_user_help'
+  ) {
+    return 'guide';
+  }
   return 'guide';
 }
 
