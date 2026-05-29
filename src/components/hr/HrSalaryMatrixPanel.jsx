@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { apiFetch } from '../../lib/apiBase';
 import { useHrListLoad } from '../../hooks/useHrListLoad';
 import { formatNgn } from '../../lib/hrFormat';
+import { HrAddFormButton, HrFormModal } from './HrFormModal';
+import { HR_BTN_PRIMARY, HR_FIELD_CLASS } from './hrFormStyles';
 import {
   AppTable,
   AppTableBody,
@@ -20,8 +22,10 @@ const GROUPS = [
 ];
 
 export function HrSalaryMatrixPanel() {
+  const [modalOpen, setModalOpen] = useState(false);
   const [rows, setRows] = useState([]);
   const [message, setMessage] = useState('');
+  const [formErr, setFormErr] = useState('');
   const [form, setForm] = useState({
     payrollGroup: 'branch_ops',
     salaryLevel: '5',
@@ -42,8 +46,10 @@ export function HrSalaryMatrixPanel() {
     return { hasData: true };
   }, []);
 
-  const save = async () => {
+  const save = async (e) => {
+    e.preventDefault();
     setMessage('');
+    setFormErr('');
     const { ok, data } = await apiFetch('/api/hr/salary-matrix', {
       method: 'PUT',
       body: JSON.stringify({
@@ -57,19 +63,85 @@ export function HrSalaryMatrixPanel() {
       }),
     });
     if (!ok || !data?.ok) {
-      setError(data?.error || 'Could not save matrix row.');
+      setFormErr(data?.error || 'Could not save matrix row.');
       return;
     }
     setMessage('Matrix row saved.');
+    setModalOpen(false);
     await load();
   };
 
   return (
     <div className="space-y-4">
-      <p className="text-sm text-slate-600">
-        HQ salary level and step amounts by payroll group. Assign level/step on staff profiles; payroll recompute uses
-        profile base salary today (matrix informs planning).
-      </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <p className="text-sm text-slate-600 max-w-2xl">
+          HQ salary level and step amounts by payroll group. Assign level/step on staff profiles; payroll recompute uses
+          profile base salary today (matrix informs planning).
+        </p>
+        <HrAddFormButton onClick={() => setModalOpen(true)}>Add / update row</HrAddFormButton>
+      </div>
+
+      <HrFormModal isOpen={modalOpen} onClose={() => setModalOpen(false)} title="Add / update matrix row" size="lg">
+        <form onSubmit={save} className="space-y-3">
+          {formErr ? (
+            <div className="rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-sm text-red-800">{formErr}</div>
+          ) : null}
+          <div className="grid gap-3 sm:grid-cols-3">
+            <select
+              value={form.payrollGroup}
+              onChange={(e) => setForm((f) => ({ ...f, payrollGroup: e.target.value }))}
+              className={HR_FIELD_CLASS}
+            >
+              {GROUPS.map((g) => (
+                <option key={g.value} value={g.value}>
+                  {g.label}
+                </option>
+              ))}
+            </select>
+            <input
+              type="number"
+              min={1}
+              placeholder="Level"
+              value={form.salaryLevel}
+              onChange={(e) => setForm((f) => ({ ...f, salaryLevel: e.target.value }))}
+              className={HR_FIELD_CLASS}
+            />
+            <input
+              type="number"
+              min={1}
+              placeholder="Step"
+              value={form.salaryStep}
+              onChange={(e) => setForm((f) => ({ ...f, salaryStep: e.target.value }))}
+              className={HR_FIELD_CLASS}
+            />
+            <input
+              type="number"
+              placeholder="Base salary ₦"
+              value={form.baseSalaryNgn}
+              onChange={(e) => setForm((f) => ({ ...f, baseSalaryNgn: e.target.value }))}
+              className={HR_FIELD_CLASS}
+            />
+            <input
+              type="number"
+              placeholder="Housing ₦"
+              value={form.housingAllowanceNgn}
+              onChange={(e) => setForm((f) => ({ ...f, housingAllowanceNgn: e.target.value }))}
+              className={HR_FIELD_CLASS}
+            />
+            <input
+              type="number"
+              placeholder="Transport ₦"
+              value={form.transportAllowanceNgn}
+              onChange={(e) => setForm((f) => ({ ...f, transportAllowanceNgn: e.target.value }))}
+              className={HR_FIELD_CLASS}
+            />
+          </div>
+          <button type="submit" className={HR_BTN_PRIMARY}>
+            Save row
+          </button>
+        </form>
+      </HrFormModal>
+
       {error ? (
         <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-800">{error}</div>
       ) : null}
@@ -78,67 +150,6 @@ export function HrSalaryMatrixPanel() {
           {message}
         </div>
       ) : null}
-
-      <div className="rounded-2xl border border-slate-100 bg-slate-50/80 p-4">
-        <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-500">Add / update row</h3>
-        <div className="mt-3 grid gap-3 sm:grid-cols-3">
-          <select
-            value={form.payrollGroup}
-            onChange={(e) => setForm((f) => ({ ...f, payrollGroup: e.target.value }))}
-            className="rounded-xl border border-slate-200 px-3 py-2 text-sm"
-          >
-            {GROUPS.map((g) => (
-              <option key={g.value} value={g.value}>
-                {g.label}
-              </option>
-            ))}
-          </select>
-          <input
-            type="number"
-            min={1}
-            placeholder="Level"
-            value={form.salaryLevel}
-            onChange={(e) => setForm((f) => ({ ...f, salaryLevel: e.target.value }))}
-            className="rounded-xl border border-slate-200 px-3 py-2 text-sm"
-          />
-          <input
-            type="number"
-            min={1}
-            placeholder="Step"
-            value={form.salaryStep}
-            onChange={(e) => setForm((f) => ({ ...f, salaryStep: e.target.value }))}
-            className="rounded-xl border border-slate-200 px-3 py-2 text-sm"
-          />
-          <input
-            type="number"
-            placeholder="Base salary ₦"
-            value={form.baseSalaryNgn}
-            onChange={(e) => setForm((f) => ({ ...f, baseSalaryNgn: e.target.value }))}
-            className="rounded-xl border border-slate-200 px-3 py-2 text-sm"
-          />
-          <input
-            type="number"
-            placeholder="Housing ₦"
-            value={form.housingAllowanceNgn}
-            onChange={(e) => setForm((f) => ({ ...f, housingAllowanceNgn: e.target.value }))}
-            className="rounded-xl border border-slate-200 px-3 py-2 text-sm"
-          />
-          <input
-            type="number"
-            placeholder="Transport ₦"
-            value={form.transportAllowanceNgn}
-            onChange={(e) => setForm((f) => ({ ...f, transportAllowanceNgn: e.target.value }))}
-            className="rounded-xl border border-slate-200 px-3 py-2 text-sm"
-          />
-        </div>
-        <button
-          type="button"
-          onClick={save}
-          className="mt-3 rounded-xl bg-[#134e4a] px-4 py-2 text-[11px] font-bold uppercase text-white"
-        >
-          Save row
-        </button>
-      </div>
 
       {loading ? <p className="text-sm text-slate-600">Loading matrix…</p> : null}
       {!loading ? (

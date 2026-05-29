@@ -3,6 +3,8 @@ import { useHrListLoad } from '../../hooks/useHrListLoad';
 import { applyHrSalaryIncrement, fetchHrSalaryHistory } from '../../lib/hrStaff';
 import { fetchDraftPayrollRuns, recomputePayrollRun } from '../../lib/hrExtended';
 import { formatNgn } from '../../lib/hrFormat';
+import { HrAddFormButton, HrFormModal } from './HrFormModal';
+import { HR_BTN_PRIMARY, HR_FIELD_CLASS } from './hrFormStyles';
 import {
   AppTable,
   AppTableBody,
@@ -13,13 +15,11 @@ import {
   AppTableWrap,
 } from '../ui/AppDataTable';
 
-const fieldCls =
-  'mt-1 block w-full rounded-xl border border-slate-200 px-3 py-2 text-sm shadow-sm focus:border-[#134e4a] focus:outline-none focus:ring-2 focus:ring-[#134e4a]/15';
-
 /**
  * @param {{ userId: string; staff: object; canViewAmounts: boolean; onUpdated?: () => void }} props
  */
 export function HrSalaryIncrementPanel({ userId, staff, canViewAmounts, onUpdated }) {
+  const [modalOpen, setModalOpen] = useState(false);
   const [history, setHistory] = useState([]);
   const [effectiveFromIso, setEffectiveFromIso] = useState(new Date().toISOString().slice(0, 10));
   const [baseSalaryNgn, setBaseSalaryNgn] = useState('');
@@ -96,6 +96,7 @@ export function HrSalaryIncrementPanel({ userId, staff, canViewAmounts, onUpdate
       return;
     }
     setMessage('Salary increment recorded.');
+    setModalOpen(false);
     const { ok: drOk, data: drData } = await fetchDraftPayrollRuns();
     if (drOk && drData?.ok) setDraftRuns(drData.runs || []);
     setReason('');
@@ -109,153 +110,155 @@ export function HrSalaryIncrementPanel({ userId, staff, canViewAmounts, onUpdate
   const delta = prevBase != null && canViewAmounts ? newBase - Number(prevBase) : null;
 
   return (
-    <div className="space-y-6">
-      <form onSubmit={submit} className="rounded-xl border border-slate-100 bg-slate-50/80 p-4 space-y-4">
-        <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-500">Record salary increment</h4>
-        {error ? (
-          <div className="rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-sm text-red-800">{error}</div>
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-500">Salary history</h4>
+        {canViewAmounts ? (
+          <HrAddFormButton onClick={() => setModalOpen(true)}>Record increment</HrAddFormButton>
         ) : null}
-        {message ? (
-          <div className="rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-2 text-sm text-emerald-900">
-            {message}
-            {draftRuns.length ? (
-              <button
-                type="button"
-                disabled={recomputeBusy}
-                onClick={recomputeDrafts}
-                className="mt-2 block rounded-lg bg-[#134e4a] px-3 py-1.5 text-xs font-bold text-white disabled:opacity-50"
-              >
-                {recomputeBusy ? 'Recomputing…' : `Recompute ${draftRuns.length} draft payroll run(s)`}
-              </button>
-            ) : null}
-          </div>
-        ) : null}
-        <div className="grid gap-3 sm:grid-cols-2">
-          <label className="text-xs font-semibold text-slate-600">
-            Effective from
-            <input
-              type="date"
-              className={fieldCls}
-              value={effectiveFromIso}
-              onChange={(e) => setEffectiveFromIso(e.target.value)}
-              required
-            />
-          </label>
-          <label className="text-xs font-semibold text-slate-600">
-            New base salary (₦)
-            <input
-              type="number"
-              min={0}
-              className={fieldCls}
-              value={baseSalaryNgn}
-              onChange={(e) => setBaseSalaryNgn(e.target.value)}
-              disabled={!canViewAmounts}
-              required
-            />
-          </label>
-          <label className="text-xs font-semibold text-slate-600">
-            Housing (₦)
-            <input
-              type="number"
-              min={0}
-              className={fieldCls}
-              value={housingAllowanceNgn}
-              onChange={(e) => setHousingAllowanceNgn(e.target.value)}
-              disabled={!canViewAmounts}
-            />
-          </label>
-          <label className="text-xs font-semibold text-slate-600">
-            Transport (₦)
-            <input
-              type="number"
-              min={0}
-              className={fieldCls}
-              value={transportAllowanceNgn}
-              onChange={(e) => setTransportAllowanceNgn(e.target.value)}
-              disabled={!canViewAmounts}
-            />
-          </label>
-          <label className="text-xs font-semibold text-slate-600">
-            Level
-            <input
-              type="number"
-              min={1}
-              className={fieldCls}
-              value={salaryLevel}
-              onChange={(e) => setSalaryLevel(e.target.value)}
-            />
-          </label>
-          <label className="text-xs font-semibold text-slate-600">
-            Step
-            <input
-              type="number"
-              min={1}
-              className={fieldCls}
-              value={salaryStep}
-              onChange={(e) => setSalaryStep(e.target.value)}
-            />
-          </label>
-          <label className="text-xs font-semibold text-slate-600 sm:col-span-2">
-            Reason (audit trail)
-            <input
-              className={fieldCls}
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
-              placeholder="e.g. Annual increment 2026, promotion to senior officer"
-              required
-              minLength={3}
-            />
-          </label>
-        </div>
-        {delta != null && delta !== 0 ? (
-          <p className="text-xs font-semibold text-slate-600">
-            Change vs last recorded: {delta > 0 ? '+' : ''}
-            {formatNgn(delta)} ({((delta / Math.max(1, prevBase)) * 100).toFixed(1)}%)
-          </p>
-        ) : null}
-        <button
-          type="submit"
-          disabled={busy || !canViewAmounts}
-          className="rounded-xl bg-[#134e4a] px-4 py-2 text-[10px] font-bold uppercase tracking-wide text-white disabled:opacity-50"
-        >
-          {busy ? 'Saving…' : 'Apply increment'}
-        </button>
-      </form>
-
-      <div>
-        <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2">Salary history</h4>
-        {loading && history.length === 0 ? (
-          <p className="text-sm text-slate-600">Loading history…</p>
-        ) : history.length === 0 ? (
-          <p className="text-sm text-slate-600">No salary changes recorded yet.</p>
-        ) : (
-          <AppTableWrap>
-            <AppTable role="numeric">
-              <AppTableThead>
-                <AppTableTh>Effective</AppTableTh>
-                <AppTableTh>Level / step</AppTableTh>
-                <AppTableTh align="right">Base</AppTableTh>
-                <AppTableTh>Reason</AppTableTh>
-              </AppTableThead>
-              <AppTableBody>
-                {history.map((h) => (
-                  <AppTableTr key={h.id}>
-                    <AppTableTd>{h.effectiveFromIso}</AppTableTd>
-                    <AppTableTd>
-                      {h.salaryLevel != null ? `L${h.salaryLevel}` : '—'}
-                      {h.salaryStep != null ? ` / S${h.salaryStep}` : ''}
-                    </AppTableTd>
-                    <AppTableTd align="right">
-                      {h.amountsRedacted || h.baseSalaryNgn == null ? '—' : formatNgn(h.baseSalaryNgn)}
-                    </AppTableTd>
-                    <AppTableTd title={h.reason}>{h.reason || '—'}</AppTableTd>
-                  </AppTableTr>
-                ))}
-              </AppTableBody>
-            </AppTable>
-          </AppTableWrap>
-        )}
       </div>
+
+      <HrFormModal isOpen={modalOpen} onClose={() => setModalOpen(false)} title="Record salary increment" size="lg">
+        <form onSubmit={submit} className="space-y-4">
+          {error ? (
+            <div className="rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-sm text-red-800">{error}</div>
+          ) : null}
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="text-xs font-semibold text-slate-600">
+              Effective from
+              <input
+                type="date"
+                className={HR_FIELD_CLASS}
+                value={effectiveFromIso}
+                onChange={(e) => setEffectiveFromIso(e.target.value)}
+                required
+              />
+            </label>
+            <label className="text-xs font-semibold text-slate-600">
+              New base salary (₦)
+              <input
+                type="number"
+                min={0}
+                className={HR_FIELD_CLASS}
+                value={baseSalaryNgn}
+                onChange={(e) => setBaseSalaryNgn(e.target.value)}
+                disabled={!canViewAmounts}
+                required
+              />
+            </label>
+            <label className="text-xs font-semibold text-slate-600">
+              Housing (₦)
+              <input
+                type="number"
+                min={0}
+                className={HR_FIELD_CLASS}
+                value={housingAllowanceNgn}
+                onChange={(e) => setHousingAllowanceNgn(e.target.value)}
+                disabled={!canViewAmounts}
+              />
+            </label>
+            <label className="text-xs font-semibold text-slate-600">
+              Transport (₦)
+              <input
+                type="number"
+                min={0}
+                className={HR_FIELD_CLASS}
+                value={transportAllowanceNgn}
+                onChange={(e) => setTransportAllowanceNgn(e.target.value)}
+                disabled={!canViewAmounts}
+              />
+            </label>
+            <label className="text-xs font-semibold text-slate-600">
+              Level
+              <input
+                type="number"
+                min={1}
+                className={HR_FIELD_CLASS}
+                value={salaryLevel}
+                onChange={(e) => setSalaryLevel(e.target.value)}
+              />
+            </label>
+            <label className="text-xs font-semibold text-slate-600">
+              Step
+              <input
+                type="number"
+                min={1}
+                className={HR_FIELD_CLASS}
+                value={salaryStep}
+                onChange={(e) => setSalaryStep(e.target.value)}
+              />
+            </label>
+            <label className="text-xs font-semibold text-slate-600 sm:col-span-2">
+              Reason (audit trail)
+              <input
+                className={HR_FIELD_CLASS}
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+                placeholder="e.g. Annual increment 2026, promotion to senior officer"
+                required
+                minLength={3}
+              />
+            </label>
+          </div>
+          {delta != null && delta !== 0 ? (
+            <p className="text-xs font-semibold text-slate-600">
+              Change vs last recorded: {delta > 0 ? '+' : ''}
+              {formatNgn(delta)} ({((delta / Math.max(1, prevBase)) * 100).toFixed(1)}%)
+            </p>
+          ) : null}
+          <button type="submit" disabled={busy || !canViewAmounts} className={HR_BTN_PRIMARY}>
+            {busy ? 'Saving…' : 'Apply increment'}
+          </button>
+        </form>
+      </HrFormModal>
+
+      {message ? (
+        <div className="rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-2 text-sm text-emerald-900">
+          {message}
+          {draftRuns.length ? (
+            <button
+              type="button"
+              disabled={recomputeBusy}
+              onClick={recomputeDrafts}
+              className="mt-2 block rounded-lg bg-[#134e4a] px-3 py-1.5 text-xs font-bold text-white disabled:opacity-50"
+            >
+              {recomputeBusy ? 'Recomputing…' : `Recompute ${draftRuns.length} draft payroll run(s)`}
+            </button>
+          ) : null}
+        </div>
+      ) : null}
+
+      {loading && history.length === 0 ? (
+        <p className="text-sm text-slate-600">Loading history…</p>
+      ) : history.length === 0 ? (
+        <p className="text-sm text-slate-600">No salary changes recorded yet.</p>
+      ) : (
+        <AppTableWrap>
+          <AppTable role="numeric">
+            <AppTableThead>
+              <AppTableTh>Effective</AppTableTh>
+              <AppTableTh>Level / step</AppTableTh>
+              <AppTableTh align="right">Base</AppTableTh>
+              <AppTableTh>Reason</AppTableTh>
+            </AppTableThead>
+            <AppTableBody>
+              {history.map((h) => (
+                <AppTableTr key={h.id}>
+                  <AppTableTd>{h.effectiveFromIso}</AppTableTd>
+                  <AppTableTd>
+                    {h.salaryLevel != null ? `L${h.salaryLevel}` : '—'}
+                    {h.salaryStep != null ? ` / S${h.salaryStep}` : ''}
+                  </AppTableTd>
+                  <AppTableTd align="right">
+                    {h.amountsRedacted || h.baseSalaryNgn == null ? '—' : formatNgn(h.baseSalaryNgn)}
+                  </AppTableTd>
+                  <AppTableTd title={h.reason}>{h.reason || '—'}</AppTableTd>
+                </AppTableTr>
+              ))}
+            </AppTableBody>
+          </AppTable>
+        </AppTableWrap>
+      )}
     </div>
   );
 }
