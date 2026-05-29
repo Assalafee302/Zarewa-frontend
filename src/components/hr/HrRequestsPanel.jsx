@@ -1,7 +1,7 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { apiFetch } from '../../lib/apiBase';
-import { useWorkspace } from '../../context/WorkspaceContext';
+import { useHrListLoad } from '../../hooks/useHrListLoad';
 import {
   hrRequestKindLabel,
   hrRequestStatusClass,
@@ -36,10 +36,7 @@ export function HrRequestsPanel({
   kindFilter = '',
   staffLinkBase = '/hr/staff',
 }) {
-  const ws = useWorkspace();
   const [scope, setScope] = useState(defaultScope);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
   const [requests, setRequests] = useState([]);
   const [busyId, setBusyId] = useState('');
   const [reviewId, setReviewId] = useState('');
@@ -55,24 +52,17 @@ export function HrRequestsPanel({
     { value: 'other', label: 'Other' },
   ];
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError('');
+  const { loading, error, setError, reload: load } = useHrListLoad(async () => {
     const q = new URLSearchParams({ scope });
     if (kindFilter) q.set('kind', kindFilter);
     const { ok, data } = await apiFetch(`/api/hr/requests?${q}`);
     if (!ok || !data?.ok) {
-      setError(data?.error || 'Could not load requests.');
       setRequests([]);
-    } else {
-      setRequests(data.requests || []);
+      return { error: data?.error || 'Could not load requests.', hasData: false };
     }
-    setLoading(false);
-  }, [scope, kindFilter, ws?.refreshEpoch]);
-
-  useEffect(() => {
-    load();
-  }, [load]);
+    setRequests(data.requests || []);
+    return { hasData: true };
+  }, [scope, kindFilter]);
 
   const canReviewRow = useCallback(
     (r) =>
@@ -154,9 +144,11 @@ export function HrRequestsPanel({
       {error ? (
         <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-800">{error}</div>
       ) : null}
-      {loading ? <p className="text-sm text-slate-600">Loading requests…</p> : null}
+      {loading && requests.length === 0 ? (
+        <p className="text-sm text-slate-600">Loading requests…</p>
+      ) : null}
 
-      {!loading ? (
+      {!loading || requests.length > 0 ? (
         <AppTableWrap>
           <AppTable>
             <AppTableThead>

@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { apiFetch } from '../../lib/apiBase';
-import { useWorkspace } from '../../context/WorkspaceContext';
+import { useHrListLoad } from '../../hooks/useHrListLoad';
 import { hrRequestStatusClass } from '../../lib/hrFormat';
 import {
   AppTable,
@@ -38,41 +38,28 @@ function StatCard({ label, value, tone = 'slate', to }) {
 }
 
 export default function HrDashboard() {
-  const ws = useWorkspace();
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
   const [obs, setObs] = useState(null);
   const [inbox, setInbox] = useState(null);
   const [staffCounts, setStaffCounts] = useState(null);
   const [recentRequests, setRecentRequests] = useState([]);
 
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      setLoading(true);
-      setError('');
-      const { ok, data } = await apiFetch('/api/hr/dashboard');
-      if (cancelled) return;
-      if (!ok || !data?.ok) {
-        setError(data?.error || 'Could not load HR dashboard.');
-        setObs(null);
-        setInbox(null);
-        setStaffCounts(null);
-        setRecentRequests([]);
-      } else {
-        setObs(data.observability);
-        setInbox(data.inbox);
-        setStaffCounts(data.staffCounts);
-        setRecentRequests(data.recentRequests || []);
-      }
-      setLoading(false);
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [ws?.refreshEpoch]);
+  const { loading, error } = useHrListLoad(async () => {
+    const { ok, data } = await apiFetch('/api/hr/dashboard');
+    if (!ok || !data?.ok) {
+      setObs(null);
+      setInbox(null);
+      setStaffCounts(null);
+      setRecentRequests([]);
+      return { error: data?.error || 'Could not load HR dashboard.', hasData: false };
+    }
+    setObs(data.observability);
+    setInbox(data.inbox);
+    setStaffCounts(data.staffCounts);
+    setRecentRequests(data.recentRequests || []);
+    return { hasData: true };
+  }, []);
 
-  if (loading) {
+  if (loading && !obs) {
     return <p className="text-sm text-slate-600">Loading HR dashboard…</p>;
   }
 

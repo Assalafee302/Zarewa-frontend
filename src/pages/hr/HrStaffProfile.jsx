@@ -122,10 +122,14 @@ export default function HrStaffProfile() {
   const [auditEvents, setAuditEvents] = useState(null);
 
   useEffect(() => {
+    setStaff(null);
+    setLoading(true);
+  }, [userId]);
+
+  useEffect(() => {
     let cancelled = false;
     (async () => {
       if (!userId) return;
-      setLoading(true);
       setError('');
       const fetcher = showSensitiveInline || sensitive.isUnlocked ? sensitive.fetchWithSensitive : apiFetch;
       const { ok, data } = await fetcher(`/api/hr/staff/${encodeURIComponent(userId)}`);
@@ -143,7 +147,7 @@ export default function HrStaffProfile() {
     return () => {
       cancelled = true;
     };
-  }, [userId, ws?.refreshEpoch, sensitive.isUnlocked, showSensitiveInline, sensitive.fetchWithSensitive]);
+  }, [userId, sensitive.isUnlocked, showSensitiveInline, sensitive.fetchWithSensitive]);
 
   useEffect(() => {
     if (tab !== 'leave' || !userId || !canManageLeave) return;
@@ -156,7 +160,7 @@ export default function HrStaffProfile() {
     return () => {
       cancelled = true;
     };
-  }, [tab, userId, canManageLeave, ws?.refreshEpoch]);
+  }, [tab, userId, canManageLeave]);
 
   useEffect(() => {
     if (tab !== 'audit' || !userId) return;
@@ -169,14 +173,14 @@ export default function HrStaffProfile() {
     return () => {
       cancelled = true;
     };
-  }, [tab, userId, ws?.refreshEpoch]);
+  }, [tab, userId]);
 
   const yrs = useMemo(() => yearsOfServiceFromIso(staff?.dateJoinedIso), [staff?.dateJoinedIso]);
   const docs = staff?.profileExtra?.documents;
   const loanNotes = staff?.profileExtra?.activeLoansSummary;
   const disciplinary = staff?.profileExtra?.disciplinaryEvents;
 
-  if (loading) return <p className="text-sm text-slate-600">Loading employee profile…</p>;
+  if (loading && !staff) return <p className="text-sm text-slate-600">Loading employee profile…</p>;
   if (error) {
     return (
       <div className="space-y-4">

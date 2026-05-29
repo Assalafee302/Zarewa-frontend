@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { apiFetch } from '../../lib/apiBase';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { HrSensitiveGate } from '../../components/hr/HrSensitiveGate';
@@ -23,11 +23,12 @@ export default function MyPayslips() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [payslips, setPayslips] = useState([]);
+  const hasLoadedRef = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      setLoading(true);
+      if (!hasLoadedRef.current) setLoading(true);
       const fetcher = showSensitiveInline || sensitive.isUnlocked ? sensitive.fetchWithSensitive : apiFetch;
       const { ok, data } = await fetcher('/api/hr/payslips');
       if (cancelled) return;
@@ -37,21 +38,22 @@ export default function MyPayslips() {
       } else {
         setPayslips(data.payslips || []);
         setError('');
+        hasLoadedRef.current = true;
       }
       setLoading(false);
     })();
     return () => {
       cancelled = true;
     };
-  }, [ws?.refreshEpoch, sensitive.isUnlocked, showSensitiveInline, sensitive.fetchWithSensitive]);
+  }, [sensitive.isUnlocked, showSensitiveInline, sensitive.fetchWithSensitive]);
 
   const body = (
     <>
-      {loading ? <p className="text-sm text-slate-600">Loading payslips…</p> : null}
+      {loading && payslips.length === 0 ? <p className="text-sm text-slate-600">Loading payslips…</p> : null}
       {!loading && payslips.length === 0 ? (
         <p className="text-sm text-slate-600">No locked or paid payslips on file yet.</p>
       ) : null}
-      {!loading && payslips.length > 0 ? (
+      {payslips.length > 0 ? (
         <AppTableWrap>
           <AppTable role="numeric">
             <AppTableThead>

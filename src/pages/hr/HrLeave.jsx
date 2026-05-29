@@ -1,7 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { apiFetch } from '../../lib/apiBase';
 import { useWorkspace } from '../../context/WorkspaceContext';
+import { useHrListLoad } from '../../hooks/useHrListLoad';
 import { canManageHrLeave } from '../../lib/hrAccess';
 import { currentPeriodYyyymm } from '../../lib/hrRequests';
 import {
@@ -19,30 +20,18 @@ export default function HrLeave() {
   const canManage = canManageHrLeave(ws?.permissions);
   const [periodYyyymm, setPeriodYyyymm] = useState(currentPeriodYyyymm());
   const [balances, setBalances] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
 
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      setLoading(true);
-      const { ok, data } = await apiFetch(`/api/hr/leave/balances?periodYyyymm=${periodYyyymm}`);
-      if (cancelled) return;
-      if (!ok || !data?.ok) {
-        setError(data?.error || 'Could not load leave balances.');
-        setBalances([]);
-      } else {
-        setBalances(data.balances || []);
-        setError('');
-      }
-      setLoading(false);
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [periodYyyymm, ws?.refreshEpoch]);
+  const { loading, error, setError, reload } = useHrListLoad(async () => {
+    const { ok, data } = await apiFetch(`/api/hr/leave/balances?periodYyyymm=${periodYyyymm}`);
+    if (!ok || !data?.ok) {
+      setBalances([]);
+      return { error: data?.error || 'Could not load leave balances.', hasData: false };
+    }
+    setBalances(data.balances || []);
+    return { hasData: true };
+  }, [periodYyyymm]);
 
   const recompute = async () => {
     setBusy(true);
@@ -57,6 +46,7 @@ export default function HrLeave() {
       return;
     }
     setMessage(`Recomputed annual leave for ${data.users ?? 'all'} staff.`);
+    await reload();
   };
 
   return (

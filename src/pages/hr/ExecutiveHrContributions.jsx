@@ -1,6 +1,7 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { apiFetch } from '../../lib/apiBase';
 import { useWorkspace } from '../../context/WorkspaceContext';
+import { useHrListLoad } from '../../hooks/useHrListLoad';
 import { canMarkBranchContribution } from '../../lib/hrAccess';
 import { formatNgn } from '../../lib/hrFormat';
 import { currentPeriodYyyymm } from '../../lib/hrRequests';
@@ -19,28 +20,19 @@ export default function ExecutiveHrContributions() {
   const canEdit = canMarkBranchContribution(ws?.permissions);
   const [periodYyyymm, setPeriodYyyymm] = useState(currentPeriodYyyymm());
   const [rows, setRows] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
   const [busyBranch, setBusyBranch] = useState('');
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const { loading, error, reload: load } = useHrListLoad(async () => {
     const { ok, data } = await apiFetch(
       `/api/hr/branch-contributions?periodYyyymm=${encodeURIComponent(periodYyyymm)}`
     );
     if (!ok || !data?.ok) {
-      setError(data?.error || 'Could not load contributions.');
       setRows([]);
-    } else {
-      setRows(data.contributions || []);
-      setError('');
+      return { error: data?.error || 'Could not load contributions.', hasData: false };
     }
-    setLoading(false);
-  }, [periodYyyymm, ws?.refreshEpoch]);
-
-  useEffect(() => {
-    load();
-  }, [load]);
+    setRows(data.contributions || []);
+    return { hasData: true };
+  }, [periodYyyymm]);
 
   const recordContribution = async (row, contributedNgn) => {
     if (!canEdit) return;

@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { apiFetch } from '../../lib/apiBase';
-import { useWorkspace } from '../../context/WorkspaceContext';
 import { HrRequestsPanel } from '../../components/hr/HrRequestsPanel';
 import { daysBetweenIso } from '../../lib/hrRequests';
 
@@ -15,7 +14,6 @@ const LEAVE_TYPES = [
 const STEPS = ['Type & dates', 'Details', 'Review'];
 
 export default function MyLeave() {
-  const ws = useWorkspace();
   const [step, setStep] = useState(0);
   const [leaveType, setLeaveType] = useState('annual');
   const [startDateIso, setStartDateIso] = useState('');
@@ -45,7 +43,7 @@ export default function MyLeave() {
     return () => {
       cancelled = true;
     };
-  }, [ws?.refreshEpoch]);
+  }, []);
 
   const annualBalance = balances.find((b) => b.leaveType === 'annual');
 

@@ -18,7 +18,7 @@ export default function MyProfileOverview() {
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      setLoading(true);
+      if (!profile) setLoading(true);
       const fetcher = showSensitiveInline || sensitive.isUnlocked ? sensitive.fetchWithSensitive : apiFetch;
       const { ok, data } = await fetcher('/api/hr/me');
       if (cancelled) return;
@@ -34,9 +34,9 @@ export default function MyProfileOverview() {
     return () => {
       cancelled = true;
     };
-  }, [ws?.refreshEpoch, sensitive.isUnlocked, showSensitiveInline, sensitive.fetchWithSensitive]);
+  }, [sensitive.isUnlocked, showSensitiveInline, sensitive.fetchWithSensitive]);
 
-  if (loading) return <p className="text-sm text-slate-600">Loading your profile…</p>;
+  if (loading && !profile) return <p className="text-sm text-slate-600">Loading your profile…</p>;
   if (error) {
     return <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-800">{error}</div>;
   }

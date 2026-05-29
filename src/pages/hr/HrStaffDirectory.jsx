@@ -1,8 +1,9 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Search } from 'lucide-react';
 import { apiFetch } from '../../lib/apiBase';
 import { useWorkspace } from '../../context/WorkspaceContext';
+import { useHrListLoad } from '../../hooks/useHrListLoad';
 import { canViewOrgSensitiveHr } from '../../lib/hrAccess';
 import { formatNgn, payrollGroupLabel } from '../../lib/hrFormat';
 import {
@@ -27,8 +28,6 @@ export default function HrStaffDirectory() {
     return list.map((b) => ({ id: b.id, name: b.name || b.id }));
   }, [ws?.snapshot?.workspaceBranches, ws?.session?.branches]);
 
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
   const [staff, setStaff] = useState([]);
   const [search, setSearch] = useState('');
   const [branchId, setBranchId] = useState('');
@@ -37,26 +36,16 @@ export default function HrStaffDirectory() {
   const [status, setStatus] = useState('active');
   const [includeInactive, setIncludeInactive] = useState(false);
 
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      setLoading(true);
-      setError('');
-      const q = includeInactive ? '?includeInactive=1' : '';
-      const { ok, data } = await apiFetch(`/api/hr/staff${q}`);
-      if (cancelled) return;
-      if (!ok || !data?.ok) {
-        setError(data?.error || 'Could not load staff directory.');
-        setStaff([]);
-      } else {
-        setStaff(data.staff || []);
-      }
-      setLoading(false);
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [ws?.refreshEpoch, includeInactive]);
+  const { loading, error } = useHrListLoad(async () => {
+    const q = includeInactive ? '?includeInactive=1' : '';
+    const { ok, data } = await apiFetch(`/api/hr/staff${q}`);
+    if (!ok || !data?.ok) {
+      setStaff([]);
+      return { error: data?.error || 'Could not load staff directory.', hasData: false };
+    }
+    setStaff(data.staff || []);
+    return { hasData: true };
+  }, [includeInactive]);
 
   const departments = useMemo(() => uniqueSorted(staff.map((s) => s.department)), [staff]);
   const employmentTypes = useMemo(
@@ -173,7 +162,8 @@ export default function HrStaffDirectory() {
         <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-800">{error}</div>
       ) : null}
 
-      {!loading && !error ? (
+      {!loading || staff.length > 0 ? (
+        !error ? (
         <AppTableWrap>
           <AppTable role="numeric">
             <AppTableThead>
@@ -233,6 +223,7 @@ export default function HrStaffDirectory() {
             </AppTableBody>
           </AppTable>
         </AppTableWrap>
+        ) : null
       ) : null}
     </div>
   );

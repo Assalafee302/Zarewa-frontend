@@ -38,7 +38,7 @@ export default function HrAttendance() {
     return () => {
       cancelled = true;
     };
-  }, [tab, periodYyyymm, showDeductions, ws?.refreshEpoch]);
+  }, [tab, periodYyyymm, showDeductions]);
 
   return (
     <div className="space-y-6">

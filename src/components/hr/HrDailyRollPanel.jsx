@@ -1,6 +1,7 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { apiFetch } from '../../lib/apiBase';
 import { useWorkspace } from '../../context/WorkspaceContext';
+import { useHrListLoad } from '../../hooks/useHrListLoad';
 import {
   AppTable,
   AppTableBody,
@@ -33,29 +34,29 @@ export function HrDailyRollPanel() {
   const [staff, setStaff] = useState([]);
   const [rows, setRows] = useState({});
   const [notes, setNotes] = useState('');
-  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
   const [message, setMessage] = useState('');
+  const dirtyRef = useRef(false);
 
   useEffect(() => {
     if (defaultBranch && !branchId) setBranchId(defaultBranch);
   }, [defaultBranch, branchId]);
 
-  const loadAll = useCallback(async () => {
-    if (!branchId) return;
-    setLoading(true);
-    setError('');
+  useEffect(() => {
+    dirtyRef.current = false;
+  }, [branchId, dayIso]);
+
+  const { loading, error, setError, reload: loadAll } = useHrListLoad(async () => {
+    if (!branchId) return { hasData: false };
     setMessage('');
+    if (dirtyRef.current) return { hasData: true };
     const staffQ = await apiFetch('/api/hr/staff');
     const rollQ = await apiFetch(
       `/api/hr/attendance/daily-roll?branchId=${encodeURIComponent(branchId)}&dayIso=${encodeURIComponent(dayIso)}`
     );
     if (!staffQ.ok || !staffQ.data?.ok) {
-      setError(staffQ.data?.error || 'Could not load branch staff.');
       setStaff([]);
-      setLoading(false);
-      return;
+      return { error: staffQ.data?.error || 'Could not load branch staff.', hasData: false };
     }
     const branchStaff = (staffQ.data.staff || []).filter(
       (s) => String(s.branchId || s.normalized?.branchId) === branchId && String(s.status) === 'active'
@@ -78,14 +79,11 @@ export function HrDailyRollPanel() {
       if (!map[s.userId]) map[s.userId] = { status: 'present', inTime: '', outTime: '' };
     }
     setRows(map);
-    setLoading(false);
-  }, [branchId, dayIso, ws?.refreshEpoch]);
-
-  useEffect(() => {
-    loadAll();
-  }, [loadAll]);
+    return { hasData: true };
+  }, [branchId, dayIso]);
 
   const updateRow = (userId, patch) => {
+    dirtyRef.current = true;
     setRows((prev) => ({ ...prev, [userId]: { ...prev[userId], ...patch } }));
   };
 
@@ -112,6 +110,7 @@ export function HrDailyRollPanel() {
       return;
     }
     setMessage('Daily roll saved.');
+    dirtyRef.current = false;
     await loadAll();
   };
 
@@ -160,9 +159,9 @@ export function HrDailyRollPanel() {
         </div>
       ) : null}
 
-      {loading ? <p className="text-sm text-slate-600">Loading…</p> : null}
+      {loading && staff.length === 0 ? <p className="text-sm text-slate-600">Loading…</p> : null}
 
-      {!loading && staff.length > 0 ? (
+      {(!loading || staff.length > 0) && staff.length > 0 ? (
         <AppTableWrap>
           <AppTable>
             <AppTableThead>

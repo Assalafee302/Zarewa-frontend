@@ -1,6 +1,6 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { apiFetch } from '../../lib/apiBase';
-import { useWorkspace } from '../../context/WorkspaceContext';
+import { useHrListLoad } from '../../hooks/useHrListLoad';
 import { formatNgn } from '../../lib/hrFormat';
 import {
   AppTable,
@@ -20,10 +20,7 @@ const GROUPS = [
 ];
 
 export function HrSalaryMatrixPanel() {
-  const ws = useWorkspace();
   const [rows, setRows] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [form, setForm] = useState({
     payrollGroup: 'branch_ops',
@@ -35,22 +32,15 @@ export function HrSalaryMatrixPanel() {
     notes: '',
   });
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const { loading, error, setError, reload: load } = useHrListLoad(async () => {
     const { ok, data } = await apiFetch('/api/hr/salary-matrix');
     if (!ok || !data?.ok) {
-      setError(data?.error || 'Could not load salary matrix.');
       setRows([]);
-    } else {
-      setRows(data.matrix || []);
-      setError('');
+      return { error: data?.error || 'Could not load salary matrix.', hasData: false };
     }
-    setLoading(false);
-  }, [ws?.refreshEpoch]);
-
-  useEffect(() => {
-    load();
-  }, [load]);
+    setRows(data.matrix || []);
+    return { hasData: true };
+  }, []);
 
   const save = async () => {
     setMessage('');

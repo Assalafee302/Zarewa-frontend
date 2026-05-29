@@ -4,6 +4,7 @@ import { useWorkspace } from '../../context/WorkspaceContext';
 import { HrSensitiveGate } from '../../components/hr/HrSensitiveGate';
 import { HrSalaryMatrixPanel } from '../../components/hr/HrSalaryMatrixPanel';
 import { useHrSensitiveAccess } from '../../hooks/useHrSensitiveAccess';
+import { useHrListLoad } from '../../hooks/useHrListLoad';
 import {
   canExportPayroll,
   canGmApprovePayroll,
@@ -52,8 +53,6 @@ export default function HrPayroll() {
   const [totals, setTotals] = useState(null);
   const [lines, setLines] = useState([]);
   const [previewMode, setPreviewMode] = useState(true);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [newPeriod, setNewPeriod] = useState(currentPeriodYyyymm());
   const [taxPercent, setTaxPercent] = useState('7.5');
@@ -61,19 +60,16 @@ export default function HrPayroll() {
 
   const fetcher = showSensitiveInline || sensitive.isUnlocked ? sensitive.fetchWithSensitive : apiFetch;
 
-  const loadRuns = useCallback(async () => {
-    setLoading(true);
+  const { loading, error, setError, reload: loadRuns } = useHrListLoad(async () => {
     const { ok, data } = await apiFetch('/api/hr/payroll-runs');
     if (!ok || !data?.ok) {
-      setError(data?.error || 'Could not load payroll runs.');
       setRuns([]);
-    } else {
-      setRuns(data.runs || []);
-      setError('');
-      if (!selectedId && data.runs?.[0]?.id) setSelectedId(data.runs[0].id);
+      return { error: data?.error || 'Could not load payroll runs.', hasData: false };
     }
-    setLoading(false);
-  }, [selectedId, ws?.refreshEpoch]);
+    setRuns(data.runs || []);
+    setSelectedId((prev) => prev || data.runs?.[0]?.id || '');
+    return { hasData: true };
+  }, []);
 
   const loadRunDetail = useCallback(async () => {
     if (!selectedId) {
@@ -94,10 +90,6 @@ export default function HrPayroll() {
     if (totalsRes.ok && totalsRes.data?.ok) setTotals(totalsRes.data.totals);
     else setTotals(null);
   }, [selectedId, fetcher]);
-
-  useEffect(() => {
-    loadRuns();
-  }, [loadRuns]);
 
   useEffect(() => {
     loadRunDetail();
