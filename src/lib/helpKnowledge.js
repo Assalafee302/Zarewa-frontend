@@ -1,4 +1,8 @@
 import { expandHelpTokens, normalizeHelpQueryText, tokenMatchesTerm } from './helpTypoTolerance.js';
+import {
+  buildOperationalHelpArticles,
+  OPERATIONAL_FAQ_COUNT,
+} from './helpOperationalCatalog.js';
 
 /**
  * Used by server /api/help/chat and mirrored in the frontend for instant offline answers.
@@ -7,8 +11,8 @@ import { expandHelpTokens, normalizeHelpQueryText, tokenMatchesTerm } from './he
 /** @typedef {{ label: string; to: string; state?: object }} HelpLink */
 /** @typedef {{ id: string; title: string; keywords: string[]; answer: string; steps: string[]; links: HelpLink[] }} HelpArticle */
 
-/** @type {HelpArticle[]} */
-export const HELP_ARTICLES = [
+/** Curated deep-dive guides (hand-maintained). */
+const CORE_HELP_ARTICLES = [
   {
     id: 'record-receipt',
     title: 'How to record a payment (receipt)',
@@ -1210,6 +1214,18 @@ export const HELP_ARTICLES = [
   },
 ];
 
+/** @type {HelpArticle[]} Operational Q&A catalog (~1000 phrasings) merged at load. */
+const OPERATIONAL_HELP_ARTICLES = buildOperationalHelpArticles();
+
+/** @type {HelpArticle[]} */
+export const HELP_ARTICLES = [...CORE_HELP_ARTICLES, ...OPERATIONAL_HELP_ARTICLES];
+
+/** Total articles including operational catalog (for status/admin). */
+export const HELP_ARTICLE_COUNT = HELP_ARTICLES.length;
+
+/** Re-export for admin dashboards and docs. */
+export { OPERATIONAL_FAQ_COUNT };
+
 const STOP_WORDS = new Set([
   'a',
   'an',
@@ -1464,6 +1480,25 @@ function scoreHelpArticle(article, qLower, tokens, pathname, learnedBoosts) {
   return score;
 }
 
+/** Prefer hand-curated SOPs when an operational FAQ is only slightly ahead. */
+const CURATED_OVER_OPERATIONAL_SCORE_GAP = 8;
+
+/**
+ * @param {{ article: HelpArticle; score: number }[]} ranked
+ * @returns {{ article: HelpArticle; score: number }[]}
+ */
+function preferCuratedOverOperational(ranked) {
+  if (!ranked.length) return ranked;
+  const top = ranked[0];
+  if (!String(top.article.id).startsWith('op-')) return ranked;
+  const curatedIdx = ranked.findIndex((row) => !String(row.article.id).startsWith('op-'));
+  if (curatedIdx < 0) return ranked;
+  const curated = ranked[curatedIdx];
+  if (top.score - curated.score > CURATED_OVER_OPERATIONAL_SCORE_GAP) return ranked;
+  const rest = ranked.filter((_, i) => i !== curatedIdx);
+  return [curated, ...rest];
+}
+
 /**
  * @param {string} query
  * @param {{ limit?: number; minScore?: number; pathname?: string; learnedBoosts?: Record<string, number> }} [opts]
@@ -1478,12 +1513,14 @@ export function matchHelpArticles(query, opts = {}) {
   const tokens = expandHelpTokens(tokenizeHelpQuery(`${q} ${normalized}`));
   const qLower = `${q} ${normalized}`.toLowerCase();
   const learnedBoosts = opts.learnedBoosts && typeof opts.learnedBoosts === 'object' ? opts.learnedBoosts : {};
-  const ranked = HELP_ARTICLES.map((article) => ({
-    article,
-    score: scoreHelpArticle(article, qLower, tokens, opts.pathname, learnedBoosts),
-  }))
-    .filter((row) => row.score >= minScore)
-    .sort((a, b) => b.score - a.score);
+  const ranked = preferCuratedOverOperational(
+    HELP_ARTICLES.map((article) => ({
+      article,
+      score: scoreHelpArticle(article, qLower, tokens, opts.pathname, learnedBoosts),
+    }))
+      .filter((row) => row.score >= minScore)
+      .sort((a, b) => b.score - a.score),
+  );
   return ranked.slice(0, limit);
 }
 
