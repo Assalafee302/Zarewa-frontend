@@ -47,6 +47,7 @@ const NAV_COLLAPSED_KEY = 'zarewa.workspace.navCollapsed';
  * Zarewa Workspace Inbox — operational command center for work items and internal memos.
  * Internal component name kept as GmailStyleWorkspace for import stability.
  */
+/** @deprecated Use OfficeDeskShell / WorkspaceDesk — kept for import stability */
 export default function GmailStyleWorkspace({
   officeSummary = null,
   workItemsView,
