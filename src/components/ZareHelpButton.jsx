@@ -22,7 +22,7 @@ export function ZareHelpButton({
   return (
     <button
       type="button"
-      title={`Ask ${HELP_BOT_NAME} — ERP operations assistant`}
+      title={`Ask ${HELP_BOT_NAME} — how-to guide (steps only, no posting for you)`}
       onClick={() => {
         help.openZare({
           mode: 'transaction_help',
