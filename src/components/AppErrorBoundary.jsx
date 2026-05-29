@@ -16,16 +16,17 @@ export class AppErrorBoundary extends React.Component {
 
   componentDidCatch(error, info) {
     console.error('[Zarewa] UI error', error, info?.componentStack);
-    debugBootLog(
-      'AppErrorBoundary.jsx:didCatch',
-      'React error boundary caught error',
-      {
-        message: String(error?.message || error),
-        stack: String(error?.stack || '').slice(0, 800),
-        componentStack: String(info?.componentStack || '').slice(0, 400),
-      },
-      'A'
-    );
+    const payload = {
+      message: String(error?.message || error),
+      stack: String(error?.stack || '').slice(0, 800),
+      componentStack: String(info?.componentStack || '').slice(0, 400),
+    };
+    debugBootLog('AppErrorBoundary.jsx:didCatch', 'React error boundary caught error', payload, 'A');
+    try {
+      sessionStorage.setItem('zarewa.boot.error', JSON.stringify({ ...payload, at: Date.now() }));
+    } catch {
+      /* ignore */
+    }
   }
 
   render() {

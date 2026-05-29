@@ -2,8 +2,11 @@
 const DEBUG_ENDPOINT = 'http://127.0.0.1:7800/ingest/0d232d42-7e4c-4aa0-b25b-38b428c3d629';
 const DEBUG_SESSION = '7394bb';
 
+const DEBUG_ENABLED =
+  import.meta.env.DEV || import.meta.env.MODE === 'preview' || import.meta.env.VITE_DEBUG_BOOT === '1';
+
 export function debugBootLog(location, message, data = {}, hypothesisId = '') {
-  if (!import.meta.env.DEV) return;
+  if (!DEBUG_ENABLED) return;
   // #region agent log
   fetch(DEBUG_ENDPOINT, {
     method: 'POST',
@@ -22,23 +25,23 @@ export function debugBootLog(location, message, data = {}, hypothesisId = '') {
 }
 
 export function installDebugBootHandlers() {
-  if (!import.meta.env.DEV) return;
   if (typeof window === 'undefined') return;
   if (window.__zarewaDebugBootInstalled) return;
   window.__zarewaDebugBootInstalled = true;
 
   window.addEventListener('error', (ev) => {
-    debugBootLog(
-      'debugBoot.js:window.error',
-      'Uncaught window error',
-      {
-        message: String(ev?.message || ''),
-        filename: String(ev?.filename || ''),
-        lineno: ev?.lineno,
-        colno: ev?.colno,
-      },
-      'A'
-    );
+    const payload = {
+      message: String(ev?.message || ''),
+      filename: String(ev?.filename || ''),
+      lineno: ev?.lineno,
+      colno: ev?.colno,
+    };
+    debugBootLog('debugBoot.js:window.error', 'Uncaught window error', payload, 'A');
+    try {
+      sessionStorage.setItem('zarewa.boot.error', JSON.stringify({ ...payload, at: Date.now() }));
+    } catch {
+      /* ignore */
+    }
   });
 
   window.addEventListener('unhandledrejection', (ev) => {
