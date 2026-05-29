@@ -33,7 +33,14 @@ import { workItemShowsOfficeDrawerTransactionIntel } from '../../lib/transaction
 /**
  * @param {{ threadId?: string, isOpen?: boolean, onDismiss?: () => void, variant?: 'modal' | 'inline' }} props
  */
-export function OfficeThreadConversationDrawer({ threadId, isOpen = true, onDismiss, variant = 'modal' }) {
+export function OfficeThreadConversationDrawer({
+  threadId,
+  isOpen = true,
+  onDismiss,
+  variant = 'modal',
+  openConvertExpense = false,
+  onConvertExpenseConsumed,
+}) {
   const ws = useWorkspace();
   const { show: showToast } = useToast();
   const canOffice = Boolean(ws?.canAccessModule?.('office'));
@@ -339,7 +346,7 @@ export function OfficeThreadConversationDrawer({ threadId, isOpen = true, onDism
     });
   }, [convertOpen, selectedThread, detail, expenseForm.description]);
 
-  const openConvert = () => {
+  const openConvert = useCallback(() => {
     if (!selectedThread) return;
     const desc = [selectedThread.subject, detail?.messages?.[0]?.body || selectedThread.body || '']
       .filter(Boolean)
@@ -366,7 +373,14 @@ export function OfficeThreadConversationDrawer({ threadId, isOpen = true, onDism
       lines,
     });
     setConvertOpen(true);
-  };
+  }, [selectedThread, detail?.messages, smartMemo?.guidedFields, smartMemo?.expenseCategory]);
+
+  useEffect(() => {
+    if (openConvertExpense && selectedThread && detail?.thread) {
+      openConvert();
+      onConvertExpenseConsumed?.();
+    }
+  }, [openConvertExpense, selectedThread, detail?.thread, openConvert, onConvertExpenseConsumed]);
 
   const submitProcurementConvert = async () => {
     const id = String(threadId || '').trim();

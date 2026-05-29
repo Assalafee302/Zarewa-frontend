@@ -53,8 +53,9 @@ export function OfficialNoticesPanel() {
   );
 }
 
-export function OfficeForumPanel({ scope = 'branch' }) {
+export function OfficeForumPanel({ scope = 'branch', onTurnIntoOfficeRecord }) {
   const ws = useWorkspace();
+  const blocksCreate = Boolean(ws?.blocksBranchScopedCreate);
   const [topics, setTopics] = useState([]);
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
@@ -88,7 +89,26 @@ export function OfficeForumPanel({ scope = 'branch' }) {
       {topics.map((t) => (
         <div key={t.id} className="rounded-xl border border-slate-200 bg-white p-3">
           <p className="font-semibold text-slate-900">{t.title}</p>
+          <p className="mt-1 text-sm text-slate-600 whitespace-pre-wrap">{t.body || t.firstPostBody || ''}</p>
           <p className="text-xs text-slate-500">{t.createdAtIso}</p>
+          {scope === 'branch' && onTurnIntoOfficeRecord ? (
+            <button
+              type="button"
+              disabled={blocksCreate}
+              title={blocksCreate ? ws?.branchScopedCreateMessage : undefined}
+              onClick={() =>
+                onTurnIntoOfficeRecord({
+                  title: t.title,
+                  body: t.body || t.firstPostBody || '',
+                })
+              }
+              className={`mt-2 rounded-lg border border-teal-200 bg-teal-50 px-3 py-1.5 text-xs font-semibold text-teal-900${
+                blocksCreate ? ' cursor-not-allowed opacity-50' : ' hover:bg-teal-100'
+              }`}
+            >
+              Turn into office record
+            </button>
+          ) : null}
         </div>
       ))}
     </div>

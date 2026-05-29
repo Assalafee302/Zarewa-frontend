@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { X } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
@@ -17,9 +17,10 @@ import ZareWritingAssistCard from './ZareWritingAssistCard';
 /**
  * Guided Create Office Record wizard (mobile-friendly steps).
  */
-export default function CreateOfficeRecordWizard({ open, onClose, onCreated }) {
+export default function CreateOfficeRecordWizard({ open, onClose, onCreated, initialPrefill = null }) {
   const ws = useWorkspace();
   const { show: showToast } = useToast();
+  const blocksCreate = Boolean(ws?.blocksBranchScopedCreate);
   const [step, setStep] = useState(0);
   const [freeText, setFreeText] = useState('');
   const [recordType, setRecordType] = useState('');
@@ -59,6 +60,22 @@ export default function CreateOfficeRecordWizard({ open, onClose, onCreated }) {
     setZareDismissed(false);
   }, []);
 
+  const applyPrefill = useCallback((prefill) => {
+    if (!prefill) return;
+    const detected = prefill.recordType || detectOfficeRecordType(prefill.subject || '', prefill.body || prefill.freeText || '');
+    if (prefill.freeText) setFreeText(prefill.freeText);
+    if (prefill.body) setBody(prefill.body);
+    if (prefill.subject) setSubject(prefill.subject);
+    if (prefill.guidedFields) setGuidedFields(prefill.guidedFields);
+    setRecordType(detected);
+    setStep(2);
+    setZareDismissed(false);
+  }, []);
+
+  useEffect(() => {
+    if (open && initialPrefill) applyPrefill(initialPrefill);
+  }, [open, initialPrefill, applyPrefill]);
+
   const onOpenChange = (v) => {
     if (!v) {
       reset();
@@ -76,6 +93,12 @@ export default function CreateOfficeRecordWizard({ open, onClose, onCreated }) {
   };
 
   const submit = async () => {
+    if (blocksCreate) {
+      showToast(ws?.branchScopedCreateMessage || 'Select a single branch workspace before creating records.', {
+        variant: 'warning',
+      });
+      return;
+    }
     if (!ws?.canMutate) {
       showToast('Reconnect to submit office records.', { variant: 'warning' });
       return;
@@ -133,7 +156,14 @@ export default function CreateOfficeRecordWizard({ open, onClose, onCreated }) {
             </Dialog.Close>
           </div>
 
-          {step === 0 ? (
+          {blocksCreate ? (
+            <p className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+              {ws?.branchScopedCreateMessage ||
+                'Cannot create while “All branches” is on. Select a single branch in the workspace bar.'}
+            </p>
+          ) : null}
+
+          {step === 0 && !blocksCreate ? (
             <div className="mt-4 space-y-4">
               <p className="text-sm text-slate-600">Tell Zare what happened, or choose a record type.</p>
               <textarea
@@ -171,7 +201,7 @@ export default function CreateOfficeRecordWizard({ open, onClose, onCreated }) {
             </div>
           ) : null}
 
-          {step === 2 ? (
+          {step === 2 && !blocksCreate ? (
             <div className="mt-4 space-y-3">
               <p className="text-xs font-semibold uppercase text-teal-800">{typeMeta?.label || 'Office record'}</p>
               {!zareDismissed && zareSuggestion ? (
@@ -246,7 +276,7 @@ export default function CreateOfficeRecordWizard({ open, onClose, onCreated }) {
                 Back
               </button>
             ) : null}
-            {step < 2 ? (
+            {blocksCreate ? null : step < 2 ? (
               <button
                 type="button"
                 disabled={step === 0 && !freeText.trim()}

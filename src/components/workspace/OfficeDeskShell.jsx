@@ -25,6 +25,7 @@ export default function OfficeDeskShell({
   onSelectItem,
   onClearSelection,
   onRefresh,
+  onForumToOfficeRecord,
 }) {
   const visible = useMemo(
     () => items.filter((item) => workItemShowsOnWorkspaceUnifiedInbox(item, inboxCtx)),
@@ -35,7 +36,12 @@ export default function OfficeDeskShell({
 
   if (sectionId === 'notices') return <OfficialNoticesPanel />;
   if (sectionId === 'forum' || sectionId === 'branch_forum') {
-    return <OfficeForumPanel scope={sectionId === 'forum' ? 'company' : 'branch'} />;
+    return (
+      <OfficeForumPanel
+        scope={sectionId === 'forum' ? 'company' : 'branch'}
+        onTurnIntoOfficeRecord={sectionId === 'branch_forum' ? onForumToOfficeRecord : undefined}
+      />
+    );
   }
   if (sectionId === 'filing') return <FilingPanel items={visible} inboxCtx={inboxCtx} />;
   if (sectionId === 'expense_conversions') {

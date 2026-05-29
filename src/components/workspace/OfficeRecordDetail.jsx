@@ -5,8 +5,11 @@ import { useToast } from '../../context/ToastContext';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { officeRecordStatusBadges } from '../../lib/officeRecordStatus';
 import { officeThreadIdFromWorkItem } from '../../lib/officeThreadFromWorkItem';
+import { useOfficeRecordActions } from '../../lib/useOfficeRecordActions';
 import { OfficeThreadConversationDrawer } from '../office/OfficeThreadConversationDrawer';
 import { normalizeWorkItem } from '../../lib/workspaceWorkItemModel';
+import OfficeRecordActionBar from './OfficeRecordActionBar';
+import OfficeRecordBmEditModal from './OfficeRecordBmEditModal';
 
 function TimelineList({ events }) {
   if (!events?.length) {
@@ -38,8 +41,11 @@ export default function OfficeRecordDetail({ workItem, onClose, onRefresh }) {
   const [timeline, setTimeline] = useState([]);
   const [versions, setVersions] = useState([]);
   const [loadingTimeline, setLoadingTimeline] = useState(false);
+  const [bmEditOpen, setBmEditOpen] = useState(false);
+  const [openConvertExpense, setOpenConvertExpense] = useState(false);
   const threadId = officeThreadIdFromWorkItem(workItem);
 
+  const actions = useOfficeRecordActions({ workItem, threadId, onRefresh });
   const n = normalizeWorkItem(workItem, { userId: ws?.session?.user?.id });
   const badges = officeRecordStatusBadges(workItem);
   const loadTimeline = useCallback(async () => {
@@ -103,16 +109,17 @@ export default function OfficeRecordDetail({ workItem, onClose, onRefresh }) {
             </button>
           ) : null}
         </div>
-        <div className="mt-3 flex flex-wrap gap-2">
-          {ws?.canAccessModule?.('office') && threadId ? (
-            <button
-              type="button"
-              onClick={() => void fileRecord()}
-              className="rounded-lg bg-teal-800 px-3 py-1.5 text-xs font-semibold text-white"
-            >
-              File record
-            </button>
-          ) : null}
+        <OfficeRecordActionBar
+          actions={actions}
+          canFile={Boolean(ws?.canAccessModule?.('office') && threadId)}
+          onFileRecord={() => void fileRecord()}
+          onConvertExpense={() => {
+            setOpenConvertExpense(true);
+            setTab('conversation');
+          }}
+          onEditBm={() => setBmEditOpen(true)}
+        />
+        <div className="mt-2 flex flex-wrap gap-2">
           <button
             type="button"
             onClick={() => void loadTimeline()}
@@ -155,18 +162,31 @@ export default function OfficeRecordDetail({ workItem, onClose, onRefresh }) {
             <p>
               <span className="font-semibold">Office:</span> {n.responsibleOffice}
             </p>
+            {actions.approvalRouteLabel ? (
+              <p className="rounded-lg border border-teal-100 bg-teal-50/60 px-3 py-2 text-xs text-teal-950">
+                <span className="font-semibold">Approval route:</span> {actions.memoTypeLabel} — next:{' '}
+                {actions.approvalRouteLabel}
+              </p>
+            ) : null}
             <p>{n.previewText || 'No summary.'}</p>
           </div>
         ) : null}
         {tab === 'conversation' && threadId ? (
-          <OfficeThreadConversationDrawer threadId={threadId} isOpen variant="inline" onDismiss={() => {}} />
+          <OfficeThreadConversationDrawer
+            threadId={threadId}
+            isOpen
+            variant="inline"
+            onDismiss={() => {}}
+            openConvertExpense={openConvertExpense}
+            onConvertExpenseConsumed={() => setOpenConvertExpense(false)}
+          />
         ) : null}
         {tab === 'conversation' && !threadId ? (
           <p className="text-sm text-slate-500">No office thread linked to this work item.</p>
         ) : null}
         {tab === 'timeline' ? <TimelineList events={timeline} /> : null}
         {tab === 'files' ? (
-          <p className="text-sm text-slate-500">Use Conversation tab — Print opens from thread toolbar.</p>
+          <p className="text-sm text-slate-500">Use Print or A4 pack on the action bar above.</p>
         ) : null}
         {tab === 'linked' ? (
           <p className="text-sm text-slate-500">Linked expenses and procurement appear after conversion.</p>
@@ -187,6 +207,14 @@ export default function OfficeRecordDetail({ workItem, onClose, onRefresh }) {
           </div>
         ) : null}
       </div>
+
+      <OfficeRecordBmEditModal
+        open={bmEditOpen}
+        thread={actions.thread}
+        busy={actions.busy}
+        onClose={() => setBmEditOpen(false)}
+        onSave={actions.patchByBranchManager}
+      />
     </div>
   );
 }

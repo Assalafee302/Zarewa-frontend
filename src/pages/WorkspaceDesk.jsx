@@ -15,6 +15,7 @@ import TodayWorkCards, { useTodayWorkCounts } from '../components/workspace/Toda
 import OfficeDeskShell from '../components/workspace/OfficeDeskShell';
 import CreateOfficeRecordWizard from '../components/workspace/CreateOfficeRecordWizard';
 import { WorkspaceExpenseQuickActions } from '../components/workspace/WorkspaceExpenseQuickActions';
+import { suggestForumOfficeRecord } from '../lib/suggestForumOfficeRecord';
 
 export default function WorkspaceDesk() {
   const ws = useWorkspace();
@@ -39,6 +40,7 @@ export default function WorkspaceDesk() {
   const [taskTab, setTaskTab] = useState('needs_action');
   const [selectedItem, setSelectedItem] = useState(null);
   const [createOpen, setCreateOpen] = useState(false);
+  const [createPrefill, setCreatePrefill] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
 
   const visibleWorkItems = useMemo(() => {
@@ -62,7 +64,7 @@ export default function WorkspaceDesk() {
 
   useEffect(() => {
     const st = location.state;
-    if (st?.openCompose) setCreateOpen(true);
+    if (st?.openCompose && !ws?.blocksBranchScopedCreate) setCreateOpen(true);
     if (st?.sectionId) setSectionId(String(st.sectionId));
     if (st?.taskTab) setTaskTab(String(st.taskTab));
     if (st?.selectedThreadId && ws?.getUnifiedWorkItemById) {
@@ -88,6 +90,8 @@ export default function WorkspaceDesk() {
     setTaskTab(tab || 'needs_action');
     setSelectedItem(null);
   };
+
+  const blocksCreate = Boolean(ws?.blocksBranchScopedCreate);
 
   const aiContext = useMemo(
     () =>
@@ -118,8 +122,15 @@ export default function WorkspaceDesk() {
             <div className="flex flex-wrap gap-2">
               <button
                 type="button"
-                onClick={() => setCreateOpen(true)}
-                className="inline-flex items-center gap-2 rounded-lg bg-teal-800 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-teal-900"
+                disabled={blocksCreate}
+                title={blocksCreate ? ws?.branchScopedCreateMessage : undefined}
+                onClick={() => {
+                  if (blocksCreate) return;
+                  setCreateOpen(true);
+                }}
+                className={`inline-flex items-center gap-2 rounded-lg bg-teal-800 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-teal-900${
+                  blocksCreate ? ' cursor-not-allowed opacity-50' : ''
+                }`}
               >
                 <FilePlus size={16} aria-hidden />
                 Create Office Record
@@ -207,6 +218,11 @@ export default function WorkspaceDesk() {
               onSelectItem={setSelectedItem}
               onClearSelection={() => setSelectedItem(null)}
               onRefresh={handleRefresh}
+              onForumToOfficeRecord={(topic) => {
+                if (blocksCreate) return;
+                setCreatePrefill(suggestForumOfficeRecord(topic));
+                setCreateOpen(true);
+              }}
             />
           </main>
         </div>
@@ -216,8 +232,13 @@ export default function WorkspaceDesk() {
 
       <CreateOfficeRecordWizard
         open={createOpen}
-        onClose={() => setCreateOpen(false)}
+        initialPrefill={createPrefill}
+        onClose={() => {
+          setCreateOpen(false);
+          setCreatePrefill(null);
+        }}
         onCreated={() => {
+          setCreatePrefill(null);
           setSectionId('tasks');
           setTaskTab('needs_action');
         }}
