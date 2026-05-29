@@ -32,9 +32,10 @@ export default defineConfig({
             if (id.includes('firebase')) return 'vendor-firebase';
             return;
           }
-          if (id.includes('/src/context/')) return 'app-contexts';
-          if (id.includes('/src/lib/apiBase') || id.includes('/src/lib/firebase')) return 'app-platform';
-          if (id.includes('/src/components/ui/')) return 'app-ui';
+          // Route pages stay in their own lazy chunks.
+          if (id.includes('/src/pages/')) return undefined;
+          // Everything else (App shell, components, lib, contexts) — never the entry index.
+          if (id.includes('/src/')) return 'app-shell';
         },
       },
     },

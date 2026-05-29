@@ -46,10 +46,6 @@ import { notificationPrompt } from './lib/aiAssistUi';
 import { searchWorkspaceSnapshot } from './lib/workspaceSearchLocal';
 import { formatPersonName } from './lib/formatPersonName';
 import { debugBootLog } from './lib/debugBoot.js';
-import Dashboard from './pages/Dashboard';
-import Careers from './pages/Careers';
-import ManagerDashboard from './pages/ManagerDashboard';
-import ExecDashboard from './pages/ExecDashboard';
 
 const AiAssistantDock = lazy(() =>
   import('./components/AiAssistantDock.jsx')
@@ -73,6 +69,9 @@ const WorkspaceCommandPalette = lazy(() =>
   }))
 );
 
+const Dashboard = lazy(() => import('./pages/Dashboard'));
+const ManagerDashboard = lazy(() => import('./pages/ManagerDashboard'));
+const ExecDashboard = lazy(() => import('./pages/ExecDashboard'));
 const Sales = lazy(() => import('./pages/Sales'));
 const Procurement = lazy(() => import('./pages/Procurement'));
 const SupplierProfile = lazy(() => import('./pages/SupplierProfile'));
@@ -98,6 +97,7 @@ const HelpChatDockGate = lazy(() =>
 const HumanResources = lazy(() => import('./pages/hr/HumanResources'));
 const MyProfile = lazy(() => import('./pages/hr/MyProfile'));
 const TeamHr = lazy(() => import('./pages/hr/TeamHr'));
+const Careers = lazy(() => import('./pages/Careers'));
 
 /** Blocks the whole app when bootstrap falls back to cached session (API unreachable). */
 function DegradedWorkspaceLock() {
@@ -1096,7 +1096,14 @@ function App() {
                 <DocumentTitleSync />
                 <PrintSessionCleanup />
                 <Routes>
-                  <Route path="/careers" element={<Careers />} />
+                  <Route
+                    path="/careers"
+                    element={
+                      <Suspense fallback={<LoadingScreen />}>
+                        <Careers />
+                      </Suspense>
+                    }
+                  />
                   <Route path="*" element={<AuthGate />} />
                 </Routes>
               </AiAssistantProvider>
