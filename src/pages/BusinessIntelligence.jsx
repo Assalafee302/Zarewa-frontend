@@ -56,14 +56,16 @@ function KpiTile({ label, value, sub, icon }) {
   );
 }
 
-function MixBar({ label, pct, amount, colorClass }) {
+function MixBar({ label, pct, amount, metres, colorClass, primary = 'metres' }) {
+  const sub =
+    primary === 'metres'
+      ? `${pct}% · ${(metres ?? 0).toLocaleString()} m`
+      : `${pct}% · ${formatNgn(amount)}`;
   return (
     <div>
       <div className="flex justify-between text-xs font-bold text-slate-800 mb-1">
         <span>{label}</span>
-        <span className="tabular-nums">
-          {pct}% · {formatNgn(amount)}
-        </span>
+        <span className="tabular-nums">{sub}</span>
       </div>
       <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
         <div className={`h-full rounded-full ${colorClass}`} style={{ width: `${Math.min(100, pct)}%` }} />
@@ -132,7 +134,9 @@ function MaterialPerformancePanel({ perf }) {
   return (
     <div className="space-y-4">
       <div>
-        <p className="text-[10px] font-bold uppercase text-slate-500 mb-2">Best gauge · colour · profile</p>
+        <p className="text-[10px] font-bold uppercase text-slate-500 mb-2">
+          Best gauge · colour · profile (by metres produced)
+        </p>
         <ul className="space-y-2 text-[11px]">
           {perf.topCombinations.slice(0, 5).map((row) => (
             <li key={`${row.gauge}-${row.colour}-${row.profile}`} className="flex justify-between gap-2">
@@ -140,12 +144,14 @@ function MaterialPerformancePanel({ perf }) {
                 {row.gauge} · {row.colour} · {row.profile}
               </span>
               <span className="shrink-0 text-right">
-                <span className="block font-bold tabular-nums text-[#134e4a]">{formatNgn(row.revenueNgn)}</span>
-                {row.marginPct != null ? (
-                  <span className="text-[10px] text-slate-500 tabular-nums">
-                    margin {row.marginPct}% · {formatNgn(row.marginNgn ?? 0)}
-                  </span>
-                ) : null}
+                <span className="block font-bold tabular-nums text-[#134e4a]">
+                  {row.metres.toLocaleString()} m
+                  {row.sharePctMetres != null ? ` (${row.sharePctMetres}%)` : ''}
+                </span>
+                <span className="text-[10px] text-slate-500 tabular-nums">
+                  {formatNgn(row.revenueNgn)} produced sales
+                  {row.marginPct != null ? ` · margin ${row.marginPct}%` : ''}
+                </span>
               </span>
             </li>
           ))}
@@ -169,7 +175,7 @@ function MaterialPerformancePanel({ perf }) {
             {(perf.topColours || []).slice(0, 3).map((c) => (
               <li key={c.label} className="flex justify-between">
                 <span>{c.label}</span>
-                <span className="font-semibold tabular-nums">{formatNgn(c.revenueNgn)}</span>
+                <span className="font-semibold tabular-nums">{c.metres.toLocaleString()} m</span>
               </li>
             ))}
           </ul>
@@ -261,7 +267,7 @@ export default function BusinessIntelligence() {
         const apiErr = String(d?.error || '');
         if (/asOfISO is not defined/i.test(apiErr)) {
           setErr(
-            `${apiErr} — Your API is still on an old backend build. On the server: git pull origin main, then restart Node. Open /api/health and confirm capabilities.businessIntelligence is "bi-v4".`
+            `${apiErr} — Your API is still on an old backend build. On the server: git pull origin main, then restart Node. Open /api/health and confirm capabilities.businessIntelligence is "bi-v5".`
           );
           return;
         }
@@ -589,29 +595,35 @@ export default function BusinessIntelligence() {
                 <BarChart3 size={14} />
                 Sales mix — aluminium vs aluzinc
               </h2>
-              <p className="text-[11px] text-slate-500 mt-1 mb-4">Produced revenue share by metal family</p>
+              <p className="text-[11px] text-slate-500 mt-1 mb-4">Share by metres produced (revenue in subtext)</p>
               <div className="space-y-4">
                 <MixBar
                   label="Aluminium"
-                  pct={aluMix?.sharePct || 0}
+                  pct={aluMix?.sharePctMetres || 0}
+                  metres={aluMix?.metres || 0}
                   amount={aluMix?.revenueNgn || 0}
                   colorClass="bg-sky-600"
+                  primary="metres"
                 />
                 <MixBar
                   label="Aluzinc (PPGI)"
-                  pct={azMix?.sharePct || 0}
+                  pct={azMix?.sharePctMetres || 0}
+                  metres={azMix?.metres || 0}
                   amount={azMix?.revenueNgn || 0}
                   colorClass="bg-[#134e4a]"
+                  primary="metres"
                 />
                 {(sales?.mixRows || [])
-                  .filter((r) => r.family === 'other' && r.revenueNgn > 0)
+                  .filter((r) => r.family === 'other' && r.metres > 0)
                   .map((r) => (
                     <MixBar
                       key={r.family}
                       label="Other"
-                      pct={r.sharePct}
+                      pct={r.sharePctMetres}
+                      metres={r.metres}
                       amount={r.revenueNgn}
                       colorClass="bg-slate-400"
+                      primary="metres"
                     />
                   ))}
               </div>
@@ -664,14 +676,18 @@ export default function BusinessIntelligence() {
               <h2 className="text-[11px] font-black uppercase tracking-wider text-[#134e4a]">
                 Material performance — aluminium
               </h2>
-              <p className="text-[11px] text-slate-500 mt-1 mb-4">Produced sales by gauge, colour & profile</p>
+              <p className="text-[11px] text-slate-500 mt-1 mb-4">
+                Produced metres by gauge, colour & profile (Metra = Industrial 6)
+              </p>
               <MaterialPerformancePanel perf={matPerf?.aluminium} />
             </div>
             <div className="rounded-2xl border border-slate-200/90 bg-white p-5 shadow-sm">
               <h2 className="text-[11px] font-black uppercase tracking-wider text-[#134e4a]">
                 Material performance — aluzinc
               </h2>
-              <p className="text-[11px] text-slate-500 mt-1 mb-4">Produced sales by gauge, colour & profile</p>
+              <p className="text-[11px] text-slate-500 mt-1 mb-4">
+                Produced metres by gauge, colour & profile (Metra = Industrial 6)
+              </p>
               <MaterialPerformancePanel perf={matPerf?.aluzinc} />
             </div>
           </section>

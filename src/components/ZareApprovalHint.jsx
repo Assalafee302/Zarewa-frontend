@@ -5,7 +5,7 @@ import { useHelpChat } from '../context/HelpChatContext';
 import { HELP_BOT_NAME } from '../lib/helpBotBrand';
 
 /**
- * Inline hint when approval is blocked or likely to fail.
+ * Inline SOP hint when approval is blocked — explains rules; does not approve for the user.
  */
 export function ZareApprovalHint({ context = {}, className = '', compact = false }) {
   const help = useHelpChat();
@@ -34,7 +34,7 @@ export function ZareApprovalHint({ context = {}, className = '', compact = false
               prompt: explained.zareQuery,
               mode: 'default',
               pageContext: {
-                mode: 'approval_help',
+                mode: 'approval_rules_help',
                 issueType: 'cannot_approve',
                 referenceNo: context.referenceNo,
                 documentType: context.documentType,
@@ -45,7 +45,7 @@ export function ZareApprovalHint({ context = {}, className = '', compact = false
           className="mt-2 inline-flex items-center gap-1.5 rounded-md border border-teal-200 bg-white px-2 py-1 text-[10px] font-bold text-teal-900 hover:bg-teal-50"
         >
           <LifeBuoy size={12} aria-hidden />
-          Ask {HELP_BOT_NAME} what to do
+          Ask {HELP_BOT_NAME} for the approval rules
         </button>
       ) : null}
     </div>
