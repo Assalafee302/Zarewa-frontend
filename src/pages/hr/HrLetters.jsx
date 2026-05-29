@@ -5,8 +5,9 @@ import { useHrListLoad } from '../../hooks/useHrListLoad';
 import { canGenerateHrLetters } from '../../lib/hrAccess';
 import { apiFetch } from '../../lib/apiBase';
 import { downloadEmploymentLetterPdf, fetchHrLetters, generateHrLetter } from '../../lib/hrExtended';
+import { HrLetterPrintModal } from '../../components/hr/HrLetterPrintModal';
 import { HrAddFormButton, HrFormModal } from '../../components/hr/HrFormModal';
-import { HR_BTN_PRIMARY, HR_FIELD_CLASS } from '../../components/hr/hrFormStyles';
+import { HR_BTN_PRIMARY, HR_BTN_SECONDARY, HR_FIELD_CLASS } from '../../components/hr/hrFormStyles';
 import {
   AppTable,
   AppTableBody,
@@ -21,11 +22,11 @@ export default function HrLetters() {
   const ws = useWorkspace();
   const canGenerate = canGenerateHrLetters(ws?.permissions);
   const [modalOpen, setModalOpen] = useState(false);
+  const [previewLetter, setPreviewLetter] = useState(null);
   const [staff, setStaff] = useState([]);
   const [letters, setLetters] = useState([]);
   const [userId, setUserId] = useState('');
   const [letterKind, setLetterKind] = useState('employment');
-  const [preview, setPreview] = useState('');
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
   const [formErr, setFormErr] = useState('');
@@ -46,30 +47,41 @@ export default function HrLetters() {
     return { hasData: true };
   }, []);
 
+  const staffName = (uid) => staff.find((s) => s.userId === uid)?.displayName;
+
+  const openPreview = (letter) => {
+    setPreviewLetter(letter);
+  };
+
   const onGenerate = async (e) => {
     e.preventDefault();
     if (!canGenerate || !userId) return;
     setBusy(true);
     setMessage('');
     setFormErr('');
-    setPreview('');
     const { ok, data } = await generateHrLetter({ userId, letterKind });
     setBusy(false);
     if (!ok || !data?.ok) {
       setFormErr(data?.error || 'Could not generate letter.');
       return;
     }
-    setPreview(data.contentText || '');
     setMessage('Letter generated and saved.');
+    setModalOpen(false);
     await reload();
+    openPreview({
+      id: data.id,
+      userId,
+      letterKind,
+      contentText: data.contentText,
+      issuedAtIso: new Date().toISOString(),
+    });
   };
 
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <p className="text-sm text-slate-600 max-w-2xl">
-          Issue employment confirmation letters for staff. Letters are stored on the employee file and can be copied or
-          downloaded as PDF.
+          Issue employment confirmation letters for staff. Preview and print on company letterhead, or download as PDF.
         </p>
         {canGenerate ? <HrAddFormButton onClick={() => setModalOpen(true)}>Generate letter</HrAddFormButton> : null}
       </div>
@@ -78,7 +90,6 @@ export default function HrLetters() {
         isOpen={modalOpen}
         onClose={() => {
           setModalOpen(false);
-          setPreview('');
           setFormErr('');
         }}
         title="Generate employment letter"
@@ -109,16 +120,23 @@ export default function HrLetters() {
               </select>
             </label>
           </div>
-          <button type="submit" disabled={busy} className={HR_BTN_PRIMARY}>
-            {busy ? 'Generating…' : 'Generate letter'}
-          </button>
-          {preview ? (
-            <pre className="whitespace-pre-wrap rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-800 max-h-48 overflow-y-auto">
-              {preview}
-            </pre>
-          ) : null}
+          <div className="flex flex-wrap gap-2">
+            <button type="submit" disabled={busy} className={HR_BTN_PRIMARY}>
+              {busy ? 'Generating…' : 'Generate & preview'}
+            </button>
+            <button type="button" onClick={() => setModalOpen(false)} className={HR_BTN_SECONDARY}>
+              Cancel
+            </button>
+          </div>
         </form>
       </HrFormModal>
+
+      <HrLetterPrintModal
+        isOpen={!!previewLetter}
+        onClose={() => setPreviewLetter(null)}
+        letter={previewLetter}
+        staffDisplayName={previewLetter ? staffName(previewLetter.userId) : undefined}
+      />
 
       {error ? (
         <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-800">{error}</div>
@@ -166,13 +184,22 @@ export default function HrLetters() {
                   <AppTableTd>{l.letterKind}</AppTableTd>
                   <AppTableTd className="max-w-md truncate text-slate-600">{l.contentText?.slice(0, 80)}…</AppTableTd>
                   <AppTableTd>
-                    <button
-                      type="button"
-                      className="text-xs font-bold text-[#134e4a] hover:underline"
-                      onClick={() => downloadEmploymentLetterPdf(l.id)}
-                    >
-                      PDF
-                    </button>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        className="text-xs font-bold text-[#134e4a] hover:underline"
+                        onClick={() => openPreview(l)}
+                      >
+                        Preview / print
+                      </button>
+                      <button
+                        type="button"
+                        className="text-xs font-bold text-slate-600 hover:underline"
+                        onClick={() => downloadEmploymentLetterPdf(l.id)}
+                      >
+                        PDF
+                      </button>
+                    </div>
                   </AppTableTd>
                 </AppTableTr>
               );

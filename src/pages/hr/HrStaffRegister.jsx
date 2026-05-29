@@ -1,5 +1,5 @@
 import React from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { HrFormModal } from '../../components/hr/HrFormModal';
 import { HrStaffRegisterForm } from '../../components/hr/HrStaffRegisterForm';
@@ -8,6 +8,8 @@ import { canManageHrStaff } from '../../lib/hrAccess';
 
 export default function HrStaffRegister() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const applicantId = searchParams.get('applicantId') || '';
   const ws = useWorkspace();
   const canManage = canManageHrStaff(ws?.permissions || []);
 
@@ -41,6 +43,7 @@ export default function HrStaffRegister() {
         size="xl"
       >
         <HrStaffRegisterForm
+          applicantId={applicantId}
           onSuccess={(userId) => navigate(`/hr/staff/${encodeURIComponent(userId)}`, { replace: true })}
           onCancel={() => navigate('/hr/staff')}
         />

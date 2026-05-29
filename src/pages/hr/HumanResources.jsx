@@ -17,11 +17,20 @@ import HrLetters from './HrLetters';
 import HrBenefits from './HrBenefits';
 import HrReports from './HrReports';
 import HrSettings from './HrSettings';
+import HrPerformance from './HrPerformance';
+import HrOrgChart from './HrOrgChart';
+import HrRecruiting from './HrRecruiting';
+import HrLearning from './HrLearning';
+import HrEngagement from './HrEngagement';
 import ExecutiveHr from './ExecutiveHr';
 
 const HR_NAV = [
   { to: '/hr/dashboard', label: 'Dashboard', end: true },
   { to: '/hr/staff', label: 'Staff' },
+  { to: '/hr/org-chart', label: 'Org chart' },
+  { to: '/hr/recruiting', label: 'Recruiting' },
+  { to: '/hr/learning', label: 'Learning' },
+  { to: '/hr/engagement', label: 'Engagement' },
   { to: '/hr/requests', label: 'Requests' },
   { to: '/hr/leave', label: 'Leave' },
   { to: '/hr/attendance', label: 'Attendance' },
@@ -30,6 +39,7 @@ const HR_NAV = [
   { to: '/hr/benefits', label: 'Benefits' },
   { to: '/hr/transfers', label: 'Transfers' },
   { to: '/hr/discipline', label: 'Discipline' },
+  { to: '/hr/performance', label: 'Performance' },
   { to: '/hr/letters', label: 'Letters' },
   { to: '/hr/reports', label: 'Reports' },
   { to: '/hr/settings', label: 'Settings' },
@@ -59,6 +69,10 @@ export default function HumanResources() {
         <Route path="staff" element={<HrStaffDirectory />} />
         <Route path="staff/register" element={<HrStaffRegister />} />
         <Route path="staff/:userId" element={<HrStaffProfile />} />
+        <Route path="org-chart" element={<HrOrgChart />} />
+        <Route path="recruiting" element={<HrRecruiting />} />
+        <Route path="learning" element={<HrLearning />} />
+        <Route path="engagement" element={<HrEngagement />} />
         <Route path="requests" element={<HrRequests />} />
         <Route path="leave" element={<HrLeave />} />
         <Route path="attendance" element={<HrAttendance />} />
@@ -67,6 +81,7 @@ export default function HumanResources() {
         <Route path="benefits" element={<HrBenefits />} />
         <Route path="transfers" element={<HrTransfers />} />
         <Route path="discipline" element={<HrDiscipline />} />
+        <Route path="performance" element={<HrPerformance />} />
         <Route path="letters" element={<HrLetters />} />
         <Route path="reports" element={<HrReports />} />
         <Route path="settings" element={<HrSettings />} />

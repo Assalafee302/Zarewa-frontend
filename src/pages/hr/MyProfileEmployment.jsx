@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { apiFetch } from '../../lib/apiBase';
+import { HrReportingSection } from '../../components/hr/HrReportingSection';
 import { useHrSensitiveAccess } from '../../hooks/useHrSensitiveAccess';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { canViewOrgSensitiveHr } from '../../lib/hrAccess';
@@ -43,7 +44,12 @@ export default function MyProfileEmployment() {
     ['Payroll group', hr.payrollGroup],
     ['Level / step', hr.salaryLevel != null ? `${hr.salaryLevel} / ${hr.salaryStep ?? 1}` : '—'],
     ['Base salary', hr.baseSalaryNgn != null ? formatNgn(hr.baseSalaryNgn) : '—'],
-    ['Line manager', hr.lineManagerUserId || '—'],
+    [
+      'Line manager',
+      hr.lineManager?.displayName
+        ? `${hr.lineManager.displayName}${hr.lineManager.jobTitle ? ` · ${hr.lineManager.jobTitle}` : ''}`
+        : hr.lineManagerUserId || '—',
+    ],
     ['NIN', hr.ninNumber || '—'],
     [
       'Next of kin',
@@ -56,6 +62,11 @@ export default function MyProfileEmployment() {
   return (
     <div className="space-y-4">
       <p className="text-sm text-slate-600">Read-only employment details for {user?.displayName}.</p>
+      <HrReportingSection
+        lineManager={hr.lineManager}
+        directReports={hr.directReports}
+        staffLinkPrefix="/hr/staff"
+      />
       <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2 text-sm">
         {rows.map(([label, value]) => (
           <div key={label}>

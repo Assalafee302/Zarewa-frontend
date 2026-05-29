@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { apiFetch } from '../../lib/apiBase';
+import { HrNotificationsPanel } from '../../components/hr/HrNotificationsPanel';
 import { useHrListLoad } from '../../hooks/useHrListLoad';
+import { useWorkspace } from '../../context/WorkspaceContext';
 import { hrRequestStatusClass } from '../../lib/hrFormat';
 import {
   AppTable,
@@ -38,6 +40,7 @@ function StatCard({ label, value, tone = 'slate', to }) {
 }
 
 export default function HrDashboard() {
+  const ws = useWorkspace();
   const [obs, setObs] = useState(null);
   const [inbox, setInbox] = useState(null);
   const [staffCounts, setStaffCounts] = useState(null);
@@ -75,6 +78,7 @@ export default function HrDashboard() {
 
   return (
     <div className="space-y-8">
+      {ws?.session?.userId ? <HrNotificationsPanel /> : null}
       <section>
         <h2 className="text-[11px] font-black uppercase tracking-widest text-slate-500">Overview</h2>
         <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">

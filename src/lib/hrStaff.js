@@ -101,13 +101,15 @@ export function formToProfilePatch(form, { originalBranchId } = {}) {
 
 /** @param {object} form */
 export function formToRegisterBody(form) {
-  return {
+  const body = {
     username: String(form.username || '').trim().toLowerCase(),
     displayName: String(form.displayName || '').trim(),
     password: form.password,
     roleKey: form.roleKey,
     ...formToProfilePatch(form),
   };
+  if (form.applicantId) body.applicantId = String(form.applicantId).trim();
+  return body;
 }
 
 export async function registerHrStaff(body) {

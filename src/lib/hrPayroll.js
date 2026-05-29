@@ -39,6 +39,33 @@ export async function downloadHrPayrollExport(runId, kind = 'treasury') {
   return { ok: true };
 }
 
+/** Download one employee payslip PDF for a payroll run. */
+export async function downloadSinglePayslipPdf(runId, userId) {
+  const path = `/api/hr/payroll-runs/${encodeURIComponent(runId)}/payslips/${encodeURIComponent(userId)}/pdf`;
+  const r = await fetch(apiUrl(path), { credentials: 'include' });
+  if (!r.ok) {
+    const text = await r.text();
+    let err = 'PDF download failed.';
+    try {
+      const j = JSON.parse(text);
+      err = j.error || err;
+    } catch {
+      err = text.slice(0, 200) || err;
+    }
+    return { ok: false, error: err };
+  }
+  const blob = await r.blob();
+  const filename =
+    r.headers.get('Content-Disposition')?.match(/filename="([^"]+)"/)?.[1] || `payslip-${runId}.pdf`;
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+  return { ok: true };
+}
+
 export function payrollStatusTone(status) {
   const s = String(status || '').toLowerCase();
   if (s === 'paid') return 'emerald';

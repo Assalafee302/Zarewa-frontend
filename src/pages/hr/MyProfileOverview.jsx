@@ -1,5 +1,8 @@
 import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { apiFetch } from '../../lib/apiBase';
+import { HrNotificationsPanel } from '../../components/hr/HrNotificationsPanel';
+import { HrStaffLifecyclePanel } from '../../components/hr/HrStaffLifecyclePanel';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { HrSensitiveGate } from '../../components/hr/HrSensitiveGate';
 import { useHrSensitiveAccess } from '../../hooks/useHrSensitiveAccess';
@@ -43,6 +46,9 @@ export default function MyProfileOverview() {
 
   const hr = profile?.hr;
   const user = profile?.user;
+  const userId = user?.id || ws?.session?.userId;
+  const onboarding = profile?.onboardingChecklist;
+  const lifecycleOnboarding = profile?.lifecycle?.onboarding;
 
   const body = (
     <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2 text-sm">
@@ -94,6 +100,34 @@ export default function MyProfileOverview() {
     </dl>
   );
 
-  if (showSensitiveInline) return body;
-  return <HrSensitiveGate label="View your compensation and bank details">{body}</HrSensitiveGate>;
+  return (
+    <div className="space-y-6">
+      <HrNotificationsPanel />
+      {onboarding && !onboarding.complete ? (
+        <div className="rounded-2xl border border-amber-100 bg-amber-50/80 px-4 py-3 text-sm text-amber-950">
+          <p className="font-semibold">Onboarding file incomplete</p>
+          <p className="mt-1 text-xs">
+            Missing: {(onboarding.missingLabels || []).slice(0, 4).join(' · ')}
+            {(onboarding.missingLabels || []).length > 4 ? '…' : ''}
+          </p>
+          <Link to="/my-profile/documents" className="mt-2 inline-block text-[10px] font-bold uppercase text-[#134e4a]">
+            Upload documents
+          </Link>
+        </div>
+      ) : null}
+      {lifecycleOnboarding && !lifecycleOnboarding.complete ? (
+        <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+          <p className="text-xs font-black uppercase tracking-widest text-slate-500">Onboarding tasks</p>
+          <p className="mt-1 text-sm text-slate-700">
+            {lifecycleOnboarding.pendingCount} task{lifecycleOnboarding.pendingCount === 1 ? '' : 's'} remaining — you
+            can confirm HR policy acknowledgement below.
+          </p>
+        </div>
+      ) : null}
+      {userId ? (
+        <HrStaffLifecyclePanel userId={userId} isSelf initialLifecycle={profile?.lifecycle} />
+      ) : null}
+      {showSensitiveInline ? body : <HrSensitiveGate label="View your compensation and bank details">{body}</HrSensitiveGate>}
+    </div>
+  );
 }

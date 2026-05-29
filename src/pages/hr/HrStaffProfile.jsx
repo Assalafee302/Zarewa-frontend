@@ -13,6 +13,8 @@ import { HrSalaryIncrementPanel } from '../../components/hr/HrSalaryIncrementPan
 import { HrPromotionFromMatrix } from '../../components/hr/HrPromotionFromMatrix';
 import { HrFormModal } from '../../components/hr/HrFormModal';
 import { HrStaffDocumentsPanel } from '../../components/hr/HrStaffDocumentsPanel';
+import { HrStaffLifecyclePanel } from '../../components/hr/HrStaffLifecyclePanel';
+import { HrReportingSection } from '../../components/hr/HrReportingSection';
 import { CRITICAL_MISSING_LABELS } from '../../lib/hrStaffDocumentKinds';
 import { HR_BTN_PRIMARY, HR_BTN_SECONDARY } from '../../components/hr/hrFormStyles';
 import { formToProfilePatch, staffToForm, updateHrStaffProfile } from '../../lib/hrStaff';
@@ -33,6 +35,7 @@ const TABS = [
   { id: 'leave', label: 'Leave' },
   { id: 'loans', label: 'Loans' },
   { id: 'documents', label: 'Documents' },
+  { id: 'lifecycle', label: 'Lifecycle' },
   { id: 'transfers', label: 'Transfers' },
   { id: 'audit', label: 'Audit' },
 ];
@@ -323,6 +326,7 @@ export default function HrStaffProfile() {
               mode="edit"
               showCompensation={showSensitiveInline || sensitive.isUnlocked || !staff.compensationRedacted}
               originalBranchId={originalBranchId}
+              excludeUserId={staff.userId}
             />
             {staff.compensationRedacted && !showSensitiveInline && !sensitive.isUnlocked ? (
               <p className="text-xs text-amber-800 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2">
@@ -344,28 +348,31 @@ export default function HrStaffProfile() {
       <TabBar active={tab} onChange={setTab} />
 
       {tab === 'overview' ? (
-        <HrDetailGrid
-          rows={[
-            { label: 'Username', value: staff.username },
-            { label: 'Email', value: staff.email },
-            { label: 'System role', value: staff.roleKey },
-            { label: 'Payroll group', value: payrollGroupLabel(staff) },
-            { label: 'Data quality score', value: staff.dataQualityScore != null ? `${staff.dataQualityScore}%` : '—' },
-            { label: 'Years of service', value: yrs != null ? `${yrs} years` : '—' },
-            { label: 'Self-service eligible', value: staff.selfServiceEligible ? 'Yes' : 'No' },
-            {
-              label: 'Handbook acknowledged',
-              value: staff.complianceBadges?.handbookAcknowledged ? 'Yes' : 'Pending',
-            },
-            { label: 'NIN', value: staff.ninNumber || '—' },
-            {
-              label: 'Next of kin',
-              value: staff.nextOfKin
-                ? [staff.nextOfKin.name, staff.nextOfKin.phone, staff.nextOfKin.relationship].filter(Boolean).join(' · ')
-                : '—',
-            },
-          ]}
-        />
+        <div className="space-y-6">
+          <HrReportingSection lineManager={staff.lineManager} directReports={staff.directReports} />
+          <HrDetailGrid
+            rows={[
+              { label: 'Username', value: staff.username },
+              { label: 'Email', value: staff.email },
+              { label: 'System role', value: staff.roleKey },
+              { label: 'Payroll group', value: payrollGroupLabel(staff) },
+              { label: 'Data quality score', value: staff.dataQualityScore != null ? `${staff.dataQualityScore}%` : '—' },
+              { label: 'Years of service', value: yrs != null ? `${yrs} years` : '—' },
+              { label: 'Self-service eligible', value: staff.selfServiceEligible ? 'Yes' : 'No' },
+              {
+                label: 'Handbook acknowledged',
+                value: staff.complianceBadges?.handbookAcknowledged ? 'Yes' : 'Pending',
+              },
+              { label: 'NIN', value: staff.ninNumber || '—' },
+              {
+                label: 'Next of kin',
+                value: staff.nextOfKin
+                  ? [staff.nextOfKin.name, staff.nextOfKin.phone, staff.nextOfKin.relationship].filter(Boolean).join(' · ')
+                  : '—',
+              },
+            ]}
+          />
+        </div>
       ) : null}
 
       {tab === 'employment' ? (
@@ -379,7 +386,12 @@ export default function HrStaffProfile() {
             { label: 'Date joined', value: staff.dateJoinedIso },
             { label: 'Probation ends', value: staff.probationEndIso },
             { label: 'Leave entitlement band', value: staff.leaveEntitlementBand },
-            { label: 'Line manager ID', value: staff.lineManagerUserId },
+            {
+              label: 'Line manager',
+              value: staff.lineManager?.displayName
+                ? `${staff.lineManager.displayName}${staff.lineManager.jobTitle ? ` · ${staff.lineManager.jobTitle}` : ''}`
+                : staff.lineManagerUserId || '—',
+            },
             { label: 'Minimum qualification', value: staff.minimumQualification },
             { label: 'Academic qualification', value: staff.academicQualification },
             { label: 'Training summary', value: staff.trainingSummary },
@@ -465,6 +477,14 @@ export default function HrStaffProfile() {
           avatarUrl={staff.avatarUrl}
           canEdit={canManage}
           onboardingChecklist={staff.onboardingChecklist}
+          onUpdated={reloadProfile}
+        />
+      ) : null}
+
+      {tab === 'lifecycle' ? (
+        <HrStaffLifecyclePanel
+          userId={userId}
+          initialLifecycle={staff.lifecycle}
           onUpdated={reloadProfile}
         />
       ) : null}

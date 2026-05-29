@@ -1,10 +1,12 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import { apiFetch } from '../../lib/apiBase';
 import {
   HR_EMPLOYMENT_TYPES,
   HR_LEAVE_BANDS,
   HR_PAYROLL_GROUPS,
   HR_REGISTERABLE_ROLES,
 } from '../../lib/hrStaffConstants';
+import { HrManagerPicker } from './HrManagerPicker';
 
 const fieldCls =
   'mt-1 block w-full rounded-xl border border-slate-200 px-3 py-2 text-sm shadow-sm focus:border-[#134e4a] focus:outline-none focus:ring-2 focus:ring-[#134e4a]/15';
@@ -28,6 +30,7 @@ function Field({ label, children, hint }) {
  *   mode: 'register' | 'edit';
  *   showCompensation?: boolean;
  *   originalBranchId?: string;
+ *   excludeUserId?: string;
  * }} props
  */
 export function HrStaffFormFields({
@@ -37,10 +40,24 @@ export function HrStaffFormFields({
   mode,
   showCompensation = true,
   originalBranchId = '',
+  excludeUserId = '',
 }) {
+  const [managerStaff, setManagerStaff] = useState([]);
   const set = (key, value) => setForm((f) => ({ ...f, [key]: value }));
   const branchChanged =
     mode === 'edit' && originalBranchId && String(form.branchId) !== String(originalBranchId);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const { ok, data } = await apiFetch('/api/hr/staff');
+      if (cancelled || !ok || !data?.ok) return;
+      setManagerStaff(data.staff || []);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   return (
     <div className="space-y-8">
@@ -150,12 +167,13 @@ export function HrStaffFormFields({
               onChange={(e) => set('probationEndIso', e.target.value)}
             />
           </Field>
-          <Field label="Line manager (user ID)">
-            <input
-              className={fieldCls}
+          <Field label="Line manager">
+            <HrManagerPicker
+              staff={managerStaff}
               value={form.lineManagerUserId}
-              onChange={(e) => set('lineManagerUserId', e.target.value)}
-              placeholder="Optional — USR-…"
+              onChange={(v) => set('lineManagerUserId', v)}
+              excludeUserId={excludeUserId}
+              className={fieldCls}
             />
           </Field>
           <Field label="Leave entitlement band">
