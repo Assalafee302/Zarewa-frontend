@@ -104,6 +104,42 @@ export function amountDueOnQuotationFromEntries(_entries, q) {
   return effectiveOutstandingNgn(total, rowPaid);
 }
 
+function toIsoDateOnly(value) {
+  return String(value || '').slice(0, 10);
+}
+
+/** @param {string} quotationRef @param {Array<{ status?: string, quotationRef?: string, actualMeters?: number }>} productionJobs */
+export function quotationHasCompletedProduction(quotationRef, productionJobs = []) {
+  const ref = String(quotationRef || '').trim();
+  if (!ref) return false;
+  return (productionJobs || []).some((j) => {
+    if (String(j?.status || '').trim() !== 'Completed') return false;
+    if (String(j.quotationRef || '').trim() !== ref) return false;
+    return (Number(j.actualMeters) || 0) > 0;
+  });
+}
+
+/** @param {string} quotationRef @param {Array<{ status?: string, quotationRef?: string, completedAtISO?: string, endDateISO?: string }>} productionJobs */
+export function firstProductionDateISO(quotationRef, productionJobs = []) {
+  const ref = String(quotationRef || '').trim();
+  if (!ref) return '';
+  let earliest = '';
+  for (const j of productionJobs || []) {
+    if (String(j?.status || '').trim() !== 'Completed') continue;
+    if (String(j.quotationRef || '').trim() !== ref) continue;
+    const iso = toIsoDateOnly(j.completedAtISO || j.endDateISO);
+    if (!iso) continue;
+    if (!earliest || iso < earliest) earliest = iso;
+  }
+  return earliest;
+}
+
+/** @param {unknown} entries @param {{ id: string, totalNgn?: number, paidNgn?: number }} q @param {Array} productionJobs */
+export function receivableDueOnQuotationFromEntries(entries, q, productionJobs = []) {
+  if (!quotationHasCompletedProduction(q?.id, productionJobs)) return 0;
+  return amountDueOnQuotationFromEntries(entries, q);
+}
+
 export function ledgerReceiptTotalFromEntries(entries, customerID) {
   if (!customerID) return 0;
   return (entries || []).reduce((s, e) => {

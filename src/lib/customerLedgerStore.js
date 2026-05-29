@@ -6,6 +6,7 @@
 import {
   sumForQuotationInEntries,
   amountDueOnQuotationFromEntries,
+  receivableDueOnQuotationFromEntries,
   advanceBalanceFromEntries,
   overpayCreditBalanceFromEntries,
   ledgerReceiptTotalFromEntries,
@@ -86,6 +87,11 @@ export function sumForQuotation(quotationId, type) {
  */
 export function amountDueOnQuotation(q) {
   return amountDueOnQuotationFromEntries(loadLedgerEntries(), q);
+}
+
+/** AR balance: due only when completed production exists on the quote. */
+export function receivableDueOnQuotation(q, productionJobs = []) {
+  return receivableDueOnQuotationFromEntries(loadLedgerEntries(), q, productionJobs);
 }
 
 /** Customer deposit advance balance (ADVANCE_IN, applications, refunds) — excludes quotation overpayments. */

@@ -362,6 +362,11 @@ const Account = () => {
     () => (ws?.hasWorkspaceData && Array.isArray(ws?.snapshot?.quotations) ? ws.snapshot.quotations : []),
     [ws?.hasWorkspaceData, ws?.snapshot?.quotations]
   );
+  const liveProductionJobs = useMemo(
+    () =>
+      ws?.hasWorkspaceData && Array.isArray(ws?.snapshot?.productionJobs) ? ws.snapshot.productionJobs : [],
+    [ws?.hasWorkspaceData, ws?.snapshot?.productionJobs]
+  );
   const liveReceipts = useMemo(
     () => (ws?.hasWorkspaceData && Array.isArray(ws?.snapshot?.receipts) ? ws.snapshot.receipts : []),
     [ws?.hasWorkspaceData, ws?.snapshot?.receipts]
@@ -483,8 +488,8 @@ const Account = () => {
   );
 
   const receivablesNgn = useMemo(
-    () => liveReceivablesNgn(liveQuotations, liveLedgerEntries),
-    [liveLedgerEntries, liveQuotations]
+    () => liveReceivablesNgn(liveQuotations, liveLedgerEntries, liveProductionJobs),
+    [liveLedgerEntries, liveProductionJobs, liveQuotations]
   );
 
   const reconciliationFlags = useMemo(
@@ -3005,7 +3010,7 @@ const Account = () => {
             </h3>
             <p className="text-xl font-black text-[#134e4a]">{formatNgn(receivablesNgn)}</p>
             <p className="text-[10px] font-bold text-gray-400 mt-2 uppercase tracking-wide">
-              Open balances · Settle receipts on Receipts &amp; recon tab
+              Due after production only · unpaid quotes with no output excluded
             </p>
           </button>
 

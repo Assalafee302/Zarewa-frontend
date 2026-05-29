@@ -630,7 +630,7 @@ const Reports = () => {
     const totalPaid = receipts
       .filter((r) => r.dateISO >= startDate && r.dateISO <= endDate)
       .reduce((s, q) => s + (q.amountNgn ?? 0), 0);
-    const outstanding = liveReceivablesNgn(quotations, ledgerEntries);
+    const outstanding = liveReceivablesNgn(quotations, ledgerEntries, productionJobs);
     const productionJobsCompletedInRange = productionJobs.filter((j) => {
       if (String(j.status || '').trim() !== 'Completed') return false;
       const iso = productionOutputDateISO(j);
@@ -1580,7 +1580,9 @@ const Reports = () => {
                     Receivables outstanding
                   </p>
                   <p className="text-xl font-black text-amber-700 tabular-nums">{formatNgn(salesKpis.outstanding)}</p>
-                  <p className="text-xs text-slate-500 mt-2 font-medium">All open quotes · not period-only</p>
+                  <p className="text-xs text-slate-500 mt-2 font-medium">
+                    Production complete with balance due · not period-only
+                  </p>
                 </div>
               </div>
             </form>

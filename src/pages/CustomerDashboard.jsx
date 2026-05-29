@@ -51,6 +51,7 @@ import {
   advanceBalanceNgn,
   overpayCreditBalanceNgn,
   amountDueOnQuotation,
+  receivableDueOnQuotation,
   entriesForCustomer,
   recordRefundAdvance,
 } from '../lib/customerLedgerStore';
@@ -512,8 +513,8 @@ const CustomerDashboard = () => {
   );
 
   const outstandingNgn = useMemo(
-    () => quotations.reduce((s, q) => s + amountDueOnQuotation(q), 0),
-    [quotations]
+    () => quotations.reduce((s, q) => s + receivableDueOnQuotation(q, productionJobRows), 0),
+    [quotations, productionJobRows]
   );
 
   const advanceBalNgn = useMemo(
@@ -623,12 +624,12 @@ const CustomerDashboard = () => {
       .map((q) => ({
         id: q.id,
         due: q.dueDateISO,
-        amountNgn: amountDueOnQuotation(q),
+        amountNgn: receivableDueOnQuotation(q, productionJobRows),
         overdue: q.dueDateISO && q.dueDateISO < todayIso,
       }))
       .filter((o) => o.amountNgn > 0)
       .sort((a, b) => (a.due || '').localeCompare(b.due || ''));
-  }, [quotations, todayIso]);
+  }, [quotations, productionJobRows, todayIso]);
 
   /** Cash received per calendar month from this customer’s sales receipts (ledger + imported), last 6 months. */
   const trendData = useMemo(() => {
@@ -1267,7 +1268,7 @@ const CustomerDashboard = () => {
                 {formatNgn(outstandingNgn)}
               </p>
               <p className="text-[8px] text-gray-500 mt-1.5 leading-snug">
-                Ledger-aware (advances applied & new receipts reduce this).
+                Receivable after completed production only (quote-only balances excluded).
               </p>
             </div>
             <div className="rounded-zarewa border border-amber-100 bg-amber-50/60 p-3 sm:p-3.5 shadow-sm">

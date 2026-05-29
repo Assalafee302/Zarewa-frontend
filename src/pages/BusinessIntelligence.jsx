@@ -267,7 +267,7 @@ export default function BusinessIntelligence() {
         const apiErr = String(d?.error || '');
         if (/asOfISO is not defined/i.test(apiErr)) {
           setErr(
-            `${apiErr} — Your API is still on an old backend build. On the server: git pull origin main, then restart Node. Open /api/health and confirm capabilities.businessIntelligence is "bi-v5".`
+            `${apiErr} — Your API is still on an old backend build. On the server: git pull origin main, then restart Node. Open /api/health and confirm capabilities.businessIntelligence is "bi-v6".`
           );
           return;
         }
@@ -876,6 +876,9 @@ export default function BusinessIntelligence() {
               <h3 className="text-[10px] font-black uppercase tracking-wider text-slate-500 mt-6 mb-2">
                 Receivables aging
               </h3>
+              <p className="text-[10px] text-slate-500 mb-2">
+                Balance due only where production is complete (unpaid quotes with no output excluded).
+              </p>
               <dl className="grid grid-cols-2 gap-2 text-xs">
                 {[
                   ['0–30 days', sales?.receivablesAging?.['0_30']],
