@@ -42,6 +42,10 @@ const INTENT_RULES = [
   ['troubleshooting', /\b(machine spoil|gen no diesel|generator|diesel|fuel request|broken|not working)\b/i],
   ['live_data_question', /\b(how many|count|total|balance|stock level|open pending|list my)\b/i],
   ['hybrid_guide_and_data', /\b(how do i).*(show|count|total|pending)/i],
+  [
+    'staff_user_help',
+    /\b(register|add|create|onboard|new).*(staff|user|employee|team member|hire)|team\s*&\s*access|team access\b/i,
+  ],
   ['workflow_help', /\b(how do i|how to|steps|workflow|walk me through|where do i)\b/i],
 ];
 

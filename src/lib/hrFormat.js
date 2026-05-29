@@ -61,7 +61,7 @@ export function hrRequestStatusLabel(status) {
 }
 
 export function payrollGroupLabel(staff) {
-  const g = staff?.profileExtra?.payrollGroup || staff?.normalized?.orgNode;
+  const g = staff?.payrollGroup || staff?.profileExtra?.payrollGroup || staff?.normalized?.orgNode;
   if (!g) return 'Branch staff';
   const map = {
     branch_ops: 'Branch staff',

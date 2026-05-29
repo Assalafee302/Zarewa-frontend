@@ -1,10 +1,10 @@
 import React, { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Search } from 'lucide-react';
+import { Search, UserPlus } from 'lucide-react';
 import { apiFetch } from '../../lib/apiBase';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { useHrListLoad } from '../../hooks/useHrListLoad';
-import { canViewOrgSensitiveHr } from '../../lib/hrAccess';
+import { canManageHrStaff, canViewOrgSensitiveHr } from '../../lib/hrAccess';
 import { formatNgn, payrollGroupLabel } from '../../lib/hrFormat';
 import {
   AppTable,
@@ -22,7 +22,9 @@ function uniqueSorted(values) {
 
 export default function HrStaffDirectory() {
   const ws = useWorkspace();
-  const showSalary = canViewOrgSensitiveHr(ws?.permissions);
+  const perms = ws?.permissions || [];
+  const showSalary = canViewOrgSensitiveHr(perms);
+  const canRegister = canManageHrStaff(perms);
   const branches = useMemo(() => {
     const list = ws?.snapshot?.workspaceBranches ?? ws?.session?.branches ?? [];
     return list.map((b) => ({ id: b.id, name: b.name || b.id }));
@@ -82,7 +84,16 @@ export default function HrStaffDirectory() {
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-        <div className="relative max-w-md flex-1">
+        {canRegister ? (
+          <Link
+            to="/hr/staff/register"
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#134e4a] px-4 py-2.5 text-[11px] font-bold uppercase tracking-wide text-white shadow-sm hover:bg-[#0f3d39] lg:order-2"
+          >
+            <UserPlus size={16} aria-hidden />
+            Register staff
+          </Link>
+        ) : null}
+        <div className="relative max-w-md flex-1 lg:order-1">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" aria-hidden />
           <input
             type="search"

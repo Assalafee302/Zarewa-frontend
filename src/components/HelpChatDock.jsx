@@ -568,7 +568,8 @@ export function HelpChatDock() {
         const history = [...messagesRef.current].filter(
           (m) => m.role === 'user' || m.role === 'assistant'
         );
-        const intent = detectHelpIntent(text, history);
+        const priorHistory = history.slice(0, -1);
+        const intent = detectHelpIntent(text, priorHistory);
         const agentRoute = classifyAgentRoute(text, history);
         const complex = isComplexHelpQuery(text);
         const topMatch =
@@ -586,7 +587,7 @@ export function HelpChatDock() {
           (intent === 'follow_up' && history.length > 2) ||
           (complex && topScore < 8 && externalAi);
 
-        const local = preferServer ? null : tryLocalAnswer(text, history);
+        const local = preferServer ? null : tryLocalAnswer(text, priorHistory);
 
         if (local && (topScore >= 4 || intent === 'greeting' || intent === 'thanks' || intent === 'meta')) {
           await delay(Math.max(0, LOCAL_REPLY_DELAY_MS - (Date.now() - chatStarted)));

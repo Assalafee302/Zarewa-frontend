@@ -181,3 +181,18 @@ export function canMarkBranchContribution(permissions) {
 export function canViewMyPayslips(permissions) {
   return hrHasPermission(permissions, 'hr.my_payslip.view') || canAccessMyProfileHr(permissions);
 }
+
+/** @param {string[] | undefined} permissions */
+export function canManageHrStaff(permissions) {
+  return hrHasPermission(permissions, 'hr.staff.manage');
+}
+
+/** @param {string[] | undefined} permissions */
+export function canManageHrTransfers(permissions) {
+  return hrHasPermission(permissions, 'hr.transfers.manage') || canManageHrStaff(permissions);
+}
+
+/** @param {string[] | undefined} permissions */
+export function canManageHrDiscipline(permissions) {
+  return hrHasPermission(permissions, 'hr.discipline.manage') || canManageHrStaff(permissions);
+}
