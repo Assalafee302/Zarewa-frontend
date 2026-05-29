@@ -11,6 +11,8 @@ import { canManageHrStaff, canViewOrgSensitiveHr, hrHasPermission } from '../../
 import { formatNgn, payrollGroupLabel, yearsOfServiceFromIso } from '../../lib/hrFormat';
 import { HrSalaryIncrementPanel } from '../../components/hr/HrSalaryIncrementPanel';
 import { HrPromotionFromMatrix } from '../../components/hr/HrPromotionFromMatrix';
+import { HrFormModal } from '../../components/hr/HrFormModal';
+import { HR_BTN_PRIMARY, HR_BTN_SECONDARY } from '../../components/hr/hrFormStyles';
 import { formToProfilePatch, staffToForm, updateHrStaffProfile } from '../../lib/hrStaff';
 import {
   AppTable,
@@ -287,43 +289,42 @@ export default function HrStaffProfile() {
 
       <MissingBanner items={staff.criticalMissing} />
 
-      {editing && editForm ? (
-        <form onSubmit={saveProfile} className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm space-y-4">
-          {saveError ? (
-            <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-800">{saveError}</div>
-          ) : null}
-          <HrStaffFormFields
-            form={editForm}
-            setForm={setEditForm}
-            branches={branches}
-            mode="edit"
-            showCompensation={showSensitiveInline || sensitive.isUnlocked || !staff.compensationRedacted}
-            originalBranchId={originalBranchId}
-          />
-          {staff.compensationRedacted && !showSensitiveInline && !sensitive.isUnlocked ? (
-            <p className="text-xs text-amber-800 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2">
-              Unlock sensitive HR access to view or edit salary and bank fields on this form.
-            </p>
-          ) : null}
-          <div className="flex flex-wrap gap-2 border-t border-slate-100 pt-4">
-            <button
-              type="submit"
-              disabled={saving}
-              className="rounded-xl bg-[#134e4a] px-5 py-2.5 text-[11px] font-bold uppercase tracking-wide text-white disabled:opacity-50"
-            >
-              {saving ? 'Saving…' : 'Save changes'}
-            </button>
-            <button
-              type="button"
-              onClick={cancelEdit}
-              className="rounded-xl border border-slate-200 px-5 py-2.5 text-[11px] font-bold uppercase tracking-wide text-slate-600"
-            >
-              Cancel
-            </button>
-          </div>
-        </form>
-      ) : (
-        <>
+      <HrFormModal
+        isOpen={editing && !!editForm}
+        onClose={cancelEdit}
+        title="Edit employee profile"
+        size="xl"
+      >
+        {editForm ? (
+          <form onSubmit={saveProfile} className="space-y-4">
+            {saveError ? (
+              <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-800">{saveError}</div>
+            ) : null}
+            <HrStaffFormFields
+              form={editForm}
+              setForm={setEditForm}
+              branches={branches}
+              mode="edit"
+              showCompensation={showSensitiveInline || sensitive.isUnlocked || !staff.compensationRedacted}
+              originalBranchId={originalBranchId}
+            />
+            {staff.compensationRedacted && !showSensitiveInline && !sensitive.isUnlocked ? (
+              <p className="text-xs text-amber-800 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2">
+                Unlock sensitive HR access to view or edit salary and bank fields on this form.
+              </p>
+            ) : null}
+            <div className="flex flex-wrap gap-2 border-t border-slate-100 pt-4">
+              <button type="submit" disabled={saving} className={HR_BTN_PRIMARY}>
+                {saving ? 'Saving…' : 'Save changes'}
+              </button>
+              <button type="button" onClick={cancelEdit} className={HR_BTN_SECONDARY}>
+                Cancel
+              </button>
+            </div>
+          </form>
+        ) : null}
+      </HrFormModal>
+
       <TabBar active={tab} onChange={setTab} />
 
       {tab === 'overview' ? (
@@ -532,8 +533,6 @@ export default function HrStaffProfile() {
           </p>
         </section>
       ) : null}
-        </>
-      )}
     </div>
   );
 }

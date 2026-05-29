@@ -1,6 +1,8 @@
 import React, { useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Search, UserPlus } from 'lucide-react';
+import { HrFormModal } from '../../components/hr/HrFormModal';
+import { HrStaffRegisterForm } from '../../components/hr/HrStaffRegisterForm';
 import { apiFetch } from '../../lib/apiBase';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { useHrListLoad } from '../../hooks/useHrListLoad';
@@ -21,6 +23,7 @@ function uniqueSorted(values) {
 }
 
 export default function HrStaffDirectory() {
+  const navigate = useNavigate();
   const ws = useWorkspace();
   const perms = ws?.permissions || [];
   const showSalary = canViewOrgSensitiveHr(perms);
@@ -37,6 +40,7 @@ export default function HrStaffDirectory() {
   const [employmentType, setEmploymentType] = useState('');
   const [status, setStatus] = useState('active');
   const [includeInactive, setIncludeInactive] = useState(false);
+  const [registerOpen, setRegisterOpen] = useState(false);
 
   const { loading, error } = useHrListLoad(async () => {
     const q = includeInactive ? '?includeInactive=1' : '';
@@ -83,15 +87,31 @@ export default function HrStaffDirectory() {
 
   return (
     <div className="space-y-6">
+      <HrFormModal
+        isOpen={registerOpen}
+        onClose={() => setRegisterOpen(false)}
+        title="Register new staff"
+        size="xl"
+      >
+        <HrStaffRegisterForm
+          onSuccess={(newUserId) => {
+            setRegisterOpen(false);
+            navigate(`/hr/staff/${encodeURIComponent(newUserId)}`);
+          }}
+          onCancel={() => setRegisterOpen(false)}
+        />
+      </HrFormModal>
+
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         {canRegister ? (
-          <Link
-            to="/hr/staff/register"
+          <button
+            type="button"
+            onClick={() => setRegisterOpen(true)}
             className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#134e4a] px-4 py-2.5 text-[11px] font-bold uppercase tracking-wide text-white shadow-sm hover:bg-[#0f3d39] lg:order-2"
           >
             <UserPlus size={16} aria-hidden />
             Register staff
-          </Link>
+          </button>
         ) : null}
         <div className="relative max-w-md flex-1 lg:order-1">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" aria-hidden />

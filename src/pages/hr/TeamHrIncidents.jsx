@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { apiFetch } from '../../lib/apiBase';
 import { useHrListLoad } from '../../hooks/useHrListLoad';
 import { createHrIncidentMemo, escalateHrIncident, fetchHrIncidentMemos } from '../../lib/hrExtended';
+import { HrAddFormButton, HrFormModal } from '../../components/hr/HrFormModal';
+import { HR_BTN_PRIMARY, HR_FIELD_CLASS } from '../../components/hr/hrFormStyles';
 import {
   AppTable,
   AppTableBody,
@@ -12,15 +14,14 @@ import {
   AppTableWrap,
 } from '../../components/ui/AppDataTable';
 
-const fieldCls =
-  'mt-1 block w-full rounded-xl border border-slate-200 px-3 py-2 text-sm shadow-sm focus:border-[#134e4a] focus:outline-none focus:ring-2 focus:ring-[#134e4a]/15';
-
 export default function TeamHrIncidents() {
+  const [modalOpen, setModalOpen] = useState(false);
   const [staff, setStaff] = useState([]);
   const [memos, setMemos] = useState([]);
   const [userId, setUserId] = useState('');
   const [incidentDateIso, setIncidentDateIso] = useState(new Date().toISOString().slice(0, 10));
   const [summary, setSummary] = useState('');
+  const [formErr, setFormErr] = useState('');
   const [message, setMessage] = useState('');
 
   useHrListLoad(async () => {
@@ -41,13 +42,16 @@ export default function TeamHrIncidents() {
 
   const submit = async (e) => {
     e.preventDefault();
+    setFormErr('');
     const { ok, data } = await createHrIncidentMemo({ userId, incidentDateIso, summary: summary.trim() });
     if (!ok || !data?.ok) {
-      setMessage(data?.error || 'Could not save memo.');
+      setFormErr(data?.error || 'Could not save memo.');
       return;
     }
     setMessage('Incident memo recorded.');
     setSummary('');
+    setUserId('');
+    setModalOpen(false);
     await reload();
   };
 
@@ -61,35 +65,45 @@ export default function TeamHrIncidents() {
 
   return (
     <div className="space-y-4">
-      <p className="text-sm text-slate-600">
-        Raise factual incident memos for your branch. HR can escalate memos into the formal discipline register.
-      </p>
-      <form onSubmit={submit} className="rounded-xl border border-slate-100 bg-slate-50/80 p-4 space-y-3">
-        <div className="grid gap-3 sm:grid-cols-2">
-          <label className="text-xs font-semibold text-slate-600">
-            Staff member
-            <select className={fieldCls} value={userId} onChange={(e) => setUserId(e.target.value)} required>
-              <option value="">Select…</option>
-              {staff.map((s) => (
-                <option key={s.userId} value={s.userId}>
-                  {s.displayName}
-                </option>
-              ))}
-            </select>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <p className="text-sm text-slate-600 max-w-2xl">
+          Raise factual incident memos for your branch. HR can escalate memos into the formal discipline register.
+        </p>
+        <HrAddFormButton onClick={() => setModalOpen(true)}>New incident memo</HrAddFormButton>
+      </div>
+
+      <HrFormModal isOpen={modalOpen} onClose={() => setModalOpen(false)} title="Record incident memo" size="md">
+        <form onSubmit={submit} className="space-y-3">
+          {formErr ? (
+            <div className="rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-sm text-red-800">{formErr}</div>
+          ) : null}
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="text-xs font-semibold text-slate-600">
+              Staff member
+              <select className={HR_FIELD_CLASS} value={userId} onChange={(e) => setUserId(e.target.value)} required>
+                <option value="">Select…</option>
+                {staff.map((s) => (
+                  <option key={s.userId} value={s.userId}>
+                    {s.displayName}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="text-xs font-semibold text-slate-600">
+              Incident date
+              <input type="date" className={HR_FIELD_CLASS} value={incidentDateIso} onChange={(e) => setIncidentDateIso(e.target.value)} />
+            </label>
+          </div>
+          <label className="text-xs font-semibold text-slate-600 block">
+            Summary
+            <textarea className={HR_FIELD_CLASS} rows={3} value={summary} onChange={(e) => setSummary(e.target.value)} required />
           </label>
-          <label className="text-xs font-semibold text-slate-600">
-            Incident date
-            <input type="date" className={fieldCls} value={incidentDateIso} onChange={(e) => setIncidentDateIso(e.target.value)} />
-          </label>
-        </div>
-        <label className="text-xs font-semibold text-slate-600 block">
-          Summary
-          <textarea className={fieldCls} rows={3} value={summary} onChange={(e) => setSummary(e.target.value)} required />
-        </label>
-        <button type="submit" className="rounded-xl bg-[#134e4a] px-4 py-2 text-sm font-bold text-white">
-          Save memo
-        </button>
-      </form>
+          <button type="submit" className={HR_BTN_PRIMARY}>
+            Save memo
+          </button>
+        </form>
+      </HrFormModal>
+
       {message ? <p className="text-sm text-emerald-800">{message}</p> : null}
       {error ? <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-800">{error}</div> : null}
       <AppTableWrap>

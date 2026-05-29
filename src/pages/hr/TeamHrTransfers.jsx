@@ -3,6 +3,8 @@ import { apiFetch } from '../../lib/apiBase';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { useHrListLoad } from '../../hooks/useHrListLoad';
 import { createHrTransferRecommendation, fetchHrTransferRecommendations } from '../../lib/hrExtended';
+import { HrAddFormButton, HrFormModal } from '../../components/hr/HrFormModal';
+import { HR_BTN_PRIMARY, HR_FIELD_CLASS } from '../../components/hr/hrFormStyles';
 import {
   AppTable,
   AppTableBody,
@@ -13,17 +15,16 @@ import {
   AppTableWrap,
 } from '../../components/ui/AppDataTable';
 
-const fieldCls =
-  'mt-1 block w-full rounded-xl border border-slate-200 px-3 py-2 text-sm shadow-sm focus:border-[#134e4a] focus:outline-none focus:ring-2 focus:ring-[#134e4a]/15';
-
 export default function TeamHrTransfers() {
   const ws = useWorkspace();
   const branches = ws?.snapshot?.workspaceBranches ?? ws?.session?.branches ?? [];
+  const [modalOpen, setModalOpen] = useState(false);
   const [staff, setStaff] = useState([]);
   const [recs, setRecs] = useState([]);
   const [userId, setUserId] = useState('');
   const [toBranchId, setToBranchId] = useState('');
   const [reason, setReason] = useState('');
+  const [formErr, setFormErr] = useState('');
   const [message, setMessage] = useState('');
 
   useHrListLoad(async () => {
@@ -44,17 +45,21 @@ export default function TeamHrTransfers() {
 
   const submit = async (e) => {
     e.preventDefault();
+    setFormErr('');
     const { ok, data } = await createHrTransferRecommendation({
       userId,
       toBranchId,
       reason: reason.trim(),
     });
     if (!ok || !data?.ok) {
-      setMessage(data?.error || 'Could not submit.');
+      setFormErr(data?.error || 'Could not submit.');
       return;
     }
     setMessage('Transfer recommendation submitted for HQ review.');
     setReason('');
+    setUserId('');
+    setToBranchId('');
+    setModalOpen(false);
     await reload();
   };
 
@@ -62,43 +67,53 @@ export default function TeamHrTransfers() {
 
   return (
     <div className="space-y-4">
-      <p className="text-sm text-slate-600">
-        Recommend a branch transfer for HQ HR approval. Approved recommendations update the staff profile and branch
-        history.
-      </p>
-      <form onSubmit={submit} className="rounded-xl border border-slate-100 bg-slate-50/80 p-4 space-y-3">
-        <div className="grid gap-3 sm:grid-cols-2">
-          <label className="text-xs font-semibold text-slate-600">
-            Staff
-            <select className={fieldCls} value={userId} onChange={(e) => setUserId(e.target.value)} required>
-              <option value="">Select…</option>
-              {staff.map((s) => (
-                <option key={s.userId} value={s.userId}>
-                  {s.displayName}
-                </option>
-              ))}
-            </select>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <p className="text-sm text-slate-600 max-w-2xl">
+          Recommend a branch transfer for HQ HR approval. Approved recommendations update the staff profile and branch
+          history.
+        </p>
+        <HrAddFormButton onClick={() => setModalOpen(true)}>Recommend transfer</HrAddFormButton>
+      </div>
+
+      <HrFormModal isOpen={modalOpen} onClose={() => setModalOpen(false)} title="Recommend branch transfer" size="md">
+        <form onSubmit={submit} className="space-y-3">
+          {formErr ? (
+            <div className="rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-sm text-red-800">{formErr}</div>
+          ) : null}
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="text-xs font-semibold text-slate-600">
+              Staff
+              <select className={HR_FIELD_CLASS} value={userId} onChange={(e) => setUserId(e.target.value)} required>
+                <option value="">Select…</option>
+                {staff.map((s) => (
+                  <option key={s.userId} value={s.userId}>
+                    {s.displayName}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="text-xs font-semibold text-slate-600">
+              To branch
+              <select className={HR_FIELD_CLASS} value={toBranchId} onChange={(e) => setToBranchId(e.target.value)} required>
+                <option value="">Select…</option>
+                {branches.map((b) => (
+                  <option key={b.id} value={b.id}>
+                    {b.name || b.id}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+          <label className="text-xs font-semibold text-slate-600 block">
+            Reason
+            <textarea className={HR_FIELD_CLASS} rows={2} value={reason} onChange={(e) => setReason(e.target.value)} required />
           </label>
-          <label className="text-xs font-semibold text-slate-600">
-            To branch
-            <select className={fieldCls} value={toBranchId} onChange={(e) => setToBranchId(e.target.value)} required>
-              <option value="">Select…</option>
-              {branches.map((b) => (
-                <option key={b.id} value={b.id}>
-                  {b.name || b.id}
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
-        <label className="text-xs font-semibold text-slate-600 block">
-          Reason
-          <textarea className={fieldCls} rows={2} value={reason} onChange={(e) => setReason(e.target.value)} required />
-        </label>
-        <button type="submit" className="rounded-xl bg-[#134e4a] px-4 py-2 text-sm font-bold text-white">
-          Submit recommendation
-        </button>
-      </form>
+          <button type="submit" className={HR_BTN_PRIMARY}>
+            Submit recommendation
+          </button>
+        </form>
+      </HrFormModal>
+
       {message ? <p className="text-sm text-emerald-800">{message}</p> : null}
       {error ? <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-800">{error}</div> : null}
       <AppTableWrap>

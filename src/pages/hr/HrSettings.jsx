@@ -4,15 +4,15 @@ import { useHrListLoad } from '../../hooks/useHrListLoad';
 import { apiFetch } from '../../lib/apiBase';
 import { canManageHrSettings } from '../../lib/hrAccess';
 import { useWorkspace } from '../../context/WorkspaceContext';
-
-const fieldCls =
-  'mt-1 block w-full rounded-xl border border-slate-200 px-3 py-2 text-sm shadow-sm focus:border-[#134e4a] focus:outline-none focus:ring-2 focus:ring-[#134e4a]/15';
+import { HrAddFormButton, HrFormModal } from '../../components/hr/HrFormModal';
+import { HR_BTN_PRIMARY, HR_FIELD_CLASS } from '../../components/hr/hrFormStyles';
 
 export default function HrSettings() {
   const ws = useWorkspace();
   const canManage = canManageHrSettings(ws?.permissions);
   const [holidays, setHolidays] = useState([]);
   const [holidayForm, setHolidayForm] = useState({ dayIso: '', label: '' });
+  const [holidayModalOpen, setHolidayModalOpen] = useState(false);
   const [message, setMessage] = useState('');
 
   const { reload } = useHrListLoad(async () => {
@@ -31,6 +31,7 @@ export default function HrSettings() {
     if (ok && data?.ok) {
       setMessage('Holiday saved.');
       setHolidayForm({ dayIso: '', label: '' });
+      setHolidayModalOpen(false);
       await reload();
     }
   };
@@ -45,22 +46,36 @@ export default function HrSettings() {
         <HrSalaryMatrixPanel />
       </section>
       <section>
-        <h2 className="text-sm font-black text-slate-800 mb-3">Public holidays</h2>
-        {canManage ? (
-          <form onSubmit={saveHoliday} className="mb-4 flex flex-wrap gap-3 items-end">
-            <label className="text-xs font-semibold text-slate-600">
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
+          <h2 className="text-sm font-black text-slate-800">Public holidays</h2>
+          {canManage ? <HrAddFormButton onClick={() => setHolidayModalOpen(true)}>Add holiday</HrAddFormButton> : null}
+        </div>
+        <HrFormModal isOpen={holidayModalOpen} onClose={() => setHolidayModalOpen(false)} title="Add public holiday" size="sm">
+          <form onSubmit={saveHoliday} className="space-y-3">
+            <label className="text-xs font-semibold text-slate-600 block">
               Date
-              <input type="date" className={fieldCls} value={holidayForm.dayIso} onChange={(e) => setHolidayForm({ ...holidayForm, dayIso: e.target.value })} required />
+              <input
+                type="date"
+                className={HR_FIELD_CLASS}
+                value={holidayForm.dayIso}
+                onChange={(e) => setHolidayForm({ ...holidayForm, dayIso: e.target.value })}
+                required
+              />
             </label>
-            <label className="text-xs font-semibold text-slate-600">
+            <label className="text-xs font-semibold text-slate-600 block">
               Label
-              <input className={fieldCls} value={holidayForm.label} onChange={(e) => setHolidayForm({ ...holidayForm, label: e.target.value })} required />
+              <input
+                className={HR_FIELD_CLASS}
+                value={holidayForm.label}
+                onChange={(e) => setHolidayForm({ ...holidayForm, label: e.target.value })}
+                required
+              />
             </label>
-            <button type="submit" className="rounded-xl bg-[#134e4a] px-4 py-2 text-sm font-bold text-white">
-              Add holiday
+            <button type="submit" className={HR_BTN_PRIMARY}>
+              Save holiday
             </button>
           </form>
-        ) : null}
+        </HrFormModal>
         {message ? <p className="text-sm text-emerald-800 mb-2">{message}</p> : null}
         <ul className="text-sm text-slate-700 space-y-1">
           {holidays.map((h) => (

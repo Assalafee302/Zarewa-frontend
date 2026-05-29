@@ -12,6 +12,8 @@ import {
 } from '../../lib/hrStaff';
 import { fetchHrTransferRecommendations, reviewHrTransferRecommendation } from '../../lib/hrExtended';
 import { emptyStaffForm } from '../../lib/hrStaffConstants';
+import { HrAddFormButton, HrFormModal } from '../../components/hr/HrFormModal';
+import { HR_BTN_PRIMARY, HR_FIELD_CLASS } from '../../components/hr/hrFormStyles';
 import {
   AppTable,
   AppTableBody,
@@ -43,6 +45,7 @@ export default function HrTransfers() {
   const [recommendations, setRecommendations] = useState([]);
   const [selectedUserId, setSelectedUserId] = useState('');
   const [transferForm, setTransferForm] = useState(() => emptyStaffForm());
+  const [modalOpen, setModalOpen] = useState(false);
   const [transferBusy, setTransferBusy] = useState(false);
   const [transferMsg, setTransferMsg] = useState('');
   const [transferErr, setTransferErr] = useState('');
@@ -110,6 +113,8 @@ export default function HrTransfers() {
       return;
     }
     setTransferMsg('Branch transfer recorded.');
+    setModalOpen(false);
+    setSelectedUserId('');
     await reloadTransfers();
     const staffRes = await apiFetch('/api/hr/staff');
     if (staffRes.ok && staffRes.data?.ok) setStaff(staffRes.data.staff || []);
@@ -117,28 +122,30 @@ export default function HrTransfers() {
 
   return (
     <div className="space-y-6">
-      <p className="text-sm text-slate-600">
-        Branch moves are stored in each employee&apos;s transfer history when HR changes their branch on file.
-      </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <p className="text-sm text-slate-600 max-w-2xl">
+          Branch moves are stored in each employee&apos;s transfer history when HR changes their branch on file.
+        </p>
+        {canManage ? <HrAddFormButton onClick={() => setModalOpen(true)}>Record transfer</HrAddFormButton> : null}
+      </div>
+      {!canManage ? (
+        <p className="text-sm text-slate-600">You can view transfer history but need HR transfer permission to record moves.</p>
+      ) : null}
+      {transferMsg ? (
+        <div className="rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
+          {transferMsg}
+        </div>
+      ) : null}
 
-      {canManage ? (
-        <form
-          onSubmit={submitTransfer}
-          className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm space-y-4"
-        >
-          <h3 className="text-sm font-black uppercase tracking-wide text-[#134e4a]">Record transfer</h3>
+      <HrFormModal isOpen={modalOpen} onClose={() => setModalOpen(false)} title="Record branch transfer" size="md">
+        <form onSubmit={submitTransfer} className="space-y-4">
           {transferErr ? (
             <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-800">{transferErr}</div>
-          ) : null}
-          {transferMsg ? (
-            <div className="rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
-              {transferMsg}
-            </div>
           ) : null}
           <label className="block text-xs font-semibold text-slate-600">
             Employee
             <select
-              className="mt-1 block w-full max-w-md rounded-xl border border-slate-200 px-3 py-2 text-sm"
+              className={HR_FIELD_CLASS}
               value={selectedUserId}
               onChange={(e) => onSelectStaff(e.target.value)}
               required
@@ -154,11 +161,11 @@ export default function HrTransfers() {
             </select>
           </label>
           {selectedStaff ? (
-            <div className="grid gap-4 sm:grid-cols-2 max-w-2xl">
+            <div className="grid gap-4 sm:grid-cols-2">
               <label className="block text-xs font-semibold text-slate-600">
                 New branch
                 <select
-                  className="mt-1 block w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
+                  className={HR_FIELD_CLASS}
                   value={transferForm.branchId}
                   onChange={(e) => setTransferForm((f) => ({ ...f, branchId: e.target.value }))}
                   required
@@ -173,7 +180,7 @@ export default function HrTransfers() {
               <label className="block text-xs font-semibold text-slate-600">
                 Reason
                 <input
-                  className="mt-1 block w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
+                  className={HR_FIELD_CLASS}
                   value={transferForm.branchChangeReason}
                   onChange={(e) => setTransferForm((f) => ({ ...f, branchChangeReason: e.target.value }))}
                   placeholder="Why is this transfer happening?"
@@ -182,17 +189,11 @@ export default function HrTransfers() {
               </label>
             </div>
           ) : null}
-          <button
-            type="submit"
-            disabled={transferBusy || !selectedUserId}
-            className="rounded-xl bg-[#134e4a] px-5 py-2.5 text-[11px] font-bold uppercase tracking-wide text-white disabled:opacity-50"
-          >
+          <button type="submit" disabled={transferBusy || !selectedUserId} className={HR_BTN_PRIMARY}>
             {transferBusy ? 'Saving…' : 'Record transfer'}
           </button>
         </form>
-      ) : (
-        <p className="text-sm text-slate-600">You can view transfer history but need HR transfer permission to record moves.</p>
-      )}
+      </HrFormModal>
 
       {error ? (
         <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-800">{error}</div>
