@@ -97,7 +97,6 @@ const HelpChatDockGate = lazy(() =>
 const HumanResources = lazy(() => import('./pages/hr/HumanResources'));
 const MyProfile = lazy(() => import('./pages/hr/MyProfile'));
 const TeamHr = lazy(() => import('./pages/hr/TeamHr'));
-const Careers = lazy(() => import('./pages/Careers'));
 
 /** Blocks the whole app when bootstrap falls back to cached session (API unreachable). */
 function DegradedWorkspaceLock() {
@@ -1096,14 +1095,6 @@ function App() {
                 <DocumentTitleSync />
                 <PrintSessionCleanup />
                 <Routes>
-                  <Route
-                    path="/careers"
-                    element={
-                      <Suspense fallback={<LoadingScreen />}>
-                        <Careers />
-                      </Suspense>
-                    }
-                  />
                   <Route path="*" element={<AuthGate />} />
                 </Routes>
               </AiAssistantProvider>
