@@ -52,12 +52,12 @@ function buildIntro(user, pathname, mode) {
   const page = pageLabel(pathname);
   if (mode === 'transaction_help') {
     return name
-      ? `Hi ${name} — I'm **${HELP_BOT_NAME}**, your ERP operations assistant. Tell me what went wrong with this transaction, or pick an issue below.`
-      : `Hi — I'm **${HELP_BOT_NAME}**. Tell me what went wrong with this transaction, or pick an issue below.`;
+      ? `Hi ${name} — I'm **${HELP_BOT_NAME}**, your how-to guide. Tell me what went wrong and I'll walk you through the **correct Zarewa steps** (I won't post or approve for you).`
+      : `Hi — I'm **${HELP_BOT_NAME}**. Tell me what went wrong and I'll guide you through the right steps in Zarewa — you stay in control of every save.`;
   }
   return name
-    ? `Hi ${name} — I'm **${HELP_BOT_NAME}**, your ERP operations assistant. Ask me about **${page}** workflows, approvals, memos, or what to do next.`
-    : `Hi — I'm **${HELP_BOT_NAME}**, your ERP operations assistant. Ask me about **${page}** workflows or what to do next.`;
+    ? `Hi ${name} — I'm **${HELP_BOT_NAME}**, your friendly **${page}** guide. Ask *how do I…* for SOPs, or *why can't I…* when something is blocked.`
+    : `Hi — I'm **${HELP_BOT_NAME}**, your **${page}** how-to guide. Ask for steps, guidelines, or what to do next — I explain; you perform the actions in Zarewa.`;
 }
 
 function seedMessages(user, pathname, mode) {

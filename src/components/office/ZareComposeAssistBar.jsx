@@ -52,7 +52,7 @@ export function ZareComposeAssistBar({
         <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide text-teal-900">
           <LifeBuoy size={13} aria-hidden />
           Ask {HELP_BOT_NAME}
-          <span className="font-normal normal-case text-teal-800/80">· memo assistant</span>
+          <span className="font-normal normal-case text-teal-800/80">· memo writing guide (you submit)</span>
         </p>
         <button
           type="button"
