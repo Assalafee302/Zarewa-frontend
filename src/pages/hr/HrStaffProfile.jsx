@@ -12,6 +12,8 @@ import { formatNgn, payrollGroupLabel, yearsOfServiceFromIso } from '../../lib/h
 import { HrSalaryIncrementPanel } from '../../components/hr/HrSalaryIncrementPanel';
 import { HrPromotionFromMatrix } from '../../components/hr/HrPromotionFromMatrix';
 import { HrFormModal } from '../../components/hr/HrFormModal';
+import { HrStaffDocumentsPanel } from '../../components/hr/HrStaffDocumentsPanel';
+import { CRITICAL_MISSING_LABELS } from '../../lib/hrStaffDocumentKinds';
 import { HR_BTN_PRIMARY, HR_BTN_SECONDARY } from '../../components/hr/hrFormStyles';
 import { formToProfilePatch, staffToForm, updateHrStaffProfile } from '../../lib/hrStaff';
 import {
@@ -63,7 +65,9 @@ function MissingBanner({ items }) {
       <AlertTriangle size={18} className="shrink-0 text-amber-600" aria-hidden />
       <div>
         <p className="font-semibold">Profile incomplete</p>
-        <p className="mt-0.5 text-xs text-amber-900/90">Missing: {items.join(', ')}</p>
+        <p className="mt-0.5 text-xs text-amber-900/90">
+          Missing: {items.map((k) => CRITICAL_MISSING_LABELS[k] || k).join(' · ')}
+        </p>
       </div>
     </div>
   );
@@ -235,7 +239,6 @@ export default function HrStaffProfile() {
   }, [tab, userId]);
 
   const yrs = useMemo(() => yearsOfServiceFromIso(staff?.dateJoinedIso), [staff?.dateJoinedIso]);
-  const docs = staff?.profileExtra?.documents;
   const loanNotes = staff?.profileExtra?.activeLoansSummary;
   const disciplinary = staff?.profileExtra?.disciplinaryEvents;
 
@@ -259,7 +262,20 @@ export default function HrStaffProfile() {
           <Link to="/hr/staff" className="inline-flex items-center gap-1 text-xs font-bold uppercase tracking-wide text-[#134e4a] hover:underline">
             <ArrowLeft size={14} aria-hidden /> Staff directory
           </Link>
-          <h2 className="mt-2 text-xl font-black text-slate-900">{staff.displayName || staff.username}</h2>
+          <div className="mt-2 flex items-center gap-3">
+            {staff.avatarUrl && (staff.avatarUrl.startsWith('https://') || staff.avatarUrl.startsWith('data:image/')) ? (
+              <img
+                src={staff.avatarUrl}
+                alt=""
+                className="h-12 w-12 rounded-xl border border-slate-200 object-cover bg-slate-100"
+              />
+            ) : (
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50 text-[9px] text-slate-400">
+                Photo
+              </div>
+            )}
+            <h2 className="text-xl font-black text-slate-900">{staff.displayName || staff.username}</h2>
+          </div>
           <p className="text-sm text-slate-600">
             {staff.employeeNo ? `${staff.employeeNo} · ` : ''}
             {staff.jobTitle || 'No job title'} · {staff.branchId || staff.normalized?.branchId || '—'}
@@ -340,6 +356,13 @@ export default function HrStaffProfile() {
             {
               label: 'Handbook acknowledged',
               value: staff.complianceBadges?.handbookAcknowledged ? 'Yes' : 'Pending',
+            },
+            { label: 'NIN', value: staff.ninNumber || '—' },
+            {
+              label: 'Next of kin',
+              value: staff.nextOfKin
+                ? [staff.nextOfKin.name, staff.nextOfKin.phone, staff.nextOfKin.relationship].filter(Boolean).join(' · ')
+                : '—',
             },
           ]}
         />
@@ -436,20 +459,14 @@ export default function HrStaffProfile() {
       ) : null}
 
       {tab === 'documents' ? (
-        <div className="text-sm text-slate-700">
-          {Array.isArray(docs) && docs.length > 0 ? (
-            <ul className="space-y-2">
-              {docs.map((d, i) => (
-                <li key={d.id || i} className="rounded-xl border border-slate-100 bg-white px-4 py-3 shadow-sm">
-                  <span className="font-semibold">{d.label || d.kind || 'Document'}</span>
-                  {d.uploadedAtIso ? <span className="ml-2 text-xs text-slate-500">{d.uploadedAtIso}</span> : null}
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p>No documents uploaded on this profile yet.</p>
-          )}
-        </div>
+        <HrStaffDocumentsPanel
+          userId={userId}
+          displayName={staff.displayName || staff.username}
+          avatarUrl={staff.avatarUrl}
+          canEdit={canManage}
+          onboardingChecklist={staff.onboardingChecklist}
+          onUpdated={reloadProfile}
+        />
       ) : null}
 
       {tab === 'transfers' ? (

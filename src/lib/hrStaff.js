@@ -39,6 +39,23 @@ export function staffToForm(staff) {
     welfareNotes: staff.welfareNotes || '',
     leaveEntitlementBand: staff.leaveEntitlementBand || '',
     branchChangeReason: '',
+    ninNumber: staff.ninNumber || '',
+    nextOfKinName: staff.nextOfKin?.name || '',
+    nextOfKinPhone: staff.nextOfKin?.phone || '',
+    nextOfKinRelationship: staff.nextOfKin?.relationship || '',
+    nextOfKinAddress: staff.nextOfKin?.address || '',
+  };
+}
+
+function nextOfKinFromForm(form) {
+  const name = String(form.nextOfKinName || '').trim();
+  const phone = String(form.nextOfKinPhone || '').trim();
+  if (!name && !phone) return null;
+  return {
+    name: name || null,
+    phone: phone || null,
+    relationship: String(form.nextOfKinRelationship || '').trim() || null,
+    address: String(form.nextOfKinAddress || '').trim() || null,
   };
 }
 
@@ -73,6 +90,8 @@ export function formToProfilePatch(form, { originalBranchId } = {}) {
     trainingSummary: form.trainingSummary || null,
     welfareNotes: form.welfareNotes || null,
     leaveEntitlementBand: form.leaveEntitlementBand || null,
+    ninNumber: String(form.ninNumber || '').trim() || null,
+    nextOfKin: nextOfKinFromForm(form),
   };
   if (originalBranchId && String(form.branchId) !== String(originalBranchId)) {
     body.branchChangeReason = String(form.branchChangeReason || '').trim() || 'Branch transfer';

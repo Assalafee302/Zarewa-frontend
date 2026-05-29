@@ -76,5 +76,10 @@ export function emptyStaffForm(defaultBranchId = '') {
     welfareNotes: '',
     leaveEntitlementBand: '',
     branchChangeReason: '',
+    ninNumber: '',
+    nextOfKinName: '',
+    nextOfKinPhone: '',
+    nextOfKinRelationship: '',
+    nextOfKinAddress: '',
   };
 }

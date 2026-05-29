@@ -44,6 +44,13 @@ export default function MyProfileEmployment() {
     ['Level / step', hr.salaryLevel != null ? `${hr.salaryLevel} / ${hr.salaryStep ?? 1}` : '—'],
     ['Base salary', hr.baseSalaryNgn != null ? formatNgn(hr.baseSalaryNgn) : '—'],
     ['Line manager', hr.lineManagerUserId || '—'],
+    ['NIN', hr.ninNumber || '—'],
+    [
+      'Next of kin',
+      hr.nextOfKin
+        ? [hr.nextOfKin.name, hr.nextOfKin.phone, hr.nextOfKin.relationship].filter(Boolean).join(' · ')
+        : '—',
+    ],
   ];
 
   return (

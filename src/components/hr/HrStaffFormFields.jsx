@@ -293,6 +293,47 @@ export function HrStaffFormFields({
       ) : null}
 
       <section className="space-y-4">
+        <h3 className="text-sm font-black uppercase tracking-wide text-[#134e4a]">Identity & next of kin</h3>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label="NIN (11 digits)">
+            <input
+              className={fieldCls}
+              value={form.ninNumber}
+              onChange={(e) => set('ninNumber', e.target.value.replace(/\D/g, '').slice(0, 11))}
+              placeholder="National Identification Number"
+              inputMode="numeric"
+            />
+          </Field>
+          <Field label="Next of kin — full name">
+            <input className={fieldCls} value={form.nextOfKinName} onChange={(e) => set('nextOfKinName', e.target.value)} />
+          </Field>
+          <Field label="Next of kin — phone">
+            <input
+              className={fieldCls}
+              value={form.nextOfKinPhone}
+              onChange={(e) => set('nextOfKinPhone', e.target.value)}
+              placeholder="+234…"
+            />
+          </Field>
+          <Field label="Relationship">
+            <input
+              className={fieldCls}
+              value={form.nextOfKinRelationship}
+              onChange={(e) => set('nextOfKinRelationship', e.target.value)}
+              placeholder="e.g. Spouse, Parent"
+            />
+          </Field>
+          <Field label="Next of kin — address" hint="Optional">
+            <input
+              className={fieldCls}
+              value={form.nextOfKinAddress}
+              onChange={(e) => set('nextOfKinAddress', e.target.value)}
+            />
+          </Field>
+        </div>
+      </section>
+
+      <section className="space-y-4">
         <h3 className="text-sm font-black uppercase tracking-wide text-[#134e4a]">Qualifications & notes</h3>
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Minimum qualification">
