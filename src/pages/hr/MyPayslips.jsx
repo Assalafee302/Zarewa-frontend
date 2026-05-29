@@ -1,7 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { apiFetch } from '../../lib/apiBase';
 import { useWorkspace } from '../../context/WorkspaceContext';
-import { HrPayslipPrintModal } from '../../components/hr/HrPayslipPrintModal';
 import { HrSensitiveGate } from '../../components/hr/HrSensitiveGate';
 import { useHrSensitiveAccess } from '../../hooks/useHrSensitiveAccess';
 import { canViewOrgSensitiveHr } from '../../lib/hrAccess';
@@ -24,9 +23,7 @@ export default function MyPayslips() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [payslips, setPayslips] = useState([]);
-  const [previewSlip, setPreviewSlip] = useState(null);
   const hasLoadedRef = useRef(false);
-  const myUserId = ws?.session?.userId || ws?.user?.id || '';
 
   useEffect(() => {
     let cancelled = false;
@@ -64,7 +61,6 @@ export default function MyPayslips() {
               <AppTableTh>Status</AppTableTh>
               <AppTableTh align="right">Gross</AppTableTh>
               <AppTableTh align="right">Net pay</AppTableTh>
-              <AppTableTh />
             </AppTableThead>
             <AppTableBody>
               {payslips.map((p) => (
@@ -75,21 +71,6 @@ export default function MyPayslips() {
                     {p.amountsRedacted ? '—' : formatNgn(p.grossNgn)}
                   </AppTableTd>
                   <AppTableTd align="right">{p.amountsRedacted ? '—' : formatNgn(p.netNgn)}</AppTableTd>
-                  <AppTableTd>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setPreviewSlip({
-                          ...p,
-                          userId: p.userId || myUserId,
-                          displayName: p.displayName || ws?.session?.displayName,
-                        })
-                      }
-                      className="text-[10px] font-bold uppercase text-[#134e4a]"
-                    >
-                      Preview
-                    </button>
-                  </AppTableTd>
                 </AppTableTr>
               ))}
             </AppTableBody>
@@ -108,11 +89,6 @@ export default function MyPayslips() {
         <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-800">{error}</div>
       ) : null}
       {showSensitiveInline ? body : <HrSensitiveGate label="View your payslip amounts">{body}</HrSensitiveGate>}
-      <HrPayslipPrintModal
-        isOpen={!!previewSlip}
-        onClose={() => setPreviewSlip(null)}
-        payslip={previewSlip}
-      />
     </div>
   );
 }

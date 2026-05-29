@@ -6,7 +6,6 @@ import MyProfileEmployment from './MyProfileEmployment';
 import MyProfileDocuments from './MyProfileDocuments';
 import MyProfileBenefits from './MyProfileBenefits';
 import MyProfilePolicies from './MyProfilePolicies';
-import MyProfileSurveys from './MyProfileSurveys';
 import MyLeave from './MyLeave';
 import MyAttendance from './MyAttendance';
 import MyPayslips from './MyPayslips';
@@ -47,7 +46,6 @@ export default function MyProfile() {
         <Route path="documents" element={<MyProfileDocuments />} />
         <Route path="benefits" element={<MyProfileBenefits />} />
         <Route path="policies" element={<MyProfilePolicies />} />
-        <Route path="surveys" element={<MyProfileSurveys />} />
         <Route path="help" element={<MyProfileOverview />} />
       </Route>
     </Routes>

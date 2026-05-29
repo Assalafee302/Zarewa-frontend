@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { apiFetch } from '../../lib/apiBase';
 import { useWorkspace } from '../../context/WorkspaceContext';
-import { HrPayslipPrintModal } from '../../components/hr/HrPayslipPrintModal';
 import { HrSensitiveGate } from '../../components/hr/HrSensitiveGate';
 import { HrSalaryMatrixPanel } from '../../components/hr/HrSalaryMatrixPanel';
 import { useHrSensitiveAccess } from '../../hooks/useHrSensitiveAccess';
@@ -58,7 +57,6 @@ export default function HrPayroll() {
   const [newPeriod, setNewPeriod] = useState(currentPeriodYyyymm());
   const [taxPercent, setTaxPercent] = useState('7.5');
   const [pensionPercent, setPensionPercent] = useState('8');
-  const [previewSlip, setPreviewSlip] = useState(null);
 
   const fetcher = showSensitiveInline || sensitive.isUnlocked ? sensitive.fetchWithSensitive : apiFetch;
 
@@ -214,14 +212,11 @@ export default function HrPayroll() {
             <AppTableTh align="right">Attendance ded.</AppTableTh>
             <AppTableTh align="right">Other ded.</AppTableTh>
             <AppTableTh align="right">Net</AppTableTh>
-            {(run?.status === 'locked' || run?.status === 'paid') && !lines[0]?.amountsRedacted ? (
-              <AppTableTh />
-            ) : null}
           </AppTableThead>
           <AppTableBody>
             {lines.length === 0 ? (
               <AppTableTr>
-                <AppTableTd colSpan={6} align="center">
+                <AppTableTd colSpan={5} align="center">
                   <span className="text-slate-500 py-4 block">
                     {run?.status === 'draft' ? 'Recompute to generate lines.' : 'No lines.'}
                   </span>
@@ -241,32 +236,6 @@ export default function HrPayroll() {
                     {l.amountsRedacted ? '—' : formatNgn(l.otherDeductionNgn)}
                   </AppTableTd>
                   <AppTableTd align="right">{l.amountsRedacted ? '—' : formatNgn(l.netNgn)}</AppTableTd>
-                  {(run?.status === 'locked' || run?.status === 'paid') && !l.amountsRedacted ? (
-                    <AppTableTd>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setPreviewSlip({
-                            runId: selectedId,
-                            userId: l.userId,
-                            periodYyyymm: run?.periodYyyymm,
-                            runStatus: run?.status,
-                            displayName: l.displayName,
-                            grossNgn: l.grossNgn,
-                            bonusNgn: l.bonusNgn,
-                            attendanceDeductionNgn: l.attendanceDeductionNgn,
-                            otherDeductionNgn: l.otherDeductionNgn,
-                            taxNgn: l.taxNgn,
-                            pensionNgn: l.pensionNgn,
-                            netNgn: l.netNgn,
-                          })
-                        }
-                        className="text-[10px] font-bold uppercase text-[#134e4a]"
-                      >
-                        Preview
-                      </button>
-                    </AppTableTd>
-                  ) : null}
                 </AppTableTr>
               ))
             )}
@@ -494,11 +463,6 @@ export default function HrPayroll() {
           </div>
         </>
       ) : null}
-      <HrPayslipPrintModal
-        isOpen={!!previewSlip}
-        onClose={() => setPreviewSlip(null)}
-        payslip={previewSlip}
-      />
     </div>
   );
 }

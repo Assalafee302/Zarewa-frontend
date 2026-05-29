@@ -1,15 +1,14 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { HrStaffFormFields } from './HrStaffFormFields';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { formToRegisterBody, registerHrStaff } from '../../lib/hrStaff';
 import { emptyStaffForm } from '../../lib/hrStaffConstants';
-import { fetchApplicantPrefill } from '../../lib/hrRecruiting';
 import { HR_BTN_PRIMARY, HR_BTN_SECONDARY } from './hrFormStyles';
 
 /**
- * @param {{ defaultBranchId?: string; applicantId?: string; onSuccess: (userId: string) => void; onCancel?: () => void }} props
+ * @param {{ defaultBranchId?: string; onSuccess: (userId: string) => void; onCancel?: () => void }} props
  */
-export function HrStaffRegisterForm({ defaultBranchId, applicantId, onSuccess, onCancel }) {
+export function HrStaffRegisterForm({ defaultBranchId, onSuccess, onCancel }) {
   const ws = useWorkspace();
   const branches = useMemo(() => {
     const list = ws?.snapshot?.workspaceBranches ?? ws?.session?.branches ?? [];
@@ -20,31 +19,9 @@ export function HrStaffRegisterForm({ defaultBranchId, applicantId, onSuccess, o
     defaultBranchId ||
     String(ws?.session?.workspaceBranchId || ws?.snapshot?.workspaceBranchId || branches[0]?.id || '').trim();
 
-  const [form, setForm] = useState(() => ({ ...emptyStaffForm(branch), applicantId: applicantId || '' }));
+  const [form, setForm] = useState(() => emptyStaffForm(branch));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-
-  useEffect(() => {
-    if (!applicantId) return;
-    let cancelled = false;
-    (async () => {
-      const { ok, data } = await fetchApplicantPrefill(applicantId);
-      if (cancelled || !ok || !data?.ok || !data.prefill) return;
-      const p = data.prefill;
-      setForm((f) => ({
-        ...f,
-        applicantId,
-        displayName: p.displayName || f.displayName,
-        username: p.username || f.username,
-        branchId: p.branchId || f.branchId,
-        jobTitle: p.jobTitle || f.jobTitle,
-        department: p.department || f.department,
-      }));
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [applicantId]);
 
   const submit = async (e) => {
     e.preventDefault();

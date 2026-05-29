@@ -17,73 +17,31 @@ import HrLetters from './HrLetters';
 import HrBenefits from './HrBenefits';
 import HrReports from './HrReports';
 import HrSettings from './HrSettings';
-import HrPerformance from './HrPerformance';
-import HrOrgChart from './HrOrgChart';
-import HrRecruiting from './HrRecruiting';
-import HrLearning from './HrLearning';
-import HrEngagement from './HrEngagement';
 import ExecutiveHr from './ExecutiveHr';
 
-const HR_NAV_GROUPS = [
-  {
-    label: 'Overview',
-    items: [{ to: '/hr/dashboard', label: 'Dashboard', end: true }],
-  },
-  {
-    label: 'People',
-    items: [
-      { to: '/hr/staff', label: 'Staff directory' },
-      { to: '/hr/org-chart', label: 'Org chart' },
-      { to: '/hr/recruiting', label: 'Recruiting' },
-      { to: '/hr/learning', label: 'Learning' },
-      { to: '/hr/engagement', label: 'Engagement' },
-    ],
-  },
-  {
-    label: 'Operations',
-    items: [
-      { to: '/hr/requests', label: 'Requests' },
-      { to: '/hr/leave', label: 'Leave' },
-      { to: '/hr/attendance', label: 'Attendance' },
-      { to: '/hr/payroll', label: 'Payroll' },
-      { to: '/hr/loans', label: 'Loans' },
-    ],
-  },
-  {
-    label: 'Governance',
-    items: [
-      { to: '/hr/benefits', label: 'Benefits' },
-      { to: '/hr/transfers', label: 'Transfers' },
-      { to: '/hr/discipline', label: 'Discipline' },
-      { to: '/hr/performance', label: 'Performance' },
-      { to: '/hr/letters', label: 'Letters' },
-    ],
-  },
-  {
-    label: 'Insights',
-    items: [
-      { to: '/hr/reports', label: 'Reports' },
-      { to: '/hr/settings', label: 'Settings' },
-    ],
-  },
+const HR_NAV = [
+  { to: '/hr/dashboard', label: 'Dashboard', end: true },
+  { to: '/hr/staff', label: 'Staff' },
+  { to: '/hr/requests', label: 'Requests' },
+  { to: '/hr/leave', label: 'Leave' },
+  { to: '/hr/attendance', label: 'Attendance' },
+  { to: '/hr/payroll', label: 'Payroll' },
+  { to: '/hr/loans', label: 'Loans' },
+  { to: '/hr/benefits', label: 'Benefits' },
+  { to: '/hr/transfers', label: 'Transfers' },
+  { to: '/hr/discipline', label: 'Discipline' },
+  { to: '/hr/letters', label: 'Letters' },
+  { to: '/hr/reports', label: 'Reports' },
+  { to: '/hr/settings', label: 'Settings' },
 ];
 
 export default function HumanResources() {
   const ws = useWorkspace();
   const showExecutive = ws?.canAccessModule?.('executive_hr');
 
-  const navGroups = showExecutive
-    ? [
-        ...HR_NAV_GROUPS.slice(0, -1),
-        {
-          ...HR_NAV_GROUPS[HR_NAV_GROUPS.length - 1],
-          items: [
-            ...HR_NAV_GROUPS[HR_NAV_GROUPS.length - 1].items,
-            { to: '/hr/executive', label: 'Executive' },
-          ],
-        },
-      ]
-    : HR_NAV_GROUPS;
+  const navItems = showExecutive
+    ? [...HR_NAV, { to: '/hr/executive', label: 'Executive' }]
+    : HR_NAV;
 
   return (
     <Routes>
@@ -92,7 +50,7 @@ export default function HumanResources() {
           <HrSectionShell
             title="Human Resources"
             subtitle="HQ payroll, staff records, leave, attendance, and people operations for Zarewa."
-            navGroups={navGroups}
+            navItems={navItems}
           />
         }
       >
@@ -101,10 +59,6 @@ export default function HumanResources() {
         <Route path="staff" element={<HrStaffDirectory />} />
         <Route path="staff/register" element={<HrStaffRegister />} />
         <Route path="staff/:userId" element={<HrStaffProfile />} />
-        <Route path="org-chart" element={<HrOrgChart />} />
-        <Route path="recruiting" element={<HrRecruiting />} />
-        <Route path="learning" element={<HrLearning />} />
-        <Route path="engagement" element={<HrEngagement />} />
         <Route path="requests" element={<HrRequests />} />
         <Route path="leave" element={<HrLeave />} />
         <Route path="attendance" element={<HrAttendance />} />
@@ -113,7 +67,6 @@ export default function HumanResources() {
         <Route path="benefits" element={<HrBenefits />} />
         <Route path="transfers" element={<HrTransfers />} />
         <Route path="discipline" element={<HrDiscipline />} />
-        <Route path="performance" element={<HrPerformance />} />
         <Route path="letters" element={<HrLetters />} />
         <Route path="reports" element={<HrReports />} />
         <Route path="settings" element={<HrSettings />} />
