@@ -35,6 +35,17 @@ export function fetchApplicantPrefill(applicantId) {
   return apiFetch(`/api/hr/recruiting/applicants/${encodeURIComponent(applicantId)}/prefill`);
 }
 
+export function fetchInterviewCriteria() {
+  return apiFetch('/api/hr/recruiting/interview-criteria');
+}
+
+export function generateHrOfferLetter(applicantId, body) {
+  return apiFetch(`/api/hr/recruiting/applicants/${encodeURIComponent(applicantId)}/offer-letter`, {
+    method: 'POST',
+    body: JSON.stringify(body || {}),
+  });
+}
+
 export const APPLICANT_STATUSES = [
   { value: 'applied', label: 'Applied' },
   { value: 'screening', label: 'Screening' },

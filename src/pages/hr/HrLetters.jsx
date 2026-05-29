@@ -117,6 +117,7 @@ export default function HrLetters() {
               <select className={HR_FIELD_CLASS} value={letterKind} onChange={(e) => setLetterKind(e.target.value)}>
                 <option value="employment">Employment confirmation</option>
                 <option value="experience">Experience (template)</option>
+                <option value="staff_loan_agreement">Staff loan agreement (manual)</option>
               </select>
             </label>
           </div>
@@ -181,7 +182,9 @@ export default function HrLetters() {
                       l.userId
                     )}
                   </AppTableTd>
-                  <AppTableTd>{l.letterKind}</AppTableTd>
+                  <AppTableTd>
+                    {l.letterKind === 'staff_loan_agreement' ? 'Loan agreement' : l.letterKind}
+                  </AppTableTd>
                   <AppTableTd className="max-w-md truncate text-slate-600">{l.contentText?.slice(0, 80)}…</AppTableTd>
                   <AppTableTd>
                     <div className="flex flex-wrap gap-2">

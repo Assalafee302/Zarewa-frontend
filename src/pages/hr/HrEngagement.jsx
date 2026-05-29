@@ -9,7 +9,16 @@ import {
   patchHrEngagementSurvey,
 } from '../../lib/hrEngagement';
 import { HrAddFormButton, HrFormModal } from '../../components/hr/HrFormModal';
-import { HR_BTN_PRIMARY, HR_FIELD_CLASS } from '../../components/hr/hrFormStyles';
+import {
+  HrCard,
+  HrEmptyState,
+  HrListItemButton,
+  HrPageBody,
+  HrPageIntro,
+  HrSplitWorkspace,
+  HrStatusPill,
+} from '../../components/hr/hrPageUi';
+import { HR_BTN_PRIMARY, HR_BTN_SECONDARY, HR_FIELD_CLASS } from '../../components/hr/hrFormStyles';
 
 export default function HrEngagement() {
   const ws = useWorkspace();
@@ -71,49 +80,49 @@ export default function HrEngagement() {
   const selected = surveys.find((s) => s.id === selectedId);
 
   return (
-    <div className="space-y-6">
-      <p className="text-sm text-slate-600">
-        Pulse surveys for staff engagement. Open a survey for employees to respond in My Profile.
-      </p>
-      {canManage ? <HrAddFormButton onClick={() => setModalOpen(true)}>New survey</HrAddFormButton> : null}
-      <div className="grid gap-6 lg:grid-cols-[240px_1fr]">
-        <ul className="space-y-2">
-          {surveys.map((s) => (
-            <li key={s.id}>
-              <button
-                type="button"
-                onClick={() => setSelectedId(s.id)}
-                className={`w-full rounded-xl border px-3 py-2 text-left text-sm ${
-                  selectedId === s.id ? 'border-[#134e4a] bg-teal-50/50' : 'border-slate-100 bg-white'
-                }`}
-              >
-                <span className="font-semibold">{s.title}</span>
-                <span className="ml-2 text-[10px] uppercase text-slate-500">{s.status}</span>
-              </button>
-            </li>
-          ))}
-        </ul>
+    <HrPageBody>
+      <HrPageIntro
+        title="Staff engagement"
+        description="Pulse surveys for staff engagement. Open a survey for employees to respond in My Profile."
+        actions={canManage ? <HrAddFormButton onClick={() => setModalOpen(true)}>New survey</HrAddFormButton> : null}
+      />
+      <HrSplitWorkspace
+        sidebar={
+          <HrCard title="Surveys" subtitle={`${surveys.length} total`}>
+            <div className="max-h-[min(52vh,480px)] space-y-2 overflow-y-auto">
+              {surveys.length === 0 ? (
+                <HrEmptyState title="No surveys yet" />
+              ) : (
+                surveys.map((s) => (
+                  <HrListItemButton
+                    key={s.id}
+                    active={selectedId === s.id}
+                    onClick={() => setSelectedId(s.id)}
+                    title={s.title}
+                    badge={<HrStatusPill status={s.status} />}
+                  />
+                ))
+              )}
+            </div>
+          </HrCard>
+        }
+      >
         {selected ? (
-          <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm space-y-4">
-            <div className="flex flex-wrap gap-2">
+          <HrCard title={selected.title} subtitle={`${summary?.responseCount ?? 0} responses`}>
+            <div className="flex flex-wrap gap-2 mb-4">
               {canManage && selected.status === 'draft' ? (
                 <button type="button" onClick={() => setStatus(selected.id, 'open')} className={HR_BTN_PRIMARY}>
                   Open for responses
                 </button>
               ) : null}
               {canManage && selected.status === 'open' ? (
-                <button
-                  type="button"
-                  onClick={() => setStatus(selected.id, 'closed')}
-                  className="rounded-lg border border-slate-200 px-3 py-2 text-[10px] font-bold uppercase"
-                >
+                <button type="button" onClick={() => setStatus(selected.id, 'closed')} className={HR_BTN_SECONDARY}>
                   Close survey
                 </button>
-              ) : null}
+              ) : (
+                <HrStatusPill status={selected.status} />
+              )}
             </div>
-            <p className="text-sm text-slate-600">
-              Responses: <strong>{summary?.responseCount ?? 0}</strong>
-            </p>
             {summary?.aggregates ? (
               <ul className="space-y-2 text-sm">
                 {(summary.survey?.questions || [])
@@ -128,12 +137,14 @@ export default function HrEngagement() {
                     </li>
                   ))}
               </ul>
-            ) : null}
-          </div>
+            ) : (
+              <p className="text-sm text-slate-500">No rating questions in this survey.</p>
+            )}
+          </HrCard>
         ) : (
-          <p className="text-sm text-slate-600">Create a survey to get started.</p>
+          <HrEmptyState title="Select a survey" description="Choose one from the list or create a new draft." />
         )}
-      </div>
+      </HrSplitWorkspace>
 
       <HrFormModal isOpen={modalOpen} onClose={() => setModalOpen(false)} title="New engagement survey">
         <form onSubmit={createSurvey} className="space-y-4">
@@ -147,6 +158,6 @@ export default function HrEngagement() {
           </button>
         </form>
       </HrFormModal>
-    </div>
+    </HrPageBody>
   );
 }

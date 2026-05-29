@@ -4,11 +4,7 @@ import { HrLoanApplicationForm } from '../../components/hr/HrLoanApplicationForm
 import { HrRequestsPanel } from '../../components/hr/HrRequestsPanel';
 import { HrAddFormButton, HrFormModal } from '../../components/hr/HrFormModal';
 import { useWorkspace } from '../../context/WorkspaceContext';
-import {
-  canGmApproveHrRequests,
-  canManageHrStaff,
-  canReviewHrRequests,
-} from '../../lib/hrAccess';
+import { canGenerateHrLetters, canGmApproveHrRequests, canManageHrStaff, canReviewHrRequests } from '../../lib/hrAccess';
 
 export default function HrLoans() {
   const ws = useWorkspace();
@@ -53,6 +49,7 @@ export default function HrLoans() {
           allowedScopes={allowedScopes}
           defaultScope={allowedScopes[0] || 'all'}
           kindFilter="loan"
+          showLoanAgreementLetters={canGenerateHrLetters(perms)}
         />
       </section>
     </div>

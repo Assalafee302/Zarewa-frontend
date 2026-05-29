@@ -1,6 +1,7 @@
 import React, { useCallback, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { apiFetch } from '../../lib/apiBase';
+import { downloadEmploymentLetterPdf, generateStaffLoanAgreementLetter } from '../../lib/hrExtended';
 import { useHrListLoad } from '../../hooks/useHrListLoad';
 import {
   hrRequestKindLabel,
@@ -28,13 +29,14 @@ const SCOPE_LABELS = {
 
 /**
  * Shared HR requests list with optional approval actions.
- * @param {{ allowedScopes: string[]; defaultScope?: string; kindFilter?: string; staffLinkBase?: string }} props
+ * @param {{ allowedScopes: string[]; defaultScope?: string; kindFilter?: string; staffLinkBase?: string; showLoanAgreementLetters?: boolean }} props
  */
 export function HrRequestsPanel({
   allowedScopes = ['mine'],
   defaultScope = 'mine',
   kindFilter = '',
   staffLinkBase = '/hr/staff',
+  showLoanAgreementLetters = false,
 }) {
   const [scope, setScope] = useState(defaultScope);
   const [requests, setRequests] = useState([]);
@@ -119,6 +121,19 @@ export function HrRequestsPanel({
       setError(data?.error || 'Could not delete request.');
       return;
     }
+    await load();
+  };
+
+  const issueLoanAgreement = async (requestId) => {
+    setBusyId(requestId);
+    setError('');
+    const { ok, data } = await generateStaffLoanAgreementLetter(requestId);
+    setBusyId('');
+    if (!ok || !data?.ok) {
+      setError(data?.error || 'Could not generate loan agreement.');
+      return;
+    }
+    if (data.id) await downloadEmploymentLetterPdf(data.id);
     await load();
   };
 
@@ -220,6 +235,16 @@ export function HrRequestsPanel({
                             className="rounded-lg border border-slate-200 px-2 py-1 text-[10px] font-bold uppercase text-[#134e4a]"
                           >
                             Review
+                          </button>
+                        ) : null}
+                        {showLoanAgreementLetters && r.kind === 'loan' && r.status === 'approved' ? (
+                          <button
+                            type="button"
+                            disabled={busyId === r.id}
+                            onClick={() => issueLoanAgreement(r.id)}
+                            className="rounded-lg border border-slate-200 px-2 py-1 text-[10px] font-bold uppercase text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                          >
+                            Agreement PDF
                           </button>
                         ) : null}
                       </div>

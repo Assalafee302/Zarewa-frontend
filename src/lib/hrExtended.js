@@ -9,6 +9,14 @@ export function generateHrLetter(body) {
   return apiFetch('/api/hr/employment-letters/generate', { method: 'POST', body: JSON.stringify(body) });
 }
 
+/** @param {string} requestId — approved loan HR request id */
+export function generateStaffLoanAgreementLetter(requestId) {
+  return apiFetch(`/api/hr/loan-requests/${encodeURIComponent(requestId)}/agreement-letter`, {
+    method: 'POST',
+    body: JSON.stringify({}),
+  });
+}
+
 /** @param {string} letterId */
 export async function downloadEmploymentLetterPdf(letterId) {
   const r = await fetch(apiUrl(`/api/hr/employment-letters/${encodeURIComponent(letterId)}/pdf`), {
@@ -85,6 +93,33 @@ export function fetchExceptionalLoanQueue() {
 
 export function fetchHrReportsSummary() {
   return apiFetch('/api/hr/reports/summary');
+}
+
+/** @param {'headcount'|'turnover'|'training-expiry'|'engagement-trends'} kind */
+export async function downloadHrReportExport(kind) {
+  const r = await fetch(apiUrl(`/api/hr/reports/export/${encodeURIComponent(kind)}`), {
+    credentials: 'include',
+  });
+  if (!r.ok) {
+    let err = 'Export failed.';
+    try {
+      const j = await r.json();
+      err = j?.error || err;
+    } catch {
+      /* ignore */
+    }
+    return { ok: false, error: err };
+  }
+  const blob = await r.blob();
+  const filename =
+    r.headers.get('Content-Disposition')?.match(/filename="([^"]+)"/)?.[1] || `hr-${kind}.csv`;
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+  return { ok: true };
 }
 
 export function fetchRecentSalaryChanges(limit = 30) {

@@ -6,7 +6,8 @@ import { apiFetch } from '../../lib/apiBase';
 import { hrHasPermission } from '../../lib/hrAccess';
 import { createHrTrainingRecord, deleteHrTrainingRecord, fetchHrTrainingRecords } from '../../lib/hrLearning';
 import { HrAddFormButton, HrFormModal } from '../../components/hr/HrFormModal';
-import { HR_BTN_PRIMARY, HR_FIELD_CLASS } from '../../components/hr/hrFormStyles';
+import { HrCard, HrPageBody, HrPageIntro } from '../../components/hr/hrPageUi';
+import { HR_BTN_PRIMARY, HR_BTN_SECONDARY, HR_FIELD_CLASS } from '../../components/hr/hrFormStyles';
 import {
   AppTable,
   AppTableBody,
@@ -69,12 +70,25 @@ export default function HrLearning() {
   const person = staff.find((s) => s.userId === userId);
 
   return (
-    <div className="space-y-6">
-      <p className="text-sm text-slate-600">Learning & development records by employee (courses, certifications, safety training).</p>
-      <div className="flex flex-wrap items-end gap-4">
-        <label className="text-xs font-semibold text-slate-600">
-          Employee
-          <select className={`${HR_FIELD_CLASS} ml-2 min-w-[220px]`} value={userId} onChange={(e) => setUserId(e.target.value)}>
+    <HrPageBody>
+      <HrPageIntro
+        title="Learning & development"
+        description="Track courses, certifications, and safety training by employee."
+        actions={
+          <>
+            {person ? (
+              <Link to={`/hr/staff/${userId}`} className={HR_BTN_SECONDARY}>
+                Open profile
+              </Link>
+            ) : null}
+            {canManage ? <HrAddFormButton onClick={() => setModalOpen(true)}>Add record</HrAddFormButton> : null}
+          </>
+        }
+      />
+      <HrCard title="Employee records">
+        <label className="mb-4 block max-w-md text-xs font-semibold text-slate-600">
+          Select employee
+          <select className={HR_FIELD_CLASS} value={userId} onChange={(e) => setUserId(e.target.value)}>
             {staff.map((s) => (
               <option key={s.userId} value={s.userId}>
                 {s.displayName || s.username}
@@ -82,13 +96,6 @@ export default function HrLearning() {
             ))}
           </select>
         </label>
-        {person ? (
-          <Link to={`/hr/staff/${userId}`} className="text-[10px] font-bold uppercase text-[#134e4a]">
-            Open profile
-          </Link>
-        ) : null}
-        {canManage ? <HrAddFormButton onClick={() => setModalOpen(true)}>Add record</HrAddFormButton> : null}
-      </div>
       <AppTableWrap>
         <AppTable>
           <AppTableThead>
@@ -125,6 +132,7 @@ export default function HrLearning() {
           </AppTableBody>
         </AppTable>
       </AppTableWrap>
+      </HrCard>
 
       <HrFormModal isOpen={modalOpen} onClose={() => setModalOpen(false)} title="Training record">
         <form onSubmit={save} className="space-y-4">
@@ -149,6 +157,6 @@ export default function HrLearning() {
           </button>
         </form>
       </HrFormModal>
-    </div>
+    </HrPageBody>
   );
 }

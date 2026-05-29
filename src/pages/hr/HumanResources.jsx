@@ -24,34 +24,66 @@ import HrLearning from './HrLearning';
 import HrEngagement from './HrEngagement';
 import ExecutiveHr from './ExecutiveHr';
 
-const HR_NAV = [
-  { to: '/hr/dashboard', label: 'Dashboard', end: true },
-  { to: '/hr/staff', label: 'Staff' },
-  { to: '/hr/org-chart', label: 'Org chart' },
-  { to: '/hr/recruiting', label: 'Recruiting' },
-  { to: '/hr/learning', label: 'Learning' },
-  { to: '/hr/engagement', label: 'Engagement' },
-  { to: '/hr/requests', label: 'Requests' },
-  { to: '/hr/leave', label: 'Leave' },
-  { to: '/hr/attendance', label: 'Attendance' },
-  { to: '/hr/payroll', label: 'Payroll' },
-  { to: '/hr/loans', label: 'Loans' },
-  { to: '/hr/benefits', label: 'Benefits' },
-  { to: '/hr/transfers', label: 'Transfers' },
-  { to: '/hr/discipline', label: 'Discipline' },
-  { to: '/hr/performance', label: 'Performance' },
-  { to: '/hr/letters', label: 'Letters' },
-  { to: '/hr/reports', label: 'Reports' },
-  { to: '/hr/settings', label: 'Settings' },
+const HR_NAV_GROUPS = [
+  {
+    label: 'Overview',
+    items: [{ to: '/hr/dashboard', label: 'Dashboard', end: true }],
+  },
+  {
+    label: 'People',
+    items: [
+      { to: '/hr/staff', label: 'Staff directory' },
+      { to: '/hr/org-chart', label: 'Org chart' },
+      { to: '/hr/recruiting', label: 'Recruiting' },
+      { to: '/hr/learning', label: 'Learning' },
+      { to: '/hr/engagement', label: 'Engagement' },
+    ],
+  },
+  {
+    label: 'Operations',
+    items: [
+      { to: '/hr/requests', label: 'Requests' },
+      { to: '/hr/leave', label: 'Leave' },
+      { to: '/hr/attendance', label: 'Attendance' },
+      { to: '/hr/payroll', label: 'Payroll' },
+      { to: '/hr/loans', label: 'Loans' },
+    ],
+  },
+  {
+    label: 'Governance',
+    items: [
+      { to: '/hr/benefits', label: 'Benefits' },
+      { to: '/hr/transfers', label: 'Transfers' },
+      { to: '/hr/discipline', label: 'Discipline' },
+      { to: '/hr/performance', label: 'Performance' },
+      { to: '/hr/letters', label: 'Letters' },
+    ],
+  },
+  {
+    label: 'Insights',
+    items: [
+      { to: '/hr/reports', label: 'Reports' },
+      { to: '/hr/settings', label: 'Settings' },
+    ],
+  },
 ];
 
 export default function HumanResources() {
   const ws = useWorkspace();
   const showExecutive = ws?.canAccessModule?.('executive_hr');
 
-  const navItems = showExecutive
-    ? [...HR_NAV, { to: '/hr/executive', label: 'Executive' }]
-    : HR_NAV;
+  const navGroups = showExecutive
+    ? [
+        ...HR_NAV_GROUPS.slice(0, -1),
+        {
+          ...HR_NAV_GROUPS[HR_NAV_GROUPS.length - 1],
+          items: [
+            ...HR_NAV_GROUPS[HR_NAV_GROUPS.length - 1].items,
+            { to: '/hr/executive', label: 'Executive' },
+          ],
+        },
+      ]
+    : HR_NAV_GROUPS;
 
   return (
     <Routes>
@@ -60,7 +92,7 @@ export default function HumanResources() {
           <HrSectionShell
             title="Human Resources"
             subtitle="HQ payroll, staff records, leave, attendance, and people operations for Zarewa."
-            navItems={navItems}
+            navGroups={navGroups}
           />
         }
       >

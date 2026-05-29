@@ -10,20 +10,23 @@ export function HrSectionShell({
   title,
   subtitle,
   navItems = [],
+  navGroups = [],
   children,
   useOutlet = true,
 }) {
   return (
     <PageShell className="pb-10">
       <PageHeader title={title} subtitle={subtitle} />
-      {navItems.length > 0 ? (
-        <div className="mb-6">
-          <HrSubnav items={navItems} />
+      <div className="flex flex-col gap-5 lg:flex-row lg:items-start">
+        {(navGroups.length > 0 || navItems.length > 0) && (
+          <aside className="w-full shrink-0 lg:w-52 xl:w-56">
+            <HrSubnav items={navItems} groups={navGroups} />
+          </aside>
+        )}
+        <div className="min-w-0 flex-1">
+          <MainPanel>{useOutlet ? <Outlet /> : children}</MainPanel>
         </div>
-      ) : null}
-      <MainPanel>
-        {useOutlet ? <Outlet /> : children}
-      </MainPanel>
+      </div>
     </PageShell>
   );
 }

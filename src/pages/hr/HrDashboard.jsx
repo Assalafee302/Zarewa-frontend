@@ -5,6 +5,8 @@ import { HrNotificationsPanel } from '../../components/hr/HrNotificationsPanel';
 import { useHrListLoad } from '../../hooks/useHrListLoad';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { hrRequestStatusClass } from '../../lib/hrFormat';
+import { HrAlert, HrCard, HrPageBody, HrPageIntro } from '../../components/hr/hrPageUi';
+import { HR_BTN_SECONDARY } from '../../components/hr/hrFormStyles';
 import {
   AppTable,
   AppTableBody,
@@ -28,7 +30,7 @@ function StatCard({ label, value, tone = 'slate', to }) {
       <p className="mt-2 text-2xl font-black tabular-nums">{value}</p>
     </>
   );
-  const cls = `rounded-2xl border px-4 py-4 shadow-sm block ${tones[tone] || tones.slate} ${to ? 'hover:border-[#134e4a]/30 transition-colors' : ''}`;
+  const cls = `rounded-xl border px-4 py-4 shadow-sm block transition ${tones[tone] || tones.slate} ${to ? 'hover:border-[#134e4a]/30 hover:shadow-md' : ''}`;
   if (to) {
     return (
       <Link to={to} className={cls}>
@@ -45,6 +47,7 @@ export default function HrDashboard() {
   const [inbox, setInbox] = useState(null);
   const [staffCounts, setStaffCounts] = useState(null);
   const [recentRequests, setRecentRequests] = useState([]);
+  const [readiness, setReadiness] = useState(null);
 
   const { loading, error } = useHrListLoad(async () => {
     const { ok, data } = await apiFetch('/api/hr/dashboard');
@@ -59,6 +62,7 @@ export default function HrDashboard() {
     setInbox(data.inbox);
     setStaffCounts(data.staffCounts);
     setRecentRequests(data.recentRequests || []);
+    setReadiness(data.readiness || null);
     return { hasData: true };
   }, []);
 
@@ -67,9 +71,7 @@ export default function HrDashboard() {
   }
 
   if (error) {
-    return (
-      <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-800">{error}</div>
-    );
+    return <HrAlert>{error}</HrAlert>;
   }
 
   const summary = obs?.summary || {};
@@ -77,11 +79,64 @@ export default function HrDashboard() {
   const staff = staffCounts || {};
 
   return (
-    <div className="space-y-8">
+    <HrPageBody>
       {ws?.session?.userId ? <HrNotificationsPanel /> : null}
-      <section>
-        <h2 className="text-[11px] font-black uppercase tracking-widest text-slate-500">Overview</h2>
-        <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+
+      <HrPageIntro
+        title="HR dashboard"
+        description="Your command centre for staff, approvals, payroll, and production readiness."
+        actions={
+          <>
+            <Link to="/hr/requests" className={HR_BTN_SECONDARY}>
+              HR requests
+            </Link>
+            <Link to="/hr/staff" className={HR_BTN_SECONDARY}>
+              Staff directory
+            </Link>
+          </>
+        }
+      />
+
+      {readiness ? (
+        <HrCard
+          title="Production readiness"
+          subtitle={readiness.productionReady ? 'All modules initialised' : 'Action required before cutover'}
+        >
+          <p className="text-sm text-slate-700">
+            {readiness.productionReady ? (
+              <span className="font-semibold text-emerald-800">System ready for UAT cutover checks.</span>
+            ) : (
+              <span className="font-semibold text-amber-800">Run database migration on the server if modules show missing.</span>
+            )}
+          </p>
+          {readiness.modules ? (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {Object.entries(readiness.modules)
+                .filter(([k]) => k !== 'allReady')
+                .map(([k, v]) => (
+                  <span
+                    key={k}
+                    className={`rounded-full border px-2.5 py-0.5 text-[10px] font-bold uppercase ${
+                      v ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : 'border-amber-200 bg-amber-50 text-amber-800'
+                    }`}
+                  >
+                    {k}: {v ? 'ok' : 'missing'}
+                  </span>
+                ))}
+            </div>
+          ) : null}
+          {(readiness.blockers || []).length > 0 ? (
+            <ul className="mt-3 list-disc space-y-1 pl-5 text-xs text-slate-600">
+              {readiness.blockers.map((b) => (
+                <li key={b}>{b}</li>
+              ))}
+            </ul>
+          ) : null}
+        </HrCard>
+      ) : null}
+
+      <HrCard title="Overview">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <StatCard label="Active staff" value={staff.active ?? summary.activeStaff ?? '—'} to="/hr/staff" />
           <StatCard
             label="Incomplete profiles"
@@ -102,104 +157,93 @@ export default function HrDashboard() {
             to="/hr/requests"
           />
         </div>
-        <p className="mt-2 text-xs text-slate-500 tabular-nums">
+        <p className="mt-3 text-xs text-slate-500 tabular-nums">
           {staff.total ?? '—'} total staff · {staff.inactive ?? 0} inactive
         </p>
-      </section>
+      </HrCard>
 
-      <section>
-        <h2 className="text-[11px] font-black uppercase tracking-widest text-slate-500">Today&apos;s HR actions</h2>
-        <div className="mt-3 rounded-2xl border border-slate-100 bg-white p-4 text-sm text-slate-700 shadow-sm">
-          <ul className="space-y-2">
-            <li>
-              <span className="font-semibold text-[#134e4a]">HR queue:</span>{' '}
-              {counts.pendingHrReview ?? 0} awaiting HR review
+      <div className="grid gap-5 lg:grid-cols-2">
+        <HrCard title="Today's priorities">
+          <ul className="space-y-3 text-sm text-slate-700">
+            <li className="flex justify-between gap-4">
+              <span>HR review queue</span>
+              <span className="font-bold tabular-nums text-[#134e4a]">{counts.pendingHrReview ?? 0}</span>
             </li>
-            <li>
-              <span className="font-semibold text-[#134e4a]">Branch endorsements:</span>{' '}
-              {counts.pendingBranchEndorse ?? summary.pendingBranchEndorse ?? 0}
+            <li className="flex justify-between gap-4">
+              <span>Branch endorsements</span>
+              <span className="font-bold tabular-nums">{counts.pendingBranchEndorse ?? summary.pendingBranchEndorse ?? 0}</span>
             </li>
-            <li>
-              <span className="font-semibold text-[#134e4a]">GM HR final:</span>{' '}
-              {counts.pendingGmHrReview ?? summary.pendingGmHrReview ?? 0}
+            <li className="flex justify-between gap-4">
+              <span>GM HR final approval</span>
+              <span className="font-bold tabular-nums">{counts.pendingGmHrReview ?? summary.pendingGmHrReview ?? 0}</span>
             </li>
-            <li>
-              <span className="font-semibold text-[#134e4a]">Draft payroll runs:</span>{' '}
-              {counts.draftPayrollRuns ?? 0}
+            <li className="flex justify-between gap-4">
+              <span>Draft payroll runs</span>
+              <span className="font-bold tabular-nums">{counts.draftPayrollRuns ?? 0}</span>
             </li>
           </ul>
           <div className="mt-4 flex flex-wrap gap-2">
-            <Link
-              to="/hr/staff"
-              className="rounded-lg border border-slate-200 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide text-[#134e4a] hover:bg-slate-50"
-            >
-              Staff directory
-            </Link>
-            <Link
-              to="/hr/requests"
-              className="rounded-lg border border-slate-200 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide text-[#134e4a] hover:bg-slate-50"
-            >
-              HR requests
-            </Link>
-            <Link
-              to="/hr/payroll"
-              className="rounded-lg border border-slate-200 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide text-[#134e4a] hover:bg-slate-50"
-            >
+            <Link to="/hr/payroll" className={HR_BTN_SECONDARY}>
               Payroll
             </Link>
+            <Link to="/hr/recruiting" className={HR_BTN_SECONDARY}>
+              Recruiting
+            </Link>
+            <Link to="/hr/reports" className={HR_BTN_SECONDARY}>
+              Reports
+            </Link>
           </div>
-        </div>
-      </section>
+        </HrCard>
+
+        <HrCard title="HQ payroll note">
+          <p className="text-sm leading-relaxed text-slate-600">
+            HQ payroll is prepared centrally. Branch salary contributions are tracked for MD review and do not block
+            payroll payment.
+          </p>
+        </HrCard>
+      </div>
 
       {recentRequests.length > 0 ? (
-        <section>
-          <h2 className="text-[11px] font-black uppercase tracking-widest text-slate-500">Recent requests</h2>
-          <div className="mt-3">
-            <AppTableWrap>
-              <AppTable>
-                <AppTableThead>
-                  <AppTableTh>Kind</AppTableTh>
-                  <AppTableTh>Employee</AppTableTh>
-                  <AppTableTh>Status</AppTableTh>
-                  <AppTableTh>Updated</AppTableTh>
-                </AppTableThead>
-                <AppTableBody>
-                  {recentRequests.map((r) => (
-                    <AppTableTr key={r.id}>
-                      <AppTableTd>{r.kind}</AppTableTd>
-                      <AppTableTd>
-                        {r.staffDisplayName ? (
-                          <Link
-                            to={`/hr/staff/${encodeURIComponent(r.userId)}`}
-                            className="font-semibold text-[#134e4a] hover:underline"
-                          >
-                            {r.staffDisplayName}
-                          </Link>
-                        ) : (
-                          r.userId
-                        )}
-                      </AppTableTd>
-                      <AppTableTd>
-                        <span
-                          className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase ${hrRequestStatusClass(r.status)}`}
+        <HrCard title="Recent requests" subtitle="Latest activity across leave, loans, and HR workflows">
+          <AppTableWrap>
+            <AppTable>
+              <AppTableThead>
+                <AppTableTh>Kind</AppTableTh>
+                <AppTableTh>Employee</AppTableTh>
+                <AppTableTh>Status</AppTableTh>
+                <AppTableTh>Updated</AppTableTh>
+              </AppTableThead>
+              <AppTableBody>
+                {recentRequests.map((r) => (
+                  <AppTableTr key={r.id}>
+                    <AppTableTd>{r.kind}</AppTableTd>
+                    <AppTableTd>
+                      {r.staffDisplayName ? (
+                        <Link
+                          to={`/hr/staff/${encodeURIComponent(r.userId)}`}
+                          className="font-semibold text-[#134e4a] hover:underline"
                         >
-                          {r.status}
-                        </span>
-                      </AppTableTd>
-                      <AppTableTd monospace>{r.updatedAtIso?.slice(0, 10) || '—'}</AppTableTd>
-                    </AppTableTr>
-                  ))}
-                </AppTableBody>
-              </AppTable>
-            </AppTableWrap>
-          </div>
-        </section>
+                          {r.staffDisplayName}
+                        </Link>
+                      ) : (
+                        r.userId
+                      )}
+                    </AppTableTd>
+                    <AppTableTd>
+                      <span
+                        className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase ${hrRequestStatusClass(r.status)}`}
+                      >
+                        {r.status}
+                      </span>
+                    </AppTableTd>
+                    <AppTableTd monospace>{r.updatedAtIso?.slice(0, 10) || '—'}</AppTableTd>
+                  </AppTableTr>
+                ))}
+              </AppTableBody>
+            </AppTable>
+          </AppTableWrap>
+        </HrCard>
       ) : null}
-
-      <p className="text-xs text-slate-500">
-        HQ payroll is prepared centrally. Branch salary contributions are tracked for MD review and do not block payroll
-        payment.
-      </p>
-    </div>
+    </HrPageBody>
   );
 }
