@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import RefundModal from './RefundModal.jsx';
 import { ToastProvider } from '../context/ToastContext.jsx';
@@ -302,11 +302,10 @@ describe('RefundModal', () => {
     await user.type(quoteInput, 'QT-SEED');
     await user.click(await screen.findByRole('button', { name: /QT-SEED · Co · Mary Sales/i }));
 
-    await waitFor(() => {
-      expect(screen.getByDisplayValue('100')).toBeInTheDocument();
-    });
+    await screen.findByDisplayValue(/Line A/i);
 
-    const requested = screen.getByPlaceholderText('0');
+    const requestedBlock = screen.getByText(/Requested refund amount/i).closest('div.rounded-2xl');
+    const requested = within(requestedBlock).getByRole('spinbutton');
     await user.clear(requested);
     await user.type(requested, '999');
 
