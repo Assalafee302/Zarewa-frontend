@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   BrowserRouter as Router,
   Routes,
@@ -32,10 +32,8 @@ import WorkspaceMonitoring from './pages/WorkspaceMonitoring';
 import ExecDashboard from './pages/ExecDashboard';
 import PriceListAdmin from './pages/PriceListAdmin';
 import PricingPolicyAdmin from './pages/PricingPolicyAdmin';
-import HumanResources from './pages/hr/HumanResources';
-import MyProfile from './pages/hr/MyProfile';
-import TeamHr from './pages/hr/TeamHr';
 import DocumentTitleSync from './components/DocumentTitleSync';
+import { AppErrorBoundary } from './components/AppErrorBoundary';
 import { canAccessMyProfileHr } from './lib/hrAccess';
 import PrintSessionCleanup from './components/PrintSessionCleanup';
 import {
@@ -72,6 +70,10 @@ import { HelpChatProvider } from './context/HelpChatContext';
 import { notificationPrompt } from './lib/aiAssistUi';
 import { searchWorkspaceSnapshot } from './lib/workspaceSearchLocal';
 import { formatPersonName } from './lib/formatPersonName';
+
+const HumanResources = lazy(() => import('./pages/hr/HumanResources'));
+const MyProfile = lazy(() => import('./pages/hr/MyProfile'));
+const TeamHr = lazy(() => import('./pages/hr/TeamHr'));
 
 /** Blocks the whole app when bootstrap falls back to cached session (API unreachable). */
 function DegradedWorkspaceLock() {
@@ -945,7 +947,9 @@ function AppShell() {
               path="/my-profile/*"
               element={
                 <ModuleRouteGuard moduleKey="my_profile_hr">
-                  <MyProfile />
+                  <Suspense fallback={<LoadingScreen />}>
+                    <MyProfile />
+                  </Suspense>
                 </ModuleRouteGuard>
               }
             />
@@ -953,7 +957,9 @@ function AppShell() {
               path="/team-hr/*"
               element={
                 <ModuleRouteGuard moduleKey="team_hr">
-                  <TeamHr />
+                  <Suspense fallback={<LoadingScreen />}>
+                    <TeamHr />
+                  </Suspense>
                 </ModuleRouteGuard>
               }
             />
@@ -961,7 +967,9 @@ function AppShell() {
               path="/hr/*"
               element={
                 <ModuleRouteGuard moduleKey="hr">
-                  <HumanResources />
+                  <Suspense fallback={<LoadingScreen />}>
+                    <HumanResources />
+                  </Suspense>
                 </ModuleRouteGuard>
               }
             />
@@ -1031,19 +1039,21 @@ function AuthGate() {
 
 function App() {
   return (
-    <Router>
-      <WorkspaceProvider>
-        <ToastProvider>
-          <HelpChatProvider>
-            <AiAssistantProvider>
-              <DocumentTitleSync />
-              <PrintSessionCleanup />
-              <AuthGate />
-            </AiAssistantProvider>
-          </HelpChatProvider>
-        </ToastProvider>
-      </WorkspaceProvider>
-    </Router>
+    <AppErrorBoundary>
+      <Router>
+        <WorkspaceProvider>
+          <ToastProvider>
+            <HelpChatProvider>
+              <AiAssistantProvider>
+                <DocumentTitleSync />
+                <PrintSessionCleanup />
+                <AuthGate />
+              </AiAssistantProvider>
+            </HelpChatProvider>
+          </ToastProvider>
+        </WorkspaceProvider>
+      </Router>
+    </AppErrorBoundary>
   );
 }
 

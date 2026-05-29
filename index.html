@@ -14,6 +14,26 @@
   </head>
   <body class="bg-[#F8FAFC]">
     <div id="root"></div>
+    <noscript>
+      <p style="padding:2rem;font-family:system-ui,sans-serif;color:#134e4a">
+        Zarewa requires JavaScript. Enable it in your browser to sign in.
+      </p>
+    </noscript>
+    <script>
+      window.addEventListener('error', function (ev) {
+        var msg = (ev && ev.message) || '';
+        if (/Loading chunk|Failed to fetch dynamically imported module/i.test(msg)) {
+          var root = document.getElementById('root');
+          if (root && !root.innerHTML.trim()) {
+            root.innerHTML =
+              '<div style="max-width:28rem;margin:3rem auto;padding:1.5rem;font-family:system-ui,sans-serif">' +
+              '<h1 style="color:#7f1d1d;font-size:1.125rem">Update not fully loaded</h1>' +
+              '<p style="color:#334155;font-size:0.875rem;margin-top:0.5rem">The app bundle failed to load (often an old cached file after deploy). Hard refresh: Ctrl+Shift+R.</p>' +
+              '<button type="button" onclick="location.reload()" style="margin-top:1rem;width:100%;padding:0.75rem;background:#134e4a;color:#fff;border:none;border-radius:0.75rem;font-weight:700;cursor:pointer">Reload</button></div>';
+          }
+        }
+      });
+    </script>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
