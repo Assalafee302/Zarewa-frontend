@@ -3,6 +3,7 @@ import { Navigate } from 'react-router-dom';
 import {
   AlertTriangle,
   BarChart3,
+  Download,
   Layers,
   RefreshCw,
   Sparkles,
@@ -14,7 +15,7 @@ import { MainPanel, PageHeader } from '../components/layout';
 import { formatNgn } from '../Data/mockData';
 import { useHelpChat } from '../context/HelpChatContext';
 import { useWorkspace } from '../context/WorkspaceContext';
-import { apiFetch } from '../lib/apiBase';
+import { apiFetch, apiUrl } from '../lib/apiBase';
 import { userMayViewManagementReportsClient } from '../lib/reportsAccess';
 
 const PERIOD_OPTIONS = [
@@ -138,7 +139,14 @@ function MaterialPerformancePanel({ perf }) {
               <span className="truncate text-slate-800">
                 {row.gauge} · {row.colour} · {row.profile}
               </span>
-              <span className="shrink-0 font-bold tabular-nums text-[#134e4a]">{formatNgn(row.revenueNgn)}</span>
+              <span className="shrink-0 text-right">
+                <span className="block font-bold tabular-nums text-[#134e4a]">{formatNgn(row.revenueNgn)}</span>
+                {row.marginPct != null ? (
+                  <span className="text-[10px] text-slate-500 tabular-nums">
+                    margin {row.marginPct}% · {formatNgn(row.marginNgn ?? 0)}
+                  </span>
+                ) : null}
+              </span>
             </li>
           ))}
         </ul>
@@ -208,6 +216,7 @@ export default function BusinessIntelligence() {
   const [periodKey, setPeriodKey] = useState('month');
   const [data, setData] = useState(null);
   const [busy, setBusy] = useState(true);
+  const [exportBusy, setExportBusy] = useState(false);
   const [err, setErr] = useState('');
 
   const roleKey = ws?.session?.user?.roleKey;
@@ -246,7 +255,7 @@ export default function BusinessIntelligence() {
         const apiErr = String(d?.error || '');
         if (/asOfISO is not defined/i.test(apiErr)) {
           setErr(
-            `${apiErr} — Your API is still on an old backend build. On the server: git pull origin main, then restart Node. Open /api/health and confirm capabilities.businessIntelligence is "bi-v2".`
+            `${apiErr} — Your API is still on an old backend build. On the server: git pull origin main, then restart Node. Open /api/health and confirm capabilities.businessIntelligence is "bi-v3".`
           );
           return;
         }
@@ -268,6 +277,39 @@ export default function BusinessIntelligence() {
     if (mayView) void load();
   }, [load, mayView]);
 
+  const downloadExcel = useCallback(async () => {
+    setExportBusy(true);
+    try {
+      const path = `/api/analytics/business-intelligence/export?period=${encodeURIComponent(periodKey)}`;
+      const r = await fetch(apiUrl(path), { credentials: 'include' });
+      if (!r.ok) {
+        let msg = 'Export failed.';
+        try {
+          const j = await r.json();
+          msg = j.error || msg;
+        } catch {
+          msg = (await r.text()).slice(0, 200) || msg;
+        }
+        setErr(msg);
+        return;
+      }
+      const blob = await r.blob();
+      const filename =
+        r.headers.get('Content-Disposition')?.match(/filename="([^"]+)"/)?.[1] ||
+        `zarewa-business-intelligence-${periodKey}.xlsx`;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      setErr(String(e?.message || e) || 'Export failed.');
+    } finally {
+      setExportBusy(false);
+    }
+  }, [periodKey]);
+
   if (!mayView) {
     return <Navigate to="/" replace />;
   }
@@ -280,6 +322,7 @@ export default function BusinessIntelligence() {
   const matPerf = sales?.materialPerformance;
   const sku = inv?.skuIntelligence;
   const procurement = data?.procurement;
+  const branches = data?.branchBreakdown?.byBranch || [];
 
   return (
     <MainPanel>
@@ -312,6 +355,15 @@ export default function BusinessIntelligence() {
             >
               <RefreshCw size={14} className={busy ? 'animate-spin' : ''} />
               Refresh
+            </button>
+            <button
+              type="button"
+              onClick={() => void downloadExcel()}
+              disabled={exportBusy || busy || !data}
+              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-[11px] font-black uppercase text-[#134e4a] disabled:opacity-50"
+            >
+              <Download size={14} className={exportBusy ? 'animate-pulse' : ''} />
+              Excel
             </button>
             {openZare ? (
               <button
@@ -523,6 +575,43 @@ export default function BusinessIntelligence() {
                   </div>
                 </div>
               </div>
+            </section>
+          ) : null}
+
+          {branches.length > 1 ? (
+            <section className="rounded-2xl border border-slate-200/90 bg-white p-5 shadow-sm overflow-x-auto">
+              <h2 className="text-[11px] font-black uppercase tracking-wider text-[#134e4a] mb-1">
+                Branch scorecards
+              </h2>
+              <p className="text-[11px] text-slate-500 mb-4">
+                Produced sales, net collections, coil stock, and SKU signals per branch
+              </p>
+              <table className="w-full text-left text-[11px] min-w-[640px]">
+                <thead>
+                  <tr className="border-b border-slate-100 text-slate-500 uppercase text-[10px]">
+                    <th className="py-2 pr-3 font-bold">Branch</th>
+                    <th className="py-2 pr-3 font-bold text-right">Produced</th>
+                    <th className="py-2 pr-3 font-bold text-right">Net paid</th>
+                    <th className="py-2 pr-3 font-bold text-right">Coil kg</th>
+                    <th className="py-2 pr-3 font-bold">Top material</th>
+                    <th className="py-2 font-bold text-right">Buy / Liq</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {branches.map((b) => (
+                    <tr key={b.branchId} className="border-b border-slate-50">
+                      <td className="py-2 pr-3 font-bold text-slate-800">{b.branchId}</td>
+                      <td className="py-2 pr-3 text-right tabular-nums">{formatNgn(b.producedRevenueNgn)}</td>
+                      <td className="py-2 pr-3 text-right tabular-nums">{formatNgn(b.netCollectedNgn)}</td>
+                      <td className="py-2 pr-3 text-right tabular-nums">{b.coilKgOnHand.toLocaleString()}</td>
+                      <td className="py-2 pr-3 text-slate-700 max-w-[200px] truncate">{b.topMaterialLabel}</td>
+                      <td className="py-2 text-right tabular-nums text-slate-600">
+                        {b.buySkuCount} / {b.liquidateSkuCount}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </section>
           ) : null}
 
