@@ -284,12 +284,18 @@ export function OfficeRecordComposeDrawer({ isOpen, onDismiss, presentation = 'd
         if (assist.filingCategory) setSmartFilingCategory(String(assist.filingCategory));
         if (assist.expenseCategory) setSmartExpenseCategory(String(assist.expenseCategory));
         if (assist.warnings?.length) showToast(assist.warnings[0], { variant: 'info' });
-        showToast(action === 'improve' ? 'Memo improved.' : 'Suggestion applied.');
+        showToast(
+          assist.aiPolished
+            ? 'Memo polished with AI.'
+            : action === 'improve'
+              ? 'Memo improved.'
+              : 'Suggestion applied.'
+        );
         return;
       }
       const { ok, status, data } = await apiFetch('/api/office/ai/polish-memo', {
         method: 'POST',
-        body: JSON.stringify({ subject: newSubject, body: newBody }),
+        body: JSON.stringify({ subject: newSubject, body: newBody, style: action }),
       });
       if (ok && data?.ok) {
         if (data.subject) setNewSubject(String(data.subject));

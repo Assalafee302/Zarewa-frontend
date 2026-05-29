@@ -281,12 +281,15 @@ export function HelpChatDock() {
   }, [sendHelpSignal]);
 
   const [livePersonalization, setLivePersonalization] = useState(null);
+  const [helpAiStatus, setHelpAiStatus] = useState(null);
 
   const aiDockVisible = Boolean(user && user.roleKey !== 'ceo' && ai?.available === true);
   const snapshot = ws?.snapshot;
   const helpPersonalization = livePersonalization || snapshot?.helpPersonalization;
   const pageName = pageLabel(location.pathname);
-  const externalAi = Boolean(helpPersonalization?.externalAi);
+  const externalAi = Boolean(
+    helpPersonalization?.externalAi ?? helpAiStatus?.externalAi ?? ai?.available
+  );
 
   const quickQuestions = useMemo(() => {
     const pathPrompts = quickQuestionsForPath(location.pathname);
@@ -307,11 +310,15 @@ export function HelpChatDock() {
     let cancelled = false;
     void (async () => {
       try {
-        const { ok, data } = await apiFetch(
-          `/api/help/personalization?pathname=${encodeURIComponent(location.pathname)}`
-        );
-        if (!cancelled && ok && data?.ok !== false) {
-          setLivePersonalization(data);
+        const [persRes, statusRes] = await Promise.all([
+          apiFetch(`/api/help/personalization?pathname=${encodeURIComponent(location.pathname)}`),
+          apiFetch('/api/help/status'),
+        ]);
+        if (!cancelled && persRes.ok && persRes.data?.ok !== false) {
+          setLivePersonalization(persRes.data);
+        }
+        if (!cancelled && statusRes.ok && statusRes.data?.ok !== false) {
+          setHelpAiStatus(statusRes.data);
         }
       } catch {
         /* bootstrap fallback */
@@ -585,7 +592,11 @@ export function HelpChatDock() {
           agentRoute === 'erp_data' ||
           agentRoute === 'hybrid' ||
           (intent === 'follow_up' && history.length > 2) ||
-          (complex && topScore < 8 && externalAi);
+          (externalAi &&
+            intent !== 'greeting' &&
+            intent !== 'thanks' &&
+            intent !== 'meta' &&
+            (complex || topScore < 10 || intent === 'workflow' || intent === 'clarify'));
 
         const local = preferServer ? null : tryLocalAnswer(text, priorHistory);
 
