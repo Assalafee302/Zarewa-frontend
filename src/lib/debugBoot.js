@@ -5,7 +5,19 @@ const DEBUG_SESSION = '7394bb';
 const DEBUG_ENABLED =
   import.meta.env.DEV || import.meta.env.MODE === 'preview' || import.meta.env.VITE_DEBUG_BOOT === '1';
 
+export function debugBootTrail(location, data = {}, hypothesisId = '') {
+  try {
+    const key = 'zarewa.boot.trail';
+    const trail = JSON.parse(sessionStorage.getItem(key) || '[]');
+    trail.push({ location, data, hypothesisId, at: Date.now() });
+    sessionStorage.setItem(key, JSON.stringify(trail.slice(-40)));
+  } catch {
+    /* ignore */
+  }
+}
+
 export function debugBootLog(location, message, data = {}, hypothesisId = '') {
+  debugBootTrail(location, { message, ...data }, hypothesisId);
   if (!DEBUG_ENABLED) return;
   // #region agent log
   fetch(DEBUG_ENDPOINT, {

@@ -1,9 +1,21 @@
 import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
+import { execSync } from 'node:child_process';
+
+function resolveBuildId() {
+  try {
+    return execSync('git rev-parse --short HEAD', { encoding: 'utf8' }).trim();
+  } catch {
+    return `local-${Date.now().toString(36)}`;
+  }
+}
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  define: {
+    __ZAREWA_BUILD_ID__: JSON.stringify(resolveBuildId()),
+  },
   build: {
     chunkSizeWarningLimit: 2400,
   },

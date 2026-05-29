@@ -1,23 +1,8 @@
 import React, { Suspense, lazy } from 'react';
 import { isOfficeDeskV2Enabled } from '../lib/officeDeskFeatureFlag';
 import { debugBootLog } from '../lib/debugBoot.js';
+import LegacyDashboard from './LegacyDashboard';
 
-const LegacyDashboard = lazy(() =>
-  import('./LegacyDashboard')
-    .then((m) => {
-      debugBootLog('Dashboard.jsx:legacy-import-ok', 'LegacyDashboard chunk loaded', {}, 'B');
-      return m;
-    })
-    .catch((err) => {
-      debugBootLog(
-        'Dashboard.jsx:legacy-import-fail',
-        'LegacyDashboard chunk failed',
-        { message: String(err?.message || err), stack: String(err?.stack || '').slice(0, 600) },
-        'B'
-      );
-      throw err;
-    })
-);
 const WorkspaceDesk = lazy(() =>
   import('./WorkspaceDesk')
     .then((m) => {
@@ -53,9 +38,5 @@ export default function Dashboard() {
       </Suspense>
     );
   }
-  return (
-    <Suspense fallback={<DashboardLoading />}>
-      <LegacyDashboard />
-    </Suspense>
-  );
+  return <LegacyDashboard />;
 }

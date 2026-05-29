@@ -47,6 +47,11 @@ export class AppErrorBoundary extends React.Component {
           <pre className="mt-4 max-h-40 overflow-auto rounded-lg bg-slate-50 p-3 text-[11px] text-red-800 whitespace-pre-wrap break-words">
             {message}
           </pre>
+          {typeof __ZAREWA_BUILD_ID__ !== 'undefined' ? (
+            <p className="mt-2 text-[10px] text-slate-500">
+              Build: <code>{__ZAREWA_BUILD_ID__}</code>
+            </p>
+          ) : null}
           <button
             type="button"
             onClick={() => window.location.reload()}
