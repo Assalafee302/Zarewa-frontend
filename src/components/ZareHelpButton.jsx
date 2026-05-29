@@ -2,7 +2,7 @@ import React from 'react';
 import { LifeBuoy } from 'lucide-react';
 import { useHelpChat } from '../context/HelpChatContext';
 import { HELP_BOT_NAME } from '../lib/helpBotBrand';
-import { TRANSACTION_ISSUE_CHIPS } from '../lib/helpTransactionHelp';
+import { TRANSACTION_ISSUE_CHIPS } from '../lib/helpTransactionChips';
 
 /**
  * Opens Zare in transaction help mode with optional issue chips context.

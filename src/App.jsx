@@ -7,31 +7,9 @@ import {
   Navigate,
 } from 'react-router-dom';
 import Sidebar from './components/Sidebar';
-import Dashboard from './pages/Dashboard';
-import Sales from './pages/Sales';
-import Procurement from './pages/Procurement';
-import SupplierProfile from './pages/SupplierProfile';
-import TransportAgentProfile from './pages/TransportAgentProfile';
-import CoilProfile from './pages/CoilProfile';
-import Operations from './pages/Operations';
-import MaterialExceptions from './pages/MaterialExceptions';
-import Account from './pages/Account';
-import Customers from './pages/Customers';
-import CustomerDashboard from './pages/CustomerDashboard';
-import Reports from './pages/Reports';
-import OfficeDesk from './pages/OfficeDesk';
-import Settings from './pages/Settings';
-import EditApprovalsPage from './pages/EditApprovalsPage';
-import NotFound from './pages/NotFound';
 import LoginScreen from './components/auth/LoginScreen';
 import UserOnboardingGate from './components/auth/UserOnboardingGate';
 import ModuleRouteGuard from './components/ModuleRouteGuard';
-import ManagerDashboard from './pages/ManagerDashboard';
-import BusinessIntelligence from './pages/BusinessIntelligence';
-import WorkspaceMonitoring from './pages/WorkspaceMonitoring';
-import ExecDashboard from './pages/ExecDashboard';
-import PriceListAdmin from './pages/PriceListAdmin';
-import PricingPolicyAdmin from './pages/PricingPolicyAdmin';
 import DocumentTitleSync from './components/DocumentTitleSync';
 import { AppErrorBoundary } from './components/AppErrorBoundary';
 import { canAccessMyProfileHr } from './lib/hrAccess';
@@ -70,8 +48,31 @@ import { notificationPrompt } from './lib/aiAssistUi';
 import { searchWorkspaceSnapshot } from './lib/workspaceSearchLocal';
 import { formatPersonName } from './lib/formatPersonName';
 
-import { HelpChatDockGate } from './components/HelpChatDockGate';
-
+const Dashboard = lazy(() => import('./pages/Dashboard'));
+const Sales = lazy(() => import('./pages/Sales'));
+const Procurement = lazy(() => import('./pages/Procurement'));
+const SupplierProfile = lazy(() => import('./pages/SupplierProfile'));
+const TransportAgentProfile = lazy(() => import('./pages/TransportAgentProfile'));
+const CoilProfile = lazy(() => import('./pages/CoilProfile'));
+const Operations = lazy(() => import('./pages/Operations'));
+const MaterialExceptions = lazy(() => import('./pages/MaterialExceptions'));
+const Account = lazy(() => import('./pages/Account'));
+const Customers = lazy(() => import('./pages/Customers'));
+const CustomerDashboard = lazy(() => import('./pages/CustomerDashboard'));
+const Reports = lazy(() => import('./pages/Reports'));
+const OfficeDesk = lazy(() => import('./pages/OfficeDesk'));
+const Settings = lazy(() => import('./pages/Settings'));
+const EditApprovalsPage = lazy(() => import('./pages/EditApprovalsPage'));
+const NotFound = lazy(() => import('./pages/NotFound'));
+const ManagerDashboard = lazy(() => import('./pages/ManagerDashboard'));
+const BusinessIntelligence = lazy(() => import('./pages/BusinessIntelligence'));
+const WorkspaceMonitoring = lazy(() => import('./pages/WorkspaceMonitoring'));
+const ExecDashboard = lazy(() => import('./pages/ExecDashboard'));
+const PriceListAdmin = lazy(() => import('./pages/PriceListAdmin'));
+const PricingPolicyAdmin = lazy(() => import('./pages/PricingPolicyAdmin'));
+const HelpChatDockGate = lazy(() =>
+  import('./components/HelpChatDockGate.jsx').then((m) => ({ default: m.HelpChatDockGate }))
+);
 const HumanResources = lazy(() => import('./pages/hr/HumanResources'));
 const MyProfile = lazy(() => import('./pages/hr/MyProfile'));
 const TeamHr = lazy(() => import('./pages/hr/TeamHr'));
@@ -807,6 +808,7 @@ function AppShell() {
         </div>
 
         <main id="main-content" className="min-h-0 min-w-0 w-full max-w-full outline-none" tabIndex={-1}>
+          <Suspense fallback={<LoadingScreen />}>
           <Routes>
             <Route path="/" element={<HomeRoute />} />
             <Route path="/workspace/monitoring" element={<WorkspaceMonitoring />} />
@@ -977,6 +979,7 @@ function AppShell() {
             <Route path="/hr-next/*" element={<Navigate to="/hr" replace />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
+          </Suspense>
         </main>
       </div>
       <WorkspaceCommandPalette
@@ -985,7 +988,9 @@ function AppShell() {
         ws={ws}
         hasPermission={(p) => ws?.hasPermission?.(p)}
       />
-      <HelpChatDockGate />
+      <Suspense fallback={null}>
+        <HelpChatDockGate />
+      </Suspense>
       <AiAssistantDock />
       <DegradedWorkspaceLock />
     </div>

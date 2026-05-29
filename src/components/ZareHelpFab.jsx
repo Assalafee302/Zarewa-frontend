@@ -8,7 +8,7 @@ import { HELP_BOT_NAME, HELP_BOT_TAGLINE } from '../lib/helpBotBrand';
 /**
  * Lightweight Zare launcher — no help catalog imports (safe at app startup).
  */
-export function ZareHelpFab() {
+export function ZareHelpFab({ loadError = '' }) {
   const help = useHelpChat();
   const ws = useWorkspace();
   const ai = useAiAssistant();
@@ -24,16 +24,24 @@ export function ZareHelpFab() {
   return (
     <button
       type="button"
-      onClick={() =>
+      onClick={() => {
+        if (loadError) {
+          window.location.reload();
+          return;
+        }
         help.openZare({
           autoSend: false,
           resetConversation: false,
           prompt: '',
-        })
-      }
+        });
+      }}
       className={`z-help-launcher fixed z-[165] flex h-[3.75rem] w-[3.75rem] items-center justify-center rounded-2xl border border-teal-200/60 bg-gradient-to-br from-[#134e4a] via-[#0f766e] to-[#115e59] text-teal-50 transition hover:scale-[1.03] active:scale-[0.98] bottom-[max(1.25rem,env(safe-area-inset-bottom))] ${launcherClass}`}
       aria-label={`Open ${HELP_BOT_NAME}`}
-      title={`${HELP_BOT_NAME} — ${HELP_BOT_TAGLINE}`}
+      title={
+        loadError
+          ? `Zare help failed to load — click to retry (${loadError})`
+          : `${HELP_BOT_NAME} — ${HELP_BOT_TAGLINE}`
+      }
     >
       <LifeBuoy size={26} strokeWidth={2} aria-hidden />
     </button>

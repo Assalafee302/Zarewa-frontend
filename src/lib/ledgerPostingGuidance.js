@@ -1,3 +1,5 @@
+import { explainHelpError } from './helpErrorExplain.js';
+
 /**
  * @param {string | undefined} voucherDateIso
  * @param {Array<{ periodKey?: string }> | undefined} periodLocks
@@ -8,8 +10,6 @@ export function isVoucherDateInLockedPeriod(voucherDateIso, periodLocks) {
   const locks = Array.isArray(periodLocks) ? periodLocks : [];
   return locks.some((l) => String(l.periodKey || '').trim() === pk);
 }
-
-import { explainHelpError } from './helpErrorExplain.js';
 
 /**
  * Single-line message for toast/UI when a ledger POST fails.

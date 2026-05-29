@@ -4,6 +4,9 @@
 import { HELP_BOT_NAME } from './helpBotBrand.js';
 import { classifyZareIntent } from './helpZareIntent.js';
 import { formatHelpErrorReply } from './helpErrorExplain.js';
+import { TRANSACTION_ISSUE_CHIPS } from './helpTransactionChips.js';
+
+export { TRANSACTION_ISSUE_CHIPS };
 
 /** @typedef {'draft' | 'posted' | 'approved' | 'settled' | 'restricted' | 'unknown'} TxLifecycle */
 
@@ -115,18 +118,6 @@ Reason:
 Requested action:`,
   },
 };
-
-export const TRANSACTION_ISSUE_CHIPS = [
-  { id: 'wrong_payment_amount', label: 'Wrong amount' },
-  { id: 'wrong_customer_payment', label: 'Wrong customer/vendor' },
-  { id: 'duplicate_receipt', label: 'Duplicate transaction' },
-  { id: 'wrong_payment_method', label: 'Wrong payment method' },
-  { id: 'reversal_request', label: 'Need reversal' },
-  { id: 'missing_attachment', label: 'Missing proof' },
-  { id: 'cannot_approve', label: 'Cannot approve' },
-  { id: 'transaction_stuck', label: 'Payment not showing' },
-  { id: 'transaction_problem', label: 'Other issue' },
-];
 
 /**
  * @param {Record<string, unknown>} [ctx]
