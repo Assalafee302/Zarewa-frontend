@@ -4,6 +4,7 @@ import { hrSensitiveHeaders } from './hrSensitiveStorage';
 const EXPORT_KINDS = {
   treasury: 'treasury',
   payslips: 'payslips',
+  'payslips-pdf': 'payslips-pdf',
   statutory: 'statutory',
   gl: 'gl',
 };
@@ -25,9 +26,10 @@ export async function downloadHrPayrollExport(runId, kind = 'treasury') {
     return { ok: false, error: err };
   }
   const blob = await r.blob();
+  const isPdf = segment === 'payslips-pdf' || (r.headers.get('content-type') || '').includes('pdf');
   const filename =
     r.headers.get('Content-Disposition')?.match(/filename="([^"]+)"/)?.[1] ||
-    `payroll-${segment}.csv`;
+    `payroll-${segment}.${isPdf ? 'pdf' : 'csv'}`;
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;

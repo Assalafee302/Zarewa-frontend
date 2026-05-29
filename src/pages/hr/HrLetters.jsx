@@ -4,7 +4,7 @@ import { useWorkspace } from '../../context/WorkspaceContext';
 import { useHrListLoad } from '../../hooks/useHrListLoad';
 import { canGenerateHrLetters } from '../../lib/hrAccess';
 import { apiFetch } from '../../lib/apiBase';
-import { fetchHrLetters, generateHrLetter } from '../../lib/hrExtended';
+import { downloadEmploymentLetterPdf, fetchHrLetters, generateHrLetter } from '../../lib/hrExtended';
 import {
   AppTable,
   AppTableBody,
@@ -117,6 +117,7 @@ export default function HrLetters() {
               <AppTableTh>Staff</AppTableTh>
               <AppTableTh>Type</AppTableTh>
               <AppTableTh>Preview</AppTableTh>
+              <AppTableTh />
             </AppTableTr>
           </AppTableThead>
           <AppTableBody>
@@ -150,6 +151,15 @@ export default function HrLetters() {
                   </AppTableTd>
                   <AppTableTd>{l.letterKind}</AppTableTd>
                   <AppTableTd className="max-w-md truncate text-slate-600">{l.contentText?.slice(0, 80)}…</AppTableTd>
+                  <AppTableTd>
+                    <button
+                      type="button"
+                      className="text-xs font-bold text-[#134e4a] hover:underline"
+                      onClick={() => downloadEmploymentLetterPdf(l.id)}
+                    >
+                      PDF
+                    </button>
+                  </AppTableTd>
                 </AppTableTr>
               );
             })}

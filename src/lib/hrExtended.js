@@ -1,4 +1,4 @@
-import { apiFetch } from './apiBase';
+import { apiFetch, apiUrl } from './apiBase';
 
 export function fetchHrLetters(userId) {
   const q = userId ? `?userId=${encodeURIComponent(userId)}` : '';
@@ -7,6 +7,24 @@ export function fetchHrLetters(userId) {
 
 export function generateHrLetter(body) {
   return apiFetch('/api/hr/employment-letters/generate', { method: 'POST', body: JSON.stringify(body) });
+}
+
+/** @param {string} letterId */
+export async function downloadEmploymentLetterPdf(letterId) {
+  const r = await fetch(apiUrl(`/api/hr/employment-letters/${encodeURIComponent(letterId)}/pdf`), {
+    credentials: 'include',
+  });
+  if (!r.ok) return { ok: false, error: 'PDF download failed.' };
+  const blob = await r.blob();
+  const filename =
+    r.headers.get('Content-Disposition')?.match(/filename="([^"]+)"/)?.[1] || `letter-${letterId}.pdf`;
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+  return { ok: true };
 }
 
 export function fetchHrBeneficiaries(mine = false) {

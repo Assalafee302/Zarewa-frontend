@@ -435,7 +435,7 @@ export default function HrPayroll() {
 
                 {(run.status === 'locked' || run.status === 'paid') && canExport ? (
                   <div className="flex flex-wrap gap-2">
-                    {['treasury', 'payslips', 'statutory', 'gl'].map((k) => (
+                    {['treasury', 'payslips', 'payslips-pdf', 'statutory', 'gl'].map((k) => (
                       <button
                         key={k}
                         type="button"
