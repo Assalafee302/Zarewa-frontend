@@ -1,15 +1,13 @@
 /**
- * Online Office Desk v2 — feature flag (default on after SP12).
- * Set VITE_OFFICE_DESK_V2=0 in .env.local to use legacy Gmail-style workspace.
+ * Online Office Desk v2 — opt-in via VITE_OFFICE_DESK_V2=1.
+ * Default off so home route uses the stable legacy workspace until explicitly enabled.
  */
 export function isOfficeDeskV2Enabled() {
   try {
     const raw = import.meta.env?.VITE_OFFICE_DESK_V2;
-    if (raw === '0' || raw === 'false') return false;
     if (raw === '1' || raw === 'true') return true;
-    // Default on after overhaul completion (SP12).
-    return true;
+    return false;
   } catch {
-    return true;
+    return false;
   }
 }

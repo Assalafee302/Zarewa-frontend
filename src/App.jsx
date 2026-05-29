@@ -38,8 +38,6 @@ import { useWorkspace } from './context/WorkspaceContext';
 import { ZAREWA_LOGO_SRC } from './Data/companyQuotation';
 import { BranchWorkspaceBar } from './components/layout/BranchWorkspaceBar';
 import { apiFetch } from './lib/apiBase';
-import { AiAssistantDock } from './components/AiAssistantDock';
-import { WorkspaceCommandPalette } from './components/workspace/WorkspaceCommandPalette';
 import { AiAskButton } from './components/AiAskButton';
 import { buildWorkspaceNotifications } from './lib/workspaceNotifications';
 import { AiAssistantProvider, useAiAssistant } from './context/AiAssistantContext';
@@ -47,6 +45,15 @@ import { HelpChatProvider } from './context/HelpChatContext';
 import { notificationPrompt } from './lib/aiAssistUi';
 import { searchWorkspaceSnapshot } from './lib/workspaceSearchLocal';
 import { formatPersonName } from './lib/formatPersonName';
+
+const AiAssistantDock = lazy(() =>
+  import('./components/AiAssistantDock.jsx').then((m) => ({ default: m.AiAssistantDock }))
+);
+const WorkspaceCommandPalette = lazy(() =>
+  import('./components/workspace/WorkspaceCommandPalette.jsx').then((m) => ({
+    default: m.WorkspaceCommandPalette,
+  }))
+);
 
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const Sales = lazy(() => import('./pages/Sales'));
@@ -982,16 +989,20 @@ function AppShell() {
           </Suspense>
         </main>
       </div>
-      <WorkspaceCommandPalette
-        isOpen={commandPaletteOpen}
-        onClose={() => setCommandPaletteOpen(false)}
-        ws={ws}
-        hasPermission={(p) => ws?.hasPermission?.(p)}
-      />
+      <Suspense fallback={null}>
+        <WorkspaceCommandPalette
+          isOpen={commandPaletteOpen}
+          onClose={() => setCommandPaletteOpen(false)}
+          ws={ws}
+          hasPermission={(p) => ws?.hasPermission?.(p)}
+        />
+      </Suspense>
       <Suspense fallback={null}>
         <HelpChatDockGate />
       </Suspense>
-      <AiAssistantDock />
+      <Suspense fallback={null}>
+        <AiAssistantDock />
+      </Suspense>
       <DegradedWorkspaceLock />
     </div>
   );

@@ -1,12 +1,17 @@
 /**
  * Office record types for Create Office Record wizard (aligned with smartMemoComposer).
  */
-export {
-  SMART_MEMO_TYPES as OFFICE_RECORD_TYPES,
-  SMART_MEMO_GUIDED_FIELDS as OFFICE_RECORD_GUIDED_FIELDS,
-  detectSmartMemoType as detectOfficeRecordType,
-  buildSmartMemoSuggestions as buildOfficeRecordSuggestions,
+import {
+  SMART_MEMO_TYPES,
+  SMART_MEMO_GUIDED_FIELDS,
+  detectSmartMemoType,
+  buildSmartMemoSuggestions,
 } from './smartMemoComposer.js';
+
+export const OFFICE_RECORD_TYPES = SMART_MEMO_TYPES;
+export const OFFICE_RECORD_GUIDED_FIELDS = SMART_MEMO_GUIDED_FIELDS;
+export const detectOfficeRecordType = detectSmartMemoType;
+export const buildOfficeRecordSuggestions = buildSmartMemoSuggestions;
 
 /** Display order for record type picker */
 export const OFFICE_RECORD_TYPE_ORDER = [
