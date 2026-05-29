@@ -338,7 +338,7 @@ export default function LegacyDashboard() {
       <OfficeRecordComposeDrawer
         isOpen={officialDrawerOpen}
         onDismiss={() => setOfficialDrawerOpen(false)}
-        presentation={canOffice ? 'floating' : 'drawer'}
+        presentation={canOffice ? 'modal' : 'drawer'}
         onSent={(threadId) => {
           if (threadId) setMailThreadId(String(threadId));
         }}

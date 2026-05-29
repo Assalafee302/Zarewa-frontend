@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { Paperclip, Pen, Send, X } from 'lucide-react';
 import { SlideOverPanel } from '../layout/SlideOverPanel';
+import { ModalFrame } from '../layout/ModalFrame';
 import { OfficeRecipientStrip } from './OfficeRecipientStrip';
 import { useToast } from '../../context/ToastContext';
 import { useWorkspace } from '../../context/WorkspaceContext';
@@ -25,13 +26,14 @@ import {
 } from '../../lib/smartMemoComposer';
 
 /**
- * @param {{ isOpen: boolean, onDismiss?: () => void, presentation?: 'drawer' | 'floating' | 'gmail', onSent?: (threadId?: string) => void }} props
+ * @param {{ isOpen: boolean, onDismiss?: () => void, presentation?: 'modal' | 'drawer' | 'floating' | 'gmail', onSent?: (threadId?: string) => void }} props
  */
-export function OfficeRecordComposeDrawer({ isOpen, onDismiss, presentation = 'drawer', onSent }) {
+export function OfficeRecordComposeDrawer({ isOpen, onDismiss, presentation = 'modal', onSent }) {
   const ws = useWorkspace();
   const { show: showToast } = useToast();
   const canOffice = Boolean(ws?.canAccessModule?.('office'));
   const memoFileRef = useRef(null);
+  const isModal = presentation === 'modal';
   const isFloating = presentation === 'floating' || presentation === 'gmail';
 
   const [directory, setDirectory] = useState([]);
@@ -54,12 +56,11 @@ export function OfficeRecordComposeDrawer({ isOpen, onDismiss, presentation = 'd
   const [smartFilingCategory, setSmartFilingCategory] = useState('');
   const [smartExpenseCategory, setSmartExpenseCategory] = useState('');
   const [improvingMemo, setImprovingMemo] = useState(false);
-  const [quickComposeMode, setQuickComposeMode] = useState(false);
+  const [quickComposeMode, setQuickComposeMode] = useState(true);
   const [serverDraftId, setServerDraftId] = useState('');
   const [memoDueDate, setMemoDueDate] = useState('');
   const [requiresResponse, setRequiresResponse] = useState(false);
   const [requiresApproval, setRequiresApproval] = useState(false);
-  const [showReview, setShowReview] = useState(false);
   const [attachmentDragOver, setAttachmentDragOver] = useState(false);
   const [attachmentError, setAttachmentError] = useState('');
   const [draftSyncStatus, setDraftSyncStatus] = useState('idle');
@@ -350,10 +351,6 @@ export function OfficeRecordComposeDrawer({ isOpen, onDismiss, presentation = 'd
 
   const submit = async (e) => {
     e.preventDefault();
-    if (!showReview) {
-      setShowReview(true);
-      return;
-    }
     const subject = newSubject.trim();
     if (subject.length < 2) {
       showToast('Memo subject is required.', { variant: 'error' });
@@ -446,6 +443,9 @@ export function OfficeRecordComposeDrawer({ isOpen, onDismiss, presentation = 'd
     </div>
   ) : (
     <form onSubmit={submit} className="flex min-h-0 flex-1 flex-col">
+      <div
+        className={`min-h-0 flex-1 overflow-y-auto overscroll-contain ${isFloating ? 'px-4 py-1 [&_.border-b]:border-[#f1f3f4]' : ''}`}
+      >
       <SmartMemoComposerPanel
         subject={newSubject}
         body={newBody}
@@ -478,38 +478,18 @@ export function OfficeRecordComposeDrawer({ isOpen, onDismiss, presentation = 'd
         improving={improvingMemo}
         quickMode={quickComposeMode}
       />
-      {showReview ? (
-        <div className="border-b border-amber-200 bg-amber-50/80 px-4 py-3 text-[12px] text-amber-950">
-          <p className="font-semibold">Review before send</p>
-          <ul className="mt-2 space-y-1 text-[11px]">
-            <li>Recipients: {toIds.length || 0} · Copy: {ccIds.length || 0}</li>
-            <li>Office: {newOfficeKey} · Priority: {smartPriority}</li>
-            <li>Confidentiality: {newConfidentiality}</li>
-            {memoDueDate ? <li>Due: {memoDueDate}</li> : null}
-            {memoAttachments.length ? <li>Attachments: {memoAttachments.length}</li> : null}
-          </ul>
-          {buildSmartMemoChecklist(resolvedMemoType, smartGuidedFields, memoAttachments.length).warning ? (
-            <p className="mt-2 text-amber-900">{buildSmartMemoChecklist(resolvedMemoType, smartGuidedFields, memoAttachments.length).warning}</p>
-          ) : null}
-          <button type="button" className="mt-2 text-[11px] font-semibold underline" onClick={() => setShowReview(false)}>
-            Edit memo
-          </button>
-        </div>
-      ) : null}
-      <div className="flex shrink-0 items-center justify-end gap-2 border-b border-slate-100 px-3 py-1.5">
-        <label className="inline-flex items-center gap-1.5 text-[10px] text-slate-600">
-          <input
-            type="checkbox"
-            checked={quickComposeMode}
-            onChange={(e) => setQuickComposeMode(e.target.checked)}
-            className="rounded border-slate-300 text-teal-800"
-          />
-          Quick mode
-        </label>
-      </div>
-      <div
-        className={`min-h-0 flex-1 overflow-y-auto ${isFloating ? 'px-4 py-1 [&_.border-b]:border-[#f1f3f4]' : 'px-3 py-3 sm:px-4'}`}
-      >
+      <div className={isFloating ? '' : 'px-3 py-3 sm:px-4'}>
+        {!quickComposeMode ? (
+          <div className="mb-3 flex justify-end">
+            <button
+              type="button"
+              onClick={() => setQuickComposeMode(true)}
+              className="text-[11px] font-semibold text-slate-500 hover:text-teal-800"
+            >
+              Back to simple view
+            </button>
+          </div>
+        ) : null}
         <div
           className={`flex gap-3 py-2.5 ${isFloating ? 'border-b border-[#f1f3f4]' : 'border-b border-slate-200/90'}`}
         >
@@ -554,6 +534,8 @@ export function OfficeRecordComposeDrawer({ isOpen, onDismiss, presentation = 'd
             placeholder="Memo subject"
           />
         </div>
+        {!quickComposeMode ? (
+          <>
         <div className={`grid grid-cols-1 gap-3 py-3 sm:grid-cols-2 ${isFloating ? 'border-b border-[#f1f3f4]' : 'border-b border-slate-100'}`}>
           <label className={metaLabelClass}>
             Document class
@@ -652,6 +634,8 @@ export function OfficeRecordComposeDrawer({ isOpen, onDismiss, presentation = 'd
             ))}
           </div>
         ) : null}
+          </>
+        ) : null}
         <div
           className={`py-2 ${attachmentDragOver ? 'rounded-lg bg-teal-50/50 ring-2 ring-teal-200' : ''}`}
           onDragOver={(e) => {
@@ -708,6 +692,16 @@ export function OfficeRecordComposeDrawer({ isOpen, onDismiss, presentation = 'd
             </ul>
           ) : null}
         </div>
+        {quickComposeMode ? (
+          <button
+            type="button"
+            onClick={() => setQuickComposeMode(false)}
+            className="mb-2 text-[11px] font-semibold text-teal-800 hover:underline"
+          >
+            Advanced options (class, date, templates)
+          </button>
+        ) : null}
+        {!isFloating && !isModal ? (
         <p className={`pb-3 text-[11px] ${isFloating ? 'text-[#5f6368]' : 'text-slate-500'}`}>
           After sending, open the thread from{' '}
           <Link to="/" className="font-semibold text-[#134e4a] underline-offset-2 hover:underline">
@@ -715,19 +709,21 @@ export function OfficeRecordComposeDrawer({ isOpen, onDismiss, presentation = 'd
           </Link>{' '}
           on the workspace.
         </p>
+        ) : null}
+      </div>
       </div>
       <div
         className={`flex shrink-0 items-center gap-2 border-t px-4 py-3 ${
-          isFloating ? 'justify-between border-[#f1f3f4] bg-[#f6f8fc]' : 'border-slate-200 bg-white'
+          isFloating ? 'justify-between border-[#f1f3f4] bg-[#f6f8fc]' : 'border-slate-200 bg-slate-50/80'
         }`}
       >
-        {isFloating ? (
+        {(isFloating || isModal) ? (
           <button
             type="button"
             className="text-sm font-medium text-slate-600 hover:text-slate-900"
             onClick={closeCompose}
           >
-            Discard
+            Cancel
           </button>
         ) : (
           <button type="button" className="z-btn-secondary flex-1 justify-center" onClick={closeCompose}>
@@ -749,13 +745,13 @@ export function OfficeRecordComposeDrawer({ isOpen, onDismiss, presentation = 'd
           type="submit"
           disabled={sending}
           className={
-            isFloating
-              ? 'inline-flex min-w-[88px] items-center justify-center gap-2 rounded-full bg-[#134e4a] px-6 py-2 text-sm font-medium text-white shadow-sm hover:bg-[#0f3d3a] disabled:opacity-50'
+            isFloating || isModal
+              ? 'ml-auto inline-flex min-w-[108px] items-center justify-center gap-2 rounded-xl bg-teal-800 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-teal-900 disabled:opacity-50'
               : 'z-btn-primary flex-1 justify-center gap-2'
           }
         >
           <Send size={16} className={isFloating ? 'opacity-95' : ''} />
-          {sending ? 'Sending…' : showReview ? 'Confirm send' : 'Review & send'}
+          {sending ? 'Sending…' : 'Send memo'}
         </button>
       </div>
     </form>
@@ -788,6 +784,26 @@ export function OfficeRecordComposeDrawer({ isOpen, onDismiss, presentation = 'd
       </div>
     </div>
   );
+
+  if (isModal) {
+    return (
+      <ModalFrame
+        isOpen={isOpen}
+        onClose={closeCompose}
+        title="Compose Memo"
+        description="Create an internal official memo"
+        surface="plain"
+      >
+        <div className="flex max-h-[min(88dvh,760px)] w-full max-w-[min(640px,calc(100dvw-2rem))] min-h-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl">
+          <div className="shrink-0 border-b border-slate-200 px-5 pb-3 pt-5 pr-14">
+            <h2 className="text-lg font-bold text-slate-900">Compose Memo</h2>
+            <p className="mt-0.5 text-sm text-slate-500">Recipients, subject, and message — keep it simple.</p>
+          </div>
+          {bodyArea}
+        </div>
+      </ModalFrame>
+    );
+  }
 
   if (isFloating) {
     return (
@@ -833,11 +849,9 @@ export function ComposeMemoButton({ onClick, className = '', 'aria-label': ariaL
       type="button"
       onClick={onClick}
       aria-label={ariaLabel || 'Compose Memo'}
-      className={`group inline-flex w-full items-center gap-3 rounded-2xl border border-teal-200/80 bg-gradient-to-br from-white to-teal-50/90 px-4 py-3 text-left text-sm font-semibold text-teal-950 shadow-sm ring-1 ring-teal-900/[0.06] transition hover:border-teal-300 hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700 sm:pl-5 ${className}`}
+      className={`inline-flex w-full items-center justify-center gap-2 rounded-xl bg-teal-800 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-teal-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700 ${className}`}
     >
-      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-teal-800 text-white shadow-sm transition group-hover:bg-teal-900">
-        <Pen size={20} strokeWidth={2} aria-hidden />
-      </span>
+      <Pen size={16} strokeWidth={2} aria-hidden />
       <span>Compose Memo</span>
     </button>
   );
