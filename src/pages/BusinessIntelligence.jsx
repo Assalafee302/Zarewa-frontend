@@ -124,6 +124,84 @@ function InventoryFamilyCard({ fam }) {
   );
 }
 
+function MaterialPerformancePanel({ perf }) {
+  if (!perf?.topCombinations?.length) {
+    return <p className="text-sm text-slate-500">No produced sales for this metal in the period.</p>;
+  }
+  return (
+    <div className="space-y-4">
+      <div>
+        <p className="text-[10px] font-bold uppercase text-slate-500 mb-2">Best gauge · colour · profile</p>
+        <ul className="space-y-2 text-[11px]">
+          {perf.topCombinations.slice(0, 5).map((row) => (
+            <li key={`${row.gauge}-${row.colour}-${row.profile}`} className="flex justify-between gap-2">
+              <span className="truncate text-slate-800">
+                {row.gauge} · {row.colour} · {row.profile}
+              </span>
+              <span className="shrink-0 font-bold tabular-nums text-[#134e4a]">{formatNgn(row.revenueNgn)}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+      <div className="grid grid-cols-2 gap-3 border-t border-slate-100 pt-3">
+        <div>
+          <p className="text-[10px] font-bold uppercase text-slate-500 mb-1">Top gauges</p>
+          <ul className="text-[11px] text-slate-700 space-y-1">
+            {(perf.topGauges || []).slice(0, 3).map((g) => (
+              <li key={g.label} className="flex justify-between">
+                <span>{g.label}</span>
+                <span className="font-semibold tabular-nums">{g.metres} m</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+        <div>
+          <p className="text-[10px] font-bold uppercase text-slate-500 mb-1">Top colours</p>
+          <ul className="text-[11px] text-slate-700 space-y-1">
+            {(perf.topColours || []).slice(0, 3).map((c) => (
+              <li key={c.label} className="flex justify-between">
+                <span>{c.label}</span>
+                <span className="font-semibold tabular-nums">{formatNgn(c.revenueNgn)}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SkuActionList({ title, rows, tone }) {
+  if (!rows?.length) return null;
+  const toneClass =
+    tone === 'buy'
+      ? 'border-emerald-200 bg-emerald-50/50'
+      : tone === 'liquidate'
+        ? 'border-amber-200 bg-amber-50/50'
+        : 'border-slate-200 bg-slate-50/50';
+  return (
+    <div className={`rounded-xl border p-3 ${toneClass}`}>
+      <p className="text-[10px] font-black uppercase tracking-wider text-slate-600 mb-2">{title}</p>
+      <ul className="space-y-2 text-[11px]">
+        {rows.map((row) => (
+          <li key={`${row.gauge}-${row.colour}`}>
+            <div className="flex justify-between gap-2 font-bold text-slate-800">
+              <span>
+                {row.gauge} · {row.colour}
+              </span>
+              <span className="tabular-nums shrink-0">{row.kgOnHand.toLocaleString()} kg</span>
+            </div>
+            <p className="text-slate-600 mt-0.5">{row.reason}</p>
+            {row.valuationNgn > 0 ? (
+              <p className="text-[10px] text-slate-500 tabular-nums">{formatNgn(row.valuationNgn)} on hand</p>
+            ) : null}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 export default function BusinessIntelligence() {
   const ws = useWorkspace();
   const { openZare } = useHelpChat() || {};
@@ -168,7 +246,7 @@ export default function BusinessIntelligence() {
         const apiErr = String(d?.error || '');
         if (/asOfISO is not defined/i.test(apiErr)) {
           setErr(
-            `${apiErr} — Your API is still on an old backend build (before commit 42372a4). On the server: git pull origin main, then restart Node (pm2/systemd/Hostinger). Open /api/health and confirm capabilities.businessIntelligence is "42372a4".`
+            `${apiErr} — Your API is still on an old backend build. On the server: git pull origin main, then restart Node. Open /api/health and confirm capabilities.businessIntelligence is "bi-v2".`
           );
           return;
         }
@@ -199,12 +277,15 @@ export default function BusinessIntelligence() {
   const pred = data?.predictive;
   const aluMix = sales?.mixRows?.find((r) => r.family === 'aluminium');
   const azMix = sales?.mixRows?.find((r) => r.family === 'aluzinc');
+  const matPerf = sales?.materialPerformance;
+  const sku = inv?.skuIntelligence;
+  const procurement = data?.procurement;
 
   return (
     <MainPanel>
       <PageHeader
         title="Business intelligence"
-        subtitle="Sales mix, aluminium & aluzinc coil analytics, and predictive cash signals — produced sales basis matches Manager KPIs."
+        subtitle="Payments-based customer ranking, gauge/colour material winners, coil buy/liquidate signals, and cash outlook."
         toolbar={
           <div className="flex flex-wrap items-center gap-2">
             <div className="flex flex-wrap gap-1" role="group" aria-label="Analysis period">
@@ -385,6 +466,23 @@ export default function BusinessIntelligence() {
             </section>
           </div>
 
+          <section className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+            <div className="rounded-2xl border border-slate-200/90 bg-white p-5 shadow-sm">
+              <h2 className="text-[11px] font-black uppercase tracking-wider text-[#134e4a]">
+                Material performance — aluminium
+              </h2>
+              <p className="text-[11px] text-slate-500 mt-1 mb-4">Produced sales by gauge, colour & profile</p>
+              <MaterialPerformancePanel perf={matPerf?.aluminium} />
+            </div>
+            <div className="rounded-2xl border border-slate-200/90 bg-white p-5 shadow-sm">
+              <h2 className="text-[11px] font-black uppercase tracking-wider text-[#134e4a]">
+                Material performance — aluzinc
+              </h2>
+              <p className="text-[11px] text-slate-500 mt-1 mb-4">Produced sales by gauge, colour & profile</p>
+              <MaterialPerformancePanel perf={matPerf?.aluzinc} />
+            </div>
+          </section>
+
           <section>
             <h2 className="text-[11px] font-black uppercase tracking-wider text-[#134e4a] mb-3 flex items-center gap-2">
               <Layers size={14} />
@@ -400,6 +498,52 @@ export default function BusinessIntelligence() {
               {inv?.aluminiumSharePct ?? 0}% / Aluzinc {inv?.aluzincSharePct ?? 0}% of stock
             </p>
           </section>
+
+          {sku ? (
+            <section className="rounded-2xl border border-slate-200/90 bg-white p-5 shadow-sm">
+              <h2 className="text-[11px] font-black uppercase tracking-wider text-[#134e4a] mb-1">
+                Coil SKU actions — buy, watch & liquidate
+              </h2>
+              <p className="text-[11px] text-slate-500 mb-4">
+                Gauge × colour combinations ranked by stock cover vs production pull
+              </p>
+              <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                <div>
+                  <p className="text-[10px] font-black uppercase text-sky-800 mb-2">Aluminium</p>
+                  <div className="space-y-3">
+                    <SkuActionList title="Buy next" rows={sku.aluminium?.buyNext} tone="buy" />
+                    <SkuActionList title="Reduce / free cash" rows={sku.aluminium?.reduceStock} tone="liquidate" />
+                  </div>
+                </div>
+                <div>
+                  <p className="text-[10px] font-black uppercase text-[#134e4a] mb-2">Aluzinc</p>
+                  <div className="space-y-3">
+                    <SkuActionList title="Buy next" rows={sku.aluzinc?.buyNext} tone="buy" />
+                    <SkuActionList title="Reduce / free cash" rows={sku.aluzinc?.reduceStock} tone="liquidate" />
+                  </div>
+                </div>
+              </div>
+            </section>
+          ) : null}
+
+          {procurement?.supplierFocus?.length ? (
+            <section className="rounded-2xl border border-slate-200/90 bg-white p-5 shadow-sm">
+              <h2 className="text-[11px] font-black uppercase tracking-wider text-[#134e4a] mb-4">
+                Supplier focus (4-month PO activity)
+              </h2>
+              <ul className="space-y-3">
+                {procurement.supplierFocus.slice(0, 6).map((s) => (
+                  <li key={s.supplierID} className="flex flex-wrap items-baseline justify-between gap-2 text-sm">
+                    <span className="font-bold text-slate-800">{s.supplierName}</span>
+                    <span className="text-[11px] text-slate-600 tabular-nums">
+                      Spend {formatNgn(s.spendNgn)} · Open {formatNgn(s.openNgn)} ·{' '}
+                      {s.coilKgOrdered.toLocaleString()} kg coil on order
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
 
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
             <section className="rounded-2xl border border-teal-200/80 bg-teal-50/30 p-5">
@@ -487,11 +631,12 @@ export default function BusinessIntelligence() {
           </div>
 
           <section className="rounded-2xl border border-slate-200/90 bg-white p-5 shadow-sm">
-            <h2 className="text-[11px] font-black uppercase tracking-wider text-[#134e4a] mb-4">
+            <h2 className="text-[11px] font-black uppercase tracking-wider text-[#134e4a] mb-1">
               Top customers ({data.periodLabel?.toLowerCase()})
             </h2>
+            <p className="text-[11px] text-slate-500 mb-4">Ranked by net payments (receipts minus refunds)</p>
             {(sales?.topCustomers || []).length === 0 ? (
-              <p className="text-sm text-slate-500">No quotation activity in this period yet.</p>
+              <p className="text-sm text-slate-500">No customer payments in this period yet.</p>
             ) : (
               <ul className="space-y-3">
                 {sales.topCustomers.slice(0, 8).map((c, idx) => (
@@ -500,8 +645,17 @@ export default function BusinessIntelligence() {
                     <div className="flex-1 min-w-0">
                       <div className="flex justify-between text-sm font-bold gap-2">
                         <span className="truncate">{c.customerName}</span>
-                        <span className="tabular-nums text-[#134e4a] shrink-0">{formatNgn(c.revenueNgn)}</span>
+                        <span className="tabular-nums text-[#134e4a] shrink-0">
+                          {formatNgn(c.netCollectedNgn ?? c.revenueNgn ?? 0)}
+                        </span>
                       </div>
+                      {c.paymentsNgn != null ? (
+                        <p className="text-[10px] text-slate-500 tabular-nums mt-0.5">
+                          Paid {formatNgn(c.paymentsNgn)}
+                          {c.refundsNgn > 0 ? ` · Refunds −${formatNgn(c.refundsNgn)}` : ''}
+                          {c.receiptCount ? ` · ${c.receiptCount} receipt(s)` : ''}
+                        </p>
+                      ) : null}
                     </div>
                   </li>
                 ))}
