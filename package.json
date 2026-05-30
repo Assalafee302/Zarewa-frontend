@@ -6,8 +6,10 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "build:serve:lan": "vite build",
-    "build:hostinger": "vite build",
+    "build:spa": "vite build",
+    "build:serve:lan": "node scripts/hostinger-deploy-backend.mjs",
+    "build:hostinger": "node scripts/hostinger-deploy-backend.mjs",
+    "start": "node server/index.js",
     "preview": "vite preview",
     "lint": "eslint .",
     "test": "vitest run",

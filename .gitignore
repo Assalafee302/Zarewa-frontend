@@ -1,6 +1,8 @@
 node_modules
 dist
 dist-ssr
+.build
+debug-d59a2b.log
 *.local
 .env
 coverage
