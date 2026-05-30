@@ -16,6 +16,7 @@ function priceSourceNote(source, lookbackDays) {
   if (s.includes('purchase_metre')) return `${days}d PO metre → ₦/kg`;
   if (s === 'coil_lots_all') return 'All received coil lots avg ₦/kg';
   if (s === 'receipt_avg') return `${days}d GRN receipt avg`;
+  if (s === 'manual') return 'Manual / edited price';
   if (s === 'none') return 'No price on file';
   return source || '—';
 }
@@ -253,6 +254,66 @@ export function StockRegisterPrintContent({ register, branchId, branchLabel }) {
           {register.summary?.aluminium?.pricingNote ||
             'Coil purchases may be ordered per kg or per metre; aluminium and aluzinc closing stock is valued at ₦/kg on net weight (after spool adjustment).'}
         </p>
+
+        {register.summary?.stoneCoated?.lines?.length ? (
+          <div className="mt-4">
+            <p className="text-xs font-bold text-slate-800 mb-1.5">Stone-coated — closing value by colour</p>
+            <table className={TABLE}>
+              <thead>
+                <tr>
+                  <th className={TH}>Colour · gauge</th>
+                  <th className={THR}>Remain m</th>
+                  <th className={THR}>Suggested ₦/m</th>
+                  <th className={THR}>Used ₦/m</th>
+                  <th className={THR}>Closing ₦</th>
+                </tr>
+              </thead>
+              <tbody>
+                {register.summary.stoneCoated.lines.map((l) => (
+                  <tr key={l.productID}>
+                    <td className={TD}>
+                      {l.colourDisplay} · {l.gaugeLabel}
+                    </td>
+                    <td className={TDR}>{fmtNum(l.remainingM)}</td>
+                    <td className={TDR}>{fmtPrice(l.suggestedUnitPriceNgnPerM, '')}</td>
+                    <td className={TDR}>{fmtPrice(l.unitPriceNgnPerM, '')}</td>
+                    <td className={TDR}>{formatNgn(l.closingValueNgn || 0)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : null}
+
+        {register.summary?.accessories?.lines?.length ? (
+          <div className="mt-4">
+            <p className="text-xs font-bold text-slate-800 mb-1.5">Accessories — closing value by item</p>
+            <table className={TABLE}>
+              <thead>
+                <tr>
+                  <th className={TH}>Item</th>
+                  <th className={TH}>Unit</th>
+                  <th className={THR}>Balance</th>
+                  <th className={THR}>Suggested</th>
+                  <th className={THR}>Used</th>
+                  <th className={THR}>Closing ₦</th>
+                </tr>
+              </thead>
+              <tbody>
+                {register.summary.accessories.lines.map((l) => (
+                  <tr key={l.productID}>
+                    <td className={TD}>{l.itemName}</td>
+                    <td className={TD}>{l.unit}</td>
+                    <td className={TDR}>{fmtNum(l.balance)}</td>
+                    <td className={TDR}>{fmtPrice(l.suggestedUnitPriceNgn, '')}</td>
+                    <td className={TDR}>{fmtPrice(l.unitPriceNgn, '')}</td>
+                    <td className={TDR}>{formatNgn(l.closingValueNgn || 0)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : null}
       </section>
 
       {inTransitRows.length ? (

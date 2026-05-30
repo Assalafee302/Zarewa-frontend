@@ -1,8 +1,9 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { ClipboardCheck, ChevronDown, Eye, Loader2, Printer, RefreshCw } from 'lucide-react';
+import { Calculator, ClipboardCheck, ChevronDown, Eye, Loader2, Printer, RefreshCw } from 'lucide-react';
 import { apiFetch } from '../../lib/apiBase';
 import { formatNgn } from '../../Data/mockData';
 import { StockRegisterPrintModal } from './StockRegisterPrintModal';
+import { StockRegisterPricingModal } from './StockRegisterPricingModal';
 
 const STATUS_STEPS = [
   { key: 'draft', label: 'Draft' },
@@ -71,6 +72,8 @@ export function StockRegisterPanel({ endDate, branchId, branchLabel, showToast, 
   const [previewOpen, setPreviewOpen] = useState(false);
   const [autoPrint, setAutoPrint] = useState(false);
   const [workflowOpen, setWorkflowOpen] = useState(false);
+  const [pricingOpen, setPricingOpen] = useState(false);
+  const [pricingForm, setPricingForm] = useState(null);
 
   const load = useCallback(async () => {
     if (!endDate || !branchId) return;
@@ -84,6 +87,7 @@ export function StockRegisterPanel({ endDate, branchId, branchLabel, showToast, 
       }
       setRegister(data.register);
       setWorkflow(data.workflow);
+      setPricingForm(data.pricingForm || null);
       setCountNotes(data.workflow?.countNotes || '');
     } finally {
       setLoading(false);
@@ -106,6 +110,7 @@ export function StockRegisterPanel({ endDate, branchId, branchLabel, showToast, 
     }
     setRegister(data.register);
     setWorkflow(data.workflow);
+    setPricingForm(data.pricingForm || null);
     return true;
   };
 
@@ -183,6 +188,15 @@ export function StockRegisterPanel({ endDate, branchId, branchLabel, showToast, 
             <button type="button" className="z-btn-secondary min-w-0" onClick={load} disabled={loading || !branchId}>
               {loading ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
               Refresh
+            </button>
+            <button
+              type="button"
+              className="z-btn-secondary min-w-0 flex-1 justify-center sm:min-w-[9rem]"
+              onClick={() => setPricingOpen(true)}
+              disabled={!register || !branchId || status === 'locked'}
+            >
+              <Calculator size={14} />
+              Valuation
             </button>
             <button
               type="button"
@@ -344,6 +358,21 @@ export function StockRegisterPanel({ endDate, branchId, branchLabel, showToast, 
           </div>
         ) : null}
       </div>
+
+      <StockRegisterPricingModal
+        open={pricingOpen}
+        onClose={() => setPricingOpen(false)}
+        pricingForm={pricingForm}
+        periodEnd={endDate}
+        branchLabel={branchLabel}
+        status={status}
+        showToast={showToast}
+        onSaved={(data) => {
+          setRegister(data.register);
+          setPricingForm(data.pricingForm || null);
+          setWorkflow(data.workflow || workflow);
+        }}
+      />
 
       <StockRegisterPrintModal
         open={previewOpen}
