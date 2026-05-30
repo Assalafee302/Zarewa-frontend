@@ -435,7 +435,7 @@ export function RefundManagerApprovalPreview({
                               <span className="font-mono">
                                 {ch.coil_no} · {ch.alert_state}
                                 {ch.actual_conversion_kg_per_m != null
-                                  ? ` · ${Number(ch.actual_conversion_kg_per_m).toFixed(3)} kg/m`
+                                  ? ` · ${Number(ch.actual_conversion_kg_per_m).toFixed(2)} kg/m`
                                   : ''}
                               </span>
                               <ActorCaption

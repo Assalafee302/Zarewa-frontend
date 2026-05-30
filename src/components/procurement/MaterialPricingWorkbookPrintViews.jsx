@@ -1,5 +1,6 @@
 import React from 'react';
 import { ZAREWA_COMPANY_ACCOUNT_NAME, ZAREWA_LOGO_SRC, ZAREWA_QUOTATION_BRANDING } from '../../Data/companyQuotation.js';
+import { fmtConv2 } from '../../lib/conversionKgPerM.js';
 import {
   listPriceFromFloorAndCommission,
   premiumProfilePriceFromBase,
@@ -16,11 +17,6 @@ function customerRidgeListAddOnNgn(r) {
     return Math.max(0, Math.round(Number(r.listAddOnNgn)));
   }
   return Math.max(0, Math.round(Number(r?.addOnNgn) || 0));
-}
-
-function fmtConv2(v) {
-  if (v == null || !Number.isFinite(Number(v))) return '—';
-  return Number(v).toFixed(2);
 }
 
 function suggestedNgn(used, costKg, oh, pr) {

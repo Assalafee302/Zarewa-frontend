@@ -508,8 +508,10 @@ function payloadToImportRow(pr) {
   if (pr.materialTypeName) out.materialTypeName = pr.materialTypeName;
   if (pr.supplierExpectedMeters != null && Number.isFinite(pr.supplierExpectedMeters))
     out.supplierExpectedMeters = pr.supplierExpectedMeters;
-  if (pr.supplierConversionKgPerM != null && Number.isFinite(pr.supplierConversionKgPerM))
-    out.supplierConversionKgPerM = pr.supplierConversionKgPerM;
+  if (pr.supplierConversionKgPerM != null && Number.isFinite(pr.supplierConversionKgPerM)) {
+    const c = Math.round(Number(pr.supplierConversionKgPerM) * 100) / 100;
+    if (c > 0) out.supplierConversionKgPerM = c;
+  }
   return out;
 }
 

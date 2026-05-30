@@ -1,5 +1,6 @@
 import React from 'react';
 import { ZAREWA_COMPANY_ACCOUNT_NAME } from '../../Data/companyQuotation';
+import { fmtConv2 } from '../../lib/conversionKgPerM.js';
 import { INCIDENT_TYPES, INCIDENT_STATUS_LABEL } from '../../lib/materialIncidentConstants';
 
 const TH = 'px-2 py-1.5 text-left text-[9px] font-bold uppercase tracking-wide text-slate-600 print:text-[8pt]';
@@ -121,7 +122,9 @@ export default function MaterialIncidentPrintView({ payload }) {
           <p>Kg deducted: {payload.kgDeducted != null ? payload.kgDeducted : '—'}</p>
           <p>
             Conversion:{' '}
-            {payload.conversionKgPerM != null ? `${payload.conversionKgPerM} kg/m (${payload.conversionSource || ''})` : '—'}
+            {payload.conversionKgPerM != null
+              ? `${fmtConv2(payload.conversionKgPerM)} kg/m (${payload.conversionSource || ''})`
+              : '—'}
           </p>
           <p>Metres available (pool): {payload.metersAvailable}</p>
         </div>

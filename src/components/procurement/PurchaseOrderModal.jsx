@@ -155,7 +155,7 @@ export default function PurchaseOrderModal({
           color: String(l.color || '').trim(),
           gauge: String(l.gauge || '').trim(),
           metersOffered: meterOnly ? metres : metres > 0 ? metres : null,
-          conversionKgPerM: kg > 0 && metres > 0 ? Math.round((kg / metres) * 1000) / 1000 : null,
+          conversionKgPerM: kg > 0 && metres > 0 ? Math.round((kg / metres) * 100) / 100 : null,
           unitPricePerKgNgn: meterOnly ? null : price,
           unitPriceNgn: price,
           qtyOrdered: meterOnly ? metres : kg,

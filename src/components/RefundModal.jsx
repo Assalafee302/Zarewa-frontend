@@ -2289,7 +2289,7 @@ const RefundModal = ({
                                             {conv != null && Number(conv) > 0 ? (
                                               <span className="text-slate-500">
                                                 {' '}
-                                                · conv {Number(conv).toFixed(3)} kg/m
+                                                · conv {Number(conv).toFixed(2)} kg/m
                                               </span>
                                             ) : null}
                                           </li>

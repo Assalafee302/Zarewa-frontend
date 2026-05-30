@@ -424,9 +424,9 @@ export function ManagementAuditSections({ auditData, loadingAudit, formatNgn, ap
                         {jobChecks.map((ch, i) => (
                           <li key={`${ch.job_id}-${ch.coil_no}-${i}`} className={u.chkLi}>
                             <span className={u.chkMono}>{ch.coil_no}</span> · {ch.alert_state} · actual{' '}
-                            {ch.actual_conversion_kg_per_m != null ? Number(ch.actual_conversion_kg_per_m).toFixed(3) : '—'} kg/m
+                            {ch.actual_conversion_kg_per_m != null ? Number(ch.actual_conversion_kg_per_m).toFixed(2) : '—'} kg/m
                             {ch.standard_conversion_kg_per_m != null
-                              ? ` · std ${Number(ch.standard_conversion_kg_per_m).toFixed(3)}`
+                              ? ` · std ${Number(ch.standard_conversion_kg_per_m).toFixed(2)}`
                               : ''}
                           </li>
                         ))}

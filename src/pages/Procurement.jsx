@@ -724,7 +724,7 @@ const Procurement = () => {
       productID: matOpt.productID,
       offerKg: 0,
       offerMeters: 0,
-      conversionKgPerM: Number(conversion.toFixed(6)),
+      conversionKgPerM: Number(conversion.toFixed(2)),
       label:
         standardConversionForm.label.trim() ||
         `Standard (density) · ${matOpt.label} · ${gauge} mm`,
@@ -1976,10 +1976,10 @@ const Procurement = () => {
                                   {gLabel}
                                 </td>
                                 <td className="py-2.5 px-3 font-mono tabular-nums text-[#134e4a] whitespace-nowrap">
-                                  {alu == null ? '—' : alu.toFixed(4)}
+                                  {alu == null ? '—' : alu.toFixed(2)}
                                 </td>
                                 <td className="py-2.5 px-3 font-mono tabular-nums text-[#134e4a] whitespace-nowrap">
-                                  {az == null ? '—' : az.toFixed(4)}
+                                  {az == null ? '—' : az.toFixed(2)}
                                 </td>
                               </tr>
                             );
@@ -2062,11 +2062,11 @@ const Procurement = () => {
                       <div className="flex flex-wrap items-center gap-2">
                         <span className={`${PILL} bg-sky-100 text-sky-900`}>
                           Density kg/m:{' '}
-                          {standardPhysicsKgPerM == null ? '—' : standardPhysicsKgPerM.toFixed(6)}
+                          {standardPhysicsKgPerM == null ? '—' : standardPhysicsKgPerM.toFixed(2)}
                         </span>
                         <span className={`${PILL} border border-slate-200 bg-white text-slate-700`}>
                           Will save:{' '}
-                          {standardEffectiveKgPerM == null ? '—' : standardEffectiveKgPerM.toFixed(6)} kg/m
+                          {standardEffectiveKgPerM == null ? '—' : standardEffectiveKgPerM.toFixed(2)} kg/m
                         </span>
                         {Number.isFinite(stdOverrideKgPerM) && stdOverrideKgPerM > 0 ? (
                           <span className={`${PILL} bg-amber-100 text-amber-900`}>Using override</span>

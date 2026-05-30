@@ -7,6 +7,7 @@ import { useToast } from '../../context/ToastContext';
 import { apiFetch } from '../../lib/apiBase';
 import { formatNgn } from '../../Data/mockData';
 import { listPriceFromFloorAndCommission } from '../../lib/publishedPrice.js';
+import { fmtConv2, roundConv2 } from '../../lib/conversionKgPerM.js';
 import {
   MaterialWorkbookCustomerPrintView,
   MaterialWorkbookOfficialPrintView,
@@ -29,11 +30,6 @@ const RIDGE_MATERIAL_OPTIONS = [
 
 function isWorkbookMaterialKey(k) {
   return WORKBOOK_MATERIAL_KEYS.has(String(k || ''));
-}
-
-function fmtConv2(v) {
-  if (v == null || !Number.isFinite(Number(v))) return '—';
-  return Number(v).toFixed(2);
 }
 
 function numOrUndef(v) {
@@ -168,7 +164,7 @@ function mergeDraftIntoSheet(sheet, workbookLines) {
     let conversionUsedKgPerM = null;
     if (uStr !== '') {
       const n = Number(uStr);
-      conversionUsedKgPerM = Number.isFinite(n) && n > 0 ? n : null;
+      conversionUsedKgPerM = roundConv2(n);
     }
     const existing = (sheet.rows || []).find((r) => r.id === line.serverId);
     return {
@@ -389,8 +385,7 @@ export function MaterialPricingWorkbookModal({ open, onClose, initialMaterialKey
     const uStr = String(dr.conversionUsedKgPerM ?? '').trim();
     let conversionUsedKgPerM = null;
     if (uStr !== '') {
-      const n = Number(uStr);
-      conversionUsedKgPerM = Number.isFinite(n) && n > 0 ? n : null;
+      conversionUsedKgPerM = roundConv2(Number(uStr));
     }
     const designKey = String(line.designKey ?? '').trim();
     return {

@@ -19,6 +19,7 @@ import {
   ChevronDown,
 } from 'lucide-react';
 import { apiFetch } from '../lib/apiBase';
+import { fmtConv2 } from '../lib/conversionKgPerM.js';
 import { APP_DATA_TABLE_PAGE_SIZE, useAppTablePaging } from '../lib/appDataTable';
 import { AppTablePager } from './ui/AppDataTable';
 import {
@@ -169,14 +170,12 @@ function designRedundantVersusProductLine(design, productName, productID) {
 }
 
 function formatKgPerM(value) {
-  const next = Number(value);
-  return Number.isFinite(next) && next > 0 ? `${next.toFixed(4)} kg/m` : '—';
+  return fmtConv2(value, { suffix: 'kg/m' });
 }
 
-/** Table cells for posted conversion (readable size, full precision). */
+/** Table cells for posted conversion. */
 function formatKgPerMCompact(value) {
-  const next = Number(value);
-  return Number.isFinite(next) && next > 0 ? next.toFixed(4) : '—';
+  return fmtConv2(value);
 }
 
 /** kg available for this job: on-hand minus reservations, plus opening already saved on this job for the coil. */

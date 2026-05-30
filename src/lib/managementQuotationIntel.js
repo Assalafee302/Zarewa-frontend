@@ -1,5 +1,7 @@
 /** Helpers for Management clearance / refund intel panels. */
 
+import { fmtConv2 } from './conversionKgPerM.js';
+
 export function fmtKg(n) {
   const v = Number(n);
   if (!Number.isFinite(v)) return '—';
@@ -13,9 +15,7 @@ export function fmtM(n) {
 }
 
 export function fmtConv(n) {
-  const v = Number(n);
-  if (!Number.isFinite(v) || v <= 0) return '—';
-  return `${v.toFixed(3)} kg/m`;
+  return fmtConv2(n, { suffix: 'kg/m' });
 }
 
 export function quotationMaterialSpecRows(auditData) {

@@ -184,7 +184,7 @@ export default function CoilPurchaseOrderModal({
     const kg = Number(l.kg);
     const m = Number(l.meters);
     if (kg > 0 && m > 0 && !Number.isNaN(kg) && !Number.isNaN(m)) {
-      return Math.round((kg / m) * 10000) / 10000;
+      return Math.round((kg / m) * 100) / 100;
     }
     return null;
   };

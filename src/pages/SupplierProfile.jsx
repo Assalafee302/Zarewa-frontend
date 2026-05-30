@@ -674,7 +674,7 @@ const SupplierProfile = () => {
                     {c.color} {c.gauge}
                   </span>
                   <span className="tabular-nums font-semibold text-[#134e4a]">
-                    {c.conversionKgPerM} kg/m
+                    {Number(c.conversionKgPerM).toFixed(2)} kg/m
                     {c.conversionKgPerM > 2.7 ? (
                       <span className="text-amber-600 ml-2">
                         (watch &gt; {CONVERSION_FLAG_RATIO * 100 - 100}% vs thin line)

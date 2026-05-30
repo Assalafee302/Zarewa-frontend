@@ -8,6 +8,7 @@ import React, {
   useState,
 } from 'react';
 import { apiFetch } from '../lib/apiBase';
+import { roundConv2 } from '../lib/conversionKgPerM.js';
 import { procurementKindFromPo } from '../lib/procurementPoKind';
 import { branchScopedCreateBlockedMessage, isBranchScopedCreateBlocked } from '../lib/workspaceBranchCreate';
 import { useWorkspace } from './WorkspaceContext';
@@ -50,8 +51,7 @@ function normalizePoLine(l, idx, catalog = []) {
     color: l.color ?? '',
     gauge: l.gauge ?? '',
     metersOffered: l.metersOffered != null && l.metersOffered !== '' ? Number(l.metersOffered) : null,
-    conversionKgPerM:
-      l.conversionKgPerM != null && l.conversionKgPerM !== '' ? Number(l.conversionKgPerM) : null,
+    conversionKgPerM: roundConv2(l.conversionKgPerM),
   };
 }
 
@@ -150,7 +150,7 @@ export function InventoryProvider({ children }) {
           gaugeLabel: lot.gaugeLabel ?? '',
           materialTypeName: lot.materialTypeName ?? '',
           supplierExpectedMeters: lot.supplierExpectedMeters ?? null,
-          supplierConversionKgPerM: lot.supplierConversionKgPerM ?? null,
+          supplierConversionKgPerM: roundConv2(lot.supplierConversionKgPerM),
           qtyRemaining: Number(lot.qtyRemaining) || 0,
           qtyReserved: Number(lot.qtyReserved) || 0,
           currentWeightKg: Number(lot.currentWeightKg) || 0,
@@ -614,7 +614,7 @@ export function InventoryProvider({ children }) {
             gaugeLabel: line?.gauge != null && line?.gauge !== '' ? String(line.gauge) : '',
             materialTypeName: '',
             supplierExpectedMeters: line?.metersOffered ?? null,
-            supplierConversionKgPerM: line?.conversionKgPerM ?? null,
+            supplierConversionKgPerM: roundConv2(line?.conversionKgPerM),
             qtyRemaining: initialKg,
             qtyReserved: 0,
             currentWeightKg: initialKg,
