@@ -11,7 +11,9 @@ function fmtNum(v, digits = 2) {
 function priceSourceNote(source, lookbackDays) {
   const s = String(source || '').toLowerCase();
   const days = lookbackDays ?? 31;
-  if (s.includes('purchase_') || s === 'purchase_avg') return `${days}d purchase avg ₦/kg`;
+  if (s.includes('purchase_grn') || s.includes('purchase_31d')) return `${days}d GRN receipt avg ₦/kg`;
+  if (s.includes('purchase_kg')) return `${days}d PO kg price`;
+  if (s.includes('purchase_metre')) return `${days}d PO metre → ₦/kg`;
   if (s === 'coil_lots_all') return 'All received coil lots avg ₦/kg';
   if (s === 'receipt_avg') return `${days}d GRN receipt avg`;
   if (s === 'none') return 'No price on file';
@@ -23,47 +25,96 @@ function fmtPrice(v, suffix = '') {
   return `${formatNgn(v)}${suffix}`;
 }
 
-const TH = 'px-1.5 py-1 text-left text-[8px] font-bold uppercase text-slate-600 border border-slate-300 print:text-[7pt]';
-const TD = 'px-1.5 py-0.5 text-[10px] text-slate-800 border border-slate-300 print:text-[8.5pt]';
+const TABLE = 'w-full table-fixed border-collapse text-[10px] print:text-[8.5pt]';
+const TH =
+  'px-2 py-1.5 text-[8px] font-bold uppercase tracking-wide text-slate-600 border border-slate-300 bg-slate-50 print:text-[7pt]';
+const THR = `${TH} text-right`;
+const TD = 'px-2 py-1 align-middle text-slate-800 border border-slate-300 break-words';
 const TDR = `${TD} text-right tabular-nums`;
+const TD_MUTED = `${TD} text-slate-400 text-center`;
 
-function CoilTable({ section }) {
-  if (!section?.groups?.length) {
-    return <p className="text-xs text-slate-500 italic">No lines this period.</p>;
+/** Shared 7-column movement layout: description | ref | open | rcvd | total | used | balance */
+const COLS = [
+  { key: 'desc', head: 'Description', className: 'w-[28%] text-left' },
+  { key: 'ref', head: 'Ref / unit', className: 'w-[12%] text-left' },
+  { key: 'open', head: 'Opening', className: 'w-[12%] text-right' },
+  { key: 'rcvd', head: 'Received', className: 'w-[12%] text-right' },
+  { key: 'total', head: 'Total', className: 'w-[12%] text-right' },
+  { key: 'used', head: 'Used', className: 'w-[12%] text-right' },
+  { key: 'bal', head: 'Balance', className: 'w-[12%] text-right' },
+];
+
+function RegisterTable({ rows, emptyLabel = 'No lines this period.' }) {
+  if (!rows?.length) {
+    return <p className="text-xs text-slate-500 italic">{emptyLabel}</p>;
   }
-  return section.groups.map((g) => (
-    <div key={g.gaugeLabel} className="mb-4 break-inside-avoid">
-      <p className="text-xs font-bold text-slate-800 mb-1">{g.gaugeLabel}</p>
-      <table className="w-full border-collapse">
-        <thead>
-          <tr className="bg-slate-50">
-            <th className={TH}>Colour</th>
-            <th className={TH}>Coil</th>
-            <th className={`${TH} text-right`}>Open kg</th>
-            <th className={`${TH} text-right`}>Rcvd kg</th>
-            <th className={`${TH} text-right`}>Used kg</th>
-            <th className={`${TH} text-right`}>Close kg</th>
-            <th className={TH}>Remark</th>
-          </tr>
-        </thead>
-        <tbody>
-          {g.rows.map((r) => (
-            <tr key={r.coilNo}>
-              <td className={TD}>{r.colourAbbrev}</td>
-              <td className={`${TD} font-mono`}>{r.coilNoDisplay || r.coilNo}</td>
-              <td className={TDR}>{fmtNum(r.openingKg)}</td>
-              <td className={TDR}>{fmtNum(r.receivedKg)}</td>
-              <td className={TDR}>{fmtNum(r.usedKg)}</td>
-              <td className={TDR}>{r.closingBlank ? '—' : fmtNum(r.closingKg)}</td>
-              <td className={`${TD} text-slate-600`}>
-                {[r.remarkSuggested, r.stockForm === 'roll' ? 'ROLL' : ''].filter(Boolean).join(' · ')}
-              </td>
-            </tr>
+  return (
+    <table className={TABLE}>
+      <thead>
+        <tr>
+          {COLS.map((c) => (
+            <th key={c.key} className={c.className.includes('text-right') ? `${THR} ${c.className}` : `${TH} ${c.className}`}>
+              {c.head}
+            </th>
           ))}
-        </tbody>
-      </table>
-    </div>
-  ));
+        </tr>
+      </thead>
+      <tbody>
+        {rows.map((row) => (
+          <tr key={row.key}>
+            <td className={TD}>{row.desc}</td>
+            <td className={row.refMuted ? TD_MUTED : TD}>{row.ref ?? '—'}</td>
+            <td className={TDR}>{row.open}</td>
+            <td className={TDR}>{row.rcvd}</td>
+            <td className={TDR}>{row.total}</td>
+            <td className={TDR}>{row.used}</td>
+            <td className={TDR}>{row.bal}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
+function CoilSection({ title, section, unitLabel = 'kg' }) {
+  if (!section?.groups?.length) {
+    return (
+      <section className="break-inside-avoid">
+        <h2 className="text-sm font-black uppercase tracking-wide text-[#134e4a] mb-2">{title}</h2>
+        <RegisterTable rows={[]} />
+      </section>
+    );
+  }
+  return (
+    <section className="break-inside-avoid">
+      <h2 className="text-sm font-black uppercase tracking-wide text-[#134e4a] mb-2">{title}</h2>
+      {section.groups.map((g) => {
+        const rows = g.rows.map((r) => ({
+          key: r.coilNo,
+          desc: r.colourAbbrev,
+          ref: r.coilNoDisplay || r.coilNo,
+          open: fmtNum(r.openingKg),
+          rcvd: fmtNum(r.receivedKg),
+          total: fmtNum((Number(r.openingKg) || 0) + (Number(r.receivedKg) || 0)),
+          used: fmtNum(r.usedKg),
+          bal: r.closingBlank ? '—' : fmtNum(r.closingKg),
+          remark: [r.remarkSuggested, r.stockForm === 'roll' ? 'ROLL' : ''].filter(Boolean).join(' · '),
+        }));
+        return (
+          <div key={g.gaugeLabel} className="mb-4">
+            <p className="text-xs font-bold text-slate-800 mb-1.5">{g.gaugeLabel}</p>
+            <RegisterTable rows={rows} />
+            {rows.some((r) => r.remark) ? (
+              <p className="text-[9px] text-slate-500 mt-1">
+                Remarks: {rows.filter((r) => r.remark).map((r) => `${r.ref}: ${r.remark}`).join(' · ')}
+              </p>
+            ) : null}
+          </div>
+        );
+      })}
+      <p className="text-[9px] text-slate-500 mt-1">Quantities in {unitLabel} (gross). Rolls marked in remarks.</p>
+    </section>
+  );
 }
 
 /** Shared register body for screen + print preview. */
@@ -71,95 +122,78 @@ export function StockRegisterPrintContent({ register, branchId, branchLabel }) {
   if (!register) return null;
   const bid = branchLabel || branchId || register.branchId || '—';
 
+  const stoneRows =
+    register.stoneCoated?.groups?.flatMap((g) =>
+      g.rows.map((r) => ({
+        key: r.productID,
+        desc: r.colourDisplay || r.colour || r.colourAbbrev,
+        ref: g.gaugeLabel !== '—' ? g.gaugeLabel : 'm',
+        refMuted: false,
+        open: fmtNum(r.openingM),
+        rcvd: fmtNum(r.receivedM),
+        total: fmtNum(r.totalM),
+        used: fmtNum(r.usedM),
+        bal: fmtNum(r.remainingM),
+      }))
+    ) || [];
+
+  const accessoryRows =
+    register.accessories?.rows?.map((r) => ({
+      key: r.productID,
+      desc: r.itemName || r.typeLabel || r.productID,
+      ref: r.unit || '—',
+      open: fmtNum(r.opening),
+      rcvd: fmtNum(r.received),
+      total: fmtNum(r.total ?? (Number(r.opening) || 0) + (Number(r.received) || 0)),
+      used: fmtNum(r.used),
+      bal: fmtNum(r.balance),
+    })) || [];
+
+  const inTransitRows =
+    register.inTransit?.map((r, i) => ({
+      key: `${r.referenceNo}-${i}`,
+      desc: r.itemName || '—',
+      ref: r.referenceNo || '—',
+      open: '—',
+      rcvd: '—',
+      total: `${fmtNum(Math.max(0, r.qtyExpected))} ${r.unit || ''}`.trim(),
+      used: '—',
+      bal: r.etaDateIso || '—',
+    })) || [];
+
   return (
     <div className="space-y-5 text-slate-800">
-      <section className="break-inside-avoid">
-        <h2 className="text-sm font-black uppercase tracking-wide text-[#134e4a] mb-2">A. Aluminium coils (gross kg)</h2>
-        <CoilTable section={register.coilSections?.aluminium} />
-      </section>
+      <CoilSection title="A. Aluminium coils" section={register.coilSections?.aluminium} />
+      <CoilSection title="B. Aluzinc coils" section={register.coilSections?.aluzinc} />
 
-      <section className="break-inside-avoid">
-        <h2 className="text-sm font-black uppercase tracking-wide text-[#134e4a] mb-2">B. Aluzinc coils (gross kg)</h2>
-        <CoilTable section={register.coilSections?.aluzinc} />
-      </section>
-
-      {register.stoneCoated?.groups?.length ? (
-        <section>
+      {stoneRows.length ? (
+        <section className="break-inside-avoid">
           <h2 className="text-sm font-black uppercase tracking-wide text-[#134e4a] mb-2">C. Stone-coated (metres)</h2>
-          {register.stoneCoated.groups.map((g) => (
-            <div key={g.gaugeLabel} className="mb-3 break-inside-avoid">
-              <p className="text-xs font-bold mb-1">{g.gaugeLabel}</p>
-              <table className="w-full border-collapse">
-                <thead>
-                  <tr className="bg-slate-50">
-                    <th className={TH}>Colour</th>
-                    <th className={`${TH} text-right`}>Open</th>
-                    <th className={`${TH} text-right`}>Rcvd</th>
-                    <th className={`${TH} text-right`}>Total</th>
-                    <th className={`${TH} text-right`}>Used</th>
-                    <th className={`${TH} text-right`}>Remain</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {g.rows.map((r) => (
-                    <tr key={r.productID}>
-                      <td className={TD}>{r.colourAbbrev}</td>
-                      <td className={TDR}>{fmtNum(r.openingM)}</td>
-                      <td className={TDR}>{fmtNum(r.receivedM)}</td>
-                      <td className={TDR}>{fmtNum(r.totalM)}</td>
-                      <td className={TDR}>{fmtNum(r.usedM)}</td>
-                      <td className={TDR}>{fmtNum(r.remainingM)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ))}
+          <RegisterTable rows={stoneRows} />
+          <p className="text-[9px] text-slate-500 mt-1">Colour names shown in full. Quantities in metres.</p>
         </section>
       ) : null}
 
-      {register.accessories?.rows?.length ? (
+      {accessoryRows.length ? (
         <section className="break-inside-avoid">
           <h2 className="text-sm font-black uppercase tracking-wide text-[#134e4a] mb-2">D. Accessories</h2>
-          <table className="w-full border-collapse">
-            <thead>
-              <tr className="bg-slate-50">
-                <th className={TH}>Type</th>
-                <th className={TH}>Unit</th>
-                <th className={`${TH} text-right`}>Open</th>
-                <th className={`${TH} text-right`}>Rcvd</th>
-                <th className={`${TH} text-right`}>Used</th>
-                <th className={`${TH} text-right`}>Bal</th>
-              </tr>
-            </thead>
-            <tbody>
-              {register.accessories.rows.map((r) => (
-                <tr key={`${r.typeKey}-${r.unit}`}>
-                  <td className={TD}>{r.typeLabel}</td>
-                  <td className={TD}>{r.unit}</td>
-                  <td className={TDR}>{fmtNum(r.opening)}</td>
-                  <td className={TDR}>{fmtNum(r.received)}</td>
-                  <td className={TDR}>{fmtNum(r.used)}</td>
-                  <td className={TDR}>{fmtNum(r.balance)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <RegisterTable rows={accessoryRows} />
+          <p className="text-[9px] text-slate-500 mt-1">Item names match purchase order / product catalog.</p>
         </section>
       ) : null}
 
       <section className="break-inside-avoid">
         <h2 className="text-sm font-black uppercase tracking-wide text-[#134e4a] mb-2">E. Stock summary &amp; closing value</h2>
-        <table className="w-full border-collapse">
+        <table className={TABLE}>
           <thead>
-            <tr className="bg-slate-50">
-              <th className={TH}>Section</th>
-              <th className={`${TH} text-right`}>Closing qty</th>
-              <th className={`${TH} text-right`}>Spool adj (kg)</th>
-              <th className={`${TH} text-right`}>Net kg / qty</th>
-              <th className={`${TH} text-right`}>Unit price</th>
-              <th className={`${TH} text-right`}>Price basis</th>
-              <th className={`${TH} text-right`}>Closing ₦</th>
+            <tr>
+              <th className={`${TH} w-[14%]`}>Section</th>
+              <th className={`${THR} w-[12%]`}>Closing qty</th>
+              <th className={`${THR} w-[10%]`}>Spool adj</th>
+              <th className={`${THR} w-[12%]`}>Net qty</th>
+              <th className={`${THR} w-[14%]`}>Unit price</th>
+              <th className={`${TH} w-[22%] text-right`}>Price basis</th>
+              <th className={`${THR} w-[16%]`}>Closing ₦</th>
             </tr>
           </thead>
           <tbody>
@@ -186,7 +220,7 @@ export function StockRegisterPrintContent({ register, branchId, branchLabel }) {
             <tr>
               <td className={TD}>Stone-coated</td>
               <td className={TDR} colSpan={2}>
-                {fmtNum(register.summary?.stoneCoated?.totalRemainingM)} m remaining
+                {fmtNum(register.summary?.stoneCoated?.totalRemainingM)} m
               </td>
               <td className={TDR}>{fmtNum(register.summary?.stoneCoated?.totalRemainingM)} m</td>
               <td className={TDR}>{fmtPrice(register.summary?.stoneCoated?.unitPriceNgnPerM, '/m')}</td>
@@ -198,7 +232,7 @@ export function StockRegisterPrintContent({ register, branchId, branchLabel }) {
             <tr>
               <td className={TD}>Accessories</td>
               <td className={TDR} colSpan={2}>
-                {register.accessories?.rowCount ?? 0} type(s)
+                {register.accessories?.rowCount ?? 0} item(s)
               </td>
               <td className={TDR}>—</td>
               <td className={TDR}>{fmtPrice(register.summary?.accessories?.unitPriceNgn, '/unit')}</td>
@@ -215,33 +249,19 @@ export function StockRegisterPrintContent({ register, branchId, branchLabel }) {
             </tr>
           </tbody>
         </table>
+        <p className="text-[9px] text-slate-500 mt-2 leading-relaxed">
+          {register.summary?.aluminium?.pricingNote ||
+            'Coil purchases may be ordered per kg or per metre; aluminium and aluzinc closing stock is valued at ₦/kg on net weight (after spool adjustment).'}
+        </p>
       </section>
 
-      {register.inTransit?.length ? (
+      {inTransitRows.length ? (
         <section>
           <h2 className="text-sm font-black uppercase tracking-wide text-[#134e4a] mb-2">F. In transit (not stock)</h2>
-          <table className="w-full border-collapse">
-            <thead>
-              <tr className="bg-slate-50">
-                <th className={TH}>Ref</th>
-                <th className={TH}>Item</th>
-                <th className={`${TH} text-right`}>Qty</th>
-                <th className={TH}>ETA</th>
-              </tr>
-            </thead>
-            <tbody>
-              {register.inTransit.map((r, i) => (
-                <tr key={`${r.referenceNo}-${i}`}>
-                  <td className={TD}>{r.referenceNo}</td>
-                  <td className={TD}>{r.itemName}</td>
-                  <td className={TDR}>
-                    {fmtNum(Math.max(0, r.qtyExpected))} {r.unit}
-                  </td>
-                  <td className={TD}>{r.etaDateIso || '—'}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <RegisterTable rows={inTransitRows} emptyLabel="" />
+          <p className="text-[9px] text-slate-500 mt-1">
+            Total column = qty in transit · Balance column = ETA. Not included in closing stock until received.
+          </p>
         </section>
       ) : null}
 

@@ -41,8 +41,11 @@ function WorkflowStepper({ status }) {
 
 function priceSourceLabel(source) {
   const s = String(source || '').toLowerCase();
-  if (s.includes('purchase_31d') || s === 'purchase_avg') return '31d purchase avg';
-  if (s === 'coil_lots_all') return 'all coil lots avg';
+  if (s.includes('purchase_grn')) return '31d GRN ₦/kg';
+  if (s.includes('purchase_kg')) return '31d PO kg price';
+  if (s.includes('purchase_metre')) return '31d PO m→₦/kg';
+  if (s.includes('purchase_31d') || s === 'purchase_avg') return '31d purchase ₦/kg';
+  if (s === 'coil_lots_all') return 'Coil lots avg ₦/kg';
   if (s === 'receipt_avg') return '31d receipt avg';
   return '—';
 }
