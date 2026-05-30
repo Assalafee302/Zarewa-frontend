@@ -8,6 +8,21 @@ function fmtNum(v, digits = 2) {
   return n.toLocaleString(undefined, { maximumFractionDigits: digits });
 }
 
+function priceSourceNote(source, lookbackDays) {
+  const s = String(source || '').toLowerCase();
+  const days = lookbackDays ?? 31;
+  if (s.includes('purchase_') || s === 'purchase_avg') return `${days}d purchase avg ₦/kg`;
+  if (s === 'coil_lots_all') return 'All received coil lots avg ₦/kg';
+  if (s === 'receipt_avg') return `${days}d GRN receipt avg`;
+  if (s === 'none') return 'No price on file';
+  return source || '—';
+}
+
+function fmtPrice(v, suffix = '') {
+  if (v == null || v === '' || Number(v) <= 0) return '—';
+  return `${formatNgn(v)}${suffix}`;
+}
+
 const TH = 'px-1.5 py-1 text-left text-[8px] font-bold uppercase text-slate-600 border border-slate-300 print:text-[7pt]';
 const TD = 'px-1.5 py-0.5 text-[10px] text-slate-800 border border-slate-300 print:text-[8.5pt]';
 const TDR = `${TD} text-right tabular-nums`;
@@ -134,36 +149,69 @@ export function StockRegisterPrintContent({ register, branchId, branchLabel }) {
       ) : null}
 
       <section className="break-inside-avoid">
-        <h2 className="text-sm font-black uppercase tracking-wide text-[#134e4a] mb-2">E. Stock summary</h2>
-        <table className="w-full max-w-2xl border-collapse">
+        <h2 className="text-sm font-black uppercase tracking-wide text-[#134e4a] mb-2">E. Stock summary &amp; closing value</h2>
+        <table className="w-full border-collapse">
           <thead>
             <tr className="bg-slate-50">
               <th className={TH}>Section</th>
-              <th className={`${TH} text-right`}>Gross kg</th>
-              <th className={`${TH} text-right`}>Spool adj</th>
-              <th className={`${TH} text-right`}>Net kg</th>
-              <th className={`${TH} text-right`}>Value ₦</th>
+              <th className={`${TH} text-right`}>Closing qty</th>
+              <th className={`${TH} text-right`}>Spool adj (kg)</th>
+              <th className={`${TH} text-right`}>Net kg / qty</th>
+              <th className={`${TH} text-right`}>Unit price</th>
+              <th className={`${TH} text-right`}>Price basis</th>
+              <th className={`${TH} text-right`}>Closing ₦</th>
             </tr>
           </thead>
           <tbody>
             {[
-              ['Aluminium', register.summary?.aluminium],
-              ['Aluzinc', register.summary?.aluzinc],
-            ].map(([label, data]) => (
+              ['Aluminium', register.summary?.aluminium, 'kg', '/kg'],
+              ['Aluzinc', register.summary?.aluzinc, 'kg', '/kg'],
+            ].map(([label, data, unit, suffix]) => (
               <tr key={label}>
                 <td className={TD}>{label}</td>
-                <td className={TDR}>{fmtNum(data?.grossClosingKg)}</td>
+                <td className={TDR}>
+                  {fmtNum(data?.grossClosingKg)} {unit}
+                </td>
                 <td className={TDR}>{fmtNum(data?.spoolAdjustmentKg)}</td>
-                <td className={TDR}>{fmtNum(data?.netClosingKg)}</td>
+                <td className={TDR}>
+                  {fmtNum(data?.netClosingKg)} {unit}
+                </td>
+                <td className={TDR}>{fmtPrice(data?.unitCostNgnPerKg, suffix)}</td>
+                <td className={`${TD} text-right text-[9px] text-slate-600`}>
+                  {priceSourceNote(data?.priceSource, data?.priceLookbackDays)}
+                </td>
                 <td className={TDR}>{formatNgn(data?.valueNgn || 0)}</td>
               </tr>
             ))}
             <tr>
               <td className={TD}>Stone-coated</td>
-              <td className={TDR} colSpan={3}>
-                {fmtNum(register.summary?.stoneCoated?.totalRemainingM)} m
+              <td className={TDR} colSpan={2}>
+                {fmtNum(register.summary?.stoneCoated?.totalRemainingM)} m remaining
+              </td>
+              <td className={TDR}>{fmtNum(register.summary?.stoneCoated?.totalRemainingM)} m</td>
+              <td className={TDR}>{fmtPrice(register.summary?.stoneCoated?.unitPriceNgnPerM, '/m')}</td>
+              <td className={`${TD} text-right text-[9px] text-slate-600`}>
+                {priceSourceNote(register.summary?.stoneCoated?.priceSource, register.summary?.stoneCoated?.priceLookbackDays)}
               </td>
               <td className={TDR}>{formatNgn(register.summary?.stoneCoated?.valueNgn || 0)}</td>
+            </tr>
+            <tr>
+              <td className={TD}>Accessories</td>
+              <td className={TDR} colSpan={2}>
+                {register.accessories?.rowCount ?? 0} type(s)
+              </td>
+              <td className={TDR}>—</td>
+              <td className={TDR}>{fmtPrice(register.summary?.accessories?.unitPriceNgn, '/unit')}</td>
+              <td className={`${TD} text-right text-[9px] text-slate-600`}>
+                {priceSourceNote(register.summary?.accessories?.priceSource, register.summary?.accessories?.priceLookbackDays)}
+              </td>
+              <td className={TDR}>{formatNgn(register.summary?.accessories?.valueNgn || 0)}</td>
+            </tr>
+            <tr className="bg-teal-50/60 font-bold">
+              <td className={TD} colSpan={6}>
+                Total closing stock value
+              </td>
+              <td className={TDR}>{formatNgn(register.summary?.totalClosingValueNgn || 0)}</td>
             </tr>
           </tbody>
         </table>
@@ -187,7 +235,7 @@ export function StockRegisterPrintContent({ register, branchId, branchLabel }) {
                   <td className={TD}>{r.referenceNo}</td>
                   <td className={TD}>{r.itemName}</td>
                   <td className={TDR}>
-                    {fmtNum(r.qtyExpected)} {r.unit}
+                    {fmtNum(Math.max(0, r.qtyExpected))} {r.unit}
                   </td>
                   <td className={TD}>{r.etaDateIso || '—'}</td>
                 </tr>
