@@ -12,6 +12,7 @@ import { useInventory } from '../context/InventoryContext';
 import { useToast } from '../context/ToastContext';
 import { useWorkspace } from '../context/WorkspaceContext';
 import { apiFetch } from '../lib/apiBase';
+import { fmtConv2 } from '../lib/conversionKgPerM.js';
 
 function asNum(v) {
   const n = Number(v);
@@ -29,10 +30,6 @@ function avg(nums) {
   const rows = nums.filter((n) => Number.isFinite(n));
   if (!rows.length) return null;
   return rows.reduce((s, n) => s + n, 0) / rows.length;
-}
-
-function fmt3(v) {
-  return Number.isFinite(v) ? Number(v).toFixed(3) : '—';
 }
 
 function toneForAlert(alertState) {
@@ -83,6 +80,7 @@ export default function CoilProfile() {
     materialTypeName: '',
     currentKg: '',
     receivedKg: '',
+    stockForm: 'coil',
   });
   const [holdersMeta, setHoldersMeta] = useState(null);
   const [holdersLoading, setHoldersLoading] = useState(false);
@@ -108,6 +106,7 @@ export default function CoilProfile() {
       materialTypeName: String(coil.materialTypeName ?? coil.materialType ?? '').trim(),
       currentKg: cur > 0 ? String(cur) : '',
       receivedKg: recv > 0 ? String(recv) : '',
+      stockForm: String(coil.stockForm || 'coil').toLowerCase() === 'roll' ? 'roll' : 'coil',
     });
   }, [actionModal, coil]);
 
@@ -369,6 +368,7 @@ export default function CoilProfile() {
       colour: editForm.colour.trim(),
       gaugeLabel: editForm.gaugeLabel.trim(),
       materialTypeName: editForm.materialTypeName.trim(),
+      stockForm: editForm.stockForm,
     };
     if (recvStr) body.receivedKg = recvNum;
     if (curStr) body.currentWeightKg = curNum;
@@ -546,7 +546,7 @@ export default function CoilProfile() {
                       <span>job: <strong>{row.jobStatus || row.status || '—'}</strong></span>
                       <span>kg used: <strong>{row.kgUsed != null ? row.kgUsed.toLocaleString(undefined, { maximumFractionDigits: 2 }) : '—'}</strong></span>
                       <span>meter: <strong>{row.meters > 0 ? row.meters.toLocaleString() : '—'}</strong></span>
-                      <span>conversion: <strong>{fmt3(row.actualConv)}</strong></span>
+                      <span>conversion: <strong>{fmtConv2(row.actualConv)}</strong></span>
                       {(row.cuttingListId || row.jobID) ? (
                         <Link
                           to="/operations"
@@ -574,15 +574,15 @@ export default function CoilProfile() {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
               <div className="rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-3">
                 <p className="text-[9px] uppercase font-bold text-slate-400">Purchase conversion</p>
-                <p className="text-lg font-black text-[#134e4a] tabular-nums">{fmt3(purchaseConversion)}</p>
+                <p className="text-lg font-black text-[#134e4a] tabular-nums">{fmtConv2(purchaseConversion)}</p>
               </div>
               <div className="rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-3">
                 <p className="text-[9px] uppercase font-bold text-slate-400">Average conversion</p>
-                <p className="text-lg font-black text-[#134e4a] tabular-nums">{fmt3(avgActualConversion)}</p>
+                <p className="text-lg font-black text-[#134e4a] tabular-nums">{fmtConv2(avgActualConversion)}</p>
               </div>
               <div className="rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-3">
                 <p className="text-[9px] uppercase font-bold text-slate-400">Standard conversion</p>
-                <p className="text-lg font-black text-[#134e4a] tabular-nums">{fmt3(avgStandardConversion)}</p>
+                <p className="text-lg font-black text-[#134e4a] tabular-nums">{fmtConv2(avgStandardConversion)}</p>
               </div>
             </div>
             {linkedChecks.length === 0 ? (
@@ -595,9 +595,9 @@ export default function CoilProfile() {
                       {c.cuttingListId || c.jobID || '—'} <span className="text-slate-400">· {c.atISO || c.createdAtISO || '—'}</span>
                     </p>
                     <p className="mt-1 text-slate-600">
-                      actual <strong>{fmt3(Number(c.actualConversionKgPerM))}</strong> · standard{' '}
-                      <strong>{fmt3(Number(c.standardConversionKgPerM))}</strong> · purchase{' '}
-                      <strong>{fmt3(Number(c.supplierConversionKgPerM))}</strong>
+                      actual <strong>{fmtConv2(Number(c.actualConversionKgPerM))}</strong> · standard{' '}
+                      <strong>{fmtConv2(Number(c.standardConversionKgPerM))}</strong> · purchase{' '}
+                      <strong>{fmtConv2(Number(c.supplierConversionKgPerM))}</strong>
                     </p>
                     <p className="mt-1">
                       <span className={`inline-flex rounded px-1.5 py-0.5 border font-semibold ${toneForAlert(c.alertState)}`}>
@@ -679,6 +679,17 @@ export default function CoilProfile() {
           <label className="block">
             <span className="text-[10px] font-bold text-slate-500 uppercase">Material type (description)</span>
             <input className="z-input w-full mt-0.5" value={editForm.materialTypeName} onChange={(e) => setEditForm((f) => ({ ...f, materialTypeName: e.target.value }))} />
+          </label>
+          <label className="block">
+            <span className="text-[10px] font-bold text-slate-500 uppercase">Stock form</span>
+            <select
+              className="z-input w-full mt-0.5"
+              value={editForm.stockForm}
+              onChange={(e) => setEditForm((f) => ({ ...f, stockForm: e.target.value }))}
+            >
+              <option value="coil">Coil (gross kg — spool deducted in register)</option>
+              <option value="roll">Roll (net kg — no spool deduction)</option>
+            </select>
           </label>
           <label className="block">
             <span className="text-[10px] font-bold text-slate-500 uppercase">Current on-hand kg</span>

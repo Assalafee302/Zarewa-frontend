@@ -41,6 +41,7 @@ import {
 import { procurementKindFromPo } from '../lib/procurementPoKind';
 import { ReportsGlPilotSection } from '../components/reports/ReportsGlPilotSection.jsx';
 import { ExecutiveReportPacksSection } from '../components/reports/ExecutiveReportPacksSection.jsx';
+import { StockRegisterPanel } from '../components/reports/StockRegisterPanel.jsx';
 
 const PACK_PERIOD_COSTS_INVENTORY = 'Period costs & inventory (pack)';
 const PACK_CASH_BANK_AR = 'Cash, bank & AR reconciliation (pack)';
@@ -447,7 +448,7 @@ function buildProductionTransactionPrintPayload(raw) {
     afterKg: fmtK(r.afterKg),
     kgUsed: fmtK(r.kgUsed),
     meters: Number(r.meters).toLocaleString('en-NG', { maximumFractionDigits: 2 }),
-    conversionKgM: r.conversionKgM != null ? Number(r.conversionKgM).toFixed(3) : '—',
+    conversionKgM: r.conversionKgM != null ? Number(r.conversionKgM).toFixed(2) : '—',
     design: r.design,
     offcutKg: r.offcutKg != null ? fmtK(r.offcutKg) : '—',
     paid: r.paidNgn != null ? formatNgn(r.paidNgn) : '—',
@@ -1595,6 +1596,22 @@ const Reports = () => {
             endDate={endDate}
             hasFinanceView={ws.hasPermission('finance.view')}
             showToast={showToast}
+          />
+        ) : null}
+
+        {ws.hasPermission('reports.view') ? (
+          <StockRegisterPanel
+            endDate={endDate}
+            branchId={ws.viewAllBranches ? '' : ws.branchScope || ws.session?.currentBranchId || ''}
+            branchLabel={
+              ws.viewAllBranches
+                ? ''
+                : (ws.snapshot?.branches || []).find(
+                    (b) => String(b.id || b.branchId) === String(ws.branchScope || ws.session?.currentBranchId)
+                  )?.name || ws.branchScope
+            }
+            showToast={showToast}
+            roleKey={ws.session?.user?.roleKey}
           />
         ) : null}
 
