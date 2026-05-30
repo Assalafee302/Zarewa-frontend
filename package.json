@@ -6,6 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "build:serve:lan": "vite build",
+    "build:hostinger": "vite build",
     "preview": "vite preview",
     "lint": "eslint .",
     "test": "vitest run",
