@@ -418,8 +418,9 @@ function coilTxnToExport(r, family, gauge) {
     design: r.design,
     metres: r.meters,
     conversionKgM: r.conversionKgM ?? '',
-    offcutKg: r.offcutKg ?? '',
-    paidNetNgn: r.amountNetNgn ?? '',
+        offcutKg: r.offcutKg ?? '',
+        remark: r.remark ?? '',
+        paidNetNgn: r.amountNetNgn ?? '',
     attributedNgn: r.attributedNgn ?? '',
     jobId: r.jobId,
   };
@@ -452,35 +453,30 @@ function materialTransactionExcelSheets(report) {
       })),
     });
   }
-  const stoneRows = [
-    ...(report.stoneCoated?.meterRows || []).map((r) => ({
-      section: 'Stone_m',
-      date: r.txnDate,
-      quotation: r.qtNoDisplay,
-      customerProject: r.customerProject,
-      colour: r.colour,
-      metresUsed: r.qtyUsed,
-      product: r.productLabel,
-      paidNetNgn: r.amountNetNgn ?? '',
-    })),
-    ...(report.stoneCoated?.flatsheetRows || []).map((r) => ({
-      section: 'Stone_flatsheet',
-      date: r.txnDate,
-      quotation: r.qtNoDisplay,
-      customerProject: r.customerProject,
-      line: r.itemName,
-      lengthM: r.lengthM,
-      suppliedM2: r.suppliedM2,
-      deductionM2: r.deductionM2,
-    })),
-  ];
+  const stoneRows = [];
+  for (const g of report.stoneCoated?.groups || []) {
+    for (const r of g.rows) {
+      stoneRows.push({
+        gauge: g.gaugeLabel,
+        date: r.txnDateDisplay || r.txnDate,
+        quotation: r.qtNoDisplay,
+        customerProject: r.customerProject,
+        colour: r.colour,
+        design: r.design,
+        beforeM: r.beforeM,
+        metresUsed: r.metresUsed,
+        afterM: r.afterM,
+        paidNetNgn: r.amountNetNgn ?? '',
+      });
+    }
+  }
   if (stoneRows.length) sheets.push({ name: 'Stone_coated', rows: stoneRows });
   const accRows = [];
   for (const g of report.accessories?.groups || []) {
     for (const r of g.rows) {
       accRows.push({
         section: g.typeLabel,
-        date: r.txnDate,
+        date: r.txnDateDisplay || r.txnDate,
         quotation: r.qtNoDisplay,
         customerProject: r.customerProject,
         item: r.itemName,
@@ -499,34 +495,13 @@ function materialTransactionExcelSheets(report) {
     status: 'Cancelled',
   }));
   if (cancelled.length) sheets.push({ name: 'Cancelled', rows: cancelled });
-  const otherRows = [];
-  for (const [cat, label] of [
-    ['aluminium', 'Other_alu'],
-    ['aluzinc', 'Other_aluzinc'],
-    ['stoneCoated', 'Other_stone'],
-    ['accessories', 'Other_acc'],
-    ['other', 'Other'],
-  ]) {
-    for (const r of report.otherMovements?.[cat] || []) {
-      otherRows.push({
-        category: label,
-        date: r.txnDate,
-        type: r.movementType,
-        ref: r.ref,
-        product: r.productName,
-        qtyDelta: r.qtyDelta,
-        unit: r.unit,
-        detail: r.detail,
-      });
-    }
-  }
-  if (otherRows.length) sheets.push({ name: 'Other_movements', rows: otherRows });
   return sheets;
 }
 
 function materialTransactionHasRows(report) {
   if (!report) return false;
   if (report.offcutProduction?.rows?.length) return true;
+  if (report.stoneCoated?.groups?.length) return true;
   return materialTransactionExcelSheets(report).some((s) => s.rows.length > 0);
 }
 

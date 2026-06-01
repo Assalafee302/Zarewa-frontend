@@ -5,6 +5,8 @@ const TH =
   'px-1 py-0.5 text-left text-[7px] font-bold uppercase text-slate-600 border border-slate-300 print:text-[6.5pt] whitespace-nowrap';
 const TD = 'px-1 py-0.5 text-[9px] text-slate-800 border border-slate-300 print:text-[7.5pt]';
 const TDR = `${TD} text-right tabular-nums`;
+const TF = 'px-1 py-1 text-[9px] font-bold text-slate-800 border border-slate-300 bg-slate-100 print:text-[7.5pt]';
+const TFR = `${TF} text-right tabular-nums`;
 
 function fmtNum(v, d = 2) {
   if (v == null || v === '') return '—';
@@ -16,6 +18,25 @@ function fmtNum(v, d = 2) {
 function fmtMoney(v) {
   if (v == null || v === '') return '—';
   return formatNgn(v);
+}
+
+function SubtotalRow({ sub }) {
+  return (
+    <tr className="bg-slate-100/90">
+      <td className={TF} colSpan={5}>
+        Subtotal ({sub.lineCount} lines)
+      </td>
+      <td className={TF} />
+      <td className={TF} />
+      <td className={TFR}>{fmtNum(sub.totalKgUsed)}</td>
+      <td className={TF} />
+      <td className={TFR}>{fmtNum(sub.totalMeters)}</td>
+      <td className={TFR}>{sub.weightedConversionKgM != null ? fmtNum(sub.weightedConversionKgM) : '—'}</td>
+      <td className={TFR}>{sub.totalOffcutKg > 0 ? fmtNum(sub.totalOffcutKg) : '—'}</td>
+      <td className={TF} />
+      <td className={TFR}>{sub.totalPaidNetNgn > 0 ? fmtMoney(sub.totalPaidNetNgn) : '—'}</td>
+    </tr>
+  );
 }
 
 function CoilSection({ title, section }) {
@@ -32,23 +53,14 @@ function CoilSection({ title, section }) {
       <h3 className="text-xs font-black uppercase text-[#134e4a] mb-2">{title}</h3>
       {section.groups.map((g) => (
         <div key={g.gaugeLabel} className="mb-4 break-inside-avoid">
-          <p className="text-[10px] font-bold text-slate-800 mb-1">
-            Gauge {g.gaugeLabel}
-            <span className="font-normal text-slate-600 ml-2">
-              · {g.subtotals.lineCount} lines · {fmtNum(g.subtotals.totalKgUsed)} kg · {fmtNum(g.subtotals.totalMeters)}{' '}
-              m
-              {g.subtotals.weightedConversionKgM != null
-                ? ` · conv ${fmtNum(g.subtotals.weightedConversionKgM)} kg/m`
-                : ''}
-            </span>
-          </p>
+          <p className="text-[10px] font-bold text-slate-800 mb-1">Gauge {g.gaugeLabel}</p>
           <table className="w-full border-collapse">
             <thead>
               <tr className="bg-slate-50">
                 <th className={TH}>Date</th>
                 <th className={TH}>Qt</th>
                 <th className={TH}>Customer / project</th>
-                <th className={TH}>Colour</th>
+                <th className={TH}>Col</th>
                 <th className={TH}>Coil</th>
                 <th className={`${TH} text-right`}>Before</th>
                 <th className={`${TH} text-right`}>After</th>
@@ -57,6 +69,7 @@ function CoilSection({ title, section }) {
                 <th className={`${TH} text-right`}>Metres</th>
                 <th className={`${TH} text-right`}>kg/m</th>
                 <th className={`${TH} text-right`}>Offcut</th>
+                <th className={TH}>Remark</th>
                 <th className={`${TH} text-right`}>Paid (net)</th>
               </tr>
             </thead>
@@ -75,20 +88,21 @@ function CoilSection({ title, section }) {
                   <td className={TDR}>{fmtNum(r.meters)}</td>
                   <td className={TDR}>{r.conversionKgM != null ? fmtNum(r.conversionKgM) : '—'}</td>
                   <td className={TDR}>{r.offcutKg != null ? fmtNum(r.offcutKg) : '—'}</td>
+                  <td className={`${TD} text-[8px]`}>{r.remark || '—'}</td>
                   <td className={TDR}>{r.amountNetNgn != null ? fmtMoney(r.amountNetNgn) : '—'}</td>
                 </tr>
               ))}
+              <SubtotalRow sub={g.subtotals} />
             </tbody>
           </table>
         </div>
       ))}
       {section.totals ? (
-        <p className="text-[10px] font-bold text-slate-700">
-          Family total: {fmtNum(section.totals.totalKgUsed)} kg · {fmtNum(section.totals.totalMeters)} m
+        <p className="text-[10px] font-bold text-slate-700 border-t border-slate-300 pt-2">
+          {title} total: {fmtNum(section.totals.totalKgUsed)} kg · {fmtNum(section.totals.totalMeters)} m
           {section.totals.weightedConversionKgM != null
             ? ` · avg ${fmtNum(section.totals.weightedConversionKgM)} kg/m`
             : ''}
-          {section.totals.totalPaidNetNgn > 0 ? ` · paid (net) ${fmtMoney(section.totals.totalPaidNetNgn)}` : ''}
         </p>
       ) : null}
     </section>
@@ -96,87 +110,65 @@ function CoilSection({ title, section }) {
 }
 
 function StoneSection({ stone }) {
-  const hasMeter = stone?.meterRows?.length > 0;
-  const hasFlat = stone?.flatsheetRows?.length > 0;
-  if (!hasMeter && !hasFlat) {
+  if (!stone?.groups?.length) {
     return (
       <section className="mb-6">
-        <h3 className="text-xs font-black uppercase text-[#134e4a] mb-2">Stone-coated</h3>
-        <p className="text-[10px] text-slate-500 italic">No stone-coated usage this period.</p>
+        <h3 className="text-xs font-black uppercase text-[#134e4a] mb-2">Stone-coated (metre stock)</h3>
+        <p className="text-[10px] text-slate-500 italic">No stone metre draws this period.</p>
       </section>
     );
   }
   return (
     <section className="mb-6">
-      <h3 className="text-xs font-black uppercase text-[#134e4a] mb-2">Stone-coated</h3>
-      {hasMeter ? (
-        <div className="mb-4 break-inside-avoid">
-          <p className="text-[10px] font-bold text-slate-800 mb-1">Metre stock (raw stone draw)</p>
+      <h3 className="text-xs font-black uppercase text-[#134e4a] mb-2">Stone-coated (metre stock)</h3>
+      {stone.groups.map((g) => (
+        <div key={g.gaugeLabel} className="mb-4 break-inside-avoid">
+          <p className="text-[10px] font-bold text-slate-800 mb-1">Gauge {g.gaugeLabel}</p>
           <table className="w-full border-collapse">
             <thead>
               <tr className="bg-slate-50">
                 <th className={TH}>Date</th>
                 <th className={TH}>Qt</th>
                 <th className={TH}>Customer / project</th>
-                <th className={TH}>Colour</th>
-                <th className={TH}>Product</th>
-                <th className={`${TH} text-right`}>m used</th>
+                <th className={TH}>Col</th>
+                <th className={TH}>Design</th>
+                <th className={`${TH} text-right`}>Before m</th>
+                <th className={`${TH} text-right`}>Used m</th>
+                <th className={`${TH} text-right`}>After m</th>
                 <th className={`${TH} text-right`}>Paid (net)</th>
               </tr>
             </thead>
             <tbody>
-              {stone.meterRows.map((r, i) => (
+              {g.rows.map((r, i) => (
                 <tr key={`${r.jobId}-${i}`}>
                   <td className={TD}>{r.txnDateDisplay || r.txnDate}</td>
                   <td className={`${TD} font-mono`}>{r.qtNoDisplay}</td>
                   <td className={TD}>{r.customerProject}</td>
                   <td className={TD}>{r.colour}</td>
-                  <td className={TD}>{r.productLabel}</td>
-                  <td className={TDR}>{fmtNum(r.qtyUsed)}</td>
+                  <td className={TD}>{r.design}</td>
+                  <td className={TDR}>{r.beforeM != null ? fmtNum(r.beforeM) : '—'}</td>
+                  <td className={TDR}>{fmtNum(r.metresUsed)}</td>
+                  <td className={TDR}>{r.afterM != null ? fmtNum(r.afterM) : '—'}</td>
                   <td className={TDR}>{fmtMoney(r.amountNetNgn)}</td>
                 </tr>
               ))}
-            </tbody>
-          </table>
-          <p className="text-[10px] text-slate-600 mt-1">
-            Total {fmtNum(stone.meterTotals?.totalMeters)} m · {stone.meterRows.length} jobs
-          </p>
-        </div>
-      ) : null}
-      {hasFlat ? (
-        <div className="break-inside-avoid">
-          <p className="text-[10px] font-bold text-slate-800 mb-1">Flatsheet m² deductions</p>
-          <table className="w-full border-collapse">
-            <thead>
-              <tr className="bg-slate-50">
-                <th className={TH}>Date</th>
-                <th className={TH}>Qt</th>
-                <th className={TH}>Customer / project</th>
-                <th className={TH}>Line</th>
-                <th className={`${TH} text-right`}>Length m</th>
-                <th className={`${TH} text-right`}>Supplied m²</th>
-                <th className={`${TH} text-right`}>Deduction m²</th>
+              <tr className="bg-slate-100/90">
+                <td className={TF} colSpan={6}>
+                  Subtotal ({g.subtotals.lineCount} lines)
+                </td>
+                <td className={TF} />
+                <td className={TFR}>{fmtNum(g.subtotals.totalMetresUsed)}</td>
+                <td className={TF} />
+                <td className={TFR}>{g.subtotals.totalPaidNetNgn > 0 ? fmtMoney(g.subtotals.totalPaidNetNgn) : '—'}</td>
               </tr>
-            </thead>
-            <tbody>
-              {stone.flatsheetRows.map((r, i) => (
-                <tr key={`${r.jobId}-${i}`}>
-                  <td className={TD}>{r.txnDateDisplay || r.txnDate}</td>
-                  <td className={`${TD} font-mono`}>{r.qtNoDisplay}</td>
-                  <td className={TD}>{r.customerProject}</td>
-                  <td className={TD}>{r.itemName}</td>
-                  <td className={TDR}>{fmtNum(r.lengthM)}</td>
-                  <td className={TDR}>{fmtNum(r.suppliedM2)}</td>
-                  <td className={TDR}>{fmtNum(r.deductionM2)}</td>
-                </tr>
-              ))}
             </tbody>
           </table>
-          <p className="text-[10px] text-slate-600 mt-1">
-            Supplied {fmtNum(stone.flatsheetTotals?.totalSuppliedM2)} m² · deducted{' '}
-            {fmtNum(stone.flatsheetTotals?.totalDeductionM2)} m²
-          </p>
         </div>
+      ))}
+      {stone.totals ? (
+        <p className="text-[10px] font-bold text-slate-700 border-t border-slate-300 pt-2">
+          Stone total: {fmtNum(stone.totals.totalMetresUsed)} m used
+        </p>
       ) : null}
     </section>
   );
@@ -219,6 +211,13 @@ function AccessorySection({ accessories }) {
                   <td className={TD}>{r.unit}</td>
                 </tr>
               ))}
+              <tr className="bg-slate-100/90">
+                <td className={TF} colSpan={4}>
+                  Subtotal ({g.subtotals.lineCount} lines)
+                </td>
+                <td className={TFR}>{fmtNum(g.subtotals.totalQtyUsed, 0)}</td>
+                <td className={TF} />
+              </tr>
             </tbody>
           </table>
         </div>
@@ -256,7 +255,7 @@ function CancelledSection({ cancelled }) {
           <tbody>
             {coil.map((r, i) => (
               <tr key={`c-${i}`}>
-                <td className={TD}>{r.txnDate}</td>
+                <td className={TD}>{r.txnDateDisplay || r.txnDate}</td>
                 <td className={TD}>{r.qtNoDisplay}</td>
                 <td className={TD}>{r.customerProject}</td>
                 <td className={TD}>{r.coilNoDisplay}</td>
@@ -267,59 +266,12 @@ function CancelledSection({ cancelled }) {
           </tbody>
         </table>
       ) : null}
-      <p className="text-[9px] text-slate-500">
-        Includes cancelled jobs dated in this period (coil reservations released; quantities may be zero).
-      </p>
     </section>
-  );
-}
-
-function OtherMovementsSection({ other, label }) {
-  const rows = other || [];
-  if (!rows.length) return null;
-  return (
-    <div className="mb-4 break-inside-avoid">
-      <p className="text-[10px] font-bold text-slate-800 mb-1">{label}</p>
-      <table className="w-full border-collapse">
-        <thead>
-          <tr className="bg-slate-50">
-            <th className={TH}>Date</th>
-            <th className={TH}>Type</th>
-            <th className={TH}>Ref</th>
-            <th className={TH}>Product</th>
-            <th className={`${TH} text-right`}>Qty Δ</th>
-            <th className={TH}>Unit</th>
-            <th className={TH}>Detail</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((r, i) => (
-            <tr key={`${r.ref}-${i}`}>
-              <td className={TD}>{r.txnDate}</td>
-              <td className={TD}>{r.movementType}</td>
-              <td className={`${TD} font-mono text-[8px]`}>{r.ref}</td>
-              <td className={TD}>{r.productName}</td>
-              <td className={TDR}>{fmtNum(r.qtyDelta)}</td>
-              <td className={TD}>{r.unit}</td>
-              <td className={`${TD} text-[8px]`}>{r.detail}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
   );
 }
 
 export function MaterialTransactionPrintContent({ report, branchLabel, periodLabel }) {
   if (!report) return null;
-  const other = report.otherMovements || {};
-  const hasOther =
-    (other.aluminium?.length || 0) +
-      (other.aluzinc?.length || 0) +
-      (other.stoneCoated?.length || 0) +
-      (other.accessories?.length || 0) +
-      (other.other?.length || 0) >
-    0;
 
   return (
     <div className="text-slate-800 space-y-2">
@@ -327,8 +279,8 @@ export function MaterialTransactionPrintContent({ report, branchLabel, periodLab
         <p className="text-[10px] font-bold text-slate-600">{branchLabel}</p>
         <p className="text-[10px] text-slate-600">{periodLabel}</p>
         <p className="text-[9px] text-slate-500 mt-1">
-          Dates as DD/MM; Qt and coil show last 4 digits. Offcut column is coil weight variance only (≥1 kg). Stone
-          and accessories are separate sections — not mixed into coil gauges.
+          DD/MM dates; Qt and coil = last 4 digits. Design from quotation (Metra, Indus 6, Metcoppo, Flatsheet).
+          Remark: new coil / roll at start, finished when coil cleared.
         </p>
       </div>
       <CoilSection title="Aluminium" section={report.aluminium} />
@@ -339,9 +291,6 @@ export function MaterialTransactionPrintContent({ report, branchLabel, periodLab
       {report.offcutProduction?.rows?.length ? (
         <section className="mb-6 break-inside-avoid">
           <h3 className="text-xs font-black uppercase text-[#134e4a] mb-2">Offcut / no coil allocation</h3>
-          <p className="text-[9px] text-slate-500 mb-2">
-            Production completed from offcut or without coil lines — not coil offcut variance.
-          </p>
           <table className="w-full border-collapse">
             <thead>
               <tr className="bg-slate-50">
@@ -351,7 +300,6 @@ export function MaterialTransactionPrintContent({ report, branchLabel, periodLab
                 <th className={TH}>Design</th>
                 <th className={`${TH} text-right`}>Metres</th>
                 <th className={`${TH} text-right`}>Kg</th>
-                <th className={`${TH} text-right`}>Paid (net)</th>
               </tr>
             </thead>
             <tbody>
@@ -363,7 +311,6 @@ export function MaterialTransactionPrintContent({ report, branchLabel, periodLab
                   <td className={TD}>{r.design}</td>
                   <td className={TDR}>{fmtNum(r.metres)}</td>
                   <td className={TDR}>{fmtNum(r.kgUsed)}</td>
-                  <td className={TDR}>{fmtMoney(r.amountNetNgn)}</td>
                 </tr>
               ))}
             </tbody>
@@ -373,19 +320,6 @@ export function MaterialTransactionPrintContent({ report, branchLabel, periodLab
       <StoneSection stone={report.stoneCoated} />
       <AccessorySection accessories={report.accessories} />
       <CancelledSection cancelled={report.cancelled} />
-      {hasOther ? (
-        <section className="mb-6">
-          <h3 className="text-xs font-black uppercase text-[#134e4a] mb-2">Other stock movements</h3>
-          <p className="text-[9px] text-slate-500 mb-2">
-            GRNs, adjustments, transfers, and sales issues not already listed under production above.
-          </p>
-          <OtherMovementsSection other={other.aluminium} label="Aluminium / coil SKU" />
-          <OtherMovementsSection other={other.aluzinc} label="Aluzinc / coil SKU" />
-          <OtherMovementsSection other={other.stoneCoated} label="Stone-coated products" />
-          <OtherMovementsSection other={other.accessories} label="Accessories" />
-          <OtherMovementsSection other={other.other} label="Other" />
-        </section>
-      ) : null}
     </div>
   );
 }
