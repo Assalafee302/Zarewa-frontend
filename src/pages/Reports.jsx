@@ -42,6 +42,7 @@ import { procurementKindFromPo } from '../lib/procurementPoKind';
 import { ReportsGlPilotSection } from '../components/reports/ReportsGlPilotSection.jsx';
 import { ExecutiveReportPacksSection } from '../components/reports/ExecutiveReportPacksSection.jsx';
 import { StockRegisterPanel } from '../components/reports/StockRegisterPanel.jsx';
+import { MaterialTransactionPrintModal } from '../components/reports/MaterialTransactionPrintModal.jsx';
 
 const PACK_PERIOD_COSTS_INVENTORY = 'Period costs & inventory (pack)';
 const PACK_CASH_BANK_AR = 'Cash, bank & AR reconciliation (pack)';
@@ -49,7 +50,7 @@ const PACK_GL_AUDIT = 'General ledger audit (period)';
 const PACK_SALES_CUSTOMER = 'Sales report';
 const PACK_REFUND_PERIOD = 'Refund report';
 const PACK_OPS_PROCUREMENT = 'Operations & procurement (pack)';
-const PACK_PRODUCTION_TRANSACTION = 'Production transaction register';
+const PACK_MATERIAL_TRANSACTION = 'Material transaction register';
 const PACK_MATERIAL_EXCEPTIONS = 'Material exceptions (offcut)';
 
 function rowsPeriodCostsInventoryPack(expenses, paymentRequests, coilLots, movements, startDate, endDate) {
@@ -387,9 +388,9 @@ const MORE_OPERATIONAL_REPORTS = [
     formats: ['Excel', 'CSV'],
   },
   {
-    id: 'production-transaction-register',
-    title: PACK_PRODUCTION_TRANSACTION,
-    desc: 'Completed jobs in period: qt, production date, customer, coil colour/gauge, weights, metres, conversion, paid/refund (quote), material cost.',
+    id: 'material-transaction-register',
+    title: PACK_MATERIAL_TRANSACTION,
+    desc: 'All material activity in period: aluminium & aluzinc by gauge (coil sort), stone-coated, accessories, cancelled jobs, and other stock movements.',
     icon: Table2,
     formats: ['Excel', 'CSV'],
   },
@@ -402,97 +403,123 @@ const MORE_OPERATIONAL_REPORTS = [
   },
 ];
 
-function productionTransactionExportRows(raw) {
-  return (raw || []).map((r) => {
-    const { jobId, ...x } = r;
-    void jobId;
-    const qt = x.qtNoDisplay ?? displayDocNumber(x.qtNo) ?? x.qtNo;
-    const coil = x.coilNoDisplay ?? displayDocNumber(x.coilNo) ?? x.coilNo;
-    return {
-      qt,
-      prodDate: x.prodDate,
-      customer: x.customer,
-      material: x.materialType ?? '',
-      color: x.color,
-      gauge: x.gauge,
-      coil,
-      beforeKg: x.beforeKg,
-      afterKg: x.afterKg,
-      kgUsed: x.kgUsed,
-      meters: x.meters,
-      conversionKgM: x.conversionKgM ?? '',
-      design: x.design,
-      offcutKg: x.offcutKg ?? '',
-      paidNgn: x.paidNgn ?? '',
-      refundPaidNgn: x.refundPaidNgn ?? '',
-      materialCostNgn: x.materialCostNgn,
-    };
-  });
+function coilTxnToExport(r, family, gauge) {
+  return {
+    section: family,
+    gauge: gauge || r.gauge,
+    date: r.txnDate,
+    quotation: r.qtNoDisplay,
+    customerProject: r.customerProject,
+    colour: r.colour,
+    coilNo: r.coilNoDisplay,
+    beforeKg: r.beforeKg,
+    afterKg: r.afterKg,
+    kgUsed: r.kgUsed,
+    design: r.design,
+    metres: r.meters,
+    conversionKgM: r.conversionKgM ?? '',
+    offcutKg: r.offcutKg ?? '',
+    paidNetNgn: r.amountNetNgn ?? '',
+    attributedNgn: r.attributedNgn ?? '',
+    jobId: r.jobId,
+  };
 }
 
-function buildProductionTransactionPrintPayload(raw) {
-  const fmtK = (n) => {
-    const v = Number(n);
-    if (!Number.isFinite(v)) return '—';
-    return v.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+function materialTransactionExcelSheets(report) {
+  if (!report) return [];
+  const sheets = [];
+  const pushCoil = (name, section, familyLabel) => {
+    const rows = [];
+    for (const g of section?.groups || []) {
+      for (const r of g.rows) rows.push(coilTxnToExport(r, familyLabel, g.gaugeLabel));
+    }
+    if (rows.length) sheets.push({ name, rows });
   };
-  const rows = (raw || []).map((r) => ({
-    qt: r.qtNoDisplay ?? displayDocNumber(r.qtNo) ?? r.qtNo,
-    prodDate: r.prodDate,
-    customer: r.customer,
-    material: r.materialType ?? '—',
-    color: r.color,
+  pushCoil('Aluminium', report.aluminium, 'Aluminium');
+  pushCoil('Aluzinc', report.aluzinc, 'Aluzinc');
+  const stoneRows = [
+    ...(report.stoneCoated?.meterRows || []).map((r) => ({
+      section: 'Stone_m',
+      date: r.txnDate,
+      quotation: r.qtNoDisplay,
+      customerProject: r.customerProject,
+      colour: r.colour,
+      metresUsed: r.qtyUsed,
+      product: r.productLabel,
+      paidNetNgn: r.amountNetNgn ?? '',
+    })),
+    ...(report.stoneCoated?.flatsheetRows || []).map((r) => ({
+      section: 'Stone_flatsheet',
+      date: r.txnDate,
+      quotation: r.qtNoDisplay,
+      customerProject: r.customerProject,
+      line: r.itemName,
+      lengthM: r.lengthM,
+      suppliedM2: r.suppliedM2,
+      deductionM2: r.deductionM2,
+    })),
+  ];
+  if (stoneRows.length) sheets.push({ name: 'Stone_coated', rows: stoneRows });
+  const accRows = [];
+  for (const g of report.accessories?.groups || []) {
+    for (const r of g.rows) {
+      accRows.push({
+        section: g.typeLabel,
+        date: r.txnDate,
+        quotation: r.qtNoDisplay,
+        customerProject: r.customerProject,
+        item: r.itemName,
+        qtyIssued: r.qtyUsed,
+        unit: r.unit,
+      });
+    }
+  }
+  if (accRows.length) sheets.push({ name: 'Accessories', rows: accRows });
+  const cancelled = (report.cancelled?.coil || []).map((r) => ({
+    date: r.txnDate,
+    quotation: r.qtNoDisplay,
+    customerProject: r.customerProject,
+    coilNo: r.coilNoDisplay,
     gauge: r.gauge,
-    coil: r.coilNoDisplay ?? displayDocNumber(r.coilNo) ?? r.coilNo,
-    beforeKg: fmtK(r.beforeKg),
-    afterKg: fmtK(r.afterKg),
-    kgUsed: fmtK(r.kgUsed),
-    meters: Number(r.meters).toLocaleString('en-NG', { maximumFractionDigits: 2 }),
-    conversionKgM: r.conversionKgM != null ? Number(r.conversionKgM).toFixed(2) : '—',
-    design: r.design,
-    offcutKg: r.offcutKg != null ? fmtK(r.offcutKg) : '—',
-    paid: r.paidNgn != null ? formatNgn(r.paidNgn) : '—',
-    refund: r.refundPaidNgn != null ? formatNgn(r.refundPaidNgn) : '—',
-    cost: formatNgn(r.materialCostNgn),
+    status: 'Cancelled',
   }));
-  return {
-    title: PACK_PRODUCTION_TRANSACTION,
-    columns: [
-      { key: 'qt', label: 'Qt' },
-      { key: 'prodDate', label: 'Prod. date' },
-      { key: 'customer', label: 'Customer' },
-      { key: 'material', label: 'Material' },
-      { key: 'color', label: 'Color' },
-      { key: 'gauge', label: 'Gauge' },
-      { key: 'coil', label: 'Coil' },
-      { key: 'beforeKg', label: 'Before kg' },
-      { key: 'afterKg', label: 'After kg' },
-      { key: 'kgUsed', label: 'Kg used' },
-      { key: 'meters', label: 'Metres' },
-      { key: 'conversionKgM', label: 'kg/m' },
-      { key: 'design', label: 'Design' },
-      { key: 'offcutKg', label: 'Offcut kg' },
-      { key: 'paid', label: 'Paid' },
-      { key: 'refund', label: 'Refund' },
-      { key: 'cost', label: 'Cost' },
-    ],
-    rows,
-    summaryLines: [
-      { label: 'Rows (coil lines)', value: String(rows.length) },
-      {
-        label: 'Paid / refund',
-        value: 'Shown once per job (first coil row) to avoid double-count.',
-      },
-      {
-        label: 'Offcut kg',
-        value: 'Non-zero opening − used − closing only (trace check).',
-      },
-      {
-        label: 'Cost',
-        value: 'Consumed kg × coil unit ₦/kg when GRN cost exists.',
-      },
-    ],
-  };
+  if (cancelled.length) sheets.push({ name: 'Cancelled', rows: cancelled });
+  const otherRows = [];
+  for (const [cat, label] of [
+    ['aluminium', 'Other_alu'],
+    ['aluzinc', 'Other_aluzinc'],
+    ['stoneCoated', 'Other_stone'],
+    ['accessories', 'Other_acc'],
+    ['other', 'Other'],
+  ]) {
+    for (const r of report.otherMovements?.[cat] || []) {
+      otherRows.push({
+        category: label,
+        date: r.txnDate,
+        type: r.movementType,
+        ref: r.ref,
+        product: r.productName,
+        qtyDelta: r.qtyDelta,
+        unit: r.unit,
+        detail: r.detail,
+      });
+    }
+  }
+  if (otherRows.length) sheets.push({ name: 'Other_movements', rows: otherRows });
+  return sheets;
+}
+
+function materialTransactionHasRows(report) {
+  return materialTransactionExcelSheets(report).some((s) => s.rows.length > 0);
+}
+
+async function fetchMaterialTransactionReport(apiFetch, startDate, endDate) {
+  const q = `startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}`;
+  const { ok, data } = await apiFetch(`/api/reports/material-transaction?${q}`);
+  if (!ok || !data?.ok) {
+    return { ok: false, error: data?.error || 'Could not load material transaction report.' };
+  }
+  return { ok: true, report: data.report };
 }
 
 const PANEL = 'z-panel-section';
@@ -654,6 +681,8 @@ const Reports = () => {
   const [printPayload, setPrintPayload] = useState(null);
   const [printLayout, setPrintLayout] = useState('portrait');
   const [printDense, setPrintDense] = useState(false);
+  const [materialTxnReport, setMaterialTxnReport] = useState(null);
+  const [materialTxnPrintOpen, setMaterialTxnPrintOpen] = useState(false);
   const [exceptionClosureNotes, setExceptionClosureNotes] = useState({});
 
   useEffect(() => {
@@ -1327,25 +1356,27 @@ const Reports = () => {
       return;
     }
 
-    if (name === PACK_PRODUCTION_TRANSACTION) {
-      const q = `startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}`;
-      const { ok, data } = await apiFetch(`/api/reports/production-transaction?${q}`);
-      if (!ok || !data?.ok) {
-        showToast(data?.error || 'Could not load production transaction report.', { variant: 'error' });
+    if (name === PACK_MATERIAL_TRANSACTION) {
+      const res = await fetchMaterialTransactionReport(apiFetch, startDate, endDate);
+      if (!res.ok) {
+        showToast(res.error, { variant: 'error' });
         return;
       }
-      const flat = productionTransactionExportRows(data.rows || []);
-      if (!flat.length) {
-        showToast('No completed production rows in the selected range.', { variant: 'info' });
+      const sheets = materialTransactionExcelSheets(res.report);
+      if (!materialTransactionHasRows(res.report)) {
+        showToast('No material transactions in the selected range.', { variant: 'info' });
         return;
       }
       if (fmt === 'Excel') {
         const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(flat), 'Production_txn');
+        for (const s of sheets) {
+          XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(s.rows), s.name.slice(0, 31));
+        }
         XLSX.writeFile(wb, `${packSlug}.xlsx`);
-        showToast(`${name} exported as Excel.`);
+        showToast(`${name} exported as Excel (${sheets.length} sheets).`);
         return;
       }
+      const flat = sheets.flatMap((s) => s.rows.map((row) => ({ sheet: s.name, ...row })));
       downloadRows(name, flat, fmt);
       showToast(`${name} exported as ${fmt}.`);
       return;
@@ -1401,22 +1432,18 @@ const Reports = () => {
       setPrintOpen(true);
       return;
     }
-    if (name === PACK_PRODUCTION_TRANSACTION) {
-      const q = `startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}`;
-      const { ok, data } = await apiFetch(`/api/reports/production-transaction?${q}`);
-      if (!ok || !data?.ok) {
-        showToast(data?.error || 'Could not load production transaction report.', { variant: 'error' });
+    if (name === PACK_MATERIAL_TRANSACTION) {
+      const res = await fetchMaterialTransactionReport(apiFetch, startDate, endDate);
+      if (!res.ok) {
+        showToast(res.error, { variant: 'error' });
         return;
       }
-      const raw = data.rows || [];
-      if (!raw.length) {
-        showToast('No completed production rows in the selected range.', { variant: 'info' });
+      if (!materialTransactionHasRows(res.report)) {
+        showToast('No material transactions in the selected range.', { variant: 'info' });
         return;
       }
-      setPrintLayout('landscape');
-      setPrintDense(true);
-      setPrintPayload(buildProductionTransactionPrintPayload(raw));
-      setPrintOpen(true);
+      setMaterialTxnReport(res.report);
+      setMaterialTxnPrintOpen(true);
       return;
     }
     const cfg = getPrintConfig(name);
@@ -1426,6 +1453,17 @@ const Reports = () => {
 
   return (
     <PageShell>
+      <MaterialTransactionPrintModal
+        open={materialTxnPrintOpen && !!materialTxnReport}
+        onClose={() => {
+          setMaterialTxnPrintOpen(false);
+          setMaterialTxnReport(null);
+        }}
+        report={materialTxnReport}
+        branchLabel={ws.branchLabel || ws.branchId}
+        periodLabel={periodLabel}
+      />
+
       <ReportPrintModal
         isOpen={printOpen && !!printPayload}
         onClose={() => {
@@ -1444,7 +1482,7 @@ const Reports = () => {
 
       <PageHeader
         title="Reports"
-        subtitle="Period dashboards plus consolidated export packs (costs, cash/AR, GL, sales, operations with coil/stone/accessory context). Expand “More” for sales/ops packs and the production transaction register."
+        subtitle="Period dashboards plus consolidated export packs (costs, cash/AR, GL, sales, operations). Expand “More” for the material transaction register (alu/aluzinc by gauge, stone, accessories, cancelled, other movements)."
       />
       {ws.hasPermission('exec.dashboard.view') ? (
         <p className="text-sm font-medium text-slate-600 -mt-4 mb-6 sm:-mt-6 sm:mb-8 max-w-2xl leading-relaxed">
