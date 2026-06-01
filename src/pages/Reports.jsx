@@ -407,7 +407,7 @@ function coilTxnToExport(r, family, gauge) {
   return {
     section: family,
     gauge: gauge || r.gauge,
-    date: r.txnDate,
+    date: r.txnDateDisplay || r.txnDate,
     quotation: r.qtNoDisplay,
     customerProject: r.customerProject,
     colour: r.colour,
@@ -437,6 +437,21 @@ function materialTransactionExcelSheets(report) {
   };
   pushCoil('Aluminium', report.aluminium, 'Aluminium');
   pushCoil('Aluzinc', report.aluzinc, 'Aluzinc');
+  pushCoil('Coil_unclassified', report.unclassifiedCoil, 'Coil_unclassified');
+  if (report.offcutProduction?.rows?.length) {
+    sheets.push({
+      name: 'Offcut_production',
+      rows: report.offcutProduction.rows.map((r) => ({
+        date: r.txnDateDisplay || r.txnDate,
+        quotation: r.qtNoDisplay,
+        customerProject: r.customerProject,
+        design: r.design,
+        metres: r.metres,
+        kgUsed: r.kgUsed,
+        paidNetNgn: r.amountNetNgn ?? '',
+      })),
+    });
+  }
   const stoneRows = [
     ...(report.stoneCoated?.meterRows || []).map((r) => ({
       section: 'Stone_m',
@@ -476,7 +491,7 @@ function materialTransactionExcelSheets(report) {
   }
   if (accRows.length) sheets.push({ name: 'Accessories', rows: accRows });
   const cancelled = (report.cancelled?.coil || []).map((r) => ({
-    date: r.txnDate,
+    date: r.txnDateDisplay || r.txnDate,
     quotation: r.qtNoDisplay,
     customerProject: r.customerProject,
     coilNo: r.coilNoDisplay,
@@ -510,6 +525,8 @@ function materialTransactionExcelSheets(report) {
 }
 
 function materialTransactionHasRows(report) {
+  if (!report) return false;
+  if (report.offcutProduction?.rows?.length) return true;
   return materialTransactionExcelSheets(report).some((s) => s.rows.length > 0);
 }
 

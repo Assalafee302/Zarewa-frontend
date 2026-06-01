@@ -63,7 +63,7 @@ function CoilSection({ title, section }) {
             <tbody>
               {g.rows.map((r, i) => (
                 <tr key={`${r.jobId}-${r.coilNo}-${i}`}>
-                  <td className={TD}>{r.txnDate}</td>
+                  <td className={TD}>{r.txnDateDisplay || r.txnDate}</td>
                   <td className={`${TD} font-mono`}>{r.qtNoDisplay}</td>
                   <td className={TD}>{r.customerProject}</td>
                   <td className={TD}>{r.colour}</td>
@@ -127,7 +127,7 @@ function StoneSection({ stone }) {
             <tbody>
               {stone.meterRows.map((r, i) => (
                 <tr key={`${r.jobId}-${i}`}>
-                  <td className={TD}>{r.txnDate}</td>
+                  <td className={TD}>{r.txnDateDisplay || r.txnDate}</td>
                   <td className={`${TD} font-mono`}>{r.qtNoDisplay}</td>
                   <td className={TD}>{r.customerProject}</td>
                   <td className={TD}>{r.colour}</td>
@@ -161,7 +161,7 @@ function StoneSection({ stone }) {
             <tbody>
               {stone.flatsheetRows.map((r, i) => (
                 <tr key={`${r.jobId}-${i}`}>
-                  <td className={TD}>{r.txnDate}</td>
+                  <td className={TD}>{r.txnDateDisplay || r.txnDate}</td>
                   <td className={`${TD} font-mono`}>{r.qtNoDisplay}</td>
                   <td className={TD}>{r.customerProject}</td>
                   <td className={TD}>{r.itemName}</td>
@@ -211,7 +211,7 @@ function AccessorySection({ accessories }) {
             <tbody>
               {g.rows.map((r, i) => (
                 <tr key={`${r.jobId}-${i}`}>
-                  <td className={TD}>{r.txnDate}</td>
+                  <td className={TD}>{r.txnDateDisplay || r.txnDate}</td>
                   <td className={`${TD} font-mono`}>{r.qtNoDisplay}</td>
                   <td className={TD}>{r.customerProject}</td>
                   <td className={TD}>{r.itemName}</td>
@@ -327,12 +327,49 @@ export function MaterialTransactionPrintContent({ report, branchLabel, periodLab
         <p className="text-[10px] font-bold text-slate-600">{branchLabel}</p>
         <p className="text-[10px] text-slate-600">{periodLabel}</p>
         <p className="text-[9px] text-slate-500 mt-1">
-          Production completions and other stock movements. Paid (net) = quotation receipts minus refunds paid
-          (once per job, first coil line). Conversion subtotals are kg-weighted (Σ kg ÷ Σ m).
+          Dates as DD/MM; Qt and coil show last 4 digits. Offcut column is coil weight variance only (≥1 kg). Stone
+          and accessories are separate sections — not mixed into coil gauges.
         </p>
       </div>
       <CoilSection title="Aluminium" section={report.aluminium} />
       <CoilSection title="Aluzinc" section={report.aluzinc} />
+      {report.unclassifiedCoil?.groups?.length ? (
+        <CoilSection title="Coil (check material on GRN)" section={report.unclassifiedCoil} />
+      ) : null}
+      {report.offcutProduction?.rows?.length ? (
+        <section className="mb-6 break-inside-avoid">
+          <h3 className="text-xs font-black uppercase text-[#134e4a] mb-2">Offcut / no coil allocation</h3>
+          <p className="text-[9px] text-slate-500 mb-2">
+            Production completed from offcut or without coil lines — not coil offcut variance.
+          </p>
+          <table className="w-full border-collapse">
+            <thead>
+              <tr className="bg-slate-50">
+                <th className={TH}>Date</th>
+                <th className={TH}>Qt</th>
+                <th className={TH}>Customer / project</th>
+                <th className={TH}>Design</th>
+                <th className={`${TH} text-right`}>Metres</th>
+                <th className={`${TH} text-right`}>Kg</th>
+                <th className={`${TH} text-right`}>Paid (net)</th>
+              </tr>
+            </thead>
+            <tbody>
+              {report.offcutProduction.rows.map((r, i) => (
+                <tr key={`${r.jobId}-${i}`}>
+                  <td className={TD}>{r.txnDateDisplay || r.txnDate}</td>
+                  <td className={`${TD} font-mono`}>{r.qtNoDisplay}</td>
+                  <td className={TD}>{r.customerProject}</td>
+                  <td className={TD}>{r.design}</td>
+                  <td className={TDR}>{fmtNum(r.metres)}</td>
+                  <td className={TDR}>{fmtNum(r.kgUsed)}</td>
+                  <td className={TDR}>{fmtMoney(r.amountNetNgn)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+      ) : null}
       <StoneSection stone={report.stoneCoated} />
       <AccessorySection accessories={report.accessories} />
       <CancelledSection cancelled={report.cancelled} />
