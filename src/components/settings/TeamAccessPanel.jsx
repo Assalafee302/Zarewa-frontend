@@ -1,5 +1,5 @@
 import React, { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
-import { Settings2, Trash2, UserPlus } from 'lucide-react';
+import { Eye, EyeOff, Settings2, Trash2, UserPlus } from 'lucide-react';
 import { ModalFrame } from '../layout';
 import { apiFetch } from '../../lib/apiBase';
 import { useToast } from '../../context/ToastContext';
@@ -65,6 +65,8 @@ export default function TeamAccessPanel({ appUsers, currentUserId, onRefresh }) 
     branchId: '',
   });
   const canGenerateResetCodes = ['admin', 'md'].includes(String(ws?.session?.user?.roleKey || '').toLowerCase());
+  const isAdmin = String(ws?.session?.user?.roleKey || '').toLowerCase() === 'admin';
+  const [showPasswords, setShowPasswords] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -412,9 +414,16 @@ export default function TeamAccessPanel({ appUsers, currentUserId, onRefresh }) 
           typing their username (same safety rules as suspending privileged admins apply). Changing a role clears
           custom permission overrides and applies that role’s template. The team role is the same value stored as
           workspace “department” for routing shortcuts.
+          {isAdmin ? (
+            <>
+              {' '}
+              Admins can reveal each user’s registered password (set at account creation). It is cleared if the user
+              changes their own password.
+            </>
+          ) : null}
         </p>
 
-        <div className="mb-4">
+        <div className="mb-4 flex flex-wrap items-center gap-2">
           <button
             type="button"
             onClick={() => {
@@ -429,6 +438,17 @@ export default function TeamAccessPanel({ appUsers, currentUserId, onRefresh }) 
           >
             <UserPlus size={16} /> Create user
           </button>
+          {isAdmin ? (
+            <button
+              type="button"
+              onClick={() => setShowPasswords((v) => !v)}
+              className="z-btn-secondary gap-2 !text-[11px]"
+              title="Show or hide registered passwords for all users"
+            >
+              {showPasswords ? <EyeOff size={16} /> : <Eye size={16} />}
+              {showPasswords ? 'Hide passwords' : 'Show passwords'}
+            </button>
+          ) : null}
         </div>
 
         {appUsers.length === 0 ? (
@@ -442,6 +462,9 @@ export default function TeamAccessPanel({ appUsers, currentUserId, onRefresh }) 
                   <th className="px-3 py-2.5">Branch</th>
                   <th className="px-3 py-2.5">Role</th>
                   <th className="px-3 py-2.5">Status</th>
+                  {isAdmin && showPasswords ? (
+                    <th className="px-3 py-2.5">Registered password</th>
+                  ) : null}
                   <th className="px-3 py-2.5">Permissions</th>
                 </tr>
               </thead>
@@ -518,6 +541,22 @@ export default function TeamAccessPanel({ appUsers, currentUserId, onRefresh }) 
                           <option value="suspended">suspended</option>
                         </select>
                       </td>
+                      {isAdmin && showPasswords ? (
+                        <td className="px-3 py-3 align-middle max-w-[12rem]">
+                          {user.registeredPassword ? (
+                            <code className="text-[11px] font-mono text-slate-800 break-all">
+                              {user.registeredPassword}
+                            </code>
+                          ) : (
+                            <span
+                              className="text-xs text-slate-400"
+                              title="Not stored or cleared after the user changed their password"
+                            >
+                              —
+                            </span>
+                          )}
+                        </td>
+                      ) : null}
                       <td className="px-3 py-3 align-middle whitespace-nowrap">
                         <div className="flex flex-wrap items-center gap-1.5">
                           <button
@@ -557,7 +596,10 @@ export default function TeamAccessPanel({ appUsers, currentUserId, onRefresh }) 
                       </td>
                       </tr>
                       <tr className="bg-slate-50/80">
-                        <td colSpan={5} className="px-3 py-2 border-b border-slate-100">
+                        <td
+                          colSpan={isAdmin && showPasswords ? 6 : 5}
+                          className="px-3 py-2 border-b border-slate-100"
+                        >
                           <EditSecondApprovalInline
                             entityKind="user"
                             entityId={user.id}
