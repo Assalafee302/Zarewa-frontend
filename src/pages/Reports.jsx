@@ -495,6 +495,17 @@ function materialTransactionExcelSheets(report) {
     status: 'Cancelled',
   }));
   if (cancelled.length) sheets.push({ name: 'Cancelled', rows: cancelled });
+  const notProduced = (report.listedNotProduced?.rows || []).map((r) => ({
+    listedDate: r.txnDateDisplay || r.txnDate,
+    quotation: r.qtNoDisplay,
+    customerProject: r.customerProject,
+    design: r.design,
+    status: r.status,
+    plannedM: r.plannedMeters,
+    machine: r.machineName,
+    jobId: r.jobId,
+  }));
+  if (notProduced.length) sheets.push({ name: 'Listed_not_produced', rows: notProduced });
   return sheets;
 }
 
@@ -502,6 +513,7 @@ function materialTransactionHasRows(report) {
   if (!report) return false;
   if (report.offcutProduction?.rows?.length) return true;
   if (report.stoneCoated?.groups?.length) return true;
+  if (report.listedNotProduced?.rows?.length) return true;
   return materialTransactionExcelSheets(report).some((s) => s.rows.length > 0);
 }
 

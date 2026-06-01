@@ -236,6 +236,54 @@ function AccessorySection({ accessories }) {
   );
 }
 
+function ListedNotProducedSection({ section }) {
+  const rows = section?.rows || [];
+  if (!rows.length) {
+    return (
+      <section className="mb-6">
+        <h3 className="text-xs font-black uppercase text-slate-700 mb-2">Listed for production — not produced</h3>
+        <p className="text-[10px] text-slate-500 italic">None in period.</p>
+      </section>
+    );
+  }
+  return (
+    <section className="mb-6 break-inside-avoid">
+      <h3 className="text-xs font-black uppercase text-slate-700 mb-2">
+        Listed for production — not produced ({rows.length})
+      </h3>
+      <p className="text-[9px] text-slate-500 mb-2">
+        Registered on the production queue in this period but job not completed.
+      </p>
+      <table className="w-full border-collapse">
+        <thead>
+          <tr className="bg-slate-50">
+            <th className={TH}>Listed</th>
+            <th className={TH}>Qt</th>
+            <th className={TH}>Customer / project</th>
+            <th className={TH}>Design</th>
+            <th className={TH}>Status</th>
+            <th className={`${TH} text-right`}>Planned m</th>
+            <th className={TH}>Machine</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r, i) => (
+            <tr key={`${r.jobId}-${i}`}>
+              <td className={TD}>{r.txnDateDisplay || r.txnDate}</td>
+              <td className={`${TD} font-mono`}>{r.qtNoDisplay}</td>
+              <td className={TD}>{r.customerProject}</td>
+              <td className={TD}>{r.design}</td>
+              <td className={TD}>{r.status}</td>
+              <td className={TDR}>{fmtNum(r.plannedMeters)}</td>
+              <td className={TD}>{r.machineName}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </section>
+  );
+}
+
 function CancelledSection({ cancelled }) {
   const n = cancelled?.totals?.lineCount || 0;
   if (!n) {
@@ -290,7 +338,7 @@ export function MaterialTransactionPrintContent({ report, branchLabel, periodLab
         <p className="text-[10px] text-slate-600">{periodLabel}</p>
         <p className="text-[9px] text-slate-500 mt-1">
           DD/MM dates; Qt and coil = last 4 digits. Design from quotation (Metra, Indus 6, Metcoppo, Flatsheet).
-          Remark: new coil / roll at start, finished when coil cleared. Amber before = does not match previous after on same coil / stone stock.
+          Remark: New coil / New roll on first production use of a coil; Finished on the line that clears the coil. Amber before = gap vs previous after.
         </p>
       </div>
       <CoilSection title="Aluminium" section={report.aluminium} />
@@ -329,6 +377,7 @@ export function MaterialTransactionPrintContent({ report, branchLabel, periodLab
       ) : null}
       <StoneSection stone={report.stoneCoated} />
       <AccessorySection accessories={report.accessories} />
+      <ListedNotProducedSection section={report.listedNotProduced} />
       <CancelledSection cancelled={report.cancelled} />
     </div>
   );
