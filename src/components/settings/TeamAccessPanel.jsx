@@ -1,5 +1,5 @@
 import React, { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
-import { Eye, EyeOff, Settings2, Trash2, UserPlus } from 'lucide-react';
+import { Settings2, Trash2, UserPlus } from 'lucide-react';
 import { ModalFrame } from '../layout';
 import { apiFetch } from '../../lib/apiBase';
 import { useToast } from '../../context/ToastContext';
@@ -64,9 +64,9 @@ export default function TeamAccessPanel({ appUsers, currentUserId, onRefresh }) 
     roleKey: 'sales_staff',
     branchId: '',
   });
-  const canGenerateResetCodes = ['admin', 'md'].includes(String(ws?.session?.user?.roleKey || '').toLowerCase());
-  const isAdmin = String(ws?.session?.user?.roleKey || '').toLowerCase() === 'admin';
-  const [showPasswords, setShowPasswords] = useState(false);
+  const roleKey = String(ws?.session?.user?.roleKey || '').toLowerCase();
+  const canGenerateResetCodes = ['admin', 'md'].includes(roleKey);
+  const canViewPasswords = ['admin', 'md', 'hr_admin'].includes(roleKey);
 
   useEffect(() => {
     let cancelled = false;
@@ -199,6 +199,35 @@ export default function TeamAccessPanel({ appUsers, currentUserId, onRefresh }) 
           ? 'User suspended. Active sessions for this account were ended.'
           : 'User reactivated.'
       );
+      await refresh();
+    } finally {
+      setRowBusyId('');
+    }
+  };
+
+  const setUserPassword = async (user) => {
+    if (!user?.id || !canViewPasswords) return;
+    const next = window.prompt(
+      `Set password for ${user.displayName} (${user.username}). They will need to sign in again.`,
+      ''
+    );
+    if (next == null) return;
+    const password = String(next).trim();
+    if (!password) {
+      showToast('Password was not entered.', { variant: 'error' });
+      return;
+    }
+    setRowBusyId(user.id);
+    try {
+      const { ok, data } = await apiFetch(`/api/users/${encodeURIComponent(user.id)}/password`, {
+        method: 'PATCH',
+        body: JSON.stringify({ password }),
+      });
+      if (!ok || !data?.ok) {
+        showToast(data?.error || 'Could not set password.', { variant: 'error' });
+        return;
+      }
+      showToast(`Password updated for ${user.username}.`);
       await refresh();
     } finally {
       setRowBusyId('');
@@ -414,11 +443,11 @@ export default function TeamAccessPanel({ appUsers, currentUserId, onRefresh }) 
           typing their username (same safety rules as suspending privileged admins apply). Changing a role clears
           custom permission overrides and applies that role’s template. The team role is the same value stored as
           workspace “department” for routing shortcuts.
-          {isAdmin ? (
+          {canViewPasswords ? (
             <>
               {' '}
-              Admins can reveal each user’s registered password (set at account creation). It is cleared if the user
-              changes their own password.
+              Passwords are shown for accounts you manage (set at creation, import, or last password change). Seeded
+              demo logins still show their default password when unchanged.
             </>
           ) : null}
         </p>
@@ -438,17 +467,6 @@ export default function TeamAccessPanel({ appUsers, currentUserId, onRefresh }) 
           >
             <UserPlus size={16} /> Create user
           </button>
-          {isAdmin ? (
-            <button
-              type="button"
-              onClick={() => setShowPasswords((v) => !v)}
-              className="z-btn-secondary gap-2 !text-[11px]"
-              title="Show or hide registered passwords for all users"
-            >
-              {showPasswords ? <EyeOff size={16} /> : <Eye size={16} />}
-              {showPasswords ? 'Hide passwords' : 'Show passwords'}
-            </button>
-          ) : null}
         </div>
 
         {appUsers.length === 0 ? (
@@ -462,9 +480,7 @@ export default function TeamAccessPanel({ appUsers, currentUserId, onRefresh }) 
                   <th className="px-3 py-2.5">Branch</th>
                   <th className="px-3 py-2.5">Role</th>
                   <th className="px-3 py-2.5">Status</th>
-                  {isAdmin && showPasswords ? (
-                    <th className="px-3 py-2.5">Registered password</th>
-                  ) : null}
+                  {canViewPasswords ? <th className="px-3 py-2.5">Password</th> : null}
                   <th className="px-3 py-2.5">Permissions</th>
                 </tr>
               </thead>
@@ -541,19 +557,22 @@ export default function TeamAccessPanel({ appUsers, currentUserId, onRefresh }) 
                           <option value="suspended">suspended</option>
                         </select>
                       </td>
-                      {isAdmin && showPasswords ? (
+                      {canViewPasswords ? (
                         <td className="px-3 py-3 align-middle max-w-[12rem]">
                           {user.registeredPassword ? (
                             <code className="text-[11px] font-mono text-slate-800 break-all">
                               {user.registeredPassword}
                             </code>
                           ) : (
-                            <span
-                              className="text-xs text-slate-400"
-                              title="Not stored or cleared after the user changed their password"
+                            <button
+                              type="button"
+                              disabled={busy}
+                              onClick={() => void setUserPassword(user)}
+                              className="text-[10px] font-semibold text-teal-800 underline underline-offset-2 hover:text-teal-950 disabled:opacity-50"
+                              title="Set and save a password for this user"
                             >
-                              —
-                            </span>
+                              Set password
+                            </button>
                           )}
                         </td>
                       ) : null}
@@ -597,7 +616,7 @@ export default function TeamAccessPanel({ appUsers, currentUserId, onRefresh }) 
                       </tr>
                       <tr className="bg-slate-50/80">
                         <td
-                          colSpan={isAdmin && showPasswords ? 6 : 5}
+                          colSpan={canViewPasswords ? 6 : 5}
                           className="px-3 py-2 border-b border-slate-100"
                         >
                           <EditSecondApprovalInline
