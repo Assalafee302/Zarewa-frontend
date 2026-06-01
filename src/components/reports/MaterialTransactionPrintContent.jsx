@@ -81,7 +81,12 @@ function CoilSection({ title, section }) {
                   <td className={TD}>{r.customerProject}</td>
                   <td className={TD}>{r.colour}</td>
                   <td className={`${TD} font-mono`}>{r.coilNoDisplay}</td>
-                  <td className={TDR}>{fmtNum(r.beforeKg)}</td>
+                  <td
+                    className={`${TDR}${r.balanceBreak ? ' bg-amber-50 text-amber-900 font-semibold' : ''}`}
+                    title={r.balanceNote || undefined}
+                  >
+                    {fmtNum(r.beforeKg)}
+                  </td>
                   <td className={TDR}>{fmtNum(r.afterKg)}</td>
                   <td className={TDR}>{fmtNum(r.kgUsed)}</td>
                   <td className={TD}>{r.design}</td>
@@ -146,7 +151,12 @@ function StoneSection({ stone }) {
                   <td className={TD}>{r.customerProject}</td>
                   <td className={TD}>{r.colour}</td>
                   <td className={TD}>{r.design}</td>
-                  <td className={TDR}>{r.beforeM != null ? fmtNum(r.beforeM) : '—'}</td>
+                  <td
+                    className={`${TDR}${r.balanceBreak ? ' bg-amber-50 text-amber-900 font-semibold' : ''}`}
+                    title={r.balanceNote || undefined}
+                  >
+                    {r.beforeM != null ? fmtNum(r.beforeM) : '—'}
+                  </td>
                   <td className={TDR}>{fmtNum(r.metresUsed)}</td>
                   <td className={TDR}>{r.afterM != null ? fmtNum(r.afterM) : '—'}</td>
                   <td className={TDR}>{fmtMoney(r.amountNetNgn)}</td>
@@ -280,7 +290,7 @@ export function MaterialTransactionPrintContent({ report, branchLabel, periodLab
         <p className="text-[10px] text-slate-600">{periodLabel}</p>
         <p className="text-[9px] text-slate-500 mt-1">
           DD/MM dates; Qt and coil = last 4 digits. Design from quotation (Metra, Indus 6, Metcoppo, Flatsheet).
-          Remark: new coil / roll at start, finished when coil cleared.
+          Remark: new coil / roll at start, finished when coil cleared. Amber before = does not match previous after on same coil / stone stock.
         </p>
       </div>
       <CoilSection title="Aluminium" section={report.aluminium} />
