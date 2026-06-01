@@ -43,6 +43,7 @@ import { ReportsGlPilotSection } from '../components/reports/ReportsGlPilotSecti
 import { ExecutiveReportPacksSection } from '../components/reports/ExecutiveReportPacksSection.jsx';
 import { StockRegisterPanel } from '../components/reports/StockRegisterPanel.jsx';
 import { MaterialTransactionPrintModal } from '../components/reports/MaterialTransactionPrintModal.jsx';
+import { PurchaseReportPrintModal } from '../components/reports/PurchaseReportPrintModal.jsx';
 
 const PACK_PERIOD_COSTS_INVENTORY = 'Period costs & inventory (pack)';
 const PACK_CASH_BANK_AR = 'Cash, bank & AR reconciliation (pack)';
@@ -51,6 +52,7 @@ const PACK_SALES_CUSTOMER = 'Sales report';
 const PACK_REFUND_PERIOD = 'Refund report';
 const PACK_OPS_PROCUREMENT = 'Operations & procurement (pack)';
 const PACK_MATERIAL_TRANSACTION = 'Material transaction register';
+const PACK_PURCHASE_REGISTER = 'Purchase register';
 const PACK_MATERIAL_EXCEPTIONS = 'Material exceptions (offcut)';
 
 function rowsPeriodCostsInventoryPack(expenses, paymentRequests, coilLots, movements, startDate, endDate) {
@@ -395,6 +397,13 @@ const MORE_OPERATIONAL_REPORTS = [
     formats: ['Excel', 'CSV'],
   },
   {
+    id: 'purchase-register',
+    title: PACK_PURCHASE_REGISTER,
+    desc: 'GRN purchases in period by material and gauge: coil kg, stone metres, accessories; supplier payments and PO outstanding.',
+    icon: Table2,
+    formats: ['Excel', 'CSV'],
+  },
+  {
     id: 'material-exceptions-pack',
     title: PACK_MATERIAL_EXCEPTIONS,
     desc: 'Loss by type, offcut aging (open pool metres), and pool reconciliation (incident + legacy buckets).',
@@ -575,6 +584,146 @@ async function fetchMaterialTransactionReport(apiFetch, startDate, endDate) {
   return { ok: true, report: data.report };
 }
 
+function coilPurchaseExport(r, material, gauge) {
+  return {
+    section: material,
+    gauge: gauge || r.gauge,
+    date: r.txnDateDisplay || r.txnDate,
+    supplier: r.supplier,
+    coilNo: r.coilNoDisplay,
+    colour: r.colour,
+    po: r.poIdDisplay,
+    receivedKg: r.receivedKg,
+    orderKg: r.orderKg ?? '',
+    kgAmountNgn: r.kgAmountNgn ?? '',
+    totalNgn: r.totalNgn ?? '',
+    remark: r.remark ?? '',
+  };
+}
+
+function qtyPurchaseExport(r, material, groupLabel) {
+  return {
+    section: material,
+    group: groupLabel,
+    date: r.txnDateDisplay || r.txnDate,
+    supplier: r.supplier,
+    ref: r.coilNoDisplay,
+    item: r.productName,
+    po: r.poIdDisplay,
+    received: r.receivedQty,
+    unit: r.unitLabel,
+    ordered: r.orderQty ?? '',
+    unitPriceNgn: r.kgAmountNgn ?? '',
+    totalNgn: r.totalNgn ?? '',
+    remark: r.remark ?? '',
+  };
+}
+
+function purchaseRegisterExcelSheets(report) {
+  if (!report) return [];
+  const sheets = [];
+  const summaryRows = [];
+  for (const m of report.summary?.byMaterial || []) {
+    summaryRows.push({
+      rowType: 'Material',
+      section: m.label,
+      lines: m.lineCount,
+      received: m.received,
+      unit: m.receivedUnit,
+      valueNgn: m.totalValueNgn,
+    });
+  }
+  for (const g of report.summary?.byGauge || []) {
+    summaryRows.push({
+      rowType: 'Gauge',
+      material: g.material,
+      gauge: g.gaugeLabel,
+      lines: g.lineCount,
+      received: g.received,
+      unit: g.receivedUnit,
+      valueNgn: g.totalValueNgn,
+    });
+  }
+  for (const t of report.summary?.observations || []) summaryRows.push({ rowType: 'Observation', text: t });
+  for (const t of report.summary?.recommendations || []) summaryRows.push({ rowType: 'Recommendation', text: t });
+  const p = report.summary?.payments || {};
+  summaryRows.push({
+    rowType: 'Payments',
+    receivedValueNgn: p.receivedValueNgn ?? 0,
+    paidInPeriodNgn: p.paidInPeriodNgn ?? 0,
+    poOutstandingNgn: p.poOutstandingNgn ?? 0,
+  });
+  if (summaryRows.length) sheets.push({ name: 'Summary', rows: summaryRows });
+
+  const pushCoil = (name, section, label) => {
+    const rows = [];
+    for (const g of section?.groups || []) {
+      for (const r of g.rows) rows.push(coilPurchaseExport(r, label, g.gaugeLabel));
+    }
+    if (rows.length) sheets.push({ name, rows });
+  };
+  pushCoil('Aluminium', report.aluminium, 'Aluminium');
+  pushCoil('Aluzinc', report.aluzinc, 'Aluzinc');
+  pushCoil('Coil_unclassified', report.unclassifiedCoil, 'Coil_unclassified');
+
+  const stoneRows = [];
+  for (const g of report.stoneCoated?.groups || []) {
+    for (const r of g.rows) stoneRows.push(qtyPurchaseExport(r, 'Stone', g.gaugeLabel));
+  }
+  if (stoneRows.length) sheets.push({ name: 'Stone_coated', rows: stoneRows });
+
+  const accRows = [];
+  for (const g of report.accessories?.groups || []) {
+    for (const r of g.rows) accRows.push(qtyPurchaseExport(r, 'Accessories', g.typeLabel));
+  }
+  if (accRows.length) sheets.push({ name: 'Accessories', rows: accRows });
+
+  if (report.payments?.supplierPayments?.length) {
+    sheets.push({
+      name: 'Supplier_payments',
+      rows: report.payments.supplierPayments.map((p) => ({
+        date: p.paidDateISO,
+        supplier: p.supplier,
+        amountNgn: p.amountNgn,
+        po: p.sourceIdDisplay,
+        reference: p.reference,
+        bank: p.bankAccount,
+      })),
+    });
+  }
+  if (report.payments?.poBalances?.length) {
+    sheets.push({
+      name: 'PO_outstanding',
+      rows: report.payments.poBalances.map((p) => ({
+        po: p.poIdDisplay,
+        supplier: p.supplier,
+        status: p.status,
+        poValueNgn: p.poValueNgn,
+        paidTotalNgn: p.supplierPaidNgn,
+        paidInPeriodNgn: p.paidInPeriodNgn,
+        outstandingNgn: p.outstandingNgn,
+        remark: p.remark,
+      })),
+    });
+  }
+  return sheets;
+}
+
+function purchaseRegisterHasRows(report) {
+  if (!report) return false;
+  if (report.summary?.byMaterial?.length) return true;
+  return purchaseRegisterExcelSheets(report).some((s) => s.rows.length > 0);
+}
+
+async function fetchPurchaseRegisterReport(apiFetch, startDate, endDate) {
+  const q = `startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}`;
+  const { ok, data } = await apiFetch(`/api/reports/purchase-register?${q}`);
+  if (!ok || !data?.ok) {
+    return { ok: false, error: data?.error || 'Could not load purchase register report.' };
+  }
+  return { ok: true, report: data.report };
+}
+
 const PANEL = 'z-panel-section';
 const SUBHDR = 'z-section-title mb-4';
 
@@ -736,6 +885,8 @@ const Reports = () => {
   const [printDense, setPrintDense] = useState(false);
   const [materialTxnReport, setMaterialTxnReport] = useState(null);
   const [materialTxnPrintOpen, setMaterialTxnPrintOpen] = useState(false);
+  const [purchaseReport, setPurchaseReport] = useState(null);
+  const [purchasePrintOpen, setPurchasePrintOpen] = useState(false);
   const [exceptionClosureNotes, setExceptionClosureNotes] = useState({});
 
   useEffect(() => {
@@ -1435,6 +1586,32 @@ const Reports = () => {
       return;
     }
 
+    if (name === PACK_PURCHASE_REGISTER) {
+      const res = await fetchPurchaseRegisterReport(apiFetch, startDate, endDate);
+      if (!res.ok) {
+        showToast(res.error, { variant: 'error' });
+        return;
+      }
+      const sheets = purchaseRegisterExcelSheets(res.report);
+      if (!purchaseRegisterHasRows(res.report)) {
+        showToast('No purchase receipts in the selected range.', { variant: 'info' });
+        return;
+      }
+      if (fmt === 'Excel') {
+        const wb = XLSX.utils.book_new();
+        for (const s of sheets) {
+          XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(s.rows), s.name.slice(0, 31));
+        }
+        XLSX.writeFile(wb, `${packSlug}.xlsx`);
+        showToast(`${name} exported as Excel (${sheets.length} sheets).`);
+        return;
+      }
+      const flat = sheets.flatMap((s) => s.rows.map((row) => ({ sheet: s.name, ...row })));
+      downloadRows(name, flat, fmt);
+      showToast(`${name} exported as ${fmt}.`);
+      return;
+    }
+
     const rows = getExportRows(name);
     if (!rows.length) {
       showToast(`No rows for ${name.toLowerCase()} in the selected range.`, { variant: 'info' });
@@ -1499,6 +1676,20 @@ const Reports = () => {
       setMaterialTxnPrintOpen(true);
       return;
     }
+    if (name === PACK_PURCHASE_REGISTER) {
+      const res = await fetchPurchaseRegisterReport(apiFetch, startDate, endDate);
+      if (!res.ok) {
+        showToast(res.error, { variant: 'error' });
+        return;
+      }
+      if (!purchaseRegisterHasRows(res.report)) {
+        showToast('No purchase receipts in the selected range.', { variant: 'info' });
+        return;
+      }
+      setPurchaseReport(res.report);
+      setPurchasePrintOpen(true);
+      return;
+    }
     const cfg = getPrintConfig(name);
     setPrintPayload(cfg);
     setPrintOpen(true);
@@ -1513,6 +1704,17 @@ const Reports = () => {
           setMaterialTxnReport(null);
         }}
         report={materialTxnReport}
+        branchLabel={ws.branchLabel || ws.branchId}
+        periodLabel={periodLabel}
+      />
+
+      <PurchaseReportPrintModal
+        open={purchasePrintOpen && !!purchaseReport}
+        onClose={() => {
+          setPurchasePrintOpen(false);
+          setPurchaseReport(null);
+        }}
+        report={purchaseReport}
         branchLabel={ws.branchLabel || ws.branchId}
         periodLabel={periodLabel}
       />
