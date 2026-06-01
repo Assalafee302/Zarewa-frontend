@@ -390,7 +390,7 @@ const MORE_OPERATIONAL_REPORTS = [
   {
     id: 'material-transaction-register',
     title: PACK_MATERIAL_TRANSACTION,
-    desc: 'All material activity in period: aluminium & aluzinc by gauge (coil sort), stone-coated, accessories, cancelled jobs, and other stock movements.',
+    desc: 'Material activity in period with summary totals by material and gauge, observations, aluminium/aluzinc/stone detail, accessories, not produced, and cancelled.',
     icon: Table2,
     formats: ['Excel', 'CSV'],
   },
@@ -426,9 +426,57 @@ function coilTxnToExport(r, family, gauge) {
   };
 }
 
+function materialTransactionSummaryExcelRows(summary) {
+  if (!summary) return [];
+  const rows = [];
+  for (const m of summary.byMaterial || []) {
+    rows.push({
+      rowType: 'Material',
+      section: m.label,
+      lines: m.lineCount,
+      kgUsed: m.kgUsed ?? '',
+      metres: m.metres ?? '',
+      offcutKg: m.offcutKg ?? '',
+      qtyIssued: m.qtyIssued ?? '',
+      paidNetNgn: m.paidNetNgn ?? '',
+    });
+  }
+  for (const g of summary.byGauge || []) {
+    rows.push({
+      rowType: 'Gauge',
+      material: g.material,
+      gauge: g.gaugeLabel,
+      lines: g.lineCount,
+      kgUsed: g.kgUsed ?? '',
+      metres: g.metres ?? '',
+      avgKgM: g.avgKgM ?? '',
+      stoneMetresUsed: g.metresUsed ?? '',
+    });
+  }
+  for (const t of summary.observations || []) {
+    rows.push({ rowType: 'Observation', text: t });
+  }
+  for (const t of summary.recommendations || []) {
+    rows.push({ rowType: 'Recommendation', text: t });
+  }
+  const n = summary.notes || {};
+  rows.push({
+    rowType: 'Notes',
+    coilBalanceGaps: n.balanceGapCount ?? 0,
+    stoneGaps: n.stoneGapCount ?? 0,
+    notProduced: n.notProducedCount ?? 0,
+    cancelled: n.cancelledCount ?? 0,
+    newCoilLines: n.newCoilCount ?? 0,
+    finishedCoilLines: n.finishedCoilCount ?? 0,
+  });
+  return rows;
+}
+
 function materialTransactionExcelSheets(report) {
   if (!report) return [];
   const sheets = [];
+  const summaryRows = materialTransactionSummaryExcelRows(report.summary);
+  if (summaryRows.length) sheets.push({ name: 'Summary', rows: summaryRows });
   const pushCoil = (name, section, familyLabel) => {
     const rows = [];
     for (const g of section?.groups || []) {
@@ -511,6 +559,7 @@ function materialTransactionExcelSheets(report) {
 
 function materialTransactionHasRows(report) {
   if (!report) return false;
+  if (report.summary?.byMaterial?.length) return true;
   if (report.offcutProduction?.rows?.length) return true;
   if (report.stoneCoated?.groups?.length) return true;
   if (report.listedNotProduced?.rows?.length) return true;

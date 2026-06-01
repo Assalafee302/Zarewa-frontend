@@ -20,6 +20,113 @@ function fmtMoney(v) {
   return formatNgn(v);
 }
 
+function SummarySection({ summary }) {
+  if (!summary) return null;
+  const { byMaterial = [], byGauge = [], notes = {}, observations = [], recommendations = [] } = summary;
+
+  return (
+    <section className="mb-6 break-inside-avoid">
+      <h3 className="text-xs font-black uppercase text-[#134e4a] mb-2">Summary</h3>
+
+      {byMaterial.length > 0 ? (
+        <>
+          <p className="text-[9px] font-bold text-slate-700 mb-1">By material</p>
+          <table className="w-full border-collapse mb-3">
+            <thead>
+              <tr className="bg-slate-50">
+                <th className={TH}>Section</th>
+                <th className={`${TH} text-right`}>Lines</th>
+                <th className={`${TH} text-right`}>Kg used</th>
+                <th className={`${TH} text-right`}>Metres</th>
+                <th className={`${TH} text-right`}>Offcut kg</th>
+                <th className={`${TH} text-right`}>Qty</th>
+                <th className={`${TH} text-right`}>Paid (net)</th>
+              </tr>
+            </thead>
+            <tbody>
+              {byMaterial.map((m) => (
+                <tr key={m.key}>
+                  <td className={TD}>{m.label}</td>
+                  <td className={TDR}>{m.lineCount}</td>
+                  <td className={TDR}>{m.kgUsed != null ? fmtNum(m.kgUsed) : '—'}</td>
+                  <td className={TDR}>{m.metres != null ? fmtNum(m.metres) : '—'}</td>
+                  <td className={TDR}>{m.offcutKg != null && m.offcutKg > 0 ? fmtNum(m.offcutKg) : '—'}</td>
+                  <td className={TDR}>{m.qtyIssued != null ? fmtNum(m.qtyIssued, 0) : '—'}</td>
+                  <td className={TFR}>{m.paidNetNgn > 0 ? fmtMoney(m.paidNetNgn) : '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </>
+      ) : null}
+
+      {byGauge.length > 0 ? (
+        <>
+          <p className="text-[9px] font-bold text-slate-700 mb-1">By gauge</p>
+          <table className="w-full border-collapse mb-3">
+            <thead>
+              <tr className="bg-slate-50">
+                <th className={TH}>Material</th>
+                <th className={TH}>Gauge</th>
+                <th className={`${TH} text-right`}>Lines</th>
+                <th className={`${TH} text-right`}>Kg</th>
+                <th className={`${TH} text-right`}>Metres</th>
+                <th className={`${TH} text-right`}>kg/m</th>
+                <th className={`${TH} text-right`}>Stone m used</th>
+              </tr>
+            </thead>
+            <tbody>
+              {byGauge.map((g, i) => (
+                <tr key={`${g.material}-${g.gaugeLabel}-${i}`}>
+                  <td className={TD}>{g.material}</td>
+                  <td className={TD}>{g.gaugeLabel}</td>
+                  <td className={TDR}>{g.lineCount}</td>
+                  <td className={TDR}>{g.kgUsed != null ? fmtNum(g.kgUsed) : '—'}</td>
+                  <td className={TDR}>{g.metres != null ? fmtNum(g.metres) : '—'}</td>
+                  <td className={TDR}>{g.avgKgM != null ? fmtNum(g.avgKgM) : '—'}</td>
+                  <td className={TDR}>{g.metresUsed != null ? fmtNum(g.metresUsed) : '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </>
+      ) : null}
+
+      <p className="text-[9px] text-slate-600 mb-2">
+        {notes.balanceGapCount > 0 ? `Coil balance gaps: ${notes.balanceGapCount}. ` : ''}
+        {notes.stoneGapCount > 0 ? `Stone gaps: ${notes.stoneGapCount}. ` : ''}
+        {notes.notProducedCount > 0 ? `Not produced: ${notes.notProducedCount} job(s). ` : ''}
+        {notes.cancelledCount > 0 ? `Cancelled: ${notes.cancelledCount}. ` : ''}
+        {!notes.balanceGapCount && !notes.stoneGapCount && !notes.notProducedCount && !notes.cancelledCount
+          ? 'No gaps or backlog flags in notes.'
+          : null}
+      </p>
+
+      {observations.length > 0 ? (
+        <div className="mb-2">
+          <p className="text-[9px] font-bold text-slate-700 mb-0.5">Observations</p>
+          <ul className="text-[9px] text-slate-700 list-disc pl-4 space-y-0.5">
+            {observations.map((t, i) => (
+              <li key={`o-${i}`}>{t}</li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
+      {recommendations.length > 0 ? (
+        <div className="mb-2">
+          <p className="text-[9px] font-bold text-slate-700 mb-0.5">Recommendations</p>
+          <ul className="text-[9px] text-slate-700 list-disc pl-4 space-y-0.5">
+            {recommendations.map((t, i) => (
+              <li key={`r-${i}`}>{t}</li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
 function SubtotalRow({ sub }) {
   return (
     <tr className="bg-slate-100/90">
@@ -341,6 +448,7 @@ export function MaterialTransactionPrintContent({ report, branchLabel, periodLab
           Remark: New coil / New roll on first production use of a coil; Finished on the line that clears the coil. Amber before = gap vs previous after.
         </p>
       </div>
+      <SummarySection summary={report.summary} />
       <CoilSection title="Aluminium" section={report.aluminium} />
       <CoilSection title="Aluzinc" section={report.aluzinc} />
       {report.unclassifiedCoil?.groups?.length ? (
