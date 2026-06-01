@@ -1601,6 +1601,7 @@ const Reports = () => {
 
         {ws.hasPermission('reports.view') ? (
           <StockRegisterPanel
+            roleMode="reports"
             endDate={endDate}
             branchId={ws.viewAllBranches ? '' : ws.branchScope || ws.session?.currentBranchId || ''}
             branchLabel={

@@ -58,6 +58,7 @@ import { Card, Button } from '../components/ui';
 import { ModalFrame, PageShell } from '../components/layout';
 import { DashboardKpiStrip } from '../components/dashboard/DashboardKpiStrip';
 import { ManagementAuditSections } from '../components/management/ManagementAuditSections';
+import { StockRegisterMonthEndModal } from '../components/reports/StockRegisterMonthEndModal';
 import { ManagerPoAuditSections } from '../components/management/ManagerPoAuditSections';
 import { RefundManagerApprovalPreview } from '../components/management/RefundManagerApprovalPreview';
 import { ClearanceManagerApprovalPreview } from '../components/management/ClearanceManagerApprovalPreview';
@@ -93,6 +94,8 @@ const ManagerDashboard = () => {
   const { show: showToast } = useToast();
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
+  const [stockRegisterMgrOpen, setStockRegisterMgrOpen] = useState(false);
+  const [stockRegisterInbox, setStockRegisterInbox] = useState([]);
   const [items, setItems] = useState({
     pendingClearance: [],
     flagged: [],
@@ -495,6 +498,26 @@ const ManagerDashboard = () => {
   useEffect(() => {
     void fetchData({ background: managerQueuesHydratedRef.current });
   }, [ws?.refreshEpoch]);
+
+  const mgrBranchId = ws.viewAllBranches ? '' : ws.branchScope || ws.session?.currentBranchId || '';
+  const mgrBranchLabel = useMemo(() => {
+    if (!mgrBranchId) return '';
+    return (
+      (ws.snapshot?.branches || []).find((b) => String(b.id || b.branchId) === String(mgrBranchId))?.name ||
+      mgrBranchId
+    );
+  }, [mgrBranchId, ws.snapshot?.branches]);
+
+  useEffect(() => {
+    if (!mgrBranchId) {
+      setStockRegisterInbox([]);
+      return;
+    }
+    void (async () => {
+      const { ok, data } = await apiFetch('/api/stock-register/inbox?queue=manager');
+      if (ok && data?.ok) setStockRegisterInbox(data.items || []);
+    })();
+  }, [mgrBranchId, ws?.refreshEpoch]);
 
   const fetchAudit = useCallback(async (quoteId) => {
     if (!quoteId) return;
@@ -1264,6 +1287,22 @@ const ManagerDashboard = () => {
           role="alert"
         >
           {loadError}
+        </div>
+      ) : null}
+
+      {mgrBranchId ? (
+        <div className="rounded-2xl border border-teal-200/80 bg-teal-50/50 px-4 py-4 mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <p className="text-sm font-bold text-[#134e4a]">Month-end stock register</p>
+            <p className="text-xs text-slate-600 mt-1">
+              {stockRegisterInbox.length
+                ? `${stockRegisterInbox.length} period(s) awaiting manager count alignment.`
+                : 'No registers waiting for manager review.'}
+            </p>
+          </div>
+          <button type="button" className="z-btn-primary shrink-0" onClick={() => setStockRegisterMgrOpen(true)}>
+            Review stock register
+          </button>
         </div>
       ) : null}
 
@@ -2046,6 +2085,16 @@ const ManagerDashboard = () => {
           />
         </div>
       </ModalFrame>
+
+      <StockRegisterMonthEndModal
+        isOpen={stockRegisterMgrOpen}
+        onClose={() => setStockRegisterMgrOpen(false)}
+        roleMode="manager"
+        branchId={mgrBranchId}
+        branchLabel={mgrBranchLabel}
+        showToast={showToast}
+        roleKey={ws.session?.user?.roleKey}
+      />
 
     </PageShell>
   );

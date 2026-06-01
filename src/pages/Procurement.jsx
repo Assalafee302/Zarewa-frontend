@@ -34,6 +34,7 @@ import StoneAccessoryReceiptModal from '../components/procurement/StoneAccessory
 import { ProcurementFormSection } from '../components/procurement/ProcurementFormSection';
 import { PriceListPanel } from '../components/procurement/PriceListPanel';
 import { MaterialPricingWorkbookModal } from '../components/procurement/MaterialPricingWorkbookModal';
+import { StockRegisterMonthEndModal } from '../components/reports/StockRegisterMonthEndModal';
 import { CONVERSION_FLAG_RATIO, formatNgn } from '../Data/mockData';
 import { useToast } from '../context/ToastContext';
 import { useInventory } from '../context/InventoryContext';
@@ -384,6 +385,27 @@ const Procurement = () => {
    
 
   const [showMaterialPricingWorkbook, setShowMaterialPricingWorkbook] = useState(false);
+  const [monthEndStockProcOpen, setMonthEndStockProcOpen] = useState(false);
+  const [stockRegisterProcInbox, setStockRegisterProcInbox] = useState([]);
+  const procBranchId = ws.viewAllBranches ? '' : ws.branchScope || ws.session?.currentBranchId || '';
+  const procBranchLabel = useMemo(() => {
+    if (!procBranchId) return '';
+    return (
+      (ws.snapshot?.branches || []).find((b) => String(b.id || b.branchId) === String(procBranchId))?.name ||
+      procBranchId
+    );
+  }, [procBranchId, ws.snapshot?.branches]);
+
+  useEffect(() => {
+    if (!procBranchId) {
+      setStockRegisterProcInbox([]);
+      return;
+    }
+    void (async () => {
+      const { ok, data } = await apiFetch('/api/stock-register/inbox?queue=procurement');
+      if (ok && data?.ok) setStockRegisterProcInbox(data.items || []);
+    })();
+  }, [procBranchId, ws?.refreshEpoch]);
   const [showUnifiedPoModal, setShowUnifiedPoModal] = useState(false);
   const [unifiedPoEditDraft, setUnifiedPoEditDraft] = useState(null);
   const [showCoilPoModal, setShowCoilPoModal] = useState(false);
@@ -1403,6 +1425,22 @@ const Procurement = () => {
         }
       />
 
+      {procBranchId ? (
+        <div className="rounded-2xl border border-teal-200/80 bg-teal-50/40 px-4 py-4 mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <p className="text-sm font-bold text-[#134e4a]">Month-end stock costing</p>
+            <p className="text-xs text-slate-600 mt-1">
+              {stockRegisterProcInbox.length
+                ? `${stockRegisterProcInbox.length} register(s) ready for net kg pricing.`
+                : 'No registers awaiting procurement costing.'}
+            </p>
+          </div>
+          <button type="button" className="z-btn-primary shrink-0" onClick={() => setMonthEndStockProcOpen(true)}>
+            Open stock costing
+          </button>
+        </div>
+      ) : null}
+
       <div className="grid grid-cols-1 gap-4 lg:gap-6 min-w-0">
         <div className="col-span-full order-1">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -2126,6 +2164,16 @@ const Procurement = () => {
         open={showMaterialPricingWorkbook}
         onClose={() => setShowMaterialPricingWorkbook(false)}
         initialMaterialKey="alu"
+      />
+
+      <StockRegisterMonthEndModal
+        isOpen={monthEndStockProcOpen}
+        onClose={() => setMonthEndStockProcOpen(false)}
+        roleMode="procurement"
+        branchId={procBranchId}
+        branchLabel={procBranchLabel}
+        showToast={showToast}
+        roleKey={ws.session?.user?.roleKey}
       />
 
       <PurchaseOrderModal

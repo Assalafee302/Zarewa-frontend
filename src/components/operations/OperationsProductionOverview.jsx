@@ -9,6 +9,7 @@ import {
   Package,
   ShoppingCart,
   TrendingUp,
+  ClipboardCheck,
 } from 'lucide-react';
 import {
   buildCoilPurchaseSuggestions,
@@ -139,6 +140,7 @@ export function OperationsProductionOverview({
   onGoProduction,
   onGoInventory,
   onRequestCoils,
+  onMonthEndStock,
 }) {
   const coilStock = useMemo(() => buildCoilStockOverview(coilLots, masterData), [coilLots, masterData]);
   const stoneStock = useMemo(() => buildSkuStockOverview(inventoryRows, 'stone'), [inventoryRows]);
@@ -168,6 +170,23 @@ export function OperationsProductionOverview({
 
   return (
     <div className="space-y-4">
+      {onMonthEndStock ? (
+        <OverviewCard
+          title="Month-end stock register"
+          hint="Physical count for period end — print, then send to branch manager (no costing on store copy)."
+          icon={<ClipboardCheck size={16} />}
+          className="border-teal-200/90 bg-gradient-to-br from-teal-50/40 to-white"
+        >
+          <p className="text-[11px] text-slate-600 leading-relaxed mb-3">
+            Run the floor count register for month-end (or any period end date). Preview and print without
+            prices; forward to management when the count is complete.
+          </p>
+          <button type="button" onClick={onMonthEndStock} className="z-btn-primary text-[11px]">
+            Open month-end stock register
+          </button>
+        </OverviewCard>
+      ) : null}
+
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
         <OverviewCard
           title="Coil stock"

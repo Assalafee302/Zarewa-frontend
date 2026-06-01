@@ -25,6 +25,7 @@ import { MainPanel, PageHeader, PageShell, PageTabs, ModalFrame } from '../compo
 import { AiAskButton } from '../components/AiAskButton';
 import { ProductionRegisterEditModal } from '../components/operations/ProductionRegisterEditModal';
 import { OperationsProductionOverview } from '../components/operations/OperationsProductionOverview';
+import { StockRegisterMonthEndModal } from '../components/reports/StockRegisterMonthEndModal';
 import MaterialExceptions from './MaterialExceptions';
 import { useInventory } from '../context/InventoryContext';
 import { useToast } from '../context/ToastContext';
@@ -586,6 +587,15 @@ const Operations = () => {
   const [showCoilRequest, setShowCoilRequest] = useState(false);
   /** `job` = live API job row; `pending` = offline cutting list queue (no traceability). */
   const [productionTraceModal, setProductionTraceModal] = useState(null);
+  const [monthEndStockOpen, setMonthEndStockOpen] = useState(false);
+  const opsBranchId = ws.viewAllBranches ? '' : ws.branchScope || ws.session?.currentBranchId || '';
+  const opsBranchLabel = useMemo(() => {
+    if (!opsBranchId) return '';
+    return (
+      (ws.snapshot?.branches || []).find((b) => String(b.id || b.branchId) === String(opsBranchId))?.name ||
+      opsBranchId
+    );
+  }, [opsBranchId, ws.snapshot?.branches]);
   const [completeChecklistModal, setCompleteChecklistModal] = useState(null);
   const [completeChecklist, setCompleteChecklist] = useState({
     transferPosted: false,
@@ -1608,6 +1618,7 @@ const Operations = () => {
                 onGoProduction={() => setActiveTab('production')}
                 onGoInventory={goOverviewInventory}
                 onRequestCoils={() => setShowCoilRequest(true)}
+                onMonthEndStock={() => setMonthEndStockOpen(true)}
               />
             </MainPanel>
           </div>
@@ -3147,6 +3158,16 @@ const Operations = () => {
           </div>
         </div>
       </ModalFrame>
+
+      <StockRegisterMonthEndModal
+        isOpen={monthEndStockOpen}
+        onClose={() => setMonthEndStockOpen(false)}
+        roleMode="store"
+        branchId={opsBranchId}
+        branchLabel={opsBranchLabel}
+        showToast={showToast}
+        roleKey={ws.session?.user?.roleKey}
+      />
 
       <ProductionRegisterEditModal
         isOpen={productionTraceModal?.type === 'trace'}

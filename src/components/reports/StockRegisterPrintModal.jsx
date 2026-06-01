@@ -8,7 +8,16 @@ import { StockRegisterPrintContent } from './StockRegisterPrintContent';
  * Body-portaled print preview — matches ReceiptModal / QuotationModal so @media print
  * renders the same content as on-screen preview.
  */
-export function StockRegisterPrintModal({ open, onClose, register, branchId, branchLabel, workflow, autoPrint = false }) {
+export function StockRegisterPrintModal({
+  open,
+  onClose,
+  register,
+  branchId,
+  branchLabel,
+  workflow,
+  autoPrint = false,
+  viewMode = 'store',
+}) {
   const printedRef = useRef(false);
 
   useEffect(() => {
@@ -65,7 +74,12 @@ export function StockRegisterPrintModal({ open, onClose, register, branchId, bra
                 </p>
               }
             >
-              <StockRegisterPrintContent register={register} branchId={branchId} branchLabel={branchLabel} />
+              <StockRegisterPrintContent
+                register={register}
+                branchId={branchId}
+                branchLabel={branchLabel}
+                viewMode={viewMode}
+              />
             </StandardReportPrintShell>
           </div>
           <div className="no-print mt-4 flex flex-wrap justify-center gap-2">

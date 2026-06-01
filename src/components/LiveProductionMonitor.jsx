@@ -381,6 +381,9 @@ export function LiveProductionMonitor({
   const [offcutSupplySelections, setOffcutSupplySelections] = useState([]);
   const [conversionReasonCode, setConversionReasonCode] = useState('');
   const [conversionReasonText, setConversionReasonText] = useState('');
+  /** Business date for start / completion (YYYY-MM-DD). */
+  const [productionDateIso, setProductionDateIso] = useState(() => new Date().toISOString().slice(0, 10));
+  const [completionDateIso, setCompletionDateIso] = useState(() => new Date().toISOString().slice(0, 10));
 
   const productionJobs = useMemo(
     () => (ws?.hasWorkspaceData && Array.isArray(ws?.snapshot?.productionJobs) ? ws.snapshot.productionJobs : []),
@@ -471,7 +474,11 @@ export function LiveProductionMonitor({
     setCompletionSourceMode('coil');
     setOffcutMetersProduced('');
     setOffcutInventoryMetersInput('');
-  }, [selectedJob?.jobID]);
+    const started = String(selectedJob?.startDateISO || '').slice(0, 10);
+    const completed = String(selectedJob?.completedAtISO || selectedJob?.endDateISO || '').slice(0, 10);
+    setProductionDateIso(started || new Date().toISOString().slice(0, 10));
+    setCompletionDateIso(completed || new Date().toISOString().slice(0, 10));
+  }, [selectedJob?.jobID, selectedJob?.startDateISO, selectedJob?.completedAtISO, selectedJob?.endDateISO]);
 
   const selectedJobAllocations = useMemo(
     () =>
@@ -1686,7 +1693,7 @@ export function LiveProductionMonitor({
   const buildCompleteBody = () => {
     if (isStoneMeterQuote && !completionUsesOffcutMode) {
       return {
-        completedAtISO: new Date().toISOString().slice(0, 10),
+        completedAtISO: completionDateIso,
         stoneMetersConsumed: Number(String(stoneMetersConsumed).replace(/,/g, '')),
         accessoriesSupplied: accessoriesSuppliedForApi,
         stoneFlatsheetSupplied: stoneFlatsheetSuppliedForApi,
@@ -1703,7 +1710,7 @@ export function LiveProductionMonitor({
             : 0;
       const offInv = offcutSupplyMetersTotal > 0 ? offcutSupplyMetersTotal : outputM;
       return {
-        completedAtISO: new Date().toISOString().slice(0, 10),
+        completedAtISO: completionDateIso,
         completeMode: 'offcut',
         offcutMetersProduced: outputM,
         offcutInventoryMeters: offInv,
@@ -1715,7 +1722,7 @@ export function LiveProductionMonitor({
     const invOff = offcutInventoryMetersNum;
     const overrunRemark = signoffRemark.trim();
     return {
-      completedAtISO: new Date().toISOString().slice(0, 10),
+      completedAtISO: completionDateIso,
       allocations: draftAllocations.map((row) => completionLineFromDraft(row)),
       accessoriesSupplied: accessoriesSuppliedForApi,
       offcutInventoryMeters: invOff,
@@ -2034,7 +2041,7 @@ export function LiveProductionMonitor({
         await ws.refresh();
         const startRes = await apiFetch(`${jobApi}/start`, {
           method: 'POST',
-          body: JSON.stringify({ startedAtISO: new Date().toISOString().slice(0, 10) }),
+          body: JSON.stringify({ startedAtISO: productionDateIso }),
         });
         setSavingAction('');
         if (!startRes.ok || !startRes.data?.ok) {
@@ -2057,7 +2064,7 @@ export function LiveProductionMonitor({
       if (resolvesToOffcutCompletion && selectedJob.status === 'Planned') {
         const startRes = await apiFetch(`${jobApi}/start`, {
           method: 'POST',
-          body: JSON.stringify({ startedAtISO: new Date().toISOString().slice(0, 10), startMode: 'offcut' }),
+          body: JSON.stringify({ startedAtISO: productionDateIso, startMode: 'offcut' }),
         });
         setSavingAction('');
         if (!startRes.ok || !startRes.data?.ok) {
@@ -2138,7 +2145,7 @@ export function LiveProductionMonitor({
       if (alsoStartAfterAlloc && selectedJob.status === 'Planned') {
         const startRes = await apiFetch(`${jobApi}/start`, {
           method: 'POST',
-          body: JSON.stringify({ startedAtISO: new Date().toISOString().slice(0, 10) }),
+          body: JSON.stringify({ startedAtISO: productionDateIso }),
         });
         setSavingAction('');
         if (!startRes.ok || !startRes.data?.ok) {
@@ -2167,7 +2174,7 @@ export function LiveProductionMonitor({
     } else if (type === 'start') {
       path = `${jobApi}/start`;
       body = {
-        startedAtISO: new Date().toISOString().slice(0, 10),
+        startedAtISO: productionDateIso,
         ...(resolvesToOffcutCompletion ? { startMode: 'offcut' } : {}),
       };
     } else {
@@ -2439,6 +2446,37 @@ export function LiveProductionMonitor({
                     {selectedJob.machineName || 'Line'}
                   </span>
                   {readOnly ? <span className="text-slate-400">· read-only</span> : null}
+                </div>
+              ) : null}
+              {inModal && !readOnly && selectedJob.status !== 'Completed' && selectedJob.status !== 'Cancelled' ? (
+                <div className="mt-2 flex flex-wrap items-end gap-3">
+                  {(selectedJob.status === 'Planned' || selectedJob.status === 'Running') &&
+                  !selectedJob.startDateISO ? (
+                    <label className="text-[10px] font-semibold text-slate-600">
+                      Production date
+                      <input
+                        type="date"
+                        className="z-input block mt-0.5 py-1 text-[11px]"
+                        value={productionDateIso}
+                        onChange={(e) => setProductionDateIso(e.target.value)}
+                      />
+                    </label>
+                  ) : selectedJob.startDateISO ? (
+                    <p className="text-[10px] text-slate-600">
+                      Started: <strong>{String(selectedJob.startDateISO).slice(0, 10)}</strong>
+                    </p>
+                  ) : null}
+                  {selectedJob.status === 'Running' ? (
+                    <label className="text-[10px] font-semibold text-slate-600">
+                      Completion date
+                      <input
+                        type="date"
+                        className="z-input block mt-0.5 py-1 text-[11px]"
+                        value={completionDateIso}
+                        onChange={(e) => setCompletionDateIso(e.target.value)}
+                      />
+                    </label>
+                  ) : null}
                 </div>
               ) : null}
             </div>
