@@ -1,11 +1,14 @@
 import React from 'react';
 import { formatNgn } from '../../Data/mockData';
 
+const TBL = 'w-full border-collapse table-fixed';
 const TH =
-  'px-1 py-0.5 text-left text-[7px] font-bold uppercase text-slate-600 border border-slate-300 print:text-[6.5pt] whitespace-nowrap';
-const TD = 'px-1 py-0.5 text-[9px] text-slate-800 border border-slate-300 print:text-[7.5pt]';
-const TDR = `${TD} text-right tabular-nums`;
-const TF = 'px-1 py-1 text-[9px] font-bold text-slate-800 border border-slate-300 bg-slate-100 print:text-[7.5pt]';
+  'px-1 py-0.5 text-left text-[7px] font-bold uppercase text-slate-600 border border-slate-300 print:text-[6.5pt] align-middle';
+const THR = `${TH} text-right`;
+const TD = 'px-1 py-0.5 text-[9px] text-slate-800 border border-slate-300 print:text-[7.5pt] align-middle break-words';
+const TDR = `${TD} text-right tabular-nums whitespace-nowrap`;
+const TDM = `${TD} font-mono tabular-nums whitespace-nowrap`;
+const TF = 'px-1 py-1 text-[9px] font-bold text-slate-800 border border-slate-300 bg-slate-100 print:text-[7.5pt] align-middle';
 const TFR = `${TF} text-right tabular-nums`;
 
 function fmtNum(v, d = 2) {
@@ -20,27 +23,39 @@ function fmtMoney(v) {
   return formatNgn(v);
 }
 
+function PaymentCells({ r }) {
+  const highlight = r.poOutstandingNgn != null && Number(r.poOutstandingNgn) > 0;
+  return (
+    <>
+      <td className={TDR}>{r.poPaidNgn != null ? fmtMoney(r.poPaidNgn) : '—'}</td>
+      <td className={`${TDR}${highlight ? ' bg-amber-50 text-amber-900 font-semibold' : ''}`}>
+        {r.poOutstandingNgn != null ? fmtMoney(r.poOutstandingNgn) : '—'}
+      </td>
+    </>
+  );
+}
+
 function SummarySection({ summary }) {
   if (!summary) return null;
   const { byMaterial = [], byGauge = [], payments = {}, observations = [], recommendations = [] } = summary;
 
   return (
-    <section className="mb-6 break-inside-avoid">
+    <section className="mb-6 break-before-page break-inside-avoid border-t-2 border-slate-300 pt-4 mt-6">
       <h3 className="text-xs font-black uppercase text-[#134e4a] mb-2">Summary</h3>
       {payments.receivedValueNgn > 0 || payments.paidInPeriodNgn > 0 ? (
         <p className="text-[9px] text-slate-700 mb-2">
-          GRN value in period: {fmtMoney(payments.receivedValueNgn)} · Paid to suppliers:{' '}
-          {fmtMoney(payments.paidInPeriodNgn)} · PO outstanding (listed): {fmtMoney(payments.poOutstandingNgn)}
+          GRN value: {fmtMoney(payments.receivedValueNgn)} · Paid to suppliers (period):{' '}
+          {fmtMoney(payments.paidInPeriodNgn)} · PO outstanding: {fmtMoney(payments.poOutstandingNgn)}
         </p>
       ) : null}
       {byMaterial.length > 0 ? (
-        <table className="w-full border-collapse mb-3">
+        <table className={`${TBL} mb-3`}>
           <thead>
             <tr className="bg-slate-50">
-              <th className={TH}>Material</th>
-              <th className={`${TH} text-right`}>Lines</th>
-              <th className={`${TH} text-right`}>Received</th>
-              <th className={`${TH} text-right`}>Value ₦</th>
+              <th className={`${TH} w-[28%]`}>Material</th>
+              <th className={`${THR} w-[12%]`}>Lines</th>
+              <th className={`${THR} w-[22%]`}>Received</th>
+              <th className={`${THR} w-[22%]`}>Value ₦</th>
             </tr>
           </thead>
           <tbody>
@@ -58,14 +73,14 @@ function SummarySection({ summary }) {
         </table>
       ) : null}
       {byGauge.length > 0 ? (
-        <table className="w-full border-collapse mb-3">
+        <table className={`${TBL} mb-3`}>
           <thead>
             <tr className="bg-slate-50">
-              <th className={TH}>Material</th>
-              <th className={TH}>Gauge / type</th>
-              <th className={`${TH} text-right`}>Lines</th>
-              <th className={`${TH} text-right`}>Received</th>
-              <th className={`${TH} text-right`}>Value ₦</th>
+              <th className={`${TH} w-[22%]`}>Material</th>
+              <th className={`${TH} w-[18%]`}>Gauge / type</th>
+              <th className={`${THR} w-[10%]`}>Lines</th>
+              <th className={`${THR} w-[22%]`}>Received</th>
+              <th className={`${THR} w-[22%]`}>Value ₦</th>
             </tr>
           </thead>
           <tbody>
@@ -122,44 +137,49 @@ function CoilReceiptSection({ title, section }) {
       {section.groups.map((g) => (
         <div key={g.gaugeLabel} className="mb-4 break-inside-avoid">
           <p className="text-[10px] font-bold text-slate-800 mb-1">Gauge {g.gaugeLabel}</p>
-          <table className="w-full border-collapse">
+          <table className={TBL}>
             <thead>
               <tr className="bg-slate-50">
-                <th className={TH}>Date</th>
-                <th className={TH}>Supplier</th>
-                <th className={TH}>Coil</th>
-                <th className={TH}>Col</th>
-                <th className={TH}>PO</th>
-                <th className={`${TH} text-right`}>Recv kg</th>
-                <th className={`${TH} text-right`}>Order kg</th>
-                <th className={`${TH} text-right`}>₦/kg</th>
-                <th className={`${TH} text-right`}>Total ₦</th>
-                <th className={TH}>Remark</th>
+                <th className={`${TH} w-[7%]`}>Date</th>
+                <th className={`${TH} w-[14%]`}>Supplier</th>
+                <th className={`${TH} w-[7%]`}>Coil</th>
+                <th className={`${TH} w-[5%]`}>Col</th>
+                <th className={`${TH} w-[6%]`}>PO</th>
+                <th className={`${THR} w-[8%]`}>Recv kg</th>
+                <th className={`${THR} w-[8%]`}>Order kg</th>
+                <th className={`${THR} w-[8%]`}>₦/kg</th>
+                <th className={`${THR} w-[10%]`}>Total ₦</th>
+                <th className={`${THR} w-[9%]`}>Paid</th>
+                <th className={`${THR} w-[9%]`}>Outst.</th>
+                <th className={`${TH} w-[9%]`}>Remark</th>
               </tr>
             </thead>
             <tbody>
               {g.rows.map((r, i) => (
                 <tr key={`${r.coilNo}-${i}`}>
-                  <td className={TD}>{r.txnDateDisplay || r.txnDate}</td>
-                  <td className={TD}>{r.supplier}</td>
-                  <td className={`${TD} font-mono`}>{r.coilNoDisplay}</td>
+                  <td className={TDM}>{r.txnDateDisplay || r.txnDate}</td>
+                  <td className={`${TD} truncate`} title={r.supplier}>
+                    {r.supplier}
+                  </td>
+                  <td className={TDM}>{r.coilNoDisplay}</td>
                   <td className={TD}>{r.colour}</td>
-                  <td className={`${TD} font-mono`}>{r.poIdDisplay}</td>
+                  <td className={TDM}>{r.poIdDisplay}</td>
                   <td className={TDR}>{fmtNum(r.receivedKg)}</td>
                   <td className={TDR}>{r.orderKg != null ? fmtNum(r.orderKg) : '—'}</td>
                   <td className={TDR}>{r.kgAmountNgn != null ? fmtMoney(r.kgAmountNgn) : '—'}</td>
                   <td className={TFR}>{r.totalNgn > 0 ? fmtMoney(r.totalNgn) : '—'}</td>
-                  <td className={`${TD} text-[8px]`}>{r.remark}</td>
+                  <PaymentCells r={r} />
+                  <td className={`${TD} text-[7.5px] leading-tight`}>{r.remark}</td>
                 </tr>
               ))}
               <tr className="bg-slate-100/90">
                 <td className={TF} colSpan={5}>
-                  Subtotal ({g.subtotals.lineCount} lines)
+                  Subtotal ({g.subtotals.lineCount})
                 </td>
                 <td className={TFR}>{fmtNum(g.subtotals.totalReceived)}</td>
                 <td className={TF} colSpan={2} />
                 <td className={TFR}>{g.subtotals.totalValueNgn > 0 ? fmtMoney(g.subtotals.totalValueNgn) : '—'}</td>
-                <td className={TF} />
+                <td className={TF} colSpan={3} />
               </tr>
             </tbody>
           </table>
@@ -185,127 +205,62 @@ function QtyReceiptSection({ title, section, unitDefault }) {
       {section.groups.map((g) => (
         <div key={g.gaugeLabel || g.typeKey} className="mb-4 break-inside-avoid">
           <p className="text-[10px] font-bold text-slate-800 mb-1">{g.gaugeLabel || g.typeLabel}</p>
-          <table className="w-full border-collapse">
+          <table className={TBL}>
             <thead>
               <tr className="bg-slate-50">
-                <th className={TH}>Date</th>
-                <th className={TH}>Supplier</th>
-                <th className={TH}>Ref</th>
-                <th className={TH}>Item</th>
-                <th className={TH}>PO</th>
-                <th className={`${TH} text-right`}>Received</th>
-                <th className={`${TH} text-right`}>Ordered</th>
-                <th className={`${TH} text-right`}>Unit ₦</th>
-                <th className={`${TH} text-right`}>Total ₦</th>
-                <th className={TH}>Remark</th>
+                <th className={`${TH} w-[7%]`}>Date</th>
+                <th className={`${TH} w-[14%]`}>Supplier</th>
+                <th className={`${TH} w-[7%]`}>Ref</th>
+                <th className={`${TH} w-[14%]`}>Item</th>
+                <th className={`${TH} w-[6%]`}>PO</th>
+                <th className={`${THR} w-[9%]`}>Received</th>
+                <th className={`${THR} w-[9%]`}>Ordered</th>
+                <th className={`${THR} w-[8%]`}>Unit ₦</th>
+                <th className={`${THR} w-[10%]`}>Total ₦</th>
+                <th className={`${THR} w-[8%]`}>Paid</th>
+                <th className={`${THR} w-[8%]`}>Outst.</th>
+                <th className={`${TH} w-[10%]`}>Remark</th>
               </tr>
             </thead>
             <tbody>
               {g.rows.map((r, i) => (
                 <tr key={`${r.coilNo}-${i}`}>
-                  <td className={TD}>{r.txnDateDisplay || r.txnDate}</td>
-                  <td className={TD}>{r.supplier}</td>
-                  <td className={`${TD} font-mono text-[8px]`}>{r.coilNoDisplay}</td>
-                  <td className={TD}>{r.productName}</td>
-                  <td className={`${TD} font-mono`}>{r.poIdDisplay}</td>
+                  <td className={TDM}>{r.txnDateDisplay || r.txnDate}</td>
+                  <td className={`${TD} truncate`} title={r.supplier}>
+                    {r.supplier}
+                  </td>
+                  <td className={TDM}>{r.coilNoDisplay}</td>
+                  <td className={`${TD} truncate`} title={r.productName}>
+                    {r.productName}
+                  </td>
+                  <td className={TDM}>{r.poIdDisplay}</td>
                   <td className={TDR}>
                     {fmtNum(r.receivedQty, isAccessory ? 0 : 2)} {r.unitLabel || unitDefault}
                   </td>
                   <td className={TDR}>
-                    {r.orderQty != null ? `${fmtNum(r.orderQty, isAccessory ? 0 : 2)} ${r.unitLabel || unitDefault}` : '—'}
+                    {r.orderQty != null
+                      ? `${fmtNum(r.orderQty, isAccessory ? 0 : 2)} ${r.unitLabel || unitDefault}`
+                      : '—'}
                   </td>
                   <td className={TDR}>{r.kgAmountNgn != null ? fmtMoney(r.kgAmountNgn) : '—'}</td>
                   <td className={TFR}>{r.totalNgn > 0 ? fmtMoney(r.totalNgn) : '—'}</td>
-                  <td className={`${TD} text-[8px]`}>{r.remark}</td>
+                  <PaymentCells r={r} />
+                  <td className={`${TD} text-[7.5px] leading-tight`}>{r.remark}</td>
                 </tr>
               ))}
               <tr className="bg-slate-100/90">
                 <td className={TF} colSpan={5}>
-                  Subtotal ({g.subtotals.lineCount} lines)
+                  Subtotal ({g.subtotals.lineCount})
                 </td>
                 <td className={TFR}>{fmtNum(g.subtotals.totalReceived, isAccessory ? 0 : 2)}</td>
                 <td className={TF} colSpan={2} />
                 <td className={TFR}>{g.subtotals.totalValueNgn > 0 ? fmtMoney(g.subtotals.totalValueNgn) : '—'}</td>
-                <td className={TF} />
+                <td className={TF} colSpan={3} />
               </tr>
             </tbody>
           </table>
         </div>
       ))}
-    </section>
-  );
-}
-
-function PaymentsSection({ payments }) {
-  const supplier = payments?.supplierPayments || [];
-  const poBal = payments?.poBalances || [];
-  if (!supplier.length && !poBal.length) return null;
-
-  return (
-    <section className="mb-6 break-inside-avoid">
-      <h3 className="text-xs font-black uppercase text-slate-700 mb-2">Payments &amp; outstanding</h3>
-      {supplier.length > 0 ? (
-        <>
-          <p className="text-[9px] font-bold text-slate-700 mb-1">Supplier payments in period</p>
-          <table className="w-full border-collapse mb-3">
-            <thead>
-              <tr className="bg-slate-50">
-                <th className={TH}>Date</th>
-                <th className={TH}>Supplier</th>
-                <th className={`${TH} text-right`}>Amount</th>
-                <th className={TH}>PO / ref</th>
-                <th className={TH}>Bank ref</th>
-              </tr>
-            </thead>
-            <tbody>
-              {supplier.map((p, i) => (
-                <tr key={`${p.sourceIdFull}-${i}`}>
-                  <td className={TD}>{p.paidDateISO?.slice(5).replace('-', '/') || p.paidDateISO}</td>
-                  <td className={TD}>{p.supplier}</td>
-                  <td className={TFR}>{fmtMoney(p.amountNgn)}</td>
-                  <td className={TD}>{p.sourceIdDisplay}</td>
-                  <td className={TD}>{p.reference}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </>
-      ) : null}
-      {poBal.length > 0 ? (
-        <>
-          <p className="text-[9px] font-bold text-slate-700 mb-1">PO supplier balance (orders with receipts in period)</p>
-          <table className="w-full border-collapse">
-            <thead>
-              <tr className="bg-slate-50">
-                <th className={TH}>PO</th>
-                <th className={TH}>Supplier</th>
-                <th className={TH}>Status</th>
-                <th className={`${TH} text-right`}>PO value</th>
-                <th className={`${TH} text-right`}>Paid total</th>
-                <th className={`${TH} text-right`}>Paid period</th>
-                <th className={`${TH} text-right`}>Outstanding</th>
-                <th className={TH}>Remark</th>
-              </tr>
-            </thead>
-            <tbody>
-              {poBal.map((p) => (
-                <tr key={p.poId}>
-                  <td className={`${TD} font-mono`}>{p.poIdDisplay}</td>
-                  <td className={TD}>{p.supplier}</td>
-                  <td className={TD}>{p.status}</td>
-                  <td className={TFR}>{fmtMoney(p.poValueNgn)}</td>
-                  <td className={TFR}>{fmtMoney(p.supplierPaidNgn)}</td>
-                  <td className={TFR}>{p.paidInPeriodNgn > 0 ? fmtMoney(p.paidInPeriodNgn) : '—'}</td>
-                  <td className={`${TFR}${p.outstandingNgn > 0 ? ' text-amber-900 font-semibold' : ''}`}>
-                    {fmtMoney(p.outstandingNgn)}
-                  </td>
-                  <td className={`${TD} text-[8px]`}>{p.remark}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </>
-      ) : null}
     </section>
   );
 }
@@ -319,10 +274,9 @@ export function PurchaseReportPrintContent({ report, branchLabel, periodLabel })
         <p className="text-[10px] font-bold text-slate-600">{branchLabel}</p>
         <p className="text-[10px] text-slate-600">{periodLabel}</p>
         <p className="text-[9px] text-slate-500 mt-1">
-          Goods received (GRN) in period by material and gauge. Coil: kg and ₦/kg. Stone: metres. Accessories: units.
+          Coil / PO = last 4–5 digits. Paid &amp; outstanding on first line per PO. Amber = balance due supplier.
         </p>
       </div>
-      <SummarySection summary={report.summary} />
       <CoilReceiptSection title="Aluminium purchases" section={report.aluminium} />
       <CoilReceiptSection title="Aluzinc purchases" section={report.aluzinc} />
       {report.unclassifiedCoil?.groups?.length ? (
@@ -330,7 +284,7 @@ export function PurchaseReportPrintContent({ report, branchLabel, periodLabel })
       ) : null}
       <QtyReceiptSection title="Stone-coated purchases" section={report.stoneCoated} unitDefault="m" />
       <QtyReceiptSection title="Accessory purchases" section={report.accessories} unitDefault="units" />
-      <PaymentsSection payments={report.payments} />
+      <SummarySection summary={report.summary} />
     </div>
   );
 }

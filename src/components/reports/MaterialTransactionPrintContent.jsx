@@ -1,10 +1,13 @@
 import React from 'react';
 import { formatNgn } from '../../Data/mockData';
 
+const TBL = 'w-full border-collapse table-fixed';
 const TH =
-  'px-1 py-0.5 text-left text-[7px] font-bold uppercase text-slate-600 border border-slate-300 print:text-[6.5pt] whitespace-nowrap';
-const TD = 'px-1 py-0.5 text-[9px] text-slate-800 border border-slate-300 print:text-[7.5pt]';
-const TDR = `${TD} text-right tabular-nums`;
+  'px-1 py-0.5 text-left text-[7px] font-bold uppercase text-slate-600 border border-slate-300 print:text-[6.5pt] align-middle whitespace-nowrap';
+const THR = `${TH} text-right`;
+const TD = 'px-1 py-0.5 text-[9px] text-slate-800 border border-slate-300 print:text-[7.5pt] align-middle break-words';
+const TDR = `${TD} text-right tabular-nums whitespace-nowrap`;
+const TDM = `${TD} font-mono tabular-nums whitespace-nowrap`;
 const TF = 'px-1 py-1 text-[9px] font-bold text-slate-800 border border-slate-300 bg-slate-100 print:text-[7.5pt]';
 const TFR = `${TF} text-right tabular-nums`;
 
@@ -25,13 +28,13 @@ function SummarySection({ summary }) {
   const { byMaterial = [], byGauge = [], notes = {}, observations = [], recommendations = [] } = summary;
 
   return (
-    <section className="mb-6 break-inside-avoid">
+    <section className="mb-6 break-before-page break-inside-avoid border-t-2 border-slate-300 pt-4 mt-6">
       <h3 className="text-xs font-black uppercase text-[#134e4a] mb-2">Summary</h3>
 
       {byMaterial.length > 0 ? (
         <>
           <p className="text-[9px] font-bold text-slate-700 mb-1">By material</p>
-          <table className="w-full border-collapse mb-3">
+          <table className={`${TBL} mb-3`}>
             <thead>
               <tr className="bg-slate-50">
                 <th className={TH}>Section</th>
@@ -63,7 +66,7 @@ function SummarySection({ summary }) {
       {byGauge.length > 0 ? (
         <>
           <p className="text-[9px] font-bold text-slate-700 mb-1">By gauge</p>
-          <table className="w-full border-collapse mb-3">
+          <table className={`${TBL} mb-3`}>
             <thead>
               <tr className="bg-slate-50">
                 <th className={TH}>Material</th>
@@ -161,7 +164,7 @@ function CoilSection({ title, section }) {
       {section.groups.map((g) => (
         <div key={g.gaugeLabel} className="mb-4 break-inside-avoid">
           <p className="text-[10px] font-bold text-slate-800 mb-1">Gauge {g.gaugeLabel}</p>
-          <table className="w-full border-collapse">
+          <table className={TBL}>
             <thead>
               <tr className="bg-slate-50">
                 <th className={TH}>Date</th>
@@ -236,7 +239,7 @@ function StoneSection({ stone }) {
       {stone.groups.map((g) => (
         <div key={g.gaugeLabel} className="mb-4 break-inside-avoid">
           <p className="text-[10px] font-bold text-slate-800 mb-1">Gauge {g.gaugeLabel}</p>
-          <table className="w-full border-collapse">
+          <table className={TBL}>
             <thead>
               <tr className="bg-slate-50">
                 <th className={TH}>Date</th>
@@ -306,7 +309,7 @@ function AccessorySection({ accessories }) {
       {accessories.groups.map((g) => (
         <div key={g.typeKey} className="mb-3 break-inside-avoid">
           <p className="text-[10px] font-bold text-slate-800 mb-1">{g.typeLabel}</p>
-          <table className="w-full border-collapse">
+          <table className={TBL}>
             <thead>
               <tr className="bg-slate-50">
                 <th className={TH}>Date</th>
@@ -361,23 +364,23 @@ function ListedNotProducedSection({ section }) {
       <p className="text-[9px] text-slate-500 mb-2">
         Registered on the production queue in this period but job not completed.
       </p>
-      <table className="w-full border-collapse">
+      <table className={TBL}>
         <thead>
           <tr className="bg-slate-50">
-            <th className={TH}>Listed</th>
-            <th className={TH}>Qt</th>
-            <th className={TH}>Customer / project</th>
-            <th className={TH}>Design</th>
-            <th className={TH}>Status</th>
-            <th className={`${TH} text-right`}>Planned m</th>
-            <th className={TH}>Machine</th>
+            <th className={`${TH} w-[10%]`}>Listed</th>
+            <th className={`${TH} w-[8%]`}>Qt</th>
+            <th className={`${TH} w-[26%]`}>Customer / project</th>
+            <th className={`${TH} w-[14%]`}>Design</th>
+            <th className={`${TH} w-[12%]`}>Status</th>
+            <th className={`${THR} w-[10%]`}>Planned m</th>
+            <th className={`${TH} w-[14%]`}>Machine</th>
           </tr>
         </thead>
         <tbody>
           {rows.map((r, i) => (
             <tr key={`${r.jobId}-${i}`}>
-              <td className={TD}>{r.txnDateDisplay || r.txnDate}</td>
-              <td className={`${TD} font-mono`}>{r.qtNoDisplay}</td>
+              <td className={TDM}>{r.txnDateDisplay || r.txnDate}</td>
+              <td className={TDM}>{r.qtNoDisplay}</td>
               <td className={TD}>{r.customerProject}</td>
               <td className={TD}>{r.design}</td>
               <td className={TD}>{r.status}</td>
@@ -406,24 +409,24 @@ function CancelledSection({ cancelled }) {
     <section className="mb-6 break-inside-avoid">
       <h3 className="text-xs font-black uppercase text-amber-900 mb-2">Cancelled production ({n} lines)</h3>
       {coil.length > 0 ? (
-        <table className="w-full border-collapse mb-3">
+        <table className={TBL}>
           <thead>
             <tr className="bg-amber-50">
-              <th className={TH}>Date</th>
-              <th className={TH}>Qt</th>
-              <th className={TH}>Customer</th>
-              <th className={TH}>Coil</th>
-              <th className={TH}>Gauge</th>
-              <th className={TH}>Status</th>
+              <th className={`${TH} w-[10%]`}>Date</th>
+              <th className={`${TH} w-[8%]`}>Qt</th>
+              <th className={`${TH} w-[28%]`}>Customer</th>
+              <th className={`${TH} w-[8%]`}>Coil</th>
+              <th className={`${TH} w-[10%]`}>Gauge</th>
+              <th className={`${TH} w-[12%]`}>Status</th>
             </tr>
           </thead>
           <tbody>
             {coil.map((r, i) => (
               <tr key={`c-${i}`}>
-                <td className={TD}>{r.txnDateDisplay || r.txnDate}</td>
-                <td className={TD}>{r.qtNoDisplay}</td>
+                <td className={TDM}>{r.txnDateDisplay || r.txnDate}</td>
+                <td className={TDM}>{r.qtNoDisplay}</td>
                 <td className={TD}>{r.customerProject}</td>
-                <td className={TD}>{r.coilNoDisplay}</td>
+                <td className={TDM}>{r.coilNoDisplay}</td>
                 <td className={TD}>{r.gauge}</td>
                 <td className={TD}>Cancelled</td>
               </tr>
@@ -448,7 +451,6 @@ export function MaterialTransactionPrintContent({ report, branchLabel, periodLab
           Remark: New coil / New roll on first production use of a coil; Finished on the line that clears the coil. Amber before = gap vs previous after.
         </p>
       </div>
-      <SummarySection summary={report.summary} />
       <CoilSection title="Aluminium" section={report.aluminium} />
       <CoilSection title="Aluzinc" section={report.aluzinc} />
       {report.unclassifiedCoil?.groups?.length ? (
@@ -457,22 +459,22 @@ export function MaterialTransactionPrintContent({ report, branchLabel, periodLab
       {report.offcutProduction?.rows?.length ? (
         <section className="mb-6 break-inside-avoid">
           <h3 className="text-xs font-black uppercase text-[#134e4a] mb-2">Offcut / no coil allocation</h3>
-          <table className="w-full border-collapse">
+          <table className={TBL}>
             <thead>
               <tr className="bg-slate-50">
-                <th className={TH}>Date</th>
-                <th className={TH}>Qt</th>
-                <th className={TH}>Customer / project</th>
-                <th className={TH}>Design</th>
-                <th className={`${TH} text-right`}>Metres</th>
-                <th className={`${TH} text-right`}>Kg</th>
+                <th className={`${TH} w-[10%]`}>Date</th>
+                <th className={`${TH} w-[8%]`}>Qt</th>
+                <th className={`${TH} w-[30%]`}>Customer / project</th>
+                <th className={`${TH} w-[14%]`}>Design</th>
+                <th className={`${THR} w-[12%]`}>Metres</th>
+                <th className={`${THR} w-[12%]`}>Kg</th>
               </tr>
             </thead>
             <tbody>
               {report.offcutProduction.rows.map((r, i) => (
                 <tr key={`${r.jobId}-${i}`}>
-                  <td className={TD}>{r.txnDateDisplay || r.txnDate}</td>
-                  <td className={`${TD} font-mono`}>{r.qtNoDisplay}</td>
+                  <td className={TDM}>{r.txnDateDisplay || r.txnDate}</td>
+                  <td className={TDM}>{r.qtNoDisplay}</td>
                   <td className={TD}>{r.customerProject}</td>
                   <td className={TD}>{r.design}</td>
                   <td className={TDR}>{fmtNum(r.metres)}</td>
@@ -487,6 +489,7 @@ export function MaterialTransactionPrintContent({ report, branchLabel, periodLab
       <AccessorySection accessories={report.accessories} />
       <ListedNotProducedSection section={report.listedNotProduced} />
       <CancelledSection cancelled={report.cancelled} />
+      <SummarySection summary={report.summary} />
     </div>
   );
 }

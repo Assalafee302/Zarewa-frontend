@@ -60,7 +60,7 @@ export function MaterialTransactionPrintModal({
               shellClassName="max-w-[297mm]"
               footer={
                 <p className="text-center text-[9px] text-slate-500">
-                  Summary · Aluminium · Aluzinc · Stone-coated · Accessories · Not produced · Cancelled
+                  Aluminium · Aluzinc · Stone · Accessories · Summary
                 </p>
               }
             >

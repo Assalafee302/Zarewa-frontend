@@ -485,7 +485,6 @@ function materialTransactionExcelSheets(report) {
   if (!report) return [];
   const sheets = [];
   const summaryRows = materialTransactionSummaryExcelRows(report.summary);
-  if (summaryRows.length) sheets.push({ name: 'Summary', rows: summaryRows });
   const pushCoil = (name, section, familyLabel) => {
     const rows = [];
     for (const g of section?.groups || []) {
@@ -563,6 +562,7 @@ function materialTransactionExcelSheets(report) {
     jobId: r.jobId,
   }));
   if (notProduced.length) sheets.push({ name: 'Listed_not_produced', rows: notProduced });
+  if (summaryRows.length) sheets.push({ name: 'Summary', rows: summaryRows });
   return sheets;
 }
 
@@ -597,6 +597,8 @@ function coilPurchaseExport(r, material, gauge) {
     orderKg: r.orderKg ?? '',
     kgAmountNgn: r.kgAmountNgn ?? '',
     totalNgn: r.totalNgn ?? '',
+    poPaidNgn: r.poPaidNgn ?? '',
+    poOutstandingNgn: r.poOutstandingNgn ?? '',
     remark: r.remark ?? '',
   };
 }
@@ -615,16 +617,18 @@ function qtyPurchaseExport(r, material, groupLabel) {
     ordered: r.orderQty ?? '',
     unitPriceNgn: r.kgAmountNgn ?? '',
     totalNgn: r.totalNgn ?? '',
+    poPaidNgn: r.poPaidNgn ?? '',
+    poOutstandingNgn: r.poOutstandingNgn ?? '',
     remark: r.remark ?? '',
   };
 }
 
-function purchaseRegisterExcelSheets(report) {
-  if (!report) return [];
-  const sheets = [];
-  const summaryRows = [];
-  for (const m of report.summary?.byMaterial || []) {
-    summaryRows.push({
+function purchaseSummaryExcelRows(report) {
+  const summary = report?.summary;
+  if (!summary) return [];
+  const rows = [];
+  for (const m of summary.byMaterial || []) {
+    rows.push({
       rowType: 'Material',
       section: m.label,
       lines: m.lineCount,
@@ -633,8 +637,8 @@ function purchaseRegisterExcelSheets(report) {
       valueNgn: m.totalValueNgn,
     });
   }
-  for (const g of report.summary?.byGauge || []) {
-    summaryRows.push({
+  for (const g of summary.byGauge || []) {
+    rows.push({
       rowType: 'Gauge',
       material: g.material,
       gauge: g.gaugeLabel,
@@ -644,16 +648,22 @@ function purchaseRegisterExcelSheets(report) {
       valueNgn: g.totalValueNgn,
     });
   }
-  for (const t of report.summary?.observations || []) summaryRows.push({ rowType: 'Observation', text: t });
-  for (const t of report.summary?.recommendations || []) summaryRows.push({ rowType: 'Recommendation', text: t });
-  const p = report.summary?.payments || {};
-  summaryRows.push({
+  for (const t of summary.observations || []) rows.push({ rowType: 'Observation', text: t });
+  for (const t of summary.recommendations || []) rows.push({ rowType: 'Recommendation', text: t });
+  const p = summary.payments || {};
+  rows.push({
     rowType: 'Payments',
     receivedValueNgn: p.receivedValueNgn ?? 0,
     paidInPeriodNgn: p.paidInPeriodNgn ?? 0,
     poOutstandingNgn: p.poOutstandingNgn ?? 0,
   });
-  if (summaryRows.length) sheets.push({ name: 'Summary', rows: summaryRows });
+  return rows;
+}
+
+function purchaseRegisterExcelSheets(report) {
+  if (!report) return [];
+  const sheets = [];
+  const summaryRows = purchaseSummaryExcelRows(report);
 
   const pushCoil = (name, section, label) => {
     const rows = [];
@@ -677,35 +687,7 @@ function purchaseRegisterExcelSheets(report) {
     for (const r of g.rows) accRows.push(qtyPurchaseExport(r, 'Accessories', g.typeLabel));
   }
   if (accRows.length) sheets.push({ name: 'Accessories', rows: accRows });
-
-  if (report.payments?.supplierPayments?.length) {
-    sheets.push({
-      name: 'Supplier_payments',
-      rows: report.payments.supplierPayments.map((p) => ({
-        date: p.paidDateISO,
-        supplier: p.supplier,
-        amountNgn: p.amountNgn,
-        po: p.sourceIdDisplay,
-        reference: p.reference,
-        bank: p.bankAccount,
-      })),
-    });
-  }
-  if (report.payments?.poBalances?.length) {
-    sheets.push({
-      name: 'PO_outstanding',
-      rows: report.payments.poBalances.map((p) => ({
-        po: p.poIdDisplay,
-        supplier: p.supplier,
-        status: p.status,
-        poValueNgn: p.poValueNgn,
-        paidTotalNgn: p.supplierPaidNgn,
-        paidInPeriodNgn: p.paidInPeriodNgn,
-        outstandingNgn: p.outstandingNgn,
-        remark: p.remark,
-      })),
-    });
-  }
+  if (summaryRows.length) sheets.push({ name: 'Summary', rows: summaryRows });
   return sheets;
 }
 
