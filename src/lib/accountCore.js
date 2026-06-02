@@ -237,6 +237,7 @@ export const createRequestPayLine = (defaultAccountId = '', amount = '') => ({
   treasuryAccountId: String(defaultAccountId),
   amount: amount === '' ? '' : String(amount),
   reference: '',
+  dateISO: new Date().toISOString().slice(0, 10),
 });
 
 export function treasuryMovementStatementLabel(m) {

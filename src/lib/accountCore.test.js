@@ -140,6 +140,7 @@ describe('accountCore', () => {
     const line = createRequestPayLine(2, 1500);
     expect(line.treasuryAccountId).toBe('2');
     expect(line.amount).toBe('1500');
+    expect(line.dateISO).toMatch(/^\d{4}-\d{2}-\d{2}$/);
   });
 
   it('builds readable treasury statement labels', () => {
