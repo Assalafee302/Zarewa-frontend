@@ -240,6 +240,19 @@ export const createRequestPayLine = (defaultAccountId = '', amount = '') => ({
   dateISO: new Date().toISOString().slice(0, 10),
 });
 
+/** Map UI payout lines for treasury APIs (dateISO drives statement / report posting date). */
+export function mapTreasuryPayoutLinesForApi(lines, todayIso = new Date().toISOString().slice(0, 10)) {
+  const fallback = String(todayIso || '').trim().slice(0, 10) || new Date().toISOString().slice(0, 10);
+  return (lines || [])
+    .map((line) => ({
+      treasuryAccountId: Number(line.treasuryAccountId),
+      amountNgn: Number(line.amount) || 0,
+      reference: String(line.reference || '').trim(),
+      dateISO: String(line.dateISO || '').trim().slice(0, 10) || fallback,
+    }))
+    .filter((line) => line.treasuryAccountId && line.amountNgn > 0);
+}
+
 export function treasuryMovementStatementLabel(m) {
   const sourceLabel = TREASURY_SOURCE_KIND_LABEL[m.sourceKind];
   const kind = sourceLabel || TREASURY_STATEMENT_TYPE_LABEL[m.type] || m.type || 'Treasury movement';

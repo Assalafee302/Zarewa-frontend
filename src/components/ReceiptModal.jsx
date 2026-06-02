@@ -685,6 +685,7 @@ const ReceiptModal = ({
             treasuryAccountId: treasuryAccountIdForApiPayload(tid),
             amountNgn: parseNum(line.amount),
             reference: [line.payeeName?.trim?.(), remarks.trim()].filter(Boolean).join(' — '),
+            dateISO: String(line.lineDate || voucherDate).trim().slice(0, 10) || voucherDate,
           };
         });
         const invalidTreasury = paymentLinesPayload.some(

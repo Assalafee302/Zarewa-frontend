@@ -3,6 +3,7 @@ import {
   ACCOUNT_TAB_LABELS,
   buildPaymentRequestAuditTrail,
   createRequestPayLine,
+  mapTreasuryPayoutLinesForApi,
   isTreasuryOutflowPaymentRow,
   nextExpenseId,
   normalizePaymentRequest,
@@ -141,6 +142,16 @@ describe('accountCore', () => {
     expect(line.treasuryAccountId).toBe('2');
     expect(line.amount).toBe('1500');
     expect(line.dateISO).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  });
+
+  it('maps payout lines with dateISO for API', () => {
+    const out = mapTreasuryPayoutLinesForApi(
+      [{ treasuryAccountId: '1', amount: '500', reference: 'REF', dateISO: '2026-05-02' }],
+      '2026-06-01'
+    );
+    expect(out).toEqual([
+      { treasuryAccountId: 1, amountNgn: 500, reference: 'REF', dateISO: '2026-05-02' },
+    ]);
   });
 
   it('builds readable treasury statement labels', () => {

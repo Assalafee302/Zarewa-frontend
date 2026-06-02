@@ -143,7 +143,14 @@ const AdvancePaymentModal = ({
           purpose: purpose.trim(),
           dateISO,
           treasuryAccountId: Number(treasuryAccountId),
-          paymentLines: [{ treasuryAccountId: Number(treasuryAccountId), amountNgn: n, reference: reference.trim() }],
+          paymentLines: [
+            {
+              treasuryAccountId: Number(treasuryAccountId),
+              amountNgn: n,
+              reference: reference.trim(),
+              dateISO,
+            },
+          ],
         }),
       });
       if (!ok || !data?.ok) {

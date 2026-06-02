@@ -68,6 +68,7 @@ import {
   SUPPLIER_CONTACT_ROW_TEMPLATE,
 } from '../lib/supplierProfileForm';
 import { treasuryAccountDisplayName, treasuryAccountsForWorkspace } from '../lib/treasuryAccountsStore';
+import { createRequestPayLine, mapTreasuryPayoutLinesForApi } from '../lib/accountCore';
 
 /** Rows per column for Coil / Stone-coated / Accessories lists on Purchases. */
 const PROCUREMENT_PURCHASES_COLUMN_PAGE_SIZE = 10;
@@ -191,13 +192,6 @@ function poLineSummaryLabel(kind) {
 }
 
 const PILL = 'inline-flex items-center px-2 py-0.5 rounded-md text-[9px] font-semibold uppercase tracking-wide';
-
-const createApPayLine = (defaultAccountId = '', amount = '') => ({
-  id: `ap-pay-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-  treasuryAccountId: String(defaultAccountId),
-  amount: amount === '' ? '' : String(amount),
-  reference: '',
-});
 
 const normalizeNairaInput = (value) => String(value ?? '').replace(/[^\d]/g, '');
 const formatNairaInput = (value) => {
@@ -424,8 +418,7 @@ const Procurement = () => {
   const [showTransportModal, setShowTransportModal] = useState(false);
   const [showApPayModal, setShowApPayModal] = useState(false);
   const [selectedAp, setSelectedAp] = useState(null);
-  const [apPayLines, setApPayLines] = useState(() => [createApPayLine('')]);
-  const [apPaidAtISO, setApPaidAtISO] = useState(() => new Date().toISOString().slice(0, 10));
+  const [apPayLines, setApPayLines] = useState(() => [createRequestPayLine('')]);
   const [apPayBusy, setApPayBusy] = useState(false);
 
   const [supplierForm, setSupplierForm] = useState(() => ({
@@ -1180,7 +1173,7 @@ const Procurement = () => {
   };
 
   const addApPayLine = () => {
-    setApPayLines((prev) => [...prev, createApPayLine(treasuryAccounts[0]?.id ?? '')]);
+    setApPayLines((prev) => [...prev, createRequestPayLine(treasuryAccounts[0]?.id ?? '')]);
   };
 
   const removeApPayLine = (lineId) => {
@@ -1190,16 +1183,14 @@ const Procurement = () => {
   const resetApPaymentModal = () => {
     setShowApPayModal(false);
     setSelectedAp(null);
-    setApPayLines([createApPayLine(treasuryAccounts[0]?.id ?? '')]);
-    setApPaidAtISO(new Date().toISOString().slice(0, 10));
+    setApPayLines([createRequestPayLine(treasuryAccounts[0]?.id ?? '')]);
     setApPayBusy(false);
   };
 
   const openApPaymentModal = (ap) => {
     const outstanding = Math.max(0, (Number(ap?.amountNgn) || 0) - (Number(ap?.paidNgn) || 0));
     setSelectedAp(ap);
-    setApPayLines([createApPayLine(treasuryAccounts[0]?.id ?? '', outstanding)]);
-    setApPaidAtISO(new Date().toISOString().slice(0, 10));
+    setApPayLines([createRequestPayLine(treasuryAccounts[0]?.id ?? '', outstanding)]);
     setShowApPayModal(true);
   };
 
@@ -1209,13 +1200,7 @@ const Procurement = () => {
     const invoiceRef = selectedAp.invoiceRef || selectedAp.poRef || selectedAp.apID;
     const paidBy = currentActorLabel;
     const remaining = Math.max(0, (Number(selectedAp.amountNgn) || 0) - (Number(selectedAp.paidNgn) || 0));
-    const validLines = apPayLines
-      .map((line) => ({
-        treasuryAccountId: Number(line.treasuryAccountId),
-        amountNgn: Number(line.amount) || 0,
-        reference: String(line.reference || '').trim(),
-      }))
-      .filter((line) => line.treasuryAccountId && line.amountNgn > 0);
+    const validLines = mapTreasuryPayoutLinesForApi(apPayLines);
     if (validLines.length === 0) {
       showToast('Add at least one payout line.', { variant: 'error' });
       return;
@@ -1230,10 +1215,6 @@ const Procurement = () => {
     }
     if (apPayTotalNgn > remaining) {
       showToast('Payout total exceeds outstanding payable balance.', { variant: 'error' });
-      return;
-    }
-    if (!String(apPaidAtISO || '').trim()) {
-      showToast('Payment date is required.', { variant: 'error' });
       return;
     }
     const shortAccount = treasuryAccounts.find((account) => {
@@ -1270,7 +1251,8 @@ const Procurement = () => {
             treasuryAccountId: line.treasuryAccountId,
             reference: line.reference || invoiceRef,
             note: '',
-            paidAtISO: apPaidAtISO,
+            dateISO: line.dateISO,
+            paidAtISO: line.dateISO,
             paidBy,
             createdBy: paidBy,
           }),
@@ -2626,20 +2608,27 @@ const Procurement = () => {
                     </select>
                     <div className="grid grid-cols-1 sm:grid-cols-12 gap-2 items-center">
                       <input
+                        type="date"
+                        value={line.dateISO}
+                        onChange={(e) => updateApPayLine(line.id, { dateISO: e.target.value })}
+                        className="sm:col-span-3 rounded-lg border border-slate-200 bg-white py-2 px-2 text-[11px] font-semibold"
+                        title="Payment date"
+                      />
+                      <input
                         type="text"
                         inputMode="numeric"
                         value={formatNairaInput(line.amount)}
                         onChange={(e) =>
                           updateApPayLine(line.id, { amount: normalizeNairaInput(e.target.value) })
                         }
-                        className="sm:col-span-5 rounded-lg border border-slate-200 bg-white py-2 px-2 text-[11px] font-bold text-[#134e4a]"
+                        className="sm:col-span-3 rounded-lg border border-slate-200 bg-white py-2 px-2 text-[11px] font-bold text-[#134e4a]"
                         placeholder="Amount ₦"
                       />
                       <input
                         type="text"
                         value={line.reference}
                         onChange={(e) => updateApPayLine(line.id, { reference: e.target.value })}
-                        className="sm:col-span-5 rounded-lg border border-slate-200 bg-white py-2 px-2 text-[11px]"
+                        className="sm:col-span-4 rounded-lg border border-slate-200 bg-white py-2 px-2 text-[11px]"
                         placeholder="Reference"
                       />
                       <button
@@ -2670,18 +2659,6 @@ const Procurement = () => {
                     )}
                   </span>
                 </div>
-              </div>
-              <div>
-                <label className="text-[10px] font-bold text-gray-400 uppercase ml-1 block mb-1">
-                  Payment date
-                </label>
-                <input
-                  type="date"
-                  value={apPaidAtISO}
-                  onChange={(e) => setApPaidAtISO(e.target.value)}
-                  className="w-full rounded-xl border border-slate-200 bg-white py-2.5 px-3 text-xs font-semibold text-[#134e4a] outline-none"
-                  required
-                />
               </div>
               <p className="text-[10px] text-gray-500 leading-relaxed">
                 Saving this payout writes treasury movements and keeps the payable open until the invoice balance is fully paid.

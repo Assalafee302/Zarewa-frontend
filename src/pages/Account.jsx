@@ -61,6 +61,7 @@ import { EXPENSE_CATEGORY_OPTIONS } from '../shared/expenseCategories.js';
 import {
   ACCOUNT_TAB_LABELS as TAB_LABELS,
   createRequestPayLine,
+  mapTreasuryPayoutLinesForApi,
   normalizePaymentRequest,
   treasuryMovementStatementLabel,
   treasuryMovementSourceBadge,
@@ -815,13 +816,7 @@ const Account = () => {
     const paidBy = refundPaidBy.trim() || activeActorLabel;
     const rid = refundPayTarget.refundID;
     const outstanding = refundOutstandingAmount(refundPayTarget);
-    const validLines = refundPayLines
-      .map((line) => ({
-        treasuryAccountId: Number(line.treasuryAccountId),
-        amountNgn: Number(line.amount) || 0,
-        reference: line.reference.trim(),
-      }))
-      .filter((line) => line.treasuryAccountId && line.amountNgn > 0);
+    const validLines = mapTreasuryPayoutLinesForApi(refundPayLines);
     if (validLines.length === 0) {
       showToast('Add at least one refund payout line.', { variant: 'error' });
       return;
@@ -851,7 +846,6 @@ const Account = () => {
           method: 'POST',
           body: JSON.stringify({
             paidBy,
-            paidAtISO: new Date().toISOString().slice(0, 10),
             note: refundPaymentNote.trim(),
             paymentLines: validLines,
           }),
@@ -1004,15 +998,7 @@ const Account = () => {
     if (!selectedPayment?.id || treasuryPayoutSubmitting) return;
 
     const outstanding = effectiveOutstandingNgn(selectedPayment.total ?? 0, selectedPayment.paid ?? 0);
-    const todayIso = new Date().toISOString().slice(0, 10);
-    const validLines = requestPayLines
-      .map((line) => ({
-        treasuryAccountId: Number(line.treasuryAccountId),
-        amountNgn: Number(line.amount) || 0,
-        reference: line.reference.trim(),
-        dateISO: String(line.dateISO || '').trim().slice(0, 10) || todayIso,
-      }))
-      .filter((line) => line.treasuryAccountId && line.amountNgn > 0);
+    const validLines = mapTreasuryPayoutLinesForApi(requestPayLines);
 
     if (validLines.length === 0) {
       showToast('Add at least one payout line.', { variant: 'error' });
@@ -5487,19 +5473,26 @@ const Account = () => {
                     </select>
                     <div className="grid grid-cols-1 sm:grid-cols-12 gap-2 items-center">
                     <input
+                      type="date"
+                      value={line.dateISO}
+                      onChange={(e) => updateRefundPayLine(line.id, { dateISO: e.target.value })}
+                      className="sm:col-span-3 rounded-lg border border-slate-200 bg-white py-2 px-2 text-[11px] font-semibold"
+                      title="Payment date"
+                    />
+                    <input
                       type="number"
                       min="0"
                       step="1"
                       value={line.amount}
                       onChange={(e) => updateRefundPayLine(line.id, { amount: e.target.value })}
-                      className="sm:col-span-5 rounded-lg border border-slate-200 bg-white py-2 px-2 text-[11px] font-bold text-[#134e4a]"
+                      className="sm:col-span-3 rounded-lg border border-slate-200 bg-white py-2 px-2 text-[11px] font-bold text-[#134e4a]"
                       placeholder="Amount ₦"
                     />
                     <input
                       type="text"
                       value={line.reference}
                       onChange={(e) => updateRefundPayLine(line.id, { reference: e.target.value })}
-                      className="sm:col-span-5 rounded-lg border border-slate-200 bg-white py-2 px-2 text-[11px]"
+                      className="sm:col-span-4 rounded-lg border border-slate-200 bg-white py-2 px-2 text-[11px]"
                       placeholder="Reference"
                     />
                     <button
