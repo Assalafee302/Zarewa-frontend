@@ -6,12 +6,22 @@ import { normalizeEditApprovalInput } from '../lib/editApprovalInput.js';
 
 /**
  * Shown when the signed-in role must obtain a manager/admin approval before PATCHing this entity.
- * @param {{ entityKind: string; entityId: string; value: string; onChange: (v: string) => void; className?: string }} props
+ * @param {{ entityKind: string; entityId: string; value: string; onChange: (v: string) => void; className?: string; requiresSecondApproval?: boolean }} props
  */
-export function EditSecondApprovalInline({ entityKind, entityId, value, onChange, className = '' }) {
+export function EditSecondApprovalInline({
+  entityKind,
+  entityId,
+  value,
+  onChange,
+  className = '',
+  requiresSecondApproval,
+}) {
   const ws = useWorkspace();
   const roleKey = ws?.session?.user?.roleKey;
-  const needs = editMutationNeedsSecondApprovalRole(roleKey);
+  const needs =
+    requiresSecondApproval !== undefined
+      ? Boolean(requiresSecondApproval)
+      : editMutationNeedsSecondApprovalRole(roleKey);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
   const [saveHint, setSaveHint] = useState('');

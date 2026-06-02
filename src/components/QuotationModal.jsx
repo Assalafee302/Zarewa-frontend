@@ -58,6 +58,7 @@ import {
 } from '../lib/quotationPriceException';
 import { guidanceForLedgerPostFailure, isVoucherDateInLockedPeriod } from '../lib/ledgerPostingGuidance';
 import { EditSecondApprovalInline } from './EditSecondApprovalInline';
+import { quotationEditNeedsSecondApprovalClient } from '../lib/editApprovalUi';
 import QuotationPrintView from './QuotationPrintView';
 import OffcutAvailabilityPanel from './material/OffcutAvailabilityPanel';
 
@@ -1525,6 +1526,12 @@ const QuotationModal = ({
     ws?.snapshot?.ledgerEntries,
     ws?.refreshEpoch,
   ]);
+  const quotationEditNeedsSecondApproval = useMemo(() => {
+    const id = editData?.id;
+    if (!id) return false;
+    const receipts = Array.isArray(ws?.snapshot?.receipts) ? ws.snapshot.receipts : [];
+    return quotationEditNeedsSecondApprovalClient(ws?.session?.user?.roleKey, receipts, id);
+  }, [editData?.id, ws?.session?.user?.roleKey, ws?.snapshot?.receipts, ws?.refreshEpoch]);
   const quotationBalanceAfterPaidNgn = Math.max(0, grandTotalNgn - quotationPaidNgn);
 
   const quoteDueNgn = useMemo(() => {
@@ -2311,6 +2318,7 @@ const QuotationModal = ({
                     entityId={editData.id}
                     value={quotationEditApprovalId}
                     onChange={setQuotationEditApprovalId}
+                    requiresSecondApproval={quotationEditNeedsSecondApproval}
                   />
                   <button
                     type="button"
@@ -2462,6 +2470,7 @@ const QuotationModal = ({
               entityId={editData.id}
               value={quotationEditApprovalId}
               onChange={setQuotationEditApprovalId}
+              requiresSecondApproval={quotationEditNeedsSecondApproval}
             />
           </div>
         ) : null}
