@@ -107,4 +107,48 @@ describe('authenticated startup TDZ', () => {
       { timeout: 15000 }
     );
   });
+
+  it('renders CEO exec home without error boundary crash', async () => {
+    const { apiFetch } = await import('./lib/apiBase.js');
+    apiFetch.mockImplementation(async (path) => {
+      if (String(path).includes('/bootstrap')) {
+        return {
+          ok: true,
+          data: {
+            ok: true,
+            session: {
+              user: {
+                id: 'u3',
+                username: 'ceo.user',
+                displayName: 'CEO User',
+                roleKey: 'ceo',
+                branchId: 'BR1',
+              },
+              currentBranchId: 'BR1',
+              permissions: ['exec.dashboard.view', 'workspace.view'],
+            },
+            unifiedWorkItems: [],
+            apiOnline: true,
+          },
+        };
+      }
+      if (String(path).includes('/api/exec/summary')) {
+        return { ok: true, data: { ok: true, counts: {}, productionMetrics: {}, branches: [] } };
+      }
+      return { ok: false, data: null };
+    });
+    window.history.pushState({}, '', '/');
+    const { default: App } = await import('./App.jsx');
+    render(
+      <StrictMode>
+        <App />
+      </StrictMode>
+    );
+    await waitFor(
+      () => {
+        expect(screen.queryByText(/Zarewa could not load/i)).toBeNull();
+      },
+      { timeout: 15000 }
+    );
+  });
 });

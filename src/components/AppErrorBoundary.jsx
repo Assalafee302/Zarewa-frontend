@@ -52,8 +52,10 @@ export class AppErrorBoundary extends React.Component {
           <h1 className="text-lg font-black text-red-900">Zarewa could not load</h1>
           <p className="mt-2 text-sm text-slate-700 leading-relaxed">
             Something crashed while starting the app. Try a hard refresh (Ctrl+Shift+R). If this
-            continues after deploy, ask IT to confirm the latest <code className="text-xs">dist/</code>{' '}
-            bundle was copied and the API is running.
+            continues after deploy, ask IT to copy the entire <code className="text-xs">dist/</code>{' '}
+            folder in one step (all <code className="text-xs">assets/*</code> plus{' '}
+            <code className="text-xs">index.html</code>), confirm the API is running, and check View
+            Source for <code className="text-xs">zarewa-build</code> matching the git commit they deployed.
           </p>
           <pre className="mt-4 max-h-40 overflow-auto rounded-lg bg-slate-50 p-3 text-[11px] text-red-800 whitespace-pre-wrap break-words">
             {message}

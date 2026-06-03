@@ -11,10 +11,25 @@ function resolveBuildId() {
   }
 }
 
+const ZAREWA_BUILD_ID = resolveBuildId();
+
+/** Lets IT confirm deployed HTML matches the built bundle (View Source → zarewa-build meta). */
+function zarewaBuildMetaPlugin() {
+  return {
+    name: 'zarewa-build-meta',
+    transformIndexHtml(html) {
+      return html.replace(
+        '<head>',
+        `<head>\n    <meta name="zarewa-build" content="${ZAREWA_BUILD_ID}" />`
+      );
+    },
+  };
+}
+
 export default defineConfig({
-  plugins: [react(), tailwindcss()],
+  plugins: [react(), tailwindcss(), zarewaBuildMetaPlugin()],
   define: {
-    __ZAREWA_BUILD_ID__: JSON.stringify(resolveBuildId()),
+    __ZAREWA_BUILD_ID__: JSON.stringify(ZAREWA_BUILD_ID),
   },
   build: {
     chunkSizeWarningLimit: 2400,
