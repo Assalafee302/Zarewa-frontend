@@ -31,10 +31,6 @@ export function BranchWorkspaceBar() {
     [currentId, ws.updateWorkspace]
   );
 
-  if (!ws.apiOnline || branches.length === 0) return null;
-
-  const activeBranch = branches.find((b) => b.id === currentId) || branches[0] || null;
-
   const onWorkspaceScopeChange = useCallback(
     async (e) => {
       const v = String(e.target.value || '').trim();
@@ -57,6 +53,10 @@ export function BranchWorkspaceBar() {
     },
     [currentId, viewAll, ws.updateWorkspace]
   );
+
+  if (!ws.apiOnline || branches.length === 0) return null;
+
+  const activeBranch = branches.find((b) => b.id === currentId) || branches[0] || null;
 
   const scopeSelectValue = viewAll && canHqRollup ? '__ALL__' : currentId || (branches[0]?.id ?? '');
 
