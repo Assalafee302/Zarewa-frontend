@@ -27,11 +27,27 @@ const TH = 'px-1.5 py-1 text-left text-[8px] font-bold uppercase text-slate-600 
 const TD = 'px-1.5 py-0.5 text-[10px] text-slate-800 border border-slate-300 print:text-[8.5pt]';
 const TDR = `${TD} text-right tabular-nums`;
 
-function CoilTable({ section }) {
-  if (!section?.groups?.length) {
+function splitCoilRows(section) {
+  const activeGroups = [];
+  const finishedGroups = [];
+  for (const g of section?.groups || []) {
+    const activeRows = (g.rows || []).filter((r) => !r.finishedInPeriod);
+    const finishedRows = (g.rows || []).filter((r) => r.finishedInPeriod);
+    if (activeRows.length) {
+      activeGroups.push({ ...g, rows: activeRows });
+    }
+    if (finishedRows.length) {
+      finishedGroups.push({ ...g, rows: finishedRows });
+    }
+  }
+  return { activeGroups, finishedGroups };
+}
+
+function CoilTable({ groups, showCountedBlank = true }) {
+  if (!groups?.length) {
     return <p className="text-xs text-slate-500 italic">No lines this period.</p>;
   }
-  return section.groups.map((g) => (
+  return groups.map((g) => (
     <div key={g.gaugeLabel} className="mb-4 break-inside-avoid">
       <p className="text-xs font-bold text-slate-800 mb-1">{g.gaugeLabel}</p>
       <table className="w-full border-collapse">
@@ -39,10 +55,13 @@ function CoilTable({ section }) {
           <tr className="bg-slate-50">
             <th className={TH}>Colour</th>
             <th className={TH}>Coil</th>
-            <th className={`${TH} text-right`}>Open kg</th>
-            <th className={`${TH} text-right`}>Rcvd kg</th>
+            <th className={`${TH} text-right`}>Open</th>
+            <th className={`${TH} text-right`}>Rcvd</th>
+            <th className={`${TH} text-right`}>Used m</th>
             <th className={`${TH} text-right`}>Used kg</th>
-            <th className={`${TH} text-right`}>Close kg</th>
+            <th className={`${TH} text-right`}>kg/m</th>
+            <th className={`${TH} text-right`}>Close</th>
+            {showCountedBlank ? <th className={`${TH} text-center w-8`}>✎</th> : null}
             <th className={TH}>Remark</th>
           </tr>
         </thead>
@@ -51,10 +70,17 @@ function CoilTable({ section }) {
             <tr key={r.coilNo}>
               <td className={TD}>{r.colourAbbrev}</td>
               <td className={`${TD} font-mono`}>{r.coilNoDisplay || r.coilNo}</td>
-              <td className={TDR}>{fmtNum(r.openingKg)}</td>
-              <td className={TDR}>{fmtNum(r.receivedKg)}</td>
-              <td className={TDR}>{fmtNum(r.usedKg)}</td>
-              <td className={TDR}>{r.closingBlank ? '—' : fmtNum(r.closingKg)}</td>
+              <td className={TDR}>{fmtNum(r.openingKg, 0)}</td>
+              <td className={TDR}>{fmtNum(r.receivedKg, 0)}</td>
+              <td className={TDR}>{fmtNum(r.usedM)}</td>
+              <td className={TDR}>{fmtNum(r.usedKg, 0)}</td>
+              <td className={TDR}>{r.kgPerM != null ? fmtNum(r.kgPerM) : '—'}</td>
+              <td className={TDR}>{r.closingBlank ? '—' : fmtNum(r.closingKg, 0)}</td>
+              {showCountedBlank ? (
+                <td className={`${TD} text-center text-slate-400`} aria-label="Counted (write-in)">
+                  {' '}
+                </td>
+              ) : null}
               <td className={`${TD} text-slate-600`}>
                 {[r.remarkSuggested, r.stockForm === 'roll' ? 'ROLL' : ''].filter(Boolean).join(' · ')}
               </td>
@@ -64,6 +90,24 @@ function CoilTable({ section }) {
       </table>
     </div>
   ));
+}
+
+function CoilSection({ title, section }) {
+  const { activeGroups, finishedGroups } = splitCoilRows(section);
+  return (
+    <section className="break-inside-avoid">
+      <h2 className="text-sm font-black uppercase tracking-wide text-[#134e4a] mb-2">{title}</h2>
+      <CoilTable groups={activeGroups} />
+      {finishedGroups.length ? (
+        <div className="mt-4 pt-3 border-t border-dashed border-slate-300">
+          <h3 className="text-xs font-black uppercase tracking-wide text-slate-700 mb-2">
+            Finished coils (consumed this period)
+          </h3>
+          <CoilTable groups={finishedGroups} showCountedBlank={false} />
+        </div>
+      ) : null}
+    </section>
+  );
 }
 
 /** Shared register body for screen + print preview. */
@@ -93,8 +137,8 @@ export function StockRegisterPrintContent({ register, branchId, branchLabel, vie
                   {ps[fam].map((r) => (
                     <tr key={r.gaugeLabel}>
                       <td className={TD}>{r.gaugeLabel}</td>
-                      <td className={TDR}>{fmtNum(r.grossClosingKg)}</td>
-                      <td className={TDR}>{fmtNum(r.netClosingKg)}</td>
+                      <td className={TDR}>{fmtNum(r.grossClosingKg, 0)}</td>
+                      <td className={TDR}>{fmtNum(r.netClosingKg, 0)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -113,15 +157,8 @@ export function StockRegisterPrintContent({ register, branchId, branchLabel, vie
 
   return (
     <div className="space-y-5 text-slate-800">
-      <section className="break-inside-avoid">
-        <h2 className="text-sm font-black uppercase tracking-wide text-[#134e4a] mb-2">A. Aluminium coils (gross kg)</h2>
-        <CoilTable section={register.coilSections?.aluminium} />
-      </section>
-
-      <section className="break-inside-avoid">
-        <h2 className="text-sm font-black uppercase tracking-wide text-[#134e4a] mb-2">B. Aluzinc coils (gross kg)</h2>
-        <CoilTable section={register.coilSections?.aluzinc} />
-      </section>
+      <CoilSection title="A. Aluminium coils (gross kg)" section={register.coilSections?.aluminium} />
+      <CoilSection title="B. Aluzinc coils (gross kg)" section={register.coilSections?.aluzinc} />
 
       {register.stoneCoated?.groups?.length ? (
         <section>
@@ -164,7 +201,7 @@ export function StockRegisterPrintContent({ register, branchId, branchLabel, vie
           <table className="w-full border-collapse">
             <thead>
               <tr className="bg-slate-50">
-                <th className={TH}>Type</th>
+                <th className={TH}>Item</th>
                 <th className={TH}>Unit</th>
                 <th className={`${TH} text-right`}>Open</th>
                 <th className={`${TH} text-right`}>Rcvd</th>
@@ -174,8 +211,8 @@ export function StockRegisterPrintContent({ register, branchId, branchLabel, vie
             </thead>
             <tbody>
               {register.accessories.rows.map((r) => (
-                <tr key={`${r.typeKey}-${r.unit}`}>
-                  <td className={TD}>{r.typeLabel}</td>
+                <tr key={r.productID || `${r.typeKey}-${r.unit}`}>
+                  <td className={TD}>{r.itemName || r.typeLabel}</td>
                   <td className={TD}>{r.unit}</td>
                   <td className={TDR}>{fmtNum(r.opening)}</td>
                   <td className={TDR}>{fmtNum(r.received)}</td>
@@ -211,11 +248,11 @@ export function StockRegisterPrintContent({ register, branchId, branchLabel, vie
               <tr key={label}>
                 <td className={TD}>{label}</td>
                 <td className={TDR}>
-                  {fmtNum(data?.grossClosingKg)} {unit}
+                  {fmtNum(data?.grossClosingKg, 0)} {unit}
                 </td>
-                <td className={TDR}>{fmtNum(data?.spoolAdjustmentKg)}</td>
+                <td className={TDR}>{fmtNum(data?.spoolAdjustmentKg, 0)}</td>
                 <td className={TDR}>
-                  {fmtNum(data?.netClosingKg)} {unit}
+                  {fmtNum(data?.netClosingKg, 0)} {unit}
                 </td>
                 <td className={TDR}>{fmtPrice(data?.unitCostNgnPerKg, suffix)}</td>
                 <td className={`${TD} text-right text-[9px] text-slate-600`}>

@@ -323,13 +323,13 @@ function draftRowConversionPreviewReady(row) {
 function completionLineFromDraft(row) {
   const line = {
     coilNo: row.coilNo.trim(),
-    closingWeightKg: Number(row.closingWeightKg),
+    closingWeightKg: Math.round(Number(row.closingWeightKg) || 0),
     metersProduced: Number(row.metersProduced),
     note: row.note.trim(),
   };
   const opening = Number(String(row.openingWeightKg ?? '').replace(/,/g, ''));
   if (Number.isFinite(opening) && opening > 0) {
-    line.openingWeightKg = opening;
+    line.openingWeightKg = Math.round(opening);
   }
   if (row.finishCoil) {
     line.finishCoil = true;
@@ -474,9 +474,8 @@ export function LiveProductionMonitor({
     setCompletionSourceMode('coil');
     setOffcutMetersProduced('');
     setOffcutInventoryMetersInput('');
-    const started = String(selectedJob?.startDateISO || '').slice(0, 10);
     const completed = String(selectedJob?.completedAtISO || selectedJob?.endDateISO || '').slice(0, 10);
-    setProductionDateIso(started || new Date().toISOString().slice(0, 10));
+    setProductionDateIso(new Date().toISOString().slice(0, 10));
     setCompletionDateIso(completed || new Date().toISOString().slice(0, 10));
   }, [selectedJob?.jobID, selectedJob?.startDateISO, selectedJob?.completedAtISO, selectedJob?.endDateISO]);
 
@@ -1642,9 +1641,14 @@ export function LiveProductionMonitor({
         const next = { ...row, ...patch };
         if (Object.prototype.hasOwnProperty.call(patch, 'closingWeightKg')) {
           const cl = Number(next.closingWeightKg);
+          if (Number.isFinite(cl)) next.closingWeightKg = Math.round(cl);
           if (!Number.isFinite(cl) || cl < 0 || cl >= COIL_TAIL_FINISH_MAX_KG) {
             next.finishCoil = false;
           }
+        }
+        if (Object.prototype.hasOwnProperty.call(patch, 'openingWeightKg')) {
+          const op = Number(String(next.openingWeightKg ?? '').replace(/,/g, ''));
+          if (Number.isFinite(op)) next.openingWeightKg = Math.round(op);
         }
         if (
           Object.prototype.hasOwnProperty.call(patch, 'coilNo') &&
@@ -1690,9 +1694,11 @@ export function LiveProductionMonitor({
   };
 
   const buildCompleteBody = () => {
+    const productionDate = productionDateIso || new Date().toISOString().slice(0, 10);
     if (isStoneMeterQuote && !completionUsesOffcutMode) {
       return {
         completedAtISO: completionDateIso,
+        productionDateISO: productionDate,
         stoneMetersConsumed: Number(String(stoneMetersConsumed).replace(/,/g, '')),
         accessoriesSupplied: accessoriesSuppliedForApi,
         stoneFlatsheetSupplied: stoneFlatsheetSuppliedForApi,
@@ -1710,6 +1716,7 @@ export function LiveProductionMonitor({
       const offInv = offcutSupplyMetersTotal > 0 ? offcutSupplyMetersTotal : outputM;
       return {
         completedAtISO: completionDateIso,
+        productionDateISO: productionDate,
         completeMode: 'offcut',
         offcutMetersProduced: outputM,
         offcutInventoryMeters: offInv,
@@ -1722,6 +1729,7 @@ export function LiveProductionMonitor({
     const overrunRemark = signoffRemark.trim();
     return {
       completedAtISO: completionDateIso,
+      productionDateISO: productionDate,
       allocations: draftAllocations.map((row) => completionLineFromDraft(row)),
       accessoriesSupplied: accessoriesSuppliedForApi,
       offcutInventoryMeters: invOff,
@@ -2466,15 +2474,26 @@ export function LiveProductionMonitor({
                     </p>
                   ) : null}
                   {selectedJob.status === 'Running' ? (
-                    <label className="text-[10px] font-semibold text-slate-600">
-                      Completion date
-                      <input
-                        type="date"
-                        className="z-input block mt-0.5 py-1 text-[11px]"
-                        value={completionDateIso}
-                        onChange={(e) => setCompletionDateIso(e.target.value)}
-                      />
-                    </label>
+                    <>
+                      <label className="text-[10px] font-semibold text-slate-600">
+                        Production business date
+                        <input
+                          type="date"
+                          className="z-input block mt-0.5 py-1 text-[11px]"
+                          value={productionDateIso}
+                          onChange={(e) => setProductionDateIso(e.target.value)}
+                        />
+                      </label>
+                      <label className="text-[10px] font-semibold text-slate-600">
+                        Completion date
+                        <input
+                          type="date"
+                          className="z-input block mt-0.5 py-1 text-[11px]"
+                          value={completionDateIso}
+                          onChange={(e) => setCompletionDateIso(e.target.value)}
+                        />
+                      </label>
+                    </>
                   ) : null}
                 </div>
               ) : null}

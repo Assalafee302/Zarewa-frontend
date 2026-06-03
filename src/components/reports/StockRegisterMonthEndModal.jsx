@@ -42,7 +42,11 @@ export function StockRegisterMonthEndModal({
       surface="plain"
       title={titles[roleMode] || 'Stock register'}
     >
-      <div className="z-modal-panel-lg flex max-h-[92dvh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl">
+      <div
+        className={`z-modal-panel-lg flex max-h-[92dvh] w-full flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl ${
+          roleMode === 'manager' ? 'max-w-5xl' : 'max-w-3xl'
+        }`}
+      >
         <header className="flex shrink-0 items-start justify-between gap-3 border-b border-slate-100 px-4 py-3 sm:px-5">
           <div className="min-w-0">
             <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Physical stock register</p>

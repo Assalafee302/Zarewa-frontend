@@ -1,19 +1,27 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ClipboardCheck, ChevronDown, Eye, Loader2, Printer, RefreshCw, Send } from 'lucide-react';
-import { apiFetch } from '../../lib/apiBase';
+import React, { useCallback, useEffect, useState } from 'react';
+import {
+  ClipboardCheck,
+  ChevronDown,
+  Eye,
+  Loader2,
+  Lock,
+  Printer,
+  RefreshCw,
+  Send,
+  ShieldCheck,
+} from 'lucide-react';
 import { formatNgn } from '../../Data/mockData';
-import { StockRegisterBmAdjustEditor } from './StockRegisterBmAdjustEditor';
 import { StockRegisterPrintModal } from './StockRegisterPrintModal';
-import { StockRegisterProcurementCosting } from './StockRegisterProcurementCosting';
-
-const STATUS_STEPS = [
-  { key: 'draft', label: 'Draft' },
-  { key: 'printed', label: 'Printed' },
-  { key: 'store_confirmed', label: 'With manager' },
-  { key: 'bm_approved', label: 'BM OK' },
-  { key: 'procurement_costed', label: 'Costed' },
-  { key: 'locked', label: 'Locked' },
-];
+import { STATUS_STEPS } from './stockRegister/stockRegisterConstants';
+import {
+  fetchStockRegister,
+  printStockRegisterSnapshot,
+} from './stockRegister/stockRegisterApi';
+import { StockRegisterStoreConfirmModal } from './stockRegister/StockRegisterStoreConfirmModal';
+import { StockRegisterBmReviewModal } from './stockRegister/StockRegisterBmReviewModal';
+import { StockRegisterProcurementModal } from './stockRegister/StockRegisterProcurementModal';
+import { StockRegisterCaptureConfirmModal } from './stockRegister/StockRegisterCaptureConfirmModal';
+import { StockRegisterMdApproveModal } from './stockRegister/StockRegisterMdApproveModal';
 
 function WorkflowStepper({ status }) {
   const idx = STATUS_STEPS.findIndex((s) => s.key === status);
@@ -48,6 +56,11 @@ function viewModeForRole(roleMode) {
   return 'store';
 }
 
+function isExecutiveRole(roleKey) {
+  const rk = String(roleKey || '').toLowerCase();
+  return rk === 'md' || rk === 'admin';
+}
+
 /**
  * Month-end stock register — role-based workflow (store / manager / procurement / reports).
  */
@@ -63,25 +76,25 @@ export function StockRegisterPanel({
   const [loading, setLoading] = useState(false);
   const [register, setRegister] = useState(null);
   const [workflow, setWorkflow] = useState(null);
-  const [countNotes, setCountNotes] = useState('');
+  const [procurementPricing, setProcurementPricing] = useState(null);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [autoPrint, setAutoPrint] = useState(false);
   const [workflowOpen, setWorkflowOpen] = useState(false);
-  const [bmAdjustments, setBmAdjustments] = useState(null);
-  const [procurementPricing, setProcurementPricing] = useState(null);
-  const bmAdjustmentsRef = useRef(null);
-  const procurementPricingRef = useRef(null);
+  const [storeConfirmOpen, setStoreConfirmOpen] = useState(false);
+  const [bmReviewOpen, setBmReviewOpen] = useState(false);
+  const [procurementOpen, setProcurementOpen] = useState(false);
+  const [captureOpen, setCaptureOpen] = useState(false);
+  const [mdApproveOpen, setMdApproveOpen] = useState(false);
 
   const viewMode = viewModeForRole(roleMode);
   const showCosting = roleMode === 'reports' || roleMode === 'procurement';
+  const periodKey = register?.periodKey || endDate?.slice(0, 7);
 
   const load = useCallback(async () => {
     if (!endDate || !branchId) return;
     setLoading(true);
     try {
-      const { ok, data } = await apiFetch(
-        `/api/stock-register?periodEnd=${encodeURIComponent(endDate)}&viewMode=${viewMode}`
-      );
+      const { ok, data } = await fetchStockRegister(endDate, viewMode);
       if (!ok || !data?.ok) {
         showToast?.(data?.error || 'Could not load stock register.', { variant: 'error' });
         setRegister(null);
@@ -89,8 +102,6 @@ export function StockRegisterPanel({
       }
       setRegister(data.register);
       setWorkflow(data.workflow);
-      setCountNotes(data.workflow?.countNotes || '');
-      setBmAdjustments(data.workflow?.bmAdjustments || null);
       setProcurementPricing(data.workflow?.procurementPricing || null);
     } finally {
       setLoading(false);
@@ -101,19 +112,9 @@ export function StockRegisterPanel({
     load();
   }, [load]);
 
-  const savePrintSnapshot = async () => {
-    const { ok, data } = await apiFetch('/api/stock-register/print-snapshot', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ periodEnd: endDate }),
-    });
-    if (!ok || !data?.ok) {
-      showToast?.(data?.error || 'Print snapshot failed.', { variant: 'error' });
-      return false;
-    }
-    setRegister(data.register);
-    setWorkflow(data.workflow);
-    return true;
+  const handleWorkflowSaved = (data) => {
+    if (data?.workflow) setWorkflow(data.workflow);
+    load();
   };
 
   const openPreview = () => {
@@ -123,69 +124,22 @@ export function StockRegisterPanel({
   };
 
   const printForCount = async () => {
-    const saved = await savePrintSnapshot();
-    if (!saved) return;
+    const { ok, data } = await printStockRegisterSnapshot(endDate);
+    if (!ok || !data?.ok) {
+      showToast?.(data?.error || 'Print snapshot failed.', { variant: 'error' });
+      return;
+    }
+    setRegister(data.register);
+    setWorkflow(data.workflow);
     showToast?.('Snapshot saved for physical count.');
     setAutoPrint(true);
     setPreviewOpen(true);
   };
 
-  const workflowAction = async (action, extra = {}) => {
-    const periodKey = register?.periodKey || endDate?.slice(0, 7);
-    const { ok, data } = await apiFetch('/api/stock-register/workflow', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        action,
-        periodKey,
-        countNotes,
-        adjustments: extra.adjustments ?? bmAdjustmentsRef.current ?? bmAdjustments,
-        pricing: extra.pricing ?? procurementPricingRef.current ?? procurementPricing,
-      }),
-    });
-    if (!ok || !data?.ok) {
-      showToast?.(data?.error || 'Workflow step failed.', { variant: 'error' });
-      return false;
-    }
-    setWorkflow(data.workflow);
-    showToast?.(`Recorded: ${action.replace(/_/g, ' ')}`);
-    await load();
-    return true;
-  };
-
-  const saveBmAdjustments = async () => {
-    const periodKey = register?.periodKey || endDate?.slice(0, 7);
-    const adj = bmAdjustmentsRef.current ?? bmAdjustments;
-    const { ok, data } = await apiFetch('/api/stock-register/bm-adjustments', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ periodKey, adjustments: adj }),
-    });
-    if (!ok || !data?.ok) {
-      showToast?.(data?.error || 'Could not save adjustments.', { variant: 'error' });
-      return;
-    }
-    showToast?.('Count adjustments saved.');
-    await load();
-  };
-
-  const captureClosing = async () => {
-    const { ok, data } = await apiFetch('/api/stock-register/capture-closing', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ periodEnd: endDate }),
-    });
-    if (!ok || !data?.ok) {
-      showToast?.(data?.error || 'Capture failed.', { variant: 'error' });
-      return;
-    }
-    setWorkflow(data.workflow);
-    showToast?.(`Closing captured (${data.coilLineCount} coil lines) — next month opening ready.`);
-    await load();
-  };
-
   const rk = String(roleKey || '').toLowerCase();
-  const isBm = rk === 'sales_manager' || rk === 'branch_manager' || rk === 'admin' || rk === 'md';
+  const isBm =
+    rk === 'sales_manager' || rk === 'branch_manager' || rk === 'admin' || rk === 'md';
+  const isExecutive = isExecutiveRole(roleKey);
   const status = workflow?.status || 'draft';
   const summary = register?.summary;
   const procurementSummary = register?.procurementSummary;
@@ -224,12 +178,59 @@ export function StockRegisterPanel({
                 <Eye size={14} />
                 Preview
               </button>
-              {(roleMode === 'store' || roleMode === 'reports') && (
+              {(roleMode === 'store' || roleMode === 'manager' || roleMode === 'reports') && (
                 <button type="button" className="z-btn-primary" onClick={printForCount} disabled={!register}>
                   <Printer size={14} />
                   Print
                 </button>
               )}
+            </>
+          ) : null}
+
+          {roleMode === 'store' && register ? (
+            <button
+              type="button"
+              className="z-btn-primary inline-flex items-center gap-2"
+              disabled={!['printed', 'draft'].includes(status)}
+              onClick={() => setStoreConfirmOpen(true)}
+            >
+              <Send size={14} />
+              Store confirm
+            </button>
+          ) : null}
+
+          {roleMode === 'manager' && register && status !== 'locked' ? (
+            <button
+              type="button"
+              className="z-btn-primary inline-flex items-center gap-2"
+              disabled={!['store_confirmed', 'printed', 'bm_approved'].includes(status)}
+              onClick={() => setBmReviewOpen(true)}
+            >
+              <ClipboardCheck size={14} />
+              Review register
+            </button>
+          ) : null}
+
+          {roleMode === 'procurement' && register ? (
+            <>
+              <button
+                type="button"
+                className="z-btn-primary text-sm inline-flex items-center gap-1"
+                disabled={status !== 'bm_approved'}
+                onClick={() => setProcurementOpen(true)}
+              >
+                Enter costing
+              </button>
+              {status === 'md_approved' ? (
+                <button
+                  type="button"
+                  className="z-btn-primary text-sm inline-flex items-center gap-1"
+                  onClick={() => setCaptureOpen(true)}
+                >
+                  <Lock size={14} />
+                  Capture closing
+                </button>
+              ) : null}
             </>
           ) : null}
         </div>
@@ -246,97 +247,23 @@ export function StockRegisterPanel({
           </p>
         ) : null}
 
-        {roleMode === 'manager' && register && status !== 'locked' ? (
-          <div className="mt-4">
-            <StockRegisterBmAdjustEditor
-              register={register}
-              initialAdjustments={bmAdjustments}
-              onChange={(adj) => {
-                bmAdjustmentsRef.current = adj;
-                setBmAdjustments(adj);
-              }}
-            />
-            <div className="flex flex-wrap gap-2 mt-3">
-              <button type="button" className="z-btn-secondary text-sm" onClick={saveBmAdjustments}>
-                Save adjustments
-              </button>
-              <button
-                type="button"
-                className="z-btn-primary text-sm"
-                disabled={!['store_confirmed', 'printed', 'bm_approved'].includes(status)}
-                onClick={async () => {
-                  await saveBmAdjustments();
-                  await workflowAction('bm_approve');
-                }}
-              >
-                Approve &amp; send to procurement
-              </button>
-              <button
-                type="button"
-                className="z-btn-secondary text-sm"
-                disabled={!['store_confirmed'].includes(status)}
-                onClick={() => workflowAction('bm_return_to_store')}
-              >
-                Return to store
-              </button>
-            </div>
-          </div>
+        {roleMode === 'store' && register ? (
+          <p className="text-xs text-slate-500 mt-3">
+            Print the register for the floor count first, then open <strong>Store confirm</strong> to send to the branch
+            manager.
+          </p>
         ) : null}
 
-        {roleMode === 'procurement' && register ? (
-          <div className="mt-4">
-            <StockRegisterProcurementCosting
-              procurementSummary={procurementSummary}
-              initialPricing={procurementPricing}
-              onChange={(p) => {
-                procurementPricingRef.current = p;
-                setProcurementPricing(p);
-              }}
-            />
-            <div className="flex flex-wrap gap-2 mt-3">
-              <button
-                type="button"
-                className="z-btn-primary text-sm"
-                disabled={status !== 'bm_approved'}
-                onClick={async () => {
-                  const ok = await workflowAction('procurement_lock');
-                  if (ok) await captureClosing();
-                }}
-              >
-                Save costing, lock &amp; capture closing
-              </button>
-            </div>
-          </div>
+        {roleMode === 'procurement' && register && status === 'procurement_costed' ? (
+          <p className="text-xs text-teal-800 bg-teal-50 border border-teal-200 rounded-lg p-2 mt-3">
+            Costing saved — awaiting MD approval before capture.
+          </p>
         ) : null}
 
         {showCosting && register && summary?.totalClosingValueNgn != null && roleMode !== 'procurement' ? (
           <p className="mt-3 text-sm font-bold text-[#134e4a]">
             Total closing value: {formatNgn(summary.totalClosingValueNgn || 0)}
           </p>
-        ) : null}
-
-        {roleMode === 'store' && register ? (
-          <div className="mt-4 space-y-3 border-t border-slate-200 pt-4">
-            <label className="block text-sm max-w-2xl">
-              <span className="font-medium text-slate-700">Count notes</span>
-              <textarea
-                className="z-input w-full mt-1 min-h-[3rem]"
-                value={countNotes}
-                onChange={(e) => setCountNotes(e.target.value)}
-                disabled={status === 'locked'}
-              />
-            </label>
-            <button
-              type="button"
-              className="z-btn-primary text-sm inline-flex items-center gap-2"
-              disabled={!['printed', 'draft'].includes(status)}
-              onClick={() => workflowAction('forward_to_manager')}
-            >
-              <Send size={14} />
-              Send to branch manager
-            </button>
-            <p className="text-xs text-slate-500">Print the register for the floor count first, then send to manager.</p>
-          </div>
         ) : null}
 
         {roleMode === 'reports' && register && !embedded ? (
@@ -354,13 +281,14 @@ export function StockRegisterPanel({
             </button>
             {workflowOpen ? (
               <div className="mt-3 flex flex-wrap gap-2">
-                {isBm ? (
-                  <button
-                    type="button"
-                    className="z-btn-secondary text-sm"
-                    disabled={status !== 'procurement_costed'}
-                    onClick={captureClosing}
-                  >
+                {isExecutive && status === 'procurement_costed' ? (
+                  <button type="button" className="z-btn-primary text-sm inline-flex items-center gap-1" onClick={() => setMdApproveOpen(true)}>
+                    <ShieldCheck size={14} />
+                    MD approve
+                  </button>
+                ) : null}
+                {isBm && status === 'md_approved' ? (
+                  <button type="button" className="z-btn-secondary text-sm" onClick={() => setCaptureOpen(true)}>
                     Capture closing
                   </button>
                 ) : null}
@@ -382,6 +310,68 @@ export function StockRegisterPanel({
         workflow={workflow}
         autoPrint={autoPrint}
         viewMode={viewMode}
+      />
+
+      <StockRegisterStoreConfirmModal
+        open={storeConfirmOpen}
+        onClose={() => setStoreConfirmOpen(false)}
+        periodKey={periodKey}
+        periodEnd={endDate}
+        workflow={workflow}
+        initialCountNotes={workflow?.countNotes}
+        initialChecklist={workflow?.storeChecklist}
+        showToast={showToast}
+        onSaved={handleWorkflowSaved}
+      />
+
+      <StockRegisterBmReviewModal
+        open={bmReviewOpen}
+        onClose={() => setBmReviewOpen(false)}
+        register={register}
+        workflow={workflow}
+        periodKey={periodKey}
+        periodEnd={endDate}
+        branchLabel={branchLabel || branchId}
+        showToast={showToast}
+        onSaved={handleWorkflowSaved}
+        onPrint={() => {
+          setAutoPrint(false);
+          setPreviewOpen(true);
+        }}
+      />
+
+      <StockRegisterProcurementModal
+        open={procurementOpen}
+        onClose={() => setProcurementOpen(false)}
+        periodKey={periodKey}
+        periodEnd={endDate}
+        procurementSummary={procurementSummary}
+        initialPricing={procurementPricing}
+        workflow={workflow}
+        showToast={showToast}
+        onSaved={handleWorkflowSaved}
+      />
+
+      <StockRegisterCaptureConfirmModal
+        open={captureOpen}
+        onClose={() => setCaptureOpen(false)}
+        periodEnd={endDate}
+        branchLabel={branchLabel || branchId}
+        workflow={workflow}
+        showToast={showToast}
+        onSaved={handleWorkflowSaved}
+      />
+
+      <StockRegisterMdApproveModal
+        open={mdApproveOpen}
+        onClose={() => setMdApproveOpen(false)}
+        periodKey={periodKey}
+        periodEnd={endDate}
+        branchLabel={branchLabel || branchId}
+        register={register}
+        workflow={workflow}
+        showToast={showToast}
+        onSaved={handleWorkflowSaved}
       />
     </>
   );
