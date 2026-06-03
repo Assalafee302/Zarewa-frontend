@@ -9,6 +9,7 @@ import { colourSelectOptionsFromRows } from '../../lib/colourCanonicalization.js
 import {
   PO_LINE_TYPE_LABELS,
   PO_LINE_TYPES,
+  PO_SERVICE_PRODUCT_ID,
   validatePoLine,
 } from '../../lib/poLineTypes.js';
 import { emptyPoLine } from '../../lib/purchaseOrderDraft.js';
@@ -121,7 +122,9 @@ export default function PurchaseOrderModal({
       lines.map((l) => {
         if (l.lineType === 'stone_meter') return (Number(l.metres) || 0) * (Number(l.pricePerM) || 0);
         if (l.lineType === 'stone_flatsheet') return (Number(l.sheets) || 0) * (Number(l.pricePerSheet) || 0);
-        if (l.lineType === 'accessory') return (Number(l.qty) || 0) * (Number(l.unitPrice) || 0);
+        if (l.lineType === 'accessory' || l.lineType === 'service') {
+          return (Number(l.qty) || 0) * (Number(l.unitPrice) || 0);
+        }
         if (l.lineType === 'coil_meter') return (Number(l.meters) || 0) * (Number(l.pricePerKg) || 0);
         const kg = Number(l.kg) || 0;
         const m = Number(l.meters) || 0;
@@ -233,6 +236,28 @@ export default function PurchaseOrderModal({
           unitPriceNgn: unitPrice,
           qtyOrdered: Number(l.qty),
         });
+        continue;
+      }
+
+      if (l.lineType === 'service') {
+        const serviceName = String(l.serviceName || '').trim();
+        if (!serviceName) throw new Error('Each service line needs a description (e.g. Loading fee).');
+        const qty = Math.max(1, Number(l.qty) || 1);
+        const unitPrice = Math.round(Number(l.unitPrice) || 0);
+        if (unitPrice <= 0) throw new Error('Each service line needs amount ₦ greater than zero.');
+        built.push({
+          lineKey,
+          lineType: 'service',
+          productID: PO_SERVICE_PRODUCT_ID,
+          productName: serviceName,
+          color: '',
+          gauge: '',
+          metersOffered: null,
+          conversionKgPerM: null,
+          unitPricePerKgNgn: unitPrice,
+          unitPriceNgn: unitPrice,
+          qtyOrdered: qty,
+        });
       }
     }
     return built;
@@ -312,7 +337,7 @@ export default function PurchaseOrderModal({
       isOpen={isOpen}
       onClose={onClose}
       title={editPoId ? 'Edit purchase order' : 'New purchase order'}
-      description="Coils, stone metres, stone flatsheet, and accessories on one supplier order."
+      description="Coils, stone, accessories, and services (e.g. loading fee at purchase) on one supplier order."
     >
       <div className="z-modal-panel max-w-[min(100%,min(96vw,56rem))] w-full max-h-[min(92vh,860px)] flex flex-col mx-auto">
         <div className="px-5 py-4 border-b border-slate-200 flex justify-between items-center bg-white shrink-0">

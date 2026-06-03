@@ -1,5 +1,5 @@
 /**
- * Purchase order line types — keep in sync with backend shared/lib/poLineTypes.js
+ * Purchase order line types — keep in sync with Zarewa-backend-main/shared/lib/poLineTypes.js
  */
 
 export const PO_LINE_TYPES = [
@@ -8,6 +8,7 @@ export const PO_LINE_TYPES = [
   'stone_meter',
   'stone_flatsheet',
   'accessory',
+  'service',
 ];
 
 export const PO_LINE_TYPE_LABELS = {
@@ -16,7 +17,20 @@ export const PO_LINE_TYPE_LABELS = {
   stone_meter: 'Stone coated (metres)',
   stone_flatsheet: 'Stone flatsheet (sheets)',
   accessory: 'Accessory',
+  service: 'Service / loading fee',
 };
+
+export const PO_DEFAULT_SERVICE_ITEMS = [
+  'Loading fee',
+  'Offloading at mill',
+  'Labour at purchase',
+  'Weighbridge / documentation',
+  'Commission',
+  'Transportation',
+  'Other',
+];
+
+export const PO_SERVICE_PRODUCT_ID = 'SVC-PO';
 
 export const STONE_FLATSHEET_WIDTH_M = 1.2;
 
@@ -27,6 +41,7 @@ export function inferLineTypeFromProduct(productId, productRow = null, poLine = 
   if (PO_LINE_TYPES.includes(explicit)) return explicit;
 
   const pid = String(productId || '').trim();
+  if (/^SVC-/i.test(pid)) return 'service';
   if (/^ACC-/i.test(pid)) return 'accessory';
   if (/^STONE-FS-/i.test(pid)) return 'stone_flatsheet';
   if (/^STONE-/i.test(pid)) return 'stone_meter';
@@ -67,6 +82,7 @@ export function poLinePriceSuffix(lineType) {
   if (lineType === 'stone' || lineType === 'stone_meter' || lineType === 'coil_meter') return '/m';
   if (lineType === 'stone_flatsheet') return '/sheet';
   if (lineType === 'accessory') return '/unit';
+  if (lineType === 'service') return '/lot';
   if (lineType === 'coil') return '/kg';
   return '/kg';
 }
@@ -76,6 +92,7 @@ export function grnKindForPoLine(line) {
   if (lt === 'stone_meter') return 'stone';
   if (lt === 'stone_flatsheet') return 'stone_flatsheet';
   if (lt === 'accessory') return 'accessory';
+  if (lt === 'service') return 'service';
   return 'coil';
 }
 
@@ -95,7 +112,6 @@ export function isCoilMeterBasisLine(line) {
   );
 }
 
-/** Weighbridge vs PO paperwork — coil lines within this gap are treated as fully received. */
 export const COIL_RECEIPT_SHORT_KG_MIN = 50;
 export const COIL_RECEIPT_SHORT_PCT = 0.02;
 
@@ -105,9 +121,9 @@ export function coilReceiptShortToleranceKg(qtyOrdered) {
   return Math.max(COIL_RECEIPT_SHORT_KG_MIN, q * COIL_RECEIPT_SHORT_PCT);
 }
 
-/** Open quantity still receivable on a PO line (0 when coil short-land is within tolerance). */
 export function poLineOpenQtyForReceiving(line, lineType) {
   const lt = lineType || inferLineTypeFromProduct(line?.productID, null, line);
+  if (lt === 'service') return 0;
   const ordered = Number(line?.qtyOrdered ?? line?.qty_ordered) || 0;
   const received = Number(line?.qtyReceived ?? line?.qty_received) || 0;
   const gap = Math.max(0, ordered - received);
@@ -129,6 +145,7 @@ export function poLineQtyLabel(line, lineType) {
   if (lt === 'stone_meter' || lt === 'coil_meter') return `${open.toLocaleString()} m open`;
   if (lt === 'stone_flatsheet') return `${open.toLocaleString()} sheets open`;
   if (lt === 'accessory') return `${open.toLocaleString()} units open`;
+  if (lt === 'service') return '—';
   return `${open.toLocaleString()} kg open`;
 }
 
@@ -177,6 +194,20 @@ export function validatePoLine(line) {
     return { ok: false, error: 'Accessory lines need an ACC-* product.' };
   }
 
+  if (lineType === 'service') {
+    const name = String(line?.productName ?? line?.product_name ?? '').trim();
+    if (!name) {
+      return { ok: false, error: 'Service lines need a description (e.g. Loading fee).' };
+    }
+    if (!/^SVC-/i.test(pid)) {
+      return { ok: false, error: 'Service lines need a service product id (SVC-PO).' };
+    }
+    const unit = Number(line?.unitPriceNgn ?? line?.unit_price_ngn);
+    if (!Number.isFinite(unit) || unit <= 0) {
+      return { ok: false, error: 'Service lines need amount ₦ greater than zero.' };
+    }
+  }
+
   return { ok: true };
 }
 
@@ -191,11 +222,15 @@ export function deriveProcurementKindFromLineTypes(lineTypes) {
   const kinds = new Set();
   for (const t of lineTypes || []) {
     const lt = String(t || '').trim();
+    if (lt === 'service') continue;
     if (lt === 'stone_meter' || lt === 'stone_flatsheet') kinds.add('stone');
     else if (lt === 'accessory') kinds.add('accessory');
     else kinds.add('coil');
   }
-  if (kinds.size === 0) return 'coil';
+  if (kinds.size === 0) {
+    const hasService = (lineTypes || []).some((t) => String(t || '').trim() === 'service');
+    return hasService ? 'accessory' : 'coil';
+  }
   if (kinds.size === 1) return [...kinds][0];
   return 'mixed';
 }

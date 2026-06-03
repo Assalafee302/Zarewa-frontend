@@ -1,7 +1,7 @@
 import React from 'react';
 import { Plus, Trash2 } from 'lucide-react';
 import { formatNgn } from '../../Data/mockData';
-import { PO_LINE_TYPE_LABELS, PO_LINE_TYPES } from '../../lib/poLineTypes.js';
+import { PO_DEFAULT_SERVICE_ITEMS, PO_LINE_TYPE_LABELS, PO_LINE_TYPES } from '../../lib/poLineTypes.js';
 
 const labelClass =
   'text-[8px] font-semibold text-slate-400 uppercase tracking-wide ml-0.5 mb-0.5 block';
@@ -279,6 +279,50 @@ export default function PoUnifiedLineRow({
         </div>
       )}
 
+      {lt === 'service' && (
+        <div className="grid grid-cols-1 sm:grid-cols-12 gap-2 items-end">
+          <div className="sm:col-span-5">
+            <label className={labelClass}>Service</label>
+            <input
+              type="text"
+              list={`po-service-options-${row.rowUid}`}
+              value={row.serviceName}
+              onChange={(e) => onChange(idx, { serviceName: e.target.value })}
+              placeholder="e.g. Loading fee"
+              className={lineInputClass}
+            />
+            <datalist id={`po-service-options-${row.rowUid}`}>
+              {PO_DEFAULT_SERVICE_ITEMS.map((name) => (
+                <option key={name} value={name} />
+              ))}
+            </datalist>
+          </div>
+          <div className="sm:col-span-2">
+            <label className={labelClass}>Qty</label>
+            <input
+              type="number"
+              min="1"
+              step="1"
+              value={row.qty}
+              onChange={(e) => onChange(idx, { qty: e.target.value })}
+              className={`${lineInputClass} tabular-nums`}
+              title="Usually 1 for a flat loading fee"
+            />
+          </div>
+          <div className="sm:col-span-5">
+            <label className={labelClass}>Amount ₦</label>
+            <input
+              type="number"
+              min="0"
+              value={row.unitPrice}
+              onChange={(e) => onChange(idx, { unitPrice: e.target.value })}
+              className={`${lineInputClass} tabular-nums`}
+              placeholder="Total or per unit"
+            />
+          </div>
+        </div>
+      )}
+
       {lt === 'accessory' && (
         <div className="grid grid-cols-1 sm:grid-cols-12 gap-2 items-end">
           <div className="sm:col-span-6">
@@ -321,6 +365,11 @@ export default function PoUnifiedLineRow({
 
       {lt === 'coil_meter' && (
         <p className="text-[9px] text-slate-500">Weighed and coil-numbered at receipt in Operations.</p>
+      )}
+      {lt === 'service' && (
+        <p className="text-[9px] text-slate-500">
+          Loading and other purchase-point charges — included in PO total and supplier payable (not received in stock).
+        </p>
       )}
     </div>
   );

@@ -33,6 +33,7 @@ export function emptyPoLine(lineType = 'coil_kg') {
     productID: '',
     qty: '',
     unitPrice: '',
+    serviceName: '',
   };
 }
 
@@ -86,6 +87,17 @@ export function purchaseOrderToUnifiedDraft(po, products = []) {
           lineType: 'accessory',
           productID: l.productID,
           qty: l.qtyOrdered,
+          unitPrice: l.unitPriceNgn,
+        };
+      }
+      if (lineType === 'service') {
+        return {
+          ...emptyPoLine('service'),
+          rowUid: l.lineKey,
+          existingLineKey: l.lineKey,
+          lineType: 'service',
+          serviceName: l.productName || '',
+          qty: l.qtyOrdered ?? 1,
           unitPrice: l.unitPriceNgn,
         };
       }

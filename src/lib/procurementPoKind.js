@@ -14,6 +14,7 @@ export function poLineKindForRow(line, poKind = 'coil') {
   const lt = String(line?.lineType || '').trim();
   if (lt === 'stone_meter' || lt === 'stone_flatsheet') return 'stone';
   if (lt === 'accessory') return 'accessory';
+  if (lt === 'service') return 'accessory';
   if (lt === 'coil_meter' || lt === 'coil_kg') return 'coil';
   if (poKind === 'mixed') {
     const inferred = inferLineTypeFromProduct(line?.productID, null, line);
@@ -61,6 +62,7 @@ export function poLineQtyLabel(line, kind) {
   const lt = String(line?.lineType || '').trim();
   if (lt === 'stone_meter' || (kind === 'stone' && lt !== 'stone_flatsheet')) return `${q.toLocaleString()} m`;
   if (lt === 'stone_flatsheet') return `${q.toLocaleString()} sheets`;
+  if (lt === 'service') return `${q.toLocaleString()} lot`;
   if (lt === 'accessory' || kind === 'accessory') return `${q.toLocaleString()} units`;
   if (lt === 'coil_meter') return `${q.toLocaleString()} m`;
   if (kind === 'stone') return `${q.toLocaleString()} m`;
