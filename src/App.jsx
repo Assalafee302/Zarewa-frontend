@@ -46,6 +46,10 @@ import { notificationPrompt } from './lib/aiAssistUi';
 import { searchWorkspaceSnapshot } from './lib/workspaceSearchLocal';
 import { formatPersonName } from './lib/formatPersonName';
 import { debugBootLog } from './lib/debugBoot.js';
+/** Eager — loaded on most sign-ins; avoids lazy-chunk races with the app-shell bundle at startup. */
+import Dashboard from './pages/Dashboard';
+import ManagerDashboard from './pages/ManagerDashboard';
+import ExecDashboard from './pages/ExecDashboard';
 
 const AiAssistantDock = lazy(() =>
   import('./components/AiAssistantDock.jsx')
@@ -69,9 +73,6 @@ const WorkspaceCommandPalette = lazy(() =>
   }))
 );
 
-const Dashboard = lazy(() => import('./pages/Dashboard'));
-const ManagerDashboard = lazy(() => import('./pages/ManagerDashboard'));
-const ExecDashboard = lazy(() => import('./pages/ExecDashboard'));
 const Sales = lazy(() => import('./pages/Sales'));
 const Procurement = lazy(() => import('./pages/Procurement'));
 const SupplierProfile = lazy(() => import('./pages/SupplierProfile'));

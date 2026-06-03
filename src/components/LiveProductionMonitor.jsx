@@ -817,6 +817,8 @@ export function LiveProductionMonitor({
   /** When job/quote identity changes, accessory draft resets merge-from-prev; null = not yet tracked in this mount. */
   const accessoryDraftJobRef = useRef(null);
   const sfDraftJobRef = useRef(null);
+  const [accessoryCompletionDraft, setAccessoryCompletionDraft] = useState([]);
+  const [stoneFlatsheetCompletionDraft, setStoneFlatsheetCompletionDraft] = useState([]);
   const [conversionPreview, setConversionPreview] = useState(null);
   const [conversionPreviewError, setConversionPreviewError] = useState('');
   const [conversionPreviewLoading, setConversionPreviewLoading] = useState(false);
@@ -909,9 +911,6 @@ export function LiveProductionMonitor({
       })
       .filter((r) => productLineKey(r.name) === 'stone flatsheet' && r.orderedM2 > 0 && r.lengthM != null);
   }, [selectedJob?.quotationRef, ws?.snapshot?.quotations]);
-
-  const [accessoryCompletionDraft, setAccessoryCompletionDraft] = useState([]);
-  const [stoneFlatsheetCompletionDraft, setStoneFlatsheetCompletionDraft] = useState([]);
 
   useEffect(() => {
     const quotationRef = selectedJob?.quotationRef;

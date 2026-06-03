@@ -22,7 +22,7 @@
     <script>
       window.addEventListener('error', function (ev) {
         var msg = (ev && ev.message) || '';
-        if (/Loading chunk|Failed to fetch dynamically imported module|before initialization/i.test(msg)) {
+        if (/Loading chunk|Failed to fetch dynamically imported module|before initialization|Minified React error #30[01]|fewer hooks than expected/i.test(msg)) {
           var root = document.getElementById('root');
           if (root && !root.innerHTML.trim()) {
             root.innerHTML =

@@ -3,7 +3,7 @@
  */
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, waitFor, cleanup } from '@testing-library/react';
-import React from 'react';
+import React, { StrictMode } from 'react';
 
 vi.mock('./lib/firebase.js', () => ({
   firebaseConfigured: false,
@@ -54,7 +54,11 @@ describe('authenticated startup TDZ', () => {
   it('renders workspace shell without error boundary crash', async () => {
     window.history.pushState({}, '', '/');
     const { default: App } = await import('./App.jsx');
-    render(<App />);
+    render(
+      <StrictMode>
+        <App />
+      </StrictMode>
+    );
     await waitFor(
       () => {
         expect(screen.queryByText(/Zarewa could not load/i)).toBeNull();
@@ -91,7 +95,11 @@ describe('authenticated startup TDZ', () => {
     });
     window.history.pushState({}, '', '/');
     const { default: App } = await import('./App.jsx');
-    render(<App />);
+    render(
+      <StrictMode>
+        <App />
+      </StrictMode>
+    );
     await waitFor(
       () => {
         expect(screen.queryByText(/Zarewa could not load/i)).toBeNull();

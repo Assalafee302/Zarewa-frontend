@@ -1,5 +1,6 @@
 import React from 'react';
 import { debugBootLog } from '../lib/debugBoot.js';
+import { humanizeReactError } from '../lib/reactErrorMessage.js';
 
 /**
  * Catches render errors so users see a recovery screen instead of a blank page.
@@ -33,7 +34,17 @@ export class AppErrorBoundary extends React.Component {
     const { error } = this.state;
     if (!error) return this.props.children;
 
-    const message = String(error?.message || error || 'Unknown error');
+    const message = humanizeReactError(error);
+    const stackHint = (() => {
+      try {
+        const raw = sessionStorage.getItem('zarewa.boot.error');
+        if (!raw) return '';
+        const parsed = JSON.parse(raw);
+        return String(parsed?.componentStack || '').trim();
+      } catch {
+        return '';
+      }
+    })();
 
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-100 p-6">
@@ -47,6 +58,11 @@ export class AppErrorBoundary extends React.Component {
           <pre className="mt-4 max-h-40 overflow-auto rounded-lg bg-slate-50 p-3 text-[11px] text-red-800 whitespace-pre-wrap break-words">
             {message}
           </pre>
+          {stackHint ? (
+            <pre className="mt-2 max-h-32 overflow-auto rounded-lg bg-slate-50 p-3 text-[10px] text-slate-600 whitespace-pre-wrap break-words">
+              {stackHint}
+            </pre>
+          ) : null}
           {typeof __ZAREWA_BUILD_ID__ !== 'undefined' ? (
             <p className="mt-2 text-[10px] text-slate-500">
               Build: <code>{__ZAREWA_BUILD_ID__}</code>
