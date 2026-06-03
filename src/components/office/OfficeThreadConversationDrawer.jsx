@@ -55,6 +55,7 @@ export function OfficeThreadConversationDrawer({
   const [threadFiling, setThreadFiling] = useState(null);
   const [filingAnalyzeBusy, setFilingAnalyzeBusy] = useState(false);
   const [convertOpen, setConvertOpen] = useState(false);
+  const [convertSubmitting, setConvertSubmitting] = useState(false);
   const [procurementConvertBusy, setProcurementConvertBusy] = useState(false);
   const [expenseForm, setExpenseForm] = useState(() => initialExpenseRequestFormState());
 
@@ -425,6 +426,7 @@ export function OfficeThreadConversationDrawer({
 
   const submitConvert = async (e) => {
     e.preventDefault();
+    if (convertSubmitting) return;
     const id = String(threadId || '').trim();
     if (!id) return;
     const ef = expenseForm;
@@ -446,20 +448,25 @@ export function OfficeThreadConversationDrawer({
       return;
     }
     const body = buildPaymentRequestBodyFromForm(ef);
-    const { ok, data } = await apiFetch(
-      `/api/office/threads/${encodeURIComponent(id)}/convert-payment-request`,
-      { method: 'POST', body: JSON.stringify(body) }
-    );
-    if (!ok || !data?.ok) {
-      showToast(data?.error || 'Could not convert.', { variant: 'error' });
-      return;
+    setConvertSubmitting(true);
+    try {
+      const { ok, data } = await apiFetch(
+        `/api/office/threads/${encodeURIComponent(id)}/convert-payment-request`,
+        { method: 'POST', body: JSON.stringify(body) }
+      );
+      if (!ok || !data?.ok) {
+        showToast(data?.error || 'Could not convert.', { variant: 'error' });
+        return;
+      }
+      showToast(`Payment request ${data.requestID} created — approve under Accounts.`);
+      setConvertOpen(false);
+      if (payFileRef.current) payFileRef.current.value = '';
+      setExpenseForm(initialExpenseRequestFormState());
+      await ws.refresh?.();
+      await loadThread(id);
+    } finally {
+      setConvertSubmitting(false);
     }
-    showToast(`Payment request ${data.requestID} created — approve under Accounts.`);
-    setConvertOpen(false);
-    if (payFileRef.current) payFileRef.current.value = '';
-    setExpenseForm(initialExpenseRequestFormState());
-    await ws.refresh?.();
-    await loadThread(id);
   };
 
   const title = detail?.thread?.subject || 'Memo';
@@ -826,6 +833,7 @@ export function OfficeThreadConversationDrawer({
             fileInputRef={payFileRef}
             showToast={showToast}
             formatNgn={formatNgn}
+            submitting={convertSubmitting}
             submitLabel="Convert and submit for approval"
             categoryRecommendation={
               convertCategoryHint.category

@@ -2080,7 +2080,8 @@ const ManagerDashboard = () => {
             fileInputRef={payRequestFileRef}
             showToast={showToast}
             formatNgn={formatNgn}
-            submitLabel={savingExpenseCorrection ? 'Saving request...' : 'Save request changes'}
+            submitting={savingExpenseCorrection}
+            submitLabel="Save request changes"
             hintBeforeSubmit={`Editing request ${editingPaymentRequestId || ''}. This updates request details only (no payout posting).`}
           />
         </div>

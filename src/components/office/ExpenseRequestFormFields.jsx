@@ -15,6 +15,7 @@ import {
  * @param {(msg: string, opts?: { variant?: string }) => void} props.showToast
  * @param {(n: number) => string} props.formatNgn
  * @param {string} [props.submitLabel]
+ * @param {boolean} [props.submitting]
  * @param {string} [props.hintBeforeSubmit]
  * @param {{ category: string, reason?: string, onApply?: () => void } | null} [props.categoryRecommendation]
  */
@@ -26,6 +27,7 @@ export function ExpenseRequestFormFields({
   showToast,
   formatNgn,
   submitLabel = 'Submit for approval',
+  submitting = false,
   hintBeforeSubmit,
   categoryRecommendation = null,
 }) {
@@ -257,8 +259,8 @@ export function ExpenseRequestFormFields({
       {hintBeforeSubmit ? (
         <p className="text-[10px] text-gray-400">{hintBeforeSubmit}</p>
       ) : null}
-      <button type="submit" className="z-btn-primary w-full justify-center py-3">
-        {submitLabel}
+      <button type="submit" disabled={submitting} className="z-btn-primary w-full justify-center py-3 disabled:opacity-60 disabled:pointer-events-none">
+        {submitting ? 'Submitting…' : submitLabel}
       </button>
     </form>
   );

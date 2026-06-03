@@ -58,6 +58,7 @@ export function WorkspaceExpenseQuickActions() {
   const [showPayRequestModal, setShowPayRequestModal] = useState(false);
   const [showExpenseModal, setShowExpenseModal] = useState(false);
   const [savingExpense, setSavingExpense] = useState(false);
+  const [savingPayRequest, setSavingPayRequest] = useState(false);
   const [requestForm, setRequestForm] = useState(() => ({
     ...initialExpenseRequestFormState(),
     requestDate: '',
@@ -99,6 +100,7 @@ export function WorkspaceExpenseQuickActions() {
 
   const savePayRequest = async (e) => {
     e.preventDefault();
+    if (savingPayRequest) return;
     const body = buildPaymentRequestBodyFromForm(requestForm);
     if (!String(body.expenseCategory || '').trim()) {
       showToast('Select an expense category from the list.', { variant: 'error' });
@@ -109,15 +111,20 @@ export function WorkspaceExpenseQuickActions() {
       return;
     }
     if (ws?.canMutate) {
-      const { ok, data } = await apiFetch('/api/payment-requests', {
-        method: 'POST',
-        body: JSON.stringify(body),
-      });
-      if (!ok || !data?.ok) {
-        showToast(data?.error || 'Could not save request on server.', { variant: 'error' });
-        return;
+      setSavingPayRequest(true);
+      try {
+        const { ok, data } = await apiFetch('/api/payment-requests', {
+          method: 'POST',
+          body: JSON.stringify(body),
+        });
+        if (!ok || !data?.ok) {
+          showToast(data?.error || 'Could not save request on server.', { variant: 'error' });
+          return;
+        }
+        await ws.refresh();
+      } finally {
+        setSavingPayRequest(false);
       }
-      await ws.refresh();
     } else {
       showToast(
         ws?.usingCachedData
@@ -292,6 +299,7 @@ export function WorkspaceExpenseQuickActions() {
             fileInputRef={payRequestFileRef}
             showToast={showToast}
             formatNgn={formatNgn}
+            submitting={savingPayRequest}
             hintBeforeSubmit="Extra rows can be left blank — only completed lines are sent. Request ID is assigned on save."
           />
         </div>
