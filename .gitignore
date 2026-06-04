@@ -4,5 +4,11 @@ dist-ssr
 *.local
 .env
 coverage
+debug-*.log
+scripts/analyze-*.mjs
+scripts/check-*.mjs
+scripts/dist-boot-check.mjs
+scripts/preview-boot-probe.mjs
+scripts/scan-*.mjs
 
 /node_modules
