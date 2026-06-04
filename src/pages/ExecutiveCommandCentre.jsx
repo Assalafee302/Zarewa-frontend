@@ -22,6 +22,9 @@ import { formatNgn } from '../Data/mockData';
 import { useWorkspace } from '../context/WorkspaceContext';
 import { apiFetch } from '../lib/apiBase';
 import { useToast } from '../context/ToastContext';
+import { useFinanceTrialExceptions } from '../hooks/useFinanceTrialExceptions';
+import { FinanceTrialExceptionPanel } from '../components/finance/FinanceTrialExceptionPanel';
+import { userMayViewFinanceTrialOversightClient } from '../lib/financeTrialExceptionsAccess';
 
 const PERIOD_OPTIONS = [
   { key: 'today', label: 'Today' },
@@ -296,6 +299,17 @@ export default function ExecutiveCommandCentre() {
   const roleKey = String(ws?.session?.user?.roleKey || '').toLowerCase();
   const roleLabel = roleKey === 'md' ? 'Managing Director' : roleKey === 'ceo' ? 'CEO' : roleKey || 'Executive';
   const canPickBranch = Boolean(ws?.viewAllBranches || data?.actor?.canUseAllBranches);
+  const mayFinanceOversight = userMayViewFinanceTrialOversightClient(
+    roleKey,
+    ws?.session?.user?.permissions
+  );
+  const trialBranchScope =
+    canPickBranch && branchId && branchId !== 'ALL' ? branchId : null;
+  const { data: trialData, loading: trialLoading, error: trialError, reload: reloadTrial } =
+    useFinanceTrialExceptions({
+      branchId: trialBranchScope,
+      enabled: mayFinanceOversight,
+    });
 
   const load = useCallback(async () => {
     setBusy(true);
@@ -525,6 +539,18 @@ export default function ExecutiveCommandCentre() {
           {note.message}
         </p>
       ))}
+
+      {mayFinanceOversight ? (
+        <div className="mb-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <FinanceTrialExceptionPanel
+            variant="oversight"
+            data={trialData}
+            loading={trialLoading}
+            error={trialError}
+            onReload={reloadTrial}
+          />
+        </div>
+      ) : null}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-5 mb-8">
         <KpiCard

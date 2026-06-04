@@ -19,9 +19,15 @@ import {
   ClipboardCheck,
   Users,
   UserCircle,
+  Banknote,
+  Calculator,
 } from 'lucide-react';
 import { useWorkspace } from '../context/WorkspaceContext';
 import { userMayViewManagementReportsClient } from '../lib/reportsAccess';
+import {
+  userMayViewAccountingDeskClient,
+  userMayViewCashierDeskClient,
+} from '../lib/financeDeskAccess';
 import { ZAREWA_LOGO_SRC } from '../Data/companyQuotation';
 
 function pathMatches(locationPath, basePath) {
@@ -104,6 +110,20 @@ const Sidebar = ({ mobileOpen = false, onCloseMobile, collapsed = false, onToggl
       to: { pathname: '/operations', state: { focusOpsTab: 'production' } },
       active: pathMatches(p, '/operations'),
       visible: ws?.canAccessModule?.('operations') ?? true,
+    },
+    {
+      icon: <Banknote size={18} />,
+      label: 'Cashier Desk',
+      path: '/cashier',
+      active: pathMatches(p, '/cashier'),
+      visible: userMayViewCashierDeskClient(roleKey, permissions),
+    },
+    {
+      icon: <Calculator size={18} />,
+      label: 'Accounting',
+      path: '/accounting',
+      active: pathMatches(p, '/accounting'),
+      visible: userMayViewAccountingDeskClient(roleKey, permissions),
     },
     {
       icon: <Landmark size={18} />,

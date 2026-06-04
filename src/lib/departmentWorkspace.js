@@ -68,10 +68,10 @@ export function normalizeWorkspaceDepartmentId(raw) {
 const DEFAULT_HOME_BY_ROLE = {
   admin: '/settings',
   md: '/',
-  finance_manager: '/accounts',
+  finance_manager: '/accounting',
   sales_manager: '/sales',
   sales_staff: '/sales',
-  cashier: '/accounts',
+  cashier: '/cashier',
   operations_officer: '/operations',
 };
 
@@ -91,6 +91,8 @@ export function pathToModuleKey(pathname) {
   if (p === '/procurement' || p.startsWith('/procurement/')) return 'procurement';
   if (p === '/operations') return 'operations';
   if (p === '/accounts') return 'finance';
+  if (p === '/cashier') return 'cashier_desk';
+  if (p === '/accounting' || p.startsWith('/accounting/')) return 'accounting_desk';
   if (p === '/reports') return 'reports';
   if (p === '/settings' || p.startsWith('/settings/')) return 'settings';
   if (p === '/my-profile' || p.startsWith('/my-profile/')) return 'my_profile_hr';

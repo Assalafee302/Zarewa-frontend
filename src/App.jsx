@@ -10,6 +10,7 @@ import Sidebar from './components/Sidebar';
 import LoginScreen from './components/auth/LoginScreen';
 import UserOnboardingGate from './components/auth/UserOnboardingGate';
 import ModuleRouteGuard from './components/ModuleRouteGuard';
+import FinanceDeskRouteGuard from './components/FinanceDeskRouteGuard';
 import DocumentTitleSync from './components/DocumentTitleSync';
 import { AppErrorBoundary } from './components/AppErrorBoundary';
 import { canAccessMyProfileHr } from './lib/hrAccess';
@@ -81,6 +82,8 @@ const CoilProfile = lazy(() => import('./pages/CoilProfile'));
 const Operations = lazy(() => import('./pages/Operations'));
 const MaterialExceptions = lazy(() => import('./pages/MaterialExceptions'));
 const Account = lazy(() => import('./pages/Account'));
+const CashierDesk = lazy(() => import('./pages/CashierDesk'));
+const AccountingDesk = lazy(() => import('./pages/AccountingDesk'));
 const Customers = lazy(() => import('./pages/Customers'));
 const CustomerDashboard = lazy(() => import('./pages/CustomerDashboard'));
 const Reports = lazy(() => import('./pages/Reports'));
@@ -911,6 +914,26 @@ function AppShell() {
             />
             <Route path="/deliveries" element={<Navigate to="/operations" replace />} />
             <Route
+              path="/cashier"
+              element={
+                <ModuleRouteGuard moduleKey="finance">
+                  <FinanceDeskRouteGuard desk="cashier">
+                    <CashierDesk />
+                  </FinanceDeskRouteGuard>
+                </ModuleRouteGuard>
+              }
+            />
+            <Route
+              path="/accounting"
+              element={
+                <ModuleRouteGuard moduleKey="finance">
+                  <FinanceDeskRouteGuard desk="accounting">
+                    <AccountingDesk />
+                  </FinanceDeskRouteGuard>
+                </ModuleRouteGuard>
+              }
+            />
+            <Route
               path="/accounts"
               element={
                 <ModuleRouteGuard moduleKey="finance">
@@ -926,7 +949,7 @@ function AppShell() {
                 </ModuleRouteGuard>
               }
             />
-            <Route path="/accounting/*" element={<Navigate to="/accounts" replace />} />
+            <Route path="/accounting/*" element={<Navigate to="/accounting" replace />} />
             <Route
               path="/reports"
               element={

@@ -24,6 +24,12 @@ describe('moduleAccess', () => {
     expect(canAccessModuleWithPermissions(['finance.view'], 'legacy_hr')).toBe(false);
   });
 
+  it('cashier_desk and accounting_desk module keys', () => {
+    expect(canAccessModuleWithPermissions(['cashier.desk.view'], 'cashier_desk')).toBe(true);
+    expect(canAccessModuleWithPermissions(['accounting.desk.view'], 'accounting_desk')).toBe(true);
+    expect(canAccessModuleWithPermissions(['sales.view'], 'cashier_desk')).toBe(false);
+  });
+
   it('hr module requires HR permissions', () => {
     expect(canAccessModuleWithPermissions(['hr.directory.view'], 'hr')).toBe(true);
     expect(canAccessModuleWithPermissions(['sales.view'], 'hr')).toBe(false);

@@ -40,6 +40,8 @@ import {
 } from '../lib/liveAnalytics';
 import { procurementKindFromPo } from '../lib/procurementPoKind';
 import { ReportsGlPilotSection } from '../components/reports/ReportsGlPilotSection.jsx';
+import { ReportsFinanceReconciliationPackSection } from '../components/reports/ReportsFinanceReconciliationPackSection.jsx';
+import { userMayViewAccountingSectionsOnReportsClient } from '../lib/financeDeskAccess.js';
 import { ExecutiveReportPacksSection } from '../components/reports/ExecutiveReportPacksSection.jsx';
 import { StockRegisterPanel } from '../components/reports/StockRegisterPanel.jsx';
 import { MaterialTransactionPrintModal } from '../components/reports/MaterialTransactionPrintModal.jsx';
@@ -1865,13 +1867,36 @@ const Reports = () => {
           </div>
         </div>
 
-        {ws.hasPermission('finance.view') ? (
-          <ReportsGlPilotSection
-            startDate={startDate}
-            endDate={endDate}
-            hasFinanceView={ws.hasPermission('finance.view')}
-            showToast={showToast}
-          />
+        {ws.hasPermission('finance.view') &&
+        userMayViewAccountingSectionsOnReportsClient(
+          ws?.session?.user?.roleKey,
+          ws?.session?.user?.permissions
+        ) ? (
+          <>
+            <p className="text-sm font-medium text-slate-600 mb-4 -mt-2 max-w-2xl">
+              GL and cash confirmation packs also live on{' '}
+              <Link to="/accounting" className="font-bold text-teal-800 underline-offset-2 hover:underline">
+                Accounting Desk
+              </Link>
+              . Cashier roles should use Cashier Desk for receipt confirmation.
+            </p>
+            <ReportsFinanceReconciliationPackSection
+              endDate={endDate}
+              hasFinanceView={ws.hasPermission('finance.view')}
+              showToast={showToast}
+              branchScopeLabel={
+                ws.viewAllBranches
+                  ? 'All branches (HQ roll-up)'
+                  : ws.branchLabel || ws.branchScope || ws.session?.currentBranchId || ''
+              }
+            />
+            <ReportsGlPilotSection
+              startDate={startDate}
+              endDate={endDate}
+              hasFinanceView={ws.hasPermission('finance.view')}
+              showToast={showToast}
+            />
+          </>
         ) : null}
 
         {ws.hasPermission('reports.view') ? (

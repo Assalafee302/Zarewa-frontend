@@ -25,6 +25,19 @@ export const MODULE_ACCESS_POLICY = {
     'finance.approve',
     'finance.reverse',
     'treasury.manage',
+    'cashier.desk.view',
+    'cashier.receipts.confirm',
+    'accounting.desk.view',
+    'accounting.reconciliation.view',
+    'accounting.gl.view',
+  ],
+  cashier_desk: ['cashier.desk.view', 'finance.pay', 'treasury.manage', 'receipts.post'],
+  accounting_desk: [
+    'accounting.desk.view',
+    'accounting.reconciliation.view',
+    'accounting.gl.view',
+    'finance.view',
+    'reports.view',
   ],
   reports: ['reports.view'],
   edit_approvals: ['dashboard.view'],
@@ -76,6 +89,10 @@ export function canAccessModuleWithPermissions(permissions, moduleKey) {
       return MODULE_ACCESS_POLICY.operations.some(has);
     case 'finance':
       return MODULE_ACCESS_POLICY.finance.some(has);
+    case 'cashier_desk':
+      return MODULE_ACCESS_POLICY.cashier_desk.some(has);
+    case 'accounting_desk':
+      return MODULE_ACCESS_POLICY.accounting_desk.some(has);
     case 'reports':
       return MODULE_ACCESS_POLICY.reports.some(has);
     case 'edit_approvals':
