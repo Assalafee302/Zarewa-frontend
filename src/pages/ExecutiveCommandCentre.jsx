@@ -12,6 +12,7 @@ import {
   Sparkles,
   TrendingDown,
   TrendingUp,
+  Users,
   Wallet,
 } from 'lucide-react';
 import { MainPanel } from '../components/layout';
@@ -120,17 +121,88 @@ function Section({ title, subtitle, children, icon }) {
   );
 }
 
+function ScopeChip({ basis }) {
+  if (basis !== 'company') return null;
+  return (
+    <span className="inline-flex rounded px-1.5 py-0.5 text-[8px] font-black uppercase bg-slate-200 text-slate-700">
+      Company-wide
+    </span>
+  );
+}
+
+function debtRiskChip(label) {
+  if (label === 'Critical') return 'bg-rose-100 text-rose-900 ring-rose-200';
+  if (label === 'High Risk') return 'bg-orange-100 text-orange-950 ring-orange-200';
+  if (label === 'Watch') return 'bg-amber-100 text-amber-950 ring-amber-200';
+  return 'bg-emerald-50 text-emerald-900 ring-emerald-100';
+}
+
+function InfoChip({ children }) {
+  return (
+    <span className="inline-flex rounded px-1.5 py-0.5 text-[8px] font-black uppercase bg-slate-100 text-slate-700 ring-1 ring-slate-200">
+      {children}
+    </span>
+  );
+}
+
+function targetStatusChip(status) {
+  if (status === 'Ahead') return 'bg-emerald-100 text-emerald-900 ring-emerald-200';
+  if (status === 'Behind') return 'bg-rose-100 text-rose-900 ring-rose-200';
+  if (status === 'On Track') return 'bg-teal-50 text-[#134e4a] ring-teal-100';
+  return 'bg-slate-100 text-slate-600 ring-slate-200';
+}
+
+function formatWcAmount(line) {
+  if (line.available === false) return '—';
+  if (line.isCountOnly) return String(line.amountNgn ?? 0);
+  if (line.amountNgn == null) return '—';
+  return formatNgn(line.amountNgn);
+}
+
+function WcLinesTable({ title, lines }) {
+  if (!lines?.length) return null;
+  return (
+    <div className="mb-4">
+      <p className="text-[10px] font-black uppercase text-slate-500 mb-2">{title}</p>
+      <table className="w-full text-xs">
+        <tbody>
+          {lines.map((line) => (
+            <tr key={line.id} className="border-b border-slate-50">
+              <td className="py-2 pr-2 font-medium text-slate-800">
+                {line.label}
+                {line.estimated ? (
+                  <span className="ml-1">
+                    <EstChip />
+                  </span>
+                ) : null}
+                {line.scopeBasis === 'company' ? (
+                  <span className="ml-1">
+                    <ScopeChip basis="company" />
+                  </span>
+                ) : null}
+              </td>
+              <td className="py-2 text-right tabular-nums font-bold text-[#134e4a]">
+                {formatWcAmount(line)}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 function SkuTable({ rows, emptyLabel }) {
   if (!rows?.length) {
     return <p className="text-sm text-slate-500">{emptyLabel}</p>;
   }
   return (
     <div className="overflow-x-auto -mx-1">
-      <table className="w-full text-left text-xs min-w-[520px]">
+      <table className="w-full text-left text-xs min-w-[720px]">
         <thead>
           <tr className="border-b border-slate-200 text-[10px] font-black uppercase tracking-wider text-slate-500">
             <th className="py-2 pr-3">SKU</th>
-            <th className="py-2 pr-3">Signal</th>
+            <th className="py-2 pr-3">Period movement</th>
             <th className="py-2 pr-3 text-right">
               Cover <EstChip />
             </th>
@@ -143,23 +215,45 @@ function SkuTable({ rows, emptyLabel }) {
               <td className="py-2.5 pr-3 font-semibold text-slate-800">
                 {row.gauge} {row.colour}{' '}
                 <span className="text-slate-400 font-normal capitalize">{row.family}</span>
+                <p className="mt-1 text-[9px] font-normal text-slate-500 leading-snug max-w-[200px]">
+                  {row.reason || row.lookbackDemandBasisLabel || '—'}
+                </p>
               </td>
-              <td className="py-2.5 pr-3 text-slate-600 max-w-[200px]">{row.reason || '—'}</td>
+              <td className="py-2.5 pr-3 text-slate-600 tabular-nums">
+                {row.selectedPeriodMetres != null ? (
+                  <span className="block">{row.selectedPeriodMetres.toLocaleString()} m</span>
+                ) : (
+                  <span className="text-slate-400">—</span>
+                )}
+                {row.selectedPeriodRevenueNgn != null ? (
+                  <span className="block text-[10px] text-slate-500">{formatNgn(row.selectedPeriodRevenueNgn)}</span>
+                ) : null}
+              </td>
               <td className="py-2.5 pr-3 text-right tabular-nums font-bold text-slate-800">
                 {row.weeksCover != null ? `${row.weeksCover} wk` : '—'}
               </td>
               <td className="py-2.5 text-right">
+                {row.route ? (
+                  <Link
+                    to={row.route}
+                    className="text-[10px] font-bold text-[#134e4a] hover:underline"
+                  >
+                    {row.recommendation || row.label}
+                  </Link>
+                ) : (
                 <span
                   className={`inline-flex rounded-md px-2 py-0.5 text-[9px] font-black uppercase tracking-wide ring-1 ${
-                    row.label === 'Buy Soon' || row.label === 'Critical'
+                    (row.recommendation || row.label) === 'Buy Soon' ||
+                    (row.recommendation || row.label) === 'Critical'
                       ? 'bg-amber-100 text-amber-950 ring-amber-200'
-                      : row.label === 'Liquidate'
+                      : (row.recommendation || row.label) === 'Liquidate'
                         ? 'bg-slate-100 text-slate-700 ring-slate-200'
                         : 'bg-teal-50 text-[#134e4a] ring-teal-100'
                   }`}
                 >
-                  {row.label}
+                  {row.recommendation || row.label}
                 </span>
+                )}
               </td>
             </tr>
           ))}
@@ -415,6 +509,59 @@ export default function ExecutiveCommandCentre() {
         />
       </div>
 
+      {data?.targets ? (
+        <Section
+          title="Targets vs Actuals"
+          subtitle={data.targets.note || 'Company-level targets from org configuration.'}
+          icon={<BarChart3 size={18} className="text-teal-600" />}
+        >
+          <div className="flex flex-wrap gap-2 mb-4">
+            <InfoChip>Company</InfoChip>
+            {!data.targets.configured ? <InfoChip>No target set</InfoChip> : null}
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs min-w-[520px]">
+              <thead>
+                <tr className="border-b text-[10px] font-black uppercase text-slate-500">
+                  <th className="py-2 text-left">Metric</th>
+                  <th className="py-2 text-right">Target</th>
+                  <th className="py-2 text-right">Actual</th>
+                  <th className="py-2 text-right">Variance</th>
+                  <th className="py-2 text-left">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(data.targets.rows || []).map((row) => (
+                  <tr key={row.metricKey} className="border-b border-slate-50">
+                    <td className="py-2.5 font-semibold text-slate-800">{row.label}</td>
+                    <td className="py-2.5 text-right tabular-nums">
+                      {row.target != null
+                        ? row.unit === 'm'
+                          ? `${row.target.toLocaleString()} m`
+                          : formatNgn(row.target)
+                        : '—'}
+                    </td>
+                    <td className="py-2.5 text-right tabular-nums">
+                      {row.unit === 'm' ? `${(row.actual ?? 0).toLocaleString()} m` : formatNgn(row.actual ?? 0)}
+                    </td>
+                    <td className="py-2.5 text-right tabular-nums text-slate-600">
+                      {row.variancePct != null ? `${row.variancePct > 0 ? '+' : ''}${row.variancePct}%` : '—'}
+                    </td>
+                    <td className="py-2.5">
+                      <span
+                        className={`inline-flex rounded-md px-2 py-0.5 text-[9px] font-black uppercase ring-1 ${targetStatusChip(row.status)}`}
+                      >
+                        {row.status}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Section>
+      ) : null}
+
       <div className="space-y-8 pb-12">
         <Section
           title="Decision Alerts"
@@ -430,8 +577,22 @@ export default function ExecutiveCommandCentre() {
                   key={a.id}
                   className={`rounded-xl border p-4 ${alertTone(a.level)}`}
                 >
-                  <p className="text-[10px] font-black uppercase tracking-wider opacity-80">{a.title}</p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-[9px] font-black uppercase tracking-wider opacity-70">
+                      {a.level}
+                    </span>
+                    {a.sourceSection ? (
+                      <span className="text-[9px] font-bold uppercase opacity-60">{a.sourceSection}</span>
+                    ) : null}
+                    {a.estimated ? <EstChip /> : null}
+                  </div>
+                  <p className="mt-1.5 text-[10px] font-black uppercase tracking-wider opacity-80">
+                    {a.title}
+                  </p>
                   <p className="mt-2 text-sm font-medium leading-snug">{a.message}</p>
+                  {a.metric ? (
+                    <p className="mt-1 text-[10px] font-bold tabular-nums opacity-80">{a.metric}</p>
+                  ) : null}
                   {a.route ? (
                     <Link
                       to={a.route}
@@ -451,6 +612,37 @@ export default function ExecutiveCommandCentre() {
           subtitle={`Aluminium, Aluzinc, and Stonecoated. Coil valuation and weeks-cover signals are estimated.`}
           icon={<Layers size={18} className="text-teal-600" />}
         >
+          {data?.inventory?.skuPeriodNote ? (
+            <p className="mb-3 text-xs text-slate-600 leading-relaxed rounded-lg border border-slate-100 bg-slate-50 px-3 py-2">
+              {data.inventory.skuPeriodNote}
+            </p>
+          ) : null}
+          {data?.inventory?.drillRoutes ? (
+            <p className="mb-4 text-[10px] text-slate-500">
+              <Link to={data.inventory.drillRoutes.analytics} className="font-bold text-teal-800 hover:underline">
+                Stock intelligence
+              </Link>
+              {' · '}
+              <Link to={data.inventory.drillRoutes.operations} className="font-bold text-teal-800 hover:underline">
+                Operations
+              </Link>
+            </p>
+          ) : null}
+          {(data?.inventory?.recommendations || []).length ? (
+            <ul className="mb-4 space-y-1 text-xs text-slate-700">
+              {data.inventory.recommendations.slice(0, 5).map((r, i) => (
+                <li key={i}>
+                  {r.route ? (
+                    <Link to={r.route} className="font-semibold text-[#134e4a] hover:underline">
+                      {r.message}
+                    </Link>
+                  ) : (
+                    r.message
+                  )}
+                </li>
+              ))}
+            </ul>
+          ) : null}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {['aluminium', 'aluzinc'].map((fam) => {
               const block = materialTab.sku[fam];
@@ -510,6 +702,70 @@ export default function ExecutiveCommandCentre() {
             </div>
           </div>
         </Section>
+
+        {data?.materialCosting ? (
+          <Section
+            title="Estimated Material Cost per Metre"
+            subtitle={data.materialCosting.label}
+            icon={<Layers size={18} className="text-teal-600" />}
+          >
+            <div className="flex flex-wrap gap-2 mb-3">
+              <InfoChip>Material only</InfoChip>
+              <EstChip />
+            </div>
+            {(data.materialCosting.notes || []).map((n, i) => (
+              <p
+                key={i}
+                className="mb-2 text-xs text-slate-600 leading-relaxed rounded-lg border border-slate-100 bg-slate-50 px-3 py-2"
+              >
+                {n}
+              </p>
+            ))}
+            <div className="overflow-x-auto -mx-1">
+              <table className="w-full text-left text-xs min-w-[880px]">
+                <thead>
+                  <tr className="border-b border-slate-200 text-[10px] font-black uppercase tracking-wider text-slate-500">
+                    <th className="py-2 pr-2">Job / product</th>
+                    <th className="py-2 pr-2 text-right">Metres</th>
+                    <th className="py-2 pr-2 text-right">Kg</th>
+                    <th className="py-2 pr-2 text-right">Est. material</th>
+                    <th className="py-2 text-right">Est. ₦/m</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(data.materialCosting.rows || []).length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="py-6 text-center text-slate-500">
+                        No completed production with material cost in this period.
+                      </td>
+                    </tr>
+                  ) : (
+                    (data.materialCosting.rows || []).slice(0, 15).map((row) => (
+                      <tr key={row.jobId} className="border-b border-slate-50">
+                        <td className="py-2.5 font-semibold text-slate-800">
+                          {row.productLabel}
+                          <span className="block text-[9px] text-slate-500 font-normal">{row.jobId}</span>
+                        </td>
+                        <td className="py-2.5 text-right tabular-nums">{row.actualMetres ?? '—'}</td>
+                        <td className="py-2.5 text-right tabular-nums">{row.consumedKg ?? '—'}</td>
+                        <td className="py-2.5 text-right tabular-nums">
+                          {row.costUnavailable ? 'Cost unavailable' : formatNgn(row.estimatedMaterialCostNgn ?? 0)}
+                        </td>
+                        <td className="py-2.5 text-right tabular-nums font-bold">
+                          {row.costUnavailable
+                            ? '—'
+                            : row.estimatedMaterialCostPerMetreNgn != null
+                              ? formatNgn(row.estimatedMaterialCostPerMetreNgn)
+                              : '—'}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </Section>
+        ) : null}
 
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
           <Section
@@ -572,17 +828,20 @@ export default function ExecutiveCommandCentre() {
                   label: 'Pending refunds',
                   val: data?.cash?.pendingRefunds,
                   isCount: data?.cash?.pendingRefundsIsCount !== false,
+                  scope: data?.cash?.pendingRefundsScope,
                 },
                 {
                   label: 'Payroll awaiting MD',
                   val: data?.cash?.payrollDraftsAwaitingMd,
                   isCount: data?.cash?.payrollDraftsAwaitingMdIsCount !== false,
+                  scope: data?.cash?.payrollDraftsAwaitingMdScope,
                 },
-              ].map(({ label, val, isCount, estimated }) => (
+              ].map(({ label, val, isCount, estimated, scope }) => (
                 <div key={label} className="rounded-xl border border-slate-100 bg-slate-50/60 px-4 py-3">
-                  <dt className="text-[10px] font-bold uppercase text-slate-500 flex items-center gap-1.5">
+                  <dt className="text-[10px] font-bold uppercase text-slate-500 flex items-center gap-1.5 flex-wrap">
                     {label}
                     {estimated ? <EstChip /> : null}
+                    <ScopeChip basis={scope} />
                   </dt>
                   <dd className="mt-1 font-black tabular-nums text-[#134e4a]">
                     {cashMetricDisplay(label, val, { isCount })}
@@ -590,7 +849,13 @@ export default function ExecutiveCommandCentre() {
                 </div>
               ))}
             </dl>
-            <p className="mt-4 text-xs text-amber-900 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+            <p className="mt-4 text-xs text-slate-700 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 leading-relaxed">
+              {data?.cash?.pressureModelLabel ||
+                'Estimated cash pressure based on recent treasury activity'}
+              . {data?.cash?.notSafeWithdrawalNote || 'Not a safe-withdrawal calculation'}.
+              {data?.cash?.horizonBasis ? ` ${data.cash.horizonBasis}.` : ''}
+            </p>
+            <p className="mt-2 text-xs text-amber-900 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
               {data?.cash?.safeWithdrawalNote ||
                 'Safe withdrawal estimate will appear after reserve policies are configured.'}
             </p>
@@ -618,6 +883,119 @@ export default function ExecutiveCommandCentre() {
               </div>
             ) : null}
           </Section>
+
+          <Section
+            title="Reserve Policy Readiness"
+            subtitle="Expansion headroom stays hidden until reserve assumptions are approved."
+            icon={<Shield size={18} className="text-amber-700" />}
+          >
+            <p className="text-sm text-slate-700 leading-relaxed mb-3">{data?.reservePolicy?.note}</p>
+            {data?.reservePolicy?.configured ? (
+              <p className="text-xs text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2">
+                All reserve policy keys are present. Indicative headroom calculation remains disabled in this
+                release.
+              </p>
+            ) : (
+              <div>
+                <p className="text-[10px] font-black uppercase text-slate-500 mb-2 flex items-center gap-1.5">
+                  Missing settings <InfoChip>Policy missing</InfoChip>
+                </p>
+                <ul className="text-xs text-slate-600 list-disc pl-5 space-y-1">
+                  {(data?.reservePolicy?.missingLabels || []).map((lbl) => (
+                    <li key={lbl}>{lbl}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </Section>
+
+          <Section
+            title="Working Capital Snapshot"
+            subtitle={data?.workingCapital?.label || 'Estimated working capital snapshot'}
+            icon={<Wallet size={18} className="text-teal-600" />}
+          >
+            <div className="flex flex-wrap gap-2 mb-4">
+              <InfoChip>Not statutory</InfoChip>
+              <InfoChip>Not withdrawable cash</InfoChip>
+              <EstChip />
+            </div>
+            {(data?.workingCapital?.notes || []).map((n, i) => (
+              <p
+                key={i}
+                className="mb-2 text-xs text-slate-600 leading-relaxed rounded-lg border border-slate-100 bg-slate-50 px-3 py-2"
+              >
+                {n}
+              </p>
+            ))}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <WcLinesTable title="Current assets" lines={data?.workingCapital?.currentAssets} />
+              <WcLinesTable title="Current liabilities" lines={data?.workingCapital?.currentLiabilities} />
+            </div>
+            <dl className="grid grid-cols-2 sm:grid-cols-3 gap-4 mt-4 text-sm">
+              <div className="rounded-xl border border-slate-100 bg-slate-50/60 px-4 py-3">
+                <dt className="text-[10px] font-bold uppercase text-slate-500">Assets total</dt>
+                <dd className="mt-1 font-black tabular-nums text-[#134e4a]">
+                  {formatNgn(data?.workingCapital?.assetTotalNgn ?? 0)}
+                </dd>
+              </div>
+              <div className="rounded-xl border border-slate-100 bg-slate-50/60 px-4 py-3">
+                <dt className="text-[10px] font-bold uppercase text-slate-500">Liabilities total</dt>
+                <dd className="mt-1 font-black tabular-nums text-[#134e4a]">
+                  {formatNgn(data?.workingCapital?.liabilityTotalNgn ?? 0)}
+                </dd>
+              </div>
+              <div className="rounded-xl border border-teal-100 bg-teal-50/50 px-4 py-3">
+                <dt className="text-[10px] font-bold uppercase text-slate-500">Est. working capital</dt>
+                <dd className="mt-1 font-black tabular-nums text-[#134e4a]">
+                  {data?.workingCapital?.estimatedWorkingCapitalNgn != null
+                    ? formatNgn(data.workingCapital.estimatedWorkingCapitalNgn)
+                    : '—'}
+                </dd>
+                {data?.workingCapital?.ratio != null ? (
+                  <p className="text-[10px] text-slate-500 mt-1">Ratio {data.workingCapital.ratio}</p>
+                ) : null}
+              </div>
+            </dl>
+          </Section>
+
+          <Section
+            title="Payables & Outflows"
+            subtitle={data?.payables?.label || 'Supplier and treasury pressure'}
+            icon={<TrendingDown size={18} className="text-rose-700" />}
+          >
+            <dl className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+              {[
+                { label: 'AP outstanding', val: data?.payables?.apOutstandingNgn },
+                { label: 'Approved unpaid PR', val: data?.payables?.approvedUnpaidPaymentRequestsNgn },
+                {
+                  label: data?.payables?.poCommitmentLabel || 'PO commitment proxy',
+                  val: data?.payables?.poCommitmentGapNgn,
+                  est: true,
+                },
+                { label: 'BI pending outflows', val: data?.payables?.pendingOutflowsNgn, est: true },
+              ].map(({ label, val, est }) => (
+                <div key={label} className="rounded-xl border border-slate-100 bg-slate-50/60 px-4 py-3">
+                  <dt className="text-[10px] font-bold uppercase text-slate-500 flex items-center gap-1.5">
+                    {label}
+                    {est ? <EstChip /> : null}
+                  </dt>
+                  <dd className="mt-1 font-black tabular-nums text-[#134e4a]">{formatNgn(val ?? 0)}</dd>
+                </div>
+              ))}
+            </dl>
+            {data?.payables?.apAging ? (
+              <p className="mt-4 text-xs text-slate-600 tabular-nums">
+                AP aging — 0–30: {formatNgn(data.payables.apAging['0_30'])} · 31–60:{' '}
+                {formatNgn(data.payables.apAging['31_60'])} · 61–90:{' '}
+                {formatNgn(data.payables.apAging['61_90'])} · 90+: {formatNgn(data.payables.apAging.over_90)}
+              </p>
+            ) : null}
+            {(data?.payables?.pressureNotes || []).map((n, i) => (
+              <p key={i} className="mt-2 text-xs text-amber-900 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                {n}
+              </p>
+            ))}
+          </Section>
         </div>
 
         <Section
@@ -630,19 +1008,25 @@ export default function ExecutiveCommandCentre() {
           icon={<Building2 size={18} className="text-teal-600" />}
         >
           {showBranchComparison ? (
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
-              {[
-                ['Best performing', data?.branches?.highlights?.bestPerformingBranch],
-                ['Highest debtor', data?.branches?.highlights?.highestDebtorBranch],
-                ['Lowest collection', data?.branches?.highlights?.lowestCollectionRateBranch],
-                ['Highest stock risk', data?.branches?.highlights?.highestStockRiskBranch],
-              ].map(([label, val]) => (
-                <div key={label} className="rounded-xl border border-amber-100 bg-amber-50/50 px-3 py-2">
-                  <p className="text-[9px] font-black uppercase text-amber-900/70">{label}</p>
-                  <p className="text-sm font-bold text-[#134e4a] mt-1">{val || '—'}</p>
-                </div>
-              ))}
-            </div>
+            <>
+              <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-3">
+                {[
+                  ['Best collections', data?.branches?.highlights?.bestCollectionsBranch],
+                  ['Receivables risk', data?.branches?.highlights?.highestReceivablesRisk],
+                  ['Expense pressure', data?.branches?.highlights?.highestExpensePressure],
+                  ['Stock risk', data?.branches?.highlights?.highestStockRisk],
+                  ['Best overall (index)', data?.branches?.highlights?.bestOverallBranch],
+                ].map(([label, val]) => (
+                  <div key={label} className="rounded-xl border border-amber-100 bg-amber-50/50 px-3 py-2">
+                    <p className="text-[9px] font-black uppercase text-amber-900/70">{label}</p>
+                    <p className="text-sm font-bold text-[#134e4a] mt-1">{val || '—'}</p>
+                  </div>
+                ))}
+              </div>
+              {data?.branches?.scorecardNote ? (
+                <p className="text-[10px] text-slate-500 mb-4 leading-snug">{data.branches.scorecardNote}</p>
+              ) : null}
+            </>
           ) : null}
           {branchComparisonEmpty ? (
             <p className="text-sm text-slate-600 rounded-xl border border-slate-200 bg-slate-50 px-4 py-6 text-center leading-relaxed">
@@ -652,24 +1036,25 @@ export default function ExecutiveCommandCentre() {
             </p>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-xs min-w-[720px]">
+              <table className="w-full text-xs min-w-[1100px]">
                 <thead>
                   <tr className="border-b text-[10px] font-black uppercase text-slate-500">
                     <th className="py-2 text-left">Branch</th>
                     <th className="py-2 text-right">Produced sales</th>
                     <th className="py-2 text-right">Collections</th>
-                    <th className="py-2 text-right">
-                      <span className="block">Produced coll. %</span>
-                      <span className="font-normal normal-case text-slate-400 text-[9px]">
-                        Collected ÷ produced
-                      </span>
-                    </th>
-                    <th className="py-2 text-right">Customer debt</th>
+                    <th className="py-2 text-right">Produced coll. %</th>
+                    <th className="py-2 text-right">Expenses</th>
+                    <th className="py-2 text-right">Exp / sales</th>
+                    <th className="py-2 text-right">Receivables</th>
                     <th className="py-2 text-right">
                       <span className="inline-flex items-center justify-end gap-1">
-                        Stock value <EstChip />
+                        Stock <EstChip />
                       </span>
                     </th>
+                    <th className="py-2 text-right">Pending jobs</th>
+                    <th className="py-2 text-right">Exec items</th>
+                    <th className="py-2 text-right">Risk</th>
+                    <th className="py-2 text-right">Index</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -679,10 +1064,20 @@ export default function ExecutiveCommandCentre() {
                       <td className="py-2.5 text-right tabular-nums">{formatNgn(b.producedRevenueNgn)}</td>
                       <td className="py-2.5 text-right tabular-nums">{formatNgn(b.netCollectedNgn)}</td>
                       <td className="py-2.5 text-right tabular-nums">
-                        {b.collectionRatePct != null ? `${b.collectionRatePct}%` : '—'}
+                        {b.producedCollectionRatePct != null ? `${b.producedCollectionRatePct}%` : '—'}
+                      </td>
+                      <td className="py-2.5 text-right tabular-nums">{formatNgn(b.expensesNgn)}</td>
+                      <td className="py-2.5 text-right tabular-nums">
+                        {b.expenseToSalesPct != null ? `${b.expenseToSalesPct}%` : '—'}
                       </td>
                       <td className="py-2.5 text-right tabular-nums">{formatNgn(b.customerDebtNgn)}</td>
                       <td className="py-2.5 text-right tabular-nums">{formatNgn(b.coilValuationNgn)}</td>
+                      <td className="py-2.5 text-right tabular-nums">{b.pendingProductionJobs ?? 0}</td>
+                      <td className="py-2.5 text-right tabular-nums">{b.pendingExecutiveItems ?? 0}</td>
+                      <td className="py-2.5 text-right tabular-nums">{b.riskFlagCount ?? 0}</td>
+                      <td className="py-2.5 text-right tabular-nums font-bold" title={b.internalScoreNote}>
+                        {b.internalScore ?? '—'}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -691,11 +1086,58 @@ export default function ExecutiveCommandCentre() {
           )}
         </Section>
 
+        {data?.staffActivity ? (
+          <Section
+            title="Staff Activity"
+            subtitle={data.staffActivity.label}
+            icon={<Users size={18} className="text-slate-600" />}
+          >
+            <div className="flex flex-wrap gap-2 mb-3">
+              <InfoChip>Activity only</InfoChip>
+            </div>
+            <p className="text-xs text-slate-600 mb-4">{data.staffActivity.legacyNote}</p>
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs min-w-[640px]">
+                <thead>
+                  <tr className="border-b text-[10px] font-black uppercase text-slate-500">
+                    <th className="py-2 text-left">Staff</th>
+                    <th className="py-2 text-right">Receipts</th>
+                    <th className="py-2 text-right">Receipt ₦</th>
+                    <th className="py-2 text-right">PR raised</th>
+                    <th className="py-2 text-right">Approvals</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(data.staffActivity.rows || []).length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="py-6 text-center text-slate-500">
+                        No user-linked activity in this period.
+                      </td>
+                    </tr>
+                  ) : (
+                    (data.staffActivity.rows || []).map((row) => (
+                      <tr key={row.userId} className="border-b border-slate-50">
+                        <td className="py-2.5 font-semibold">{row.displayName}</td>
+                        <td className="py-2.5 text-right tabular-nums">{row.receiptsPostedCount}</td>
+                        <td className="py-2.5 text-right tabular-nums">
+                          {formatNgn(row.receiptValuePostedNgn)}
+                        </td>
+                        <td className="py-2.5 text-right tabular-nums">{row.paymentRequestsRaisedCount}</td>
+                        <td className="py-2.5 text-right tabular-nums">{row.approvalsActedCount}</td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </Section>
+        ) : null}
+
         <Section
           title="Executive Work Tray"
           subtitle={
             readOnly
-              ? 'Review items below. Actions open detail screens; approvals follow your role permissions.'
+              ? 'Summary and read-only items — open routes to review detail.'
               : 'Use Review to open the manager desk or module route. Server enforces approvals.'
           }
           icon={<Shield size={18} className="text-[#134e4a]" />}
@@ -739,7 +1181,14 @@ export default function ExecutiveCommandCentre() {
                           </span>
                         ) : null}
                       </td>
-                      <td className="py-2.5">{row.branchName}</td>
+                      <td className="py-2.5">
+                        {row.branchName}
+                        {row.scopeBasis === 'company' ? (
+                          <span className="ml-1">
+                            <ScopeChip basis="company" />
+                          </span>
+                        ) : null}
+                      </td>
                       <td className="py-2.5 text-right tabular-nums">
                         {row.amountNgn != null ? formatNgn(row.amountNgn) : '—'}
                       </td>
@@ -797,12 +1246,15 @@ export default function ExecutiveCommandCentre() {
 
           <Section
             title="Top customers"
-            subtitle="Payments and outstanding debt (production-complete basis)."
+            subtitle={
+              data?.sales?.debtBasisLabel ||
+              'Payments in period; debt is current outstanding (as at period end).'
+            }
             icon={<BarChart3 size={18} className="text-teal-600" />}
           >
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <p className="text-[10px] font-black uppercase text-slate-500 mb-2">By payments</p>
+                <p className="text-[10px] font-black uppercase text-slate-500 mb-2">By payments (period)</p>
                 <ul className="space-y-2 text-sm">
                   {(data?.sales?.topCustomersByPayments || []).slice(0, 6).map((c) => (
                     <li key={c.customerID} className="flex justify-between gap-2">
@@ -813,12 +1265,58 @@ export default function ExecutiveCommandCentre() {
                 </ul>
               </div>
               <div>
-                <p className="text-[10px] font-black uppercase text-slate-500 mb-2">By debt</p>
-                <ul className="space-y-2 text-sm">
+                <p className="text-[10px] font-black uppercase text-slate-500 mb-2">
+                  By debt — {data?.sales?.debtBasisLabel || 'current outstanding'}
+                  {data?.sales?.debtSortBasis ? ` (${data.sales.debtSortBasis})` : ''}
+                </p>
+                <ul className="space-y-3 text-sm">
                   {(data?.sales?.topCustomersByDebt || []).slice(0, 6).map((c) => (
-                    <li key={c.customerID} className="flex justify-between gap-2">
-                      <span className="truncate font-semibold">{c.customerName}</span>
-                      <span className="tabular-nums shrink-0 text-rose-800">{formatNgn(c.debtNgn)}</span>
+                    <li key={c.customerID} className="border-b border-slate-100 pb-2">
+                      <div className="flex justify-between gap-2 items-start">
+                        <div className="min-w-0">
+                          {c.route ? (
+                            <Link
+                              to={c.route}
+                              className="truncate font-semibold text-[#134e4a] hover:underline block"
+                            >
+                              {c.customerName}
+                            </Link>
+                          ) : (
+                            <span className="truncate font-semibold block">{c.customerName}</span>
+                          )}
+                          {c.debtRiskLabel ? (
+                            <span
+                              className={`mt-1 inline-flex rounded px-1.5 py-0.5 text-[9px] font-black uppercase ring-1 ${debtRiskChip(c.debtRiskLabel)}`}
+                            >
+                              {c.debtRiskLabel}
+                            </span>
+                          ) : null}
+                        </div>
+                        <span className="tabular-nums shrink-0 text-rose-800 font-bold">
+                          {formatNgn(c.debtNgn)}
+                        </span>
+                      </div>
+                      {c.aging ? (
+                        <p className="mt-1 text-[10px] text-slate-500 tabular-nums">
+                          0–30: {formatNgn(c.aging.days0_30)} · 31–60: {formatNgn(c.aging.days31_60)} ·
+                          61–90: {formatNgn(c.aging.days61_90)} · 90+: {formatNgn(c.aging.days90_plus)}
+                        </p>
+                      ) : null}
+                      <p className="mt-1 text-[10px]">
+                        {c.ledgerRoute ? (
+                          <Link to={c.ledgerRoute} className="text-teal-800 font-bold hover:underline">
+                            Ledger
+                          </Link>
+                        ) : null}
+                        {c.reportsRoute ? (
+                          <>
+                            {c.ledgerRoute ? ' · ' : null}
+                            <Link to={c.reportsRoute} className="text-teal-800 font-bold hover:underline">
+                              Reports
+                            </Link>
+                          </>
+                        ) : null}
+                      </p>
                     </li>
                   ))}
                 </ul>

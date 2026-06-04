@@ -140,16 +140,132 @@ describe('authenticated startup TDZ', () => {
             generatedAtISO: new Date().toISOString(),
             actor: { role: 'ceo', readOnlyExecutiveView: true, canActOnApprovals: false },
             period: { key: 'month', startISO: '2026-06-01', endISO: '2026-06-04', biPeriodKey: 'month' },
-            dataScopeNotes: [],
+            dataScopeNotes: [
+              { id: 'bi-lookback-partial', level: 'info', message: 'SKU weeks-cover uses BI lookback' },
+            ],
             branchScope: 'ALL',
             kpis: { collectionRateLabel: 'Quoted collection rate' },
             decisionAlerts: [],
-            workTray: { items: [], summary: { total: 0, byKind: {} }, readOnlyForActor: true },
-            sales: {},
-            inventory: { skuIntelligence: { stonecoated: {} } },
+            workTray: {
+              items: [
+                {
+                  id: 'refunds:summary',
+                  kind: 'refunds',
+                  title: 'Refund approvals pending — 2 items',
+                  summaryOnly: true,
+                  scopeBasis: 'company',
+                  canAct: false,
+                  route: '/manager',
+                },
+              ],
+              summary: { total: 1, byKind: { refunds: 1 } },
+              readOnlyForActor: true,
+            },
+            sales: {
+              debtBasisLabel: 'Current outstanding as at 2026-06-04',
+              topCustomersByDebt: [
+                {
+                  customerID: 'C1',
+                  customerName: 'Acme',
+                  debtNgn: 500000,
+                  debtRiskLabel: 'Watch',
+                  aging: { days0_30: 0, days31_60: 500000, days61_90: 0, days90_plus: 0 },
+                  route: '/customers/C1',
+                  ledgerRoute: '/accounts',
+                  reportsRoute: '/reports',
+                },
+              ],
+            },
+            inventory: {
+              skuPeriodNote: 'Weeks-cover uses BI lookback.',
+              drillRoutes: { analytics: '/analytics', operations: '/operations' },
+              skuIntelligence: {
+                aluzinc: {
+                  buyNext: [
+                    {
+                      gauge: '0.24',
+                      colour: 'Ivory',
+                      weeksCover: 1.5,
+                      selectedPeriodMetres: 1200,
+                      lookbackDemandBasisLabel: 'BI lookback',
+                      recommendation: 'Buy Soon',
+                      action: 'buy',
+                      reason: 'Low cover',
+                    },
+                  ],
+                  reduceStock: [],
+                  needsAttention: [],
+                  topCombinations: [{ gauge: '0.24', colour: 'Ivory', profile: 'Corrugated', metres: 1200 }],
+                },
+                aluminium: { buyNext: [], reduceStock: [], needsAttention: [], topCombinations: [] },
+                stonecoated: { note: 'Stone summary' },
+              },
+            },
             expenses: {},
             branches: { highlights: {}, byBranch: [], comparisonAvailable: false },
-            cash: { pendingRefunds: 0, pendingRefundsIsCount: true },
+            cash: {
+              pendingRefunds: 0,
+              pendingRefundsIsCount: true,
+              pendingRefundsScope: 'company',
+              payrollDraftsAwaitingMdScope: 'company',
+              pressureModelLabel: 'Estimated cash pressure based on recent treasury activity',
+              notSafeWithdrawalNote: 'Not a safe-withdrawal calculation',
+            },
+            workingCapital: {
+              label: 'Estimated working capital snapshot',
+              notStatutoryAccounts: true,
+              notWithdrawableCash: true,
+              currentAssets: [
+                { id: 'cash', label: 'Cash / bank position', amountNgn: 1000000, available: true, estimated: false },
+              ],
+              currentLiabilities: [
+                { id: 'ap', label: 'Supplier payables (AP outstanding)', amountNgn: 200000, available: true, estimated: false },
+              ],
+              assetTotalNgn: 1000000,
+              liabilityTotalNgn: 200000,
+              estimatedWorkingCapitalNgn: 800000,
+              ratio: 5,
+              notes: ['Working capital is not the same as free cash.'],
+            },
+            payables: {
+              apOutstandingNgn: 200000,
+              approvedUnpaidPaymentRequestsNgn: 50000,
+              poCommitmentGapNgn: 10000,
+              poCommitmentLabel: 'Commitment proxy (ordered − received on PO lines)',
+              pressureNotes: [],
+            },
+            reservePolicy: {
+              configured: false,
+              missingLabels: ['Operating reserve'],
+              note: 'Reserve policy is not configured. Indicative expansion headroom is hidden until MD/Finance approves reserve assumptions.',
+            },
+            materialCosting: {
+              label: 'Estimated material cost per metre',
+              estimated: true,
+              excludes: ['labour', 'diesel'],
+              notes: ['Estimated material cost only.'],
+              rows: [],
+            },
+            targets: {
+              basis: 'company',
+              configured: false,
+              rows: [
+                {
+                  metricKey: 'naira_sales',
+                  label: 'Produced revenue (month target)',
+                  target: null,
+                  actual: 0,
+                  status: 'No Target Set',
+                  unit: 'NGN',
+                },
+              ],
+            },
+            staffActivity: {
+              label: 'Staff activity summary',
+              notPerformanceRanking: true,
+              legacyNote: 'Text-only handled_by excluded.',
+              rows: [],
+            },
             risks: { alerts: [] },
             reports: [],
           },
@@ -176,6 +292,20 @@ describe('authenticated startup TDZ', () => {
     await waitFor(
       () => {
         expect(screen.getByRole('heading', { name: /Executive Command Centre/i })).toBeInTheDocument();
+      },
+      { timeout: 15000 }
+    );
+    await waitFor(
+      () => {
+        expect(screen.getAllByText(/Weeks-cover uses BI lookback/i).length).toBeGreaterThan(0);
+        expect(screen.getByText(/Not a safe-withdrawal/i)).toBeInTheDocument();
+        expect(screen.getByRole('link', { name: /Acme/i })).toBeInTheDocument();
+        expect(screen.getByText(/Buy Soon/i)).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: /Working Capital Snapshot/i })).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: /Targets vs Actuals/i })).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: /Staff Activity/i })).toBeInTheDocument();
+        expect(screen.getByText(/Working capital is not the same as free cash/i)).toBeInTheDocument();
+        expect(screen.getByText(/Activity only/i)).toBeInTheDocument();
       },
       { timeout: 15000 }
     );
