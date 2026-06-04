@@ -73,6 +73,16 @@ const Sidebar = ({ mobileOpen = false, onCloseMobile, collapsed = false, onToggl
       path: '/manager',
       visible: ['sales_manager', 'admin', 'md'].includes(ws?.session?.user?.roleKey),
     },
+    {
+      icon: <LayoutDashboard size={18} />,
+      label: 'Command Centre',
+      path: '/exec',
+      active: pathMatches(p, '/exec'),
+      visible:
+        ws?.hasPermission?.('exec.dashboard.view') &&
+        roleKey !== 'ceo' &&
+        ['md', 'admin'].includes(roleKey),
+    },
     { icon: <Home size={18} />, label: 'Workspace', path: '/' },
     {
       icon: <Truck size={18} />,
@@ -150,7 +160,7 @@ const Sidebar = ({ mobileOpen = false, onCloseMobile, collapsed = false, onToggl
       ? [
           {
             icon: <LayoutDashboard size={18} />,
-            label: 'Executive',
+            label: 'Command Centre',
             path: '/exec',
             active: pathMatches(p, '/exec'),
             visible: true,

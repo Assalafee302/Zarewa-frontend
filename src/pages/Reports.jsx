@@ -413,7 +413,7 @@ const MORE_OPERATIONAL_REPORTS = [
 ];
 
 function coilTxnToExport(r, family, gauge) {
-  return {
+    return {
     section: family,
     gauge: gauge || r.gauge,
     date: r.txnDateDisplay || r.txnDate,

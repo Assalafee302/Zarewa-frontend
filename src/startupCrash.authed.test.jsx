@@ -125,10 +125,33 @@ describe('authenticated startup TDZ', () => {
                 branchId: 'BR1',
               },
               currentBranchId: 'BR1',
-              permissions: ['exec.dashboard.view', 'workspace.view'],
+              permissions: ['exec.dashboard.view', 'dashboard.view', 'reports.view', 'office.use'],
             },
             unifiedWorkItems: [],
             apiOnline: true,
+          },
+        };
+      }
+      if (String(path).includes('/api/exec/dashboard')) {
+        return {
+          ok: true,
+          data: {
+            ok: true,
+            generatedAtISO: new Date().toISOString(),
+            actor: { role: 'ceo', readOnlyExecutiveView: true, canActOnApprovals: false },
+            period: { key: 'month', startISO: '2026-06-01', endISO: '2026-06-04', biPeriodKey: 'month' },
+            dataScopeNotes: [],
+            branchScope: 'ALL',
+            kpis: { collectionRateLabel: 'Quoted collection rate' },
+            decisionAlerts: [],
+            workTray: { items: [], summary: { total: 0, byKind: {} }, readOnlyForActor: true },
+            sales: {},
+            inventory: { skuIntelligence: { stonecoated: {} } },
+            expenses: {},
+            branches: { highlights: {}, byBranch: [], comparisonAvailable: false },
+            cash: { pendingRefunds: 0, pendingRefundsIsCount: true },
+            risks: { alerts: [] },
+            reports: [],
           },
         };
       }
@@ -137,7 +160,7 @@ describe('authenticated startup TDZ', () => {
       }
       return { ok: false, data: null };
     });
-    window.history.pushState({}, '', '/');
+    window.history.pushState({}, '', '/exec');
     const { default: App } = await import('./App.jsx');
     render(
       <StrictMode>
@@ -147,6 +170,12 @@ describe('authenticated startup TDZ', () => {
     await waitFor(
       () => {
         expect(screen.queryByText(/Zarewa could not load/i)).toBeNull();
+      },
+      { timeout: 15000 }
+    );
+    await waitFor(
+      () => {
+        expect(screen.getByRole('heading', { name: /Executive Command Centre/i })).toBeInTheDocument();
       },
       { timeout: 15000 }
     );

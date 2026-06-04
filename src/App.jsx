@@ -49,7 +49,7 @@ import { debugBootLog } from './lib/debugBoot.js';
 /** Eager — loaded on most sign-ins; avoids lazy-chunk races with the app-shell bundle at startup. */
 import Dashboard from './pages/Dashboard';
 import ManagerDashboard from './pages/ManagerDashboard';
-import ExecDashboard from './pages/ExecDashboard';
+import ExecutiveCommandCentre from './pages/ExecutiveCommandCentre';
 
 const AiAssistantDock = lazy(() =>
   import('./components/AiAssistantDock.jsx')
@@ -834,7 +834,7 @@ function AppShell() {
           <Routes>
             <Route path="/" element={<HomeRoute />} />
             <Route path="/workspace/monitoring" element={<WorkspaceMonitoring />} />
-            <Route path="/exec" element={<ExecDashboard />} />
+            <Route path="/exec" element={<ExecutiveCommandCentre />} />
             <Route path="/price-list" element={<PriceListAdmin />} />
             <Route path="/pricing-policy" element={<PricingPolicyAdmin />} />
             <Route
