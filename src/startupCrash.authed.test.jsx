@@ -138,7 +138,12 @@ describe('authenticated startup TDZ', () => {
           data: {
             ok: true,
             generatedAtISO: new Date().toISOString(),
-            actor: { role: 'ceo', readOnlyExecutiveView: true, canActOnApprovals: false },
+            actor: {
+              role: 'ceo',
+              readOnlyExecutiveView: true,
+              canActOnApprovals: false,
+              canManageReservePolicy: false,
+            },
             period: { key: 'month', startISO: '2026-06-01', endISO: '2026-06-04', biPeriodKey: 'month' },
             dataScopeNotes: [
               { id: 'bi-lookback-partial', level: 'info', message: 'SKU weeks-cover uses BI lookback' },
@@ -236,8 +241,17 @@ describe('authenticated startup TDZ', () => {
             },
             reservePolicy: {
               configured: false,
+              completionPct: 0,
+              headroomHidden: true,
+              phaseNote: 'Indicative expansion headroom remains hidden in this phase.',
               missingLabels: ['Operating reserve'],
-              note: 'Reserve policy is not configured. Indicative expansion headroom is hidden until MD/Finance approves reserve assumptions.',
+              policy: {
+                operatingReserveNgn: { value: null, configured: false, label: 'Operating reserve' },
+                includeReceivables: { value: false, configured: false, recommended: false },
+                includeInventory: { value: false, configured: false, recommended: false },
+                includePoCommitments: { value: true, configured: false, recommended: true },
+              },
+              note: 'Reserve policy is incomplete. Indicative expansion headroom is hidden.',
             },
             materialCosting: {
               label: 'Estimated material cost per metre',
@@ -306,6 +320,10 @@ describe('authenticated startup TDZ', () => {
         expect(screen.getByRole('heading', { name: /Staff Activity/i })).toBeInTheDocument();
         expect(screen.getByText(/Working capital is not the same as free cash/i)).toBeInTheDocument();
         expect(screen.getByText(/Activity only/i)).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: /Reserve Policy Readiness/i })).toBeInTheDocument();
+        expect(screen.getByText(/Headroom hidden/i)).toBeInTheDocument();
+        expect(screen.getAllByText(/Policy missing/i).length).toBeGreaterThan(0);
+        expect(screen.queryByText(/Configure Reserve Policy/i)).toBeNull();
       },
       { timeout: 15000 }
     );

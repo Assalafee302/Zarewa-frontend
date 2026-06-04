@@ -8,8 +8,10 @@ import {
   FileText,
   Layers,
   RefreshCw,
+  Settings2,
   Shield,
   Sparkles,
+  X,
   TrendingDown,
   TrendingUp,
   Users,
@@ -19,6 +21,7 @@ import { MainPanel } from '../components/layout';
 import { formatNgn } from '../Data/mockData';
 import { useWorkspace } from '../context/WorkspaceContext';
 import { apiFetch } from '../lib/apiBase';
+import { useToast } from '../context/ToastContext';
 
 const PERIOD_OPTIONS = [
   { key: 'today', label: 'Today' },
@@ -263,14 +266,32 @@ function SkuTable({ rows, emptyLabel }) {
   );
 }
 
+const EMPTY_RESERVE_FORM = {
+  operatingReserveNgn: '',
+  emergencyReserveNgn: '',
+  payrollReserveNgn: '',
+  supplierPaymentReserveNgn: '',
+  stockPurchaseReserveNgn: '',
+  taxStatutoryReserveNgn: '',
+  includeReceivables: false,
+  includeInventory: false,
+  includePoCommitments: true,
+  policyNotes: '',
+};
+
 export default function ExecutiveCommandCentre() {
   const ws = useWorkspace();
   const navigate = useNavigate();
+  const { show: showToast } = useToast();
   const [periodKey, setPeriodKey] = useState('month');
   const [branchId, setBranchId] = useState('ALL');
   const [data, setData] = useState(null);
   const [busy, setBusy] = useState(true);
   const [err, setErr] = useState('');
+  const [reserveModalOpen, setReserveModalOpen] = useState(false);
+  const [reserveForm, setReserveForm] = useState(EMPTY_RESERVE_FORM);
+  const [reserveSaving, setReserveSaving] = useState(false);
+  const [reserveModalBusy, setReserveModalBusy] = useState(false);
 
   const roleKey = String(ws?.session?.user?.roleKey || '').toLowerCase();
   const roleLabel = roleKey === 'md' ? 'Managing Director' : roleKey === 'ceo' ? 'CEO' : roleKey || 'Executive';
@@ -303,12 +324,82 @@ export default function ExecutiveCommandCentre() {
     return { sku, bestAlu, bestAz };
   }, [data]);
 
+  const readOnly = Boolean(data?.workTray?.readOnlyForActor ?? data?.actor?.readOnlyExecutiveView);
+  const canManageReservePolicy = Boolean(data?.actor?.canManageReservePolicy);
+
+  const openReservePolicyModal = useCallback(async () => {
+    setReserveModalOpen(true);
+    setReserveModalBusy(true);
+    const { ok, data: pol } = await apiFetch('/api/exec/reserve-policy');
+    setReserveModalBusy(false);
+    if (!ok || !pol?.ok) {
+      showToast(pol?.error || 'Could not load reserve policy.', { variant: 'error' });
+      return;
+    }
+    const p = pol.policy || {};
+    setReserveForm({
+      operatingReserveNgn: p.operatingReserveNgn?.value ?? '',
+      emergencyReserveNgn: p.emergencyReserveNgn?.value ?? '',
+      payrollReserveNgn: p.payrollReserveNgn?.value ?? '',
+      supplierPaymentReserveNgn: p.supplierPaymentReserveNgn?.value ?? '',
+      stockPurchaseReserveNgn: p.stockPurchaseReserveNgn?.value ?? '',
+      taxStatutoryReserveNgn: p.taxStatutoryReserveNgn?.value ?? '',
+      includeReceivables: Boolean(p.includeReceivables?.value),
+      includeInventory: Boolean(p.includeInventory?.value),
+      includePoCommitments: p.includePoCommitments?.value !== false,
+      policyNotes: p.policyNotes?.value ?? '',
+    });
+  }, [showToast]);
+
+  const saveReservePolicy = async (e) => {
+    e.preventDefault();
+    const amounts = [
+      'operatingReserveNgn',
+      'emergencyReserveNgn',
+      'payrollReserveNgn',
+      'supplierPaymentReserveNgn',
+      'stockPurchaseReserveNgn',
+      'taxStatutoryReserveNgn',
+    ];
+    for (const f of amounts) {
+      const n = Number(reserveForm[f]);
+      if (!Number.isFinite(n) || n < 0) {
+        showToast('All reserve amounts must be non-negative numbers.', { variant: 'error' });
+        return;
+      }
+    }
+    setReserveSaving(true);
+    const body = {
+      operatingReserveNgn: Math.round(Number(reserveForm.operatingReserveNgn)),
+      emergencyReserveNgn: Math.round(Number(reserveForm.emergencyReserveNgn)),
+      payrollReserveNgn: Math.round(Number(reserveForm.payrollReserveNgn)),
+      supplierPaymentReserveNgn: Math.round(Number(reserveForm.supplierPaymentReserveNgn)),
+      stockPurchaseReserveNgn: Math.round(Number(reserveForm.stockPurchaseReserveNgn)),
+      taxStatutoryReserveNgn: Math.round(Number(reserveForm.taxStatutoryReserveNgn)),
+      includeReceivables: Boolean(reserveForm.includeReceivables),
+      includeInventory: Boolean(reserveForm.includeInventory),
+      includePoCommitments: Boolean(reserveForm.includePoCommitments),
+      policyNotes: String(reserveForm.policyNotes || '').trim(),
+    };
+    const { ok, data: res } = await apiFetch('/api/exec/reserve-policy', {
+      method: 'PUT',
+      body: JSON.stringify(body),
+    });
+    setReserveSaving(false);
+    if (!ok || !res?.ok) {
+      showToast(res?.error || 'Could not save reserve policy.', { variant: 'error' });
+      return;
+    }
+    showToast('Reserve policy saved.');
+    setReserveModalOpen(false);
+    void load();
+  };
+
   if (!ws?.hasPermission?.('exec.dashboard.view')) {
     return <Navigate to="/" replace />;
   }
 
   const kpis = data?.kpis || {};
-  const readOnly = Boolean(data?.workTray?.readOnlyForActor ?? data?.actor?.readOnlyExecutiveView);
   const periodWindow = formatPeriodWindow(data?.period);
   const branchScopeLabel =
     data?.branchScope === 'ALL'
@@ -886,27 +977,133 @@ export default function ExecutiveCommandCentre() {
 
           <Section
             title="Reserve Policy Readiness"
-            subtitle="Expansion headroom stays hidden until reserve assumptions are approved."
+            subtitle="Reserve policy — management decision support. Not a withdrawal instruction."
             icon={<Shield size={18} className="text-amber-700" />}
           >
-            <p className="text-sm text-slate-700 leading-relaxed mb-3">{data?.reservePolicy?.note}</p>
-            {data?.reservePolicy?.configured ? (
-              <p className="text-xs text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2">
-                All reserve policy keys are present. Indicative headroom calculation remains disabled in this
-                release.
-              </p>
-            ) : (
-              <div>
-                <p className="text-[10px] font-black uppercase text-slate-500 mb-2 flex items-center gap-1.5">
-                  Missing settings <InfoChip>Policy missing</InfoChip>
-                </p>
-                <ul className="text-xs text-slate-600 list-disc pl-5 space-y-1">
-                  {(data?.reservePolicy?.missingLabels || []).map((lbl) => (
-                    <li key={lbl}>{lbl}</li>
-                  ))}
+            <div className="flex flex-wrap gap-2 mb-3">
+              {data?.reservePolicy?.configured ? (
+                <InfoChip>Policy configured</InfoChip>
+              ) : (
+                <InfoChip>Policy missing</InfoChip>
+              )}
+              <InfoChip>Headroom hidden</InfoChip>
+              {readOnly ? <InfoChip>Read-only</InfoChip> : null}
+            </div>
+            <p className="text-sm text-slate-700 leading-relaxed mb-2">{data?.reservePolicy?.note}</p>
+            <p className="text-xs text-slate-600 mb-3">
+              {data?.reservePolicy?.phaseNote ||
+                'Indicative expansion headroom remains hidden in this phase.'}
+            </p>
+            <dl className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-4 text-sm">
+              <div className="rounded-xl border border-slate-100 bg-slate-50/60 px-3 py-2">
+                <dt className="text-[10px] font-bold uppercase text-slate-500">Completion</dt>
+                <dd className="mt-0.5 font-black tabular-nums text-[#134e4a]">
+                  {data?.reservePolicy?.completionPct ?? 0}%
+                </dd>
+              </div>
+              {data?.reservePolicy?.updatedAtISO ? (
+                <div className="rounded-xl border border-slate-100 bg-slate-50/60 px-3 py-2 col-span-2">
+                  <dt className="text-[10px] font-bold uppercase text-slate-500">Last updated</dt>
+                  <dd className="mt-0.5 text-xs text-slate-700">
+                    {new Date(data.reservePolicy.updatedAtISO).toLocaleString()}
+                    {data.reservePolicy.updatedBy ? ` · ${data.reservePolicy.updatedBy}` : ''}
+                  </dd>
+                </div>
+              ) : null}
+            </dl>
+            {data?.reservePolicy?.policy ? (
+              <div className="mb-4">
+                <p className="text-[10px] font-black uppercase text-slate-500 mb-2">Reserve amounts (₦)</p>
+                <ul className="text-xs text-slate-700 space-y-1">
+                  {[
+                    ['operatingReserveNgn', 'Operating'],
+                    ['emergencyReserveNgn', 'Emergency'],
+                    ['payrollReserveNgn', 'Payroll'],
+                    ['supplierPaymentReserveNgn', 'Supplier payment'],
+                    ['stockPurchaseReserveNgn', 'Stock purchase'],
+                    ['taxStatutoryReserveNgn', 'Tax / statutory'],
+                  ].map(([key, short]) => {
+                    const item = data.reservePolicy.policy[key];
+                    return (
+                      <li key={key} className="flex justify-between gap-2">
+                        <span>
+                          {short}
+                          {!item?.configured ? (
+                            <span className="ml-1">
+                              <InfoChip>Required</InfoChip>
+                            </span>
+                          ) : null}
+                        </span>
+                        <span className="tabular-nums font-semibold">
+                          {item?.configured ? formatNgn(item.value) : '—'}
+                        </span>
+                      </li>
+                    );
+                  })}
                 </ul>
               </div>
-            )}
+            ) : null}
+            <ul className="text-xs text-slate-700 space-y-2 mb-3">
+              {[
+                ['includeReceivables', 'Receivables', false],
+                ['includeInventory', 'Inventory', false],
+                ['includePoCommitments', 'PO commitments', true],
+              ].map(([key, label, recommendedDefault]) => {
+                const item = data?.reservePolicy?.policy?.[key];
+                let chip = <InfoChip>Policy missing</InfoChip>;
+                if (item?.configured) {
+                  chip = item.value ? (
+                    <InfoChip>Included in headroom</InfoChip>
+                  ) : (
+                    <InfoChip>Excluded from headroom</InfoChip>
+                  );
+                } else if (recommendedDefault) {
+                  chip = (
+                    <>
+                      <InfoChip>Policy missing</InfoChip>
+                      <InfoChip>Recommended</InfoChip>
+                    </>
+                  );
+                }
+                return (
+                  <li key={key} className="flex flex-wrap items-center gap-2">
+                    <span className="font-medium">{label}</span>
+                    {chip}
+                  </li>
+                );
+              })}
+            </ul>
+            {data?.reservePolicy?.policy?.policyNotes?.value ? (
+              <p className="text-xs text-slate-600 rounded-lg border border-slate-100 bg-slate-50 px-3 py-2 mb-3">
+                <span className="font-bold uppercase text-[10px] text-slate-500 block mb-1">Policy notes</span>
+                {data.reservePolicy.policy.policyNotes.value}
+              </p>
+            ) : null}
+            {(data?.reservePolicy?.warnings || []).map((w, i) => (
+              <p
+                key={i}
+                className="mb-2 text-xs text-amber-900 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2"
+              >
+                {w}
+              </p>
+            ))}
+            {!data?.reservePolicy?.configured && (data?.reservePolicy?.missingLabels || []).length ? (
+              <ul className="text-xs text-slate-600 list-disc pl-5 space-y-1 mb-3">
+                {(data.reservePolicy.missingLabels || []).map((lbl) => (
+                  <li key={lbl}>{lbl}</li>
+                ))}
+              </ul>
+            ) : null}
+            {canManageReservePolicy ? (
+              <button
+                type="button"
+                onClick={() => void openReservePolicyModal()}
+                className="inline-flex items-center gap-2 rounded-xl border border-[#134e4a]/30 bg-[#134e4a]/5 px-4 py-2 text-[11px] font-black uppercase text-[#134e4a] hover:bg-[#134e4a]/10"
+              >
+                <Settings2 size={16} />
+                Configure Reserve Policy
+              </button>
+            ) : null}
           </Section>
 
           <Section
@@ -1350,6 +1547,115 @@ export default function ExecutiveCommandCentre() {
           {data?.period ? ` · ${data.period.startISO} – ${data.period.endISO}` : ''}
         </p>
       </div>
+
+      {reserveModalOpen ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="reserve-policy-title"
+        >
+          <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-slate-200 bg-white shadow-xl">
+            <div className="sticky top-0 flex items-center justify-between border-b border-slate-100 bg-white px-5 py-4">
+              <h2 id="reserve-policy-title" className="text-sm font-black text-[#134e4a] uppercase tracking-wide">
+                Configure Reserve Policy
+              </h2>
+              <button
+                type="button"
+                onClick={() => setReserveModalOpen(false)}
+                className="rounded-lg p-1 text-slate-500 hover:bg-slate-100"
+                aria-label="Close"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            {reserveModalBusy ? (
+              <p className="p-6 text-sm text-slate-600">Loading policy…</p>
+            ) : (
+              <form onSubmit={saveReservePolicy} className="p-5 space-y-4">
+                <p className="text-xs text-slate-600 leading-relaxed">
+                  Management decision support only. Indicative expansion headroom remains hidden in this
+                  phase. Receivables and inventory are excluded by default.
+                </p>
+                {[
+                  ['operatingReserveNgn', 'Operating reserve (₦)', true],
+                  ['emergencyReserveNgn', 'Emergency reserve (₦)', true],
+                  ['payrollReserveNgn', 'Payroll reserve (₦)', true],
+                  ['supplierPaymentReserveNgn', 'Supplier payment reserve (₦)', true],
+                  ['stockPurchaseReserveNgn', 'Stock purchase reserve (₦)', true],
+                  ['taxStatutoryReserveNgn', 'Tax / statutory reserve (₦)', true],
+                ].map(([field, label, required]) => (
+                  <label key={field} className="block text-[10px] font-bold uppercase text-slate-500">
+                    {label}
+                    {required ? <InfoChip>Required</InfoChip> : null}
+                    <input
+                      type="number"
+                      min={0}
+                      step={1}
+                      required={required}
+                      value={reserveForm[field]}
+                      onChange={(e) =>
+                        setReserveForm((f) => ({ ...f, [field]: e.target.value }))
+                      }
+                      className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm tabular-nums"
+                    />
+                  </label>
+                ))}
+                <fieldset className="space-y-2 border border-slate-100 rounded-xl p-3">
+                  <legend className="text-[10px] font-black uppercase text-slate-500 px-1">
+                    Indicative expansion headroom inclusion
+                  </legend>
+                  {[
+                    ['includeReceivables', 'Include receivables', false],
+                    ['includeInventory', 'Include inventory', false],
+                    ['includePoCommitments', 'Include PO commitments', true],
+                  ].map(([field, label, recommended]) => (
+                    <label key={field} className="flex items-center gap-2 text-sm text-slate-800">
+                      <input
+                        type="checkbox"
+                        checked={Boolean(reserveForm[field])}
+                        onChange={(e) =>
+                          setReserveForm((f) => ({ ...f, [field]: e.target.checked }))
+                        }
+                      />
+                      {label}
+                      {recommended ? <InfoChip>Recommended</InfoChip> : null}
+                    </label>
+                  ))}
+                </fieldset>
+                <label className="block text-[10px] font-bold uppercase text-slate-500">
+                  Policy notes
+                  <textarea
+                    value={reserveForm.policyNotes}
+                    onChange={(e) =>
+                      setReserveForm((f) => ({ ...f, policyNotes: e.target.value }))
+                    }
+                    maxLength={2000}
+                    rows={3}
+                    className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                  />
+                </label>
+                <div className="flex gap-2 pt-2">
+                  <button
+                    type="submit"
+                    disabled={reserveSaving}
+                    className="flex-1 rounded-xl bg-[#134e4a] px-4 py-2.5 text-[11px] font-black uppercase text-white hover:bg-[#0f3d3a] disabled:opacity-60"
+                  >
+                    {reserveSaving ? 'Saving…' : 'Save reserve policy'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setReserveModalOpen(false)}
+                    className="rounded-xl border border-slate-200 px-4 py-2.5 text-[11px] font-black uppercase text-slate-600"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
+      ) : null}
     </MainPanel>
   );
 }
