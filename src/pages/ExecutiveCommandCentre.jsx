@@ -563,8 +563,47 @@ export default function ExecutiveCommandCentre() {
         </div>
       ) : null}
 
+      {mayFinanceOversight && trialData?.ap2c?.supplierAdvance?.available ? (
+        <div className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-5">
+          <div className="rounded-xl border border-rose-200/60 bg-white/95 px-3 py-2 shadow-sm">
+            <p className="text-[9px] font-bold uppercase text-rose-800/80">Supplier advances</p>
+            <p className="text-sm font-black tabular-nums">
+              {formatNgn(trialData.ap2c.supplierAdvance.totalSupplierAdvanceNgn ?? 0)}
+            </p>
+          </div>
+          <div className="rounded-xl border border-teal-200/60 bg-white/95 px-3 py-2 shadow-sm">
+            <p className="text-[9px] font-bold uppercase text-teal-800/80">Inventory value</p>
+            <p className="text-sm font-black tabular-nums">
+              {formatNgn(trialData.ap2c.inventoryValuation?.accountingValueNgn ?? 0)}
+            </p>
+          </div>
+          <div className="rounded-xl border border-amber-200/60 bg-white/95 px-3 py-2 shadow-sm">
+            <p className="text-[9px] font-bold uppercase text-amber-800/80">Missing cost</p>
+            <p className="text-sm font-black tabular-nums">
+              {trialData.ap2c.inventoryValuation?.missingCostCount ?? 0}
+            </p>
+          </div>
+          <div className="rounded-xl border border-slate-200/60 bg-white/95 px-3 py-2 shadow-sm">
+            <p className="text-[9px] font-bold uppercase text-slate-500">GL warnings</p>
+            <p className="text-sm font-black tabular-nums">{trialData.ap2c.glAlignment?.warningCount ?? 0}</p>
+          </div>
+          <Link
+            to="/accounting"
+            className="rounded-xl border border-slate-200/60 bg-slate-50/90 px-3 py-2 text-[10px] font-bold text-teal-800 flex items-center justify-center hover:bg-teal-50"
+          >
+            Accounting Desk →
+          </Link>
+        </div>
+      ) : null}
+
       {mayFinanceOversight && trialData?.ap2Supplier?.available ? (
-        <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+        <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-7">
+          <div className="rounded-xl border border-slate-200/60 bg-white/95 px-3 py-2 shadow-sm">
+            <p className="text-[9px] font-bold uppercase text-slate-500">AP basis</p>
+            <p className="text-sm font-black capitalize text-slate-900">
+              {String(trialData.ap2Supplier.apBasis || 'ordered').replace(/_/g, ' ')}
+            </p>
+          </div>
           <div className="rounded-xl border border-teal-200/60 bg-white/95 px-3 py-2 shadow-sm">
             <p className="text-[9px] font-bold uppercase text-teal-800/80">Supplier exposure (AP)</p>
             <p className="text-sm font-black tabular-nums text-teal-950">

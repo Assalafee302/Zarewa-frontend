@@ -131,6 +131,16 @@ export function AccountingDeskReports({
       </FinanceReportPanel>
 
       <FinanceReportPanel
+        title="AP rebuild preview (AP2b)"
+        description="Received-basis correction preview — HoA approval required before apply."
+        onLoad={() => {}}
+      >
+        <FinanceActionButton variant="link" to="/accounting">
+          Preview on Supplier &amp; AP →
+        </FinanceActionButton>
+      </FinanceReportPanel>
+
+      <FinanceReportPanel
         title="Supplier AP diagnostics (AP2a)"
         description="Management diagnostic — not AP rebuild. Load full report on Supplier & AP tab."
         onLoad={() => {}}
@@ -148,6 +158,36 @@ export function AccountingDeskReports({
       >
         <FinanceActionButton variant="link" to="/accounting">
           Load on Accounting Desk →
+        </FinanceActionButton>
+      </FinanceReportPanel>
+
+      <FinanceReportPanel
+        title="Supplier advance report (AP2c)"
+        description="Prepayment and paid-not-received — management diagnostic."
+        onLoad={() => {}}
+      >
+        <FinanceActionButton variant="link" to="/accounting">
+          Load on Supplier &amp; AP →
+        </FinanceActionButton>
+      </FinanceReportPanel>
+
+      <FinanceReportPanel
+        title="Inventory valuation (AP2c)"
+        description="Accounting value and missing cost — replacement value not configured by default."
+        onLoad={() => {}}
+      >
+        <FinanceActionButton variant="link" to="/accounting">
+          Load inventory valuation →
+        </FinanceActionButton>
+      </FinanceReportPanel>
+
+      <FinanceReportPanel
+        title="AP / inventory GL alignment (AP2c)"
+        description="Management tie-out warnings — not statutory."
+        onLoad={() => {}}
+      >
+        <FinanceActionButton variant="link" to="/accounts?tab=audit">
+          Open audit trail →
         </FinanceActionButton>
       </FinanceReportPanel>
 

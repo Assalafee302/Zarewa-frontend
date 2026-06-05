@@ -55,3 +55,22 @@ export function userMayViewAp2SupplierDiagnosticsClient(roleKey, permissions) {
   }
   return false;
 }
+
+export function userMayViewAp2ApRebuildPreviewClient(roleKey, permissions) {
+  return userMayViewAp2SupplierDiagnosticsClient(roleKey, permissions);
+}
+
+/** Head of Accounts / finance_manager — not cashier-only. */
+export function userMayApplyAp2ApRebuildClient(roleKey, permissions) {
+  if (hasPermissionInList(permissions, '*')) return true;
+  const rk = String(roleKey || '').trim().toLowerCase();
+  if (rk === 'cashier') return false;
+  if (OVERSIGHT_ROLES.has(rk) || rk === 'finance_manager') return true;
+  if (
+    hasPermissionInList(permissions, 'accounting.desk.view') ||
+    hasPermissionInList(permissions, 'accounting.reconciliation.view')
+  ) {
+    return true;
+  }
+  return false;
+}

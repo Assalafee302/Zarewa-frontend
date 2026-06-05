@@ -1497,6 +1497,8 @@ const Procurement = () => {
                 compact
                 autoLoad
                 enabled={mayAp2Diagnostics}
+                showAp2c={mayAp2Diagnostics}
+                mayPreviewRebuild={false}
               />
               <p className="mt-2 text-[10px] text-slate-500">
                 Full tables and export on{' '}

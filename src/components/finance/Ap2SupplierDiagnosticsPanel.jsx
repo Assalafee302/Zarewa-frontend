@@ -4,6 +4,9 @@ import { AlertTriangle, ChevronDown, RefreshCw, ShieldAlert } from 'lucide-react
 import { formatNgn } from '../../Data/mockData';
 import { downloadFinanceCsv } from '../../lib/exportFinanceCsv';
 import { useAp2SupplierDiagnostics } from '../../hooks/useAp2SupplierDiagnostics';
+import { useAp2ApRebuild } from '../../hooks/useAp2ApRebuild';
+import { Ap2ApRebuildModal } from './Ap2ApRebuildModal';
+import { Ap2cAccountingSections } from './Ap2cAccountingSections';
 import { FinanceActionButton } from './FinanceActionButton';
 import { FinanceDataTable } from './FinanceDataTable';
 import { FinanceEmptyState } from './FinanceEmptyState';
@@ -59,6 +62,10 @@ function poSupplierLink(row) {
  *   compact?: boolean,
  *   autoLoad?: boolean,
  *   enabled?: boolean,
+ *   mayPreviewRebuild?: boolean,
+ *   mayApplyRebuild?: boolean,
+ *   onRebuildSuccess?: () => void,
+ *   showAp2c?: boolean,
  * }} props
  */
 export function Ap2SupplierDiagnosticsPanel({
@@ -66,6 +73,10 @@ export function Ap2SupplierDiagnosticsPanel({
   compact = false,
   autoLoad = false,
   enabled = true,
+  mayPreviewRebuild = false,
+  mayApplyRebuild = false,
+  onRebuildSuccess,
+  showAp2c = true,
 }) {
   const [period, setPeriod] = useState(defaultPeriodKey);
   const [supplierFilter, setSupplierFilter] = useState('');
@@ -73,8 +84,10 @@ export function Ap2SupplierDiagnosticsPanel({
   const [branchId, setBranchId] = useState(initialBranchId || 'ALL');
   const [showDiffOnly, setShowDiffOnly] = useState(false);
   const [showTechnical, setShowTechnical] = useState(false);
+  const [rebuildOpen, setRebuildOpen] = useState(false);
 
   const branchForApi = branchId === 'ALL' ? 'ALL' : branchId;
+  const rebuildApi = useAp2ApRebuild();
   const { data, loading, error, reload } = useAp2SupplierDiagnostics({
     branchId: branchForApi,
     period,
@@ -225,10 +238,29 @@ export function Ap2SupplierDiagnosticsPanel({
               Ordered commitment vs received goods vs payments vs current AP. Management diagnostic — not AP rebuild.
             </p>
           </div>
-          <FinanceActionButton variant="primary" onClick={() => reload()} disabled={loading || !enabled}>
-            <RefreshCw size={14} className={`mr-1 inline ${loading ? 'animate-spin' : ''}`} />
-            Load diagnostics
-          </FinanceActionButton>
+          <div className="flex flex-wrap gap-2">
+            <FinanceActionButton variant="primary" onClick={() => reload()} disabled={loading || !enabled}>
+              <RefreshCw size={14} className={`mr-1 inline ${loading ? 'animate-spin' : ''}`} />
+              Load diagnostics
+            </FinanceActionButton>
+            {!compact && mayPreviewRebuild ? (
+              <FinanceActionButton
+                variant="secondary"
+                onClick={async () => {
+                  setRebuildOpen(true);
+                  await rebuildApi.loadPreview({
+                    branchId: branchForApi,
+                    period,
+                    supplierId: supplierFilter,
+                    status: statusFilter,
+                  });
+                }}
+                disabled={rebuildApi.previewLoading}
+              >
+                Preview AP correction
+              </FinanceActionButton>
+            ) : null}
+          </div>
         </div>
 
         {!compact ? (
@@ -304,6 +336,10 @@ export function Ap2SupplierDiagnosticsPanel({
             <p className="text-xs font-medium text-slate-500">
               {data.disclaimer}
               {data.generatedAtISO ? ` · Generated ${new Date(data.generatedAtISO).toLocaleString()}` : ''}
+              {data.apBasis ? ` · AP basis: ${data.apBasis}` : ''}
+              {data.lastRebuild?.atISO
+                ? ` · Last rebuild ${new Date(data.lastRebuild.atISO).toLocaleString()} by ${data.lastRebuild.actorName || '—'}`
+                : ''}
             </p>
 
             <div className={`grid gap-3 ${compact ? 'grid-cols-2 sm:grid-cols-3' : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'}`}>
@@ -351,6 +387,25 @@ export function Ap2SupplierDiagnosticsPanel({
                 </>
               ) : null}
             </div>
+
+            {showAp2c && !compact ? (
+              <Ap2cAccountingSections
+                branchId={branchForApi}
+                period={period}
+                supplierId={supplierFilter}
+                status={statusFilter}
+                enabled={enabled}
+              />
+            ) : null}
+
+            {showAp2c && compact ? (
+              <Ap2cAccountingSections
+                branchId={branchForApi}
+                period={period}
+                enabled={enabled}
+                compact
+              />
+            ) : null}
 
             {!compact ? (
               <>
@@ -468,6 +523,32 @@ export function Ap2SupplierDiagnosticsPanel({
           </>
         ) : null}
       </section>
+
+      <Ap2ApRebuildModal
+        open={rebuildOpen}
+        onClose={() => {
+          setRebuildOpen(false);
+          rebuildApi.clearPreview();
+        }}
+        preview={rebuildApi.preview}
+        loading={rebuildApi.previewLoading}
+        error={rebuildApi.previewError}
+        mayApply={mayApplyRebuild}
+        onApply={async (payload) => {
+          const r = await rebuildApi.applyRebuild(payload);
+          if (r?.ok) {
+            onRebuildSuccess?.();
+            await reload();
+          }
+          return r;
+        }}
+        applyLoading={rebuildApi.applyLoading}
+        applyError={rebuildApi.applyError}
+        branchId={branchForApi}
+        period={period}
+        supplierId={supplierFilter}
+        status={statusFilter}
+      />
     </div>
   );
 }

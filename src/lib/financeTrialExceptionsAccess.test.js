@@ -3,6 +3,7 @@ import {
   userMayViewFinanceTrialExceptionsClient,
   userMayViewFinanceTrialOversightClient,
   userMayViewAp2SupplierDiagnosticsClient,
+  userMayApplyAp2ApRebuildClient,
 } from './financeTrialExceptionsAccess.js';
 
 describe('financeTrialExceptionsAccess', () => {
@@ -22,5 +23,11 @@ describe('financeTrialExceptionsAccess', () => {
     expect(userMayViewAp2SupplierDiagnosticsClient('finance_manager', [])).toBe(true);
     expect(userMayViewAp2SupplierDiagnosticsClient('viewer', ['finance.view'])).toBe(true);
     expect(userMayViewAp2SupplierDiagnosticsClient('viewer', ['procurement.view'])).toBe(true);
+  });
+
+  it('AP2b rebuild apply excludes cashier', () => {
+    expect(userMayApplyAp2ApRebuildClient('cashier', [])).toBe(false);
+    expect(userMayApplyAp2ApRebuildClient('finance_manager', [])).toBe(true);
+    expect(userMayApplyAp2ApRebuildClient('viewer', ['accounting.desk.view'])).toBe(true);
   });
 });

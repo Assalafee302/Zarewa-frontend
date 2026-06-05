@@ -25,6 +25,37 @@ export function Ap2ReportsSection({ mayView }) {
       title: 'Missing inventory cost',
       desc: 'Coil lots and PO lines without landed or unit cost for stock valuation.',
     },
+    {
+      id: 'ap2b-preview',
+      title: 'AP rebuild preview report',
+      desc: 'Received-basis AP correction preview — Head of Accounts approval required before apply.',
+    },
+    {
+      id: 'ap2b-audit',
+      title: 'AP basis change audit',
+      desc: 'Rebuild actions logged in Finance → Audit (ap.received_basis.*).',
+      link: '/accounts?tab=audit',
+    },
+    {
+      id: 'ap2b-advance',
+      title: 'Supplier advance risk report',
+      desc: 'Paid before goods received — prepayment risk (no advance journal in AP2b).',
+    },
+    {
+      id: 'ap2c-advance',
+      title: 'Supplier advance report (AP2c)',
+      desc: 'Advance summary, paid not received, and supplier exposure.',
+    },
+    {
+      id: 'ap2c-inventory',
+      title: 'Inventory valuation report',
+      desc: 'Accounting value, monthly average price, highest month price, missing cost.',
+    },
+    {
+      id: 'ap2c-align',
+      title: 'AP / inventory GL alignment',
+      desc: 'Management tie-out warnings — not statutory.',
+    },
   ];
 
   return (
@@ -39,10 +70,22 @@ export function Ap2ReportsSection({ mayView }) {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {cards.map((c) => (
           <FinanceReportPanel key={c.id} title={c.title} description={c.desc}>
-            <p className="text-xs font-bold uppercase text-amber-800 mb-3">Management diagnostic — not AP rebuild</p>
-            <FinanceActionButton variant="link" to="/accounting">
-              Load on Accounting Desk →
-            </FinanceActionButton>
+            <p className="text-xs font-bold uppercase text-amber-800 mb-3">
+              {c.id.startsWith('ap2c')
+                ? 'AP2c — management diagnostic · accounting value'
+                : c.id.startsWith('ap2b')
+                  ? 'AP2b — preview before rebuild'
+                  : 'Management diagnostic — not AP rebuild'}
+            </p>
+            {c.link ? (
+              <FinanceActionButton variant="link" to={c.link}>
+                Open audit trail →
+              </FinanceActionButton>
+            ) : (
+              <FinanceActionButton variant="link" to="/accounting">
+                Load on Accounting Desk →
+              </FinanceActionButton>
+            )}
           </FinanceReportPanel>
         ))}
       </div>

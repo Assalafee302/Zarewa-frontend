@@ -7,6 +7,8 @@ import { FinanceEmptyState } from './FinanceEmptyState';
 import { CreditExceptionStatusChip } from './CreditExceptionStatusChip';
 import { FinanceTabs } from './FinanceTabs';
 import { Ap2SupplierDiagnosticsPanel } from './Ap2SupplierDiagnosticsPanel';
+import { Ap2ApRebuildModal } from './Ap2ApRebuildModal';
+import { Ap2cAccountingSections } from './Ap2cAccountingSections';
 
 describe('finance desk components', () => {
   it('FinanceKpiCard renders label and value', () => {
@@ -49,13 +51,52 @@ describe('finance desk components', () => {
     expect(screen.getByText('Supplier & AP')).toBeTruthy();
   });
 
+  it('Ap2SupplierDiagnosticsPanel shows Preview AP correction when allowed', () => {
+    render(
+      <MemoryRouter>
+        <Ap2SupplierDiagnosticsPanel enabled={false} mayPreviewRebuild />
+      </MemoryRouter>
+    );
+    expect(screen.getByText(/Preview AP correction/i)).toBeTruthy();
+  });
+
+  it('Ap2ApRebuildModal requires approval note UI', () => {
+    render(
+      <Ap2ApRebuildModal
+        open
+        onClose={() => {}}
+        preview={{
+          status: 'preview_only',
+          previewHash: 'abc',
+          summary: { currentApNgn: 0, proposedApTotalNgn: 0, affectedPoCount: 0 },
+          rows: [],
+          flags: { apReceivedBasisRebuildEnabled: true },
+        }}
+        mayApply
+        onApply={async () => null}
+      />
+    );
+    expect(screen.getByText(/Approval note \(required\)/i)).toBeTruthy();
+    expect(screen.getByText(/Head of Accounts has reviewed/i)).toBeTruthy();
+  });
+
+  it('Ap2cAccountingSections renders load button', () => {
+    render(
+      <MemoryRouter>
+        <Ap2cAccountingSections enabled={false} />
+      </MemoryRouter>
+    );
+    expect(screen.getByRole('button', { name: /Load AP2c reports/i })).toBeTruthy();
+    expect(screen.getByText(/Supplier advances & inventory/i)).toBeTruthy();
+  });
+
   it('Ap2SupplierDiagnosticsPanel empty state renders', () => {
     render(
       <MemoryRouter>
-        <Ap2SupplierDiagnosticsPanel enabled={false} />
+        <Ap2SupplierDiagnosticsPanel enabled={false} compact />
       </MemoryRouter>
     );
-    expect(screen.getByText(/No diagnostic loaded/i)).toBeTruthy();
-    expect(screen.getByText(/Head of Accounts should review/i)).toBeTruthy();
+    expect(screen.getAllByText(/No diagnostic loaded/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Head of Accounts should review/i).length).toBeGreaterThan(0);
   });
 });

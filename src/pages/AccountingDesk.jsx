@@ -27,6 +27,8 @@ import { AccountingDeskReports } from '../components/finance/AccountingDeskRepor
 import { Ap2SupplierDiagnosticsPanel } from '../components/finance/Ap2SupplierDiagnosticsPanel';
 import {
   userMayViewAp2SupplierDiagnosticsClient,
+  userMayViewAp2ApRebuildPreviewClient,
+  userMayApplyAp2ApRebuildClient,
 } from '../lib/financeTrialExceptionsAccess';
 
 function defaultPeriodRange() {
@@ -69,6 +71,8 @@ export default function AccountingDesk() {
     useFinanceTrialExceptions({ branchId: trialBranch, enabled: mayTrialApi });
   const mayAp1cDryRun = userMayViewAp1cDryRunClient(roleKey, permissions);
   const mayAp2 = userMayViewAp2SupplierDiagnosticsClient(roleKey, permissions);
+  const mayAp2Preview = userMayViewAp2ApRebuildPreviewClient(roleKey, permissions);
+  const mayAp2Apply = userMayApplyAp2ApRebuildClient(roleKey, permissions);
   const ap2Branch = ws.viewAllBranches ? 'ALL' : ws.branchScope || ws.session?.currentBranchId || 'ALL';
   const ap1cDiagnosticsOn = Boolean(trialData?.flags?.accountingPolicyV1Diagnostics);
   const { data: ap1cData, loading: ap1cLoading, error: ap1cError, reload: reloadAp1c } = useAp1cDryRun({
@@ -204,7 +208,16 @@ export default function AccountingDesk() {
         ) : null}
 
         {tab === 'supplier-ap' && mayAp2 ? (
-          <Ap2SupplierDiagnosticsPanel initialBranchId={ap2Branch} enabled={mayAp2} />
+          <Ap2SupplierDiagnosticsPanel
+            initialBranchId={ap2Branch}
+            enabled={mayAp2}
+            mayPreviewRebuild={mayAp2Preview}
+            mayApplyRebuild={mayAp2Apply}
+            showAp2c={mayAp2}
+            onRebuildSuccess={() =>
+              showToast('AP rebuild applied. Diagnostics refreshed.', { variant: 'success' })
+            }
+          />
         ) : tab === 'supplier-ap' ? (
           <p className="text-sm font-medium text-slate-600">
             Supplier payables diagnostics require accounting or finance reconciliation access.
