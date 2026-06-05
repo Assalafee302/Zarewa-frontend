@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { apiFetch } from '../lib/apiBase';
+import { syncAccountingPolicyFlagsFromTrial } from '../lib/accountingPolicyFlags.js';
 
 /**
  * @param {{ branchId?: string | null, enabled?: boolean }} [opts]
@@ -27,6 +28,7 @@ export function useFinanceTrialExceptions(opts = {}) {
       return;
     }
     setData(d);
+    syncAccountingPolicyFlagsFromTrial(d);
   }, [branchId, enabled]);
 
   useEffect(() => {

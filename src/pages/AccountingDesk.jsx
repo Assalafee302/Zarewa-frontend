@@ -76,6 +76,13 @@ export default function AccountingDesk() {
         subtitle="Company-wide accounting control — reconciliation review, GL, and month-end. Head of Accounts does not perform routine cashier confirmation here."
       />
 
+      <p className="text-sm font-medium text-slate-600 mb-4 max-w-3xl leading-relaxed">
+        <strong>Accounting Policy v1:</strong> AP1a labels/diagnostics; AP1b delivery gate via{' '}
+        <code className="text-xs bg-slate-100 px-1 rounded">DELIVERY_PAYMENT_GATE=1</code> (warn) or{' '}
+        <code className="text-xs bg-slate-100 px-1 rounded">enforce</code>. GL receipt timing unchanged until AP1c. See{' '}
+        <code className="text-xs">docs/ACCOUNTING_POLICY_V1.md</code>.
+      </p>
+
       <div className="flex flex-wrap gap-2 mb-6">
         {['Accounting control', 'Management draft', 'Reconciliation review', 'Company-wide view'].map((label) => (
           <span

@@ -47,6 +47,7 @@ function RoleBars({ title, rows }) {
  */
 export function FinanceTrialExceptionPanel({ variant, data, loading, error, onReload }) {
   const ex = data?.exceptions || {};
+  const ap1 = data?.accountingPolicyV1 || null;
   const flags = data?.flags || {};
   const dual = data?.dualControlWarnings || {};
   const adoption = data?.roleAdoption || {};
@@ -194,6 +195,60 @@ export function FinanceTrialExceptionPanel({ variant, data, loading, error, onRe
             tone="rose"
             hint={ex.reconciliationMaterialMismatchPeriod || undefined}
           />
+        </div>
+      ) : null}
+
+      {flags.deliveryPaymentGateMode && flags.deliveryPaymentGateMode !== 'off' ? (
+        <div className="rounded-2xl border border-rose-200 bg-rose-50/70 p-4">
+          <p className="text-xs font-black uppercase tracking-wide text-rose-900">
+            Delivery payment gate (AP1b — {flags.deliveryPaymentGateMode})
+          </p>
+          <p className="text-xs font-medium text-rose-950 mt-1 leading-relaxed">
+            {flags.deliveryPaymentGateMode === 'enforce'
+              ? 'Unpaid deliveries are blocked on POST /api/deliveries/:id/confirm.'
+              : 'Unpaid deliveries still confirm but are audited. Use payment-release-check before dispatch.'}
+          </p>
+        </div>
+      ) : null}
+
+      {flags.accountingPolicyV1Diagnostics && ap1 ? (
+        <div className="rounded-2xl border border-violet-200 bg-violet-50/60 p-4 space-y-3">
+          <p className="text-xs font-black uppercase tracking-wide text-violet-900">
+            Accounting Policy v1 diagnostics
+          </p>
+          <p className="text-xs font-medium text-violet-950 leading-relaxed">
+            {data?.accountingPolicyV1Note ||
+              'Read-only indicators; GL timing unchanged until AP1c.'}
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            <CountCard
+              label="Receipt GL 1200, quote not produced"
+              count={ap1.receiptsOnQuoteNoProductionWithGl1200}
+              tone="amber"
+            />
+            <CountCard
+              label="Fully paid, no production yet"
+              count={ap1.quotationsFullyPaidNoProduction}
+              tone="amber"
+            />
+            <CountCard
+              label="Pre-production balance (deposit pending)"
+              count={ap1.quotationsPreProductionWithBalanceDue}
+              tone="slate"
+            />
+            <CountCard
+              label="Open deliveries unpaid (would block)"
+              count={ap1.openDeliveriesWouldBlockOnPayment}
+              tone="rose"
+              hint={
+                flags.deliveryPaymentGateMode === 'enforce'
+                  ? 'Blocked on confirm API'
+                  : flags.deliveryPaymentGateMode === 'warn'
+                    ? 'Warn + audit on confirm'
+                    : 'Dry-run only — set DELIVERY_PAYMENT_GATE=1'
+              }
+            />
+          </div>
         </div>
       ) : null}
 

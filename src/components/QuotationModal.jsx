@@ -44,6 +44,13 @@ import {
   recordAdvanceAppliedToQuotation,
 } from '../lib/customerLedgerStore';
 import { bookedPaidNgnForQuotationFromMirrors } from '../lib/liveAnalytics';
+import {
+  accountingPolicyV1LabelsEnabled,
+} from '../lib/accountingPolicyFlags.js';
+import {
+  policyBalanceLabelText,
+  quotationPaymentPolicySnapshot,
+} from '../lib/accountingPolicyV1.js';
 import { apiFetch } from '../lib/apiBase';
 import {
   isMeterSheetProductLine,
@@ -1539,6 +1546,20 @@ const QuotationModal = ({
     return Math.max(0, Math.round(grandTotalNgn) - quotationPaidNgn);
   }, [editData?.id, grandTotalNgn, quotationPaidNgn]);
 
+  const quotePaymentPolicy = useMemo(() => {
+    if (!editData?.id) return null;
+    const jobs = Array.isArray(ws?.snapshot?.productionJobs) ? ws.snapshot.productionJobs : [];
+    return quotationPaymentPolicySnapshot(
+      { id: editData.id, totalNgn: grandTotalNgn, paidNgn: quotationPaidNgn },
+      jobs
+    );
+  }, [editData?.id, grandTotalNgn, quotationPaidNgn, ws?.snapshot?.productionJobs, ws?.refreshEpoch]);
+
+  const quoteBalancePolicyLabel = useMemo(() => {
+    if (!accountingPolicyV1LabelsEnabled() || !quotePaymentPolicy) return null;
+    return policyBalanceLabelText(quotePaymentPolicy.balanceLabel);
+  }, [quotePaymentPolicy]);
+
   const maxApplyAdvance = useMemo(
     () => Math.max(0, Math.min(advanceBal, quoteDueNgn)),
     [advanceBal, quoteDueNgn]
@@ -2374,9 +2395,22 @@ const QuotationModal = ({
                 Apply customer advance
               </p>
               <p className="text-[10px] text-amber-900/80 leading-relaxed mb-3">
-                Customer has <strong>{formatNgn(advanceBal)}</strong> on deposit. Remaining due on this quote (after
-                mock paid + ledger){' '}
-                <strong>{formatNgn(quoteDueNgn)}</strong>. Applying advance is not revenue — it reduces what they owe.
+                Customer has <strong>{formatNgn(advanceBal)}</strong> on deposit.{' '}
+                {quoteBalancePolicyLabel ? (
+                  <>
+                    <span className="font-bold text-amber-950">{quoteBalancePolicyLabel}:</span>{' '}
+                    <strong>{formatNgn(quotePaymentPolicy?.depositPendingNgn ?? quoteDueNgn)}</strong>
+                    {quotePaymentPolicy?.policyPhase === 'pre_production' ? (
+                      <span className="block mt-1 text-amber-800/90">Not accounts receivable until production completes.</span>
+                    ) : null}
+                  </>
+                ) : (
+                  <>
+                    Remaining due on this quote (after mock paid + ledger){' '}
+                    <strong>{formatNgn(quoteDueNgn)}</strong>.
+                  </>
+                )}{' '}
+                Applying advance is not revenue — it reduces what they owe.
               </p>
               {useLedgerApi && applyAdvanceDateLocked ? (
                 <div className="mb-3 rounded-lg border border-amber-300 bg-amber-100/80 px-3 py-2 text-[10px] text-amber-950">

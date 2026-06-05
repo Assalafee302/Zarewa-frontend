@@ -1838,7 +1838,7 @@ const Reports = () => {
                 </div>
                 <div className="rounded-2xl border border-slate-100 bg-slate-50/80 p-4">
                   <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1">
-                    Sales (produced)
+                    Revenue at production completion
                   </p>
                   <p className="text-xl font-black text-teal-800 tabular-nums">
                     {formatNgn(salesKpis.producedSalesNgn)}
@@ -1855,11 +1855,11 @@ const Reports = () => {
                 </div>
                 <div className="rounded-2xl border border-slate-100 bg-slate-50/80 p-4">
                   <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1">
-                    Receivables outstanding
+                    Receivables outstanding (Policy v1)
                   </p>
                   <p className="text-xl font-black text-amber-700 tabular-nums">{formatNgn(salesKpis.outstanding)}</p>
                   <p className="text-xs text-slate-500 mt-2 font-medium">
-                    Production complete with balance due · not period-only
+                    Post-production balance due only · not quotation-date order book
                   </p>
                 </div>
               </div>
