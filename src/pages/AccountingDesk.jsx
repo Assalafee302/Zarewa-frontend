@@ -18,7 +18,12 @@ import { ReportsGlPilotSection } from '../components/reports/ReportsGlPilotSecti
 import { userHasLegacyFullFinanceDeskClient } from '../lib/financeDeskAccess';
 import { useFinanceTrialExceptions } from '../hooks/useFinanceTrialExceptions';
 import { FinanceTrialExceptionPanel } from '../components/finance/FinanceTrialExceptionPanel';
-import { userMayViewFinanceTrialExceptionsClient } from '../lib/financeTrialExceptionsAccess';
+import { Ap1cDryRunPanel } from '../components/finance/Ap1cDryRunPanel';
+import {
+  userMayViewAp1cDryRunClient,
+  userMayViewFinanceTrialExceptionsClient,
+} from '../lib/financeTrialExceptionsAccess';
+import { useAp1cDryRun } from '../hooks/useAp1cDryRun';
 
 function defaultPeriodRange() {
   const now = new Date();
@@ -68,6 +73,12 @@ export default function AccountingDesk() {
   const trialBranch = ws.viewAllBranches ? null : ws.branchScope || ws.session?.currentBranchId;
   const { data: trialData, loading: trialLoading, error: trialError, reload: reloadTrial } =
     useFinanceTrialExceptions({ branchId: trialBranch, enabled: mayTrialApi });
+  const mayAp1cDryRun = userMayViewAp1cDryRunClient(roleKey, permissions);
+  const ap1cDiagnosticsOn = Boolean(trialData?.flags?.accountingPolicyV1Diagnostics);
+  const { data: ap1cData, loading: ap1cLoading, error: ap1cError, reload: reloadAp1c } = useAp1cDryRun({
+    branchId: trialBranch,
+    enabled: mayAp1cDryRun && ap1cDiagnosticsOn,
+  });
 
   return (
     <PageShell>
@@ -173,6 +184,15 @@ export default function AccountingDesk() {
             />
           </div>
         </section>
+
+        {mayAp1cDryRun && ap1cDiagnosticsOn ? (
+          <Ap1cDryRunPanel
+            data={ap1cData}
+            loading={ap1cLoading}
+            error={ap1cError}
+            onReload={reloadAp1c}
+          />
+        ) : null}
 
         {mayTrialApi ? (
           <FinanceTrialExceptionPanel

@@ -48,6 +48,7 @@ function RoleBars({ title, rows }) {
 export function FinanceTrialExceptionPanel({ variant, data, loading, error, onReload }) {
   const ex = data?.exceptions || {};
   const ap1 = data?.accountingPolicyV1 || null;
+  const ap1c = data?.ap1cDryRun || null;
   const flags = data?.flags || {};
   const dual = data?.dualControlWarnings || {};
   const adoption = data?.roleAdoption || {};
@@ -211,10 +212,29 @@ export function FinanceTrialExceptionPanel({ variant, data, loading, error, onRe
         </div>
       ) : null}
 
+      {variant === 'cashier' && flags.accountingPolicyV1Diagnostics && ap1c?.available ? (
+        <div className="rounded-xl border border-amber-200 bg-amber-50/80 px-4 py-3">
+          <p className="text-xs font-bold text-amber-950">
+            AP1c dry-run: {ap1c.receiptsBeforeProductionCredited1200Count ?? 0} receipt(s) pre-production
+            posted to GL 1200 (should be 2500). Accounting Desk has full detail. No GL changed.
+          </p>
+        </div>
+      ) : null}
+
+      {flags.accountingPolicyV1Diagnostics && ap1c?.available ? (
+        <div className="rounded-xl border border-violet-200 bg-violet-50/50 px-4 py-3 text-xs font-medium text-violet-950">
+          <span className="font-black uppercase tracking-wide text-violet-900">AP1c dry-run summary: </span>
+          Pre-prod GL 1200 count {ap1c.receiptsBeforeProductionCredited1200Count ?? 0} · Release gap ₦
+          {Number(ap1c.releaseGapNgn || 0).toLocaleString()} · AR overstatement risk ₦
+          {Number(ap1c.potentialArOverstatementNgn || 0).toLocaleString()}. See Accounting Desk for full
+          dry-run.
+        </div>
+      ) : null}
+
       {flags.accountingPolicyV1Diagnostics && ap1 ? (
         <div className="rounded-2xl border border-violet-200 bg-violet-50/60 p-4 space-y-3">
           <p className="text-xs font-black uppercase tracking-wide text-violet-900">
-            Accounting Policy v1 diagnostics
+            Accounting Policy v1 diagnostics (AP1a)
           </p>
           <p className="text-xs font-medium text-violet-950 leading-relaxed">
             {data?.accountingPolicyV1Note ||
