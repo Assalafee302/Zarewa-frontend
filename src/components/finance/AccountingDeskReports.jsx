@@ -131,6 +131,37 @@ export function AccountingDeskReports({
       </FinanceReportPanel>
 
       <FinanceReportPanel
+        title="Supplier AP diagnostics (AP2a)"
+        description="Management diagnostic — not AP rebuild. Load full report on Supplier & AP tab."
+        onLoad={() => {}}
+      >
+        <p className="text-xs font-bold uppercase text-amber-800 mb-2">Management diagnostic — not AP rebuild</p>
+        <FinanceActionButton variant="link" to="/accounting">
+          Open Supplier &amp; AP →
+        </FinanceActionButton>
+      </FinanceReportPanel>
+
+      <FinanceReportPanel
+        title="PO ordered vs received vs paid (AP2a)"
+        description="Compare procurement commitment to GRN and supplier payments."
+        onLoad={() => {}}
+      >
+        <FinanceActionButton variant="link" to="/accounting">
+          Load on Accounting Desk →
+        </FinanceActionButton>
+      </FinanceReportPanel>
+
+      <FinanceReportPanel
+        title="Missing inventory cost (AP2a)"
+        description="Coil lots and lines without landed or unit cost."
+        onLoad={() => {}}
+      >
+        <FinanceActionButton variant="link" to="/accounting">
+          Review missing cost →
+        </FinanceActionButton>
+      </FinanceReportPanel>
+
+      <FinanceReportPanel
         title="Month-end readiness"
         description="Placeholder checklist — formal close in Phase A4."
         onLoad={() => {}}

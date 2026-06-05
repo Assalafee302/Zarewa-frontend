@@ -563,6 +563,43 @@ export default function ExecutiveCommandCentre() {
         </div>
       ) : null}
 
+      {mayFinanceOversight && trialData?.ap2Supplier?.available ? (
+        <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+          <div className="rounded-xl border border-teal-200/60 bg-white/95 px-3 py-2 shadow-sm">
+            <p className="text-[9px] font-bold uppercase text-teal-800/80">Supplier exposure (AP)</p>
+            <p className="text-sm font-black tabular-nums text-teal-950">
+              {formatNgn(trialData.ap2Supplier.currentApNgn ?? 0)}
+            </p>
+          </div>
+          <div className="rounded-xl border border-rose-200/60 bg-white/95 px-3 py-2 shadow-sm">
+            <p className="text-[9px] font-bold uppercase text-rose-800/80">Paid not received</p>
+            <p className="text-sm font-black tabular-nums">
+              {formatNgn(trialData.ap2Supplier.paidNotReceivedNgn ?? 0)}
+            </p>
+          </div>
+          <div className="rounded-xl border border-amber-200/60 bg-white/95 px-3 py-2 shadow-sm">
+            <p className="text-[9px] font-bold uppercase text-amber-800/80">Received not paid</p>
+            <p className="text-sm font-black tabular-nums">
+              {formatNgn(trialData.ap2Supplier.receivedNotPaidNgn ?? 0)}
+            </p>
+          </div>
+          <div className="rounded-xl border border-amber-200/60 bg-white/95 px-3 py-2 shadow-sm">
+            <p className="text-[9px] font-bold uppercase text-amber-800/80">Missing stock cost</p>
+            <p className="text-sm font-black tabular-nums">{trialData.ap2Supplier.missingCostCount ?? 0}</p>
+          </div>
+          <div className="rounded-xl border border-slate-200/60 bg-white/95 px-3 py-2 shadow-sm">
+            <p className="text-[9px] font-bold uppercase text-slate-500">AP difference</p>
+            <p className="text-sm font-black tabular-nums">{formatNgn(trialData.ap2Supplier.apDifferenceNgn ?? 0)}</p>
+          </div>
+          <Link
+            to="/accounting"
+            className="rounded-xl border border-slate-200/60 bg-slate-50/90 px-3 py-2 text-[10px] font-bold text-teal-800 flex items-center justify-center hover:bg-teal-50"
+          >
+            Open Accounting Desk →
+          </Link>
+        </div>
+      ) : null}
+
       {mayFinanceOversight && trialData?.creditExceptions ? (
         <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-5">
           <div className="rounded-xl border border-teal-200/60 bg-white/95 px-3 py-2 shadow-sm">

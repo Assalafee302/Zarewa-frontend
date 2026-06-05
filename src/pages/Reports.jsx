@@ -42,6 +42,8 @@ import { procurementKindFromPo } from '../lib/procurementPoKind';
 import { ReportsGlPilotSection } from '../components/reports/ReportsGlPilotSection.jsx';
 import { ReportsFinanceReconciliationPackSection } from '../components/reports/ReportsFinanceReconciliationPackSection.jsx';
 import { userMayViewAccountingSectionsOnReportsClient } from '../lib/financeDeskAccess.js';
+import { userMayViewAp2SupplierDiagnosticsClient } from '../lib/financeTrialExceptionsAccess.js';
+import { Ap2ReportsSection } from '../components/finance/Ap2ReportsSection.jsx';
 import { ExecutiveReportPacksSection } from '../components/reports/ExecutiveReportPacksSection.jsx';
 import { StockRegisterPanel } from '../components/reports/StockRegisterPanel.jsx';
 import { MaterialTransactionPrintModal } from '../components/reports/MaterialTransactionPrintModal.jsx';
@@ -1895,6 +1897,12 @@ const Reports = () => {
               endDate={endDate}
               hasFinanceView={ws.hasPermission('finance.view')}
               showToast={showToast}
+            />
+            <Ap2ReportsSection
+              mayView={userMayViewAp2SupplierDiagnosticsClient(
+                ws?.session?.user?.roleKey,
+                ws?.session?.user?.permissions
+              )}
             />
           </>
         ) : null}

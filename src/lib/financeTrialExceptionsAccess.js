@@ -37,3 +37,21 @@ export function userMayViewAp1cDryRunClient(roleKey, permissions) {
   }
   return false;
 }
+
+/**
+ * AP2a supplier / GRN / payables diagnostics — mirrors server userMayViewAp2SupplierDiagnostics.
+ * Cashier-only roles excluded; procurement.view allowed for read-only procurement card.
+ */
+export function userMayViewAp2SupplierDiagnosticsClient(roleKey, permissions) {
+  if (userMayViewAp1cDryRunClient(roleKey, permissions)) return true;
+  const rk = String(roleKey || '').trim().toLowerCase();
+  if (rk === 'cashier') return false;
+  if (hasPermissionInList(permissions, 'procurement.view')) return true;
+  if (
+    hasPermissionInList(permissions, 'finance.view') ||
+    hasPermissionInList(permissions, 'accounting.reconciliation.view')
+  ) {
+    return true;
+  }
+  return false;
+}

@@ -24,6 +24,10 @@ import { FinanceTabs } from '../components/finance/FinanceTabs';
 import { formatNgn } from '../Data/mockData';
 import { FinanceActionButton } from '../components/finance/FinanceActionButton';
 import { AccountingDeskReports } from '../components/finance/AccountingDeskReports';
+import { Ap2SupplierDiagnosticsPanel } from '../components/finance/Ap2SupplierDiagnosticsPanel';
+import {
+  userMayViewAp2SupplierDiagnosticsClient,
+} from '../lib/financeTrialExceptionsAccess';
 
 function defaultPeriodRange() {
   const now = new Date();
@@ -42,6 +46,7 @@ const TABS = [
   { id: 'reports', label: 'Reports' },
   { id: 'ap1c', label: 'Receipt & production' },
   { id: 'credit', label: 'Credit exceptions' },
+  { id: 'supplier-ap', label: 'Supplier & AP' },
   { id: 'gl', label: 'GL pilot' },
   { id: 'month', label: 'Month-end' },
 ];
@@ -63,6 +68,8 @@ export default function AccountingDesk() {
   const { data: trialData, loading: trialLoading, error: trialError, reload: reloadTrial } =
     useFinanceTrialExceptions({ branchId: trialBranch, enabled: mayTrialApi });
   const mayAp1cDryRun = userMayViewAp1cDryRunClient(roleKey, permissions);
+  const mayAp2 = userMayViewAp2SupplierDiagnosticsClient(roleKey, permissions);
+  const ap2Branch = ws.viewAllBranches ? 'ALL' : ws.branchScope || ws.session?.currentBranchId || 'ALL';
   const ap1cDiagnosticsOn = Boolean(trialData?.flags?.accountingPolicyV1Diagnostics);
   const { data: ap1cData, loading: ap1cLoading, error: ap1cError, reload: reloadAp1c } = useAp1cDryRun({
     branchId: trialBranch,
@@ -71,6 +78,7 @@ export default function AccountingDesk() {
   const ex = trialData?.exceptions;
   const ap1c = trialData?.ap1cDryRun?.summary || ap1cData?.summary;
   const creditTrial = trialData?.creditExceptions;
+  const ap2Trial = trialData?.ap2Supplier;
   const legacyNote = useMemo(
     () => userHasLegacyFullFinanceDeskClient(roleKey, permissions),
     [roleKey, permissions]
@@ -110,6 +118,11 @@ export default function AccountingDesk() {
               <FinanceActionButton variant="secondary" onClick={() => setTab('reports')}>
                 View reports
               </FinanceActionButton>
+              {mayAp2 ? (
+                <FinanceActionButton variant="secondary" onClick={() => setTab('supplier-ap')}>
+                  Supplier &amp; AP diagnostics
+                </FinanceActionButton>
+              ) : null}
               <FinanceActionButton variant="link" to="/accounts?tab=audit">
                 Open GL detail
               </FinanceActionButton>
@@ -137,6 +150,14 @@ export default function AccountingDesk() {
                 hint={`${creditTrial?.pendingCreditExceptionsCount ?? 0} pending`}
                 tone="teal"
               />
+              {mayAp2 ? (
+                <FinanceKpiCard
+                  label="AP difference (supplier)"
+                  value={formatNgn(ap2Trial?.apDifferenceNgn ?? 0)}
+                  hint={`${ap2Trial?.missingCostCount ?? 0} missing cost`}
+                  tone={(ap2Trial?.apDifferenceNgn || 0) !== 0 ? 'amber' : 'neutral'}
+                />
+              ) : null}
             </div>
             {mayTrialApi ? (
               <FinanceTrialExceptionPanel
@@ -180,6 +201,14 @@ export default function AccountingDesk() {
 
         {tab === 'credit' ? (
           <CreditExceptionPanel branchId={trialBranch} roleKey={roleKey} trialCredit={creditTrial} />
+        ) : null}
+
+        {tab === 'supplier-ap' && mayAp2 ? (
+          <Ap2SupplierDiagnosticsPanel initialBranchId={ap2Branch} enabled={mayAp2} />
+        ) : tab === 'supplier-ap' ? (
+          <p className="text-sm font-medium text-slate-600">
+            Supplier payables diagnostics require accounting or finance reconciliation access.
+          </p>
         ) : null}
 
         {tab === 'gl' && hasFinanceView ? (

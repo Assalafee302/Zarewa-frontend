@@ -43,6 +43,8 @@ import { apiFetch, apiUrl } from '../lib/apiBase';
 import { purchaseOrderOrderedValueNgn } from '../lib/liveAnalytics';
 import { procurementKindFromPo } from '../lib/procurementPoKind';
 import { EditSecondApprovalInline } from '../components/EditSecondApprovalInline';
+import { Ap2SupplierDiagnosticsPanel } from '../components/finance/Ap2SupplierDiagnosticsPanel';
+import { userMayViewAp2SupplierDiagnosticsClient } from '../lib/financeTrialExceptionsAccess';
 import { editMutationNeedsSecondApprovalRole } from '../lib/editApprovalUi';
 import {
   SalesListSearchInput,
@@ -350,6 +352,10 @@ const Procurement = () => {
   const currentActorLabel = ws?.session?.user?.displayName ?? 'Accounts';
   const canAccessPriceList =
     (ws?.hasPermission?.('pricing.manage') || ws?.hasPermission?.('md.price_exception.approve')) ?? false;
+  const mayAp2Diagnostics = userMayViewAp2SupplierDiagnosticsClient(
+    ws?.session?.user?.roleKey,
+    ws?.session?.user?.permissions
+  );
 
   const [activeTab, setActiveTab] = useState('purchases');
   const [agents, setAgents] = useState([]);
@@ -1481,6 +1487,30 @@ const Procurement = () => {
               </p>
             </div>
           </div>
+          {mayAp2Diagnostics ? (
+            <div className="col-span-full mt-2">
+              <p className="text-[10px] font-bold uppercase text-slate-500 mb-2">
+                AP2a — ordered / received / paid diagnostic (read-only)
+              </p>
+              <Ap2SupplierDiagnosticsPanel
+                initialBranchId={procBranchId || 'ALL'}
+                compact
+                autoLoad
+                enabled={mayAp2Diagnostics}
+              />
+              <p className="mt-2 text-[10px] text-slate-500">
+                Full tables and export on{' '}
+                <Link to="/accounting" className="font-bold text-teal-800 hover:underline">
+                  Accounting Desk → Supplier &amp; AP
+                </Link>
+                . Supplier payments remain in{' '}
+                <Link to="/accounts?tab=disbursements" className="font-bold text-teal-800 hover:underline">
+                  Finance → Payments
+                </Link>
+                .
+              </p>
+            </div>
+          ) : null}
         </div>
 
         <div className="col-span-full min-w-0 order-2">
