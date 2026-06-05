@@ -540,6 +540,58 @@ export default function ExecutiveCommandCentre() {
         </p>
       ))}
 
+      {mayFinanceOversight && trialData?.creditExceptions ? (
+        <div className="mb-4 flex flex-wrap gap-2">
+          <Link
+            to="/accounting"
+            className="rounded-lg border border-white/30 bg-white/10 px-3 py-1.5 text-[10px] font-bold uppercase text-white hover:bg-white/20"
+          >
+            Review credit exposure
+          </Link>
+          <Link
+            to="/accounting"
+            className="rounded-lg border border-white/30 bg-white/10 px-3 py-1.5 text-[10px] font-bold uppercase text-white hover:bg-white/20"
+          >
+            View delivery warnings
+          </Link>
+          <Link
+            to="/cashier"
+            className="rounded-lg border border-white/30 bg-white/10 px-3 py-1.5 text-[10px] font-bold uppercase text-white hover:bg-white/20"
+          >
+            Open cashier desk
+          </Link>
+        </div>
+      ) : null}
+
+      {mayFinanceOversight && trialData?.creditExceptions ? (
+        <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-5">
+          <div className="rounded-xl border border-teal-200/60 bg-white/95 px-3 py-2 shadow-sm">
+            <p className="text-[9px] font-bold uppercase text-teal-800/80">Credit exposure</p>
+            <p className="text-sm font-black tabular-nums text-teal-950">
+              {formatNgn(trialData.creditExceptions.approvedCreditExposureNgn ?? 0)}
+            </p>
+          </div>
+          <div className="rounded-xl border border-amber-200/60 bg-white/95 px-3 py-2 shadow-sm">
+            <p className="text-[9px] font-bold uppercase text-amber-800/80">Pending credit</p>
+            <p className="text-sm font-black tabular-nums">{trialData.creditExceptions.pendingCreditExceptionsCount ?? 0}</p>
+          </div>
+          <div className="rounded-xl border border-amber-200/60 bg-white/95 px-3 py-2 shadow-sm">
+            <p className="text-[9px] font-bold uppercase text-amber-800/80">Overdue credit</p>
+            <p className="text-sm font-black tabular-nums">{trialData.creditExceptions.overdueApprovedCreditCount ?? 0}</p>
+          </div>
+          <div className="rounded-xl border border-slate-200/60 bg-white/95 px-3 py-2 shadow-sm">
+            <p className="text-[9px] font-bold uppercase text-slate-500">Deliveries w/ credit</p>
+            <p className="text-sm font-black tabular-nums">{trialData.creditExceptions.deliveriesAllowedByCreditCount ?? 0}</p>
+          </div>
+          <Link
+            to="/accounting"
+            className="rounded-xl border border-slate-200/60 bg-slate-50/90 px-3 py-2 text-[10px] font-bold text-teal-800 flex items-center justify-center hover:bg-teal-50"
+          >
+            Accounting Desk →
+          </Link>
+        </div>
+      ) : null}
+
       {mayFinanceOversight ? (
         <div className="mb-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <FinanceTrialExceptionPanel

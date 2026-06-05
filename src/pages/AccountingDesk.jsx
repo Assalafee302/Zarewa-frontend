@@ -1,16 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import {
-  Scale,
-  FileSpreadsheet,
-  ClipboardCheck,
-  Users,
-  Truck,
-  Calendar,
-  Building2,
-  ShieldCheck,
-} from 'lucide-react';
-import { PageHeader, PageShell, MainPanel } from '../components/layout';
+import { Scale, ShieldCheck } from 'lucide-react';
+import { PageShell, MainPanel } from '../components/layout';
 import { useToast } from '../context/ToastContext';
 import { useWorkspace } from '../context/WorkspaceContext';
 import { ReportsFinanceReconciliationPackSection } from '../components/reports/ReportsFinanceReconciliationPackSection.jsx';
@@ -19,11 +10,20 @@ import { userHasLegacyFullFinanceDeskClient } from '../lib/financeDeskAccess';
 import { useFinanceTrialExceptions } from '../hooks/useFinanceTrialExceptions';
 import { FinanceTrialExceptionPanel } from '../components/finance/FinanceTrialExceptionPanel';
 import { Ap1cDryRunPanel } from '../components/finance/Ap1cDryRunPanel';
+import { CreditExceptionPanel } from '../components/finance/CreditExceptionPanel';
 import {
   userMayViewAp1cDryRunClient,
   userMayViewFinanceTrialExceptionsClient,
 } from '../lib/financeTrialExceptionsAccess';
 import { useAp1cDryRun } from '../hooks/useAp1cDryRun';
+import { FinancePageHeader } from '../components/finance/FinancePageHeader';
+import { FinanceKpiCard } from '../components/finance/FinanceKpiCard';
+import { FinanceTrialBanner } from '../components/finance/FinanceTrialBanner';
+import { FinanceStatusChip } from '../components/finance/FinanceStatusChip';
+import { FinanceTabs } from '../components/finance/FinanceTabs';
+import { formatNgn } from '../Data/mockData';
+import { FinanceActionButton } from '../components/finance/FinanceActionButton';
+import { AccountingDeskReports } from '../components/finance/AccountingDeskReports';
 
 function defaultPeriodRange() {
   const now = new Date();
@@ -36,38 +36,27 @@ function defaultPeriodRange() {
   };
 }
 
-function PlaceholderCard({ icon, title, description, linkTo, linkLabel }) {
-  return (
-    <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50/80 p-5">
-      <h3 className="text-sm font-black text-slate-800 flex items-center gap-2 mb-2">
-        {icon}
-        {title}
-      </h3>
-      <p className="text-sm font-medium text-slate-600 leading-relaxed">{description}</p>
-      {linkTo ? (
-        <Link to={linkTo} className="text-xs font-bold text-teal-800 mt-3 inline-block hover:underline">
-          {linkLabel || 'Open →'}
-        </Link>
-      ) : null}
-    </div>
-  );
-}
+const TABS = [
+  { id: 'overview', label: 'Overview' },
+  { id: 'reconciliation', label: 'Reconciliation' },
+  { id: 'reports', label: 'Reports' },
+  { id: 'ap1c', label: 'Receipt & production' },
+  { id: 'credit', label: 'Credit exceptions' },
+  { id: 'gl', label: 'GL pilot' },
+  { id: 'month', label: 'Month-end' },
+];
 
 export default function AccountingDesk() {
   const { show: showToast } = useToast();
   const ws = useWorkspace();
+  const [tab, setTab] = useState('overview');
   const [{ startDate, endDate }] = useState(defaultPeriodRange);
   const hasFinanceView = Boolean(ws?.hasPermission?.('finance.view'));
   const branchScopeLabel = ws.viewAllBranches
-    ? 'All branches (HQ roll-up)'
+    ? 'Company-wide'
     : ws.branchLabel || ws.branchScope || ws.session?.currentBranchId || '';
 
   const roleKey = ws?.session?.user?.roleKey;
-  const readOnlyExec = ['md', 'ceo'].includes(String(roleKey || '').toLowerCase());
-  const legacyNote = useMemo(
-    () => userHasLegacyFullFinanceDeskClient(roleKey, ws?.session?.user?.permissions),
-    [roleKey, ws?.session?.user?.permissions]
-  );
   const permissions = ws?.session?.user?.permissions;
   const mayTrialApi = userMayViewFinanceTrialExceptionsClient(roleKey, permissions);
   const trialBranch = ws.viewAllBranches ? null : ws.branchScope || ws.session?.currentBranchId;
@@ -79,58 +68,121 @@ export default function AccountingDesk() {
     branchId: trialBranch,
     enabled: mayAp1cDryRun && ap1cDiagnosticsOn,
   });
+  const ex = trialData?.exceptions;
+  const ap1c = trialData?.ap1cDryRun?.summary || ap1cData?.summary;
+  const creditTrial = trialData?.creditExceptions;
+  const legacyNote = useMemo(
+    () => userHasLegacyFullFinanceDeskClient(roleKey, permissions),
+    [roleKey, permissions]
+  );
 
   return (
     <PageShell>
-      <PageHeader
+      <FinancePageHeader
         title="Accounting Desk"
-        subtitle="Company-wide accounting control — reconciliation review, GL, and month-end. Head of Accounts does not perform routine cashier confirmation here."
+        subtitle="Review exceptions, reconcile cash, monitor GL readiness, and prepare month-end controls."
+        badges={
+          <>
+            <FinanceStatusChip label={branchScopeLabel || 'Branch'} tone="neutral" />
+            <FinanceStatusChip label="Management draft" tone="neutral" />
+            <FinanceStatusChip label="Trial mode" tone="trial" />
+          </>
+        }
       />
 
-      <p className="text-sm font-medium text-slate-600 mb-4 max-w-3xl leading-relaxed">
-        <strong>Accounting Policy v1:</strong> AP1a labels/diagnostics; AP1b delivery gate via{' '}
-        <code className="text-xs bg-slate-100 px-1 rounded">DELIVERY_PAYMENT_GATE=1</code> (warn) or{' '}
-        <code className="text-xs bg-slate-100 px-1 rounded">enforce</code>. GL receipt timing unchanged until AP1c. See{' '}
-        <code className="text-xs">docs/ACCOUNTING_POLICY_V1.md</code>.
-      </p>
+      <FinanceTrialBanner>
+        Receipt confirmation stays on Cashier Desk. Policy v1 GL posting flags remain off until Head of Accounts signs off
+        dry-run.
+      </FinanceTrialBanner>
 
-      <div className="flex flex-wrap gap-2 mb-6">
-        {['Accounting control', 'Management draft', 'Reconciliation review', 'Company-wide view'].map((label) => (
-          <span
-            key={label}
-            className="inline-flex rounded-full border border-indigo-200 bg-indigo-50 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-indigo-900"
-          >
-            {label}
-          </span>
-        ))}
-        {readOnlyExec ? (
-          <span className="inline-flex rounded-full border border-slate-300 bg-slate-100 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-slate-700">
-            MD / audit read-only
-          </span>
+      <MainPanel className="space-y-6">
+        <FinanceTabs tabs={TABS} active={tab} onChange={setTab} />
+
+        {tab === 'overview' ? (
+          <section className="space-y-6">
+            <div className="flex flex-wrap gap-2">
+              <FinanceActionButton variant="primary" onClick={() => setTab('reconciliation')}>
+                Run reconciliation
+              </FinanceActionButton>
+              <FinanceActionButton variant="secondary" onClick={() => { setTab('ap1c'); reloadAp1c(); }}>
+                Load AP1c dry-run
+              </FinanceActionButton>
+              <FinanceActionButton variant="secondary" onClick={() => setTab('reports')}>
+                View reports
+              </FinanceActionButton>
+              <FinanceActionButton variant="link" to="/accounts?tab=audit">
+                Open GL detail
+              </FinanceActionButton>
+            </div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              <FinanceKpiCard
+                label="Reconciliation warnings"
+                value={ex?.pendingReceiptClearance ?? '—'}
+                hint="Receipts not cleared"
+                tone="amber"
+              />
+              <FinanceKpiCard
+                label="Treasury drift"
+                value={ex?.treasuryMovementWithoutFinanceSettlement ?? '—'}
+                tone="amber"
+              />
+              <FinanceKpiCard
+                label="Receipt / deposit risk"
+                value={ap1c?.preProductionReceiptsWouldCredit2500Count ?? '—'}
+                hint="Should be customer deposits"
+              />
+              <FinanceKpiCard
+                label="Credit exposure"
+                value={formatNgn(creditTrial?.approvedCreditExposureNgn ?? 0)}
+                hint={`${creditTrial?.pendingCreditExceptionsCount ?? 0} pending`}
+                tone="teal"
+              />
+            </div>
+            {mayTrialApi ? (
+              <FinanceTrialExceptionPanel
+                variant="accounting"
+                data={trialData}
+                loading={trialLoading}
+                error={trialError}
+                onReload={reloadTrial}
+              />
+            ) : null}
+          </section>
         ) : null}
-      </div>
 
-      <p className="text-sm font-medium text-slate-600 mb-6 max-w-3xl leading-relaxed">
-        Receipt confirmation remains on{' '}
-        <Link to="/cashier" className="font-bold text-teal-800 hover:underline">
-          Cashier Desk
-        </Link>
-        . Formal bank statement reconciliation is not the primary control — use the cash confirmation pack below.
-      </p>
+        {tab === 'reports' ? (
+          <AccountingDeskReports
+            trialData={trialData}
+            ap1cData={ap1cData}
+            onReloadTrial={reloadTrial}
+            onReloadAp1c={reloadAp1c}
+            branchScopeLabel={branchScopeLabel}
+          />
+        ) : null}
 
-      <MainPanel className="space-y-8">
-        {hasFinanceView ? (
+        {tab === 'reconciliation' && hasFinanceView ? (
           <ReportsFinanceReconciliationPackSection
             endDate={endDate}
             hasFinanceView={hasFinanceView}
             showToast={showToast}
             branchScopeLabel={branchScopeLabel}
           />
-        ) : (
-          <p className="text-sm text-amber-800 font-medium">finance.view required for reconciliation pack.</p>
-        )}
+        ) : null}
 
-        {hasFinanceView ? (
+        {tab === 'ap1c' && mayAp1cDryRun && ap1cDiagnosticsOn ? (
+          <Ap1cDryRunPanel data={ap1cData} loading={ap1cLoading} error={ap1cError} onReload={reloadAp1c} />
+        ) : tab === 'ap1c' ? (
+          <p className="text-sm font-medium text-slate-600">
+            Enable <code className="rounded bg-slate-100 px-1 text-xs">ACCOUNTING_POLICY_V1_DIAGNOSTICS=1</code> for
+            receipt/production dry-run.
+          </p>
+        ) : null}
+
+        {tab === 'credit' ? (
+          <CreditExceptionPanel branchId={trialBranch} roleKey={roleKey} trialCredit={creditTrial} />
+        ) : null}
+
+        {tab === 'gl' && hasFinanceView ? (
           <div id="accounting-gl-pilot">
             <ReportsGlPilotSection
               startDate={startDate}
@@ -141,96 +193,44 @@ export default function AccountingDesk() {
           </div>
         ) : null}
 
-        <section>
-          <h2 className="z-section-title mb-4">Month-end &amp; subledger review (planned)</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <PlaceholderCard
-              icon={<FileSpreadsheet size={16} className="text-indigo-700" />}
-              title="Draft statements pack"
-              description="P&L and balance sheet from GL — Phase A2. Management draft only, not statutory."
-            />
-            <PlaceholderCard
-              icon={<Users size={16} className="text-indigo-700" />}
-              title="Customer ledger reconciliation"
-              description="AR and deposits tie-out vs GL — expand in Phase B3 exception API."
-              linkTo="/reports"
-              linkLabel="Standard sales / AR reports →"
-            />
-            <PlaceholderCard
-              icon={<Truck size={16} className="text-indigo-700" />}
-              title="Supplier / AP reconciliation"
-              description="Ordered vs received vs paid bridge — see procurement reports and Phase A5 AP basis."
-              linkTo="/reports"
-              linkLabel="Purchases reports →"
-            />
-            <PlaceholderCard
-              icon={<Calendar size={16} className="text-indigo-700" />}
-              title="Month-end close checklist"
-              description="Period lock, stock register, payroll GL export, data quality — Phase A4."
-              linkTo="/reports"
-              linkLabel="Reports workspace →"
-            />
-            <PlaceholderCard
-              icon={<ClipboardCheck size={16} className="text-indigo-700" />}
-              title="Payroll posting status"
-              description="Locked runs without GL journal — export CSV from HR payroll, post via Audit tab."
-              linkTo="/hr"
-              linkLabel="HR payroll →"
-            />
-            <PlaceholderCard
-              icon={<Building2 size={16} className="text-indigo-700" />}
-              title="Fixed assets"
-              description="Phase 2 register and depreciation — accounting phase-2 ops."
-            />
-          </div>
-        </section>
-
-        {mayAp1cDryRun && ap1cDiagnosticsOn ? (
-          <Ap1cDryRunPanel
-            data={ap1cData}
-            loading={ap1cLoading}
-            error={ap1cError}
-            onReload={reloadAp1c}
-          />
+        {tab === 'month' ? (
+          <section className="rounded-2xl border border-dashed border-slate-300 bg-slate-50/80 p-6 text-sm font-medium text-slate-600">
+            Month-end close checklist, draft statements, and payroll GL status — planned Phase A2/A4. Use{' '}
+            <Link to="/reports" className="font-bold text-teal-800 hover:underline">
+              Reports
+            </Link>{' '}
+            and{' '}
+            <Link to="/accounts?tab=audit" className="font-bold text-teal-800 hover:underline">
+              Finance → Audit
+            </Link>{' '}
+            in the meantime.
+          </section>
         ) : null}
 
-        {mayTrialApi ? (
-          <FinanceTrialExceptionPanel
-            variant="accounting"
-            data={trialData}
-            loading={trialLoading}
-            error={trialError}
-            onReload={reloadTrial}
-          />
-        ) : (
-          <section className="rounded-2xl border border-amber-200 bg-amber-50/60 p-5">
-            <p className="text-sm font-medium text-amber-900/90">Sign in with accounting or finance permissions to load exception summary.</p>
-          </section>
-        )}
-
         <section className="rounded-2xl border border-slate-200 bg-white p-5">
-          <h2 className="text-sm font-black text-slate-800 mb-2 flex items-center gap-2">
+          <h2 className="mb-2 flex items-center gap-2 text-sm font-black text-slate-800">
             <ShieldCheck size={16} className="text-teal-700" />
             Audit trail
           </h2>
-          <p className="text-sm font-medium text-slate-600 mb-3">
-            Manual GL journals, period locks, and edit approvals live on the legacy Finance Audit tab during transition.
+          <p className="mb-3 text-sm font-medium text-slate-600">
+            Period locks, manual journals, and edit approvals on legacy Finance Audit tab.
           </p>
-          <Link
-            to="/accounts?tab=audit"
-            className="inline-flex items-center gap-2 text-sm font-bold text-teal-800 hover:underline"
-          >
+          <Link to="/accounts?tab=audit" className="inline-flex items-center gap-2 text-sm font-bold text-teal-800 hover:underline">
             <Scale size={16} />
             Open Finance → Audit
           </Link>
         </section>
 
-        <p className="text-xs font-medium text-slate-500 pt-2 border-t border-slate-200">
-          <Link to="/accounts" className="text-teal-800 font-bold hover:underline">
+        <p className="border-t border-slate-200 pt-2 text-xs font-medium text-slate-500">
+          <Link to="/cashier" className="font-bold text-teal-800 hover:underline">
+            Cashier Desk
+          </Link>{' '}
+          for daily confirmation.{' '}
+          <Link to="/accounts" className="font-bold text-teal-800 hover:underline">
             Finance (legacy)
           </Link>{' '}
-          remains available for full treasury and payment execution during Phase B compatibility.
-          {legacyNote ? ' Your role retains legacy cross-links until Phase B3.' : null}
+          for full treasury execution.
+          {legacyNote ? ' Compatibility mode active.' : null}
         </p>
       </MainPanel>
     </PageShell>

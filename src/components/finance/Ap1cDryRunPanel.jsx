@@ -1,5 +1,7 @@
-import React from 'react';
-import { AlertTriangle, RefreshCw } from 'lucide-react';
+import React, { useState } from 'react';
+import { AlertTriangle, ChevronDown, RefreshCw } from 'lucide-react';
+import { formatNgn } from '../../Data/mockData';
+import { FinanceActionButton } from './FinanceActionButton';
 
 function CountCard({ label, count, tone = 'slate', hint }) {
   const tones = {
@@ -31,28 +33,22 @@ function CountCard({ label, count, tone = 'slate', hint }) {
 export function Ap1cDryRunPanel({ data, loading, error, onReload }) {
   const s = data?.summary || {};
   const notes = data?.notes || [];
+  const [showTechnical, setShowTechnical] = useState(false);
 
   return (
-    <section className="rounded-2xl border border-violet-300 bg-violet-50/40 p-5 space-y-4">
+    <section className="rounded-2xl border border-slate-200 bg-white p-5 space-y-4 shadow-sm">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="text-xs font-black uppercase tracking-wide text-violet-900">
-            AP1c GL dry-run (Policy v1)
-          </p>
-          <p className="text-sm font-medium text-violet-950 mt-1 leading-relaxed">
-            Dry-run only — no GL has changed. Review before enabling receipt/production posting flags.
+          <p className="text-sm font-black text-[#134e4a]">Receipt &amp; production readiness</p>
+          <p className="text-sm font-medium text-slate-600 mt-1 leading-relaxed">
+            Read-only checks before turning on Policy v1 GL posting. No journals have been changed.
           </p>
         </div>
         {onReload ? (
-          <button
-            type="button"
-            onClick={() => onReload()}
-            disabled={loading}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-violet-300 bg-white px-3 py-1.5 text-xs font-bold text-violet-900 hover:bg-violet-50 disabled:opacity-50"
-          >
-            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
-            Refresh
-          </button>
+          <FinanceActionButton variant="primary" onClick={() => onReload()} disabled={loading}>
+            <RefreshCw size={14} className={`mr-1 inline ${loading ? 'animate-spin' : ''}`} />
+            Load report
+          </FinanceActionButton>
         ) : null}
       </div>
 
@@ -71,31 +67,39 @@ export function Ap1cDryRunPanel({ data, loading, error, onReload }) {
         <>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             <CountCard
-              label="Receipts pre-prod → GL 1200 (should be 2500)"
+              label="Receipts that should be deposits"
               count={s.receiptsBeforeProductionCredited1200Count}
               tone="amber"
-              hint={
-                s.expected2500InsteadOf1200Ngn
-                  ? `₦${Number(s.expected2500InsteadOf1200Ngn).toLocaleString()} mis-posted`
-                  : undefined
-              }
+              hint={s.expected2500InsteadOf1200Ngn ? formatNgn(s.expected2500InsteadOf1200Ngn) : undefined}
             />
+            <CountCard label="Possible AR overstatement" count={formatNgn(s.potentialArOverstatementNgn)} tone="rose" />
             <CountCard
-              label="Expected deposit (2500) amount"
-              count={s.expected2500InsteadOf1200Ngn}
-              tone="violet"
-            />
-            <CountCard label="Paid, no production yet" count={s.quotationsPaidButNoProductionCount} tone="amber" />
-            <CountCard label="Release gap (2500 vs advance-only)" count={s.releaseGapNgn} tone="rose" />
-            <CountCard label="Potential AR overstatement" count={s.potentialArOverstatementNgn} tone="rose" />
-            <CountCard
-              label="Potential deposit understatement"
-              count={s.potentialDepositUnderstatementNgn}
+              label="Possible deposit understatement"
+              count={formatNgn(s.potentialDepositUnderstatementNgn)}
               tone="amber"
             />
-            <CountCard label="Mixed legacy / policy receipts" count={s.mixedLegacyAndPolicyReceiptCount} tone="amber" />
-            <CountCard label="Production duplicate AR risk" count={s.productionDuplicateRiskCount} tone="rose" />
+            <CountCard label="Paid quotes, production not done" count={s.quotationsPaidButNoProductionCount} tone="amber" />
+            <CountCard label="Legacy receipt risk" count={s.mixedLegacyAndPolicyReceiptCount} tone="amber" />
+            <CountCard label="Reversal / refund review items" count={(s.receiptReversalsMissingResolvableMetaCount || 0) + (s.refundPayoutsRevenueReviewCount || 0)} tone="rose" />
           </div>
+          <button
+            type="button"
+            onClick={() => setShowTechnical((v) => !v)}
+            className="inline-flex items-center gap-1 text-xs font-bold text-slate-500 hover:text-teal-800"
+          >
+            <ChevronDown size={14} className={showTechnical ? 'rotate-180' : ''} />
+            {showTechnical ? 'Hide' : 'Show'} technical details
+          </button>
+          {showTechnical ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 border-t border-slate-100 pt-3">
+              <CountCard label="Release gap (₦)" count={s.releaseGapNgn} tone="violet" />
+              <CountCard label="Production duplicate AR risk" count={s.productionDuplicateRiskCount} tone="rose" />
+              <CountCard label="Reversals missing account" count={s.receiptReversalsMissingResolvableMetaCount} tone="rose" />
+              <CountCard label="Refunds — revenue review" count={s.refundPayoutsRevenueReviewCount} tone="amber" />
+              <CountCard label="Deposit refunds (pre-prod)" count={s.depositRefundsBeforeProductionCount} tone="slate" />
+              <CountCard label="Mixed legacy/AP1c refund risk" count={s.mixedLegacyAp1cRefundRiskCount} tone="amber" />
+            </div>
+          ) : null}
           {notes.length ? (
             <ul className="text-xs font-medium text-violet-900/90 list-disc pl-4 space-y-1">
               {notes.map((n) => (

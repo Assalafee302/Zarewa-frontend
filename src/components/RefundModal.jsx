@@ -2765,6 +2765,11 @@ const RefundModal = ({
                         aria-label="Approver verification checklist"
                       >
                         <p className="text-[10px] font-bold text-amber-900 uppercase tracking-wide">Before you approve</p>
+                        <p className="text-[10px] font-medium text-slate-700 leading-snug rounded-lg border border-slate-200 bg-white/80 px-2 py-1.5">
+                          This refund is tied to quotation{' '}
+                          <span className="font-bold">{approvalQuoteRef || '—'}</span> only. Other outstanding
+                          balances on the customer do not automatically block approval — review them before payout.
+                        </p>
                         <ul className="text-[10px] text-amber-950/90 font-medium space-y-1.5 list-disc list-inside leading-snug">
                           <li>Quote total and paid amount (including customer advance) match the real money in.</li>
                           <li>Production metres, cutting lists, and delivery status fit the refund story.</li>

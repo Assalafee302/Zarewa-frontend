@@ -49,6 +49,7 @@ export function FinanceTrialExceptionPanel({ variant, data, loading, error, onRe
   const ex = data?.exceptions || {};
   const ap1 = data?.accountingPolicyV1 || null;
   const ap1c = data?.ap1cDryRun || null;
+  const credit = data?.creditExceptions || null;
   const flags = data?.flags || {};
   const dual = data?.dualControlWarnings || {};
   const adoption = data?.roleAdoption || {};
@@ -199,6 +200,33 @@ export function FinanceTrialExceptionPanel({ variant, data, loading, error, onRe
         </div>
       ) : null}
 
+      {credit ? (
+        <div className="rounded-2xl border border-teal-200 bg-teal-50/50 p-4">
+          <p className="text-xs font-black uppercase tracking-wide text-teal-900">Delivery credit (AP1d)</p>
+          <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+            <CountCard label="Pending credit requests" count={credit.pendingCreditExceptionsCount} tone="amber" />
+            <CountCard
+              label="Approved credit exposure"
+              count={credit.approvedCreditExposureNgn}
+              tone="slate"
+              hint="Receivable still outstanding"
+            />
+            <CountCard label="Overdue approved credit" count={credit.overdueApprovedCreditCount} tone="amber" />
+            <CountCard label="Deliveries allowed by credit" count={credit.deliveriesAllowedByCreditCount} tone="slate" />
+            <CountCard
+              label="Unpaid deliveries, no credit"
+              count={credit.deliveriesWarningNoCreditCount}
+              tone="rose"
+            />
+          </div>
+          {variant !== 'cashier' ? (
+            <Link to="/accounting" className="mt-2 inline-block text-xs font-bold text-teal-800 hover:underline">
+              Review on Accounting Desk → Credit
+            </Link>
+          ) : null}
+        </div>
+      ) : null}
+
       {flags.deliveryPaymentGateMode && flags.deliveryPaymentGateMode !== 'off' ? (
         <div className="rounded-2xl border border-rose-200 bg-rose-50/70 p-4">
           <p className="text-xs font-black uppercase tracking-wide text-rose-900">
@@ -222,12 +250,20 @@ export function FinanceTrialExceptionPanel({ variant, data, loading, error, onRe
       ) : null}
 
       {flags.accountingPolicyV1Diagnostics && ap1c?.available ? (
-        <div className="rounded-xl border border-violet-200 bg-violet-50/50 px-4 py-3 text-xs font-medium text-violet-950">
-          <span className="font-black uppercase tracking-wide text-violet-900">AP1c dry-run summary: </span>
-          Pre-prod GL 1200 count {ap1c.receiptsBeforeProductionCredited1200Count ?? 0} · Release gap ₦
-          {Number(ap1c.releaseGapNgn || 0).toLocaleString()} · AR overstatement risk ₦
-          {Number(ap1c.potentialArOverstatementNgn || 0).toLocaleString()}. See Accounting Desk for full
-          dry-run.
+        <div className="rounded-xl border border-violet-200 bg-violet-50/50 px-4 py-3 text-xs font-medium text-violet-950 space-y-1">
+          <p>
+            <span className="font-black uppercase tracking-wide text-violet-900">AP1c dry-run: </span>
+            Pre-prod GL 1200 {ap1c.receiptsBeforeProductionCredited1200Count ?? 0} · Release gap ₦
+            {Number(ap1c.releaseGapNgn || 0).toLocaleString()} · AR risk ₦
+            {Number(ap1c.potentialArOverstatementNgn || 0).toLocaleString()}
+          </p>
+          {(ap1c.receiptReversalsMissingResolvableMetaCount > 0 ||
+            ap1c.refundPayoutsRevenueReviewCount > 0) && (
+            <p className="text-amber-900">
+              AP1c-4: reversals unresolved {ap1c.receiptReversalsMissingResolvableMetaCount ?? 0} · refunds
+              needing revenue review {ap1c.refundPayoutsRevenueReviewCount ?? 0}
+            </p>
+          )}
         </div>
       ) : null}
 
