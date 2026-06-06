@@ -9,6 +9,9 @@ import { FinanceTabs } from './FinanceTabs';
 import { Ap2SupplierDiagnosticsPanel } from './Ap2SupplierDiagnosticsPanel';
 import { Ap2ApRebuildModal } from './Ap2ApRebuildModal';
 import { Ap2cAccountingSections } from './Ap2cAccountingSections';
+import { Ap3CostingReadinessPanel } from './Ap3CostingReadinessPanel';
+import { Ap3ReportsSection } from './Ap3ReportsSection';
+import { Ap3MaterialCostSection } from './Ap3MaterialCostSection';
 
 describe('finance desk components', () => {
   it('FinanceKpiCard renders label and value', () => {
@@ -98,5 +101,50 @@ describe('finance desk components', () => {
     );
     expect(screen.getAllByText(/No diagnostic loaded/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Head of Accounts should review/i).length).toBeGreaterThan(0);
+  });
+
+  it('FinanceTabs includes Costing tab label', () => {
+    render(
+      <FinanceTabs
+        tabs={[
+          { id: 'overview', label: 'Overview' },
+          { id: 'costing', label: 'Costing' },
+        ]}
+        active="costing"
+        onChange={() => {}}
+      />
+    );
+    expect(screen.getByText('Costing')).toBeTruthy();
+  });
+
+  it('Ap3CostingReadinessPanel renders readiness empty state', () => {
+    render(
+      <MemoryRouter>
+        <Ap3CostingReadinessPanel enabled={false} />
+      </MemoryRouter>
+    );
+    expect(screen.getByText(/No costing readiness loaded/i)).toBeTruthy();
+    expect(screen.getByText(/Readiness only/i)).toBeTruthy();
+  });
+
+  it('Ap3ReportsSection hidden when mayView false', () => {
+    const { container } = render(<Ap3ReportsSection mayView={false} />);
+    expect(container.textContent).toBe('');
+  });
+
+  it('Ap3MaterialCostSection renders load button', () => {
+    render(<Ap3MaterialCostSection enabled={false} period="2026-06" />);
+    expect(screen.getAllByRole('button', { name: /Load material cost/i }).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Material cost per metre \(AP3b\)/i).length).toBeGreaterThan(0);
+  });
+
+  it('Ap3ReportsSection shows cards when mayView', () => {
+    render(
+      <MemoryRouter>
+        <Ap3ReportsSection mayView />
+      </MemoryRouter>
+    );
+    expect(screen.getByText(/Costing Readiness Report/i)).toBeTruthy();
+    expect(screen.getAllByText(/not final cost per metre/i).length).toBeGreaterThan(0);
   });
 });

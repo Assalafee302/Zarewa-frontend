@@ -202,6 +202,46 @@ export function AccountingDeskReports({
       </FinanceReportPanel>
 
       <FinanceReportPanel
+        title="Costing readiness (AP3a)"
+        description="Readiness only — material, labour, diesel, overhead data before cost per metre."
+        onLoad={() => {}}
+      >
+        <FinanceActionButton variant="link" to="/accounting" state={{ focusTab: 'costing' }}>
+          Open Costing tab →
+        </FinanceActionButton>
+      </FinanceReportPanel>
+
+      <FinanceReportPanel
+        title="Material cost per metre (AP3b)"
+        description="Trusted material ₦/m from coil consumption by branch and product family."
+        onLoad={() => {}}
+      >
+        <FinanceActionButton variant="link" to="/accounting" state={{ focusTab: 'costing' }}>
+          Load trusted material cost →
+        </FinanceActionButton>
+      </FinanceReportPanel>
+
+      <FinanceReportPanel
+        title="Material cost per metre draft (AP3a)"
+        description="Readiness draft — use AP3b when coil costs are complete."
+        onLoad={() => {}}
+      >
+        <FinanceActionButton variant="link" to="/accounting" state={{ focusTab: 'costing' }}>
+          View readiness draft →
+        </FinanceActionButton>
+      </FinanceReportPanel>
+
+      <FinanceReportPanel
+        title="Production expense classification (AP3a)"
+        description="Labour, diesel, and overhead buckets from expense categories."
+        onLoad={() => {}}
+      >
+        <FinanceActionButton variant="link" to="/accounting" state={{ focusTab: 'costing' }}>
+          Classify expenses →
+        </FinanceActionButton>
+      </FinanceReportPanel>
+
+      <FinanceReportPanel
         title="Month-end readiness"
         description="Placeholder checklist — formal close in Phase A4."
         onLoad={() => {}}

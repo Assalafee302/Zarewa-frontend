@@ -31,6 +31,7 @@ function normQuoteKey(s) {
 }
 import CuttingListReportPrintView from './CuttingListReportPrintView';
 import { EditSecondApprovalInline } from './EditSecondApprovalInline';
+import { cuttingListEditNeedsSecondApprovalClient } from '../lib/editApprovalUi';
 const LINE_TYPE_SET = new Set(['Roof', 'Flatsheet', 'Cladding']);
 
 const CATEGORIES = [
@@ -394,6 +395,11 @@ const CuttingListModal = ({
     ws?.hasPermission?.('operations.manage');
 
   const canClearProductionHold = Boolean(ws?.hasPermission?.('production.release'));
+
+  const cuttingListEditNeedsSecondApproval = useMemo(
+    () => cuttingListEditNeedsSecondApprovalClient(ws?.session?.user?.roleKey, editData),
+    [ws?.session?.user?.roleKey, editData?.id, editData?.productionRegistered]
+  );
 
   const ledgerEntries = useMemo(
     () => (Array.isArray(ws?.snapshot?.ledgerEntries) ? ws.snapshot.ledgerEntries : []),
@@ -1357,6 +1363,7 @@ const CuttingListModal = ({
               entityId={editData.id}
               value={cuttingListEditApprovalId}
               onChange={setCuttingListEditApprovalId}
+              requiresSecondApproval={cuttingListEditNeedsSecondApproval}
             />
           </div>
         ) : null}

@@ -563,6 +563,47 @@ export default function ExecutiveCommandCentre() {
         </div>
       ) : null}
 
+      {mayFinanceOversight && trialData?.ap3Costing?.available ? (
+        <div className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-6">
+          <div className="rounded-xl border border-teal-200/60 bg-white/95 px-3 py-2 shadow-sm">
+            <p className="text-[9px] font-bold uppercase text-teal-800/80">Costing readiness</p>
+            <p className="text-sm font-black tabular-nums">{trialData.ap3Costing.readinessScore ?? 0}%</p>
+          </div>
+          {trialData?.ap3MaterialCost?.available ? (
+            <div className="rounded-xl border border-teal-300/60 bg-teal-50/40 px-3 py-2 shadow-sm">
+              <p className="text-[9px] font-bold uppercase text-teal-900/80">Trusted material ₦/m</p>
+              <p className="text-sm font-black tabular-nums">
+                {trialData.ap3MaterialCost.trustedMaterialCostPerMetreNgn != null
+                  ? formatNgn(trialData.ap3MaterialCost.trustedMaterialCostPerMetreNgn)
+                  : '—'}
+              </p>
+            </div>
+          ) : (
+            <div className="rounded-xl border border-slate-200/60 bg-white/95 px-3 py-2 shadow-sm">
+              <p className="text-[9px] font-bold uppercase text-slate-500">Material ₦/m (draft)</p>
+              <p className="text-sm font-black tabular-nums">
+                {formatNgn(trialData.ap3Costing.materialCostPerMetreNgn ?? 0)}
+              </p>
+            </div>
+          )}
+          <div className="rounded-xl border border-amber-200/60 bg-white/95 px-3 py-2 shadow-sm">
+            <p className="text-[9px] font-bold uppercase text-amber-800/80">Missing coil cost</p>
+            <p className="text-sm font-black tabular-nums">{trialData.ap3Costing.missingCoilCostCount ?? 0}</p>
+          </div>
+          <div className="rounded-xl border border-rose-200/60 bg-white/95 px-3 py-2 shadow-sm">
+            <p className="text-[9px] font-bold uppercase text-rose-800/80">Data quality risk</p>
+            <p className="text-sm font-black tabular-nums">{trialData.ap3Costing.highRiskCount ?? 0}</p>
+          </div>
+          <Link
+            to="/accounting"
+            state={{ focusTab: 'costing' }}
+            className="rounded-xl border border-slate-200/60 bg-slate-50/90 px-3 py-2 text-[10px] font-bold text-teal-800 flex items-center justify-center hover:bg-teal-50"
+          >
+            Costing →
+          </Link>
+        </div>
+      ) : null}
+
       {mayFinanceOversight && trialData?.ap2c?.supplierAdvance?.available ? (
         <div className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-5">
           <div className="rounded-xl border border-rose-200/60 bg-white/95 px-3 py-2 shadow-sm">

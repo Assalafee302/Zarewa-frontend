@@ -1,5 +1,5 @@
-import React, { useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import { Scale, ShieldCheck } from 'lucide-react';
 import { PageShell, MainPanel } from '../components/layout';
 import { useToast } from '../context/ToastContext';
@@ -29,7 +29,9 @@ import {
   userMayViewAp2SupplierDiagnosticsClient,
   userMayViewAp2ApRebuildPreviewClient,
   userMayApplyAp2ApRebuildClient,
+  userMayViewAp3CostingReadinessClient,
 } from '../lib/financeTrialExceptionsAccess';
+import { Ap3CostingReadinessPanel } from '../components/finance/Ap3CostingReadinessPanel';
 
 function defaultPeriodRange() {
   const now = new Date();
@@ -49,6 +51,7 @@ const TABS = [
   { id: 'ap1c', label: 'Receipt & production' },
   { id: 'credit', label: 'Credit exceptions' },
   { id: 'supplier-ap', label: 'Supplier & AP' },
+  { id: 'costing', label: 'Costing' },
   { id: 'gl', label: 'GL pilot' },
   { id: 'month', label: 'Month-end' },
 ];
@@ -56,6 +59,7 @@ const TABS = [
 export default function AccountingDesk() {
   const { show: showToast } = useToast();
   const ws = useWorkspace();
+  const location = useLocation();
   const [tab, setTab] = useState('overview');
   const [{ startDate, endDate }] = useState(defaultPeriodRange);
   const hasFinanceView = Boolean(ws?.hasPermission?.('finance.view'));
@@ -73,13 +77,21 @@ export default function AccountingDesk() {
   const mayAp2 = userMayViewAp2SupplierDiagnosticsClient(roleKey, permissions);
   const mayAp2Preview = userMayViewAp2ApRebuildPreviewClient(roleKey, permissions);
   const mayAp2Apply = userMayApplyAp2ApRebuildClient(roleKey, permissions);
+  const mayAp3 = userMayViewAp3CostingReadinessClient(roleKey, permissions);
   const ap2Branch = ws.viewAllBranches ? 'ALL' : ws.branchScope || ws.session?.currentBranchId || 'ALL';
+
+  useEffect(() => {
+    if (location.state?.focusTab === 'costing' && mayAp3) setTab('costing');
+  }, [location.state?.focusTab, mayAp3]);
+
   const ap1cDiagnosticsOn = Boolean(trialData?.flags?.accountingPolicyV1Diagnostics);
   const { data: ap1cData, loading: ap1cLoading, error: ap1cError, reload: reloadAp1c } = useAp1cDryRun({
     branchId: trialBranch,
     enabled: mayAp1cDryRun && ap1cDiagnosticsOn,
   });
   const ex = trialData?.exceptions;
+  const ap3Trial = trialData?.ap3Costing;
+  const ap3MaterialTrial = trialData?.ap3MaterialCost;
   const ap1c = trialData?.ap1cDryRun?.summary || ap1cData?.summary;
   const creditTrial = trialData?.creditExceptions;
   const ap2Trial = trialData?.ap2Supplier;
@@ -127,6 +139,11 @@ export default function AccountingDesk() {
                   Supplier &amp; AP diagnostics
                 </FinanceActionButton>
               ) : null}
+              {mayAp3 ? (
+                <FinanceActionButton variant="secondary" onClick={() => setTab('costing')}>
+                  Costing readiness
+                </FinanceActionButton>
+              ) : null}
               <FinanceActionButton variant="link" to="/accounts?tab=audit">
                 Open GL detail
               </FinanceActionButton>
@@ -160,6 +177,18 @@ export default function AccountingDesk() {
                   value={formatNgn(ap2Trial?.apDifferenceNgn ?? 0)}
                   hint={`${ap2Trial?.missingCostCount ?? 0} missing cost`}
                   tone={(ap2Trial?.apDifferenceNgn || 0) !== 0 ? 'amber' : 'neutral'}
+                />
+              ) : null}
+              {mayAp3 && ap3Trial?.available ? (
+                <FinanceKpiCard
+                  label="Costing readiness"
+                  value={`${ap3Trial.readinessScore ?? 0}%`}
+                  hint={
+                    ap3MaterialTrial?.trustedMaterialCostPerMetreNgn != null
+                      ? `Trusted ₦/m ${formatNgn(ap3MaterialTrial.trustedMaterialCostPerMetreNgn)}`
+                      : `Draft ₦/m ${formatNgn(ap3Trial.materialCostPerMetreNgn ?? 0)}`
+                  }
+                  tone={(ap3Trial.readinessScore ?? 100) < 70 ? 'amber' : 'teal'}
                 />
               ) : null}
             </div>
@@ -221,6 +250,14 @@ export default function AccountingDesk() {
         ) : tab === 'supplier-ap' ? (
           <p className="text-sm font-medium text-slate-600">
             Supplier payables diagnostics require accounting or finance reconciliation access.
+          </p>
+        ) : null}
+
+        {tab === 'costing' && mayAp3 ? (
+          <Ap3CostingReadinessPanel initialBranchId={ap2Branch} enabled={mayAp3} />
+        ) : tab === 'costing' ? (
+          <p className="text-sm font-medium text-slate-600">
+            Costing readiness requires Head of Accounts or finance oversight access.
           </p>
         ) : null}
 

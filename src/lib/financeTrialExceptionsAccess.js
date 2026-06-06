@@ -74,3 +74,8 @@ export function userMayApplyAp2ApRebuildClient(roleKey, permissions) {
   }
   return false;
 }
+
+/** AP3a costing readiness — MD, HoA, finance_manager; not cashier-only. */
+export function userMayViewAp3CostingReadinessClient(roleKey, permissions) {
+  return userMayViewAp1cDryRunClient(roleKey, permissions);
+}

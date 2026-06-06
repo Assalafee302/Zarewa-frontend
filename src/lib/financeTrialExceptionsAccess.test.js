@@ -4,6 +4,7 @@ import {
   userMayViewFinanceTrialOversightClient,
   userMayViewAp2SupplierDiagnosticsClient,
   userMayApplyAp2ApRebuildClient,
+  userMayViewAp3CostingReadinessClient,
 } from './financeTrialExceptionsAccess.js';
 
 describe('financeTrialExceptionsAccess', () => {
@@ -29,5 +30,12 @@ describe('financeTrialExceptionsAccess', () => {
     expect(userMayApplyAp2ApRebuildClient('cashier', [])).toBe(false);
     expect(userMayApplyAp2ApRebuildClient('finance_manager', [])).toBe(true);
     expect(userMayApplyAp2ApRebuildClient('viewer', ['accounting.desk.view'])).toBe(true);
+  });
+
+  it('AP3a costing excludes cashier-only', () => {
+    expect(userMayViewAp3CostingReadinessClient('cashier', [])).toBe(false);
+    expect(userMayViewAp3CostingReadinessClient('finance_manager', [])).toBe(true);
+    expect(userMayViewAp3CostingReadinessClient('md', [])).toBe(true);
+    expect(userMayViewAp3CostingReadinessClient('viewer', ['accounting.reconciliation.view'])).toBe(true);
   });
 });

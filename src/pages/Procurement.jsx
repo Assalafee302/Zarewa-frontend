@@ -44,7 +44,11 @@ import { purchaseOrderOrderedValueNgn } from '../lib/liveAnalytics';
 import { procurementKindFromPo } from '../lib/procurementPoKind';
 import { EditSecondApprovalInline } from '../components/EditSecondApprovalInline';
 import { Ap2SupplierDiagnosticsPanel } from '../components/finance/Ap2SupplierDiagnosticsPanel';
-import { userMayViewAp2SupplierDiagnosticsClient } from '../lib/financeTrialExceptionsAccess';
+import { Ap3CostingReadinessPanel } from '../components/finance/Ap3CostingReadinessPanel';
+import {
+  userMayViewAp2SupplierDiagnosticsClient,
+  userMayViewAp3CostingReadinessClient,
+} from '../lib/financeTrialExceptionsAccess';
 import { editMutationNeedsSecondApprovalRole } from '../lib/editApprovalUi';
 import {
   SalesListSearchInput,
@@ -353,6 +357,10 @@ const Procurement = () => {
   const canAccessPriceList =
     (ws?.hasPermission?.('pricing.manage') || ws?.hasPermission?.('md.price_exception.approve')) ?? false;
   const mayAp2Diagnostics = userMayViewAp2SupplierDiagnosticsClient(
+    ws?.session?.user?.roleKey,
+    ws?.session?.user?.permissions
+  );
+  const mayAp3Costing = userMayViewAp3CostingReadinessClient(
     ws?.session?.user?.roleKey,
     ws?.session?.user?.permissions
   );
@@ -1510,6 +1518,26 @@ const Procurement = () => {
                   Finance → Payments
                 </Link>
                 .
+              </p>
+            </div>
+          ) : null}
+          {mayAp3Costing ? (
+            <div className="col-span-full mt-2">
+              <p className="text-[10px] font-bold uppercase text-amber-800 mb-2">
+                AP3a — costing readiness (missing metres / coil cost)
+              </p>
+              <Ap3CostingReadinessPanel
+                initialBranchId={procBranchId || 'ALL'}
+                compact
+                autoLoad
+                enabled={mayAp3Costing}
+              />
+              <p className="mt-2 text-[10px] text-slate-500">
+                Full costing report on{' '}
+                <Link to="/accounting" state={{ focusTab: 'costing' }} className="font-bold text-teal-800 hover:underline">
+                  Accounting Desk → Costing
+                </Link>
+                . Readiness only — not final cost per metre.
               </p>
             </div>
           ) : null}

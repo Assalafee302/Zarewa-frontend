@@ -30,6 +30,21 @@ export function quotationEditNeedsSecondApprovalClient(roleKey, receipts, quotat
   return quotationHasActiveSalesReceiptsClient(receipts, quotationId);
 }
 
+/** Client mirror of server `cuttingListIsPushedToProduction`. */
+export function cuttingListIsPushedToProductionClient(cuttingList) {
+  return Boolean(cuttingList?.productionRegistered);
+}
+
+/**
+ * Cutting list save: second approval only when role is gated and the list is on the production queue.
+ * @param {string} [roleKey]
+ * @param {object | null | undefined} [cuttingList]
+ */
+export function cuttingListEditNeedsSecondApprovalClient(roleKey, cuttingList) {
+  if (!editMutationNeedsSecondApprovalRole(roleKey)) return false;
+  return cuttingListIsPushedToProductionClient(cuttingList);
+}
+
 const APPROVER_ROLES = new Set([
   'admin',
   'md',
