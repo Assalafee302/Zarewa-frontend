@@ -40,6 +40,11 @@ export function staffToForm(staff) {
     leaveEntitlementBand: staff.leaveEntitlementBand || '',
     branchChangeReason: '',
     ninNumber: staff.ninNumber || '',
+    gender: staff.gender || '',
+    dateOfBirthIso: staff.dateOfBirthIso || '',
+    contractEndIso: staff.contractEndIso || '',
+    nhisProvider: staff.nhisProvider || '',
+    nhisMonthlyDeductionNgn: staff.nhisMonthlyDeductionNgn != null ? String(staff.nhisMonthlyDeductionNgn) : '',
     nextOfKinName: staff.nextOfKin?.name || '',
     nextOfKinPhone: staff.nextOfKin?.phone || '',
     nextOfKinRelationship: staff.nextOfKin?.relationship || '',
@@ -91,6 +96,11 @@ export function formToProfilePatch(form, { originalBranchId } = {}) {
     welfareNotes: form.welfareNotes || null,
     leaveEntitlementBand: form.leaveEntitlementBand || null,
     ninNumber: String(form.ninNumber || '').trim() || null,
+    gender: form.gender || null,
+    dateOfBirthIso: form.dateOfBirthIso || null,
+    contractEndIso: form.contractEndIso || null,
+    nhisProvider: String(form.nhisProvider || '').trim() || null,
+    nhisMonthlyDeductionNgn: numOrUndef(form.nhisMonthlyDeductionNgn) ?? 0,
     nextOfKin: nextOfKinFromForm(form),
   };
   if (originalBranchId && String(form.branchId) !== String(originalBranchId)) {

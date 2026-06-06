@@ -35,6 +35,104 @@ function StatCard({ label, value }) {
   );
 }
 
+function ApplyBonusModal({ runId, onClose, onSuccess }) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+
+  const confirm = async () => {
+    setBusy(true);
+    setError('');
+    const { ok, data } = await apiFetch(`/api/hr/payroll-runs/${encodeURIComponent(runId)}/apply-bonus`, { method: 'POST' });
+    setBusy(false);
+    if (!ok || !data?.ok) { setError(data?.error || 'Could not apply bonus.'); return; }
+    onSuccess('End-of-year bonus applied successfully.');
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="w-full max-w-sm rounded-2xl bg-white shadow-xl">
+        <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+          <h3 className="text-sm font-bold text-slate-800">Apply End-of-Year Bonus</h3>
+          <button type="button" onClick={onClose} className="text-slate-400 hover:text-slate-600 text-lg font-bold leading-none">&times;</button>
+        </div>
+        <div className="p-5 space-y-3">
+          <p className="text-sm text-slate-700">
+            Apply end-of-year bonus to this payroll run? This will add 50% of each staff member's base salary as a bonus.
+          </p>
+          {error && <p className="text-xs text-red-700">{error}</p>}
+        </div>
+        <div className="flex justify-end gap-2 border-t border-slate-100 px-5 py-3">
+          <button type="button" onClick={onClose} className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-bold uppercase">Cancel</button>
+          <button type="button" disabled={busy} onClick={confirm} className="rounded-xl bg-[#134e4a] px-4 py-2 text-xs font-bold uppercase text-white disabled:opacity-50">
+            {busy ? 'Applying…' : 'Confirm'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function VarianceModal({ runId, onClose }) {
+  const [alerts, setAlerts] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    (async () => {
+      const { ok, data } = await apiFetch(`/api/hr/payroll-runs/${encodeURIComponent(runId)}/variance-alerts`);
+      setLoading(false);
+      if (!ok || !data?.ok) { setError(data?.error || 'Could not load variance alerts.'); return; }
+      setAlerts(data.alerts || []);
+    })();
+  }, [runId]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="w-full max-w-lg rounded-2xl bg-white shadow-xl">
+        <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+          <h3 className="text-sm font-bold text-slate-800">Variance Check</h3>
+          <button type="button" onClick={onClose} className="text-slate-400 hover:text-slate-600 text-lg font-bold leading-none">&times;</button>
+        </div>
+        <div className="p-5 space-y-3">
+          {loading && <p className="text-sm text-slate-600">Checking variances…</p>}
+          {error && <p className="text-sm text-red-700">{error}</p>}
+          {!loading && !error && alerts !== null && alerts.length === 0 && (
+            <p className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-800">
+              ✓ No significant variances detected
+            </p>
+          )}
+          {!loading && alerts && alerts.length > 0 && (
+            <ul className="space-y-2">
+              {alerts.map((a, i) => (
+                <li key={i} className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-2.5 flex items-start justify-between gap-3">
+                  <div>
+                    <span className="text-sm font-semibold text-slate-800">{a.displayName || a.userId}</span>
+                    {a.alertType === 'missing' && (
+                      <span className="ml-2 inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold bg-red-50 text-red-800 border-red-200">Missing</span>
+                    )}
+                    {a.alertType === 'new' && (
+                      <span className="ml-2 inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold bg-sky-50 text-sky-800 border-sky-200">New Staff</span>
+                    )}
+                    {a.note && <p className="text-xs text-slate-500 mt-0.5">{a.note}</p>}
+                  </div>
+                  {a.changePct != null && (
+                    <span className={`shrink-0 text-xs font-bold ${Math.abs(a.changePct) >= 20 ? 'text-red-700' : 'text-amber-700'}`}>
+                      {a.changePct > 0 ? '+' : ''}{a.changePct}%
+                    </span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+        <div className="flex justify-end border-t border-slate-100 px-5 py-3">
+          <button type="button" onClick={onClose} className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-bold uppercase">Close</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function HrPayroll() {
   const ws = useWorkspace();
   const perms = ws?.permissions || [];
@@ -47,6 +145,8 @@ export default function HrPayroll() {
   const canExport = canExportPayroll(perms);
 
   const [tab, setTab] = useState('runs');
+  const [bonusModalOpen, setBonusModalOpen] = useState(false);
+  const [varianceModalOpen, setVarianceModalOpen] = useState(false);
   const [runs, setRuns] = useState([]);
   const [selectedId, setSelectedId] = useState('');
   const [run, setRun] = useState(null);
@@ -197,12 +297,38 @@ export default function HrPayroll() {
   const linesBody = (
     <div className="space-y-4">
       {totals && !totals.amountsRedacted ? (
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-          <StatCard label="Staff" value={totals.headcount} />
-          <StatCard label="Gross total" value={formatNgn(totals.grossTotalNgn)} />
-          <StatCard label="Net total" value={formatNgn(totals.netTotalNgn)} />
-          <StatCard label="PAYE total" value={formatNgn(totals.taxTotalNgn)} />
-        </div>
+        <>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            <StatCard label="Staff" value={totals.headcount} />
+            <StatCard label="Gross total" value={formatNgn(totals.grossTotalNgn)} />
+            <StatCard label="Net total" value={formatNgn(totals.netTotalNgn)} />
+            <StatCard label="PAYE total" value={formatNgn(totals.taxTotalNgn)} />
+          </div>
+          {totals.grossTotalNgn != null ? (() => {
+            const gross = Number(totals.grossTotalNgn) || 0;
+            const itf = gross * 0.01;
+            const nsitf = gross * 0.01;
+            const totalEmployerCost = gross + itf + nsitf;
+            return (
+              <div className="rounded-xl border border-amber-100 bg-amber-50/60 p-4 space-y-2">
+                <p className="text-[10px] font-black uppercase tracking-widest text-amber-700 mb-2">Employer statutory costs</p>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-slate-600">ITF (Employer — 1%)</span>
+                  <span className="font-semibold text-amber-800 tabular-nums">{formatNgn(itf)}</span>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-slate-600">NSITF (Employer — 1%)</span>
+                  <span className="font-semibold text-amber-800 tabular-nums">{formatNgn(nsitf)}</span>
+                </div>
+                <div className="flex items-center justify-between text-sm border-t border-amber-200 pt-2 mt-2">
+                  <span className="font-black text-teal-800">Total Employer Cost</span>
+                  <span className="font-black text-teal-800 tabular-nums">{formatNgn(totalEmployerCost)}</span>
+                </div>
+                <p className="text-[11px] text-slate-500">ITF and NSITF are employer costs, not deducted from staff salaries.</p>
+              </div>
+            );
+          })() : null}
+        </>
       ) : null}
       <AppTableWrap>
         <AppTable role="numeric">
@@ -382,10 +508,24 @@ export default function HrPayroll() {
                     >
                       Recompute
                     </button>
+                    <button
+                      type="button"
+                      onClick={() => setBonusModalOpen(true)}
+                      className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-1.5 text-[10px] font-bold uppercase text-amber-900"
+                    >
+                      Apply Bonus
+                    </button>
                   </div>
                 ) : null}
 
                 <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setVarianceModalOpen(true)}
+                    className="rounded-lg border border-sky-200 bg-sky-50 px-3 py-1.5 text-[10px] font-bold uppercase text-sky-800"
+                  >
+                    Variance Check
+                  </button>
                   {canGm && run.status === 'draft' && !run.gmApprovedAtIso ? (
                     <button
                       type="button"
@@ -463,6 +603,18 @@ export default function HrPayroll() {
           </div>
         </>
       ) : null}
+
+      {bonusModalOpen && selectedId && (
+        <ApplyBonusModal
+          runId={selectedId}
+          onClose={() => setBonusModalOpen(false)}
+          onSuccess={(msg) => { setBonusModalOpen(false); setMessage(msg); loadRunDetail(); }}
+        />
+      )}
+
+      {varianceModalOpen && selectedId && (
+        <VarianceModal runId={selectedId} onClose={() => setVarianceModalOpen(false)} />
+      )}
     </div>
   );
 }

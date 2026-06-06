@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { lazy, Suspense } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { HrSectionShell } from '../../components/hr/HrSectionShell';
 import { useWorkspace } from '../../context/WorkspaceContext';
@@ -19,6 +19,12 @@ import HrReports from './HrReports';
 import HrSettings from './HrSettings';
 import ExecutiveHr from './ExecutiveHr';
 
+const HrChairmanAccounts = lazy(() => import('./HrChairmanAccounts'));
+const HrIdCards = lazy(() => import('./HrIdCards'));
+const HrPayeTaxPension = lazy(() => import('./HrPayeTaxPension'));
+const HrAppraisal = lazy(() => import('./HrAppraisal'));
+const HrAnalytics = lazy(() => import('./HrAnalytics'));
+
 const HR_NAV = [
   { to: '/hr/dashboard', label: 'Dashboard', end: true },
   { to: '/hr/staff', label: 'Staff' },
@@ -31,6 +37,11 @@ const HR_NAV = [
   { to: '/hr/transfers', label: 'Transfers' },
   { to: '/hr/discipline', label: 'Discipline' },
   { to: '/hr/letters', label: 'Letters' },
+  { to: '/hr/tax-pension', label: 'Tax & Pension' },
+  { to: '/hr/id-cards', label: 'ID Cards' },
+  { to: '/hr/chairman', label: 'Chairman Accounts' },
+  { to: '/hr/appraisal', label: 'Appraisals' },
+  { to: '/hr/analytics', label: 'Analytics' },
   { to: '/hr/reports', label: 'Reports' },
   { to: '/hr/settings', label: 'Settings' },
 ];
@@ -70,6 +81,11 @@ export default function HumanResources() {
         <Route path="letters" element={<HrLetters />} />
         <Route path="reports" element={<HrReports />} />
         <Route path="settings" element={<HrSettings />} />
+        <Route path="tax-pension" element={<Suspense fallback={<p className="text-sm text-slate-600">Loading…</p>}><HrPayeTaxPension /></Suspense>} />
+        <Route path="chairman" element={<Suspense fallback={<p className="text-sm text-slate-600">Loading…</p>}><HrChairmanAccounts /></Suspense>} />
+        <Route path="id-cards" element={<Suspense fallback={<p className="text-sm text-slate-600">Loading…</p>}><HrIdCards /></Suspense>} />
+        <Route path="appraisal" element={<Suspense fallback={<p className="text-sm text-slate-600">Loading…</p>}><HrAppraisal /></Suspense>} />
+        <Route path="analytics" element={<Suspense fallback={<p className="text-sm text-slate-600">Loading…</p>}><HrAnalytics /></Suspense>} />
         <Route path="executive/*" element={<ExecutiveHr />} />
       </Route>
     </Routes>

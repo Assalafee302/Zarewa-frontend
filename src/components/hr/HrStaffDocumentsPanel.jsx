@@ -37,6 +37,7 @@ export function HrStaffDocumentsPanel({
   const [avatarBusy, setAvatarBusy] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const [expiryDates, setExpiryDates] = useState({});
 
   const { loading, reload } = useHrListLoad(async () => {
     const { ok, data } = await fetchHrStaffDocuments(userId);
@@ -69,7 +70,12 @@ export function HrStaffDocumentsPanel({
         setError('Could not read file.');
         return;
       }
-      const { ok, data } = await uploadHrStaffDocument(userId, { docKind, ...payload });
+      const expiryDateIso = expiryDates[docKind] || undefined;
+      const { ok, data } = await uploadHrStaffDocument(userId, {
+        docKind,
+        ...payload,
+        ...(expiryDateIso ? { expiry_date_iso: expiryDateIso } : {}),
+      });
       if (!ok || !data?.ok) {
         setError(data?.error || 'Upload failed.');
         return;
@@ -198,7 +204,8 @@ export function HrStaffDocumentsPanel({
                   {doc ? (
                     <p className="text-xs text-slate-500 truncate">
                       {doc.fileName}
-                      {doc.uploadedAtIso ? ` · ${doc.uploadedAtIso.slice(0, 10)}` : ''}
+                      {doc.uploadedAtIso ? ` · uploaded ${doc.uploadedAtIso.slice(0, 10)}` : ''}
+                      {doc.expiryDateIso || doc.expiry_date_iso ? ` · expires ${(doc.expiryDateIso || doc.expiry_date_iso).slice(0, 10)}` : ''}
                     </p>
                   ) : (
                     <p className="text-xs text-amber-700 font-medium">Not uploaded</p>
@@ -227,17 +234,29 @@ export function HrStaffDocumentsPanel({
                     </>
                   ) : null}
                   {canEdit ? (
-                    <label className="inline-flex cursor-pointer items-center gap-1 rounded-lg bg-[#134e4a] px-3 py-1.5 text-[10px] font-bold uppercase text-white">
-                      <Upload size={12} aria-hidden />
-                      {isBusy ? '…' : doc ? 'Replace' : 'Upload'}
-                      <input
-                        type="file"
-                        accept={DOC_ACCEPT}
-                        className="hidden"
-                        disabled={isBusy}
-                        onChange={(e) => onDocFile(kind.value, e)}
-                      />
-                    </label>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <label className="text-[10px] font-semibold text-slate-500 flex items-center gap-1">
+                        Expiry date
+                        <input
+                          type="date"
+                          value={expiryDates[kind.value] || ''}
+                          onChange={(e) => setExpiryDates((prev) => ({ ...prev, [kind.value]: e.target.value }))}
+                          className="ml-1 rounded-lg border border-slate-200 px-2 py-1 text-xs font-mono"
+                          aria-label={`Expiry date for ${kind.label}`}
+                        />
+                      </label>
+                      <label className="inline-flex cursor-pointer items-center gap-1 rounded-lg bg-[#134e4a] px-3 py-1.5 text-[10px] font-bold uppercase text-white">
+                        <Upload size={12} aria-hidden />
+                        {isBusy ? '…' : doc ? 'Replace' : 'Upload'}
+                        <input
+                          type="file"
+                          accept={DOC_ACCEPT}
+                          className="hidden"
+                          disabled={isBusy}
+                          onChange={(e) => onDocFile(kind.value, e)}
+                        />
+                      </label>
+                    </div>
                   ) : null}
                 </div>
               </li>

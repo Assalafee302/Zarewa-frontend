@@ -15,6 +15,57 @@ import {
   AppTableWrap,
 } from '../../components/ui/AppDataTable';
 
+function CarryOverModal({ onClose, onSuccess }) {
+  const currentYear = new Date().getFullYear();
+  const [year, setYear] = useState(String(currentYear - 1));
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+
+  const confirm = async () => {
+    setBusy(true);
+    setError('');
+    const { ok, data } = await apiFetch('/api/hr/leave/year-end-carryover', {
+      method: 'POST',
+      body: JSON.stringify({ year: Number(year) }),
+    });
+    setBusy(false);
+    if (!ok || !data?.ok) { setError(data?.error || 'Carry-over failed.'); return; }
+    onSuccess(`Processed ${data.processed ?? 0} staff · ${data.forfeited ?? 0} forfeited excess leave`);
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="w-full max-w-sm rounded-2xl bg-white shadow-xl">
+        <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+          <h3 className="text-sm font-bold text-slate-800">Year-End Carry-Over</h3>
+          <button type="button" onClick={onClose} className="text-slate-400 hover:text-slate-600 text-lg font-bold leading-none">&times;</button>
+        </div>
+        <div className="p-5 space-y-3">
+          <p className="text-sm text-slate-700">
+            Run year-end leave carry-over for <strong>{year}</strong>? This will carry forward unused annual leave to next year (max 21 days) and forfeit any excess.
+          </p>
+          <label className="block text-xs font-semibold text-slate-600">
+            Year
+            <input
+              type="number"
+              value={year}
+              onChange={e => setYear(e.target.value)}
+              className="mt-1 block w-28 rounded-xl border border-slate-200 px-3 py-2 text-sm font-mono"
+            />
+          </label>
+          {error && <p className="text-xs text-red-700">{error}</p>}
+        </div>
+        <div className="flex justify-end gap-2 border-t border-slate-100 px-5 py-3">
+          <button type="button" onClick={onClose} className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-bold uppercase">Cancel</button>
+          <button type="button" disabled={busy} onClick={confirm} className="rounded-xl bg-[#134e4a] px-4 py-2 text-xs font-bold uppercase text-white disabled:opacity-50">
+            {busy ? 'Processing…' : 'Confirm'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function HrLeave() {
   const ws = useWorkspace();
   const canManage = canManageHrLeave(ws?.permissions);
@@ -22,6 +73,7 @@ export default function HrLeave() {
   const [balances, setBalances] = useState([]);
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
+  const [carryOverOpen, setCarryOverOpen] = useState(false);
 
   const { loading, error, setError, reload } = useHrListLoad(async () => {
     const { ok, data } = await apiFetch(`/api/hr/leave/balances?periodYyyymm=${periodYyyymm}`);
@@ -78,6 +130,15 @@ export default function HrLeave() {
             Recompute annual
           </button>
         ) : null}
+        {canManage ? (
+          <button
+            type="button"
+            onClick={() => setCarryOverOpen(true)}
+            className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-2.5 text-[11px] font-bold uppercase text-amber-900"
+          >
+            Year-End Carry-Over
+          </button>
+        ) : null}
       </div>
 
       {error ? (
@@ -90,6 +151,13 @@ export default function HrLeave() {
       ) : null}
 
       {loading ? <p className="text-sm text-slate-600">Loading balances…</p> : null}
+
+      {carryOverOpen && (
+        <CarryOverModal
+          onClose={() => setCarryOverOpen(false)}
+          onSuccess={(msg) => { setCarryOverOpen(false); setMessage(msg); }}
+        />
+      )}
 
       {!loading ? (
         <AppTableWrap>

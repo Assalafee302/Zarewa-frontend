@@ -174,6 +174,14 @@ export function HrStaffLifecyclePanel({ userId, isSelf = false, initialLifecycle
                 value={lastDay}
                 onChange={(e) => setLastDay(e.target.value)}
               />
+              {lastDay ? (() => {
+                const daysNotice = Math.round((new Date(lastDay).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+                return daysNotice < 30 ? (
+                  <span className="mt-1 block font-normal text-red-700 text-[11px]">⚠️ This is less than the required 30-day notice period per company policy.</span>
+                ) : (
+                  <span className="mt-1 block font-normal text-emerald-700 text-[11px]">✓ Meets 30-day notice requirement.</span>
+                );
+              })() : null}
             </label>
             <label className="block text-xs font-semibold text-slate-600 sm:col-span-2">
               Reason

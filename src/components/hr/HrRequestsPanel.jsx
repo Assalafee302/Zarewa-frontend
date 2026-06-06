@@ -42,6 +42,10 @@ export function HrRequestsPanel({
   const [reviewId, setReviewId] = useState('');
   const [reviewNote, setReviewNote] = useState('');
   const [reasonCode, setReasonCode] = useState('policy');
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [bulkProgress, setBulkProgress] = useState('');
+  const [bulkRejectReason, setBulkRejectReason] = useState('');
+  const [showBulkRejectPrompt, setShowBulkRejectPrompt] = useState(false);
 
   const REASON_CODES = [
     { value: 'policy', label: 'Policy' },
@@ -122,6 +126,49 @@ export function HrRequestsPanel({
     await load();
   };
 
+  const reviewableRequests = requests.filter((r) => canReviewRow(r));
+  const allReviewableSelected =
+    reviewableRequests.length > 0 && reviewableRequests.every((r) => selectedIds.includes(r.id));
+
+  const toggleSelectAll = () => {
+    if (allReviewableSelected) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(reviewableRequests.map((r) => r.id));
+    }
+  };
+
+  const toggleSelect = (id) => {
+    setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  };
+
+  const bulkReview = async (approve, rejectionNote) => {
+    const ids = selectedIds.slice();
+    setBulkProgress(`Processing 0 of ${ids.length}…`);
+    let done = 0;
+    for (const id of ids) {
+      const req = requests.find((r) => r.id === id);
+      if (!req) { done++; continue; }
+      const path = hrRequestReviewPath(id, req.status);
+      if (!path) { done++; continue; }
+      await apiFetch(path, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          approve,
+          note: approve ? 'Bulk approved' : (rejectionNote || 'Bulk rejected'),
+          reasonCode: approve ? 'policy' : 'other',
+        }),
+      });
+      done++;
+      setBulkProgress(`${approve ? 'Approving' : 'Rejecting'} ${done} of ${ids.length}…`);
+    }
+    setBulkProgress('');
+    setSelectedIds([]);
+    setShowBulkRejectPrompt(false);
+    setBulkRejectReason('');
+    await load();
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap gap-2">
@@ -129,7 +176,7 @@ export function HrRequestsPanel({
           <button
             key={s}
             type="button"
-            onClick={() => setScope(s)}
+            onClick={() => { setScope(s); setSelectedIds([]); }}
             className={`rounded-xl px-3 py-2 text-[10px] font-bold uppercase tracking-wide ${
               scope === s
                 ? 'bg-[#134e4a] text-white shadow-sm'
@@ -148,10 +195,84 @@ export function HrRequestsPanel({
         <p className="text-sm text-slate-600">Loading requests…</p>
       ) : null}
 
+      {selectedIds.length > 0 ? (
+        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-[#134e4a]/20 bg-teal-50/60 px-4 py-2.5 text-sm">
+          <span className="font-semibold text-[#134e4a]">{selectedIds.length} request{selectedIds.length !== 1 ? 's' : ''} selected</span>
+          <span className="text-slate-400">→</span>
+          {bulkProgress ? (
+            <span className="text-sm text-slate-600">{bulkProgress}</span>
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={() => bulkReview(true, '')}
+                className="rounded-lg bg-emerald-700 px-3 py-1.5 text-[10px] font-bold uppercase text-white"
+              >
+                Approve All
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowBulkRejectPrompt(true)}
+                className="rounded-lg bg-red-700 px-3 py-1.5 text-[10px] font-bold uppercase text-white"
+              >
+                Reject All
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedIds([])}
+                className="rounded-lg border border-slate-200 px-3 py-1.5 text-[10px] font-bold uppercase text-slate-600"
+              >
+                Clear
+              </button>
+            </>
+          )}
+        </div>
+      ) : null}
+
+      {showBulkRejectPrompt ? (
+        <div className="rounded-xl border border-red-100 bg-red-50 p-4 space-y-3">
+          <p className="text-sm font-semibold text-red-900">Rejection reason (applies to all {selectedIds.length} selected)</p>
+          <textarea
+            value={bulkRejectReason}
+            onChange={(e) => setBulkRejectReason(e.target.value)}
+            rows={2}
+            placeholder="Enter rejection reason…"
+            className="w-full rounded-lg border border-red-200 px-3 py-2 text-sm"
+          />
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => bulkReview(false, bulkRejectReason)}
+              className="rounded-lg bg-red-700 px-3 py-1.5 text-[10px] font-bold uppercase text-white"
+            >
+              Confirm Reject All
+            </button>
+            <button
+              type="button"
+              onClick={() => { setShowBulkRejectPrompt(false); setBulkRejectReason(''); }}
+              className="rounded-lg border border-slate-200 px-3 py-1.5 text-[10px] font-bold uppercase text-slate-600"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      ) : null}
+
       {!loading || requests.length > 0 ? (
         <AppTableWrap>
           <AppTable>
             <AppTableThead>
+              {reviewableRequests.length > 0 ? (
+                <AppTableTh>
+                  <input
+                    type="checkbox"
+                    checked={allReviewableSelected}
+                    onChange={toggleSelectAll}
+                    aria-label="Select all reviewable requests"
+                    className="rounded"
+                  />
+                </AppTableTh>
+              ) : <AppTableTh />}
               <AppTableTh>Title</AppTableTh>
               <AppTableTh>Kind</AppTableTh>
               <AppTableTh>Employee</AppTableTh>
@@ -162,13 +283,24 @@ export function HrRequestsPanel({
             <AppTableBody>
               {requests.length === 0 ? (
                 <AppTableTr>
-                  <AppTableTd colSpan={6} align="center">
+                  <AppTableTd colSpan={7} align="center">
                     <span className="text-slate-500 py-4 block">No requests in this queue.</span>
                   </AppTableTd>
                 </AppTableTr>
               ) : (
                 requests.map((r) => (
                   <AppTableTr key={r.id}>
+                    <AppTableTd>
+                      {canReviewRow(r) ? (
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.includes(r.id)}
+                          onChange={() => toggleSelect(r.id)}
+                          aria-label={`Select request ${r.title || r.id}`}
+                          className="rounded"
+                        />
+                      ) : null}
+                    </AppTableTd>
                     <AppTableTd title={r.title}>{r.title}</AppTableTd>
                     <AppTableTd>{hrRequestKindLabel(r.kind)}</AppTableTd>
                     <AppTableTd>

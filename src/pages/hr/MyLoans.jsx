@@ -12,7 +12,7 @@ export default function MyLoans() {
   const [modalOpen, setModalOpen] = useState(false);
 
   const [amountNgn, setAmountNgn] = useState('');
-  const [repaymentMonths, setRepaymentMonths] = useState('6');
+  const [repaymentMonths, setRepaymentMonths] = useState('1');
   const [deductionPerMonthNgn, setDeductionPerMonthNgn] = useState('');
   const [purpose, setPurpose] = useState('');
   const [busy, setBusy] = useState(false);
@@ -89,15 +89,18 @@ export default function MyLoans() {
             </label>
             <label className="text-xs font-semibold text-slate-600">
               Repayment (months)
-              <input
-                type="number"
-                min={1}
-                max={36}
+              <select
                 className={HR_FIELD_CLASS}
                 value={repaymentMonths}
                 onChange={(e) => setRepaymentMonths(e.target.value)}
                 required
-              />
+              >
+                <option value="1">1 month</option>
+                <option value="2">2 months</option>
+                <option value="3">3 months</option>
+                <option value="4">4 months</option>
+              </select>
+              <span className="mt-1 block font-normal text-slate-400 text-[11px]">Maximum repayment period is 4 months per company policy.</span>
             </label>
             <label className="text-xs font-semibold text-slate-600">
               Monthly deduction (₦)

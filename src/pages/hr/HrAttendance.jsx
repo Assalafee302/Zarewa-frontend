@@ -22,6 +22,27 @@ export default function HrAttendance() {
   const [periodYyyymm, setPeriodYyyymm] = useState(currentPeriodYyyymm());
   const [preview, setPreview] = useState([]);
   const [loadingPreview, setLoadingPreview] = useState(false);
+  const [noShowAlerts, setNoShowAlerts] = useState([]);
+  const [noShowExpanded, setNoShowExpanded] = useState(false);
+
+  useEffect(() => {
+    if (!showDeductions) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const branchId = ws?.session?.branchId || '';
+        const { ok, data } = await apiFetch(
+          `/api/hr/attendance/no-show-alerts${branchId ? `?branchId=${encodeURIComponent(branchId)}` : ''}`
+        );
+        if (!cancelled && ok && data?.ok) setNoShowAlerts(data.alerts || []);
+      } catch {
+        // ignore
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [showDeductions, ws?.session?.branchId]);
 
   useEffect(() => {
     if (tab !== 'deductions' || !showDeductions) return;
@@ -42,6 +63,33 @@ export default function HrAttendance() {
 
   return (
     <div className="space-y-6">
+      {noShowAlerts.length > 0 ? (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900">
+          <div className="flex items-start justify-between gap-2">
+            <span>
+              🚨 <strong>{noShowAlerts.length}</strong> staff member{noShowAlerts.length === 1 ? '' : 's'} ha{noShowAlerts.length === 1 ? 's' : 've'} been absent for 3+ consecutive days. Per company policy this may constitute voluntary termination.
+            </span>
+            <button
+              type="button"
+              onClick={() => setNoShowExpanded((v) => !v)}
+              className="shrink-0 rounded-lg border border-red-300 px-2 py-1 text-[10px] font-bold uppercase text-red-800 hover:bg-red-100"
+            >
+              {noShowExpanded ? 'Hide' : 'View Details'}
+            </button>
+          </div>
+          {noShowExpanded ? (
+            <ul className="mt-3 space-y-1">
+              {noShowAlerts.map((a) => (
+                <li key={a.userId} className="flex items-center gap-2 text-xs">
+                  <span className="font-semibold">{a.displayName || a.userId}</span>
+                  <span className="text-red-700">— {a.consecutiveAbsentDays} consecutive absent day{a.consecutiveAbsentDays === 1 ? '' : 's'}</span>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </div>
+      ) : null}
+
       <div className="flex flex-wrap gap-1 border-b border-slate-200 pb-px">
         {[
           { id: 'roll', label: 'Daily roll' },

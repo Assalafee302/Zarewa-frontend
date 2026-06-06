@@ -41,6 +41,13 @@ export const HR_LEAVE_BANDS = [
   { value: 'executive', label: 'Executive' },
 ];
 
+export const HR_GENDERS = [
+  { value: '', label: 'Select gender' },
+  { value: 'male', label: 'Male' },
+  { value: 'female', label: 'Female' },
+  { value: 'other', label: 'Other' },
+];
+
 export function emptyStaffForm(defaultBranchId = '') {
   return {
     username: '',
@@ -54,6 +61,7 @@ export function emptyStaffForm(defaultBranchId = '') {
     employmentType: 'permanent',
     dateJoinedIso: new Date().toISOString().slice(0, 10),
     probationEndIso: '',
+    contractEndIso: '',
     lineManagerUserId: '',
     selfServiceEligible: true,
     payrollGroup: 'branch_ops',
@@ -77,6 +85,10 @@ export function emptyStaffForm(defaultBranchId = '') {
     leaveEntitlementBand: '',
     branchChangeReason: '',
     ninNumber: '',
+    gender: '',
+    dateOfBirthIso: '',
+    nhisProvider: '',
+    nhisMonthlyDeductionNgn: '',
     nextOfKinName: '',
     nextOfKinPhone: '',
     nextOfKinRelationship: '',

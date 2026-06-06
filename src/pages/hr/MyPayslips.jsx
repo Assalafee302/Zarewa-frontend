@@ -85,6 +85,9 @@ export default function MyPayslips() {
       <p className="text-sm text-slate-600">
         Payslips appear after HQ locks payroll and finance marks the run paid. Unlock to view amounts.
       </p>
+      <div className="rounded-xl border border-slate-100 bg-slate-50/80 px-4 py-3 text-xs text-slate-600">
+        Your employer also contributes <strong>ITF (1%)</strong> and <strong>NSITF (1%)</strong> on your behalf. These are employer costs and do <strong>not</strong> reduce your take-home pay.
+      </div>
       {error ? (
         <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-800">{error}</div>
       ) : null}

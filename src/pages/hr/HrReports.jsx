@@ -1,8 +1,19 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { apiFetch } from '../../lib/apiBase';
 import { useHrListLoad } from '../../hooks/useHrListLoad';
 import { fetchHrReportsSummary } from '../../lib/hrExtended';
 import { formatNgn } from '../../lib/hrFormat';
+
+function downloadJson2Csv(filename, data, columns) {
+  const headers = columns.map(c => c.label);
+  const rows = data.map(row => columns.map(c => `"${row[c.key] ?? ''}"`).join(','));
+  const csv = [headers.join(','), ...rows].join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
+}
 
 function Stat({ label, value }) {
   return (
@@ -61,6 +72,56 @@ export default function HrReports({ executive = false }) {
         <Link to="/hr/payroll" className="mt-2 inline-block text-sm font-bold text-[#134e4a] hover:underline">
           Open payroll →
         </Link>
+      </div>
+      <div>
+        <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2">Analytics Exports</h3>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={async () => {
+              const { ok, data } = await apiFetch('/api/hr/analytics/headcount');
+              if (!ok || !data?.ok) return;
+              const rows = (data.byBranch || []).map(b => ({
+                branch: b.branch,
+                count: b.count,
+                pct: data.totalActive ? ((b.count / data.totalActive) * 100).toFixed(1) + '%' : '—',
+              }));
+              downloadJson2Csv('headcount-report.csv', rows, [
+                { key: 'branch', label: 'Branch' },
+                { key: 'count', label: 'Count' },
+                { key: 'pct', label: '% of Total' },
+              ]);
+            }}
+            className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold uppercase text-[#134e4a] hover:bg-slate-50"
+          >
+            Headcount Report (CSV)
+          </button>
+          <a
+            href="/api/hr/analytics/attendance-trends"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold uppercase text-[#134e4a] hover:bg-slate-50 inline-flex items-center"
+          >
+            Attendance Trend
+          </a>
+          <button
+            type="button"
+            onClick={async () => {
+              const { ok, data } = await apiFetch('/api/hr/analytics/loan-portfolio');
+              if (!ok || !data?.ok) return;
+              downloadJson2Csv('loan-portfolio.csv', data.loans || [], [
+                { key: 'displayName', label: 'Staff' },
+                { key: 'branch', label: 'Branch' },
+                { key: 'amountNgn', label: 'Amount (NGN)' },
+                { key: 'monthlyDeductionNgn', label: 'Monthly Deduction (NGN)' },
+                { key: 'status', label: 'Status' },
+              ]);
+            }}
+            className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold uppercase text-[#134e4a] hover:bg-slate-50"
+          >
+            Loan Portfolio (CSV)
+          </button>
+        </div>
       </div>
       <div>
         <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2">Recent salary changes</h3>

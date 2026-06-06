@@ -20,6 +20,17 @@ import {
 
 const kindLabel = (k) => HR_DISCIPLINARY_KINDS.find((x) => x.value === k)?.label || k;
 
+/** Count query-type events per staffUserId from the events list */
+function buildQueryCounts(events) {
+  const counts = {};
+  for (const ev of events) {
+    if (ev.kind === 'query') {
+      counts[ev.staffUserId] = (counts[ev.staffUserId] || 0) + 1;
+    }
+  }
+  return counts;
+}
+
 export default function HrDiscipline() {
   const ws = useWorkspace();
   const perms = ws?.permissions || [];
@@ -159,6 +170,39 @@ export default function HrDiscipline() {
       ) : null}
       {loading && events.length === 0 ? <p className="text-sm text-slate-600">Loading…</p> : null}
 
+      {/* Policy alert banners for staff with high query counts */}
+      {(() => {
+        const queryCounts = buildQueryCounts(events);
+        const flagged3Plus = Object.entries(queryCounts).filter(([, c]) => c >= 3);
+        const flagged2 = Object.entries(queryCounts).filter(([, c]) => c === 2);
+        return (
+          <>
+            {flagged3Plus.map(([uid, count]) => {
+              const person = staff.find((s) => s.userId === uid);
+              return (
+                <div key={uid} className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900 flex items-start gap-2">
+                  <span className="shrink-0">🚨</span>
+                  <span>
+                    <strong>{person?.displayName || uid}</strong> has received {count} queries — termination is recommended per company policy.
+                  </span>
+                </div>
+              );
+            })}
+            {flagged2.map(([uid]) => {
+              const person = staff.find((s) => s.userId === uid);
+              return (
+                <div key={uid} className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 flex items-start gap-2">
+                  <span className="shrink-0">⚠️</span>
+                  <span>
+                    <strong>{person?.displayName || uid}</strong> has received 2 queries — next promotion is blocked per company policy.
+                  </span>
+                </div>
+              );
+            })}
+          </>
+        );
+      })()}
+
       {events.length > 0 ? (
         <AppTableWrap>
           <AppTable>
@@ -167,25 +211,41 @@ export default function HrDiscipline() {
                 <AppTableTh>Date</AppTableTh>
                 <AppTableTh>Employee</AppTableTh>
                 <AppTableTh>Type</AppTableTh>
+                <AppTableTh>Query count</AppTableTh>
                 <AppTableTh>Summary</AppTableTh>
               </AppTableTr>
             </AppTableThead>
             <AppTableBody>
-              {events.map((ev) => (
-                <AppTableTr key={ev.id}>
-                  <AppTableTd>{ev.dateIso || '—'}</AppTableTd>
-                  <AppTableTd>
-                    <Link
-                      to={`/hr/staff/${encodeURIComponent(ev.staffUserId)}`}
-                      className="font-semibold text-[#134e4a] hover:underline"
-                    >
-                      {ev.staffDisplayName || ev.staffUserId}
-                    </Link>
-                  </AppTableTd>
-                  <AppTableTd>{kindLabel(ev.kind)}</AppTableTd>
-                  <AppTableTd title={ev.summary}>{ev.summary}</AppTableTd>
-                </AppTableTr>
-              ))}
+              {events.map((ev) => {
+                const queryCount = buildQueryCounts(events)[ev.staffUserId] || 0;
+                return (
+                  <AppTableTr key={ev.id}>
+                    <AppTableTd>{ev.dateIso || '—'}</AppTableTd>
+                    <AppTableTd>
+                      <Link
+                        to={`/hr/staff/${encodeURIComponent(ev.staffUserId)}`}
+                        className="font-semibold text-[#134e4a] hover:underline"
+                      >
+                        {ev.staffDisplayName || ev.staffUserId}
+                      </Link>
+                      {queryCount >= 3 ? (
+                        <span className="ml-2 inline-flex rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-bold text-red-800">{queryCount} queries</span>
+                      ) : queryCount === 2 ? (
+                        <span className="ml-2 inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-800">{queryCount} queries</span>
+                      ) : null}
+                    </AppTableTd>
+                    <AppTableTd>{kindLabel(ev.kind)}</AppTableTd>
+                    <AppTableTd>
+                      {ev.kind === 'query' ? (
+                        <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-bold ${queryCount >= 3 ? 'bg-red-100 text-red-800' : queryCount === 2 ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-600'}`}>
+                          {queryCount}
+                        </span>
+                      ) : '—'}
+                    </AppTableTd>
+                    <AppTableTd title={ev.summary}>{ev.summary}</AppTableTd>
+                  </AppTableTr>
+                );
+              })}
             </AppTableBody>
           </AppTable>
         </AppTableWrap>

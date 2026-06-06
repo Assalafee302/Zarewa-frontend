@@ -109,6 +109,18 @@ export function HrSalaryIncrementPanel({ userId, staff, canViewAmounts, onUpdate
   const newBase = Number(baseSalaryNgn) || 0;
   const delta = prevBase != null && canViewAmounts ? newBase - Number(prevBase) : null;
 
+  // Promotion eligibility: find most recent entry where reason mentions 'promotion'
+  const lastPromoEntry = history.find((h) => /promotion/i.test(h.reason || ''));
+  const yearsFromLastPromo = lastPromoEntry?.effectiveFromIso
+    ? (Date.now() - new Date(lastPromoEntry.effectiveFromIso).getTime()) / (1000 * 60 * 60 * 24 * 365.25)
+    : null;
+  const nextEligibleDate = lastPromoEntry?.effectiveFromIso
+    ? new Date(new Date(lastPromoEntry.effectiveFromIso).getTime() + 3 * 365.25 * 24 * 60 * 60 * 1000)
+        .toLocaleDateString('en-NG', { day: '2-digit', month: 'long', year: 'numeric' })
+    : null;
+  const isManagement = /manager|director|head|chief/i.test(staff?.jobTitle || '');
+  const suggestedIncrement = isManagement ? '35%' : '25%';
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -117,6 +129,25 @@ export function HrSalaryIncrementPanel({ userId, staff, canViewAmounts, onUpdate
           <HrAddFormButton onClick={() => setModalOpen(true)}>Record increment</HrAddFormButton>
         ) : null}
       </div>
+
+      {/* Promotion eligibility notice */}
+      {history.length > 0 && (
+        yearsFromLastPromo != null ? (
+          yearsFromLastPromo < 3 ? (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+              Not yet eligible for regular promotion (next eligible: {nextEligibleDate}). Suggested increment: {suggestedIncrement}.
+            </div>
+          ) : (
+            <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-900">
+              ✓ Eligible for regular promotion. Suggested increment: {suggestedIncrement}.
+            </div>
+          )
+        ) : (
+          <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-900">
+            ✓ No prior promotion on record — eligible for promotion. Suggested increment: {suggestedIncrement}.
+          </div>
+        )
+      )}
 
       <HrFormModal isOpen={modalOpen} onClose={() => setModalOpen(false)} title="Record salary increment" size="lg">
         <form onSubmit={submit} className="space-y-4">

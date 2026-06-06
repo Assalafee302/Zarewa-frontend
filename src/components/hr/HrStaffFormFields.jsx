@@ -1,6 +1,7 @@
 import React from 'react';
 import {
   HR_EMPLOYMENT_TYPES,
+  HR_GENDERS,
   HR_LEAVE_BANDS,
   HR_PAYROLL_GROUPS,
   HR_REGISTERABLE_ROLES,
@@ -150,6 +151,16 @@ export function HrStaffFormFields({
               onChange={(e) => set('probationEndIso', e.target.value)}
             />
           </Field>
+          {form.employmentType === 'contract' ? (
+            <Field label="Contract End Date">
+              <input
+                type="date"
+                className={fieldCls}
+                value={form.contractEndIso}
+                onChange={(e) => set('contractEndIso', e.target.value)}
+              />
+            </Field>
+          ) : null}
           <Field label="Line manager (user ID)">
             <input
               className={fieldCls}
@@ -295,6 +306,39 @@ export function HrStaffFormFields({
       <section className="space-y-4">
         <h3 className="text-sm font-black uppercase tracking-wide text-[#134e4a]">Identity & next of kin</h3>
         <div className="grid gap-4 sm:grid-cols-2">
+          <Field label="Gender">
+            <select className={fieldCls} value={form.gender} onChange={(e) => set('gender', e.target.value)}>
+              {HR_GENDERS.map((g) => (
+                <option key={g.value} value={g.value}>{g.label}</option>
+              ))}
+            </select>
+          </Field>
+          <Field label="Date of Birth">
+            <input
+              type="date"
+              className={fieldCls}
+              value={form.dateOfBirthIso}
+              onChange={(e) => set('dateOfBirthIso', e.target.value)}
+            />
+          </Field>
+          <Field label="HMO/NHIS Provider" hint="Optional">
+            <input
+              className={fieldCls}
+              value={form.nhisProvider}
+              onChange={(e) => set('nhisProvider', e.target.value)}
+              placeholder="e.g. HMO provider name"
+            />
+          </Field>
+          <Field label="Monthly NHIS Deduction" hint="Leave 0 if not enrolled">
+            <input
+              type="number"
+              min={0}
+              className={fieldCls}
+              value={form.nhisMonthlyDeductionNgn}
+              onChange={(e) => set('nhisMonthlyDeductionNgn', e.target.value)}
+              placeholder="₦ 0"
+            />
+          </Field>
           <Field label="NIN (11 digits)">
             <input
               className={fieldCls}

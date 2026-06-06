@@ -7,6 +7,7 @@ import { HR_BTN_PRIMARY, HR_BTN_SECONDARY, HR_FIELD_CLASS } from '../../componen
 
 const LEAVE_TYPES = [
   { value: 'annual', label: 'Annual leave' },
+  { value: 'casual', label: 'Casual leave' },
   { value: 'sick', label: 'Sick leave' },
   { value: 'compassionate', label: 'Compassionate' },
   { value: 'unpaid', label: 'Unpaid' },
@@ -30,6 +31,7 @@ export default function MyLeave() {
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [balances, setBalances] = useState([]);
+  const [probationEndIso, setProbationEndIso] = useState(null);
 
   const autoDays = useMemo(() => daysBetweenIso(startDateIso, endDateIso), [startDateIso, endDateIso]);
 
@@ -48,7 +50,26 @@ export default function MyLeave() {
     };
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const { ok, data } = await apiFetch('/api/hr/me');
+        if (!cancelled && ok && data?.ok) {
+          setProbationEndIso(data.staff?.probationEndIso || data.profile?.probationEndIso || null);
+        }
+      } catch {
+        // ignore — probation check is informational
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const annualBalance = balances.find((b) => b.leaveType === 'annual');
+  const isOnProbation = probationEndIso ? new Date() < new Date(probationEndIso) : false;
+  const casualBlockedByProbation = leaveType === 'casual' && isOnProbation;
 
   const resetWizard = () => {
     setStep(0);
@@ -180,6 +201,12 @@ export default function MyLeave() {
                 ))}
               </select>
             </label>
+            {casualBlockedByProbation ? (
+              <div className="sm:col-span-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                ⚠️ Casual leave is not available during the probation period. Your probation ends on{' '}
+                {new Date(probationEndIso).toLocaleDateString('en-NG', { day: '2-digit', month: 'long', year: 'numeric' })}.
+              </div>
+            ) : null}
             <label className="text-xs font-semibold text-slate-600">
               Start date
               <input type="date" value={startDateIso} onChange={(e) => setStartDateIso(e.target.value)} className={HR_FIELD_CLASS} />
@@ -258,10 +285,10 @@ export default function MyLeave() {
             </button>
           ) : (
             <>
-              <button type="button" disabled={busy} onClick={saveDraft} className={HR_BTN_SECONDARY}>
+              <button type="button" disabled={busy || casualBlockedByProbation} onClick={saveDraft} className={HR_BTN_SECONDARY}>
                 Save draft
               </button>
-              <button type="button" disabled={busy} onClick={saveAndSubmit} className={HR_BTN_PRIMARY}>
+              <button type="button" disabled={busy || casualBlockedByProbation} onClick={saveAndSubmit} className={HR_BTN_PRIMARY}>
                 Submit for approval
               </button>
             </>

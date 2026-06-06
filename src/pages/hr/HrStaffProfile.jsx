@@ -137,6 +137,7 @@ export default function HrStaffProfile() {
   const [branchHistory, setBranchHistory] = useState([]);
   const [leaveBalances, setLeaveBalances] = useState(null);
   const [auditEvents, setAuditEvents] = useState(null);
+  const [severance, setSeverance] = useState(null);
   const [editing, setEditing] = useState(false);
   const [editForm, setEditForm] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -224,6 +225,23 @@ export default function HrStaffProfile() {
       cancelled = true;
     };
   }, [tab, userId, canManageLeave]);
+
+  useEffect(() => {
+    if (tab !== 'employment' || !userId || !canManage) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const { ok, data } = await apiFetch(`/api/hr/staff/${encodeURIComponent(userId)}/severance-preview`);
+        if (cancelled) return;
+        setSeverance(ok && data?.ok ? data.severance : null);
+      } catch {
+        // ignore — severance preview is informational only
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [tab, userId, canManage]);
 
   useEffect(() => {
     if (tab !== 'audit' || !userId) return;
@@ -369,23 +387,46 @@ export default function HrStaffProfile() {
       ) : null}
 
       {tab === 'employment' ? (
-        <HrDetailGrid
-          rows={[
-            { label: 'Department', value: staff.department },
-            { label: 'Employment type', value: staff.employmentType || staff.normalized?.taxonomy?.employmentType },
-            { label: 'Role family', value: staff.normalized?.taxonomy?.roleFamily },
-            { label: 'Grade band', value: staff.normalized?.taxonomy?.gradeBand || staff.promotionGrade },
-            { label: 'Seniority', value: staff.normalized?.taxonomy?.seniority },
-            { label: 'Date joined', value: staff.dateJoinedIso },
-            { label: 'Probation ends', value: staff.probationEndIso },
-            { label: 'Leave entitlement band', value: staff.leaveEntitlementBand },
-            { label: 'Line manager ID', value: staff.lineManagerUserId },
-            { label: 'Minimum qualification', value: staff.minimumQualification },
-            { label: 'Academic qualification', value: staff.academicQualification },
-            { label: 'Training summary', value: staff.trainingSummary },
-            { label: 'Welfare notes', value: staff.welfareNotes },
-          ]}
-        />
+        <div className="space-y-6">
+          <HrDetailGrid
+            rows={[
+              { label: 'Department', value: staff.department },
+              { label: 'Employment type', value: staff.employmentType || staff.normalized?.taxonomy?.employmentType },
+              { label: 'Role family', value: staff.normalized?.taxonomy?.roleFamily },
+              { label: 'Grade band', value: staff.normalized?.taxonomy?.gradeBand || staff.promotionGrade },
+              { label: 'Seniority', value: staff.normalized?.taxonomy?.seniority },
+              { label: 'Date joined', value: staff.dateJoinedIso },
+              { label: 'Probation ends', value: staff.probationEndIso },
+              { label: 'Leave entitlement band', value: staff.leaveEntitlementBand },
+              { label: 'Line manager ID', value: staff.lineManagerUserId },
+              { label: 'Minimum qualification', value: staff.minimumQualification },
+              { label: 'Academic qualification', value: staff.academicQualification },
+              { label: 'Training summary', value: staff.trainingSummary },
+              { label: 'Welfare notes', value: staff.welfareNotes },
+            ]}
+          />
+          {canManage ? (
+            <div className="rounded-2xl border border-slate-100 bg-white p-4 space-y-2">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Severance Preview</p>
+                <p className="text-[10px] text-slate-400 mt-0.5">Based on handbook policy</p>
+              </div>
+              {severance ? (
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between"><span className="text-slate-500">Years of service</span><span className="font-semibold">{severance.yearsOfService} yrs</span></div>
+                  <div className="flex justify-between"><span className="text-slate-500">Annual salary</span><span className="font-semibold">₦{severance.annualSalary?.toLocaleString()}</span></div>
+                  <div className="flex justify-between"><span className="text-slate-500">Entitlement</span><span className="font-semibold text-teal-800">{severance.description}</span></div>
+                  {severance.severanceNgn > 0 && (
+                    <div className="flex justify-between border-t border-slate-100 pt-2 mt-2">
+                      <span className="font-bold text-slate-700">Severance Amount</span>
+                      <span className="font-bold text-lg text-teal-800">₦{severance.severanceNgn?.toLocaleString()}</span>
+                    </div>
+                  )}
+                </div>
+              ) : <p className="text-sm text-slate-400">Loading…</p>}
+            </div>
+          ) : null}
+        </div>
       ) : null}
 
       {tab === 'compensation' ? (
