@@ -17,6 +17,41 @@ import {
   AppTableWrap,
 } from '../../components/ui/AppDataTable';
 
+const LETTER_GROUPS = [
+  {
+    label: 'Employment',
+    types: ['appointment', 'employment', 'confirmation', 'probation_extension', 'introduction', 'transfer', 'experience', 'certificate_of_service'],
+  },
+  {
+    label: 'Salary & Promotion',
+    types: ['salary', 'salary_increment', 'promotion'],
+  },
+  {
+    label: 'Leave',
+    types: ['leave_approval', 'leave_rejection'],
+  },
+  {
+    label: 'Discipline',
+    types: ['query', 'warning', 'suspension', 'dismissal', 'termination'],
+  },
+  {
+    label: 'Exit',
+    types: ['resignation_acceptance', 'exit_clearance', 'return_of_property'],
+  },
+  {
+    label: 'Compliance',
+    types: ['confidentiality_pledge', 'handbook_receipt'],
+  },
+  {
+    label: 'Loan',
+    types: ['loan_agreement'],
+  },
+  {
+    label: 'Development',
+    types: ['training_approval'],
+  },
+];
+
 const LETTER_TYPES = [
   { value: 'employment', label: 'Employment Confirmation Letter' },
   { value: 'salary', label: 'Salary Confirmation Letter' },
@@ -29,7 +64,23 @@ const LETTER_TYPES = [
   { value: 'experience', label: 'Experience / Reference Letter' },
   { value: 'loan_agreement', label: 'Loan Agreement Letter' },
   { value: 'termination', label: 'Termination Letter' },
+  { value: 'appointment', label: 'Appointment Letter' },
+  { value: 'confirmation', label: 'Confirmation After Probation' },
+  { value: 'probation_extension', label: 'Probation Extension' },
+  { value: 'salary_increment', label: 'Salary Increment Letter' },
+  { value: 'training_approval', label: 'Training Approval Letter' },
+  { value: 'leave_approval', label: 'Leave Approval Letter' },
+  { value: 'leave_rejection', label: 'Leave Rejection Letter' },
+  { value: 'dismissal', label: 'Dismissal Letter' },
+  { value: 'resignation_acceptance', label: 'Resignation Acceptance' },
+  { value: 'exit_clearance', label: 'Exit Clearance Form' },
+  { value: 'return_of_property', label: 'Return of Property' },
+  { value: 'confidentiality_pledge', label: 'Confidentiality Pledge' },
+  { value: 'handbook_receipt', label: 'Handbook Receipt' },
+  { value: 'certificate_of_service', label: 'Certificate of Service' },
 ];
+
+const LETTER_TYPE_MAP = Object.fromEntries(LETTER_TYPES.map((t) => [t.value, t]));
 
 /**
  * Extra fields required per letter type.
@@ -84,6 +135,52 @@ const EXTRA_FIELDS = {
     { key: 'terminationReason', label: 'Reason for Termination', type: 'select', options: ['Misconduct', 'Performance', 'Redundancy', 'End of Contract', 'Voluntary Resignation', 'Other'], required: true },
     { key: 'noticePeriod', label: 'Notice Period Given', type: 'text', placeholder: 'e.g. 30 days' },
     { key: 'benefitsNote', label: 'Benefits / Entitlements Note', type: 'textarea', placeholder: 'e.g. Accrued leave will be paid out…' },
+  ],
+  appointment: [
+    { key: 'newJobTitle', label: 'Job Title', type: 'text', required: true },
+    { key: 'effectiveDate', label: 'Effective Date', type: 'date', required: true },
+  ],
+  confirmation: [{ key: 'effectiveDate', label: 'Confirmation Date', type: 'date', required: true }],
+  probation_extension: [
+    { key: 'newProbationEnd', label: 'New Probation End Date', type: 'date', required: true },
+    { key: 'reason', label: 'Reason', type: 'textarea' },
+  ],
+  salary_increment: [
+    { key: 'newSalary', label: 'New Monthly Salary (₦)', type: 'text', required: true },
+    { key: 'effectiveDate', label: 'Effective Date', type: 'date', required: true },
+    { key: 'reason', label: 'Reason', type: 'text' },
+  ],
+  training_approval: [
+    { key: 'courseTitle', label: 'Course / Programme', type: 'text', required: true },
+    { key: 'trainingDates', label: 'Dates', type: 'text' },
+    { key: 'venue', label: 'Venue', type: 'text' },
+  ],
+  leave_approval: [
+    { key: 'leaveType', label: 'Leave type', type: 'text' },
+    { key: 'startDate', label: 'Start date', type: 'date' },
+    { key: 'endDate', label: 'End date', type: 'date' },
+    { key: 'daysRequested', label: 'Days approved', type: 'text' },
+  ],
+  leave_rejection: [
+    { key: 'leaveType', label: 'Leave type', type: 'text' },
+    { key: 'startDate', label: 'Start date', type: 'date' },
+    { key: 'endDate', label: 'End date', type: 'date' },
+    { key: 'rejectionReason', label: 'Rejection reason', type: 'textarea', required: true },
+  ],
+  dismissal: [
+    { key: 'terminationDate', label: 'Effective date', type: 'date', required: true },
+    { key: 'terminationReason', label: 'Grounds', type: 'textarea', required: true },
+  ],
+  resignation_acceptance: [{ key: 'lastWorkingDay', label: 'Last working day', type: 'date', required: true }],
+  exit_clearance: [
+    { key: 'separationType', label: 'Separation type', type: 'text' },
+    { key: 'lastWorkingDay', label: 'Last working day', type: 'date' },
+  ],
+  return_of_property: [{ key: 'propertyList', label: 'Property list', type: 'textarea' }],
+  handbook_receipt: [{ key: 'handbookVersion', label: 'Handbook version', type: 'text' }],
+  certificate_of_service: [
+    { key: 'lastWorkingDay', label: 'Last working day', type: 'date' },
+    { key: 'conductNote', label: 'Conduct note', type: 'text' },
   ],
 };
 
@@ -277,7 +374,7 @@ Zarewa Aluminium & Plastics Ltd`;
   }
 }
 
-export default function HrLetters() {
+export default function HrLetters({ embedded = false } = {}) {
   const ws = useWorkspace();
   const canGenerate = canGenerateHrLetters(ws?.permissions);
 
@@ -326,9 +423,16 @@ export default function HrLetters() {
   const onGenerate = async (e) => {
     e.preventDefault();
     if (!canGenerate || !userId) return;
-    setBusy(true);
     setMessage('');
     setFormErr('');
+
+    const missing = currentExtraFields.filter((f) => f.required && !String(extraFields[f.key] || '').trim());
+    if (missing.length) {
+      setFormErr(`Required: ${missing.map((f) => f.label).join(', ')}`);
+      return;
+    }
+
+    setBusy(true);
 
     const person = staff.find((s) => s.userId === userId);
     const localContent = generateLetterContent(person, letterKind, extraFields);
@@ -386,9 +490,11 @@ export default function HrLetters() {
       </div>
 
       <div className="flex flex-wrap items-start justify-between gap-3 no-print">
-        <p className="text-sm text-slate-600 max-w-2xl">
-          Issue employment, disciplinary, transfer, promotion, and other HR letters. Letters are stored on the employee file.
-        </p>
+        {!embedded ? (
+          <p className="text-sm text-slate-600 max-w-2xl">
+            Issue employment, disciplinary, transfer, promotion, and other HR letters. Letters are stored on the employee file.
+          </p>
+        ) : null}
         {canGenerate ? <HrAddFormButton onClick={() => { setModalOpen(true); setPreview(''); setFormErr(''); setMessage(''); }}>Generate letter</HrAddFormButton> : null}
       </div>
 
@@ -431,11 +537,22 @@ export default function HrLetters() {
                 value={letterKind}
                 onChange={(e) => { setLetterKind(e.target.value); setExtraFields({}); setPreview(''); }}
               >
-                {LETTER_TYPES.map((t) => (
-                  <option key={t.value} value={t.value}>{t.label}</option>
+                {LETTER_GROUPS.map((g) => (
+                  <optgroup key={g.label} label={g.label}>
+                    {g.types.map((v) => {
+                      const t = LETTER_TYPE_MAP[v];
+                      return t ? <option key={v} value={v}>{t.label}</option> : null;
+                    })}
+                  </optgroup>
                 ))}
               </select>
             </label>
+
+            {currentExtraFields.length === 0 && userId ? (
+              <p className="text-xs text-slate-500 rounded-lg border border-slate-100 bg-slate-50 px-3 py-2">
+                No additional fields required — select Preview to review before saving.
+              </p>
+            ) : null}
 
             {/* Dynamic extra fields */}
             {currentExtraFields.map((f) => (
@@ -538,7 +655,7 @@ export default function HrLetters() {
         />
       </div>
 
-      <AppTableWrap>
+      <AppTableWrap className="overflow-x-auto -mx-1 px-1">
         <AppTable>
           <AppTableThead>
             <AppTableTr>

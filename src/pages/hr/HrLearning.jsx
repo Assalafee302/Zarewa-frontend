@@ -5,6 +5,7 @@ import { useHrListLoad } from '../../hooks/useHrListLoad';
 import { apiFetch } from '../../lib/apiBase';
 import { hrHasPermission } from '../../lib/hrAccess';
 import { createHrTrainingRecord, deleteHrTrainingRecord, fetchHrTrainingRecords } from '../../lib/hrLearning';
+import { HR_EMPLOYEES } from '../../lib/hrRoutes';
 import { HrAddFormButton, HrFormModal } from '../../components/hr/HrFormModal';
 import { HrCard, HrPageBody, HrPageIntro } from '../../components/hr/hrPageUi';
 import { HR_BTN_PRIMARY, HR_BTN_SECONDARY, HR_FIELD_CLASS } from '../../components/hr/hrFormStyles';
@@ -18,7 +19,7 @@ import {
   AppTableWrap,
 } from '../../components/ui/AppDataTable';
 
-export default function HrLearning() {
+export default function HrLearning({ embedded = false } = {}) {
   const ws = useWorkspace();
   const canManage = hrHasPermission(ws?.permissions, 'hr.staff.manage');
   const [staff, setStaff] = useState([]);
@@ -71,20 +72,28 @@ export default function HrLearning() {
 
   return (
     <HrPageBody>
-      <HrPageIntro
-        title="Learning & development"
-        description="Track courses, certifications, and safety training by employee."
-        actions={
-          <>
-            {person ? (
-              <Link to={`/hr/staff/${userId}`} className={HR_BTN_SECONDARY}>
-                Open profile
-              </Link>
-            ) : null}
-            {canManage ? <HrAddFormButton onClick={() => setModalOpen(true)}>Add record</HrAddFormButton> : null}
-          </>
-        }
-      />
+      {!embedded ? (
+        <HrPageIntro
+          title="Learning & development"
+          description="Track courses, certifications, and safety training by employee."
+          actions={
+            <>
+              {person ? (
+                <Link to={`${HR_EMPLOYEES}/${userId}`} className={HR_BTN_SECONDARY}>
+                  Open profile
+                </Link>
+              ) : null}
+              {canManage ? <HrAddFormButton onClick={() => setModalOpen(true)}>Add record</HrAddFormButton> : null}
+            </>
+          }
+        />
+      ) : (
+        canManage ? (
+          <div className="flex justify-end pb-2">
+            <HrAddFormButton onClick={() => setModalOpen(true)}>Add record</HrAddFormButton>
+          </div>
+        ) : null
+      )}
       <HrCard title="Employee records">
         <label className="mb-4 block max-w-md text-xs font-semibold text-slate-600">
           Select employee

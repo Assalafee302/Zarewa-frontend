@@ -10,6 +10,7 @@ import { workItemNeedsActionForUser } from './workspaceInboxBuckets.js';
  * @param {(m: string) => boolean} params.canAccessModule
  * @param {number} params.lowStockSkuCount
  * @param {{ pendingActionApprox?: number; unreadApprox?: number } | null} [params.officeSummary]
+ * @param {{ items?: { key: string; count: number; path: string; title: string }[]; totalCount?: number } | null} [params.hrNotifSummary]
  */
 export function buildWorkspaceNotifications({
   snapshot,
@@ -17,6 +18,7 @@ export function buildWorkspaceNotifications({
   canAccessModule,
   lowStockSkuCount,
   officeSummary = null,
+  hrNotifSummary = null,
 }) {
   const items = [];
   const can = (p) => hasPermission('*') || hasPermission(p);
@@ -248,6 +250,18 @@ export function buildWorkspaceNotifications({
           : 'info',
       path: '/',
     });
+  }
+
+  if (canAccessModule('hr') && hrNotifSummary?.items?.length) {
+    for (const row of hrNotifSummary.items) {
+      items.push({
+        id: `hr-${row.key}`,
+        title: row.title,
+        detail: `${row.count} item(s) need HR action.`,
+        severity: row.key.includes('risk') || row.key.includes('absence') ? 'warning' : 'info',
+        path: row.path,
+      });
+    }
   }
 
   return items;

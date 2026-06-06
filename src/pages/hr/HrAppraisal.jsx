@@ -256,7 +256,7 @@ function AddFeedbackModal({ userId, onClose, onSaved }) {
 
 /* ─── main page ────────────────────────────────────────────── */
 
-export default function HrAppraisal() {
+export default function HrAppraisal({ embedded = false } = {}) {
   const [tab, setTab] = useState('cycles');
   const [cycles, setCycles] = useState([]);
   const [newCycleOpen, setNewCycleOpen] = useState(false);
@@ -324,10 +324,12 @@ export default function HrAppraisal() {
 
   return (
     <div className="space-y-6">
-      <HrPageIntro
-        title="Performance Appraisals"
-        description="Manage appraisal cycles, score staff performance, and track feedback notes."
-      />
+      {!embedded ? (
+        <HrPageIntro
+          title="Performance Appraisals"
+          description="Manage appraisal cycles, score staff performance, and track feedback notes."
+        />
+      ) : null}
 
       {/* Tabs */}
       <div className="flex flex-wrap gap-1 border-b border-slate-200 pb-px">

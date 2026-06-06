@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { lazy, Suspense } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import ModuleRouteGuard from '../../components/ModuleRouteGuard';
 import { HrSectionShell } from '../../components/hr/HrSectionShell';
@@ -11,6 +11,8 @@ import ExecutiveHrVariance from './ExecutiveHrVariance';
 import ExecutiveHrApprovals from './ExecutiveHrApprovals';
 import HrReports from './HrReports';
 
+const HrChairmanAccounts = lazy(() => import('./HrChairmanAccounts'));
+
 const NAV = [
   { to: '/hr/executive/payroll', label: 'Payroll summary', end: true },
   { to: '/hr/executive/contributions', label: 'Branch contributions' },
@@ -19,6 +21,7 @@ const NAV = [
   { to: '/hr/executive/special-changes', label: 'Special changes' },
   { to: '/hr/executive/variance', label: 'Payroll variance' },
   { to: '/hr/executive/approvals', label: 'Sensitive approvals' },
+  { to: '/hr/executive/chairman', label: 'Chairman accounts' },
   { to: '/hr/executive/reports', label: 'HR reports' },
 ];
 
@@ -26,7 +29,7 @@ function ExecutiveShell() {
   return (
     <HrSectionShell
       title="Executive HR"
-      subtitle="Managing Director view — branch salary contributions, exceptional loans, and sensitive payroll oversight."
+      subtitle="Managing Director view — branch salary contributions, exceptional loans, chairman accounts, and sensitive payroll oversight."
       navItems={NAV}
     />
   );
@@ -45,7 +48,15 @@ export default function ExecutiveHr() {
           <Route path="special-changes" element={<ExecutiveHrSpecialChanges />} />
           <Route path="variance" element={<ExecutiveHrVariance />} />
           <Route path="approvals" element={<ExecutiveHrApprovals />} />
-          <Route path="reports" element={<HrReports executive />} />
+          <Route
+            path="chairman"
+            element={
+              <Suspense fallback={<p className="text-sm text-slate-600">Loading chairman accounts…</p>}>
+                <HrChairmanAccounts embedded />
+              </Suspense>
+            }
+          />
+          <Route path="reports" element={<HrReports executive embedded />} />
         </Route>
       </Routes>
     </ModuleRouteGuard>

@@ -291,12 +291,29 @@ export function HrStaffFormFields({
                 onChange={(e) => set('bankAccountName', e.target.value)}
               />
             </Field>
-            <Field label="Account no. (masked on file)">
+            <Field label="Account no. (masked display)">
               <input
                 className={fieldCls}
                 value={form.bankAccountNoMasked}
                 onChange={(e) => set('bankAccountNoMasked', e.target.value)}
-                placeholder="Last 4 digits or masked"
+                placeholder="Last 4 digits for display"
+              />
+            </Field>
+            <Field label="Full account no. (payroll export)">
+              <input
+                className={fieldCls}
+                value={form.bankAccountNo || ''}
+                onChange={(e) => set('bankAccountNo', e.target.value)}
+                placeholder="10-digit NUBAN for bank upload"
+                inputMode="numeric"
+              />
+            </Field>
+            <Field label="Bank code (NUBAN)">
+              <input
+                className={fieldCls}
+                value={form.bankCode || ''}
+                onChange={(e) => set('bankCode', e.target.value)}
+                placeholder="e.g. 058 for GTBank"
               />
             </Field>
           </div>

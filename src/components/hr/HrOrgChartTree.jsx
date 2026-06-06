@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 /**
  * @param {{ node: object; depth?: number; linkPrefix?: string }} props
  */
-function OrgNode({ node, depth = 0, linkPrefix = '/hr/staff' }) {
+function OrgNode({ node, depth = 0, linkPrefix = '/hr/employees' }) {
   if (!node) return null;
   const hasChildren = Array.isArray(node.children) && node.children.length > 0;
   return (
@@ -34,7 +34,7 @@ function OrgNode({ node, depth = 0, linkPrefix = '/hr/staff' }) {
 /**
  * @param {{ chart: { roots?: object[]; orphans?: object[]; total?: number }; linkPrefix?: string }} props
  */
-export function HrOrgChartTree({ chart, linkPrefix = '/hr/staff' }) {
+export function HrOrgChartTree({ chart, linkPrefix = '/hr/employees' }) {
   const roots = chart?.roots || [];
   const orphans = chart?.orphans || [];
 

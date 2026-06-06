@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { HrRequestsPanel } from '../../components/hr/HrRequestsPanel';
+import { HR_EMPLOYEES } from '../../lib/hrRoutes';
 import {
   canEndorseBranchHr,
   canGmApproveHrRequests,
@@ -28,7 +29,11 @@ export default function HrRequests() {
         Review leave, loan, and other HR requests. Branch managers endorse before GM HR final approval on sensitive
         cases.
       </p>
-      <HrRequestsPanel allowedScopes={allowedScopes} defaultScope={defaultScope} />
+      <HrRequestsPanel
+        allowedScopes={allowedScopes}
+        defaultScope={defaultScope}
+        staffLinkBase={HR_EMPLOYEES}
+      />
     </div>
   );
 }

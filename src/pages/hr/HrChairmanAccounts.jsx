@@ -72,7 +72,7 @@ function formatNgn(v) {
   return '₦' + Number(v).toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-export default function HrChairmanAccounts() {
+export default function HrChairmanAccounts({ embedded = false } = {}) {
   const navigate = useNavigate();
   const [tab, setTab] = useState('school-fees');
 
@@ -417,7 +417,7 @@ export default function HrChairmanAccounts() {
             <h3 className="text-sm font-black uppercase tracking-wide text-[#134e4a]">Chairman Domestic Staff</h3>
             <button
               type="button"
-              onClick={() => navigate('/hr/staff/register')}
+              onClick={() => navigate('/hr/employees?tab=directory&register=1')}
               className="rounded-xl bg-[#134e4a] px-4 py-2 text-[11px] font-bold uppercase tracking-wide text-white hover:bg-[#0f3d3a]"
             >
               + Register Staff

@@ -9,6 +9,7 @@ import { HrSensitiveGate } from '../../components/hr/HrSensitiveGate';
 import { useHrSensitiveAccess } from '../../hooks/useHrSensitiveAccess';
 import { canManageHrStaff, canViewOrgSensitiveHr, hrHasPermission } from '../../lib/hrAccess';
 import { formatNgn, payrollGroupLabel, yearsOfServiceFromIso } from '../../lib/hrFormat';
+import { HR_EMPLOYEES } from '../../lib/hrRoutes';
 import { HrSalaryIncrementPanel } from '../../components/hr/HrSalaryIncrementPanel';
 import { HrPromotionFromMatrix } from '../../components/hr/HrPromotionFromMatrix';
 import { HrFormModal } from '../../components/hr/HrFormModal';
@@ -264,7 +265,7 @@ export default function HrStaffProfile() {
   if (error) {
     return (
       <div className="space-y-4">
-        <Link to="/hr/staff" className="inline-flex items-center gap-1 text-sm font-semibold text-[#134e4a] hover:underline">
+        <Link to={HR_EMPLOYEES} className="inline-flex items-center gap-1 text-sm font-semibold text-[#134e4a] hover:underline">
           <ArrowLeft size={16} aria-hidden /> Back to staff directory
         </Link>
         <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-800">{error}</div>
@@ -277,7 +278,7 @@ export default function HrStaffProfile() {
     <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <Link to="/hr/staff" className="inline-flex items-center gap-1 text-xs font-bold uppercase tracking-wide text-[#134e4a] hover:underline">
+          <Link to={HR_EMPLOYEES} className="inline-flex items-center gap-1 text-xs font-bold uppercase tracking-wide text-[#134e4a] hover:underline">
             <ArrowLeft size={14} aria-hidden /> Staff directory
           </Link>
           <div className="mt-2 flex items-center gap-3">

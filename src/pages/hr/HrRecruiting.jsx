@@ -4,6 +4,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { useHrListLoad } from '../../hooks/useHrListLoad';
 import { hrHasPermission } from '../../lib/hrAccess';
+import { HR_EMPLOYEES } from '../../lib/hrRoutes';
 import {
   APPLICANT_STATUSES,
   createHrApplicant,
@@ -34,7 +35,7 @@ function countByStatus(applicants) {
   return counts;
 }
 
-export default function HrRecruiting() {
+export default function HrRecruiting({ embedded = false } = {}) {
   const ws = useWorkspace();
   const navigate = useNavigate();
   const canManage = hrHasPermission(ws?.permissions, 'hr.staff.manage');
@@ -152,7 +153,7 @@ export default function HrRecruiting() {
   };
 
   const hireApplicant = (applicantId) => {
-    navigate(`/hr/staff/register?applicantId=${encodeURIComponent(applicantId)}`);
+    navigate(`${HR_EMPLOYEES}?tab=directory&register=1&applicantId=${encodeURIComponent(applicantId)}`);
   };
 
   const openScorecard = (applicant) => {
@@ -399,7 +400,7 @@ export default function HrRecruiting() {
                               Register as staff
                             </button>
                           ) : a.hiredUserId ? (
-                            <Link to={`/hr/staff/${a.hiredUserId}`} className={HR_BTN_SECONDARY}>
+                            <Link to={`${HR_EMPLOYEES}/${a.hiredUserId}`} className={HR_BTN_SECONDARY}>
                               View staff profile
                             </Link>
                           ) : null}

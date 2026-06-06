@@ -22,7 +22,7 @@ import {
   AppTableWrap,
 } from '../../components/ui/AppDataTable';
 
-export default function HrBenefits() {
+export default function HrBenefits({ embedded = false } = {}) {
   const ws = useWorkspace();
   const canManage = canManageHrBenefits(ws?.permissions);
   const [tab, setTab] = useState('beneficiaries');
@@ -99,9 +99,11 @@ export default function HrBenefits() {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm text-slate-600">
-          Manage allowances, scholarship beneficiaries, and domestic staff benefit schedules separate from payroll lines.
-        </p>
+        {!embedded ? (
+          <p className="text-sm text-slate-600">
+            Manage allowances, scholarship beneficiaries, and domestic staff benefit schedules separate from payroll lines.
+          </p>
+        ) : null}
         {tab === 'beneficiaries' && canManage ? (
           <HrAddFormButton onClick={() => setModalOpen(true)}>Add beneficiary</HrAddFormButton>
         ) : null}

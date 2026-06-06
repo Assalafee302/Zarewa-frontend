@@ -70,7 +70,7 @@ function TempIdCardModal({ request, staff, onClose }) {
   );
 }
 
-export default function HrIdCards() {
+export default function HrIdCards({ embedded = false } = {}) {
   const ws = useWorkspace();
   const isManager = canManageHrStaff(ws?.permissions);
   const currentUserId = ws?.userId;

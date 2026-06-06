@@ -5,7 +5,7 @@ import { HrOrgChartTree } from '../../components/hr/HrOrgChartTree';
 import { fetchHrOrgChart } from '../../lib/hrOrgChart';
 import { HR_FIELD_CLASS } from '../../components/hr/hrFormStyles';
 
-export default function HrOrgChart() {
+export default function HrOrgChart({ staffBasePath = '/hr/employees' } = {}) {
   const ws = useWorkspace();
   const branches = useMemo(() => {
     const list = ws?.snapshot?.workspaceBranches ?? ws?.session?.branches ?? [];
@@ -71,7 +71,7 @@ export default function HrOrgChart() {
       </div>
       {loading && !chart.total ? <p className="text-sm text-slate-600">Loading org chart…</p> : null}
       <div className="overflow-x-auto rounded-2xl border border-slate-100 bg-slate-50/50 p-4 sm:p-6">
-        <HrOrgChartTree chart={filteredChart} />
+        <HrOrgChartTree chart={filteredChart} linkPrefix={staffBasePath} />
       </div>
     </div>
   );

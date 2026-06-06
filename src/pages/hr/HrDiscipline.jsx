@@ -5,6 +5,7 @@ import { useHrListLoad } from '../../hooks/useHrListLoad';
 import { canManageHrDiscipline } from '../../lib/hrAccess';
 import { apiFetch } from '../../lib/apiBase';
 import { fetchHrDisciplinaryEvents, recordHrDisciplinaryEvent } from '../../lib/hrStaff';
+import { HR_EMPLOYEES } from '../../lib/hrRoutes';
 import { HR_DISCIPLINARY_KINDS } from '../../lib/hrStaffConstants';
 import { HrAddFormButton, HrFormModal } from '../../components/hr/HrFormModal';
 import { HR_BTN_PRIMARY, HR_FIELD_CLASS } from '../../components/hr/hrFormStyles';
@@ -31,7 +32,7 @@ function buildQueryCounts(events) {
   return counts;
 }
 
-export default function HrDiscipline() {
+export default function HrDiscipline({ embedded = false } = {}) {
   const ws = useWorkspace();
   const perms = ws?.permissions || [];
   const canManage = canManageHrDiscipline(perms);
@@ -101,10 +102,12 @@ export default function HrDiscipline() {
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <p className="text-sm text-slate-600 max-w-2xl">
-          Record warnings and other disciplinary actions on the employee file. Events appear on the staff profile and
-          audit trail.
-        </p>
+        {!embedded ? (
+          <p className="text-sm text-slate-600 max-w-2xl">
+            Record warnings and other disciplinary actions on the employee file. Events appear on the staff profile and
+            audit trail.
+          </p>
+        ) : null}
         {canManage ? <HrAddFormButton onClick={() => setModalOpen(true)}>Record disciplinary action</HrAddFormButton> : null}
       </div>
 
@@ -223,7 +226,7 @@ export default function HrDiscipline() {
                     <AppTableTd>{ev.dateIso || '—'}</AppTableTd>
                     <AppTableTd>
                       <Link
-                        to={`/hr/staff/${encodeURIComponent(ev.staffUserId)}`}
+                        to={`${HR_EMPLOYEES}/${encodeURIComponent(ev.staffUserId)}`}
                         className="font-semibold text-[#134e4a] hover:underline"
                       >
                         {ev.staffDisplayName || ev.staffUserId}

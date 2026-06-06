@@ -1,7 +1,10 @@
 import React, { useCallback, useState } from 'react';
+import { useWorkspace } from '../../context/WorkspaceContext';
 import { Link } from 'react-router-dom';
 import { apiFetch } from '../../lib/apiBase';
 import { useHrListLoad } from '../../hooks/useHrListLoad';
+import { generateLeaveDecisionLetter } from '../../lib/hrPhase2';
+import { canGenerateHrLetters } from '../../lib/hrAccess';
 import {
   hrRequestKindLabel,
   hrRequestStatusClass,
@@ -36,6 +39,8 @@ export function HrRequestsPanel({
   kindFilter = '',
   staffLinkBase = '/hr/staff',
 }) {
+  const ws = useWorkspace();
+  const canLetter = canGenerateHrLetters(ws?.session?.permissions);
   const [scope, setScope] = useState(defaultScope);
   const [requests, setRequests] = useState([]);
   const [busyId, setBusyId] = useState('');
@@ -352,6 +357,34 @@ export function HrRequestsPanel({
                             className="rounded-lg border border-slate-200 px-2 py-1 text-[10px] font-bold uppercase text-[#134e4a]"
                           >
                             Review
+                          </button>
+                        ) : null}
+                        {canLetter && r.kind === 'leave' && r.status === 'approved' ? (
+                          <button
+                            type="button"
+                            disabled={busyId === r.id}
+                            onClick={async () => {
+                              setBusyId(r.id);
+                              await generateLeaveDecisionLetter(r.id, 'leave_approval');
+                              setBusyId('');
+                            }}
+                            className="rounded-lg border border-teal-200 px-2 py-1 text-[10px] font-bold uppercase text-teal-800"
+                          >
+                            Approval letter
+                          </button>
+                        ) : null}
+                        {canLetter && r.kind === 'leave' && ['rejected', 'hr_rejected', 'gm_rejected'].includes(r.status) ? (
+                          <button
+                            type="button"
+                            disabled={busyId === r.id}
+                            onClick={async () => {
+                              setBusyId(r.id);
+                              await generateLeaveDecisionLetter(r.id, 'leave_rejection');
+                              setBusyId('');
+                            }}
+                            className="rounded-lg border border-slate-200 px-2 py-1 text-[10px] font-bold uppercase text-slate-600"
+                          >
+                            Rejection letter
                           </button>
                         ) : null}
                       </div>

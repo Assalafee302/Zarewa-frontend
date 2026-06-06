@@ -5,6 +5,7 @@ import { useWorkspace } from '../../context/WorkspaceContext';
 import { useHrListLoad } from '../../hooks/useHrListLoad';
 import { canManageHrLeave } from '../../lib/hrAccess';
 import { currentPeriodYyyymm } from '../../lib/hrRequests';
+import { HR_EMPLOYEES } from '../../lib/hrRoutes';
 import {
   AppTable,
   AppTableBody,
@@ -66,7 +67,7 @@ function CarryOverModal({ onClose, onSuccess }) {
   );
 }
 
-export default function HrLeave() {
+export default function HrLeave({ embedded = false, showYearEndOnly = false } = {}) {
   const ws = useWorkspace();
   const canManage = canManageHrLeave(ws?.permissions);
   const [periodYyyymm, setPeriodYyyymm] = useState(currentPeriodYyyymm());
@@ -101,15 +102,50 @@ export default function HrLeave() {
     await reload();
   };
 
+  if (showYearEndOnly) {
+    return (
+      <div className="space-y-4">
+        <p className="text-sm text-slate-600">
+          Run year-end carry-over to move unused annual leave forward (max 21 days) and forfeit excess per handbook policy.
+        </p>
+        {canManage ? (
+          <button
+            type="button"
+            onClick={() => setCarryOverOpen(true)}
+            className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-2.5 text-[11px] font-bold uppercase text-amber-900"
+          >
+            Year-End Carry-Over
+          </button>
+        ) : (
+          <p className="text-sm text-slate-500">HR leave management permission required.</p>
+        )}
+        {carryOverOpen ? (
+          <CarryOverModal
+            onClose={() => setCarryOverOpen(false)}
+            onSuccess={(msg) => {
+              setCarryOverOpen(false);
+              setMessage(msg);
+            }}
+          />
+        ) : null}
+        {message ? (
+          <div className="rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">{message}</div>
+        ) : null}
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
-      <p className="text-sm text-slate-600">
-        Organisation leave balances and calendar. Staff apply via{' '}
-        <Link to="/my-profile/leave" className="font-semibold text-[#134e4a] hover:underline">
-          My profile → Leave
-        </Link>
-        .
-      </p>
+      {!embedded ? (
+        <p className="text-sm text-slate-600">
+          Organisation leave balances and calendar. Staff apply via{' '}
+          <Link to="/my-profile/leave" className="font-semibold text-[#134e4a] hover:underline">
+            My profile → Leave
+          </Link>
+          .
+        </p>
+      ) : null}
 
       <div className="flex flex-wrap gap-2 items-end">
         <label className="text-xs font-semibold text-slate-600">
@@ -181,7 +217,7 @@ export default function HrLeave() {
                   <AppTableTr key={`${b.userId}-${b.leaveType}-${b.periodYyyymm}`}>
                     <AppTableTd>
                       <Link
-                        to={`/hr/staff/${encodeURIComponent(b.userId)}`}
+                        to={`${HR_EMPLOYEES}/${encodeURIComponent(b.userId)}`}
                         className="font-semibold text-[#134e4a] hover:underline"
                       >
                         {b.userId}

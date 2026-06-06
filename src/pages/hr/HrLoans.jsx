@@ -9,8 +9,9 @@ import {
   canManageHrStaff,
   canReviewHrRequests,
 } from '../../lib/hrAccess';
+import { HR_EMPLOYEES } from '../../lib/hrRoutes';
 
-export default function HrLoans() {
+export default function HrLoans({ embedded = false } = {}) {
   const ws = useWorkspace();
   const perms = ws?.permissions || [];
   const [loanModalOpen, setLoanModalOpen] = useState(false);
@@ -26,13 +27,17 @@ export default function HrLoans() {
   return (
     <div className="space-y-8">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <p className="text-sm text-slate-600 max-w-2xl">
-          Staff apply for loans from{' '}
-          <Link to="/my-profile/loans" className="font-semibold text-[#134e4a] hover:underline">
-            My profile → My loans
-          </Link>{' '}
-          (when self-service is enabled). HR can originate applications here and track approvals below.
-        </p>
+        {!embedded ? (
+          <p className="text-sm text-slate-600 max-w-2xl">
+            Staff apply for loans from{' '}
+            <Link to="/my-profile/loans" className="font-semibold text-[#134e4a] hover:underline">
+              My profile → My loans
+            </Link>{' '}
+            (when self-service is enabled). HR can originate applications here and track approvals below.
+          </p>
+        ) : (
+          <p className="text-sm text-slate-600">Staff loan requests, approvals, and finance disbursement tracking.</p>
+        )}
         {canManageHrStaff(perms) ? (
           <HrAddFormButton onClick={() => setLoanModalOpen(true)}>New staff loan</HrAddFormButton>
         ) : null}
@@ -53,6 +58,7 @@ export default function HrLoans() {
           allowedScopes={allowedScopes}
           defaultScope={allowedScopes[0] || 'all'}
           kindFilter="loan"
+          staffLinkBase={HR_EMPLOYEES}
         />
       </section>
     </div>

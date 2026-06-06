@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Search, UserPlus } from 'lucide-react';
 import { HrFormModal } from '../../components/hr/HrFormModal';
@@ -8,6 +8,7 @@ import { useWorkspace } from '../../context/WorkspaceContext';
 import { useHrListLoad } from '../../hooks/useHrListLoad';
 import { canManageHrStaff, canViewOrgSensitiveHr } from '../../lib/hrAccess';
 import { formatNgn, payrollGroupLabel } from '../../lib/hrFormat';
+import { HR_EMPLOYEES } from '../../lib/hrRoutes';
 import {
   AppTable,
   AppTableBody,
@@ -18,11 +19,28 @@ import {
   AppTableWrap,
 } from '../../components/ui/AppDataTable';
 
+function contractBadge(staff) {
+  const et = String(staff.employmentType || staff.normalized?.taxonomy?.employmentType || '').toLowerCase();
+  if (!et.includes('contract') && !et.includes('temp')) return null;
+  const end = staff.contractEndIso;
+  const today = new Date().toISOString().slice(0, 10);
+  if (!end) return { label: 'No contract end', cls: 'border-amber-200 bg-amber-50 text-amber-900' };
+  if (end < today) return { label: 'Past contract end', cls: 'border-red-200 bg-red-50 text-red-900' };
+  const in30 = new Date();
+  in30.setDate(in30.getDate() + 30);
+  if (end <= in30.toISOString().slice(0, 10)) return { label: 'Contract ending soon', cls: 'border-orange-200 bg-orange-50 text-orange-900' };
+  if (staff.dateJoinedIso) {
+    const months = (Date.parse(end) - Date.parse(staff.dateJoinedIso)) / (30.44 * 86400000);
+    if (months > 6) return { label: 'Over 6 months', cls: 'border-violet-200 bg-violet-50 text-violet-900' };
+  }
+  return null;
+}
+
 function uniqueSorted(values) {
   return [...new Set(values.filter(Boolean))].sort((a, b) => String(a).localeCompare(String(b)));
 }
 
-export default function HrStaffDirectory() {
+export default function HrStaffDirectory({ staffBasePath = HR_EMPLOYEES, initialRegisterOpen = false } = {}) {
   const navigate = useNavigate();
   const ws = useWorkspace();
   const perms = ws?.permissions || [];
@@ -40,7 +58,11 @@ export default function HrStaffDirectory() {
   const [employmentType, setEmploymentType] = useState('');
   const [status, setStatus] = useState('active');
   const [includeInactive, setIncludeInactive] = useState(false);
-  const [registerOpen, setRegisterOpen] = useState(false);
+  const [registerOpen, setRegisterOpen] = useState(initialRegisterOpen);
+
+  useEffect(() => {
+    if (initialRegisterOpen) setRegisterOpen(true);
+  }, [initialRegisterOpen]);
 
   const { loading, error } = useHrListLoad(async () => {
     const q = includeInactive ? '?includeInactive=1' : '';
@@ -96,7 +118,7 @@ export default function HrStaffDirectory() {
         <HrStaffRegisterForm
           onSuccess={(newUserId) => {
             setRegisterOpen(false);
-            navigate(`/hr/staff/${encodeURIComponent(newUserId)}`);
+            navigate(`${staffBasePath}/${encodeURIComponent(newUserId)}`);
           }}
           onCancel={() => setRegisterOpen(false)}
         />
@@ -220,7 +242,7 @@ export default function HrStaffDirectory() {
                   <AppTableTr key={s.userId}>
                     <AppTableTd>
                       <Link
-                        to={`/hr/staff/${encodeURIComponent(s.userId)}`}
+                        to={`${staffBasePath}/${encodeURIComponent(s.userId)}`}
                         className="font-semibold text-[#134e4a] hover:underline"
                       >
                         {s.displayName || s.username}
@@ -247,6 +269,14 @@ export default function HrStaffDirectory() {
                       >
                         {s.status || '—'}
                       </span>
+                      {(() => {
+                        const b = contractBadge(s);
+                        return b ? (
+                          <span className={`ml-1 inline-flex rounded-full border px-2 py-0.5 text-[9px] font-bold uppercase ${b.cls}`}>
+                            {b.label}
+                          </span>
+                        ) : null;
+                      })()}
                     </AppTableTd>
                   </AppTableTr>
                 ))

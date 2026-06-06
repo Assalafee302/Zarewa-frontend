@@ -133,7 +133,7 @@ function VarianceModal({ runId, onClose }) {
   );
 }
 
-export default function HrPayroll() {
+export default function HrPayroll({ embedded = false } = {}) {
   const ws = useWorkspace();
   const perms = ws?.permissions || [];
   const sensitive = useHrSensitiveAccess();
@@ -373,10 +373,12 @@ export default function HrPayroll() {
 
   return (
     <div className="space-y-6">
-      <p className="text-sm text-slate-600">
-        HQ prepares payroll centrally. GM HR or MD must approve before lock; finance marks paid after treasury
-        payout.
-      </p>
+      {!embedded ? (
+        <p className="text-sm text-slate-600">
+          HQ prepares payroll centrally. GM HR or MD must approve before lock; finance marks paid after treasury
+          payout.
+        </p>
+      ) : null}
 
       <div className="flex flex-wrap gap-1 border-b border-slate-200 pb-px">
         <button
@@ -386,7 +388,7 @@ export default function HrPayroll() {
         >
           Payroll runs
         </button>
-        {canPrepare ? (
+        {canPrepare && !embedded ? (
           <button
             type="button"
             onClick={() => setTab('matrix')}
@@ -573,21 +575,33 @@ export default function HrPayroll() {
                   ) : null}
                 </div>
 
-                {(run.status === 'locked' || run.status === 'paid') && canExport ? (
-                  <div className="flex flex-wrap gap-2">
-                    {['treasury', 'payslips', 'payslips-pdf', 'statutory', 'gl'].map((k) => (
-                      <button
-                        key={k}
-                        type="button"
-                        onClick={async () => {
-                          const r = await downloadHrPayrollExport(selectedId, k);
-                          if (!r.ok) setError(r.error);
-                        }}
-                        className="rounded-lg border border-slate-200 px-3 py-1.5 text-[10px] font-bold uppercase text-[#134e4a]"
-                      >
-                        Export {k}
-                      </button>
-                    ))}
+                {(run.status === 'locked' || run.status === 'paid' || run.status === 'md_approved' || run.status === 'gm_approved') && canExport ? (
+                  <div className="space-y-2">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Payroll exports</p>
+                    <div className="flex flex-wrap gap-2">
+                      {[
+                        { k: 'hr-approval', label: 'HR approval report' },
+                        { k: 'bank-upload', label: 'Bank upload CSV' },
+                        { k: 'treasury', label: 'Treasury pack' },
+                        { k: 'payslips', label: 'Payslips CSV' },
+                        { k: 'payslips-pdf', label: 'Payslips PDF' },
+                        { k: 'statutory', label: 'Statutory' },
+                        { k: 'gl', label: 'GL journal' },
+                      ].map(({ k, label }) => (
+                        <button
+                          key={k}
+                          type="button"
+                          title={k === 'bank-upload' ? 'Requires full bank account numbers on staff profiles' : undefined}
+                          onClick={async () => {
+                            const r = await downloadHrPayrollExport(selectedId, k);
+                            if (!r.ok) setError(r.error);
+                          }}
+                          className="rounded-lg border border-slate-200 px-3 py-1.5 text-[10px] font-bold uppercase text-[#134e4a] hover:bg-slate-50"
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 ) : null}
 

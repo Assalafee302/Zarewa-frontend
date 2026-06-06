@@ -3,6 +3,8 @@ import { hrSensitiveHeaders } from './hrSensitiveStorage';
 
 const EXPORT_KINDS = {
   treasury: 'treasury',
+  'bank-upload': 'bank-upload',
+  'hr-approval': 'hr-approval',
   payslips: 'payslips',
   'payslips-pdf': 'payslips-pdf',
   statutory: 'statutory',

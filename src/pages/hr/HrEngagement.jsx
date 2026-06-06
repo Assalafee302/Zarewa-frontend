@@ -20,7 +20,7 @@ import {
 } from '../../components/hr/hrPageUi';
 import { HR_BTN_PRIMARY, HR_BTN_SECONDARY, HR_FIELD_CLASS } from '../../components/hr/hrFormStyles';
 
-export default function HrEngagement() {
+export default function HrEngagement({ embedded = false } = {}) {
   const ws = useWorkspace();
   const canManage = hrHasPermission(ws?.permissions, 'hr.staff.manage');
   const [surveys, setSurveys] = useState([]);
@@ -81,11 +81,19 @@ export default function HrEngagement() {
 
   return (
     <HrPageBody>
-      <HrPageIntro
-        title="Staff engagement"
-        description="Pulse surveys for staff engagement. Open a survey for employees to respond in My Profile."
-        actions={canManage ? <HrAddFormButton onClick={() => setModalOpen(true)}>New survey</HrAddFormButton> : null}
-      />
+      {!embedded ? (
+        <HrPageIntro
+          title="Staff engagement"
+          description="Pulse surveys for staff engagement. Open a survey for employees to respond in My Profile."
+          actions={canManage ? <HrAddFormButton onClick={() => setModalOpen(true)}>New survey</HrAddFormButton> : null}
+        />
+      ) : (
+        canManage ? (
+          <div className="flex justify-end pb-2">
+            <HrAddFormButton onClick={() => setModalOpen(true)}>New survey</HrAddFormButton>
+          </div>
+        ) : null
+      )}
       <HrSplitWorkspace
         sidebar={
           <HrCard title="Surveys" subtitle={`${surveys.length} total`}>

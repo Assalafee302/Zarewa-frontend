@@ -227,7 +227,9 @@ function AppShell() {
     [products]
   );
   const [officeSummary, setOfficeSummary] = useState(null);
+  const [hrNotifSummary, setHrNotifSummary] = useState(null);
   const canSeeOfficeModule = Boolean(ws?.canAccessModule?.('office'));
+  const canSeeHrModule = Boolean(ws?.canAccessModule?.('hr') || ws?.canAccessModule?.('team_hr'));
   useEffect(() => {
     if (!canSeeOfficeModule) {
       setOfficeSummary(null);
@@ -245,6 +247,21 @@ function AppShell() {
     };
   }, [canSeeOfficeModule]);
 
+  useEffect(() => {
+    if (!canSeeHrModule) {
+      setHrNotifSummary(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const { ok, data } = await apiFetch('/api/hr/notification-summary');
+      if (cancelled) return;
+      if (ok && data?.ok) setHrNotifSummary(data.summary);
+      else setHrNotifSummary(null);
+    })();
+    return () => { cancelled = true; };
+  }, [canSeeHrModule]);
+
   const notificationItems = useMemo(
     () =>
       buildWorkspaceNotifications({
@@ -253,8 +270,9 @@ function AppShell() {
         canAccessModule: (m) => ws?.canAccessModule?.(m),
         lowStockSkuCount: lowStockCount,
         officeSummary,
+        hrNotifSummary,
       }),
-    [ws?.snapshot, ws?.hasPermission, ws?.canAccessModule, lowStockCount, officeSummary]
+    [ws?.snapshot, ws?.hasPermission, ws?.canAccessModule, lowStockCount, officeSummary, hrNotifSummary]
   );
   const urgentNotifCount = useMemo(
     () => notificationItems.filter((n) => n.severity === 'warning').length,

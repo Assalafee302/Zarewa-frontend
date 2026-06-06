@@ -77,6 +77,8 @@ export function emptyStaffForm(defaultBranchId = '') {
     bankName: '',
     bankAccountName: '',
     bankAccountNoMasked: '',
+    bankAccountNo: '',
+    bankCode: '',
     minimumQualification: '',
     academicQualification: '',
     promotionGrade: '',
