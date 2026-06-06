@@ -28,6 +28,8 @@ import HrDocumentsHub from './HrDocumentsHub';
 import HrSettingsHub from './HrSettingsHub';
 import ExecutiveHr from './ExecutiveHr';
 
+const HrAnalytics = lazy(() => import('./HrAnalytics'));
+
 const HR_NAV = [
   { to: '/hr/dashboard', label: 'Dashboard', end: true },
   { to: '/hr/employees', label: 'Employees' },
@@ -39,6 +41,7 @@ const HR_NAV = [
   { to: '/hr/discipline-exit', label: 'Discipline & Exit' },
   { to: '/hr/documents', label: 'Documents' },
   { to: '/hr/settings', label: 'Settings' },
+  { to: '/hr/analytics', label: 'Analytics' },
 ];
 
 function LegacyStaffProfileRedirect() {
@@ -99,7 +102,7 @@ export default function HumanResources() {
         <Route path="letters" element={<HrTabRedirect base={HR_DOCUMENTS} tab="letters" />} />
         <Route path="reports" element={<HrTabRedirect base={HR_DOCUMENTS} tab="reports" />} />
         <Route path="appraisal" element={<HrTabRedirect base={HR_DEVELOPMENT} tab="appraisals" />} />
-        <Route path="analytics" element={<Navigate to="/hr/dashboard" replace />} />
+        <Route path="analytics" element={<Suspense fallback={<p className="text-sm text-slate-600">Loading analytics…</p>}><HrAnalytics /></Suspense>} />
         <Route path="id-cards" element={<HrTabRedirect base={HR_EMPLOYEES} tab="id-cards" />} />
         <Route path="chairman" element={<Navigate to="/hr/executive/chairman" replace />} />
 

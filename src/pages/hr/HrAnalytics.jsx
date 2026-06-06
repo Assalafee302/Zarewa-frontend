@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { apiFetch } from '../../lib/apiBase';
+import { fetchHrAnalyticsDashboard } from '../../lib/hrMasterData';
 import { HrCard, HrPageIntro } from '../../components/hr/hrPageUi';
 import {
   AppTable,
@@ -34,6 +35,87 @@ function StatCard({ label, value, sub }) {
       <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">{label}</p>
       <p className="mt-1 text-xl font-black tabular-nums">{value}</p>
       {sub ? <p className="mt-0.5 text-xs text-slate-500">{sub}</p> : null}
+    </div>
+  );
+}
+
+/* ─── Tab 0: Dashboard (Phase 5) ───────────────────────────── */
+
+function DashboardTab() {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    (async () => {
+      setLoading(true);
+      const { ok, data: d } = await fetchHrAnalyticsDashboard();
+      setLoading(false);
+      if (!ok || !d?.ok) {
+        setError(d?.error || 'Could not load HR analytics dashboard.');
+        return;
+      }
+      setData(d.analytics);
+    })();
+  }, []);
+
+  if (loading) return <p className="text-sm text-slate-600">Loading workforce analytics…</p>;
+  if (error) return <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-800">{error}</div>;
+  if (!data) return null;
+
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <StatCard label="Active headcount" value={data.headcount?.total ?? '—'} />
+        <StatCard label="Hires (12 mo)" value={data.movement?.hires ?? '—'} />
+        <StatCard label="Transfers (12 mo)" value={data.movement?.transfers ?? '—'} />
+        <StatCard label="Training staff" value={data.compliance?.trainingRecords ?? '—'} />
+      </div>
+      <div className="grid gap-4 lg:grid-cols-2">
+        <HrCard title="Headcount by department">
+          <ul className="space-y-1 text-sm">
+            {(data.headcount?.byDepartment || []).slice(0, 10).map((r) => (
+              <li key={r.label} className="flex justify-between"><span>{r.label}</span><strong>{r.count}</strong></li>
+            ))}
+          </ul>
+        </HrCard>
+        <HrCard title="Headcount by branch">
+          <ul className="space-y-1 text-sm">
+            {(data.headcount?.byBranch || []).slice(0, 10).map((r) => (
+              <li key={r.label} className="flex justify-between"><span>{r.label}</span><strong>{r.count}</strong></li>
+            ))}
+          </ul>
+        </HrCard>
+        <HrCard title="Leave usage by department">
+          <ul className="space-y-1 text-sm">
+            {(data.leaveUsage?.byDepartment || []).slice(0, 10).map((r) => (
+              <li key={r.department} className="flex justify-between"><span>{r.department}</span><strong>{r.count}</strong></li>
+            ))}
+          </ul>
+        </HrCard>
+        <HrCard title="Overtime hours trend (no pay)">
+          <ul className="space-y-1 text-sm">
+            {(data.attendanceTrend?.months || []).map((m, i) => (
+              <li key={m} className="flex justify-between">
+                <span>{m}</span>
+                <strong>{data.attendanceTrend?.overtimeHours?.[i] ?? 0} hrs</strong>
+              </li>
+            ))}
+          </ul>
+        </HrCard>
+      </div>
+      {data.payrollTrend?.periods?.length ? (
+        <HrCard title="Payroll net pay trend (authorized)">
+          <ul className="space-y-1 text-sm">
+            {data.payrollTrend.periods.map((p, i) => (
+              <li key={p} className="flex justify-between">
+                <span>{p}</span>
+                <strong>{fmtNgn(data.payrollTrend.netTotals[i])}</strong>
+              </li>
+            ))}
+          </ul>
+        </HrCard>
+      ) : null}
     </div>
   );
 }
@@ -437,6 +519,7 @@ function TurnoverTab() {
 /* ─── main page ────────────────────────────────────────────── */
 
 const TABS = [
+  { key: 'dashboard', label: 'Overview' },
   { key: 'attendance', label: 'Attendance' },
   { key: 'headcount', label: 'Headcount' },
   { key: 'loans', label: 'Loans' },
@@ -444,7 +527,7 @@ const TABS = [
 ];
 
 export default function HrAnalytics() {
-  const [tab, setTab] = useState('attendance');
+  const [tab, setTab] = useState('dashboard');
 
   return (
     <div className="space-y-6">
@@ -466,6 +549,7 @@ export default function HrAnalytics() {
         ))}
       </div>
 
+      {tab === 'dashboard' && <DashboardTab />}
       {tab === 'attendance' && <AttendanceTab />}
       {tab === 'headcount' && <HeadcountTab />}
       {tab === 'loans' && <LoanPortfolioTab />}

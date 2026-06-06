@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { useHrListLoad } from '../../hooks/useHrListLoad';
 import { canGenerateHrLetters } from '../../lib/hrAccess';
 import { apiFetch } from '../../lib/apiBase';
 import { downloadEmploymentLetterPdf, fetchHrLetters, generateHrLetter } from '../../lib/hrExtended';
+import { parseHrLetterDeepLink } from '../../lib/hrLetterDeepLink';
 import { HrAddFormButton, HrFormModal } from '../../components/hr/HrFormModal';
 import { HR_BTN_PRIMARY, HR_BTN_SECONDARY, HR_FIELD_CLASS } from '../../components/hr/hrFormStyles';
 import {
@@ -56,7 +57,12 @@ const LETTER_TYPES = [
   { value: 'employment', label: 'Employment Confirmation Letter' },
   { value: 'salary', label: 'Salary Confirmation Letter' },
   { value: 'introduction', label: 'Introduction Letter' },
-  { value: 'transfer', label: 'Transfer Letter' },
+  { value: 'transfer', label: 'Transfer Letter (generic)' },
+  { value: 'transfer_inter_branch', label: 'Inter-branch transfer' },
+  { value: 'transfer_in_branch', label: 'In-branch transfer' },
+  { value: 'transfer_hq_to_branch', label: 'HQ to branch transfer' },
+  { value: 'transfer_branch_to_hq', label: 'Branch to HQ transfer' },
+  { value: 'transfer_temporary', label: 'Temporary transfer' },
   { value: 'query', label: 'Query Letter' },
   { value: 'warning', label: 'Warning Letter' },
   { value: 'suspension', label: 'Suspension Letter' },
@@ -91,6 +97,45 @@ const EXTRA_FIELDS = {
     { key: 'fromBranch', label: 'From Branch', type: 'text', required: true },
     { key: 'toBranch', label: 'To Branch', type: 'text', required: true },
     { key: 'effectiveDate', label: 'Effective Date', type: 'date', required: true },
+    { key: 'sourceRecordId', label: 'Transfer request ID (link)', type: 'text' },
+  ],
+  transfer_inter_branch: [
+    { key: 'fromBranch', label: 'From Branch', type: 'text', required: true },
+    { key: 'toBranch', label: 'To Branch', type: 'text', required: true },
+    { key: 'toDepartment', label: 'New Department', type: 'text' },
+    { key: 'toDesignation', label: 'New Designation', type: 'text' },
+    { key: 'effectiveDate', label: 'Effective Date', type: 'date', required: true },
+    { key: 'sourceRecordId', label: 'Transfer request ID (link)', type: 'text' },
+  ],
+  transfer_in_branch: [
+    { key: 'fromBranch', label: 'Branch', type: 'text' },
+    { key: 'fromDepartment', label: 'From Department', type: 'text' },
+    { key: 'toDepartment', label: 'To Department', type: 'text', required: true },
+    { key: 'toDesignation', label: 'New Designation', type: 'text' },
+    { key: 'effectiveDate', label: 'Effective Date', type: 'date', required: true },
+    { key: 'sourceRecordId', label: 'Transfer request ID (link)', type: 'text' },
+  ],
+  transfer_hq_to_branch: [
+    { key: 'toBranch', label: 'Destination Branch', type: 'text', required: true },
+    { key: 'toDepartment', label: 'Department', type: 'text' },
+    { key: 'toDesignation', label: 'Designation', type: 'text' },
+    { key: 'effectiveDate', label: 'Effective Date', type: 'date', required: true },
+    { key: 'sourceRecordId', label: 'Transfer request ID (link)', type: 'text' },
+  ],
+  transfer_branch_to_hq: [
+    { key: 'fromBranch', label: 'From Branch', type: 'text', required: true },
+    { key: 'toDepartment', label: 'HQ Department', type: 'text' },
+    { key: 'toDesignation', label: 'Designation', type: 'text' },
+    { key: 'effectiveDate', label: 'Effective Date', type: 'date', required: true },
+    { key: 'sourceRecordId', label: 'Transfer request ID (link)', type: 'text' },
+  ],
+  transfer_temporary: [
+    { key: 'toBranch', label: 'Temporary location', type: 'text' },
+    { key: 'toDepartment', label: 'Temporary department', type: 'text' },
+    { key: 'effectiveDate', label: 'Start date', type: 'date', required: true },
+    { key: 'endDate', label: 'End date', type: 'date' },
+    { key: 'reason', label: 'Purpose', type: 'textarea' },
+    { key: 'sourceRecordId', label: 'Transfer request ID (link)', type: 'text' },
   ],
   query: [
     { key: 'incidentDescription', label: 'Incident Description', type: 'textarea', required: true },
@@ -376,6 +421,7 @@ Zarewa Aluminium & Plastics Ltd`;
 
 export default function HrLetters({ embedded = false } = {}) {
   const ws = useWorkspace();
+  const [searchParams] = useSearchParams();
   const canGenerate = canGenerateHrLetters(ws?.permissions);
 
   const [modalOpen, setModalOpen] = useState(false);
@@ -401,6 +447,17 @@ export default function HrLetters({ embedded = false } = {}) {
     if (ok && data?.ok) setStaff(data.staff || []);
     return { hasData: true };
   }, []);
+
+  useEffect(() => {
+    const link = parseHrLetterDeepLink(searchParams);
+    if (!link.letterKind && !link.userId) return;
+    if (link.letterKind) setLetterKind(link.letterKind);
+    if (link.userId) setUserId(link.userId);
+    if (link.extra && Object.keys(link.extra).length) setExtraFields((prev) => ({ ...prev, ...link.extra }));
+    if (link.letterKind || link.userId) {
+      setModalOpen(true);
+    }
+  }, [searchParams]);
 
   const { loading, error, reload } = useHrListLoad(async () => {
     const { ok, data } = await fetchHrLetters();
@@ -439,7 +496,26 @@ export default function HrLetters({ embedded = false } = {}) {
     setPreview(localContent);
 
     // Try server-side generation; fall back to local preview gracefully
-    const { ok, data } = await generateHrLetter({ userId, letterKind, extraData: extraFields, contentText: localContent });
+    const { ok, data } = await generateHrLetter({
+      userId,
+      letterKind,
+      extraData: {
+        ...extraFields,
+        sourceRecordKind: extraFields.sourceRecordId
+          ? letterKind.includes('transfer')
+            ? 'hr_transfer_request'
+            : letterKind.includes('leave')
+              ? 'hr_leave_request'
+              : letterKind.includes('exit')
+                ? 'hr_exit_clearance'
+                : letterKind.includes('loan')
+                  ? 'hr_loan_request'
+                  : null
+          : null,
+        sourceRecordId: extraFields.sourceRecordId || null,
+      },
+      contentText: localContent,
+    });
     setBusy(false);
     if (!ok || !data?.ok) {
       // Server may not support all types yet — show local preview and warn

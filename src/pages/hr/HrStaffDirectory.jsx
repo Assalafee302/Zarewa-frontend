@@ -8,7 +8,7 @@ import { useWorkspace } from '../../context/WorkspaceContext';
 import { useHrListLoad } from '../../hooks/useHrListLoad';
 import { canManageHrStaff, canViewOrgSensitiveHr } from '../../lib/hrAccess';
 import { formatNgn, payrollGroupLabel } from '../../lib/hrFormat';
-import { HR_EMPLOYEES } from '../../lib/hrRoutes';
+import { fetchHrDepartments } from '../../lib/hrMasterData';
 import {
   AppTable,
   AppTableBody,
@@ -64,18 +64,30 @@ export default function HrStaffDirectory({ staffBasePath = HR_EMPLOYEES, initial
     if (initialRegisterOpen) setRegisterOpen(true);
   }, [initialRegisterOpen]);
 
+  const [masterDepartments, setMasterDepartments] = useState([]);
+
   const { loading, error } = useHrListLoad(async () => {
     const q = includeInactive ? '?includeInactive=1' : '';
-    const { ok, data } = await apiFetch(`/api/hr/staff${q}`);
-    if (!ok || !data?.ok) {
+    const [staffRes, deptRes] = await Promise.all([
+      apiFetch(`/api/hr/staff${q}`),
+      fetchHrDepartments(false),
+    ]);
+    if (!staffRes.ok || !staffRes.data?.ok) {
       setStaff([]);
-      return { error: data?.error || 'Could not load staff directory.', hasData: false };
+      return { error: staffRes.data?.error || 'Could not load staff directory.', hasData: false };
     }
-    setStaff(data.staff || []);
+    setStaff(staffRes.data.staff || []);
+    if (deptRes.ok && deptRes.data?.ok) setMasterDepartments(deptRes.data.departments || []);
     return { hasData: true };
   }, [includeInactive]);
 
-  const departments = useMemo(() => uniqueSorted(staff.map((s) => s.department)), [staff]);
+  const departments = useMemo(() => {
+    const names = new Set([
+      ...masterDepartments.map((d) => d.name),
+      ...staff.map((s) => s.department).filter(Boolean),
+    ]);
+    return [...names].sort((a, b) => String(a).localeCompare(String(b)));
+  }, [masterDepartments, staff]);
   const employmentTypes = useMemo(
     () => uniqueSorted(staff.map((s) => s.employmentType || s.normalized?.taxonomy?.employmentType)),
     [staff]

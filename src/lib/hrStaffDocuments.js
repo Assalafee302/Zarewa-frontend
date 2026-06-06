@@ -30,6 +30,14 @@ export function hrStaffDocumentDownloadUrl(userId, docId) {
   return `/api/hr/staff/${encodeURIComponent(userId)}/documents/${encodeURIComponent(docId)}/download`;
 }
 
+/** @param {string} userId @param {string} docId @param {{ action: 'verify' | 'reject'; rejectionReason?: string }} body */
+export async function verifyHrStaffDocument(userId, docId, body) {
+  return apiFetch(`/api/hr/staff/${encodeURIComponent(userId)}/documents/${encodeURIComponent(docId)}/verify`, {
+    method: 'PATCH',
+    body: JSON.stringify(body),
+  });
+}
+
 /** @param {string} userId @param {string | null} avatarUrl */
 export async function uploadHrStaffPassportPhoto(userId, avatarUrl) {
   return apiFetch(`/api/hr/staff/${encodeURIComponent(userId)}/passport-photo`, {

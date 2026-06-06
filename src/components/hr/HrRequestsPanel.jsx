@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { apiFetch } from '../../lib/apiBase';
 import { useHrListLoad } from '../../hooks/useHrListLoad';
 import { generateLeaveDecisionLetter } from '../../lib/hrPhase2';
+import { generateStaffLoanAgreementLetter } from '../../lib/hrExtended';
 import { canGenerateHrLetters } from '../../lib/hrAccess';
 import {
   hrRequestKindLabel,
@@ -20,6 +21,7 @@ import {
   AppTableTr,
   AppTableWrap,
 } from '../ui/AppDataTable';
+import { HrRequestPayloadSummary, hrRequestApprovalChain } from './HrRequestPayloadSummary';
 
 const SCOPE_LABELS = {
   mine: 'My requests',
@@ -45,6 +47,7 @@ export function HrRequestsPanel({
   const [requests, setRequests] = useState([]);
   const [busyId, setBusyId] = useState('');
   const [reviewId, setReviewId] = useState('');
+  const [expandedId, setExpandedId] = useState('');
   const [reviewNote, setReviewNote] = useState('');
   const [reasonCode, setReasonCode] = useState('policy');
   const [selectedIds, setSelectedIds] = useState([]);
@@ -353,12 +356,22 @@ export function HrRequestsPanel({
                         {canReviewRow(r) ? (
                           <button
                             type="button"
-                            onClick={() => setReviewId(reviewId === r.id ? '' : r.id)}
+                            onClick={() => {
+                              setReviewId(reviewId === r.id ? '' : r.id);
+                              setReviewNote('');
+                            }}
                             className="rounded-lg border border-slate-200 px-2 py-1 text-[10px] font-bold uppercase text-[#134e4a]"
                           >
                             Review
                           </button>
                         ) : null}
+                        <button
+                          type="button"
+                          onClick={() => setExpandedId(expandedId === r.id ? '' : r.id)}
+                          className="rounded-lg border border-slate-200 px-2 py-1 text-[10px] font-bold uppercase text-slate-600"
+                        >
+                          {expandedId === r.id ? 'Hide' : 'Details'}
+                        </button>
                         {canLetter && r.kind === 'leave' && r.status === 'approved' ? (
                           <button
                             type="button"
@@ -387,9 +400,65 @@ export function HrRequestsPanel({
                             Rejection letter
                           </button>
                         ) : null}
+                        {canLetter && r.kind === 'loan' && r.status === 'approved' ? (
+                          <button
+                            type="button"
+                            disabled={busyId === r.id}
+                            onClick={async () => {
+                              setBusyId(r.id);
+                              await generateStaffLoanAgreementLetter(r.id);
+                              setBusyId('');
+                            }}
+                            className="rounded-lg border border-teal-200 px-2 py-1 text-[10px] font-bold uppercase text-teal-800"
+                          >
+                            Loan agreement
+                          </button>
+                        ) : null}
                       </div>
+                      {expandedId === r.id ? (
+                        <div className="mt-2 rounded-lg border border-slate-100 bg-white p-3">
+                          <HrRequestPayloadSummary request={r} compact />
+                          {r.reviewNotes?.length ? (
+                            <div className="mt-2 border-t border-slate-100 pt-2">
+                              <p className="text-[10px] font-bold uppercase text-slate-400">Approval history</p>
+                              <ul className="mt-1 space-y-1 text-xs text-slate-600">
+                                {r.reviewNotes.map((n, i) => (
+                                  <li key={i}>{n.atIso?.slice(0, 16)} — {n.note || n.action}</li>
+                                ))}
+                              </ul>
+                            </div>
+                          ) : null}
+                        </div>
+                      ) : null}
                       {reviewId === r.id ? (
-                        <div className="mt-2 space-y-2 rounded-lg border border-slate-100 bg-slate-50 p-2">
+                        <div className="mt-2 space-y-3 rounded-xl border border-[#134e4a]/20 bg-teal-50/40 p-3">
+                          <div className="grid gap-2 sm:grid-cols-2 text-xs">
+                            <p><span className="text-slate-500">Employee:</span> <strong>{r.staffDisplayName || r.userId}</strong></p>
+                            <p><span className="text-slate-500">Branch:</span> {r.branchId || '—'}</p>
+                            <p><span className="text-slate-500">Department:</span> {r.department || '—'}</p>
+                            <p><span className="text-slate-500">Kind:</span> {hrRequestKindLabel(r.kind)}</p>
+                          </div>
+                          <HrRequestPayloadSummary request={r} compact />
+                          {(() => {
+                            const { chain, currentIdx } = hrRequestApprovalChain(r.status);
+                            return (
+                              <div>
+                                <p className="text-[10px] font-bold uppercase text-slate-400 mb-1">Approval chain</p>
+                                <div className="flex flex-wrap gap-1">
+                                  {chain.map((step, i) => (
+                                    <span
+                                      key={step}
+                                      className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                                        i <= currentIdx ? 'bg-[#134e4a] text-white' : 'bg-slate-200 text-slate-500'
+                                      }`}
+                                    >
+                                      {step}
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                            );
+                          })()}
                           <select
                             value={reasonCode}
                             onChange={(e) => setReasonCode(e.target.value)}

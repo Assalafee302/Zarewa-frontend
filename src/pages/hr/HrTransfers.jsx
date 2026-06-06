@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { useToast } from '../../context/ToastContext';
 import { useHrListLoad } from '../../hooks/useHrListLoad';
@@ -17,7 +17,12 @@ import { HR_EMPLOYEES } from '../../lib/hrRoutes';
 import { HrAddFormButton, HrFormModal } from '../../components/hr/HrFormModal';
 import { HrCard, HrEmptyState, HrStatusPill } from '../../components/hr/hrPageUi';
 import { HrResponsiveTable } from '../../components/hr/HrResponsiveTable';
+import {
+  AppTable, AppTableBody, AppTableTd, AppTableTh, AppTableThead, AppTableTr, AppTableWrap,
+} from '../../components/ui/AppDataTable';
 import { HR_BTN_PRIMARY, HR_BTN_SECONDARY, HR_FIELD_CLASS } from '../../components/hr/hrFormStyles';
+import { navigateToHrLetter, transferLetterKind } from '../../lib/hrLetterDeepLink';
+import { canGenerateHrLetters } from '../../lib/hrAccess';
 
 const emptyForm = () => ({
   userId: '',
@@ -33,9 +38,11 @@ const emptyForm = () => ({
 
 export default function HrTransfers({ embedded = false } = {}) {
   const ws = useWorkspace();
+  const navigate = useNavigate();
   const { show: toast } = useToast();
   const perms = ws?.permissions || [];
   const canManage = canManageHrTransfers(perms);
+  const canLetter = canGenerateHrLetters(perms);
 
   const branches = useMemo(() => {
     const list = ws?.snapshot?.workspaceBranches ?? ws?.session?.branches ?? [];
@@ -100,17 +107,47 @@ export default function HrTransfers({ embedded = false } = {}) {
     reload();
   };
 
-  const doAction = async (id, action) => {
+  const [detailTransfer, setDetailTransfer] = useState(null);
+  const [rejectReason, setRejectReason] = useState('');
+
+  const doAction = async (id, action, extra = {}) => {
     setBusy(true);
-    const { ok, data } = await patchHrTransferRequest(id, { action });
+    const { ok, data } = await patchHrTransferRequest(id, { action, ...extra });
     setBusy(false);
     if (!ok || !data?.ok) {
       toast(data?.error || 'Action failed.', { variant: 'error' });
       return;
     }
     toast(`Transfer ${action.replace(/_/g, ' ')}.`, { variant: 'success' });
-    setReviewModal(null);
+    setDetailTransfer(null);
+    setRejectReason('');
     reload();
+  };
+
+  const transferActions = (t) => {
+    const actions = [];
+    if (t.status === 'submitted' && t.transferType === 'inter_branch') {
+      actions.push({ key: 'branch_review', label: 'Branch review' });
+    }
+    if (['submitted', 'branch_review'].includes(t.status)) {
+      actions.push({ key: 'hr_review', label: 'HR review' });
+    }
+    if (t.status === 'hr_review') {
+      actions.push({
+        key: t.requiresGmApproval ? 'approve' : 'approve',
+        label: t.requiresGmApproval ? 'Send to GM/MD' : 'Approve',
+      });
+    }
+    if (t.status === 'gm_approval') {
+      actions.push({ key: 'approve', label: 'GM/MD approve' });
+    }
+    if (t.status === 'approved') {
+      actions.push({ key: 'complete', label: 'Complete transfer' });
+    }
+    if (t.status === 'rejected') {
+      actions.push({ key: 'resubmit', label: 'Resubmit' });
+    }
+    return actions;
   };
 
   const reviewRec = async (id, status) => {
@@ -166,54 +203,39 @@ export default function HrTransfers({ embedded = false } = {}) {
         {!loading && !transfers.length ? (
           <HrEmptyState title="No transfer requests" description="Initiate a transfer to move staff between branches or departments." />
         ) : (
-          <HrResponsiveTable
-            columns={[
-              { key: 'staffDisplayName', label: 'Employee' },
-              { key: 'transferType', label: 'Type' },
-              { key: 'route', label: 'Route' },
-              { key: 'effectiveDateIso', label: 'Effective' },
-              { key: 'status', label: 'Status' },
-            ]}
-            rows={transfers.map((t) => ({
-              ...t,
-              transferType: String(t.transferType || '').replace(/_/g, ' '),
-              route: `${branchName[t.fromBranchId] || t.fromBranchId || '—'} → ${branchName[t.toBranchId] || t.toDepartment || '—'}`,
-              status: t.status,
-              staffDisplayName: t.staffDisplayName || t.userId,
-            }))}
-          />
+          <AppTableWrap>
+            <AppTable>
+              <AppTableThead>
+                <AppTableTr>
+                  <AppTableTh>Employee</AppTableTh>
+                  <AppTableTh>Type</AppTableTh>
+                  <AppTableTh>Route</AppTableTh>
+                  <AppTableTh>Effective</AppTableTh>
+                  <AppTableTh>Status</AppTableTh>
+                  <AppTableTh />
+                </AppTableTr>
+              </AppTableThead>
+              <AppTableBody>
+                {transfers.map((t) => (
+                  <AppTableTr key={t.id}>
+                    <AppTableTd>
+                      <Link to={`${HR_EMPLOYEES}/${encodeURIComponent(t.userId)}`} className="font-semibold text-[#134e4a] hover:underline">
+                        {t.staffDisplayName}
+                      </Link>
+                    </AppTableTd>
+                    <AppTableTd>{String(t.transferType || '').replace(/_/g, ' ')}</AppTableTd>
+                    <AppTableTd>{`${branchName[t.fromBranchId] || t.fromBranchId || '—'} → ${branchName[t.toBranchId] || t.toDepartment || '—'}`}</AppTableTd>
+                    <AppTableTd>{t.effectiveDateIso || '—'}</AppTableTd>
+                    <AppTableTd><HrStatusPill status={t.status} /></AppTableTd>
+                    <AppTableTd>
+                      <button type="button" className="text-[10px] font-bold uppercase text-[#134e4a]" onClick={() => setDetailTransfer(t)}>Details</button>
+                    </AppTableTd>
+                  </AppTableTr>
+                ))}
+              </AppTableBody>
+            </AppTable>
+          </AppTableWrap>
         )}
-        {transfers.length ? (
-          <div className="mt-3 space-y-2">
-            {transfers.slice(0, 15).map((t) => (
-              <div key={t.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-100 px-3 py-2 text-xs">
-                <span>
-                  <Link to={`${HR_EMPLOYEES}/${encodeURIComponent(t.userId)}`} className="font-semibold text-[#134e4a] hover:underline">
-                    {t.staffDisplayName}
-                  </Link>
-                  {' · '}
-                  <HrStatusPill status={t.status} />
-                </span>
-                {canManage ? (
-                  <div className="flex flex-wrap gap-1">
-                    {t.status === 'submitted' ? (
-                      <button type="button" className="rounded border px-2 py-0.5 font-bold text-[#134e4a]" onClick={() => doAction(t.id, 'hr_review')}>HR review</button>
-                    ) : null}
-                    {t.status === 'hr_review' ? (
-                      <button type="button" className="rounded border px-2 py-0.5 font-bold text-emerald-800" onClick={() => doAction(t.id, 'approve')}>Approve</button>
-                    ) : null}
-                    {t.status === 'approved' ? (
-                      <button type="button" className="rounded border px-2 py-0.5 font-bold text-[#134e4a]" onClick={() => doAction(t.id, 'complete')}>Complete</button>
-                    ) : null}
-                    {!['completed', 'rejected', 'cancelled'].includes(t.status) ? (
-                      <button type="button" className="rounded border px-2 py-0.5 text-red-700" onClick={() => doAction(t.id, 'reject')}>Reject</button>
-                    ) : null}
-                  </div>
-                ) : null}
-              </div>
-            ))}
-          </div>
-        ) : null}
       </HrCard>
 
       {recommendations.length > 0 ? (
@@ -304,6 +326,91 @@ export default function HrTransfers({ embedded = false } = {}) {
             <button type="button" className={HR_BTN_SECONDARY} onClick={() => setModalOpen(false)}>Cancel</button>
           </div>
         </form>
+      </HrFormModal>
+
+      <HrFormModal
+        isOpen={Boolean(detailTransfer)}
+        onClose={() => { setDetailTransfer(null); setRejectReason(''); }}
+        title="Transfer details"
+        size="lg"
+      >
+        {detailTransfer ? (
+          <div className="space-y-4 text-sm">
+            <div className="grid gap-2 sm:grid-cols-2">
+              <p><span className="text-slate-500">Employee:</span> <strong>{detailTransfer.staffDisplayName}</strong></p>
+              <p><span className="text-slate-500">Type:</span> {String(detailTransfer.transferType || '').replace(/_/g, ' ')}</p>
+              <p><span className="text-slate-500">Status:</span> <HrStatusPill status={detailTransfer.status} /></p>
+              <p><span className="text-slate-500">Effective:</span> {detailTransfer.effectiveDateIso || '—'}</p>
+              <p className="sm:col-span-2"><span className="text-slate-500">Route:</span> {branchName[detailTransfer.fromBranchId] || detailTransfer.fromBranchId} → {branchName[detailTransfer.toBranchId] || detailTransfer.toDepartment || '—'}</p>
+              <p className="sm:col-span-2"><span className="text-slate-500">Reason:</span> {detailTransfer.reason || '—'}</p>
+              {detailTransfer.rejectionReason ? (
+                <p className="sm:col-span-2 text-red-800 bg-red-50 rounded-lg px-3 py-2"><span className="font-semibold">Rejection:</span> {detailTransfer.rejectionReason}</p>
+              ) : null}
+            </div>
+            {(detailTransfer.timeline || []).length ? (
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Approval timeline</p>
+                <ol className="space-y-2 border-l-2 border-[#134e4a]/20 pl-3">
+                  {detailTransfer.timeline.map((ev, idx) => (
+                    <li key={idx} className="text-xs">
+                      <span className="font-bold text-[#134e4a]">{ev.status?.replace(/_/g, ' ')}</span>
+                      {' · '}
+                      {ev.at?.slice(0, 16).replace('T', ' ')}
+                      {ev.note ? ` — ${ev.note}` : ''}
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            ) : null}
+            {detailTransfer.rejecting ? (
+              <div className="space-y-2 border-t border-slate-100 pt-3">
+                <label className="block text-xs font-semibold text-slate-600">
+                  Rejection reason
+                  <textarea className={HR_FIELD_CLASS} rows={2} value={rejectReason} onChange={(e) => setRejectReason(e.target.value)} required />
+                </label>
+                <button
+                  type="button"
+                  className={HR_BTN_PRIMARY}
+                  disabled={!rejectReason.trim() || busy}
+                  onClick={() => doAction(detailTransfer.id, 'reject', { rejectionReason: rejectReason.trim() })}
+                >
+                  Confirm rejection
+                </button>
+              </div>
+            ) : null}
+            {canLetter && detailTransfer.status === 'completed' ? (
+              <button
+                type="button"
+                className={HR_BTN_SECONDARY}
+                onClick={() => navigateToHrLetter(navigate, {
+                  letterKind: transferLetterKind(detailTransfer.transferType),
+                  userId: detailTransfer.userId,
+                  sourceRecordId: detailTransfer.id,
+                  sourceRecordKind: 'transfer',
+                  extra: {
+                    fromBranch: branchName[detailTransfer.fromBranchId] || detailTransfer.fromBranchId,
+                    toBranch: branchName[detailTransfer.toBranchId] || detailTransfer.toBranchId,
+                    toDepartment: detailTransfer.toDepartment,
+                    toDesignation: detailTransfer.toDesignation,
+                    effectiveDate: detailTransfer.effectiveDateIso,
+                    sourceRecordId: detailTransfer.id,
+                  },
+                })}
+              >
+                Generate transfer letter
+              </button>
+            ) : null}
+            {canManage && !detailTransfer.rejecting ? (
+              <div className="flex flex-wrap gap-2 border-t border-slate-100 pt-3">
+                {transferActions(detailTransfer).map((a) => (
+                  <button key={a.key} type="button" className={HR_BTN_PRIMARY} disabled={busy} onClick={() => doAction(detailTransfer.id, a.key === 'resubmit' ? 'resubmit' : a.key, a.key === 'resubmit' ? { reason: detailTransfer.reason } : {})}>
+                    {a.label}
+                  </button>
+                ))}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
       </HrFormModal>
     </div>
   );

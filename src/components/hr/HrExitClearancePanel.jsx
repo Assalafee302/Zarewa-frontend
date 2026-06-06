@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { useHrListLoad } from '../../hooks/useHrListLoad';
 import { hrHasPermission } from '../../lib/hrAccess';
@@ -12,6 +13,9 @@ import {
 } from '../../lib/hrPhase2';
 import { HrCard, HrEmptyState, HrStatusPill } from './hrPageUi';
 import { HrFormModal } from './HrFormModal';
+import { HrExitInterviewPanel } from './HrExitInterviewPanel';
+import { navigateToHrLetter } from '../../lib/hrLetterDeepLink';
+import { canGenerateHrLetters } from '../../lib/hrAccess';
 import { HR_BTN_PRIMARY, HR_BTN_SECONDARY, HR_FIELD_CLASS } from './hrFormStyles';
 import {
   AppTable, AppTableBody, AppTableTd, AppTableTh, AppTableThead, AppTableTr, AppTableWrap,
@@ -19,7 +23,8 @@ import {
 
 export function HrExitClearancePanel() {
   const ws = useWorkspace();
-  const perms = ws?.session?.permissions || [];
+  const navigate = useNavigate();
+  const perms = ws?.session?.permissions || ws?.permissions || [];
   const [clearances, setClearances] = useState([]);
   const [detail, setDetail] = useState(null);
   const [modal, setModal] = useState(false);
@@ -29,6 +34,8 @@ export function HrExitClearancePanel() {
   const canFinance = hrHasPermission(perms, 'hr.exit.finance_clear');
   const canAdmin = hrHasPermission(perms, 'hr.exit.admin_clear');
   const canFinal = hrHasPermission(perms, 'hr.exit.final_clear');
+  const canInterview = hrHasPermission(perms, 'hr.exit.manage') || hrHasPermission(perms, 'hr.staff.manage');
+  const canLetter = canGenerateHrLetters(perms);
 
   const { loading, error, reload } = useHrListLoad(async () => {
     const { ok, data } = await fetchHrExitClearance({});
@@ -124,8 +131,15 @@ export function HrExitClearancePanel() {
                 ))}
               </ul>
             </div>
+            <HrExitInterviewPanel clearanceId={detail.id} userId={detail.userId} canEdit={canInterview} />
             <textarea className={HR_FIELD_CLASS} rows={2} placeholder="Clearance notes" value={notes} onChange={(e) => setNotes(e.target.value)} />
             <div className="flex flex-wrap gap-2">
+              {canLetter ? (
+                <>
+                  <button type="button" className={HR_BTN_SECONDARY} onClick={() => navigateToHrLetter(navigate, { letterKind: 'exit_clearance', userId: detail.userId, sourceRecordId: detail.id })}>Exit clearance letter</button>
+                  <button type="button" className={HR_BTN_SECONDARY} onClick={() => navigateToHrLetter(navigate, { letterKind: 'return_of_property', userId: detail.userId, sourceRecordId: detail.id })}>Return of property</button>
+                </>
+              ) : null}
               {canFinance && !detail.financeClearedByUserId ? (
                 <button type="button" className={HR_BTN_PRIMARY} disabled={busy} onClick={() => runClear('finance')}>Finance clear</button>
               ) : null}

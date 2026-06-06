@@ -26,3 +26,16 @@ export function saveHrDesignation(body) {
 export function fetchHrNotificationSummary() {
   return apiFetch('/api/hr/notification-summary');
 }
+
+export function fetchHrTeamSummary(scope = 'team') {
+  const q = scope ? `?scope=${encodeURIComponent(scope)}` : '';
+  return apiFetch(`/api/hr/team/summary${q}`);
+}
+
+export function fetchHrAnalyticsDashboard() {
+  return apiFetch('/api/hr/analytics/dashboard');
+}
+
+export function fetchStaffLoanSchedule(userId) {
+  return apiFetch(`/api/hr/staff/${encodeURIComponent(userId)}/loan-schedule`);
+}

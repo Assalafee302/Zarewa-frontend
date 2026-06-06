@@ -14,9 +14,13 @@ import { HrSalaryIncrementPanel } from '../../components/hr/HrSalaryIncrementPan
 import { HrPromotionFromMatrix } from '../../components/hr/HrPromotionFromMatrix';
 import { HrFormModal } from '../../components/hr/HrFormModal';
 import { HrStaffDocumentsPanel } from '../../components/hr/HrStaffDocumentsPanel';
+import { HrProfileCompleteness } from '../../components/hr/HrProfileCompleteness';
+import { HrCard } from '../../components/hr/hrPageUi';
+import { HrSkillsMatrixPanel } from '../../components/hr/HrSkillsMatrixPanel';
 import { CRITICAL_MISSING_LABELS } from '../../lib/hrStaffDocumentKinds';
 import { HR_BTN_PRIMARY, HR_BTN_SECONDARY } from '../../components/hr/hrFormStyles';
 import { formToProfilePatch, staffToForm, updateHrStaffProfile } from '../../lib/hrStaff';
+import { fetchStaffLoanSchedule } from '../../lib/hrMasterData';
 import {
   AppTable,
   AppTableBody,
@@ -74,43 +78,90 @@ function MissingBanner({ items }) {
   );
 }
 
+function ProfileSectionCard({ title, subtitle, rows, onEdit, editLabel = 'Edit section' }) {
+  return (
+    <HrCard
+      title={title}
+      subtitle={subtitle}
+      actions={
+        onEdit ? (
+          <button
+            type="button"
+            onClick={onEdit}
+            className="rounded-lg border border-[#134e4a]/20 bg-[#134e4a]/5 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-[#134e4a] hover:bg-[#134e4a]/10"
+          >
+            {editLabel}
+          </button>
+        ) : null
+      }
+    >
+      <HrDetailGrid rows={rows} />
+    </HrCard>
+  );
+}
+
 function CompensationTab({ staff, showSensitiveInline }) {
   const body = (
-    <HrDetailGrid
-      rows={[
-        { label: 'Payroll group', value: payrollGroupLabel(staff) },
-        {
-          label: 'Salary level / step',
-          value:
-            staff?.profileExtra?.salaryLevel != null
-              ? `Level ${staff.profileExtra.salaryLevel}${staff.profileExtra.salaryStep != null ? ` · Step ${staff.profileExtra.salaryStep}` : ''}`
-              : staff?.promotionGrade || staff?.normalized?.taxonomy?.gradeBand || '— (matrix in Phase 5)',
-        },
-        {
-          label: 'Base salary (monthly)',
-          value: staff?.compensationRedacted ? 'Hidden' : formatNgn(staff?.baseSalaryNgn),
-        },
-        {
-          label: 'Housing allowance',
-          value: staff?.compensationRedacted ? 'Hidden' : formatNgn(staff?.housingAllowanceNgn),
-        },
-        {
-          label: 'Transport allowance',
-          value: staff?.compensationRedacted ? 'Hidden' : formatNgn(staff?.transportAllowanceNgn),
-        },
-        { label: 'PAYE %', value: staff?.compensationRedacted ? 'Hidden' : staff?.payeTaxPercent ?? '—' },
-        { label: 'Pension override %', value: staff?.compensationRedacted ? 'Hidden' : staff?.pensionPercentOverride ?? '—' },
-        { label: 'Tax ID', value: staff?.compensationRedacted ? 'Hidden' : staff?.taxId || '—' },
-        { label: 'RSA PIN', value: staff?.compensationRedacted ? 'Hidden' : staff?.pensionRsaPin || '—' },
-        {
-          label: 'Bank',
-          value: staff?.compensationRedacted
-            ? 'Hidden'
-            : [staff?.bankName, staff?.bankAccountName, staff?.bankAccountNoMasked].filter(Boolean).join(' · ') || '—',
-        },
-        { label: 'Bonus accrual note', value: staff?.compensationRedacted ? 'Hidden' : staff?.bonusAccrualNote || '—' },
-      ]}
-    />
+    <div className="space-y-4">
+      <ProfileSectionCard
+        title="Salary & payroll"
+        subtitle="Monthly compensation and payroll grouping"
+        rows={[
+          { label: 'Payroll group', value: payrollGroupLabel(staff) },
+          {
+            label: 'Salary level / step',
+            value:
+              staff?.salaryLevel != null
+                ? `Level ${staff.salaryLevel}${staff.salaryStep != null ? ` · Step ${staff.salaryStep}` : ''}`
+                : staff?.promotionGrade || staff?.normalized?.taxonomy?.gradeBand || '—',
+          },
+          {
+            label: 'Base salary (monthly)',
+            value: staff?.compensationRedacted ? 'Hidden' : formatNgn(staff?.baseSalaryNgn),
+          },
+          {
+            label: 'Housing allowance',
+            value: staff?.compensationRedacted ? 'Hidden' : formatNgn(staff?.housingAllowanceNgn),
+          },
+          {
+            label: 'Transport allowance',
+            value: staff?.compensationRedacted ? 'Hidden' : formatNgn(staff?.transportAllowanceNgn),
+          },
+          {
+            label: 'Salary status',
+            value: staff?.profileExtra?.employmentMeta?.salaryStatus || 'active',
+          },
+        ]}
+      />
+      <ProfileSectionCard
+        title="Bank details"
+        subtitle="Masked account shown unless payroll export role"
+        rows={[
+          {
+            label: 'Bank',
+            value: staff?.compensationRedacted
+              ? 'Hidden'
+              : [staff?.bankName, staff?.bankAccountName, staff?.bankAccountNoMasked].filter(Boolean).join(' · ') || '—',
+          },
+        ]}
+      />
+      <ProfileSectionCard
+        title="Tax, pension & NHIS"
+        subtitle="Statutory deduction references"
+        rows={[
+          { label: 'PAYE %', value: staff?.compensationRedacted ? 'Hidden' : staff?.payeTaxPercent ?? '—' },
+          { label: 'Pension override %', value: staff?.compensationRedacted ? 'Hidden' : staff?.pensionPercentOverride ?? '—' },
+          { label: 'Tax ID', value: staff?.compensationRedacted ? 'Hidden' : staff?.taxId || '—' },
+          { label: 'RSA PIN', value: staff?.compensationRedacted ? 'Hidden' : staff?.pensionRsaPin || '—' },
+          { label: 'Pension administrator', value: staff?.profileExtra?.statutory?.pensionAdministrator || '—' },
+          { label: 'NHIS provider', value: staff?.nhisProvider || '—' },
+          {
+            label: 'NHIS deduction',
+            value: staff?.compensationRedacted ? 'Hidden' : formatNgn(staff?.nhisDeductionNgn ?? staff?.nhisMonthlyDeductionNgn),
+          },
+        ]}
+      />
+    </div>
   );
   if (showSensitiveInline) return body;
   return <HrSensitiveGate label="View compensation and bank details">{body}</HrSensitiveGate>;
@@ -138,11 +189,13 @@ export default function HrStaffProfile() {
   const [branchHistory, setBranchHistory] = useState([]);
   const [leaveBalances, setLeaveBalances] = useState(null);
   const [auditEvents, setAuditEvents] = useState(null);
+  const [loanSchedule, setLoanSchedule] = useState([]);
   const [severance, setSeverance] = useState(null);
   const [editing, setEditing] = useState(false);
   const [editForm, setEditForm] = useState(null);
   const [saving, setSaving] = useState(false);
   const [originalBranchId, setOriginalBranchId] = useState('');
+  const [editFormTab, setEditFormTab] = useState('personal');
 
   useEffect(() => {
     setStaff(null);
@@ -183,8 +236,9 @@ export default function HrStaffProfile() {
     }
   };
 
-  const startEdit = () => {
+  const startEdit = (sectionTab = 'personal') => {
     setEditForm(staffToForm(staff));
+    setEditFormTab(sectionTab);
     setSaveError('');
     setEditing(true);
   };
@@ -259,7 +313,19 @@ export default function HrStaffProfile() {
 
   const yrs = useMemo(() => yearsOfServiceFromIso(staff?.dateJoinedIso), [staff?.dateJoinedIso]);
   const loanNotes = staff?.profileExtra?.activeLoansSummary;
+
+  useEffect(() => {
+    if (tab !== 'loans' || !userId) return;
+    (async () => {
+      const { ok, data } = await fetchStaffLoanSchedule(userId);
+      if (ok && data?.ok) setLoanSchedule(data.schedule || []);
+    })();
+  }, [tab, userId]);
   const disciplinary = staff?.profileExtra?.disciplinaryEvents;
+
+  const personal = staff.profileExtra?.personal || {};
+  const empMeta = staff.profileExtra?.employmentMeta || {};
+  const fullName = [personal.firstName, personal.middleName, personal.surname].filter(Boolean).join(' ') || staff.displayName;
 
   if (loading && !staff) return <p className="text-sm text-slate-600">Loading employee profile…</p>;
   if (error) {
@@ -341,7 +407,10 @@ export default function HrStaffProfile() {
               branches={branches}
               mode="edit"
               showCompensation={showSensitiveInline || sensitive.isUnlocked || !staff.compensationRedacted}
+              canViewFullBank={showSensitiveInline}
               originalBranchId={originalBranchId}
+              editUserId={userId}
+              initialTab={editFormTab}
             />
             {staff.compensationRedacted && !showSensitiveInline && !sensitive.isUnlocked ? (
               <p className="text-xs text-amber-800 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2">
@@ -363,28 +432,75 @@ export default function HrStaffProfile() {
       <TabBar active={tab} onChange={setTab} />
 
       {tab === 'overview' ? (
-        <HrDetailGrid
-          rows={[
-            { label: 'Username', value: staff.username },
-            { label: 'Email', value: staff.email },
-            { label: 'System role', value: staff.roleKey },
-            { label: 'Payroll group', value: payrollGroupLabel(staff) },
-            { label: 'Data quality score', value: staff.dataQualityScore != null ? `${staff.dataQualityScore}%` : '—' },
-            { label: 'Years of service', value: yrs != null ? `${yrs} years` : '—' },
-            { label: 'Self-service eligible', value: staff.selfServiceEligible ? 'Yes' : 'No' },
-            {
-              label: 'Handbook acknowledged',
-              value: staff.complianceBadges?.handbookAcknowledged ? 'Yes' : 'Pending',
-            },
-            { label: 'NIN', value: staff.ninNumber || '—' },
-            {
-              label: 'Next of kin',
-              value: staff.nextOfKin
-                ? [staff.nextOfKin.name, staff.nextOfKin.phone, staff.nextOfKin.relationship].filter(Boolean).join(' · ')
-                : '—',
-            },
-          ]}
-        />
+        <div className="space-y-4">
+          <HrProfileCompleteness
+            completeness={staff.profileCompleteness}
+            staffBasePath={HR_EMPLOYEES}
+            userId={userId}
+            onFixSection={(fixTab) => {
+              if (fixTab === 'compensation') setTab('compensation');
+              else if (fixTab === 'documents') setTab('documents');
+              else setTab('employment');
+              if (canManage) startEdit(fixTab === 'compensation' ? 'payroll' : fixTab === 'documents' ? 'personal' : fixTab);
+            }}
+          />
+          <div className="grid gap-4 lg:grid-cols-2">
+            <ProfileSectionCard
+              title="Personal data"
+              subtitle="Contact and identity"
+              onEdit={canManage ? () => startEdit('personal') : undefined}
+              rows={[
+                { label: 'Full name', value: fullName },
+                { label: 'Gender', value: staff.gender || '—' },
+                { label: 'Date of birth', value: staff.dateOfBirthIso?.slice(0, 10) || '—' },
+                { label: 'Phone', value: personal.phone || '—' },
+                { label: 'Email', value: staff.email || personal.email || '—' },
+                { label: 'NIN', value: staff.ninNumber || '—' },
+                { label: 'Address', value: personal.residentialAddress || '—' },
+              ]}
+            />
+            <ProfileSectionCard
+              title="Employment summary"
+              subtitle="Role, branch, and reporting"
+              onEdit={canManage ? () => startEdit('employment') : undefined}
+              rows={[
+                { label: 'Employee no.', value: staff.employeeNo || '—' },
+                { label: 'Department', value: staff.department || '—' },
+                { label: 'Job title', value: staff.jobTitle || '—' },
+                { label: 'Branch', value: staff.branchId || staff.normalized?.branchId || '—' },
+                { label: 'Employment type', value: staff.employmentType || '—' },
+                { label: 'Status', value: empMeta.employmentStatus || staff.status || '—' },
+                { label: 'Date joined', value: staff.dateJoinedIso?.slice(0, 10) || '—' },
+                { label: 'Line manager', value: staff.lineManagerDisplayName || staff.lineManagerUserId || '—' },
+              ]}
+            />
+            <ProfileSectionCard
+              title="Next of kin"
+              subtitle="Emergency contact"
+              onEdit={canManage ? () => startEdit('nok') : undefined}
+              rows={[
+                {
+                  label: 'Contact',
+                  value: staff.nextOfKin
+                    ? [staff.nextOfKin.name, staff.nextOfKin.relationship, staff.nextOfKin.phone].filter(Boolean).join(' · ')
+                    : '—',
+                },
+                { label: 'Address', value: staff.nextOfKin?.address || '—' },
+              ]}
+            />
+            <ProfileSectionCard
+              title="Account & compliance"
+              subtitle="System access and policy status"
+              rows={[
+                { label: 'Username', value: staff.username },
+                { label: 'System role', value: staff.roleKey },
+                { label: 'Self-service', value: staff.selfServiceEligible ? 'Yes' : 'No' },
+                { label: 'Handbook', value: staff.complianceBadges?.handbookAcknowledged ? 'Acknowledged' : 'Pending' },
+                { label: 'Years of service', value: yrs != null ? `${yrs} years` : '—' },
+              ]}
+            />
+          </div>
+        </div>
       ) : null}
 
       {tab === 'employment' ? (
@@ -406,6 +522,7 @@ export default function HrStaffProfile() {
               { label: 'Welfare notes', value: staff.welfareNotes },
             ]}
           />
+          <HrSkillsMatrixPanel userId={userId} canEdit={canManage} />
           {canManage ? (
             <div className="rounded-2xl border border-slate-100 bg-white p-4 space-y-2">
               <div>
@@ -491,11 +608,25 @@ export default function HrStaffProfile() {
       ) : null}
 
       {tab === 'loans' ? (
-        <div className="text-sm text-slate-700">
-          {loanNotes ? (
+        <div className="space-y-4 text-sm text-slate-700">
+          {loanSchedule.length ? (
+            <div className="grid gap-3 sm:grid-cols-2">
+              {loanSchedule.map((loan) => (
+                <HrCard key={loan.requestId} className="!p-4">
+                  <p className="font-bold text-slate-900">{loan.title}</p>
+                  <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
+                    <dt className="text-slate-500">Amount</dt><dd className="font-semibold tabular-nums">{formatNgn(loan.amountNgn)}</dd>
+                    <dt className="text-slate-500">Outstanding</dt><dd className="font-semibold text-[#134e4a]">{formatNgn(loan.outstandingNgn)}</dd>
+                    <dt className="text-slate-500">Monthly</dt><dd>{formatNgn(loan.monthlyDeductionNgn)}</dd>
+                    <dt className="text-slate-500">Status</dt><dd className="capitalize">{loan.status?.replace(/_/g, ' ')}</dd>
+                  </dl>
+                </HrCard>
+              ))}
+            </div>
+          ) : loanNotes ? (
             <pre className="rounded-xl border border-slate-100 bg-slate-50 p-4 text-xs overflow-auto">{JSON.stringify(loanNotes, null, 2)}</pre>
           ) : (
-            <p>No loan summary on file. Staff loan requests appear in HR Requests once submitted.</p>
+            <p>No active loan schedule. Staff loan requests appear in HR Requests once submitted.</p>
           )}
         </div>
       ) : null}
@@ -506,6 +637,7 @@ export default function HrStaffProfile() {
           displayName={staff.displayName || staff.username}
           avatarUrl={staff.avatarUrl}
           canEdit={canManage}
+          canVerify={canManage}
           onboardingChecklist={staff.onboardingChecklist}
           onUpdated={reloadProfile}
         />

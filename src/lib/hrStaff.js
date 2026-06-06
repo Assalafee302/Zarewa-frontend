@@ -9,14 +9,24 @@ function numOrUndef(v) {
 /** @param {object} staff */
 export function staffToForm(staff) {
   if (!staff) return null;
+  const personal = staff.profileExtra?.personal || {};
+  const empMeta = staff.profileExtra?.employmentMeta || {};
+  const hrNotes = staff.profileExtra?.hrNotes || {};
+  const statutory = staff.profileExtra?.statutory || {};
+  const qualifications = staff.profileExtra?.qualifications || {};
   return {
     branchId: staff.branchId || staff.normalized?.branchId || '',
     employeeNo: staff.employeeNo || '',
     jobTitle: staff.jobTitle || '',
     department: staff.department || '',
+    departmentId: staff.departmentId || '',
+    designationId: staff.designationId || '',
+    jobDescriptionPreview: '',
     employmentType: staff.employmentType || staff.normalized?.taxonomy?.employmentType || 'permanent',
+    employmentStatus: empMeta.employmentStatus || 'active',
     dateJoinedIso: staff.dateJoinedIso || '',
     probationEndIso: staff.probationEndIso || '',
+    confirmationDateIso: empMeta.confirmationDateIso || '',
     lineManagerUserId: staff.lineManagerUserId || '',
     selfServiceEligible: Boolean(staff.selfServiceEligible),
     payrollGroup: staff.payrollGroup || staff.profileExtra?.payrollGroup || 'branch_ops',
@@ -37,8 +47,16 @@ export function staffToForm(staff) {
     minimumQualification: staff.minimumQualification || '',
     academicQualification: staff.academicQualification || '',
     promotionGrade: staff.promotionGrade || staff.normalized?.taxonomy?.gradeBand || '',
+    supervisorName: empMeta.supervisorName || '',
+    salaryStatus: empMeta.salaryStatus || 'active',
+    payrollRemarks: empMeta.payrollRemarks || '',
+    pensionAdministrator: statutory.pensionAdministrator || '',
+    nhisNumber: statutory.nhisNumber || '',
+    professionalCertificates: qualifications.professionalCertificates || '',
+    specialConditions: hrNotes.specialConditions || '',
     trainingSummary: staff.trainingSummary || '',
     welfareNotes: staff.welfareNotes || '',
+    hrInternalNotes: hrNotes.internalRemarks || '',
     leaveEntitlementBand: staff.leaveEntitlementBand || '',
     branchChangeReason: '',
     ninNumber: staff.ninNumber || '',
@@ -46,11 +64,31 @@ export function staffToForm(staff) {
     dateOfBirthIso: staff.dateOfBirthIso || '',
     contractEndIso: staff.contractEndIso || '',
     nhisProvider: staff.nhisProvider || '',
-    nhisMonthlyDeductionNgn: staff.nhisMonthlyDeductionNgn != null ? String(staff.nhisMonthlyDeductionNgn) : '',
+    nhisMonthlyDeductionNgn:
+      staff.nhisDeductionNgn != null
+        ? String(staff.nhisDeductionNgn)
+        : staff.nhisMonthlyDeductionNgn != null
+          ? String(staff.nhisMonthlyDeductionNgn)
+          : '',
+    firstName: personal.firstName || '',
+    middleName: personal.middleName || '',
+    surname: personal.surname || '',
+    personalEmail: personal.email || staff.email || '',
+    phone: personal.phone || '',
+    maritalStatus: personal.maritalStatus || '',
+    residentialAddress: personal.residentialAddress || '',
+    stateOfOrigin: personal.stateOfOrigin || '',
+    localGovernment: personal.localGovernment || '',
+    nationality: personal.nationality || 'Nigerian',
+    bloodGroup: personal.bloodGroup || '',
+    institution: personal.institution || '',
+    courseField: personal.courseField || '',
+    yearCompleted: personal.yearCompleted || '',
     nextOfKinName: staff.nextOfKin?.name || '',
     nextOfKinPhone: staff.nextOfKin?.phone || '',
     nextOfKinRelationship: staff.nextOfKin?.relationship || '',
     nextOfKinAddress: staff.nextOfKin?.address || '',
+    nextOfKinAltPhone: staff.nextOfKin?.altPhone || personal.emergencyAltPhone || '',
   };
 }
 
@@ -63,6 +101,7 @@ function nextOfKinFromForm(form) {
     phone: phone || null,
     relationship: String(form.nextOfKinRelationship || '').trim() || null,
     address: String(form.nextOfKinAddress || '').trim() || null,
+    altPhone: String(form.nextOfKinAltPhone || '').trim() || null,
   };
 }
 
@@ -73,6 +112,8 @@ export function formToProfilePatch(form, { originalBranchId } = {}) {
     employeeNo: form.employeeNo,
     jobTitle: form.jobTitle,
     department: form.department,
+    departmentId: form.departmentId || null,
+    designationId: form.designationId || null,
     employmentType: form.employmentType,
     dateJoinedIso: form.dateJoinedIso || null,
     probationEndIso: form.probationEndIso || null,
@@ -102,10 +143,36 @@ export function formToProfilePatch(form, { originalBranchId } = {}) {
     ninNumber: String(form.ninNumber || '').trim() || null,
     gender: form.gender || null,
     dateOfBirthIso: form.dateOfBirthIso || null,
+    dateOfBirth: form.dateOfBirthIso || null,
     contractEndIso: form.contractEndIso || null,
     nhisProvider: String(form.nhisProvider || '').trim() || null,
     nhisMonthlyDeductionNgn: numOrUndef(form.nhisMonthlyDeductionNgn) ?? 0,
+    nhisDeductionNgn: numOrUndef(form.nhisMonthlyDeductionNgn) ?? 0,
     nextOfKin: nextOfKinFromForm(form),
+    employmentStatus: form.employmentStatus || null,
+    confirmationDateIso: form.confirmationDateIso || null,
+    hrInternalNotes: form.hrInternalNotes || null,
+    firstName: form.firstName || null,
+    middleName: form.middleName || null,
+    surname: form.surname || null,
+    phone: form.phone || null,
+    personalEmail: form.personalEmail || null,
+    maritalStatus: form.maritalStatus || null,
+    residentialAddress: form.residentialAddress || null,
+    stateOfOrigin: form.stateOfOrigin || null,
+    localGovernment: form.localGovernment || null,
+    nationality: form.nationality || null,
+    bloodGroup: form.bloodGroup || null,
+    institution: form.institution || null,
+    courseField: form.courseField || null,
+    yearCompleted: form.yearCompleted || null,
+    supervisorName: form.supervisorName || null,
+    salaryStatus: form.salaryStatus || null,
+    payrollRemarks: form.payrollRemarks || null,
+    pensionAdministrator: form.pensionAdministrator || null,
+    nhisNumber: form.nhisNumber || null,
+    professionalCertificates: form.professionalCertificates || null,
+    specialConditions: form.specialConditions || null,
   };
   if (originalBranchId && String(form.branchId) !== String(originalBranchId)) {
     body.branchChangeReason = String(form.branchChangeReason || '').trim() || 'Branch transfer';

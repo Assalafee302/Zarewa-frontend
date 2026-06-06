@@ -15,6 +15,7 @@ import {
 } from '../../lib/hrAccess';
 import { formatNgn } from '../../lib/hrFormat';
 import { downloadHrPayrollExport, formatPeriodYyyymm, payrollStatusTone } from '../../lib/hrPayroll';
+import { HrPayrollControlPanel } from '../../components/hr/HrPayrollControlPanel';
 import { currentPeriodYyyymm } from '../../lib/hrRequests';
 import {
   AppTable,
@@ -31,43 +32,6 @@ function StatCard({ label, value }) {
     <div className="rounded-xl border border-slate-100 bg-white px-3 py-3 shadow-sm">
       <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">{label}</p>
       <p className="mt-1 text-lg font-black tabular-nums">{value}</p>
-    </div>
-  );
-}
-
-function ApplyBonusModal({ runId, onClose, onSuccess }) {
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
-
-  const confirm = async () => {
-    setBusy(true);
-    setError('');
-    const { ok, data } = await apiFetch(`/api/hr/payroll-runs/${encodeURIComponent(runId)}/apply-bonus`, { method: 'POST' });
-    setBusy(false);
-    if (!ok || !data?.ok) { setError(data?.error || 'Could not apply bonus.'); return; }
-    onSuccess('End-of-year bonus applied successfully.');
-  };
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="w-full max-w-sm rounded-2xl bg-white shadow-xl">
-        <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
-          <h3 className="text-sm font-bold text-slate-800">Apply End-of-Year Bonus</h3>
-          <button type="button" onClick={onClose} className="text-slate-400 hover:text-slate-600 text-lg font-bold leading-none">&times;</button>
-        </div>
-        <div className="p-5 space-y-3">
-          <p className="text-sm text-slate-700">
-            Apply end-of-year bonus to this payroll run? This will add 50% of each staff member's base salary as a bonus.
-          </p>
-          {error && <p className="text-xs text-red-700">{error}</p>}
-        </div>
-        <div className="flex justify-end gap-2 border-t border-slate-100 px-5 py-3">
-          <button type="button" onClick={onClose} className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-bold uppercase">Cancel</button>
-          <button type="button" disabled={busy} onClick={confirm} className="rounded-xl bg-[#134e4a] px-4 py-2 text-xs font-bold uppercase text-white disabled:opacity-50">
-            {busy ? 'Applying…' : 'Confirm'}
-          </button>
-        </div>
-      </div>
     </div>
   );
 }
@@ -145,7 +109,6 @@ export default function HrPayroll({ embedded = false } = {}) {
   const canExport = canExportPayroll(perms);
 
   const [tab, setTab] = useState('runs');
-  const [bonusModalOpen, setBonusModalOpen] = useState(false);
   const [varianceModalOpen, setVarianceModalOpen] = useState(false);
   const [runs, setRuns] = useState([]);
   const [selectedId, setSelectedId] = useState('');
@@ -510,13 +473,6 @@ export default function HrPayroll({ embedded = false } = {}) {
                     >
                       Recompute
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => setBonusModalOpen(true)}
-                      className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-1.5 text-[10px] font-bold uppercase text-amber-900"
-                    >
-                      Apply Bonus
-                    </button>
                   </div>
                 ) : null}
 
@@ -594,7 +550,16 @@ export default function HrPayroll({ embedded = false } = {}) {
                           title={k === 'bank-upload' ? 'Requires full bank account numbers on staff profiles' : undefined}
                           onClick={async () => {
                             const r = await downloadHrPayrollExport(selectedId, k);
-                            if (!r.ok) setError(r.error);
+                            if (!r.ok) { setError(r.error); return; }
+                            if (k === 'bank-upload') {
+                              const t = await apiFetch(`/api/hr/payroll-runs/${encodeURIComponent(selectedId)}/reconciliation`);
+                              if (t.ok && t.data?.ok) {
+                                await apiFetch(`/api/hr/payroll-runs/${encodeURIComponent(selectedId)}/bank-export-record`, {
+                                  method: 'POST',
+                                  body: JSON.stringify({ totalNgn: t.data.payrollTotalNgn }),
+                                });
+                              }
+                            }
                           }}
                           className="rounded-lg border border-slate-200 px-3 py-1.5 text-[10px] font-bold uppercase text-[#134e4a] hover:bg-slate-50"
                         >
@@ -603,6 +568,10 @@ export default function HrPayroll({ embedded = false } = {}) {
                       ))}
                     </div>
                   </div>
+                ) : null}
+
+                {selectedId ? (
+                  <HrPayrollControlPanel runId={selectedId} canManage={canPrepare || canGm || canMd} />
                 ) : null}
 
                 {showSensitiveInline ? (
@@ -617,14 +586,6 @@ export default function HrPayroll({ embedded = false } = {}) {
           </div>
         </>
       ) : null}
-
-      {bonusModalOpen && selectedId && (
-        <ApplyBonusModal
-          runId={selectedId}
-          onClose={() => setBonusModalOpen(false)}
-          onSuccess={(msg) => { setBonusModalOpen(false); setMessage(msg); loadRunDetail(); }}
-        />
-      )}
 
       {varianceModalOpen && selectedId && (
         <VarianceModal runId={selectedId} onClose={() => setVarianceModalOpen(false)} />

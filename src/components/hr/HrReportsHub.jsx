@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { useToast } from '../../context/ToastContext';
 import { canViewHrReports, canViewOrgSensitiveHr } from '../../lib/hrAccess';
@@ -12,6 +13,7 @@ import { HrCard, HrEmptyState } from './hrPageUi';
 import { HrReportFilterPanel } from './HrReportFilterPanel';
 import { HrResponsiveTable } from './HrResponsiveTable';
 import { HR_BTN_PRIMARY, HR_BTN_SECONDARY } from './hrFormStyles';
+import { HR_EMPLOYEES } from '../../lib/hrRoutes';
 
 function ExportButton({ label, format, disabled, disabledReason, onClick, busy }) {
   return (
@@ -32,6 +34,7 @@ function ExportButton({ label, format, disabled, disabledReason, onClick, busy }
 export function HrReportsHub() {
   const ws = useWorkspace();
   const { show: toast } = useToast();
+  const [searchParams] = useSearchParams();
   const perms = ws?.session?.permissions || ws?.permissions || [];
   const canReports = canViewHrReports(perms);
   const canSensitive = canViewOrgSensitiveHr(perms);
@@ -54,12 +57,13 @@ export function HrReportsHub() {
     fetchHrReportCatalog().then(({ ok, data }) => {
       if (ok && data?.reports) setCatalog(data);
     });
-    const pre = sessionStorage.getItem('hrReportPreselect');
+    const urlReport = searchParams.get('report');
+    const pre = urlReport || sessionStorage.getItem('hrReportPreselect');
     if (pre) {
       setSelectedId(pre);
       sessionStorage.removeItem('hrReportPreselect');
     }
-  }, [canReports]);
+  }, [canReports, searchParams]);
 
   const selectedMeta = useMemo(
     () => catalog?.reports?.find((r) => r.id === selectedId),
@@ -210,6 +214,13 @@ export function HrReportsHub() {
               {preview.generatedBy ? ` by ${preview.generatedBy}` : ''}
             </p>
             <HrResponsiveTable columns={preview.columns} rows={preview.rows} emptyMessage="No records for this filter." />
+            {preview.rows.some((r) => r.userId) ? (
+              <p className="mt-2 text-xs text-slate-500">
+                Rows with staff names link to{' '}
+                <Link to={HR_EMPLOYEES} className="font-bold text-[#134e4a] hover:underline">employee profiles</Link>
+                {' '}via the staff directory.
+              </p>
+            ) : null}
           </HrCard>
         ) : loading ? (
           <p className="text-sm text-slate-600">Loading report preview…</p>

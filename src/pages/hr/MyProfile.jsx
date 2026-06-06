@@ -6,6 +6,8 @@ import MyProfileEmployment from './MyProfileEmployment';
 import MyProfileDocuments from './MyProfileDocuments';
 import MyProfileBenefits from './MyProfileBenefits';
 import MyProfilePolicies from './MyProfilePolicies';
+import MyProfileSurveys from './MyProfileSurveys';
+import MyProfileGrievance from './MyProfileGrievance';
 import MyLeave from './MyLeave';
 import MyAttendance from './MyAttendance';
 import MyPayslips from './MyPayslips';
@@ -24,6 +26,8 @@ const NAV = [
   { to: '/my-profile/id-card', label: 'ID Card' },
   { to: '/my-profile/benefits', label: 'Benefits' },
   { to: '/my-profile/policies', label: 'Policies' },
+  { to: '/my-profile/surveys', label: 'Surveys' },
+  { to: '/my-profile/grievance', label: 'Feedback & grievance' },
   { to: '/my-profile/help', label: 'Zare HR help' },
 ];
 
@@ -50,6 +54,8 @@ export default function MyProfile() {
         <Route path="id-card" element={<Suspense fallback={<p className="text-sm text-slate-600">Loading…</p>}><MyIdCard /></Suspense>} />
         <Route path="benefits" element={<MyProfileBenefits />} />
         <Route path="policies" element={<MyProfilePolicies />} />
+        <Route path="surveys" element={<MyProfileSurveys />} />
+        <Route path="grievance" element={<MyProfileGrievance />} />
         <Route path="help" element={<MyProfileOverview />} />
       </Route>
     </Routes>

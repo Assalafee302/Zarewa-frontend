@@ -7,6 +7,7 @@ import { useHrSensitiveAccess } from '../../hooks/useHrSensitiveAccess';
 import { canViewOrgSensitiveHr } from '../../lib/hrAccess';
 import { formatNgn } from '../../lib/hrFormat';
 import { formatPeriodYyyymm } from '../../lib/hrPayroll';
+import { HrProfileCompleteness } from '../../components/hr/HrProfileCompleteness';
 
 function QuickActionBtn({ to, onClick, children, icon }) {
   const cls =
@@ -155,21 +156,30 @@ export default function MyProfileOverview() {
   );
 
   const quickActions = (
-    <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-5">
       <QuickActionBtn to="/my-profile/leave" icon="🏖️">
         Apply leave
       </QuickActionBtn>
       <QuickActionBtn to="/my-profile/loans" icon="💰">
         Apply loan
       </QuickActionBtn>
-      <QuickActionBtn to="/my-profile/id-card" icon="🪪">
-        Request ID card
-      </QuickActionBtn>
       <QuickActionBtn to="/my-profile/payslips" icon="📄">
         View payslip
       </QuickActionBtn>
       <QuickActionBtn to="/my-profile/documents" icon="📂">
         Upload document
+      </QuickActionBtn>
+      <QuickActionBtn to="/my-profile/policies" icon="📋">
+        Policies
+      </QuickActionBtn>
+      <QuickActionBtn to="/my-profile/attendance" icon="🕐">
+        Attendance
+      </QuickActionBtn>
+      <QuickActionBtn to="/my-profile/benefits" icon="🎁">
+        Benefits
+      </QuickActionBtn>
+      <QuickActionBtn to="/my-profile/id-card" icon="🪪">
+        ID card
       </QuickActionBtn>
     </div>
   );
@@ -297,6 +307,16 @@ export default function MyProfileOverview() {
   const content = (
     <div className="space-y-5">
       {welcomeCard}
+      {profile?.completeness ? (
+        <HrProfileCompleteness
+          completeness={profile.completeness}
+          compact
+          onFixSection={(tabId) => {
+            const map = { documents: '/my-profile/documents', employment: '/my-profile/employment', policies: '/my-profile/policies' };
+            navigate(map[tabId] || '/my-profile/documents');
+          }}
+        />
+      ) : null}
       {quickActions}
       {summarySection}
       {employmentDetails}

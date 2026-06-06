@@ -68,8 +68,14 @@ export default function MyLeave() {
   }, []);
 
   const annualBalance = balances.find((b) => b.leaveType === 'annual');
+  const typeBalance = balances.find((b) => b.leaveType === leaveType);
   const isOnProbation = probationEndIso ? new Date() < new Date(probationEndIso) : false;
   const casualBlockedByProbation = leaveType === 'casual' && isOnProbation;
+  const daysNum = Number(daysRequested) || autoDays || 0;
+  const exceedsBalance =
+    ['annual', 'casual'].includes(leaveType) &&
+    typeBalance &&
+    daysNum > Number(typeBalance.closingDays ?? typeBalance.balance ?? 0);
 
   const resetWizard = () => {
     setStep(0);
@@ -203,8 +209,17 @@ export default function MyLeave() {
             </label>
             {casualBlockedByProbation ? (
               <div className="sm:col-span-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
-                ⚠️ Casual leave is not available during the probation period. Your probation ends on{' '}
-                {new Date(probationEndIso).toLocaleDateString('en-NG', { day: '2-digit', month: 'long', year: 'numeric' })}.
+                ⚠️ Casual leave is not available during probation (ends {new Date(probationEndIso).toLocaleDateString('en-NG', { day: '2-digit', month: 'short', year: 'numeric' })}).
+              </div>
+            ) : null}
+            {exceedsBalance ? (
+              <div className="sm:col-span-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                ⚠️ Requested days ({daysNum}) exceed your {leaveType} balance ({typeBalance?.closingDays ?? typeBalance?.balance ?? 0} days). HR may reject or adjust this request.
+              </div>
+            ) : null}
+            {typeBalance && !exceedsBalance && daysNum > 0 ? (
+              <div className="sm:col-span-2 rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-2 text-xs text-emerald-900">
+                Balance after request (est.): <strong>{Math.max(0, Number(typeBalance.closingDays ?? typeBalance.balance ?? 0) - daysNum)}</strong> days remaining
               </div>
             ) : null}
             <label className="text-xs font-semibold text-slate-600">
@@ -244,8 +259,14 @@ export default function MyLeave() {
               />
             </label>
             <label className="text-xs font-semibold text-slate-600 sm:col-span-2">
-              Short title (optional)
-              <input value={title} onChange={(e) => setTitle(e.target.value)} className={HR_FIELD_CLASS} />
+              Reason for leave
+              <textarea
+                className={`${HR_FIELD_CLASS} min-h-[72px]`}
+                value={body}
+                onChange={(e) => setBody(e.target.value)}
+                placeholder="Brief reason — required for sick/compassionate leave"
+                required={leaveType === 'sick' || leaveType === 'compassionate'}
+              />
             </label>
           </div>
         ) : null}

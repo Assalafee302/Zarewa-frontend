@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   HR_EMPLOYMENT_TYPES,
   HR_GENDERS,
@@ -6,6 +6,14 @@ import {
   HR_PAYROLL_GROUPS,
   HR_REGISTERABLE_ROLES,
 } from '../../lib/hrStaffConstants';
+import {
+  HR_EMPLOYMENT_STATUSES,
+  HR_MARITAL_STATUSES,
+  HR_STAFF_FORM_TABS,
+} from '../../lib/hrStaffFormMeta';
+import { fetchHrDepartments, fetchHrDesignations } from '../../lib/hrMasterData';
+import { HrManagerPicker } from './HrManagerPicker';
+import { apiFetch } from '../../lib/apiBase';
 
 const fieldCls =
   'mt-1 block w-full rounded-xl border border-slate-200 px-3 py-2 text-sm shadow-sm focus:border-[#134e4a] focus:outline-none focus:ring-2 focus:ring-[#134e4a]/15';
@@ -20,16 +28,16 @@ function Field({ label, children, hint }) {
   );
 }
 
+function branchMatchesScope(dept, branchId) {
+  if (!dept?.branchScope) return true;
+  const scope = String(dept.branchScope).trim().toUpperCase();
+  if (scope === 'HQ') return String(branchId).toUpperCase() === 'HQ';
+  if (scope === 'BRANCH') return String(branchId).toUpperCase() !== 'HQ';
+  return String(dept.branchScope) === String(branchId);
+}
+
 /**
  * Shared staff profile fields (register + edit).
- * @param {{
- *   form: object;
- *   setForm: (fn: (f: object) => object) => void;
- *   branches: { id: string; name: string }[];
- *   mode: 'register' | 'edit';
- *   showCompensation?: boolean;
- *   originalBranchId?: string;
- * }} props
  */
 export function HrStaffFormFields({
   form,
@@ -38,10 +46,102 @@ export function HrStaffFormFields({
   mode,
   showCompensation = true,
   originalBranchId = '',
+  canViewFullBank = false,
+  editUserId = '',
+  initialTab = 'personal',
 }) {
   const set = (key, value) => setForm((f) => ({ ...f, [key]: value }));
+  const [activeTab, setActiveTab] = useState(initialTab);
+  const [staffRoster, setStaffRoster] = useState([]);
   const branchChanged =
     mode === 'edit' && originalBranchId && String(form.branchId) !== String(originalBranchId);
+
+  const [departments, setDepartments] = useState([]);
+  const [designations, setDesignations] = useState([]);
+  const [masterLoading, setMasterLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setMasterLoading(true);
+      const { ok, data } = await fetchHrDepartments(false);
+      if (!cancelled && ok && data?.ok) setDepartments(data.departments || []);
+      setMasterLoading(false);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const params = form.departmentId ? { departmentId: form.departmentId } : {};
+      const { ok, data } = await fetchHrDesignations(params);
+      if (!cancelled && ok && data?.ok) setDesignations(data.designations || []);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [form.departmentId]);
+
+  useEffect(() => {
+    setActiveTab(initialTab);
+  }, [initialTab]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const { ok, data } = await apiFetch('/api/hr/staff');
+      if (!cancelled && ok && data?.ok) setStaffRoster(data.staff || []);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const visibleTabs = HR_STAFF_FORM_TABS.filter((t) => showCompensation || !['payroll', 'bank', 'statutory'].includes(t.id));
+
+  const filteredDepartments = useMemo(
+    () => departments.filter((d) => d.active !== false && branchMatchesScope(d, form.branchId)),
+    [departments, form.branchId]
+  );
+
+  const filteredDesignations = useMemo(() => {
+    if (!form.departmentId) return designations.filter((d) => d.active !== false);
+    return designations.filter((d) => d.active !== false && d.departmentId === form.departmentId);
+  }, [designations, form.departmentId]);
+
+  const selectedDesignation = useMemo(
+    () => designations.find((d) => d.id === form.designationId) || null,
+    [designations, form.designationId]
+  );
+
+  const legacyDepartment = Boolean(form.department && !form.departmentId && departments.length);
+
+  const onDepartmentChange = (deptId) => {
+    const dept = departments.find((d) => d.id === deptId);
+    setForm((f) => ({
+      ...f,
+      departmentId: deptId || '',
+      department: dept?.name || '',
+      designationId: '',
+      jobTitle: '',
+    }));
+  };
+
+  const onDesignationChange = (desId) => {
+    const des = designations.find((d) => d.id === desId);
+    setForm((f) => ({
+      ...f,
+      designationId: desId || '',
+      jobTitle: des?.title || f.jobTitle,
+      promotionGrade: des?.seniorityBand || f.promotionGrade,
+      salaryLevel: des?.defaultSalaryLevel != null ? String(des.defaultSalaryLevel) : f.salaryLevel,
+      salaryStep: des?.defaultSalaryStep != null ? String(des.defaultSalaryStep) : f.salaryStep,
+      jobDescriptionPreview: des?.jobDescription || '',
+    }));
+  };
 
   return (
     <div className="space-y-8">
@@ -89,10 +189,100 @@ export function HrStaffFormFields({
         </section>
       ) : null}
 
+      <div className="flex flex-wrap gap-2 border-b border-slate-200 pb-3">
+        {visibleTabs.map((tab) => (
+          <button
+            key={tab.id}
+            type="button"
+            onClick={() => setActiveTab(tab.id)}
+            className={`rounded-xl px-3 py-1.5 text-xs font-bold transition ${
+              activeTab === tab.id
+                ? 'bg-[#134e4a] text-white shadow-sm'
+                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {activeTab === 'personal' ? (
+        <section className="space-y-4">
+          <div>
+            <h3 className="text-sm font-black uppercase tracking-wide text-[#134e4a]">Personal data</h3>
+            <p className="mt-1 text-xs text-slate-500">Legal name, contact, and demographic details for HR records.</p>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="First name">
+              <input className={fieldCls} value={form.firstName || ''} onChange={(e) => set('firstName', e.target.value)} />
+            </Field>
+            <Field label="Middle name">
+              <input className={fieldCls} value={form.middleName || ''} onChange={(e) => set('middleName', e.target.value)} />
+            </Field>
+            <Field label="Surname">
+              <input className={fieldCls} value={form.surname || ''} onChange={(e) => set('surname', e.target.value)} />
+            </Field>
+            {mode !== 'register' ? (
+              <Field label="Display name">
+                <input className={fieldCls} value={form.displayName || ''} onChange={(e) => set('displayName', e.target.value)} />
+              </Field>
+            ) : null}
+            <Field label="Gender">
+              <select className={fieldCls} value={form.gender} onChange={(e) => set('gender', e.target.value)}>
+                {HR_GENDERS.map((g) => (
+                  <option key={g.value} value={g.value}>{g.label}</option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Date of birth">
+              <input type="date" className={fieldCls} value={form.dateOfBirthIso} onChange={(e) => set('dateOfBirthIso', e.target.value)} />
+            </Field>
+            <Field label="Marital status">
+              <select className={fieldCls} value={form.maritalStatus || ''} onChange={(e) => set('maritalStatus', e.target.value)}>
+                <option value="">Select</option>
+                {HR_MARITAL_STATUSES.map((m) => (
+                  <option key={m.value} value={m.value}>{m.label}</option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Phone">
+              <input className={fieldCls} value={form.phone || ''} onChange={(e) => set('phone', e.target.value)} />
+            </Field>
+            <Field label="Email">
+              <input type="email" className={fieldCls} value={form.personalEmail || ''} onChange={(e) => set('personalEmail', e.target.value)} />
+            </Field>
+            <Field label="Residential address">
+              <input className={fieldCls} value={form.residentialAddress || ''} onChange={(e) => set('residentialAddress', e.target.value)} />
+            </Field>
+            <Field label="State of origin">
+              <input className={fieldCls} value={form.stateOfOrigin || ''} onChange={(e) => set('stateOfOrigin', e.target.value)} />
+            </Field>
+            <Field label="Local government">
+              <input className={fieldCls} value={form.localGovernment || ''} onChange={(e) => set('localGovernment', e.target.value)} />
+            </Field>
+            <Field label="Nationality">
+              <input className={fieldCls} value={form.nationality || 'Nigerian'} onChange={(e) => set('nationality', e.target.value)} />
+            </Field>
+            <Field label="NIN (11 digits)">
+              <input
+                className={fieldCls}
+                value={form.ninNumber}
+                onChange={(e) => set('ninNumber', e.target.value.replace(/\D/g, '').slice(0, 11))}
+                inputMode="numeric"
+              />
+            </Field>
+          </div>
+        </section>
+      ) : null}
+
+      {activeTab === 'employment' ? (
       <section className="space-y-4">
-        <h3 className="text-sm font-black uppercase tracking-wide text-[#134e4a]">Employment</h3>
+        <div>
+          <h3 className="text-sm font-black uppercase tracking-wide text-[#134e4a]">Employment details</h3>
+          <p className="mt-1 text-xs text-slate-500">Branch, department, reporting structure, and employment status.</p>
+        </div>
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Branch">
+          <Field label="Branch / location" hint="HQ for head office staff; branch for field staff.">
             <select className={fieldCls} value={form.branchId} onChange={(e) => set('branchId', e.target.value)} required>
               <option value="">Select branch</option>
               {branches.map((b) => (
@@ -116,12 +306,50 @@ export function HrStaffFormFields({
           <Field label="Staff ID / employee no.">
             <input className={fieldCls} value={form.employeeNo} onChange={(e) => set('employeeNo', e.target.value)} />
           </Field>
-          <Field label="Job title">
-            <input className={fieldCls} value={form.jobTitle} onChange={(e) => set('jobTitle', e.target.value)} required />
+          <Field label="Department" hint={legacyDepartment ? 'Legacy free-text department — select master data to link.' : undefined}>
+            <select
+              className={fieldCls}
+              value={form.departmentId || ''}
+              onChange={(e) => onDepartmentChange(e.target.value)}
+              disabled={masterLoading}
+            >
+              <option value="">{legacyDepartment ? `Legacy: ${form.department}` : 'Select department'}</option>
+              {filteredDepartments.map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.name}{d.code ? ` (${d.code})` : ''}
+                </option>
+              ))}
+            </select>
           </Field>
-          <Field label="Department">
-            <input className={fieldCls} value={form.department} onChange={(e) => set('department', e.target.value)} required />
+          <Field label="Designation / job title">
+            <select
+              className={fieldCls}
+              value={form.designationId || ''}
+              onChange={(e) => onDesignationChange(e.target.value)}
+              required={Boolean(filteredDesignations.length)}
+            >
+              <option value="">
+                {form.jobTitle && !form.designationId ? `Legacy: ${form.jobTitle}` : 'Select designation'}
+              </option>
+              {filteredDesignations.map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.title}
+                  {d.seniorityBand ? ` · ${d.seniorityBand}` : ''}
+                </option>
+              ))}
+            </select>
           </Field>
+          {!form.designationId && form.jobTitle ? (
+            <Field label="Job title (legacy text)">
+              <input className={fieldCls} value={form.jobTitle} onChange={(e) => set('jobTitle', e.target.value)} />
+            </Field>
+          ) : null}
+          {selectedDesignation?.jobDescription || form.jobDescriptionPreview ? (
+            <div className="sm:col-span-2 rounded-xl border border-slate-100 bg-slate-50 px-3 py-2 text-xs text-slate-600">
+              <p className="font-bold uppercase tracking-wide text-slate-400 mb-1">Job description</p>
+              <p className="whitespace-pre-wrap">{selectedDesignation?.jobDescription || form.jobDescriptionPreview}</p>
+            </div>
+          ) : null}
           <Field label="Employment type">
             <select
               className={fieldCls}
@@ -132,6 +360,17 @@ export function HrStaffFormFields({
                 <option key={t.value} value={t.value}>
                   {t.label}
                 </option>
+              ))}
+            </select>
+          </Field>
+          <Field label="Employment status">
+            <select
+              className={fieldCls}
+              value={form.employmentStatus || 'active'}
+              onChange={(e) => set('employmentStatus', e.target.value)}
+            >
+              {HR_EMPLOYMENT_STATUSES.map((s) => (
+                <option key={s.value} value={s.value}>{s.label}</option>
               ))}
             </select>
           </Field>
@@ -151,8 +390,16 @@ export function HrStaffFormFields({
               onChange={(e) => set('probationEndIso', e.target.value)}
             />
           </Field>
+          <Field label="Confirmation date">
+            <input
+              type="date"
+              className={fieldCls}
+              value={form.confirmationDateIso || ''}
+              onChange={(e) => set('confirmationDateIso', e.target.value)}
+            />
+          </Field>
           {form.employmentType === 'contract' ? (
-            <Field label="Contract End Date">
+            <Field label="Contract end date">
               <input
                 type="date"
                 className={fieldCls}
@@ -161,12 +408,21 @@ export function HrStaffFormFields({
               />
             </Field>
           ) : null}
-          <Field label="Line manager (user ID)">
+          <Field label="Line manager">
+            <HrManagerPicker
+              staff={staffRoster}
+              value={form.lineManagerUserId}
+              onChange={(id) => set('lineManagerUserId', id)}
+              excludeUserId={editUserId}
+              className={fieldCls}
+            />
+          </Field>
+          <Field label="Department head / supervisor">
             <input
               className={fieldCls}
-              value={form.lineManagerUserId}
-              onChange={(e) => set('lineManagerUserId', e.target.value)}
-              placeholder="Optional — USR-…"
+              value={form.supervisorName || ''}
+              onChange={(e) => set('supervisorName', e.target.value)}
+              placeholder="Optional — name or user reference"
             />
           </Field>
           <Field label="Leave entitlement band">
@@ -192,10 +448,14 @@ export function HrStaffFormFields({
           </label>
         </div>
       </section>
+      ) : null}
 
-      {showCompensation ? (
+      {showCompensation && activeTab === 'payroll' ? (
         <section className="space-y-4">
-          <h3 className="text-sm font-black uppercase tracking-wide text-[#134e4a]">Compensation</h3>
+          <div>
+            <h3 className="text-sm font-black uppercase tracking-wide text-[#134e4a]">Salary & payroll</h3>
+            <p className="mt-1 text-xs text-slate-500">Payroll group, salary structure, and monthly compensation.</p>
+          </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Payroll group">
               <select
@@ -209,6 +469,14 @@ export function HrStaffFormFields({
                   </option>
                 ))}
               </select>
+            </Field>
+            <Field label="Senior / junior band">
+              <input
+                className={fieldCls}
+                value={form.promotionGrade}
+                onChange={(e) => set('promotionGrade', e.target.value)}
+                placeholder="From designation or manual"
+              />
             </Field>
             <Field label="Salary level">
               <input
@@ -255,6 +523,90 @@ export function HrStaffFormFields({
                 onChange={(e) => set('transportAllowanceNgn', e.target.value)}
               />
             </Field>
+            <Field label="Salary status">
+              <select className={fieldCls} value={form.salaryStatus || 'active'} onChange={(e) => set('salaryStatus', e.target.value)}>
+                <option value="active">Active</option>
+                <option value="held">Held</option>
+                <option value="suspended">Suspended</option>
+                <option value="exited">Exited</option>
+              </select>
+            </Field>
+            <Field label="Payroll remarks">
+              <textarea
+                className={`${fieldCls} min-h-[72px] sm:col-span-2`}
+                value={form.payrollRemarks || ''}
+                onChange={(e) => set('payrollRemarks', e.target.value)}
+                placeholder="Internal payroll notes"
+              />
+            </Field>
+          </div>
+        </section>
+      ) : null}
+
+      {showCompensation && activeTab === 'bank' ? (
+        <section className="space-y-4">
+          <div>
+            <h3 className="text-sm font-black uppercase tracking-wide text-[#134e4a]">Bank details</h3>
+            <p className="mt-1 text-xs text-slate-500">Salary disbursement account. Masked in general HR views.</p>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Bank name">
+              <input className={fieldCls} value={form.bankName} onChange={(e) => set('bankName', e.target.value)} />
+            </Field>
+            <Field label="Account name">
+              <input
+                className={fieldCls}
+                value={form.bankAccountName}
+                onChange={(e) => set('bankAccountName', e.target.value)}
+              />
+            </Field>
+            <Field label="Account no. (display)" hint="Last 4 digits shown in general HR views.">
+              <input
+                className={fieldCls}
+                value={form.bankAccountNoMasked}
+                readOnly
+                placeholder="Auto-filled when full account is saved"
+              />
+            </Field>
+            {canViewFullBank ? (
+              <>
+                <Field label="Full account no. (payroll export)">
+                  <input
+                    className={fieldCls}
+                    value={form.bankAccountNo || ''}
+                    onChange={(e) => set('bankAccountNo', e.target.value)}
+                    placeholder="10-digit NUBAN for bank upload"
+                    inputMode="numeric"
+                  />
+                </Field>
+                <Field label="Bank code (NUBAN)">
+                  <input
+                    className={fieldCls}
+                    value={form.bankCode || ''}
+                    onChange={(e) => set('bankCode', e.target.value)}
+                    placeholder="e.g. 058 for GTBank"
+                  />
+                </Field>
+              </>
+            ) : (
+              <p className="sm:col-span-2 text-xs text-slate-500 rounded-lg bg-slate-50 px-3 py-2">
+                Full bank account numbers are restricted to payroll export roles. Only masked digits are shown here.
+              </p>
+            )}
+          </div>
+        </section>
+      ) : null}
+
+      {showCompensation && activeTab === 'statutory' ? (
+        <section className="space-y-4">
+          <div>
+            <h3 className="text-sm font-black uppercase tracking-wide text-[#134e4a]">Tax, pension & NHIS</h3>
+            <p className="mt-1 text-xs text-slate-500">Statutory deductions and compliance references.</p>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Tax ID / PAYE reference">
+              <input className={fieldCls} value={form.taxId} onChange={(e) => set('taxId', e.target.value)} />
+            </Field>
             <Field label="PAYE %">
               <input
                 type="number"
@@ -264,6 +616,12 @@ export function HrStaffFormFields({
                 value={form.payeTaxPercent}
                 onChange={(e) => set('payeTaxPercent', e.target.value)}
               />
+            </Field>
+            <Field label="Pension administrator">
+              <input className={fieldCls} value={form.pensionAdministrator || ''} onChange={(e) => set('pensionAdministrator', e.target.value)} />
+            </Field>
+            <Field label="RSA PIN">
+              <input className={fieldCls} value={form.pensionRsaPin} onChange={(e) => set('pensionRsaPin', e.target.value)} />
             </Field>
             <Field label="Pension override %">
               <input
@@ -275,106 +633,40 @@ export function HrStaffFormFields({
                 onChange={(e) => set('pensionPercentOverride', e.target.value)}
               />
             </Field>
-            <Field label="Tax ID">
-              <input className={fieldCls} value={form.taxId} onChange={(e) => set('taxId', e.target.value)} />
+            <Field label="NHIS number">
+              <input className={fieldCls} value={form.nhisNumber || ''} onChange={(e) => set('nhisNumber', e.target.value)} />
             </Field>
-            <Field label="RSA PIN">
-              <input className={fieldCls} value={form.pensionRsaPin} onChange={(e) => set('pensionRsaPin', e.target.value)} />
-            </Field>
-            <Field label="Bank name">
-              <input className={fieldCls} value={form.bankName} onChange={(e) => set('bankName', e.target.value)} />
-            </Field>
-            <Field label="Account name">
+            <Field label="HMO / NHIS provider">
               <input
                 className={fieldCls}
-                value={form.bankAccountName}
-                onChange={(e) => set('bankAccountName', e.target.value)}
+                value={form.nhisProvider}
+                onChange={(e) => set('nhisProvider', e.target.value)}
+                placeholder="e.g. HMO provider name"
               />
             </Field>
-            <Field label="Account no. (masked display)">
+            <Field label="Monthly NHIS deduction (₦)">
               <input
+                type="number"
+                min={0}
                 className={fieldCls}
-                value={form.bankAccountNoMasked}
-                onChange={(e) => set('bankAccountNoMasked', e.target.value)}
-                placeholder="Last 4 digits for display"
-              />
-            </Field>
-            <Field label="Full account no. (payroll export)">
-              <input
-                className={fieldCls}
-                value={form.bankAccountNo || ''}
-                onChange={(e) => set('bankAccountNo', e.target.value)}
-                placeholder="10-digit NUBAN for bank upload"
-                inputMode="numeric"
-              />
-            </Field>
-            <Field label="Bank code (NUBAN)">
-              <input
-                className={fieldCls}
-                value={form.bankCode || ''}
-                onChange={(e) => set('bankCode', e.target.value)}
-                placeholder="e.g. 058 for GTBank"
+                value={form.nhisMonthlyDeductionNgn}
+                onChange={(e) => set('nhisMonthlyDeductionNgn', e.target.value)}
+                placeholder="0 if not enrolled"
               />
             </Field>
           </div>
         </section>
       ) : null}
 
+      {activeTab === 'nok' ? (
       <section className="space-y-4">
-        <h3 className="text-sm font-black uppercase tracking-wide text-[#134e4a]">Identity & next of kin</h3>
+        <div>
+          <h3 className="text-sm font-black uppercase tracking-wide text-[#134e4a]">Next of kin & emergency contact</h3>
+          <p className="mt-1 text-xs text-slate-500">Primary emergency contact for HR and safety records.</p>
+        </div>
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Gender">
-            <select className={fieldCls} value={form.gender} onChange={(e) => set('gender', e.target.value)}>
-              {HR_GENDERS.map((g) => (
-                <option key={g.value} value={g.value}>{g.label}</option>
-              ))}
-            </select>
-          </Field>
-          <Field label="Date of Birth">
-            <input
-              type="date"
-              className={fieldCls}
-              value={form.dateOfBirthIso}
-              onChange={(e) => set('dateOfBirthIso', e.target.value)}
-            />
-          </Field>
-          <Field label="HMO/NHIS Provider" hint="Optional">
-            <input
-              className={fieldCls}
-              value={form.nhisProvider}
-              onChange={(e) => set('nhisProvider', e.target.value)}
-              placeholder="e.g. HMO provider name"
-            />
-          </Field>
-          <Field label="Monthly NHIS Deduction" hint="Leave 0 if not enrolled">
-            <input
-              type="number"
-              min={0}
-              className={fieldCls}
-              value={form.nhisMonthlyDeductionNgn}
-              onChange={(e) => set('nhisMonthlyDeductionNgn', e.target.value)}
-              placeholder="₦ 0"
-            />
-          </Field>
-          <Field label="NIN (11 digits)">
-            <input
-              className={fieldCls}
-              value={form.ninNumber}
-              onChange={(e) => set('ninNumber', e.target.value.replace(/\D/g, '').slice(0, 11))}
-              placeholder="National Identification Number"
-              inputMode="numeric"
-            />
-          </Field>
-          <Field label="Next of kin — full name">
+          <Field label="Full name">
             <input className={fieldCls} value={form.nextOfKinName} onChange={(e) => set('nextOfKinName', e.target.value)} />
-          </Field>
-          <Field label="Next of kin — phone">
-            <input
-              className={fieldCls}
-              value={form.nextOfKinPhone}
-              onChange={(e) => set('nextOfKinPhone', e.target.value)}
-              placeholder="+234…"
-            />
           </Field>
           <Field label="Relationship">
             <input
@@ -384,7 +676,22 @@ export function HrStaffFormFields({
               placeholder="e.g. Spouse, Parent"
             />
           </Field>
-          <Field label="Next of kin — address" hint="Optional">
+          <Field label="Phone">
+            <input
+              className={fieldCls}
+              value={form.nextOfKinPhone}
+              onChange={(e) => set('nextOfKinPhone', e.target.value)}
+              placeholder="+234…"
+            />
+          </Field>
+          <Field label="Alternative contact">
+            <input
+              className={fieldCls}
+              value={form.nextOfKinAltPhone || ''}
+              onChange={(e) => set('nextOfKinAltPhone', e.target.value)}
+            />
+          </Field>
+          <Field label="Address">
             <input
               className={fieldCls}
               value={form.nextOfKinAddress}
@@ -393,36 +700,83 @@ export function HrStaffFormFields({
           </Field>
         </div>
       </section>
+      ) : null}
 
+      {activeTab === 'qualifications' ? (
       <section className="space-y-4">
-        <h3 className="text-sm font-black uppercase tracking-wide text-[#134e4a]">Qualifications & notes</h3>
+        <div>
+          <h3 className="text-sm font-black uppercase tracking-wide text-[#134e4a]">Qualifications</h3>
+          <p className="mt-1 text-xs text-slate-500">Education, certifications, and professional training summary.</p>
+        </div>
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Minimum qualification">
+          <Field label="Highest qualification">
             <input
               className={fieldCls}
               value={form.minimumQualification}
               onChange={(e) => set('minimumQualification', e.target.value)}
             />
           </Field>
-          <Field label="Academic qualification">
+          <Field label="Institution">
+            <input className={fieldCls} value={form.institution || ''} onChange={(e) => set('institution', e.target.value)} />
+          </Field>
+          <Field label="Course / field">
             <input
               className={fieldCls}
-              value={form.academicQualification}
-              onChange={(e) => set('academicQualification', e.target.value)}
+              value={form.courseField || form.academicQualification || ''}
+              onChange={(e) => {
+                set('courseField', e.target.value);
+                set('academicQualification', e.target.value);
+              }}
             />
           </Field>
-          <Field label="Grade / promotion band">
+          <Field label="Year completed">
             <input
+              type="number"
+              min={1950}
+              max={2100}
               className={fieldCls}
-              value={form.promotionGrade}
-              onChange={(e) => set('promotionGrade', e.target.value)}
+              value={form.yearCompleted || ''}
+              onChange={(e) => set('yearCompleted', e.target.value)}
+            />
+          </Field>
+          <Field label="Professional certificates">
+            <textarea
+              className={`${fieldCls} min-h-[72px] sm:col-span-2`}
+              value={form.professionalCertificates || ''}
+              onChange={(e) => set('professionalCertificates', e.target.value)}
+              placeholder="List certifications, one per line"
             />
           </Field>
           <Field label="Training summary">
             <textarea
-              className={`${fieldCls} min-h-[72px]`}
+              className={`${fieldCls} min-h-[72px] sm:col-span-2`}
               value={form.trainingSummary}
               onChange={(e) => set('trainingSummary', e.target.value)}
+            />
+          </Field>
+        </div>
+      </section>
+      ) : null}
+
+      {activeTab === 'notes' ? (
+      <section className="space-y-4">
+        <div>
+          <h3 className="text-sm font-black uppercase tracking-wide text-[#134e4a]">HR notes & remarks</h3>
+          <p className="mt-1 text-xs text-slate-500">Internal HR-only information — not visible to staff self-service.</p>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label="Internal remarks">
+            <textarea
+              className={`${fieldCls} min-h-[72px] sm:col-span-2`}
+              value={form.hrInternalNotes || ''}
+              onChange={(e) => set('hrInternalNotes', e.target.value)}
+            />
+          </Field>
+          <Field label="Special conditions">
+            <textarea
+              className={`${fieldCls} min-h-[72px] sm:col-span-2`}
+              value={form.specialConditions || ''}
+              onChange={(e) => set('specialConditions', e.target.value)}
             />
           </Field>
           <Field label="Welfare notes">
@@ -434,6 +788,7 @@ export function HrStaffFormFields({
           </Field>
         </div>
       </section>
+      ) : null}
     </div>
   );
 }

@@ -41,7 +41,7 @@ export function HrStaffRegisterForm({ defaultBranchId, onSuccess, onCancel }) {
       {error ? (
         <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-800">{error}</div>
       ) : null}
-      <HrStaffFormFields form={form} setForm={setForm} branches={branches} mode="register" showCompensation />
+      <HrStaffFormFields form={form} setForm={setForm} branches={branches} mode="register" showCompensation canViewFullBank />
       <div className="flex flex-wrap gap-2 border-t border-slate-100 pt-4">
         <button type="submit" disabled={busy} className={HR_BTN_PRIMARY}>
           {busy ? 'Registering…' : 'Register staff'}
