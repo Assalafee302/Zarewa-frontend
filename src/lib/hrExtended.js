@@ -22,7 +22,18 @@ export async function downloadEmploymentLetterPdf(letterId) {
   const r = await fetch(apiUrl(`/api/hr/employment-letters/${encodeURIComponent(letterId)}/pdf`), {
     credentials: 'include',
   });
-  if (!r.ok) return { ok: false, error: 'PDF download failed.' };
+  if (!r.ok) {
+    let err = 'PDF download failed.';
+    try {
+      const j = await r.json();
+      err = j?.code === 'LETTER_NOT_APPROVED' || j?.error?.includes('approved')
+        ? 'This letter must be approved before it can be printed or downloaded.'
+        : j?.error || err;
+    } catch {
+      /* ignore */
+    }
+    return { ok: false, error: err };
+  }
   const blob = await r.blob();
   const filename =
     r.headers.get('Content-Disposition')?.match(/filename="([^"]+)"/)?.[1] || `letter-${letterId}.pdf`;
@@ -140,4 +151,101 @@ export function fetchHrPolicyRequirements() {
 
 export function acceptHrPolicy(body) {
   return apiFetch('/api/hr/policy-acknowledgements', { method: 'POST', body: JSON.stringify(body) });
+}
+
+const OFFICIAL_LETTER_STATUSES = new Set(['approved', 'issued']);
+
+export function isLetterOfficiallyExportable(status) {
+  return OFFICIAL_LETTER_STATUSES.has(String(status || '').toLowerCase());
+}
+
+export function submitHrLetter(letterId) {
+  return apiFetch(`/api/hr/employment-letters/${encodeURIComponent(letterId)}/submit`, { method: 'POST' });
+}
+
+export function hrReviewHrLetter(letterId, body) {
+  return apiFetch(`/api/hr/employment-letters/${encodeURIComponent(letterId)}/hr-review`, {
+    method: 'PATCH',
+    body: JSON.stringify(body),
+  });
+}
+
+export function gmReviewHrLetter(letterId, body) {
+  return apiFetch(`/api/hr/employment-letters/${encodeURIComponent(letterId)}/gm-review`, {
+    method: 'PATCH',
+    body: JSON.stringify(body),
+  });
+}
+
+export function mdApproveHrLetter(letterId, body) {
+  return apiFetch(`/api/hr/employment-letters/${encodeURIComponent(letterId)}/md-approve`, {
+    method: 'PATCH',
+    body: JSON.stringify(body),
+  });
+}
+
+export function issueHrLetter(letterId) {
+  return apiFetch(`/api/hr/employment-letters/${encodeURIComponent(letterId)}/issue`, { method: 'POST' });
+}
+
+export function rejectHrLetter(letterId, reason) {
+  return apiFetch(`/api/hr/employment-letters/${encodeURIComponent(letterId)}/reject`, {
+    method: 'POST',
+    body: JSON.stringify({ reason }),
+  });
+}
+
+export function recordHrLetterPrint(letterId) {
+  return apiFetch(`/api/hr/employment-letters/${encodeURIComponent(letterId)}/print`, { method: 'POST' });
+}
+
+/** @param {string} letterId */
+export async function downloadEmploymentLetterDocx(letterId) {
+  const r = await fetch(apiUrl(`/api/hr/employment-letters/${encodeURIComponent(letterId)}/docx`), {
+    credentials: 'include',
+  });
+  if (!r.ok) {
+    let err = 'Word download failed.';
+    try {
+      const j = await r.json();
+      err = j?.error || j?.code === 'LETTER_NOT_APPROVED'
+        ? 'This letter must be approved before it can be printed or downloaded.'
+        : err;
+    } catch {
+      /* ignore */
+    }
+    return { ok: false, error: err };
+  }
+  const blob = await r.blob();
+  const filename =
+    r.headers.get('Content-Disposition')?.match(/filename="([^"]+)"/)?.[1] || `letter-${letterId}.doc`;
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+  return { ok: true };
+}
+
+export function fetchBulkImportRuns() {
+  return apiFetch('/api/hr/staff-import/runs');
+}
+
+export function fetchMyDisciplineCases() {
+  return apiFetch('/api/hr/my/discipline-cases');
+}
+
+export function submitMyDisciplineResponse(caseId, response) {
+  return apiFetch(`/api/hr/my/discipline-cases/${encodeURIComponent(caseId)}/response`, {
+    method: 'PATCH',
+    body: JSON.stringify({ response }),
+  });
+}
+
+export function submitMyDisciplineAppeal(caseId, grounds) {
+  return apiFetch(`/api/hr/my/discipline-cases/${encodeURIComponent(caseId)}/appeal`, {
+    method: 'POST',
+    body: JSON.stringify({ grounds }),
+  });
 }

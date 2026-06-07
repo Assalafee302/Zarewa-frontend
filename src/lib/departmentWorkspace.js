@@ -67,10 +67,13 @@ export function normalizeWorkspaceDepartmentId(raw) {
 
 const DEFAULT_HOME_BY_ROLE = {
   admin: '/settings',
-  md: '/',
+  md: '/exec',
+  ceo: '/exec',
+  hr_admin: '/hr',
+  gmhr: '/hr',
   finance_manager: '/accounting',
-  sales_manager: '/sales',
-  sales_staff: '/sales',
+  sales_manager: '/manager',
+  sales_staff: '/',
   cashier: '/cashier',
   operations_officer: '/operations',
 };
@@ -97,6 +100,7 @@ export function pathToModuleKey(pathname) {
   if (p === '/settings' || p.startsWith('/settings/')) return 'settings';
   if (p === '/my-profile' || p.startsWith('/my-profile/')) return 'my_profile_hr';
   if (p === '/team-hr' || p.startsWith('/team-hr/')) return 'team_hr';
+  if (p === '/executive-hr' || p.startsWith('/executive-hr/')) return 'executive_hr';
   if (p === '/hr/executive' || p.startsWith('/hr/executive/')) return 'executive_hr';
   if (p === '/hr' || p.startsWith('/hr/')) return 'hr';
   return null;
@@ -112,6 +116,11 @@ export function resolvePostLoginPath(user, permissions) {
     return '/office';
   }
   const roleKey = String(user?.roleKey || '').trim().toLowerCase();
+  if (roleKey === 'md' || roleKey === 'ceo') {
+    const mod = pathToModuleKey('/exec');
+    if (mod && !canAccessModuleWithPermissions(permissions, mod)) return '/';
+    return '/exec';
+  }
   if (roleKey === 'sales_manager') {
     const mod = pathToModuleKey('/manager');
     if (mod && !canAccessModuleWithPermissions(permissions, mod)) return '/';

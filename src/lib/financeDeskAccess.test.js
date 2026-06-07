@@ -33,8 +33,8 @@ describe('financeDeskAccess', () => {
     ).toBe(true);
   });
 
-  it('cashier with legacy full finance flag', () => {
-    expect(userHasLegacyFullFinanceDeskClient('cashier', ['finance.view', 'reports.view'])).toBe(true);
+  it('cashier does not have legacy full finance hat (Phase 10)', () => {
+    expect(userHasLegacyFullFinanceDeskClient('cashier', ['finance.view', 'reports.view'])).toBe(false);
   });
 
   it('finance.pay grants Cashier Desk without role key', () => {

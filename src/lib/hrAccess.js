@@ -14,11 +14,11 @@ export const HR_MODULE_PERMISSIONS = [
   'hr.payroll.prepare',
   'hr.payroll.manage',
   'hr.payroll.gm_approve',
-  'hr.payroll.md_approve',
-  'hr.payroll.view_sensitive',
-  'hr.executive.view',
   'hr.reports.view',
   'hr.settings.manage',
+  'hr.letters.generate',
+  'hr.letters.approve',
+  'hr.staff.import',
 ];
 
 export const TEAM_HR_PERMISSIONS = [
@@ -40,7 +40,31 @@ export const MY_PROFILE_HR_PERMISSIONS = [
   'hr.my_documents.view',
 ];
 
-export const EXECUTIVE_HR_PERMISSIONS = ['hr.executive.view', 'hr.branch_contribution.mark'];
+export const EXECUTIVE_HR_PERMISSIONS = [
+  'hr.executive.view',
+  'hr.branch_contribution.mark',
+  'hr.executive.benefits.view',
+  'hr.executive.benefits.manage',
+  'hr.executive.benefits.export',
+  'hr.chairman.manage',
+];
+
+/** @param {string[] | undefined} permissions */
+export function canAccessExecutiveBenefits(permissions) {
+  if (hasPermissionInList(permissions, '*')) return true;
+  return (
+    hrHasPermission(permissions, 'hr.executive.benefits.view') ||
+    hrHasPermission(permissions, 'hr.executive.benefits.manage') ||
+    hrHasPermission(permissions, 'hr.chairman.manage') ||
+    hrHasPermission(permissions, 'hr.executive.view')
+  );
+}
+
+/** Executive-only keys — do not unlock main HR admin workspace (Phase 10). */
+export const HR_EXECUTIVE_ONLY_PERMISSIONS = ['hr.executive.view', 'hr.payroll.md_approve'];
+
+/** Main /hr/* workspace — excludes executive-only MD keys. */
+export const MAIN_HR_WORKSPACE_PERMISSIONS = [...HR_MODULE_PERMISSIONS];
 
 const SENSITIVE_VIEW = [
   'hr.payroll.view_sensitive',
@@ -75,6 +99,12 @@ export function canAccessHrModule(permissions) {
   return HR_MODULE_PERMISSIONS.some((p) => hrHasPermission(permissions, p));
 }
 
+/** Main /hr/* workspace — excludes team-only, self-only, and executive-only MD users. */
+export function canAccessMainHrWorkspace(permissions) {
+  if (hasPermissionInList(permissions, '*')) return true;
+  return MAIN_HR_WORKSPACE_PERMISSIONS.some((p) => hrHasPermission(permissions, p));
+}
+
 /** @param {string[] | undefined} permissions */
 export function canAccessTeamHr(permissions) {
   if (hasPermissionInList(permissions, '*')) return true;
@@ -85,7 +115,7 @@ export function canAccessTeamHr(permissions) {
 export function canAccessMyProfileHr(permissions) {
   if (hasPermissionInList(permissions, '*')) return true;
   if (MY_PROFILE_HR_PERMISSIONS.some((p) => hrHasPermission(permissions, p))) return true;
-  return canAccessHrModule(permissions) || canAccessTeamHr(permissions);
+  return canAccessMainHrWorkspace(permissions) || canAccessTeamHr(permissions);
 }
 
 /** @param {string[] | undefined} permissions */
@@ -210,6 +240,16 @@ export function canGenerateHrLetters(permissions) {
 /** @param {string[] | undefined} permissions */
 export function canManageHrSettings(permissions) {
   return hrHasPermission(permissions, 'hr.settings.manage') || canManageHrStaff(permissions);
+}
+
+/** @param {string[] | undefined} permissions */
+export function canApproveHrLetters(permissions) {
+  return hrHasPermission(permissions, 'hr.letters.approve') || canManageHrStaff(permissions);
+}
+
+/** @param {string[] | undefined} permissions */
+export function canBulkImportStaff(permissions) {
+  return hrHasPermission(permissions, 'hr.staff.import') || canManageHrStaff(permissions);
 }
 
 /** @param {string[] | undefined} permissions */

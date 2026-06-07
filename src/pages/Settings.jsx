@@ -25,6 +25,7 @@ import { PageHeader, PageShell, MainPanel, PageTabs } from '../components/layout
 import MasterDataWorkbench from '../components/settings/MasterDataWorkbench';
 import CoilRegisterImportPanel from '../components/settings/CoilRegisterImportPanel';
 import TeamAccessPanel from '../components/settings/TeamAccessPanel';
+import CustomPermissionOverridesPanel from '../components/settings/CustomPermissionOverridesPanel';
 import SettingsProfilePanel from '../components/settings/SettingsProfilePanel';
 import AdminDataResetPanel from '../components/settings/AdminDataResetPanel';
 import { SettingsIntegrationApiPanel } from '../components/settings/SettingsIntegrationApiPanel';
@@ -661,11 +662,14 @@ const Settings = () => {
               path="team"
               element={
                 showTeamTab ? (
-                  <TeamAccessPanel
-                    appUsers={appUsers}
-                    currentUserId={currentUser?.id}
-                    onRefresh={ws?.refresh}
-                  />
+                  <div className="space-y-8">
+                    <CustomPermissionOverridesPanel />
+                    <TeamAccessPanel
+                      appUsers={appUsers}
+                      currentUserId={currentUser?.id}
+                      onRefresh={ws?.refresh}
+                    />
+                  </div>
                 ) : (
                   <Navigate to="/settings/profile" replace />
                 )

@@ -11,25 +11,25 @@ import ExecutiveHrVariance from './ExecutiveHrVariance';
 import ExecutiveHrApprovals from './ExecutiveHrApprovals';
 import HrReports from './HrReports';
 
-const HrChairmanAccounts = lazy(() => import('./HrChairmanAccounts'));
+const HrExecutiveBenefitsHub = lazy(() => import('./HrChairmanAccounts'));
 
 const NAV = [
-  { to: '/hr/executive/payroll', label: 'Payroll summary', end: true },
-  { to: '/hr/executive/contributions', label: 'Branch contributions' },
-  { to: '/hr/executive/exceptional-loans', label: 'Exceptional loans' },
-  { to: '/hr/executive/salary-structure', label: 'Salary structure' },
-  { to: '/hr/executive/special-changes', label: 'Special changes' },
-  { to: '/hr/executive/variance', label: 'Payroll variance' },
-  { to: '/hr/executive/approvals', label: 'Sensitive approvals' },
-  { to: '/hr/executive/chairman', label: 'Chairman accounts' },
-  { to: '/hr/executive/reports', label: 'HR reports' },
+  { to: '/executive-hr/payroll', label: 'Payroll summary', end: true },
+  { to: '/executive-hr/contributions', label: 'Branch contributions' },
+  { to: '/executive-hr/exceptional-loans', label: 'Exceptional loans' },
+  { to: '/executive-hr/salary-structure', label: 'Salary structure' },
+  { to: '/executive-hr/special-changes', label: 'Special changes' },
+  { to: '/executive-hr/variance', label: 'Payroll variance' },
+  { to: '/executive-hr/approvals', label: 'Sensitive approvals' },
+  { to: '/executive-hr/benefits', label: 'Executive benefits' },
+  { to: '/executive-hr/reports', label: 'HR reports' },
 ];
 
 function ExecutiveShell() {
   return (
     <HrSectionShell
       title="Executive HR"
-      subtitle="Managing Director view — branch salary contributions, exceptional loans, chairman accounts, and sensitive payroll oversight."
+      subtitle="Managing Director view — branch salary contributions, executive benefits, and sensitive payroll oversight."
       navItems={NAV}
     />
   );
@@ -49,13 +49,14 @@ export default function ExecutiveHr() {
           <Route path="variance" element={<ExecutiveHrVariance />} />
           <Route path="approvals" element={<ExecutiveHrApprovals />} />
           <Route
-            path="chairman"
+            path="benefits"
             element={
-              <Suspense fallback={<p className="text-sm text-slate-600">Loading chairman accounts…</p>}>
-                <HrChairmanAccounts embedded />
+              <Suspense fallback={<p className="text-sm text-slate-600">Loading executive benefits…</p>}>
+                <HrExecutiveBenefitsHub embedded />
               </Suspense>
             }
           />
+          <Route path="chairman" element={<Navigate to="/executive-hr/benefits" replace />} />
           <Route path="reports" element={<HrReports executive embedded />} />
         </Route>
       </Routes>

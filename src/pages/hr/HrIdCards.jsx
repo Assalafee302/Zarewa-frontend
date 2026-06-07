@@ -16,23 +16,27 @@ import { createHrIdCardRequest, fetchHrIdCards, patchHrIdCardRequest } from '../
 import { canManageHrStaff } from '../../lib/hrAccess';
 import { HR_BLOOD_GROUPS } from '../../lib/hrStaffFormMeta';
 
-const STATUS_STEPS = ['pending', 'processing', 'ready', 'collected'];
+const STATUS_STEPS = ['pending', 'processing', 'printed', 'ready', 'collected', 'reissued', 'expired'];
 
 const STATUS_PILL = {
   pending: 'bg-amber-50 text-amber-800 border-amber-200',
   processing: 'bg-sky-50 text-sky-800 border-sky-200',
+  printed: 'bg-indigo-50 text-indigo-800 border-indigo-200',
   ready: 'bg-emerald-50 text-emerald-800 border-emerald-200',
   collected: 'bg-slate-100 text-slate-600 border-slate-200',
+  reissued: 'bg-violet-50 text-violet-900 border-violet-200',
+  expired: 'bg-red-50 text-red-800 border-red-200',
 };
 
 const BLANK_APPLY = { requestType: 'new', reason: '', notes: '', bloodGroup: '', emergencyContact: '', lostDamaged: false };
 
-function IdCardPreview({ request, person, onClose, onPrint }) {
+function IdCardPreview({ request, person, onClose, onPrint, temporary = false }) {
   const showPhoto = person?.avatarUrl && (person.avatarUrl.startsWith('https://') || person.avatarUrl.startsWith('data:image/'));
   const issueDate = request.issueDateIso?.slice(0, 10) || new Date().toISOString().slice(0, 10);
   const expiryDate =
     request.expiryDateIso?.slice(0, 10) ||
-    new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  const verifyCode = request.id?.slice(-8).toUpperCase() || 'VERIFY';
 
   return (
     <div className="space-y-4">
@@ -43,13 +47,24 @@ function IdCardPreview({ request, person, onClose, onPrint }) {
           .no-print { display: none !important; }
         }
       `}</style>
-      <div id="id-card-print-root" className="flex justify-center">
-        <div className="w-80 rounded-2xl border-2 border-[#134e4a] bg-white p-6 shadow-xl">
-          <div className="text-center space-y-3">
-            <div className="text-xs font-black uppercase tracking-widest text-[#134e4a]">Zarewa Group</div>
-            <div className="text-[10px] uppercase tracking-widest text-slate-500 border-b border-slate-100 pb-2">
-              Staff identification
+      <div id="id-card-print-root" className="flex flex-col items-center gap-4">
+        <div className="relative w-80 rounded-2xl border-2 border-[#134e4a] bg-white p-6 shadow-xl overflow-hidden">
+          {temporary ? (
+            <div className="pointer-events-none absolute inset-0 flex items-center justify-center opacity-[0.08]">
+              <span className="-rotate-12 text-2xl font-black uppercase tracking-widest text-[#134e4a]">Temporary</span>
             </div>
+          ) : null}
+          <div className="relative text-center space-y-3">
+            <div className="text-xs font-black uppercase tracking-widest text-[#134e4a]">Zarewa Aluminium & Plastics Ltd</div>
+            {temporary ? (
+              <div className="inline-block rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-amber-900">
+                Temporary Staff ID
+              </div>
+            ) : (
+              <div className="text-[10px] uppercase tracking-widest text-slate-500 border-b border-slate-100 pb-2">
+                Staff identification
+              </div>
+            )}
             {showPhoto ? (
               <img src={person.avatarUrl} alt="" className="mx-auto h-20 w-20 rounded-full border-2 border-slate-200 object-cover" />
             ) : (
@@ -80,6 +95,12 @@ function IdCardPreview({ request, person, onClose, onPrint }) {
                 <p className="font-semibold text-slate-700">{expiryDate}</p>
               </div>
             </div>
+            <div className="rounded-lg border border-dashed border-slate-200 px-2 py-1 text-[9px] font-mono text-slate-500">
+              Verification: {verifyCode}
+            </div>
+            <div className="border-t border-slate-100 pt-2 text-[9px] text-slate-400">
+              Authorised signature: ___________________
+            </div>
             <p className="text-[9px] text-slate-400">Property of Zarewa Group. If found, please return to HR.</p>
           </div>
         </div>
@@ -94,7 +115,7 @@ function IdCardPreview({ request, person, onClose, onPrint }) {
 
 function TempIdCardModal({ request, staff, onClose }) {
   const person = staff?.find((s) => s.userId === request?.userId) || request;
-  return <IdCardPreview request={{ ...request, issueDateIso: null, expiryDateIso: null }} person={person} onClose={onClose} />;
+  return <IdCardPreview request={request} person={person} onClose={onClose} temporary />;
 }
 
 export default function HrIdCards({ embedded = false } = {}) {

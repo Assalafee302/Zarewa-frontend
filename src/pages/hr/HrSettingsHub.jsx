@@ -10,8 +10,13 @@ import {
 import { HrBranchMappingPanel, HrDepartmentsPanel, HrDesignationsPanel } from '../../components/hr/HrMasterDataPanels';
 import { HrOperationalReadinessPanel } from '../../components/hr/HrOperationalReadinessPanel';
 
+import { HrLetterReferencePanel } from '../../components/hr/HrLetterReferencePanel';
+import { HrStaffNumberingPanel } from '../../components/hr/HrStaffNumberingPanel';
+
 const TABS = [
   { id: 'policy-config', label: 'Policy Config' },
+  { id: 'letter-references', label: 'Letter References' },
+  { id: 'staff-numbering', label: 'Staff Numbering' },
   { id: 'salary-matrix', label: 'Salary Matrix' },
   { id: 'holidays', label: 'Public Holidays' },
   { id: 'departments', label: 'Departments' },
@@ -34,6 +39,8 @@ export default function HrSettingsHub() {
       onTabChange={setTab}
     >
       {tab === 'policy-config' ? <HrPolicyConfigSection /> : null}
+      {tab === 'letter-references' ? <HrLetterReferencePanel /> : null}
+      {tab === 'staff-numbering' ? <HrStaffNumberingPanel /> : null}
       {tab === 'salary-matrix' ? <HrSalaryMatrixPanel /> : null}
       {tab === 'holidays' ? <HrPublicHolidaysSection embedded /> : null}
       {tab === 'departments' ? <HrDepartmentsPanel /> : null}

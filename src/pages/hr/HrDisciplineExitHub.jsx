@@ -6,20 +6,22 @@ import { HrExitClearancePanel } from '../../components/hr/HrExitClearancePanel';
 import HrDiscipline from './HrDiscipline';
 import HrTransfers from './HrTransfers';
 import TeamHrIncidents from './TeamHrIncidents';
+import HrDisciplineCasesPanel from '../../components/hr/HrDisciplineCasesPanel';
 
 import { HrGrievanceForm, HrGrievanceQueue } from '../../components/hr/HrGrievancePanels';
 
 const TABS = [
-  { id: 'discipline', label: 'Discipline Log' },
+  { id: 'cases', label: 'Case management' },
+  { id: 'discipline', label: 'Discipline log' },
   { id: 'incidents', label: 'Incidents' },
   { id: 'grievances', label: 'Grievances' },
   { id: 'transfers', label: 'Transfers' },
   { id: 'separations', label: 'Separations' },
-  { id: 'exit-clearance', label: 'Exit Clearance' },
+  { id: 'exit-clearance', label: 'Exit clearance' },
 ];
 
 export default function HrDisciplineExitHub() {
-  const { tab, setTab } = useHrUrlTab('discipline', TABS.map((t) => t.id));
+  const { tab, setTab } = useHrUrlTab('cases', TABS.map((t) => t.id));
 
   const openClearance = (id) => {
     if (id) sessionStorage.setItem('hrExitClearanceOpenId', id);
@@ -29,11 +31,12 @@ export default function HrDisciplineExitHub() {
   return (
     <HrTabbedPage
       title="Discipline & Exit"
-      description="Disciplinary events, incident memos, transfers, separations, and exit clearance."
+      description="Case management, disciplinary events, incidents, transfers, separations, and exit clearance."
       tabs={TABS}
       tab={tab}
       onTabChange={setTab}
     >
+      {tab === 'cases' ? <HrDisciplineCasesPanel /> : null}
       {tab === 'discipline' ? <HrDiscipline embedded /> : null}
       {tab === 'incidents' ? <TeamHrIncidents /> : null}
       {tab === 'grievances' ? (

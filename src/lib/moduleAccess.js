@@ -53,10 +53,11 @@ export const MODULE_ACCESS_POLICY = {
     'hr.payroll.prepare',
     'hr.payroll.manage',
     'hr.payroll.gm_approve',
-    'hr.payroll.md_approve',
-    'hr.payroll.view_sensitive',
     'hr.reports.view',
     'hr.settings.manage',
+    'hr.letters.generate',
+    'hr.letters.approve',
+    'hr.staff.import',
   ],
   team_hr: [
     'hr.team.view',
@@ -75,7 +76,13 @@ export const MODULE_ACCESS_POLICY = {
     'hr.my_payslip.view',
     'hr.my_documents.view',
   ],
-  executive_hr: ['hr.executive.view', 'hr.branch_contribution.mark'],
+  executive_hr: [
+    'hr.executive.view',
+    'hr.branch_contribution.mark',
+    'hr.executive.benefits.view',
+    'hr.executive.benefits.manage',
+    'hr.chairman.manage',
+  ],
 };
 
 export function canAccessModuleWithPermissions(permissions, moduleKey) {

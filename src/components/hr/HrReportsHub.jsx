@@ -213,7 +213,28 @@ export function HrReportsHub() {
               Generated {preview.generatedAtIso?.slice(0, 19).replace('T', ' ')}
               {preview.generatedBy ? ` by ${preview.generatedBy}` : ''}
             </p>
-            <HrResponsiveTable columns={preview.columns} rows={preview.rows} emptyMessage="No records for this filter." />
+            <HrResponsiveTable
+              columns={preview.columns}
+              rows={preview.rows.map((row) => {
+                const userId = row.userId || row.user_id;
+                const fixLink =
+                  row.fixLink ||
+                  (userId && selectedId?.includes('import')
+                    ? `${HR_EMPLOYEES}/${encodeURIComponent(userId)}?tab=personal`
+                    : userId && selectedId?.includes('policy')
+                      ? `${HR_EMPLOYEES}/${encodeURIComponent(userId)}?tab=policies`
+                      : userId && selectedId?.includes('document')
+                        ? `${HR_EMPLOYEES}/${encodeURIComponent(userId)}?tab=documents`
+                        : null);
+                return {
+                  ...row,
+                  deepLink: row.deepLink || (userId ? `${HR_EMPLOYEES}/${encodeURIComponent(userId)}` : null),
+                  fixLink,
+                  fixLabel: row.fixLabel || (fixLink ? 'Fix in profile' : undefined),
+                };
+              })}
+              emptyMessage="No records for this filter."
+            />
             {preview.rows.some((r) => r.userId) ? (
               <p className="mt-2 text-xs text-slate-500">
                 Rows with staff names link to{' '}

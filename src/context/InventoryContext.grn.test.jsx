@@ -6,6 +6,8 @@ import { InventoryProvider, useInventory } from './InventoryContext.jsx';
 
 const MOCK_WS = {
   canMutate: false,
+  hasWorkspaceData: true,
+  refreshEpoch: 1,
   snapshot: {
     products: [{ productID: 'P-TEST-1', name: 'Test Coil', stockLevel: 50 }],
     purchaseOrders: [

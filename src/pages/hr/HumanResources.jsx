@@ -26,7 +26,6 @@ import HrDevelopmentHub from './HrDevelopmentHub';
 import HrDisciplineExitHub from './HrDisciplineExitHub';
 import HrDocumentsHub from './HrDocumentsHub';
 import HrSettingsHub from './HrSettingsHub';
-import ExecutiveHr from './ExecutiveHr';
 
 const HrAnalytics = lazy(() => import('./HrAnalytics'));
 
@@ -58,7 +57,7 @@ export default function HumanResources() {
   const showExecutive = ws?.canAccessModule?.('executive_hr');
 
   const navItems = showExecutive
-    ? [...HR_NAV, { to: '/hr/executive', label: 'Executive' }]
+    ? [...HR_NAV, { to: '/executive-hr', label: 'Executive' }]
     : HR_NAV;
 
   return (
@@ -104,15 +103,14 @@ export default function HumanResources() {
         <Route path="appraisal" element={<HrTabRedirect base={HR_DEVELOPMENT} tab="appraisals" />} />
         <Route path="analytics" element={<Suspense fallback={<p className="text-sm text-slate-600">Loading analytics…</p>}><HrAnalytics /></Suspense>} />
         <Route path="id-cards" element={<HrTabRedirect base={HR_EMPLOYEES} tab="id-cards" />} />
-        <Route path="chairman" element={<Navigate to="/hr/executive/chairman" replace />} />
+        <Route path="chairman" element={<Navigate to="/executive-hr/benefits" replace />} />
+        <Route path="executive/*" element={<Navigate to="/executive-hr" replace />} />
 
         {/* Legacy standalone routes → hub equivalents */}
         <Route path="leave-legacy" element={<Navigate to={HR_LEAVE} replace />} />
         <Route path="attendance-legacy" element={<Navigate to={HR_ATTENDANCE} replace />} />
         <Route path="payroll-legacy" element={<Navigate to={HR_PAYROLL} replace />} />
         <Route path="settings-legacy" element={<Navigate to={HR_SETTINGS} replace />} />
-
-        <Route path="executive/*" element={<ExecutiveHr />} />
       </Route>
     </Routes>
   );

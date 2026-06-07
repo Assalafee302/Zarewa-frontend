@@ -7,11 +7,16 @@ import { pathToModuleKey } from '../lib/departmentWorkspace';
  * Redirects to workspace home when the signed-in user lacks module permissions.
  * Does not replace server-side checks; prevents confusing empty or error states from deep links.
  */
-export default function ModuleRouteGuard({ moduleKey, children }) {
+export default function ModuleRouteGuard({ moduleKey, altModuleKeys = [], children }) {
   const ws = useWorkspace();
   const location = useLocation();
   const key = moduleKey ?? pathToModuleKey(location.pathname);
-  if (key && ws?.canAccessModule && !ws.canAccessModule(key)) {
+  const keys = key ? [key, ...(Array.isArray(altModuleKeys) ? altModuleKeys : [])] : [];
+  const allowed =
+    keys.length === 0 ||
+    !ws?.canAccessModule ||
+    keys.some((k) => ws.canAccessModule(k));
+  if (!allowed) {
     return <Navigate to="/" replace state={{ moduleDenied: key }} />;
   }
   return children;

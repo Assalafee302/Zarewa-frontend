@@ -35,7 +35,10 @@ export default function MyProfilePolicies() {
 
   return (
     <div className="space-y-4">
-      <p className="text-sm text-slate-600">Employee handbook and IT security acknowledgements required for HR self-service.</p>
+      <p className="text-sm text-slate-600">
+        Employee handbook, confidentiality, IT security, data protection, code of conduct, and related policies.
+        Signed acknowledgements are stored on your HR file.
+      </p>
       <label className="text-xs font-semibold text-slate-600 block max-w-md">
         Signature (typed name)
         <input
@@ -46,13 +49,17 @@ export default function MyProfilePolicies() {
       </label>
       <ul className="space-y-3">
         {required.map((p) => {
-          const isMissing = missing.some((m) => m.key === p.key && m.version === p.version);
+          const missingEntry = missing.find((m) => m.key === p.key && m.version === p.version);
+          const isMissing = Boolean(missingEntry);
+          const ack = p.acknowledgement || p.signedAtIso;
           return (
             <li key={`${p.key}-${p.version}`} className="rounded-xl border border-slate-100 bg-white px-4 py-3 flex justify-between items-center gap-4">
               <div>
-                <p className="font-semibold text-slate-900">{p.label}</p>
+                <p className="font-semibold text-slate-900">{p.label || p.title || p.key}</p>
                 <p className="text-xs text-slate-500">
                   {p.key} v{p.version}
+                  {ack ? ` · Signed ${String(ack).slice(0, 10)}` : ''}
+                  {p.expiresAtIso ? ` · Renews ${p.expiresAtIso.slice(0, 10)}` : ''}
                 </p>
               </div>
               {isMissing ? (

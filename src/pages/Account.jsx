@@ -75,6 +75,7 @@ import {
   isPayFromCorrectionTreasuryRow,
   TREASURY_STATEMENT_TYPE_LABEL,
 } from '../lib/accountCore';
+import { getAllowedLegacyAccountTabs } from '../lib/legacyAccountsAccess';
 import {
   treasuryAccountBranchLabel,
   treasuryAccountDisplayName,
@@ -1133,16 +1134,20 @@ const Account = () => {
     );
   };
 
-  const accountTabs = useMemo(
-    () => [
+  const accountTabs = useMemo(() => {
+    const all = [
       { id: 'treasury', icon: <Landmark size={16} />, label: 'Treasury' },
       { id: 'receipts', icon: <Banknote size={16} />, label: 'Receipts & recon' },
       { id: 'movements', icon: <ArrowRightLeft size={16} />, label: 'Movements' },
       { id: 'disbursements', icon: <ClipboardList size={16} />, label: 'Payments' },
       { id: 'audit', icon: <ShieldCheck size={16} />, label: 'Audit' },
-    ],
-    []
-  );
+    ];
+    const rk = ws?.session?.user?.roleKey;
+    const permissions = ws?.session?.user?.permissions;
+    const allowed = getAllowedLegacyAccountTabs(rk, permissions);
+    if (!allowed.length) return all;
+    return all.filter((t) => allowed.includes(t.id));
+  }, [ws?.session?.user?.roleKey, ws?.session?.user?.permissions]);
 
   const handleAccountTabChange = useCallback(
     (tabId) => {
@@ -1158,8 +1163,22 @@ const Account = () => {
 
   useEffect(() => {
     const t = searchParams.get('tab');
-    if (t && TAB_LABELS[t]) setActiveTab(t);
-  }, [searchParams]);
+    const rk = ws?.session?.user?.roleKey;
+    const permissions = ws?.session?.user?.permissions;
+    const allowed = getAllowedLegacyAccountTabs(rk, permissions);
+    if (t && TAB_LABELS[t]) {
+      if (!allowed.length || allowed.includes(t)) {
+        setActiveTab(t);
+      } else if (allowed[0]) {
+        setActiveTab(allowed[0]);
+        setSearchParams(allowed[0] === 'treasury' ? {} : { tab: allowed[0] }, { replace: true });
+      }
+      return;
+    }
+    if (allowed.length && !allowed.includes(activeTab)) {
+      setActiveTab(allowed[0]);
+    }
+  }, [searchParams, ws?.session?.user?.roleKey, ws?.session?.user?.permissions, activeTab, setSearchParams]);
 
   const canManageTreasury = Boolean(ws?.hasPermission?.('treasury.manage'));
   const canExecTreasuryDelete =

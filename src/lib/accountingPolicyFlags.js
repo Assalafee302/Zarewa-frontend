@@ -34,9 +34,12 @@ export function syncAccountingPolicyFlagsFromTrial(trialPayload) {
   }
 }
 
-/** @param {{ accountingPolicyV1Labels?: string }} capabilities */
+/** @param {{ accountingPolicyV1Labels?: string, deliveryPaymentGate?: string }} capabilities */
 export function syncAccountingPolicyFlagsFromHealth(capabilities) {
   if (capabilities?.accountingPolicyV1Labels === 'v1') {
     setAccountingPolicyV1LabelsEnabled(true);
+  }
+  if (capabilities?.deliveryPaymentGate) {
+    cachedDeliveryGateMode = String(capabilities.deliveryPaymentGate);
   }
 }

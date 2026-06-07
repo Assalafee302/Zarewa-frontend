@@ -63,6 +63,8 @@ import { ManagerPoAuditSections } from '../components/management/ManagerPoAuditS
 import { RefundManagerApprovalPreview } from '../components/management/RefundManagerApprovalPreview';
 import { ClearanceManagerApprovalPreview } from '../components/management/ClearanceManagerApprovalPreview';
 import { OfficialRecordBanner } from '../components/management/OfficialRecordBanner';
+import DeliveryGateDiagnosticsBanner from '../components/finance/DeliveryGateDiagnosticsBanner';
+import { syncAccountingPolicyFlagsFromHealth, deliveryPaymentGateMode } from '../lib/accountingPolicyFlags';
 
 const INBOX_TABS = [
   {
@@ -118,6 +120,7 @@ const ManagerDashboard = () => {
   const [attentionSummary, setAttentionSummary] = useState(null);
   const [poAuditData, setPoAuditData] = useState(null);
   const [loadingPoAudit, setLoadingPoAudit] = useState(false);
+  const [deliveryGateMode, setDeliveryGateMode] = useState('off');
   const [editApprovalPending, setEditApprovalPending] = useState([]);
   const [conversionSignoffRemark, setConversionSignoffRemark] = useState('');
   const [conversionSignoffEditApprovalId, setConversionSignoffEditApprovalId] = useState('');
@@ -683,6 +686,21 @@ const ManagerDashboard = () => {
     }
     void fetchAudit(qref);
   }, [selectedIntel?.kind, selectedIntel?.row?.quotation_ref, selectedIntel?.jobId, fetchAudit]);
+
+  useEffect(() => {
+    const rk = String(ws?.session?.user?.roleKey || '').toLowerCase();
+    if (!['md', 'admin', 'sales_manager'].includes(rk)) return;
+    let cancelled = false;
+    (async () => {
+      const { ok, data } = await apiFetch('/api/health');
+      if (cancelled || !ok) return;
+      syncAccountingPolicyFlagsFromHealth(data?.capabilities || {});
+      setDeliveryGateMode(deliveryPaymentGateMode());
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [ws?.session?.user?.roleKey]);
 
   const tabCounts = useMemo(
     () => ({
@@ -1287,6 +1305,12 @@ const ManagerDashboard = () => {
           role="alert"
         >
           {loadError}
+        </div>
+      ) : null}
+
+      {['md', 'admin', 'sales_manager'].includes(String(ws?.session?.user?.roleKey || '').toLowerCase()) ? (
+        <div className="mb-6">
+          <DeliveryGateDiagnosticsBanner deliveryPaymentGate={deliveryGateMode} />
         </div>
       ) : null}
 

@@ -75,6 +75,7 @@ import {
 } from '../lib/supplierProfileForm';
 import { treasuryAccountDisplayName, treasuryAccountsForWorkspace } from '../lib/treasuryAccountsStore';
 import { createRequestPayLine, mapTreasuryPayoutLinesForApi } from '../lib/accountCore';
+import ProcurementAlertsPanel from '../components/procurement/dashboard/ProcurementAlertsPanel';
 
 /** Rows per column for Coil / Stone-coated / Accessories lists on Purchases. */
 const PROCUREMENT_PURCHASES_COLUMN_PAGE_SIZE = 10;
@@ -514,6 +515,38 @@ const Procurement = () => {
       purchaseOrders.filter((p) => p.status === 'In Transit' || p.status === 'On loading').length,
     [purchaseOrders]
   );
+
+  const pendingPoCount = useMemo(
+    () => purchaseOrders.filter((p) => ['Draft', 'Pending', 'Submitted'].includes(String(p.status || ''))).length,
+    [purchaseOrders]
+  );
+
+  const procurementAlerts = useMemo(() => {
+    const out = [];
+    if (pendingPoCount > 0) {
+      out.push({
+        severity: 'medium',
+        type: 'PO approvals',
+        message: `${pendingPoCount} purchase order(s) awaiting action.`,
+      });
+    }
+    if (transitLoadingCount > 0) {
+      out.push({
+        severity: 'medium',
+        type: 'GRN pending',
+        message: `${transitLoadingCount} PO(s) in transit — receiving may be needed.`,
+      });
+    }
+    if (outstandingSupplierNgn > 0) {
+      out.push({
+        severity: 'high',
+        type: 'Outstanding payables',
+        message: 'Supplier obligations pending settlement.',
+        amountNgn: outstandingSupplierNgn,
+      });
+    }
+    return out;
+  }, [pendingPoCount, transitLoadingCount, outstandingSupplierNgn]);
 
   const bestSupplier = useMemo(() => {
     const byId = {};
@@ -1420,6 +1453,12 @@ const Procurement = () => {
           ) : null
         }
       />
+
+      {procurementAlerts.length > 0 ? (
+        <div className="mb-4">
+          <ProcurementAlertsPanel alerts={procurementAlerts} />
+        </div>
+      ) : null}
 
       {procBranchId ? (
         <div className="rounded-2xl border border-teal-200/80 bg-teal-50/40 px-4 py-4 mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">

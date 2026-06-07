@@ -7,9 +7,11 @@ import TeamHrIncidents from './TeamHrIncidents';
 import TeamHrTransfers from './TeamHrTransfers';
 import TeamHrRequests from './TeamHrRequests';
 import TeamHrAttendance from './TeamHrAttendance';
+import TeamHrHome from './TeamHrHome';
 
 const NAV = [
-  { to: '/team-hr/staff', label: 'Team staff', end: true },
+  { to: '/team-hr', label: 'Dashboard', end: true },
+  { to: '/team-hr/staff', label: 'Team staff' },
   { to: '/team-hr/attendance', label: 'Daily attendance' },
   { to: '/team-hr/requests', label: 'Requests' },
   { to: '/team-hr/leave-calendar', label: 'Leave calendar' },
@@ -29,7 +31,7 @@ export default function TeamHr() {
           />
         }
       >
-        <Route index element={<Navigate to="staff" replace />} />
+        <Route index element={<TeamHrHome />} />
         <Route path="staff" element={<TeamHrStaff />} />
         <Route path="attendance" element={<TeamHrAttendance />} />
         <Route path="requests" element={<TeamHrRequests />} />

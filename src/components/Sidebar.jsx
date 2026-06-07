@@ -28,6 +28,8 @@ import {
   userMayViewAccountingDeskClient,
   userMayViewCashierDeskClient,
 } from '../lib/financeDeskAccess';
+import { userMaySeeLegacyAccountsNav } from '../lib/legacyAccountsAccess';
+import { canAccessExecutiveHr } from '../lib/hrAccess';
 import { ZAREWA_LOGO_SRC } from '../Data/companyQuotation';
 
 function pathMatches(locationPath, basePath) {
@@ -130,7 +132,7 @@ const Sidebar = ({ mobileOpen = false, onCloseMobile, collapsed = false, onToggl
       label: 'Finance',
       path: '/accounts',
       active: pathMatches(p, '/accounts'),
-      visible: ws?.canAccessModule?.('finance') ?? true,
+      visible: userMaySeeLegacyAccountsNav(roleKey, permissions),
     },
     {
       icon: <BarChart3 size={18} />,
@@ -148,8 +150,15 @@ const Sidebar = ({ mobileOpen = false, onCloseMobile, collapsed = false, onToggl
       icon: <Users size={18} />,
       label: 'Human Resources',
       path: '/hr',
-      active: pathMatches(p, '/hr'),
+      active: pathMatches(p, '/hr') && !pathMatches(p, '/hr/executive'),
       visible: ws?.canAccessModule?.('hr') ?? false,
+    },
+    {
+      icon: <ShieldCheck size={18} />,
+      label: 'Executive HR',
+      path: '/executive-hr',
+      active: pathMatches(p, '/executive-hr') || pathMatches(p, '/hr/executive'),
+      visible: canAccessExecutiveHr(permissions),
     },
     {
       icon: <UserCircle size={18} />,
@@ -158,6 +167,16 @@ const Sidebar = ({ mobileOpen = false, onCloseMobile, collapsed = false, onToggl
       active: pathMatches(p, '/team-hr'),
       visible:
         (ws?.canAccessModule?.('team_hr') ?? false) && !(ws?.canAccessModule?.('hr') ?? false),
+    },
+    {
+      icon: <UserCircle size={18} />,
+      label: 'My Profile',
+      path: '/my-profile',
+      active: pathMatches(p, '/my-profile'),
+      visible:
+        (ws?.canAccessModule?.('my_profile_hr') ?? false) &&
+        !(ws?.canAccessModule?.('hr') ?? false) &&
+        !(ws?.canAccessModule?.('team_hr') ?? false),
     },
     {
       icon: <ClipboardCheck size={18} />,

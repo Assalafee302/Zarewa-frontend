@@ -59,14 +59,10 @@ export function userMayViewAccountingSectionsOnReportsClient(roleKey, permission
   return userMayViewAccountingDeskClient(roleKey, permissions);
 }
 
-/** User still has legacy full-finance hat (sees old /accounts + reports GL during transition). */
+/** Phase 10: legacy full-finance hat — MD/admin/accountant only; cashier and BM use desks. */
 export function userHasLegacyFullFinanceDeskClient(roleKey, permissions) {
   const rk = String(roleKey || '').trim().toLowerCase();
-  if (CASHIER_DESK_ROLE_KEYS.has(rk)) {
-    return (
-      hasPermissionInList(permissions, 'finance.view') &&
-      hasPermissionInList(permissions, 'reports.view')
-    );
-  }
-  return ACCOUNTING_DESK_ROLE_KEYS.has(rk) || hasPermissionInList(permissions, '*');
+  if (hasPermissionInList(permissions, '*')) return true;
+  if (rk === 'sales_manager' || CASHIER_DESK_ROLE_KEYS.has(rk)) return false;
+  return ACCOUNTING_DESK_ROLE_KEYS.has(rk);
 }

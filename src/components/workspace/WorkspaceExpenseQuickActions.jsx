@@ -11,6 +11,7 @@ import { buildPaymentRequestBodyFromForm, initialExpenseRequestFormState } from 
 import { EXPENSE_CATEGORY_OPTIONS } from '../../shared/expenseCategories.js';
 import { treasuryAccountDisplayName, treasuryAccountsForWorkspace } from '../../lib/treasuryAccountsStore';
 import { compareSelectLabels } from '../../lib/selectOptionSort';
+import { canAccessMyProfileHr } from '../../lib/hrAccess';
 
 /**
  * Workspace-only entry for expense payment requests (and optional direct expense for finance or sales).
@@ -269,6 +270,14 @@ export function WorkspaceExpenseQuickActions() {
               className="text-center text-[9px] font-bold uppercase tracking-wide text-teal-800 hover:underline"
             >
               Finance &amp; treasury
+            </Link>
+          ) : null}
+          {canAccessMyProfileHr(ws?.permissions) ? (
+            <Link
+              to="/my-profile"
+              className="text-center text-[9px] font-bold uppercase tracking-wide text-[#134e4a] hover:underline"
+            >
+              My Profile — leave, loans, payslips
             </Link>
           ) : null}
         </div>

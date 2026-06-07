@@ -4,12 +4,14 @@ import {
   Routes,
   Route,
   useNavigate,
+  useLocation,
   Navigate,
 } from 'react-router-dom';
 import Sidebar from './components/Sidebar';
 import LoginScreen from './components/auth/LoginScreen';
 import UserOnboardingGate from './components/auth/UserOnboardingGate';
 import ModuleRouteGuard from './components/ModuleRouteGuard';
+import HrMainRouteGuard from './components/hr/HrMainRouteGuard';
 import FinanceDeskRouteGuard from './components/FinanceDeskRouteGuard';
 import DocumentTitleSync from './components/DocumentTitleSync';
 import { AppErrorBoundary } from './components/AppErrorBoundary';
@@ -101,6 +103,13 @@ const HelpChatDockGate = lazy(() =>
 const HumanResources = lazy(() => import('./pages/hr/HumanResources'));
 const MyProfile = lazy(() => import('./pages/hr/MyProfile'));
 const TeamHr = lazy(() => import('./pages/hr/TeamHr'));
+const ExecutiveHr = lazy(() => import('./pages/hr/ExecutiveHr'));
+
+function ExecutiveHrLegacyRedirect() {
+  const loc = useLocation();
+  const rest = loc.pathname.replace(/^\/hr\/executive\/?/, '') || 'payroll';
+  return <Navigate to={`/executive-hr/${rest}${loc.search}${loc.hash}`} replace />;
+}
 
 /** Blocks the whole app when bootstrap falls back to cached session (API unreachable). */
 function DegradedWorkspaceLock() {
@@ -206,12 +215,21 @@ function DegradedWorkspaceLock() {
 
 function HomeRoute() {
   const ws = useWorkspace();
-  const rk = ws?.session?.user?.roleKey;
-  if (rk === 'ceo') {
+  const rk = String(ws?.session?.user?.roleKey || '').toLowerCase();
+  if (rk === 'ceo' || rk === 'md') {
     return <Navigate to="/exec" replace />;
   }
-  if (rk === 'md' || rk === 'sales_manager') {
+  if (rk === 'sales_manager') {
     return <Navigate to="/manager" replace />;
+  }
+  if (rk === 'cashier') {
+    return <Navigate to="/cashier" replace />;
+  }
+  if (rk === 'finance_manager') {
+    return <Navigate to="/accounting" replace />;
+  }
+  if (rk === 'hr_admin' || rk === 'gmhr') {
+    return <Navigate to="/hr" replace />;
   }
   return <Dashboard />;
 }
@@ -1020,6 +1038,17 @@ function AppShell() {
               }
             />
             <Route
+              path="/executive-hr/*"
+              element={
+                <ModuleRouteGuard moduleKey="executive_hr">
+                  <Suspense fallback={<LoadingScreen />}>
+                    <ExecutiveHr />
+                  </Suspense>
+                </ModuleRouteGuard>
+              }
+            />
+            <Route path="/hr/executive/*" element={<ExecutiveHrLegacyRedirect />} />
+            <Route
               path="/team-hr/*"
               element={
                 <ModuleRouteGuard moduleKey="team_hr">
@@ -1033,9 +1062,11 @@ function AppShell() {
               path="/hr/*"
               element={
                 <ModuleRouteGuard moduleKey="hr">
-                  <Suspense fallback={<LoadingScreen />}>
-                    <HumanResources />
-                  </Suspense>
+                  <HrMainRouteGuard>
+                    <Suspense fallback={<LoadingScreen />}>
+                      <HumanResources />
+                    </Suspense>
+                  </HrMainRouteGuard>
                 </ModuleRouteGuard>
               }
             />

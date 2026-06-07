@@ -47,6 +47,7 @@ import AdvancePaymentModal from '../components/AdvancePaymentModal';
 import CuttingListModal from '../components/CuttingListModal';
 import RefundModal from '../components/RefundModal';
 import { MainPanel, PageHeader, PageShell, PageTabs } from '../components/layout';
+import SalesMobileAlertStrip from '../components/sales/SalesMobileAlertStrip';
 import { WorkspaceExpenseQuickActions } from '../components/workspace/WorkspaceExpenseQuickActions';
 import { AiAskButton } from '../components/AiAskButton';
 import { ZareHelpButton } from '../components/ZareHelpButton';
@@ -1277,6 +1278,14 @@ const Sales = () => {
             </div>
           </div>
         }
+      />
+
+      <SalesMobileAlertStrip
+        salesTab={salesTab}
+        pendingApproval={listStats.quotations.pendingApproval}
+        pendingRefunds={listStats.refund.pending}
+        awaitingPayRefunds={listStats.refund.awaitingPay}
+        followUpCount={quotationFollowUpRows.length}
       />
 
       <div className="grid grid-cols-1 gap-6 lg:gap-8 min-w-0 lg:grid-cols-4">
