@@ -207,7 +207,8 @@ function TypingIndicator() {
   );
 }
 
-function InsightSection({ icon: Icon, title, tone, children, defaultOpen = true }) {
+function InsightSection({ icon, title, tone, children, defaultOpen = true }) {
+  const Icon = icon;
   const [open, setOpen] = useState(defaultOpen);
   const tones = {
     indigo: 'border-indigo-200/70 bg-gradient-to-br from-indigo-50/95 to-white',
