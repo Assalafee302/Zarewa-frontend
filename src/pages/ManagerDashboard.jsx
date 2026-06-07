@@ -61,10 +61,12 @@ import { ManagementAuditSections } from '../components/management/ManagementAudi
 import { StockRegisterMonthEndModal } from '../components/reports/StockRegisterMonthEndModal';
 import { ManagerPoAuditSections } from '../components/management/ManagerPoAuditSections';
 import { RefundManagerApprovalPreview } from '../components/management/RefundManagerApprovalPreview';
+import { OperationalSummaryWidget } from '../components/reports/OperationalSummaryWidget';
 import { ClearanceManagerApprovalPreview } from '../components/management/ClearanceManagerApprovalPreview';
 import { OfficialRecordBanner } from '../components/management/OfficialRecordBanner';
 import DeliveryGateDiagnosticsBanner from '../components/finance/DeliveryGateDiagnosticsBanner';
 import { syncAccountingPolicyFlagsFromHealth, deliveryPaymentGateMode } from '../lib/accountingPolicyFlags';
+import { userMayApproveRefundRequests } from '../lib/refundsStore';
 
 const INBOX_TABS = [
   {
@@ -90,6 +92,7 @@ const ManagerDashboard = () => {
   const [searchParams] = useSearchParams();
   const quoteDeepLinked = useRef('');
   const poDeepLinked = useRef('');
+  const refundDeepLinked = useRef('');
   const managerQueuesHydratedRef = useRef(false);
   const lastRefundIntelQrefRef = useRef('');
   const ws = useWorkspace();
@@ -147,8 +150,7 @@ const ManagerDashboard = () => {
   );
   const canApprovePaymentRequests =
     Boolean(ws?.hasPermission?.('finance.approve')) || Boolean(ws?.hasPermission?.('*'));
-  const canApproveRefunds =
-    Boolean(ws?.hasPermission?.('refunds.approve')) || Boolean(ws?.hasPermission?.('finance.approve'));
+  const canApproveRefunds = userMayApproveRefundRequests(ws);
 
   const selectedRefundRecord = useMemo(() => {
     if (selectedIntel?.kind !== 'refund' || !selectedIntel.refundId) return null;
@@ -600,6 +602,19 @@ const ManagerDashboard = () => {
     void fetchPoAudit(po);
   }, [searchParams, loading, fetchPoAudit]);
 
+  /** Deep link: ?refundId= from governance pack / attention inbox */
+  useEffect(() => {
+    const rid = (searchParams.get('refundId') || searchParams.get('refundID') || '').trim();
+    if (!rid || loading) return;
+    if (refundDeepLinked.current === rid) return;
+    refundDeepLinked.current = rid;
+    const row =
+      displayItems.pendingRefunds.find((r) => String(r.refund_id) === rid) || { refund_id: rid };
+    setRefundIntelExtras(null);
+    setSelectedIntel({ kind: 'refund', refundId: rid, row: { ...row } });
+    setActiveTab('refunds');
+  }, [loading, searchParams, displayItems.pendingRefunds]);
+
   useEffect(() => {
     setConversionSignoffRemark('');
     setConversionSignoffEditApprovalId('');
@@ -833,6 +848,31 @@ const ManagerDashboard = () => {
         setActiveTab('edit_approvals');
         return;
       }
+      if (kind === 'governance') {
+        const refundId = item.refundId || row.refundId;
+        if (refundId) {
+          setAuditData(null);
+          setRefundIntelExtras(null);
+          setSelectedIntel({
+            kind: 'refund',
+            refundId,
+            row: { refund_id: refundId, quotation_ref: item.quotationRef || row.quotationRef || '', ...row },
+          });
+          setActiveTab('refunds');
+          return;
+        }
+        const qref = String(item.quotationRef || row.quotationRef || '').trim();
+        if (qref) {
+          openQuotationIntel(
+            qref,
+            { id: qref, customer_name: row.customer_name || item.subtitle || '' },
+            { fromProductionGate: true, cuttingListId: item.cuttingListId || row.cuttingListId || '' }
+          );
+          setActiveTab('production');
+          return;
+        }
+        return;
+      }
       if (item.poId) {
         const po = item.poId;
         setAuditData(null);
@@ -927,7 +967,7 @@ const ManagerDashboard = () => {
     }
   };
 
-  const handleRefundDecision = async (status) => {
+  const handleRefundDecision = async (status, alignmentExtras = {}) => {
     if (selectedIntel?.kind !== 'refund') return;
     const note =
       window.prompt(status === 'Approved' ? 'Optional note for approval' : 'Reason for rejection (optional)') ?? '';
@@ -941,6 +981,12 @@ const ManagerDashboard = () => {
           status,
           managerComments: note.trim(),
           ...(status === 'Approved' && amount > 0 ? { approvedAmountNgn: amount } : {}),
+          ...(status === 'Approved' && alignmentExtras?.productionAlignmentAcknowledgedCodes
+            ? {
+                productionAlignmentAcknowledgedCodes: alignmentExtras.productionAlignmentAcknowledgedCodes,
+                productionAlignmentOverrideNote: alignmentExtras.productionAlignmentOverrideNote || '',
+              }
+            : {}),
         }),
       }
     );
@@ -1526,6 +1572,10 @@ const ManagerDashboard = () => {
         }}
       />
 
+      {userMayViewManagementReportsClient(ws) ? (
+        <OperationalSummaryWidget className="mb-6" linkTo="/reports" />
+      ) : null}
+
       {!ws?.hasWorkspaceData ? (
         <p className="text-xs font-semibold text-slate-500 mb-6">
           KPI strip uses live workspace data — connect to the API if figures look empty.
@@ -1811,7 +1861,11 @@ const ManagerDashboard = () => {
                     loadingIntel={loadingRefundIntel}
                     formatNgn={formatNgn}
                     decisionBusy={decisionBusy}
-                    onApprove={() => handleRefundDecision('Approved')}
+                    deliveryPaymentGate={deliveryGateMode}
+                    refundExecutiveThresholdNgn={
+                      Number(ws?.snapshot?.orgGovernanceLimits?.refundExecutiveThresholdNgn) || 1_000_000
+                    }
+                    onApprove={(alignmentExtras) => handleRefundDecision('Approved', alignmentExtras)}
                     onReject={() => handleRefundDecision('Rejected')}
                     onOpenSales={() =>
                       navigate('/sales', {

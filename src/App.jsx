@@ -45,6 +45,7 @@ import { AiAskButton } from './components/AiAskButton';
 import { buildWorkspaceNotifications } from './lib/workspaceNotifications';
 import { AiAssistantProvider, useAiAssistant } from './context/AiAssistantContext';
 import { HelpChatProvider } from './context/HelpChatContext';
+import { RoleTrainingReplayLayer } from './components/auth/RoleTrainingReplayLayer';
 import { notificationPrompt } from './lib/aiAssistUi';
 import { searchWorkspaceSnapshot } from './lib/workspaceSearchLocal';
 import { formatPersonName } from './lib/formatPersonName';
@@ -1087,6 +1088,7 @@ function AppShell() {
       <Suspense fallback={null}>
         <HelpChatDockGate />
       </Suspense>
+      <RoleTrainingReplayLayer />
       <Suspense fallback={null}>
         <AiAssistantDock />
       </Suspense>

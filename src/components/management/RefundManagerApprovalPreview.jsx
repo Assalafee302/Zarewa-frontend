@@ -1,9 +1,43 @@
-import React, { Fragment, useMemo } from 'react';
-import { RefreshCw, CheckCircle2, RotateCcw } from 'lucide-react';
+import React, { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
+import { RefreshCw, CheckCircle2, RotateCcw, AlertTriangle } from 'lucide-react';
 import { flattenQuotationLineItems, formatRefundReasonCategory, ledgerTypeStyle } from '../../lib/managerDashboardCore';
 import { formatActorAttribution, formatStageActor } from '../../lib/actorAttribution';
 import { formatPersonName } from '../../lib/formatPersonName';
 import { normalizeRefund } from '../../lib/refundsStore';
+import { QuotationLifecycleTimeline } from '../production/ProductionPhase11B';
+import { apiFetch } from '../../lib/apiBase';
+import { useWorkspace } from '../../context/WorkspaceContext';
+import { userMayOverrideProductionAlignment } from '../../lib/workspaceGovernanceClient';
+
+function refundCategoryTokens(value) {
+  if (Array.isArray(value)) return value.map((x) => String(x ?? '').trim()).filter(Boolean);
+  const s = String(value ?? '').trim();
+  if (!s) return [];
+  if (s.startsWith('[')) {
+    try {
+      const parsed = JSON.parse(s);
+      return Array.isArray(parsed) ? parsed.map((x) => String(x ?? '').trim()).filter(Boolean) : [s];
+    } catch {
+      return [s];
+    }
+  }
+  return s.split(/[,;|]/).map((x) => x.trim()).filter(Boolean);
+}
+
+function AlertBanner({ tone, title, children }) {
+  const styles =
+    tone === 'rose'
+      ? 'border-rose-300 bg-rose-50 text-rose-950'
+      : tone === 'amber'
+        ? 'border-amber-300 bg-amber-50 text-amber-950'
+        : 'border-violet-300 bg-violet-50 text-violet-950';
+  return (
+    <div className={`rounded-xl border px-3 py-2.5 shadow-sm ${styles}`}>
+      <p className="text-[10px] font-black uppercase tracking-widest">{title}</p>
+      {children ? <div className="mt-1 space-y-1 text-[11px] leading-snug">{children}</div> : null}
+    </div>
+  );
+}
 
 function Panel({ title, hint, children, className = '' }) {
   return (
@@ -67,10 +101,23 @@ export function RefundManagerApprovalPreview({
   loadingIntel,
   formatNgn,
   decisionBusy,
+  deliveryPaymentGate = 'off',
+  refundExecutiveThresholdNgn = 1_000_000,
   onApprove,
   onReject,
   onOpenSales,
 }) {
+  const ws = useWorkspace();
+  const [productionAlignmentIssues, setProductionAlignmentIssues] = useState([]);
+  const [productionAlignmentAck, setProductionAlignmentAck] = useState({});
+  const [productionAlignmentOverrideNote, setProductionAlignmentOverrideNote] = useState('');
+  const [alignmentCheckLoading, setAlignmentCheckLoading] = useState(false);
+
+  const canOverrideProductionAlignment = useMemo(
+    () => userMayOverrideProductionAlignment(ws?.user?.roleKey ?? ws?.session?.user?.roleKey),
+    [ws?.user?.roleKey, ws?.session?.user?.roleKey]
+  );
+
   const loading = loadingAudit || (loadingIntel && !refundIntel);
   const refund = useMemo(() => {
     if (refundRecord) return normalizeRefund(refundRecord);
@@ -101,6 +148,9 @@ export function RefundManagerApprovalPreview({
   const salesReceipts = Array.isArray(auditData?.salesReceipts) ? auditData.salesReceipts : [];
   const intelSum = refundIntel?.summary;
   const dataQuality = Array.isArray(refundIntel?.dataQualityIssues) ? refundIntel.dataQualityIssues : [];
+  const productionSuggested = Array.isArray(refundIntel?.productionSuggestedCategories)
+    ? refundIntel.productionSuggestedCategories
+    : [];
   const calcLines = refund?.calculationLines || [];
 
   const checksByJob = useMemo(() => {
@@ -127,6 +177,190 @@ export function RefundManagerApprovalPreview({
 
   const accLines = intelSum?.accessoriesSummary?.lines || [];
   const stone = intelSum?.stoneFlatsheetSummary;
+
+  const requestedAmountNgn = Number(refund?.amountNgn ?? inboxRow?.amount_ngn) || 0;
+  const requiresMdApproval = requestedAmountNgn > Number(refundExecutiveThresholdNgn) || 0;
+  const orderTotalNgn = Number(sum?.orderTotalNgn) || 0;
+  const paidOnQuoteNgn = Number(sum?.paidNgn) || 0;
+  const paymentPct =
+    orderTotalNgn > 0 ? Math.round((paidOnQuoteNgn / orderTotalNgn) * 1000) / 10 : null;
+  const deliveryGateActive = deliveryPaymentGate === 'enforce' || deliveryPaymentGate === 'warn';
+  const deliveryGateBreached =
+    deliveryPaymentGate === 'enforce' && paymentPct != null && paymentPct < 70;
+
+  const currentCategories = useMemo(
+    () => refundCategoryTokens(refund?.reasonCategory ?? inboxRow?.reason_category),
+    [refund?.reasonCategory, inboxRow?.reason_category]
+  );
+
+  const runAlignmentCheck = useCallback(async () => {
+    const qref = String(refund?.quotationRef ?? inboxRow?.quotation_ref ?? '').trim();
+    if (!qref || currentCategories.length === 0) {
+      setProductionAlignmentIssues([]);
+      return;
+    }
+    setAlignmentCheckLoading(true);
+    const ackCodes = Object.entries(productionAlignmentAck)
+      .filter(([, v]) => v)
+      .map(([k]) => k);
+    const { ok, data } = await apiFetch('/api/refunds/production-alignment-check', {
+      method: 'POST',
+      body: JSON.stringify({
+        quotationRef: qref,
+        reasonCategory: currentCategories,
+        productionAlignmentAcknowledgedCodes: ackCodes,
+        productionAlignmentOverrideNote: productionAlignmentOverrideNote.trim(),
+      }),
+    });
+    setAlignmentCheckLoading(false);
+    if (ok && data) {
+      setProductionAlignmentIssues(Array.isArray(data.issues) ? data.issues : []);
+    }
+  }, [
+    refund?.quotationRef,
+    inboxRow?.quotation_ref,
+    currentCategories,
+    productionAlignmentAck,
+    productionAlignmentOverrideNote,
+  ]);
+
+  useEffect(() => {
+    const t = setTimeout(() => {
+      void runAlignmentCheck();
+    }, 300);
+    return () => clearTimeout(t);
+  }, [runAlignmentCheck]);
+
+  const alignmentBlocksApprove = useMemo(() => {
+    if (productionAlignmentIssues.length === 0) return false;
+    const hasBlock = productionAlignmentIssues.some((i) => i.submitAction === 'block');
+    if (hasBlock && !(canOverrideProductionAlignment && productionAlignmentOverrideNote.trim().length >= 10)) {
+      return true;
+    }
+    const needAck = productionAlignmentIssues.filter((i) => i.submitAction === 'acknowledge');
+    return needAck.some((i) => !productionAlignmentAck[i.code]);
+  }, [
+    productionAlignmentIssues,
+    canOverrideProductionAlignment,
+    productionAlignmentOverrideNote,
+    productionAlignmentAck,
+  ]);
+
+  const handleApproveClick = () => {
+    if (alignmentBlocksApprove) return;
+    const ackCodes = Object.entries(productionAlignmentAck)
+      .filter(([, v]) => v)
+      .map(([k]) => k);
+    onApprove?.({
+      productionAlignmentAcknowledgedCodes: ackCodes,
+      productionAlignmentOverrideNote: productionAlignmentOverrideNote.trim(),
+    });
+  };
+  const quoteRefundCategories = useMemo(() => {
+    const set = new Set(currentCategories.map((c) => c.toLowerCase()));
+    for (const r of otherRefunds) {
+      for (const c of refundCategoryTokens(r.reason_category)) {
+        set.add(c.toLowerCase());
+      }
+    }
+    return set;
+  }, [currentCategories, otherRefunds]);
+
+  const hasOverpayCategory =
+    quoteRefundCategories.has('overpayment') || currentCategories.some((c) => /overpay/i.test(c));
+  const hasCancelOrUnproduced =
+    ['order cancellation', 'unproduced meterage'].some((k) => quoteRefundCategories.has(k)) ||
+    currentCategories.some((c) => /cancellation|unproduced/i.test(c));
+  const multiCategoryOverlap = hasOverpayCategory && hasCancelOrUnproduced;
+
+  const partialProductionJobs = useMemo(
+    () =>
+      productionLogs.filter((job) => {
+        const st = String(job.status || '').trim().toLowerCase();
+        if (st !== 'completed') return false;
+        const planned = Number(job.planned_meters) || 0;
+        const actual = Number(job.actual_meters) || 0;
+        return planned > 0 && actual > 0 && actual < planned * 0.98;
+      }),
+    [productionLogs]
+  );
+  const cancellationWithProduction =
+    currentCategories.some((c) => /order cancellation/i.test(c)) &&
+    productionLogs.some(
+      (job) =>
+        String(job.status || '').trim().toLowerCase() === 'completed' &&
+        (Number(job.actual_meters) || 0) > 0
+    );
+
+  const contextAlerts = useMemo(() => {
+    const alerts = [];
+    if (requiresMdApproval) {
+      alerts.push({
+        tone: 'violet',
+        title: `MD approval required — above ₦${Number(refundExecutiveThresholdNgn).toLocaleString('en-NG')}`,
+        body: `Requested ${formatNgn(requestedAmountNgn)} exceeds the executive refund threshold. Only MD/CEO (or administrator) may approve this amount.`,
+      });
+    }
+    if (multiCategoryOverlap) {
+      alerts.push({
+        tone: 'amber',
+        title: 'Multi-category overlap on quotation',
+        body: 'This quote has Overpayment combined with Order cancellation and/or Unproduced meterage across refund requests. Verify categories are not double-counting the same economic loss.',
+      });
+    }
+    if (partialProductionJobs.length > 0 || cancellationWithProduction) {
+      alerts.push({
+        tone: 'amber',
+        title: 'Partial production detected',
+        body:
+          partialProductionJobs.length > 0
+            ? `${partialProductionJobs.length} completed job(s) produced less than planned — consider Unproduced meterage instead of full cancellation.`
+            : 'Order cancellation requested but production jobs show completed output on this quote.',
+      });
+    }
+    if (paymentPct != null) {
+      alerts.push({
+        tone: deliveryGateBreached ? 'rose' : 'amber',
+        title: `Payment ${paymentPct}% of order total`,
+        body: deliveryGateActive
+          ? deliveryGateBreached
+            ? 'Delivery payment gate (70%) is not met — production/delivery may have proceeded without full payment.'
+            : `Delivery gate mode: ${deliveryPaymentGate}. Quote paid ${formatNgn(paidOnQuoteNgn)} of ${formatNgn(orderTotalNgn)}.`
+          : `Quote paid ${formatNgn(paidOnQuoteNgn)} of ${formatNgn(orderTotalNgn)}.`,
+      });
+    }
+    for (const issue of dataQuality) {
+      alerts.push({
+        tone: 'amber',
+        title: issue.title || issue.code || 'Data quality',
+        body: issue.message || issue.detail || '',
+      });
+    }
+    if (productionSuggested.length) {
+      alerts.push({
+        tone: 'amber',
+        title: 'Production-aligned categories',
+        body: `Based on job state, consider: ${productionSuggested.join(', ')}.`,
+      });
+    }
+    return alerts.filter((a) => a.body);
+  }, [
+    requiresMdApproval,
+    refundExecutiveThresholdNgn,
+    requestedAmountNgn,
+    formatNgn,
+    multiCategoryOverlap,
+    partialProductionJobs.length,
+    cancellationWithProduction,
+    paymentPct,
+    deliveryGateBreached,
+    deliveryGateActive,
+    deliveryPaymentGate,
+    paidOnQuoteNgn,
+    orderTotalNgn,
+    dataQuality,
+    productionSuggested,
+  ]);
 
   return (
     <div className="animate-in fade-in space-y-3 duration-200">
@@ -161,6 +395,16 @@ export function RefundManagerApprovalPreview({
           </p>
         </div>
       </div>
+
+      {contextAlerts.length > 0 ? (
+        <div className="space-y-2">
+          {contextAlerts.map((alert) => (
+            <AlertBanner key={alert.title} tone={alert.tone} title={alert.title}>
+              <p>{alert.body}</p>
+            </AlertBanner>
+          ))}
+        </div>
+      ) : null}
 
       {loading ? (
         <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white py-16">
@@ -535,7 +779,7 @@ export function RefundManagerApprovalPreview({
                         <span className="font-bold tabular-nums text-amber-900">{formatNgn(r.amount_ngn)}</span>
                       </div>
                       <p className="text-[10px] text-slate-700">
-                        {r.status} · {r.product || '—'}
+                        {r.status} · {formatRefundReasonCategory(r.reason_category)} · {r.product || '—'}
                       </p>
                       <ActorCaption name={r.requested_by} dateIso={r.requested_at_iso} />
                       {r.approved_by ? (
@@ -559,13 +803,74 @@ export function RefundManagerApprovalPreview({
         </div>
       )}
 
+      {refund?.quotationRef || inboxRow?.quotation_ref ? (
+        <QuotationLifecycleTimeline
+          quotationId={refund?.quotationRef || inboxRow?.quotation_ref}
+          className="mt-1"
+        />
+      ) : null}
+
       <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
         <p className="mb-2 text-[10px] font-black uppercase tracking-widest text-[#134e4a]">Decision</p>
+
+        {productionAlignmentIssues.length > 0 ? (
+          <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50/80 p-3 space-y-2">
+            <div className="flex items-center gap-2">
+              <AlertTriangle size={14} className="text-amber-800 shrink-0" />
+              <p className="text-[10px] font-black uppercase text-amber-950">Production alignment (approval gate)</p>
+              {alignmentCheckLoading ? (
+                <span className="text-[9px] text-amber-800">Checking…</span>
+              ) : null}
+            </div>
+            <ul className="space-y-1.5">
+              {productionAlignmentIssues.map((issue) => (
+                <li key={issue.code} className="text-[10px] text-amber-950 leading-snug">
+                  <span className="font-bold">{issue.title}</span>
+                  {issue.message ? ` — ${issue.message}` : null}
+                  {issue.submitAction === 'acknowledge' ? (
+                    <label className="mt-1 flex items-start gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={Boolean(productionAlignmentAck[issue.code])}
+                        onChange={(e) =>
+                          setProductionAlignmentAck((prev) => ({
+                            ...prev,
+                            [issue.code]: e.target.checked,
+                          }))
+                        }
+                        className="mt-0.5"
+                      />
+                      <span className="text-[9px] font-semibold">Acknowledge before approving</span>
+                    </label>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+            {productionAlignmentIssues.some((i) => i.submitAction === 'block') && canOverrideProductionAlignment ? (
+              <label className="block">
+                <span className="text-[9px] font-bold uppercase text-amber-900">Override note (min 10 characters)</span>
+                <textarea
+                  rows={2}
+                  value={productionAlignmentOverrideNote}
+                  onChange={(e) => setProductionAlignmentOverrideNote(e.target.value)}
+                  className="mt-1 w-full rounded-lg border border-amber-200 bg-white px-2 py-1.5 text-[10px] text-slate-800 resize-none"
+                  placeholder="Document why this category is correct despite production output…"
+                />
+              </label>
+            ) : null}
+            {alignmentBlocksApprove ? (
+              <p className="text-[9px] font-semibold text-rose-800" role="alert">
+                Resolve alignment items above before approving.
+              </p>
+            ) : null}
+          </div>
+        ) : null}
+
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           <button
             type="button"
-            disabled={decisionBusy || loading}
-            onClick={onApprove}
+            disabled={decisionBusy || loading || alignmentBlocksApprove}
+            onClick={handleApproveClick}
             className="flex flex-col items-center gap-1.5 rounded-xl bg-emerald-600 p-3.5 text-white transition-colors hover:bg-emerald-500 disabled:opacity-50"
           >
             <CheckCircle2 size={18} />

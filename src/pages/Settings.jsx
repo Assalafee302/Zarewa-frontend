@@ -37,6 +37,7 @@ import {
   dashboardPrefsShallowEqual,
 } from '../lib/dashboardPrefs';
 import { WORKSPACE_GUIDE_ENTRIES } from '../lib/departmentWorkspace';
+import { trainingGuideForRole } from '../lib/roleTrainingGuide';
 import { apiFetch, apiUrl } from '../lib/apiBase';
 import { useToast } from '../context/ToastContext';
 import { useWorkspace } from '../context/WorkspaceContext';
@@ -1042,6 +1043,30 @@ const Settings = () => {
               path="guide"
               element={
                 <section>
+                  <div className="mb-8 rounded-zarewa border border-teal-100 bg-gradient-to-br from-teal-50/80 to-white p-5 sm:p-6">
+                    <div className="flex flex-wrap items-start justify-between gap-4">
+                      <div className="max-w-xl">
+                        <p className="text-[11px] font-black uppercase tracking-[0.14em] text-teal-800/80">
+                          Your role tour
+                        </p>
+                        <h3 className="mt-1 text-lg font-black text-[#134e4a]">
+                          {trainingGuideForRole(currentUser?.roleKey).title}
+                        </h3>
+                        <p className="mt-2 text-sm text-slate-600 leading-relaxed">
+                          Replay the step-by-step guide for your role ({currentUser?.roleLabel || currentUser?.roleKey}).
+                          On any screen, open <strong>Zare</strong> and tap <strong>Tour this page</strong> for page coaching.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => ws?.openRoleTrainingReplay?.()}
+                        className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-[#134e4a] px-4 py-2.5 text-xs font-black text-white hover:bg-teal-900"
+                      >
+                        <BookOpen size={14} aria-hidden />
+                        Replay my role tour
+                      </button>
+                    </div>
+                  </div>
                   <h3 className="z-section-title text-[#134e4a] mb-2">Team roles in Zarewa</h3>
                   <p className="text-xs text-gray-500 mb-6 leading-relaxed">
                     Each card describes part of the workflow. Access is controlled by the role and permissions on

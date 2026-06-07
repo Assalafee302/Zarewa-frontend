@@ -25,6 +25,8 @@ import { useToast } from '../context/ToastContext';
 import { useFinanceTrialExceptions } from '../hooks/useFinanceTrialExceptions';
 import { FinanceTrialExceptionPanel } from '../components/finance/FinanceTrialExceptionPanel';
 import { userMayViewFinanceTrialOversightClient } from '../lib/financeTrialExceptionsAccess';
+import { userMayViewManagementReportsClient } from '../lib/reportsAccess';
+import { OperationalSummaryWidget } from '../components/reports/OperationalSummaryWidget';
 
 const PERIOD_OPTIONS = [
   { key: 'today', label: 'Today' },
@@ -303,6 +305,7 @@ export default function ExecutiveCommandCentre() {
     roleKey,
     ws?.session?.user?.permissions
   );
+  const mayViewOperationalReports = userMayViewManagementReportsClient(ws);
   const trialBranchScope =
     canPickBranch && branchId && branchId !== 'ALL' ? branchId : null;
   const { data: trialData, loading: trialLoading, error: trialError, reload: reloadTrial } =
@@ -794,6 +797,10 @@ export default function ExecutiveCommandCentre() {
           loading={busy && !data}
         />
       </div>
+
+      {mayViewOperationalReports ? (
+        <OperationalSummaryWidget className="mb-6" linkTo="/reports" />
+      ) : null}
 
       {data?.targets ? (
         <Section

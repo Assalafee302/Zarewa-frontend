@@ -7,10 +7,10 @@ import { useToast } from '../../context/ToastContext';
 import { ZAREWA_LOGO_SRC } from '../../Data/companyQuotation';
 
 /**
- * Role-based onboarding wizard after first password change.
- * @param {{ onFinished?: () => void }} props
+ * Role-based onboarding wizard after first password change, or replay from Settings.
+ * @param {{ variant?: 'onboarding' | 'replay'; onClose?: () => void }} props
  */
-export default function RoleTrainingGuideModal({ onFinished }) {
+export default function RoleTrainingGuideModal({ variant = 'onboarding', onClose }) {
   const navigate = useNavigate();
   const ws = useWorkspace();
   const { show: showToast } = useToast();
@@ -18,6 +18,7 @@ export default function RoleTrainingGuideModal({ onFinished }) {
   const guide = useMemo(() => trainingGuideForRole(user?.roleKey), [user?.roleKey]);
   const [stepIndex, setStepIndex] = useState(0);
   const [busy, setBusy] = useState(false);
+  const isReplay = variant === 'replay';
 
   const steps = guide.steps;
   const step = steps[stepIndex];
@@ -26,19 +27,31 @@ export default function RoleTrainingGuideModal({ onFinished }) {
   const finish = async () => {
     setBusy(true);
     try {
-      const r = await ws?.completeTraining?.();
-      if (!r?.ok) {
-        showToast(r?.error || 'Could not save training completion.', { variant: 'error' });
-        return;
+      if (!isReplay) {
+        const r = await ws?.completeTraining?.();
+        if (!r?.ok) {
+          showToast(r?.error || 'Could not save training completion.', { variant: 'error' });
+          return;
+        }
+        showToast('Welcome to Zarewa. Open Zare anytime for step-by-step help.');
+      } else {
+        onClose?.();
       }
-      onFinished?.();
-      showToast('Welcome to Zarewa. You can reopen this guide anytime from Help.');
     } finally {
       setBusy(false);
     }
   };
 
+  const closeReplay = () => {
+    onClose?.();
+  };
+
   const goQuickLink = (path) => {
+    if (isReplay) {
+      onClose?.();
+      if (path) navigate(path);
+      return;
+    }
     void finish().then(() => {
       if (path) navigate(path);
     });
@@ -116,15 +129,27 @@ export default function RoleTrainingGuideModal({ onFinished }) {
         </div>
 
         <div className="flex flex-col-reverse gap-2 border-t border-slate-100 px-6 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-8">
-          <button
-            type="button"
-            disabled={busy || stepIndex === 0}
-            onClick={() => setStepIndex((i) => Math.max(0, i - 1))}
-            className="inline-flex items-center justify-center gap-1 rounded-xl border border-slate-200 px-4 py-2.5 text-xs font-bold text-slate-700 disabled:opacity-40"
-          >
-            <ChevronLeft size={16} aria-hidden />
-            Back
-          </button>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              disabled={busy || stepIndex === 0}
+              onClick={() => setStepIndex((i) => Math.max(0, i - 1))}
+              className="inline-flex items-center justify-center gap-1 rounded-xl border border-slate-200 px-4 py-2.5 text-xs font-bold text-slate-700 disabled:opacity-40"
+            >
+              <ChevronLeft size={16} aria-hidden />
+              Back
+            </button>
+            {isReplay ? (
+              <button
+                type="button"
+                disabled={busy}
+                onClick={closeReplay}
+                className="inline-flex items-center justify-center rounded-xl border border-slate-200 px-4 py-2.5 text-xs font-bold text-slate-600"
+              >
+                Close tour
+              </button>
+            ) : null}
+          </div>
           <div className="flex flex-col gap-2 sm:flex-row">
             {!isLast ? (
               <button
@@ -144,7 +169,7 @@ export default function RoleTrainingGuideModal({ onFinished }) {
                 className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#134e4a] px-5 py-2.5 text-xs font-black text-white"
               >
                 <CheckCircle2 size={16} aria-hidden />
-                {busy ? 'Saving…' : 'Finish and open workspace'}
+                {busy ? 'Saving…' : isReplay ? 'Done' : 'Finish and open workspace'}
               </button>
             )}
           </div>

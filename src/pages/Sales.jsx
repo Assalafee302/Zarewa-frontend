@@ -90,6 +90,7 @@ import {
   refundApprovedAmount,
   refundOutstandingAmount,
   refundStatusIsWithdrawn,
+  userMayApproveRefundRequests,
 } from '../lib/refundsStore';
 import {
   productionJobStatusClosesRefundEligibility,
@@ -210,8 +211,8 @@ const Sales = () => {
   const isAdminRole = roleKey === 'admin';
   const canDeleteSalesRecord = ['admin', 'md', 'sales_manager', 'branch_manager'].includes(roleKey);
   const salesRoleLabel = ws?.session?.user?.roleLabel ?? SALES_ROLE_LABELS[salesRole] ?? salesRole;
-  /** Branch manager & MD hold refunds.approve; finance holds finance.approve; admin has *. */
-  const canApproveRefunds = ws?.hasPermission?.('refunds.approve') || ws?.hasPermission?.('finance.approve');
+  /** Branch manager & MD hold refunds.approve; finance holds finance.approve; admin has *. Cashiers pay only (Phase 11A). */
+  const canApproveRefunds = userMayApproveRefundRequests(ws);
   const confirmDangerousDelete = useCallback((recordLabel, typedPhrase = 'DELETE') => {
     const proceed = window.confirm(
       `DANGER: Delete ${recordLabel} permanently?\n\nThis action is irreversible and may remove linked records.`

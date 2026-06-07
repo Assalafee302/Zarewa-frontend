@@ -23,6 +23,7 @@ import {
   refundApprovedAmount,
   refundOutstandingAmount,
   refundStatusIsWithdrawn,
+  userMayApproveRefundRequests,
 } from '../lib/refundsStore';
 import { flattenQuotationLineItems } from '../lib/managerDashboardCore';
 import {
@@ -39,6 +40,7 @@ import {
   REFUND_PREVIEW_VERSION,
   MIN_REFUND_QUOTATION_REMAINING_NGN,
 } from '../shared/refundConstants.js';
+import { userMayOverrideProductionAlignment } from '../lib/workspaceGovernanceClient';
 import {
   normQuoteItemKey,
   productLineKey,
@@ -390,8 +392,7 @@ const RefundModal = ({
 }) => {
   const { show: showToast } = useToast();
   const ws = useWorkspace();
-  const canApproveRefunds =
-    Boolean(ws?.hasPermission?.('refunds.approve')) || Boolean(ws?.hasPermission?.('finance.approve'));
+  const canApproveRefunds = userMayApproveRefundRequests(ws);
   const [form, setForm] = useState(() => initFormFromRecord(record));
   const [eligibleQuotes, setEligibleQuotes] = useState([]);
   const [loadingQuotes, setLoadingQuotes] = useState(false);
@@ -429,6 +430,10 @@ const RefundModal = ({
   const [refundIntelExpanded, setRefundIntelExpanded] = useState(() => mode !== 'create');
   /** From refund preview: paid on quote vs overpay split (ledger RECEIPT + OVERPAY_ADVANCE). */
   const [moneyContext, setMoneyContext] = useState(null);
+  const [productionAlignmentIssues, setProductionAlignmentIssues] = useState([]);
+  const [productionAlignmentAck, setProductionAlignmentAck] = useState({});
+  const [productionAlignmentOverrideNote, setProductionAlignmentOverrideNote] = useState('');
+  const [alignmentCheckLoading, setAlignmentCheckLoading] = useState(false);
   const [refundGuideOpen, setRefundGuideOpen] = useState(false);
   /** Filter quotation dropdown by quote date (YYYY-MM-DD); empty = all dates. */
   const [quotationPickDate, setQuotationPickDate] = useState('');
@@ -1106,6 +1111,60 @@ const RefundModal = ({
     [form.calculationLines]
   );
 
+  const canOverrideProductionAlignment = useMemo(
+    () => userMayOverrideProductionAlignment(ws?.user?.roleKey),
+    [ws?.user?.roleKey]
+  );
+
+  useEffect(() => {
+    if (mode !== 'create' || !form.quotationRef || derivedReasonCategories.length === 0) {
+      setProductionAlignmentIssues([]);
+      return undefined;
+    }
+    const timer = setTimeout(async () => {
+      setAlignmentCheckLoading(true);
+      const ackCodes = Object.entries(productionAlignmentAck)
+        .filter(([, v]) => v)
+        .map(([k]) => k);
+      const { ok, data } = await apiFetch('/api/refunds/production-alignment-check', {
+        method: 'POST',
+        body: JSON.stringify({
+          quotationRef: form.quotationRef,
+          reasonCategory: derivedReasonCategories,
+          productionAlignmentAcknowledgedCodes: ackCodes,
+          productionAlignmentOverrideNote: productionAlignmentOverrideNote.trim(),
+        }),
+      });
+      setAlignmentCheckLoading(false);
+      if (ok && data) {
+        setProductionAlignmentIssues(Array.isArray(data.issues) ? data.issues : []);
+      }
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [
+    mode,
+    form.quotationRef,
+    derivedReasonCategories,
+    productionAlignmentAck,
+    productionAlignmentOverrideNote,
+  ]);
+
+  const alignmentBlocksSubmit = useMemo(() => {
+    if (mode !== 'create' || productionAlignmentIssues.length === 0) return false;
+    const hasBlock = productionAlignmentIssues.some((i) => i.submitAction === 'block');
+    if (hasBlock && !(canOverrideProductionAlignment && productionAlignmentOverrideNote.trim().length >= 10)) {
+      return true;
+    }
+    const needAck = productionAlignmentIssues.filter((i) => i.submitAction === 'acknowledge');
+    return needAck.some((i) => !productionAlignmentAck[i.code]);
+  }, [
+    mode,
+    productionAlignmentIssues,
+    canOverrideProductionAlignment,
+    productionAlignmentOverrideNote,
+    productionAlignmentAck,
+  ]);
+
   const excludedRefundHints = useMemo(() => {
     const excluded = [];
     const pool = eligibleRefundCategoriesFromPreview != null ? eligibleRefundCategoriesFromPreview : null;
@@ -1206,6 +1265,9 @@ const RefundModal = ({
 
     setPreviewError('');
     setSaving(true);
+    const ackCodes = Object.entries(productionAlignmentAck)
+      .filter(([, v]) => v)
+      .map(([k]) => k);
     const result = await onPersist?.({
       refundID: record?.refundID ?? `RF-2026-${String(Date.now()).slice(-4)}`,
       customerID: form.customerID,
@@ -1221,6 +1283,8 @@ const RefundModal = ({
       payeeName,
       payeeAccountNo,
       payeeBankName,
+      productionAlignmentAcknowledgedCodes: ackCodes,
+      productionAlignmentOverrideNote: productionAlignmentOverrideNote.trim(),
     });
     setSaving(false);
     if (result?.ok !== false) {
@@ -2845,6 +2909,62 @@ const RefundModal = ({
                 </div>
               )}
 
+          {/* Production alignment (Phase 11C) */}
+          {mode === 'create' && productionAlignmentIssues.length > 0 ? (
+            <div className="rounded-xl border border-amber-200 bg-amber-50/80 p-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <AlertTriangle size={16} className="text-amber-700 shrink-0" />
+                <p className="text-xs font-black text-amber-950">Production alignment</p>
+                {alignmentCheckLoading ? (
+                  <span className="text-[10px] text-amber-800">Checking…</span>
+                ) : null}
+              </div>
+              <ul className="space-y-2">
+                {productionAlignmentIssues.map((issue) => (
+                  <li key={issue.code} className="text-[11px] text-amber-950 leading-snug">
+                    <span className="font-bold">{issue.title}</span>
+                    {issue.message ? ` — ${issue.message}` : null}
+                    {issue.submitAction === 'acknowledge' ? (
+                      <label className="mt-1 flex items-start gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={Boolean(productionAlignmentAck[issue.code])}
+                          onChange={(e) =>
+                            setProductionAlignmentAck((prev) => ({
+                              ...prev,
+                              [issue.code]: e.target.checked,
+                            }))
+                          }
+                          className="mt-0.5"
+                        />
+                        <span className="text-[10px] font-semibold">I acknowledge this warning</span>
+                      </label>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+              {productionAlignmentIssues.some((i) => i.submitAction === 'block') && canOverrideProductionAlignment ? (
+                <label className="block">
+                  <span className="text-[10px] font-bold uppercase text-amber-900">
+                    Branch manager / MD override note (min 10 characters)
+                  </span>
+                  <textarea
+                    rows={2}
+                    value={productionAlignmentOverrideNote}
+                    onChange={(e) => setProductionAlignmentOverrideNote(e.target.value)}
+                    className="mt-1 w-full rounded-lg border border-amber-200 bg-white px-3 py-2 text-xs text-slate-800 resize-none"
+                    placeholder="Explain why this refund category is correct despite production output…"
+                  />
+                </label>
+              ) : null}
+              {alignmentBlocksSubmit ? (
+                <p className="text-[10px] font-semibold text-rose-800" role="alert">
+                  Resolve alignment warnings above before submitting.
+                </p>
+              ) : null}
+            </div>
+          ) : null}
+
           {/* Footer Warnings */}
           {warnings.length > 0 && (
             <div className="flex gap-4 p-4 rounded-xl bg-orange-50 border border-orange-100 shadow-sm animate-in shake">
@@ -2877,6 +2997,7 @@ const RefundModal = ({
                 type="submit"
                 disabled={
                   saving ||
+                  alignmentBlocksSubmit ||
                   (mode === 'create' && !form.quotationRef) ||
                   (mode === 'create' && exceedsRefundableHeadroom)
                 }

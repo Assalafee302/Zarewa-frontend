@@ -19,7 +19,7 @@ import {
   Printer,
 } from 'lucide-react';
 
-import { WorkspacePanelToolbar } from '../components/workspace';
+import { metreVarianceExceedsThreshold } from '../lib/productionMetreVariance';
 import { WORKSPACE_EMPTY_LIST_CLASS } from '../lib/workspaceListStyle';
 import { MainPanel, PageHeader, PageShell, PageTabs, ModalFrame } from '../components/layout';
 import { AiAskButton } from '../components/AiAskButton';
@@ -833,6 +833,9 @@ const Operations = () => {
       ].filter(Boolean);
       const plannedM = Number(cl.totalMeters ?? job?.plannedMeters ?? 0);
       const actualM = Number(job?.actualMeters ?? 0);
+      const metreVarianceAttention =
+        isCompleted && metreVarianceExceedsThreshold(plannedM, actualM);
+      const conversionHighLow = ['High', 'Low'].includes(String(job?.conversionAlertState || ''));
       return {
         queueKind: 'registered',
         id: cl.id,
@@ -870,10 +873,14 @@ const Operations = () => {
             : nCoils === 0 && status === 'Planned'
               ? 'High'
               : job.managerReviewRequired ||
+                  conversionHighLow ||
+                  metreVarianceAttention ||
                   (job.endDateISO && job.endDateISO <= new Date().toISOString().slice(0, 10))
                 ? 'High'
                 : 'Normal',
         managerReviewRequired: Boolean(job?.managerReviewRequired),
+        metreVarianceAttention,
+        conversionHighLow,
         needsCoil: !closedRecord && status === 'Planned' && nCoils === 0,
         dueDateISO: job?.endDateISO || null,
         overdue:
@@ -2710,6 +2717,16 @@ const Operations = () => {
                                     >
                                       {item.lineStatusLabel || '—'}
                                     </span>
+                                    {item.conversionHighLow ? (
+                                      <span className="text-[7px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded-md border border-rose-200 bg-rose-50 text-rose-800">
+                                        Conv
+                                      </span>
+                                    ) : null}
+                                    {item.metreVarianceAttention ? (
+                                      <span className="text-[7px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded-md border border-amber-200 bg-amber-50 text-amber-900">
+                                        Var
+                                      </span>
+                                    ) : null}
                                     <span
                                       className={`text-[8px] font-semibold uppercase tracking-wide px-2 py-1 rounded-md border ${priorityChip}`}
                                     >

@@ -96,6 +96,7 @@ export function WorkspaceProvider({ children }) {
   const [lastError, setLastError] = useState(null);
   const [refreshEpoch, setRefreshEpoch] = useState(0);
   const [editApprovalsPendingCount, setEditApprovalsPendingCount] = useState(0);
+  const [roleTrainingReplayOpen, setRoleTrainingReplayOpen] = useState(false);
 
   const applySnapshot = useCallback((data, mode = 'ok') => {
     const normalized = normalizeWorkspacePersonNames(data);
@@ -383,6 +384,14 @@ export function WorkspaceProvider({ children }) {
     return { ok: true };
   }, [refresh]);
 
+  const openRoleTrainingReplay = useCallback(() => {
+    setRoleTrainingReplayOpen(true);
+  }, []);
+
+  const closeRoleTrainingReplay = useCallback(() => {
+    setRoleTrainingReplayOpen(false);
+  }, []);
+
   /** @param {{ displayName?: string; email?: string | null; avatarUrl?: string | null }} patch */
   const updateProfile = useCallback(async (patch) => {
     const { ok, data } = await apiFetch('/api/session/profile', {
@@ -553,6 +562,9 @@ export function WorkspaceProvider({ children }) {
       logout,
       changePassword,
       completeTraining,
+      openRoleTrainingReplay,
+      closeRoleTrainingReplay,
+      roleTrainingReplayOpen,
       updateProfile,
       updateWorkspace,
       getUnifiedWorkItemById,
@@ -586,6 +598,9 @@ export function WorkspaceProvider({ children }) {
       logout,
       changePassword,
       completeTraining,
+      openRoleTrainingReplay,
+      closeRoleTrainingReplay,
+      roleTrainingReplayOpen,
       updateProfile,
       updateWorkspace,
       getUnifiedWorkItemById,

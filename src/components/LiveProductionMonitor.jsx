@@ -42,6 +42,8 @@ import {
 } from '../lib/quotationProductionLines';
 import { QuotationPriceExceptionPanel } from './QuotationPriceExceptionPanel';
 import { ProductionConversionReasonFields } from './operations/ProductionConversionReasonFields';
+import { ProductionJobIntelBanner, ProductionPaymentGateOverridePanel } from './production/ProductionPhase11B';
+import { MaterialIncidentQuickCreateModal } from './production/MaterialIncidentQuickCreateModal';
 import {
   conversionVarianceReasonLabel,
   findConversionReasonOption,
@@ -384,6 +386,8 @@ export function LiveProductionMonitor({
   /** Business date for start / completion (YYYY-MM-DD). */
   const [productionDateIso, setProductionDateIso] = useState(() => new Date().toISOString().slice(0, 10));
   const [completionDateIso, setCompletionDateIso] = useState(() => new Date().toISOString().slice(0, 10));
+  const [jobIntel, setJobIntel] = useState(null);
+  const [materialIncidentModalOpen, setMaterialIncidentModalOpen] = useState(false);
 
   const productionJobs = useMemo(
     () => (ws?.hasWorkspaceData && Array.isArray(ws?.snapshot?.productionJobs) ? ws.snapshot.productionJobs : []),
@@ -1239,6 +1243,23 @@ export function LiveProductionMonitor({
       }
     };
   }, [conversionPreviewKey, selectedJob?.jobID]);
+
+  useEffect(() => {
+    const jobId = selectedJob?.jobID;
+    if (!jobId) {
+      setJobIntel(null);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      const { ok, data } = await apiFetch(`/api/production-jobs/${encodeURIComponent(jobId)}/intel`);
+      if (cancelled) return;
+      setJobIntel(ok && data?.ok !== false ? data.intel : null);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedJob?.jobID, selectedJob?.status, selectedJob?.actualMeters, selectedJob?.conversionAlertState]);
 
   const conversionReasonBand = useMemo(() => {
     const preview = conversionPreview?.aggregatedAlertState;
@@ -3027,6 +3048,49 @@ export function LiveProductionMonitor({
                 </div>
               ) : null}
 
+              {selectedJob?.jobID ? (
+                <details
+                  open={Boolean(jobIntel?.needsBmAttention || jobIntel?.needsMdAttention || ['High', 'Low'].includes(String(jobIntel?.conversionAlertState || '')))}
+                  className="rounded-lg border border-slate-200/80 bg-white/90"
+                >
+                  <summary className="min-h-11 cursor-pointer list-none px-2.5 py-2 text-[10px] font-black uppercase tracking-wide text-[#134e4a] marker:content-none [&::-webkit-details-marker]:hidden">
+                    Job intelligence
+                    {jobIntel?.metreVarianceFlag ? (
+                      <span className="ml-2 rounded bg-amber-100 px-1.5 py-0.5 text-[8px] text-amber-950">Variance</span>
+                    ) : null}
+                  </summary>
+                  <div className="border-t border-slate-100 px-2.5 pb-2.5 pt-2">
+                    <ProductionJobIntelBanner intel={jobIntel} formatMeters={formatMeters} />
+                    <ProductionPaymentGateOverridePanel
+                      quotationId={selectedJob?.quotationRef}
+                      intel={jobIntel}
+                      canMutate={ws?.canMutate !== false}
+                      hasManagePermission={Boolean(ws?.hasPermission?.('quotations.manage'))}
+                      onSuccess={async () => {
+                        showToast('Production gate override recorded.');
+                        const jobId = selectedJob?.jobID;
+                        if (jobId) {
+                          const { ok, data } = await apiFetch(
+                            `/api/production-jobs/${encodeURIComponent(jobId)}/intel`
+                          );
+                          if (ok && data?.intel) setJobIntel(data.intel);
+                        }
+                        await ws?.refresh?.();
+                      }}
+                    />
+                    {ws?.hasPermission?.('material_incidents.create') && !readOnly ? (
+                      <button
+                        type="button"
+                        onClick={() => setMaterialIncidentModalOpen(true)}
+                        className="mt-2 w-full rounded-md border border-amber-200 bg-amber-50 px-2 py-1.5 text-[9px] font-black uppercase tracking-wide text-amber-950 hover:bg-amber-100"
+                      >
+                        Report material issue
+                      </button>
+                    ) : null}
+                  </div>
+                </details>
+              ) : null}
+
               {selectedJob?.quotationRef ? (
                 <QuotationPriceExceptionPanel
                   quotationId={selectedJob.quotationRef}
@@ -4673,6 +4737,11 @@ export function LiveProductionMonitor({
           </div>
         </div>
       ) : null}
+      <MaterialIncidentQuickCreateModal
+        open={materialIncidentModalOpen}
+        onClose={() => setMaterialIncidentModalOpen(false)}
+        job={selectedJob}
+      />
     </div>
   );
 }

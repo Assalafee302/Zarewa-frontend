@@ -44,6 +44,18 @@ export function refundOutstandingAmount(r) {
   return effectiveOutstandingNgn(approved, paid);
 }
 
+/**
+ * Phase 11A — cashiers pay approved refunds only; managers/MD/finance approve.
+ * @param {{ hasPermission?: (p: string) => boolean; roleKey?: string } | null | undefined} ws
+ */
+export function userMayApproveRefundRequests(ws) {
+  if (!ws) return false;
+  const rk = String(ws.session?.user?.roleKey ?? ws.roleKey ?? '').trim().toLowerCase();
+  if (rk === 'cashier') return false;
+  const can = typeof ws.hasPermission === 'function' ? ws.hasPermission.bind(ws) : () => false;
+  return can('*') || can('refunds.approve') || can('finance.approve');
+}
+
 /** Rejected finance decision or cancel-before-pay — does not reserve quotation headroom or block a new request. */
 export function refundStatusIsWithdrawn(status) {
   const s = String(status || '').trim().toLowerCase();

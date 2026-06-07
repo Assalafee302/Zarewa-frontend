@@ -9,3 +9,10 @@ export function isBranchExpenseApproverRoleKey(roleKey) {
 export function isExecutiveRoleKey(roleKey) {
   return ['md', 'chairman', 'ceo'].includes(String(roleKey || '').trim().toLowerCase());
 }
+
+export function userMayOverrideProductionAlignment(roleKey) {
+  const rk = String(roleKey || '').trim().toLowerCase();
+  if (rk === 'admin') return true;
+  if (isExecutiveRoleKey(rk)) return true;
+  return isBranchExpenseApproverRoleKey(rk);
+}

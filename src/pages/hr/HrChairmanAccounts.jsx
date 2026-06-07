@@ -536,7 +536,8 @@ export default function HrExecutiveBenefitsHub({ embedded = false } = {}) {
         ) : null}
       </div>
 
-      <HrFormModal open={Boolean(modal)} title={modalTitle} onClose={closeModal} error={formErr} onSubmit={() => void saveForm()}>
+      <HrFormModal isOpen={Boolean(modal)} onClose={closeModal} title={modalTitle} size="lg">
+        {formErr ? <p className="mb-3 text-sm text-rose-700">{formErr}</p> : null}
         {modal === 'beneficiary' ? (
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="block sm:col-span-2"><span className="text-xs font-semibold text-slate-600">Name</span><input className={HR_FIELD_CLASS} value={form.name || ''} onChange={(e) => setForm({ ...form, name: e.target.value })} /></label>
@@ -587,6 +588,10 @@ export default function HrExecutiveBenefitsHub({ embedded = false } = {}) {
             <label className="block"><span className="text-xs font-semibold text-slate-600">Amount</span><input type="number" className={HR_FIELD_CLASS} value={form.amountNgn || ''} onChange={(e) => setForm({ ...form, amountNgn: e.target.value })} /></label>
           </div>
         ) : null}
+        <div className="mt-6 flex justify-end gap-2">
+          <button type="button" className={HR_BTN_SECONDARY} onClick={closeModal}>Cancel</button>
+          <button type="button" className={HR_BTN_PRIMARY} onClick={() => void saveForm()}>Save</button>
+        </div>
       </HrFormModal>
     </div>
   );

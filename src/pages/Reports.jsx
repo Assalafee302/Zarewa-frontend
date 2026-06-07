@@ -49,6 +49,7 @@ import {
 import { Ap2ReportsSection } from '../components/finance/Ap2ReportsSection.jsx';
 import { Ap3ReportsSection } from '../components/finance/Ap3ReportsSection.jsx';
 import { ExecutiveReportPacksSection } from '../components/reports/ExecutiveReportPacksSection.jsx';
+import { OperationalReportsPanel } from '../components/reports/OperationalReportsPanel.jsx';
 import { StockRegisterPanel } from '../components/reports/StockRegisterPanel.jsx';
 import { MaterialTransactionPrintModal } from '../components/reports/MaterialTransactionPrintModal.jsx';
 import { PurchaseReportPrintModal } from '../components/reports/PurchaseReportPrintModal.jsx';
@@ -2002,6 +2003,14 @@ const Reports = () => {
           </p>
 
           <ExecutiveReportPacksSection showToast={showToast} />
+
+          <section className="z-soft-panel p-5 sm:p-6 mb-8">
+            <h4 className="text-base font-black text-[#134e4a] tracking-tight mb-1">Operational control centre (Phase 11B–11C)</h4>
+            <p className="text-xs text-slate-600 mb-4 leading-relaxed">
+              Pending approvals, production gate overrides, conversion reviews, production outliers, and governance pack export.
+            </p>
+            <OperationalReportsPanel />
+          </section>
 
           <section className="z-soft-panel p-5 sm:p-6 mb-8">
             <div className="flex flex-wrap items-center justify-between gap-2">

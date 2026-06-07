@@ -5,6 +5,7 @@ import {
   BookOpen,
   Bot,
   ChevronRight,
+  Compass,
   LifeBuoy,
   Loader2,
   RotateCcw,
@@ -33,16 +34,23 @@ import { useHelpChat } from '../context/HelpChatContext';
 import { TRANSACTION_ISSUE_CHIPS } from '../lib/helpTransactionHelp';
 import { sanitizeZarePageContext } from '../lib/workspaceSanitize';
 import { HELP_BOT_ALT_TAGLINE } from '../lib/helpBotBrand';
+import { getPageTourForPath } from '../lib/pageTourGuide';
 
 const LOCAL_REPLY_DELAY_MS = 240;
 
 function pageLabel(pathname) {
   const p = String(pathname || '');
+  if (p.startsWith('/cashier')) return 'Cashier desk';
+  if (p.startsWith('/accounting')) return 'Accounting desk';
+  if (p.startsWith('/exec')) return 'Executive Command Centre';
   if (p.startsWith('/sales')) return 'Sales';
   if (p.startsWith('/accounts')) return 'Finance';
   if (p.startsWith('/operations')) return 'Operations';
   if (p.startsWith('/procurement')) return 'Procurement';
   if (p.startsWith('/manager')) return 'Manager';
+  if (p.startsWith('/team-hr')) return 'Team HR';
+  if (p.startsWith('/executive-hr')) return 'Executive HR';
+  if (p.startsWith('/hr')) return 'Human Resources';
   if (p.startsWith('/settings')) return 'Settings';
   return 'Zarewa';
 }
@@ -685,6 +693,17 @@ export function HelpChatDock() {
     ]
   );
 
+  const pageTour = useMemo(() => getPageTourForPath(location.pathname), [location.pathname]);
+
+  const startPageTour = useCallback(() => {
+    setOpen(true);
+    const next = seedMessages(user, location.pathname, helpMode);
+    messagesRef.current = next;
+    setMessages(next);
+    setError('');
+    void sendText(pageTour.query);
+  }, [helpMode, location.pathname, pageTour, sendText, user]);
+
   useEffect(() => {
     const req = helpChat?.request;
     if (!req) return;
@@ -815,6 +834,36 @@ export function HelpChatDock() {
                     >
                       Ask Zare what to do next
                     </button>
+                  </InsightSection>
+                ) : null}
+
+                {showQuickQuestions && helpMode !== 'transaction_help' ? (
+                  <InsightSection icon={Compass} title="Tour this page" tone="teal" defaultOpen>
+                    <p className="mb-3 text-[12px] leading-relaxed text-slate-600">
+                      New to <span className="font-bold text-[#134e4a]">{pageTour.label}</span>? Zare coaches you{' '}
+                      <strong>one step at a time</strong>. After each step in the app, return here and say{' '}
+                      <strong>next</strong>.
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() => void startPageTour()}
+                        className="inline-flex items-center gap-1.5 rounded-xl bg-[#134e4a] px-3 py-2 text-[11px] font-black text-white hover:bg-teal-900 disabled:opacity-50"
+                      >
+                        <Compass size={14} aria-hidden />
+                        Start page tour
+                      </button>
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() => ws?.openRoleTrainingReplay?.()}
+                        className="inline-flex items-center gap-1.5 rounded-xl border border-teal-200 bg-white px-3 py-2 text-[11px] font-bold text-[#134e4a] hover:bg-teal-50 disabled:opacity-50"
+                      >
+                        <BookOpen size={14} aria-hidden />
+                        My role tour
+                      </button>
+                    </div>
                   </InsightSection>
                 ) : null}
 
