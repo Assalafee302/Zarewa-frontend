@@ -22,6 +22,7 @@ import {
 import { metreVarianceExceedsThreshold } from '../lib/productionMetreVariance';
 import { WORKSPACE_EMPTY_LIST_CLASS } from '../lib/workspaceListStyle';
 import { MainPanel, PageHeader, PageShell, PageTabs, ModalFrame } from '../components/layout';
+import { WorkspacePanelToolbar } from '../components/workspace';
 import { AiAskButton } from '../components/AiAskButton';
 import { ProductionRegisterEditModal } from '../components/operations/ProductionRegisterEditModal';
 import { OperationsProductionOverview } from '../components/operations/OperationsProductionOverview';
