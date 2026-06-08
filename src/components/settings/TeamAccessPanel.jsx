@@ -412,8 +412,9 @@ export default function TeamAccessPanel({ appUsers, currentUserId, onRefresh }) 
           Assign roles and status, and fine-tune permissions when needed. You can permanently delete a login after
           typing their username (same safety rules as suspending privileged admins apply). Changing a role clears
           custom permission overrides and applies that role’s template. The team role is the same value stored as
-          workspace “department” for routing shortcuts. Use <strong>Reset code</strong> to issue a one-time code; the
-          user sets their own new password on the sign-in screen (passwords are never displayed here).
+          workspace “department” for routing shortcuts. Use <strong>Reset code</strong> only for new users who have
+          not completed first sign-in; they enter the code on the sign-in screen under New user setup (passwords are
+          never displayed here).
         </p>
 
         <div className="mb-4 flex flex-wrap items-center gap-2">
@@ -530,13 +531,14 @@ export default function TeamAccessPanel({ appUsers, currentUserId, onRefresh }) 
                           >
                             <Settings2 size={14} /> Edit
                           </button>
-                          {canGenerateResetCodes ? (
+                          {canGenerateResetCodes &&
+                          (user.mustChangePassword || !String(user.lastLoginAtISO || '').trim()) ? (
                             <button
                               type="button"
                               disabled={busy}
                               onClick={() => void generateResetCode(user)}
                               className="z-btn-secondary !px-3 !py-1.5 !text-[10px]"
-                              title="Generate one-time password reset code"
+                              title="Generate one-time reset code for a new user"
                             >
                               Reset code
                             </button>

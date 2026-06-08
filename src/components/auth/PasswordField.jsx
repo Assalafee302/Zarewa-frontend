@@ -14,6 +14,7 @@ export default function PasswordField({
   placeholder = '',
   className = 'z-input',
   disabled = false,
+  required = false,
 }) {
   const [visible, setVisible] = useState(false);
   return (
@@ -34,6 +35,7 @@ export default function PasswordField({
           className={`${className} pr-11`}
           placeholder={placeholder}
           disabled={disabled}
+          required={required}
         />
         <button
           type="button"

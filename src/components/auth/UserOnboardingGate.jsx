@@ -1,23 +1,25 @@
 import React from 'react';
 import { useWorkspace } from '../../context/WorkspaceContext';
-import ForcePasswordChangeScreen from './ForcePasswordChangeScreen';
+import ForcePasswordChangeModal from './ForcePasswordChangeScreen';
 import RoleTrainingGuideModal from './RoleTrainingGuideModal';
 
 /**
- * Enforces first-login password change, then role-based training.
+ * First-login password change (modal), then role-based training, then normal workspace access.
  * @param {{ children: React.ReactNode }} props
  */
 export default function UserOnboardingGate({ children }) {
   const ws = useWorkspace();
   const user = ws?.session?.user;
+  const needsPassword = Boolean(user?.mustChangePassword);
+  const needsTraining = Boolean(user && user.trainingCompleted === false);
 
-  if (user?.mustChangePassword) {
-    return <ForcePasswordChangeScreen />;
-  }
-
-  if (user && user.trainingCompleted === false) {
-    return <RoleTrainingGuideModal />;
-  }
-
-  return children;
+  return (
+    <>
+      <div className={needsPassword ? 'pointer-events-none select-none' : undefined} aria-hidden={needsPassword}>
+        {children}
+      </div>
+      {needsPassword ? <ForcePasswordChangeModal /> : null}
+      {!needsPassword && needsTraining ? <RoleTrainingGuideModal /> : null}
+    </>
+  );
 }

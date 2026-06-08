@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ShieldCheck, LockKeyhole, Building2, ArrowRight, AlertTriangle, RotateCcw } from 'lucide-react';
+import { ShieldCheck, LockKeyhole, Building2, ArrowRight, AlertTriangle, RotateCcw, UserPlus } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { ZAREWA_LOGO_SRC } from '../../Data/companyQuotation';
 import { resolvePostLoginPath } from '../../lib/departmentWorkspace';
@@ -15,7 +15,7 @@ export default function LoginScreen() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
-  const [mode, setMode] = useState('login'); // 'login' | 'forgot' | 'reset'
+  const [mode, setMode] = useState('login'); // 'login' | 'new-user-reset'
   const [identifier, setIdentifier] = useState('');
   const [resetToken, setResetToken] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -48,41 +48,7 @@ export default function LoginScreen() {
     setBusy(false);
   };
 
-  const submitForgot = async (e) => {
-    e.preventDefault();
-    setBusy(true);
-    setError('');
-    setSuccess('');
-    try {
-      const fd = new FormData(e.currentTarget);
-      const id = String(fd.get('identifier') ?? identifier).trim();
-      if (!id) {
-        setError('Please enter your username or email.');
-        setBusy(false);
-        return;
-      }
-      const r = await ws.forgotPassword(id);
-      if (!r.ok) {
-        setError(r.error || 'Could not request reset.');
-        setBusy(false);
-        return;
-      }
-      const msg = r.data?.message || 'Reset code created. Continue to set your new password.';
-      setSuccess(msg);
-      setIdentifier(id);
-      if (r.data?.devResetToken) {
-        setResetToken(String(r.data.devResetToken));
-      }
-      setNewPassword('');
-      setMode('reset');
-    } catch (err) {
-      setError(String(err?.message || err || 'Could not request reset.'));
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const submitReset = async (e) => {
+  const submitNewUserReset = async (e) => {
     e.preventDefault();
     setBusy(true);
     setError('');
@@ -94,12 +60,12 @@ export default function LoginScreen() {
       const next = String(fd.get('newPassword') ?? newPassword);
 
       if (!id) {
-        setError('Identifier is required.');
+        setError('Username or email is required.');
         setBusy(false);
         return;
       }
       if (!token) {
-        setError('Reset code is required.');
+        setError('Reset code from your administrator is required.');
         setBusy(false);
         return;
       }
@@ -111,18 +77,19 @@ export default function LoginScreen() {
 
       const r = await ws.resetPassword(id, token, next);
       if (!r.ok) {
-        setError(r.error || 'Could not reset password.');
+        setError(r.error || 'Could not set password.');
         setBusy(false);
         return;
       }
 
-      setSuccess(r.data?.message || 'Password updated. You can sign in now.');
+      setSuccess(r.data?.message || 'Password set. You can sign in now.');
       setMode('login');
+      setUsername(id);
       setPassword('');
       setNewPassword('');
       setResetToken('');
     } catch (err) {
-      setError(String(err?.message || err || 'Could not reset password.'));
+      setError(String(err?.message || err || 'Could not set password.'));
     } finally {
       setBusy(false);
     }
@@ -185,14 +152,10 @@ export default function LoginScreen() {
             </div>
             <div>
               <p className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-400">
-                {mode === 'login' ? 'Secure sign in' : 'Password recovery'}
+                {mode === 'login' ? 'Secure sign in' : 'New user setup'}
               </p>
               <h2 className="mt-1 text-2xl font-black tracking-tight text-[#134e4a]">
-                {mode === 'login'
-                  ? 'Open your workspace'
-                  : mode === 'forgot'
-                    ? 'Forgot your password'
-                    : 'Reset password'}
+                {mode === 'login' ? 'Open your workspace' : 'Set your first password'}
               </h2>
             </div>
           </div>
@@ -206,7 +169,10 @@ export default function LoginScreen() {
             </div>
           ) : null}
 
-          <form className="mt-8 space-y-5" onSubmit={mode === 'login' ? submitLogin : mode === 'forgot' ? submitForgot : submitReset}>
+          <form
+            className="mt-8 space-y-5"
+            onSubmit={mode === 'login' ? submitLogin : submitNewUserReset}
+          >
             {mode === 'login' ? (
               <>
                 <div>
@@ -241,12 +207,13 @@ export default function LoginScreen() {
                     onClick={() => {
                       setError('');
                       setSuccess('');
-                      setMode('forgot');
+                      setMode('new-user-reset');
                       setIdentifier(username);
                     }}
-                    className="text-sm font-semibold text-[#134e4a] hover:underline disabled:cursor-wait disabled:opacity-70"
+                    className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#134e4a] hover:underline disabled:cursor-wait disabled:opacity-70"
                   >
-                    Forgot password?
+                    <UserPlus size={15} aria-hidden />
+                    New user? Set up your password
                   </button>
                 </div>
 
@@ -271,16 +238,20 @@ export default function LoginScreen() {
                   {busy ? 'Signing in…' : 'Enter workspace'}
                   <ArrowRight size={17} />
                 </button>
-
               </>
-            ) : mode === 'forgot' ? (
+            ) : (
               <>
+                <div className="text-sm text-slate-600 leading-relaxed">
+                  Enter the one-time reset code from your administrator, then choose a new password. This setup is
+                  only for new accounts that have not signed in yet.
+                </div>
+
                 <div>
-                  <label className="z-field-label" htmlFor="forgot-identifier">
+                  <label className="z-field-label" htmlFor="reset-identifier">
                     Username or email
                   </label>
                   <input
-                    id="forgot-identifier"
+                    id="reset-identifier"
                     name="identifier"
                     value={identifier}
                     onChange={(e) => setIdentifier(e.target.value)}
@@ -289,50 +260,6 @@ export default function LoginScreen() {
                     autoComplete="username"
                   />
                 </div>
-
-                {error ? (
-                  <div className="flex items-start gap-3 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900">
-                    <AlertTriangle size={18} className="mt-0.5 shrink-0" />
-                    <span>{error}</span>
-                  </div>
-                ) : null}
-
-                {ws.status === 'offline' ? (
-                  <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-                    API server is offline. Start the backend to request a reset code.
-                  </div>
-                ) : null}
-
-                <button
-                  type="submit"
-                  disabled={busy}
-                  className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-[#134e4a] px-5 py-3.5 text-sm font-black text-white shadow-lg shadow-teal-950/15 transition hover:brightness-105 disabled:cursor-wait disabled:opacity-70"
-                >
-                  {busy ? 'Requesting…' : 'Send reset code'}
-                  <ArrowRight size={17} />
-                </button>
-
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() => {
-                    setError('');
-                    setSuccess('');
-                    setMode('login');
-                  }}
-                  className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 py-3.5 text-sm font-black text-[#134e4a] shadow-sm transition hover:bg-slate-50 disabled:cursor-wait disabled:opacity-70"
-                >
-                  <RotateCcw size={17} />
-                  Back to sign in
-                </button>
-              </>
-            ) : (
-              <>
-                <div className="text-sm text-slate-600">
-                  Enter the reset code you received, then set a new password.
-                </div>
-
-                <input type="hidden" name="identifier" value={identifier} />
 
                 <div>
                   <label className="z-field-label" htmlFor="reset-token">
@@ -344,7 +271,7 @@ export default function LoginScreen() {
                     value={resetToken}
                     onChange={(e) => setResetToken(e.target.value)}
                     className="z-input"
-                    placeholder="Enter reset code"
+                    placeholder="Enter reset code from administrator"
                     autoComplete="one-time-code"
                   />
                 </div>
@@ -369,7 +296,7 @@ export default function LoginScreen() {
 
                 {ws.status === 'offline' ? (
                   <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-                    API server is offline. Start the backend to reset your password.
+                    API server is offline. Start the backend to set your password.
                   </div>
                 ) : null}
 
@@ -378,7 +305,7 @@ export default function LoginScreen() {
                   disabled={busy}
                   className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-[#134e4a] px-5 py-3.5 text-sm font-black text-white shadow-lg shadow-teal-950/15 transition hover:brightness-105 disabled:cursor-wait disabled:opacity-70"
                 >
-                  {busy ? 'Resetting…' : 'Reset password'}
+                  {busy ? 'Saving…' : 'Set password'}
                   <ArrowRight size={17} />
                 </button>
 

@@ -3,11 +3,12 @@ import { LockKeyhole, ShieldCheck, AlertTriangle } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { useToast } from '../../context/ToastContext';
 import { ZAREWA_LOGO_SRC } from '../../Data/companyQuotation';
+import PasswordField from './PasswordField';
 
 /**
- * Blocks the app until the user replaces a temporary or admin-assigned password.
+ * Blocking modal until the user replaces a temporary or admin-assigned password.
  */
-export default function ForcePasswordChangeScreen() {
+export default function ForcePasswordChangeModal() {
   const ws = useWorkspace();
   const { show: showToast } = useToast();
   const user = ws?.session?.user;
@@ -47,15 +48,23 @@ export default function ForcePasswordChangeScreen() {
   };
 
   return (
-    <div className="min-h-screen z-app-bg flex items-center justify-center px-4 py-10">
-      <div className="w-full max-w-lg rounded-[28px] border border-slate-200/80 bg-white/95 p-6 shadow-[0_24px_80px_-32px_rgba(15,23,42,0.35)] sm:p-10">
+    <div className="fixed inset-0 z-[200] flex items-center justify-center px-4 py-10">
+      <div className="absolute inset-0 bg-slate-950/50 backdrop-blur-[2px]" aria-hidden />
+      <div
+        className="relative w-full max-w-lg rounded-[28px] border border-slate-200/80 bg-white/98 p-6 shadow-[0_24px_80px_-32px_rgba(15,23,42,0.45)] sm:p-10"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="force-password-title"
+      >
         <div className="flex flex-col items-center text-center">
           <img src={ZAREWA_LOGO_SRC} alt="" className="h-10 w-auto object-contain" width={100} height={40} />
           <p className="mt-4 text-[11px] font-black uppercase tracking-[0.18em] text-slate-400">First sign-in</p>
-          <h1 className="mt-2 text-2xl font-black text-[#134e4a]">Set your password</h1>
+          <h1 id="force-password-title" className="mt-2 text-2xl font-black text-[#134e4a]">
+            Set your password
+          </h1>
           <p className="mt-2 text-sm text-slate-600 leading-relaxed">
-            Welcome{user?.displayName ? `, ${user.displayName}` : ''}. For security, replace the temporary password
-            you were given before using Zarewa.
+            Welcome{user?.displayName ? `, ${user.displayName}` : ''}. Replace the temporary password you were given
+            before using Zarewa.
           </p>
         </div>
 
@@ -68,48 +77,33 @@ export default function ForcePasswordChangeScreen() {
         </div>
 
         <form className="mt-6 space-y-4" onSubmit={submit}>
-          <div>
-            <label className="z-field-label" htmlFor="fp-current">
-              Current (temporary) password
-            </label>
-            <input
-              id="fp-current"
-              type="password"
-              autoComplete="current-password"
-              className="z-input"
-              value={currentPassword}
-              onChange={(e) => setCurrentPassword(e.target.value)}
-              required
-            />
-          </div>
-          <div>
-            <label className="z-field-label" htmlFor="fp-new">
-              New password
-            </label>
-            <input
-              id="fp-new"
-              type="password"
-              autoComplete="new-password"
-              className="z-input"
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              required
-            />
-          </div>
-          <div>
-            <label className="z-field-label" htmlFor="fp-confirm">
-              Confirm new password
-            </label>
-            <input
-              id="fp-confirm"
-              type="password"
-              autoComplete="new-password"
-              className="z-input"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              required
-            />
-          </div>
+          <PasswordField
+            id="fp-current"
+            label="Current (temporary) password"
+            autoComplete="current-password"
+            value={currentPassword}
+            onChange={(e) => setCurrentPassword(e.target.value)}
+            disabled={busy}
+            required
+          />
+          <PasswordField
+            id="fp-new"
+            label="New password"
+            autoComplete="new-password"
+            value={newPassword}
+            onChange={(e) => setNewPassword(e.target.value)}
+            disabled={busy}
+            required
+          />
+          <PasswordField
+            id="fp-confirm"
+            label="Confirm new password"
+            autoComplete="new-password"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            disabled={busy}
+            required
+          />
 
           {error ? (
             <div className="flex items-start gap-3 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900">
