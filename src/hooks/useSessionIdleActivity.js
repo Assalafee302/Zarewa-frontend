@@ -1,9 +1,22 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 const DEFAULT_PING_DEBOUNCE_MS = 5000;
+const IGNORED_IDLE_KEYS = new Set([
+  'Shift',
+  'Control',
+  'Alt',
+  'Meta',
+  'Tab',
+  'CapsLock',
+  'Escape',
+  'ArrowUp',
+  'ArrowDown',
+  'ArrowLeft',
+  'ArrowRight',
+]);
 
 /**
- * Tracks last user click for client-side inactivity timeout.
+ * Tracks last user click/keyboard input for client-side inactivity timeout.
  * Optionally pings the server (debounced) so the cookie session stays aligned.
  *
  * @param {{
@@ -43,14 +56,21 @@ export function useSessionIdleActivity({
   useEffect(() => {
     if (!enabled) return undefined;
     const onClick = () => touchActivity();
+    const onKeyDown = (e) => {
+      if (e.isComposing || e.repeat) return;
+      if (IGNORED_IDLE_KEYS.has(e.key)) return;
+      touchActivity();
+    };
     document.addEventListener('click', onClick, true);
+    document.addEventListener('keydown', onKeyDown, true);
     return () => {
       document.removeEventListener('click', onClick, true);
+      document.removeEventListener('keydown', onKeyDown, true);
       if (pingTimerRef.current) window.clearTimeout(pingTimerRef.current);
     };
   }, [enabled, touchActivity]);
 
-  /** While a form is open with unsaved edits, keep the server session alive even without clicks. */
+  /** While a form is open with unsaved edits, keep the server session alive even without input. */
   useEffect(() => {
     if (!enabled || !keepAliveWhileUnsaved || typeof onServerPing !== 'function') return undefined;
     const id = window.setInterval(() => {

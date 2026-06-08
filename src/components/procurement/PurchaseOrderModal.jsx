@@ -21,6 +21,7 @@ import {
   userNeedsPurchaseBranchDoubleConfirm,
   workspaceActiveBranchLabel,
 } from '../../lib/workspaceBranchCreate';
+import { useTrackedUnsavedForm } from '../../hooks/useTrackedUnsavedForm';
 
 const STONE_MATERIAL_TYPE_ID = 'MAT-005';
 const labelClass =
@@ -65,6 +66,11 @@ export default function PurchaseOrderModal({
   const editPoId = editDraft?.poID ?? '';
   const isNewPo = !editPoId;
   const poBranchBlocked = isNewPo && isBranchScopedCreateBlocked(ws);
+  const { captureEdited, wrapClose } = useTrackedUnsavedForm('modal-purchase-order', {
+    isOpen,
+    hydrateKey: editPoId || 'new',
+  });
+  const handleClose = wrapClose(onClose);
 
   const colourOptions = useMemo(
     () => colourSelectOptionsFromRows(masterData?.colours || [], masterData),
@@ -335,7 +341,7 @@ export default function PurchaseOrderModal({
   return (
     <ModalFrame
       isOpen={isOpen}
-      onClose={onClose}
+      onClose={handleClose}
       title={editPoId ? 'Edit purchase order' : 'New purchase order'}
       description="Coils, stone, accessories, and services (e.g. loading fee at purchase) on one supplier order."
     >
@@ -345,9 +351,9 @@ export default function PurchaseOrderModal({
             <h2 className="text-base font-bold text-[#134e4a]">{editPoId ? 'Edit purchase order' : 'New purchase order'}</h2>
             <p className="text-[9px] text-slate-400 uppercase">Mixed line types</p>
           </div>
-          <button type="button" onClick={onClose} className="p-2.5 rounded-xl bg-slate-50" aria-label="Close"><X size={20} /></button>
+          <button type="button" onClick={handleClose} className="p-2.5 rounded-xl bg-slate-50" aria-label="Close"><X size={20} /></button>
         </div>
-        <form className="flex flex-col flex-1 min-h-0" onSubmit={handleSubmit}>
+        <form className="flex flex-col flex-1 min-h-0" onSubmit={handleSubmit} onInput={captureEdited} onChange={captureEdited}>
           <div className="flex-1 overflow-y-auto p-5 space-y-6">
             {isNewPo ? (
               <PurchaseOrderBranchConfirm confirmed={branchConfirmed} onConfirmedChange={setBranchConfirmed} />
@@ -368,7 +374,7 @@ export default function PurchaseOrderModal({
           <div className="px-5 py-4 bg-[#134e4a] text-white flex justify-between shrink-0">
             <div><p className="text-[9px] uppercase text-white/60">Total</p><p className="text-xl font-bold">{formatNgn(grandTotal)}</p></div>
             <div className="flex gap-2">
-              <button type="button" onClick={onClose} disabled={busy} className="px-4 py-2 rounded-lg bg-white/10 text-[9px] uppercase">Cancel</button>
+              <button type="button" onClick={handleClose} disabled={busy} className="px-4 py-2 rounded-lg bg-white/10 text-[9px] uppercase">Cancel</button>
               <button
                 type="submit"
                 disabled={busy || (isNewPo && (poBranchBlocked || !branchConfirmed))}

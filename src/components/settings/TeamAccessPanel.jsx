@@ -8,6 +8,7 @@ import { useWorkspace } from '../../context/WorkspaceContext';
 import { APP_DATA_TABLE_PAGE_SIZE, useAppTablePaging } from '../../lib/appDataTable';
 import { AppTablePager } from '../ui/AppDataTable';
 import { EditSecondApprovalInline } from '../EditSecondApprovalInline';
+import { useTrackedUnsavedForm } from '../../hooks/useTrackedUnsavedForm';
 
 /**
  * Admin UI: assign role, status, and granular permissions (settings.view).
@@ -66,6 +67,15 @@ export default function TeamAccessPanel({ appUsers, currentUserId, onRefresh }) 
   });
   const roleKey = String(ws?.session?.user?.roleKey || '').toLowerCase();
   const canGenerateResetCodes = ['admin', 'md', 'hr_admin'].includes(roleKey);
+
+  const { captureEdited: captureCreateEdited, wrapClose: wrapCreateClose } = useTrackedUnsavedForm(
+    'settings-create-user',
+    { isOpen: createOpen, hydrateKey: 'create-user' }
+  );
+  const { captureEdited: capturePermEdited, wrapClose: wrapPermClose } = useTrackedUnsavedForm(
+    'settings-user-perms',
+    { isOpen: Boolean(permModalUser), hydrateKey: permModalUser?.id || 'perms' }
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -596,13 +606,15 @@ export default function TeamAccessPanel({ appUsers, currentUserId, onRefresh }) 
 
       <ModalFrame
         isOpen={createOpen}
-        onClose={() => !createBusy && setCreateOpen(false)}
+        onClose={wrapCreateClose(() => !createBusy && setCreateOpen(false))}
         closeDisabled={createBusy}
         title="Create app user"
         description="Creates a login with a temporary password. Password must be at least 8 characters with mixed case, a number, and a special character."
       >
         <form
           onSubmit={submitCreateUser}
+          onInput={captureCreateEdited}
+          onChange={captureCreateEdited}
           className="w-full max-w-md rounded-[28px] border border-slate-200/90 bg-white p-6 shadow-xl space-y-3"
         >
           <div>
@@ -748,11 +760,15 @@ export default function TeamAccessPanel({ appUsers, currentUserId, onRefresh }) 
 
       <ModalFrame
         isOpen={Boolean(permModalUser)}
-        onClose={closePermModal}
+        onClose={wrapPermClose(closePermModal)}
         title={permModalUser ? `Permissions — ${permModalUser.displayName}` : 'Permissions'}
         description="Choose full access or individual permissions. Save applies to this login only."
       >
-        <div className="w-full max-w-lg rounded-[28px] border border-slate-200/90 bg-white p-6 shadow-xl">
+        <div
+          className="w-full max-w-lg rounded-[28px] border border-slate-200/90 bg-white p-6 shadow-xl"
+          onInput={capturePermEdited}
+          onChange={capturePermEdited}
+        >
           <p className="text-[11px] text-slate-500 mb-4">
             Role:{' '}
             <span className="font-semibold text-slate-800">

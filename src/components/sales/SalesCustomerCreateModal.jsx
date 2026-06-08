@@ -4,6 +4,7 @@ import { ModalFrame } from '../layout';
 import { useCustomers } from '../../context/CustomersContext';
 import { useToast } from '../../context/ToastContext';
 import { useWorkspace } from '../../context/WorkspaceContext';
+import { useTrackedUnsavedForm } from '../../hooks/useTrackedUnsavedForm';
 
 const emptyForm = {
   name: '',
@@ -30,6 +31,11 @@ export default function SalesCustomerCreateModal({
   const { show: showToast } = useToast();
   const ws = useWorkspace();
   const [form, setForm] = useState(emptyForm);
+  const { captureEdited, wrapClose } = useTrackedUnsavedForm('modal-sales-customer-create', {
+    isOpen,
+    hydrateKey: 'new-customer',
+  });
+  const handleClose = wrapClose(onClose);
 
   useEffect(() => {
     if (isOpen) setForm(emptyForm);
@@ -64,11 +70,11 @@ export default function SalesCustomerCreateModal({
   };
 
   return (
-    <ModalFrame isOpen={isOpen} onClose={onClose}>
+    <ModalFrame isOpen={isOpen} onClose={handleClose}>
       <div className="z-modal-panel max-w-lg p-8">
         <div className="flex justify-between items-center mb-6">
           <h3 className="text-xl font-bold text-[#134e4a]">New Customer</h3>
-          <button type="button" onClick={onClose} className="p-2 text-slate-400 hover:text-rose-500 rounded-xl hover:bg-rose-50">
+          <button type="button" onClick={handleClose} className="p-2 text-slate-400 hover:text-rose-500 rounded-xl hover:bg-rose-50">
             <X size={22} />
           </button>
         </div>
@@ -77,7 +83,7 @@ export default function SalesCustomerCreateModal({
             System offline (read-only). Reconnect and refresh before registering customers.
           </div>
         ) : null}
-        <form onSubmit={submitNew} className="space-y-4">
+        <form onSubmit={submitNew} className="space-y-4" onInput={captureEdited} onChange={captureEdited}>
           <fieldset disabled={!ws?.canMutate} className="space-y-4 disabled:opacity-60">
             <div className="space-y-1">
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Full Name *</label>

@@ -1,5 +1,6 @@
 import React from 'react';
 import { ModalFrame } from '../layout/ModalFrame';
+import { useTrackedUnsavedForm } from '../../hooks/useTrackedUnsavedForm';
 
 const SIZE_CLASS = {
   sm: 'max-w-md',
@@ -10,13 +11,44 @@ const SIZE_CLASS = {
 
 /**
  * Standard HR popup for create/edit forms.
- * @param {{ isOpen: boolean; onClose: () => void; title: string; description?: string; children: React.ReactNode; size?: 'sm'|'md'|'lg'|'xl' }} props
+ * @param {{
+ *   isOpen: boolean;
+ *   onClose: () => void;
+ *   title: string;
+ *   description?: string;
+ *   children: React.ReactNode;
+ *   size?: 'sm'|'md'|'lg'|'xl';
+ *   closeDisabled?: boolean;
+ *   trackUnsaved?: boolean;
+ *   trackId?: string;
+ *   trackHydrateKey?: string;
+ * }} props
  */
-export function HrFormModal({ isOpen, onClose, title, description, children, size = 'lg', closeDisabled = false }) {
+export function HrFormModal({
+  isOpen,
+  onClose,
+  title,
+  description,
+  children,
+  size = 'lg',
+  closeDisabled = false,
+  trackUnsaved = true,
+  trackId,
+  trackHydrateKey,
+}) {
+  const stableTrackId =
+    trackId || `hr-${String(title || 'modal').toLowerCase().replace(/[^a-z0-9]+/g, '-')}`.replace(/^-|-$/g, '');
+  const { captureEdited, wrapClose } = useTrackedUnsavedForm(stableTrackId, {
+    isOpen,
+    blockTracking: !trackUnsaved,
+    hydrateKey: trackHydrateKey ?? title,
+  });
+  const handleClose = onClose && !closeDisabled ? wrapClose(onClose) : undefined;
+
   return (
     <ModalFrame
       isOpen={isOpen}
-      onClose={closeDisabled ? undefined : onClose}
+      onClose={handleClose}
       title={title}
       description={description}
       surface="plain"
@@ -24,6 +56,8 @@ export function HrFormModal({ isOpen, onClose, title, description, children, siz
     >
       <div
         className={`z-modal-panel w-full ${SIZE_CLASS[size] || SIZE_CLASS.lg} rounded-2xl border border-slate-100 bg-white p-6 shadow-xl max-h-[min(90vh,920px)] overflow-y-auto`}
+        onInput={trackUnsaved ? captureEdited : undefined}
+        onChange={trackUnsaved ? captureEdited : undefined}
       >
         <h3 className="text-lg font-black text-[#134e4a] pr-10">{title}</h3>
         {description ? <p className="mt-1 text-sm text-slate-600">{description}</p> : null}

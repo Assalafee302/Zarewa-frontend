@@ -12,6 +12,7 @@ import { MainPanel, ModalFrame, PageHeader, PageShell } from '../components/layo
 import { useInventory } from '../context/InventoryContext';
 import { useToast } from '../context/ToastContext';
 import { useWorkspace } from '../context/WorkspaceContext';
+import { useTrackedUnsavedForm } from '../hooks/useTrackedUnsavedForm';
 import { apiFetch } from '../lib/apiBase';
 import { fmtConv2 } from '../lib/conversionKgPerM.js';
 
@@ -92,6 +93,16 @@ export default function CoilProfile() {
   const [holdersMeta, setHoldersMeta] = useState(null);
   const [holdersLoading, setHoldersLoading] = useState(false);
   const [reconcilingReservation, setReconcilingReservation] = useState(false);
+
+  const actionModalOpen = Boolean(actionModal);
+  const { captureEdited, wrapClose } = useTrackedUnsavedForm('page-coil-profile', {
+    isOpen: actionModalOpen,
+    hydrateKey: `${coilNo}-${actionModal}`,
+  });
+  const closeActionModal = wrapClose(() => {
+    if (savingAction) return;
+    setActionModal('');
+  });
 
   const coil = useMemo(
     () => coilLots.find((c) => coilKey(c.coilNo) === coilNoKey),
@@ -716,8 +727,8 @@ export default function CoilProfile() {
           </section>
         </MainPanel>
       </div>
-      <ModalFrame isOpen={actionModal === 'finish'} onClose={() => !savingAction && setActionModal('')}>
-        <form onSubmit={submitFinishRoll} className="space-y-3">
+      <ModalFrame isOpen={actionModal === 'finish'} onClose={closeActionModal}>
+        <form onSubmit={submitFinishRoll} className="space-y-3" onInput={captureEdited} onChange={captureEdited}>
           <h3 className="text-lg font-black text-[#134e4a]">Finish roll — {coil.coilNo}</h3>
           <p className="text-xs text-slate-600 leading-relaxed">
             Clears <strong>{freeKg.toLocaleString(undefined, { maximumFractionDigits: 1 })} kg</strong> of unusable
@@ -743,8 +754,8 @@ export default function CoilProfile() {
           </button>
         </form>
       </ModalFrame>
-      <ModalFrame isOpen={actionModal === 'scrap'} onClose={() => !savingAction && setActionModal('')}>
-        <form onSubmit={submitScrap} className="space-y-3">
+      <ModalFrame isOpen={actionModal === 'scrap'} onClose={closeActionModal}>
+        <form onSubmit={submitScrap} className="space-y-3" onInput={captureEdited} onChange={captureEdited}>
           <h3 className="text-lg font-black text-[#134e4a]">Scrap from {coil.coilNo}</h3>
           <input className="z-input w-full" type="number" min="0.01" step="0.01" placeholder="Scrap kg" value={scrapForm.kg} onChange={(e) => setScrapForm((s) => ({ ...s, kg: e.target.value }))} />
           <input className="z-input w-full" type="number" min="0" step="0.01" placeholder="Metres (optional)" value={scrapForm.meters} onChange={(e) => setScrapForm((s) => ({ ...s, meters: e.target.value }))} />
@@ -754,8 +765,8 @@ export default function CoilProfile() {
           <button className="z-btn-primary" type="submit" disabled={savingAction}>Post scrap</button>
         </form>
       </ModalFrame>
-      <ModalFrame isOpen={actionModal === 'return'} onClose={() => !savingAction && setActionModal('')}>
-        <form onSubmit={submitReturn} className="space-y-3">
+      <ModalFrame isOpen={actionModal === 'return'} onClose={closeActionModal}>
+        <form onSubmit={submitReturn} className="space-y-3" onInput={captureEdited} onChange={captureEdited}>
           <h3 className="text-lg font-black text-[#134e4a]">Return material to {coil.coilNo}</h3>
           <input className="z-input w-full" type="number" min="0.01" step="0.01" placeholder="Return kg" value={returnForm.kg} onChange={(e) => setReturnForm((s) => ({ ...s, kg: e.target.value }))} />
           <input className="z-input w-full" placeholder="Reason" value={returnForm.reason} onChange={(e) => setReturnForm((s) => ({ ...s, reason: e.target.value }))} />
@@ -763,8 +774,8 @@ export default function CoilProfile() {
           <button className="z-btn-primary" type="submit" disabled={savingAction}>Post return</button>
         </form>
       </ModalFrame>
-      <ModalFrame isOpen={actionModal === 'edit'} onClose={() => !savingAction && setActionModal('')}>
-        <form onSubmit={submitEditMaster} className="space-y-3">
+      <ModalFrame isOpen={actionModal === 'edit'} onClose={closeActionModal}>
+        <form onSubmit={submitEditMaster} className="space-y-3" onInput={captureEdited} onChange={captureEdited}>
           <h3 className="text-lg font-black text-[#134e4a]">Edit coil details</h3>
           <p className="text-xs text-slate-600 leading-relaxed">
             For branch managers, the MD, and administrators only. Received kg updates the GRN book figure (

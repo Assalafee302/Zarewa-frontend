@@ -168,7 +168,10 @@ export function WorkspaceProvider({ children }) {
   const refresh = useCallback(async (opts = {}) => {
     try {
       const mode = String(opts?.mode ?? '').trim();
-      const qs = mode ? `?mode=${encodeURIComponent(mode)}` : '';
+      const qsParts = [];
+      if (mode) qsParts.push(`mode=${encodeURIComponent(mode)}`);
+      if (opts?.poll) qsParts.push('poll=1');
+      const qs = qsParts.length ? `?${qsParts.join('&')}` : '';
       const { ok, status: httpStatus, data } = await apiFetch(`/api/bootstrap${qs}`);
       if (httpStatus === 401 || data?.code === 'AUTH_REQUIRED') {
         clearBootstrapCache();
@@ -305,6 +308,7 @@ export function WorkspaceProvider({ children }) {
   }, []);
 
   const endSessionForTimeout = useCallback(async () => {
+    const mins = Number(snapshot?.session?.sessionTimeoutMinutes) || 15;
     try {
       await apiFetch('/api/session/timeout', { method: 'POST' });
     } catch {
@@ -316,8 +320,16 @@ export function WorkspaceProvider({ children }) {
     setDashboardSummary(null);
     setDashboardSummaryEtag('');
     setLastError(null);
-    setSessionMessage('You were signed out after 15 minutes of inactivity.');
+    setSessionMessage(`You were signed out after ${mins} minutes of inactivity.`);
     setStatus('auth_required');
+  }, [snapshot?.session?.sessionTimeoutMinutes]);
+
+  const touchSessionActivity = useCallback(async () => {
+    try {
+      await apiFetch('/api/session/activity', { method: 'POST', body: '{}' });
+    } catch {
+      /* ignore */
+    }
   }, []);
 
   const clearSessionMessage = useCallback(() => setSessionMessage(''), []);
@@ -428,13 +440,14 @@ export function WorkspaceProvider({ children }) {
     const ms = workspacePollIntervalMs();
     const pull = () => {
       if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
-      void refresh();
+      void refresh({ poll: true });
       void refreshDashboardSummary();
     };
     const id = window.setInterval(pull, ms);
     const onVisible = () => {
       if (document.visibilityState === 'visible') {
-        void refresh();
+        void touchSessionActivity();
+        void refresh({ poll: true });
         void refreshDashboardSummary();
       }
     };
@@ -443,7 +456,7 @@ export function WorkspaceProvider({ children }) {
       window.clearInterval(id);
       document.removeEventListener('visibilitychange', onVisible);
     };
-  }, [status, refresh, refreshDashboardSummary]);
+  }, [status, refresh, refreshDashboardSummary, touchSessionActivity]);
 
   const session = snapshot?.session ?? null;
   const branchScope = snapshot?.branchScope ?? null;
@@ -548,6 +561,7 @@ export function WorkspaceProvider({ children }) {
       sessionMessage,
       clearSessionMessage,
       endSessionForTimeout,
+      touchSessionActivity,
       forgotPassword,
       resetPassword,
       logout,
@@ -586,6 +600,7 @@ export function WorkspaceProvider({ children }) {
       sessionMessage,
       clearSessionMessage,
       endSessionForTimeout,
+      touchSessionActivity,
       forgotPassword,
       resetPassword,
       logout,

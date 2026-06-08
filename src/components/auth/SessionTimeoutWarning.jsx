@@ -5,7 +5,7 @@ import { useUnsavedWorkRegistry } from '../../context/UnsavedWorkContext';
 import { useSessionIdleActivity } from '../../hooks/useSessionIdleActivity';
 
 /**
- * Inactivity timeout from the last platform click (Phase 12+).
+ * Inactivity timeout from the last click or keyboard input (Phase 12+).
  * Auto sign-out is blocked while any form has unsaved changes.
  */
 export default function SessionTimeoutWarning() {
@@ -22,7 +22,7 @@ export default function SessionTimeoutWarning() {
 
   const { lastActivityAt, touchActivity } = useSessionIdleActivity({
     enabled,
-    onServerPing: ws?.refresh,
+    onServerPing: ws?.touchSessionActivity,
     keepAliveWhileUnsaved: hasUnsavedWork,
   });
 
@@ -63,6 +63,10 @@ export default function SessionTimeoutWarning() {
       }
       setSessionPaused(false);
       const sec = Math.ceil(ms / 1000);
+      if (hasUnsavedWork) {
+        setSecondsLeft(null);
+        return;
+      }
       if (sec <= warningSeconds) {
         setSecondsLeft(sec);
       } else {
@@ -77,7 +81,10 @@ export default function SessionTimeoutWarning() {
 
   if (ws?.authRequired) return null;
 
-  if (sessionPaused && hasUnsavedWork) {
+  const msRemaining = expiresAtMs - Date.now();
+  const inUnsavedHoldWindow = hasUnsavedWork && msRemaining <= warningSeconds * 1000;
+
+  if ((sessionPaused && hasUnsavedWork) || inUnsavedHoldWindow) {
     return (
       <div
         role="alert"
@@ -88,8 +95,8 @@ export default function SessionTimeoutWarning() {
           <div className="min-w-0 flex-1 text-sm text-teal-950">
             <p className="font-bold">Session on hold</p>
             <p className="mt-1">
-              You have unsaved changes in an open form. Sign-out is paused until you save or discard
-              your work. Click anywhere after saving to reset the inactivity timer.
+              You have unsaved changes in an open form. Automatic sign-out is paused until you save or
+              discard your work. Continue typing or click after saving to reset the inactivity timer.
             </p>
           </div>
         </div>
@@ -110,8 +117,8 @@ export default function SessionTimeoutWarning() {
           <p className="font-bold">Session expiring soon</p>
           <p className="mt-1">
             You will be signed out in <strong>{secondsLeft}</strong> second
-            {secondsLeft === 1 ? '' : 's'} without a click in the app. Click anywhere or use
-            Continue to stay signed in.
+            {secondsLeft === 1 ? '' : 's'} without activity in the app. Click, type, or use Continue
+            to stay signed in.
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
             <button
@@ -120,7 +127,7 @@ export default function SessionTimeoutWarning() {
               onClick={() => {
                 setDismissed(true);
                 touchActivity();
-                void ws?.refresh?.();
+                void ws?.touchSessionActivity?.();
               }}
             >
               Continue working
