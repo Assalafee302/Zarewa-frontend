@@ -230,13 +230,33 @@ export function HrBulkStaffImportModal({ open, onClose, onImported }) {
         ) : null}
 
         {result ? (
-          <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-4 text-sm text-emerald-900">
-            <p className="font-bold">Import complete</p>
+          <div
+            className={`rounded-xl border p-4 text-sm ${
+              (result.commitFailed ?? 0) > 0 || (result.failed ?? 0) > 0
+                ? 'border-amber-100 bg-amber-50 text-amber-950'
+                : 'border-emerald-100 bg-emerald-50 text-emerald-900'
+            }`}
+          >
+            <p className="font-bold">
+              {(result.imported ?? 0) + (result.updated ?? 0) > 0 ? 'Import finished' : 'Import could not complete'}
+            </p>
             <p className="mt-1 text-xs">
               Imported {result.imported ?? 0}, updated {result.updated ?? 0}
               {result.suspended ? `, suspended ${result.suspended}` : ''}, skipped {result.skipped ?? 0}, failed{' '}
               {result.failed ?? 0}.
             </p>
+            {result.results?.filter((r) => r.status === 'failed').length ? (
+              <div className="mt-2 max-h-32 overflow-y-auto rounded-lg border border-amber-200 bg-white p-2 text-xs">
+                {result.results
+                  .filter((r) => r.status === 'failed')
+                  .slice(0, 20)
+                  .map((r) => (
+                    <p key={r.rowNum}>
+                      Row {r.rowNum}: {r.error || 'Failed'}
+                    </p>
+                  ))}
+              </div>
+            ) : null}
           </div>
         ) : null}
       </div>
