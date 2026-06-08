@@ -32,6 +32,7 @@ export function HrBulkStaffImportModal({ open, onClose, onImported }) {
   };
 
   const close = () => {
+    if (busy) return;
     reset();
     onClose?.();
   };
@@ -86,22 +87,34 @@ export function HrBulkStaffImportModal({ open, onClose, onImported }) {
     }
     setBusy('commit');
     setError('');
-    const fileBase64 = await fileToBase64(file);
-    const { ok, data } = await apiFetch('/api/hr/staff-import/commit', {
-      method: 'POST',
-      body: JSON.stringify({ fileBase64, importMode }),
-    });
-    setBusy('');
-    if (!ok || !data?.ok) {
-      setError(data?.error || 'Import failed.');
-      return;
+    setResult(null);
+    try {
+      const fileBase64 = await fileToBase64(file);
+      const { ok, data } = await apiFetch('/api/hr/staff-import/commit', {
+        method: 'POST',
+        body: JSON.stringify({ fileBase64, importMode }),
+      });
+      if (!ok || !data?.ok) {
+        setError(data?.error || 'Import failed.');
+        return;
+      }
+      setResult(data);
+      await onImported?.(data);
+    } catch (e) {
+      setError(String(e?.message || e || 'Import failed — connection lost. Try again.'));
+    } finally {
+      setBusy('');
     }
-    setResult(data);
-    onImported?.(data);
   };
 
   return (
-    <HrFormModal isOpen={open} onClose={close} title="Bulk Register Staff" size="xl">
+    <HrFormModal
+      isOpen={open}
+      onClose={close}
+      title="Bulk Register Staff"
+      size="xl"
+      closeDisabled={!!busy}
+    >
       <div className="space-y-4">
         <p className="text-sm text-slate-600">
           Upload the full staff list. Blank or invalid cells are ignored. Each new person gets login{' '}
@@ -183,12 +196,27 @@ export function HrBulkStaffImportModal({ open, onClose, onImported }) {
           <button
             type="button"
             onClick={runCommit}
-            disabled={!preview?.validCount || !!busy}
+            disabled={!preview?.validCount || !!busy || !!result}
             className={HR_BTN_PRIMARY}
           >
             {busy === 'commit' ? 'Importing…' : `Import ${preview?.validCount ?? 0} valid row(s)`}
           </button>
+          {result ? (
+            <button type="button" onClick={close} className={HR_BTN_PRIMARY}>
+              Done — view staff list
+            </button>
+          ) : null}
         </div>
+
+        {busy === 'commit' ? (
+          <div className="rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-900">
+            <p className="font-bold">Import in progress</p>
+            <p className="mt-1 text-xs">
+              Creating {preview?.validCount ?? 0} staff account(s). This can take a minute — please keep this window
+              open.
+            </p>
+          </div>
+        ) : null}
 
         {error ? (
           <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-800">{error}</div>
@@ -257,6 +285,10 @@ export function HrBulkStaffImportModal({ open, onClose, onImported }) {
                   ))}
               </div>
             ) : null}
+            <p className="mt-2 text-xs text-slate-600">
+              Click <strong>Done — view staff list</strong> when you are ready. The directory will refresh behind this
+              window.
+            </p>
           </div>
         ) : null}
       </div>

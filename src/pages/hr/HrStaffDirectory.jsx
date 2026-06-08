@@ -50,6 +50,7 @@ export default function HrStaffDirectory({ staffBasePath = HR_EMPLOYEES, initial
   const canRegister = canManageHrStaff(perms);
   const canBulkImport = canBulkImportStaff(perms);
   const [bulkOpen, setBulkOpen] = useState(false);
+  const [importNotice, setImportNotice] = useState(null);
   const branches = useMemo(() => {
     const list = ws?.snapshot?.workspaceBranches ?? ws?.session?.branches ?? [];
     return list.map((b) => ({ id: b.id, name: b.name || b.id }));
@@ -70,7 +71,7 @@ export default function HrStaffDirectory({ staffBasePath = HR_EMPLOYEES, initial
 
   const [masterDepartments, setMasterDepartments] = useState([]);
 
-  const { loading, error } = useHrListLoad(async () => {
+  const { loading, error, reload } = useHrListLoad(async () => {
     const q = includeInactive ? '?includeInactive=1' : '';
     const [staffRes, deptRes] = await Promise.all([
       apiFetch(`/api/hr/staff${q}`),
@@ -140,7 +141,56 @@ export default function HrStaffDirectory({ staffBasePath = HR_EMPLOYEES, initial
         />
       </HrFormModal>
 
-      <HrBulkStaffImportModal open={bulkOpen} onClose={() => setBulkOpen(false)} onImported={() => setBulkOpen(false)} />
+      <HrBulkStaffImportModal
+        open={bulkOpen}
+        onClose={() => setBulkOpen(false)}
+        onImported={async (data) => {
+          const imported = Number(data?.imported) || 0;
+          const updated = Number(data?.updated) || 0;
+          const failed = Number(data?.failed) || 0;
+          const total = imported + updated;
+          setBranchId('');
+          setDepartment('');
+          setEmploymentType('');
+          setStatus('active');
+          await reload({ forceSpinner: true });
+          setImportNotice({
+            imported,
+            updated,
+            failed,
+            total,
+            ok: total > 0,
+          });
+        }}
+      />
+
+      {importNotice ? (
+        <div
+          className={`rounded-xl border px-4 py-3 text-sm ${
+            importNotice.ok
+              ? 'border-emerald-100 bg-emerald-50 text-emerald-900'
+              : 'border-amber-100 bg-amber-50 text-amber-950'
+          }`}
+        >
+          <p className="font-bold">
+            {importNotice.ok ? 'Staff import completed' : 'Staff import finished with issues'}
+          </p>
+          <p className="mt-1 text-xs">
+            Imported {importNotice.imported}, updated {importNotice.updated}, failed {importNotice.failed}. Staff
+            directory refreshed below.
+            {importNotice.total === 0
+              ? ' No accounts were created — open Bulk Register Staff again to read row errors.'
+              : ' If counts look low, set branch filter to “All branches”.'}
+          </p>
+          <button
+            type="button"
+            onClick={() => setImportNotice(null)}
+            className="mt-2 text-xs font-bold uppercase tracking-wide text-[#134e4a] hover:underline"
+          >
+            Dismiss
+          </button>
+        </div>
+      ) : null}
 
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div className="flex flex-wrap gap-2 lg:order-2">
