@@ -1,24 +1,27 @@
-import React, { Suspense, lazy, Component, useEffect } from 'react';
+import React, { Suspense, Component, useEffect } from 'react';
+import { lazyWithRetry } from '../lib/lazyWithRetry';
 import { useHelpChat } from '../context/HelpChatContext';
 import { useWorkspace } from '../context/WorkspaceContext';
 import { ZareHelpFab } from './ZareHelpFab';
 import { debugBootLog } from '../lib/debugBoot.js';
 
-const HelpChatDock = lazy(() =>
-  import('./HelpChatDock.jsx')
-    .then((m) => {
-      debugBootLog('HelpChatDockGate.jsx:dock-import-ok', 'HelpChatDock chunk loaded', {}, 'E');
-      return { default: m.HelpChatDock };
-    })
-    .catch((err) => {
-      debugBootLog(
-        'HelpChatDockGate.jsx:dock-import-fail',
-        'HelpChatDock chunk failed',
-        { message: String(err?.message || err), stack: String(err?.stack || '').slice(0, 600) },
-        'E'
-      );
-      throw err;
-    })
+const HelpChatDock = lazyWithRetry(
+  () =>
+    import('./HelpChatDock.jsx')
+      .then((m) => {
+        debugBootLog('HelpChatDockGate.jsx:dock-import-ok', 'HelpChatDock chunk loaded', {}, 'E');
+        return { default: m.HelpChatDock };
+      })
+      .catch((err) => {
+        debugBootLog(
+          'HelpChatDockGate.jsx:dock-import-fail',
+          'HelpChatDock chunk failed',
+          { message: String(err?.message || err), stack: String(err?.stack || '').slice(0, 600) },
+          'E'
+        );
+        throw err;
+      }),
+  { id: 'HelpChatDock' }
 );
 
 class HelpChatDockErrorBoundary extends Component {

@@ -1,4 +1,5 @@
-import React, { lazy, Suspense } from 'react';
+import React, { Suspense } from 'react';
+import { lazyWithRetry } from '../../lib/lazyWithRetry';
 import { Navigate, Route, Routes, useParams } from 'react-router-dom';
 import { HrSectionShell } from '../../components/hr/HrSectionShell';
 import HrTabRedirect from '../../components/hr/HrTabRedirect';
@@ -27,7 +28,7 @@ import HrDisciplineExitHub from './HrDisciplineExitHub';
 import HrDocumentsHub from './HrDocumentsHub';
 import HrSettingsHub from './HrSettingsHub';
 
-const HrAnalytics = lazy(() => import('./HrAnalytics'));
+const HrAnalytics = lazyWithRetry(() => import('./HrAnalytics'), { id: 'HrAnalytics' });
 
 const HR_NAV = [
   { to: '/hr/dashboard', label: 'Dashboard', end: true },

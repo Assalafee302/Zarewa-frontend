@@ -1,9 +1,10 @@
-import React, { lazy, Suspense } from 'react';
+import React, { Suspense } from 'react';
+import { lazyWithRetry } from '../../lib/lazyWithRetry';
 import { useHrUrlTab } from '../../hooks/useHrUrlTab';
 import { HrTabbedPage } from '../../components/hr/HrTabbedPage';
 import HrPhase2Placeholder from '../../components/hr/HrPhase2Placeholder';
 
-const HrRecruiting = lazy(() => import('./HrRecruiting'));
+const HrRecruiting = lazyWithRetry(() => import('./HrRecruiting'), { id: 'HrRecruiting' });
 
 const TABS = [
   { id: 'jobs', label: 'Job Postings' },

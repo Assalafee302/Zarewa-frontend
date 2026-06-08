@@ -1,11 +1,13 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { debugBootLog, installDebugBootHandlers } from './lib/debugBoot.js'
+import { installChunkReloadHandlers } from './lib/lazyWithRetry.js'
 import './lib/firebase.js'
 import './index.css'
 import App from './App.jsx'
 
 installDebugBootHandlers()
+installChunkReloadHandlers()
 debugBootLog('main.jsx:bootstrap', 'Main entry starting', { href: typeof location !== 'undefined' ? location.href : '' }, 'A')
 
 createRoot(document.getElementById('root')).render(

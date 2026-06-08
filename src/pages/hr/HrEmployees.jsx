@@ -1,11 +1,12 @@
-import React, { lazy, Suspense, useEffect } from 'react';
+import React, { Suspense, useEffect } from 'react';
+import { lazyWithRetry } from '../../lib/lazyWithRetry';
 import { useHrUrlTab } from '../../hooks/useHrUrlTab';
 import { HR_EMPLOYEES } from '../../lib/hrRoutes';
 import { HrTabbedPage } from '../../components/hr/HrTabbedPage';
 import HrStaffDirectory from './HrStaffDirectory';
 import HrOrgChart from './HrOrgChart';
 
-const HrIdCards = lazy(() => import('./HrIdCards'));
+const HrIdCards = lazyWithRetry(() => import('./HrIdCards'), { id: 'HrIdCards' });
 
 const TABS = [
   { id: 'directory', label: 'Directory' },

@@ -1,4 +1,5 @@
-import React, { lazy, Suspense } from 'react';
+import React, { Suspense } from 'react';
+import { lazyWithRetry } from '../../lib/lazyWithRetry';
 import { useHrUrlTab } from '../../hooks/useHrUrlTab';
 import { HrTabbedPage } from '../../components/hr/HrTabbedPage';
 import { HrPolicyConfigSection } from '../../components/hr/HrSettingsSections';
@@ -7,7 +8,7 @@ import HrPayroll from './HrPayroll';
 import HrLoans from './HrLoans';
 import HrBenefits from './HrBenefits';
 
-const HrPayeTaxPension = lazy(() => import('./HrPayeTaxPension'));
+const HrPayeTaxPension = lazyWithRetry(() => import('./HrPayeTaxPension'), { id: 'HrPayeTaxPension' });
 
 const TABS = [
   { id: 'payroll-runs', label: 'Payroll Runs' },

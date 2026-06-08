@@ -1,4 +1,5 @@
-import React, { lazy, Suspense } from 'react';
+import React, { Suspense } from 'react';
+import { lazyWithRetry } from '../../lib/lazyWithRetry';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import ModuleRouteGuard from '../../components/ModuleRouteGuard';
 import { HrSectionShell } from '../../components/hr/HrSectionShell';
@@ -11,7 +12,7 @@ import ExecutiveHrVariance from './ExecutiveHrVariance';
 import ExecutiveHrApprovals from './ExecutiveHrApprovals';
 import HrReports from './HrReports';
 
-const HrExecutiveBenefitsHub = lazy(() => import('./HrChairmanAccounts'));
+const HrExecutiveBenefitsHub = lazyWithRetry(() => import('./HrChairmanAccounts'), { id: 'HrChairmanAccounts' });
 
 const NAV = [
   { to: '/executive-hr/payroll', label: 'Payroll summary', end: true },

@@ -1,4 +1,5 @@
-import React, { lazy, Suspense } from 'react';
+import React, { Suspense } from 'react';
+import { lazyWithRetry } from '../../lib/lazyWithRetry';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { HrSectionShell } from '../../components/hr/HrSectionShell';
 import MyProfileOverview from './MyProfileOverview';
@@ -14,7 +15,7 @@ import MyAttendance from './MyAttendance';
 import MyPayslips from './MyPayslips';
 import MyLoans from './MyLoans';
 
-const MyIdCard = lazy(() => import('./MyIdCard'));
+const MyIdCard = lazyWithRetry(() => import('./MyIdCard'), { id: 'MyIdCard' });
 
 const NAV = [
   { to: '/my-profile/overview', label: 'Overview', end: true },

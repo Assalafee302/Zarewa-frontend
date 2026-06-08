@@ -1,5 +1,6 @@
 import React from 'react';
 import { debugBootLog } from '../lib/debugBoot.js';
+import { attemptChunkReload } from '../lib/lazyWithRetry.js';
 import { humanizeReactError } from '../lib/reactErrorMessage.js';
 
 /**
@@ -16,6 +17,7 @@ export class AppErrorBoundary extends React.Component {
   }
 
   componentDidCatch(error, info) {
+    if (attemptChunkReload(error, 'error-boundary')) return;
     console.error('[Zarewa] UI error', error, info?.componentStack);
     const payload = {
       message: String(error?.message || error),
