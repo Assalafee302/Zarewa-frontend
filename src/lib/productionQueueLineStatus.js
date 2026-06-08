@@ -23,5 +23,8 @@ export function productionQueueLineStatusPresentation(cl, job) {
   if (cl?.productionRegistered && (job == null || jobSt === 'Planned')) {
     return { label: 'Pushed', chipClass: 'border-violet-500 bg-violet-50 text-violet-950' };
   }
+  if (clSt === 'Draft') {
+    return { label: 'Draft', chipClass: 'border-slate-400 bg-slate-100 text-slate-800' };
+  }
   return { label: 'Waiting', chipClass: 'border-orange-500 bg-orange-50 text-orange-950' };
 }

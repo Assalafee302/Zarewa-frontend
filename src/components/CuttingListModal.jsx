@@ -32,6 +32,11 @@ function normQuoteKey(s) {
 import CuttingListReportPrintView from './CuttingListReportPrintView';
 import { EditSecondApprovalInline } from './EditSecondApprovalInline';
 import { cuttingListEditNeedsSecondApprovalClient } from '../lib/editApprovalUi';
+import {
+  clearCuttingListFormDraft,
+  readCuttingListFormDraft,
+  writeCuttingListFormDraft,
+} from '../lib/cuttingListFormDraftStorage';
 const LINE_TYPE_SET = new Set(['Roof', 'Flatsheet', 'Cladding']);
 
 const CATEGORIES = [
@@ -99,9 +104,31 @@ function quotationIsAccessoriesOnly(q) {
 
 function displayCuttingListStatus(s) {
   if (!s) return '—';
+  if (s === 'Draft') return 'Draft';
   if (s === 'Completed') return 'Finished';
   if (s === 'Planned' || s === 'Queued for production') return 'Waiting';
   return s;
+}
+
+function cuttingListIsDraft(cl) {
+  return String(cl?.status ?? '').trim() === 'Draft';
+}
+
+function linesForDraftPayload(linesByCat, categories) {
+  const out = [];
+  for (const { type } of categories) {
+    for (const line of linesByCat[type] || []) {
+      const sheetsRaw = String(line.sheets ?? '').trim();
+      const lengthRaw = String(line.lengthM ?? '').trim();
+      if (!sheetsRaw && !lengthRaw) continue;
+      out.push({
+        sheets: parseNum(line.sheets),
+        lengthM: parseNum(line.lengthM),
+        lineType: type,
+      });
+    }
+  }
+  return out;
 }
 
 function cuttingListMinPaidFractionFromSession(session) {
@@ -326,6 +353,7 @@ const CuttingListModal = ({
   cuttingLists = [],
   onPersist,
   onCuttingListUpdated,
+  onDraftAutosaved,
   handledByLabel = 'Sales',
   linkedProductionJob = null,
 }) => {
@@ -349,6 +377,8 @@ const CuttingListModal = ({
   const [machineName, setMachineName] = useState('Machine 01 (Longspan)');
   const [linesByCat, setLinesByCat] = useState(emptyLinesByCat);
   const [saving, setSaving] = useState(false);
+  const [autosaving, setAutosaving] = useState(false);
+  const [autosaveNote, setAutosaveNote] = useState('');
   const [registering, setRegistering] = useState(false);
   const [showPrintPreview, setShowPrintPreview] = useState(false);
   const [holdForProductionApproval, setHoldForProductionApproval] = useState(false);
@@ -410,7 +440,10 @@ const CuttingListModal = ({
     const editingId = editData?.id ?? '';
     const takenByAnother = (quoteId) =>
       cuttingLists.some(
-        (cl) => normQuoteKey(cl.quotationRef) === normQuoteKey(quoteId) && String(cl.id) !== String(editingId)
+        (cl) =>
+          normQuoteKey(cl.quotationRef) === normQuoteKey(quoteId) &&
+          String(cl.id) !== String(editingId) &&
+          !cuttingListIsDraft(cl)
       );
 
     const editingQuoteId = String(editData?.quotationRef || '').trim();
@@ -461,7 +494,12 @@ const CuttingListModal = ({
     const linked = cuttingLists.find(
       (cl) => normQuoteKey(cl.quotationRef) === normQuoteKey(q.id) && String(cl.id) !== String(editData?.id ?? '')
     );
-    if (linked) return { kind: 'has_list', q, listId: linked.id, branchId: linked.branchId ?? '' };
+    if (linked) {
+      if (cuttingListIsDraft(linked)) {
+        return { kind: 'has_draft', q, listId: linked.id, draft: linked };
+      }
+      return { kind: 'has_list', q, listId: linked.id, branchId: linked.branchId ?? '' };
+    }
     if (!meetsCuttingListPayThreshold(q, receipts, ledgerEntries, minPaidFraction)) {
       return { kind: 'under_paid', q };
     }
@@ -519,6 +557,14 @@ const CuttingListModal = ({
   );
 
   const savedCuttingListId = String(editData?.id ?? '').trim();
+  const isDraftRecord = cuttingListIsDraft(editData);
+  const branchId = String(ws?.session?.currentBranchId ?? '').trim();
+  const draftLinesPayload = useMemo(
+    () => linesForDraftPayload(linesByCat, cuttingCategoriesUi),
+    [linesByCat, cuttingCategoriesUi]
+  );
+  const hasAutosaveContent = Boolean(quotationRef) && draftLinesPayload.length > 0;
+  const autosaveEnabled = !readOnly && ws?.canMutate && hasAutosaveContent && (!savedCuttingListId || isDraftRecord);
 
   const bookPaidOnQuote = selectedQuotation ? bookPaidTowardQuotation(selectedQuotation) : 0;
   const advanceAppliedOnQuote = selectedQuotation
@@ -656,8 +702,8 @@ const CuttingListModal = ({
           const t = LINE_TYPE_SET.has(line.lineType) ? line.lineType : 'Roof';
           buckets[t].push({
             id: `cl-line-${line.lineNo ?? newLineId()}`,
-            sheets: String(line.sheets ?? ''),
-            lengthM: String(line.lengthM ?? ''),
+            sheets: Number(line.sheets) > 0 ? String(line.sheets) : '',
+            lengthM: Number(line.lengthM) > 0 ? String(line.lengthM) : '',
           });
         }
       }
@@ -733,7 +779,9 @@ const CuttingListModal = ({
         ? 'bg-slate-200 text-slate-700'
         : productionOnQueue
           ? 'bg-teal-100 text-teal-900 ring-1 ring-teal-300/50'
-          : 'bg-orange-100 text-orange-800 ring-1 ring-orange-400/30';
+          : isDraftRecord
+            ? 'bg-slate-200 text-slate-800 ring-1 ring-slate-300/50'
+            : 'bg-orange-100 text-orange-800 ring-1 ring-orange-400/30';
   const headerBadgeText = productionCompletedLock
     ? 'Locked'
     : productionJobRunningLock
@@ -742,10 +790,135 @@ const CuttingListModal = ({
         ? 'View'
         : productionOnQueue
           ? 'Production'
-          : editData?.id
-            ? 'Edit'
-            : 'New';
+          : isDraftRecord
+            ? 'Draft'
+            : editData?.id
+              ? 'Edit'
+              : 'New';
   const isCreate = !editData?.id;
+
+  const buildPersistPayload = useCallback(
+    (extra = {}) => {
+      const normalizedLines = flatLinesWithType.map((line) => ({
+        sheets: line.sheets,
+        lengthM: line.lengthM,
+        lineType: line.type,
+      }));
+      return {
+        id: editData?.id,
+        quotationRef,
+        customerID: selectedQuotation?.customerID,
+        customerName: selectedQuotation?.customer,
+        dateISO,
+        sheetsToCut: selectedQuotationAccessoriesOnly ? 0 : computedSheets,
+        machineName,
+        handledBy: activeDisplayName || handledByLabel,
+        lines: isDraftRecord && extra.autosave ? draftLinesPayload : normalizedLines,
+        totalMeters: selectedQuotationAccessoriesOnly ? 0 : totalMeters,
+        ...(selectedQuotationAccessoriesOnly ? { productName: 'Accessories only' } : {}),
+        ...((isCreate || (isDraftRecord && extra.finalize)) && !extra.autosave ? { holdForProductionApproval } : {}),
+        ...(!isCreate && cuttingListEditApprovalId.trim()
+          ? { editApprovalId: cuttingListEditApprovalId.trim() }
+          : {}),
+        ...extra,
+      };
+    },
+    [
+      flatLinesWithType,
+      editData?.id,
+      quotationRef,
+      selectedQuotation,
+      dateISO,
+      selectedQuotationAccessoriesOnly,
+      computedSheets,
+      machineName,
+      activeDisplayName,
+      handledByLabel,
+      totalMeters,
+      isCreate,
+      isDraftRecord,
+      draftLinesPayload,
+      holdForProductionApproval,
+      cuttingListEditApprovalId,
+    ]
+  );
+
+  useEffect(() => {
+    if (!isOpen || readOnly || !quotationRef) return;
+    writeCuttingListFormDraft(branchId, quotationRef, {
+      quotationRef,
+      dateISO,
+      machineName,
+      linesByCat,
+      quoteSearch,
+    });
+  }, [isOpen, readOnly, branchId, quotationRef, dateISO, machineName, linesByCat, quoteSearch]);
+
+  useEffect(() => {
+    if (!isOpen || editData?.id || readOnly) return;
+    const saved = readCuttingListFormDraft(branchId, '');
+    if (!saved?.quotationRef) return;
+    const serverDraft = cuttingLists.find(
+      (cl) => normQuoteKey(cl.quotationRef) === normQuoteKey(saved.quotationRef) && cuttingListIsDraft(cl)
+    );
+    if (serverDraft) {
+      onDraftAutosaved?.(serverDraft);
+      return;
+    }
+    if (saved.linesByCat) {
+      setQuotationRef(String(saved.quotationRef || '').trim());
+      setQuoteSearch(String(saved.quoteSearch || saved.quotationRef || '').trim());
+      setDateISO(saved.dateISO || new Date().toISOString().slice(0, 10));
+      setMachineName(saved.machineName || 'Machine 01 (Longspan)');
+      setLinesByCat(saved.linesByCat);
+    }
+  }, [isOpen, editData?.id, readOnly, branchId, cuttingLists, onDraftAutosaved]);
+
+  useEffect(() => {
+    if (!autosaveEnabled) return undefined;
+    const timer = window.setTimeout(async () => {
+      if (!selectedQuotation || autosaving || saving) return;
+      setAutosaving(true);
+      setAutosaveNote('Saving draft…');
+      const body = buildPersistPayload({ autosave: true, draft: true });
+      const isEdit = Boolean(editData?.id);
+      const path = isEdit
+        ? `/api/cutting-lists/${encodeURIComponent(editData.id)}`
+        : '/api/cutting-lists';
+      const { ok, data } = await apiFetch(path, {
+        method: isEdit ? 'PATCH' : 'POST',
+        body: JSON.stringify(body),
+      });
+      setAutosaving(false);
+      if (!ok || !data?.ok) {
+        setAutosaveNote('Draft not saved — will retry when you keep typing.');
+        return;
+      }
+      const cl = data.cuttingList;
+      if (cl) {
+        onDraftAutosaved?.(cl);
+        await ws?.refresh?.();
+      }
+      setAutosaveNote(
+        cl?.id ? `Draft saved · ${cl.id}` : 'Draft saved'
+      );
+    }, 1500);
+    return () => window.clearTimeout(timer);
+  }, [
+    autosaveEnabled,
+    autosaving,
+    saving,
+    selectedQuotation,
+    buildPersistPayload,
+    editData?.id,
+    onDraftAutosaved,
+    ws,
+    draftLinesPayload,
+    quotationRef,
+    dateISO,
+    machineName,
+    linesByCat,
+  ]);
 
   const submit = async (e) => {
     e.preventDefault();
@@ -764,7 +937,7 @@ const CuttingListModal = ({
       return;
     }
     if (
-      isCreate &&
+      (isCreate || isDraftRecord) &&
       selectedQuotation &&
       !meetsCuttingListPayThreshold(selectedQuotation, receipts, ledgerEntries, minPaidFraction)
     ) {
@@ -775,28 +948,17 @@ const CuttingListModal = ({
       return;
     }
     setSaving(true);
-    const result = await onPersist?.({
-      id: editData?.id,
-      quotationRef,
-      customerID: selectedQuotation.customerID,
-      customerName: selectedQuotation.customer,
-      dateISO,
-      sheetsToCut: selectedQuotationAccessoriesOnly ? 0 : computedSheets,
-      machineName,
-      handledBy: activeDisplayName || handledByLabel,
-      lines: normalizedLines,
-      totalMeters: selectedQuotationAccessoriesOnly ? 0 : totalMeters,
-      ...(selectedQuotationAccessoriesOnly ? { productName: 'Accessories only' } : {}),
-      ...(isCreate ? { holdForProductionApproval } : {}),
-      ...(!isCreate && cuttingListEditApprovalId.trim()
-        ? { editApprovalId: cuttingListEditApprovalId.trim() }
-        : {}),
-    });
+    const result = await onPersist?.(
+      buildPersistPayload(isDraftRecord ? { finalize: true } : {})
+    );
     setSaving(false);
     if (!result?.ok) {
       showToast(result?.error || 'Could not save cutting list.', { variant: 'error' });
       return;
     }
+    clearCuttingListFormDraft(branchId, quotationRef);
+    clearCuttingListFormDraft(branchId, '');
+    setAutosaveNote('');
     abandonUnsavedAndRun(() => onClose());
   };
 
@@ -873,28 +1035,41 @@ const CuttingListModal = ({
                 </span>
               </div>
               <p className="text-[9px] font-semibold text-slate-400 uppercase tracking-widest mt-0.5 leading-snug">
-                {savedCuttingListId ? (
+                {savedCuttingListId && !isDraftRecord ? (
                   <>
                     ID <span className="font-mono text-[#134e4a]">{savedCuttingListId}</span>
                     {' '}
                     · status <span className="text-[#134e4a]">{displayCuttingListStatus(editData.status)}</span>
                   </>
+                ) : isDraftRecord ? (
+                  <span className="font-normal normal-case text-slate-600">
+                    ID <span className="font-mono font-semibold text-[#134e4a]">{savedCuttingListId}</span>
+                    {' '}
+                    · <span className="font-semibold text-slate-700 uppercase tracking-wide">Draft (auto-saved)</span>
+                    {autosaveNote ? (
+                      <span className="block text-[8px] font-normal text-slate-500 normal-case mt-0.5">{autosaveNote}</span>
+                    ) : (
+                      <span className="block text-[8px] font-normal text-slate-500 normal-case mt-0.5">
+                        Lines save automatically while you type. Click Save list when finished.
+                      </span>
+                    )}
+                  </span>
                 ) : (
                   <span className="font-normal normal-case text-slate-600">
-                    <span className="font-semibold text-amber-800 uppercase tracking-wide">Draft (not saved)</span>
+                    <span className="font-semibold text-amber-800 uppercase tracking-wide">Unsaved</span>
                     {quotationRef ? (
                       <>
                         {' '}
                         · quotation <span className="font-mono font-semibold text-[#134e4a]">{quotationRef}</span>
                       </>
                     ) : null}
-                    {' '}
-                    · next list # <em className="not-italic font-normal text-slate-500">if you save now</em>:{' '}
-                    <span className="font-mono font-semibold text-[#134e4a]">{nextBranchCuttingListSerialPreview}</span>
-                    <span className="block text-[8px] font-normal text-slate-500 normal-case mt-0.5">
-                      That number is a branch-wide preview only — it is not reserved, and every new draft shows the same
-                      preview until someone saves. Save to get a real ID and appear under Sales → Cutting list.
-                    </span>
+                    {autosaveNote ? (
+                      <span className="block text-[8px] font-normal text-slate-500 normal-case mt-0.5">{autosaveNote}</span>
+                    ) : (
+                      <span className="block text-[8px] font-normal text-slate-500 normal-case mt-0.5">
+                        Pick a quotation and start entering lines — your progress drafts automatically.
+                      </span>
+                    )}
                   </span>
                 )}
               </p>
@@ -1031,7 +1206,27 @@ const CuttingListModal = ({
                         <div className="absolute z-[25] left-0 right-0 mt-1 max-h-[min(360px,55vh)] overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-xl custom-scrollbar p-1">
                           {filteredQuotePicker.length === 0 ? (
                             <div className="p-3 text-[10px] font-medium text-slate-600 space-y-2">
-                              {knownQuotePickerBlocker?.kind === 'has_list' ? (
+                              {knownQuotePickerBlocker?.kind === 'has_draft' ? (
+                                <div className="text-left rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-slate-900">
+                                  <p className="font-bold text-[11px]">
+                                    {knownQuotePickerBlocker.q.id} has a saved draft{' '}
+                                    <span className="font-mono">{knownQuotePickerBlocker.listId}</span>
+                                  </p>
+                                  <p className="text-[9px] leading-snug mt-1">
+                                    Continue where you left off instead of starting again.
+                                  </p>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      onDraftAutosaved?.(knownQuotePickerBlocker.draft);
+                                      setShowQuotePicker(false);
+                                    }}
+                                    className="mt-2 inline-flex rounded-lg border border-[#134e4a]/20 bg-white px-3 py-1.5 text-[9px] font-bold uppercase tracking-wide text-[#134e4a] hover:bg-teal-50"
+                                  >
+                                    Resume draft
+                                  </button>
+                                </div>
+                              ) : knownQuotePickerBlocker?.kind === 'has_list' ? (
                                 <div className="text-left rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-amber-950">
                                   <p className="font-bold text-[11px] text-amber-900">
                                     {knownQuotePickerBlocker.q.id} already has cutting list{' '}
@@ -1077,6 +1272,15 @@ const CuttingListModal = ({
                                   key={q.id}
                                   type="button"
                                   onClick={() => {
+                                    const existingDraft = cuttingLists.find(
+                                      (cl) =>
+                                        normQuoteKey(cl.quotationRef) === normQuoteKey(q.id) && cuttingListIsDraft(cl)
+                                    );
+                                    if (existingDraft) {
+                                      onDraftAutosaved?.(existingDraft);
+                                      setShowQuotePicker(false);
+                                      return;
+                                    }
                                     setQuotationRef(q.id);
                                     setQuoteSearch(`${q.id}${cust ? ` · ${cust}` : ''}`);
                                     setShowQuotePicker(false);
@@ -1305,7 +1509,7 @@ const CuttingListModal = ({
                   </div>
                 ) : null}
 
-                {isCreate ? (
+                {isCreate || isDraftRecord ? (
                   <label className="flex cursor-pointer items-start gap-2 rounded-lg border border-slate-200 bg-slate-50/80 p-2 text-[10px] text-slate-700">
                     <input
                       type="checkbox"
@@ -1351,7 +1555,9 @@ const CuttingListModal = ({
             ) : null}
 
             <p className="text-[9px] leading-snug text-orange-900 bg-orange-50 border border-orange-100 rounded-lg p-2 font-medium">
-              Status: Waiting → In production when the line starts → Finished when production completes.
+              {isDraftRecord
+                ? 'Draft lists save as you type. Click Save list when all lines are complete — then the list moves to Waiting for production.'
+                : 'Status: Waiting → In production when the line starts → Finished when production completes.'}
             </p>
           </div>
         </div>
@@ -1383,7 +1589,7 @@ const CuttingListModal = ({
             disabled={readOnly || saving}
             className="bg-white/10 text-white px-4 py-2.5 rounded-lg text-[9px] font-semibold uppercase tracking-wide hover:bg-white/20 disabled:opacity-40"
           >
-            {saving ? 'Saving…' : editData?.id ? 'Update list' : 'Save draft'}
+            {saving ? 'Saving…' : isDraftRecord || isCreate ? 'Save list' : 'Update list'}
           </button>
         </div>
       </form>

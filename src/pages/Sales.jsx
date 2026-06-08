@@ -1126,6 +1126,12 @@ const Sales = () => {
         showToast('This cutting list is already linked to a production job.', { variant: 'error' });
         return;
       }
+      if (String(cuttingList?.status || '').trim() === 'Draft') {
+        showToast('Finish and save this cutting list before pushing it to production.', {
+          variant: 'error',
+        });
+        return;
+      }
       if (cuttingList?.productionReleasePending) {
         showToast('This list is on hold until operations clears the production release.', {
           variant: 'error',
@@ -2248,6 +2254,10 @@ const Sales = () => {
         cuttingLists={cuttingLists}
         onPersist={persistCuttingList}
         onCuttingListUpdated={(cl) => setSelectedItem(cl)}
+        onDraftAutosaved={(cl) => {
+          setSelectedItem(cl);
+          setCuttingAccessMode('edit');
+        }}
         handledByLabel={salesRoleLabel}
         linkedProductionJob={
           selectedItem?.id
