@@ -22,6 +22,7 @@ import {
 } from '../../components/ui/AppDataTable';
 
 function contractBadge(staff) {
+  if (!staff) return null;
   const et = String(staff.employmentType || staff.normalized?.taxonomy?.employmentType || '').toLowerCase();
   if (!et.includes('contract') && !et.includes('temp')) return null;
   const end = staff.contractEndIso;
@@ -82,7 +83,7 @@ export default function HrStaffDirectory({ staffBasePath = HR_EMPLOYEES, initial
       const detail = staffRes.data?.error || (staffRes.ok ? 'Staff list response was invalid.' : `HTTP ${staffRes.status}`);
       return { error: detail || 'Could not load staff directory.', hasData: false };
     }
-    const rows = Array.isArray(staffRes.data.staff) ? staffRes.data.staff : [];
+    const rows = Array.isArray(staffRes.data.staff) ? staffRes.data.staff.filter((s) => s && s.userId) : [];
     setStaff(rows);
     if (deptRes.ok && deptRes.data?.ok) setMasterDepartments(deptRes.data.departments || []);
     return { hasData: true };
@@ -103,6 +104,7 @@ export default function HrStaffDirectory({ staffBasePath = HR_EMPLOYEES, initial
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return staff.filter((s) => {
+      if (!s) return false;
       if (status === 'active' && String(s.status) !== 'active') return false;
       if (status === 'inactive' && String(s.status) === 'active') return false;
       if (branchId && String(s.branchId || s.normalized?.branchId) !== branchId) return false;

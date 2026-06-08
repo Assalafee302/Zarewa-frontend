@@ -348,10 +348,6 @@ export default function HrStaffProfile() {
   }, [tab, userId]);
   const disciplinary = staff?.profileExtra?.disciplinaryEvents;
 
-  const personal = staff.profileExtra?.personal || {};
-  const empMeta = staff.profileExtra?.employmentMeta || {};
-  const fullName = [personal.firstName, personal.middleName, personal.surname].filter(Boolean).join(' ') || staff.displayName;
-
   if (loading && !staff) return <p className="text-sm text-slate-600">Loading employee profile…</p>;
   if (error) {
     return (
@@ -364,6 +360,10 @@ export default function HrStaffProfile() {
     );
   }
   if (!staff) return null;
+
+  const personal = staff.profileExtra?.personal || {};
+  const empMeta = staff.profileExtra?.employmentMeta || {};
+  const fullName = [personal.firstName, personal.middleName, personal.surname].filter(Boolean).join(' ') || staff.displayName;
 
   return (
     <div className="space-y-6">
