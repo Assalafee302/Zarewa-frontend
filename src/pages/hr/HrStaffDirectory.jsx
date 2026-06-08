@@ -8,6 +8,7 @@ import { useWorkspace } from '../../context/WorkspaceContext';
 import { useHrListLoad } from '../../hooks/useHrListLoad';
 import { canManageHrStaff, canViewOrgSensitiveHr, canBulkImportStaff } from '../../lib/hrAccess';
 import { HrBulkStaffImportModal } from '../../components/hr/HrBulkStaffImportModal';
+import { HrStaffDuplicateCleanupPanel } from '../../components/hr/HrStaffDuplicateCleanupPanel';
 import { formatNgn, payrollGroupLabel } from '../../lib/hrFormat';
 import { fetchHrDepartments } from '../../lib/hrMasterData';
 import { HR_EMPLOYEES } from '../../lib/hrRoutes';
@@ -167,6 +168,15 @@ export default function HrStaffDirectory({ staffBasePath = HR_EMPLOYEES, initial
           });
         }}
       />
+
+      {canBulkImport ? (
+        <HrStaffDuplicateCleanupPanel
+          onCleaned={async () => {
+            setImportNotice(null);
+            await reload({ forceSpinner: true });
+          }}
+        />
+      ) : null}
 
       {importNotice ? (
         <div
