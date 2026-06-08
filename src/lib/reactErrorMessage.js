@@ -1,6 +1,13 @@
 /** @param {unknown} error */
 export function humanizeReactError(error) {
   const raw = String(error?.message || error || '');
+  if (/Failed to fetch dynamically imported module|Loading chunk \d+ failed|Importing a module script failed/i.test(raw)) {
+    const url = raw.match(/https?:\/\/[^\s)]+/)?.[0] || '';
+    const file = url ? url.split('/').pop() : 'a page script';
+    return url
+      ? `Missing or outdated app file after deploy (${file}). IT must upload the entire dist/ folder in one step — all assets/* plus index.html from the same build.`
+      : 'Missing or outdated app file after deploy. IT must upload the entire dist/ folder in one step — all assets/* plus index.html from the same build.';
+  }
   const m = raw.match(/Minified React error #(\d+)/i);
   if (!m) return raw;
 

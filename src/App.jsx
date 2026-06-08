@@ -1,4 +1,5 @@
-import React, { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { lazyWithRetry } from './lib/lazyWithRetry';
 import {
   BrowserRouter as Router,
   Routes,
@@ -56,57 +57,62 @@ import Dashboard from './pages/Dashboard';
 import ManagerDashboard from './pages/ManagerDashboard';
 import ExecutiveCommandCentre from './pages/ExecutiveCommandCentre';
 
-const AiAssistantDock = lazy(() =>
-  import('./components/AiAssistantDock.jsx')
-    .then((m) => {
-      debugBootLog('App.jsx:ai-dock-import-ok', 'AiAssistantDock chunk loaded', {}, 'E');
-      return { default: m.AiAssistantDock };
-    })
-    .catch((err) => {
-      debugBootLog(
-        'App.jsx:ai-dock-import-fail',
-        'AiAssistantDock chunk failed',
-        { message: String(err?.message || err), stack: String(err?.stack || '').slice(0, 600) },
-        'E'
-      );
-      throw err;
-    })
+const AiAssistantDock = lazyWithRetry(
+  () =>
+    import('./components/AiAssistantDock.jsx')
+      .then((m) => {
+        debugBootLog('App.jsx:ai-dock-import-ok', 'AiAssistantDock chunk loaded', {}, 'E');
+        return { default: m.AiAssistantDock };
+      })
+      .catch((err) => {
+        debugBootLog(
+          'App.jsx:ai-dock-import-fail',
+          'AiAssistantDock chunk failed',
+          { message: String(err?.message || err), stack: String(err?.stack || '').slice(0, 600) },
+          'E'
+        );
+        throw err;
+      }),
+  { id: 'AiAssistantDock' }
 );
-const WorkspaceCommandPalette = lazy(() =>
-  import('./components/workspace/WorkspaceCommandPalette.jsx').then((m) => ({
-    default: m.WorkspaceCommandPalette,
-  }))
+const WorkspaceCommandPalette = lazyWithRetry(
+  () =>
+    import('./components/workspace/WorkspaceCommandPalette.jsx').then((m) => ({
+      default: m.WorkspaceCommandPalette,
+    })),
+  { id: 'WorkspaceCommandPalette' }
 );
 
-const Sales = lazy(() => import('./pages/Sales'));
-const Procurement = lazy(() => import('./pages/Procurement'));
-const SupplierProfile = lazy(() => import('./pages/SupplierProfile'));
-const TransportAgentProfile = lazy(() => import('./pages/TransportAgentProfile'));
-const CoilProfile = lazy(() => import('./pages/CoilProfile'));
-const Operations = lazy(() => import('./pages/Operations'));
-const MaterialExceptions = lazy(() => import('./pages/MaterialExceptions'));
-const Account = lazy(() => import('./pages/Account'));
-const CashierDesk = lazy(() => import('./pages/CashierDesk'));
-const AccountingDesk = lazy(() => import('./pages/AccountingDesk'));
-const Customers = lazy(() => import('./pages/Customers'));
-const CustomerDashboard = lazy(() => import('./pages/CustomerDashboard'));
-const Reports = lazy(() => import('./pages/Reports'));
-const OfficeDesk = lazy(() => import('./pages/OfficeDesk'));
-const Settings = lazy(() => import('./pages/Settings'));
-const EditApprovalsPage = lazy(() => import('./pages/EditApprovalsPage'));
-const NotFound = lazy(() => import('./pages/NotFound'));
-const AccessDenied = lazy(() => import('./pages/AccessDenied'));
-const BusinessIntelligence = lazy(() => import('./pages/BusinessIntelligence'));
-const WorkspaceMonitoring = lazy(() => import('./pages/WorkspaceMonitoring'));
-const PriceListAdmin = lazy(() => import('./pages/PriceListAdmin'));
-const PricingPolicyAdmin = lazy(() => import('./pages/PricingPolicyAdmin'));
-const HelpChatDockGate = lazy(() =>
-  import('./components/HelpChatDockGate.jsx').then((m) => ({ default: m.HelpChatDockGate }))
+const Sales = lazyWithRetry(() => import('./pages/Sales'), { id: 'Sales' });
+const Procurement = lazyWithRetry(() => import('./pages/Procurement'), { id: 'Procurement' });
+const SupplierProfile = lazyWithRetry(() => import('./pages/SupplierProfile'), { id: 'SupplierProfile' });
+const TransportAgentProfile = lazyWithRetry(() => import('./pages/TransportAgentProfile'), { id: 'TransportAgentProfile' });
+const CoilProfile = lazyWithRetry(() => import('./pages/CoilProfile'), { id: 'CoilProfile' });
+const Operations = lazyWithRetry(() => import('./pages/Operations'), { id: 'Operations' });
+const MaterialExceptions = lazyWithRetry(() => import('./pages/MaterialExceptions'), { id: 'MaterialExceptions' });
+const Account = lazyWithRetry(() => import('./pages/Account'), { id: 'Account' });
+const CashierDesk = lazyWithRetry(() => import('./pages/CashierDesk'), { id: 'CashierDesk' });
+const AccountingDesk = lazyWithRetry(() => import('./pages/AccountingDesk'), { id: 'AccountingDesk' });
+const Customers = lazyWithRetry(() => import('./pages/Customers'), { id: 'Customers' });
+const CustomerDashboard = lazyWithRetry(() => import('./pages/CustomerDashboard'), { id: 'CustomerDashboard' });
+const Reports = lazyWithRetry(() => import('./pages/Reports'), { id: 'Reports' });
+const OfficeDesk = lazyWithRetry(() => import('./pages/OfficeDesk'), { id: 'OfficeDesk' });
+const Settings = lazyWithRetry(() => import('./pages/Settings'), { id: 'Settings' });
+const EditApprovalsPage = lazyWithRetry(() => import('./pages/EditApprovalsPage'), { id: 'EditApprovalsPage' });
+const NotFound = lazyWithRetry(() => import('./pages/NotFound'), { id: 'NotFound' });
+const AccessDenied = lazyWithRetry(() => import('./pages/AccessDenied'), { id: 'AccessDenied' });
+const BusinessIntelligence = lazyWithRetry(() => import('./pages/BusinessIntelligence'), { id: 'BusinessIntelligence' });
+const WorkspaceMonitoring = lazyWithRetry(() => import('./pages/WorkspaceMonitoring'), { id: 'WorkspaceMonitoring' });
+const PriceListAdmin = lazyWithRetry(() => import('./pages/PriceListAdmin'), { id: 'PriceListAdmin' });
+const PricingPolicyAdmin = lazyWithRetry(() => import('./pages/PricingPolicyAdmin'), { id: 'PricingPolicyAdmin' });
+const HelpChatDockGate = lazyWithRetry(
+  () => import('./components/HelpChatDockGate.jsx').then((m) => ({ default: m.HelpChatDockGate })),
+  { id: 'HelpChatDockGate' }
 );
-const HumanResources = lazy(() => import('./pages/hr/HumanResources'));
-const MyProfile = lazy(() => import('./pages/hr/MyProfile'));
-const TeamHr = lazy(() => import('./pages/hr/TeamHr'));
-const ExecutiveHr = lazy(() => import('./pages/hr/ExecutiveHr'));
+const HumanResources = lazyWithRetry(() => import('./pages/hr/HumanResources'), { id: 'HumanResources' });
+const MyProfile = lazyWithRetry(() => import('./pages/hr/MyProfile'), { id: 'MyProfile' });
+const TeamHr = lazyWithRetry(() => import('./pages/hr/TeamHr'), { id: 'TeamHr' });
+const ExecutiveHr = lazyWithRetry(() => import('./pages/hr/ExecutiveHr'), { id: 'ExecutiveHr' });
 
 function ExecutiveHrLegacyRedirect() {
   const loc = useLocation();
