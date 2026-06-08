@@ -12,9 +12,16 @@ const SIZE_CLASS = {
  * Standard HR popup for create/edit forms.
  * @param {{ isOpen: boolean; onClose: () => void; title: string; description?: string; children: React.ReactNode; size?: 'sm'|'md'|'lg'|'xl' }} props
  */
-export function HrFormModal({ isOpen, onClose, title, description, children, size = 'lg' }) {
+export function HrFormModal({ isOpen, onClose, title, description, children, size = 'lg', closeDisabled = false }) {
   return (
-    <ModalFrame isOpen={isOpen} onClose={onClose} title={title} description={description} surface="plain">
+    <ModalFrame
+      isOpen={isOpen}
+      onClose={closeDisabled ? undefined : onClose}
+      title={title}
+      description={description}
+      surface="plain"
+      closeDisabled={closeDisabled}
+    >
       <div
         className={`z-modal-panel w-full ${SIZE_CLASS[size] || SIZE_CLASS.lg} rounded-2xl border border-slate-100 bg-white p-6 shadow-xl max-h-[min(90vh,920px)] overflow-y-auto`}
       >

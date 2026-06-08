@@ -61,7 +61,7 @@ export default function HrStaffDirectory({ staffBasePath = HR_EMPLOYEES, initial
   const [branchId, setBranchId] = useState('');
   const [department, setDepartment] = useState('');
   const [employmentType, setEmploymentType] = useState('');
-  const [status, setStatus] = useState('active');
+  const [status, setStatus] = useState('');
   const [includeInactive, setIncludeInactive] = useState(false);
   const [registerOpen, setRegisterOpen] = useState(initialRegisterOpen);
 
@@ -79,9 +79,11 @@ export default function HrStaffDirectory({ staffBasePath = HR_EMPLOYEES, initial
     ]);
     if (!staffRes.ok || !staffRes.data?.ok) {
       setStaff([]);
-      return { error: staffRes.data?.error || 'Could not load staff directory.', hasData: false };
+      const detail = staffRes.data?.error || (staffRes.ok ? 'Staff list response was invalid.' : `HTTP ${staffRes.status}`);
+      return { error: detail || 'Could not load staff directory.', hasData: false };
     }
-    setStaff(staffRes.data.staff || []);
+    const rows = Array.isArray(staffRes.data.staff) ? staffRes.data.staff : [];
+    setStaff(rows);
     if (deptRes.ok && deptRes.data?.ok) setMasterDepartments(deptRes.data.departments || []);
     return { hasData: true };
   }, [includeInactive]);
@@ -152,7 +154,7 @@ export default function HrStaffDirectory({ staffBasePath = HR_EMPLOYEES, initial
           setBranchId('');
           setDepartment('');
           setEmploymentType('');
-          setStatus('active');
+          setStatus('');
           await reload({ forceSpinner: true });
           setImportNotice({
             imported,
@@ -225,7 +227,8 @@ export default function HrStaffDirectory({ staffBasePath = HR_EMPLOYEES, initial
           />
         </div>
         <p className="text-xs font-medium text-slate-500 tabular-nums">
-          {filtered.length} of {staff.length} staff
+          {filtered.length} of {staff.length} employee{staff.length === 1 ? '' : 's'}
+          {staff.length === 0 && !loading && !error ? ' — try “All statuses” or refresh the page' : ''}
         </p>
       </div>
 
