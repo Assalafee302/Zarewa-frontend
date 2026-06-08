@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import {
   ArrowLeft,
+  CheckCircle2,
   LayoutDashboard,
   Factory,
   Pencil,
@@ -48,8 +49,13 @@ function isoTs(v) {
   return Number.isFinite(t) ? t : 0;
 }
 
+/** Matches server `COIL_PROFILE_FINISH_MAX_KG` — tail-only close from coil profile. */
+const COIL_PROFILE_FINISH_MAX_KG = 100;
+
 function movementTitle(m) {
   const t = String(m?.type || '').toUpperCase();
+  const detail = String(m?.detail || '').toLowerCase();
+  if (detail.includes('roll finished')) return 'Roll finished';
   if (t.includes('SCRAP')) return 'Scrap posted';
   if (t.includes('RETURN')) return 'Material returned';
   if (t.includes('SPLIT')) return 'Coil split';
@@ -74,6 +80,7 @@ export default function CoilProfile() {
   const [savingAction, setSavingAction] = useState(false);
   const [scrapForm, setScrapForm] = useState({ kg: '', meters: '', bookRef: '', reason: 'Damaged edge / offcut', note: '' });
   const [returnForm, setReturnForm] = useState({ kg: '', reason: 'Unused from production', note: '' });
+  const [finishForm, setFinishForm] = useState({ note: '', cuttingListRef: '' });
   const [editForm, setEditForm] = useState({
     colour: '',
     gaugeLabel: '',
@@ -260,6 +267,18 @@ export default function CoilProfile() {
   const canReconcileReservation = Boolean(
     ws?.canMutate && (ws?.hasPermission?.('production.manage') || ws?.hasPermission?.('operations.manage'))
   );
+  const canFinishRoll = Boolean(
+    ws?.canMutate &&
+      (ws?.hasPermission?.('inventory.adjust') ||
+        ws?.hasPermission?.('operations.manage') ||
+        ws?.hasPermission?.('production.manage'))
+  );
+  const finishRollEligible = Boolean(
+    canFinishRoll &&
+      freeKg > 0.05 &&
+      freeKg < COIL_PROFILE_FINISH_MAX_KG &&
+      String(coil?.currentStatus || '').toLowerCase() !== 'consumed'
+  );
   const purchaseConversion = asNum(coil.supplierConversionKgPerM) || null;
   const avgActualConversion = avg(linkedChecks.map((c) => Number(c.actualConversionKgPerM)));
   const avgStandardConversion = avg(
@@ -293,6 +312,41 @@ export default function CoilProfile() {
       showToast(`Scrap posted — ${kg} kg off ${coil.coilNo}.`);
       setActionModal('');
       setScrapForm({ kg: '', meters: '', bookRef: '', reason: 'Damaged edge / offcut', note: '' });
+    } finally {
+      setSavingAction(false);
+    }
+  };
+
+  const submitFinishRoll = async (e) => {
+    e.preventDefault();
+    const note = finishForm.note.trim();
+    if (note.length < 8) return showToast('Enter a note (at least 8 characters) for the audit trail.', { variant: 'error' });
+    if (!ws?.canMutate) return showToast('Workspace is read-only.', { variant: 'error' });
+    if (!finishRollEligible) {
+      return showToast(
+        reservedKg > 0.05
+          ? 'Clear reservations on this coil before finishing the roll.'
+          : `Finish roll applies only when free kg is below ${COIL_PROFILE_FINISH_MAX_KG}.`,
+        { variant: 'error' }
+      );
+    }
+    setSavingAction(true);
+    try {
+      const { ok, data } = await apiFetch(`/api/coil-lots/${encodeURIComponent(coil.coilNo)}/finish-roll`, {
+        method: 'POST',
+        body: JSON.stringify({
+          note,
+          cuttingListRef: finishForm.cuttingListRef.trim() || undefined,
+          dateISO: actionDateISO,
+        }),
+      });
+      if (!ok || !data?.ok) return showToast(data?.error || 'Could not finish roll.', { variant: 'error' });
+      await ws.refresh?.();
+      showToast(
+        `Roll finished — ${Number(data.tailKgCleared || freeKg).toLocaleString(undefined, { maximumFractionDigits: 1 })} kg tail cleared from stock.`
+      );
+      setActionModal('');
+      setFinishForm({ note: '', cuttingListRef: '' });
     } finally {
       setSavingAction(false);
     }
@@ -419,6 +473,16 @@ export default function CoilProfile() {
                 <Pencil size={16} aria-hidden /> Edit details
               </button>
             ) : null}
+            {finishRollEligible ? (
+              <button
+                type="button"
+                className="z-btn-primary inline-flex items-center gap-1.5"
+                onClick={() => setActionModal('finish')}
+              >
+                <CheckCircle2 size={16} aria-hidden />
+                Finish roll
+              </button>
+            ) : null}
             <button type="button" className="z-btn-secondary inline-flex" onClick={() => setActionModal('scrap')}>
               Scrap
             </button>
@@ -480,6 +544,18 @@ export default function CoilProfile() {
               <p>Parent coil: <strong>{coil.parentCoilNo || '—'}</strong></p>
               <p>Received: <strong>{coil.receivedAtISO || '—'}</strong></p>
             </div>
+            {finishRollEligible ? (
+              <div className="mt-4 rounded-lg border border-amber-300 bg-amber-50 px-3 py-3 text-xs text-amber-950">
+                <p className="font-bold text-amber-900">
+                  Near-finished tail on book — {freeKg.toLocaleString(undefined, { maximumFractionDigits: 1 })} kg free
+                </p>
+                <p className="mt-1 leading-relaxed text-amber-900/90">
+                  If this roll is physically finished (spool/core tail only), use <strong>Finish roll</strong> to clear
+                  the remaining kg from raw stock. This fixes missed &ldquo;Roll finished&rdquo; at production complete
+                  without posting new finished-goods metres or inflating stock value at month-end verification.
+                </p>
+              </div>
+            ) : null}
             {orphanReservedKg > 0.05 ? (
               <div className="mt-4 rounded-lg border border-amber-300 bg-amber-50 px-3 py-3 text-xs text-amber-950">
                 <p className="font-bold text-amber-900">
@@ -640,6 +716,33 @@ export default function CoilProfile() {
           </section>
         </MainPanel>
       </div>
+      <ModalFrame isOpen={actionModal === 'finish'} onClose={() => !savingAction && setActionModal('')}>
+        <form onSubmit={submitFinishRoll} className="space-y-3">
+          <h3 className="text-lg font-black text-[#134e4a]">Finish roll — {coil.coilNo}</h3>
+          <p className="text-xs text-slate-600 leading-relaxed">
+            Clears <strong>{freeKg.toLocaleString(undefined, { maximumFractionDigits: 1 })} kg</strong> of unusable
+            spool/core tail from coil and raw-material stock. Use when production metres were already posted but
+            &ldquo;Roll finished&rdquo; was not ticked. Does not add finished-goods metres.
+          </p>
+          <input
+            className="z-input w-full"
+            placeholder="Cutting list ref (optional, e.g. CL-55)"
+            value={finishForm.cuttingListRef}
+            onChange={(e) => setFinishForm((s) => ({ ...s, cuttingListRef: e.target.value }))}
+          />
+          <textarea
+            className="z-input w-full min-h-24"
+            placeholder="Note (required, min 8 characters) — e.g. Roll finished last month; CL-55 complete without finish tick"
+            value={finishForm.note}
+            onChange={(e) => setFinishForm((s) => ({ ...s, note: e.target.value }))}
+            required
+            minLength={8}
+          />
+          <button className="z-btn-primary" type="submit" disabled={savingAction}>
+            {savingAction ? 'Clearing tail…' : 'Finish roll & clear stock'}
+          </button>
+        </form>
+      </ModalFrame>
       <ModalFrame isOpen={actionModal === 'scrap'} onClose={() => !savingAction && setActionModal('')}>
         <form onSubmit={submitScrap} className="space-y-3">
           <h3 className="text-lg font-black text-[#134e4a]">Scrap from {coil.coilNo}</h3>
