@@ -453,6 +453,8 @@ const CuttingListModal = ({
       if (total <= 0) return false;
       const meetsPay = meetsCuttingListPayThreshold(q, receipts, ledgerEntries, minPaidFraction);
       if (meetsPay) return true;
+      // New lists can draft against underpaid quotes; final save still requires payment or manager override.
+      if (!editingId) return true;
       // Keep the linked quote visible when editing an existing list (may be under threshold).
       return Boolean(editingQuoteId && q.id === editingQuoteId);
     });
@@ -1157,10 +1159,10 @@ const CuttingListModal = ({
                 <div className="md:col-span-2 space-y-2 relative z-20">
                   <label className={label}>Quotation</label>
                   <p className="text-[9px] text-slate-500 leading-snug -mt-1 mb-1">
-                    Search by quotation ID, customer, or customer code. Only quotations with at least{' '}
-                    <span className="font-semibold text-slate-700">{minPaidPercentLabel}%</span> paid appear in this list. If a quote is
-                    underpaid, a manager must use <span className="font-semibold text-slate-700">Manager dashboard</span> → Transaction Intel →{' '}
-                    <span className="font-semibold text-slate-700">Override</span> before it can be linked here.
+                    Search by quotation ID, customer, or customer code. You can draft lines on any quoted job;{' '}
+                    <span className="font-semibold text-slate-700">Save list</span> still needs at least{' '}
+                    <span className="font-semibold text-slate-700">{minPaidPercentLabel}%</span> paid or a manager override on the{' '}
+                    <span className="font-semibold text-slate-700">Manager dashboard</span>.
                   </p>
                   {productionCompletedLock ? (
                     <div className={`${field} bg-slate-50 text-slate-700`}>{quotationRef || '—'}</div>

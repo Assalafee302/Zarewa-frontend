@@ -1937,7 +1937,9 @@ const Sales = () => {
                                       editDisabled={!canEditCuttingList(c, job)}
                                       editTitle={cuttingListEditBlockedReason(c, job) ?? ''}
                                       onPush={
-                                        !c.productionRegistered && !c.productionEditLocked
+                                        !c.productionRegistered &&
+                                        !c.productionEditLocked &&
+                                        String(c.status || '').trim() !== 'Draft'
                                           ? () => pushCuttingListToProduction(c)
                                           : undefined
                                       }
