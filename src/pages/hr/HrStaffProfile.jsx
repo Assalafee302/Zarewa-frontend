@@ -78,6 +78,31 @@ function MissingBanner({ items }) {
   );
 }
 
+function ProfileWarningsBanner({ warnings, onFixTab }) {
+  if (!warnings?.length) return null;
+  return (
+    <div className="flex gap-3 rounded-xl border border-amber-100 bg-amber-50/80 px-4 py-3 text-sm text-amber-950">
+      <AlertTriangle size={18} className="shrink-0 text-amber-600" aria-hidden />
+      <div className="space-y-1">
+        <p className="font-semibold">Profile review needed</p>
+        {warnings.map((w) => (
+          <p key={w.id || w.message} className="text-xs text-amber-900/90">
+            {w.message}
+            {w.fixTab && onFixTab ? (
+              <>
+                {' '}
+                <button type="button" className="font-bold text-[#134e4a] hover:underline" onClick={() => onFixTab(w.fixTab)}>
+                  Review
+                </button>
+              </>
+            ) : null}
+          </p>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function ProfileSectionCard({ title, subtitle, rows, onEdit, editLabel = 'Edit section' }) {
   return (
     <HrCard
@@ -389,6 +414,14 @@ export default function HrStaffProfile() {
       </div>
 
       <MissingBanner items={staff.criticalMissing} />
+      <ProfileWarningsBanner
+        warnings={staff.profileCompleteness?.profileWarnings}
+        onFixTab={(fixTab) => {
+          if (fixTab === 'compensation') setTab('compensation');
+          else if (fixTab === 'documents') setTab('documents');
+          else setTab('employment');
+        }}
+      />
 
       <HrFormModal
         isOpen={editing && !!editForm}
