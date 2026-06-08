@@ -17,7 +17,7 @@ export default function ModuleRouteGuard({ moduleKey, altModuleKeys = [], childr
     !ws?.canAccessModule ||
     keys.some((k) => ws.canAccessModule(k));
   if (!allowed) {
-    return <Navigate to="/" replace state={{ moduleDenied: key }} />;
+    return <Navigate to="/access-denied" replace state={{ moduleKey: key }} />;
   }
   return children;
 }

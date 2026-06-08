@@ -46,6 +46,7 @@ import { buildWorkspaceNotifications } from './lib/workspaceNotifications';
 import { AiAssistantProvider, useAiAssistant } from './context/AiAssistantContext';
 import { HelpChatProvider } from './context/HelpChatContext';
 import { RoleTrainingReplayLayer } from './components/auth/RoleTrainingReplayLayer';
+import SessionTimeoutWarning from './components/auth/SessionTimeoutWarning';
 import { notificationPrompt } from './lib/aiAssistUi';
 import { searchWorkspaceSnapshot } from './lib/workspaceSearchLocal';
 import { formatPersonName } from './lib/formatPersonName';
@@ -94,6 +95,7 @@ const OfficeDesk = lazy(() => import('./pages/OfficeDesk'));
 const Settings = lazy(() => import('./pages/Settings'));
 const EditApprovalsPage = lazy(() => import('./pages/EditApprovalsPage'));
 const NotFound = lazy(() => import('./pages/NotFound'));
+const AccessDenied = lazy(() => import('./pages/AccessDenied'));
 const BusinessIntelligence = lazy(() => import('./pages/BusinessIntelligence'));
 const WorkspaceMonitoring = lazy(() => import('./pages/WorkspaceMonitoring'));
 const PriceListAdmin = lazy(() => import('./pages/PriceListAdmin'));
@@ -1072,6 +1074,14 @@ function AppShell() {
               }
             />
             <Route path="/hr-next/*" element={<Navigate to="/hr" replace />} />
+            <Route
+              path="/access-denied"
+              element={
+                <Suspense fallback={<LoadingScreen />}>
+                  <AccessDenied />
+                </Suspense>
+              }
+            />
             <Route path="*" element={<NotFound />} />
           </Routes>
           </Suspense>
@@ -1089,6 +1099,7 @@ function AppShell() {
         <HelpChatDockGate />
       </Suspense>
       <RoleTrainingReplayLayer />
+      <SessionTimeoutWarning />
       <Suspense fallback={null}>
         <AiAssistantDock />
       </Suspense>

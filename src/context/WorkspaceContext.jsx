@@ -1,8 +1,6 @@
 /* eslint-disable react-refresh/only-export-components */
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { signOut } from 'firebase/auth';
 import { apiFetch, apiUrl } from '../lib/apiBase';
-import { auth } from '../lib/firebase.js';
 import { replaceLedgerEntries } from '../lib/customerLedgerStore';
 import { canAccessModuleWithPermissions, hasPermissionInList } from '../lib/moduleAccess';
 import { userCanApproveEditMutationsClient } from '../lib/editApprovalUi';
@@ -97,6 +95,7 @@ export function WorkspaceProvider({ children }) {
   const [refreshEpoch, setRefreshEpoch] = useState(0);
   const [editApprovalsPendingCount, setEditApprovalsPendingCount] = useState(0);
   const [roleTrainingReplayOpen, setRoleTrainingReplayOpen] = useState(false);
+  const [sessionMessage, setSessionMessage] = useState('');
 
   const applySnapshot = useCallback((data, mode = 'ok') => {
     const normalized = normalizeWorkspacePersonNames(data);
@@ -176,8 +175,12 @@ export function WorkspaceProvider({ children }) {
         setStatus('auth_required');
         setSnapshot(null);
         setLastError(null);
+        setSessionMessage((prev) => prev || 'Your session has expired. Please sign in again.');
         replaceLedgerEntries([]);
         return null;
+      }
+      if (data?.code === 'CSRF_INVALID') {
+        setSessionMessage('Your session security token expired. Please sign in again.');
       }
       if (!ok || !data?.ok) throw new Error(data?.error || 'Bootstrap failed');
       return applySnapshot(data, 'ok');
@@ -202,44 +205,19 @@ export function WorkspaceProvider({ children }) {
           body: JSON.stringify({ username, password }),
         });
         if (!ok || !data?.ok) {
-          return { ok: false, error: data?.error || 'Sign-in failed.' };
+          const code = data?.code || '';
+          let error = data?.error || 'Sign-in failed.';
+          if (code === 'ACCOUNT_LOCKED') {
+            error = data?.error || 'Account locked after too many failed attempts. Try again later.';
+          } else if (code === 'RATE_LIMITED') {
+            error = data?.error || 'Too many sign-in attempts. Wait and try again.';
+          } else if (code === 'INVALID_CREDENTIALS') {
+            error = data?.error || 'Invalid username or password.';
+          }
+          return { ok: false, error, code };
         }
+        setSessionMessage('');
         // Fast initial render: dashboard summary + dashboard bootstrap first, then full snapshot.
-        await refreshDashboardSummary();
-        await refresh({ mode: 'dashboard' });
-        setTimeout(() => {
-          refreshDashboardSummary();
-          refresh();
-        }, 0);
-        return { ok: true, data };
-      } catch (e) {
-        setStatus('offline');
-        setSnapshot(null);
-        setLastError(String(e.message || e));
-        replaceLedgerEntries([]);
-        return {
-          ok: false,
-          error: 'API server is offline. Start the backend server, then sign in again.',
-        };
-      }
-    },
-    [refresh, refreshDashboardSummary]
-  );
-
-  const loginWithFirebase = useCallback(
-    async (idToken) => {
-      try {
-        const { ok, data } = await apiFetch('/api/session/firebase', {
-          method: 'POST',
-          body: JSON.stringify({ idToken }),
-        });
-        if (!ok || !data?.ok) {
-          return {
-            ok: false,
-            error: data?.error || 'Firebase sign-in failed.',
-            code: data?.code,
-          };
-        }
         await refreshDashboardSummary();
         await refresh({ mode: 'dashboard' });
         setTimeout(() => {
@@ -317,13 +295,6 @@ export function WorkspaceProvider({ children }) {
     } catch {
       /* ignore */
     }
-    if (auth) {
-      try {
-        await signOut(auth);
-      } catch {
-        /* ignore */
-      }
-    }
     replaceLedgerEntries([]);
     clearBootstrapCache();
     setSnapshot(null);
@@ -332,6 +303,24 @@ export function WorkspaceProvider({ children }) {
     setLastError(null);
     setStatus('auth_required');
   }, []);
+
+  const endSessionForTimeout = useCallback(async () => {
+    try {
+      await apiFetch('/api/session/timeout', { method: 'POST' });
+    } catch {
+      /* ignore */
+    }
+    replaceLedgerEntries([]);
+    clearBootstrapCache();
+    setSnapshot(null);
+    setDashboardSummary(null);
+    setDashboardSummaryEtag('');
+    setLastError(null);
+    setSessionMessage('You were signed out after 15 minutes of inactivity.');
+    setStatus('auth_required');
+  }, []);
+
+  const clearSessionMessage = useCallback(() => setSessionMessage(''), []);
 
   const changePassword = useCallback(
     async (currentPassword, newPassword) => {
@@ -556,7 +545,9 @@ export function WorkspaceProvider({ children }) {
       refreshEditApprovalsPending,
       mergeQuotationIntoSnapshot,
       login,
-      loginWithFirebase,
+      sessionMessage,
+      clearSessionMessage,
+      endSessionForTimeout,
       forgotPassword,
       resetPassword,
       logout,
@@ -592,7 +583,9 @@ export function WorkspaceProvider({ children }) {
       refreshEditApprovalsPending,
       mergeQuotationIntoSnapshot,
       login,
-      loginWithFirebase,
+      sessionMessage,
+      clearSessionMessage,
+      endSessionForTimeout,
       forgotPassword,
       resetPassword,
       logout,

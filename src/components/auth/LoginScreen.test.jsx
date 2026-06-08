@@ -12,13 +12,12 @@ vi.mock('react-router-dom', async () => {
 });
 
 const mockLogin = vi.fn();
-const mockLoginWithFirebase = vi.fn();
 const mockForgotPassword = vi.fn();
 const mockResetPassword = vi.fn();
 const mockWorkspace = {
   login: mockLogin,
-  loginWithFirebase: mockLoginWithFirebase,
   forgotPassword: mockForgotPassword,
+  clearSessionMessage: vi.fn(),
   resetPassword: mockResetPassword,
   status: 'auth_required',
 };
@@ -30,7 +29,6 @@ vi.mock('../../context/WorkspaceContext', () => ({
 describe('LoginScreen', () => {
   beforeEach(() => {
     mockLogin.mockReset();
-    mockLoginWithFirebase.mockReset();
     mockForgotPassword.mockReset();
     mockResetPassword.mockReset();
     mockNavigate.mockReset();
@@ -53,7 +51,7 @@ describe('LoginScreen', () => {
     render(<LoginScreen />);
 
     await user.type(screen.getByLabelText(/username/i), 'admin');
-    await user.type(screen.getByLabelText(/password/i), 'Admin@123');
+    await user.type(document.getElementById('login-password'), 'Admin@123');
     await user.click(screen.getByRole('button', { name: /enter workspace/i }));
 
     await waitFor(() => {
@@ -70,7 +68,7 @@ describe('LoginScreen', () => {
     render(<LoginScreen />);
 
     await user.type(screen.getByLabelText(/username/i), 'admin');
-    await user.type(screen.getByLabelText(/password/i), 'wrong-password');
+    await user.type(document.getElementById('login-password'), 'wrong-password');
     await user.click(screen.getByRole('button', { name: /enter workspace/i }));
 
     await expect(screen.getByText(/invalid username or password/i)).toBeVisible();

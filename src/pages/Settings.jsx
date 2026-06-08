@@ -25,6 +25,7 @@ import { PageHeader, PageShell, MainPanel, PageTabs } from '../components/layout
 import MasterDataWorkbench from '../components/settings/MasterDataWorkbench';
 import CoilRegisterImportPanel from '../components/settings/CoilRegisterImportPanel';
 import TeamAccessPanel from '../components/settings/TeamAccessPanel';
+import LoginSecurityPanel from '../components/settings/LoginSecurityPanel';
 import CustomPermissionOverridesPanel from '../components/settings/CustomPermissionOverridesPanel';
 import SettingsProfilePanel from '../components/settings/SettingsProfilePanel';
 import AdminDataResetPanel from '../components/settings/AdminDataResetPanel';
@@ -664,6 +665,7 @@ const Settings = () => {
               element={
                 showTeamTab ? (
                   <div className="space-y-8">
+                    <LoginSecurityPanel />
                     <CustomPermissionOverridesPanel />
                     <TeamAccessPanel
                       appUsers={appUsers}

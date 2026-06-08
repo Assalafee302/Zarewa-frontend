@@ -19,7 +19,8 @@ export default function FinanceDeskRouteGuard({ desk, children }) {
       ? userMayViewCashierDeskClient(rk, permissions)
       : userMayViewAccountingDeskClient(rk, permissions);
   if (!ok) {
-    return <Navigate to="/" replace state={{ moduleDenied: desk === 'cashier' ? 'cashier_desk' : 'accounting_desk' }} />;
+    const moduleKey = desk === 'cashier' ? 'cashier_desk' : 'accounting_desk';
+    return <Navigate to="/access-denied" replace state={{ moduleKey }} />;
   }
   return children;
 }

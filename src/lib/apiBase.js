@@ -1,5 +1,3 @@
-import { auth } from './firebase.js';
-
 const ZAREWA_CSRF_COOKIE = 'zarewa_csrf';
 
 /**
@@ -8,9 +6,9 @@ const ZAREWA_CSRF_COOKIE = 'zarewa_csrf';
  */
 const CSRF_EXEMPT_MUTATION_PATHS = new Set([
   '/api/session/login',
-  '/api/session/firebase',
   '/api/session/forgot-password',
   '/api/session/reset-password',
+  '/api/session/timeout',
 ]);
 
 /** Base URL for API (empty = same origin, e.g. Vite proxy `/api` → backend). */
@@ -89,16 +87,6 @@ export async function apiFetch(path, options = {}) {
   if (needsCsrf && !exempt && csrfToken) {
     headers['X-CSRF-Token'] = csrfToken;
   }
-  const user = auth?.currentUser;
-  if (user && !headers.Authorization) {
-    try {
-      const idToken = await user.getIdToken();
-      headers.Authorization = `Bearer ${idToken}`;
-    } catch {
-      /* ignore: offline or token refresh failure */
-    }
-  }
-
   const r = await fetch(apiUrl(path), {
     ...options,
     credentials: 'include',

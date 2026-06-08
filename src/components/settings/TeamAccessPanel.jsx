@@ -65,8 +65,7 @@ export default function TeamAccessPanel({ appUsers, currentUserId, onRefresh }) 
     branchId: '',
   });
   const roleKey = String(ws?.session?.user?.roleKey || '').toLowerCase();
-  const canGenerateResetCodes = ['admin', 'md'].includes(roleKey);
-  const canViewPasswords = ['admin', 'md', 'hr_admin'].includes(roleKey);
+  const canGenerateResetCodes = ['admin', 'md', 'hr_admin'].includes(roleKey);
 
   useEffect(() => {
     let cancelled = false;
@@ -199,35 +198,6 @@ export default function TeamAccessPanel({ appUsers, currentUserId, onRefresh }) 
           ? 'User suspended. Active sessions for this account were ended.'
           : 'User reactivated.'
       );
-      await refresh();
-    } finally {
-      setRowBusyId('');
-    }
-  };
-
-  const setUserPassword = async (user) => {
-    if (!user?.id || !canViewPasswords) return;
-    const next = window.prompt(
-      `Set password for ${user.displayName} (${user.username}). They will need to sign in again.`,
-      ''
-    );
-    if (next == null) return;
-    const password = String(next).trim();
-    if (!password) {
-      showToast('Password was not entered.', { variant: 'error' });
-      return;
-    }
-    setRowBusyId(user.id);
-    try {
-      const { ok, data } = await apiFetch(`/api/users/${encodeURIComponent(user.id)}/password`, {
-        method: 'PATCH',
-        body: JSON.stringify({ password }),
-      });
-      if (!ok || !data?.ok) {
-        showToast(data?.error || 'Could not set password.', { variant: 'error' });
-        return;
-      }
-      showToast(`Password updated for ${user.username}.`);
       await refresh();
     } finally {
       setRowBusyId('');
@@ -442,14 +412,8 @@ export default function TeamAccessPanel({ appUsers, currentUserId, onRefresh }) 
           Assign roles and status, and fine-tune permissions when needed. You can permanently delete a login after
           typing their username (same safety rules as suspending privileged admins apply). Changing a role clears
           custom permission overrides and applies that role’s template. The team role is the same value stored as
-          workspace “department” for routing shortcuts.
-          {canViewPasswords ? (
-            <>
-              {' '}
-              Passwords are shown for accounts you manage (set at creation, import, or last password change). Seeded
-              demo logins still show their default password when unchanged.
-            </>
-          ) : null}
+          workspace “department” for routing shortcuts. Use <strong>Reset code</strong> to issue a one-time code; the
+          user sets their own new password on the sign-in screen (passwords are never displayed here).
         </p>
 
         <div className="mb-4 flex flex-wrap items-center gap-2">
@@ -480,7 +444,6 @@ export default function TeamAccessPanel({ appUsers, currentUserId, onRefresh }) 
                   <th className="px-3 py-2.5">Branch</th>
                   <th className="px-3 py-2.5">Role</th>
                   <th className="px-3 py-2.5">Status</th>
-                  {canViewPasswords ? <th className="px-3 py-2.5">Password</th> : null}
                   <th className="px-3 py-2.5">Permissions</th>
                 </tr>
               </thead>
@@ -557,25 +520,6 @@ export default function TeamAccessPanel({ appUsers, currentUserId, onRefresh }) 
                           <option value="suspended">suspended</option>
                         </select>
                       </td>
-                      {canViewPasswords ? (
-                        <td className="px-3 py-3 align-middle max-w-[12rem]">
-                          {user.registeredPassword ? (
-                            <code className="text-[11px] font-mono text-slate-800 break-all">
-                              {user.registeredPassword}
-                            </code>
-                          ) : (
-                            <button
-                              type="button"
-                              disabled={busy}
-                              onClick={() => void setUserPassword(user)}
-                              className="text-[10px] font-semibold text-teal-800 underline underline-offset-2 hover:text-teal-950 disabled:opacity-50"
-                              title="Set and save a password for this user"
-                            >
-                              Set password
-                            </button>
-                          )}
-                        </td>
-                      ) : null}
                       <td className="px-3 py-3 align-middle whitespace-nowrap">
                         <div className="flex flex-wrap items-center gap-1.5">
                           <button
@@ -616,7 +560,7 @@ export default function TeamAccessPanel({ appUsers, currentUserId, onRefresh }) 
                       </tr>
                       <tr className="bg-slate-50/80">
                         <td
-                          colSpan={canViewPasswords ? 6 : 5}
+                          colSpan={5}
                           className="px-3 py-2 border-b border-slate-100"
                         >
                           <EditSecondApprovalInline
