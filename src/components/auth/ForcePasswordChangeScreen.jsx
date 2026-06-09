@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { LockKeyhole, ShieldCheck, AlertTriangle } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { useToast } from '../../context/ToastContext';
@@ -47,8 +48,8 @@ export default function ForcePasswordChangeModal() {
     window.location.href = '/';
   };
 
-  return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center px-4 py-10">
+  const modal = (
+    <div className="fixed inset-0 z-[12000] flex items-center justify-center px-4 py-10">
       <div className="absolute inset-0 bg-slate-950/50 backdrop-blur-[2px]" aria-hidden />
       <div
         className="relative w-full max-w-lg rounded-[28px] border border-slate-200/80 bg-white/98 p-6 shadow-[0_24px_80px_-32px_rgba(15,23,42,0.45)] sm:p-10"
@@ -132,4 +133,6 @@ export default function ForcePasswordChangeModal() {
       </div>
     </div>
   );
+
+  return typeof document !== 'undefined' ? createPortal(modal, document.body) : modal;
 }

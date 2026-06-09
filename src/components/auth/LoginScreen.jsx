@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ShieldCheck, LockKeyhole, Building2, ArrowRight, AlertTriangle, RotateCcw, UserPlus } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { ZAREWA_LOGO_SRC } from '../../Data/companyQuotation';
@@ -8,6 +8,7 @@ import PasswordField from './PasswordField';
 
 export default function LoginScreen() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const ws = useWorkspace();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -25,6 +26,14 @@ export default function LoginScreen() {
     setError(ws.sessionMessage);
     ws.clearSessionMessage?.();
   }, [ws?.sessionMessage, ws?.clearSessionMessage]);
+
+  useEffect(() => {
+    if (searchParams.get('setup') === '1') {
+      setMode('new-user-reset');
+      setError('');
+      setSuccess('');
+    }
+  }, [searchParams]);
 
   const submitLogin = async (e) => {
     e.preventDefault();
@@ -152,12 +161,57 @@ export default function LoginScreen() {
             </div>
             <div>
               <p className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-400">
-                {mode === 'login' ? 'Secure sign in' : 'New user setup'}
+                {mode === 'login' ? 'Secure sign in' : 'First-time setup'}
               </p>
               <h2 className="mt-1 text-2xl font-black tracking-tight text-[#134e4a]">
                 {mode === 'login' ? 'Open your workspace' : 'Set your first password'}
               </h2>
             </div>
+          </div>
+
+          <div
+            className="mt-6 grid grid-cols-2 gap-1 rounded-2xl border border-slate-200/90 bg-slate-100/80 p-1"
+            role="tablist"
+            aria-label="Sign in or first-time setup"
+          >
+            <button
+              type="button"
+              role="tab"
+              aria-selected={mode === 'login'}
+              disabled={busy}
+              onClick={() => {
+                setError('');
+                setSuccess('');
+                setMode('login');
+              }}
+              className={`rounded-xl px-3 py-2.5 text-sm font-bold transition ${
+                mode === 'login'
+                  ? 'bg-white text-[#134e4a] shadow-sm'
+                  : 'text-slate-600 hover:text-[#134e4a]'
+              }`}
+            >
+              Sign in
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={mode === 'new-user-reset'}
+              disabled={busy}
+              onClick={() => {
+                setError('');
+                setSuccess('');
+                setMode('new-user-reset');
+                setIdentifier(username);
+              }}
+              className={`inline-flex items-center justify-center gap-1.5 rounded-xl px-3 py-2.5 text-sm font-bold transition ${
+                mode === 'new-user-reset'
+                  ? 'bg-white text-[#134e4a] shadow-sm'
+                  : 'text-slate-600 hover:text-[#134e4a]'
+              }`}
+            >
+              <UserPlus size={15} aria-hidden />
+              First-time setup
+            </button>
           </div>
 
           {success ? (
@@ -200,23 +254,6 @@ export default function LoginScreen() {
                   disabled={busy}
                 />
 
-                <div className="flex items-center justify-between gap-4">
-                  <button
-                    type="button"
-                    disabled={busy}
-                    onClick={() => {
-                      setError('');
-                      setSuccess('');
-                      setMode('new-user-reset');
-                      setIdentifier(username);
-                    }}
-                    className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#134e4a] hover:underline disabled:cursor-wait disabled:opacity-70"
-                  >
-                    <UserPlus size={15} aria-hidden />
-                    New user? Set up your password
-                  </button>
-                </div>
-
                 {error ? (
                   <div className="flex items-start gap-3 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900">
                     <AlertTriangle size={18} className="mt-0.5 shrink-0" />
@@ -241,9 +278,10 @@ export default function LoginScreen() {
               </>
             ) : (
               <>
-                <div className="text-sm text-slate-600 leading-relaxed">
-                  Enter the one-time reset code from your administrator, then choose a new password. This setup is
-                  only for new accounts that have not signed in yet.
+                <div className="rounded-2xl border border-teal-200/80 bg-teal-50/80 px-4 py-3 text-sm text-teal-950 leading-relaxed">
+                  Use the <strong>one-time reset code</strong> from your administrator (Team &amp; access → Reset
+                  code), then choose a new password. You can also sign in with a temporary password—Zarewa will
+                  ask you to replace it immediately.
                 </div>
 
                 <div>

@@ -220,6 +220,25 @@ export function WorkspaceProvider({ children }) {
           return { ok: false, error, code };
         }
         setSessionMessage('');
+        // Hydrate session immediately so first-login password modal appears before bootstrap finishes.
+        applySnapshot(
+          {
+            ok: true,
+            session: {
+              authenticated: data.authenticated ?? true,
+              user: data.user ?? null,
+              permissions: data.permissions ?? [],
+              currentBranchId: data.currentBranchId,
+              viewAllBranches: data.viewAllBranches,
+              branches: data.branches,
+              sessionExpiresAtIso: data.sessionExpiresAtIso,
+              sessionTimeoutMinutes: data.sessionTimeoutMinutes,
+              sessionWarningSeconds: data.sessionWarningSeconds,
+            },
+            permissions: data.permissions ?? [],
+          },
+          'ok'
+        );
         // Fast initial render: dashboard summary + dashboard bootstrap first, then full snapshot.
         await refreshDashboardSummary();
         await refresh({ mode: 'dashboard' });
@@ -239,7 +258,7 @@ export function WorkspaceProvider({ children }) {
         };
       }
     },
-    [refresh, refreshDashboardSummary]
+    [applySnapshot, refresh, refreshDashboardSummary]
   );
 
   const forgotPassword = useCallback(

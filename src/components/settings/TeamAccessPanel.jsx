@@ -66,7 +66,11 @@ export default function TeamAccessPanel({ appUsers, currentUserId, onRefresh }) 
     branchId: '',
   });
   const roleKey = String(ws?.session?.user?.roleKey || '').toLowerCase();
-  const canGenerateResetCodes = ['admin', 'md', 'hr_admin'].includes(roleKey);
+  const canManagePasswords = ['admin', 'md', 'hr_admin'].includes(roleKey);
+
+  const [passwordModalUser, setPasswordModalUser] = useState(null);
+  const [passwordModalValue, setPasswordModalValue] = useState('');
+  const [passwordModalBusy, setPasswordModalBusy] = useState(false);
 
   const { captureEdited: captureCreateEdited, wrapClose: wrapCreateClose } = useTrackedUnsavedForm(
     'settings-create-user',
@@ -214,10 +218,55 @@ export default function TeamAccessPanel({ appUsers, currentUserId, onRefresh }) 
     }
   };
 
+  const userInOnboarding = (user) =>
+    Boolean(user?.mustChangePassword || user?.trainingCompleted === false);
+
+  const openPasswordModal = (user) => {
+    setPasswordModalUser(user);
+    setPasswordModalValue('');
+  };
+
+  const closePasswordModal = () => {
+    if (passwordModalBusy) return;
+    setPasswordModalUser(null);
+    setPasswordModalValue('');
+  };
+
+  const submitSetPassword = async (e) => {
+    e.preventDefault();
+    if (!passwordModalUser?.id) return;
+    const password = String(passwordModalValue || '').trim();
+    if (!password) {
+      showToast('Password is required.', { variant: 'error' });
+      return;
+    }
+    setPasswordModalBusy(true);
+    try {
+      const { ok, data } = await apiFetch(
+        `/api/users/${encodeURIComponent(passwordModalUser.id)}/password`,
+        {
+          method: 'PATCH',
+          body: JSON.stringify({ password }),
+        }
+      );
+      if (!ok || !data?.ok) {
+        showToast(data?.error || 'Could not set password.', { variant: 'error' });
+        return;
+      }
+      showToast(
+        `Password updated for ${passwordModalUser.username}. Share it securely—they must change it on next sign-in.`
+      );
+      closePasswordModal();
+      await refresh();
+    } finally {
+      setPasswordModalBusy(false);
+    }
+  };
+
   const generateResetCode = async (user) => {
     if (!user?.id) return;
-    if (!canGenerateResetCodes) {
-      showToast('Only Admin or MD can generate reset codes.', { variant: 'error' });
+    if (!canManagePasswords) {
+      showToast('Only Admin, MD, or HR Admin can generate reset codes.', { variant: 'error' });
       return;
     }
     setRowBusyId(user.id);
@@ -541,14 +590,24 @@ export default function TeamAccessPanel({ appUsers, currentUserId, onRefresh }) 
                           >
                             <Settings2 size={14} /> Edit
                           </button>
-                          {canGenerateResetCodes &&
-                          (user.mustChangePassword || !String(user.lastLoginAtISO || '').trim()) ? (
+                          {canManagePasswords ? (
+                            <button
+                              type="button"
+                              disabled={busy}
+                              onClick={() => openPasswordModal(user)}
+                              className="z-btn-secondary !px-3 !py-1.5 !text-[10px]"
+                              title="Set a new password (user must change it on next sign-in)"
+                            >
+                              Set password
+                            </button>
+                          ) : null}
+                          {canManagePasswords && userInOnboarding(user) ? (
                             <button
                               type="button"
                               disabled={busy}
                               onClick={() => void generateResetCode(user)}
                               className="z-btn-secondary !px-3 !py-1.5 !text-[10px]"
-                              title="Generate one-time reset code for a new user"
+                              title="Generate one-time reset code for onboarding users"
                             >
                               Reset code
                             </button>
@@ -757,6 +816,51 @@ export default function TeamAccessPanel({ appUsers, currentUserId, onRefresh }) 
               </button>
             </div>
           </div>
+        ) : null}
+      </ModalFrame>
+
+      <ModalFrame
+        isOpen={Boolean(passwordModalUser)}
+        onClose={closePasswordModal}
+        closeDisabled={passwordModalBusy}
+        title={passwordModalUser ? `Set password — ${passwordModalUser.displayName}` : 'Set password'}
+        description="Sets a new login password and ends active sessions. The user must replace it on their next sign-in."
+      >
+        {passwordModalUser ? (
+          <form
+            onSubmit={(e) => void submitSetPassword(e)}
+            className="w-full max-w-md rounded-[28px] border border-slate-200/90 bg-white p-6 shadow-xl space-y-3"
+          >
+            <p className="text-[11px] text-slate-500">
+              Username:{' '}
+              <span className="font-mono font-semibold text-slate-800">{passwordModalUser.username}</span>
+            </p>
+            <div>
+              <label className="z-field-label">New password</label>
+              <input
+                type="password"
+                className="z-input"
+                value={passwordModalValue}
+                onChange={(e) => setPasswordModalValue(e.target.value)}
+                autoComplete="new-password"
+                disabled={passwordModalBusy}
+                placeholder="At least 8 characters with mixed case, number, symbol"
+              />
+            </div>
+            <div className="flex flex-wrap gap-2 justify-end pt-2">
+              <button
+                type="button"
+                className="z-btn-secondary !text-[11px]"
+                disabled={passwordModalBusy}
+                onClick={closePasswordModal}
+              >
+                Cancel
+              </button>
+              <button type="submit" className="z-btn-primary !text-[11px]" disabled={passwordModalBusy}>
+                {passwordModalBusy ? 'Saving…' : 'Set password'}
+              </button>
+            </div>
+          </form>
         ) : null}
       </ModalFrame>
 
