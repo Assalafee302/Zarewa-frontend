@@ -1,5 +1,5 @@
 /* eslint-disable react-refresh/only-export-components */
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { apiFetch, apiUrl } from '../lib/apiBase';
 import { replaceLedgerEntries } from '../lib/customerLedgerStore';
 import { canAccessModuleWithPermissions, hasPermissionInList } from '../lib/moduleAccess';
@@ -12,6 +12,12 @@ import {
   isBranchScopedCreateBlocked,
 } from '../lib/workspaceBranchCreate';
 import { sanitizeWorkItemForCache } from '../lib/workspaceSanitize.js';
+import {
+  clearPendingPasswordChange,
+  hasPendingPasswordChange,
+  markPendingPasswordChange,
+  withPendingPasswordSession,
+} from '../lib/pendingPasswordChange.js';
 
 const WorkspaceContext = createContext(null);
 
@@ -91,7 +97,19 @@ function mergeSessionOnboardingFlags(prevSnapshot, incoming) {
   const normalized = normalizeWorkspacePersonNames(incoming);
   const prevUser = prevSnapshot?.session?.user;
   const nextUser = normalized?.session?.user;
-  if (!prevUser?.id || !nextUser?.id || String(prevUser.id) !== String(nextUser.id)) {
+  if (!nextUser?.id) {
+    return normalized;
+  }
+  if (hasPendingPasswordChange(nextUser.id) && !nextUser.mustChangePassword) {
+    return {
+      ...normalized,
+      session: {
+        ...normalized.session,
+        user: { ...nextUser, mustChangePassword: true },
+      },
+    };
+  }
+  if (!prevUser?.id || String(prevUser.id) !== String(nextUser.id)) {
     return normalized;
   }
   let user = nextUser;
@@ -125,11 +143,17 @@ export function WorkspaceProvider({ children }) {
   const [editApprovalsPendingCount, setEditApprovalsPendingCount] = useState(0);
   const [roleTrainingReplayOpen, setRoleTrainingReplayOpen] = useState(false);
   const [sessionMessage, setSessionMessage] = useState('');
+  const snapshotRef = useRef(null);
+  snapshotRef.current = snapshot;
 
   const applySnapshot = useCallback((data, mode = 'ok') => {
     let merged = null;
     setSnapshot((prev) => {
-      merged = mergeSessionOnboardingFlags(prev, data);
+      merged = mergeSessionOnboardingFlags(prev, withPendingPasswordSession(data));
+      const uid = merged?.session?.user?.id;
+      if (uid && merged.session.user?.mustChangePassword) {
+        markPendingPasswordChange(uid);
+      }
       return merged;
     });
     setStatus(mode);
@@ -206,6 +230,11 @@ export function WorkspaceProvider({ children }) {
       const qs = qsParts.length ? `?${qsParts.join('&')}` : '';
       const { ok, status: httpStatus, data } = await apiFetch(`/api/bootstrap${qs}`);
       if (httpStatus === 401 || data?.code === 'AUTH_REQUIRED') {
+        const uid = snapshotRef.current?.session?.user?.id;
+        if (uid && hasPendingPasswordChange(uid)) {
+          setSessionMessage('Session could not be refreshed. Set your new password or sign out and try again.');
+          return snapshotRef.current;
+        }
         clearBootstrapCache();
         setStatus('auth_required');
         setSnapshot(null);
@@ -218,19 +247,24 @@ export function WorkspaceProvider({ children }) {
         setSessionMessage('Your session security token expired. Please sign in again.');
       }
       if (!ok || !data?.ok) throw new Error(data?.error || 'Bootstrap failed');
-      return applySnapshot(data, 'ok');
+      return applySnapshot(withPendingPasswordSession(data), 'ok');
     } catch (e) {
-      const cached = readBootstrapCache(snapshot?.session);
+      const cached = readBootstrapCache(snapshotRef.current?.session);
       if (cached) {
         setLastError(String(e.message || e));
-        return applySnapshot(cached, 'degraded');
+        return applySnapshot(withPendingPasswordSession(cached), 'degraded');
+      }
+      const uid = snapshotRef.current?.session?.user?.id;
+      if (uid && hasPendingPasswordChange(uid)) {
+        setLastError(String(e.message || e));
+        return snapshotRef.current;
       }
       setStatus('offline');
       setSnapshot(null);
       setLastError(String(e.message || e));
       return null;
     }
-  }, [applySnapshot, snapshot?.session]);
+  }, [applySnapshot]);
 
   const login = useCallback(
     async (username, password) => {
@@ -252,6 +286,9 @@ export function WorkspaceProvider({ children }) {
           return { ok: false, error, code };
         }
         setSessionMessage('');
+        if (data.user?.mustChangePassword) {
+          markPendingPasswordChange(data.user.id);
+        }
         // Hydrate session immediately so first-login password modal appears before bootstrap finishes.
         applySnapshot(
           {
@@ -271,12 +308,12 @@ export function WorkspaceProvider({ children }) {
           },
           'ok'
         );
-        const needsPasswordChange = Boolean(data.user?.mustChangePassword);
-        // Fast initial render: dashboard summary + dashboard bootstrap first, then full snapshot.
-        await refreshDashboardSummary();
-        await refresh({ mode: 'dashboard' });
-        // Avoid an immediate full bootstrap overwrite while the change-password modal is open.
+        const needsPasswordChange =
+          Boolean(data.user?.mustChangePassword) || hasPendingPasswordChange(data.user?.id);
         if (!needsPasswordChange) {
+          // Fast initial render: dashboard summary + dashboard bootstrap first, then full snapshot.
+          await refreshDashboardSummary();
+          await refresh({ mode: 'dashboard' });
           setTimeout(() => {
             refreshDashboardSummary();
             refresh();
@@ -353,6 +390,8 @@ export function WorkspaceProvider({ children }) {
     } catch {
       /* ignore */
     }
+    const uid = snapshotRef.current?.session?.user?.id;
+    if (uid) clearPendingPasswordChange(uid);
     replaceLedgerEntries([]);
     clearBootstrapCache();
     setSnapshot(null);
@@ -398,6 +437,8 @@ export function WorkspaceProvider({ children }) {
       if (!ok || !data?.ok) {
         return { ok: false, error: data?.error || 'Could not change password.' };
       }
+      const uid = snapshotRef.current?.session?.user?.id;
+      if (uid) clearPendingPasswordChange(uid);
       if (data?.user) {
         setSnapshot((prev) => {
           if (!prev?.session?.user) return prev;
@@ -495,6 +536,8 @@ export function WorkspaceProvider({ children }) {
     const ms = workspacePollIntervalMs();
     const pull = () => {
       if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
+      const uid = snapshotRef.current?.session?.user?.id;
+      if (uid && hasPendingPasswordChange(uid)) return;
       void refresh({ poll: true });
       void refreshDashboardSummary();
     };
