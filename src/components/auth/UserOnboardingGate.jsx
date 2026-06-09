@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import ForcePasswordChangeModal from './ForcePasswordChangeScreen';
 import RoleTrainingGuideModal from './RoleTrainingGuideModal';
@@ -10,8 +10,24 @@ import RoleTrainingGuideModal from './RoleTrainingGuideModal';
 export default function UserOnboardingGate({ children }) {
   const ws = useWorkspace();
   const user = ws?.session?.user;
-  const needsPassword = Boolean(user?.mustChangePassword);
-  const needsTraining = Boolean(user && user.trainingCompleted === false);
+  const [passwordGateActive, setPasswordGateActive] = useState(false);
+
+  useEffect(() => {
+    if (!user?.id) {
+      setPasswordGateActive(false);
+      return;
+    }
+    if (user.mustChangePassword) {
+      setPasswordGateActive(true);
+      return;
+    }
+    if (user.mustChangePassword === false) {
+      setPasswordGateActive(false);
+    }
+  }, [user?.id, user?.mustChangePassword]);
+
+  const needsPassword = passwordGateActive || Boolean(user?.mustChangePassword);
+  const needsTraining = Boolean(user && !needsPassword && user.trainingCompleted === false);
 
   return (
     <>
@@ -19,7 +35,7 @@ export default function UserOnboardingGate({ children }) {
         {children}
       </div>
       {needsPassword ? <ForcePasswordChangeModal /> : null}
-      {!needsPassword && needsTraining ? <RoleTrainingGuideModal /> : null}
+      {needsTraining ? <RoleTrainingGuideModal /> : null}
     </>
   );
 }

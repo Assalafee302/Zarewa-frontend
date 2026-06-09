@@ -86,6 +86,35 @@ function clearBootstrapCache() {
   }
 }
 
+/** Keep first-login flags when a fast bootstrap refresh omits them for the same user. */
+function mergeSessionOnboardingFlags(prevSnapshot, incoming) {
+  const normalized = normalizeWorkspacePersonNames(incoming);
+  const prevUser = prevSnapshot?.session?.user;
+  const nextUser = normalized?.session?.user;
+  if (!prevUser?.id || !nextUser?.id || String(prevUser.id) !== String(nextUser.id)) {
+    return normalized;
+  }
+  let user = nextUser;
+  let changed = false;
+  if (prevUser.mustChangePassword && nextUser.mustChangePassword !== false) {
+    if (!nextUser.mustChangePassword) {
+      user = { ...user, mustChangePassword: true };
+      changed = true;
+    }
+  }
+  if (prevUser.trainingCompleted === false && nextUser.trainingCompleted !== true) {
+    if (nextUser.trainingCompleted !== false) {
+      user = { ...user, trainingCompleted: false };
+      changed = true;
+    }
+  }
+  if (!changed) return normalized;
+  return {
+    ...normalized,
+    session: { ...normalized.session, user },
+  };
+}
+
 export function WorkspaceProvider({ children }) {
   const [status, setStatus] = useState('checking');
   const [snapshot, setSnapshot] = useState(null);
@@ -98,18 +127,21 @@ export function WorkspaceProvider({ children }) {
   const [sessionMessage, setSessionMessage] = useState('');
 
   const applySnapshot = useCallback((data, mode = 'ok') => {
-    const normalized = normalizeWorkspacePersonNames(data);
-    setSnapshot(normalized);
+    let merged = null;
+    setSnapshot((prev) => {
+      merged = mergeSessionOnboardingFlags(prev, data);
+      return merged;
+    });
     setStatus(mode);
     setLastError(null);
-    if (Array.isArray(normalized?.ledgerEntries)) {
-      replaceLedgerEntries(normalized.ledgerEntries);
+    if (Array.isArray(merged?.ledgerEntries)) {
+      replaceLedgerEntries(merged.ledgerEntries);
     }
-    if (mode === 'ok') {
-      writeBootstrapCache(normalized);
+    if (mode === 'ok' && merged) {
+      writeBootstrapCache(merged);
     }
     setRefreshEpoch((n) => n + 1);
-    return normalized;
+    return merged;
   }, []);
 
   /**
@@ -239,13 +271,17 @@ export function WorkspaceProvider({ children }) {
           },
           'ok'
         );
+        const needsPasswordChange = Boolean(data.user?.mustChangePassword);
         // Fast initial render: dashboard summary + dashboard bootstrap first, then full snapshot.
         await refreshDashboardSummary();
         await refresh({ mode: 'dashboard' });
-        setTimeout(() => {
-          refreshDashboardSummary();
-          refresh();
-        }, 0);
+        // Avoid an immediate full bootstrap overwrite while the change-password modal is open.
+        if (!needsPasswordChange) {
+          setTimeout(() => {
+            refreshDashboardSummary();
+            refresh();
+          }, 0);
+        }
         return { ok: true, data };
       } catch (e) {
         setStatus('offline');
