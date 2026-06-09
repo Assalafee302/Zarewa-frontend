@@ -23,7 +23,7 @@ const ROLE_TRAINING = {
       {
         heading: 'Team & access',
         body: 'Open Settings → Team & access to create logins, assign roles, and set workspace branches. New users must change their password on first sign-in.',
-        tips: ['Issue a one-time reset code if someone forgets their password.'],
+        tips: ['Use Set password in Team & access if someone needs a new temporary password.'],
       },
       {
         heading: 'Master data & integrations',

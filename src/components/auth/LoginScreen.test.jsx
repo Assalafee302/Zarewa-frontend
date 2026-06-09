@@ -12,11 +12,9 @@ vi.mock('react-router-dom', async () => {
 });
 
 const mockLogin = vi.fn();
-const mockResetPassword = vi.fn();
 const mockWorkspace = {
   login: mockLogin,
   clearSessionMessage: vi.fn(),
-  resetPassword: mockResetPassword,
   status: 'auth_required',
 };
 
@@ -27,7 +25,6 @@ vi.mock('../../context/WorkspaceContext', () => ({
 describe('LoginScreen', () => {
   beforeEach(() => {
     mockLogin.mockReset();
-    mockResetPassword.mockReset();
     mockNavigate.mockReset();
     mockWorkspace.status = 'auth_required';
   });
@@ -71,24 +68,9 @@ describe('LoginScreen', () => {
     await expect(screen.getByText(/invalid username or password/i)).toBeVisible();
   });
 
-  it('allows new users to set a password with an admin reset code', async () => {
-    const user = userEvent.setup();
-    mockResetPassword.mockResolvedValue({
-      ok: true,
-      data: { ok: true, message: 'Password updated.' },
-    });
-
+  it('explains first-time sign-in uses the temporary password', () => {
     render(<LoginScreen />);
-
-    await user.click(screen.getByRole('button', { name: /new user\? set up your password/i }));
-
-    await user.type(screen.getByLabelText(/username or email/i), 'new.staff');
-    await user.type(screen.getByLabelText(/reset code/i), 'DEV-123456');
-    await user.type(screen.getByLabelText(/new password/i), 'NewPass@123');
-    await user.click(screen.getByRole('button', { name: /set password/i }));
-
-    await waitFor(() => {
-      expect(mockResetPassword).toHaveBeenCalledWith('new.staff', 'DEV-123456', 'NewPass@123');
-    });
+    expect(screen.getByText(/first time signing in/i)).toBeVisible();
+    expect(screen.getByText(/temporary password/i)).toBeVisible();
   });
 });

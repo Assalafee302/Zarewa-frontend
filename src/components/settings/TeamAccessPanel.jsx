@@ -218,9 +218,6 @@ export default function TeamAccessPanel({ appUsers, currentUserId, onRefresh }) 
     }
   };
 
-  const userInOnboarding = (user) =>
-    Boolean(user?.mustChangePassword || user?.trainingCompleted === false);
-
   const openPasswordModal = (user) => {
     setPasswordModalUser(user);
     setPasswordModalValue('');
@@ -260,40 +257,6 @@ export default function TeamAccessPanel({ appUsers, currentUserId, onRefresh }) 
       await refresh();
     } finally {
       setPasswordModalBusy(false);
-    }
-  };
-
-  const generateResetCode = async (user) => {
-    if (!user?.id) return;
-    if (!canManagePasswords) {
-      showToast('Only Admin, MD, or HR Admin can generate reset codes.', { variant: 'error' });
-      return;
-    }
-    setRowBusyId(user.id);
-    try {
-      const { ok, data } = await apiFetch(`/api/users/${encodeURIComponent(user.id)}/password-reset-code`, {
-        method: 'POST',
-      });
-      if (!ok || !data?.ok || !data?.resetToken) {
-        showToast(data?.error || 'Could not generate reset code.', { variant: 'error' });
-        return;
-      }
-      const code = String(data.resetToken);
-      const identifier = String(data.identifier || user.username || '').trim();
-      try {
-        await navigator.clipboard?.writeText(code);
-        showToast(
-          `Reset code copied for ${identifier || 'user'} (expires ${String(data.expiresAtISO || '').slice(0, 16).replace('T', ' ')}).`
-        );
-      } catch {
-        showToast(`Reset code: ${code}`, { variant: 'info' });
-      }
-      window.prompt(
-        `One-time reset code for ${identifier || user.username}. Expires ${String(data.expiresAtISO || '').slice(0, 16).replace('T', ' ')}.`,
-        code
-      );
-    } finally {
-      setRowBusyId('');
     }
   };
 
@@ -471,9 +434,9 @@ export default function TeamAccessPanel({ appUsers, currentUserId, onRefresh }) 
           Assign roles and status, and fine-tune permissions when needed. You can permanently delete a login after
           typing their username (same safety rules as suspending privileged admins apply). Changing a role clears
           custom permission overrides and applies that role’s template. The team role is the same value stored as
-          workspace “department” for routing shortcuts. Use <strong>Reset code</strong> only for new users who have
-          not completed first sign-in; they enter the code on the sign-in screen under New user setup (passwords are
-          never displayed here).
+          workspace “department” for routing shortcuts. New users sign in with the temporary password you set here;
+          they choose a new password on first sign-in. Use <strong>Set password</strong> to reset a login (passwords
+          are never displayed here).
         </p>
 
         <div className="mb-4 flex flex-wrap items-center gap-2">
@@ -599,17 +562,6 @@ export default function TeamAccessPanel({ appUsers, currentUserId, onRefresh }) 
                               title="Set a new password (user must change it on next sign-in)"
                             >
                               Set password
-                            </button>
-                          ) : null}
-                          {canManagePasswords && userInOnboarding(user) ? (
-                            <button
-                              type="button"
-                              disabled={busy}
-                              onClick={() => void generateResetCode(user)}
-                              className="z-btn-secondary !px-3 !py-1.5 !text-[10px]"
-                              title="Generate one-time reset code for onboarding users"
-                            >
-                              Reset code
                             </button>
                           ) : null}
                           <button
