@@ -180,15 +180,11 @@ const ROLE_TRAINING = {
   },
   operations_officer: {
     title: 'Operations officer guide',
-    subtitle: 'Procurement, GRNs, production, and branch inventory.',
+    subtitle: 'GRNs, production, and branch inventory.',
     steps: [
       {
-        heading: 'Procurement',
-        body: 'Raise purchase orders, manage suppliers, and track transport. PO lines should match what you expect to receive.',
-      },
-      {
         heading: 'Receiving stock',
-        body: 'Post GRNs against POs. Accessories and stone update branch stock; coil receipts update coil lots for your workspace branch.',
+        body: 'Post GRNs against purchase orders in transit. Accessories and stone update branch stock; coil receipts update coil lots for your workspace branch.',
         tips: ['If stock looks wrong, confirm you are on the correct branch in the top bar.'],
       },
       {
@@ -202,7 +198,6 @@ const ROLE_TRAINING = {
     ],
     quickLinks: [
       { label: 'Operations', path: '/operations' },
-      { label: 'Procurement', path: '/procurement' },
       { label: 'Material exceptions', path: '/operations/material-exceptions' },
     ],
   },

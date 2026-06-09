@@ -416,7 +416,6 @@ const Settings = () => {
     <PageShell>
       <PageHeader
         title="Settings"
-        subtitle="Profile, security, preferences, team, catalog, governance, and guides. Deep links use the URL (e.g. /settings/security)."
         tabs={
           <PageTabs
             tabs={settingsTabs}

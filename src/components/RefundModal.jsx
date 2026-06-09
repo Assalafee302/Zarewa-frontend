@@ -436,7 +436,6 @@ const RefundModal = ({
   const [alignmentCheckLoading, setAlignmentCheckLoading] = useState(false);
   const [refundGuideOpen, setRefundGuideOpen] = useState(false);
   /** Filter quotation dropdown by quote date (YYYY-MM-DD); empty = all dates. */
-  const [quotationPickDate, setQuotationPickDate] = useState('');
   /** Typeahead / paste quotation id (Step 1). */
   const [quotationSearchText, setQuotationSearchText] = useState('');
   const [quotationSuggestOpen, setQuotationSuggestOpen] = useState(false);
@@ -522,7 +521,6 @@ const RefundModal = ({
     setSyncPaidId('');
     setSyncPaidError('');
     setMoneyContext(null);
-    setQuotationPickDate('');
     setLastPreviewSnapshot(null);
     setPreviewRemainingNgn(null);
     setEligibleRefundCategoriesFromPreview(null);
@@ -617,12 +615,7 @@ const RefundModal = ({
     form.quotationRef,
   ]);
 
-  /** Dropdown list (optional filter by quotation date). */
-  const quotationPickList = useMemo(() => {
-    const d = String(quotationPickDate || '').trim();
-    if (!d) return quotationPickMerged;
-    return quotationPickMerged.filter((q) => quotationYmdForPickRow(q, quotations) === d);
-  }, [quotationPickMerged, quotationPickDate, quotations]);
+  const quotationPickList = quotationPickMerged;
 
   /** Paid/total for intelligence panel when pick row is missing (date filter or manual-only quotation). */
   const selectedQuoteMoneyRow = useMemo(() => {
@@ -671,16 +664,6 @@ const RefundModal = ({
     () => (intelligence.receipts || []).reduce((s, r) => s + (Number(r.amountNgn) || 0), 0),
     [intelligence.receipts]
   );
-
-  /** When to show receipt vs advance vs booked paid explainer (avoids noise when totals match). */
-  const showRefundPaidBreakdown = useMemo(() => {
-    const adv = Number(intelligence.summary?.advanceAppliedNgn) || 0;
-    const ra = Number(intelligence.summary?.receiptAllocatedSumNgn) || 0;
-    const booked = Number(intelligence.summary?.bookedOnQuotationNgn) || 0;
-    if (adv > 0) return true;
-    if (booked <= 0 && ra <= 0) return false;
-    return Math.abs(booked - ra - adv) > 1;
-  }, [intelligence.summary]);
 
   const selectedQuotationSnapshot = useMemo(() => {
     const ref = String(form.quotationRef || '').trim();
@@ -1596,18 +1579,6 @@ const RefundModal = ({
               Updating refund preview…
             </p>
           ) : null}
-          {mode === 'create' && String(form.quotationRef || '').trim() ? (
-            <div className="flex flex-wrap items-center justify-end gap-2">
-              <button
-                type="button"
-                className="text-[11px] font-bold uppercase tracking-wide text-teal-700 hover:text-teal-900 underline decoration-teal-300 underline-offset-2 disabled:opacity-40 disabled:no-underline"
-                disabled={previewLoading}
-                onClick={() => void generatePreview(String(form.quotationRef).trim(), includeCommissionInPreview)}
-              >
-                Refresh preview (latest production & receipts)
-              </button>
-            </div>
-          ) : null}
           {previewError ? (
             <div
               className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs text-rose-900"
@@ -1628,8 +1599,7 @@ const RefundModal = ({
 
                 <div className="space-y-4">
                   <div>
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-                      <div className="relative min-w-0 flex-1">
+                    <div className="relative min-w-0">
                         <label className={label} htmlFor="refund-quotation-search">
                           Search finished quotation
                         </label>
@@ -1720,54 +1690,22 @@ const RefundModal = ({
                             ) : null}
                           </div>
                         )}
-                      </div>
-                      <div className="w-full shrink-0 sm:w-[11.5rem]">
-                        <label className={label} htmlFor="refund-quotation-date-filter">
-                          Quote date
-                        </label>
-                        <input
-                          id="refund-quotation-date-filter"
-                          type="date"
-                          disabled={identityLocked}
-                          value={quotationPickDate}
-                          onChange={(e) => setQuotationPickDate(e.target.value)}
-                          className={`${input} h-11`}
-                        />
-                      </div>
                     </div>
                     {mode === 'create' && !identityLocked ? (
-                      <div className="mt-2 flex flex-col sm:flex-row gap-2 sm:items-center sm:justify-between">
+                      <div className="mt-2">
                         <button
                           type="button"
                           disabled={loadingQuotes || manualQuotationVerifyBusy}
                           onClick={() => void verifyAndApplyQuotationId()}
-                          className="shrink-0 rounded-lg border border-teal-200 bg-teal-50 px-3 py-2 text-[10px] font-bold uppercase tracking-wide text-teal-900 hover:bg-teal-100 disabled:opacity-50"
+                          className="rounded-lg border border-teal-200 bg-teal-50 px-3 py-2 text-[10px] font-bold uppercase tracking-wide text-teal-900 hover:bg-teal-100 disabled:opacity-50"
                         >
                           {manualQuotationVerifyBusy ? 'Verifying…' : 'Use quotation id'}
                         </button>
-                        <p className="text-[9px] text-slate-500 leading-snug flex-1 min-w-0">
-                          If the quotation id is valid but missing from the list (for example automatic preview below ₦
-                          {MIN_REFUND_QUOTATION_REMAINING_NGN.toLocaleString('en-NG')}), verify
-                          it here and complete lines manually. Press Enter when the suggestion list is closed.
-                        </p>
                       </div>
                     ) : null}
                     {manualQuotationVerifyError ? (
                       <p className="mt-1 text-[10px] text-rose-700 font-medium leading-snug" role="alert">
                         {manualQuotationVerifyError}
-                      </p>
-                    ) : null}
-                    {mode === 'create' ? (
-                      <p className="text-[9px] text-slate-500 leading-snug mt-2">
-                        Eligibility rules for this list are in the{' '}
-                        <button
-                          type="button"
-                          className="font-semibold text-teal-700 underline-offset-2 hover:underline"
-                          onClick={() => setRefundGuideOpen(true)}
-                        >
-                          info
-                        </button>{' '}
-                        panel (top right).
                       </p>
                     ) : null}
                     {!loadingQuotes && quotationPickList.length === 0 && mode === 'create' ? (
@@ -1777,8 +1715,7 @@ const RefundModal = ({
                           <strong>more than ₦{MIN_REFUND_QUOTATION_REMAINING_NGN.toLocaleString('en-NG')} refundable</strong>, production{' '}
                           <strong>completed or cancelled</strong> (or <strong>void with payment</strong>), where the refund{' '}
                           <strong>automatic preview total at least ₦{MIN_REFUND_QUOTATION_REMAINING_NGN.toLocaleString('en-NG')}</strong>, and{' '}
-                          <strong>no blocking refund on file</strong>. {quotationPickDate ? 'Try clearing the quote date filter.' : ''}{' '}
-                          If you already posted a receipt but the quote is missing here, the payment may have been
+                          <strong>no blocking refund on file</strong>. If you already posted a receipt but the quote is missing here, the payment may have been
                           recorded under a different branch than the quotation — use sync to recalculate from the ledger.
                           If the sale is eligible but excluded because the automatic preview is below that amount, use{' '}
                           <strong>Use quotation id</strong> after entering the full quotation reference.
@@ -1819,17 +1756,9 @@ const RefundModal = ({
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <div className="flex items-center gap-2 mb-1">
                     <div className="w-2 h-5 bg-rose-500 rounded-full" />
-                    <div>
-                      <h3 className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
-                        Refund breakdown
-                      </h3>
-                      <p className="text-[10px] text-slate-500 mt-0.5 max-w-xl leading-snug">
-                        Overpayment is payment above the quote total; other categories (unproduced metreage,
-                        substitution, services, etc.) are separate reasons with their own amounts. Combined refund
-                        cannot exceed cash received on this quotation. Customer commission is{' '}
-                        <span className="font-semibold text-slate-700">not</span> included until you add it.
-                      </p>
-                    </div>
+                    <h3 className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
+                      Refund breakdown
+                    </h3>
                   </div>
                   {!readOnly && mode === 'create' ? (
                     <div className="flex flex-wrap gap-2 shrink-0">
@@ -1924,7 +1853,7 @@ const RefundModal = ({
                         return (
                           <div
                             key={line.lineKey || `line-${idx}`}
-                            className="group flex flex-col sm:flex-row sm:items-center gap-3 rounded-xl border border-slate-100 bg-slate-50 p-3 transition-all animate-in fade-in hover:border-rose-100 hover:bg-white"
+                            className="group flex flex-col sm:flex-row sm:items-center gap-2 rounded-lg border border-slate-100 bg-slate-50 p-2 transition-all animate-in fade-in hover:border-rose-100 hover:bg-white"
                           >
                             {!readOnly ? (
                               <label className="flex items-center gap-2 shrink-0 cursor-pointer">
@@ -2026,7 +1955,7 @@ const RefundModal = ({
                                 disabled={readOnly}
                                 value={line.amountNgn}
                                 onChange={(e) => setLine(idx, { amountNgn: e.target.value })}
-                                className="w-28 rounded-lg border border-slate-200 bg-white py-1 px-2 text-right text-xs font-black text-slate-900 outline-none focus:ring-2 focus:ring-rose-500/10 tabular-nums"
+                                className="w-24 rounded-lg border border-slate-200 bg-white py-1 px-2 text-right text-[11px] font-black text-slate-900 outline-none focus:ring-2 focus:ring-rose-500/10 tabular-nums"
                               />
                               {!readOnly && isManual ? (
                                 <button
@@ -2081,39 +2010,43 @@ const RefundModal = ({
                       ) : null}
                     </div>
 
-                    <div className="rounded-2xl bg-rose-600 p-4 text-white shadow-xl shadow-rose-200">
-                      <p className="mb-1 text-[10px] font-bold uppercase tracking-widest text-white/60">
+                    <div className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2.5">
+                      <label
+                        className="text-[9px] font-bold uppercase tracking-wide text-rose-800/80"
+                        htmlFor="refund-requested-amount"
+                      >
                         Requested refund amount
-                      </p>
-                      <div className="flex items-end gap-1">
-                        <span className="mb-0.5 text-base font-black text-white/80">₦</span>
+                      </label>
+                      <div className="mt-1 flex items-center gap-1">
+                        <span className="text-sm font-bold text-rose-900">₦</span>
                         <input
+                          id="refund-requested-amount"
                           required
                           type="number"
                           disabled={readOnly || identityLocked}
                           value={form.amountNgn}
                           onChange={(e) => setForm((f) => ({ ...f, amountNgn: e.target.value }))}
-                          className="flex-1 border-none bg-transparent p-0 text-2xl font-black text-white outline-none focus:ring-0 tabular-nums"
+                          className="flex-1 rounded-lg border border-rose-200/80 bg-white py-1.5 px-2 text-lg font-black text-rose-950 outline-none focus:ring-2 focus:ring-rose-500/15 tabular-nums"
                           placeholder="0"
                         />
                       </div>
                       {sumMismatch ? (
-                        <p className="mt-2 text-xs font-semibold text-amber-200">
+                        <p className="mt-1.5 text-[10px] font-semibold text-amber-800">
                           Line items total does not match the requested refund amount.
                         </p>
                       ) : null}
                       {previewRemainingNgn != null && mode === 'create' ? (
                         <p
-                          className={`mt-2 text-[10px] font-semibold ${
-                            exceedsRefundableHeadroom ? 'text-amber-200' : 'text-white/85'
+                          className={`mt-1.5 text-[9px] font-semibold ${
+                            exceedsRefundableHeadroom ? 'text-amber-800' : 'text-rose-800/80'
                           }`}
                         >
-                          Remaining refundable on quotation: ₦{previewRemainingNgn.toLocaleString('en-NG')}
-                          {exceedsRefundableHeadroom ? ' — lower lines or requested amount to continue' : ''}
+                          Remaining refundable: ₦{previewRemainingNgn.toLocaleString('en-NG')}
+                          {exceedsRefundableHeadroom ? ' — lower lines or amount to continue' : ''}
                         </p>
                       ) : null}
                       {mode !== 'create' && recordOutstandingAmount > 0 ? (
-                        <p className="mt-2 text-[10px] font-bold uppercase tracking-wide text-white/70">
+                        <p className="mt-1.5 text-[9px] font-bold uppercase tracking-wide text-rose-800/70">
                           Outstanding after approvals: ₦{recordOutstandingAmount.toLocaleString()}
                         </p>
                       ) : null}
@@ -2365,34 +2298,6 @@ const RefundModal = ({
                               ))}
                             </ul>
                           )}
-                        </div>
-                      ) : null}
-                      {showRefundPaidBreakdown ? (
-                        <div className="rounded-lg border border-slate-700/60 bg-slate-900/50 p-2.5 space-y-1.5">
-                          <p className="text-[9px] font-bold text-slate-500 uppercase">How booked paid is built</p>
-                          <p className="text-[10px] text-slate-300 leading-snug">
-                            <span className="font-semibold text-slate-200">Booked paid</span> on the quotation is
-                            receipt lines to this quote plus any customer deposit posted here — not only the receipt you
-                            see in Sales.
-                          </p>
-                          <ul className="text-[10px] text-slate-300 space-y-0.5 tabular-nums">
-                            {(Number(intelligence.summary?.receiptAllocatedSumNgn) || 0) > 0 ? (
-                              <li>
-                                Receipt lines allocated to this quote: ₦
-                                {Number(intelligence.summary.receiptAllocatedSumNgn).toLocaleString('en-NG')}
-                              </li>
-                            ) : null}
-                            {(Number(intelligence.summary?.advanceAppliedNgn) || 0) > 0 ? (
-                              <li>
-                                Customer deposit / advance applied (ledger): ₦
-                                {Number(intelligence.summary.advanceAppliedNgn).toLocaleString('en-NG')}
-                              </li>
-                            ) : null}
-                            <li className="text-slate-400">
-                              Stored quotation paid (cap for refunds): ₦
-                              {Number(intelligence.summary?.bookedOnQuotationNgn ?? 0).toLocaleString('en-NG')}
-                            </li>
-                          </ul>
                         </div>
                       ) : null}
                       {refundMoneyBreakdown.overpay > 0 ? (

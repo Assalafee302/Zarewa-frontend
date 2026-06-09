@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import LoginScreen from './LoginScreen.jsx';
 
@@ -27,6 +27,8 @@ describe('LoginScreen', () => {
     mockLogin.mockReset();
     mockNavigate.mockReset();
     mockWorkspace.status = 'auth_required';
+    mockWorkspace.sessionMessage = '';
+    mockWorkspace.clearSessionMessage.mockReset();
   });
 
   afterEach(() => {
@@ -68,9 +70,21 @@ describe('LoginScreen', () => {
     await expect(screen.getByText(/invalid username or password/i)).toBeVisible();
   });
 
-  it('explains first-time sign-in uses the temporary password', () => {
-    render(<LoginScreen />);
-    expect(screen.getByText(/first time signing in/i)).toBeVisible();
-    expect(screen.getByText(/temporary password/i)).toBeVisible();
+  it('shows and auto-dismisses session expiry notices', () => {
+    vi.useFakeTimers();
+    try {
+      mockWorkspace.sessionMessage = 'Your session has expired. Please sign in again.';
+      render(<LoginScreen />);
+
+      expect(screen.getByText(/your session has expired/i)).toBeVisible();
+      expect(mockWorkspace.clearSessionMessage).toHaveBeenCalled();
+
+      act(() => {
+        vi.advanceTimersByTime(6000);
+      });
+      expect(screen.queryByText(/your session has expired/i)).not.toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

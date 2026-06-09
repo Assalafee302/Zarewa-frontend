@@ -42,7 +42,6 @@ import {
 import { ReceiptPrintQuick, ReceiptPrintFull } from './receipt/ReceiptPrintViews';
 import { EditSecondApprovalInline } from './EditSecondApprovalInline';
 import { editMutationNeedsSecondApprovalRole } from '../lib/editApprovalUi';
-import { RECEIPT_AMOUNT_CONFIRM_THRESHOLD_NGN } from '../lib/receiptClearance.js';
 import { ZareHelpButton } from './ZareHelpButton';
 import { buildZareTransactionContext } from '../lib/zareTransactionContext';
 
@@ -193,7 +192,6 @@ const ReceiptModal = ({
   const [qSearch, setQSearch] = useState('');
   const [showQSearch, setShowQSearch] = useState(false);
   const [postingHint, setPostingHint] = useState(null);
-  const [confirmAmount, setConfirmAmount] = useState('');
 
   const periodLocks = ws?.snapshot?.periodLocks ?? [];
   const voucherInLockedPeriod = useMemo(
@@ -615,16 +613,6 @@ const ReceiptModal = ({
       showToast('Total must be greater than zero.', { variant: 'error' });
       return;
     }
-    if (total >= RECEIPT_AMOUNT_CONFIRM_THRESHOLD_NGN) {
-      const confirmed = parseNum(confirmAmount);
-      if (confirmed !== total) {
-        showToast(
-          `Re-enter the same total (₦${total.toLocaleString('en-NG')}) in Confirm amount before posting.`,
-          { variant: 'error' }
-        );
-        return;
-      }
-    }
     if (postingRef.current) return;
     if (receiptGuardSignals.length > 0 && !readOnly) {
       const proceed = window.confirm(
@@ -716,10 +704,9 @@ const ReceiptModal = ({
         if (postingHeadroomNgn != null && postingHeadroomNgn <= 0 && total > 0) {
           receiptBody.confirmSettledQuoteOverpay = true;
         }
-        if (total >= RECEIPT_AMOUNT_CONFIRM_THRESHOLD_NGN) {
+        if (total >= 100_000) {
           receiptBody.confirmAmountNgn = total;
         }
-
         const idempotencyKey =
           typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
             ? crypto.randomUUID()
@@ -880,20 +867,6 @@ const ReceiptModal = ({
     setPaymentLines((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } : r)));
   const addLine = () =>
     setPaymentLines((prev) => [...prev, emptyPaymentLine(voucherDate, defaultAccountId)]);
-  const fillRemainingBalanceLine = () => {
-    if (readOnly) return;
-    const fillAmt = Math.max(0, Math.round(Number(dueNgn) || 0));
-    if (fillAmt <= 0) {
-      showToast('No remaining balance to fill.', { variant: 'info' });
-      return;
-    }
-    const next = paymentLines.map((line, idx) => ({
-      ...line,
-      amount: idx === 0 ? String(fillAmt) : '',
-    }));
-    setPaymentLines(next.length ? next : [emptyPaymentLine(voucherDate, defaultAccountId)]);
-    showToast(`Filled first line with ${formatNgn(fillAmt)} (new money only).`);
-  };
   const removeLine = (id) =>
     setPaymentLines((prev) => (prev.length <= 1 ? prev : prev.filter((r) => r.id !== id)));
 
@@ -911,7 +884,7 @@ const ReceiptModal = ({
         onSubmit={saveReceipt}
         onInput={captureEdited}
         onChange={captureEdited}
-        className="z-modal-panel max-w-[min(100%,56rem)] w-full min-w-0 max-h-[min(92vh,820px)] flex flex-col"
+        className="z-modal-panel max-w-[min(100%,56rem)] w-full min-w-0 max-h-[min(100dvh,820px)] sm:max-h-[min(92vh,820px)] flex flex-col"
       >
         <div className="px-5 py-4 border-b border-slate-200 flex justify-between items-center bg-white shrink-0 gap-3">
           <div className="flex items-center gap-3 min-w-0">
@@ -968,10 +941,6 @@ const ReceiptModal = ({
             {editData?.source === 'ledger'
               ? 'Posted payment — view and print only. To fix a mistake, Finance reverses this entry and you post the correct amount again.'
               : 'View only. Imported history rows are not the live ledger; new money is always a separate post.'}
-          </div>
-        ) : !readOnly && isAddPayment ? (
-          <div className="px-5 py-2 bg-sky-50 border-b border-sky-200 text-[10px] font-medium text-sky-950">
-            Enter only <strong>new money</strong> below. Prior payments on this quote are read-only. Wrong amounts are corrected in Finance (reverse + post again), not by editing old rows.
           </div>
         ) : null}
         {!ws?.canMutate ? (
@@ -1036,9 +1005,9 @@ const ReceiptModal = ({
           </div>
         ) : null}
 
-        <div className="flex-1 overflow-hidden flex flex-col lg:flex-row bg-white min-h-0">
+        <div className="flex-1 overflow-hidden flex flex-col xl:flex-row bg-white min-h-0">
           <div
-            className={`flex-1 min-h-0 overflow-y-auto p-5 custom-scrollbar lg:border-r border-slate-100 ${readOnly ? 'pointer-events-none opacity-75' : ''}`}
+            className={`flex-1 min-h-0 overflow-y-auto p-4 sm:p-5 custom-scrollbar xl:border-r border-slate-100 ${readOnly ? 'pointer-events-none opacity-75' : ''}`}
           >
             <div className="rounded-xl border border-slate-200/90 p-4 mb-5 bg-slate-50/50">
               <p className="text-[9px] font-semibold text-slate-500 uppercase tracking-widest mb-3">
@@ -1123,50 +1092,14 @@ const ReceiptModal = ({
                   )}
                 </div>
                 {selectedQuotation ? (
-                  <div className="sm:col-span-2 rounded-lg border border-emerald-100 bg-emerald-50/40 p-3 text-[10px] text-slate-700">
-                    <p className="text-[8px] font-bold uppercase text-emerald-800 mb-1">Linked quotation</p>
-                    <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
-                      <p className="min-w-0">
-                        <span className="font-semibold text-emerald-900">Quotation:</span>{' '}
-                        <span className="font-bold text-[#134e4a]">{selectedQuotation.id ?? '—'}</span>
-                      </p>
-                      <p className="min-w-0">
-                        <span className="font-semibold text-emerald-900">Approval:</span>{' '}
-                        <span className="font-medium">{selectedQuotation.status ?? '—'}</span>
-                      </p>
-                      <p className="sm:col-span-2 min-w-0 truncate">
-                        <span className="font-semibold text-emerald-900">Customer:</span>{' '}
-                        <span className="font-medium">{selectedQuotation.customer ?? '—'}</span>
-                      </p>
-                      <p className="min-w-0 truncate">
-                        <span className="font-semibold text-emerald-900">Project:</span>{' '}
-                        <span className="font-medium">{selectedQuotation.projectName?.trim() || '—'}</span>
-                      </p>
-                      <p className="min-w-0">
-                        <span className="font-semibold text-emerald-900">Payment:</span>{' '}
-                        <span className="font-medium">{selectedQuotation.paymentStatus ?? '—'}</span>
-                      </p>
-                      <p className="min-w-0">
-                        <span className="font-semibold text-emerald-900">Gauge:</span>{' '}
-                        <span className="font-medium">{selectedQuotation.materialGauge?.trim() || '—'}</span>
-                      </p>
-                      <p className="min-w-0 truncate">
-                        <span className="font-semibold text-emerald-900">Color:</span>{' '}
-                        <span className="font-medium">{selectedQuotation.materialColor?.trim() || '—'}</span>
-                      </p>
-                    </div>
+                  <div className="sm:col-span-2 rounded-lg border border-emerald-100 bg-emerald-50/40 px-3 py-2 text-[10px] text-slate-700 flex flex-wrap items-center gap-x-3 gap-y-1">
+                    <span className="font-bold text-[#134e4a]">{selectedQuotation.id ?? '—'}</span>
+                    <span className="font-medium truncate">{selectedQuotation.customer ?? '—'}</span>
+                    <span className="xl:hidden font-bold text-emerald-700 tabular-nums">
+                      {formatNgn(displayBalance)} due
+                    </span>
                   </div>
                 ) : null}
-                <div className="sm:col-span-2">
-                  <label className={label}>Reference / remarks (applies to whole voucher)</label>
-                  <input
-                    type="text"
-                    value={remarks}
-                    onChange={(e) => setRemarks(e.target.value)}
-                    placeholder="Transfer ID, POS ref, or note"
-                    className={field}
-                  />
-                </div>
               </div>
             </div>
 
@@ -1176,113 +1109,12 @@ const ReceiptModal = ({
               </h3>
             </div>
 
-            {quotationRef && (priorRecordedOnQuotation.length > 0 || (isEdit && editingReceiptHistoricNgn > 0)) ? (
-              <div className="mb-4 rounded-xl border border-sky-200/90 bg-sky-50/70 p-3.5 space-y-2">
-                <p className="text-[9px] font-semibold text-sky-950 uppercase tracking-widest">
-                  Already posted history (read-only)
-                </p>
-                <p className="text-[10px] text-sky-900/90 leading-snug">
-                  Prior receipt payments and advance applied to this quote. Add lines below only for{' '}
-                  <strong>new</strong> money you are posting now.
-                  {isEdit && editingReceiptHistoricNgn > 0 ? (
-                    <span className="block mt-1 text-sky-950/95">
-                      The voucher you are editing is listed separately below; it is not counted in &quot;other&quot;
-                      history totals used for duplicate checks.
-                    </span>
-                  ) : null}
-                </p>
-                <ul className="space-y-1.5 max-h-[min(36vh,200px)] overflow-y-auto custom-scrollbar">
-                  {isEdit && editingReceiptHistoricNgn > 0 ? (
-                    <li className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 rounded-lg border border-amber-200/90 bg-amber-50/90 px-2.5 py-2 text-[11px]">
-                      <div className="min-w-0 flex-1">
-                        <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-                          <span className="rounded bg-amber-200/90 px-1.5 py-0.5 text-[8px] font-bold uppercase text-amber-950">
-                            This voucher (editing)
-                          </span>
-                        </div>
-                        <p className="mt-0.5 text-[10px] text-slate-600">
-                          Amount currently on this quote from this receipt (excluded from &quot;prior others&quot; in posting checks).
-                        </p>
-                      </div>
-                      <span className="shrink-0 text-sm font-black tabular-nums text-emerald-800">
-                        {formatNgn(editingReceiptHistoricNgn)}
-                      </span>
-                    </li>
-                  ) : null}
-                  {priorRecordedOnQuotation.map((row) => (
-                    <li
-                      key={row.key}
-                      className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 rounded-lg border border-sky-100 bg-white/95 px-2.5 py-2 text-[11px]"
-                    >
-                      <div className="min-w-0 flex-1">
-                        <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-                          <span className="font-bold text-[#134e4a] tabular-nums">{row.dateLabel}</span>
-                          <span className="rounded bg-sky-100 px-1.5 py-0.5 text-[8px] font-bold uppercase text-sky-900">
-                            {row.label}
-                          </span>
-                          <span className="text-[9px] font-semibold text-slate-500">{row.sublabel}</span>
-                        </div>
-                        <p className="mt-0.5 truncate text-[10px] text-slate-600" title={row.detail}>
-                          <span className="font-mono text-slate-500">{row.entryId}</span>
-                          <span className="text-slate-400"> · </span>
-                          {row.detail}
-                        </p>
-                      </div>
-                      <span className="shrink-0 text-sm font-black tabular-nums text-emerald-800">
-                        {formatNgn(row.amountNgn)}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ) : null}
-            {quotationRef &&
-            selectedQuotation &&
-            (Number(quotationRowForPayments?.paidNgn ?? selectedQuotation.paidNgn) || 0) > 0 &&
-            priorRecordedOnQuotation.length === 0 &&
-            !(isEdit && editingReceiptHistoricNgn > 0) ? (
-              <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50/90 px-3 py-2.5 text-[10px] text-amber-950 leading-snug">
-                <p className="font-bold">
-                  Payment received ({formatNgn(quotationRowForPayments?.paidNgn ?? selectedQuotation.paidNgn)} total for this quotation) but no receipt
-                  lines loaded
-                </p>
-                <p className="mt-1 opacity-95">
-                  Refresh the page or reconnect so the ledger matches the server. Until then, check Sales → Receipts
-                  before posting again.
-                </p>
-              </div>
-            ) : null}
-
             {treasuryList.length === 0 ? (
               <p className="text-[10px] font-medium text-amber-800 rounded-lg border border-amber-200 bg-amber-50/80 p-3">
                 No treasury accounts on file. Add accounts under Finance so receipts can post to bank or cash.
               </p>
             ) : null}
-            <div className="rounded-xl border border-slate-200/90 bg-slate-50/80 p-3.5 space-y-2.5">
-              <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-emerald-200 bg-emerald-50/70 px-3 py-2 text-[10px] text-emerald-950">
-                <p className="font-semibold">
-                  New money being posted now. Do not re-enter amounts shown in history above.
-                </p>
-                {!readOnly ? (
-                  <button
-                    type="button"
-                    onClick={fillRemainingBalanceLine}
-                    className="rounded-md border border-emerald-300 bg-white px-2.5 py-1 text-[10px] font-bold text-emerald-800 hover:bg-emerald-100"
-                  >
-                    Fill remaining balance
-                  </button>
-                ) : null}
-              </div>
-              {receiptGuardSignals.length > 0 && !readOnly ? (
-                <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[10px] text-amber-950">
-                  <p className="font-bold mb-1">Posting check</p>
-                  <ul className="list-disc pl-4 space-y-0.5">
-                    {receiptGuardSignals.map((signal) => (
-                      <li key={signal}>{signal}</li>
-                    ))}
-                  </ul>
-                </div>
-              ) : null}
+            <div className="space-y-2.5">
               <div className="grid grid-cols-12 gap-2.5 px-1 text-[9px] font-semibold text-slate-500 uppercase tracking-wider">
                 <div className="col-span-12 sm:col-span-3">Payee name</div>
                 <div className="col-span-6 sm:col-span-2">Account</div>
@@ -1374,27 +1206,10 @@ const ReceiptModal = ({
                 Any receipt vs overpay allocation is done later in Finance if needed.
               </p>
             ) : null}
-            {!readOnly && lineTotalNgn >= RECEIPT_AMOUNT_CONFIRM_THRESHOLD_NGN ? (
-              <div className="mt-3 rounded-xl border border-amber-200/90 bg-amber-50/80 p-3">
-                <label className={label}>Confirm amount (re-enter total)</label>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  value={confirmAmount}
-                  onChange={(e) => setConfirmAmount(e.target.value)}
-                  placeholder={formatNgn(lineTotalNgn)}
-                  className={field}
-                />
-                <p className="mt-1 text-[9px] text-amber-950/90 leading-snug">
-                  Payments of {formatNgn(RECEIPT_AMOUNT_CONFIRM_THRESHOLD_NGN)} and above require typing the same total
-                  again to prevent digit mistakes (e.g. ₦148,000 vs ₦14,800).
-                </p>
-              </div>
-            ) : null}
           </div>
 
           <div
-            className={`w-full lg:w-56 lg:shrink-0 bg-slate-50/90 p-3 flex flex-col gap-2.5 border-t lg:border-t-0 lg:border-l border-slate-100 ${readOnly ? 'opacity-85' : ''}`}
+            className={`hidden xl:flex xl:w-56 xl:shrink-0 bg-slate-50/90 p-3 flex-col gap-2.5 border-t-0 border-l border-slate-100 min-h-0 overflow-y-auto custom-scrollbar ${readOnly ? 'opacity-85' : ''}`}
           >
             <p className="text-[9px] font-semibold text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />

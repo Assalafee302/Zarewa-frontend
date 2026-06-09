@@ -38,6 +38,7 @@ import { productionJobNeedsManagerReviewAttention } from '../lib/productionRevie
 import { pickProductionJobForCuttingList } from '../lib/productionJobPick';
 import { productionQueueLineStatusPresentation } from '../lib/productionQueueLineStatus';
 import { procurementKindFromPo, poLineQtyLabel } from '../lib/procurementPoKind';
+import { shouldShowPoInTransit } from '../lib/inTransitVisibility.js';
 import {
   grnKindForPoLine,
   isCoilMeterBasisLine,
@@ -1161,12 +1162,7 @@ const Operations = () => {
   }, [location.state, location.pathname, navigate, canAdjustInventory]);
 
   const transitOrdersAll = useMemo(
-    () =>
-      purchaseOrders.filter(
-        (p) =>
-          PO_RECEIVABLE_STATUSES.includes(p.status) &&
-          (p.lines || []).some((l) => poLineIsOpenForReceiving(l))
-      ),
+    () => purchaseOrders.filter((p) => shouldShowPoInTransit(p)),
     [purchaseOrders]
   );
 
@@ -1216,7 +1212,7 @@ const Operations = () => {
   }, [coilLotsReceiptFiltered, hasCoilReceiptSearch]);
 
   const anyReceivablePo = useMemo(
-    () => purchaseOrders.some((p) => PO_RECEIVABLE_STATUSES.includes(p.status)),
+    () => purchaseOrders.some((p) => shouldShowPoInTransit(p)),
     [purchaseOrders]
   );
 

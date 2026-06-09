@@ -8,7 +8,6 @@ import {
   Trash2,
   Scissors,
   Calendar,
-  Cog,
   ChevronDown,
   Printer,
   Info,
@@ -375,7 +374,6 @@ const CuttingListModal = ({
   const readOnly = accessMode === 'view' || productionCompletedLock || productionJobRunningLock;
   const [quotationRef, setQuotationRef] = useState('');
   const [dateISO, setDateISO] = useState('');
-  const [machineName, setMachineName] = useState('Machine 01 (Longspan)');
   const [linesByCat, setLinesByCat] = useState(emptyLinesByCat);
   const [saving, setSaving] = useState(false);
   const [autosaving, setAutosaving] = useState(false);
@@ -523,6 +521,11 @@ const CuttingListModal = ({
   );
 
   const materialSpec = useMemo(() => materialSpecFromQuotation(selectedQuotation), [selectedQuotation]);
+  const machineName = useMemo(() => {
+    const fromProfile = String(materialSpec.profile ?? '').trim();
+    if (fromProfile && fromProfile !== '—') return fromProfile;
+    return String(editData?.machineName ?? '').trim();
+  }, [materialSpec.profile, editData?.machineName]);
 
   /** Master material type only (Aluzinc, Aluminium, Stone coated, …) — never product line names like "roofing sheet". */
   const materialTypeLabel = useMemo(() => {
@@ -762,12 +765,10 @@ const CuttingListModal = ({
       const qref = editData.quotationRef ?? '';
       setQuotationRef(qref);
       setDateISO(editData.dateISO ?? new Date().toISOString().slice(0, 10));
-      setMachineName(editData.machineName ?? 'Machine 01 (Longspan)');
     } else {
       setQuotationRef('');
       setQuoteSearch('');
       setDateISO(new Date().toISOString().slice(0, 10));
-      setMachineName('Machine 01 (Longspan)');
       setLinesByCat(emptyLinesByCat());
     }
     setSaving(false);
@@ -895,11 +896,10 @@ const CuttingListModal = ({
     writeCuttingListFormDraft(branchId, quotationRef, {
       quotationRef,
       dateISO,
-      machineName,
       linesByCat,
       quoteSearch,
     });
-  }, [isOpen, readOnly, branchId, quotationRef, dateISO, machineName, linesByCat, quoteSearch]);
+  }, [isOpen, readOnly, branchId, quotationRef, dateISO, linesByCat, quoteSearch]);
 
   useEffect(() => {
     if (!isOpen || editData?.id || readOnly) return;
@@ -916,7 +916,6 @@ const CuttingListModal = ({
       setQuotationRef(String(saved.quotationRef || '').trim());
       setQuoteSearch(String(saved.quoteSearch || saved.quotationRef || '').trim());
       setDateISO(saved.dateISO || new Date().toISOString().slice(0, 10));
-      setMachineName(saved.machineName || 'Machine 01 (Longspan)');
       setLinesByCat(saved.linesByCat);
     }
   }, [isOpen, editData?.id, readOnly, branchId, cuttingLists, onDraftAutosaved]);
@@ -1202,13 +1201,9 @@ const CuttingListModal = ({
               <p className="text-[9px] font-semibold text-slate-500 uppercase tracking-widest mb-3">Job header</p>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div className="md:col-span-2 space-y-2 relative z-20">
-                  <label className={label}>Quotation</label>
-                  <p className="text-[9px] text-slate-500 leading-snug -mt-1 mb-1">
-                    Search by quotation ID, customer, or customer code. You can draft lines on any quoted job;{' '}
-                    <span className="font-semibold text-slate-700">Save list</span> still needs at least{' '}
-                    <span className="font-semibold text-slate-700">{minPaidPercentLabel}%</span> paid or a manager override on the{' '}
-                    <span className="font-semibold text-slate-700">Manager dashboard</span>.
-                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-[1fr_11rem] gap-3 items-end">
+                    <div className="min-w-0">
+                      <label className={label}>Quotation</label>
                   {productionCompletedLock ? (
                     <div className={`${field} bg-slate-50 text-slate-700`}>{quotationRef || '—'}</div>
                   ) : (
@@ -1361,6 +1356,18 @@ const CuttingListModal = ({
                       ) : null}
                     </div>
                   )}
+                    </div>
+                    <div className="relative">
+                      <label className={label}>Cutting date</label>
+                      <input
+                        type="date"
+                        value={dateISO}
+                        onChange={(e) => setDateISO(e.target.value)}
+                        className={`${field} cursor-pointer`}
+                      />
+                      <Calendar size={12} className="absolute right-2 bottom-2.5 text-slate-300 pointer-events-none" />
+                    </div>
+                  </div>
                   {isCreate && selectableQuotations.length === 0 ? (
                     <p className="text-[10px] font-medium text-amber-800 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
                       No quotations are ready for a new cutting list. You need an order with a line total, at least{' '}
@@ -1369,30 +1376,6 @@ const CuttingListModal = ({
                   ) : null}
                 </div>
 
-                <div className="relative">
-                  <label className={label}>Cutting date</label>
-                  <input
-                    type="date"
-                    value={dateISO}
-                    onChange={(e) => setDateISO(e.target.value)}
-                    className={`${field} cursor-pointer`}
-                  />
-                  <Calendar size={12} className="absolute right-2 bottom-2.5 text-slate-300 pointer-events-none" />
-                </div>
-
-                <div className="relative">
-                  <label className={label}>Machine</label>
-                  <select
-                    value={machineName}
-                    onChange={(e) => setMachineName(e.target.value)}
-                    className={`${field} appearance-none pr-8`}
-                  >
-                    <option value="Machine 01 (Longspan)">Machine 01 (Longspan)</option>
-                    <option value="Machine 02 (Steeltile)">Machine 02 (Steeltile)</option>
-                    <option value="Machine 03 (Metcoppo)">Machine 03 (Metcoppo)</option>
-                  </select>
-                  <Cog size={12} className="absolute right-2 bottom-2.5 text-slate-300 pointer-events-none" />
-                </div>
                 {isCreate &&
                   quotationRef &&
                   selectedQuotation &&
@@ -1496,10 +1479,6 @@ const CuttingListModal = ({
                       <span className="tabular-nums">{formatNgn(advanceAppliedOnQuote)}</span>
                     </div>
                   ) : null}
-                  <p className="text-[8px] text-slate-500 leading-snug pt-0.5">
-                    Booked matches the quotation. Receipts is customer cash; advance is deposit credited to this quote (not added again to
-                    receipts).
-                  </p>
                   <div className="flex justify-between gap-2 font-semibold">
                     <span className="text-slate-500">Outstanding</span>
                     <span className="text-orange-700 tabular-nums">{formatNgn(balanceQuote)}</span>

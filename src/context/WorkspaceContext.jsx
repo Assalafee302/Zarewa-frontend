@@ -143,6 +143,7 @@ export function WorkspaceProvider({ children }) {
   const [editApprovalsPendingCount, setEditApprovalsPendingCount] = useState(0);
   const [roleTrainingReplayOpen, setRoleTrainingReplayOpen] = useState(false);
   const [sessionMessage, setSessionMessage] = useState('');
+  const sessionNoticeShownRef = useRef(false);
   const snapshotRef = useRef(null);
   snapshotRef.current = snapshot;
 
@@ -239,7 +240,10 @@ export function WorkspaceProvider({ children }) {
         setStatus('auth_required');
         setSnapshot(null);
         setLastError(null);
-        setSessionMessage((prev) => prev || 'Your session has expired. Please sign in again.');
+        if (!sessionNoticeShownRef.current) {
+          setSessionMessage('Your session has expired. Please sign in again.');
+          sessionNoticeShownRef.current = true;
+        }
         replaceLedgerEntries([]);
         return null;
       }
@@ -286,6 +290,7 @@ export function WorkspaceProvider({ children }) {
           return { ok: false, error, code };
         }
         setSessionMessage('');
+        sessionNoticeShownRef.current = false;
         if (data.user?.mustChangePassword) {
           markPendingPasswordChange(data.user.id);
         }
@@ -415,6 +420,7 @@ export function WorkspaceProvider({ children }) {
     setDashboardSummaryEtag('');
     setLastError(null);
     setSessionMessage(`You were signed out after ${mins} minutes of inactivity.`);
+    sessionNoticeShownRef.current = true;
     setStatus('auth_required');
   }, [snapshot?.session?.sessionTimeoutMinutes]);
 

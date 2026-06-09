@@ -15,9 +15,14 @@ export default function LoginScreen() {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    if (!ws?.sessionMessage) return;
-    setError(ws.sessionMessage);
+    if (!ws?.sessionMessage) return undefined;
+    const message = ws.sessionMessage;
+    setError(message);
     ws.clearSessionMessage?.();
+    const t = window.setTimeout(() => {
+      setError((current) => (current === message ? '' : current));
+    }, 6000);
+    return () => window.clearTimeout(t);
   }, [ws?.sessionMessage, ws?.clearSessionMessage]);
 
   const submitLogin = async (e) => {
@@ -103,11 +108,6 @@ export default function LoginScreen() {
           </div>
 
           <form className="mt-8 space-y-5" onSubmit={submitLogin}>
-            <div className="rounded-2xl border border-teal-200/80 bg-teal-50/80 px-4 py-3 text-sm text-teal-950 leading-relaxed">
-              <strong>First time signing in?</strong> Use the username and temporary password from your
-              administrator. Zarewa will ask you to choose a new password right after sign-in.
-            </div>
-
             <div>
               <label className="z-field-label" htmlFor="login-username">
                 Username
@@ -117,7 +117,10 @@ export default function LoginScreen() {
                 name="username"
                 autoComplete="username"
                 value={username}
-                onChange={(e) => setUsername(e.target.value)}
+                onChange={(e) => {
+                  setUsername(e.target.value);
+                  if (error) setError('');
+                }}
                 className="z-input"
                 placeholder="Enter your username"
               />
@@ -128,7 +131,10 @@ export default function LoginScreen() {
               label="Password"
               autoComplete="current-password"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={(e) => {
+                setPassword(e.target.value);
+                if (error) setError('');
+              }}
               placeholder="Enter your password"
               disabled={busy}
             />

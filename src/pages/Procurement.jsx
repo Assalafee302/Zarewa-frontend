@@ -30,7 +30,6 @@ import { purchaseOrderToUnifiedDraft } from '../lib/purchaseOrderDraft';
 import CoilPurchaseOrderModal from '../components/procurement/CoilPurchaseOrderModal';
 import StonePurchaseOrderModal from '../components/procurement/StonePurchaseOrderModal';
 import AccessoryPurchaseOrderModal from '../components/procurement/AccessoryPurchaseOrderModal';
-import StoneAccessoryReceiptModal from '../components/procurement/StoneAccessoryReceiptModal';
 import { ProcurementFormSection } from '../components/procurement/ProcurementFormSection';
 import { PriceListPanel } from '../components/procurement/PriceListPanel';
 import { MaterialPricingWorkbookModal } from '../components/procurement/MaterialPricingWorkbookModal';
@@ -42,13 +41,8 @@ import { useWorkspace } from '../context/WorkspaceContext';
 import { apiFetch, apiUrl } from '../lib/apiBase';
 import { purchaseOrderOrderedValueNgn } from '../lib/liveAnalytics';
 import { procurementKindFromPo } from '../lib/procurementPoKind';
+import { buildTransitDisplayRows, shouldShowPoInTransit } from '../lib/inTransitVisibility.js';
 import { EditSecondApprovalInline } from '../components/EditSecondApprovalInline';
-import { Ap2SupplierDiagnosticsPanel } from '../components/finance/Ap2SupplierDiagnosticsPanel';
-import { Ap3CostingReadinessPanel } from '../components/finance/Ap3CostingReadinessPanel';
-import {
-  userMayViewAp2SupplierDiagnosticsClient,
-  userMayViewAp3CostingReadinessClient,
-} from '../lib/financeTrialExceptionsAccess';
 import { editMutationNeedsSecondApprovalRole } from '../lib/editApprovalUi';
 import {
   SalesListSearchInput,
@@ -75,8 +69,6 @@ import {
 } from '../lib/supplierProfileForm';
 import { treasuryAccountDisplayName, treasuryAccountsForWorkspace } from '../lib/treasuryAccountsStore';
 import { createRequestPayLine, mapTreasuryPayoutLinesForApi } from '../lib/accountCore';
-import ProcurementAlertsPanel from '../components/procurement/dashboard/ProcurementAlertsPanel';
-
 /** Rows per column for Coil / Stone-coated / Accessories lists on Purchases. */
 const PROCUREMENT_PURCHASES_COLUMN_PAGE_SIZE = 10;
 const PAYABLES_TABLE_PAGE_SIZE = 10;
@@ -357,15 +349,6 @@ const Procurement = () => {
   const currentActorLabel = ws?.session?.user?.displayName ?? 'Accounts';
   const canAccessPriceList =
     (ws?.hasPermission?.('pricing.manage') || ws?.hasPermission?.('md.price_exception.approve')) ?? false;
-  const mayAp2Diagnostics = userMayViewAp2SupplierDiagnosticsClient(
-    ws?.session?.user?.roleKey,
-    ws?.session?.user?.permissions
-  );
-  const mayAp3Costing = userMayViewAp3CostingReadinessClient(
-    ws?.session?.user?.roleKey,
-    ws?.session?.user?.permissions
-  );
-
   const [activeTab, setActiveTab] = useState('purchases');
   const [agents, setAgents] = useState([]);
   const [suppliers, setSuppliers] = useState([]);
@@ -423,7 +406,6 @@ const Procurement = () => {
   const [stonePoEditDraft, setStonePoEditDraft] = useState(null);
   const [showAccessoryPoModal, setShowAccessoryPoModal] = useState(false);
   const [accessoryPoEditDraft, setAccessoryPoEditDraft] = useState(null);
-  const [showStoneAccessoryReceiptModal, setShowStoneAccessoryReceiptModal] = useState(false);
   /** Single-use token for PATCH on a PO (server consumes per request). */
   const [procurementPoEditApprovalId, setProcurementPoEditApprovalId] = useState('');
   /** PO id for list-level second-approval strip (Approve / Reject / transport actions). */
@@ -511,42 +493,9 @@ const Procurement = () => {
   );
 
   const transitLoadingCount = useMemo(
-    () =>
-      purchaseOrders.filter((p) => p.status === 'In Transit' || p.status === 'On loading').length,
+    () => purchaseOrders.filter((p) => shouldShowPoInTransit(p)).length,
     [purchaseOrders]
   );
-
-  const pendingPoCount = useMemo(
-    () => purchaseOrders.filter((p) => ['Draft', 'Pending', 'Submitted'].includes(String(p.status || ''))).length,
-    [purchaseOrders]
-  );
-
-  const procurementAlerts = useMemo(() => {
-    const out = [];
-    if (pendingPoCount > 0) {
-      out.push({
-        severity: 'medium',
-        type: 'PO approvals',
-        message: `${pendingPoCount} purchase order(s) awaiting action.`,
-      });
-    }
-    if (transitLoadingCount > 0) {
-      out.push({
-        severity: 'medium',
-        type: 'GRN pending',
-        message: `${transitLoadingCount} PO(s) in transit — receiving may be needed.`,
-      });
-    }
-    if (outstandingSupplierNgn > 0) {
-      out.push({
-        severity: 'high',
-        type: 'Outstanding payables',
-        message: 'Supplier obligations pending settlement.',
-        amountNgn: outstandingSupplierNgn,
-      });
-    }
-    return out;
-  }, [pendingPoCount, transitLoadingCount, outstandingSupplierNgn]);
 
   const bestSupplier = useMemo(() => {
     const byId = {};
@@ -750,9 +699,6 @@ const Procurement = () => {
     activeTab === 'purchases' ? null : activeTab === 'suppliers' ? 'New supplier' : null;
 
   const canManagePo = Boolean(ws?.hasPermission?.('purchase_orders.manage'));
-  const canDirectStoneAccessoryReceipt = ['admin', 'md'].includes(
-    String(ws?.session?.user?.roleKey || '').toLowerCase()
-  );
 
   const poTransportAwaitingTreasuryRows = useMemo(
     () =>
@@ -1335,45 +1281,20 @@ const Procurement = () => {
     showCoilPoModal ||
     showStonePoModal ||
     showAccessoryPoModal ||
-    showStoneAccessoryReceiptModal ||
     showSupplierModal ||
     showAgentModal ||
     showTransportModal ||
     showApPayModal;
 
-  const transitRowsForAside = useMemo(() => {
-    if (inTransitLoads.length > 0) {
-      return inTransitLoads.map((load) => ({
-        poID: load.purchaseOrderId || load.referenceNo || load.id,
-        supplierName: load.data?.supplierName || 'Linked PO',
-        transportAgentName: load.transportAgentName,
-        transportReference: load.transportReference,
-        transportNote: load.exceptionNote || load.delayReason || '',
-        status:
-          load.status === 'loading_confirmed'
-            ? 'On loading'
-            : load.status === 'in_transit'
-              ? 'In Transit'
-              : load.status,
-      }));
-    }
-    return purchaseOrders
-      .filter((p) => p.status === 'On loading' || p.status === 'In Transit')
-      .map((p) => ({
-        poID: p.poID,
-        supplierName: p.supplierName,
-        transportAgentName: p.transportAgentName,
-        transportReference: p.transportReference,
-        transportNote: p.transportNote || '',
-        status: p.status,
-      }));
-  }, [inTransitLoads, purchaseOrders]);
+  const transitRowsForAside = useMemo(
+    () => buildTransitDisplayRows({ purchaseOrders, inTransitLoads }),
+    [inTransitLoads, purchaseOrders]
+  );
 
   return (
     <PageShell blurred={isAnyModalOpen}>
       <PageHeader
         title="Purchases"
-        subtitle="Coil procurement (KG) for MD — suppliers Kano / Abuja / Lagos, transport, conversion (kg/m), Finance-ready payments."
         tabs={<PageTabs tabs={procurementTabs} value={activeTab} onChange={setActiveTab} />}
         toolbar={
           (activeTab === 'purchases' && canManagePo) ||
@@ -1427,16 +1348,6 @@ const Procurement = () => {
                     >
                       <Plus size={12} strokeWidth={2} /> New purchase order
                     </button>
-                    {canDirectStoneAccessoryReceipt ? (
-                      <button
-                        type="button"
-                        onClick={() => setShowStoneAccessoryReceiptModal(true)}
-                        className="inline-flex items-center justify-center gap-1 rounded-lg border border-amber-200 bg-amber-50/90 text-amber-950 px-2.5 py-1.5 text-[9px] font-semibold uppercase tracking-wider hover:bg-amber-100/80"
-                        title="Emergency direct receipt without PO — prefer a purchase order for normal buying"
-                      >
-                        Emergency receipt
-                      </button>
-                    ) : null}
                   </div>
                 </div>
               ) : null}
@@ -1453,12 +1364,6 @@ const Procurement = () => {
           ) : null
         }
       />
-
-      {procurementAlerts.length > 0 ? (
-        <div className="mb-4">
-          <ProcurementAlertsPanel alerts={procurementAlerts} />
-        </div>
-      ) : null}
 
       {procBranchId ? (
         <div className="rounded-2xl border border-teal-200/80 bg-teal-50/40 px-4 py-4 mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -1534,52 +1439,6 @@ const Procurement = () => {
               </p>
             </div>
           </div>
-          {mayAp2Diagnostics ? (
-            <div className="col-span-full mt-2">
-              <p className="text-[10px] font-bold uppercase text-slate-500 mb-2">
-                AP2a — ordered / received / paid diagnostic (read-only)
-              </p>
-              <Ap2SupplierDiagnosticsPanel
-                initialBranchId={procBranchId || 'ALL'}
-                compact
-                autoLoad
-                enabled={mayAp2Diagnostics}
-                showAp2c={mayAp2Diagnostics}
-                mayPreviewRebuild={false}
-              />
-              <p className="mt-2 text-[10px] text-slate-500">
-                Full tables and export on{' '}
-                <Link to="/accounting" className="font-bold text-teal-800 hover:underline">
-                  Accounting Desk → Supplier &amp; AP
-                </Link>
-                . Supplier payments remain in{' '}
-                <Link to="/accounts?tab=disbursements" className="font-bold text-teal-800 hover:underline">
-                  Finance → Payments
-                </Link>
-                .
-              </p>
-            </div>
-          ) : null}
-          {mayAp3Costing ? (
-            <div className="col-span-full mt-2">
-              <p className="text-[10px] font-bold uppercase text-amber-800 mb-2">
-                AP3a — costing readiness (missing metres / coil cost)
-              </p>
-              <Ap3CostingReadinessPanel
-                initialBranchId={procBranchId || 'ALL'}
-                compact
-                autoLoad
-                enabled={mayAp3Costing}
-              />
-              <p className="mt-2 text-[10px] text-slate-500">
-                Full costing report on{' '}
-                <Link to="/accounting" state={{ focusTab: 'costing' }} className="font-bold text-teal-800 hover:underline">
-                  Accounting Desk → Costing
-                </Link>
-                . Readiness only — not final cost per metre.
-              </p>
-            </div>
-          ) : null}
         </div>
 
         <div className="col-span-full min-w-0 order-2">
@@ -2433,18 +2292,6 @@ const Procurement = () => {
           }
           showToast(`${res.poID} created — approve, then assign transport.`);
           return true;
-        }}
-      />
-
-      <StoneAccessoryReceiptModal
-        isOpen={showStoneAccessoryReceiptModal}
-        onClose={() => setShowStoneAccessoryReceiptModal(false)}
-        masterData={ws?.snapshot?.masterData ?? null}
-        products={invProducts}
-        canMutate={canManagePo}
-        onPosted={() => {
-          showToast('Stone metre receipt posted.', { variant: 'success' });
-          void ws?.refresh?.();
         }}
       />
 

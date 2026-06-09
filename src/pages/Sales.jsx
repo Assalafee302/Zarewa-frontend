@@ -35,8 +35,11 @@ import {
 } from '../lib/salesReceiptsList';
 import {
   paymentCountByQuotationRef,
+  quotationDisplayPaymentStatus,
+  quotationEffectivePaidNgn,
   quotationListPaymentMeta,
 } from '../lib/quotationPaymentSummary';
+import { loadLedgerEntries } from '../lib/customerLedgerStore';
 import LinkAdvanceModal from '../components/sales/LinkAdvanceModal';
 import { ModalFrame } from '../components/layout';
 import { AdvancePaymentPrintView } from '../components/receipt/ReceiptPrintViews';
@@ -612,6 +615,14 @@ const Sales = () => {
   const paymentCountByQuoteRef = useMemo(
     () => paymentCountByQuotationRef(mergedReceiptRowsWithCuttingMeta),
     [mergedReceiptRowsWithCuttingMeta]
+  );
+
+  const quotationPayOpts = useMemo(
+    () => ({
+      salesReceipts: mergedReceiptRowsWithCuttingMeta,
+      ledgerEntries: loadLedgerEntries(),
+    }),
+    [mergedReceiptRowsWithCuttingMeta, ledgerSyncKey]
   );
 
   const quotationsRef = useRef(quotations);
@@ -1517,7 +1528,8 @@ const Sales = () => {
                   <>
                     <ul className="max-h-[min(280px,42vh)] overflow-y-auto custom-scrollbar space-y-1.5">
                       {quotationsRefundPotentialRows.slice(0, REFUND_POTENTIAL_SIDEBAR_CAP).map((q) => {
-                        const paid = Number(q.paidNgn) || 0;
+                        const paid = quotationEffectivePaidNgn(q, quotationPayOpts);
+                        const payStatus = quotationDisplayPaymentStatus(q, quotationPayOpts);
                         return (
                           <li key={q.id}>
                             <button
@@ -1531,7 +1543,7 @@ const Sales = () => {
                               <span className="text-[9px] text-slate-600 block truncate">{q.customer}</span>
                               <span className="text-[9px] font-semibold text-slate-700 tabular-nums mt-0.5">
                                 Paid {formatNgn(paid)}
-                                {q.paymentStatus ? ` · ${q.paymentStatus}` : ''}
+                                {payStatus ? ` · ${payStatus}` : ''}
                               </span>
                             </button>
                           </li>
@@ -1632,7 +1644,10 @@ const Sales = () => {
                       <ul className="space-y-1.5">
                         {filteredQuotations.map((q) => {
                           const payCount = paymentCountByQuoteRef.get(String(q.id || '').trim()) || 0;
-                          const meta2 = quotationListPaymentMeta(q, payCount);
+                          const payStatus = quotationDisplayPaymentStatus(q, quotationPayOpts);
+                          const paidForUi = quotationEffectivePaidNgn(q, quotationPayOpts);
+                          const meta2 = quotationListPaymentMeta(q, payCount, quotationPayOpts);
+                          const qForFollowUp = { ...q, paidNgn: paidForUi, paymentStatus: payStatus };
                           return (
                             <li key={q.id} className={salesListItemClass(`q-${q.id}`, actionMenuKey)}>
                               <div className="flex flex-wrap items-start justify-between gap-2 min-w-0">
@@ -1649,10 +1664,10 @@ const Sales = () => {
                                       <span className={`${CHIP} ${quoteApprovalChipBorder(q.status)}`}>
                                         {q.status}
                                       </span>
-                                      <span className={`${CHIP} ${quotePayChipBorder(q.paymentStatus)}`}>
-                                        {q.paymentStatus}
+                                      <span className={`${CHIP} ${quotePayChipBorder(payStatus)}`}>
+                                        {payStatus}
                                       </span>
-                                      {quotationNeedsFollowUpAlert(q) ? (
+                                      {quotationNeedsFollowUpAlert(qForFollowUp) ? (
                                         <span
                                           className={`${CHIP} border-amber-300 bg-amber-100 text-amber-950`}
                                           title={`Day ${QUOTATION_FOLLOWUP_START_DAY}–${QUOTATION_VALIDITY_DAYS - 1} follow-up — still unpaid on quote`}

@@ -17,9 +17,9 @@ import {
 import { ModalFrame } from './layout/ModalFrame';
 import { useTrackedUnsavedForm } from '../hooks/useTrackedUnsavedForm';
 import { useCustomers } from '../context/CustomersContext';
-import { bankAccountsForCustomerPayment, treasuryAccountsForWorkspace } from '../lib/treasuryAccountsStore';
+import { treasuryAccountDisplayName, treasuryAccountsForWorkspace } from '../lib/treasuryAccountsStore';
 import { compareGaugeLabels, compareSelectLabels } from '../lib/selectOptionSort';
-import { colourSelectOptionsFromRows } from '../lib/colourCanonicalization.js';
+import { colourSelectOptionsFromRows, PREFERRED_COIL_COLOUR_IDS } from '../lib/colourCanonicalization.js';
 import {
   STONE_METER_INVENTORY_MODEL,
   STONE_PROFILE_FALLBACK,
@@ -727,17 +727,13 @@ const QuotationModal = ({
   const handleClose = wrapClose(() => onClose());
 
   const treasuryPayAccountsLive = useMemo(() => {
-    const raw = bankAccountsForCustomerPayment(
+    const raw =
       treasuryAccountsForWorkspace(ws?.snapshot, ws?.session, {
         branchScope: ws?.branchScope,
         viewAllBranches: ws?.viewAllBranches,
-      })
-    );
+      }) || [];
     return [...raw].sort((a, b) =>
-      compareSelectLabels(
-        `${String(a.bankName || '').trim() || String(a.name || '').trim()} · ${String(a.accNo || '')}`,
-        `${String(b.bankName || '').trim() || String(b.name || '').trim()} · ${String(b.accNo || '')}`
-      )
+      compareSelectLabels(treasuryAccountDisplayName(a), treasuryAccountDisplayName(b))
     );
   }, [
     /** Epoch ties treasury list to intentional workspace refresh, not silent snapshot churn. */
@@ -868,7 +864,39 @@ const QuotationModal = ({
     const inv = String(
       liveMasterData?.materialTypes?.find((row) => row.id === materialTypeId)?.inventoryModel || ''
     ).trim();
-    if (inv !== 'stone_meter' || !materialTypeId) return base;
+    if (!materialTypeId) return base;
+
+    if (inv === 'coil_kg') {
+      const preferred = base.filter(
+        (c) => c.id && PREFERRED_COIL_COLOUR_IDS.has(String(c.id).trim())
+      );
+      if (preferred.length) {
+        return [...preferred].sort((a, b) => compareSelectLabels(a.label, b.label));
+      }
+
+      const activePriceList = Array.isArray(liveMasterData?.priceList)
+        ? liveMasterData.priceList.filter((row) => row.active)
+        : [];
+      const colourIds = new Set(
+        activePriceList
+          .filter((r) => String(r.materialTypeId || '').trim() === materialTypeId)
+          .map((r) => String(r.colourId || '').trim())
+          .filter(Boolean)
+      );
+      if (colourIds.size) {
+        const byPriceList = base.filter((c) => c.id && colourIds.has(String(c.id).trim()));
+        if (byPriceList.length) {
+          return [...byPriceList].sort((a, b) => compareSelectLabels(a.label, b.label));
+        }
+      }
+
+      const coilOnly = base.filter((c) => !STONE_DEFAULT_COLOUR_KEYS.has(normQuoteItemKey(c.value)));
+      return [...(coilOnly.length ? coilOnly : base)].sort((a, b) =>
+        compareSelectLabels(a.label, b.label)
+      );
+    }
+
+    if (inv !== STONE_METER_INVENTORY_MODEL) return base;
 
     const activePriceList = Array.isArray(liveMasterData?.priceList)
       ? liveMasterData.priceList.filter((row) => row.active)
@@ -2364,8 +2392,7 @@ const QuotationModal = ({
             </label>
             {treasuryPayAccounts.length === 0 ? (
               <p className="text-[10px] font-medium text-amber-800 leading-snug">
-                No bank accounts with a valid account number in Treasury. Add a bank account under Finance → Treasury,
-                including bank name and number.
+                No treasury accounts on file. Add accounts under Finance → Treasury.
               </p>
             ) : (
               <select
@@ -2375,17 +2402,12 @@ const QuotationModal = ({
               >
                 {treasuryPayAccounts.map((a) => (
                   <option key={a.id} value={String(a.id)}>
-                    {(a.bankName?.trim() || a.name) + ' · ' + a.accNo}
+                    {treasuryAccountDisplayName(a)}
+                    {a.accNo && a.accNo !== 'N/A' ? ` · ${a.accNo}` : ''}
                   </option>
                 ))}
               </select>
             )}
-            {selectedPayTreasuryAccount ? (
-              <p className="text-[9px] text-slate-500 mt-2 leading-snug">
-                Customer sees: {(selectedPayTreasuryAccount.bankName?.trim() || selectedPayTreasuryAccount.name)},{' '}
-                {selectedPayTreasuryAccount.accNo}, {ZAREWA_COMPANY_ACCOUNT_NAME}
-              </p>
-            ) : null}
           </div>
 
           {editData?.id && selectedCustomerId && !readOnly ? (

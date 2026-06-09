@@ -22,11 +22,7 @@ import {
   workItemShowsInUnfiledTray,
 } from '../../lib/workspaceInboxBuckets';
 import { workItemShowsOfficeDrawerTransactionIntel } from '../../lib/transactionIntelFromWorkItem';
-import {
-  WORKSPACE_CATEGORIES,
-  WORKSPACE_CATEGORY_LABELS,
-  WORKSPACE_CATEGORY_ORDER,
-} from '../../lib/workspaceCategoryRegistry';
+import { WORKSPACE_CATEGORIES } from '../../lib/workspaceCategoryRegistry';
 import { DEFAULT_INBOX_FILTERS, filterWorkItemsForInbox, itemsForWorkspaceView } from '../../lib/workspaceInboxFilters';
 import { normalizeWorkItem, normalizeWorkItems } from '../../lib/workspaceWorkItemModel';
 import { ComposeMemoButton } from '../office/OfficeRecordComposeDrawer';
@@ -597,7 +593,7 @@ export default function GmailStyleWorkspace({
       data-workspace-folder={listMode === 'memos' ? 'memos' : workItemsView}
       data-workspace-category={activeCategory}
     >
-      <div className="flex h-[min(72vh,820px)] min-h-[420px] w-full min-w-0 flex-col bg-white lg:flex-row">
+      <div className="flex h-[min(88vh,960px)] min-h-[min(520px,80vh)] w-full min-w-0 flex-col bg-white lg:flex-row">
         {/* Mobile folder selector */}
         <div className="border-b border-slate-200 bg-slate-50 px-3 py-2 lg:hidden">
           <button
@@ -661,27 +657,13 @@ export default function GmailStyleWorkspace({
               <WorkspaceInboxToolbar
                 filters={inboxFilters}
                 onFiltersChange={setInboxFilters}
+                category={activeCategory}
+                onCategoryChange={setCategory}
                 onRefresh={() => void handleRefresh()}
                 refreshing={refreshing}
                 lastUpdatedLabel={lastUpdatedLabel}
                 degraded={Boolean(ws?.usingCachedData)}
               />
-              <div className="z-scroll-x flex max-w-full shrink-0 items-center gap-1 overflow-x-auto border-b border-slate-200 bg-white px-3 py-2">
-                {WORKSPACE_CATEGORY_ORDER.map((key) => (
-                  <button
-                    key={key}
-                    type="button"
-                    onClick={() => setCategory(key)}
-                    className={`shrink-0 rounded-md px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-colors ${
-                      activeCategory === key
-                        ? 'bg-teal-800 text-white shadow-sm'
-                        : 'text-slate-600 hover:bg-slate-100'
-                    }`}
-                  >
-                    {WORKSPACE_CATEGORY_LABELS[key] || key}
-                  </button>
-                ))}
-              </div>
             </>
           ) : null}
 

@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
+import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import RefundModal from './RefundModal.jsx';
 import { ToastProvider } from '../context/ToastContext.jsx';
@@ -304,8 +304,7 @@ describe('RefundModal', () => {
 
     await screen.findByDisplayValue(/Line A/i);
 
-    const requestedBlock = screen.getByText(/Requested refund amount/i).closest('div.rounded-2xl');
-    const requested = within(requestedBlock).getByRole('spinbutton');
+    const requested = screen.getByLabelText(/Requested refund amount/i);
     await user.clear(requested);
     await user.type(requested, '999');
 
