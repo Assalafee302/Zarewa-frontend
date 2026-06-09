@@ -456,8 +456,6 @@ const CuttingListModal = ({
       if (total <= 0) return false;
       const meetsPay = meetsCuttingListPayThreshold(q, receipts, ledgerEntries, minPaidFraction);
       if (meetsPay) return true;
-      // New lists can draft against underpaid quotes; final save still requires payment or manager override.
-      if (!editingId) return true;
       // Keep the linked quote visible when editing an existing list (may be under threshold).
       return Boolean(editingQuoteId && q.id === editingQuoteId);
     });
