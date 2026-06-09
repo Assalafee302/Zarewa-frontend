@@ -252,8 +252,39 @@ export function InventoryProvider({ children }) {
         if (!ok || !data?.ok) {
           return { ok: false, error: data?.error || 'Could not create PO on server.' };
         }
-        await ws.refresh();
-        return { ok: true, poID: data.poID };
+        const poID = String(data.poID || '').trim();
+        setPurchaseOrders((prev) => {
+          const row = normalizePurchaseOrder(
+            {
+              poID,
+              supplierID,
+              supplierName,
+              orderDateISO: orderDateISO || new Date().toISOString().slice(0, 10),
+              expectedDeliveryISO: expectedDeliveryISO || '',
+              status,
+              invoiceNo: '',
+              invoiceDateISO: '',
+              deliveryDateISO: '',
+              transportAgentId: '',
+              transportAgentName: '',
+              transportReference: '',
+              transportNote: '',
+              transportPaid: false,
+              transportPaidAtISO: '',
+              supplierPaidNgn: 0,
+              lines: normalizedLines,
+            },
+            products
+          );
+          return [row, ...prev.filter((p) => p.poID !== poID)];
+        });
+        appendMovement({
+          type: 'PO_CREATED',
+          ref: poID,
+          detail: `${supplierName} · ${normalizedLines.length} coil line(s)`,
+        });
+        void ws.refresh?.();
+        return { ok: true, poID };
       }
 
       let createdId = '';
@@ -356,7 +387,33 @@ export function InventoryProvider({ children }) {
         if (!ok || !data?.ok) {
           return { ok: false, error: data?.error || 'Could not update PO on server.' };
         }
-        await ws.refresh();
+        setPurchaseOrders((prev) =>
+          prev.map((p) => {
+            if (p.poID !== id) return p;
+            const receivedByKey = new Map(p.lines.map((line) => [line.lineKey, line.qtyReceived]));
+            const linesWithReceipts = normalizedLines.map((line) => ({
+              ...line,
+              qtyReceived: receivedByKey.get(line.lineKey) ?? line.qtyReceived ?? 0,
+            }));
+            return normalizePurchaseOrder(
+              {
+                ...p,
+                supplierID,
+                supplierName,
+                orderDateISO: orderDateISO || new Date().toISOString().slice(0, 10),
+                expectedDeliveryISO: expectedDeliveryISO || '',
+                lines: linesWithReceipts,
+              },
+              products
+            );
+          })
+        );
+        appendMovement({
+          type: 'PO_UPDATED',
+          ref: id,
+          detail: `${supplierName} · ${normalizedLines.length} line(s) revised`,
+        });
+        void ws.refresh?.();
         return { ok: true, poID: id };
       }
 
@@ -370,7 +427,10 @@ export function InventoryProvider({ children }) {
                   supplierName,
                   orderDateISO: orderDateISO || new Date().toISOString().slice(0, 10),
                   expectedDeliveryISO: expectedDeliveryISO || '',
-                  lines: normalizedLines,
+                  lines: normalizedLines.map((line) => ({
+                    ...line,
+                    qtyReceived: p.lines.find((pl) => pl.lineKey === line.lineKey)?.qtyReceived ?? 0,
+                  })),
                 },
                 products
               )
