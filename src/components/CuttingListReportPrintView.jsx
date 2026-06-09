@@ -470,6 +470,47 @@ function ProductionScratchpad() {
   );
 }
 
+function formatPrintAuditWhen(iso) {
+  const raw = String(iso ?? '').trim();
+  if (!raw) return '';
+  const d = new Date(raw);
+  if (Number.isNaN(d.getTime())) return raw.slice(0, 16);
+  return d.toLocaleString('en-NG', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
+function PrintAuditFooter({ printCount = 0, lastPrintedAtISO = '', lastPrintedBy = '' }) {
+  const n = Math.max(0, Number(printCount) || 0);
+  const when = formatPrintAuditWhen(lastPrintedAtISO);
+  const by = String(lastPrintedBy ?? '').trim();
+  return (
+    <footer className="cl-factory-print-audit" aria-label="Print audit">
+      <span className="cl-factory-print-audit-k">Print audit</span>
+      <span className="cl-factory-print-audit-sep">·</span>
+      <span>
+        Times printed: <strong className="tabular-nums">{n.toLocaleString('en-NG')}</strong>
+      </span>
+      {when ? (
+        <>
+          <span className="cl-factory-print-audit-sep">·</span>
+          <span>Last print: {when}</span>
+        </>
+      ) : null}
+      {by ? (
+        <>
+          <span className="cl-factory-print-audit-sep">·</span>
+          <span>By: {by}</span>
+        </>
+      ) : null}
+    </footer>
+  );
+}
+
 function ReceiptPaymentBlock({ receipt, treasuryMovements }) {
   const splits = receiptLedgerReceiptTreasurySplits(receipt, treasuryMovements);
   const total = receiptCashReceivedNgn(receipt);
@@ -516,6 +557,9 @@ export default function CuttingListReportPrintView({
   omitCladdingSection = false,
   /** When set (e.g. "Stone flatsheet"), replaces the Cladding table title on print / waybill. */
   claddingSectionTitle = '',
+  printCount = 0,
+  lastPrintedAtISO = '',
+  lastPrintedBy = '',
 }) {
   const b = ZAREWA_QUOTATION_BRANDING;
 
@@ -731,6 +775,11 @@ export default function CuttingListReportPrintView({
             />
           </div>
         </div>
+        <PrintAuditFooter
+          printCount={printCount}
+          lastPrintedAtISO={lastPrintedAtISO}
+          lastPrintedBy={lastPrintedBy}
+        />
       </section>
     </div>
   );

@@ -37,7 +37,9 @@ export default defineConfig({
       output: {
         manualChunks(id) {
           if (id.includes('node_modules')) {
-            if (id.includes('lucide-react')) return 'vendor-lucide';
+            // Keep all lucide in app-shell — micro vendor-lucide / per-icon chunks imported
+            // the icon factory back from app-shell ("Cannot access 'Q' before initialization").
+            if (id.includes('lucide-react')) return 'app-shell';
             if (id.includes('react-dom')) return 'vendor-react-dom';
             if (id.includes('react-router')) return 'vendor-router';
             if (id.includes('/react/')) return 'vendor-react';
