@@ -1081,7 +1081,7 @@ const RefundModal = ({
     blockTracking: readOnly,
     hydrateKey: refundHydrateKey,
   });
-  const handleClose = () => wrapClose(() => onClose());
+  const handleClose = wrapClose(() => onClose());
 
   const approvalMoneyContext = useMemo(() => {
     if (!showApproval) return null;

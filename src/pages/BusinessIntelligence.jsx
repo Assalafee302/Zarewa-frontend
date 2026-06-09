@@ -333,11 +333,11 @@ export default function BusinessIntelligence() {
   const azMix = sales?.mixRows?.find((r) => r.family === 'aluzinc');
   const matPerf = sales?.materialPerformance;
   const sku = inv?.skuIntelligence;
-  const skuForecast = invForecast;
   const procurement = data?.procurement;
   const branches = data?.branchBreakdown?.byBranch || [];
   const prodForecast = data?.productionForecast;
   const invForecast = data?.inventoryForecast;
+  const skuForecast = invForecast;
   const expenses = data?.expenseAnalysis;
 
   return (

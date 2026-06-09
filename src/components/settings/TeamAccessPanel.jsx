@@ -606,7 +606,9 @@ export default function TeamAccessPanel({ appUsers, currentUserId, onRefresh }) 
 
       <ModalFrame
         isOpen={createOpen}
-        onClose={wrapCreateClose(() => !createBusy && setCreateOpen(false))}
+        onClose={wrapCreateClose(() => {
+          if (!createBusy) setCreateOpen(false);
+        })}
         closeDisabled={createBusy}
         title="Create app user"
         description="Creates a login with a temporary password. Password must be at least 8 characters with mixed case, a number, and a special character."

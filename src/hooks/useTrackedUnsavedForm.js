@@ -33,7 +33,7 @@ export function useTrackedUnsavedForm(id, { isOpen, blockTracking, hydrateKey })
   }, [blockTracking]);
 
   const wrapClose = useCallback(
-    (fn) => {
+    (fn) => () => {
       if (edited && !blockTracking && !window.confirm(UNSAVED_LEAVE_MESSAGE)) return;
       setEdited(false);
       fn();

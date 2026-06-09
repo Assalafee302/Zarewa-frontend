@@ -54,7 +54,7 @@ export default function LinkAdvanceModal({
     blockTracking: false,
     hydrateKey: linkAdvHydrateKey,
   });
-  const handleClose = () => wrapClose(() => onClose());
+  const handleClose = wrapClose(() => onClose());
 
   useEffect(() => {
     if (!isOpen || !advanceEntry) return;

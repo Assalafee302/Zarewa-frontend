@@ -223,7 +223,7 @@ const ReceiptModal = ({
     blockTracking: readOnly,
     hydrateKey: receiptHydrateSig,
   });
-  const handleClose = () => wrapClose(() => onClose());
+  const handleClose = wrapClose(() => onClose());
 
   useEffect(() => {
     if (!isOpen) {

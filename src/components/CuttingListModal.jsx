@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -381,6 +382,10 @@ const CuttingListModal = ({
   const [autosaveNote, setAutosaveNote] = useState('');
   const [registering, setRegistering] = useState(false);
   const [showPrintPreview, setShowPrintPreview] = useState(false);
+  const [printCountForSheet, setPrintCountForSheet] = useState(0);
+  const [lastPrintedAtForSheet, setLastPrintedAtForSheet] = useState('');
+  const [lastPrintedByForSheet, setLastPrintedByForSheet] = useState('');
+  const [recordingPrint, setRecordingPrint] = useState(false);
   const [holdForProductionApproval, setHoldForProductionApproval] = useState(false);
   const [clearingHold, setClearingHold] = useState(false);
   const [quoteSearch, setQuoteSearch] = useState('');
@@ -411,7 +416,7 @@ const CuttingListModal = ({
     blockTracking: readOnly,
     hydrateKey: cuttingListHydrateSig,
   });
-  const handleClose = () => wrapClose(() => onClose());
+  const handleClose = wrapClose(() => onClose());
 
   useEffect(() => {
     if (!isOpen) return;
@@ -638,6 +643,9 @@ const CuttingListModal = ({
       treasuryMovements: Array.isArray(ws?.snapshot?.treasuryMovements) ? ws.snapshot.treasuryMovements : [],
       claddingSectionTitle: isStoneMeterCuttingList ? 'Stone flatsheet' : '',
       omitCladdingSection: false,
+      printCount: printCountForSheet,
+      lastPrintedAtISO: lastPrintedAtForSheet,
+      lastPrintedBy: lastPrintedByForSheet,
     }),
     [
       savedCuttingListId,
@@ -656,8 +664,45 @@ const CuttingListModal = ({
       quoteReceipts,
       activeDisplayName,
       ws?.snapshot?.treasuryMovements,
+      printCountForSheet,
+      lastPrintedAtForSheet,
+      lastPrintedByForSheet,
     ]
   );
+
+  useEffect(() => {
+    if (!showPrintPreview) return;
+    setPrintCountForSheet(Number(editData?.printCount) || 0);
+    setLastPrintedAtForSheet(String(editData?.lastPrintedAtISO ?? '').trim());
+    setLastPrintedByForSheet(String(editData?.lastPrintedBy ?? '').trim());
+  }, [showPrintPreview, editData?.printCount, editData?.lastPrintedAtISO, editData?.lastPrintedBy]);
+
+  const runCuttingListPrint = useCallback(async () => {
+    const id = String(editData?.id ?? '').trim();
+    if (id && ws?.canMutate) {
+      setRecordingPrint(true);
+      const { ok, data } = await apiFetch(`/api/cutting-lists/${encodeURIComponent(id)}/record-print`, {
+        method: 'POST',
+        body: JSON.stringify({}),
+      });
+      setRecordingPrint(false);
+      if (ok && data?.ok) {
+        const nextCount = Number(data.printCount) || printCountForSheet + 1;
+        const nextAt = String(data.cuttingList?.lastPrintedAtISO ?? data.lastPrintedAtISO ?? '').trim();
+        const nextBy = String(data.cuttingList?.lastPrintedBy ?? data.lastPrintedBy ?? '').trim();
+        flushSync(() => {
+          setPrintCountForSheet(nextCount);
+          if (nextAt) setLastPrintedAtForSheet(nextAt);
+          if (nextBy) setLastPrintedByForSheet(nextBy);
+        });
+        if (data.cuttingList) onCuttingListUpdated?.(data.cuttingList);
+        await ws?.refresh?.();
+      } else {
+        showToast(data?.error || 'Print count could not be saved — printing anyway.', { variant: 'warning' });
+      }
+    }
+    window.print();
+  }, [editData?.id, ws, printCountForSheet, onCuttingListUpdated, showToast]);
 
    
   useEffect(() => {
@@ -1367,12 +1412,10 @@ const CuttingListModal = ({
                     </div>
                     <button
                       type="button"
-                      onClick={() => {
-                        wrapClose(() => {
-                          onClose();
-                          navigate(`/manager?quoteRef=${encodeURIComponent(quotationRef)}`);
-                        });
-                      }}
+                      onClick={wrapClose(() => {
+                        onClose();
+                        navigate(`/manager?quoteRef=${encodeURIComponent(quotationRef)}`);
+                      })}
                       className="w-full sm:w-auto px-4 py-2.5 rounded-lg bg-[#134e4a] text-white text-[9px] font-bold uppercase tracking-wider hover:bg-[#0f3d39] transition-colors"
                     >
                       Open Manager dashboard for this quotation
@@ -1621,11 +1664,12 @@ const CuttingListModal = ({
                   <div className="flex flex-wrap justify-center gap-2">
                     <button
                       type="button"
-                      onClick={() => window.print()}
+                      onClick={() => void runCuttingListPrint()}
+                      disabled={recordingPrint}
                       title="The layout uses A4 landscape (@page). Most browsers open the print dialog with A4 and landscape pre-selected; if not, choose them manually. Use Scale → Fit to page only if content still clips."
-                      className="rounded-lg bg-[#134e4a] px-5 py-2.5 text-[10px] font-semibold uppercase tracking-wide text-white shadow-lg"
+                      className="rounded-lg bg-[#134e4a] px-5 py-2.5 text-[10px] font-semibold uppercase tracking-wide text-white shadow-lg disabled:opacity-60"
                     >
-                      Print / Save PDF · A4 landscape
+                      {recordingPrint ? 'Recording print…' : 'Print / Save PDF · A4 landscape'}
                     </button>
                     <button
                       type="button"
@@ -1636,7 +1680,8 @@ const CuttingListModal = ({
                     </button>
                   </div>
                   <p className="text-center text-[9px] text-slate-500 max-w-sm leading-snug">
-                    Stylesheet uses <span className="font-semibold text-slate-600">A4 landscape</span> (named @page) so one sheet usually fits
+                    Each print is counted at the bottom of the sheet for audit. Stylesheet uses{' '}
+                    <span className="font-semibold text-slate-600">A4 landscape</span> (named @page) so one sheet usually fits
                     without a blank second page. If the dialog shows Letter or portrait, switch to A4 and landscape. Use{' '}
                     <span className="font-semibold text-slate-600">Fit to page</span> only if something still clips.
                   </p>

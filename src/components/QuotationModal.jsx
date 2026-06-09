@@ -724,7 +724,7 @@ const QuotationModal = ({
     blockTracking: materialFieldsLocked,
     hydrateKey: quotationHydrateSig,
   });
-  const handleClose = () => wrapClose(() => onClose());
+  const handleClose = wrapClose(() => onClose());
 
   const treasuryPayAccountsLive = useMemo(() => {
     const raw = bankAccountsForCustomerPayment(
