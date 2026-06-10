@@ -8,6 +8,10 @@ import { QuotationLifecycleTimeline } from '../production/ProductionPhase11B';
 import { apiFetch } from '../../lib/apiBase';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { userMayOverrideProductionAlignment } from '../../lib/workspaceGovernanceClient';
+import {
+  auditRefundCalculationLineArithmetic,
+  expectedAmountFromRefundLineLabel,
+} from '../../lib/refundLineArithmetic';
 
 function refundCategoryTokens(value) {
   if (Array.isArray(value)) return value.map((x) => String(x ?? '').trim()).filter(Boolean);
@@ -152,6 +156,11 @@ export function RefundManagerApprovalPreview({
     ? refundIntel.productionSuggestedCategories
     : [];
   const calcLines = refund?.calculationLines || [];
+  const lineArithmeticIssues = useMemo(
+    () => auditRefundCalculationLineArithmetic(calcLines),
+    [calcLines]
+  );
+  const lineArithmeticBlocksApprove = lineArithmeticIssues.length > 0;
 
   const checksByJob = useMemo(() => {
     const m = new Map();
@@ -258,22 +267,38 @@ export function RefundManagerApprovalPreview({
       productionAlignmentOverrideNote: productionAlignmentOverrideNote.trim(),
     });
   };
-  const quoteRefundCategories = useMemo(() => {
-    const set = new Set(currentCategories.map((c) => c.toLowerCase()));
+  const priorRefundCategories = useMemo(() => {
+    const labels = [];
     for (const r of otherRefunds) {
       for (const c of refundCategoryTokens(r.reason_category)) {
-        set.add(c.toLowerCase());
+        const label = String(c || '').trim();
+        if (label && !labels.includes(label)) labels.push(label);
       }
     }
-    return set;
-  }, [currentCategories, otherRefunds]);
+    return labels;
+  }, [otherRefunds]);
 
-  const hasOverpayCategory =
-    quoteRefundCategories.has('overpayment') || currentCategories.some((c) => /overpay/i.test(c));
-  const hasCancelOrUnproduced =
-    ['order cancellation', 'unproduced meterage'].some((k) => quoteRefundCategories.has(k)) ||
-    currentCategories.some((c) => /cancellation|unproduced/i.test(c));
-  const multiCategoryOverlap = hasOverpayCategory && hasCancelOrUnproduced;
+  const currentNorm = useMemo(
+    () => new Set(currentCategories.map((c) => String(c).trim().toLowerCase())),
+    [currentCategories]
+  );
+  const priorNorm = useMemo(
+    () => new Set(priorRefundCategories.map((c) => String(c).trim().toLowerCase())),
+    [priorRefundCategories]
+  );
+
+  const currentHasOverpay = [...currentNorm].some((c) => c.includes('overpay'));
+  const currentHasCancel = [...currentNorm].some((c) => c.includes('order cancellation'));
+  const currentHasUnproduced = [...currentNorm].some((c) => c.includes('unproduced'));
+  const priorHasOverpay = [...priorNorm].some((c) => c.includes('overpay'));
+  const priorHasCancel = [...priorNorm].some((c) => c.includes('order cancellation'));
+  const priorHasUnproduced = [...priorNorm].some((c) => c.includes('unproduced'));
+
+  const sameRequestOverpayAndCancel = currentHasOverpay && currentHasCancel;
+  const crossRefundOverlap =
+    (priorHasOverpay && (currentHasCancel || currentHasUnproduced)) ||
+    ((priorHasCancel || priorHasUnproduced) && currentHasOverpay);
+  const multiCategoryOverlap = sameRequestOverpayAndCancel || crossRefundOverlap;
 
   const partialProductionJobs = useMemo(
     () =>
@@ -303,11 +328,28 @@ export function RefundManagerApprovalPreview({
         body: `Requested ${formatNgn(requestedAmountNgn)} exceeds the executive refund threshold. Only MD/CEO (or administrator) may approve this amount.`,
       });
     }
+    if (lineArithmeticIssues.length > 0) {
+      alerts.push({
+        tone: 'rose',
+        title: 'Breakdown arithmetic mismatch',
+        body: lineArithmeticIssues
+          .map((issue) =>
+            issue.formulaText
+              ? `"${issue.label}" implies ${formatNgn(issue.expectedAmountNgn)} (${issue.formulaText}) but the line amount is ${formatNgn(issue.amountNgn)}.`
+              : `"${issue.label}" implies ${formatNgn(issue.expectedAmountNgn)} but the line amount is ${formatNgn(issue.amountNgn)}.`
+          )
+          .join(' '),
+      });
+    }
     if (multiCategoryOverlap) {
       alerts.push({
-        tone: 'amber',
+        tone: sameRequestOverpayAndCancel ? 'rose' : 'amber',
         title: 'Multi-category overlap on quotation',
-        body: 'This quote has Overpayment combined with Order cancellation and/or Unproduced meterage across refund requests. Verify categories are not double-counting the same economic loss.',
+        body: sameRequestOverpayAndCancel
+          ? 'This request combines Overpayment with Order cancellation — these double-count cash received. Reject or send back until one category is removed.'
+          : priorRefundCategories.length
+            ? `Prior refund(s): ${priorRefundCategories.join(', ')}. Current: ${currentCategories.join(', ') || '—'}. Verify Overpayment is not double-counted with cancellation/unproduced meterage on this quote.`
+            : 'This quote has Overpayment combined with Order cancellation and/or Unproduced meterage across refund requests. Verify categories are not double-counting the same economic loss.',
       });
     }
     if (partialProductionJobs.length > 0 || cancellationWithProduction) {
@@ -352,6 +394,10 @@ export function RefundManagerApprovalPreview({
     requestedAmountNgn,
     formatNgn,
     multiCategoryOverlap,
+    sameRequestOverpayAndCancel,
+    priorRefundCategories,
+    currentCategories,
+    lineArithmeticIssues,
     partialProductionJobs.length,
     cancellationWithProduction,
     paymentPct,
@@ -724,21 +770,47 @@ export function RefundManagerApprovalPreview({
               <Fragment>
                 <p className="mb-1 mt-2 text-[9px] font-black uppercase text-slate-400">Amount breakdown</p>
                 <div className="mb-2 divide-y divide-slate-100 overflow-hidden rounded-lg border border-slate-200">
-                  {calcLines.map((ln, idx) => (
-                    <div key={idx} className="flex justify-between gap-2 px-2 py-1.5">
-                      <span className="min-w-0 text-[10px] text-slate-800">
-                        {ln.label || ln.description || ln.category || `Line ${idx + 1}`}
-                      </span>
-                      <span className="shrink-0 font-bold tabular-nums text-slate-900">
-                        {formatNgn(Number(ln.amountNgn ?? ln.amount_ngn) || 0)}
-                      </span>
-                    </div>
-                  ))}
+                  {calcLines.map((ln, idx) => {
+                    const amt = Number(ln.amountNgn ?? ln.amount_ngn) || 0;
+                    const expected = expectedAmountFromRefundLineLabel(ln.label, ln.category);
+                    const mismatch =
+                      expected != null && Math.abs(amt - expected) > 1;
+                    const issue = lineArithmeticIssues.find((i) => i.lineIndex === idx);
+                    return (
+                      <div
+                        key={idx}
+                        className={`px-2 py-1.5 ${mismatch ? 'bg-rose-50/80' : ''}`}
+                      >
+                        <div className="flex justify-between gap-2">
+                          <span className="min-w-0 text-[10px] text-slate-800">
+                            {ln.label || ln.description || ln.category || `Line ${idx + 1}`}
+                          </span>
+                          <span
+                            className={`shrink-0 font-bold tabular-nums ${mismatch ? 'text-rose-800' : 'text-slate-900'}`}
+                          >
+                            {formatNgn(amt)}
+                          </span>
+                        </div>
+                        {mismatch ? (
+                          <p className="mt-1 text-[9px] font-semibold leading-snug text-rose-800">
+                            Description implies {formatNgn(expected)}
+                            {issue?.formulaText ? ` (${issue.formulaText})` : ''} — not {formatNgn(amt)}.
+                          </p>
+                        ) : null}
+                      </div>
+                    );
+                  })}
                   <div className="flex justify-between gap-2 bg-slate-50 px-2 py-1.5 font-bold">
                     <span className="text-[10px] text-slate-700">Total (lines)</span>
                     <span className="tabular-nums text-rose-800">{formatNgn(sumCalcLines(calcLines))}</span>
                   </div>
                 </div>
+                {lineArithmeticBlocksApprove ? (
+                  <p className="mb-2 text-[10px] font-semibold leading-snug text-rose-800" role="alert">
+                    Approval is blocked: a line description does not match its amount. Reject or send the requester
+                    back to Sales to correct the breakdown before approving.
+                  </p>
+                ) : null}
               </Fragment>
             ) : null}
 
@@ -871,7 +943,7 @@ export function RefundManagerApprovalPreview({
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           <button
             type="button"
-            disabled={decisionBusy || loading || alignmentBlocksApprove}
+            disabled={decisionBusy || loading || alignmentBlocksApprove || lineArithmeticBlocksApprove}
             onClick={handleApproveClick}
             className="flex flex-col items-center gap-1.5 rounded-xl bg-emerald-600 p-3.5 text-white transition-colors hover:bg-emerald-500 disabled:opacity-50"
           >

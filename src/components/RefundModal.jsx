@@ -47,6 +47,10 @@ import {
   resolveStoneFlatsheetLengthM,
 } from '../lib/stoneCoatedQuotationPolicy';
 import { listRefundPayeeSuggestions, touchRefundPayeeAccount, refundPayeeDedupeKey } from '../lib/refundPayeeRecentAccounts';
+import {
+  auditRefundCalculationLineArithmetic,
+  expectedAmountFromRefundLineLabel,
+} from '../lib/refundLineArithmetic';
 
 const REFUND_CATEGORY_HINTS = {
   'Unproduced meterage':
@@ -289,6 +293,26 @@ function sumLines(lines) {
   }, 0);
 }
 
+/** Sum included line amounts per category (expands bundled appliesToCategories). */
+function sumLinesByCategory(lines) {
+  /** @type {Record<string, number>} */
+  const sums = {};
+  for (const line of lines || []) {
+    if (line?.include === false) continue;
+    const amt = roundMoneyLocal(line.amountNgn);
+    if (amt <= 0) continue;
+    const multi = line.appliesToCategories;
+    const cats =
+      Array.isArray(multi) && multi.length
+        ? multi.map((c) => String(c || '').trim()).filter(Boolean)
+        : [String(line.category || '').trim()].filter(Boolean);
+    for (const cat of cats) {
+      sums[cat] = (sums[cat] || 0) + amt;
+    }
+  }
+  return sums;
+}
+
 const AMOUNT_LINE_TOL = 1;
 
 /**
@@ -430,6 +454,7 @@ const RefundModal = ({
   const [refundIntelExpanded, setRefundIntelExpanded] = useState(() => mode !== 'create');
   /** From refund preview: paid on quote vs overpay split (ledger RECEIPT + OVERPAY_ADVANCE). */
   const [moneyContext, setMoneyContext] = useState(null);
+  const [categorySuggestedMaxNgn, setCategorySuggestedMaxNgn] = useState(null);
   const [productionAlignmentIssues, setProductionAlignmentIssues] = useState([]);
   const [productionAlignmentAck, setProductionAlignmentAck] = useState({});
   const [productionAlignmentOverrideNote, setProductionAlignmentOverrideNote] = useState('');
@@ -819,6 +844,7 @@ const RefundModal = ({
       if (!ok || !data?.ok || !data?.preview) {
         previewLoadedForQuoteRef.current = '';
         setMoneyContext(null);
+        setCategorySuggestedMaxNgn(null);
         setPreviewRemainingNgn(null);
         setLastPreviewSnapshot(null);
         setEligibleRefundCategoriesFromPreview(null);
@@ -860,6 +886,11 @@ const RefundModal = ({
             ? Math.round(Number(preview.refundHardCapNgn))
             : Math.round(Number(preview.quotationCashInNgn) || 0),
       });
+      setCategorySuggestedMaxNgn(
+        preview.categorySuggestedMaxNgn && typeof preview.categorySuggestedMaxNgn === 'object'
+          ? preview.categorySuggestedMaxNgn
+          : null
+      );
 
       setWarnings(preview.warnings || []);
       if (Array.isArray(preview.productionAlignmentIssues)) {
@@ -915,6 +946,7 @@ const RefundModal = ({
     productionFingerprintRef.current = '';
     previewLoadedForQuoteRef.current = '';
     setMoneyContext(null);
+    setCategorySuggestedMaxNgn(null);
     setPreviewRemainingNgn(null);
     setLastPreviewSnapshot(null);
     setEligibleRefundCategoriesFromPreview(null);
@@ -1179,31 +1211,8 @@ const RefundModal = ({
   }, [form.quotationRef, refunds]);
 
   const multiCategoryOverlapContext = useMemo(() => {
-    const quoteCats = new Set(derivedReasonCategories.map((c) => String(c).trim().toLowerCase()));
-    for (const r of priorRefundsOnQuote) {
-      const raw = r.reasonCategory ?? r.reason_category;
-      const tokens = Array.isArray(raw)
-        ? raw
-        : (() => {
-            const s = String(raw ?? '').trim();
-            if (!s) return [];
-            if (s.startsWith('[')) {
-              try {
-                const parsed = JSON.parse(s);
-                return Array.isArray(parsed) ? parsed : [s];
-              } catch {
-                return [s];
-              }
-            }
-            return [s];
-          })();
-      for (const c of tokens) quoteCats.add(String(c).trim().toLowerCase());
-    }
-    const hasOverpay = [...quoteCats].some((c) => c.includes('overpay'));
-    const hasCancelOrUnproduced = [...quoteCats].some(
-      (c) => c.includes('order cancellation') || c.includes('unproduced')
-    );
-    if (!hasOverpay || !hasCancelOrUnproduced) return null;
+    const currentLabels = derivedReasonCategories;
+    const currentNorm = new Set(currentLabels.map((c) => String(c).trim().toLowerCase()));
     const priorLabels = [
       ...new Set(
         priorRefundsOnQuote.flatMap((r) => {
@@ -1223,9 +1232,27 @@ const RefundModal = ({
         })
       ),
     ];
+    const priorNorm = new Set(priorLabels.map((c) => String(c).trim().toLowerCase()));
+
+    const currentHasOverpay = [...currentNorm].some((c) => c.includes('overpay'));
+    const currentHasCancel = [...currentNorm].some((c) => c.includes('order cancellation'));
+    const currentHasUnproduced = [...currentNorm].some((c) => c.includes('unproduced'));
+    const priorHasOverpay = [...priorNorm].some((c) => c.includes('overpay'));
+    const priorHasCancel = [...priorNorm].some((c) => c.includes('order cancellation'));
+    const priorHasUnproduced = [...priorNorm].some((c) => c.includes('unproduced'));
+
+    const sameRequestOverpayAndCancel = currentHasOverpay && currentHasCancel;
+    const crossRefundOverlap =
+      (priorHasOverpay && (currentHasCancel || currentHasUnproduced)) ||
+      ((priorHasCancel || priorHasUnproduced) && currentHasOverpay);
+
+    if (!sameRequestOverpayAndCancel && !crossRefundOverlap) return null;
+
     return {
       priorLabels,
-      currentLabels: derivedReasonCategories,
+      currentLabels,
+      sameRequestOverpayAndCancel,
+      crossRefundOverlap,
     };
   }, [derivedReasonCategories, priorRefundsOnQuote]);
 
@@ -1297,6 +1324,39 @@ const RefundModal = ({
       return;
     }
 
+    const lineSumsByCategory = sumLinesByCategory(form.calculationLines);
+    if (categorySuggestedMaxNgn && typeof categorySuggestedMaxNgn === 'object') {
+      for (const [cat, sum] of Object.entries(lineSumsByCategory)) {
+        const cap = Math.round(Number(categorySuggestedMaxNgn[cat]) || 0);
+        if (cap > 0 && sum > cap + AMOUNT_LINE_TOL) {
+          setPreviewError(
+            `${cat} refund (₦${sum.toLocaleString('en-NG')}) cannot exceed the system-calculated amount (₦${cap.toLocaleString('en-NG')}). Manual adjustment may reduce, not increase, the preview figure.`
+          );
+          return;
+        }
+      }
+    }
+
+    const currentHasOverpay = (lineSumsByCategory.Overpayment || 0) > 0;
+    const currentHasCancel = (lineSumsByCategory['Order cancellation'] || 0) > 0;
+    if (currentHasOverpay && currentHasCancel) {
+      setPreviewError(
+        'Overpayment and Order cancellation cannot appear on the same refund request — they double-count cash received. Use one category or separate requests.'
+      );
+      return;
+    }
+
+    const arithmeticIssues = auditRefundCalculationLineArithmetic(form.calculationLines);
+    if (arithmeticIssues.length > 0) {
+      const first = arithmeticIssues[0];
+      setPreviewError(
+        first.formulaText
+          ? `Line amount does not match its description: "${first.label}" implies ₦${first.expectedAmountNgn.toLocaleString('en-NG')} (${first.formulaText}).`
+          : `Line amount does not match its description: "${first.label}" implies ₦${first.expectedAmountNgn.toLocaleString('en-NG')}.`
+      );
+      return;
+    }
+
     const calculationLines = form.calculationLines
       .filter((l) => l.include !== false)
       .map((l) => {
@@ -1326,6 +1386,7 @@ const RefundModal = ({
       reason: form.reasonNotes.trim() || reasonCategory.join(', '),
       amountNgn,
       calculationLines,
+      suggestedLines: lastPreviewSnapshot?.suggestedLines || [],
       calculationNotes: form.calculationNotes.trim(),
       status: 'Pending',
       previewSnapshot: lastPreviewSnapshot,
@@ -1393,6 +1454,17 @@ const RefundModal = ({
         );
         return;
       }
+
+      const approvalArithmeticIssues = auditRefundCalculationLineArithmetic(linesForDecision);
+      if (approvalArithmeticIssues.length > 0) {
+        const first = approvalArithmeticIssues[0];
+        setPreviewError(
+          first.formulaText
+            ? `Cannot approve: "${first.label}" implies ₦${first.expectedAmountNgn.toLocaleString('en-NG')} (${first.formulaText}) but line amount is ₦${first.amountNgn.toLocaleString('en-NG')}.`
+            : `Cannot approve: line description and amount do not match.`
+        );
+        return;
+      }
     }
 
     setPreviewError('');
@@ -1441,6 +1513,24 @@ const RefundModal = ({
     if (String(row.category || '').trim() !== 'Overpayment') return sum;
     return sum + roundMoneyLocal(row.amountNgn);
   }, 0);
+  const lineSumsByCategory = useMemo(
+    () => sumLinesByCategory(form.calculationLines),
+    [form.calculationLines]
+  );
+  const categoryCapViolation = useMemo(() => {
+    if (!categorySuggestedMaxNgn || typeof categorySuggestedMaxNgn !== 'object') return null;
+    for (const [cat, sum] of Object.entries(lineSumsByCategory)) {
+      const cap = Math.round(Number(categorySuggestedMaxNgn[cat]) || 0);
+      if (cap > 0 && sum > cap + AMOUNT_LINE_TOL) {
+        return { cat, sum, cap };
+      }
+    }
+    return null;
+  }, [categorySuggestedMaxNgn, lineSumsByCategory]);
+  const lineArithmeticIssues = useMemo(
+    () => auditRefundCalculationLineArithmetic(form.calculationLines),
+    [form.calculationLines]
+  );
   const exceedsOverpayLine = overpayLineAmountNgn > overpayMaxNgn + AMOUNT_LINE_TOL;
   const exceedsHardCap =
     refundHardCapNgn != null &&
@@ -1448,7 +1538,8 @@ const RefundModal = ({
     (lineSum > refundHardCapNgn + AMOUNT_LINE_TOL ||
       (Number(form.amountNgn) > 0 && Number(form.amountNgn) > refundHardCapNgn + AMOUNT_LINE_TOL));
   const exceedsRefundableHeadroom =
-    mode === 'create' && (exceedsHardCap || exceedsOverpayLine);
+    mode === 'create' &&
+    (exceedsHardCap || exceedsOverpayLine || categoryCapViolation != null || lineArithmeticIssues.length > 0);
   const sumMismatch =
     mode === 'create' &&
     lineSum > 0 &&
@@ -1916,6 +2007,13 @@ const RefundModal = ({
                     ) : (
                       form.calculationLines.map((line, idx) => {
                         const isManual = String(line.lineKey || '').startsWith('m-');
+                        const expectedFromLabel = expectedAmountFromRefundLineLabel(line.label, line.category);
+                        const lineAmount = roundMoneyLocal(line.amountNgn);
+                        const labelAmountMismatch =
+                          expectedFromLabel != null &&
+                          line.include !== false &&
+                          lineAmount > 0 &&
+                          Math.abs(lineAmount - expectedFromLabel) > AMOUNT_LINE_TOL;
                         return (
                           <div
                             key={line.lineKey || `line-${idx}`}
@@ -1935,12 +2033,19 @@ const RefundModal = ({
                             <div className="min-w-0 flex-1 space-y-1.5">
                               <textarea
                                 rows={2}
-                                disabled={readOnly}
+                                disabled={readOnly || !isManual}
+                                readOnly={!readOnly && !isManual}
                                 value={line.label}
                                 onChange={(e) => setLine(idx, { label: e.target.value })}
-                                className="w-full min-h-[2.75rem] resize-y border-none bg-transparent p-0 text-xs font-bold text-slate-800 outline-none focus:ring-0 leading-snug whitespace-pre-wrap"
+                                className="w-full min-h-[2.75rem] resize-y border-none bg-transparent p-0 text-xs font-bold text-slate-800 outline-none focus:ring-0 leading-snug whitespace-pre-wrap disabled:text-slate-700"
                                 placeholder="Description (two lines OK for long substitution notes)…"
                               />
+                              {labelAmountMismatch ? (
+                                <p className="text-[9px] font-semibold text-rose-700 leading-snug">
+                                  Description implies ₦{expectedFromLabel.toLocaleString('en-NG')} — adjust the amount
+                                  to match or use a manual line without a formula in the label.
+                                </p>
+                              ) : null}
                               {substitutionPerMeterBreakdown.length > 0 &&
                               (String(line.category || '').trim() === 'Substitution Difference' ||
                                 (substitutionBreakdownLineKeyRef.current &&
@@ -2053,7 +2158,11 @@ const RefundModal = ({
                         </p>
                         {exceedsRefundableHeadroom ? (
                           <p className="text-[10px] font-semibold text-rose-700 mt-1 leading-snug">
-                            {exceedsOverpayLine
+                            {categoryCapViolation
+                              ? `${categoryCapViolation.cat} cannot exceed system-calculated ₦${categoryCapViolation.cap.toLocaleString('en-NG')} (entered ₦${categoryCapViolation.sum.toLocaleString('en-NG')}).`
+                              : lineArithmeticIssues[0]
+                                ? `Line description does not match amount — implied ₦${lineArithmeticIssues[0].expectedAmountNgn.toLocaleString('en-NG')}.`
+                                : exceedsOverpayLine
                               ? `Overpayment line cannot exceed ₦${overpayMaxNgn.toLocaleString('en-NG')} (payment minus quote total on this quotation).`
                               : `Included lines exceed cash received on this quotation (max ₦${(refundHardCapNgn ?? 0).toLocaleString('en-NG')} after prior refunds).`}
                           </p>
@@ -2887,11 +2996,14 @@ const RefundModal = ({
                 <p className="text-xs font-black text-amber-950">Multi-category overlap on quotation</p>
               </div>
               <p className="text-[11px] text-amber-950 leading-snug">
-                {multiCategoryOverlapContext.priorLabels.length
-                  ? `Prior refund(s) on this quote: ${multiCategoryOverlapContext.priorLabels.join(', ')}. `
-                  : ''}
-                This request: {multiCategoryOverlapContext.currentLabels.join(', ') || '—'}. Overpayment must not be
-                double-counted with Order cancellation or Unproduced meterage on the same quotation.
+                {multiCategoryOverlapContext.sameRequestOverpayAndCancel
+                  ? 'This request combines Overpayment with Order cancellation — these double-count cash received. Remove one category before submitting.'
+                  : multiCategoryOverlapContext.priorLabels.length
+                    ? `Prior refund(s) on this quote: ${multiCategoryOverlapContext.priorLabels.join(', ')}. `
+                    : ''}
+                {!multiCategoryOverlapContext.sameRequestOverpayAndCancel
+                  ? `This request: ${multiCategoryOverlapContext.currentLabels.join(', ') || '—'}. Overpayment must not be double-counted with Order cancellation or Unproduced meterage on the same quotation — acknowledge the production alignment warning below if amounts are verified.`
+                  : null}
               </p>
             </div>
           ) : null}
