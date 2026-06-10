@@ -48,6 +48,7 @@ import {
   conversionVarianceReasonLabel,
   findConversionReasonOption,
 } from '../shared/productionConversionReasons';
+import { resolveLiveJobMaterialKind } from '../lib/productionLiveJobMaterialKind';
 
 /** Matches server: closing below this (kg) may use “Finish roll” on completion to clear the tail from stock. */
 const COIL_TAIL_FINISH_MAX_KG = 85;
@@ -527,6 +528,11 @@ export function LiveProductionMonitor({
     if (!ref || !Array.isArray(ws?.snapshot?.quotations)) return null;
     return ws.snapshot.quotations.find((q) => q.id === ref) ?? null;
   }, [selectedJob?.quotationRef, ws?.snapshot?.quotations]);
+  const linkedCuttingList = useMemo(() => {
+    const clId = String(selectedJob?.cuttingListId ?? '').trim();
+    if (!clId || !Array.isArray(ws?.snapshot?.cuttingLists)) return null;
+    return ws.snapshot.cuttingLists.find((c) => c.id === clId) ?? null;
+  }, [selectedJob?.cuttingListId, ws?.snapshot?.cuttingLists]);
   const productionClosedForQuote = useMemo(() => {
     const qid = String(selectedJob?.quotationRef ?? '').trim();
     if (!qid) return false;
@@ -539,11 +545,17 @@ export function LiveProductionMonitor({
       return st === 'completed' || st === 'cancelled';
     });
   }, [selectedJob?.quotationRef, linkedQuotation?.status, ws?.snapshot?.productionJobs]);
-  const isStoneMeterQuote = Boolean(
-    linkedQuotation &&
-      (linkedQuotation.stoneMeterQuote === true ||
-        String(linkedQuotation.materialTypeId || '').trim() === 'MAT-005')
-  );
+  const isStoneMeterQuote = useMemo(() => {
+    if (linkedQuotation?.stoneMeterQuote === true) return true;
+    if (String(linkedQuotation?.materialTypeId || '').trim() === 'MAT-005') return true;
+    return (
+      resolveLiveJobMaterialKind({
+        quotation: linkedQuotation,
+        cuttingList: linkedCuttingList,
+        materialTypes: ws?.snapshot?.masterData?.materialTypes,
+      }) === 'stone'
+    );
+  }, [linkedQuotation, linkedCuttingList, ws?.snapshot?.masterData?.materialTypes]);
   const isAccessoriesOnlyQuote = quotationIsAccessoriesOnlyForProduction(linkedQuotation);
   const isStoneAccessoriesOnlyQuote = isStoneMeterQuote && isAccessoriesOnlyQuote;
   const completionUsesOffcutMode =
