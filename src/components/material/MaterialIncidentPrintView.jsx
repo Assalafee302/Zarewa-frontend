@@ -1,13 +1,17 @@
 import React from 'react';
 import { ZAREWA_COMPANY_ACCOUNT_NAME } from '../../Data/companyQuotation';
 import { fmtConv2 } from '../../lib/conversionKgPerM.js';
-import { INCIDENT_TYPES, INCIDENT_STATUS_LABEL } from '../../lib/materialIncidentConstants';
+import { INCIDENT_TYPES, INCIDENT_STATUS_LABEL, RETURN_DISPOSITIONS } from '../../lib/materialIncidentConstants';
 
 const TH = 'px-2 py-1.5 text-left text-[9px] font-bold uppercase tracking-wide text-slate-600 print:text-[8pt]';
 const TD = 'px-2 py-1.5 align-top text-[11px] text-slate-800 print:text-[10pt]';
 
 function typeLabel(id) {
   return INCIDENT_TYPES.find((t) => t.id === id)?.label || id || '—';
+}
+
+function dispositionLabel(id) {
+  return RETURN_DISPOSITIONS.find((t) => t.id === id)?.label || id || '—';
 }
 
 export default function MaterialIncidentPrintView({ payload }) {
@@ -28,83 +32,92 @@ export default function MaterialIncidentPrintView({ payload }) {
         </div>
       ) : null}
 
-      <header className="border-b-2 border-[#134e4a] pb-4 mb-6">
-        <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Material exception register</p>
-        <h1 className="text-xl font-black text-[#134e4a]">{ZAREWA_COMPANY_ACCOUNT_NAME}</h1>
-        <p className="text-sm font-semibold text-slate-700">{payload.branchName || payload.branchId}</p>
+      <header className="border-b-2 border-[#134e4a] pb-4 mb-5">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Material exception register</p>
+            <h1 className="text-xl font-black text-[#134e4a]">{ZAREWA_COMPANY_ACCOUNT_NAME}</h1>
+            <p className="text-sm font-semibold text-slate-700">{payload.branchName || payload.branchId}</p>
+          </div>
+          <div className="text-right">
+            <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400">Tracking reference</p>
+            <p className="font-mono text-2xl font-black text-[#134e4a] tracking-tight">{payload.id}</p>
+            <p className="text-[10px] text-slate-500 mt-1">Book ref · {payload.bookRef || payload.id}</p>
+          </div>
+        </div>
       </header>
 
-      <div className="grid grid-cols-2 gap-4 text-sm mb-6">
-        <div>
+      <div className="grid grid-cols-2 gap-4 text-sm mb-5 rounded-lg border border-slate-200 bg-slate-50/60 p-3">
+        <div className="space-y-1">
           <p>
-            <span className="font-bold text-slate-500">Incident no.</span>{' '}
-            <span className="font-mono font-bold">{payload.id}</span>
+            <span className="font-bold text-slate-500">Date</span> {payload.dateISO}
           </p>
           <p>
-            <span className="font-bold text-slate-500">Book ref.</span> {payload.bookRef || payload.id}
+            <span className="font-bold text-slate-500">Type</span> {typeLabel(payload.incidentType)}
           </p>
           <p>
-            <span className="font-bold text-slate-500">Date.</span> {payload.dateISO}
-          </p>
-          <p>
-            <span className="font-bold text-slate-500">Type.</span> {typeLabel(payload.incidentType)}
-          </p>
-          <p>
-            <span className="font-bold text-slate-500">Status.</span>{' '}
+            <span className="font-bold text-slate-500">Status</span>{' '}
             {INCIDENT_STATUS_LABEL[payload.status] || payload.status}
           </p>
+          <p>
+            <span className="font-bold text-slate-500">Disposition</span> {dispositionLabel(payload.returnDisposition)}
+          </p>
         </div>
-        <div>
+        <div className="space-y-1">
           <p>
-            <span className="font-bold text-slate-500">Gauge / colour.</span> {payload.gaugeLabel} · {payload.colour}
+            <span className="font-bold text-slate-500">Gauge / colour</span> {payload.gaugeLabel || '—'} ·{' '}
+            {payload.colour || '—'}
           </p>
           <p>
-            <span className="font-bold text-slate-500">Coil.</span> {payload.coilNo || '—'}
+            <span className="font-bold text-slate-500">Coil</span> {payload.coilNo || '—'}
           </p>
           <p>
-            <span className="font-bold text-slate-500">Quotation.</span> {payload.quotationRef || '—'}
+            <span className="font-bold text-slate-500">Product</span> {payload.productId || '—'}
           </p>
-          <p>
-            <span className="font-bold text-slate-500">Production job.</span> {payload.productionJobId || '—'}
-          </p>
-          <p>
-            <span className="font-bold text-slate-500">Customer.</span> {payload.customerLabel || '—'}
-          </p>
+          {payload.productionJobId ? (
+            <p>
+              <span className="font-bold text-slate-500">Production job</span> {payload.productionJobId}
+            </p>
+          ) : null}
         </div>
       </div>
 
-      <section className="mb-6">
-        <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-2">Quantity detail</p>
-        <table className="w-full border-collapse border border-slate-200">
+      <section className="mb-5">
+        <p className="text-[10px] font-bold uppercase tracking-widest text-[#134e4a] mb-2 border-b border-slate-200 pb-1">
+          Damaged sections
+        </p>
+        <table className="w-full border-collapse border border-slate-200 quotation-print-table">
           <thead>
             <tr className="bg-slate-50">
+              <th className={TH}>#</th>
               <th className={TH}>Length (m)</th>
               <th className={TH}>Qty</th>
-              <th className={TH}>Total (m)</th>
-              <th className={TH}>Condition</th>
+              <th className={TH}>Line (m)</th>
+              <th className={TH}>Note</th>
             </tr>
           </thead>
           <tbody>
             {lines.length === 0 ? (
               <tr>
-                <td colSpan={4} className={`${TD} text-center text-slate-500`}>
+                <td colSpan={5} className={`${TD} text-center text-slate-500`}>
                   —
                 </td>
               </tr>
             ) : (
-              lines.map((ln) => (
-                <tr key={ln.id} className="border-t border-slate-100">
+              lines.map((ln, idx) => (
+                <tr key={ln.id || idx} className="border-t border-slate-100 quotation-print-line">
+                  <td className={TD}>{idx + 1}</td>
                   <td className={TD}>{ln.lengthM}</td>
                   <td className={TD}>{ln.quantity}</td>
-                  <td className={TD}>{ln.totalM}</td>
+                  <td className={`${TD} font-semibold`}>{ln.totalM}</td>
                   <td className={TD}>{ln.conditionNote || '—'}</td>
                 </tr>
               ))
             )}
           </tbody>
           <tfoot>
-            <tr className="border-t-2 border-slate-300 font-bold">
-              <td colSpan={2} className={TD}>
+            <tr className="border-t-2 border-slate-300 font-bold bg-slate-50">
+              <td colSpan={3} className={TD}>
                 Total metres
               </td>
               <td className={TD}>{payload.totalMeters}</td>
@@ -114,7 +127,7 @@ export default function MaterialIncidentPrintView({ payload }) {
         </table>
       </section>
 
-      <section className="mb-6 grid grid-cols-2 gap-4 text-sm">
+      <section className="mb-5 grid grid-cols-2 gap-4 text-sm">
         <div className="rounded border border-slate-200 p-3">
           <p className="text-[10px] font-bold uppercase text-slate-500 mb-2">Kg & conversion</p>
           <p>Before kg: {payload.beforeKg != null ? payload.beforeKg : '—'}</p>
@@ -126,7 +139,7 @@ export default function MaterialIncidentPrintView({ payload }) {
               ? `${fmtConv2(payload.conversionKgPerM)} kg/m (${payload.conversionSource || ''})`
               : '—'}
           </p>
-          <p>Metres available (pool): {payload.metersAvailable}</p>
+          <p>Metres available (pool): {payload.metersAvailable ?? '—'}</p>
         </div>
         <div className="rounded border border-slate-200 p-3">
           <p className="text-[10px] font-bold uppercase text-slate-500 mb-2">People</p>
@@ -136,31 +149,29 @@ export default function MaterialIncidentPrintView({ payload }) {
         </div>
       </section>
 
+      <section className="mb-6 text-sm rounded border border-amber-100 bg-amber-50/50 p-3">
+        <p className="text-[10px] font-bold uppercase text-amber-900 mb-1">How to use this reference</p>
+        <ul className="text-[11px] text-amber-950 list-disc pl-4 space-y-0.5">
+          <li>
+            <strong>Production:</strong> issue metres from incident <span className="font-mono">{payload.id}</span> when
+            completing a job (offcut supply).
+          </li>
+          <li>
+            <strong>Month-end stock:</strong> quote this ID on coil or finished-goods lines when physical count differs
+            from system.
+          </li>
+          <li>
+            <strong>Physical book:</strong> keep this printed copy with your offcut register.
+          </li>
+        </ul>
+      </section>
+
       <section className="mb-8 text-sm">
         <p className="font-bold text-slate-500">Storekeeper remark</p>
         <p className="border border-slate-200 rounded p-2 min-h-[2.5rem]">{payload.storekeeperRemark || '—'}</p>
         <p className="font-bold text-slate-500 mt-3">Branch manager remark</p>
         <p className="border border-slate-200 rounded p-2 min-h-[2.5rem]">{payload.managerRemark || '—'}</p>
-        {payload.reasonText ? (
-          <>
-            <p className="font-bold text-slate-500 mt-3">Reason</p>
-            <p className="border border-slate-200 rounded p-2">{payload.reasonText}</p>
-          </>
-        ) : null}
       </section>
-
-      {Array.isArray(payload.attachments) && payload.attachments.length > 0 ? (
-        <section className="mb-6 text-xs">
-          <p className="font-bold uppercase text-slate-500">Evidence files</p>
-          <ul className="list-disc pl-5">
-            {payload.attachments.map((a) => (
-              <li key={a.id}>
-                {a.fileName} ({a.mimeType})
-              </li>
-            ))}
-          </ul>
-        </section>
-      ) : null}
 
       <footer className="mt-12 grid grid-cols-2 gap-12 text-sm print:mt-16">
         <div>

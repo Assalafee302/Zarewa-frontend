@@ -32,11 +32,42 @@ export function coilDamagePreview(input = {}) {
   };
 }
 
+export function sumDamageLineMeters(lines) {
+  let total = 0;
+  for (const ln of Array.isArray(lines) ? lines : []) {
+    const lengthM = Number(ln.length_m ?? ln.lengthM);
+    const quantity = Number(ln.quantity ?? 1);
+    if (Number.isFinite(lengthM) && lengthM > 0 && Number.isFinite(quantity) && quantity > 0) {
+      total += lengthM * quantity;
+    }
+  }
+  return roundConv2(total);
+}
+
+export function normalizeDamageLinesForPayload(raw) {
+  const out = [];
+  for (const ln of Array.isArray(raw) ? raw : []) {
+    const lengthM = Number(ln.length_m ?? ln.lengthM);
+    const quantity = Number(ln.quantity ?? 1);
+    if (!Number.isFinite(lengthM) || lengthM <= 0) continue;
+    if (!Number.isFinite(quantity) || quantity <= 0) continue;
+    const conditionNote = String(ln.condition_note ?? ln.conditionNote ?? '').trim();
+    out.push({
+      lengthM,
+      quantity,
+      ...(conditionNote ? { conditionNote } : {}),
+    });
+  }
+  return out;
+}
+
 export function validateCoilDamagePayload(payload = {}, opts = {}) {
   const coilNo = String(payload.coilNo ?? payload.coil_no ?? '').trim();
   const beforeKg = Number(payload.beforeKg ?? payload.before_kg);
   const afterKg = Number(payload.afterKg ?? payload.after_kg);
-  const meters = Number(payload.meters ?? payload.metersDamaged ?? payload.meters_damaged);
+  const normalizedLines = normalizeDamageLinesForPayload(payload.lines);
+  let meters = Number(payload.meters ?? payload.metersDamaged ?? payload.meters_damaged);
+  if (normalizedLines.length > 0) meters = sumDamageLineMeters(normalizedLines);
   const note = String(payload.note ?? payload.storekeeperRemark ?? payload.storekeeper_remark ?? '').trim();
   const returnDisposition = String(payload.returnDisposition ?? payload.return_disposition ?? 'offcut_pool').trim();
 
@@ -51,7 +82,12 @@ export function validateCoilDamagePayload(payload = {}, opts = {}) {
     return { ok: false, error: 'After kg must be less than before kg — steel was removed from the coil.' };
   }
   if (!Number.isFinite(meters) || meters <= 0) {
-    return { ok: false, error: 'Damaged metres must be greater than 0.' };
+    return {
+      ok: false,
+      error: normalizedLines.length === 0
+        ? 'Add at least one damaged section (length × qty).'
+        : 'Damaged metres must be greater than 0.',
+    };
   }
   if (note.length < 8) {
     return { ok: false, error: 'Enter a damage note (at least 8 characters) for the audit trail.' };
@@ -72,6 +108,8 @@ export function validateCoilDamagePayload(payload = {}, opts = {}) {
   return {
     ok: true,
     kgDeducted,
+    meters,
+    lines: normalizedLines,
     preview: coilDamagePreview({
       beforeKg,
       afterKg,

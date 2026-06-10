@@ -4,7 +4,7 @@ import { ClipboardList, Plus, Printer, ShieldCheck } from 'lucide-react';
 import { PageHeader, PageShell } from '../components/layout';
 import { ZareApprovalHint } from '../components/ZareApprovalHint';
 import OperationsCoilControlTab from '../components/operations/OperationsCoilControlTab';
-import MaterialIncidentPrintView from '../components/material/MaterialIncidentPrintView';
+import MaterialIncidentPrintPortal from '../components/material/MaterialIncidentPrintPortal';
 import { useInventory } from '../context/InventoryContext';
 import { useToast } from '../context/ToastContext';
 import { useWorkspace } from '../context/WorkspaceContext';
@@ -16,6 +16,7 @@ import {
   RETURN_DISPOSITIONS,
 } from '../lib/materialIncidentConstants';
 import { coilDamagePreview, isCoilDamageIncident } from '../lib/coilDamageRecordCore';
+import CoilDamageRecordModal from '../components/operations/CoilDamageRecordModal';
 import { fmtConv2 } from '../lib/conversionKgPerM';
 import { AppTable, AppTableBody, AppTableTh, AppTableThead, AppTableTr, AppTableWrap } from '../components/ui/AppDataTable';
 
@@ -57,6 +58,7 @@ export default function MaterialExceptions({ embedded = false, initialView = 're
   const [printPayload, setPrintPayload] = useState(null);
   const [managerRemarks, setManagerRemarks] = useState({});
   const [statusFilter, setStatusFilter] = useState('');
+  const [coilDamageModalOpen, setCoilDamageModalOpen] = useState(false);
 
   const canApprove =
     ws?.hasPermission?.('material_incidents.approve') ||
@@ -298,12 +300,16 @@ export default function MaterialExceptions({ embedded = false, initialView = 're
             stock is updated. Print the document for your physical offcut book.
           </p>
           <div className="grid gap-3 sm:grid-cols-2">
-            <label className="block">
+            <label className="block sm:col-span-2">
               <span className="text-[10px] font-bold uppercase text-gray-400">Type</span>
               <select
                 className="z-input w-full mt-1"
                 value={form.incidentType}
-                onChange={(e) => setForm((f) => ({ ...f, incidentType: e.target.value }))}
+                onChange={(e) => {
+                  const next = e.target.value;
+                  setForm((f) => ({ ...f, incidentType: next }));
+                  if (next === 'coil_stain') setCoilDamageModalOpen(true);
+                }}
               >
                 {INCIDENT_TYPES.map((t) => (
                   <option key={t.id} value={t.id}>
@@ -312,6 +318,22 @@ export default function MaterialExceptions({ embedded = false, initialView = 're
                 ))}
               </select>
             </label>
+          </div>
+
+          {form.incidentType === 'coil_stain' ? (
+            <div className="rounded-xl border border-teal-100 bg-teal-50/40 p-5 space-y-3">
+              <p className="text-sm font-semibold text-[#134e4a]">Coil stain / damage</p>
+              <p className="text-[11px] text-slate-600 leading-relaxed">
+                Pick the coil — gauge, colour, and before kg fill automatically from the register. List each damaged
+                section like a cutting list, then submit for manager approval.
+              </p>
+              <button type="button" className="z-btn-primary" onClick={() => setCoilDamageModalOpen(true)}>
+                Open coil damage form
+              </button>
+            </div>
+          ) : (
+          <>
+          <div className="grid gap-3 sm:grid-cols-2">
             <label className="block">
               <span className="text-[10px] font-bold uppercase text-gray-400">Material family</span>
               <select
@@ -483,8 +505,20 @@ export default function MaterialExceptions({ embedded = false, initialView = 're
               </>
             ) : null}
           </div>
+          </>
+          )}
         </section>
       )}
+
+      <CoilDamageRecordModal
+        isOpen={coilDamageModalOpen}
+        onClose={() => setCoilDamageModalOpen(false)}
+        coilLots={coilLots}
+        onSuccess={() => {
+          loadList();
+          refreshInventory?.();
+        }}
+      />
 
       {view === 'pending' && (
         <section className="space-y-3">
@@ -653,29 +687,7 @@ export default function MaterialExceptions({ embedded = false, initialView = 're
         }
       />
       {content}
-      {printPayload ? (
-        <>
-          <button
-            type="button"
-            aria-label="Close print"
-            className="no-print fixed inset-0 z-[10000] bg-black/50"
-            onClick={() => setPrintPayload(null)}
-          />
-          <div className="print-portal-scroll fixed inset-0 z-[10001] overflow-y-auto p-4 sm:p-8">
-            <div className="mx-auto max-w-3xl">
-              <MaterialIncidentPrintView payload={printPayload} />
-              <div className="no-print mt-4 flex justify-center gap-2">
-                <button type="button" className="z-btn-primary" onClick={() => window.print()}>
-                  Print / Save PDF
-                </button>
-                <button type="button" className="z-btn-secondary" onClick={() => setPrintPayload(null)}>
-                  Close
-                </button>
-              </div>
-            </div>
-          </div>
-        </>
-      ) : null}
+      <MaterialIncidentPrintPortal payload={printPayload} onClose={() => setPrintPayload(null)} />
     </PageShell>
   );
 }

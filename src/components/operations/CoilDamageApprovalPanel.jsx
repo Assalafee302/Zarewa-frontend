@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ShieldCheck } from 'lucide-react';
+import { Printer, ShieldCheck } from 'lucide-react';
+import MaterialIncidentPrintPortal from '../material/MaterialIncidentPrintPortal';
 import { useInventory } from '../../context/InventoryContext';
 import { useToast } from '../../context/ToastContext';
 import { useWorkspace } from '../../context/WorkspaceContext';
@@ -37,6 +38,7 @@ export default function CoilDamageApprovalPanel() {
   const [loading, setLoading] = useState(false);
   const [remarks, setRemarks] = useState({});
   const [actingId, setActingId] = useState('');
+  const [printPayload, setPrintPayload] = useState(null);
 
   const canApprove = canApproveMaterialIncident(ws);
 
@@ -138,9 +140,16 @@ export default function CoilDamageApprovalPanel() {
     }
   };
 
+  const openPrint = async (id) => {
+    const { ok, data } = await apiFetch(`/api/material-incidents/${encodeURIComponent(id)}/print-payload`);
+    if (!ok || !data?.payload) return showToast(data?.error || 'Print data unavailable', { variant: 'error' });
+    setPrintPayload(data.payload);
+  };
+
   if (!enrichedRows.length && !loading) return null;
 
   return (
+    <>
     <section className="rounded-xl border border-amber-300 bg-amber-50/80 p-5 shadow-sm space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex items-center gap-2">
@@ -238,8 +247,12 @@ export default function CoilDamageApprovalPanel() {
               </p>
             )}
 
+            <div className="flex flex-wrap gap-2 items-end pt-1">
+                <button type="button" className="z-btn-secondary text-xs inline-flex items-center gap-1" onClick={() => openPrint(r.id)}>
+                  <Printer size={12} /> Print
+                </button>
             {canApprove ? (
-              <div className="flex flex-wrap gap-2 items-end pt-1">
+              <>
                 <input
                   className="z-input text-xs min-w-[14rem] flex-1"
                   placeholder="Manager remark (required to reject)"
@@ -262,8 +275,9 @@ export default function CoilDamageApprovalPanel() {
                 >
                   Reject
                 </button>
-              </div>
+              </>
             ) : null}
+              </div>
           </div>
         ))}
       </div>
@@ -275,5 +289,7 @@ export default function CoilDamageApprovalPanel() {
         </Link>
       </p>
     </section>
+    <MaterialIncidentPrintPortal payload={printPayload} onClose={() => setPrintPayload(null)} />
+    </>
   );
 }

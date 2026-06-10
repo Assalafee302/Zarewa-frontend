@@ -266,6 +266,51 @@ export function StockRegisterPanel({
           </p>
         ) : null}
 
+        {register?.materialDamageSummary?.categories?.length ? (
+          <section className="mt-4 rounded-xl border border-amber-200/80 bg-amber-50/40 p-4">
+            <p className="text-[10px] font-black uppercase tracking-widest text-amber-900 mb-2">
+              Material damage this period (MEX)
+            </p>
+            <div className="overflow-x-auto">
+              <table className="w-full text-[10px]">
+                <thead>
+                  <tr className="text-left text-slate-500 uppercase">
+                    <th className="py-1 pr-2">Category</th>
+                    <th className="py-1 pr-2">Disposition</th>
+                    <th className="py-1 pr-2 text-right">Count</th>
+                    <th className="py-1 pr-2 text-right">Metres</th>
+                    <th className="py-1 text-right">Kg</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {register.materialDamageSummary.categories.map((row, idx) => (
+                    <tr key={idx} className="border-t border-amber-100/80">
+                      <td className="py-1 pr-2 font-semibold text-slate-800">
+                        {row.incidentType?.replace(/_/g, ' ')}
+                        {row.materialFamily ? ` · ${row.materialFamily}` : ''}
+                      </td>
+                      <td className="py-1 pr-2 text-slate-600">{row.returnDisposition?.replace(/_/g, ' ') || '—'}</td>
+                      <td className="py-1 pr-2 text-right tabular-nums">{row.count}</td>
+                      <td className="py-1 pr-2 text-right tabular-nums">{Number(row.totalMeters || 0).toFixed(2)}</td>
+                      <td className="py-1 text-right tabular-nums">{Number(row.kgDeducted || 0).toFixed(2)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {register.materialDamageSummary.poolBalance?.length ? (
+              <p className="mt-2 text-[10px] text-amber-950">
+                Offcut pool balance:{' '}
+                {register.materialDamageSummary.poolBalance
+                  .reduce((s, r) => s + (Number(r.metersAvailable) || 0), 0)
+                  .toFixed(2)}{' '}
+                m across {register.materialDamageSummary.poolBalance.length} incident(s) — reference MEX IDs on
+                production complete and count variances.
+              </p>
+            ) : null}
+          </section>
+        ) : null}
+
         {roleMode === 'reports' && register && !embedded ? (
           <div className="mt-4 border-t border-slate-200 pt-3">
             <button
