@@ -239,7 +239,7 @@ function HomeRoute() {
     return <Navigate to="/manager" replace />;
   }
   if (rk === 'cashier') {
-    return <Navigate to="/accounts?tab=desk" replace />;
+    return <Navigate to="/accounts" replace />;
   }
   if (rk === 'finance_manager') {
     return <Navigate to="/accounting" replace />;

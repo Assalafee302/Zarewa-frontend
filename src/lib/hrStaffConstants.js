@@ -20,7 +20,6 @@ export const HR_REGISTERABLE_ROLES = [
   { value: 'sales_manager', label: 'Branch manager (sales)' },
   { value: 'cashier', label: 'Cashier' },
   { value: 'operations_officer', label: 'Operations officer / Store keeper' },
-  { value: 'storekeeper', label: 'Store keeper / Operations officer' },
   { value: 'finance_manager', label: 'Finance manager' },
   { value: 'hr_admin', label: 'HR / Admin' },
   { value: 'gmhr', label: 'GM HR' },

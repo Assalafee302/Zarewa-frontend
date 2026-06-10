@@ -2,7 +2,11 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { apiFetch, apiUrl } from '../lib/apiBase';
 import { replaceLedgerEntries } from '../lib/customerLedgerStore';
-import { canAccessModuleWithPermissions, hasPermissionInList } from '../lib/moduleAccess';
+import {
+  canAccessModuleWithPermissions,
+  hasPermissionInList,
+  userMayAccessSalesModule,
+} from '../lib/moduleAccess';
 import { userCanApproveEditMutationsClient } from '../lib/editApprovalUi';
 import { userMayViewManagementReportsClient } from '../lib/reportsAccess';
 import { normalizeWorkspacePersonNames } from '../lib/normalizeWorkspacePersonNames';
@@ -596,6 +600,9 @@ export function WorkspaceProvider({ children }) {
           canAccessModuleWithPermissions(permissions, 'reports') &&
           userMayViewManagementReportsClient(session?.user?.roleKey, permissions)
         );
+      }
+      if (moduleKey === 'sales') {
+        return userMayAccessSalesModule(session?.user?.roleKey, permissions);
       }
       return canAccessModuleWithPermissions(permissions, moduleKey);
     },

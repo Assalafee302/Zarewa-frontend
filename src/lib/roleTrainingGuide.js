@@ -99,20 +99,20 @@ const ROLE_TRAINING = {
   },
   cashier: {
     title: 'Cashier guide',
-    subtitle: 'Confirm receipts, pay approved refunds, and execute treasury payouts.',
+    subtitle: 'Finance — confirm receipts, pay approved refunds, and execute treasury payouts.',
     steps: [
       {
-        heading: 'Cashier desk',
-        body: 'Open **Finance → Desk** (`/accounts?tab=desk`) each day. This is your execution screen — not the Accounting desk.',
+        heading: 'Finance',
+        body: 'Open **Finance** (`/accounts`) each day. Use the **Desk** tab for work queues, **Receipts** to confirm payment received, and **Payments** for payouts — same module as admin, without the Accounting desk.',
       },
       {
         heading: 'Record & confirm receipts',
-        body: 'Sales posts new receipts; you **confirm payment received** when bank/cash evidence matches. You can also post receipts from Sales when needed.',
+        body: 'Sales officers post new receipts; you **confirm payment received** on **Finance → Receipts** when bank/cash evidence matches.',
         tips: ['Amounts ≥ ₦100,000 require typing the amount twice.', 'Double-check branch and customer before saving.'],
       },
       {
         heading: 'Refunds & payments',
-        body: 'You **request** refunds in Sales but **cannot approve** them. After manager approval, pay refunds from the Cashier desk payout queue.',
+        body: 'You can **request** refunds from Finance workflows but **cannot approve** them. After manager approval, pay refunds from **Finance → Payments** or the Desk queue.',
       },
       {
         heading: 'End of day',
@@ -120,9 +120,9 @@ const ROLE_TRAINING = {
       },
     ],
     quickLinks: [
-      { label: 'Finance desk', path: '/accounts?tab=desk' },
-      { label: 'Sales', path: '/sales' },
-      { label: 'Finance receipts', path: '/accounts?tab=receipts' },
+      { label: 'Finance', path: '/accounts' },
+      { label: 'Desk queues', path: '/accounts?tab=desk' },
+      { label: 'Receipts', path: '/accounts?tab=receipts' },
     ],
   },
   sales_manager: {
@@ -181,8 +181,8 @@ const ROLE_TRAINING = {
     ],
   },
   operations_officer: {
-    title: 'Operations officer guide',
-    subtitle: 'GRNs, production, and branch inventory.',
+    title: 'Operations officer / Store keeper guide',
+    subtitle: 'GRNs, stock, production, and branch inventory.',
     steps: [
       {
         heading: 'Receiving stock',

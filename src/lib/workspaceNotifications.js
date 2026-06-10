@@ -251,7 +251,8 @@ export function buildWorkspaceNotifications({
 
   pushBranchManagerAlerts(items, { snapshot, roleKey, hasPermission, managementAttention });
 
-  const canSalesDesk = canAccessModule('sales') && (can('sales.view') || can('quotations.manage'));
+  const canSalesDesk =
+    roleKey !== 'cashier' && canAccessModule('sales') && (can('sales.view') || can('quotations.manage'));
   if (canSalesDesk && !userMaySeeManagementApprovalQueues(roleKey, permissions)) {
     const awaitingBm = (Array.isArray(snapshot?.quotations) ? snapshot.quotations : []).filter((q) =>
       quotationNeedsManagerClearance(q)

@@ -9,10 +9,19 @@ export const WORKSPACE_ROLE_KEYS = [
   'sales_staff',
   'cashier',
   'operations_officer',
-  'storekeeper',
   'hr_admin',
   'gmhr',
 ];
+
+/** Legacy storekeeper logins map to operations_officer (one floor role). */
+export function normalizeRoleKey(roleKey) {
+  const rk = String(roleKey || '')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, '_');
+  if (rk === 'storekeeper' || rk === 'store_keeper') return 'operations_officer';
+  return rk;
+}
 
 const LEGACY_DEPARTMENT_TO_ROLE = {
   general: 'sales_staff',
@@ -20,8 +29,8 @@ const LEGACY_DEPARTMENT_TO_ROLE = {
   sales: 'sales_staff',
   inventory: 'operations_officer',
   production: 'operations_officer',
-  storekeeper: 'storekeeper',
-  store_keeper: 'storekeeper',
+  storekeeper: 'operations_officer',
+  store_keeper: 'operations_officer',
   purchase: 'md',
   finance: 'finance_manager',
   reports: 'sales_staff',
@@ -40,8 +49,7 @@ export const WORKSPACE_DEPARTMENT_LABELS = {
   sales_manager: 'Branch manager',
   sales_staff: 'Sales officer',
   cashier: 'Cashier',
-  operations_officer: 'Operations officer',
-  storekeeper: 'Store keeper',
+  operations_officer: 'Operations officer / Store keeper',
   hr_admin: 'HR / Admin',
   gmhr: 'GM HR',
   general: 'General / cross-functional',
@@ -75,9 +83,8 @@ const DEFAULT_HOME_BY_ROLE = {
   finance_manager: '/accounting',
   sales_manager: '/manager',
   sales_staff: '/',
-  cashier: '/accounts?tab=desk',
+  cashier: '/accounts',
   operations_officer: '/operations',
-  storekeeper: '/operations',
 };
 
 export function defaultHomePathForDepartment(deptId) {

@@ -85,6 +85,15 @@ export const MODULE_ACCESS_POLICY = {
   ],
 };
 
+/** Cashiers work in Finance only — receipts.post must not expose the Sales module. */
+export const SALES_MODULE_EXCLUDED_ROLE_KEYS = new Set(['cashier']);
+
+export function userMayAccessSalesModule(roleKey, permissions) {
+  const rk = String(roleKey || '').trim().toLowerCase();
+  if (SALES_MODULE_EXCLUDED_ROLE_KEYS.has(rk)) return false;
+  return canAccessModuleWithPermissions(permissions, 'sales');
+}
+
 export function canAccessModuleWithPermissions(permissions, moduleKey) {
   const has = (p) => hasPermissionInList(permissions, p);
   switch (moduleKey) {

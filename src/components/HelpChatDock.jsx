@@ -40,7 +40,7 @@ const LOCAL_REPLY_DELAY_MS = 240;
 
 function pageLabel(pathname) {
   const p = String(pathname || '');
-  if (p.startsWith('/cashier')) return 'Cashier desk';
+  if (p.startsWith('/cashier')) return 'Finance';
   if (p.startsWith('/accounting')) return 'Accounting desk';
   if (p.startsWith('/exec')) return 'Command Centre';
   if (p.startsWith('/analytics')) return 'Command Centre — Intelligence';

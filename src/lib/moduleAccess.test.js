@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { canAccessModuleWithPermissions, MODULE_ACCESS_POLICY } from './moduleAccess.js';
+import {
+  canAccessModuleWithPermissions,
+  MODULE_ACCESS_POLICY,
+  userMayAccessSalesModule,
+} from './moduleAccess.js';
 
 describe('moduleAccess', () => {
   it('audit.view does not grant settings access', () => {
@@ -41,6 +45,11 @@ describe('moduleAccess', () => {
 
   it('dashboard.view enables edit approvals visibility', () => {
     expect(canAccessModuleWithPermissions(['dashboard.view'], 'edit_approvals')).toBe(true);
+  });
+
+  it('cashier cannot open Sales module even with receipts.post', () => {
+    expect(userMayAccessSalesModule('cashier', ['receipts.post', 'sales.view'])).toBe(false);
+    expect(userMayAccessSalesModule('sales_staff', ['sales.view'])).toBe(true);
   });
 });
 

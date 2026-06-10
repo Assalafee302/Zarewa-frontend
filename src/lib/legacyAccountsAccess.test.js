@@ -14,13 +14,13 @@ describe('legacyAccountsAccess (client)', () => {
     expect(userMaySeeLegacyAccountsNav('sales_manager', ['finance.approve'])).toBe(false);
   });
 
-  it('cashier lands on desk tab and sees Finance nav', () => {
+  it('cashier sees Finance nav and defaults to treasury like other finance roles', () => {
     expect(userMaySeeLegacyAccountsNav('cashier', ['cashier.desk.view', 'finance.view'])).toBe(true);
-    expect(getDefaultLegacyAccountTab('cashier', ['cashier.desk.view'])).toBe('desk');
+    expect(getDefaultLegacyAccountTab('cashier', ['cashier.desk.view'])).toBe('treasury');
     expect(getAllowedLegacyAccountTabs('cashier', ['cashier.desk.view'])).toContain('desk');
     expect(getAllowedLegacyAccountTabs('cashier', ['cashier.desk.view'])).not.toContain('audit');
     expect(resolveLegacyAccountsRedirect('cashier', ['cashier.desk.view'], 'audit')?.to).toBe(
-      '/accounts?tab=desk'
+      '/accounts?tab=treasury'
     );
   });
 

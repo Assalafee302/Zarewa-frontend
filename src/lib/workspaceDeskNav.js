@@ -1,3 +1,4 @@
+import { normalizeRoleKey } from './departmentWorkspace.js';
 import { canAccessModuleWithPermissions } from './moduleAccess.js';
 
 /** Desk profile keys */
@@ -12,7 +13,7 @@ export const DESK_PROFILES = {
  * @param {{ roleKey?: string; permissions?: string[] }} ctx
  */
 export function resolveDeskProfile(ctx = {}) {
-  const roleKey = String(ctx.roleKey || '').trim().toLowerCase();
+  const roleKey = normalizeRoleKey(ctx.roleKey);
   const perms = ctx.permissions || [];
 
   if (roleKey === 'md' || roleKey === 'ceo' || roleKey === 'chairman') {
@@ -24,8 +25,7 @@ export function resolveDeskProfile(ctx = {}) {
     roleKey === 'cashier' ||
     roleKey === 'hr_admin' ||
     roleKey === 'gmhr' ||
-    roleKey === 'operations_officer' ||
-    roleKey === 'storekeeper'
+    roleKey === 'operations_officer'
   ) {
     return DESK_PROFILES.office;
   }
