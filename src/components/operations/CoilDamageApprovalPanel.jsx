@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Printer, ShieldCheck } from 'lucide-react';
+import MaterialIncidentDetailModal from '../material/MaterialIncidentDetailModal';
 import MaterialIncidentPrintPortal from '../material/MaterialIncidentPrintPortal';
 import { useInventory } from '../../context/InventoryContext';
 import { useToast } from '../../context/ToastContext';
@@ -39,6 +40,8 @@ export default function CoilDamageApprovalPanel() {
   const [remarks, setRemarks] = useState({});
   const [actingId, setActingId] = useState('');
   const [printPayload, setPrintPayload] = useState(null);
+  const [detailModalOpen, setDetailModalOpen] = useState(false);
+  const [detailIncidentId, setDetailIncidentId] = useState('');
 
   const canApprove = canApproveMaterialIncident(ws);
 
@@ -146,6 +149,11 @@ export default function CoilDamageApprovalPanel() {
     setPrintPayload(data.payload);
   };
 
+  const openIncident = (id) => {
+    setDetailIncidentId(id);
+    setDetailModalOpen(true);
+  };
+
   if (!enrichedRows.length && !loading) return null;
 
   return (
@@ -186,7 +194,13 @@ export default function CoilDamageApprovalPanel() {
           <div key={r.id} className="rounded-xl border border-amber-200 bg-white p-4 space-y-3">
             <div className="flex flex-wrap justify-between gap-2">
               <div>
-                <p className="font-mono font-bold text-sm text-[#134e4a]">{r.id}</p>
+                <button
+                  type="button"
+                  className="font-mono font-bold text-sm text-[#134e4a] underline underline-offset-2 text-left"
+                  onClick={() => openIncident(r.id)}
+                >
+                  {r.id}
+                </button>
                 <p className="text-xs text-slate-600">
                   {incidentTypeLabel(r.incidentType)} ·{' '}
                   <Link
@@ -248,6 +262,9 @@ export default function CoilDamageApprovalPanel() {
             )}
 
             <div className="flex flex-wrap gap-2 items-end pt-1">
+                <button type="button" className="z-btn-secondary text-xs" onClick={() => openIncident(r.id)}>
+                  Open
+                </button>
                 <button type="button" className="z-btn-secondary text-xs inline-flex items-center gap-1" onClick={() => openPrint(r.id)}>
                   <Printer size={12} /> Print
                 </button>
@@ -289,6 +306,21 @@ export default function CoilDamageApprovalPanel() {
         </Link>
       </p>
     </section>
+    <MaterialIncidentDetailModal
+      isOpen={detailModalOpen}
+      onClose={() => setDetailModalOpen(false)}
+      incidentId={detailIncidentId}
+      canApprove={canApprove}
+      managerRemark={remarks[detailIncidentId] || ''}
+      onManagerRemarkChange={(v) => setRemarks((s) => ({ ...s, [detailIncidentId]: v }))}
+      onApprove={approve}
+      onReject={reject}
+      onPrint={openPrint}
+      onUpdated={() => {
+        void loadPending();
+        refreshInventory?.();
+      }}
+    />
     <MaterialIncidentPrintPortal payload={printPayload} onClose={() => setPrintPayload(null)} />
     </>
   );

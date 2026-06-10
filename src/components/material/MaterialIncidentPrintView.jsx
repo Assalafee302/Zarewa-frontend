@@ -149,6 +149,42 @@ export default function MaterialIncidentPrintView({ payload }) {
         </div>
       </section>
 
+      {Array.isArray(payload.issues) && payload.issues.length > 0 ? (
+        <section className="mb-5">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-2">Production deductions</p>
+          <table className="w-full border-collapse border border-slate-200 text-[11px]">
+            <thead>
+              <tr className="bg-slate-50">
+                <th className={TH}>Job / target</th>
+                <th className={TH}>Metres</th>
+                <th className={TH}>When</th>
+              </tr>
+            </thead>
+            <tbody>
+              {payload.issues.map((iss) => (
+                <tr key={iss.id} className="border-t border-slate-100">
+                  <td className={TD}>{iss.targetRef || iss.targetKind || '—'}</td>
+                  <td className={TD}>{iss.meters}</td>
+                  <td className={TD}>{iss.issuedAtIso ? iss.issuedAtIso.slice(0, 19).replace('T', ' ') : '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+      ) : null}
+
+      <section className="mb-5 text-sm">
+        <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-2">Audit trail</p>
+        <p className="text-[11px] text-slate-600">Created: {payload.createdAtIso ? payload.createdAtIso.slice(0, 19).replace('T', ' ') : '—'}</p>
+        <p className="text-[11px] text-slate-600">Updated: {payload.updatedAtIso ? payload.updatedAtIso.slice(0, 19).replace('T', ' ') : '—'}</p>
+        {payload.approvedAtIso ? (
+          <p className="text-[11px] text-slate-600">Approved: {payload.approvedAtIso.slice(0, 19).replace('T', ' ')}</p>
+        ) : null}
+        {payload.postedAtIso ? (
+          <p className="text-[11px] text-slate-600">Posted: {payload.postedAtIso.slice(0, 19).replace('T', ' ')}</p>
+        ) : null}
+      </section>
+
       <section className="mb-6 text-sm rounded border border-amber-100 bg-amber-50/50 p-3">
         <p className="text-[10px] font-bold uppercase text-amber-900 mb-1">How to use this reference</p>
         <ul className="text-[11px] text-amber-950 list-disc pl-4 space-y-0.5">

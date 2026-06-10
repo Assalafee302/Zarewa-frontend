@@ -4,6 +4,7 @@ import { ClipboardList, Plus, Printer, ShieldCheck } from 'lucide-react';
 import { PageHeader, PageShell } from '../components/layout';
 import { ZareApprovalHint } from '../components/ZareApprovalHint';
 import OperationsCoilControlTab from '../components/operations/OperationsCoilControlTab';
+import MaterialIncidentDetailModal from '../components/material/MaterialIncidentDetailModal';
 import MaterialIncidentPrintPortal from '../components/material/MaterialIncidentPrintPortal';
 import { useInventory } from '../context/InventoryContext';
 import { useToast } from '../context/ToastContext';
@@ -54,11 +55,12 @@ export default function MaterialExceptions({ embedded = false, initialView = 're
   const [form, setForm] = useState(defaultForm);
   const [saving, setSaving] = useState(false);
   const [selectedId, setSelectedId] = useState('');
-  const [detail, setDetail] = useState(null);
   const [printPayload, setPrintPayload] = useState(null);
   const [managerRemarks, setManagerRemarks] = useState({});
   const [statusFilter, setStatusFilter] = useState('');
   const [coilDamageModalOpen, setCoilDamageModalOpen] = useState(false);
+  const [detailModalOpen, setDetailModalOpen] = useState(false);
+  const [detailIncidentId, setDetailIncidentId] = useState('');
 
   const canApprove =
     ws?.hasPermission?.('material_incidents.approve') ||
@@ -88,15 +90,20 @@ export default function MaterialExceptions({ embedded = false, initialView = 're
     const id = String(focusIncidentId || '').trim();
     if (!id) return;
     setView('pending');
-    void loadDetail(id);
+    openIncident(id);
   }, [focusIncidentId]);
 
-  const loadDetail = async (id) => {
-    const { ok, data } = await apiFetch(`/api/material-incidents/${encodeURIComponent(id)}`);
-    if (ok && data?.incident) {
-      setDetail(data.incident);
-      setSelectedId(id);
-    }
+  const openIncident = (id) => {
+    const trimmed = String(id || '').trim();
+    if (!trimmed) return;
+    setSelectedId(trimmed);
+    setDetailIncidentId(trimmed);
+    setDetailModalOpen(true);
+  };
+
+  const closeIncidentModal = () => {
+    setDetailModalOpen(false);
+    setDetailIncidentId('');
   };
 
   const buildPayload = () => ({
@@ -150,7 +157,7 @@ export default function MaterialExceptions({ embedded = false, initialView = 're
     if (!ok) return showToast(data?.error || 'Submit failed', { variant: 'error' });
     showToast('Submitted for branch manager approval.');
     loadList();
-    loadDetail(id);
+    openIncident(id);
   };
 
   const approveIncident = async (id) => {
@@ -167,7 +174,7 @@ export default function MaterialExceptions({ embedded = false, initialView = 're
       return next;
     });
     loadList();
-    loadDetail(id);
+    openIncident(id);
     if (refreshInventory) refreshInventory();
     await ws?.refresh?.();
   };
@@ -187,7 +194,7 @@ export default function MaterialExceptions({ embedded = false, initialView = 're
       return next;
     });
     loadList();
-    loadDetail(id);
+    openIncident(id);
     await ws?.refresh?.();
   };
 
@@ -280,7 +287,7 @@ export default function MaterialExceptions({ embedded = false, initialView = 're
                       </td>
                       <td className="px-3 py-2 text-xs">{INCIDENT_STATUS_LABEL[r.status] || r.status}</td>
                       <td className="px-3 py-2 text-right">
-                        <button type="button" className="text-[10px] font-bold text-sky-800 underline" onClick={() => loadDetail(r.id)}>
+                        <button type="button" className="text-[10px] font-bold text-sky-800 underline" onClick={() => openIncident(r.id)}>
                           Open
                         </button>
                       </td>
@@ -554,9 +561,14 @@ export default function MaterialExceptions({ embedded = false, initialView = 're
                       {r.coilNo ? ` · coil ${r.coilNo}` : ''}
                     </p>
                   </div>
-                  <button type="button" className="z-btn-secondary text-xs h-fit" onClick={() => openPrint(r.id)}>
-                    Print
-                  </button>
+                  <div className="flex gap-2">
+                    <button type="button" className="z-btn-secondary text-xs h-fit" onClick={() => openIncident(r.id)}>
+                      Open
+                    </button>
+                    <button type="button" className="z-btn-secondary text-xs h-fit" onClick={() => openPrint(r.id)}>
+                      Print
+                    </button>
+                  </div>
                 </div>
                 {coilDamage && preview?.kgDeducted != null ? (
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px]">
@@ -616,7 +628,13 @@ export default function MaterialExceptions({ embedded = false, initialView = 're
           <ul className="space-y-2 text-xs">
             {poolIncidents.map((p) => (
               <li key={p.id} className="flex justify-between border-b border-slate-100 py-2">
-                <span className="font-mono font-semibold">{p.id}</span>
+                <button
+                  type="button"
+                  className="font-mono font-semibold text-sky-800 underline underline-offset-2 text-left"
+                  onClick={() => openIncident(p.id)}
+                >
+                  {p.id}
+                </button>
                 <span>
                   {p.gaugeLabel} {p.colour} — {Number(p.metersAvailable).toFixed(2)} m
                 </span>
@@ -628,47 +646,22 @@ export default function MaterialExceptions({ embedded = false, initialView = 're
 
       {view === 'legacy' && <OperationsCoilControlTab />}
 
-      {detail ? (
-        <section className="rounded-xl border border-sky-200 bg-sky-50/30 p-4 text-xs space-y-2">
-          <p className="font-bold text-[#134e4a]">Detail: {detail.id}</p>
-          <p>Status: {INCIDENT_STATUS_LABEL[detail.status] || detail.status}</p>
-          <div className="flex gap-2">
-            <button type="button" className="z-btn-secondary text-xs" onClick={() => openPrint(detail.id)}>
-              Print
-            </button>
-            {detail.status === 'submitted' && canApprove ? (
-              <button type="button" className="z-btn-primary text-xs" onClick={() => approveIncident(detail.id)}>
-                Approve
-              </button>
-            ) : null}
-            {detail.incidentType === 'customer_return' && detail.customerId ? (
-              <button
-                type="button"
-                className="z-btn-secondary text-xs"
-                onClick={async () => {
-                  const amount = window.prompt('Refund amount (NGN)?', '0');
-                  if (!amount) return;
-                  const { ok, data } = await apiFetch(`/api/material-incidents/${encodeURIComponent(detail.id)}/create-refund`, {
-                    method: 'POST',
-                    body: JSON.stringify({
-                      customerID: detail.customerId,
-                      amountNgn: Number(amount),
-                      payeeName: detail.customerLabel,
-                      payeeAccountNo: '0000000000',
-                      payeeBankName: 'TBD',
-                      reasonCategory: ['Product return'],
-                    }),
-                  });
-                  if (ok) showToast(`Refund ${data.refundID} created.`);
-                  else showToast(data?.error || 'Refund failed', { variant: 'error' });
-                }}
-              >
-                Create refund request
-              </button>
-            ) : null}
-          </div>
-        </section>
-      ) : null}
+      <MaterialIncidentDetailModal
+        isOpen={detailModalOpen}
+        onClose={closeIncidentModal}
+        incidentId={detailIncidentId}
+        canApprove={canApprove}
+        managerRemark={managerRemarks[detailIncidentId] || ''}
+        onManagerRemarkChange={(v) => setManagerRemarks((s) => ({ ...s, [detailIncidentId]: v }))}
+        onApprove={approveIncident}
+        onReject={rejectIncident}
+        onPrint={openPrint}
+        onUpdated={() => {
+          loadList();
+          refreshInventory?.();
+        }}
+      />
+      <MaterialIncidentPrintPortal payload={printPayload} onClose={() => setPrintPayload(null)} />
     </div>
   );
 
@@ -687,7 +680,6 @@ export default function MaterialExceptions({ embedded = false, initialView = 're
         }
       />
       {content}
-      <MaterialIncidentPrintPortal payload={printPayload} onClose={() => setPrintPayload(null)} />
     </PageShell>
   );
 }

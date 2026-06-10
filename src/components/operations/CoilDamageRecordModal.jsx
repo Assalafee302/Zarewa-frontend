@@ -3,6 +3,7 @@ import { CheckCircle2, Copy, Plus, Printer, Trash2, X } from 'lucide-react';
 import { useToast } from '../../context/ToastContext';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { apiFetch } from '../../lib/apiBase';
+import MaterialIncidentDetailModal from '../material/MaterialIncidentDetailModal';
 import MaterialIncidentPrintPortal from '../material/MaterialIncidentPrintPortal';
 import {
   coilDamagePreview,
@@ -65,6 +66,7 @@ export default function CoilDamageRecordModal({
   const [fieldError, setFieldError] = useState('');
   const [savedResult, setSavedResult] = useState(null);
   const [printPayload, setPrintPayload] = useState(null);
+  const [detailModalOpen, setDetailModalOpen] = useState(false);
 
   const sortedCoils = useMemo(
     () => [...coilLots].sort((a, b) => String(a.coilNo || '').localeCompare(String(b.coilNo || ''))),
@@ -289,8 +291,11 @@ export default function CoilDamageRecordModal({
               <button type="button" className="z-btn-secondary py-3 px-4 text-xs inline-flex items-center gap-1" onClick={() => copyIncidentId(savedResult.id)}>
                 <Copy size={14} /> Copy ID
               </button>
+              <button type="button" className="z-btn-secondary py-3 px-4 text-xs" onClick={() => setDetailModalOpen(true)}>
+                Open full record
+              </button>
               <button type="button" className="z-btn-secondary py-3 px-4 text-xs inline-flex items-center gap-1" onClick={() => openPrint(savedResult.id)}>
-                <Printer size={14} /> Print incident
+                <Printer size={14} /> Print
               </button>
               <button type="button" className="z-btn-primary flex-1 justify-center py-3" onClick={handleDone}>
                 Done
@@ -566,6 +571,12 @@ export default function CoilDamageRecordModal({
         )}
       </div>
     </ModalFrame>
+    <MaterialIncidentDetailModal
+      isOpen={detailModalOpen}
+      onClose={() => setDetailModalOpen(false)}
+      incidentId={savedResult?.id || ''}
+      onPrint={openPrint}
+    />
     <MaterialIncidentPrintPortal payload={printPayload} onClose={() => setPrintPayload(null)} />
     </>
   );
