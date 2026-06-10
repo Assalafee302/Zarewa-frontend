@@ -22,8 +22,15 @@ export function getPageTourForPath(pathname) {
   }
   if (p.startsWith('/exec')) {
     return {
-      label: 'Executive Command Centre',
-      query: 'Walk me through the executive command centre — what should I review first?',
+      label: 'Command Centre',
+      query:
+        'Walk me through the command centre — Overview for alerts and approvals, Intelligence for forecasts and coil actions, Finance for cash and working capital',
+    };
+  }
+  if (p.startsWith('/analytics')) {
+    return {
+      label: 'Intelligence tab',
+      query: 'Walk me through business intelligence — production forecast, expense analysis, and coil SKU actions',
     };
   }
   if (p.startsWith('/manager')) {

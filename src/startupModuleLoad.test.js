@@ -16,8 +16,23 @@ describe('startup module graph', () => {
     expect(typeof mod.default).toBe('function');
   });
 
+  it('loads ExecutiveCommandCentre without TDZ', async () => {
+    const mod = await import('./pages/ExecutiveCommandCentre.jsx');
+    expect(typeof mod.default).toBe('function');
+  });
+
+  it('loads CommandCentreIntelligenceTab without TDZ', async () => {
+    const mod = await import('./components/exec/CommandCentreIntelligenceTab.jsx');
+    expect(typeof mod.default).toBe('function');
+  });
+
   it('loads LegacyDashboard without TDZ', async () => {
     const mod = await import('./pages/LegacyDashboard.jsx');
+    expect(typeof mod.default).toBe('function');
+  });
+
+  it('loads BusinessIntelligence redirect page without TDZ', async () => {
+    const mod = await import('./pages/BusinessIntelligence.jsx');
     expect(typeof mod.default).toBe('function');
   });
 

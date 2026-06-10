@@ -24,7 +24,8 @@ export function resolveDeskProfile(ctx = {}) {
     roleKey === 'cashier' ||
     roleKey === 'hr_admin' ||
     roleKey === 'gmhr' ||
-    roleKey === 'operations_officer'
+    roleKey === 'operations_officer' ||
+    roleKey === 'storekeeper'
   ) {
     return DESK_PROFILES.office;
   }

@@ -50,7 +50,16 @@ import {
   MANAGER_METRIC_PERIODS,
   managementPeriodStartISO,
 } from '../lib/managementLiveFromWorkspace';
-import { formatRefundReasonCategory, matchesInboxSearch } from '../lib/managerDashboardCore';
+import {
+  MANAGER_ATTENTION_FILTERS,
+  MANAGER_INBOX_TABS,
+  buildCashOutInboxRows,
+  buildOrdersInboxRows,
+  filterAttentionItems,
+  formatRefundReasonCategory,
+  matchesInboxSearch,
+  normalizeManagerInboxRoute,
+} from '../lib/managerDashboardCore';
 import { isEffectivelyFullyPaid } from '../lib/paymentOutstandingTolerance';
 import { formatPersonName } from '../lib/formatPersonName';
 import { userMayViewManagementReportsClient } from '../lib/reportsAccess';
@@ -68,31 +77,14 @@ import DeliveryGateDiagnosticsBanner from '../components/finance/DeliveryGateDia
 import { syncAccountingPolicyFlagsFromHealth, deliveryPaymentGateMode } from '../lib/accountingPolicyFlags';
 import { userMayApproveRefundRequests } from '../lib/refundsStore';
 
-const INBOX_TABS = [
-  {
-    key: 'attention',
-    label: 'Attention',
-    description: 'Unified priority queue — clearance, flags, refunds, payments, production, edits',
-  },
-  { key: 'clearance', label: 'Clearance', description: 'Paid quotes awaiting manager clearance' },
-  { key: 'production', label: 'Production gate', description: 'Draft cutting lists under 70% paid' },
-  { key: 'conversions', label: 'Conversion review', description: 'High / low conversion or jobs awaiting manager sign-off' },
-  { key: 'flagged', label: 'Flagged', description: 'Quotations marked for audit' },
-  { key: 'refunds', label: 'Refunds', description: 'Pending refund requests' },
-  { key: 'payments', label: 'Payment requests', description: 'Expense / payment approvals' },
-  {
-    key: 'material',
-    label: 'Material exceptions',
-    description: 'Offcut / return incidents awaiting branch manager approval',
-  },
-];
-
 const ManagerDashboard = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const quoteDeepLinked = useRef('');
   const poDeepLinked = useRef('');
   const refundDeepLinked = useRef('');
+  const jobDeepLinked = useRef('');
+  const requestDeepLinked = useRef('');
   const managerQueuesHydratedRef = useRef(false);
   const lastRefundIntelQrefRef = useRef('');
   const ws = useWorkspace();
@@ -119,6 +111,7 @@ const ManagerDashboard = () => {
   const [decisionBusy, setDecisionBusy] = useState(false);
   const [inboxSearch, setInboxSearch] = useState('');
   const [activeTab, setActiveTab] = useState('attention');
+  const [attentionFilter, setAttentionFilter] = useState('all');
   const [attentionItems, setAttentionItems] = useState([]);
   const [attentionSummary, setAttentionSummary] = useState(null);
   const [poAuditData, setPoAuditData] = useState(null);
@@ -175,17 +168,15 @@ const ManagerDashboard = () => {
           ? 'Purchase order lifecycle'
           : 'Transaction intel';
 
-  const inboxTabs = useMemo(() => {
-    const t = [...INBOX_TABS];
-    if (userCanApproveEditMutationsClient(ws?.session?.user?.roleKey, ws?.permissions)) {
-      t.push({
-        key: 'edit_approvals',
-        label: 'Edit OKs',
-        description: 'Second-party approvals before colleagues save sensitive edits.',
-      });
+  const displayItems = useMemo(() => {
+    if (ws?.hasWorkspaceData && ws.snapshot) {
+      return buildManagementQueuesFromSnapshot(ws.snapshot);
     }
-    return t;
-  }, [ws?.session?.user?.roleKey, ws?.permissions]);
+    return items;
+  }, [ws?.hasWorkspaceData, ws.snapshot, items]);
+
+  const ordersInboxRows = useMemo(() => buildOrdersInboxRows(displayItems), [displayItems]);
+  const cashOutInboxRows = useMemo(() => buildCashOutInboxRows(displayItems), [displayItems]);
 
   const unifiedWorkItems = useMemo(
     () => (Array.isArray(ws?.snapshot?.unifiedWorkItems) ? ws.snapshot.unifiedWorkItems : []),
@@ -395,14 +386,8 @@ const ManagerDashboard = () => {
     };
   }, [mergedPrefsForTargets.managerTargetsPersonalOverride, ws?.snapshot?.orgManagerTargets]);
 
-  const displayItems = useMemo(() => {
-    if (ws?.hasWorkspaceData && ws.snapshot) {
-      return buildManagementQueuesFromSnapshot(ws.snapshot);
-    }
-    return items;
-  }, [ws?.hasWorkspaceData, ws.snapshot, items]);
-
   const materialIncidentQueue = items.pendingMaterialIncidents ?? [];
+  const pendingOrderSignOffCount = displayItems.pendingClearance?.length ?? 0;
 
   const displaySnapshots = useMemo(() => {
     const periodMeta = MANAGER_METRIC_PERIODS.find((p) => p.key === metricPeriod);
@@ -557,7 +542,12 @@ const ManagerDashboard = () => {
     setRefundIntelExtras(null);
     const row = fromClearance || fromFlagged;
     if (row) {
-      setSelectedIntel({ kind: 'quotation', quoteId: ref, row: { ...row } });
+      setSelectedIntel({
+        kind: 'quotation',
+        quoteId: ref,
+        row: { ...row },
+        reviewContext: fromFlagged ? 'flagged' : fromProd ? 'production' : 'clearance',
+      });
     } else if (fromProd) {
       setSelectedIntel({
         kind: 'quotation',
@@ -570,7 +560,8 @@ const ManagerDashboard = () => {
       setSelectedIntel({ kind: 'quotation', quoteId: ref, row: { id: ref, customer_name: '' } });
     }
     fetchAudit(ref);
-    setActiveTab(fromProd ? 'production' : fromClearance ? 'clearance' : fromFlagged ? 'flagged' : 'clearance');
+    setActiveTab(fromProd || fromClearance || fromFlagged ? 'orders' : 'orders');
+    if (fromFlagged) setAttentionFilter('flagged');
   }, [
     loading,
     searchParams,
@@ -580,17 +571,14 @@ const ManagerDashboard = () => {
     fetchAudit,
   ]);
 
-  /** Deep link: ?inbox=attention | edit_approvals */
+  /** Deep link: ?inbox=attention | orders | cash_out | qc | legacy tab keys */
   useEffect(() => {
-    const inbox = (searchParams.get('inbox') || '').trim().toLowerCase();
-    if (inbox === 'attention') {
-      setActiveTab('attention');
-      return;
-    }
-    if (inbox !== 'edit_approvals') return;
-    if (!userCanApproveEditMutationsClient(ws?.session?.user?.roleKey, ws?.permissions)) return;
-    setActiveTab('edit_approvals');
-  }, [searchParams, ws?.session?.user?.roleKey, ws?.permissions]);
+    const inbox = (searchParams.get('inbox') || '').trim();
+    if (!inbox) return;
+    const { tab, attentionFilter: af } = normalizeManagerInboxRoute(inbox);
+    setActiveTab(tab);
+    setAttentionFilter(af);
+  }, [searchParams]);
 
   useEffect(() => {
     const po = (searchParams.get('poId') || searchParams.get('poID') || '').trim();
@@ -612,8 +600,32 @@ const ManagerDashboard = () => {
       displayItems.pendingRefunds.find((r) => String(r.refund_id) === rid) || { refund_id: rid };
     setRefundIntelExtras(null);
     setSelectedIntel({ kind: 'refund', refundId: rid, row: { ...row } });
-    setActiveTab('refunds');
+    setActiveTab('cash_out');
   }, [loading, searchParams, displayItems.pendingRefunds]);
+
+  /** Deep link: ?jobId= from notification bell / attention inbox */
+  useEffect(() => {
+    const jid = (searchParams.get('jobId') || searchParams.get('jobID') || '').trim();
+    if (!jid || loading) return;
+    if (jobDeepLinked.current === jid) return;
+    jobDeepLinked.current = jid;
+    const row =
+      displayItems.pendingConversionReviews.find((j) => String(j.job_id) === jid) || { job_id: jid };
+    setSelectedIntel({ kind: 'conversion', jobId: jid, row: { ...row } });
+    setActiveTab('qc');
+  }, [loading, searchParams, displayItems.pendingConversionReviews]);
+
+  /** Deep link: ?requestId= from notification bell / attention inbox */
+  useEffect(() => {
+    const reqId = (searchParams.get('requestId') || searchParams.get('requestID') || '').trim();
+    if (!reqId || loading) return;
+    if (requestDeepLinked.current === reqId) return;
+    requestDeepLinked.current = reqId;
+    const row =
+      displayItems.pendingExpenses.find((r) => String(r.request_id) === reqId) || { request_id: reqId };
+    setSelectedIntel({ kind: 'payment', requestId: reqId, row: { ...row } });
+    setActiveTab('cash_out');
+  }, [loading, searchParams, displayItems.pendingExpenses]);
 
   useEffect(() => {
     setConversionSignoffRemark('');
@@ -720,44 +732,44 @@ const ManagerDashboard = () => {
   const tabCounts = useMemo(
     () => ({
       attention: attentionItems.length,
-      clearance: displayItems.pendingClearance.length,
-      production: displayItems.productionOverrides.length,
-      conversions: (displayItems.pendingConversionReviews ?? []).length,
-      flagged: displayItems.flagged.length,
-      refunds: displayItems.pendingRefunds.length,
-      payments: displayItems.pendingExpenses.length,
+      orders: ordersInboxRows.length,
+      cash_out: cashOutInboxRows.length,
+      qc: (displayItems.pendingConversionReviews ?? []).length,
       material: materialIncidentQueue.length,
-      edit_approvals: editApprovalPending.length,
     }),
-    [attentionItems.length, displayItems, editApprovalPending.length]
+    [
+      attentionItems.length,
+      ordersInboxRows.length,
+      cashOutInboxRows.length,
+      displayItems.pendingConversionReviews,
+      materialIncidentQueue.length,
+    ]
   );
 
   const totalOpenActions = useMemo(
-    () =>
-      tabCounts.clearance +
-      tabCounts.production +
-      tabCounts.conversions +
-      tabCounts.flagged +
-      tabCounts.refunds +
-      tabCounts.payments +
-      tabCounts.material +
-      tabCounts.edit_approvals,
-    [tabCounts]
+    () => tabCounts.orders + tabCounts.cash_out + tabCounts.qc + tabCounts.material + editApprovalPending.length,
+    [tabCounts, editApprovalPending.length]
   );
 
   const filteredInboxRows = useMemo(() => {
     let list = [];
-    if (activeTab === 'attention') list = attentionItems;
-    else if (activeTab === 'clearance') list = displayItems.pendingClearance;
-    else if (activeTab === 'production') list = displayItems.productionOverrides;
-    else if (activeTab === 'flagged') list = displayItems.flagged;
-    else if (activeTab === 'refunds') list = displayItems.pendingRefunds;
-    else if (activeTab === 'payments') list = displayItems.pendingExpenses;
+    if (activeTab === 'attention') {
+      list = filterAttentionItems(attentionItems, attentionFilter);
+    } else if (activeTab === 'orders') list = ordersInboxRows;
+    else if (activeTab === 'cash_out') list = cashOutInboxRows;
+    else if (activeTab === 'qc') list = displayItems.pendingConversionReviews ?? [];
     else if (activeTab === 'material') list = materialIncidentQueue;
-    else if (activeTab === 'conversions') list = displayItems.pendingConversionReviews ?? [];
-    else if (activeTab === 'edit_approvals') list = editApprovalPending;
     return list.filter((row) => matchesInboxSearch(inboxSearch, row, activeTab));
-  }, [activeTab, attentionItems, displayItems, inboxSearch, editApprovalPending, materialIncidentQueue]);
+  }, [
+    activeTab,
+    attentionFilter,
+    attentionItems,
+    ordersInboxRows,
+    cashOutInboxRows,
+    displayItems.pendingConversionReviews,
+    materialIncidentQueue,
+    inboxSearch,
+  ]);
 
   const producedSalesProgress =
     displaySnapshots.targets?.nairaTarget > 0
@@ -781,7 +793,11 @@ const ManagerDashboard = () => {
       setRefundIntelExtras(null);
       const reviewContext =
         extra.reviewContext ||
-        (extra.fromProductionGate ? 'production' : activeTab === 'flagged' ? 'flagged' : 'clearance');
+        (extra.fromProductionGate
+          ? 'production'
+          : row?.manager_flag_reason || row?.manager_flagged_at_iso
+            ? 'flagged'
+            : 'clearance');
       setSelectedIntel({
         kind: 'quotation',
         quoteId: quotationId,
@@ -793,7 +809,7 @@ const ManagerDashboard = () => {
       lastRefundIntelQrefRef.current = '';
       fetchAudit(quotationId);
     },
-    [fetchAudit, activeTab]
+    [fetchAudit]
   );
 
   const openAttentionItem = useCallback(
@@ -806,7 +822,7 @@ const ManagerDashboard = () => {
         openQuotationIntel(qid, row, {
           reviewContext: kind === 'flagged' ? 'flagged' : 'clearance',
         });
-        setActiveTab(kind === 'flagged' ? 'flagged' : 'clearance');
+        setActiveTab('orders');
         return;
       }
       if (kind === 'production') {
@@ -816,36 +832,35 @@ const ManagerDashboard = () => {
           { id: qref, customer_name: row.customer_name },
           { cuttingListId: item.cuttingListId || row.id, fromProductionGate: true }
         );
-        setActiveTab('production');
+        setActiveTab('orders');
         return;
       }
       if (kind === 'conversions') {
         setAuditData(null);
         setRefundIntelExtras(null);
         setSelectedIntel({ kind: 'conversion', jobId: item.jobId || row.job_id, row: { ...row } });
-        setActiveTab('conversions');
+        setActiveTab('qc');
         return;
       }
       if (kind === 'refunds') {
         setSelectedIntel({ kind: 'refund', refundId: item.refundId || row.refund_id, row: { ...row } });
-        setActiveTab('refunds');
+        setActiveTab('cash_out');
         return;
       }
       if (kind === 'payments') {
         setAuditData(null);
         setRefundIntelExtras(null);
         setSelectedIntel({ kind: 'payment', requestId: item.requestId || row.request_id, row: { ...row } });
-        setActiveTab('payments');
+        setActiveTab('cash_out');
         return;
       }
       if (kind === 'material') {
-        navigate('/operations', {
-          state: { focusOpsTab: 'materialExceptions', materialIncidentId: item.title || row.id },
-        });
+        setActiveTab('material');
         return;
       }
       if (kind === 'edit_approvals') {
-        setActiveTab('edit_approvals');
+        setActiveTab('attention');
+        setAttentionFilter('edits');
         return;
       }
       if (kind === 'governance') {
@@ -858,7 +873,7 @@ const ManagerDashboard = () => {
             refundId,
             row: { refund_id: refundId, quotation_ref: item.quotationRef || row.quotationRef || '', ...row },
           });
-          setActiveTab('refunds');
+          setActiveTab('cash_out');
           return;
         }
         const qref = String(item.quotationRef || row.quotationRef || '').trim();
@@ -868,7 +883,7 @@ const ManagerDashboard = () => {
             { id: qref, customer_name: row.customer_name || item.subtitle || '' },
             { fromProductionGate: true, cuttingListId: item.cuttingListId || row.cuttingListId || '' }
           );
-          setActiveTab('production');
+          setActiveTab('orders');
           return;
         }
         return;
@@ -912,7 +927,7 @@ const ManagerDashboard = () => {
   };
 
   const handleClearAllClearance = async () => {
-    const rows = filteredInboxRows;
+    const rows = filteredInboxRows.filter((row) => row._inboxKind === 'clearance');
     const eligible = rows.filter((row) => {
       const paid = Math.round(Number(row.paid_ngn) || 0);
       const total = Math.round(Number(row.total_ngn) || 0);
@@ -922,7 +937,7 @@ const ManagerDashboard = () => {
     if (eligible.length === 0) {
       showToast(
         skippedBalance > 0
-          ? 'None of the visible quotes are fully paid — post remaining balances before clearance.'
+          ? 'None of the visible quotes meet the 99.5% paid rule — post remaining balances before sign-off.'
           : 'No quotations to clear.',
         { variant: 'error' }
       );
@@ -933,7 +948,7 @@ const ManagerDashboard = () => {
         ? `\n\n${skippedBalance} quote(s) with balance due will be skipped.`
         : '';
     const ok = window.confirm(
-      `Approve manager clearance for ${eligible.length} quotation(s)?${skipNote}`
+      `Approve order sign-off for ${eligible.length} quotation(s)? Each quote is reviewed individually; bulk clear applies only to quotes at 99.5% paid or above.${skipNote}`
     );
     if (!ok) return;
 
@@ -1063,43 +1078,15 @@ const ManagerDashboard = () => {
   const inboxRowBase =
     'group w-full text-left flex items-center gap-2 sm:gap-3 px-3 py-2.5 border-b border-slate-100 last:border-0 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset';
 
-  const renderInboxRow = (row) => {
-    if (activeTab === 'attention') {
-      const it = row;
-      const reasons = Array.isArray(it.reasons) ? it.reasons : [];
+  const renderAttentionInboxRow = (it) => {
+    const reasons = Array.isArray(it.reasons) ? it.reasons : [];
+    if (it.kind === 'edit_approvals') {
+      const e = it.row || {};
       return (
-        <button
-          key={it.id}
-          type="button"
-          onClick={() => openAttentionItem(it)}
-          className={`${inboxRowBase} hover:bg-violet-50/50 focus-visible:ring-violet-300/40`}
-        >
+        <div key={it.id} className={`${inboxRowBase} hover:bg-slate-50/80`}>
           <span className="shrink-0 rounded-md bg-violet-100 px-1.5 py-0.5 text-[8px] font-black uppercase text-violet-900">
-            {it.kind}
+            edit
           </span>
-          <span className="min-w-0 flex-1 truncate text-[11px] font-semibold text-slate-800">
-            <span className="font-mono font-bold text-[#134e4a]">{it.title}</span>
-            {' · '}
-            {it.subtitle}
-          </span>
-          {it.amountNgn != null ? (
-            <span className="shrink-0 text-[10px] font-bold tabular-nums text-slate-700">{formatNgn(it.amountNgn)}</span>
-          ) : null}
-          <span className="hidden lg:inline shrink-0 max-w-[8rem] truncate text-[9px] text-slate-500">
-            {reasons[0] || ''}
-          </span>
-          <ChevronRight size={14} className="shrink-0 text-slate-300" />
-        </button>
-      );
-    }
-    if (activeTab === 'edit_approvals') {
-      const e = row;
-      return (
-        <div
-          key={e.id}
-          className={`${inboxRowBase} hover:bg-slate-50/80`}
-        >
-          <span className="shrink-0 text-[10px] font-mono font-bold text-slate-700">{e.id}</span>
           <span className="min-w-0 flex-1 truncate text-[11px] font-semibold text-slate-800">
             {e.entityKind} · <span className="font-mono">{e.entityId}</span>
             {' · '}
@@ -1127,16 +1114,113 @@ const ManagerDashboard = () => {
         </div>
       );
     }
-    if (activeTab === 'clearance') {
+    return (
+      <button
+        key={it.id}
+        type="button"
+        onClick={() => openAttentionItem(it)}
+        className={`${inboxRowBase} hover:bg-violet-50/50 focus-visible:ring-violet-300/40`}
+      >
+        <span
+          className={`shrink-0 rounded-md px-1.5 py-0.5 text-[8px] font-black uppercase ${
+            it.kind === 'flagged' || it.kind === 'governance'
+              ? 'bg-rose-100 text-rose-900'
+              : 'bg-violet-100 text-violet-900'
+          }`}
+        >
+          {it.kind}
+        </span>
+        <span className="min-w-0 flex-1 truncate text-[11px] font-semibold text-slate-800">
+          <span className="font-mono font-bold text-[#134e4a]">{it.title}</span>
+          {' · '}
+          {it.subtitle}
+        </span>
+        {it.amountNgn != null ? (
+          <span className="shrink-0 text-[10px] font-bold tabular-nums text-slate-700">{formatNgn(it.amountNgn)}</span>
+        ) : null}
+        <span className="hidden lg:inline shrink-0 max-w-[8rem] truncate text-[9px] text-slate-500">
+          {reasons[0] || ''}
+        </span>
+        <ChevronRight size={14} className="shrink-0 text-slate-300" />
+      </button>
+    );
+  };
+
+  const renderInboxRow = (row) => {
+    if (activeTab === 'attention') {
+      return renderAttentionInboxRow(row);
+    }
+    if (activeTab === 'orders') {
+      if (row._inboxKind === 'flagged') {
+        return (
+          <button
+            key={row._rowKey}
+            type="button"
+            onClick={() =>
+              openQuotationIntel(row.id, row, { reviewContext: 'flagged' })
+            }
+            className={`${inboxRowBase} hover:bg-rose-50/50 focus-visible:ring-rose-300/40 ${
+              selectedIntel?.kind === 'quotation' && selectedIntel.quoteId === row.id ? 'bg-rose-50/70' : ''
+            }`}
+          >
+            <span className="shrink-0 rounded-md bg-rose-100 px-1.5 py-0.5 text-[8px] font-black uppercase text-rose-900">
+              flagged
+            </span>
+            <span className="shrink-0 text-xs font-bold text-rose-900">{row.id}</span>
+            <span className="min-w-0 flex-1 truncate text-[11px] text-slate-700">
+              <span className="font-semibold">{formatPersonName(row.customer_name)}</span>
+              {' · '}
+              <span className="text-rose-800/90">{row.manager_flag_reason || 'Awaiting audit review.'}</span>
+            </span>
+            <AlertTriangle size={14} className="shrink-0 text-rose-500" />
+          </button>
+        );
+      }
+      if (row._inboxKind === 'production') {
+        const qref = row.quotation_ref;
+        return (
+          <button
+            key={row._rowKey}
+            type="button"
+            onClick={() =>
+              openQuotationIntel(
+                qref,
+                { id: qref, customer_name: row.customer_name },
+                { cuttingListId: row.id, fromProductionGate: true }
+              )
+            }
+            className={`${inboxRowBase} hover:bg-amber-50/60 focus-visible:ring-amber-400/30 ${
+              selectedIntel?.kind === 'quotation' && selectedIntel.quoteId === qref ? 'bg-amber-50/80' : ''
+            }`}
+          >
+            <span className="shrink-0 rounded-md bg-amber-100 px-1.5 py-0.5 text-[8px] font-black uppercase text-amber-900">
+              gate
+            </span>
+            <span className="shrink-0 text-xs font-mono font-bold text-slate-600">{row.id}</span>
+            <span className="min-w-0 flex-1 truncate text-[11px] font-semibold text-slate-700">
+              <span className="font-bold text-[#134e4a]">{qref}</span>
+              {' · '}
+              {formatPersonName(row.customer_name)}
+            </span>
+            <span className="shrink-0 text-[10px] text-slate-500 tabular-nums whitespace-nowrap">
+              {formatNgn(row.paid_ngn)} / {formatNgn(row.total_ngn)}
+            </span>
+            <ChevronRight size={14} className="shrink-0 text-slate-300 group-hover:text-amber-700" />
+          </button>
+        );
+      }
       return (
         <button
-          key={row.id}
+          key={row._rowKey}
           type="button"
           onClick={() => openQuotationIntel(row.id, row)}
           className={`${inboxRowBase} hover:bg-teal-50/60 focus-visible:ring-[#134e4a]/25 ${
             selectedIntel?.kind === 'quotation' && selectedIntel.quoteId === row.id ? 'bg-teal-50/80' : ''
           }`}
         >
+          <span className="shrink-0 rounded-md bg-teal-100 px-1.5 py-0.5 text-[8px] font-black uppercase text-teal-900">
+            sign-off
+          </span>
           <span className="shrink-0 text-xs font-bold text-[#134e4a] tabular-nums">{row.id}</span>
           <span className="min-w-0 flex-1 truncate text-[11px] font-semibold text-slate-700">
             {formatPersonName(row.customer_name)}
@@ -1144,111 +1228,49 @@ const ManagerDashboard = () => {
           <span className="shrink-0 text-[10px] font-semibold text-slate-600 tabular-nums whitespace-nowrap">
             {formatNgn(row.paid_ngn)} / {formatNgn(row.total_ngn)}
           </span>
-          <span className="shrink-0 text-[10px] text-slate-400 tabular-nums whitespace-nowrap hidden sm:inline">
-            {row.date_iso ? new Date(row.date_iso).toLocaleDateString() : '—'}
-          </span>
-          <ChevronRight
-            size={14}
-            className="shrink-0 text-slate-300 group-hover:text-[#134e4a] transition-transform group-hover:translate-x-0.5"
-          />
+          <ChevronRight size={14} className="shrink-0 text-slate-300 group-hover:text-[#134e4a]" />
         </button>
       );
     }
-    if (activeTab === 'production') {
-      const qref = row.quotation_ref;
+    if (activeTab === 'cash_out') {
+      if (row._inboxKind === 'payment') {
+        return (
+          <button
+            key={row._rowKey}
+            type="button"
+            onClick={() => {
+              setAuditData(null);
+              setRefundIntelExtras(null);
+              setSelectedIntel({ kind: 'payment', requestId: row.request_id, row: { ...row } });
+            }}
+            className={`${inboxRowBase} hover:bg-slate-50/80 focus-visible:ring-slate-300/50 ${
+              selectedIntel?.kind === 'payment' && selectedIntel.requestId === row.request_id ? 'bg-slate-100/90' : ''
+            }`}
+          >
+            <span className="shrink-0 rounded-md bg-slate-200 px-1.5 py-0.5 text-[8px] font-black uppercase text-slate-800">
+              expense
+            </span>
+            <span className="shrink-0 text-xs font-bold text-slate-800">{row.request_id}</span>
+            <span className="min-w-0 flex-1 truncate text-[11px] font-semibold text-slate-600">{row.description}</span>
+            <span className="shrink-0 text-[10px] font-bold text-rose-700 tabular-nums whitespace-nowrap">
+              {formatNgn(row.amount_requested_ngn)}
+            </span>
+            <ChevronRight size={14} className="shrink-0 text-slate-300 group-hover:text-slate-600" />
+          </button>
+        );
+      }
       return (
         <button
-          key={row.id}
-          type="button"
-          onClick={() =>
-            openQuotationIntel(
-              qref,
-              { id: qref, customer_name: row.customer_name },
-              { cuttingListId: row.id, fromProductionGate: true }
-            )
-          }
-          className={`${inboxRowBase} hover:bg-amber-50/60 focus-visible:ring-amber-400/30 ${
-            selectedIntel?.kind === 'quotation' && selectedIntel.quoteId === qref ? 'bg-amber-50/80' : ''
-          }`}
-        >
-          <span className="shrink-0 text-xs font-mono font-bold text-slate-600">{row.id}</span>
-          <span className="min-w-0 flex-1 truncate text-[11px] font-semibold text-slate-700">
-            <span className="font-bold text-[#134e4a]">{qref}</span>
-            {' · '}
-            {formatPersonName(row.customer_name)}
-          </span>
-          <span className="shrink-0 text-[10px] text-slate-500 tabular-nums whitespace-nowrap">
-            {formatNgn(row.paid_ngn)} / {formatNgn(row.total_ngn)}
-            {' · '}
-            <span className="font-bold text-amber-700">{row.total_meters?.toLocaleString?.() ?? row.total_meters} m</span>
-          </span>
-          <ChevronRight
-            size={14}
-            className="shrink-0 text-slate-300 group-hover:text-amber-700 transition-transform group-hover:translate-x-0.5"
-          />
-        </button>
-      );
-    }
-    if (activeTab === 'flagged') {
-      return (
-        <button
-          key={row.id}
-          type="button"
-          onClick={() => openQuotationIntel(row.id, row)}
-          className={`${inboxRowBase} hover:bg-rose-50/50 focus-visible:ring-rose-300/40 ${
-            selectedIntel?.kind === 'quotation' && selectedIntel.quoteId === row.id ? 'bg-rose-50/70' : ''
-          }`}
-        >
-          <span className="shrink-0 text-xs font-bold text-rose-900">{row.id}</span>
-          <span className="min-w-0 flex-1 truncate text-[11px] text-slate-700">
-            <span className="font-semibold">{formatPersonName(row.customer_name)}</span>
-            {' · '}
-            <span className="text-rose-800/90">{row.manager_flag_reason || 'No reason on file.'}</span>
-          </span>
-          <AlertTriangle size={14} className="shrink-0 text-rose-500" />
-        </button>
-      );
-    }
-    if (activeTab === 'material') {
-      return (
-        <button
-          key={row.id}
-          type="button"
-          onClick={() =>
-            navigate('/operations', {
-              state: { focusOpsTab: 'materialExceptions', materialIncidentId: row.id },
-            })
-          }
-          className={`${inboxRowBase} hover:bg-teal-50/60 focus-visible:ring-[#134e4a]/25`}
-        >
-          <span className="shrink-0 text-xs font-mono font-bold text-[#134e4a]">{row.id}</span>
-          <span className="min-w-0 flex-1 truncate text-[11px] font-semibold text-slate-700">
-            {String(row.incident_type || '').replace(/_/g, ' ')}
-            {' · '}
-            {row.gauge_label} {row.colour}
-            {' · '}
-            <span className="font-bold tabular-nums">{Number(row.total_meters || 0).toFixed(1)} m</span>
-          </span>
-          <span className="shrink-0 text-[10px] text-slate-400 tabular-nums whitespace-nowrap hidden sm:inline">
-            {row.date_iso ? new Date(row.date_iso).toLocaleDateString() : '—'}
-          </span>
-          <ChevronRight
-            size={14}
-            className="shrink-0 text-slate-300 group-hover:text-[#134e4a] transition-transform group-hover:translate-x-0.5"
-          />
-        </button>
-      );
-    }
-    if (activeTab === 'refunds') {
-      return (
-        <button
-          key={row.refund_id}
+          key={row._rowKey}
           type="button"
           onClick={() => setSelectedIntel({ kind: 'refund', refundId: row.refund_id, row: { ...row } })}
           className={`${inboxRowBase} hover:bg-amber-50/50 focus-visible:ring-amber-300/40 ${
             selectedIntel?.kind === 'refund' && selectedIntel.refundId === row.refund_id ? 'bg-amber-50/80' : ''
           }`}
         >
+          <span className="shrink-0 rounded-md bg-amber-100 px-1.5 py-0.5 text-[8px] font-black uppercase text-amber-900">
+            refund
+          </span>
           <span className="shrink-0 text-xs font-mono font-bold text-slate-800">{row.refund_id}</span>
           <span className="min-w-0 flex-1 truncate text-[11px] font-semibold text-slate-700">
             {formatPersonName(row.customer_name)}
@@ -1260,40 +1282,11 @@ const ManagerDashboard = () => {
           <span className="shrink-0 text-[10px] font-bold text-amber-700 tabular-nums whitespace-nowrap">
             {formatNgn(row.amount_ngn)}
           </span>
-          <ChevronRight
-            size={14}
-            className="shrink-0 text-slate-300 group-hover:text-amber-700 transition-transform group-hover:translate-x-0.5"
-          />
+          <ChevronRight size={14} className="shrink-0 text-slate-300 group-hover:text-amber-700" />
         </button>
       );
     }
-    if (activeTab === 'payments') {
-      return (
-        <button
-          key={row.request_id}
-          type="button"
-          onClick={() => {
-            setAuditData(null);
-            setRefundIntelExtras(null);
-            setSelectedIntel({ kind: 'payment', requestId: row.request_id, row: { ...row } });
-          }}
-          className={`${inboxRowBase} hover:bg-slate-50/80 focus-visible:ring-slate-300/50 ${
-            selectedIntel?.kind === 'payment' && selectedIntel.requestId === row.request_id ? 'bg-slate-100/90' : ''
-          }`}
-        >
-          <span className="shrink-0 text-xs font-bold text-slate-800">{row.request_id}</span>
-          <span className="min-w-0 flex-1 truncate text-[11px] font-semibold text-slate-600">{row.description}</span>
-          <span className="shrink-0 text-[10px] font-bold text-rose-700 tabular-nums whitespace-nowrap">
-            {formatNgn(row.amount_requested_ngn)}
-          </span>
-          <span className="shrink-0 text-[10px] text-slate-400 whitespace-nowrap hidden md:inline">
-            {row.request_date || row.approval_status || row.status || 'Pending'}
-          </span>
-          <ChevronRight size={14} className="shrink-0 text-slate-300 group-hover:text-slate-600" />
-        </button>
-      );
-    }
-    if (activeTab === 'conversions') {
+    if (activeTab === 'qc') {
       const alert = String(row.conversion_alert_state || '');
       return (
         <button
@@ -1338,10 +1331,37 @@ const ManagerDashboard = () => {
         </button>
       );
     }
+    if (activeTab === 'material') {
+      return (
+        <button
+          key={row.id}
+          type="button"
+          onClick={() =>
+            navigate('/operations', {
+              state: { focusOpsTab: 'materialExceptions', materialIncidentId: row.id },
+            })
+          }
+          className={`${inboxRowBase} hover:bg-teal-50/60 focus-visible:ring-[#134e4a]/25`}
+        >
+          <span className="shrink-0 rounded-md bg-teal-100 px-1.5 py-0.5 text-[8px] font-black uppercase text-teal-900">
+            material
+          </span>
+          <span className="shrink-0 text-xs font-mono font-bold text-[#134e4a]">{row.id}</span>
+          <span className="min-w-0 flex-1 truncate text-[11px] font-semibold text-slate-700">
+            {String(row.incident_type || '').replace(/_/g, ' ')}
+            {' · '}
+            {row.gauge_label} {row.colour}
+            {' · '}
+            <span className="font-bold tabular-nums">{Number(row.total_meters || 0).toFixed(1)} m</span>
+          </span>
+          <ChevronRight size={14} className="shrink-0 text-slate-300 group-hover:text-[#134e4a]" />
+        </button>
+      );
+    }
     return null;
   };
 
-  const tabMeta = inboxTabs.find((t) => t.key === activeTab);
+  const tabMeta = MANAGER_INBOX_TABS.find((t) => t.key === activeTab);
 
   return (
     <PageShell className="pb-14">
@@ -1357,6 +1377,29 @@ const ManagerDashboard = () => {
       {['md', 'admin', 'sales_manager'].includes(String(ws?.session?.user?.roleKey || '').toLowerCase()) ? (
         <div className="mb-6">
           <DeliveryGateDiagnosticsBanner deliveryPaymentGate={deliveryGateMode} />
+        </div>
+      ) : null}
+
+      {!loading && pendingOrderSignOffCount > 0 ? (
+        <div className="rounded-2xl border border-teal-200 bg-teal-50 px-4 py-4 mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <p className="text-sm font-bold text-[#134e4a]">Order sign-off required</p>
+            <p className="text-xs text-slate-600 mt-1">
+              {pendingOrderSignOffCount} paid quotation{pendingOrderSignOffCount === 1 ? '' : 's'} from the sales
+              office need branch manager review — with or without a refund on the quote. Open each for personal
+              sign-off (99.5% paid counts as fully paid).
+            </p>
+          </div>
+          <button
+            type="button"
+            className="z-btn-primary shrink-0"
+            onClick={() => {
+              setActiveTab('orders');
+              setAttentionFilter('all');
+            }}
+          >
+            Review orders
+          </button>
         </div>
       ) : null}
 
@@ -1523,11 +1566,11 @@ const ManagerDashboard = () => {
           <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-white/10 pt-4">
             <button
               type="button"
-              onClick={() => navigate('/analytics')}
+              onClick={() => navigate('/exec?tab=intelligence')}
               className="inline-flex items-center gap-2 rounded-lg border border-teal-300/40 bg-teal-400/10 px-3 py-2 text-[10px] font-black uppercase tracking-wide text-teal-100 hover:bg-teal-400/20"
             >
               <Sparkles size={14} aria-hidden />
-              Business intelligence
+              Intelligence
             </button>
           </div>
         ) : null}
@@ -1595,7 +1638,7 @@ const ManagerDashboard = () => {
                   <p className="text-[11px] text-slate-500 mt-1">{tabMeta?.description}</p>
                 </div>
                 <motion.div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto sm:items-center">
-                  {activeTab === 'clearance' && filteredInboxRows.length > 0 ? (
+                  {activeTab === 'orders' && filteredInboxRows.some((r) => r._inboxKind === 'clearance') ? (
                     <Button
                       type="button"
                       size="sm"
@@ -1604,7 +1647,7 @@ const ManagerDashboard = () => {
                       className="shrink-0 w-full sm:w-auto"
                     >
                       <CheckCircle2 size={14} />
-                      Clear all
+                      Clear all paid
                     </Button>
                   ) : null}
                   <div className="relative w-full sm:w-64">
@@ -1620,14 +1663,17 @@ const ManagerDashboard = () => {
                 </motion.div>
               </div>
               <div className="flex gap-1 mt-4 overflow-x-auto pb-1 -mx-1 px-1 custom-scrollbar">
-                {inboxTabs.map((t) => {
+                {MANAGER_INBOX_TABS.map((t) => {
                   const active = activeTab === t.key;
                   const count = tabCounts[t.key] ?? 0;
                   return (
                     <button
                       key={t.key}
                       type="button"
-                      onClick={() => setActiveTab(t.key)}
+                      onClick={() => {
+                        setActiveTab(t.key);
+                        if (t.key !== 'attention') setAttentionFilter('all');
+                      }}
                       className={`shrink-0 flex items-center gap-2 px-3 py-2 rounded-xl text-[10px] font-bold uppercase tracking-wide transition-colors border ${
                         active
                           ? 'bg-[#134e4a] text-white border-[#134e4a] shadow-sm'
@@ -1646,6 +1692,38 @@ const ManagerDashboard = () => {
                   );
                 })}
               </div>
+              {activeTab === 'attention' ? (
+                <div
+                  className="flex gap-1 mt-3 overflow-x-auto pb-1 -mx-1 px-1 custom-scrollbar"
+                  role="group"
+                  aria-label="Everything filters"
+                >
+                  {MANAGER_ATTENTION_FILTERS.map((f) => {
+                    const active = attentionFilter === f.key;
+                    const count =
+                      f.key === 'all'
+                        ? attentionItems.length
+                        : filterAttentionItems(attentionItems, f.key).length;
+                    return (
+                      <button
+                        key={f.key}
+                        type="button"
+                        onClick={() => setAttentionFilter(f.key)}
+                        className={`shrink-0 px-2.5 py-1.5 rounded-lg text-[9px] font-bold uppercase tracking-wide border transition-colors ${
+                          active
+                            ? 'bg-violet-600 text-white border-violet-600'
+                            : 'bg-white text-slate-500 border-slate-200 hover:border-violet-200 hover:text-violet-800'
+                        }`}
+                      >
+                        {f.label}
+                        <span className={`ml-1 tabular-nums ${active ? 'text-violet-100' : 'text-slate-400'}`}>
+                          {count}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : null}
             </div>
             <div className="min-h-[420px] max-h-[min(56vh,560px)] overflow-y-auto custom-scrollbar">
               {loading ? (
@@ -1655,22 +1733,16 @@ const ManagerDashboard = () => {
                 </div>
               ) : filteredInboxRows.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-20 px-6 text-center text-slate-400">
-                  {activeTab === 'clearance' ? (
+                  {activeTab === 'orders' ? (
                     <CheckCircle2 size={36} className="opacity-25 mb-3 text-teal-600" />
-                  ) : activeTab === 'production' ? (
-                    <Factory size={36} className="opacity-25 mb-3 text-amber-600" />
-                  ) : activeTab === 'flagged' ? (
-                    <Flag size={36} className="opacity-25 mb-3 text-rose-500" />
-                  ) : activeTab === 'conversions' ? (
+                  ) : activeTab === 'cash_out' ? (
+                    <DollarSign size={36} className="opacity-25 mb-3 text-amber-600" />
+                  ) : activeTab === 'qc' ? (
                     <BarChart3 size={36} className="opacity-25 mb-3 text-violet-600" />
-                  ) : activeTab === 'refunds' ? (
-                    <RotateCcw size={36} className="opacity-25 mb-3 text-amber-600" />
                   ) : activeTab === 'material' ? (
                     <ClipboardList size={36} className="opacity-25 mb-3 text-teal-600" />
-                  ) : activeTab === 'edit_approvals' ? (
-                    <ShieldCheck size={36} className="opacity-25 mb-3 text-teal-600" />
                   ) : (
-                    <FileText size={36} className="opacity-25 mb-3 text-rose-500" />
+                    <Sparkles size={36} className="opacity-25 mb-3 text-violet-500" />
                   )}
                   <p className="text-sm font-bold text-slate-600">Nothing in this queue</p>
                   <p className="text-xs text-slate-500 mt-1 max-w-xs">

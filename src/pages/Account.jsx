@@ -23,6 +23,7 @@ import {
   Banknote,
   Pencil,
   Trash2,
+  LayoutDashboard,
 } from 'lucide-react';
 
 import {
@@ -75,7 +76,8 @@ import {
   isPayFromCorrectionTreasuryRow,
   TREASURY_STATEMENT_TYPE_LABEL,
 } from '../lib/accountCore';
-import { getAllowedLegacyAccountTabs } from '../lib/legacyAccountsAccess';
+import { getAllowedLegacyAccountTabs, getDefaultLegacyAccountTab } from '../lib/legacyAccountsAccess';
+import { FinanceDeskWorkQueues } from '../components/finance/FinanceDeskWorkQueues.jsx';
 import {
   treasuryAccountBranchLabel,
   treasuryAccountDisplayName,
@@ -1136,6 +1138,7 @@ const Account = () => {
 
   const accountTabs = useMemo(() => {
     const all = [
+      { id: 'desk', icon: <LayoutDashboard size={16} />, label: 'Desk' },
       { id: 'treasury', icon: <Landmark size={16} />, label: 'Treasury' },
       { id: 'receipts', icon: <Banknote size={16} />, label: 'Receipts & recon' },
       { id: 'movements', icon: <ArrowRightLeft size={16} />, label: 'Movements' },
@@ -1152,13 +1155,55 @@ const Account = () => {
   const handleAccountTabChange = useCallback(
     (tabId) => {
       setActiveTab(tabId);
-      if (tabId === 'treasury') {
+      const rk = String(ws?.session?.user?.roleKey || '').trim().toLowerCase();
+      if (tabId === 'treasury' && rk !== 'cashier') {
         setSearchParams({}, { replace: true });
       } else {
         setSearchParams({ tab: tabId }, { replace: true });
       }
     },
-    [setSearchParams]
+    [setSearchParams, ws?.session?.user?.roleKey]
+  );
+
+  const handleDeskConfirmReceipt = useCallback(
+    (receipt) => {
+      const rid = String(receipt?.id || '').trim();
+      handleAccountTabChange('receipts');
+      if (rid) setReceiptsTableSearch(rid);
+    },
+    [handleAccountTabChange]
+  );
+
+  const handleDeskPayRequest = useCallback(
+    (requestId) => {
+      const id = String(requestId || '').trim();
+      const req = payRequests.find((row) => String(row.requestID || '').trim() === id);
+      if (req) {
+        openRequestPayment(req);
+        return;
+      }
+      handleAccountTabChange('disbursements');
+      showToast(id ? `Payment request ${id} — open from Payments tab.` : 'Open Payments tab to record payout.', {
+        variant: 'info',
+      });
+    },
+    [payRequests, handleAccountTabChange, showToast, openRequestPayment]
+  );
+
+  const handleDeskPayRefund = useCallback(
+    (refundId) => {
+      const id = String(refundId || '').trim();
+      const row = customerRefunds.find((r) => String(r.refundID || '').trim() === id);
+      if (row) {
+        openRefundPay(row);
+        return;
+      }
+      handleAccountTabChange('disbursements');
+      showToast(id ? `Refund ${id} — open from Payments or Treasury.` : 'Open Payments tab to record refund payout.', {
+        variant: 'info',
+      });
+    },
+    [customerRefunds, handleAccountTabChange, showToast, openRefundPay]
   );
 
   useEffect(() => {
@@ -1166,19 +1211,34 @@ const Account = () => {
     const rk = ws?.session?.user?.roleKey;
     const permissions = ws?.session?.user?.permissions;
     const allowed = getAllowedLegacyAccountTabs(rk, permissions);
+    const defaultTab = getDefaultLegacyAccountTab(rk, permissions);
+
+    const applyTab = (tabId) => {
+      setActiveTab(tabId);
+      if (tabId === 'treasury' && String(rk || '').trim().toLowerCase() !== 'cashier') {
+        setSearchParams({}, { replace: true });
+      } else if (tabId !== 'treasury') {
+        setSearchParams({ tab: tabId }, { replace: true });
+      }
+    };
+
     if (t && TAB_LABELS[t]) {
       if (!allowed.length || allowed.includes(t)) {
         setActiveTab(t);
-      } else if (allowed[0]) {
-        setActiveTab(allowed[0]);
-        setSearchParams(allowed[0] === 'treasury' ? {} : { tab: allowed[0] }, { replace: true });
+      } else {
+        applyTab(defaultTab);
       }
       return;
     }
-    if (allowed.length && !allowed.includes(activeTab)) {
-      setActiveTab(allowed[0]);
+    if (!t) {
+      setActiveTab(defaultTab);
+      if (defaultTab !== 'treasury') {
+        setSearchParams({ tab: defaultTab }, { replace: true });
+      }
+      return;
     }
-  }, [searchParams, ws?.session?.user?.roleKey, ws?.session?.user?.permissions, activeTab, setSearchParams]);
+    applyTab(defaultTab);
+  }, [searchParams, ws?.session?.user?.roleKey, ws?.session?.user?.permissions, setSearchParams]);
 
   const canManageTreasury = Boolean(ws?.hasPermission?.('treasury.manage'));
   const canExecTreasuryDelete =
@@ -2961,13 +3021,15 @@ const Account = () => {
             <AiAskButton
               mode="finance"
               prompt={
-                activeTab === 'treasury'
-                  ? 'Give me a short treasury and payout summary from the live workspace.'
-                  : activeTab === 'receipts'
-                    ? 'Summarize pending customer receipt settlement and which receipts need review first.'
-                    : activeTab === 'audit'
-                      ? 'Summarize the audit and reconciliation queue and what needs action first.'
-                      : 'Summarize the current finance workload and the next best actions.'
+                activeTab === 'desk'
+                  ? 'Summarize my branch cashier desk queues — pending receipts, approved payouts, and treasury flags.'
+                  : activeTab === 'treasury'
+                    ? 'Give me a short treasury and payout summary from the live workspace.'
+                    : activeTab === 'receipts'
+                      ? 'Summarize pending customer receipt settlement and which receipts need review first.'
+                      : activeTab === 'audit'
+                        ? 'Summarize the audit and reconciliation queue and what needs action first.'
+                        : 'Summarize the current finance workload and the next best actions.'
               }
               pageContext={{
                 source: 'finance-page',
@@ -2983,9 +3045,9 @@ const Account = () => {
       />
 
       <div
-        className={`grid min-w-0 grid-cols-1 gap-8 lg:gap-10 ${activeTab === 'receipts' ? '' : 'lg:grid-cols-4'}`}
+        className={`grid min-w-0 grid-cols-1 gap-8 lg:gap-10 ${activeTab === 'receipts' || activeTab === 'desk' ? '' : 'lg:grid-cols-4'}`}
       >
-        {activeTab !== 'receipts' ? (
+        {activeTab !== 'receipts' && activeTab !== 'desk' ? (
         <div className="lg:col-span-1 space-y-6">
           <div className="rounded-zarewa border border-slate-200/80 border-l-[3px] border-l-[#134e4a] bg-white p-6 shadow-[var(--shadow-sequence)]">
             <h3 className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-400 mb-3">
@@ -3068,9 +3130,18 @@ const Account = () => {
         </div>
         ) : null}
 
-        <div className={activeTab === 'receipts' ? 'min-w-0' : 'lg:col-span-3 min-w-0'}>
+        <div className={activeTab === 'receipts' || activeTab === 'desk' ? 'min-w-0' : 'lg:col-span-3 min-w-0'}>
           <FinanceSequencePanel>
             <>
+            {activeTab === 'desk' && (
+              <FinanceDeskWorkQueues
+                onConfirmReceipt={handleDeskConfirmReceipt}
+                onPayRequest={handleDeskPayRequest}
+                onPayRefund={handleDeskPayRefund}
+                onGoToTab={handleAccountTabChange}
+              />
+            )}
+
             {activeTab === 'receipts' && (
               <div className="space-y-10 animate-in fade-in duration-300">
                 <section className="space-y-3">

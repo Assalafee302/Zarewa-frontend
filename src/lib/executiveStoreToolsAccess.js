@@ -1,7 +1,7 @@
 import { hasPermissionInList } from './moduleAccess.js';
 
 /** Roles that may see manager-dashboard shortcuts to production / stock (permission check is primary). */
-const EXEC_STORE_SHORTCUT_ROLES = new Set(['admin', 'md', 'sales_manager', 'operations_officer']);
+const EXEC_STORE_SHORTCUT_ROLES = new Set(['admin', 'md', 'sales_manager', 'operations_officer', 'storekeeper']);
 
 function hasStoreFloorPermissions(permissions) {
   return (

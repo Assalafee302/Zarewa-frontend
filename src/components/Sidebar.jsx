@@ -19,15 +19,11 @@ import {
   ClipboardCheck,
   Users,
   UserCircle,
-  Banknote,
   Calculator,
 } from 'lucide-react';
 import { useWorkspace } from '../context/WorkspaceContext';
 import { userMayViewManagementReportsClient } from '../lib/reportsAccess';
-import {
-  userMayViewAccountingDeskClient,
-  userMayViewCashierDeskClient,
-} from '../lib/financeDeskAccess';
+import { userMayViewAccountingDeskClient } from '../lib/financeDeskAccess';
 import { userMaySeeLegacyAccountsNav } from '../lib/legacyAccountsAccess';
 import { canAccessExecutiveHr } from '../lib/hrAccess';
 import { ZAREWA_LOGO_SRC } from '../Data/companyQuotation';
@@ -73,6 +69,7 @@ const Sidebar = ({ mobileOpen = false, onCloseMobile, collapsed = false, onToggl
   const roleKey = ws?.session?.user?.roleKey;
   const permissions = ws?.session?.user?.permissions;
   const mayViewBi = userMayViewManagementReportsClient(roleKey, permissions);
+  const hasExecNav = Boolean(ws?.hasPermission?.('exec.dashboard.view'));
 
   const fullMenuItems = [
     {
@@ -114,13 +111,6 @@ const Sidebar = ({ mobileOpen = false, onCloseMobile, collapsed = false, onToggl
       visible: ws?.canAccessModule?.('operations') ?? true,
     },
     {
-      icon: <Banknote size={18} />,
-      label: 'Cashier Desk',
-      path: '/cashier',
-      active: pathMatches(p, '/cashier'),
-      visible: userMayViewCashierDeskClient(roleKey, permissions),
-    },
-    {
       icon: <Calculator size={18} />,
       label: 'Accounting',
       path: '/accounting',
@@ -131,7 +121,11 @@ const Sidebar = ({ mobileOpen = false, onCloseMobile, collapsed = false, onToggl
       icon: <Landmark size={18} />,
       label: 'Finance',
       path: '/accounts',
-      active: pathMatches(p, '/accounts'),
+      to:
+        String(roleKey || '').toLowerCase() === 'cashier'
+          ? { pathname: '/accounts', search: '?tab=desk' }
+          : undefined,
+      active: pathMatches(p, '/accounts') || pathMatches(p, '/cashier'),
       visible: userMaySeeLegacyAccountsNav(roleKey, permissions),
     },
     {
@@ -144,7 +138,7 @@ const Sidebar = ({ mobileOpen = false, onCloseMobile, collapsed = false, onToggl
       icon: <Sparkles size={18} />,
       label: 'Business intelligence',
       path: '/analytics',
-      visible: mayViewBi,
+      visible: mayViewBi && !hasExecNav,
     },
     {
       icon: <Users size={18} />,

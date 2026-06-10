@@ -329,7 +329,7 @@ export function FinanceTrialExceptionPanel({ variant, data, loading, error, onRe
 
       <div className="flex flex-wrap gap-3 text-xs font-bold">
         {variant !== 'cashier' ? (
-          <Link to="/cashier" className="text-teal-800 hover:underline">
+          <Link to="/accounts?tab=desk" className="text-teal-800 hover:underline">
             Cashier Desk →
           </Link>
         ) : null}

@@ -407,7 +407,7 @@ export function WorkspaceProvider({ children }) {
   }, []);
 
   const endSessionForTimeout = useCallback(async () => {
-    const mins = Number(snapshot?.session?.sessionTimeoutMinutes) || 15;
+    const mins = Number(snapshot?.session?.sessionTimeoutMinutes) || 120;
     try {
       await apiFetch('/api/session/timeout', { method: 'POST' });
     } catch {

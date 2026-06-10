@@ -1,4 +1,5 @@
 export const ACCOUNT_TAB_LABELS = {
+  desk: 'Desk',
   treasury: 'Treasury',
   receipts: 'Receipts & bank recon',
   cashier: 'Cashier confirmation',

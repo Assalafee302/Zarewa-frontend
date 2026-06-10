@@ -7,6 +7,7 @@ export const SALES_ROLE_LABELS = {
   sales_staff: 'Sales officer',
   procurement_officer: 'Procurement officer',
   operations_officer: 'Operations officer',
+  storekeeper: 'Store keeper',
   viewer: 'Read only',
 };
 
@@ -34,6 +35,7 @@ const FULL_EDIT_PAID_QUOTATION_ROLES = new Set([
   'sales_staff',
   'cashier',
   'operations_officer',
+  'storekeeper',
   'procurement_officer',
 ]);
 

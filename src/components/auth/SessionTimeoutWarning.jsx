@@ -15,7 +15,7 @@ export default function SessionTimeoutWarning() {
   const [sessionPaused, setSessionPaused] = useState(false);
   const [dismissed, setDismissed] = useState(false);
 
-  const timeoutMinutes = Number(ws?.session?.sessionTimeoutMinutes) || 15;
+  const timeoutMinutes = Number(ws?.session?.sessionTimeoutMinutes) || 120;
   const warningSeconds = Number(ws?.session?.sessionWarningSeconds) || 60;
   const timeoutMs = timeoutMinutes * 60 * 1000;
   const enabled = Boolean(ws?.session?.user && !ws?.authRequired);

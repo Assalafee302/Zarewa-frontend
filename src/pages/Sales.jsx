@@ -2265,7 +2265,12 @@ const Sales = () => {
         isOpen={showCuttingModal}
         editData={selectedItem}
         accessMode={cuttingAccessMode}
-        onClose={() => setShowCuttingModal(false)}
+        onClose={() => {
+          const needsListRefresh =
+            String(selectedItem?.status || '').trim() === 'Draft' || Boolean(selectedItem?.id);
+          setShowCuttingModal(false);
+          if (needsListRefresh && ws?.canMutate) void ws.refresh();
+        }}
         quotations={quotations}
         receipts={mergedReceiptRows}
         cuttingLists={cuttingLists}

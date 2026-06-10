@@ -1,12 +1,11 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link, Navigate, useNavigate } from 'react-router-dom';
+import React, { useCallback, useEffect, useState } from 'react';
+import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   AlertTriangle,
   ArrowRight,
   BarChart3,
   Building2,
   FileText,
-  Layers,
   RefreshCw,
   Settings2,
   Shield,
@@ -14,7 +13,6 @@ import {
   X,
   TrendingDown,
   TrendingUp,
-  Users,
   Wallet,
 } from 'lucide-react';
 import { MainPanel } from '../components/layout';
@@ -26,7 +24,13 @@ import { useFinanceTrialExceptions } from '../hooks/useFinanceTrialExceptions';
 import { FinanceTrialExceptionPanel } from '../components/finance/FinanceTrialExceptionPanel';
 import { userMayViewFinanceTrialOversightClient } from '../lib/financeTrialExceptionsAccess';
 import { userMayViewManagementReportsClient } from '../lib/reportsAccess';
-import { OperationalSummaryWidget } from '../components/reports/OperationalSummaryWidget';
+import CommandCentreIntelligenceTab from '../components/exec/CommandCentreIntelligenceTab';
+
+const EXEC_TABS = [
+  { id: 'overview', label: 'Overview' },
+  { id: 'intelligence', label: 'Intelligence' },
+  { id: 'finance', label: 'Finance' },
+];
 
 const PERIOD_OPTIONS = [
   { key: 'today', label: 'Today' },
@@ -138,13 +142,6 @@ function ScopeChip({ basis }) {
   );
 }
 
-function debtRiskChip(label) {
-  if (label === 'Critical') return 'bg-rose-100 text-rose-900 ring-rose-200';
-  if (label === 'High Risk') return 'bg-orange-100 text-orange-950 ring-orange-200';
-  if (label === 'Watch') return 'bg-amber-100 text-amber-950 ring-amber-200';
-  return 'bg-emerald-50 text-emerald-900 ring-emerald-100';
-}
-
 function InfoChip({ children }) {
   return (
     <span className="inline-flex rounded px-1.5 py-0.5 text-[8px] font-black uppercase bg-slate-100 text-slate-700 ring-1 ring-slate-200">
@@ -200,77 +197,6 @@ function WcLinesTable({ title, lines }) {
   );
 }
 
-function SkuTable({ rows, emptyLabel }) {
-  if (!rows?.length) {
-    return <p className="text-sm text-slate-500">{emptyLabel}</p>;
-  }
-  return (
-    <div className="overflow-x-auto -mx-1">
-      <table className="w-full text-left text-xs min-w-[720px]">
-        <thead>
-          <tr className="border-b border-slate-200 text-[10px] font-black uppercase tracking-wider text-slate-500">
-            <th className="py-2 pr-3">SKU</th>
-            <th className="py-2 pr-3">Period movement</th>
-            <th className="py-2 pr-3 text-right">
-              Cover <EstChip />
-            </th>
-            <th className="py-2 text-right">Action</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row, i) => (
-            <tr key={`${row.gauge}-${row.colour}-${i}`} className="border-b border-slate-50">
-              <td className="py-2.5 pr-3 font-semibold text-slate-800">
-                {row.gauge} {row.colour}{' '}
-                <span className="text-slate-400 font-normal capitalize">{row.family}</span>
-                <p className="mt-1 text-[9px] font-normal text-slate-500 leading-snug max-w-[200px]">
-                  {row.reason || row.lookbackDemandBasisLabel || '—'}
-                </p>
-              </td>
-              <td className="py-2.5 pr-3 text-slate-600 tabular-nums">
-                {row.selectedPeriodMetres != null ? (
-                  <span className="block">{row.selectedPeriodMetres.toLocaleString()} m</span>
-                ) : (
-                  <span className="text-slate-400">—</span>
-                )}
-                {row.selectedPeriodRevenueNgn != null ? (
-                  <span className="block text-[10px] text-slate-500">{formatNgn(row.selectedPeriodRevenueNgn)}</span>
-                ) : null}
-              </td>
-              <td className="py-2.5 pr-3 text-right tabular-nums font-bold text-slate-800">
-                {row.weeksCover != null ? `${row.weeksCover} wk` : '—'}
-              </td>
-              <td className="py-2.5 text-right">
-                {row.route ? (
-                  <Link
-                    to={row.route}
-                    className="text-[10px] font-bold text-[#134e4a] hover:underline"
-                  >
-                    {row.recommendation || row.label}
-                  </Link>
-                ) : (
-                <span
-                  className={`inline-flex rounded-md px-2 py-0.5 text-[9px] font-black uppercase tracking-wide ring-1 ${
-                    (row.recommendation || row.label) === 'Buy Soon' ||
-                    (row.recommendation || row.label) === 'Critical'
-                      ? 'bg-amber-100 text-amber-950 ring-amber-200'
-                      : (row.recommendation || row.label) === 'Liquidate'
-                        ? 'bg-slate-100 text-slate-700 ring-slate-200'
-                        : 'bg-teal-50 text-[#134e4a] ring-teal-100'
-                  }`}
-                >
-                  {row.recommendation || row.label}
-                </span>
-                )}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
 const EMPTY_RESERVE_FORM = {
   operatingReserveNgn: '',
   emergencyReserveNgn: '',
@@ -287,6 +213,7 @@ const EMPTY_RESERVE_FORM = {
 export default function ExecutiveCommandCentre() {
   const ws = useWorkspace();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { show: showToast } = useToast();
   const [periodKey, setPeriodKey] = useState('month');
   const [branchId, setBranchId] = useState('ALL');
@@ -305,7 +232,22 @@ export default function ExecutiveCommandCentre() {
     roleKey,
     ws?.session?.user?.permissions
   );
-  const mayViewOperationalReports = userMayViewManagementReportsClient(ws);
+  const mayViewBi = userMayViewManagementReportsClient(roleKey, ws?.session?.user?.permissions);
+  const rawTab = searchParams.get('tab') || 'overview';
+  const activeTab =
+    rawTab === 'intelligence' && mayViewBi
+      ? 'intelligence'
+      : rawTab === 'finance'
+        ? 'finance'
+        : 'overview';
+
+  const setActiveTab = (tabId) => {
+    if (tabId === 'overview') {
+      setSearchParams({});
+    } else {
+      setSearchParams({ tab: tabId });
+    }
+  };
   const trialBranchScope =
     canPickBranch && branchId && branchId !== 'ALL' ? branchId : null;
   const { data: trialData, loading: trialLoading, error: trialError, reload: reloadTrial } =
@@ -333,13 +275,6 @@ export default function ExecutiveCommandCentre() {
   useEffect(() => {
     void load();
   }, [load]);
-
-  const materialTab = useMemo(() => {
-    const sku = data?.inventory?.skuIntelligence || {};
-    const bestAlu = sku.aluminium?.topCombinations?.[0];
-    const bestAz = sku.aluzinc?.topCombinations?.[0];
-    return { sku, bestAlu, bestAz };
-  }, [data]);
 
   const readOnly = Boolean(data?.workTray?.readOnlyForActor ?? data?.actor?.readOnlyExecutiveView);
   const canManageReservePolicy = Boolean(data?.actor?.canManageReservePolicy);
@@ -424,6 +359,12 @@ export default function ExecutiveCommandCentre() {
       : BRANCH_OPTIONS.find((b) => b.id === data?.branchScope)?.label || data?.branchScope || '';
   const showBranchComparison = Boolean(data?.branches?.comparisonAvailable);
   const branchComparisonEmpty = !showBranchComparison && !busy && data;
+  const scopeNote = (data?.dataScopeNotes || [])[0]?.message;
+
+  const visibleTabs = EXEC_TABS.filter((t) => {
+    if (t.id === 'intelligence') return mayViewBi;
+    return true;
+  });
 
   return (
     <MainPanel className="bg-slate-50/50">
@@ -434,10 +375,9 @@ export default function ExecutiveCommandCentre() {
               <p className="text-[10px] font-black uppercase tracking-[0.2em] text-teal-200/90">
                 Zarewa Aluminium &amp; Plastics
               </p>
-              <h1 className="mt-2 text-2xl sm:text-3xl font-black tracking-tight">Executive Command Centre</h1>
+              <h1 className="mt-2 text-2xl sm:text-3xl font-black tracking-tight">Command Centre</h1>
               <p className="mt-2 text-sm text-teal-50/85 max-w-2xl leading-relaxed">
-                Company-wide performance, approvals, financial control, and operational visibility for
-                Aluminium, Aluzinc, and Stonecoated roofing materials.
+                Company performance, decisions, and intelligence for executive oversight.
               </p>
               <div className="mt-4 flex flex-wrap items-center gap-2">
                 <span className="rounded-lg bg-white/15 px-3 py-1 text-[10px] font-black uppercase tracking-wider ring-1 ring-white/20">
@@ -524,6 +464,26 @@ export default function ExecutiveCommandCentre() {
         </div>
       </header>
 
+      <nav
+        className="mb-6 flex flex-wrap gap-2 rounded-2xl border border-slate-200/90 bg-white p-2 shadow-sm"
+        aria-label="Command centre sections"
+      >
+        {visibleTabs.map((t) => (
+          <button
+            key={t.id}
+            type="button"
+            onClick={() => setActiveTab(t.id)}
+            className={`rounded-xl px-4 py-2 text-[11px] font-black uppercase tracking-wide transition-colors ${
+              activeTab === t.id
+                ? 'bg-[#134e4a] text-white shadow-sm'
+                : 'text-slate-600 hover:bg-slate-50'
+            }`}
+          >
+            {t.label}
+          </button>
+        ))}
+      </nav>
+
       {err ? (
         <p className="mb-6 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">{err}</p>
       ) : null}
@@ -534,197 +494,15 @@ export default function ExecutiveCommandCentre() {
         </p>
       ) : null}
 
-      {(data?.dataScopeNotes || []).map((note) => (
-        <p
-          key={note.id}
-          className="mb-6 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700 leading-relaxed"
-        >
-          {note.message}
+      {scopeNote ? (
+        <p className="mb-6 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700 leading-relaxed">
+          {scopeNote}
         </p>
-      ))}
-
-      {mayFinanceOversight && trialData?.creditExceptions ? (
-        <div className="mb-4 flex flex-wrap gap-2">
-          <Link
-            to="/accounting"
-            className="rounded-lg border border-white/30 bg-white/10 px-3 py-1.5 text-[10px] font-bold uppercase text-white hover:bg-white/20"
-          >
-            Review credit exposure
-          </Link>
-          <Link
-            to="/accounting"
-            className="rounded-lg border border-white/30 bg-white/10 px-3 py-1.5 text-[10px] font-bold uppercase text-white hover:bg-white/20"
-          >
-            View delivery warnings
-          </Link>
-          <Link
-            to="/cashier"
-            className="rounded-lg border border-white/30 bg-white/10 px-3 py-1.5 text-[10px] font-bold uppercase text-white hover:bg-white/20"
-          >
-            Open cashier desk
-          </Link>
-        </div>
       ) : null}
 
-      {mayFinanceOversight && trialData?.ap3Costing?.available ? (
-        <div className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-6">
-          <div className="rounded-xl border border-teal-200/60 bg-white/95 px-3 py-2 shadow-sm">
-            <p className="text-[9px] font-bold uppercase text-teal-800/80">Costing readiness</p>
-            <p className="text-sm font-black tabular-nums">{trialData.ap3Costing.readinessScore ?? 0}%</p>
-          </div>
-          {trialData?.ap3MaterialCost?.available ? (
-            <div className="rounded-xl border border-teal-300/60 bg-teal-50/40 px-3 py-2 shadow-sm">
-              <p className="text-[9px] font-bold uppercase text-teal-900/80">Trusted material ₦/m</p>
-              <p className="text-sm font-black tabular-nums">
-                {trialData.ap3MaterialCost.trustedMaterialCostPerMetreNgn != null
-                  ? formatNgn(trialData.ap3MaterialCost.trustedMaterialCostPerMetreNgn)
-                  : '—'}
-              </p>
-            </div>
-          ) : (
-            <div className="rounded-xl border border-slate-200/60 bg-white/95 px-3 py-2 shadow-sm">
-              <p className="text-[9px] font-bold uppercase text-slate-500">Material ₦/m (draft)</p>
-              <p className="text-sm font-black tabular-nums">
-                {formatNgn(trialData.ap3Costing.materialCostPerMetreNgn ?? 0)}
-              </p>
-            </div>
-          )}
-          <div className="rounded-xl border border-amber-200/60 bg-white/95 px-3 py-2 shadow-sm">
-            <p className="text-[9px] font-bold uppercase text-amber-800/80">Missing coil cost</p>
-            <p className="text-sm font-black tabular-nums">{trialData.ap3Costing.missingCoilCostCount ?? 0}</p>
-          </div>
-          <div className="rounded-xl border border-rose-200/60 bg-white/95 px-3 py-2 shadow-sm">
-            <p className="text-[9px] font-bold uppercase text-rose-800/80">Data quality risk</p>
-            <p className="text-sm font-black tabular-nums">{trialData.ap3Costing.highRiskCount ?? 0}</p>
-          </div>
-          <Link
-            to="/accounting"
-            state={{ focusTab: 'costing' }}
-            className="rounded-xl border border-slate-200/60 bg-slate-50/90 px-3 py-2 text-[10px] font-bold text-teal-800 flex items-center justify-center hover:bg-teal-50"
-          >
-            Costing →
-          </Link>
-        </div>
-      ) : null}
-
-      {mayFinanceOversight && trialData?.ap2c?.supplierAdvance?.available ? (
-        <div className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-5">
-          <div className="rounded-xl border border-rose-200/60 bg-white/95 px-3 py-2 shadow-sm">
-            <p className="text-[9px] font-bold uppercase text-rose-800/80">Supplier advances</p>
-            <p className="text-sm font-black tabular-nums">
-              {formatNgn(trialData.ap2c.supplierAdvance.totalSupplierAdvanceNgn ?? 0)}
-            </p>
-          </div>
-          <div className="rounded-xl border border-teal-200/60 bg-white/95 px-3 py-2 shadow-sm">
-            <p className="text-[9px] font-bold uppercase text-teal-800/80">Inventory value</p>
-            <p className="text-sm font-black tabular-nums">
-              {formatNgn(trialData.ap2c.inventoryValuation?.accountingValueNgn ?? 0)}
-            </p>
-          </div>
-          <div className="rounded-xl border border-amber-200/60 bg-white/95 px-3 py-2 shadow-sm">
-            <p className="text-[9px] font-bold uppercase text-amber-800/80">Missing cost</p>
-            <p className="text-sm font-black tabular-nums">
-              {trialData.ap2c.inventoryValuation?.missingCostCount ?? 0}
-            </p>
-          </div>
-          <div className="rounded-xl border border-slate-200/60 bg-white/95 px-3 py-2 shadow-sm">
-            <p className="text-[9px] font-bold uppercase text-slate-500">GL warnings</p>
-            <p className="text-sm font-black tabular-nums">{trialData.ap2c.glAlignment?.warningCount ?? 0}</p>
-          </div>
-          <Link
-            to="/accounting"
-            className="rounded-xl border border-slate-200/60 bg-slate-50/90 px-3 py-2 text-[10px] font-bold text-teal-800 flex items-center justify-center hover:bg-teal-50"
-          >
-            Accounting Desk →
-          </Link>
-        </div>
-      ) : null}
-
-      {mayFinanceOversight && trialData?.ap2Supplier?.available ? (
-        <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-7">
-          <div className="rounded-xl border border-slate-200/60 bg-white/95 px-3 py-2 shadow-sm">
-            <p className="text-[9px] font-bold uppercase text-slate-500">AP basis</p>
-            <p className="text-sm font-black capitalize text-slate-900">
-              {String(trialData.ap2Supplier.apBasis || 'ordered').replace(/_/g, ' ')}
-            </p>
-          </div>
-          <div className="rounded-xl border border-teal-200/60 bg-white/95 px-3 py-2 shadow-sm">
-            <p className="text-[9px] font-bold uppercase text-teal-800/80">Supplier exposure (AP)</p>
-            <p className="text-sm font-black tabular-nums text-teal-950">
-              {formatNgn(trialData.ap2Supplier.currentApNgn ?? 0)}
-            </p>
-          </div>
-          <div className="rounded-xl border border-rose-200/60 bg-white/95 px-3 py-2 shadow-sm">
-            <p className="text-[9px] font-bold uppercase text-rose-800/80">Paid not received</p>
-            <p className="text-sm font-black tabular-nums">
-              {formatNgn(trialData.ap2Supplier.paidNotReceivedNgn ?? 0)}
-            </p>
-          </div>
-          <div className="rounded-xl border border-amber-200/60 bg-white/95 px-3 py-2 shadow-sm">
-            <p className="text-[9px] font-bold uppercase text-amber-800/80">Received not paid</p>
-            <p className="text-sm font-black tabular-nums">
-              {formatNgn(trialData.ap2Supplier.receivedNotPaidNgn ?? 0)}
-            </p>
-          </div>
-          <div className="rounded-xl border border-amber-200/60 bg-white/95 px-3 py-2 shadow-sm">
-            <p className="text-[9px] font-bold uppercase text-amber-800/80">Missing stock cost</p>
-            <p className="text-sm font-black tabular-nums">{trialData.ap2Supplier.missingCostCount ?? 0}</p>
-          </div>
-          <div className="rounded-xl border border-slate-200/60 bg-white/95 px-3 py-2 shadow-sm">
-            <p className="text-[9px] font-bold uppercase text-slate-500">AP difference</p>
-            <p className="text-sm font-black tabular-nums">{formatNgn(trialData.ap2Supplier.apDifferenceNgn ?? 0)}</p>
-          </div>
-          <Link
-            to="/accounting"
-            className="rounded-xl border border-slate-200/60 bg-slate-50/90 px-3 py-2 text-[10px] font-bold text-teal-800 flex items-center justify-center hover:bg-teal-50"
-          >
-            Open Accounting Desk →
-          </Link>
-        </div>
-      ) : null}
-
-      {mayFinanceOversight && trialData?.creditExceptions ? (
-        <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-5">
-          <div className="rounded-xl border border-teal-200/60 bg-white/95 px-3 py-2 shadow-sm">
-            <p className="text-[9px] font-bold uppercase text-teal-800/80">Credit exposure</p>
-            <p className="text-sm font-black tabular-nums text-teal-950">
-              {formatNgn(trialData.creditExceptions.approvedCreditExposureNgn ?? 0)}
-            </p>
-          </div>
-          <div className="rounded-xl border border-amber-200/60 bg-white/95 px-3 py-2 shadow-sm">
-            <p className="text-[9px] font-bold uppercase text-amber-800/80">Pending credit</p>
-            <p className="text-sm font-black tabular-nums">{trialData.creditExceptions.pendingCreditExceptionsCount ?? 0}</p>
-          </div>
-          <div className="rounded-xl border border-amber-200/60 bg-white/95 px-3 py-2 shadow-sm">
-            <p className="text-[9px] font-bold uppercase text-amber-800/80">Overdue credit</p>
-            <p className="text-sm font-black tabular-nums">{trialData.creditExceptions.overdueApprovedCreditCount ?? 0}</p>
-          </div>
-          <div className="rounded-xl border border-slate-200/60 bg-white/95 px-3 py-2 shadow-sm">
-            <p className="text-[9px] font-bold uppercase text-slate-500">Deliveries w/ credit</p>
-            <p className="text-sm font-black tabular-nums">{trialData.creditExceptions.deliveriesAllowedByCreditCount ?? 0}</p>
-          </div>
-          <Link
-            to="/accounting"
-            className="rounded-xl border border-slate-200/60 bg-slate-50/90 px-3 py-2 text-[10px] font-bold text-teal-800 flex items-center justify-center hover:bg-teal-50"
-          >
-            Accounting Desk →
-          </Link>
-        </div>
-      ) : null}
-
-      {mayFinanceOversight ? (
-        <div className="mb-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <FinanceTrialExceptionPanel
-            variant="oversight"
-            data={trialData}
-            loading={trialLoading}
-            error={trialError}
-            onReload={reloadTrial}
-          />
-        </div>
-      ) : null}
-
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-5 mb-8">
+      {activeTab === 'overview' ? (
+        <>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5 mb-8">
         <KpiCard
           label="Sales This Period"
           value={formatNgn(kpis.salesNgn ?? 0)}
@@ -741,45 +519,12 @@ export default function ExecutiveCommandCentre() {
           loading={busy && !data}
         />
         <KpiCard
-          label={kpis.collectionRateLabel || 'Quoted Collection Rate'}
-          value={kpis.collectionRatePct != null ? `${kpis.collectionRatePct}%` : '—'}
-          sub="Collected ÷ quoted value in period"
-          icon={<BarChart3 size={12} />}
-          loading={busy && !data}
-        />
-        <KpiCard
           label="Outstanding Balance"
           value={formatNgn(kpis.outstandingReceivablesNgn ?? 0)}
           sub="Customer receivables"
           icon={<AlertTriangle size={12} />}
           loading={busy && !data}
           accent="gold"
-        />
-        <KpiCard
-          label="Cash / Bank"
-          value={formatNgn(kpis.treasuryCashNgn ?? 0)}
-          sub="Treasury accounts"
-          icon={<Building2 size={12} />}
-          loading={busy && !data}
-        />
-        <KpiCard
-          label="Inventory Value"
-          value={formatNgn(kpis.inventoryValueNgn ?? 0)}
-          sub="Coil valuation from landed cost"
-          icon={<Layers size={12} />}
-          loading={busy && !data}
-          estimated
-        />
-        <KpiCard
-          label="Expenses"
-          value={formatNgn(kpis.expensesNgn ?? 0)}
-          sub={
-            kpis.expenseToSalesPct != null
-              ? `${kpis.expenseToSalesPct}% of produced sales`
-              : 'Operating expenses'
-          }
-          icon={<TrendingDown size={12} />}
-          loading={busy && !data}
         />
         <KpiCard
           label="Pending Actions"
@@ -798,8 +543,18 @@ export default function ExecutiveCommandCentre() {
         />
       </div>
 
-      {mayViewOperationalReports ? (
-        <OperationalSummaryWidget className="mb-6" linkTo="/reports" />
+      {mayViewBi ? (
+        <p className="mb-6 text-xs text-slate-600">
+          Stock forecasts, expense trends, and coil actions are on the{' '}
+          <button
+            type="button"
+            onClick={() => setActiveTab('intelligence')}
+            className="font-bold text-[#134e4a] hover:underline"
+          >
+            Intelligence
+          </button>{' '}
+          tab.
+        </p>
       ) : null}
 
       {data?.targets ? (
@@ -887,515 +642,30 @@ export default function ExecutiveCommandCentre() {
                     <p className="mt-1 text-[10px] font-bold tabular-nums opacity-80">{a.metric}</p>
                   ) : null}
                   {a.route ? (
+                    a.route === '/analytics' ||
+                    String(a.route).startsWith('/analytics') ||
+                    String(a.route).includes('tab=intelligence') ? (
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab('intelligence')}
+                        className="mt-3 inline-flex items-center gap-1 text-[10px] font-black uppercase text-[#134e4a] hover:underline"
+                      >
+                        View detail <ArrowRight size={12} />
+                      </button>
+                    ) : (
                     <Link
                       to={a.route}
                       className="mt-3 inline-flex items-center gap-1 text-[10px] font-black uppercase text-[#134e4a] hover:underline"
                     >
                       View detail <ArrowRight size={12} />
                     </Link>
+                    )
                   ) : null}
                 </div>
               ))}
             </div>
           )}
         </Section>
-
-        <Section
-          title="Product & Stock Intelligence"
-          subtitle={`Aluminium, Aluzinc, and Stonecoated. Coil valuation and weeks-cover signals are estimated.`}
-          icon={<Layers size={18} className="text-teal-600" />}
-        >
-          {data?.inventory?.skuPeriodNote ? (
-            <p className="mb-3 text-xs text-slate-600 leading-relaxed rounded-lg border border-slate-100 bg-slate-50 px-3 py-2">
-              {data.inventory.skuPeriodNote}
-            </p>
-          ) : null}
-          {data?.inventory?.drillRoutes ? (
-            <p className="mb-4 text-[10px] text-slate-500">
-              <Link to={data.inventory.drillRoutes.analytics} className="font-bold text-teal-800 hover:underline">
-                Stock intelligence
-              </Link>
-              {' · '}
-              <Link to={data.inventory.drillRoutes.operations} className="font-bold text-teal-800 hover:underline">
-                Operations
-              </Link>
-            </p>
-          ) : null}
-          {(data?.inventory?.recommendations || []).length ? (
-            <ul className="mb-4 space-y-1 text-xs text-slate-700">
-              {data.inventory.recommendations.slice(0, 5).map((r, i) => (
-                <li key={i}>
-                  {r.route ? (
-                    <Link to={r.route} className="font-semibold text-[#134e4a] hover:underline">
-                      {r.message}
-                    </Link>
-                  ) : (
-                    r.message
-                  )}
-                </li>
-              ))}
-            </ul>
-          ) : null}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {['aluminium', 'aluzinc'].map((fam) => {
-              const block = materialTab.sku[fam];
-              const top = block?.topCombinations?.[0];
-              const buy = block?.buyNext || [];
-              const slow = block?.reduceStock || [];
-              return (
-                <div key={fam} className="rounded-xl border border-slate-100 bg-slate-50/50 p-4">
-                  <h3 className="text-xs font-black uppercase tracking-wider text-[#134e4a] capitalize">
-                    {fam === 'aluzinc' ? 'Aluzinc' : 'Aluminium'}
-                  </h3>
-                  {top ? (
-                    <p className="mt-2 text-sm text-slate-700">
-                      <span className="font-bold">Best seller:</span> {top.gauge} · {top.colour} ·{' '}
-                      {top.profile} — {top.metres?.toLocaleString()} m
-                    </p>
-                  ) : (
-                    <p className="mt-2 text-sm text-slate-500">No production mix in period.</p>
-                  )}
-                  <div className="mt-4">
-                    <p className="text-[10px] font-bold uppercase text-slate-500 mb-2">Buy / watch</p>
-                    <SkuTable
-                      rows={buy.map((r) => ({ ...r, family: fam, label: r.action === 'buy' ? 'Buy Soon' : 'Watch' }))}
-                      emptyLabel="No urgent replenishment."
-                    />
-                  </div>
-                  <div className="mt-4">
-                    <p className="text-[10px] font-bold uppercase text-slate-500 mb-2">Slow moving</p>
-                    <SkuTable
-                      rows={slow.map((r) => ({ ...r, family: fam, label: 'Liquidate' }))}
-                      emptyLabel="No liquidate signals."
-                    />
-                  </div>
-                </div>
-              );
-            })}
-            <div className="rounded-xl border border-slate-100 bg-slate-50/50 p-4">
-              <h3 className="text-xs font-black uppercase tracking-wider text-[#134e4a]">Stonecoated</h3>
-              <p className="mt-2 text-xs text-slate-500 leading-relaxed">
-                {data?.inventory?.skuIntelligence?.stonecoated?.note ||
-                  'Summary from production mix; full SKU weeks-cover not applied.'}
-              </p>
-              <dl className="mt-4 grid grid-cols-2 gap-3 text-sm">
-                <div>
-                  <dt className="text-[10px] font-bold uppercase text-slate-500">Metres (period)</dt>
-                  <dd className="font-black tabular-nums">
-                    {(data?.inventory?.skuIntelligence?.stonecoated?.metres ?? 0).toLocaleString()} m
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-[10px] font-bold uppercase text-slate-500">Revenue share</dt>
-                  <dd className="font-black tabular-nums">
-                    {data?.inventory?.skuIntelligence?.stonecoated?.sharePctMetres ?? '—'}%
-                  </dd>
-                </div>
-              </dl>
-            </div>
-          </div>
-        </Section>
-
-        {data?.materialCosting ? (
-          <Section
-            title="Estimated Material Cost per Metre"
-            subtitle={data.materialCosting.label}
-            icon={<Layers size={18} className="text-teal-600" />}
-          >
-            <div className="flex flex-wrap gap-2 mb-3">
-              <InfoChip>Material only</InfoChip>
-              <EstChip />
-            </div>
-            {(data.materialCosting.notes || []).map((n, i) => (
-              <p
-                key={i}
-                className="mb-2 text-xs text-slate-600 leading-relaxed rounded-lg border border-slate-100 bg-slate-50 px-3 py-2"
-              >
-                {n}
-              </p>
-            ))}
-            <div className="overflow-x-auto -mx-1">
-              <table className="w-full text-left text-xs min-w-[880px]">
-                <thead>
-                  <tr className="border-b border-slate-200 text-[10px] font-black uppercase tracking-wider text-slate-500">
-                    <th className="py-2 pr-2">Job / product</th>
-                    <th className="py-2 pr-2 text-right">Metres</th>
-                    <th className="py-2 pr-2 text-right">Kg</th>
-                    <th className="py-2 pr-2 text-right">Est. material</th>
-                    <th className="py-2 text-right">Est. ₦/m</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(data.materialCosting.rows || []).length === 0 ? (
-                    <tr>
-                      <td colSpan={5} className="py-6 text-center text-slate-500">
-                        No completed production with material cost in this period.
-                      </td>
-                    </tr>
-                  ) : (
-                    (data.materialCosting.rows || []).slice(0, 15).map((row) => (
-                      <tr key={row.jobId} className="border-b border-slate-50">
-                        <td className="py-2.5 font-semibold text-slate-800">
-                          {row.productLabel}
-                          <span className="block text-[9px] text-slate-500 font-normal">{row.jobId}</span>
-                        </td>
-                        <td className="py-2.5 text-right tabular-nums">{row.actualMetres ?? '—'}</td>
-                        <td className="py-2.5 text-right tabular-nums">{row.consumedKg ?? '—'}</td>
-                        <td className="py-2.5 text-right tabular-nums">
-                          {row.costUnavailable ? 'Cost unavailable' : formatNgn(row.estimatedMaterialCostNgn ?? 0)}
-                        </td>
-                        <td className="py-2.5 text-right tabular-nums font-bold">
-                          {row.costUnavailable
-                            ? '—'
-                            : row.estimatedMaterialCostPerMetreNgn != null
-                              ? formatNgn(row.estimatedMaterialCostPerMetreNgn)
-                              : '—'}
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </Section>
-        ) : null}
-
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
-          <Section
-            title="Finance & Expenses"
-            subtitle="Category and branch spend vs produced sales."
-            icon={<TrendingDown size={18} className="text-rose-700" />}
-          >
-            <div className="grid grid-cols-2 gap-4 mb-4">
-              <div className="rounded-xl border border-slate-100 p-3">
-                <p className="text-[10px] font-bold uppercase text-slate-500 flex items-center gap-1.5">
-                  Productive <EstChip />
-                </p>
-                <p className="text-lg font-black text-[#134e4a]">
-                  {formatNgn(data?.expenses?.productiveOverhead?.productiveNgn ?? 0)}
-                </p>
-              </div>
-              <div className="rounded-xl border border-slate-100 p-3">
-                <p className="text-[10px] font-bold uppercase text-slate-500 flex items-center gap-1.5">
-                  Overhead <EstChip />
-                </p>
-                <p className="text-lg font-black text-[#134e4a]">
-                  {formatNgn(data?.expenses?.productiveOverhead?.overheadNgn ?? 0)}
-                </p>
-              </div>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-xs">
-                <thead>
-                  <tr className="border-b text-[10px] font-black uppercase text-slate-500">
-                    <th className="py-2 text-left">Category</th>
-                    <th className="py-2 text-right">Amount</th>
-                    <th className="py-2 text-right">Share</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(data?.expenses?.topCategories || []).slice(0, 10).map((row) => (
-                    <tr key={row.category} className="border-b border-slate-50">
-                      <td className="py-2 font-semibold text-slate-800">{row.category}</td>
-                      <td className="py-2 text-right tabular-nums">{formatNgn(row.amountNgn)}</td>
-                      <td className="py-2 text-right tabular-nums">{row.sharePct ?? 0}%</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </Section>
-
-          <Section
-            title="Cash & Working Capital"
-            subtitle="Components only — not a statutory working capital statement. Cash-pressure horizons are estimated."
-            icon={<Wallet size={18} className="text-teal-600" />}
-          >
-            <dl className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-              {[
-                { label: 'Cash / bank', val: data?.cash?.cashNgn },
-                { label: 'Receivables', val: data?.cash?.receivablesNgn },
-                { label: 'Inventory', val: data?.cash?.inventoryValueNgn, estimated: true },
-                { label: 'Pending outflows', val: data?.cash?.pendingOutflowsNgn },
-                {
-                  label: 'Pending refunds',
-                  val: data?.cash?.pendingRefunds,
-                  isCount: data?.cash?.pendingRefundsIsCount !== false,
-                  scope: data?.cash?.pendingRefundsScope,
-                },
-                {
-                  label: 'Payroll awaiting MD',
-                  val: data?.cash?.payrollDraftsAwaitingMd,
-                  isCount: data?.cash?.payrollDraftsAwaitingMdIsCount !== false,
-                  scope: data?.cash?.payrollDraftsAwaitingMdScope,
-                },
-              ].map(({ label, val, isCount, estimated, scope }) => (
-                <div key={label} className="rounded-xl border border-slate-100 bg-slate-50/60 px-4 py-3">
-                  <dt className="text-[10px] font-bold uppercase text-slate-500 flex items-center gap-1.5 flex-wrap">
-                    {label}
-                    {estimated ? <EstChip /> : null}
-                    <ScopeChip basis={scope} />
-                  </dt>
-                  <dd className="mt-1 font-black tabular-nums text-[#134e4a]">
-                    {cashMetricDisplay(label, val, { isCount })}
-                  </dd>
-                </div>
-              ))}
-            </dl>
-            <p className="mt-4 text-xs text-slate-700 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 leading-relaxed">
-              {data?.cash?.pressureModelLabel ||
-                'Estimated cash pressure based on recent treasury activity'}
-              . {data?.cash?.notSafeWithdrawalNote || 'Not a safe-withdrawal calculation'}.
-              {data?.cash?.horizonBasis ? ` ${data.cash.horizonBasis}.` : ''}
-            </p>
-            <p className="mt-2 text-xs text-amber-900 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-              {data?.cash?.safeWithdrawalNote ||
-                'Safe withdrawal estimate will appear after reserve policies are configured.'}
-            </p>
-            {(data?.cash?.horizons || []).length ? (
-              <div className="mt-4">
-                <p className="text-[10px] font-bold uppercase text-slate-500 mb-2 flex items-center gap-1.5">
-                  Cash pressure horizons <EstChip />
-                </p>
-                <div className="flex flex-wrap gap-2">
-                {data.cash.horizons.map((h) => (
-                  <span
-                    key={h.days}
-                    className={`rounded-lg px-3 py-2 text-[10px] font-bold ring-1 ${
-                      h.stress === 'deficit'
-                        ? 'bg-rose-50 text-rose-800 ring-rose-200'
-                        : h.stress === 'tight'
-                          ? 'bg-amber-50 text-amber-900 ring-amber-200'
-                          : 'bg-emerald-50 text-emerald-900 ring-emerald-100'
-                    }`}
-                  >
-                    {h.days}d: {formatNgn(h.projectedBalanceNgn)} ({h.stress})
-                  </span>
-                ))}
-                </div>
-              </div>
-            ) : null}
-          </Section>
-
-          <Section
-            title="Reserve Policy Readiness"
-            subtitle="Reserve policy — management decision support. Not a withdrawal instruction."
-            icon={<Shield size={18} className="text-amber-700" />}
-          >
-            <div className="flex flex-wrap gap-2 mb-3">
-              {data?.reservePolicy?.configured ? (
-                <InfoChip>Policy configured</InfoChip>
-              ) : (
-                <InfoChip>Policy missing</InfoChip>
-              )}
-              <InfoChip>Headroom hidden</InfoChip>
-              {readOnly ? <InfoChip>Read-only</InfoChip> : null}
-            </div>
-            <p className="text-sm text-slate-700 leading-relaxed mb-2">{data?.reservePolicy?.note}</p>
-            <p className="text-xs text-slate-600 mb-3">
-              {data?.reservePolicy?.phaseNote ||
-                'Indicative expansion headroom remains hidden in this phase.'}
-            </p>
-            <dl className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-4 text-sm">
-              <div className="rounded-xl border border-slate-100 bg-slate-50/60 px-3 py-2">
-                <dt className="text-[10px] font-bold uppercase text-slate-500">Completion</dt>
-                <dd className="mt-0.5 font-black tabular-nums text-[#134e4a]">
-                  {data?.reservePolicy?.completionPct ?? 0}%
-                </dd>
-              </div>
-              {data?.reservePolicy?.updatedAtISO ? (
-                <div className="rounded-xl border border-slate-100 bg-slate-50/60 px-3 py-2 col-span-2">
-                  <dt className="text-[10px] font-bold uppercase text-slate-500">Last updated</dt>
-                  <dd className="mt-0.5 text-xs text-slate-700">
-                    {new Date(data.reservePolicy.updatedAtISO).toLocaleString()}
-                    {data.reservePolicy.updatedBy ? ` · ${data.reservePolicy.updatedBy}` : ''}
-                  </dd>
-                </div>
-              ) : null}
-            </dl>
-            {data?.reservePolicy?.policy ? (
-              <div className="mb-4">
-                <p className="text-[10px] font-black uppercase text-slate-500 mb-2">Reserve amounts (₦)</p>
-                <ul className="text-xs text-slate-700 space-y-1">
-                  {[
-                    ['operatingReserveNgn', 'Operating'],
-                    ['emergencyReserveNgn', 'Emergency'],
-                    ['payrollReserveNgn', 'Payroll'],
-                    ['supplierPaymentReserveNgn', 'Supplier payment'],
-                    ['stockPurchaseReserveNgn', 'Stock purchase'],
-                    ['taxStatutoryReserveNgn', 'Tax / statutory'],
-                  ].map(([key, short]) => {
-                    const item = data.reservePolicy.policy[key];
-                    return (
-                      <li key={key} className="flex justify-between gap-2">
-                        <span>
-                          {short}
-                          {!item?.configured ? (
-                            <span className="ml-1">
-                              <InfoChip>Required</InfoChip>
-                            </span>
-                          ) : null}
-                        </span>
-                        <span className="tabular-nums font-semibold">
-                          {item?.configured ? formatNgn(item.value) : '—'}
-                        </span>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </div>
-            ) : null}
-            <ul className="text-xs text-slate-700 space-y-2 mb-3">
-              {[
-                ['includeReceivables', 'Receivables', false],
-                ['includeInventory', 'Inventory', false],
-                ['includePoCommitments', 'PO commitments', true],
-              ].map(([key, label, recommendedDefault]) => {
-                const item = data?.reservePolicy?.policy?.[key];
-                let chip = <InfoChip>Policy missing</InfoChip>;
-                if (item?.configured) {
-                  chip = item.value ? (
-                    <InfoChip>Included in headroom</InfoChip>
-                  ) : (
-                    <InfoChip>Excluded from headroom</InfoChip>
-                  );
-                } else if (recommendedDefault) {
-                  chip = (
-                    <>
-                      <InfoChip>Policy missing</InfoChip>
-                      <InfoChip>Recommended</InfoChip>
-                    </>
-                  );
-                }
-                return (
-                  <li key={key} className="flex flex-wrap items-center gap-2">
-                    <span className="font-medium">{label}</span>
-                    {chip}
-                  </li>
-                );
-              })}
-            </ul>
-            {data?.reservePolicy?.policy?.policyNotes?.value ? (
-              <p className="text-xs text-slate-600 rounded-lg border border-slate-100 bg-slate-50 px-3 py-2 mb-3">
-                <span className="font-bold uppercase text-[10px] text-slate-500 block mb-1">Policy notes</span>
-                {data.reservePolicy.policy.policyNotes.value}
-              </p>
-            ) : null}
-            {(data?.reservePolicy?.warnings || []).map((w, i) => (
-              <p
-                key={i}
-                className="mb-2 text-xs text-amber-900 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2"
-              >
-                {w}
-              </p>
-            ))}
-            {!data?.reservePolicy?.configured && (data?.reservePolicy?.missingLabels || []).length ? (
-              <ul className="text-xs text-slate-600 list-disc pl-5 space-y-1 mb-3">
-                {(data.reservePolicy.missingLabels || []).map((lbl) => (
-                  <li key={lbl}>{lbl}</li>
-                ))}
-              </ul>
-            ) : null}
-            {canManageReservePolicy ? (
-              <button
-                type="button"
-                onClick={() => void openReservePolicyModal()}
-                className="inline-flex items-center gap-2 rounded-xl border border-[#134e4a]/30 bg-[#134e4a]/5 px-4 py-2 text-[11px] font-black uppercase text-[#134e4a] hover:bg-[#134e4a]/10"
-              >
-                <Settings2 size={16} />
-                Configure Reserve Policy
-              </button>
-            ) : null}
-          </Section>
-
-          <Section
-            title="Working Capital Snapshot"
-            subtitle={data?.workingCapital?.label || 'Estimated working capital snapshot'}
-            icon={<Wallet size={18} className="text-teal-600" />}
-          >
-            <div className="flex flex-wrap gap-2 mb-4">
-              <InfoChip>Not statutory</InfoChip>
-              <InfoChip>Not withdrawable cash</InfoChip>
-              <EstChip />
-            </div>
-            {(data?.workingCapital?.notes || []).map((n, i) => (
-              <p
-                key={i}
-                className="mb-2 text-xs text-slate-600 leading-relaxed rounded-lg border border-slate-100 bg-slate-50 px-3 py-2"
-              >
-                {n}
-              </p>
-            ))}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <WcLinesTable title="Current assets" lines={data?.workingCapital?.currentAssets} />
-              <WcLinesTable title="Current liabilities" lines={data?.workingCapital?.currentLiabilities} />
-            </div>
-            <dl className="grid grid-cols-2 sm:grid-cols-3 gap-4 mt-4 text-sm">
-              <div className="rounded-xl border border-slate-100 bg-slate-50/60 px-4 py-3">
-                <dt className="text-[10px] font-bold uppercase text-slate-500">Assets total</dt>
-                <dd className="mt-1 font-black tabular-nums text-[#134e4a]">
-                  {formatNgn(data?.workingCapital?.assetTotalNgn ?? 0)}
-                </dd>
-              </div>
-              <div className="rounded-xl border border-slate-100 bg-slate-50/60 px-4 py-3">
-                <dt className="text-[10px] font-bold uppercase text-slate-500">Liabilities total</dt>
-                <dd className="mt-1 font-black tabular-nums text-[#134e4a]">
-                  {formatNgn(data?.workingCapital?.liabilityTotalNgn ?? 0)}
-                </dd>
-              </div>
-              <div className="rounded-xl border border-teal-100 bg-teal-50/50 px-4 py-3">
-                <dt className="text-[10px] font-bold uppercase text-slate-500">Est. working capital</dt>
-                <dd className="mt-1 font-black tabular-nums text-[#134e4a]">
-                  {data?.workingCapital?.estimatedWorkingCapitalNgn != null
-                    ? formatNgn(data.workingCapital.estimatedWorkingCapitalNgn)
-                    : '—'}
-                </dd>
-                {data?.workingCapital?.ratio != null ? (
-                  <p className="text-[10px] text-slate-500 mt-1">Ratio {data.workingCapital.ratio}</p>
-                ) : null}
-              </div>
-            </dl>
-          </Section>
-
-          <Section
-            title="Payables & Outflows"
-            subtitle={data?.payables?.label || 'Supplier and treasury pressure'}
-            icon={<TrendingDown size={18} className="text-rose-700" />}
-          >
-            <dl className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-              {[
-                { label: 'AP outstanding', val: data?.payables?.apOutstandingNgn },
-                { label: 'Approved unpaid PR', val: data?.payables?.approvedUnpaidPaymentRequestsNgn },
-                {
-                  label: data?.payables?.poCommitmentLabel || 'PO commitment proxy',
-                  val: data?.payables?.poCommitmentGapNgn,
-                  est: true,
-                },
-                { label: 'BI pending outflows', val: data?.payables?.pendingOutflowsNgn, est: true },
-              ].map(({ label, val, est }) => (
-                <div key={label} className="rounded-xl border border-slate-100 bg-slate-50/60 px-4 py-3">
-                  <dt className="text-[10px] font-bold uppercase text-slate-500 flex items-center gap-1.5">
-                    {label}
-                    {est ? <EstChip /> : null}
-                  </dt>
-                  <dd className="mt-1 font-black tabular-nums text-[#134e4a]">{formatNgn(val ?? 0)}</dd>
-                </div>
-              ))}
-            </dl>
-            {data?.payables?.apAging ? (
-              <p className="mt-4 text-xs text-slate-600 tabular-nums">
-                AP aging — 0–30: {formatNgn(data.payables.apAging['0_30'])} · 31–60:{' '}
-                {formatNgn(data.payables.apAging['31_60'])} · 61–90:{' '}
-                {formatNgn(data.payables.apAging['61_90'])} · 90+: {formatNgn(data.payables.apAging.over_90)}
-              </p>
-            ) : null}
-            {(data?.payables?.pressureNotes || []).map((n, i) => (
-              <p key={i} className="mt-2 text-xs text-amber-900 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-                {n}
-              </p>
-            ))}
-          </Section>
-        </div>
 
         <Section
           title="Branch Performance"
@@ -1485,53 +755,6 @@ export default function ExecutiveCommandCentre() {
           )}
         </Section>
 
-        {data?.staffActivity ? (
-          <Section
-            title="Staff Activity"
-            subtitle={data.staffActivity.label}
-            icon={<Users size={18} className="text-slate-600" />}
-          >
-            <div className="flex flex-wrap gap-2 mb-3">
-              <InfoChip>Activity only</InfoChip>
-            </div>
-            <p className="text-xs text-slate-600 mb-4">{data.staffActivity.legacyNote}</p>
-            <div className="overflow-x-auto">
-              <table className="w-full text-xs min-w-[640px]">
-                <thead>
-                  <tr className="border-b text-[10px] font-black uppercase text-slate-500">
-                    <th className="py-2 text-left">Staff</th>
-                    <th className="py-2 text-right">Receipts</th>
-                    <th className="py-2 text-right">Receipt ₦</th>
-                    <th className="py-2 text-right">PR raised</th>
-                    <th className="py-2 text-right">Approvals</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(data.staffActivity.rows || []).length === 0 ? (
-                    <tr>
-                      <td colSpan={5} className="py-6 text-center text-slate-500">
-                        No user-linked activity in this period.
-                      </td>
-                    </tr>
-                  ) : (
-                    (data.staffActivity.rows || []).map((row) => (
-                      <tr key={row.userId} className="border-b border-slate-50">
-                        <td className="py-2.5 font-semibold">{row.displayName}</td>
-                        <td className="py-2.5 text-right tabular-nums">{row.receiptsPostedCount}</td>
-                        <td className="py-2.5 text-right tabular-nums">
-                          {formatNgn(row.receiptValuePostedNgn)}
-                        </td>
-                        <td className="py-2.5 text-right tabular-nums">{row.paymentRequestsRaisedCount}</td>
-                        <td className="py-2.5 text-right tabular-nums">{row.approvalsActedCount}</td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </Section>
-        ) : null}
-
         <Section
           title="Executive Work Tray"
           subtitle={
@@ -1615,140 +838,158 @@ export default function ExecutiveCommandCentre() {
           </div>
         </Section>
 
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
-          <Section
-            title="Risk & Audit Signals"
-            subtitle={
-              data?.risks?.summaryOnly
-                ? 'Summary-level alerts only (full audit log requires additional permission).'
-                : 'Consolidated risk signals from BI and operations.'
-            }
-            icon={<AlertTriangle size={18} className="text-rose-600" />}
-          >
-            <ul className="space-y-2">
-              {(data?.risks?.alerts || []).slice(0, 12).map((a, i) => (
-                <li
-                  key={a.id || i}
-                  className="rounded-lg border border-slate-100 bg-slate-50/80 px-3 py-2 text-sm text-slate-800"
-                >
-                  <span className="text-[10px] font-black uppercase text-slate-500 mr-2">
-                    {a.severity || a.category}
-                  </span>
-                  {a.message}
-                </li>
-              ))}
-              {!data?.risks?.alerts?.length && !busy ? (
-                <li className="text-sm text-slate-500">No risk signals.</li>
-              ) : null}
-            </ul>
-          </Section>
-
-          <Section
-            title="Top customers"
-            subtitle={
-              data?.sales?.debtBasisLabel ||
-              'Payments in period; debt is current outstanding (as at period end).'
-            }
-            icon={<BarChart3 size={18} className="text-teal-600" />}
-          >
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <p className="text-[10px] font-black uppercase text-slate-500 mb-2">By payments (period)</p>
-                <ul className="space-y-2 text-sm">
-                  {(data?.sales?.topCustomersByPayments || []).slice(0, 6).map((c) => (
-                    <li key={c.customerID} className="flex justify-between gap-2">
-                      <span className="truncate font-semibold">{c.customerName}</span>
-                      <span className="tabular-nums shrink-0">{formatNgn(c.netCollectedNgn)}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-              <div>
-                <p className="text-[10px] font-black uppercase text-slate-500 mb-2">
-                  By debt — {data?.sales?.debtBasisLabel || 'current outstanding'}
-                  {data?.sales?.debtSortBasis ? ` (${data.sales.debtSortBasis})` : ''}
-                </p>
-                <ul className="space-y-3 text-sm">
-                  {(data?.sales?.topCustomersByDebt || []).slice(0, 6).map((c) => (
-                    <li key={c.customerID} className="border-b border-slate-100 pb-2">
-                      <div className="flex justify-between gap-2 items-start">
-                        <div className="min-w-0">
-                          {c.route ? (
-                            <Link
-                              to={c.route}
-                              className="truncate font-semibold text-[#134e4a] hover:underline block"
-                            >
-                              {c.customerName}
-                            </Link>
-                          ) : (
-                            <span className="truncate font-semibold block">{c.customerName}</span>
-                          )}
-                          {c.debtRiskLabel ? (
-                            <span
-                              className={`mt-1 inline-flex rounded px-1.5 py-0.5 text-[9px] font-black uppercase ring-1 ${debtRiskChip(c.debtRiskLabel)}`}
-                            >
-                              {c.debtRiskLabel}
-                            </span>
-                          ) : null}
-                        </div>
-                        <span className="tabular-nums shrink-0 text-rose-800 font-bold">
-                          {formatNgn(c.debtNgn)}
-                        </span>
-                      </div>
-                      {c.aging ? (
-                        <p className="mt-1 text-[10px] text-slate-500 tabular-nums">
-                          0–30: {formatNgn(c.aging.days0_30)} · 31–60: {formatNgn(c.aging.days31_60)} ·
-                          61–90: {formatNgn(c.aging.days61_90)} · 90+: {formatNgn(c.aging.days90_plus)}
-                        </p>
-                      ) : null}
-                      <p className="mt-1 text-[10px]">
-                        {c.ledgerRoute ? (
-                          <Link to={c.ledgerRoute} className="text-teal-800 font-bold hover:underline">
-                            Ledger
-                          </Link>
-                        ) : null}
-                        {c.reportsRoute ? (
-                          <>
-                            {c.ledgerRoute ? ' · ' : null}
-                            <Link to={c.reportsRoute} className="text-teal-800 font-bold hover:underline">
-                              Reports
-                            </Link>
-                          </>
-                        ) : null}
-                      </p>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-          </Section>
-        </div>
-
-        <Section
-          title="Executive Reports"
-          subtitle="Jump to existing report and analytics routes."
-          icon={<FileText size={18} className="text-amber-700" />}
-        >
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {(data?.reports || []).map((r) => (
-              <Link
-                key={r.title}
-                to={r.route}
-                className="rounded-xl border border-slate-200/90 bg-gradient-to-br from-white to-slate-50 p-4 hover:border-[#134e4a]/30 hover:shadow-md transition-shadow"
-              >
-                <p className="text-sm font-black text-[#134e4a]">{r.title}</p>
-                <p className="mt-1 text-xs text-slate-500 leading-relaxed">{r.description}</p>
-              </Link>
-            ))}
-          </div>
-        </Section>
-
-        <p className="text-[10px] text-slate-400 text-center">
-          Generated {data?.generatedAtISO ? new Date(data.generatedAtISO).toLocaleString() : '—'} ·{' '}
-          {data?.engineRev || '—'}
+        <p className="text-[10px] text-slate-400 text-center pb-8">
+          Generated {data?.generatedAtISO ? new Date(data.generatedAtISO).toLocaleString() : '—'}
           {data?.period ? ` · ${data.period.startISO} – ${data.period.endISO}` : ''}
         </p>
       </div>
+        </>
+      ) : null}
+
+      {activeTab === 'intelligence' && mayViewBi ? (
+        <CommandCentreIntelligenceTab
+          branchId={canPickBranch && branchId ? branchId : null}
+        />
+      ) : null}
+
+      {activeTab === 'finance' ? (
+        <div className="space-y-8 pb-12">
+          {!mayFinanceOversight ? (
+            <p className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+              Accounting trial oversight panel is limited to finance oversight roles. Cash, working capital,
+              and payables below use executive dashboard data for the selected period and branch.
+            </p>
+          ) : null}
+          {mayFinanceOversight ? (
+            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+              <FinanceTrialExceptionPanel
+                variant="oversight"
+                data={trialData}
+                loading={trialLoading}
+                error={trialError}
+                onReload={reloadTrial}
+              />
+            </div>
+          ) : null}
+
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
+            <Section
+              title="Cash & Treasury"
+              subtitle="Estimated cash pressure — not a safe-withdrawal calculation."
+              icon={<Wallet size={18} className="text-teal-600" />}
+            >
+              <dl className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+                {[
+                  { label: 'Cash / bank', val: data?.cash?.cashNgn },
+                  { label: 'Receivables', val: data?.cash?.receivablesNgn },
+                  { label: 'Inventory', val: data?.cash?.inventoryValueNgn, estimated: true },
+                  { label: 'Pending outflows', val: data?.cash?.pendingOutflowsNgn },
+                ].map(({ label, val, estimated }) => (
+                  <div key={label} className="rounded-xl border border-slate-100 bg-slate-50/60 px-4 py-3">
+                    <dt className="text-[10px] font-bold uppercase text-slate-500 flex items-center gap-1.5">
+                      {label}
+                      {estimated ? <EstChip /> : null}
+                    </dt>
+                    <dd className="mt-1 font-black tabular-nums text-[#134e4a]">{formatNgn(val ?? 0)}</dd>
+                  </div>
+                ))}
+              </dl>
+              {(data?.cash?.horizons || []).length ? (
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {data.cash.horizons.map((h) => (
+                    <span
+                      key={h.days}
+                      className={`rounded-lg px-3 py-2 text-[10px] font-bold ring-1 ${
+                        h.stress === 'deficit'
+                          ? 'bg-rose-50 text-rose-800 ring-rose-200'
+                          : h.stress === 'tight'
+                            ? 'bg-amber-50 text-amber-900 ring-amber-200'
+                            : 'bg-emerald-50 text-emerald-900 ring-emerald-100'
+                      }`}
+                    >
+                      {h.days}d: {formatNgn(h.projectedBalanceNgn)} ({h.stress})
+                    </span>
+                  ))}
+                </div>
+              ) : null}
+            </Section>
+
+            <Section
+              title="Payables & Outflows"
+              subtitle={data?.payables?.label || 'Supplier and treasury pressure'}
+              icon={<TrendingDown size={18} className="text-rose-700" />}
+            >
+              <dl className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+                {[
+                  { label: 'AP outstanding', val: data?.payables?.apOutstandingNgn },
+                  { label: 'Approved unpaid PR', val: data?.payables?.approvedUnpaidPaymentRequestsNgn },
+                  {
+                    label: data?.payables?.poCommitmentLabel || 'PO commitment proxy',
+                    val: data?.payables?.poCommitmentGapNgn,
+                    est: true,
+                  },
+                ].map(({ label, val, est }) => (
+                  <div key={label} className="rounded-xl border border-slate-100 bg-slate-50/60 px-4 py-3">
+                    <dt className="text-[10px] font-bold uppercase text-slate-500 flex items-center gap-1.5">
+                      {label}
+                      {est ? <EstChip /> : null}
+                    </dt>
+                    <dd className="mt-1 font-black tabular-nums text-[#134e4a]">{formatNgn(val ?? 0)}</dd>
+                  </div>
+                ))}
+              </dl>
+            </Section>
+          </div>
+
+          <Section
+            title="Working Capital Snapshot"
+            subtitle={data?.workingCapital?.label || 'Estimated — not statutory accounts'}
+            icon={<Wallet size={18} className="text-teal-600" />}
+          >
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <WcLinesTable title="Current assets" lines={data?.workingCapital?.currentAssets} />
+              <WcLinesTable title="Current liabilities" lines={data?.workingCapital?.currentLiabilities} />
+            </div>
+            <p className="mt-4 text-sm font-black tabular-nums text-[#134e4a]">
+              Est. working capital:{' '}
+              {data?.workingCapital?.estimatedWorkingCapitalNgn != null
+                ? formatNgn(data.workingCapital.estimatedWorkingCapitalNgn)
+                : '—'}
+            </p>
+          </Section>
+
+          <Section
+            title="Reserve Policy"
+            subtitle={data?.reservePolicy?.note || 'Management decision support only.'}
+            icon={<Shield size={18} className="text-amber-700" />}
+          >
+            <div className="flex flex-wrap items-center gap-3 mb-4">
+              <InfoChip>{data?.reservePolicy?.configured ? 'Configured' : 'Not configured'}</InfoChip>
+              <span className="text-sm tabular-nums font-bold text-[#134e4a]">
+                {data?.reservePolicy?.completionPct ?? 0}% complete
+              </span>
+              {canManageReservePolicy ? (
+                <button
+                  type="button"
+                  onClick={() => void openReservePolicyModal()}
+                  className="inline-flex items-center gap-2 rounded-xl border border-[#134e4a]/30 bg-[#134e4a]/5 px-4 py-2 text-[11px] font-black uppercase text-[#134e4a] hover:bg-[#134e4a]/10"
+                >
+                  <Settings2 size={16} />
+                  Configure
+                </button>
+              ) : null}
+            </div>
+            {(data?.reservePolicy?.warnings || []).map((w, i) => (
+              <p
+                key={i}
+                className="mb-2 text-xs text-amber-900 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2"
+              >
+                {w}
+              </p>
+            ))}
+          </Section>
+        </div>
+      ) : null}
 
       {reserveModalOpen ? (
         <div

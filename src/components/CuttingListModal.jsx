@@ -61,30 +61,31 @@ function emptyLinesByCat() {
   };
 }
 
-/** Stable key for which cutting list is open — avoids re-hydrating when only workspace `quotations` churns. */
+/** Stable key for which cutting list is open — excludes line content so draft autosave does not reset the form. */
 function cuttingListHydrateSignature(editData) {
   if (!editData?.id) {
     return `new:${String(editData?.quotationRef ?? '').trim()}`;
   }
-  let linesKey = '';
-  try {
-    linesKey = JSON.stringify(editData.lines ?? []);
-  } catch {
-    linesKey = '';
+  return `id:${editData.id}`;
+}
+
+function linesByCatFromEditData(editData) {
+  const buckets = { Roof: [], Flatsheet: [], Cladding: [] };
+  if (Array.isArray(editData?.lines)) {
+    for (const line of editData.lines) {
+      const t = LINE_TYPE_SET.has(line.lineType) ? line.lineType : 'Roof';
+      buckets[t].push({
+        id: `cl-line-${line.lineNo ?? newLineId()}`,
+        sheets: Number(line.sheets) > 0 ? String(line.sheets) : '',
+        lengthM: Number(line.lengthM) > 0 ? String(line.lengthM) : '',
+      });
+    }
   }
-  return [
-    editData.id,
-    String(editData.quotationRef ?? '').trim(),
-    editData.dateISO ?? '',
-    editData.machineName ?? '',
-    editData.operatorName ?? '',
-    editData.handledBy ?? '',
-    editData.sheetsToCut ?? '',
-    editData.productionRegistered ? '1' : '0',
-    editData.productionEditLocked ? '1' : '0',
-    String(editData.status ?? '').trim(),
-    linesKey,
-  ].join('\u0000');
+  const next = {};
+  for (const { type } of CATEGORIES) {
+    next[type] = buckets[type].length ? buckets[type] : [blankRow()];
+  }
+  return next;
 }
 
 function parseNum(value) {
@@ -393,20 +394,7 @@ const CuttingListModal = ({
 
   const cuttingListHydrateSig = useMemo(
     () => (isOpen ? cuttingListHydrateSignature(editData) : ''),
-    [
-      isOpen,
-      editData?.id,
-      editData?.quotationRef,
-      editData?.dateISO,
-      editData?.machineName,
-      editData?.operatorName,
-      editData?.handledBy,
-      editData?.sheetsToCut,
-      editData?.lines,
-      editData?.productionRegistered,
-      editData?.productionEditLocked,
-      editData?.status,
-    ]
+    [isOpen, editData?.id, editData?.quotationRef]
   );
 
   const { captureEdited, wrapClose, abandonUnsavedAndRun } = useTrackedUnsavedForm('modal-cutting-list', {
@@ -735,34 +723,50 @@ const CuttingListModal = ({
     };
   }, [showPrintPreview]);
 
+  const applyServerDraftToForm = useCallback(
+    (cl) => {
+      if (!cl) return;
+      const qref = String(cl.quotationRef ?? '').trim();
+      setLinesByCat(linesByCatFromEditData(cl));
+      setQuotationRef(qref);
+      const eq = quotations.find((x) => x.id === qref);
+      const label = eq ? `${eq.id} · ${eq.customer ?? eq.customer_name ?? ''}`.trim() : qref;
+      setQuoteSearch(label);
+      setDateISO(cl.dateISO ?? new Date().toISOString().slice(0, 10));
+      lastCuttingListHydrateSigRef.current = cl.id ? `id:${cl.id}` : `new:${qref}`;
+    },
+    [quotations]
+  );
+
+  const resumeDraftFromServer = useCallback(
+    (cl) => {
+      applyServerDraftToForm(cl);
+      onDraftAutosaved?.(cl);
+    },
+    [applyServerDraftToForm, onDraftAutosaved]
+  );
+
   useEffect(() => {
     if (!isOpen) {
       lastCuttingListHydrateSigRef.current = '';
       return;
     }
     if (lastCuttingListHydrateSigRef.current === cuttingListHydrateSig) return;
+
+    const prevSig = lastCuttingListHydrateSigRef.current;
+    // Autosave assigns a server id while the user is still typing — keep local line editors.
+    if (prevSig.startsWith('new:') && cuttingListHydrateSig.startsWith('id:')) {
+      const serverQuote = String(editData?.quotationRef ?? '').trim();
+      if (serverQuote && normQuoteKey(quotationRef) === normQuoteKey(serverQuote)) {
+        lastCuttingListHydrateSigRef.current = cuttingListHydrateSig;
+        return;
+      }
+    }
+
     lastCuttingListHydrateSigRef.current = cuttingListHydrateSig;
 
     if (editData?.id) {
-      const buckets = { Roof: [], Flatsheet: [], Cladding: [] };
-      if (Array.isArray(editData.lines)) {
-        for (const line of editData.lines) {
-          const t = LINE_TYPE_SET.has(line.lineType) ? line.lineType : 'Roof';
-          buckets[t].push({
-            id: `cl-line-${line.lineNo ?? newLineId()}`,
-            sheets: Number(line.sheets) > 0 ? String(line.sheets) : '',
-            lengthM: Number(line.lengthM) > 0 ? String(line.lengthM) : '',
-          });
-        }
-      }
-      const next = {};
-      for (const { type } of CATEGORIES) {
-        next[type] = buckets[type].length ? buckets[type] : [blankRow()];
-      }
-      setLinesByCat(next);
-      const qref = editData.quotationRef ?? '';
-      setQuotationRef(qref);
-      setDateISO(editData.dateISO ?? new Date().toISOString().slice(0, 10));
+      applyServerDraftToForm(editData);
     } else {
       setQuotationRef('');
       setQuoteSearch('');
@@ -771,7 +775,7 @@ const CuttingListModal = ({
     }
     setSaving(false);
     if (!editData?.id) setHoldForProductionApproval(false);
-  }, [isOpen, cuttingListHydrateSig, editData]);
+  }, [isOpen, cuttingListHydrateSig, editData, quotationRef, applyServerDraftToForm]);
 
   /** Workspace poll updates quotation rows: refresh the resolved quote label without re-hydrating line editors. */
   useEffect(() => {
@@ -859,7 +863,7 @@ const CuttingListModal = ({
         sheetsToCut: selectedQuotationAccessoriesOnly ? 0 : computedSheets,
         machineName,
         handledBy: activeDisplayName || handledByLabel,
-        lines: isDraftRecord && extra.autosave ? draftLinesPayload : normalizedLines,
+        lines: extra.autosave ? draftLinesPayload : normalizedLines,
         totalMeters: selectedQuotationAccessoriesOnly ? 0 : totalMeters,
         ...(selectedQuotationAccessoriesOnly ? { productName: 'Accessories only' } : {}),
         ...((isCreate || (isDraftRecord && extra.finalize)) && !extra.autosave ? { holdForProductionApproval } : {}),
@@ -901,13 +905,14 @@ const CuttingListModal = ({
 
   useEffect(() => {
     if (!isOpen || editData?.id || readOnly) return;
+    if (quotationRef.trim() && draftLinesPayload.length > 0) return;
     const saved = readCuttingListFormDraft(branchId, '');
     if (!saved?.quotationRef) return;
     const serverDraft = cuttingLists.find(
       (cl) => normQuoteKey(cl.quotationRef) === normQuoteKey(saved.quotationRef) && cuttingListIsDraft(cl)
     );
     if (serverDraft) {
-      onDraftAutosaved?.(serverDraft);
+      resumeDraftFromServer(serverDraft);
       return;
     }
     if (saved.linesByCat) {
@@ -916,7 +921,16 @@ const CuttingListModal = ({
       setDateISO(saved.dateISO || new Date().toISOString().slice(0, 10));
       setLinesByCat(saved.linesByCat);
     }
-  }, [isOpen, editData?.id, readOnly, branchId, cuttingLists, onDraftAutosaved]);
+  }, [
+    isOpen,
+    editData?.id,
+    readOnly,
+    branchId,
+    cuttingLists,
+    quotationRef,
+    draftLinesPayload.length,
+    resumeDraftFromServer,
+  ]);
 
   useEffect(() => {
     if (!autosaveEnabled) return undefined;
@@ -939,10 +953,7 @@ const CuttingListModal = ({
         return;
       }
       const cl = data.cuttingList;
-      if (cl) {
-        onDraftAutosaved?.(cl);
-        await ws?.refresh?.();
-      }
+      if (cl) onDraftAutosaved?.(cl);
       setAutosaveNote(
         cl?.id ? `Draft saved · ${cl.id}` : 'Draft saved'
       );
@@ -956,7 +967,6 @@ const CuttingListModal = ({
     buildPersistPayload,
     editData?.id,
     onDraftAutosaved,
-    ws,
     draftLinesPayload,
     quotationRef,
     dateISO,
@@ -1258,7 +1268,7 @@ const CuttingListModal = ({
                                   <button
                                     type="button"
                                     onClick={() => {
-                                      onDraftAutosaved?.(knownQuotePickerBlocker.draft);
+                                      resumeDraftFromServer(knownQuotePickerBlocker.draft);
                                       setShowQuotePicker(false);
                                     }}
                                     className="mt-2 inline-flex rounded-lg border border-[#134e4a]/20 bg-white px-3 py-1.5 text-[9px] font-bold uppercase tracking-wide text-[#134e4a] hover:bg-teal-50"
@@ -1317,7 +1327,7 @@ const CuttingListModal = ({
                                         normQuoteKey(cl.quotationRef) === normQuoteKey(q.id) && cuttingListIsDraft(cl)
                                     );
                                     if (existingDraft) {
-                                      onDraftAutosaved?.(existingDraft);
+                                      resumeDraftFromServer(existingDraft);
                                       setShowQuotePicker(false);
                                       return;
                                     }

@@ -14,6 +14,7 @@ import UserOnboardingGate from './components/auth/UserOnboardingGate';
 import ModuleRouteGuard from './components/ModuleRouteGuard';
 import HrMainRouteGuard from './components/hr/HrMainRouteGuard';
 import FinanceDeskRouteGuard from './components/FinanceDeskRouteGuard';
+import LegacyAccountsRouteGuard from './components/LegacyAccountsRouteGuard';
 import DocumentTitleSync from './components/DocumentTitleSync';
 import { AppErrorBoundary } from './components/AppErrorBoundary';
 import { canAccessMyProfileHr } from './lib/hrAccess';
@@ -30,6 +31,7 @@ import {
   LogOut,
   RefreshCw,
   WifiOff,
+  X,
 } from 'lucide-react';
 import { CustomersProvider } from './context/CustomersContext';
 import { InventoryProvider } from './context/InventoryContext';
@@ -37,13 +39,18 @@ import { ToastProvider, useToast } from './context/ToastContext';
 import { WorkspaceProvider } from './context/WorkspaceContext';
 import { UnsavedWorkProvider, useUnsavedWorkRegistry, UNSAVED_LEAVE_MESSAGE } from './context/UnsavedWorkContext';
 import { UnsavedWorkNavigationGuard } from './components/UnsavedWorkNavigationGuard';
-import { useInventory } from './context/InventoryContext';
 import { useWorkspace } from './context/WorkspaceContext';
 import { ZAREWA_LOGO_SRC } from './Data/companyQuotation';
 import { BranchWorkspaceBar } from './components/layout/BranchWorkspaceBar';
 import { apiFetch } from './lib/apiBase';
 import { AiAskButton } from './components/AiAskButton';
-import { buildWorkspaceNotifications } from './lib/workspaceNotifications';
+import { buildWorkspaceNotifications, WORKSPACE_NOTIFICATION_DISPLAY_LIMIT } from './lib/workspaceNotifications';
+import {
+  dismissNotification,
+  filterDismissedNotifications,
+  loadNotificationDismissals,
+  pruneExpiredDismissals,
+} from './lib/notificationDismissal';
 import { AiAssistantProvider, useAiAssistant } from './context/AiAssistantContext';
 import { HelpChatProvider } from './context/HelpChatContext';
 import { RoleTrainingReplayLayer } from './components/auth/RoleTrainingReplayLayer';
@@ -232,7 +239,7 @@ function HomeRoute() {
     return <Navigate to="/manager" replace />;
   }
   if (rk === 'cashier') {
-    return <Navigate to="/cashier" replace />;
+    return <Navigate to="/accounts?tab=desk" replace />;
   }
   if (rk === 'finance_manager') {
     return <Navigate to="/accounting" replace />;
@@ -246,17 +253,27 @@ function HomeRoute() {
 function AppShell() {
   const navigate = useNavigate();
   const { hasUnsavedWork } = useUnsavedWorkRegistry();
-  const { products } = useInventory();
   const ws = useWorkspace();
   const ai = useAiAssistant();
-  const lowStockCount = useMemo(
-    () => products.filter((p) => p.stockLevel < p.lowStockThreshold).length,
-    [products]
+  const signedInUserId = String(ws?.session?.user?.id || '').trim();
+  const [notificationDismissals, setNotificationDismissals] = useState(() =>
+    pruneExpiredDismissals(loadNotificationDismissals(signedInUserId))
   );
   const [officeSummary, setOfficeSummary] = useState(null);
   const [hrNotifSummary, setHrNotifSummary] = useState(null);
+  const [managementAttention, setManagementAttention] = useState(null);
   const canSeeOfficeModule = Boolean(ws?.canAccessModule?.('office'));
   const canSeeHrModule = Boolean(ws?.canAccessModule?.('hr') || ws?.canAccessModule?.('team_hr'));
+  const canFetchMgmtAttention = useMemo(() => {
+    const has = (p) => Boolean(ws?.hasPermission?.(p));
+    return (
+      has('*') ||
+      has('audit.view') ||
+      has('refunds.approve') ||
+      has('sales.manage') ||
+      has('quotations.manage')
+    );
+  }, [ws?.hasPermission]);
   useEffect(() => {
     if (!canSeeOfficeModule) {
       setOfficeSummary(null);
@@ -272,7 +289,7 @@ function AppShell() {
     return () => {
       cancelled = true;
     };
-  }, [canSeeOfficeModule]);
+  }, [canSeeOfficeModule, ws?.refreshEpoch]);
 
   useEffect(() => {
     if (!canSeeHrModule) {
@@ -287,22 +304,60 @@ function AppShell() {
       else setHrNotifSummary(null);
     })();
     return () => { cancelled = true; };
-  }, [canSeeHrModule]);
+  }, [canSeeHrModule, ws?.refreshEpoch]);
 
-  const notificationItems = useMemo(
+  useEffect(() => {
+    if (!canFetchMgmtAttention) {
+      setManagementAttention(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const { ok, data } = await apiFetch('/api/management/attention');
+      if (cancelled) return;
+      if (ok && data?.ok !== false) setManagementAttention(data);
+      else setManagementAttention(null);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [canFetchMgmtAttention, ws?.refreshEpoch]);
+
+  useEffect(() => {
+    setNotificationDismissals(pruneExpiredDismissals(loadNotificationDismissals(signedInUserId)));
+  }, [signedInUserId]);
+
+  const notificationItemsRaw = useMemo(
     () =>
       buildWorkspaceNotifications({
         snapshot: ws?.snapshot,
         hasPermission: (p) => ws?.hasPermission?.(p),
         canAccessModule: (m) => ws?.canAccessModule?.(m),
-        lowStockSkuCount: lowStockCount,
         officeSummary,
         hrNotifSummary,
+        managementAttention,
       }),
-    [ws?.snapshot, ws?.hasPermission, ws?.canAccessModule, lowStockCount, officeSummary, hrNotifSummary]
+    [
+      ws?.snapshot,
+      ws?.hasPermission,
+      ws?.canAccessModule,
+      officeSummary,
+      hrNotifSummary,
+      managementAttention,
+    ]
   );
+  const notificationItems = useMemo(
+    () => filterDismissedNotifications(notificationItemsRaw, notificationDismissals),
+    [notificationItemsRaw, notificationDismissals]
+  );
+  const visibleNotificationItems = useMemo(
+    () => notificationItems.slice(0, WORKSPACE_NOTIFICATION_DISPLAY_LIMIT),
+    [notificationItems]
+  );
+  const hiddenNotificationCount = Math.max(0, notificationItems.length - visibleNotificationItems.length);
   const urgentNotifCount = useMemo(
-    () => notificationItems.filter((n) => n.severity === 'warning').length,
+    () =>
+      notificationItems.filter((n) => n.severity === 'critical' || n.severity === 'warning').length,
     [notificationItems]
   );
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
@@ -428,6 +483,14 @@ function AppShell() {
       navigate(to, opts);
     },
     [hasUnsavedWork, navigate]
+  );
+
+  const snoozeNotificationForToday = useCallback(
+    (notificationId) => {
+      const next = dismissNotification(signedInUserId, notificationId, { untilEndOfDay: true });
+      setNotificationDismissals(next);
+    },
+    [signedInUserId]
   );
 
   const goSearchHit = useCallback(
@@ -673,7 +736,9 @@ function AppShell() {
                       onClick={(e) => e.stopPropagation()}
                     >
                       <div className="mb-3 flex items-center justify-between gap-2">
-                      <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">For your role</p>
+                      <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">
+                        Action alerts
+                      </p>
                       <AiAskButton
                         mode="search"
                         prompt="Summarize the alerts I can see, explain why they matter, and tell me what to do first."
@@ -690,30 +755,53 @@ function AppShell() {
                     </div>
                     {notificationItems.length === 0 ? (
                       <p className="text-xs text-gray-600 rounded-lg bg-gray-50 px-3 py-2">
-                        No alerts right now — stock, approvals, and handoffs you are allowed to see will appear here.
+                        No action alerts — order sign-off, cash approvals, ops issues, and items assigned to you
+                        appear here when something needs attention.
                       </p>
                     ) : (
                       <ul className="space-y-2 text-xs text-gray-700">
-                        {notificationItems.map((n) => (
+                        {visibleNotificationItems.map((n) => (
                           <li key={n.id}>
                             <div
                               className={`rounded-lg border px-3 py-3 transition sm:py-2 ${
-                                n.severity === 'warning'
-                                  ? 'bg-amber-50 border-amber-100'
-                                  : 'bg-slate-50 border-slate-100'
+                                n.severity === 'critical'
+                                  ? 'bg-rose-50 border-rose-200'
+                                  : n.severity === 'warning'
+                                    ? 'bg-amber-50 border-amber-100'
+                                    : 'bg-slate-50 border-slate-100'
                               }`}
                             >
-                              <button
-                                type="button"
-                                className="w-full text-left"
-                                onClick={() => {
-                                  guardedNavigate(n.path, { state: n.state || {} });
-                                  setNotifOpen(false);
-                                }}
-                              >
-                                <span className="font-bold text-[#134e4a] block">{n.title}</span>
-                                <span className="text-[11px] text-gray-600 mt-0.5 block leading-snug">{n.detail}</span>
-                              </button>
+                              <div className="flex items-start gap-2">
+                                <button
+                                  type="button"
+                                  className="min-w-0 flex-1 text-left"
+                                  onClick={() => {
+                                    snoozeNotificationForToday(n.id);
+                                    guardedNavigate(n.path, { state: n.state || {} });
+                                    setNotifOpen(false);
+                                  }}
+                                >
+                                  {n.category ? (
+                                    <span className="text-[9px] font-black uppercase tracking-wide text-slate-400 block mb-0.5">
+                                      {n.category}
+                                    </span>
+                                  ) : null}
+                                  <span className="font-bold text-[#134e4a] block">{n.title}</span>
+                                  <span className="text-[11px] text-gray-600 mt-0.5 block leading-snug">{n.detail}</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  aria-label="Dismiss until tomorrow"
+                                  title="Dismiss until tomorrow"
+                                  className="shrink-0 rounded-md p-1 text-gray-400 transition hover:bg-white/80 hover:text-gray-600"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    snoozeNotificationForToday(n.id);
+                                  }}
+                                >
+                                  <X size={14} />
+                                </button>
+                              </div>
                               {ai?.available && ai.canUseMode('search') ? (
                                 <AiAskButton
                                   mode="search"
@@ -734,6 +822,19 @@ function AppShell() {
                         ))}
                       </ul>
                     )}
+                    {hiddenNotificationCount > 0 ? (
+                      <button
+                        type="button"
+                        className="mt-3 w-full rounded-lg border border-teal-100 bg-teal-50/80 px-3 py-2 text-left text-[10px] font-bold uppercase tracking-wide text-[#134e4a]"
+                        onClick={() => {
+                          const fallbackPath = canFetchMgmtAttention ? '/manager?inbox=attention' : '/';
+                          guardedNavigate(fallbackPath);
+                          setNotifOpen(false);
+                        }}
+                      >
+                        +{hiddenNotificationCount} more alert{hiddenNotificationCount === 1 ? '' : 's'}
+                      </button>
+                    ) : null}
                     <button
                       type="button"
                       className="mt-4 text-[10px] font-bold uppercase text-[#134e4a]"
@@ -982,7 +1083,9 @@ function AppShell() {
               path="/accounts"
               element={
                 <ModuleRouteGuard moduleKey="finance">
-                  <Account />
+                  <LegacyAccountsRouteGuard>
+                    <Account />
+                  </LegacyAccountsRouteGuard>
                 </ModuleRouteGuard>
               }
             />

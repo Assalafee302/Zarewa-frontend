@@ -1,9 +1,13 @@
 import { describe, it, expect } from 'vitest';
 import {
+  buildCashOutInboxRows,
+  buildOrdersInboxRows,
+  filterAttentionItems,
   flattenQuotationLineItems,
   formatRefundReasonCategory,
   ledgerTypeStyle,
   matchesInboxSearch,
+  normalizeManagerInboxRoute,
   ymdLocal,
 } from './managerDashboardCore';
 
@@ -29,16 +33,49 @@ describe('managerDashboardCore', () => {
   });
 
   it('matches inbox rows by tab-specific fields', () => {
-    expect(matchesInboxSearch('qt-1', { id: 'QT-1', customer_name: 'Acme', status: 'Pending' }, 'clearance')).toBe(
+    expect(matchesInboxSearch('qt-1', { id: 'QT-1', customer_name: 'Acme', status: 'Pending', _inboxKind: 'clearance' }, 'orders')).toBe(
       true
     );
     expect(
       matchesInboxSearch(
         'maintenance',
-        { request_id: 'PR-1', description: 'Maintenance', expense_id: 'EXP-1', request_reference: '' },
-        'payments'
+        { request_id: 'PR-1', description: 'Maintenance', expense_id: 'EXP-1', request_reference: '', _inboxKind: 'payment' },
+        'cash_out'
       )
     ).toBe(true);
+  });
+
+  it('builds merged order and cash-out queues', () => {
+    const orders = buildOrdersInboxRows({
+      pendingClearance: [{ id: 'Q1' }],
+      productionOverrides: [{ id: 'CL1', quotation_ref: 'Q2' }],
+      flagged: [{ id: 'Q3' }],
+    });
+    expect(orders).toHaveLength(3);
+    expect(orders[0]._inboxKind).toBe('flagged');
+    expect(orders[1]._inboxKind).toBe('clearance');
+    const cash = buildCashOutInboxRows({
+      pendingRefunds: [{ refund_id: 'R1' }],
+      pendingExpenses: [{ request_id: 'P1' }],
+    });
+    expect(cash).toHaveLength(2);
+  });
+
+  it('normalizes legacy inbox routes', () => {
+    expect(normalizeManagerInboxRoute('clearance')).toEqual({ tab: 'orders', attentionFilter: 'orders' });
+    expect(normalizeManagerInboxRoute('refunds')).toEqual({ tab: 'cash_out', attentionFilter: 'cash' });
+    expect(normalizeManagerInboxRoute('flagged')).toEqual({ tab: 'attention', attentionFilter: 'flagged' });
+    expect(normalizeManagerInboxRoute('material')).toEqual({ tab: 'material', attentionFilter: 'material' });
+  });
+
+  it('filters attention items by chip', () => {
+    const items = [
+      { id: '1', kind: 'clearance' },
+      { id: '2', kind: 'refunds' },
+      { id: '3', kind: 'flagged' },
+    ];
+    expect(filterAttentionItems(items, 'cash')).toHaveLength(1);
+    expect(filterAttentionItems(items, 'orders')).toHaveLength(2);
   });
 
   it('formats local ymd date', () => {

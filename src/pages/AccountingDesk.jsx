@@ -115,8 +115,8 @@ export default function AccountingDesk() {
       />
 
       <FinanceTrialBanner>
-        Receipt confirmation stays on Cashier Desk. Policy v1 GL posting flags remain off until Head of Accounts signs off
-        dry-run.
+        Receipt confirmation stays on Finance → Desk (branch cashiers). Policy v1 GL posting flags remain off until
+        Head of Accounts signs off dry-run.
       </FinanceTrialBanner>
 
       <MainPanel className="space-y-6">
@@ -301,7 +301,7 @@ export default function AccountingDesk() {
         </section>
 
         <p className="border-t border-slate-200 pt-2 text-xs font-medium text-slate-500">
-          <Link to="/cashier" className="font-bold text-teal-800 hover:underline">
+          <Link to="/accounts?tab=desk" className="font-bold text-teal-800 hover:underline">
             Cashier Desk
           </Link>{' '}
           for daily confirmation.{' '}

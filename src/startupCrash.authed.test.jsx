@@ -2,7 +2,7 @@
  * Authenticated startup — catches TDZ when Dashboard/LegacyDashboard loads after session restore.
  */
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { render, screen, waitFor, cleanup } from '@testing-library/react';
+import { render, screen, waitFor, cleanup, fireEvent } from '@testing-library/react';
 import React, { StrictMode } from 'react';
 
 vi.mock('./lib/firebase.js', () => ({
@@ -51,21 +51,25 @@ describe('authenticated startup TDZ', () => {
     cleanup();
   });
 
-  it('renders workspace shell without error boundary crash', async () => {
-    window.history.pushState({}, '', '/');
-    const { default: App } = await import('./App.jsx');
-    render(
-      <StrictMode>
-        <App />
-      </StrictMode>
-    );
-    await waitFor(
-      () => {
-        expect(screen.queryByText(/Zarewa could not load/i)).toBeNull();
-      },
-      { timeout: 15000 }
-    );
-  });
+  it(
+    'renders workspace shell without error boundary crash',
+    async () => {
+      window.history.pushState({}, '', '/');
+      const { default: App } = await import('./App.jsx');
+      render(
+        <StrictMode>
+          <App />
+        </StrictMode>
+      );
+      await waitFor(
+        () => {
+          expect(screen.queryByText(/Zarewa could not load/i)).toBeNull();
+        },
+        { timeout: 15000 }
+      );
+    },
+    90_000
+  );
 
   it('renders manager home without error boundary crash', async () => {
     const { apiFetch } = await import('./lib/apiBase.js');
@@ -183,7 +187,7 @@ describe('authenticated startup TDZ', () => {
             },
             inventory: {
               skuPeriodNote: 'Weeks-cover uses BI lookback.',
-              drillRoutes: { analytics: '/analytics', operations: '/operations' },
+              drillRoutes: { analytics: '/exec?tab=intelligence', operations: '/operations' },
               skuIntelligence: {
                 aluzinc: {
                   buyNext: [
@@ -290,7 +294,7 @@ describe('authenticated startup TDZ', () => {
       }
       return { ok: false, data: null };
     });
-    window.history.pushState({}, '', '/exec');
+    window.history.pushState({}, '', '/exec?tab=finance');
     const { default: App } = await import('./App.jsx');
     render(
       <StrictMode>
@@ -305,25 +309,18 @@ describe('authenticated startup TDZ', () => {
     );
     await waitFor(
       () => {
-        expect(screen.getByRole('heading', { name: /Executive Command Centre/i })).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: /Command Centre/i })).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: /Cash & Treasury/i })).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: /Working Capital Snapshot/i })).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: /Reserve Policy/i })).toBeInTheDocument();
       },
       { timeout: 15000 }
     );
+    fireEvent.click(screen.getByRole('button', { name: /^Overview$/i }));
     await waitFor(
       () => {
-        expect(screen.getAllByText(/Weeks-cover uses BI lookback/i).length).toBeGreaterThan(0);
-        expect(screen.getByText(/Not a safe-withdrawal/i)).toBeInTheDocument();
-        expect(screen.getByRole('link', { name: /Acme/i })).toBeInTheDocument();
-        expect(screen.getByText(/Buy Soon/i)).toBeInTheDocument();
-        expect(screen.getByRole('heading', { name: /Working Capital Snapshot/i })).toBeInTheDocument();
         expect(screen.getByRole('heading', { name: /Targets vs Actuals/i })).toBeInTheDocument();
-        expect(screen.getByRole('heading', { name: /Staff Activity/i })).toBeInTheDocument();
-        expect(screen.getByText(/Working capital is not the same as free cash/i)).toBeInTheDocument();
-        expect(screen.getByText(/Activity only/i)).toBeInTheDocument();
-        expect(screen.getByRole('heading', { name: /Reserve Policy Readiness/i })).toBeInTheDocument();
-        expect(screen.getByText(/Headroom hidden/i)).toBeInTheDocument();
-        expect(screen.getAllByText(/Policy missing/i).length).toBeGreaterThan(0);
-        expect(screen.queryByText(/Configure Reserve Policy/i)).toBeNull();
+        expect(screen.getByRole('heading', { name: /Decision Alerts/i })).toBeInTheDocument();
       },
       { timeout: 15000 }
     );

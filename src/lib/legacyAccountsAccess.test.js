@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   getAllowedLegacyAccountTabs,
+  getDefaultLegacyAccountTab,
   resolveLegacyAccountsRedirect,
   userMayAccessLegacyAccountsRoute,
   userMaySeeLegacyAccountsNav,
@@ -13,15 +14,20 @@ describe('legacyAccountsAccess (client)', () => {
     expect(userMaySeeLegacyAccountsNav('sales_manager', ['finance.approve'])).toBe(false);
   });
 
-  it('cashier limited tabs and nav hidden', () => {
-    expect(userMaySeeLegacyAccountsNav('cashier', ['cashier.desk.view', 'finance.view'])).toBe(false);
+  it('cashier lands on desk tab and sees Finance nav', () => {
+    expect(userMaySeeLegacyAccountsNav('cashier', ['cashier.desk.view', 'finance.view'])).toBe(true);
+    expect(getDefaultLegacyAccountTab('cashier', ['cashier.desk.view'])).toBe('desk');
+    expect(getAllowedLegacyAccountTabs('cashier', ['cashier.desk.view'])).toContain('desk');
     expect(getAllowedLegacyAccountTabs('cashier', ['cashier.desk.view'])).not.toContain('audit');
-    expect(resolveLegacyAccountsRedirect('cashier', ['cashier.desk.view'], 'audit')?.to).toBe('/cashier');
+    expect(resolveLegacyAccountsRedirect('cashier', ['cashier.desk.view'], 'audit')?.to).toBe(
+      '/accounts?tab=desk'
+    );
   });
 
-  it('accountant sees accounting tabs', () => {
+  it('accountant sees accounting tabs but not desk', () => {
     expect(userMayAccessLegacyAccountsRoute('finance_manager', ['accounting.desk.view'])).toBe(true);
     expect(getAllowedLegacyAccountTabs('finance_manager', ['accounting.desk.view'])).toContain('audit');
+    expect(getAllowedLegacyAccountTabs('finance_manager', ['accounting.desk.view'])).not.toContain('desk');
+    expect(getDefaultLegacyAccountTab('finance_manager', ['accounting.desk.view'])).toBe('treasury');
   });
-
 });

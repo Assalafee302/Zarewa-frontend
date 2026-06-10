@@ -3,7 +3,8 @@
  * @param {string} roleKey
  */
 export function trainingGuideForRole(roleKey) {
-  const rk = String(roleKey || 'sales_staff').trim().toLowerCase();
+  let rk = String(roleKey || 'sales_staff').trim().toLowerCase();
+  if (rk === 'store_keeper' || rk === 'storekeeper') rk = 'operations_officer';
   return ROLE_TRAINING[rk] || ROLE_TRAINING.sales_staff;
 }
 
@@ -31,12 +32,12 @@ const ROLE_TRAINING = {
       },
       {
         heading: 'When something looks wrong',
-        body: 'Check Edit approvals and **Zare** (life-ring, bottom-right) for step-by-step SOPs. Use Manager dashboard or Executive Command Centre for cross-branch attention.',
+        body: 'Check Edit approvals and **Zare** (life-ring, bottom-right) for step-by-step SOPs. Use Manager dashboard or **Command Centre** (`/exec`) for cross-branch attention.',
       },
     ],
     quickLinks: [
       { label: 'Settings', path: '/settings' },
-      { label: 'Executive Command Centre', path: '/exec' },
+      { label: 'Command Centre', path: '/exec' },
       { label: 'Reports', path: '/reports' },
     ],
   },
@@ -46,7 +47,7 @@ const ROLE_TRAINING = {
     steps: [
       {
         heading: 'Your command view',
-        body: 'Start on **Executive Command Centre** (`/exec`) for company KPIs, branch scorecard, and decision alerts. Use Manager dashboard for branch-level approval inboxes when acting as BM.',
+        body: 'Start on **Command Centre** (`/exec`): **Overview** for KPIs, alerts, and approvals; **Intelligence** for forecasts and coil actions; **Finance** for cash and working capital. Use Manager dashboard for branch-level approval inboxes when acting as BM.',
       },
       {
         heading: 'Approvals you own',
@@ -62,7 +63,8 @@ const ROLE_TRAINING = {
       },
     ],
     quickLinks: [
-      { label: 'Executive Command Centre', path: '/exec' },
+      { label: 'Command Centre', path: '/exec' },
+      { label: 'Intelligence', path: '/exec?tab=intelligence' },
       { label: 'Executive HR', path: '/executive-hr' },
       { label: 'Procurement', path: '/procurement' },
     ],
@@ -101,7 +103,7 @@ const ROLE_TRAINING = {
     steps: [
       {
         heading: 'Cashier desk',
-        body: 'Open **Cashier desk** (`/cashier`) each day. This is your execution screen — not the Accounting desk.',
+        body: 'Open **Finance → Desk** (`/accounts?tab=desk`) each day. This is your execution screen — not the Accounting desk.',
       },
       {
         heading: 'Record & confirm receipts',
@@ -118,9 +120,9 @@ const ROLE_TRAINING = {
       },
     ],
     quickLinks: [
-      { label: 'Cashier desk', path: '/cashier' },
+      { label: 'Finance desk', path: '/accounts?tab=desk' },
       { label: 'Sales', path: '/sales' },
-      { label: 'Finance receipts', path: '/accounts' },
+      { label: 'Finance receipts', path: '/accounts?tab=receipts' },
     ],
   },
   sales_manager: {
@@ -260,8 +262,8 @@ const ROLE_TRAINING = {
     subtitle: 'Read-only executive dashboard and reports.',
     steps: [
       {
-        heading: 'Executive Command Centre',
-        body: 'Your home view is **Executive Command Centre** (`/exec`) — company KPIs and branch rollups. You do not post transactions.',
+        heading: 'Command Centre',
+        body: 'Your home view is **Command Centre** (`/exec`) — Overview, Intelligence, and Finance tabs for company KPIs and branch rollups. You do not post transactions.',
       },
       {
         heading: 'Reports',
@@ -273,7 +275,7 @@ const ROLE_TRAINING = {
       },
     ],
     quickLinks: [
-      { label: 'Executive Command Centre', path: '/exec' },
+      { label: 'Command Centre', path: '/exec' },
       { label: 'Reports', path: '/reports' },
     ],
   },

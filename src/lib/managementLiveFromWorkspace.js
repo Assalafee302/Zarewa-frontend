@@ -5,6 +5,12 @@
 
 import { DEFAULT_MANAGER_TARGETS_PER_MONTH } from './dashboardPrefs.js';
 import { formatPersonName } from './formatPersonName.js';
+import {
+  cuttingListInProductionGate,
+  quotationIsFlaggedForAudit,
+  quotationIsOverdueForCollections,
+  quotationNeedsManagerClearance,
+} from './managementQueueFilters.js';
 import { productionAttributedRevenueNgn, productionOutputDateISO } from './liveAnalytics.js';
 
 /** @typedef {'month' | '4months' | 'half' | 'year'} ManagerMetricPeriodKey */
@@ -55,12 +61,7 @@ export function buildManagementQueuesFromSnapshot(snapshot) {
   const quoteById = new Map(quotations.map((q) => [q.id, q]));
 
   const pendingClearance = quotations
-    .filter((q) => {
-      if ((Number(q.paidNgn) || 0) <= 0) return false;
-      if (q.managerClearedAtISO) return false;
-      if (q.managerFlaggedAtISO) return false;
-      return true;
-    })
+    .filter((q) => quotationNeedsManagerClearance(q))
     .map((q) => ({
       id: q.id,
       customer_name: formatPersonName(q.customer),
@@ -73,7 +74,7 @@ export function buildManagementQueuesFromSnapshot(snapshot) {
     .sort((a, b) => String(b.date_iso || '').localeCompare(String(a.date_iso || '')));
 
   const flagged = quotations
-    .filter((q) => Boolean(q.managerFlaggedAtISO))
+    .filter((q) => quotationIsFlaggedForAudit(q))
     .map((q) => ({
       id: q.id,
       customer_name: formatPersonName(q.customer),
@@ -87,17 +88,7 @@ export function buildManagementQueuesFromSnapshot(snapshot) {
     );
 
   const productionOverrides = cuttingLists
-    .filter((cl) => {
-      if (String(cl.status) !== 'Draft') return false;
-      const q = quoteById.get(cl.quotationRef);
-      if (!q) return false;
-      const total = Number(q.totalNgn) || 0;
-      const paid = Number(q.paidNgn) || 0;
-      if (total <= 0) return false;
-      if (paid >= total * 0.7) return false;
-      if (q.managerProductionApprovedAtISO) return false;
-      return true;
-    })
+    .filter((cl) => cuttingListInProductionGate(cl, quoteById.get(cl.quotationRef)))
     .map((cl) => {
       const q = quoteById.get(cl.quotationRef);
       return {

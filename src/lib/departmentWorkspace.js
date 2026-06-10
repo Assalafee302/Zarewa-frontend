@@ -9,6 +9,7 @@ export const WORKSPACE_ROLE_KEYS = [
   'sales_staff',
   'cashier',
   'operations_officer',
+  'storekeeper',
   'hr_admin',
   'gmhr',
 ];
@@ -19,8 +20,8 @@ const LEGACY_DEPARTMENT_TO_ROLE = {
   sales: 'sales_staff',
   inventory: 'operations_officer',
   production: 'operations_officer',
-  storekeeper: 'operations_officer',
-  store_keeper: 'operations_officer',
+  storekeeper: 'storekeeper',
+  store_keeper: 'storekeeper',
   purchase: 'md',
   finance: 'finance_manager',
   reports: 'sales_staff',
@@ -40,6 +41,7 @@ export const WORKSPACE_DEPARTMENT_LABELS = {
   sales_staff: 'Sales officer',
   cashier: 'Cashier',
   operations_officer: 'Operations officer',
+  storekeeper: 'Store keeper',
   hr_admin: 'HR / Admin',
   gmhr: 'GM HR',
   general: 'General / cross-functional',
@@ -47,8 +49,7 @@ export const WORKSPACE_DEPARTMENT_LABELS = {
   sales: 'Sales',
   inventory: 'Store & inventory',
   production: 'Production floor',
-  storekeeper: 'Storekeeper',
-  store_keeper: 'Storekeeper',
+  store_keeper: 'Storekeeper (legacy dept)',
   purchase: 'Purchase & procurement',
   finance: 'Finance',
   reports: 'Reports & analytics',
@@ -74,8 +75,9 @@ const DEFAULT_HOME_BY_ROLE = {
   finance_manager: '/accounting',
   sales_manager: '/manager',
   sales_staff: '/',
-  cashier: '/cashier',
+  cashier: '/accounts?tab=desk',
   operations_officer: '/operations',
+  storekeeper: '/operations',
 };
 
 export function defaultHomePathForDepartment(deptId) {
@@ -85,7 +87,7 @@ export function defaultHomePathForDepartment(deptId) {
 
 /** Map a route path to a sidebar module key (for guards and shortcuts). */
 export function pathToModuleKey(pathname) {
-  const p = String(pathname || '').replace(/\/$/, '') || '/';
+  const p = String(pathname || '').split('?')[0].split('#')[0].replace(/\/$/, '') || '/';
   if (p === '/') return null;
   if (p === '/office' || p.startsWith('/office/')) return 'office';
   if (p === '/manager') return 'sales';
@@ -93,8 +95,8 @@ export function pathToModuleKey(pathname) {
   if (p === '/sales' || p.startsWith('/customers')) return 'sales';
   if (p === '/procurement' || p.startsWith('/procurement/')) return 'procurement';
   if (p === '/operations') return 'operations';
-  if (p === '/accounts') return 'finance';
-  if (p === '/cashier') return 'cashier_desk';
+  if (p === '/cashier' || p.startsWith('/cashier/')) return 'finance';
+  if (p === '/accounts' || p.startsWith('/accounts/')) return 'finance';
   if (p === '/accounting' || p.startsWith('/accounting/')) return 'accounting_desk';
   if (p === '/reports') return 'reports';
   if (p === '/settings' || p.startsWith('/settings/')) return 'settings';
