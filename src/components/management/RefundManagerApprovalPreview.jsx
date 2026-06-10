@@ -213,7 +213,7 @@ export function RefundManagerApprovalPreview({
       }),
     });
     setAlignmentCheckLoading(false);
-    if (ok && data) {
+    if (data) {
       setProductionAlignmentIssues(Array.isArray(data.issues) ? data.issues : []);
     }
   }, [
@@ -232,6 +232,7 @@ export function RefundManagerApprovalPreview({
   }, [runAlignmentCheck]);
 
   const alignmentBlocksApprove = useMemo(() => {
+    if (alignmentCheckLoading) return true;
     if (productionAlignmentIssues.length === 0) return false;
     const hasBlock = productionAlignmentIssues.some((i) => i.submitAction === 'block');
     if (hasBlock && !(canOverrideProductionAlignment && productionAlignmentOverrideNote.trim().length >= 10)) {
@@ -240,6 +241,7 @@ export function RefundManagerApprovalPreview({
     const needAck = productionAlignmentIssues.filter((i) => i.submitAction === 'acknowledge');
     return needAck.some((i) => !productionAlignmentAck[i.code]);
   }, [
+    alignmentCheckLoading,
     productionAlignmentIssues,
     canOverrideProductionAlignment,
     productionAlignmentOverrideNote,

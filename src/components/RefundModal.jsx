@@ -862,6 +862,9 @@ const RefundModal = ({
       });
 
       setWarnings(preview.warnings || []);
+      if (Array.isArray(preview.productionAlignmentIssues)) {
+        setProductionAlignmentIssues(preview.productionAlignmentIssues);
+      }
       setSubstitutionPerMeterBreakdown(
         Array.isArray(preview.substitutionPerMeterBreakdown) ? preview.substitutionPerMeterBreakdown : []
       );
@@ -1119,7 +1122,7 @@ const RefundModal = ({
         }),
       });
       setAlignmentCheckLoading(false);
-      if (ok && data) {
+      if (data) {
         setProductionAlignmentIssues(Array.isArray(data.issues) ? data.issues : []);
       }
     }, 350);
@@ -1133,7 +1136,9 @@ const RefundModal = ({
   ]);
 
   const alignmentBlocksSubmit = useMemo(() => {
-    if (mode !== 'create' || productionAlignmentIssues.length === 0) return false;
+    if (mode !== 'create') return false;
+    if (alignmentCheckLoading) return true;
+    if (productionAlignmentIssues.length === 0) return false;
     const hasBlock = productionAlignmentIssues.some((i) => i.submitAction === 'block');
     if (hasBlock && !(canOverrideProductionAlignment && productionAlignmentOverrideNote.trim().length >= 10)) {
       return true;
@@ -1142,6 +1147,7 @@ const RefundModal = ({
     return needAck.some((i) => !productionAlignmentAck[i.code]);
   }, [
     mode,
+    alignmentCheckLoading,
     productionAlignmentIssues,
     canOverrideProductionAlignment,
     productionAlignmentOverrideNote,
@@ -1162,6 +1168,66 @@ const RefundModal = ({
     }
     return excluded;
   }, [form.alreadyRefundedCategories, blockedRefundCategories, eligibleRefundCategoriesFromPreview]);
+
+  const priorRefundsOnQuote = useMemo(() => {
+    const qref = String(form.quotationRef || '').trim();
+    if (!qref) return [];
+    return (refunds || []).filter((r) => {
+      if (String(r.quotationRef || '').trim() !== qref) return false;
+      return !refundStatusIsWithdrawn(r.status);
+    });
+  }, [form.quotationRef, refunds]);
+
+  const multiCategoryOverlapContext = useMemo(() => {
+    const quoteCats = new Set(derivedReasonCategories.map((c) => String(c).trim().toLowerCase()));
+    for (const r of priorRefundsOnQuote) {
+      const raw = r.reasonCategory ?? r.reason_category;
+      const tokens = Array.isArray(raw)
+        ? raw
+        : (() => {
+            const s = String(raw ?? '').trim();
+            if (!s) return [];
+            if (s.startsWith('[')) {
+              try {
+                const parsed = JSON.parse(s);
+                return Array.isArray(parsed) ? parsed : [s];
+              } catch {
+                return [s];
+              }
+            }
+            return [s];
+          })();
+      for (const c of tokens) quoteCats.add(String(c).trim().toLowerCase());
+    }
+    const hasOverpay = [...quoteCats].some((c) => c.includes('overpay'));
+    const hasCancelOrUnproduced = [...quoteCats].some(
+      (c) => c.includes('order cancellation') || c.includes('unproduced')
+    );
+    if (!hasOverpay || !hasCancelOrUnproduced) return null;
+    const priorLabels = [
+      ...new Set(
+        priorRefundsOnQuote.flatMap((r) => {
+          const raw = r.reasonCategory ?? r.reason_category;
+          if (Array.isArray(raw)) return raw.map((x) => String(x).trim()).filter(Boolean);
+          const s = String(raw ?? '').trim();
+          if (!s) return [];
+          if (s.startsWith('[')) {
+            try {
+              const parsed = JSON.parse(s);
+              return Array.isArray(parsed) ? parsed.map((x) => String(x).trim()).filter(Boolean) : [s];
+            } catch {
+              return [s];
+            }
+          }
+          return [s];
+        })
+      ),
+    ];
+    return {
+      priorLabels,
+      currentLabels: derivedReasonCategories,
+    };
+  }, [derivedReasonCategories, priorRefundsOnQuote]);
 
   const label = 'text-[9px] font-semibold text-slate-400 uppercase tracking-wide ml-0.5 mb-1 block';
   const input =
@@ -2813,6 +2879,22 @@ const RefundModal = ({
                   )}
                 </div>
               )}
+
+          {mode === 'create' && multiCategoryOverlapContext ? (
+            <div className="rounded-xl border border-amber-200 bg-amber-50/80 p-4 space-y-1">
+              <div className="flex items-center gap-2">
+                <AlertTriangle size={16} className="text-amber-700 shrink-0" />
+                <p className="text-xs font-black text-amber-950">Multi-category overlap on quotation</p>
+              </div>
+              <p className="text-[11px] text-amber-950 leading-snug">
+                {multiCategoryOverlapContext.priorLabels.length
+                  ? `Prior refund(s) on this quote: ${multiCategoryOverlapContext.priorLabels.join(', ')}. `
+                  : ''}
+                This request: {multiCategoryOverlapContext.currentLabels.join(', ') || '—'}. Overpayment must not be
+                double-counted with Order cancellation or Unproduced meterage on the same quotation.
+              </p>
+            </div>
+          ) : null}
 
           {/* Production alignment (Phase 11C) */}
           {mode === 'create' && productionAlignmentIssues.length > 0 ? (
