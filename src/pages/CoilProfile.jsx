@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import {
   ArrowLeft,
+  AlertTriangle,
   CheckCircle2,
   LayoutDashboard,
   Factory,
@@ -9,6 +10,7 @@ import {
   ScrollText,
 } from 'lucide-react';
 import { MainPanel, ModalFrame, PageHeader, PageShell } from '../components/layout';
+import CoilDamageRecordModal from '../components/operations/CoilDamageRecordModal';
 import { useInventory } from '../context/InventoryContext';
 import { useToast } from '../context/ToastContext';
 import { useWorkspace } from '../context/WorkspaceContext';
@@ -78,6 +80,7 @@ export default function CoilProfile() {
   const { show: showToast } = useToast();
   const ws = useWorkspace();
   const [actionModal, setActionModal] = useState('');
+  const [damageModalOpen, setDamageModalOpen] = useState(false);
   const [savingAction, setSavingAction] = useState(false);
   const [scrapForm, setScrapForm] = useState({ kg: '', meters: '', bookRef: '', reason: 'Damaged edge / offcut', note: '' });
   const [returnForm, setReturnForm] = useState({ kg: '', reason: 'Unused from production', note: '' });
@@ -128,6 +131,10 @@ export default function CoilProfile() {
     });
   }, [actionModal, coil]);
 
+  const cuttingLists = useMemo(
+    () => (Array.isArray(ws?.snapshot?.cuttingLists) ? ws.snapshot.cuttingLists : []),
+    [ws?.snapshot?.cuttingLists]
+  );
   const productionJobCoils = useMemo(
     () => (Array.isArray(ws?.snapshot?.productionJobCoils) ? ws.snapshot.productionJobCoils : []),
     [ws?.snapshot?.productionJobCoils]
@@ -494,6 +501,14 @@ export default function CoilProfile() {
                 Finish roll
               </button>
             ) : null}
+            <button
+              type="button"
+              className="z-btn-secondary inline-flex items-center gap-1.5 border-amber-200 bg-amber-50 text-amber-950 hover:bg-amber-100"
+              onClick={() => setDamageModalOpen(true)}
+            >
+              <AlertTriangle size={16} aria-hidden />
+              Record damage
+            </button>
             <button type="button" className="z-btn-secondary inline-flex" onClick={() => setActionModal('scrap')}>
               Scrap
             </button>
@@ -823,6 +838,14 @@ export default function CoilProfile() {
           <button className="z-btn-primary" type="submit" disabled={savingAction}>Save changes</button>
         </form>
       </ModalFrame>
+
+      <CoilDamageRecordModal
+        isOpen={damageModalOpen}
+        onClose={() => setDamageModalOpen(false)}
+        coilLots={coilLots}
+        cuttingLists={cuttingLists}
+        defaultCoilNo={coil.coilNo}
+      />
     </PageShell>
   );
 }

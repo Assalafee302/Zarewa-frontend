@@ -15,6 +15,8 @@ import {
   MATERIAL_FAMILIES,
   RETURN_DISPOSITIONS,
 } from '../lib/materialIncidentConstants';
+import { coilDamagePreview, isCoilDamageIncident } from '../lib/coilDamageRecordCore';
+import { fmtConv2 } from '../lib/conversionKgPerM';
 import { AppTable, AppTableBody, AppTableTh, AppTableThead, AppTableTr, AppTableWrap } from '../components/ui/AppDataTable';
 
 const emptyLine = () => ({ lengthM: '', quantity: '1', conditionNote: '' });
@@ -53,14 +55,14 @@ export default function MaterialExceptions({ embedded = false, initialView = 're
   const [selectedId, setSelectedId] = useState('');
   const [detail, setDetail] = useState(null);
   const [printPayload, setPrintPayload] = useState(null);
-  const [managerRemark, setManagerRemark] = useState('');
+  const [managerRemarks, setManagerRemarks] = useState({});
   const [statusFilter, setStatusFilter] = useState('');
 
   const canApprove =
-    ws?.user?.roleKey === 'sales_manager' ||
-    ws?.user?.roleKey === 'md' ||
-    ws?.user?.roleKey === 'admin' ||
-    ws?.permissions?.includes?.('material_incidents.approve');
+    ws?.hasPermission?.('material_incidents.approve') ||
+    ['sales_manager', 'md', 'admin', 'branch_manager', 'operations_manager'].includes(
+      String(ws?.user?.roleKey || '').trim().toLowerCase()
+    );
 
   const loadList = useCallback(async () => {
     setLoading(true);
@@ -150,16 +152,41 @@ export default function MaterialExceptions({ embedded = false, initialView = 're
   };
 
   const approveIncident = async (id) => {
+    const remark = String(managerRemarks[id] || '').trim() || 'Approved — material incident posted.';
     const { ok, data } = await apiFetch(`/api/material-incidents/${encodeURIComponent(id)}/approve`, {
       method: 'POST',
-      body: JSON.stringify({ managerRemark }),
+      body: JSON.stringify({ managerRemark: remark }),
     });
     if (!ok) return showToast(data?.error || 'Approve failed', { variant: 'error' });
     showToast('Approved and posted to stock.');
-    setManagerRemark('');
+    setManagerRemarks((s) => {
+      const next = { ...s };
+      delete next[id];
+      return next;
+    });
     loadList();
     loadDetail(id);
     if (refreshInventory) refreshInventory();
+    await ws?.refresh?.();
+  };
+
+  const rejectIncident = async (id) => {
+    const remark = String(managerRemarks[id] || '').trim();
+    if (remark.length < 3) return showToast('Enter a rejection reason (at least 3 characters).', { variant: 'error' });
+    const { ok, data } = await apiFetch(`/api/material-incidents/${encodeURIComponent(id)}/reject`, {
+      method: 'POST',
+      body: JSON.stringify({ managerRemark: remark }),
+    });
+    if (!ok) return showToast(data?.error || 'Reject failed', { variant: 'error' });
+    showToast('Incident rejected.');
+    setManagerRemarks((s) => {
+      const next = { ...s };
+      delete next[id];
+      return next;
+    });
+    loadList();
+    loadDetail(id);
+    await ws?.refresh?.();
   };
 
   const openPrint = async (id) => {
@@ -472,30 +499,73 @@ export default function MaterialExceptions({ embedded = false, initialView = 're
               }}
             />
           ) : null}
-          {pendingRows.map((r) => (
-            <div key={r.id} className="rounded-xl border border-amber-200 bg-amber-50/50 p-4 flex flex-wrap justify-between gap-3">
-              <div>
-                <p className="font-mono font-bold text-sm">{r.id}</p>
-                <p className="text-xs text-slate-600">
-                  {r.incidentType} · {r.totalMeters} m · {r.gaugeLabel} {r.colour}
-                </p>
+          {pendingRows.map((r) => {
+            const coilDamage = isCoilDamageIncident(r);
+            const preview = coilDamage
+              ? coilDamagePreview({
+                  beforeKg: r.beforeKg,
+                  afterKg: r.afterKg,
+                  meters: r.totalMeters,
+                  supplierConversionKgPerM: r.conversionKgPerM,
+                })
+              : null;
+            return (
+              <div key={r.id} className="rounded-xl border border-amber-200 bg-amber-50/50 p-4 space-y-3">
+                <div className="flex flex-wrap justify-between gap-3">
+                  <div>
+                    <p className="font-mono font-bold text-sm">{r.id}</p>
+                    <p className="text-xs text-slate-600">
+                      {INCIDENT_TYPES.find((t) => t.id === r.incidentType)?.label || r.incidentType} ·{' '}
+                      {Number(r.totalMeters || 0).toFixed(2)} m · {r.gaugeLabel} {r.colour}
+                      {r.coilNo ? ` · coil ${r.coilNo}` : ''}
+                    </p>
+                  </div>
+                  <button type="button" className="z-btn-secondary text-xs h-fit" onClick={() => openPrint(r.id)}>
+                    Print
+                  </button>
+                </div>
+                {coilDamage && preview?.kgDeducted != null ? (
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px]">
+                    <div className="rounded-lg bg-white px-2 py-1.5">
+                      <span className="text-[9px] font-bold uppercase text-slate-400">Before kg</span>
+                      <p className="font-mono font-bold">{r.beforeKg != null ? Number(r.beforeKg).toFixed(0) : '—'}</p>
+                    </div>
+                    <div className="rounded-lg bg-white px-2 py-1.5">
+                      <span className="text-[9px] font-bold uppercase text-slate-400">After kg</span>
+                      <p className="font-mono font-bold">{r.afterKg != null ? Number(r.afterKg).toFixed(0) : '—'}</p>
+                    </div>
+                    <div className="rounded-lg bg-white px-2 py-1.5">
+                      <span className="text-[9px] font-bold uppercase text-slate-400">Kg removed</span>
+                      <p className="font-mono font-bold">{preview.kgDeducted.toFixed(2)}</p>
+                    </div>
+                    <div className="rounded-lg bg-white px-2 py-1.5">
+                      <span className="text-[9px] font-bold uppercase text-slate-400">Conversion</span>
+                      <p className="font-mono font-bold">{fmtConv2(preview.actualConversionKgPerM, { suffix: 'kg/m' })}</p>
+                    </div>
+                  </div>
+                ) : null}
+                {r.storekeeperRemark ? (
+                  <p className="text-[11px] text-slate-600">{r.storekeeperRemark}</p>
+                ) : null}
+                {canApprove ? (
+                  <div className="flex flex-wrap gap-2 items-end">
+                    <input
+                      className="z-input text-xs min-w-[12rem] flex-1"
+                      placeholder="Manager remark (required to reject)"
+                      value={managerRemarks[r.id] || ''}
+                      onChange={(e) => setManagerRemarks((s) => ({ ...s, [r.id]: e.target.value }))}
+                    />
+                    <button type="button" className="z-btn-primary text-xs" onClick={() => approveIncident(r.id)}>
+                      Approve & post
+                    </button>
+                    <button type="button" className="z-btn-secondary text-xs" onClick={() => rejectIncident(r.id)}>
+                      Reject
+                    </button>
+                  </div>
+                ) : null}
               </div>
-              <div className="flex flex-wrap gap-2 items-end">
-                <input
-                  className="z-input text-xs min-w-[12rem]"
-                  placeholder="Manager remark"
-                  value={managerRemark}
-                  onChange={(e) => setManagerRemark(e.target.value)}
-                />
-                <button type="button" className="z-btn-primary text-xs" onClick={() => approveIncident(r.id)}>
-                  Approve & post
-                </button>
-                <button type="button" className="z-btn-secondary text-xs" onClick={() => openPrint(r.id)}>
-                  Print
-                </button>
-              </div>
-            </div>
-          ))}
+            );
+          })}
           {pendingRows.length === 0 ? <p className="text-xs text-slate-500">No pending approvals.</p> : null}
         </section>
       )}

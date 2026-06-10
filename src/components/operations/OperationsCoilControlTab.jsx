@@ -3,12 +3,15 @@ import { Link } from 'react-router-dom';
 import {
   ArrowDownToLine,
   ArrowUpFromLine,
+  AlertTriangle,
   ClipboardList,
   Factory,
   Ruler,
   Scissors,
   Truck,
 } from 'lucide-react';
+import CoilDamageApprovalPanel from './CoilDamageApprovalPanel';
+import CoilDamageRecordModal from './CoilDamageRecordModal';
 import { useInventory } from '../../context/InventoryContext';
 import { useToast } from '../../context/ToastContext';
 import { useWorkspace } from '../../context/WorkspaceContext';
@@ -103,6 +106,7 @@ export default function OperationsCoilControlTab() {
   );
 
   const [modal, setModal] = useState(null);
+  const [damageModalOpen, setDamageModalOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [historyFilter, setHistoryFilter] = useState('all');
 
@@ -462,16 +466,28 @@ export default function OperationsCoilControlTab() {
 
   return (
     <div className="space-y-6">
+      <CoilDamageApprovalPanel />
+
       <p className="text-[11px] text-slate-500 max-w-3xl leading-relaxed">
         Post audited movements with <strong className="font-semibold text-slate-600">book references</strong> and{' '}
         <strong className="font-semibold text-slate-600">metres</strong> where the material is tracked by length (returns
-        to the offcut pool, head trim, defects). Customer returns go to the{' '}
+        to the offcut pool, head trim, defects). For <strong className="font-semibold text-slate-600">damaged coil</strong>{' '}
+        over long lengths, use <strong className="font-semibold text-slate-600">Coil damage record</strong> (before/after kg,
+        metres, conversion) — not coil kg adjustment. Customer returns go to the{' '}
         <strong className="font-semibold text-slate-600">offcut pool</strong> (not back onto the live coil kg). Use{' '}
         <strong className="font-semibold text-slate-600">coil kg adjustment</strong> only for weighbridge / roll
         corrections on the active coil.
       </p>
 
       <div className="flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={() => setDamageModalOpen(true)}
+          className="inline-flex items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-4 py-2 text-[10px] font-black uppercase tracking-wide text-amber-950 shadow-sm hover:bg-amber-100"
+        >
+          <AlertTriangle size={14} aria-hidden />
+          Coil damage record
+        </button>
         <button
           type="button"
           onClick={() => setModal('adjust')}
@@ -1261,6 +1277,13 @@ export default function OperationsCoilControlTab() {
           </form>
         </ModalPanel>
       </ModalFrame>
+
+      <CoilDamageRecordModal
+        isOpen={damageModalOpen}
+        onClose={() => setDamageModalOpen(false)}
+        coilLots={coilLots}
+        cuttingLists={cuttingLists}
+      />
     </div>
   );
 }

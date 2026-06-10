@@ -40,7 +40,10 @@ export function userCanApproveWorkItem(item, ctx = {}) {
     return hasPermissionInList(permissions, 'purchase_orders.manage');
   }
   if (dt === 'material_incident') {
-    return ['admin', 'ceo', 'md', 'branch_manager', 'operations_manager'].includes(roleKey);
+    return (
+      hasPermissionInList(permissions, 'material_incidents.approve') ||
+      ['admin', 'ceo', 'md', 'branch_manager', 'operations_manager', 'sales_manager'].includes(roleKey)
+    );
   }
 
   return ['admin', 'ceo', 'md', 'branch_manager', 'finance_manager', 'sales_manager'].includes(roleKey);
