@@ -259,7 +259,9 @@ export function buildUserProfileNav(cohort, hasHrSelfService) {
     return [
       ...base,
       { to: '/me/school', label: 'My school' },
+      { to: '/me/employment', label: 'My details' },
       { to: '/me/documents', label: 'Documents' },
+      { to: '/me/policies', label: 'Policies' },
     ];
   }
 
@@ -268,6 +270,7 @@ export function buildUserProfileNav(cohort, hasHrSelfService) {
   if (cohort === 'domestic') {
     return [
       ...base,
+      { to: '/me/employment', label: 'My details' },
       { to: '/me/payslips', label: 'Payslips' },
       { to: '/me/documents', label: 'Documents' },
       { to: '/me/policies', label: 'Policies' },
@@ -280,7 +283,7 @@ export function buildUserProfileNav(cohort, hasHrSelfService) {
     { to: '/me/loans', label: 'Loans' },
     { to: '/me/documents', label: 'Documents' },
     { to: '/me/payslips', label: 'Payslips' },
-    { to: '/me/employment', label: 'Employment' },
+    { to: '/me/employment', label: 'My details' },
     { to: '/me/policies', label: 'Policies' },
     { to: '/me/grievance', label: 'Feedback' },
     { to: '/me/id-card', label: 'ID card' },

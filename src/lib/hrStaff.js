@@ -182,6 +182,56 @@ export function formToProfilePatch(form, { originalBranchId } = {}) {
   return body;
 }
 
+const SELF_SERVICE_PROFILE_KEYS = [
+  'ninNumber',
+  'firstName',
+  'middleName',
+  'surname',
+  'phone',
+  'personalEmail',
+  'maritalStatus',
+  'residentialAddress',
+  'stateOfOrigin',
+  'localGovernment',
+  'nationality',
+  'bloodGroup',
+  'gender',
+  'dateOfBirthIso',
+  'bankName',
+  'bankAccountName',
+  'bankAccountNo',
+  'bankCode',
+  'minimumQualification',
+  'academicQualification',
+  'professionalCertificates',
+  'institution',
+  'courseField',
+  'yearCompleted',
+  'nextOfKinName',
+  'nextOfKinPhone',
+  'nextOfKinRelationship',
+  'nextOfKinAddress',
+  'nextOfKinAltPhone',
+];
+
+/** @param {object} form */
+export function formToSelfServiceProfilePatch(form) {
+  const full = formToProfilePatch(form);
+  /** @type {Record<string, unknown>} */
+  const patch = {};
+  for (const key of SELF_SERVICE_PROFILE_KEYS) {
+    if (full[key] !== undefined) patch[key] = full[key];
+  }
+  return patch;
+}
+
+export async function updateMyHrProfile(form) {
+  return apiFetch('/api/hr/me/profile', {
+    method: 'PATCH',
+    body: JSON.stringify(formToSelfServiceProfilePatch(form)),
+  });
+}
+
 /** @param {object} form */
 export function formToRegisterBody(form) {
   const body = {

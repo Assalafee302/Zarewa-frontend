@@ -98,8 +98,8 @@ export default function UserProfile() {
         <Route
           path="employment"
           element={
-            <ProfileSectionGuard requireHr requireNotScholarship>
-              <ProfileSectionPage title="Employment record" subtitle="Your job details and HR employment profile.">
+            <ProfileSectionGuard requireHr>
+              <ProfileSectionPage title="My HR details" subtitle="Personal, bank, next of kin, qualifications, and employment record.">
                 <ProfileEmploymentPage />
               </ProfileSectionPage>
             </ProfileSectionGuard>

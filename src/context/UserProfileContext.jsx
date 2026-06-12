@@ -13,7 +13,8 @@ export function UserProfileProvider({ children }) {
   const hasDataRef = useRef(false);
   const loadGenRef = useRef(0);
 
-  const hasHrSelfService = canAccessMyProfileHr(ws?.permissions);
+  const permissionsKey = useMemo(() => (ws?.permissions || []).join('|'), [ws?.permissions]);
+  const hasHrSelfService = useMemo(() => canAccessMyProfileHr(ws?.permissions), [permissionsKey]);
 
   const reload = useCallback(async (opts = {}) => {
     if (!hasHrSelfService) {
@@ -42,9 +43,12 @@ export function UserProfileProvider({ children }) {
   }, [hasHrSelfService]);
 
   useEffect(() => {
-    hasDataRef.current = false;
     void reload();
   }, [reload]);
+
+  useEffect(() => {
+    if (!hasHrSelfService) hasDataRef.current = false;
+  }, [hasHrSelfService]);
 
   const cohort = useMemo(() => {
     if (!hasHrSelfService || !me?.hr) return hasHrSelfService ? 'employee' : 'account_only';
@@ -72,7 +76,6 @@ export function UserProfileProvider({ children }) {
       loanPolicy: me?.loanPolicy ?? null,
       leaveEntitlementDays: me?.leaveEntitlementDays ?? null,
       isEmployee: cohort === 'employee' || cohort === 'special',
-      /** True only before the first successful /api/hr/me load in this session. */
       initialLoading: loading && !me,
     }),
     [loading, error, me, cohort, hasHrSelfService, reload, ws?.session?.user]

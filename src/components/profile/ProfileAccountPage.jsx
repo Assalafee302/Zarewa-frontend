@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Lock, Shield, User } from 'lucide-react';
 import { useToast } from '../../context/ToastContext';
@@ -26,10 +26,12 @@ export default function ProfileAccountPage() {
   const [avatarUrl, setAvatarUrl] = useState('');
   const [saving, setSaving] = useState(false);
   const [requestBusy, setRequestBusy] = useState(false);
+  const formDirtyRef = useRef(false);
 
   const canChangeUsernameFreely = user?.canChangeUsernameFreely !== false && (user?.usernameChangeCount || 0) < 1;
 
   useEffect(() => {
+    if (formDirtyRef.current) return;
     setDisplayName(user?.displayName ?? '');
     setEmail(user?.email ?? '');
     setUsername(user?.username ?? '');
@@ -62,6 +64,7 @@ export default function ProfileAccountPage() {
         return;
       }
       showToast('Profile saved.');
+      formDirtyRef.current = false;
       await reload?.();
     } finally {
       setSaving(false);
@@ -133,7 +136,7 @@ export default function ProfileAccountPage() {
           <form className="mt-5 space-y-4" onSubmit={submitProfile}>
             <div>
               <label className="z-field-label">Display name</label>
-              <input className="z-input" value={displayName} onChange={(e) => setDisplayName(e.target.value)} maxLength={120} disabled={!canMutate} />
+              <input className="z-input" value={displayName} onChange={(e) => { formDirtyRef.current = true; setDisplayName(e.target.value); }} maxLength={120} disabled={!canMutate} />
             </div>
             <div>
               <label className="z-field-label">Username (login)</label>
@@ -142,7 +145,7 @@ export default function ProfileAccountPage() {
                   <input
                     className="z-input font-mono"
                     value={username}
-                    onChange={(e) => setUsername(e.target.value.toLowerCase())}
+                    onChange={(e) => { formDirtyRef.current = true; setUsername(e.target.value.toLowerCase()); }}
                     pattern="[a-z0-9._-]{3,40}"
                     disabled={!canMutate}
                   />
@@ -159,7 +162,7 @@ export default function ProfileAccountPage() {
             </div>
             <div>
               <label className="z-field-label">Email (optional)</label>
-              <input type="email" className="z-input" value={email} onChange={(e) => setEmail(e.target.value)} disabled={!canMutate} />
+              <input type="email" className="z-input" value={email} onChange={(e) => { formDirtyRef.current = true; setEmail(e.target.value); }} disabled={!canMutate} />
             </div>
             <button type="submit" className="z-btn-primary" disabled={saving || !canMutate}>
               {saving ? 'Saving…' : 'Save profile'}

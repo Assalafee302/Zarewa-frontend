@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { apiFetch } from '../../lib/apiBase';
 import { useWorkspace } from '../../context/WorkspaceContext';
@@ -104,11 +104,12 @@ function EmployeeOverviewDashboard() {
   const [balances, setBalances] = useState([]);
   const [payslips, setPayslips] = useState([]);
   const [requests, setRequests] = useState([]);
+  const hasDashboardDataRef = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      setLoading(true);
+      if (!hasDashboardDataRef.current) setLoading(true);
       const fetcher = showSensitiveInline || sensitive.isUnlocked ? sensitive.fetchWithSensitive : apiFetch;
 
       const [balancesRes, payslipsRes, requestsRes] = await Promise.all([
@@ -122,6 +123,7 @@ function EmployeeOverviewDashboard() {
       if (balancesRes.ok && balancesRes.data?.ok) setBalances(balancesRes.data.balances || []);
       if (payslipsRes.ok && payslipsRes.data?.ok) setPayslips(payslipsRes.data.payslips || []);
       if (requestsRes.ok && requestsRes.data?.ok) setRequests(requestsRes.data.requests || []);
+      hasDashboardDataRef.current = true;
       setLoading(false);
     })();
     return () => {
