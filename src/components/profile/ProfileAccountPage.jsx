@@ -34,7 +34,7 @@ export default function ProfileAccountPage() {
     setEmail(user?.email ?? '');
     setUsername(user?.username ?? '');
     setAvatarUrl(user?.avatarUrl ?? '');
-  }, [user?.id, user?.displayName, user?.email, user?.username, user?.avatarUrl, ws?.refreshEpoch]);
+  }, [user?.id, user?.displayName, user?.email, user?.username, user?.avatarUrl]);
 
   const submitProfile = async (e) => {
     e.preventDefault();

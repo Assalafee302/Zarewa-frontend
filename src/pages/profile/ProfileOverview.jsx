@@ -326,9 +326,9 @@ function EmployeeOverviewDashboard() {
 }
 
 export default function ProfileOverview() {
-  const { cohort, hasHrSelfService, loading, documentSummary, pendingProfileRequests } = useUserProfile();
+  const { cohort, hasHrSelfService, initialLoading, documentSummary, pendingProfileRequests } = useUserProfile();
 
-  if (loading && hasHrSelfService) {
+  if (initialLoading && hasHrSelfService) {
     return (
       <div className="space-y-6">
         <ProfileHeroCard />

@@ -1,4 +1,4 @@
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { apiFetch } from '../lib/apiBase';
 import { useWorkspace } from './WorkspaceContext';
 import { canAccessMyProfileHr } from '../lib/hrAccess';
@@ -10,31 +10,41 @@ export function UserProfileProvider({ children }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [me, setMe] = useState(null);
+  const hasDataRef = useRef(false);
+  const loadGenRef = useRef(0);
 
   const hasHrSelfService = canAccessMyProfileHr(ws?.permissions);
 
-  const reload = useCallback(async () => {
+  const reload = useCallback(async (opts = {}) => {
     if (!hasHrSelfService) {
       setMe(null);
       setError('');
       setLoading(false);
+      hasDataRef.current = false;
       return;
     }
-    setLoading(true);
+    const forceSpinner = opts?.forceSpinner === true;
+    const gen = ++loadGenRef.current;
+    if (forceSpinner || !hasDataRef.current) setLoading(true);
+
     const { ok, data } = await apiFetch('/api/hr/me');
+    if (gen !== loadGenRef.current) return;
+
     if (!ok || !data?.ok) {
       setError(data?.error || 'Could not load your profile.');
-      setMe(null);
+      if (!hasDataRef.current) setMe(null);
     } else {
       setMe(data);
       setError('');
+      hasDataRef.current = true;
     }
     setLoading(false);
   }, [hasHrSelfService]);
 
   useEffect(() => {
+    hasDataRef.current = false;
     void reload();
-  }, [reload, ws?.refreshEpoch]);
+  }, [reload]);
 
   const cohort = useMemo(() => {
     if (!hasHrSelfService || !me?.hr) return hasHrSelfService ? 'employee' : 'account_only';
@@ -62,6 +72,8 @@ export function UserProfileProvider({ children }) {
       loanPolicy: me?.loanPolicy ?? null,
       leaveEntitlementDays: me?.leaveEntitlementDays ?? null,
       isEmployee: cohort === 'employee' || cohort === 'special',
+      /** True only before the first successful /api/hr/me load in this session. */
+      initialLoading: loading && !me,
     }),
     [loading, error, me, cohort, hasHrSelfService, reload, ws?.session?.user]
   );

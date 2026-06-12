@@ -12,7 +12,7 @@ const COHORT_BADGE = {
 
 export function ProfileHeroCard() {
   const ws = useWorkspace();
-  const { hr, user: hrUser, cohort, hasHrSelfService, loading } = useUserProfile();
+  const { hr, user: hrUser, cohort, hasHrSelfService, initialLoading } = useUserProfile();
 
   const sessionUser = ws?.session?.user;
   const user = hrUser || sessionUser;
@@ -129,8 +129,8 @@ export function ProfileHeroCard() {
               </div>
             ) : null}
           </dl>
-          {loading && hasHrSelfService ? (
-            <p className="mt-3 text-[11px] text-teal-100/80">Refreshing employment details…</p>
+          {initialLoading && hasHrSelfService ? (
+            <p className="mt-3 text-[11px] text-teal-100/80">Loading employment details…</p>
           ) : null}
         </div>
       </div>

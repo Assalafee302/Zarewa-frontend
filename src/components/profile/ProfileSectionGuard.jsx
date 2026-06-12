@@ -11,9 +11,9 @@ export function ProfileSectionGuard({
   requireNotScholarship = false,
   children,
 }) {
-  const { hasHrSelfService, isScholarship, loading } = useUserProfile();
+  const { hasHrSelfService, isScholarship, initialLoading } = useUserProfile();
 
-  if (loading) return <p className="text-sm text-slate-600 py-8">Loading…</p>;
+  if (initialLoading) return <p className="text-sm text-slate-600 py-8">Loading…</p>;
 
   if (requireScholarship && !isScholarship) {
     return <Navigate to="/me" replace />;
