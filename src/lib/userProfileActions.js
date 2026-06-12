@@ -43,22 +43,13 @@ export function buildUserProfileActions(ctx = {}) {
   /** @type {UserProfileAction[]} */
   const actions = [
     {
-      id: 'edit-profile',
-      label: 'Edit profile',
-      description: 'Display name, email, and photo',
+      id: 'account-security',
+      label: 'Account & security',
+      description: 'Profile, email, photo, and password',
       to: '/me/account',
       category: 'account',
       tone: 'teal',
       icon: '👤',
-    },
-    {
-      id: 'change-password',
-      label: 'Change password',
-      description: 'Update your sign-in password',
-      to: '/me/security',
-      category: 'account',
-      tone: 'slate',
-      icon: '🔒',
     },
   ];
 
@@ -90,9 +81,12 @@ export function buildUserProfileActions(ctx = {}) {
 
   if (canRequestMyLeave(permissions) || hr('hr.my_leave.request')) {
     actions.push({
-      id: 'apply-leave',
-      label: 'Apply for leave',
-      description: 'Submit a leave request',
+      id: 'leave-attendance',
+      label: cohort === 'employee' ? 'Leave & attendance' : 'Leave',
+      description:
+        cohort === 'employee'
+          ? 'Apply for leave and view attendance guidance'
+          : 'Submit and track leave requests',
       to: '/me/leave',
       category: 'self_service',
       tone: 'teal',
@@ -133,18 +127,6 @@ export function buildUserProfileActions(ctx = {}) {
       category: 'self_service',
       tone: 'teal',
       icon: '📄',
-    });
-  }
-
-  if (hr('hr.my_attendance.view') && cohort === 'employee') {
-    actions.push({
-      id: 'my-attendance',
-      label: 'My attendance',
-      description: 'Attendance records and guidance',
-      to: '/me/attendance',
-      category: 'self_service',
-      tone: 'slate',
-      icon: '🕐',
     });
   }
 
@@ -270,8 +252,7 @@ export function buildUserProfileActions(ctx = {}) {
 export function buildUserProfileNav(cohort, hasHrSelfService) {
   const base = [
     { to: '/me', label: 'Overview', end: true },
-    { to: '/me/account', label: 'Account' },
-    { to: '/me/security', label: 'Security' },
+    { to: '/me/account', label: 'Account & security' },
   ];
 
   if (cohort === 'scholarship') {
@@ -295,7 +276,7 @@ export function buildUserProfileNav(cohort, hasHrSelfService) {
 
   const employee = [
     ...base,
-    { to: '/me/leave', label: 'Leave' },
+    { to: '/me/leave', label: cohort === 'employee' ? 'Leave & attendance' : 'Leave' },
     { to: '/me/loans', label: 'Loans' },
     { to: '/me/documents', label: 'Documents' },
     { to: '/me/payslips', label: 'Payslips' },
@@ -304,10 +285,6 @@ export function buildUserProfileNav(cohort, hasHrSelfService) {
     { to: '/me/grievance', label: 'Feedback' },
     { to: '/me/id-card', label: 'ID card' },
   ];
-
-  if (cohort === 'employee') {
-    employee.splice(5, 0, { to: '/me/attendance', label: 'Attendance' });
-  }
 
   return employee;
 }

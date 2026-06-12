@@ -27,15 +27,15 @@ export function documentTitleForPath(pathname) {
   if (p === '/me' || p.startsWith('/me/')) {
     const sec = p.split('/')[2] || 'overview';
     const labels = {
-      account: 'Account',
-      security: 'Security',
+      account: 'Account & security',
+      security: 'Account & security',
       services: 'All services',
       school: 'My school',
-      leave: 'Leave',
+      leave: 'Leave & attendance',
+      attendance: 'Leave & attendance',
       loans: 'Loans',
       documents: 'Documents',
       payslips: 'Payslips',
-      attendance: 'Attendance',
       employment: 'Employment',
       policies: 'Policies',
       grievance: 'Feedback',

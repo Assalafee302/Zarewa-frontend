@@ -41,12 +41,12 @@ function UserProfileShellInner() {
 
   const subtitle =
     cohort === 'scholarship'
-      ? 'Your personal hub — school fees, stipend, documents, and account settings.'
-      : cohort === 'domestic'
-        ? 'Your personal hub — payslips, documents, and account settings.'
-        : cohort === 'account_only'
-          ? 'Your personal hub — account details, security, and workspace shortcuts.'
-          : 'Your personal hub — leave, loans, payslips, documents, and employment self-service.';
+        ? 'Your personal hub — school fees, stipend, documents, and account settings.'
+        : cohort === 'domestic'
+          ? 'Your personal hub — payslips, documents, and account settings.'
+          : cohort === 'account_only'
+            ? 'Your personal hub — account, security, and workspace shortcuts.'
+            : 'Your personal hub — leave, attendance, loans, payslips, and employment self-service.';
 
   return (
     <PageShell className="pb-10">

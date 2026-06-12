@@ -8,7 +8,7 @@ import { WORKSPACE_DEPARTMENT_LABELS } from '../../lib/departmentWorkspace';
 /** Match server `MAX_AVATAR_URL_LEN` — base64 data URLs count as string length. */
 const MAX_AVATAR_CHARS = 180_000;
 
-export default function SettingsProfilePanel() {
+export default function SettingsProfilePanel({ embedInMyProfile = false }) {
   const { show: showToast } = useToast();
   const ws = useWorkspace();
   const currentUser = ws?.session?.user;
@@ -90,11 +90,17 @@ export default function SettingsProfilePanel() {
           <User size={14} /> Your profile
         </h3>
         <p className="text-xs text-gray-500 mb-4 leading-relaxed">
-          How you appear in the app. This is separate from HR employment records. Password changes are under{' '}
-          <Link to="/me/security" className="font-semibold text-[#134e4a] underline-offset-2 hover:underline">
-            My profile → Security
-          </Link>
-          .
+          How you appear in the app. This is separate from HR employment records.
+          {embedInMyProfile ? ' Change your password in the section below.' : (
+            <>
+              {' '}
+              Password changes are under{' '}
+              <Link to="/me/account" className="font-semibold text-[#134e4a] underline-offset-2 hover:underline">
+                My profile → Account
+              </Link>
+              .
+            </>
+          )}
         </p>
 
         <form className="space-y-4 max-w-xl" onSubmit={submitProfile}>
@@ -220,14 +226,16 @@ export default function SettingsProfilePanel() {
             <>Team directory is available to administrators.</>
           )}
         </p>
-        <div className="mt-4">
-          <Link
-            to="/settings/security"
-            className="inline-flex items-center gap-2 text-xs font-semibold text-[#134e4a] hover:underline"
-          >
-            <Lock size={14} /> Change password
-          </Link>
-        </div>
+        {!embedInMyProfile ? (
+          <div className="mt-4">
+            <Link
+              to="/settings/security"
+              className="inline-flex items-center gap-2 text-xs font-semibold text-[#134e4a] hover:underline"
+            >
+              <Lock size={14} /> Change password
+            </Link>
+          </div>
+        ) : null}
       </div>
     </div>
   );

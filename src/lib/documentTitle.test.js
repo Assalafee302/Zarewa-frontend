@@ -25,7 +25,8 @@ describe('documentTitleForPath', () => {
     expect(documentTitleForPath('/hr/dashboard')).toContain('Human Resources');
     expect(documentTitleForPath('/hr/staff/usr-1')).toContain('Staff profile');
     expect(documentTitleForPath('/my-profile/overview')).toContain('My profile');
-    expect(documentTitleForPath('/me/security')).toContain('Security');
+    expect(documentTitleForPath('/me/account')).toContain('Account & security');
+    expect(documentTitleForPath('/me/security')).toContain('Account & security');
     expect(documentTitleForPath('/team-hr/staff')).toContain('Team HR');
   });
 

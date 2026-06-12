@@ -7,13 +7,11 @@ import { ProfileSectionPage } from '../components/profile/ProfileSectionPage';
 import ProfileOverview from './profile/ProfileOverview';
 import ProfileAccount from './profile/ProfileAccount';
 import ProfileActions from './profile/ProfileActions';
-import ProfileSecurityPanel from '../components/profile/ProfileSecurityPanel';
+import ProfileLeaveAttendance from './profile/ProfileLeaveAttendance';
 import ScholarshipSchoolProfile from '../components/hr/ScholarshipSchoolProfile';
-import MyLeave from './hr/MyLeave';
 import MyLoans from './hr/MyLoans';
 import MyProfileDocuments from './hr/MyProfileDocuments';
 import MyPayslips from './hr/MyPayslips';
-import MyAttendance from './hr/MyAttendance';
 import MyProfileEmployment from './hr/MyProfileEmployment';
 import MyProfilePolicies from './hr/MyProfilePolicies';
 import MyProfileGrievance from './hr/MyProfileGrievance';
@@ -29,8 +27,14 @@ export default function UserProfile() {
     <Routes>
       <Route element={<UserProfileShell />}>
         <Route index element={<ProfileOverview />} />
-        <Route path="account" element={<ProfileAccount />} />
-        <Route path="security" element={<ProfileSecurityPanel />} />
+        <Route
+          path="account"
+          element={
+            <ProfileSectionPage title="Account & security" subtitle="Profile details, access info, and password.">
+              <ProfileAccount />
+            </ProfileSectionPage>
+          }
+        />
         <Route path="services" element={<ProfileActions />} />
 
         <Route
@@ -48,8 +52,11 @@ export default function UserProfile() {
           path="leave"
           element={
             <ProfileSectionGuard requireHr requireNotScholarship>
-              <ProfileSectionPage title="Leave" subtitle="Apply for leave and track your requests.">
-                <MyLeave staffLinkBase="/me" />
+              <ProfileSectionPage
+                title="Leave & attendance"
+                subtitle="Apply for leave, track requests, and view attendance guidance."
+              >
+                <ProfileLeaveAttendance />
               </ProfileSectionPage>
             </ProfileSectionGuard>
           }
@@ -83,17 +90,6 @@ export default function UserProfile() {
             <ProfileSectionGuard requireHr>
               <ProfileSectionPage title="Payslips" subtitle="View and download your salary slips.">
                 <MyPayslips />
-              </ProfileSectionPage>
-            </ProfileSectionGuard>
-          }
-        />
-
-        <Route
-          path="attendance"
-          element={
-            <ProfileSectionGuard requireHr requireNotScholarship>
-              <ProfileSectionPage title="Attendance" subtitle="Your attendance records and guidance.">
-                <MyAttendance />
               </ProfileSectionPage>
             </ProfileSectionGuard>
           }
@@ -145,6 +141,8 @@ export default function UserProfile() {
           }
         />
 
+        <Route path="security" element={<Navigate to="/me/account#security" replace />} />
+        <Route path="attendance" element={<Navigate to="/me/leave" replace />} />
         <Route path="actions" element={<Navigate to="/me/services" replace />} />
         <Route path="*" element={<Navigate to="/me" replace />} />
       </Route>

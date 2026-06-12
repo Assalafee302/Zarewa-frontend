@@ -144,7 +144,7 @@ function EmployeeOverviewDashboard() {
     <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-5">
       {cohort !== 'domestic' && cohort !== 'special' ? (
         <QuickActionBtn to="/me/leave" icon="🏖️">
-          Apply leave
+          {cohort === 'employee' ? 'Leave & attendance' : 'Leave'}
         </QuickActionBtn>
       ) : null}
       {cohort === 'employee' || cohort === 'special' ? (
@@ -158,11 +158,6 @@ function EmployeeOverviewDashboard() {
       <QuickActionBtn to="/me/documents" icon="📂">
         Documents
       </QuickActionBtn>
-      {cohort === 'employee' ? (
-        <QuickActionBtn to="/me/attendance" icon="🕐">
-          Attendance
-        </QuickActionBtn>
-      ) : null}
       {cohort !== 'domestic' ? (
         <>
           <QuickActionBtn to="/me/policies" icon="📋">
@@ -365,20 +360,13 @@ export default function ProfileOverview() {
       ) : null}
 
       {cohort === 'account_only' ? (
-        <section className="grid gap-3 sm:grid-cols-2">
+        <section>
           <Link
             to="/me/account"
-            className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4 no-underline hover:border-teal-200 hover:bg-teal-50/40 transition-colors"
+            className="block rounded-2xl border border-slate-200 bg-slate-50/80 p-4 no-underline hover:border-teal-200 hover:bg-teal-50/40 transition-colors"
           >
-            <p className="text-sm font-bold text-slate-900">Account details</p>
-            <p className="mt-1 text-xs text-slate-600">Update how you appear in Zarewa</p>
-          </Link>
-          <Link
-            to="/me/security"
-            className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4 no-underline hover:border-teal-200 hover:bg-teal-50/40 transition-colors"
-          >
-            <p className="text-sm font-bold text-slate-900">Password & security</p>
-            <p className="mt-1 text-xs text-slate-600">Change your sign-in password</p>
+            <p className="text-sm font-bold text-slate-900">Account & security</p>
+            <p className="mt-1 text-xs text-slate-600">Profile details, access info, and password</p>
           </Link>
         </section>
       ) : null}
