@@ -420,7 +420,7 @@ function ProductionScratchpad() {
         <span className="cl-factory-scratch-title-mark" aria-hidden />
         Production record <span className="cl-factory-scratch-sub">manual · coil / conversion</span>
       </p>
-      <div className="cl-factory-scratch-grid text-[5.75pt] gap-y-0.5">
+      <div className="cl-factory-scratch-grid cl-factory-scratch-grid--prominent">
         <div>
           <span className="cl-factory-field-label">Production ID</span>
           <div className="cl-factory-write-line" />
@@ -626,6 +626,8 @@ export default function CuttingListReportPrintView({
     .join(', ');
 
   const typeFromMaster = String(materialTypeLabel ?? '').trim();
+  const materialTypeLine = typeFromMaster || '—';
+  const materialSpecLine = materialLine || '';
   const materialInfoValue = [typeFromMaster, materialLine].filter(Boolean).join(' · ') || '—';
 
   const cutDate = dateISO || selectedQuotation?.dateISO || '—';
@@ -693,9 +695,15 @@ export default function CuttingListReportPrintView({
                           <span className="cl-factory-subbar-v">{projectName}</span>
                         </span>
                       </span>
-                      <span className="cl-factory-subbar-seg">
-                        <span className="cl-factory-subbar-k">Material</span>
-                        <span className="cl-factory-subbar-v font-bold">{materialInfoValue}</span>
+                      <span className="cl-factory-subbar-seg cl-factory-subbar-seg--material">
+                        <span className="cl-factory-subbar-v cl-factory-subbar-v--material-primary">
+                          {materialTypeLine}
+                        </span>
+                        {materialSpecLine ? (
+                          <span className="cl-factory-subbar-v cl-factory-subbar-v--material-secondary">
+                            {materialSpecLine}
+                          </span>
+                        ) : null}
                       </span>
                     </div>
                   </div>

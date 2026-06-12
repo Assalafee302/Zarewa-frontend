@@ -992,13 +992,6 @@ const Operations = () => {
         if (productionFilter === 'done') return Boolean(row.completed);
         return true;
       }
-      if (
-        !searchQuery.trim() &&
-        productionFilter === 'all' &&
-        String(row.status || '') === 'Completed'
-      ) {
-        return false;
-      }
       if (productionFilter === 'completed') return row.status === 'Completed';
       if (productionFilter === 'cancelled') return row.status === 'Cancelled';
       if (productionFilter === 'done') return row.status === 'Completed';
@@ -1562,7 +1555,6 @@ const Operations = () => {
     <PageShell blurred={isAnyModalOpen}>
       <PageHeader
         title="Store & production"
-        subtitle="Overview of coil, stone-coated, and accessory stock, production readiness, and the live queue. Use Stock management to receive goods and adjust inventory."
         tabs={<PageTabs tabs={opsTabs} value={activeTab} onChange={handleOpsTab} />}
         actions={
           <>
@@ -2317,10 +2309,6 @@ const Operations = () => {
                         <h3 className="text-sm font-black uppercase tracking-wide text-[#134e4a]">
                           In progress · need action
                         </h3>
-                        <p className="text-[10px] text-slate-600 mt-1 leading-relaxed">
-                          Planned or running jobs. Open <span className="font-semibold text-slate-800">production register</span> to
-                          allocate coils, save run log, start, complete, or cancel (releases reservations when abandoned).
-                        </p>
                       </div>
                       <div className="flex shrink-0 flex-wrap items-center gap-2">
                         <button
@@ -2565,9 +2553,7 @@ const Operations = () => {
                               Closed · finished · complete
                             </h2>
                             <p className="mt-1 text-[9px] font-semibold leading-relaxed text-slate-400">
-                              Cancelled rows always appear here. <strong className="font-semibold text-slate-600">Produced</strong>{' '}
-                              (completed) jobs are hidden until you type in the search box or choose the Completed filter
-                              — so the list stays focused on work in motion.
+                              Cancelled and completed jobs. Use filters or search to narrow the list.
                             </p>
                           </div>
                           <label className="flex shrink-0 items-center gap-1.5 text-[9px] font-bold uppercase tracking-wide text-slate-500">
@@ -2633,8 +2619,8 @@ const Operations = () => {
                           {productionQueueModel.mode === 'offline'
                             ? 'Create a quotation, post a receipt (50%+ paid), then add a cutting list in Sales.'
                             : productionActiveRows.length > 0
-                              ? 'No closed records match this filter — adjust chips or search, or check in-progress on the left.'
-                              : 'Try clearing the search box or switching filter chips above.'}
+                              ? 'No cancelled or completed jobs match this filter — try another chip or clear search.'
+                              : 'No cancelled or completed jobs yet.'}
                         </p>
                       </div>
                     ) : (

@@ -41,12 +41,7 @@ export default function OffcutIncidentPicker({ gaugeLabel, colour, value = [], o
   };
 
   if (!available.length) {
-    return (
-      <p className="text-[9px] text-slate-500">
-        No posted offcut incidents (MEX) match this gauge/colour. Record coil damage first — after approval the metres
-        appear here for production deduction.
-      </p>
-    );
+    return null;
   }
 
   return (

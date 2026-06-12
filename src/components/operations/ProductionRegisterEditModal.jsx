@@ -1,7 +1,20 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { X } from 'lucide-react';
 import { ModalFrame } from '../layout';
 import { LiveProductionMonitor } from '../LiveProductionMonitor';
+
+function registerStatusTone(status) {
+  switch (status) {
+    case 'Completed':
+      return 'bg-emerald-100 text-emerald-800';
+    case 'Cancelled':
+      return 'bg-slate-200 text-slate-700';
+    case 'Running':
+      return 'bg-sky-100 text-sky-800';
+    default:
+      return 'bg-amber-100 text-amber-900';
+  }
+}
 
 /**
  * Operations: modal opened from **Edit register** — coil plan, run log, completion, and post-completion tools.
@@ -18,6 +31,11 @@ import { LiveProductionMonitor } from '../LiveProductionMonitor';
 export function ProductionRegisterEditModal({ isOpen, onClose, cuttingListId, subtitle }) {
   const id = cuttingListId != null ? String(cuttingListId).trim() : '';
   const open = Boolean(isOpen && id);
+  const [registerHeaderMeta, setRegisterHeaderMeta] = useState(null);
+
+  useEffect(() => {
+    if (!open) setRegisterHeaderMeta(null);
+  }, [open]);
 
   return (
     <ModalFrame
@@ -36,8 +54,35 @@ export function ProductionRegisterEditModal({ isOpen, onClose, cuttingListId, su
             <p className="mt-0.5 truncate font-mono text-[11px] font-semibold text-slate-800" title={id}>
               {id || '—'}
             </p>
+            {registerHeaderMeta ? (
+              <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[10px] text-slate-500">
+                {registerHeaderMeta.status ? (
+                  <span
+                    className={`rounded-md border border-black/5 px-1.5 py-0.5 text-[8px] font-bold uppercase shadow-sm ${registerStatusTone(registerHeaderMeta.status)}`}
+                  >
+                    {registerHeaderMeta.status}
+                  </span>
+                ) : null}
+                {registerHeaderMeta.quotationRef ? (
+                  <span className="inline-flex items-center rounded-md border border-slate-200/80 bg-white/90 px-1.5 py-0.5 text-[8px] font-semibold text-slate-700 shadow-sm">
+                    Quote{' '}
+                    <span className="ml-0.5 font-mono text-[#134e4a]">{registerHeaderMeta.quotationRef}</span>
+                  </span>
+                ) : null}
+                {registerHeaderMeta.machineName ? (
+                  <span className="inline-flex items-center rounded-md border border-slate-200/80 bg-white/90 px-1.5 py-0.5 text-[8px] font-semibold text-slate-700 shadow-sm">
+                    {registerHeaderMeta.machineName}
+                  </span>
+                ) : null}
+                {registerHeaderMeta.materialLabel ? (
+                  <span className="inline-flex items-center rounded-md border border-teal-200/80 bg-teal-50/90 px-1.5 py-0.5 text-[8px] font-semibold text-teal-900 shadow-sm">
+                    {registerHeaderMeta.materialLabel}
+                  </span>
+                ) : null}
+              </div>
+            ) : null}
             {subtitle ? (
-              <p className="mt-1 line-clamp-2 text-[10px] leading-snug text-slate-600" title={subtitle}>
+              <p className="mt-1 line-clamp-2 text-[10px] font-semibold leading-snug text-slate-800" title={subtitle}>
                 {subtitle}
               </p>
             ) : null}
@@ -60,6 +105,7 @@ export function ProductionRegisterEditModal({ isOpen, onClose, cuttingListId, su
             viewOnly={false}
             onModalClose={onClose}
             showModalCloseButton={false}
+            onRegisterHeaderMeta={setRegisterHeaderMeta}
           />
         </div>
       </div>

@@ -16,7 +16,6 @@ import {
   Undo2,
   Ban,
   X,
-  ChevronDown,
 } from 'lucide-react';
 import { apiFetch } from '../lib/apiBase';
 import { fmtConv2 } from '../lib/conversionKgPerM.js';
@@ -42,13 +41,11 @@ import {
 } from '../lib/quotationProductionLines';
 import { QuotationPriceExceptionPanel } from './QuotationPriceExceptionPanel';
 import { ProductionConversionReasonFields } from './operations/ProductionConversionReasonFields';
-import { ProductionJobIntelBanner, ProductionPaymentGateOverridePanel } from './production/ProductionPhase11B';
-import { MaterialIncidentQuickCreateModal } from './production/MaterialIncidentQuickCreateModal';
 import {
   conversionVarianceReasonLabel,
   findConversionReasonOption,
 } from '../shared/productionConversionReasons';
-import { resolveLiveJobMaterialKind } from '../lib/productionLiveJobMaterialKind';
+import { liveJobMaterialPresentation, resolveLiveJobMaterialKind } from '../lib/productionLiveJobMaterialKind';
 
 /** Matches server: closing below this (kg) may use “Finish roll” on completion to clear the tail from stock. */
 const COIL_TAIL_FINISH_MAX_KG = 85;
@@ -344,7 +341,7 @@ function completionLineFromDraft(row) {
 }
 
 /**
- * @param {{ focusCuttingListId?: string | null; hideJobSidebar?: boolean; inModal?: boolean; viewOnly?: boolean; onModalClose?: () => void; showModalCloseButton?: boolean; operationsRegisterEdit?: boolean }} [props]
+ * @param {{ focusCuttingListId?: string | null; hideJobSidebar?: boolean; inModal?: boolean; viewOnly?: boolean; onModalClose?: () => void; showModalCloseButton?: boolean; operationsRegisterEdit?: boolean; onRegisterHeaderMeta?: (meta: { status?: string; quotationRef?: string; machineName?: string; materialLabel?: string } | null) => void }} [props]
  */
 export function LiveProductionMonitor({
   focusCuttingListId = null,
@@ -354,6 +351,7 @@ export function LiveProductionMonitor({
   onModalClose = null,
   showModalCloseButton = true,
   operationsRegisterEdit = false,
+  onRegisterHeaderMeta = null,
 } = {}) {
   const ws = useWorkspace();
   const { show: showToast } = useToast();
@@ -387,9 +385,6 @@ export function LiveProductionMonitor({
   /** Business date for start / completion (YYYY-MM-DD). */
   const [productionDateIso, setProductionDateIso] = useState(() => new Date().toISOString().slice(0, 10));
   const [completionDateIso, setCompletionDateIso] = useState(() => new Date().toISOString().slice(0, 10));
-  const [jobIntel, setJobIntel] = useState(null);
-  const [materialIncidentModalOpen, setMaterialIncidentModalOpen] = useState(false);
-
   const productionJobs = useMemo(
     () => (ws?.hasWorkspaceData && Array.isArray(ws?.snapshot?.productionJobs) ? ws.snapshot.productionJobs : []),
     [ws?.hasWorkspaceData, ws?.snapshot?.productionJobs]
@@ -558,6 +553,38 @@ export function LiveProductionMonitor({
   }, [linkedQuotation, linkedCuttingList, ws?.snapshot?.masterData?.materialTypes]);
   const isAccessoriesOnlyQuote = quotationIsAccessoriesOnlyForProduction(linkedQuotation);
   const isStoneAccessoriesOnlyQuote = isStoneMeterQuote && isAccessoriesOnlyQuote;
+  const registerMaterialLabel = useMemo(() => {
+    if (isAccessoriesOnlyQuote) return 'Accessories only';
+    const kind = resolveLiveJobMaterialKind({
+      quotation: linkedQuotation,
+      cuttingList: linkedCuttingList,
+      materialTypes: ws?.snapshot?.masterData?.materialTypes,
+    });
+    return liveJobMaterialPresentation(kind).chipLabel || null;
+  }, [isAccessoriesOnlyQuote, linkedQuotation, linkedCuttingList, ws?.snapshot?.masterData?.materialTypes]);
+
+  useEffect(() => {
+    if (!operationsRegisterEdit || typeof onRegisterHeaderMeta !== 'function') return undefined;
+    if (!selectedJob?.jobID) {
+      onRegisterHeaderMeta(null);
+      return undefined;
+    }
+    onRegisterHeaderMeta({
+      status: selectedJob.status,
+      quotationRef: selectedJob.quotationRef || null,
+      machineName: selectedJob.machineName || null,
+      materialLabel: registerMaterialLabel,
+    });
+    return () => onRegisterHeaderMeta(null);
+  }, [
+    operationsRegisterEdit,
+    onRegisterHeaderMeta,
+    selectedJob?.jobID,
+    selectedJob?.status,
+    selectedJob?.quotationRef,
+    selectedJob?.machineName,
+    registerMaterialLabel,
+  ]);
   const completionUsesOffcutMode =
     isStoneAccessoriesOnlyQuote ||
     (!isStoneMeterQuote && (completionSourceMode === 'offcut' || isAccessoriesOnlyQuote));
@@ -1255,23 +1282,6 @@ export function LiveProductionMonitor({
       }
     };
   }, [conversionPreviewKey, selectedJob?.jobID]);
-
-  useEffect(() => {
-    const jobId = selectedJob?.jobID;
-    if (!jobId) {
-      setJobIntel(null);
-      return;
-    }
-    let cancelled = false;
-    void (async () => {
-      const { ok, data } = await apiFetch(`/api/production-jobs/${encodeURIComponent(jobId)}/intel`);
-      if (cancelled) return;
-      setJobIntel(ok && data?.ok !== false ? data.intel : null);
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [selectedJob?.jobID, selectedJob?.status, selectedJob?.actualMeters, selectedJob?.conversionAlertState]);
 
   const conversionReasonBand = useMemo(() => {
     const preview = conversionPreview?.aggregatedAlertState;
@@ -2390,7 +2400,7 @@ export function LiveProductionMonitor({
           : 'mb-6 rounded-2xl border border-slate-200/90 bg-gradient-to-b from-slate-50/90 to-white shadow-md ring-1 ring-slate-900/[0.04]'
       }
     >
-      {/* Header: title + help (actions in footer when inModal) */}
+      {!(operationsRegisterEdit && inModal) ? (
       <div
         className={`shrink-0 border-b border-slate-200/80 bg-gradient-to-r from-white via-teal-50/25 to-white ${
           inModal ? 'px-2.5 py-2 sm:px-3' : 'px-3 py-2 sm:px-4'
@@ -2675,6 +2685,7 @@ export function LiveProductionMonitor({
           ) : null}
         </div>
       </div>
+      ) : null}
 
       <div
         className={
@@ -2683,77 +2694,52 @@ export function LiveProductionMonitor({
             : ''
         }
       >
-      {inModal && !readOnly ? (
-        <details className="group border-b border-slate-100 bg-slate-50/80 [&_summary::-webkit-details-marker]:hidden">
-          <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-2 px-2 py-2 text-[10px] font-bold text-slate-600 sm:min-h-0 sm:px-2.5 sm:py-1.5">
-            <span className="inline-flex items-center gap-1.5">
-              <ClipboardList size={14} className="shrink-0 text-slate-500" aria-hidden />
-              Status, tips &amp; validation
-            </span>
-            <ChevronDown
-              size={14}
-              className="shrink-0 text-slate-400 transition-transform group-open:rotate-180"
-              aria-hidden
-            />
-          </summary>
-          <div className="flex flex-wrap gap-1 px-2 pb-1.5 pt-0 sm:px-2.5">
-            {canEditPlannedAllocations && !hasPersistedCoilAllocations && !isStoneMeterQuote ? (
-              <span className="inline-flex items-center gap-1 rounded-md border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-medium text-amber-950">
-                <AlertTriangle size={14} className="shrink-0" />
-                Save coil + opening kg, then Save &amp; start.
-              </span>
-            ) : null}
-            {canEditPlannedAllocations && isStoneMeterQuote && !stoneAllocAck ? (
-              <span className="inline-flex items-center gap-1 rounded-md border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-medium text-amber-950">
-                <AlertTriangle size={14} className="shrink-0" />
-                Stone: Save &amp; start (no coils) to begin.
-              </span>
-            ) : null}
-            {canAddSupplementalCoil ? (
-              <span className="inline-flex items-center gap-1 rounded-md border border-sky-200 bg-sky-50 px-2 py-0.5 text-[10px] text-sky-950">
-                <Plus size={14} className="shrink-0" />
-                Mid-run: <strong className="font-semibold">Add coil</strong> if one roll is not enough.
-              </span>
-            ) : null}
-            {canEditCompletedCoilCorrections ? (
-              <span className="inline-flex items-center gap-1 rounded-md border border-teal-200 bg-teal-50 px-2 py-0.5 text-[10px] text-teal-950">
-                <Plus size={14} className="shrink-0" />
-                Completed correction: <strong className="font-semibold">Add coil</strong> if a roll was left off the register.
-              </span>
-            ) : null}
-            {selectedJob?.coilSpecMismatchPending ? (
-              <span className="inline-flex items-center gap-1.5 rounded-md border border-amber-300 bg-amber-50 px-2 py-0.5 text-[10px] font-medium text-amber-950">
-                <AlertTriangle size={14} className="shrink-0" />
-                Spec exception — manager flag active.
-              </span>
-            ) : null}
-            {canCaptureRun && !completionValidation.canComplete ? (
-              <span className="inline-flex items-center gap-1 rounded-md border border-red-200 bg-red-50 px-2 py-0.5 text-[10px] font-medium text-red-900">
-                <AlertTriangle size={14} className="shrink-0" />
-                {completionValidation.errors[0] || 'Complete all coil rows to finish.'}
-              </span>
-            ) : null}
-            {canCaptureRun && requiresManagerOverrunApproval ? (
-              <span className="inline-flex items-center gap-1 rounded-md border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] text-amber-950">
-                <BarChart3 size={14} className="shrink-0" />
-                +{overProducedMeters.toFixed(2)}m over plan — manager remark to complete.
-              </span>
-            ) : null}
-            {!readOnly &&
-            canCaptureRun &&
-            completionValidation.canComplete &&
-            !requiresManagerOverrunApproval &&
-            hasPlannedMeters ? (
-              <span className="inline-flex items-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-medium text-emerald-900">
-                <Sparkles size={14} className="shrink-0" />
-                {planProgressPct != null
-                  ? `${planProgressPct}% of plan logged — preview updates as you type.`
-                  : 'Ready to preview conversion when inputs are valid.'}
-              </span>
-            ) : null}
-          </div>
-        </details>
-      ) : (
+      {operationsRegisterEdit &&
+      inModal &&
+      !readOnly &&
+      selectedJob?.status !== 'Completed' &&
+      selectedJob?.status !== 'Cancelled' ? (
+        <div className="mb-2 flex flex-wrap items-end gap-3 border-b border-slate-100 px-2 pb-2 pt-1 sm:px-2.5">
+          {(selectedJob.status === 'Planned' || selectedJob.status === 'Running') && !selectedJob.startDateISO ? (
+            <label className="text-[10px] font-semibold text-slate-600">
+              Production date
+              <input
+                type="date"
+                className="z-input block mt-0.5 py-1 text-[11px]"
+                value={productionDateIso}
+                onChange={(e) => setProductionDateIso(e.target.value)}
+              />
+            </label>
+          ) : selectedJob.startDateISO ? (
+            <p className="text-[10px] text-slate-600">
+              Started: <strong>{String(selectedJob.startDateISO).slice(0, 10)}</strong>
+            </p>
+          ) : null}
+          {selectedJob.status === 'Running' ? (
+            <>
+              <label className="text-[10px] font-semibold text-slate-600">
+                Production business date
+                <input
+                  type="date"
+                  className="z-input block mt-0.5 py-1 text-[11px]"
+                  value={productionDateIso}
+                  onChange={(e) => setProductionDateIso(e.target.value)}
+                />
+              </label>
+              <label className="text-[10px] font-semibold text-slate-600">
+                Completion date
+                <input
+                  type="date"
+                  className="z-input block mt-0.5 py-1 text-[11px]"
+                  value={completionDateIso}
+                  onChange={(e) => setCompletionDateIso(e.target.value)}
+                />
+              </label>
+            </>
+          ) : null}
+        </div>
+      ) : null}
+      {inModal && !readOnly ? null : (
         <div className={`border-b border-slate-100 bg-slate-50/70 ${inModal ? 'px-2 py-0.5 sm:px-2.5' : 'px-2 py-1 sm:px-3'}`}>
           <div className={`flex flex-wrap ${inModal ? 'gap-1' : 'gap-1.5'}`}>
             {readOnly && jobSt === 'Cancelled' ? (
@@ -3009,98 +2995,49 @@ export function LiveProductionMonitor({
                     const metresMatch =
                       Number.isFinite(postedM) && Number.isFinite(liveM) && Math.abs(postedM - liveM) < 1e-4;
                     return (
-                      <>
-                        <div className="grid grid-cols-3 gap-x-1 gap-y-0.5 text-center">
-                          <div title="Reserved kg">
-                            <p className="text-[6px] font-bold uppercase tracking-wide text-teal-800/85">Rsvd</p>
-                            <p className="text-[11px] font-black tabular-nums leading-tight text-[#134e4a]">
-                              {formatKg(reservedKg)}
-                            </p>
-                            <p className="text-[6px] font-medium text-slate-500">kg</p>
-                          </div>
-                          <div title="Consumed kg">
-                            <p className="text-[6px] font-bold uppercase tracking-wide text-slate-500">Used</p>
-                            <p className="text-[11px] font-black tabular-nums leading-tight text-slate-900">
-                              {formatKg(recordedConsumedKg)}
-                            </p>
-                            <p className="text-[6px] font-medium text-slate-500">kg</p>
-                          </div>
-                          <div title="Planned job metres">
-                            <p className="text-[6px] font-bold uppercase tracking-wide text-slate-500">Plan</p>
-                            <p className="text-[11px] font-black tabular-nums leading-tight text-[#134e4a]">
-                              {formatMeters(selectedJob.plannedMeters)}
-                            </p>
-                            <p className="text-[6px] font-medium text-slate-500">m</p>
-                          </div>
+                      <div className="flex flex-wrap items-end justify-between gap-x-2 gap-y-1 text-center">
+                        <div className="min-w-0 flex-1" title="Reserved kg">
+                          <p className="text-[6px] font-bold uppercase tracking-wide text-teal-800/85">Rsvd</p>
+                          <p className="text-[11px] font-black tabular-nums leading-tight text-[#134e4a]">
+                            {formatKg(reservedKg)} <span className="text-[6px] font-medium text-slate-500">kg</span>
+                          </p>
                         </div>
-                        <div className="mt-1 grid grid-cols-2 gap-x-1 gap-y-0.5 border-t border-slate-200/60 pt-1 text-center">
-                          <div
-                            title={
-                              metresMatch
-                                ? 'Output metres (run log matches posted actual)'
-                                : `Run log total ${formatMeters(liveM)} m · posted actual ${formatMeters(postedM)} m`
-                            }
-                          >
-                            <p className="text-[6px] font-bold uppercase tracking-wide text-teal-800/85">Output</p>
-                            <p className="text-[11px] font-black tabular-nums leading-tight text-[#134e4a]">
-                              {metresMatch ? formatMeters(liveM) : `${formatMeters(liveM)} / ${formatMeters(postedM)}`}
-                            </p>
-                            <p className="text-[6px] font-medium text-slate-500">{metresMatch ? 'm' : 'live / post m'}</p>
-                          </div>
-                          <div>
-                            <p className="text-[6px] font-bold uppercase tracking-wide text-slate-500">Alert</p>
-                            <p className="truncate text-[11px] font-black leading-tight text-slate-900">
-                              {selectedJob.conversionAlertState || '—'}
-                            </p>
-                          </div>
+                        <div className="min-w-0 flex-1" title="Consumed kg">
+                          <p className="text-[6px] font-bold uppercase tracking-wide text-slate-500">Used</p>
+                          <p className="text-[11px] font-black tabular-nums leading-tight text-slate-900">
+                            {formatKg(recordedConsumedKg)} <span className="text-[6px] font-medium text-slate-500">kg</span>
+                          </p>
                         </div>
-                      </>
+                        <div className="min-w-0 flex-1" title="Planned job metres">
+                          <p className="text-[6px] font-bold uppercase tracking-wide text-slate-500">Plan</p>
+                          <p className="text-[11px] font-black tabular-nums leading-tight text-[#134e4a]">
+                            {formatMeters(selectedJob.plannedMeters)} <span className="text-[6px] font-medium text-slate-500">m</span>
+                          </p>
+                        </div>
+                        <div
+                          className="min-w-0 flex-1"
+                          title={
+                            metresMatch
+                              ? 'Output metres (run log matches posted actual)'
+                              : `Run log total ${formatMeters(liveM)} m · posted actual ${formatMeters(postedM)} m`
+                          }
+                        >
+                          <p className="text-[6px] font-bold uppercase tracking-wide text-teal-800/85">Output</p>
+                          <p className="text-[11px] font-black tabular-nums leading-tight text-[#134e4a]">
+                            {metresMatch ? formatMeters(liveM) : `${formatMeters(liveM)} / ${formatMeters(postedM)}`}{' '}
+                            <span className="text-[6px] font-medium text-slate-500">{metresMatch ? 'm' : 'm'}</span>
+                          </p>
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-[6px] font-bold uppercase tracking-wide text-slate-500">Alert</p>
+                          <p className="truncate text-[11px] font-black leading-tight text-slate-900">
+                            {selectedJob.conversionAlertState || 'Pending'}
+                          </p>
+                        </div>
+                      </div>
                     );
                   })()}
                 </div>
-              ) : null}
-
-              {selectedJob?.jobID ? (
-                <details
-                  open={Boolean(jobIntel?.needsBmAttention || jobIntel?.needsMdAttention || ['High', 'Low'].includes(String(jobIntel?.conversionAlertState || '')))}
-                  className="rounded-lg border border-slate-200/80 bg-white/90"
-                >
-                  <summary className="min-h-11 cursor-pointer list-none px-2.5 py-2 text-[10px] font-black uppercase tracking-wide text-[#134e4a] marker:content-none [&::-webkit-details-marker]:hidden">
-                    Job intelligence
-                    {jobIntel?.metreVarianceFlag ? (
-                      <span className="ml-2 rounded bg-amber-100 px-1.5 py-0.5 text-[8px] text-amber-950">Variance</span>
-                    ) : null}
-                  </summary>
-                  <div className="border-t border-slate-100 px-2.5 pb-2.5 pt-2">
-                    <ProductionJobIntelBanner intel={jobIntel} formatMeters={formatMeters} />
-                    <ProductionPaymentGateOverridePanel
-                      quotationId={selectedJob?.quotationRef}
-                      intel={jobIntel}
-                      canMutate={ws?.canMutate !== false}
-                      hasManagePermission={Boolean(ws?.hasPermission?.('quotations.manage'))}
-                      onSuccess={async () => {
-                        showToast('Production gate override recorded.');
-                        const jobId = selectedJob?.jobID;
-                        if (jobId) {
-                          const { ok, data } = await apiFetch(
-                            `/api/production-jobs/${encodeURIComponent(jobId)}/intel`
-                          );
-                          if (ok && data?.intel) setJobIntel(data.intel);
-                        }
-                        await ws?.refresh?.();
-                      }}
-                    />
-                    {ws?.hasPermission?.('material_incidents.create') && !readOnly ? (
-                      <button
-                        type="button"
-                        onClick={() => setMaterialIncidentModalOpen(true)}
-                        className="mt-2 w-full rounded-md border border-amber-200 bg-amber-50 px-2 py-1.5 text-[9px] font-black uppercase tracking-wide text-amber-950 hover:bg-amber-100"
-                      >
-                        Report material issue
-                      </button>
-                    ) : null}
-                  </div>
-                </details>
               ) : null}
 
               {selectedJob?.quotationRef ? (
@@ -3224,14 +3161,6 @@ export function LiveProductionMonitor({
                         : '.'}
                     </span>
                   </p>
-                ) : linkedQuotation || jobProductAttrs ? (
-                  <p className="mt-2 flex items-start gap-2 rounded-md border border-amber-200/70 bg-amber-50/50 px-2 py-1.5 text-[10px] font-medium leading-snug text-amber-950">
-                    <AlertTriangle size={14} className="mt-0.5 shrink-0 text-amber-600" aria-hidden />
-                    <span>
-                      <span className="font-bold">Match</span> — no perfect stock hit; pick the closest coil or save with
-                      acknowledgement.
-                    </span>
-                  </p>
                 ) : null}
                 {!inModal ? (
                   <div className="mt-2.5 flex flex-col gap-2 border-t border-slate-200/70 pt-2.5 sm:flex-row sm:flex-wrap sm:items-stretch sm:gap-2">
@@ -3272,10 +3201,6 @@ export function LiveProductionMonitor({
             <div className="rounded-lg border border-teal-200/80 bg-teal-50/40 p-2 sm:p-2.5 space-y-1.5">
               <p className="text-[9px] font-black uppercase tracking-widest text-[#134e4a]">
                 Accessories on quotation{jobSt === 'Completed' ? ' (correction)' : ''}
-              </p>
-              <p className="text-[9px] text-slate-600 leading-snug">
-                Ordered on the quote vs already posted from other completed jobs. Adjust &ldquo;This job&rdquo; to match
-                what leaves stock; shortfalls can be refunded under Accessory shortfall.
               </p>
               <div className="min-w-0 max-w-full rounded-lg border border-slate-200 bg-white">
                 <div className="z-scroll-x min-w-0 max-w-full overflow-x-auto overscroll-x-contain [-webkit-overflow-scrolling:touch]">
@@ -3906,15 +3831,9 @@ export function LiveProductionMonitor({
                   </p>
                 </div>
               ) : null}
-              {completionUsesOffcutMode ? (
+              {completionUsesOffcutMode && !isAccessoriesOnlyQuote ? (
                 <div className="rounded-lg border border-amber-200 bg-amber-50/70 p-3 text-[11px] text-slate-700 space-y-2">
-                  <p>
-                    {isStoneAccessoriesOnlyQuote
-                      ? 'Stone-coated accessories only — no roofing metres to draw from stone stock. Enter accessories in the table above, then complete.'
-                      : isAccessoriesOnlyQuote
-                        ? 'Accessories-only quotation — no coil required. Enter quantities in the accessories table above, then complete.'
-                        : 'Offcut / accessories completion — no coil required. Issue offcut incidents below (or enter output metres), then complete.'}
-                  </p>
+                  <p>Offcut completion — no coil required. Issue offcut incidents below (or enter output metres), then complete.</p>
                   <div className="border-t border-amber-200/60 pt-2">
                     <p className="text-[10px] font-bold uppercase text-[#134e4a] mb-1">Issue from offcut incidents</p>
                     <OffcutIncidentPicker
@@ -4405,6 +4324,7 @@ export function LiveProductionMonitor({
             </div>
           ) : null}
 
+          {selectedChecks.length > 0 ? (
           <div className="overflow-hidden rounded-lg border border-slate-200/90 bg-white shadow-sm">
             <div className="border-b border-slate-100 bg-slate-50/70 px-3 py-2">
               <p className="text-sm font-bold text-slate-900">Posted conversion check</p>
@@ -4416,11 +4336,6 @@ export function LiveProductionMonitor({
             </div>
 
             <div className="p-2 sm:p-3">
-              {selectedChecks.length === 0 ? (
-                <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50/70 px-3 py-3 text-center text-sm text-slate-500">
-                  Complete the job with closing weights and metres — checks will show here for audit.
-                </div>
-              ) : (
                 <div className="min-w-0 max-w-full rounded-md border border-slate-100">
                   <div className="z-scroll-x min-w-0 max-w-full overflow-x-auto overscroll-x-contain [-webkit-overflow-scrolling:touch]">
                     <table className="w-full min-w-[44rem] border-collapse text-sm">
@@ -4511,9 +4426,9 @@ export function LiveProductionMonitor({
                     </div>
                   ) : null}
                 </div>
-              )}
             </div>
           </div>
+          ) : null}
 
         </div>
       </div>
@@ -4749,11 +4664,6 @@ export function LiveProductionMonitor({
           </div>
         </div>
       ) : null}
-      <MaterialIncidentQuickCreateModal
-        open={materialIncidentModalOpen}
-        onClose={() => setMaterialIncidentModalOpen(false)}
-        job={selectedJob}
-      />
     </div>
   );
 }
