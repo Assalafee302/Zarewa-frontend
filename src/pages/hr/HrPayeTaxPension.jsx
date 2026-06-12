@@ -30,39 +30,6 @@ function downloadCsv(filename, rows, headers) {
   URL.revokeObjectURL(url);
 }
 
-// ── Nigerian PAYE computation (graduated relief already embedded in gross→taxable) ──
-const PAYE_BRACKETS = [
-  { limit: 300_000, rate: 0.07, label: '7%' },
-  { limit: 300_000, rate: 0.11, label: '11%' },
-  { limit: 500_000, rate: 0.15, label: '15%' },
-  { limit: 500_000, rate: 0.19, label: '19%' },
-  { limit: Infinity, rate: 0.21, label: '21%' },
-];
-
-function computePaye(annualTaxableIncome) {
-  const income = Math.max(0, annualTaxableIncome);
-  let remaining = income;
-  let totalPaye = 0;
-  const breakdown = PAYE_BRACKETS.map(({ limit, rate, label }) => {
-    const taxable = Math.min(remaining, limit === Infinity ? remaining : limit);
-    const tax = taxable * rate;
-    remaining = Math.max(0, remaining - taxable);
-    totalPaye += tax;
-    return { label, rate: `${Math.round(rate * 100)}%`, taxableAmount: taxable, tax };
-  });
-  return { totalPaye, breakdown };
-}
-
-// Derive monthly taxable income from gross (CRA: 20% gross + ₦200k or 1% gross whichever higher)
-function monthlyTaxable(grossMonthlyNgn) {
-  const annual = grossMonthlyNgn * 12;
-  const craFlat = Math.max(0.01 * annual, 200_000);
-  const craPct = 0.2 * annual;
-  const cra = craFlat + craPct;
-  const taxable = Math.max(0, annual - cra);
-  return taxable / 12;
-}
-
 // ── Shared stat card ──────────────────────────────────────────────────────────
 function StatCard({ label, value, sub }) {
   return (
@@ -108,21 +75,15 @@ function MiniBarChart({ data }) {
 // PAYE TAB
 // ════════════════════════════════════════════════════════════════════════════════
 function PayeTab({ runs, lines, latestRun, loading }) {
-  // Per-staff PAYE
   const staffPaye = useMemo(() => {
     return lines.map((l) => {
       const gross = Number(l.grossNgn) || 0;
-      const taxableMonthly = monthlyTaxable(gross);
-      const { totalPaye } = computePaye(taxableMonthly * 12);
-      const monthlyPaye = totalPaye / 12;
-      const effectiveRate = gross > 0 ? (monthlyPaye / gross) * 100 : 0;
+      const payeAmount = Math.round(Number(l.taxNgn) || 0);
       return {
         name: l.displayName || l.userId,
         userId: l.userId,
         gross,
-        taxableIncome: taxableMonthly,
-        payeAmount: monthlyPaye,
-        effectiveRate,
+        payeAmount,
         amountsRedacted: l.amountsRedacted,
       };
     });
@@ -139,20 +100,6 @@ function PayeTab({ runs, lines, latestRun, loading }) {
         value: Number(r.payeTotalNgn) || 0,
       }));
   }, [runs]);
-
-  // Bracket breakdown aggregate
-  const bracketBreakdown = useMemo(() => {
-    const totals = PAYE_BRACKETS.map((b) => ({ ...b, totalTax: 0, totalTaxable: 0 }));
-    staffPaye.forEach((s) => {
-      if (s.amountsRedacted) return;
-      const { breakdown } = computePaye(s.taxableIncome * 12);
-      breakdown.forEach((b, i) => {
-        totals[i].totalTax += b.tax / 12;
-        totals[i].totalTaxable += b.taxableAmount / 12;
-      });
-    });
-    return totals;
-  }, [staffPaye]);
 
   // Filing history from runs
   const filingHistory = useMemo(
@@ -178,15 +125,13 @@ function PayeTab({ runs, lines, latestRun, loading }) {
   }, [runs, totalPaye]);
 
   const exportFirs = () => {
-    const headers = ['employee_name', 'gross_monthly', 'taxable_monthly', 'paye_monthly', 'effective_rate_pct'];
+    const headers = ['employee_name', 'gross_monthly', 'paye_monthly_ngn'];
     const rows = staffPaye
       .filter((s) => !s.amountsRedacted)
       .map((s) => ({
         employee_name: s.name,
         gross_monthly: Math.round(s.gross),
-        taxable_monthly: Math.round(s.taxableIncome),
-        paye_monthly: Math.round(s.payeAmount),
-        effective_rate_pct: s.effectiveRate.toFixed(2),
+        paye_monthly_ngn: Math.round(s.payeAmount),
       }));
     const period = latestRun ? formatPeriodYyyymm(latestRun.periodYyyymm) : 'current';
     downloadCsv(`FIRS-PAYE-Schedule-${period}.csv`, rows, headers);
@@ -196,11 +141,7 @@ function PayeTab({ runs, lines, latestRun, loading }) {
     <div className="space-y-6">
       {/* Stats */}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard
-          label="Current PAYE rate"
-          value={latestRun?.taxPercent != null ? `${latestRun.taxPercent}%` : '—'}
-          sub="Flat rate (payroll setting)"
-        />
+        <StatCard label="PAYE basis" value="Fixed ₦" sub="Monthly amount per staff profile" />
         <StatCard
           label="This month PAYE"
           value={loading ? '…' : formatNgn(totalPaye)}
@@ -212,51 +153,6 @@ function PayeTab({ runs, lines, latestRun, loading }) {
           value={latestRun?.payeFiled ? 'Filed' : 'Pending'}
           sub={latestRun?.status || '—'}
         />
-      </div>
-
-      {/* Bracket breakdown */}
-      <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
-        <h3 className="mb-3 text-[10px] font-black uppercase tracking-widest text-slate-500">
-          Tax computation breakdown (graduated relief, latest run)
-        </h3>
-        <AppTableWrap>
-          <AppTable role="numeric">
-            <AppTableThead>
-              <AppTableTh>Bracket</AppTableTh>
-              <AppTableTh>Rate</AppTableTh>
-              <AppTableTh align="right">Taxable (monthly)</AppTableTh>
-              <AppTableTh align="right">Tax (monthly)</AppTableTh>
-            </AppTableThead>
-            <AppTableBody>
-              {bracketBreakdown.map((b, i) => (
-                <AppTableTr key={i}>
-                  <AppTableTd>
-                    {i === 0
-                      ? 'First ₦300k p.a.'
-                      : i === 1
-                        ? 'Next ₦300k p.a.'
-                        : i === 2
-                          ? 'Next ₦500k p.a.'
-                          : i === 3
-                            ? 'Next ₦500k p.a.'
-                            : 'Balance'}
-                  </AppTableTd>
-                  <AppTableTd>{b.label}</AppTableTd>
-                  <AppTableTd align="right">{formatNgn(b.totalTaxable)}</AppTableTd>
-                  <AppTableTd align="right">{formatNgn(b.totalTax)}</AppTableTd>
-                </AppTableTr>
-              ))}
-              <AppTableTr>
-                <AppTableTd colSpan={3}>
-                  <strong>Total PAYE</strong>
-                </AppTableTd>
-                <AppTableTd align="right">
-                  <strong>{formatNgn(totalPaye)}</strong>
-                </AppTableTd>
-              </AppTableTr>
-            </AppTableBody>
-          </AppTable>
-        </AppTableWrap>
       </div>
 
       {/* Per-staff table */}
@@ -276,20 +172,18 @@ function PayeTab({ runs, lines, latestRun, loading }) {
             <AppTableThead>
               <AppTableTh>Staff</AppTableTh>
               <AppTableTh align="right">Gross (monthly)</AppTableTh>
-              <AppTableTh align="right">Taxable income</AppTableTh>
-              <AppTableTh align="right">PAYE (monthly)</AppTableTh>
-              <AppTableTh align="right">Effective rate</AppTableTh>
+              <AppTableTh align="right">PAYE (₦)</AppTableTh>
             </AppTableThead>
             <AppTableBody>
               {loading ? (
                 <AppTableTr>
-                  <AppTableTd colSpan={5} align="center">
+                  <AppTableTd colSpan={3} align="center">
                     <span className="py-4 block text-slate-500 text-sm">Loading…</span>
                   </AppTableTd>
                 </AppTableTr>
               ) : staffPaye.length === 0 ? (
                 <AppTableTr>
-                  <AppTableTd colSpan={5} align="center">
+                  <AppTableTd colSpan={3} align="center">
                     <span className="py-4 block text-slate-500 text-sm">
                       No lines. Select a payroll run with computed lines.
                     </span>
@@ -300,11 +194,7 @@ function PayeTab({ runs, lines, latestRun, loading }) {
                   <AppTableTr key={s.userId}>
                     <AppTableTd>{s.name}</AppTableTd>
                     <AppTableTd align="right">{s.amountsRedacted ? '—' : formatNgn(s.gross)}</AppTableTd>
-                    <AppTableTd align="right">{s.amountsRedacted ? '—' : formatNgn(s.taxableIncome)}</AppTableTd>
                     <AppTableTd align="right">{s.amountsRedacted ? '—' : formatNgn(s.payeAmount)}</AppTableTd>
-                    <AppTableTd align="right">
-                      {s.amountsRedacted ? '—' : `${s.effectiveRate.toFixed(1)}%`}
-                    </AppTableTd>
                   </AppTableTr>
                 ))
               )}
@@ -370,15 +260,12 @@ function PayeTab({ runs, lines, latestRun, loading }) {
 // ════════════════════════════════════════════════════════════════════════════════
 // PENSION TAB
 // ════════════════════════════════════════════════════════════════════════════════
-const EMP_RATE = 0.08;
-const ERR_RATE = 0.10;
-
-function PensionTab({ runs, lines, latestRun, loading }) {
+function PensionTab({ runs, lines, latestRun, loading, policy }) {
   const staffPension = useMemo(() => {
     return lines.map((l) => {
       const gross = Number(l.grossNgn) || 0;
-      const empContrib = gross * EMP_RATE;
-      const errContrib = gross * ERR_RATE;
+      const empContrib = Math.round(Number(l.pensionNgn) || 0);
+      const errContrib = Math.round(Number(l.pensionEmployerNgn) || 0);
       return {
         name: l.displayName || l.userId,
         userId: l.userId,
@@ -387,7 +274,7 @@ function PensionTab({ runs, lines, latestRun, loading }) {
         gross,
         empContrib,
         errContrib,
-        ytdTotal: empContrib + errContrib, // single-month proxy; real YTD would need full history
+        ytdTotal: empContrib + errContrib,
         amountsRedacted: l.amountsRedacted,
         missingRsa: !l.pensionRsaPin,
       };
@@ -455,8 +342,16 @@ function PensionTab({ runs, lines, latestRun, loading }) {
 
       {/* Stats */}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard label="Employee rate" value={`${EMP_RATE * 100}%`} sub="Of monthly gross" />
-        <StatCard label="Employer rate" value={`${ERR_RATE * 100}%`} sub="Of monthly gross" />
+        <StatCard
+          label="Employee rate"
+          value={`${policy?.pensionEmployeePercent ?? 8}%`}
+          sub="Company policy — HR Executive"
+        />
+        <StatCard
+          label="Employer rate"
+          value={`${policy?.pensionEmployerPercent ?? 10}%`}
+          sub="Company policy — HR Executive"
+        />
         <StatCard
           label="This month total"
           value={loading ? '…' : formatNgn(totalMonth)}
@@ -478,12 +373,12 @@ function PensionTab({ runs, lines, latestRun, loading }) {
           <div className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-3">
             <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Employee contributions</p>
             <p className="mt-1 text-xl font-black tabular-nums">{formatNgn(totalEmp)}</p>
-            <p className="text-[10px] text-slate-500">8% × gross</p>
+            <p className="text-[10px] text-slate-500">{policy?.pensionEmployeePercent ?? 8}% × gross (eligible staff)</p>
           </div>
           <div className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-3">
             <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Employer contributions</p>
             <p className="mt-1 text-xl font-black tabular-nums">{formatNgn(totalErr)}</p>
-            <p className="text-[10px] text-slate-500">10% × gross</p>
+            <p className="text-[10px] text-slate-500">{policy?.pensionEmployerPercent ?? 10}% × gross (eligible staff)</p>
           </div>
         </div>
       </div>
@@ -604,16 +499,22 @@ export default function HrPayeTaxPension({ embedded = false } = {}) {
   const [runs, setRuns] = useState([]);
   const [selectedRunId, setSelectedRunId] = useState('');
   const [lines, setLines] = useState([]);
+  const [policy, setPolicy] = useState(null);
   const [loading, setLoading] = useState(true);
   const [linesLoading, setLinesLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // Load payroll runs
+  // Load payroll runs and pension policy
   useEffect(() => {
     let cancelled = false;
     (async () => {
       setLoading(true);
-      const { ok, data } = await apiFetch('/api/hr/payroll-runs');
+      const [runsRes, policyRes] = await Promise.all([
+        apiFetch('/api/hr/payroll-runs'),
+        apiFetch('/api/hr/policy-config'),
+      ]);
+      if (cancelled) return;
+      const { ok, data } = runsRes;
       if (cancelled) return;
       if (!ok || !data?.ok) {
         setError(data?.error || 'Could not load payroll runs.');
@@ -623,6 +524,7 @@ export default function HrPayeTaxPension({ embedded = false } = {}) {
       const list = data.runs || [];
       setRuns(list);
       setError('');
+      if (policyRes.ok && policyRes.data?.ok) setPolicy(policyRes.data.policy || null);
       const latest = list.find((r) => r.status === 'paid' || r.status === 'locked') || list[0];
       if (latest) setSelectedRunId(latest.id);
       setLoading(false);
@@ -658,8 +560,8 @@ export default function HrPayeTaxPension({ embedded = false } = {}) {
   return (
     <div className="space-y-6">
       <p className="text-sm text-slate-600">
-        PAYE tax schedules for FIRS filing and pension contribution summaries for PFA remittance. Derived from locked
-        payroll runs.
+        PAYE is a fixed monthly ₦ amount per staff (not a percentage). Pension uses company policy rates for eligible
+        branch staff. Schedules below are derived from computed payroll runs.
       </p>
 
       {error ? (
@@ -712,7 +614,13 @@ export default function HrPayeTaxPension({ embedded = false } = {}) {
       {tab === 'paye' ? (
         <PayeTab runs={runs} lines={lines} latestRun={latestRun} loading={loading || linesLoading} />
       ) : (
-        <PensionTab runs={runs} lines={lines} latestRun={latestRun} loading={loading || linesLoading} />
+        <PensionTab
+          runs={runs}
+          lines={lines}
+          latestRun={latestRun}
+          loading={loading || linesLoading}
+          policy={policy}
+        />
       )}
     </div>
   );

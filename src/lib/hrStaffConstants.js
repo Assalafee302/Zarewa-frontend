@@ -36,10 +36,11 @@ export const HR_DISCIPLINARY_KINDS = [
 ];
 
 export const HR_LEAVE_BANDS = [
-  { value: '', label: 'Default (policy)' },
-  { value: 'standard', label: 'Standard' },
-  { value: 'senior', label: 'Senior' },
-  { value: 'executive', label: 'Executive' },
+  { value: '', label: 'Auto (from job title)' },
+  { value: 'junior', label: 'Junior band' },
+  { value: 'senior', label: 'Senior band' },
+  { value: 'standard', label: 'Standard (maps to junior)' },
+  { value: 'executive', label: 'Executive (maps to senior)' },
 ];
 
 export const HR_GENDERS = [
@@ -75,6 +76,7 @@ export function emptyStaffForm(defaultBranchId = '') {
     housingAllowanceNgn: '',
     transportAllowanceNgn: '',
     payeTaxPercent: '',
+    payeTaxNgn: '',
     pensionPercentOverride: '',
     taxId: '',
     pensionRsaPin: '',

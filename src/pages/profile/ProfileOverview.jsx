@@ -8,13 +8,13 @@ import { useHrSensitiveAccess } from '../../hooks/useHrSensitiveAccess';
 import { canViewOrgSensitiveHr } from '../../lib/hrAccess';
 import { formatNgn } from '../../lib/hrFormat';
 import { formatPeriodYyyymm } from '../../lib/hrPayroll';
-import { HrProfileCompleteness } from '../../components/hr/HrProfileCompleteness';
+import { ProfileCompletionPanel } from '../../components/profile/ProfileCompletionPanel';
 import { ProfileHeroCard } from '../../components/profile/ProfileHeroCard';
 import { ProfileActionGrid } from '../../components/profile/ProfileActionGrid';
 
 function QuickActionBtn({ to, children, icon }) {
   const cls =
-    'flex flex-col items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-3 text-[10px] font-bold uppercase tracking-wider text-[#134e4a] shadow-sm hover:border-[#134e4a] hover:bg-teal-50/50 transition-colors no-underline';
+    'flex min-h-[72px] flex-col items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-3 text-xs font-bold uppercase tracking-wider text-[#134e4a] shadow-sm active:border-[#134e4a] active:bg-teal-50/50 transition-colors no-underline sm:text-[10px]';
   return (
     <Link to={to} className={cls}>
       <span className="text-lg">{icon}</span>
@@ -96,7 +96,7 @@ function ScholarshipOverviewTeaser() {
 function EmployeeOverviewDashboard() {
   const navigate = useNavigate();
   const ws = useWorkspace();
-  const { me, hr, cohort, error: meError } = useUserProfile();
+  const { me, hr, cohort, error: meError, completeness, documentSummary, pendingProfileRequests } = useUserProfile();
   const sensitive = useHrSensitiveAccess();
   const showSensitiveInline = canViewOrgSensitiveHr(ws?.permissions);
 
@@ -300,10 +300,11 @@ function EmployeeOverviewDashboard() {
 
   const content = (
     <div className="space-y-5">
-      {me?.completeness ? (
-        <HrProfileCompleteness
-          completeness={me.completeness}
-          compact
+      {completeness ? (
+        <ProfileCompletionPanel
+          completeness={completeness}
+          documentSummary={documentSummary}
+          pendingProfileRequests={pendingProfileRequests}
           onFixSection={(tabId) => {
             const map = {
               documents: '/me/documents',
@@ -325,7 +326,7 @@ function EmployeeOverviewDashboard() {
 }
 
 export default function ProfileOverview() {
-  const { cohort, hasHrSelfService, loading } = useUserProfile();
+  const { cohort, hasHrSelfService, loading, documentSummary, pendingProfileRequests } = useUserProfile();
 
   if (loading && hasHrSelfService) {
     return (
@@ -354,6 +355,14 @@ export default function ProfileOverview() {
       </section>
 
       {cohort === 'scholarship' ? <ScholarshipOverviewTeaser /> : null}
+
+      {hasHrSelfService && cohort === 'scholarship' ? (
+        <ProfileCompletionPanel
+          variant="scholarship"
+          documentSummary={documentSummary}
+          pendingProfileRequests={pendingProfileRequests}
+        />
+      ) : null}
 
       {hasHrSelfService && cohort !== 'scholarship' && cohort !== 'account_only' ? (
         <EmployeeOverviewDashboard />

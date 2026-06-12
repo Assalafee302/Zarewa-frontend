@@ -1,4 +1,5 @@
 import React, { Suspense, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { lazyWithRetry } from '../../lib/lazyWithRetry';
 import { useHrUrlTab } from '../../hooks/useHrUrlTab';
 import { HR_EMPLOYEES } from '../../lib/hrRoutes';
@@ -30,7 +31,7 @@ export default function HrEmployees() {
   return (
     <HrTabbedPage
       title="Employees"
-      description="Branch employees, scholarship beneficiaries, domestic staff, and HQ/mining — separate registers for special cohorts."
+      description="Branch employees use HQ payroll. Scholarship and domestic personnel are personnel registers — their monthly pay is the same as Executive benefits stipends/salaries."
       tabs={TABS}
       tab={tab}
       onTabChange={setTab}
@@ -39,10 +40,28 @@ export default function HrEmployees() {
         <HrStaffDirectory staffBasePath={HR_EMPLOYEES} cohort="employees" initialRegisterOpen={initialRegisterOpen} />
       ) : null}
       {tab === 'scholarship' ? (
-        <HrStaffDirectory staffBasePath={HR_EMPLOYEES} cohort="scholarship" listTitle="Scholarship beneficiaries" />
+        <div className="space-y-3">
+          <p className="text-sm text-slate-600">
+            Personnel register for scholarship beneficiaries. Monthly pay = stipend in{' '}
+            <Link to="/executive-hr/benefits?tab=stipends" className="font-semibold text-[#134e4a] underline">
+              Executive benefits → Monthly Stipends
+            </Link>
+            .
+          </p>
+          <HrStaffDirectory staffBasePath={HR_EMPLOYEES} cohort="scholarship" listTitle="Scholarship beneficiaries" />
+        </div>
       ) : null}
       {tab === 'domestic' ? (
-        <HrStaffDirectory staffBasePath={HR_EMPLOYEES} cohort="domestic" listTitle="Domestic staff register" />
+        <div className="space-y-3">
+          <p className="text-sm text-slate-600">
+            Personnel register for domestic staff. Monthly pay = salary in{' '}
+            <Link to="/executive-hr/benefits?tab=domestic" className="font-semibold text-[#134e4a] underline">
+              Executive benefits → Domestic Staff
+            </Link>
+            .
+          </p>
+          <HrStaffDirectory staffBasePath={HR_EMPLOYEES} cohort="domestic" listTitle="Domestic staff register" />
+        </div>
       ) : null}
       {tab === 'hq-special' ? (
         <HrStaffDirectory staffBasePath={HR_EMPLOYEES} cohort="hq_special" listTitle="HQ administrative & mining" />

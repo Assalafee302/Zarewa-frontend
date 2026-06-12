@@ -126,11 +126,59 @@ function ProfileSectionCard({ title, subtitle, rows, onEdit, editLabel = 'Edit s
 }
 
 function CompensationTab({ staff, showSensitiveInline }) {
+  const ebp = staff?.executiveBenefitsPayroll;
   const body = (
     <div className="space-y-4">
+      {ebp ? (
+        <ProfileSectionCard
+          title={ebp.label || 'Executive benefits pay'}
+          subtitle={ebp.note}
+          rows={[
+            {
+              label: 'Pay channel',
+              value: ebp.payChannel === 'executive_stipend' ? 'Monthly stipend' : 'Domestic monthly salary',
+            },
+            {
+              label: 'Linked in Executive benefits',
+              value: ebp.linked ? 'Yes' : 'Not linked yet',
+            },
+            {
+              label: 'Monthly amount',
+              value:
+                staff?.compensationRedacted || ebp.monthlyAmountNgn == null
+                  ? ebp.monthlyAmountNgn == null
+                    ? '—'
+                    : 'Hidden'
+                  : formatNgn(ebp.monthlyAmountNgn),
+            },
+            ebp.lastPaidPeriod
+              ? { label: 'Last paid period', value: ebp.lastPaidPeriod }
+              : null,
+            ebp.assignedExecutive
+              ? { label: 'Assigned executive', value: ebp.assignedExecutive }
+              : null,
+            ebp.status ? { label: 'Benefits status', value: ebp.status } : null,
+          ].filter(Boolean)}
+        />
+      ) : null}
+      {ebp ? (
+        <div className="rounded-xl border border-teal-100 bg-teal-50/60 px-4 py-3 text-sm text-teal-950">
+          <p>
+            HQ payroll runs do not include this person. Manage monthly pay in{' '}
+            <Link to={ebp.managePath || '/executive-hr/benefits'} className="font-bold text-[#134e4a] underline">
+              Executive benefits
+            </Link>
+            {ebp.payChannel === 'executive_stipend' ? ' → Monthly Stipends' : ' → Domestic Staff'}.
+          </p>
+        </div>
+      ) : null}
       <ProfileSectionCard
         title="Salary & payroll"
-        subtitle="Monthly compensation and payroll grouping"
+        subtitle={
+          ebp
+            ? 'Personnel record — monthly pay is in Executive benefits above'
+            : 'Monthly compensation and payroll grouping'
+        }
         rows={[
           { label: 'Payroll group', value: payrollGroupLabel(staff) },
           {
@@ -175,13 +223,15 @@ function CompensationTab({ staff, showSensitiveInline }) {
         subtitle="Statutory deduction references"
         rows={[
           {
-            label: 'PAYE %',
+            label: 'Monthly PAYE (₦)',
             value:
               staff?.compensationRedacted ? 'Hidden'
               : staff?.isNonBranchStaff ? 'N/A (not branch payroll)'
-              : staff?.payeTaxPercent ?? '— (required for branch payroll)',
+              : staff?.payeTaxNgn != null
+                ? formatNgn(staff.payeTaxNgn)
+                : '—',
           },
-          { label: 'Pension % override', value: staff?.compensationRedacted ? 'Hidden' : staff?.pensionPercentOverride ?? 'Company default' },
+          { label: 'Pension', value: staff?.compensationRedacted ? 'Hidden' : 'Company policy rate (if eligible)' },
           { label: 'Tax ID', value: staff?.compensationRedacted ? 'Hidden' : staff?.taxId || '—' },
           { label: 'RSA PIN', value: staff?.compensationRedacted ? 'Hidden' : staff?.pensionRsaPin || '—' },
           { label: 'Pension administrator', value: staff?.profileExtra?.statutory?.pensionAdministrator || '—' },

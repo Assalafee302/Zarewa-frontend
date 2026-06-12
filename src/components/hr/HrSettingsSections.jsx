@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useHrListLoad } from '../../hooks/useHrListLoad';
 import { apiFetch } from '../../lib/apiBase';
-import { canManageHrSettings } from '../../lib/hrAccess';
+import { canEditPensionPolicyRates, canManageHrSettings } from '../../lib/hrAccess';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { HrAddFormButton, HrFormModal } from './HrFormModal';
 import { HR_BTN_PRIMARY, HR_FIELD_CLASS } from './hrFormStyles';
@@ -90,6 +90,8 @@ export function HrPublicHolidaysSection({ embedded = false }) {
 
 /** Editable pension and year-end bonus rates (stored in HR policy config). */
 export function HrPensionPolicySection() {
+  const ws = useWorkspace();
+  const canEditPension = canEditPensionPolicyRates(ws?.permissions);
   const [policy, setPolicy] = useState(null);
   const [employeePct, setEmployeePct] = useState('8');
   const [employerPct, setEmployerPct] = useState('10');
@@ -137,7 +139,7 @@ export function HrPensionPolicySection() {
   return (
     <HrCard
       title="Pension & year-end bonus"
-      subtitle="Company-wide rates for branch staff payroll. PAYE is set per branch employee profile. Domestic and other cohorts are exempt."
+      subtitle="Company-wide pension rates (HR Executive). Applied automatically to eligible branch staff on payroll. PAYE is a fixed monthly ₦ amount per staff profile."
     >
       {error ? <div className="mb-3 rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-sm text-red-800">{error}</div> : null}
       {message ? <div className="mb-3 rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-2 text-sm text-emerald-900">{message}</div> : null}
@@ -151,7 +153,8 @@ export function HrPensionPolicySection() {
             step="0.1"
             value={employeePct}
             onChange={(e) => setEmployeePct(e.target.value)}
-            className="mt-1 block w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
+            disabled={!canEditPension}
+            className="mt-1 block w-full rounded-xl border border-slate-200 px-3 py-2 text-sm disabled:bg-slate-50"
           />
         </label>
         <label className="text-xs font-semibold text-slate-600">
@@ -163,7 +166,8 @@ export function HrPensionPolicySection() {
             step="0.1"
             value={employerPct}
             onChange={(e) => setEmployerPct(e.target.value)}
-            className="mt-1 block w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
+            disabled={!canEditPension}
+            className="mt-1 block w-full rounded-xl border border-slate-200 px-3 py-2 text-sm disabled:bg-slate-50"
           />
         </label>
         <label className="text-xs font-semibold text-slate-600">
@@ -182,14 +186,15 @@ export function HrPensionPolicySection() {
       <p className="mt-3 text-xs text-slate-500">
         Employer pension is an employer cost (not deducted from staff net pay). December runs auto-apply the year-end bonus.
         {policy ? ` Current: ${policy.pensionEmployeePercent}% employee / ${policy.pensionEmployerPercent}% employer.` : ''}
+        {!canEditPension ? ' Pension rate changes require HR Executive access.' : ''}
       </p>
       <button
         type="button"
         onClick={save}
-        disabled={saving}
+        disabled={saving || !canEditPension}
         className="mt-4 rounded-xl bg-[#134e4a] px-4 py-2.5 text-[11px] font-bold uppercase text-white disabled:opacity-60"
       >
-        {saving ? 'Saving…' : 'Save rates'}
+        {saving ? 'Saving…' : canEditPension ? 'Save rates' : 'Executive access required'}
       </button>
     </HrCard>
   );

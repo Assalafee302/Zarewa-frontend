@@ -60,6 +60,17 @@ export function canAccessExecutiveBenefits(permissions) {
   );
 }
 
+/** Company-wide pension rates — HR Executive / settings admin only. */
+export function canEditPensionPolicyRates(permissions) {
+  if (hasPermissionInList(permissions, '*')) return true;
+  return (
+    hrHasPermission(permissions, 'hr.executive.benefits.manage') ||
+    hrHasPermission(permissions, 'hr.chairman.manage') ||
+    hrHasPermission(permissions, 'hr.payroll.md_approve') ||
+    hrHasPermission(permissions, 'hr.settings.manage')
+  );
+}
+
 /** Executive-only keys — do not unlock main HR admin workspace (Phase 10). */
 export const HR_EXECUTIVE_ONLY_PERMISSIONS = ['hr.executive.view', 'hr.payroll.md_approve'];
 

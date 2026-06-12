@@ -32,6 +32,7 @@ import {
   userMayViewAp3CostingReadinessClient,
 } from '../lib/financeTrialExceptionsAccess';
 import { Ap3CostingReadinessPanel } from '../components/finance/Ap3CostingReadinessPanel';
+import { FinancePayrollPaymentsPanel } from '../components/finance/FinancePayrollPaymentsPanel';
 
 function defaultPeriodRange() {
   const now = new Date();
@@ -46,6 +47,7 @@ function defaultPeriodRange() {
 
 const TABS = [
   { id: 'overview', label: 'Overview' },
+  { id: 'payroll', label: 'Payroll payments' },
   { id: 'reconciliation', label: 'Reconciliation' },
   { id: 'reports', label: 'Reports' },
   { id: 'ap1c', label: 'Receipt & production' },
@@ -203,6 +205,8 @@ export default function AccountingDesk() {
             ) : null}
           </section>
         ) : null}
+
+        {tab === 'payroll' ? <FinancePayrollPaymentsPanel /> : null}
 
         {tab === 'reports' ? (
           <AccountingDeskReports

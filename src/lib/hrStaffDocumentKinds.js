@@ -5,11 +5,14 @@ export const HR_STAFF_DOC_KINDS = [
   { value: 'fslc', label: 'FSLC (First School Leaving Certificate)' },
   { value: 'secondary_certificate', label: 'Secondary school certificate (WAEC/NECO)' },
   { value: 'tertiary_qualification', label: 'Degree / ND / HND / professional qualification' },
-  { value: 'guarantor_form', label: 'Guarantor form(s)' },
+  { value: 'guarantor_form', label: 'Guarantor form(s)', downloadableTemplate: true },
+  { value: 'employment_letter', label: 'Employment / offer letter (signed copy)' },
   { value: 'nin_slip', label: 'NIN slip / NIN card' },
 ];
 
-export const HR_REQUIRED_DOC_KINDS = HR_STAFF_DOC_KINDS.map((d) => d.value);
+export const HR_REQUIRED_DOC_KINDS = HR_STAFF_DOC_KINDS.filter((d) => d.value !== 'employment_letter').map(
+  (d) => d.value
+);
 
 /** @param {string} kind */
 export function hrStaffDocKindLabel(kind) {
@@ -30,5 +33,8 @@ export const CRITICAL_MISSING_LABELS = {
   'doc:secondary_certificate': 'Secondary certificate',
   'doc:tertiary_qualification': 'Tertiary qualification',
   'doc:guarantor_form': 'Guarantor form',
+  'doc:employment_letter': 'Employment letter',
   'doc:nin_slip': 'NIN slip',
 };
+
+export const GUARANTOR_FORM_TEMPLATE_URL = '/api/hr/templates/guarantor-form';

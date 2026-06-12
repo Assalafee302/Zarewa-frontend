@@ -12,6 +12,7 @@ import {
   uploadHrStaffPassportPhoto,
   verifyHrStaffDocument,
 } from '../../lib/hrStaffDocuments';
+import { GUARANTOR_FORM_TEMPLATE_URL } from '../../lib/hrStaffDocumentKinds';
 import { HrFormModal } from './HrFormModal';
 import { HR_BTN_PRIMARY, HR_BTN_SECONDARY, HR_FIELD_CLASS } from './hrFormStyles';
 
@@ -330,6 +331,15 @@ export function HrStaffDocumentsPanel({
                         </button>
                       ) : null}
                     </>
+                  ) : null}
+                  {canEdit && kind.value === 'guarantor_form' ? (
+                    <a
+                      href={GUARANTOR_FORM_TEMPLATE_URL}
+                      download="Zarewa-Guarantor-Form.txt"
+                      className="inline-flex items-center gap-1 rounded-lg border border-violet-200 bg-violet-50 px-3 py-1.5 text-[10px] font-bold uppercase text-violet-800"
+                    >
+                      <Download size={12} aria-hidden /> Download blank form
+                    </a>
                   ) : null}
                   {canEdit ? (
                     <div className="flex flex-wrap items-center gap-2">

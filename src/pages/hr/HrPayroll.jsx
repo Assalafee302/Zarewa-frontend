@@ -8,17 +8,13 @@ import { useHrListLoad } from '../../hooks/useHrListLoad';
 import {
   canExportPayroll,
   canGmApprovePayroll,
-  canMdApprovePayroll,
   canPayPayroll,
   canPreparePayroll,
   canViewOrgSensitiveHr,
 } from '../../lib/hrAccess';
 import { formatNgn } from '../../lib/hrFormat';
 import { downloadHrPayrollExport, formatPeriodYyyymm, payrollStatusTone } from '../../lib/hrPayroll';
-import { HrPayrollControlPanel } from '../../components/hr/HrPayrollControlPanel';
 import { currentPeriodYyyymm } from '../../lib/hrRequests';
-import { hrEmployeeProfilePath } from '../../lib/hrRoutes';
-import { Link } from 'react-router-dom';
 import {
   AppTable,
   AppTableBody,
@@ -28,15 +24,6 @@ import {
   AppTableTr,
   AppTableWrap,
 } from '../../components/ui/AppDataTable';
-
-function StatCard({ label, value }) {
-  return (
-    <div className="rounded-xl border border-slate-100 bg-white px-3 py-3 shadow-sm">
-      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">{label}</p>
-      <p className="mt-1 text-lg font-black tabular-nums">{value}</p>
-    </div>
-  );
-}
 
 function VarianceModal({ runId, onClose }) {
   const [alerts, setAlerts] = useState(null);
@@ -106,7 +93,6 @@ export default function HrPayroll({ embedded = false } = {}) {
   const showSensitiveInline = canViewOrgSensitiveHr(perms);
   const canPrepare = canPreparePayroll(perms);
   const canGm = canGmApprovePayroll(perms);
-  const canMd = canMdApprovePayroll(perms);
   const canPay = canPayPayroll(perms);
   const canExport = canExportPayroll(perms);
 
@@ -117,8 +103,8 @@ export default function HrPayroll({ embedded = false } = {}) {
   const [run, setRun] = useState(null);
   const [totals, setTotals] = useState(null);
   const [lines, setLines] = useState([]);
-  const [previewMode, setPreviewMode] = useState(true);
   const [message, setMessage] = useState('');
+  const [adjustingPaye, setAdjustingPaye] = useState(null);
   const [newPeriod, setNewPeriod] = useState(currentPeriodYyyymm());
   const [policyRates, setPolicyRates] = useState(null);
 
@@ -194,9 +180,6 @@ export default function HrPayroll({ embedded = false } = {}) {
     setError('');
     const parts = [`Payroll run created with ${data.headcount ?? 0} staff.`];
     if (data.yearEndBonusApplied) parts.push('December year-end bonus applied.');
-    if (data.missingPayeCount > 0) {
-      parts.push(`${data.missingPayeCount} staff missing PAYE % — set on employee profiles before lock.`);
-    }
     setMessage(parts.join(' '));
     if (data.id) setSelectedId(data.id);
     await loadRuns();
@@ -222,16 +205,6 @@ export default function HrPayroll({ embedded = false } = {}) {
     }
   };
 
-  const mdApprove = async () => {
-    if (!selectedId || !canMd) return;
-    const ok = await act(`/api/hr/payroll-runs/${encodeURIComponent(selectedId)}/md-approve`, 'POST');
-    if (ok) {
-      setMessage('MD approval recorded.');
-      await loadRuns();
-      await loadRunDetail();
-    }
-  };
-
   const patchStatus = async (status) => {
     if (!selectedId) return;
     const ok = await act(`/api/hr/payroll-runs/${encodeURIComponent(selectedId)}`, 'PATCH', { status });
@@ -242,9 +215,23 @@ export default function HrPayroll({ embedded = false } = {}) {
     }
   };
 
+  const savePayeAdjustment = async (userId, taxNgn) => {
+    if (!selectedId || !canPrepare) return;
+    setAdjustingPaye(userId);
+    const { ok, data } = await apiFetch(
+      `/api/hr/payroll-runs/${encodeURIComponent(selectedId)}/lines/${encodeURIComponent(userId)}`,
+      { method: 'PATCH', body: JSON.stringify({ taxNgn: Number(taxNgn) || 0 }) }
+    );
+    setAdjustingPaye(null);
+    if (!ok || !data?.ok) {
+      setError(data?.error || 'Could not save PAYE adjustment.');
+      return;
+    }
+    await loadRunDetail();
+  };
+
   const tone = payrollStatusTone(run?.status);
   const isDecemberRun = String(run?.periodYyyymm || '').endsWith('12');
-  const missingPaye = totals?.missingPayeStaff || [];
   const toneCls =
     tone === 'emerald'
       ? 'border-emerald-200 bg-emerald-50 text-emerald-900'
@@ -252,106 +239,108 @@ export default function HrPayroll({ embedded = false } = {}) {
         ? 'border-blue-200 bg-blue-50 text-blue-900'
         : 'border-amber-200 bg-amber-50 text-amber-900';
 
+  const loanFor = (l) =>
+    l.loanDeductionNgn != null
+      ? Number(l.loanDeductionNgn)
+      : (l.loanDeductions || []).reduce((s, x) => s + (Number(x.amountNgn) || 0), 0);
+
   const linesBody = (
-    <div className="space-y-4">
+    <div className="space-y-3">
       {totals && !totals.amountsRedacted ? (
-        <>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
-            <StatCard label="Staff" value={totals.headcount} />
-            <StatCard label="Gross total" value={formatNgn(totals.grossTotalNgn)} />
-            <StatCard label="Bonus total" value={formatNgn(totals.bonusTotalNgn)} />
-            <StatCard label="Net total" value={formatNgn(totals.netTotalNgn)} />
-            <StatCard label="PAYE total" value={formatNgn(totals.taxTotalNgn)} />
-            <StatCard label="Pension (staff)" value={formatNgn(totals.pensionTotalNgn)} />
-          </div>
-          {totals.grossTotalNgn != null ? (() => {
-            const gross = Number(totals.grossTotalNgn) || 0;
-            const pensionEr = Number(totals.pensionEmployerTotalNgn) || Number(run?.pensionEmployerTotalNgn) || 0;
-            const itf = gross * 0.01;
-            const nsitf = gross * 0.01;
-            const totalEmployerCost = gross + pensionEr + itf + nsitf;
-            return (
-              <div className="rounded-xl border border-amber-100 bg-amber-50/60 p-4 space-y-2">
-                <p className="text-[10px] font-black uppercase tracking-widest text-amber-700 mb-2">Employer statutory costs</p>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-slate-600">
-                    Pension (employer — {run?.pensionEmployerPercent ?? policyRates?.pensionEmployerPercent ?? 10}%)
-                  </span>
-                  <span className="font-semibold text-amber-800 tabular-nums">{formatNgn(pensionEr)}</span>
-                </div>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-slate-600">ITF (Employer — 1%)</span>
-                  <span className="font-semibold text-amber-800 tabular-nums">{formatNgn(itf)}</span>
-                </div>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-slate-600">NSITF (Employer — 1%)</span>
-                  <span className="font-semibold text-amber-800 tabular-nums">{formatNgn(nsitf)}</span>
-                </div>
-                <div className="flex items-center justify-between text-sm border-t border-amber-200 pt-2 mt-2">
-                  <span className="font-black text-teal-800">Total Employer Cost</span>
-                  <span className="font-black text-teal-800 tabular-nums">{formatNgn(totalEmployerCost)}</span>
-                </div>
-                <p className="text-[11px] text-slate-500">
-                  Employer pension, ITF and NSITF are employer costs — not deducted from staff net pay. Edit pension rates under Payroll → Statutory.
-                </p>
-              </div>
-            );
-          })() : null}
-        </>
+        <p className="text-xs text-slate-600 tabular-nums">
+          <span className="font-semibold text-slate-800">{totals.headcount}</span> staff · Gross{' '}
+          <span className="font-semibold">{formatNgn(totals.grossTotalNgn)}</span>
+          {totals.bonusTotalNgn > 0 ? <> · Bonus {formatNgn(totals.bonusTotalNgn)}</> : null} · Net{' '}
+          <span className="font-semibold text-teal-800">{formatNgn(totals.netTotalNgn)}</span>
+        </p>
       ) : null}
       <AppTableWrap>
-        <AppTable role="numeric">
+        <AppTable role="numeric" className="text-xs">
           <AppTableThead>
             <AppTableTh>Employee</AppTableTh>
-            <AppTableTh align="right">PAYE %</AppTableTh>
             <AppTableTh align="right">Gross</AppTableTh>
             <AppTableTh align="right">Bonus</AppTableTh>
-            <AppTableTh align="right">Loans</AppTableTh>
+            <AppTableTh align="right">Attendance</AppTableTh>
+            <AppTableTh align="right">PAYE (₦)</AppTableTh>
             <AppTableTh align="right">Pension</AppTableTh>
+            <AppTableTh align="right">Loans</AppTableTh>
+            <AppTableTh align="right">Other</AppTableTh>
             <AppTableTh align="right">Net</AppTableTh>
           </AppTableThead>
           <AppTableBody>
             {lines.length === 0 ? (
               <AppTableTr>
-                <AppTableTd colSpan={7} align="center">
+                <AppTableTd colSpan={9} align="center">
                   <span className="text-slate-500 py-4 block">
                     {run?.status === 'draft' ? 'No active staff on payroll. Add staff or click Recompute.' : 'No lines.'}
                   </span>
                 </AppTableTd>
               </AppTableTr>
             ) : (
-              lines.map((l) => (
-                <AppTableTr key={l.userId} className={l.payeMissing ? 'bg-red-50/40' : undefined}>
-                  <AppTableTd>
-                    <span className="font-medium">{l.displayName || l.userId}</span>
-                    {l.payeMissing ? (
-                      <span className="ml-2 inline-flex rounded-full border border-red-200 bg-red-50 px-2 py-0.5 text-[10px] font-bold text-red-800">
-                        Missing PAYE
-                      </span>
-                    ) : null}
-                  </AppTableTd>
-                  <AppTableTd align="right">
-                    {l.amountsRedacted ? '—' : l.payePercent != null ? `${l.payePercent}%` : '—'}
-                  </AppTableTd>
-                  <AppTableTd align="right">
-                    {l.amountsRedacted ? '—' : formatNgn(l.grossNgn)}
-                  </AppTableTd>
-                  <AppTableTd align="right">
-                    {l.amountsRedacted ? '—' : formatNgn(l.bonusNgn)}
-                  </AppTableTd>
-                  <AppTableTd align="right">
-                    {l.amountsRedacted
-                      ? '—'
-                      : formatNgn(
-                          (l.loanDeductions || []).reduce((s, x) => s + (Number(x.amountNgn) || 0), 0)
-                        )}
-                  </AppTableTd>
-                  <AppTableTd align="right">
-                    {l.amountsRedacted ? '—' : formatNgn(l.pensionNgn)}
-                  </AppTableTd>
-                  <AppTableTd align="right">{l.amountsRedacted ? '—' : formatNgn(l.netNgn)}</AppTableTd>
-                </AppTableTr>
-              ))
+              <>
+                {lines.map((l) => (
+                  <AppTableTr key={l.userId}>
+                    <AppTableTd>
+                      <span className="font-medium">{l.displayName || l.userId}</span>
+                    </AppTableTd>
+                    <AppTableTd align="right">{l.amountsRedacted ? '—' : formatNgn(l.grossNgn)}</AppTableTd>
+                    <AppTableTd align="right">{l.amountsRedacted ? '—' : formatNgn(l.bonusNgn)}</AppTableTd>
+                    <AppTableTd align="right">
+                      {l.amountsRedacted ? '—' : formatNgn(l.attendanceDeductionNgn)}
+                    </AppTableTd>
+                    <AppTableTd align="right">
+                      {l.amountsRedacted ? (
+                        '—'
+                      ) : run?.status === 'draft' && canPrepare ? (
+                        <input
+                          type="number"
+                          min={0}
+                          step={1}
+                          defaultValue={Math.round(Number(l.taxNgn) || 0)}
+                          disabled={adjustingPaye === l.userId}
+                          onBlur={(e) => {
+                            const v = Math.round(Number(e.target.value) || 0);
+                            if (v !== Math.round(Number(l.taxNgn) || 0)) savePayeAdjustment(l.userId, v);
+                          }}
+                          className="w-24 rounded border border-slate-200 px-2 py-1 text-right text-xs"
+                        />
+                      ) : (
+                        formatNgn(l.taxNgn)
+                      )}
+                    </AppTableTd>
+                    <AppTableTd align="right">{l.amountsRedacted ? '—' : formatNgn(l.pensionNgn)}</AppTableTd>
+                    <AppTableTd align="right">{l.amountsRedacted ? '—' : formatNgn(loanFor(l))}</AppTableTd>
+                    <AppTableTd align="right">
+                      {l.amountsRedacted ? '—' : formatNgn(l.disciplinaryOtherDeductionNgn ?? 0)}
+                    </AppTableTd>
+                    <AppTableTd align="right" className="font-semibold">
+                      {l.amountsRedacted ? '—' : formatNgn(l.netNgn)}
+                    </AppTableTd>
+                  </AppTableTr>
+                ))}
+                {totals && !totals.amountsRedacted ? (
+                  <AppTableTr className="bg-slate-50 font-bold">
+                    <AppTableTd>Totals</AppTableTd>
+                    <AppTableTd align="right">{formatNgn(totals.grossTotalNgn)}</AppTableTd>
+                    <AppTableTd align="right">{formatNgn(totals.bonusTotalNgn)}</AppTableTd>
+                    <AppTableTd align="right">{formatNgn(totals.attendanceDeductionTotalNgn)}</AppTableTd>
+                    <AppTableTd align="right">{formatNgn(totals.taxTotalNgn)}</AppTableTd>
+                    <AppTableTd align="right">{formatNgn(totals.pensionTotalNgn)}</AppTableTd>
+                    <AppTableTd align="right">
+                      {formatNgn(lines.reduce((s, l) => s + (l.amountsRedacted ? 0 : loanFor(l)), 0))}
+                    </AppTableTd>
+                    <AppTableTd align="right">
+                      {formatNgn(
+                        lines.reduce(
+                          (s, l) => s + (l.amountsRedacted ? 0 : Number(l.disciplinaryOtherDeductionNgn) || 0),
+                          0
+                        )
+                      )}
+                    </AppTableTd>
+                    <AppTableTd align="right">{formatNgn(totals.netTotalNgn)}</AppTableTd>
+                  </AppTableTr>
+                ) : null}
+              </>
             )}
           </AppTableBody>
         </AppTable>
@@ -363,21 +352,20 @@ export default function HrPayroll({ embedded = false } = {}) {
     <div className="space-y-6">
       {!embedded ? (
         <p className="text-sm text-slate-600">
-          Monthly payroll for branch staff only. Scholarship, mining, HQ special, and domestic staff are paid through
-          their own HR tracks — not this run. PAYE % is set on each branch employee profile. Pension rates are under
-          Payroll → Statutory.
+          Branch staff monthly payroll. PAYE is a fixed ₦ amount per staff (profile or adjust on draft lines). Print the
+          GM approval report before sign-off — MD approval is not required.
         </p>
       ) : null}
 
-      <div className="flex flex-wrap gap-1 border-b border-slate-200 pb-px">
-        <button
-          type="button"
-          onClick={() => setTab('runs')}
-          className={`rounded-t-lg px-3 py-2 text-xs font-bold uppercase ${tab === 'runs' ? 'border border-b-white bg-white text-[#134e4a]' : 'text-slate-500'}`}
-        >
-          Payroll runs
-        </button>
-        {canPrepare && !embedded ? (
+      {!embedded && canPrepare ? (
+        <div className="flex flex-wrap gap-1 border-b border-slate-200 pb-px">
+          <button
+            type="button"
+            onClick={() => setTab('runs')}
+            className={`rounded-t-lg px-3 py-2 text-xs font-bold uppercase ${tab === 'runs' ? 'border border-b-white bg-white text-[#134e4a]' : 'text-slate-500'}`}
+          >
+            Payroll runs
+          </button>
           <button
             type="button"
             onClick={() => setTab('matrix')}
@@ -385,12 +373,12 @@ export default function HrPayroll({ embedded = false } = {}) {
           >
             Salary matrix
           </button>
-        ) : null}
-      </div>
+        </div>
+      ) : null}
 
-      {tab === 'matrix' ? <HrSalaryMatrixPanel /> : null}
+      {tab === 'matrix' && !embedded ? <HrSalaryMatrixPanel /> : null}
 
-      {tab === 'runs' ? (
+      {tab === 'runs' || embedded ? (
         <>
           {error ? (
             <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-800">{error}</div>
@@ -419,7 +407,7 @@ export default function HrPayroll({ embedded = false } = {}) {
                 Create payroll run
               </button>
               <p className="w-full text-xs text-slate-500">
-                Branch staff only · PAYE from profiles · pension from Statutory · December = year-end bonus.
+                Branch staff only · PAYE manual per profile · pension from company policy · December = year-end bonus.
               </p>
             </div>
           ) : null}
@@ -450,66 +438,35 @@ export default function HrPayroll({ embedded = false } = {}) {
                     {formatPeriodYyyymm(run.periodYyyymm)} · {run.status}
                   </p>
                   <p className="mt-1 text-xs">
-                    GM HR: {run.gmApprovedAtIso ? 'Approved' : 'Pending'} · MD:{' '}
-                    {run.mdApprovedAtIso ? 'Approved' : 'Pending'}
-                    {' · '}
-                    Pension: {run.pensionPercent ?? policyRates?.pensionEmployeePercent ?? 8}% staff /{' '}
-                    {run.pensionEmployerPercent ?? policyRates?.pensionEmployerPercent ?? 10}% employer
+                    GM HR: {run.gmApprovedAtIso ? 'Approved' : 'Pending sign-off'}
+                    {isDecemberRun
+                      ? ` · December bonus (${Math.round((policyRates?.halfMonthBonusRate ?? 0.5) * 100)}% of base)`
+                      : ''}
                   </p>
-                  {isDecemberRun ? (
-                    <p className="mt-1 text-xs font-semibold text-teal-800">
-                      December run — year-end bonus ({Math.round((policyRates?.halfMonthBonusRate ?? 0.5) * 100)}% of base) included.
-                    </p>
-                  ) : null}
                 </div>
 
-                {missingPaye.length > 0 ? (
-                  <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900">
-                    <p className="font-bold">{missingPaye.length} staff missing PAYE % — payroll cannot be locked until fixed.</p>
-                    <ul className="mt-2 space-y-1 text-xs">
-                      {missingPaye.slice(0, 8).map((s) => (
-                        <li key={s.userId}>
-                          <Link to={hrEmployeeProfilePath(s.userId)} className="font-semibold underline">
-                            {s.displayName || s.userId}
-                          </Link>
-                        </li>
-                      ))}
-                      {missingPaye.length > 8 ? <li>…and {missingPaye.length - 8} more</li> : null}
-                    </ul>
-                  </div>
-                ) : null}
-
-                {run.status === 'draft' && previewMode ? (
-                  <p className="text-xs font-semibold text-amber-800 rounded-lg border border-amber-100 bg-amber-50 px-3 py-2">
-                    Recompute refreshes branch staff lines from profiles, loans, and attendance.
-                  </p>
-                ) : null}
-
-                <label className="flex items-center gap-2 text-xs font-semibold text-slate-600">
-                  <input
-                    type="checkbox"
-                    checked={previewMode}
-                    onChange={(e) => setPreviewMode(e.target.checked)}
-                  />
-                  Preview mode (draft)
-                </label>
-
-                {run.status === 'draft' && canPrepare ? (
-                  <div className="flex flex-wrap gap-2 items-center">
+                <div className="flex flex-wrap gap-2 items-center">
+                  {run.status === 'draft' && canPrepare ? (
                     <button
                       type="button"
                       onClick={recompute}
                       className="rounded-lg bg-[#134e4a] px-3 py-1.5 text-[10px] font-bold uppercase text-white"
                     >
-                      Recompute all staff
+                      Recompute
                     </button>
-                    <span className="text-xs text-slate-500">
-                      Branch staff only · PAYE per profile · pension in Statutory · loans & attendance automatic
-                    </span>
-                  </div>
-                ) : null}
-
-                <div className="flex flex-wrap gap-2">
+                  ) : null}
+                  {(canPrepare || canExport) && run.status === 'draft' ? (
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        const r = await downloadHrPayrollExport(selectedId, 'approval-report');
+                        if (!r.ok) setError(r.error);
+                      }}
+                      className="rounded-lg border border-[#134e4a] bg-white px-3 py-1.5 text-[10px] font-bold uppercase text-[#134e4a]"
+                    >
+                      Print GM approval report
+                    </button>
+                  ) : null}
                   <button
                     type="button"
                     onClick={() => setVarianceModalOpen(true)}
@@ -526,16 +483,7 @@ export default function HrPayroll({ embedded = false } = {}) {
                       GM HR approve
                     </button>
                   ) : null}
-                  {canMd && run.status === 'draft' && !run.mdApprovedAtIso ? (
-                    <button
-                      type="button"
-                      onClick={mdApprove}
-                      className="rounded-lg border border-slate-200 px-3 py-1.5 text-[10px] font-bold uppercase text-[#134e4a]"
-                    >
-                      MD approve
-                    </button>
-                  ) : null}
-                  {canPrepare && run.status === 'draft' && (run.gmApprovedAtIso || run.mdApprovedAtIso) ? (
+                  {canPrepare && run.status === 'draft' && run.gmApprovedAtIso ? (
                     <button
                       type="button"
                       onClick={() => patchStatus('locked')}
@@ -562,50 +510,19 @@ export default function HrPayroll({ embedded = false } = {}) {
                       Mark paid
                     </button>
                   ) : null}
+                  {(run.status === 'locked' || run.status === 'paid') && (canExport || canPay) ? (
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        const r = await downloadHrPayrollExport(selectedId, 'bank-upload');
+                        if (!r.ok) setError(r.error);
+                      }}
+                      className="rounded-lg border border-slate-200 px-3 py-1.5 text-[10px] font-bold uppercase text-[#134e4a]"
+                    >
+                      Bank payment file
+                    </button>
+                  ) : null}
                 </div>
-
-                {(run.status === 'locked' || run.status === 'paid' || run.status === 'md_approved' || run.status === 'gm_approved') && canExport ? (
-                  <div className="space-y-2">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Payroll exports</p>
-                    <div className="flex flex-wrap gap-2">
-                      {[
-                        { k: 'hr-approval', label: 'HR approval report' },
-                        { k: 'bank-upload', label: 'Bank upload CSV' },
-                        { k: 'treasury', label: 'Treasury pack' },
-                        { k: 'payslips', label: 'Payslips CSV' },
-                        { k: 'payslips-pdf', label: 'Payslips PDF' },
-                        { k: 'statutory', label: 'Statutory' },
-                        { k: 'gl', label: 'GL journal' },
-                      ].map(({ k, label }) => (
-                        <button
-                          key={k}
-                          type="button"
-                          title={k === 'bank-upload' ? 'Requires full bank account numbers on staff profiles' : undefined}
-                          onClick={async () => {
-                            const r = await downloadHrPayrollExport(selectedId, k);
-                            if (!r.ok) { setError(r.error); return; }
-                            if (k === 'bank-upload') {
-                              const t = await apiFetch(`/api/hr/payroll-runs/${encodeURIComponent(selectedId)}/reconciliation`);
-                              if (t.ok && t.data?.ok) {
-                                await apiFetch(`/api/hr/payroll-runs/${encodeURIComponent(selectedId)}/bank-export-record`, {
-                                  method: 'POST',
-                                  body: JSON.stringify({ totalNgn: t.data.payrollTotalNgn }),
-                                });
-                              }
-                            }
-                          }}
-                          className="rounded-lg border border-slate-200 px-3 py-1.5 text-[10px] font-bold uppercase text-[#134e4a] hover:bg-slate-50"
-                        >
-                          {label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                ) : null}
-
-                {selectedId ? (
-                  <HrPayrollControlPanel runId={selectedId} canManage={canPrepare || canGm || canMd} />
-                ) : null}
 
                 {showSensitiveInline ? (
                   linesBody

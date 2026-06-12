@@ -57,7 +57,7 @@ export function HrProfileCompleteness({ completeness, staffBasePath, userId, onF
               {s.pct < 100 && onFixSection && s.fixTab ? (
                 <button
                   type="button"
-                  className="font-bold text-[#134e4a] hover:underline"
+                  className="min-h-10 rounded-lg px-3 py-1.5 font-bold text-[#134e4a] hover:bg-teal-50 active:bg-teal-100"
                   onClick={() => onFixSection(s.fixTab)}
                 >
                   Fix

@@ -6,6 +6,7 @@ import { hrRequestStatusClass } from '../../lib/hrFormat';
 import { HR_ATTENDANCE, HR_DEVELOPMENT, HR_DISCIPLINE_EXIT, HR_DOCUMENTS, HR_EMPLOYEES, HR_PAYROLL, HR_REQUESTS, hrTabPath } from '../../lib/hrRoutes';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { HrKpiCard } from '../../components/hr/HrKpiCard';
+import { HrProfileWorkPanel } from '../../components/hr/HrProfileWorkPanel';
 import {
   AppTable,
   AppTableBody,
@@ -332,6 +333,7 @@ export default function HrDashboard() {
   const [staffCounts, setStaffCounts] = useState(null);
   const [recentRequests, setRecentRequests] = useState([]);
   const [alerts, setAlerts] = useState(null);
+  const [profileWorkQueue, setProfileWorkQueue] = useState(null);
 
   const { loading, error } = useHrListLoad(async () => {
     const [dashRes, alertsRes] = await Promise.all([
@@ -344,12 +346,14 @@ export default function HrDashboard() {
       setStaffCounts(null);
       setRecentRequests([]);
       setAlerts(null);
+      setProfileWorkQueue(null);
       return { error: dashRes.data?.error || 'Could not load HR dashboard.', hasData: false };
     }
     setObs(dashRes.data.observability);
     setInbox(dashRes.data.inbox);
     setStaffCounts(dashRes.data.staffCounts);
     setRecentRequests(dashRes.data.recentRequests || []);
+    setProfileWorkQueue(dashRes.data.profileWorkQueue || null);
     if (alertsRes.ok && alertsRes.data?.ok) {
       setAlerts(alertsRes.data.alerts || alertsRes.data);
     } else {
@@ -454,6 +458,8 @@ export default function HrDashboard() {
           </div>
         </div>
       </section>
+
+      <HrProfileWorkPanel queue={profileWorkQueue} />
 
       {alerts !== null ? (
         <section>

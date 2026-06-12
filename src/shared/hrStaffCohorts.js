@@ -71,8 +71,30 @@ export function requiresEmployerPensionContribution(payrollGroup) {
   return isBranchEmployee(payrollGroup);
 }
 
+function parseProfileExtra(extra) {
+  if (!extra) return {};
+  if (typeof extra === 'object') return extra;
+  try {
+    return JSON.parse(String(extra));
+  } catch {
+    return {};
+  }
+}
+
+export function staffMeetsPensionPolicy(staff) {
+  if (!requiresEmployeePensionDeduction(staff?.payrollGroup)) return false;
+  const extra = parseProfileExtra(staff?.profileExtraJson ?? staff?.profileExtra);
+  if (extra?.statutory?.pensionExempt === true) return false;
+  return true;
+}
+
 export function isStatutoryPayrollExempt(payrollGroup) {
   return !isBranchEmployee(payrollGroup);
+}
+
+export function usesExecutiveBenefitsMonthlyPay(payrollGroup) {
+  const g = normalizePayrollGroup(payrollGroup);
+  return g === HR_PAYROLL_GROUPS.SCHOLARSHIP || g === HR_PAYROLL_GROUPS.DOMESTIC;
 }
 
 export function payrollGroupLabel(payrollGroup) {

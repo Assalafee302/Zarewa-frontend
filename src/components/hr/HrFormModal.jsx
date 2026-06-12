@@ -55,13 +55,12 @@ export function HrFormModal({
       closeDisabled={closeDisabled}
     >
       <div
-        className={`z-modal-panel w-full ${SIZE_CLASS[size] || SIZE_CLASS.lg} rounded-2xl border border-slate-100 bg-white p-6 shadow-xl max-h-[min(90vh,920px)] overflow-y-auto`}
+        className={`z-modal-panel w-full max-w-[min(100%,42rem)] ${SIZE_CLASS[size] || SIZE_CLASS.lg} rounded-2xl border border-slate-100 bg-white p-4 shadow-xl max-h-[min(92dvh,920px)] overflow-y-auto sm:p-6`}
         onInput={trackUnsaved ? captureEdited : undefined}
         onChange={trackUnsaved ? captureEdited : undefined}
       >
-        <h3 className="text-lg font-black text-[#134e4a] pr-10">{title}</h3>
-        {description ? <p className="mt-1 text-sm text-slate-600">{description}</p> : null}
-        <div className={description ? 'mt-5' : 'mt-4'}>{children}</div>
+        {description ? <p className="text-sm text-slate-600">{description}</p> : null}
+        <div className={description ? 'mt-5' : 'mt-1'}>{children}</div>
       </div>
     </ModalFrame>
   );

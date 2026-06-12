@@ -1,5 +1,4 @@
-import React, { Suspense } from 'react';
-import { lazyWithRetry } from '../../lib/lazyWithRetry';
+import React from 'react';
 import { useHrUrlTab } from '../../hooks/useHrUrlTab';
 import { HrTabbedPage } from '../../components/hr/HrTabbedPage';
 import { HrPolicyConfigSection } from '../../components/hr/HrSettingsSections';
@@ -8,13 +7,10 @@ import HrPayroll from './HrPayroll';
 import HrLoans from './HrLoans';
 import HrBenefits from './HrBenefits';
 
-const HrPayeTaxPension = lazyWithRetry(() => import('./HrPayeTaxPension'), { id: 'HrPayeTaxPension' });
-
 const TABS = [
   { id: 'payroll-runs', label: 'Payroll Runs' },
   { id: 'loans', label: 'Loans' },
   { id: 'benefits', label: 'Benefits' },
-  { id: 'tax-pension', label: 'Tax & Pension' },
   { id: 'salary-matrix', label: 'Salary Matrix' },
   { id: 'statutory', label: 'Pension & Statutory' },
 ];
@@ -25,7 +21,7 @@ export default function HrPayrollHub() {
   return (
     <HrTabbedPage
       title="Payroll, Loans & Benefits"
-      description="Branch staff payroll runs, loans, beneficiaries, tax/pension analytics, salary matrix, and statutory rates."
+      description="Branch staff payroll runs, loans, beneficiaries, salary matrix, and statutory pension rates."
       tabs={TABS}
       tab={tab}
       onTabChange={setTab}
@@ -33,11 +29,6 @@ export default function HrPayrollHub() {
       {tab === 'payroll-runs' ? <HrPayroll embedded /> : null}
       {tab === 'loans' ? <HrLoans embedded /> : null}
       {tab === 'benefits' ? <HrBenefits embedded /> : null}
-      {tab === 'tax-pension' ? (
-        <Suspense fallback={<p className="text-sm text-slate-600">Loading tax & pension…</p>}>
-          <HrPayeTaxPension embedded />
-        </Suspense>
-      ) : null}
       {tab === 'salary-matrix' ? (
         <div className="space-y-4">
           <p className="text-sm text-slate-600">Level and step amounts by payroll group — used for increments and promotions.</p>

@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { apiFetch } from '../../lib/apiBase';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { HrRequestsPanel } from '../../components/hr/HrRequestsPanel';
@@ -8,6 +9,7 @@ import { HrAddFormButton, HrFormModal } from '../../components/hr/HrFormModal';
 import { HrCard } from '../../components/hr/hrPageUi';
 import { formatNgn } from '../../lib/hrFormat';
 import { HR_BTN_PRIMARY, HR_FIELD_CLASS } from '../../components/hr/hrFormStyles';
+import { GUARANTOR_FORM_TEMPLATE_URL } from '../../lib/hrStaffDocumentKinds';
 
 export default function MyLoans({ staffLinkBase = '/my-profile' }) {
   const ws = useWorkspace();
@@ -21,29 +23,74 @@ export default function MyLoans({ staffLinkBase = '/my-profile' }) {
   const [expectedStartPeriod, setExpectedStartPeriod] = useState('');
   const [guarantorNote, setGuarantorNote] = useState('');
   const [termsAck, setTermsAck] = useState(false);
+  const [policyAck, setPolicyAck] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [schedule, setSchedule] = useState([]);
-  const [baseSalaryNgn, setBaseSalaryNgn] = useState(null);
+  const [loanPolicy, setLoanPolicy] = useState(null);
+  const [grossSalaryNgn, setGrossSalaryNgn] = useState(null);
+  const [hasGuarantorDoc, setHasGuarantorDoc] = useState(false);
 
   useEffect(() => {
     if (!userId) return;
     (async () => {
-      const [schedRes, meRes] = await Promise.all([
+      const [schedRes, meRes, docsRes] = await Promise.all([
         fetchStaffLoanSchedule(userId),
         apiFetch('/api/hr/me'),
+        apiFetch(`/api/hr/staff/${encodeURIComponent(userId)}/documents`),
       ]);
       if (schedRes.ok && schedRes.data?.ok) setSchedule(schedRes.data.schedule || []);
-      if (meRes.ok && meRes.data?.ok) setBaseSalaryNgn(meRes.data.hr?.baseSalaryNgn ?? null);
+      if (meRes.ok && meRes.data?.ok) {
+        const hr = meRes.data.hr || {};
+        setLoanPolicy(meRes.data.loanPolicy || null);
+        const gross =
+          (Number(hr.baseSalaryNgn) || 0) +
+          (Number(hr.housingAllowanceNgn) || 0) +
+          (Number(hr.transportAllowanceNgn) || 0);
+        setGrossSalaryNgn(gross > 0 ? gross : Number(hr.baseSalaryNgn) || null);
+      }
+      if (docsRes.ok && docsRes.data?.ok) {
+        setHasGuarantorDoc((docsRes.data.documents || []).some((d) => d.docKind === 'guarantor_form'));
+      }
     })();
   }, [userId, message]);
+
+  const policy = loanPolicy || {
+    loanMinServiceYears: 3,
+    loanMaxSalaryMonths: 4,
+    loanMaxRepaymentMonths: 4,
+  };
 
   const amount = Math.round(Number(amountNgn) || 0);
   const months = Math.round(Number(repaymentMonths) || 0);
   const minDeduction = months > 0 && amount > 0 ? Math.ceil(amount / months) : 0;
+  const maxLoanNgn =
+    grossSalaryNgn && policy.loanMaxSalaryMonths
+      ? Math.round(grossSalaryNgn * Number(policy.loanMaxSalaryMonths))
+      : null;
   const activeLoans = schedule.filter((l) => l.status === 'active' || l.outstandingNgn > 0);
-  const maxSuggested = baseSalaryNgn ? Math.round(baseSalaryNgn * 3) : null;
+  const deduction = Number(deductionPerMonthNgn) || minDeduction;
+
+  const policyErrors = useMemo(() => {
+    const errs = [];
+    if (amount > 0 && maxLoanNgn && amount > maxLoanNgn) {
+      errs.push(`Amount exceeds policy maximum of ${formatNgn(maxLoanNgn)} (${policy.loanMaxSalaryMonths}× gross salary).`);
+    }
+    if (months > Number(policy.loanMaxRepaymentMonths || 4)) {
+      errs.push(`Repayment cannot exceed ${policy.loanMaxRepaymentMonths} months.`);
+    }
+    if (amount > 0 && months > 0 && deduction < minDeduction) {
+      errs.push(`Monthly deduction must be at least ${formatNgn(minDeduction)} to repay in ${months} month(s).`);
+    }
+    if (activeLoans.length > 0) {
+      errs.push('You have an active loan. New applications require HR exceptional approval.');
+    }
+    if (!hasGuarantorDoc) {
+      errs.push('Upload a signed guarantor form under Documents before applying.');
+    }
+    return errs;
+  }, [amount, maxLoanNgn, months, policy, deduction, minDeduction, activeLoans.length, hasGuarantorDoc]);
 
   useEffect(() => {
     if (minDeduction > 0 && !deductionPerMonthNgn) setDeductionPerMonthNgn(String(minDeduction));
@@ -52,8 +99,12 @@ export default function MyLoans({ staffLinkBase = '/my-profile' }) {
   const submit = async (e) => {
     e.preventDefault();
     if (!userId) return;
-    if (!termsAck) {
-      setError('Please acknowledge the loan terms before submitting.');
+    if (!termsAck || !policyAck) {
+      setError('Acknowledge company loan policy and repayment terms.');
+      return;
+    }
+    if (policyErrors.length) {
+      setError(policyErrors[0]);
       return;
     }
     setBusy(true);
@@ -62,7 +113,7 @@ export default function MyLoans({ staffLinkBase = '/my-profile' }) {
     const created = await createHrLoanRequest(userId, {
       amountNgn: amount,
       repaymentMonths: months,
-      deductionPerMonthNgn: Number(deductionPerMonthNgn) || minDeduction,
+      deductionPerMonthNgn: deduction,
       purpose: purpose.trim(),
       expectedStartPeriod: expectedStartPeriod.trim() || null,
       guarantorNote: guarantorNote.trim() || null,
@@ -83,6 +134,7 @@ export default function MyLoans({ staffLinkBase = '/my-profile' }) {
     setAmountNgn('');
     setPurpose('');
     setTermsAck(false);
+    setPolicyAck(false);
     setModalOpen(false);
   };
 
@@ -91,7 +143,10 @@ export default function MyLoans({ staffLinkBase = '/my-profile' }) {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-[11px] font-black uppercase tracking-widest text-slate-500">Staff loans</h2>
-          <p className="mt-1 text-xs text-slate-600">Apply for a salary-backed loan — max 4-month repayment per policy.</p>
+          <p className="mt-1 text-xs text-slate-600">
+            Salary-backed loan — max {policy.loanMaxSalaryMonths}× gross salary, up to {policy.loanMaxRepaymentMonths}{' '}
+            months repayment, min {policy.loanMinServiceYears} years service.
+          </p>
         </div>
         <HrAddFormButton onClick={() => setModalOpen(true)}>Apply for loan</HrAddFormButton>
       </div>
@@ -100,11 +155,25 @@ export default function MyLoans({ staffLinkBase = '/my-profile' }) {
         <div className="rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">{message}</div>
       ) : null}
 
+      {!hasGuarantorDoc ? (
+        <div className="rounded-xl border border-violet-100 bg-violet-50 px-4 py-3 text-sm text-violet-950">
+          Download the{' '}
+          <a href={GUARANTOR_FORM_TEMPLATE_URL} download className="font-bold underline">
+            guarantor form
+          </a>
+          , have it signed, then{' '}
+          <Link to="/me/documents" className="font-bold underline">
+            upload it
+          </Link>{' '}
+          before applying.
+        </div>
+      ) : null}
+
       {activeLoans.length ? (
         <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-          You have {activeLoans.length} active loan(s) with total outstanding{' '}
-          <strong>{formatNgn(activeLoans.reduce((s, l) => s + (l.outstandingNgn || 0), 0))}</strong>.
-          New loans may require HR approval as exceptional.
+          Active loan outstanding:{' '}
+          <strong>{formatNgn(activeLoans.reduce((s, l) => s + (l.outstandingNgn || 0), 0))}</strong>. Contact HR for
+          exceptional top-up.
         </div>
       ) : null}
 
@@ -116,12 +185,12 @@ export default function MyLoans({ staffLinkBase = '/my-profile' }) {
               <HrCard key={loan.requestId} className="!p-4">
                 <p className="font-bold text-slate-900">{loan.title}</p>
                 <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
-                  <dt className="text-slate-500">Approved</dt><dd className="font-semibold tabular-nums">{formatNgn(loan.amountNgn)}</dd>
-                  <dt className="text-slate-500">Monthly</dt><dd className="font-semibold tabular-nums">{formatNgn(loan.monthlyDeductionNgn)}</dd>
-                  <dt className="text-slate-500">Months</dt><dd>{loan.repaymentMonths || '—'}</dd>
-                  <dt className="text-slate-500">Paid</dt><dd>{loan.monthsPaid ?? 0} mo</dd>
-                  <dt className="text-slate-500">Outstanding</dt><dd className="font-semibold text-[#134e4a]">{formatNgn(loan.outstandingNgn)}</dd>
-                  <dt className="text-slate-500">Status</dt><dd className="capitalize">{loan.status?.replace(/_/g, ' ')}</dd>
+                  <dt className="text-slate-500">Approved</dt>
+                  <dd className="font-semibold tabular-nums">{formatNgn(loan.amountNgn)}</dd>
+                  <dt className="text-slate-500">Monthly</dt>
+                  <dd className="font-semibold tabular-nums">{formatNgn(loan.monthlyDeductionNgn)}</dd>
+                  <dt className="text-slate-500">Outstanding</dt>
+                  <dd className="font-semibold text-[#134e4a]">{formatNgn(loan.outstandingNgn)}</dd>
                 </dl>
               </HrCard>
             ))}
@@ -129,32 +198,62 @@ export default function MyLoans({ staffLinkBase = '/my-profile' }) {
         </section>
       ) : null}
 
-      <HrFormModal isOpen={modalOpen} onClose={() => setModalOpen(false)} title="Apply for a staff loan" description="Salary-backed loan with payroll deduction. HR and GM approval required." size="lg">
+      <HrFormModal
+        isOpen={modalOpen}
+        onClose={() => setModalOpen(false)}
+        title="Apply for a staff loan"
+        description="Applications are validated against company loan policy before HR review."
+        size="lg"
+      >
         <form onSubmit={submit} className="space-y-4">
           {error ? <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-800">{error}</div> : null}
-          {maxSuggested ? (
-            <div className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-2 text-xs text-slate-600">
-              Policy guide: suggested max ~3× base salary ({formatNgn(maxSuggested)}). HR may approve exceptional amounts separately.
+          {maxLoanNgn ? (
+            <div className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-2 text-xs text-slate-700">
+              Policy maximum: <strong>{formatNgn(maxLoanNgn)}</strong> ({policy.loanMaxSalaryMonths}× gross{' '}
+              {grossSalaryNgn ? formatNgn(grossSalaryNgn) : 'salary'}). Min monthly deduction:{' '}
+              {minDeduction ? formatNgn(minDeduction) : '—'}.
             </div>
+          ) : null}
+          {policyErrors.length ? (
+            <ul className="rounded-xl border border-amber-100 bg-amber-50 px-3 py-2 text-xs text-amber-950 space-y-1">
+              {policyErrors.map((pe) => (
+                <li key={pe}>• {pe}</li>
+              ))}
+            </ul>
           ) : null}
           <div className="grid gap-4 sm:grid-cols-2">
             <label className="text-xs font-semibold text-slate-600">
               Requested amount (₦) *
-              <input type="number" min={1} className={HR_FIELD_CLASS} value={amountNgn} onChange={(e) => setAmountNgn(e.target.value)} required />
+              <input
+                type="number"
+                min={1}
+                max={maxLoanNgn || undefined}
+                className={HR_FIELD_CLASS}
+                value={amountNgn}
+                onChange={(e) => setAmountNgn(e.target.value)}
+                required
+              />
             </label>
             <label className="text-xs font-semibold text-slate-600">
               Repayment period *
               <select className={HR_FIELD_CLASS} value={repaymentMonths} onChange={(e) => setRepaymentMonths(e.target.value)} required>
-                <option value="1">1 month</option>
-                <option value="2">2 months</option>
-                <option value="3">3 months</option>
-                <option value="4">4 months</option>
+                {Array.from({ length: Number(policy.loanMaxRepaymentMonths) || 4 }, (_, i) => i + 1).map((m) => (
+                  <option key={m} value={String(m)}>
+                    {m} month{m === 1 ? '' : 's'}
+                  </option>
+                ))}
               </select>
             </label>
             <label className="text-xs font-semibold text-slate-600">
-              Est. monthly deduction (₦) *
-              <input type="number" min={minDeduction || 1} className={HR_FIELD_CLASS} value={deductionPerMonthNgn} onChange={(e) => setDeductionPerMonthNgn(e.target.value)} required />
-              {minDeduction > 0 ? <span className="mt-1 block text-[11px] font-normal text-slate-400">Minimum ₦{minDeduction.toLocaleString('en-NG')}/month</span> : null}
+              Monthly deduction (₦) *
+              <input
+                type="number"
+                min={minDeduction || 1}
+                className={HR_FIELD_CLASS}
+                value={deductionPerMonthNgn}
+                onChange={(e) => setDeductionPerMonthNgn(e.target.value)}
+                required
+              />
             </label>
             <label className="text-xs font-semibold text-slate-600">
               Deduction start period
@@ -162,18 +261,30 @@ export default function MyLoans({ staffLinkBase = '/my-profile' }) {
             </label>
             <label className="text-xs font-semibold text-slate-600 sm:col-span-2">
               Purpose *
-              <textarea className={`${HR_FIELD_CLASS} min-h-[72px]`} value={purpose} onChange={(e) => setPurpose(e.target.value)} required minLength={10} placeholder="Explain why you need this loan" />
+              <textarea className={`${HR_FIELD_CLASS} min-h-[72px]`} value={purpose} onChange={(e) => setPurpose(e.target.value)} required minLength={10} />
             </label>
             <label className="text-xs font-semibold text-slate-600 sm:col-span-2">
-              Guarantor / HR note (optional)
-              <input className={HR_FIELD_CLASS} value={guarantorNote} onChange={(e) => setGuarantorNote(e.target.value)} placeholder="Name of guarantor or additional context" />
+              Guarantor name(s)
+              <input className={HR_FIELD_CLASS} value={guarantorNote} onChange={(e) => setGuarantorNote(e.target.value)} placeholder="As on uploaded guarantor form" />
+            </label>
+            <label className="flex items-start gap-2 text-xs font-semibold text-slate-600 sm:col-span-2">
+              <input type="checkbox" className="mt-1" checked={policyAck} onChange={(e) => setPolicyAck(e.target.checked)} required />
+              <span>
+                I confirm I meet the service requirement ({policy.loanMinServiceYears}+ years), my amount is within policy
+                limits, and a signed guarantor form is on file.
+              </span>
             </label>
             <label className="flex items-start gap-2 text-xs font-semibold text-slate-600 sm:col-span-2">
               <input type="checkbox" className="mt-1" checked={termsAck} onChange={(e) => setTermsAck(e.target.checked)} required />
-              <span>I understand repayment will be deducted from my salary and that failure to repay may affect future loan eligibility.</span>
+              <span>
+                I authorise payroll deduction for the full repayment schedule. Default may affect future loan eligibility and
+                may involve guarantor recovery per company policy.
+              </span>
             </label>
           </div>
-          <button type="submit" disabled={busy || !termsAck} className={HR_BTN_PRIMARY}>{busy ? 'Submitting…' : 'Submit loan application'}</button>
+          <button type="submit" disabled={busy || !termsAck || !policyAck || policyErrors.length > 0} className={HR_BTN_PRIMARY}>
+            {busy ? 'Submitting…' : 'Submit loan application'}
+          </button>
         </form>
       </HrFormModal>
 
@@ -184,4 +295,3 @@ export default function MyLoans({ staffLinkBase = '/my-profile' }) {
     </div>
   );
 }
-

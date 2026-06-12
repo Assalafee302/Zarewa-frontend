@@ -506,7 +506,7 @@ export function WorkspaceProvider({ children }) {
       body: JSON.stringify(patch ?? {}),
     });
     if (!ok || !data?.ok) {
-      return { ok: false, error: data?.error || 'Could not update profile.' };
+      return { ok: false, error: data?.error || 'Could not update profile.', code: data?.code };
     }
     await refresh();
     return { ok: true, user: data.user };

@@ -604,7 +604,7 @@ export function HrStaffFormFields({
             <h3 className="text-sm font-black uppercase tracking-wide text-[#134e4a]">Tax, pension & NHIS</h3>
             <p className="mt-1 text-xs text-slate-500">
               {isBranchEmployee(form.payrollGroup)
-                ? 'PAYE and pension apply to branch staff on monthly payroll.'
+                ? 'Monthly PAYE deduction (₦) is entered manually per staff. Pension is deducted from payroll using company policy rates for eligible branch staff.'
                 : 'Domestic, scholarship, mining, and HQ special staff are not on branch payroll — no PAYE or pension deductions.'}
             </p>
           </div>
@@ -614,33 +614,22 @@ export function HrStaffFormFields({
                 <Field label="Tax ID / PAYE reference">
                   <input className={fieldCls} value={form.taxId} onChange={(e) => set('taxId', e.target.value)} />
                 </Field>
-                <Field label="PAYE % (required for branch payroll)">
+                <Field label="Monthly PAYE deduction (₦)">
                   <input
                     type="number"
                     min={0}
-                    step="0.1"
+                    step="1"
                     className={fieldCls}
-                    value={form.payeTaxPercent}
-                    onChange={(e) => set('payeTaxPercent', e.target.value)}
-                    placeholder="e.g. 7.5"
+                    value={form.payeTaxNgn}
+                    onChange={(e) => set('payeTaxNgn', e.target.value)}
+                    placeholder="e.g. 45000 — fixed amount per month"
                   />
                 </Field>
-                <Field label="Pension administrator">
+                <Field label="Pension administrator (PFA)">
                   <input className={fieldCls} value={form.pensionAdministrator || ''} onChange={(e) => set('pensionAdministrator', e.target.value)} />
                 </Field>
                 <Field label="RSA PIN">
                   <input className={fieldCls} value={form.pensionRsaPin} onChange={(e) => set('pensionRsaPin', e.target.value)} />
-                </Field>
-                <Field label="Pension % override (optional)">
-                  <input
-                    type="number"
-                    min={0}
-                    step="0.1"
-                    className={fieldCls}
-                    value={form.pensionPercentOverride}
-                    onChange={(e) => set('pensionPercentOverride', e.target.value)}
-                    placeholder="Uses company default if blank"
-                  />
                 </Field>
               </>
             ) : null}

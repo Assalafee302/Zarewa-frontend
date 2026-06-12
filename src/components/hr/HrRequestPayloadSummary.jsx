@@ -31,6 +31,25 @@ export function HrRequestPayloadSummary({ request, compact = false }) {
     return <PayloadGrid rows={rows} compact={compact} />;
   }
 
+  if (kind === 'profile_change') {
+    const field = p.field || 'field';
+    const rv = p.requestedValue;
+    let valueLabel = '';
+    if (typeof rv === 'string' || typeof rv === 'number') valueLabel = String(rv);
+    else if (rv && typeof rv === 'object') {
+      valueLabel = Object.entries(rv)
+        .filter(([, v]) => v != null && v !== '')
+        .map(([k, v]) => `${k}: ${v}`)
+        .join(' · ');
+    }
+    const rows = [
+      ['Field', field],
+      ['Requested', valueLabel || null],
+      ['Reason', request?.body],
+    ].filter(([, v]) => v != null && v !== '');
+    return <PayloadGrid rows={rows} compact={compact} />;
+  }
+
   if (request?.body) {
     return <p className="text-xs text-slate-600">{request.body}</p>;
   }

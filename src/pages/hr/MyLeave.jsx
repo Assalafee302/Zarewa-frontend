@@ -16,7 +16,7 @@ const LEAVE_TYPES = [
 
 const STEPS = ['Type & dates', 'Details', 'Review'];
 
-export default function MyLeave({ staffLinkBase = '/my-profile' }) {
+export default function MyLeave({ staffLinkBase = '/my-profile', embedded = false }) {
   const [modalOpen, setModalOpen] = useState(false);
   const [step, setStep] = useState(0);
   const [leaveType, setLeaveType] = useState('annual');
@@ -31,6 +31,7 @@ export default function MyLeave({ staffLinkBase = '/my-profile' }) {
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [balances, setBalances] = useState([]);
+  const [balancesError, setBalancesError] = useState('');
   const [probationEndIso, setProbationEndIso] = useState(null);
 
   const autoDays = useMemo(() => daysBetweenIso(startDateIso, endDateIso), [startDateIso, endDateIso]);
@@ -43,7 +44,14 @@ export default function MyLeave({ staffLinkBase = '/my-profile' }) {
     let cancelled = false;
     (async () => {
       const { ok, data } = await apiFetch('/api/hr/leave/balances');
-      if (!cancelled && ok && data?.ok) setBalances(data.balances || []);
+      if (!cancelled) {
+        if (ok && data?.ok) {
+          setBalances(data.balances || []);
+          setBalancesError('');
+        } else {
+          setBalancesError(data?.error || 'Could not load leave balances.');
+        }
+      }
     })();
     return () => {
       cancelled = true;
@@ -56,7 +64,7 @@ export default function MyLeave({ staffLinkBase = '/my-profile' }) {
       try {
         const { ok, data } = await apiFetch('/api/hr/me');
         if (!cancelled && ok && data?.ok) {
-          setProbationEndIso(data.staff?.probationEndIso || data.profile?.probationEndIso || null);
+          setProbationEndIso(data.hr?.probationEndIso || null);
         }
       } catch {
         // ignore — probation check is informational
@@ -152,20 +160,37 @@ export default function MyLeave({ staffLinkBase = '/my-profile' }) {
 
   const canNext =
     step === 0
-      ? leaveType && startDateIso && endDateIso && Number(daysRequested) > 0
+      ? leaveType &&
+        startDateIso &&
+        endDateIso &&
+        Number(daysRequested) > 0 &&
+        !casualBlockedByProbation &&
+        !exceedsBalance
       : step === 1
         ? handoverTo.trim().length >= 2
         : true;
 
   return (
-    <div className="space-y-10">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+    <div className="space-y-8">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-[11px] font-black uppercase tracking-widest text-slate-500">Leave</h2>
-          {annualBalance ? (
-            <p className="mt-1 text-xs text-slate-600">
-              Annual balance (current period): <strong>{annualBalance.closingDays}</strong> days remaining
+          {!embedded ? (
+            <>
+              <h2 className="text-xs font-black uppercase tracking-widest text-slate-500 sm:text-[11px]">Leave</h2>
+              {annualBalance ? (
+                <p className="mt-1 text-sm text-slate-600 sm:text-xs">
+                  Annual balance (current period): <strong>{annualBalance.closingDays}</strong> days remaining
+                </p>
+              ) : balancesError ? (
+                <p className="mt-1 text-sm text-amber-800">{balancesError}</p>
+              ) : null}
+            </>
+          ) : annualBalance ? (
+            <p className="text-sm text-slate-600">
+              Annual balance: <strong>{annualBalance.closingDays}</strong> days remaining
             </p>
+          ) : balancesError ? (
+            <p className="text-sm text-amber-800">{balancesError}</p>
           ) : null}
         </div>
         <HrAddFormButton onClick={() => setModalOpen(true)}>Apply for leave</HrAddFormButton>
@@ -178,11 +203,11 @@ export default function MyLeave({ staffLinkBase = '/my-profile' }) {
       ) : null}
 
       <HrFormModal isOpen={modalOpen} onClose={closeModal} title="Apply for leave" size="lg">
-        <div className="flex gap-2 mb-4">
+        <div className="mb-4 flex flex-wrap gap-2">
           {STEPS.map((label, i) => (
             <span
               key={label}
-              className={`rounded-full px-3 py-1 text-[10px] font-bold uppercase ${
+              className={`rounded-full px-3 py-2 text-[10px] font-bold uppercase sm:text-[10px] ${
                 i === step ? 'bg-[#134e4a] text-white' : 'bg-slate-100 text-slate-500'
               }`}
             >
@@ -294,7 +319,7 @@ export default function MyLeave({ staffLinkBase = '/my-profile' }) {
           </dl>
         ) : null}
 
-        <div className="mt-6 flex flex-wrap gap-2">
+        <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
           {step > 0 ? (
             <button type="button" onClick={() => setStep((s) => s - 1)} className={HR_BTN_SECONDARY}>
               Back
@@ -306,10 +331,20 @@ export default function MyLeave({ staffLinkBase = '/my-profile' }) {
             </button>
           ) : (
             <>
-              <button type="button" disabled={busy || casualBlockedByProbation} onClick={saveDraft} className={HR_BTN_SECONDARY}>
+              <button
+                type="button"
+                disabled={busy || casualBlockedByProbation || exceedsBalance}
+                onClick={saveDraft}
+                className={HR_BTN_SECONDARY}
+              >
                 Save draft
               </button>
-              <button type="button" disabled={busy || casualBlockedByProbation} onClick={saveAndSubmit} className={HR_BTN_PRIMARY}>
+              <button
+                type="button"
+                disabled={busy || casualBlockedByProbation || exceedsBalance}
+                onClick={saveAndSubmit}
+                className={HR_BTN_PRIMARY}
+              >
                 Submit for approval
               </button>
             </>
@@ -318,8 +353,10 @@ export default function MyLeave({ staffLinkBase = '/my-profile' }) {
       </HrFormModal>
 
       <section>
-        <h2 className="text-[11px] font-black uppercase tracking-widest text-slate-500">My leave requests</h2>
-        <div className="mt-3">
+        {!embedded ? (
+          <h2 className="text-xs font-black uppercase tracking-widest text-slate-500 sm:text-[11px]">My leave requests</h2>
+        ) : null}
+        <div className={embedded ? '' : 'mt-3'}>
           <HrRequestsPanel allowedScopes={['mine']} defaultScope="mine" kindFilter="leave" staffLinkBase={staffLinkBase} />
         </div>
       </section>

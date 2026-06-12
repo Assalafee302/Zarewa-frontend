@@ -56,6 +56,11 @@ export function UserProfileProvider({ children }) {
       reload,
       isScholarship: cohort === 'scholarship',
       isDomestic: cohort === 'domestic',
+      completeness: me?.completeness ?? null,
+      documentSummary: me?.documentSummary ?? null,
+      pendingProfileRequests: me?.pendingProfileRequests ?? [],
+      loanPolicy: me?.loanPolicy ?? null,
+      leaveEntitlementDays: me?.leaveEntitlementDays ?? null,
       isEmployee: cohort === 'employee' || cohort === 'special',
     }),
     [loading, error, me, cohort, hasHrSelfService, reload, ws?.session?.user]

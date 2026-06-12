@@ -10,6 +10,7 @@ import ExecutiveHrSalaryStructure from './ExecutiveHrSalaryStructure';
 import ExecutiveHrSpecialChanges from './ExecutiveHrSpecialChanges';
 import ExecutiveHrVariance from './ExecutiveHrVariance';
 import ExecutiveHrApprovals from './ExecutiveHrApprovals';
+import ExecutiveHrLeavePolicy from './ExecutiveHrLeavePolicy';
 import HrReports from './HrReports';
 
 const HrExecutiveBenefitsHub = lazyWithRetry(() => import('./HrChairmanAccounts'), { id: 'HrChairmanAccounts' });
@@ -23,6 +24,7 @@ const NAV = [
   { to: '/executive-hr/variance', label: 'Payroll variance' },
   { to: '/executive-hr/approvals', label: 'Sensitive approvals' },
   { to: '/executive-hr/benefits', label: 'Executive benefits' },
+  { to: '/executive-hr/leave-policy', label: 'Leave policy' },
   { to: '/executive-hr/reports', label: 'HR reports' },
 ];
 
@@ -58,6 +60,7 @@ export default function ExecutiveHr() {
             }
           />
           <Route path="chairman" element={<Navigate to="/executive-hr/benefits" replace />} />
+          <Route path="leave-policy" element={<ExecutiveHrLeavePolicy />} />
           <Route path="reports" element={<HrReports executive embedded />} />
         </Route>
       </Routes>

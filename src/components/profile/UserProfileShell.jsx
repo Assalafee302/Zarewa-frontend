@@ -13,7 +13,7 @@ function ProfileSubnav() {
 
   return (
     <nav
-      className="flex gap-1 overflow-x-auto pb-1 -mx-1 px-1 custom-scrollbar"
+      className="flex gap-1.5 overflow-x-auto pb-1 snap-x snap-mandatory custom-scrollbar [-webkit-overflow-scrolling:touch]"
       aria-label="Profile sections"
     >
       {nav.map((item) => (
@@ -22,10 +22,10 @@ function ProfileSubnav() {
           to={item.to}
           end={item.end}
           className={({ isActive }) =>
-            `shrink-0 rounded-xl px-3.5 py-2 text-[11px] font-bold uppercase tracking-wide border transition-colors ${
+            `shrink-0 snap-start rounded-xl px-4 py-2.5 min-h-11 inline-flex items-center text-xs font-bold uppercase tracking-wide border transition-colors ${
               isActive
                 ? 'bg-[#134e4a] text-white border-[#134e4a] shadow-sm'
-                : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+                : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300 active:bg-slate-50'
             }`
           }
         >
@@ -49,9 +49,9 @@ function UserProfileShellInner() {
             : 'Your personal hub — leave, attendance, loans, payslips, and employment self-service.';
 
   return (
-    <PageShell className="pb-10">
+    <PageShell className="pb-[max(2.5rem,env(safe-area-inset-bottom))]">
       <PageHeader eyebrow="Account" title="My profile" subtitle={subtitle} />
-      <div className="mb-6">
+      <div className="sticky top-0 z-30 -mx-2 mb-4 border-b border-slate-200/80 bg-[#F8FAFC]/95 px-2 py-2 backdrop-blur-md sm:-mx-1 sm:px-1">
         <ProfileSubnav />
       </div>
       <MainPanel>

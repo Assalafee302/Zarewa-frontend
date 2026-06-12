@@ -16,7 +16,7 @@ export default function ProfileLeaveAttendance() {
             <p className="mt-1 text-xs text-slate-500">Apply for leave and track your requests.</p>
           </header>
         ) : null}
-        <MyLeave staffLinkBase="/me" />
+        <MyLeave staffLinkBase="/me" embedded />
       </section>
 
       {showAttendance ? (

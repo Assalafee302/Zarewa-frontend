@@ -22,6 +22,7 @@ import {
   AppTableWrap,
 } from '../ui/AppDataTable';
 import { HrRequestPayloadSummary, hrRequestApprovalChain } from './HrRequestPayloadSummary';
+import { HR_BTN_PILL, HR_BTN_PRIMARY, HR_BTN_SECONDARY, HR_FIELD_CLASS, HR_TEXTAREA_CLASS } from './hrFormStyles';
 
 const SCOPE_LABELS = {
   mine: 'My requests',
@@ -177,6 +178,192 @@ export function HrRequestsPanel({
     await load();
   };
 
+  const showEmployeeColumn = scope !== 'mine' && staffLinkBase !== '/me';
+
+  const renderEmployeeCell = (r) => {
+    if (!r.userId) return '—';
+    if (!showEmployeeColumn) return r.staffDisplayName || 'You';
+    return (
+      <Link
+        to={`${staffLinkBase}/${encodeURIComponent(r.userId)}`}
+        className="font-semibold text-[#134e4a] hover:underline"
+      >
+        {r.staffDisplayName || r.userId}
+      </Link>
+    );
+  };
+
+  const renderRequestActions = (r) => (
+    <>
+      <div className="flex flex-wrap gap-2">
+        {r.status === 'draft' && scope === 'mine' ? (
+          <>
+            <button
+              type="button"
+              disabled={busyId === r.id}
+              onClick={() => submitDraft(r.id)}
+              className={`${HR_BTN_PILL} bg-[#134e4a] text-white disabled:opacity-50`}
+            >
+              Submit
+            </button>
+            <button
+              type="button"
+              disabled={busyId === r.id}
+              onClick={() => deleteDraft(r.id)}
+              className={`${HR_BTN_PILL} border border-slate-200 bg-white text-slate-600`}
+            >
+              Delete
+            </button>
+          </>
+        ) : null}
+        {canReviewRow(r) ? (
+          <button
+            type="button"
+            onClick={() => {
+              setReviewId(reviewId === r.id ? '' : r.id);
+              setReviewNote('');
+            }}
+            className={`${HR_BTN_PILL} border border-slate-200 bg-white text-[#134e4a]`}
+          >
+            Review
+          </button>
+        ) : null}
+        <button
+          type="button"
+          onClick={() => setExpandedId(expandedId === r.id ? '' : r.id)}
+          className={`${HR_BTN_PILL} border border-slate-200 bg-white text-slate-600`}
+        >
+          {expandedId === r.id ? 'Hide' : 'Details'}
+        </button>
+        {canLetter && r.kind === 'leave' && r.status === 'approved' ? (
+          <button
+            type="button"
+            disabled={busyId === r.id}
+            onClick={async () => {
+              setBusyId(r.id);
+              await generateLeaveDecisionLetter(r.id, 'leave_approval');
+              setBusyId('');
+            }}
+            className={`${HR_BTN_PILL} border border-teal-200 bg-teal-50 text-teal-800`}
+          >
+            Approval letter
+          </button>
+        ) : null}
+        {canLetter && r.kind === 'leave' && ['rejected', 'hr_rejected', 'gm_rejected'].includes(r.status) ? (
+          <button
+            type="button"
+            disabled={busyId === r.id}
+            onClick={async () => {
+              setBusyId(r.id);
+              await generateLeaveDecisionLetter(r.id, 'leave_rejection');
+              setBusyId('');
+            }}
+            className={`${HR_BTN_PILL} border border-slate-200 bg-white text-slate-600`}
+          >
+            Rejection letter
+          </button>
+        ) : null}
+        {canLetter && r.kind === 'loan' && r.status === 'approved' ? (
+          <button
+            type="button"
+            disabled={busyId === r.id}
+            onClick={async () => {
+              setBusyId(r.id);
+              await generateStaffLoanAgreementLetter(r.id);
+              setBusyId('');
+            }}
+            className={`${HR_BTN_PILL} border border-teal-200 bg-teal-50 text-teal-800`}
+          >
+            Loan agreement
+          </button>
+        ) : null}
+      </div>
+      {expandedId === r.id ? (
+        <div className="mt-3 rounded-xl border border-slate-100 bg-white p-3">
+          <HrRequestPayloadSummary request={r} compact />
+          {r.reviewNotes?.length ? (
+            <div className="mt-2 border-t border-slate-100 pt-2">
+              <p className="text-[10px] font-bold uppercase text-slate-400">Approval history</p>
+              <ul className="mt-1 space-y-1 text-xs text-slate-600">
+                {r.reviewNotes.map((n, i) => (
+                  <li key={i}>{n.atIso?.slice(0, 16)} — {n.note || n.action}</li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+      {reviewId === r.id ? (
+        <div className="mt-3 space-y-3 rounded-xl border border-[#134e4a]/20 bg-teal-50/40 p-3">
+          <div className="grid gap-2 text-xs sm:grid-cols-2">
+            <p><span className="text-slate-500">Employee:</span> <strong>{r.staffDisplayName || r.userId}</strong></p>
+            <p><span className="text-slate-500">Branch:</span> {r.branchId || '—'}</p>
+            <p><span className="text-slate-500">Department:</span> {r.department || '—'}</p>
+            <p><span className="text-slate-500">Kind:</span> {hrRequestKindLabel(r.kind)}</p>
+          </div>
+          <HrRequestPayloadSummary request={r} compact />
+          {(() => {
+            const { chain, currentIdx } = hrRequestApprovalChain(r.status);
+            return (
+              <div>
+                <p className="text-[10px] font-bold uppercase text-slate-400 mb-1">Approval chain</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {chain.map((step, i) => (
+                    <span
+                      key={step}
+                      className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${
+                        i <= currentIdx ? 'bg-[#134e4a] text-white' : 'bg-slate-200 text-slate-500'
+                      }`}
+                    >
+                      {step}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
+          <select
+            value={reasonCode}
+            onChange={(e) => setReasonCode(e.target.value)}
+            className={`${HR_FIELD_CLASS} mt-0 text-sm`}
+            aria-label="Reason code"
+          >
+            {REASON_CODES.map((rc) => (
+              <option key={rc.value} value={rc.value}>
+                {rc.label}
+              </option>
+            ))}
+          </select>
+          <textarea
+            value={reviewNote}
+            onChange={(e) => setReviewNote(e.target.value)}
+            rows={3}
+            placeholder="Review note (required, min 3 characters)"
+            className={`${HR_TEXTAREA_CLASS} mt-0 text-sm`}
+          />
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <button
+              type="button"
+              disabled={busyId === r.id}
+              onClick={() => runReview(r.id, r.status, true)}
+              className={`${HR_BTN_PRIMARY} bg-emerald-700 hover:bg-emerald-800`}
+            >
+              Approve
+            </button>
+            <button
+              type="button"
+              disabled={busyId === r.id}
+              onClick={() => runReview(r.id, r.status, false)}
+              className={`${HR_BTN_PRIMARY} bg-red-700 hover:bg-red-800`}
+            >
+              Reject
+            </button>
+          </div>
+        </div>
+      ) : null}
+    </>
+  );
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap gap-2">
@@ -185,7 +372,7 @@ export function HrRequestsPanel({
             key={s}
             type="button"
             onClick={() => { setScope(s); setSelectedIds([]); }}
-            className={`rounded-xl px-3 py-2 text-[10px] font-bold uppercase tracking-wide ${
+            className={`${HR_BTN_PILL} ${
               scope === s
                 ? 'bg-[#134e4a] text-white shadow-sm'
                 : 'border border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
@@ -267,244 +454,110 @@ export function HrRequestsPanel({
       ) : null}
 
       {!loading || requests.length > 0 ? (
-        <AppTableWrap>
-          <AppTable>
-            <AppTableThead>
-              {reviewableRequests.length > 0 ? (
-                <AppTableTh>
-                  <input
-                    type="checkbox"
-                    checked={allReviewableSelected}
-                    onChange={toggleSelectAll}
-                    aria-label="Select all reviewable requests"
-                    className="rounded"
-                  />
-                </AppTableTh>
-              ) : <AppTableTh />}
-              <AppTableTh>Title</AppTableTh>
-              <AppTableTh>Kind</AppTableTh>
-              <AppTableTh>Employee</AppTableTh>
-              <AppTableTh>Status</AppTableTh>
-              <AppTableTh>Submitted</AppTableTh>
-              <AppTableTh>Actions</AppTableTh>
-            </AppTableThead>
-            <AppTableBody>
-              {requests.length === 0 ? (
-                <AppTableTr>
-                  <AppTableTd colSpan={7} align="center">
-                    <span className="text-slate-500 py-4 block">No requests in this queue.</span>
-                  </AppTableTd>
-                </AppTableTr>
-              ) : (
-                requests.map((r) => (
-                  <AppTableTr key={r.id}>
-                    <AppTableTd>
-                      {canReviewRow(r) ? (
-                        <input
-                          type="checkbox"
-                          checked={selectedIds.includes(r.id)}
-                          onChange={() => toggleSelect(r.id)}
-                          aria-label={`Select request ${r.title || r.id}`}
-                          className="rounded"
-                        />
-                      ) : null}
-                    </AppTableTd>
-                    <AppTableTd title={r.title}>{r.title}</AppTableTd>
-                    <AppTableTd>{hrRequestKindLabel(r.kind)}</AppTableTd>
-                    <AppTableTd>
-                      {r.userId ? (
-                        <Link
-                          to={`${staffLinkBase}/${encodeURIComponent(r.userId)}`}
-                          className="font-semibold text-[#134e4a] hover:underline"
-                        >
-                          {r.staffDisplayName || r.userId}
-                        </Link>
-                      ) : (
-                        '—'
-                      )}
-                    </AppTableTd>
-                    <AppTableTd>
-                      <span
-                        className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase ${hrRequestStatusClass(r.status)}`}
-                      >
-                        {hrRequestStatusLabel(r.status)}
-                      </span>
-                    </AppTableTd>
-                    <AppTableTd monospace>{r.submittedAtIso?.slice(0, 10) || '—'}</AppTableTd>
-                    <AppTableTd>
-                      <div className="flex flex-wrap gap-1">
-                        {r.status === 'draft' && scope === 'mine' ? (
-                          <>
-                            <button
-                              type="button"
-                              disabled={busyId === r.id}
-                              onClick={() => submitDraft(r.id)}
-                              className="rounded-lg bg-[#134e4a] px-2 py-1 text-[10px] font-bold uppercase text-white disabled:opacity-50"
-                            >
-                              Submit
-                            </button>
-                            <button
-                              type="button"
-                              disabled={busyId === r.id}
-                              onClick={() => deleteDraft(r.id)}
-                              className="rounded-lg border border-slate-200 px-2 py-1 text-[10px] font-bold uppercase text-slate-600"
-                            >
-                              Delete
-                            </button>
-                          </>
-                        ) : null}
-                        {canReviewRow(r) ? (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setReviewId(reviewId === r.id ? '' : r.id);
-                              setReviewNote('');
-                            }}
-                            className="rounded-lg border border-slate-200 px-2 py-1 text-[10px] font-bold uppercase text-[#134e4a]"
-                          >
-                            Review
-                          </button>
-                        ) : null}
-                        <button
-                          type="button"
-                          onClick={() => setExpandedId(expandedId === r.id ? '' : r.id)}
-                          className="rounded-lg border border-slate-200 px-2 py-1 text-[10px] font-bold uppercase text-slate-600"
-                        >
-                          {expandedId === r.id ? 'Hide' : 'Details'}
-                        </button>
-                        {canLetter && r.kind === 'leave' && r.status === 'approved' ? (
-                          <button
-                            type="button"
-                            disabled={busyId === r.id}
-                            onClick={async () => {
-                              setBusyId(r.id);
-                              await generateLeaveDecisionLetter(r.id, 'leave_approval');
-                              setBusyId('');
-                            }}
-                            className="rounded-lg border border-teal-200 px-2 py-1 text-[10px] font-bold uppercase text-teal-800"
-                          >
-                            Approval letter
-                          </button>
-                        ) : null}
-                        {canLetter && r.kind === 'leave' && ['rejected', 'hr_rejected', 'gm_rejected'].includes(r.status) ? (
-                          <button
-                            type="button"
-                            disabled={busyId === r.id}
-                            onClick={async () => {
-                              setBusyId(r.id);
-                              await generateLeaveDecisionLetter(r.id, 'leave_rejection');
-                              setBusyId('');
-                            }}
-                            className="rounded-lg border border-slate-200 px-2 py-1 text-[10px] font-bold uppercase text-slate-600"
-                          >
-                            Rejection letter
-                          </button>
-                        ) : null}
-                        {canLetter && r.kind === 'loan' && r.status === 'approved' ? (
-                          <button
-                            type="button"
-                            disabled={busyId === r.id}
-                            onClick={async () => {
-                              setBusyId(r.id);
-                              await generateStaffLoanAgreementLetter(r.id);
-                              setBusyId('');
-                            }}
-                            className="rounded-lg border border-teal-200 px-2 py-1 text-[10px] font-bold uppercase text-teal-800"
-                          >
-                            Loan agreement
-                          </button>
-                        ) : null}
+        <>
+          <div className="md:hidden space-y-3">
+            {requests.length === 0 ? (
+              <p className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">
+                No requests in this queue.
+              </p>
+            ) : (
+              requests.map((r) => (
+                <article key={r.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                  <div className="flex items-start justify-between gap-3">
+                    <h4 className="text-sm font-bold leading-snug text-slate-900">{r.title || 'Request'}</h4>
+                    <span
+                      className={`shrink-0 inline-flex rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase ${hrRequestStatusClass(r.status)}`}
+                    >
+                      {hrRequestStatusLabel(r.status)}
+                    </span>
+                  </div>
+                  <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 text-xs">
+                    <div>
+                      <dt className="font-bold uppercase tracking-wide text-slate-400">Kind</dt>
+                      <dd className="mt-0.5 font-semibold text-slate-800">{hrRequestKindLabel(r.kind)}</dd>
+                    </div>
+                    <div>
+                      <dt className="font-bold uppercase tracking-wide text-slate-400">Submitted</dt>
+                      <dd className="mt-0.5 font-semibold tabular-nums text-slate-800">{r.submittedAtIso?.slice(0, 10) || '—'}</dd>
+                    </div>
+                    {showEmployeeColumn ? (
+                      <div className="col-span-2">
+                        <dt className="font-bold uppercase tracking-wide text-slate-400">Employee</dt>
+                        <dd className="mt-0.5">{renderEmployeeCell(r)}</dd>
                       </div>
-                      {expandedId === r.id ? (
-                        <div className="mt-2 rounded-lg border border-slate-100 bg-white p-3">
-                          <HrRequestPayloadSummary request={r} compact />
-                          {r.reviewNotes?.length ? (
-                            <div className="mt-2 border-t border-slate-100 pt-2">
-                              <p className="text-[10px] font-bold uppercase text-slate-400">Approval history</p>
-                              <ul className="mt-1 space-y-1 text-xs text-slate-600">
-                                {r.reviewNotes.map((n, i) => (
-                                  <li key={i}>{n.atIso?.slice(0, 16)} — {n.note || n.action}</li>
-                                ))}
-                              </ul>
-                            </div>
+                    ) : null}
+                  </dl>
+                  <div className="mt-4">{renderRequestActions(r)}</div>
+                </article>
+              ))
+            )}
+          </div>
+
+          <div className="hidden md:block">
+            <AppTableWrap>
+              <AppTable>
+                <AppTableThead>
+                  {reviewableRequests.length > 0 ? (
+                    <AppTableTh>
+                      <input
+                        type="checkbox"
+                        checked={allReviewableSelected}
+                        onChange={toggleSelectAll}
+                        aria-label="Select all reviewable requests"
+                        className="rounded"
+                      />
+                    </AppTableTh>
+                  ) : (
+                    <AppTableTh />
+                  )}
+                  <AppTableTh>Title</AppTableTh>
+                  <AppTableTh>Kind</AppTableTh>
+                  {showEmployeeColumn ? <AppTableTh>Employee</AppTableTh> : null}
+                  <AppTableTh>Status</AppTableTh>
+                  <AppTableTh>Submitted</AppTableTh>
+                  <AppTableTh>Actions</AppTableTh>
+                </AppTableThead>
+                <AppTableBody>
+                  {requests.length === 0 ? (
+                    <AppTableTr>
+                      <AppTableTd colSpan={showEmployeeColumn ? 7 : 6} align="center">
+                        <span className="text-slate-500 py-4 block">No requests in this queue.</span>
+                      </AppTableTd>
+                    </AppTableTr>
+                  ) : (
+                    requests.map((r) => (
+                      <AppTableTr key={r.id}>
+                        <AppTableTd>
+                          {canReviewRow(r) ? (
+                            <input
+                              type="checkbox"
+                              checked={selectedIds.includes(r.id)}
+                              onChange={() => toggleSelect(r.id)}
+                              aria-label={`Select request ${r.title || r.id}`}
+                              className="rounded"
+                            />
                           ) : null}
-                        </div>
-                      ) : null}
-                      {reviewId === r.id ? (
-                        <div className="mt-2 space-y-3 rounded-xl border border-[#134e4a]/20 bg-teal-50/40 p-3">
-                          <div className="grid gap-2 sm:grid-cols-2 text-xs">
-                            <p><span className="text-slate-500">Employee:</span> <strong>{r.staffDisplayName || r.userId}</strong></p>
-                            <p><span className="text-slate-500">Branch:</span> {r.branchId || '—'}</p>
-                            <p><span className="text-slate-500">Department:</span> {r.department || '—'}</p>
-                            <p><span className="text-slate-500">Kind:</span> {hrRequestKindLabel(r.kind)}</p>
-                          </div>
-                          <HrRequestPayloadSummary request={r} compact />
-                          {(() => {
-                            const { chain, currentIdx } = hrRequestApprovalChain(r.status);
-                            return (
-                              <div>
-                                <p className="text-[10px] font-bold uppercase text-slate-400 mb-1">Approval chain</p>
-                                <div className="flex flex-wrap gap-1">
-                                  {chain.map((step, i) => (
-                                    <span
-                                      key={step}
-                                      className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
-                                        i <= currentIdx ? 'bg-[#134e4a] text-white' : 'bg-slate-200 text-slate-500'
-                                      }`}
-                                    >
-                                      {step}
-                                    </span>
-                                  ))}
-                                </div>
-                              </div>
-                            );
-                          })()}
-                          <select
-                            value={reasonCode}
-                            onChange={(e) => setReasonCode(e.target.value)}
-                            className="w-full rounded-lg border border-slate-200 px-2 py-1 text-xs"
-                            aria-label="Reason code"
+                        </AppTableTd>
+                        <AppTableTd title={r.title}>{r.title}</AppTableTd>
+                        <AppTableTd>{hrRequestKindLabel(r.kind)}</AppTableTd>
+                        {showEmployeeColumn ? <AppTableTd>{renderEmployeeCell(r)}</AppTableTd> : null}
+                        <AppTableTd>
+                          <span
+                            className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase ${hrRequestStatusClass(r.status)}`}
                           >
-                            {REASON_CODES.map((rc) => (
-                              <option key={rc.value} value={rc.value}>
-                                {rc.label}
-                              </option>
-                            ))}
-                          </select>
-                          <textarea
-                            value={reviewNote}
-                            onChange={(e) => setReviewNote(e.target.value)}
-                            rows={2}
-                            placeholder="Review note (required, min 3 characters)"
-                            className="w-full rounded-lg border border-slate-200 px-2 py-1 text-xs"
-                          />
-                          <div className="flex gap-1">
-                            <button
-                              type="button"
-                              disabled={busyId === r.id}
-                              onClick={() => runReview(r.id, r.status, true)}
-                              className="rounded-lg bg-emerald-700 px-2 py-1 text-[10px] font-bold uppercase text-white"
-                            >
-                              Approve
-                            </button>
-                            <button
-                              type="button"
-                              disabled={busyId === r.id}
-                              onClick={() => runReview(r.id, r.status, false)}
-                              className="rounded-lg bg-red-700 px-2 py-1 text-[10px] font-bold uppercase text-white"
-                            >
-                              Reject
-                            </button>
-                          </div>
-                        </div>
-                      ) : null}
-                    </AppTableTd>
-                  </AppTableTr>
-                ))
-              )}
-            </AppTableBody>
-          </AppTable>
-        </AppTableWrap>
+                            {hrRequestStatusLabel(r.status)}
+                          </span>
+                        </AppTableTd>
+                        <AppTableTd monospace>{r.submittedAtIso?.slice(0, 10) || '—'}</AppTableTd>
+                        <AppTableTd>{renderRequestActions(r)}</AppTableTd>
+                      </AppTableTr>
+                    ))
+                  )}
+                </AppTableBody>
+              </AppTable>
+            </AppTableWrap>
+          </div>
+        </>
       ) : null}
     </div>
   );

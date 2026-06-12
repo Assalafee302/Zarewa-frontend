@@ -12,7 +12,7 @@ import ScholarshipSchoolProfile from '../components/hr/ScholarshipSchoolProfile'
 import MyLoans from './hr/MyLoans';
 import MyProfileDocuments from './hr/MyProfileDocuments';
 import MyPayslips from './hr/MyPayslips';
-import MyProfileEmployment from './hr/MyProfileEmployment';
+import ProfileEmploymentPage from './profile/ProfileEmploymentPage';
 import MyProfilePolicies from './hr/MyProfilePolicies';
 import MyProfileGrievance from './hr/MyProfileGrievance';
 
@@ -100,7 +100,7 @@ export default function UserProfile() {
           element={
             <ProfileSectionGuard requireHr requireNotScholarship>
               <ProfileSectionPage title="Employment record" subtitle="Your job details and HR employment profile.">
-                <MyProfileEmployment />
+                <ProfileEmploymentPage />
               </ProfileSectionPage>
             </ProfileSectionGuard>
           }
