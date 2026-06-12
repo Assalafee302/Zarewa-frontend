@@ -27,7 +27,7 @@ import {
   coilVersusQuotationAndProductWarning,
 } from '../lib/coilSpecVersusProduct';
 import { productionJobNeedsManagerReviewAttention } from '../lib/productionReview';
-import { normalizeJobStatus, pickProductionJobForCuttingList } from '../lib/productionJobPick';
+import { normalizeJobStatus, pickProductionJobForFocusId } from '../lib/productionJobPick';
 import { useToast } from '../context/ToastContext';
 import { useWorkspace } from '../context/WorkspaceContext';
 import { editMutationNeedsSecondApprovalRole } from '../lib/editApprovalUi';
@@ -867,7 +867,7 @@ export function LiveProductionMonitor({
 
   useEffect(() => {
     if (focusClTrim) {
-      const j = pickProductionJobForCuttingList(focusClTrim, productionJobs, cuttingLists);
+      const j = pickProductionJobForFocusId(focusClTrim, productionJobs, cuttingLists);
       if (j) {
         if (selectedJobId !== j.jobID) setSelectedJobId(j.jobID);
       } else if (selectedJobId !== '') {
@@ -2373,8 +2373,8 @@ export function LiveProductionMonitor({
       >
         {missing ? (
           <>
-            Cutting list <span className="font-mono font-bold text-slate-700">{missing}</span> is not registered for
-            production or data is still syncing. Close and pick another row, or refresh the workspace.
+            Production ref <span className="font-mono font-bold text-slate-700">{missing}</span> is not on the production
+            register yet, or workspace data is still syncing. Close and pick another row, or refresh the workspace.
           </>
         ) : (
           <>

@@ -1149,10 +1149,17 @@ const Operations = () => {
     }
     if (t !== 'production') return;
     setActiveTab(t);
-    const highlightId = String(st.highlightCuttingListId || '').trim();
-    if (t === 'production' && highlightId) setSearchQuery(highlightId);
+    const highlightId = String(st.highlightCuttingListId || st.openProductionTraceCuttingListId || '').trim();
+    if (highlightId) setSearchQuery(highlightId);
+    if (st.openProductionTraceCuttingListId && ws?.canMutate) {
+      setProductionTraceModal({
+        type: 'trace',
+        cuttingListId: String(st.openProductionTraceCuttingListId).trim(),
+        subtitle: String(st.openProductionTraceSubtitle || '').trim() || undefined,
+      });
+    }
     navigate(location.pathname, { replace: true, state: {} });
-  }, [location.state, location.pathname, navigate, canAdjustInventory]);
+  }, [location.state, location.pathname, navigate, canAdjustInventory, ws?.canMutate]);
 
   const transitOrdersAll = useMemo(
     () => purchaseOrders.filter((p) => shouldShowPoInTransit(p)),

@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { apiFetch } from '../../lib/apiBase';
 import { useWorkspace } from '../../context/WorkspaceContext';
-import { HrDailyRollPanel } from '../../components/hr/HrDailyRollPanel';
 import { canManageHrDeductions } from '../../lib/hrAccess';
 import { currentPeriodYyyymm } from '../../lib/hrRequests';
 import { formatNgn } from '../../lib/hrFormat';
@@ -16,7 +15,7 @@ import {
 } from '../../components/ui/AppDataTable';
 
 /**
- * @param {{ embedded?: boolean; activeTab?: 'roll' | 'deductions'; hideInternalTabs?: boolean; showExceptionsOnly?: boolean }} [props]
+ * @param {{ embedded?: boolean; activeTab?: 'deductions'; hideInternalTabs?: boolean; showExceptionsOnly?: boolean }} [props]
  */
 export default function HrAttendance({
   embedded = false,
@@ -26,7 +25,7 @@ export default function HrAttendance({
 } = {}) {
   const ws = useWorkspace();
   const showDeductions = canManageHrDeductions(ws?.permissions);
-  const [tab, setTab] = useState(activeTabProp || 'roll');
+  const [tab, setTab] = useState(activeTabProp || 'deductions');
   const effectiveTab = activeTabProp || tab;
   const [periodYyyymm, setPeriodYyyymm] = useState(currentPeriodYyyymm());
   const [preview, setPreview] = useState([]);
@@ -126,38 +125,15 @@ export default function HrAttendance({
         </div>
       ) : null}
 
-      {!hideInternalTabs ? (
+      {!hideInternalTabs && showDeductions ? (
         <div className="flex flex-wrap gap-1 border-b border-slate-200 pb-px">
-          {[
-            { id: 'roll', label: 'Daily roll' },
-            { id: 'deductions', label: 'Deduction review' },
-          ]
-            .filter((t) => t.id !== 'deductions' || showDeductions)
-            .map((t) => (
-              <button
-                key={t.id}
-                type="button"
-                onClick={() => setTab(t.id)}
-                className={`rounded-t-lg px-3 py-2 text-xs font-bold uppercase ${
-                  effectiveTab === t.id ? 'border border-b-white bg-white text-[#134e4a]' : 'text-slate-500'
-                }`}
-              >
-                {t.label}
-              </button>
-            ))}
+          <button
+            type="button"
+            className="rounded-t-lg px-3 py-2 text-xs font-bold uppercase border border-b-white bg-white text-[#134e4a]"
+          >
+            Deduction review
+          </button>
         </div>
-      ) : null}
-
-      {effectiveTab === 'roll' ? (
-        <>
-          {!embedded ? (
-            <p className="text-sm text-slate-600">
-              Mark in-time, out-time, and status per staff member. Late days feed payroll attendance deductions at run
-              time only — nothing is auto-deducted here.
-            </p>
-          ) : null}
-          <HrDailyRollPanel />
-        </>
       ) : null}
 
       {effectiveTab === 'deductions' ? (

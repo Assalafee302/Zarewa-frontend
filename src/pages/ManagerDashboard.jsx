@@ -24,6 +24,7 @@ import {
   PencilLine,
   Unlock,
   Sparkles,
+  Users,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -76,6 +77,8 @@ import { OfficialRecordBanner } from '../components/management/OfficialRecordBan
 import DeliveryGateDiagnosticsBanner from '../components/finance/DeliveryGateDiagnosticsBanner';
 import { syncAccountingPolicyFlagsFromHealth, deliveryPaymentGateMode } from '../lib/accountingPolicyFlags';
 import { userMayApproveRefundRequests } from '../lib/refundsStore';
+import { HrDailyRollPanel } from '../components/hr/HrDailyRollPanel';
+import { canMarkHrAttendance } from '../lib/hrAccess';
 
 const ManagerDashboard = () => {
   const navigate = useNavigate();
@@ -88,6 +91,11 @@ const ManagerDashboard = () => {
   const managerQueuesHydratedRef = useRef(false);
   const lastRefundIntelQrefRef = useRef('');
   const ws = useWorkspace();
+  const showAttendanceTab = canMarkHrAttendance(ws?.permissions);
+  const managerInboxTabs = useMemo(
+    () => MANAGER_INBOX_TABS.filter((t) => t.key !== 'attendance' || showAttendanceTab),
+    [showAttendanceTab]
+  );
   const { show: showToast } = useToast();
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
@@ -576,9 +584,14 @@ const ManagerDashboard = () => {
     const inbox = (searchParams.get('inbox') || '').trim();
     if (!inbox) return;
     const { tab, attentionFilter: af } = normalizeManagerInboxRoute(inbox);
+    if (tab === 'attendance' && !showAttendanceTab) {
+      setActiveTab('attention');
+      setAttentionFilter('all');
+      return;
+    }
     setActiveTab(tab);
     setAttentionFilter(af);
-  }, [searchParams]);
+  }, [searchParams, showAttendanceTab]);
 
   useEffect(() => {
     const po = (searchParams.get('poId') || searchParams.get('poID') || '').trim();
@@ -736,6 +749,7 @@ const ManagerDashboard = () => {
       cash_out: cashOutInboxRows.length,
       qc: (displayItems.pendingConversionReviews ?? []).length,
       material: materialIncidentQueue.length,
+      attendance: 0,
     }),
     [
       attentionItems.length,
@@ -1361,7 +1375,7 @@ const ManagerDashboard = () => {
     return null;
   };
 
-  const tabMeta = MANAGER_INBOX_TABS.find((t) => t.key === activeTab);
+  const tabMeta = managerInboxTabs.find((t) => t.key === activeTab);
 
   return (
     <PageShell className="pb-14">
@@ -1638,7 +1652,7 @@ const ManagerDashboard = () => {
                   <p className="text-[11px] text-slate-500 mt-1">{tabMeta?.description}</p>
                 </div>
                 <motion.div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto sm:items-center">
-                  {activeTab === 'orders' && filteredInboxRows.some((r) => r._inboxKind === 'clearance') ? (
+                  {activeTab !== 'attendance' && activeTab === 'orders' && filteredInboxRows.some((r) => r._inboxKind === 'clearance') ? (
                     <Button
                       type="button"
                       size="sm"
@@ -1650,20 +1664,22 @@ const ManagerDashboard = () => {
                       Clear all paid
                     </Button>
                   ) : null}
-                  <div className="relative w-full sm:w-64">
-                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                    <input
-                      type="search"
-                      value={inboxSearch}
-                      onChange={(e) => setInboxSearch(e.target.value)}
-                      placeholder="Filter this queue…"
-                      className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-800 outline-none focus:ring-2 focus:ring-[#134e4a]/15"
-                    />
-                  </div>
+                  {activeTab !== 'attendance' ? (
+                    <div className="relative w-full sm:w-64">
+                      <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                      <input
+                        type="search"
+                        value={inboxSearch}
+                        onChange={(e) => setInboxSearch(e.target.value)}
+                        placeholder="Filter this queue…"
+                        className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-800 outline-none focus:ring-2 focus:ring-[#134e4a]/15"
+                      />
+                    </div>
+                  ) : null}
                 </motion.div>
               </div>
               <div className="flex gap-1 mt-4 overflow-x-auto pb-1 -mx-1 px-1 custom-scrollbar">
-                {MANAGER_INBOX_TABS.map((t) => {
+                {managerInboxTabs.map((t) => {
                   const active = activeTab === t.key;
                   const count = tabCounts[t.key] ?? 0;
                   return (
@@ -1725,8 +1741,16 @@ const ManagerDashboard = () => {
                 </div>
               ) : null}
             </div>
-            <div className="min-h-[420px] max-h-[min(56vh,560px)] overflow-y-auto custom-scrollbar">
-              {loading ? (
+            <div
+              className={
+                activeTab === 'attendance'
+                  ? 'p-4 sm:p-5'
+                  : 'min-h-[420px] max-h-[min(56vh,560px)] overflow-y-auto custom-scrollbar'
+              }
+            >
+              {activeTab === 'attendance' ? (
+                <HrDailyRollPanel branchManagerMode />
+              ) : loading ? (
                 <div className="flex flex-col items-center justify-center py-24 text-slate-400 gap-3">
                   <RefreshCw size={28} className="animate-spin text-[#134e4a]" />
                   <p className="text-xs font-bold uppercase tracking-widest">Loading queues</p>
@@ -1741,6 +1765,8 @@ const ManagerDashboard = () => {
                     <BarChart3 size={36} className="opacity-25 mb-3 text-violet-600" />
                   ) : activeTab === 'material' ? (
                     <ClipboardList size={36} className="opacity-25 mb-3 text-teal-600" />
+                  ) : activeTab === 'attendance' ? (
+                    <Users size={36} className="opacity-25 mb-3 text-teal-600" />
                   ) : (
                     <Sparkles size={36} className="opacity-25 mb-3 text-violet-500" />
                   )}

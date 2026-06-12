@@ -12,7 +12,7 @@ import TeamHrHome from './TeamHrHome';
 const NAV = [
   { to: '/team-hr', label: 'Dashboard', end: true },
   { to: '/team-hr/staff', label: 'Team staff' },
-  { to: '/team-hr/attendance', label: 'Daily attendance' },
+  { to: '/team-hr/attendance', label: 'Absence & overtime' },
   { to: '/team-hr/requests', label: 'Requests' },
   { to: '/team-hr/leave-calendar', label: 'Leave calendar' },
   { to: '/team-hr/incidents', label: 'Incident memos' },

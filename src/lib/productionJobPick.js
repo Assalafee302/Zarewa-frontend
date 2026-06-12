@@ -26,6 +26,23 @@ export function normalizeJobStatus(status) {
  * @param {Array<{ id?: string; productionRegisterRef?: string }> | null | undefined} cuttingLists
  * @returns {Record<string, unknown> | null}
  */
+/**
+ * Resolve a production job from a cutting list id or job id (coil profile "Open trace" may pass either).
+ *
+ * @param {string} focusId cutting list id or production job id
+ * @param {Array<{ jobID?: string; cuttingListId?: string; status?: string }>} jobs
+ * @param {Array<{ id?: string; productionRegisterRef?: string }> | null | undefined} cuttingLists
+ * @returns {Record<string, unknown> | null}
+ */
+export function pickProductionJobForFocusId(focusId, jobs, cuttingLists) {
+  const id = String(focusId || '').trim();
+  if (!id || !Array.isArray(jobs)) return null;
+  const byCuttingList = pickProductionJobForCuttingList(id, jobs, cuttingLists);
+  if (byCuttingList) return byCuttingList;
+  const byJobId = jobs.find((j) => String(j.jobID || '').trim() === id);
+  return byJobId ?? null;
+}
+
 export function pickProductionJobForCuttingList(cuttingListId, jobs, cuttingLists) {
   const id = String(cuttingListId || '').trim();
   if (!id || !Array.isArray(jobs)) return null;

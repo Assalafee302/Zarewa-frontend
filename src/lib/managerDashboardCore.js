@@ -25,6 +25,11 @@ export const MANAGER_INBOX_TABS = [
     label: 'Material exceptions',
     description: 'Offcut / return incidents awaiting branch manager approval',
   },
+  {
+    key: 'attendance',
+    label: 'Staff attendance',
+    description: 'Mark daily present, late, or absent for your branch staff',
+  },
 ];
 
 /** Filter chips on the Everything tab for quick sorting. */
@@ -56,6 +61,7 @@ export function normalizeManagerInboxRoute(rawInbox) {
   if (k === 'conversions') return { tab: 'qc', attentionFilter: 'qc' };
   if (k === 'edit_approvals') return { tab: 'attention', attentionFilter: 'edits' };
   if (k === 'material') return { tab: 'material', attentionFilter: 'material' };
+  if (k === 'attendance') return { tab: 'attendance', attentionFilter: 'all' };
   if (MANAGER_INBOX_TABS.some((t) => t.key === k)) return { tab: k, attentionFilter: 'all' };
   return { tab: 'attention', attentionFilter: 'all' };
 }

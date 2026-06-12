@@ -88,7 +88,7 @@ export default function TeamHrHome() {
         <div className="mt-3 flex flex-wrap gap-2">
           {[
             { to: '/team-hr/staff', label: 'View team roster' },
-            { to: '/team-hr/attendance', label: 'Review attendance' },
+            { to: '/manager?inbox=attendance', label: 'Mark daily attendance' },
             { to: '/team-hr/requests', label: 'Endorse leave / loan' },
             { to: '/team-hr/incidents', label: 'Submit incident' },
             { to: '/team-hr/transfers', label: 'Recommend transfer' },

@@ -11,6 +11,8 @@ import {
 } from 'lucide-react';
 import { MainPanel, ModalFrame, PageHeader, PageShell } from '../components/layout';
 import CoilDamageRecordModal from '../components/operations/CoilDamageRecordModal';
+import { ProductionRegisterEditModal } from '../components/operations/ProductionRegisterEditModal';
+import { pickProductionJobForFocusId } from '../lib/productionJobPick';
 import { useInventory } from '../context/InventoryContext';
 import { useToast } from '../context/ToastContext';
 import { useWorkspace } from '../context/WorkspaceContext';
@@ -96,6 +98,7 @@ export default function CoilProfile() {
   const [holdersMeta, setHoldersMeta] = useState(null);
   const [holdersLoading, setHoldersLoading] = useState(false);
   const [reconcilingReservation, setReconcilingReservation] = useState(false);
+  const [productionTraceModal, setProductionTraceModal] = useState(null);
 
   const actionModalOpen = Boolean(actionModal);
   const { captureEdited, wrapClose } = useTrackedUnsavedForm('page-coil-profile', {
@@ -134,6 +137,10 @@ export default function CoilProfile() {
   const cuttingLists = useMemo(
     () => (Array.isArray(ws?.snapshot?.cuttingLists) ? ws.snapshot.cuttingLists : []),
     [ws?.snapshot?.cuttingLists]
+  );
+  const productionJobs = useMemo(
+    () => (Array.isArray(ws?.snapshot?.productionJobs) ? ws.snapshot.productionJobs : []),
+    [ws?.snapshot?.productionJobs]
   );
   const productionJobCoils = useMemo(
     () => (Array.isArray(ws?.snapshot?.productionJobCoils) ? ws.snapshot.productionJobCoils : []),
@@ -396,6 +403,29 @@ export default function CoilProfile() {
     }
   };
 
+  const resolveProductionTraceFocus = (row) => {
+    const cl = String(row?.cuttingListId || '').trim();
+    if (cl) return cl;
+    const jobId = String(row?.jobID || '').trim();
+    if (!jobId) return '';
+    const job = pickProductionJobForFocusId(jobId, productionJobs, cuttingLists);
+    return String(job?.cuttingListId || jobId).trim();
+  };
+
+  const openProductionTrace = (row) => {
+    if (!ws?.canMutate) {
+      showToast('Connect API to open the production register.', { variant: 'info' });
+      return;
+    }
+    const focusId = resolveProductionTraceFocus(row);
+    if (!focusId) {
+      showToast('No production job linked to this row yet.', { variant: 'info' });
+      return;
+    }
+    const subtitle = [row?.customer, row?.quotationRef].filter(Boolean).join(' · ') || undefined;
+    setProductionTraceModal({ cuttingListId: focusId, subtitle });
+  };
+
   const submitReconcileReservation = async () => {
     if (!coil || !canReconcileReservation) return;
     setReconcilingReservation(true);
@@ -605,6 +635,16 @@ export default function CoilProfile() {
                   </button>
                 ) : null}
               </div>
+            ) : reservedKg > 0.05 && freeKg <= 0.05 ? (
+              <div className="mt-4 rounded-lg border border-sky-200 bg-sky-50 px-3 py-3 text-xs text-sky-950">
+                <p className="font-bold text-sky-900">Fully reserved by active production</p>
+                <p className="mt-1 leading-relaxed text-sky-900/90">
+                  <strong>{reservedKg.toLocaleString()}</strong> kg is held by planned or running jobs (see Production
+                  links below). This is not an orphan — <strong>Clear orphan reservation</strong> will report
+                  &ldquo;unchanged&rdquo; until those jobs complete, cancel, or release coil. Open each job trace to
+                  check opening kg or return the job to plan.
+                </p>
+              </div>
             ) : null}
             {holdersLoading ? (
               <p className="mt-3 text-[10px] text-slate-500">Loading production holders…</p>
@@ -627,13 +667,24 @@ export default function CoilProfile() {
                 jobRows.map((row, idx) => (
                   <div key={`${row.jobID || row.cuttingListId || 'job'}-${idx}`} className="rounded-lg border border-slate-200 px-3 py-2 text-xs">
                     <div className="flex justify-between gap-2">
-                      <span className="font-bold text-[#134e4a]">{row.cuttingListId || row.jobID || '—'}</span>
+                      <span className="font-bold text-[#134e4a]">
+                        {row.cuttingListId ? (
+                          <span className="font-mono">{row.cuttingListId}</span>
+                        ) : (
+                          <span className="text-amber-800">No cutting list linked</span>
+                        )}
+                        {row.jobID ? (
+                          <span className="ml-2 font-normal text-slate-500">
+                            job <span className="font-mono font-semibold">{row.jobID}</span>
+                          </span>
+                        ) : null}
+                      </span>
                       <span
                         className={`rounded px-1.5 py-0.5 border ${toneForAlert(
                           row.alertState || row.conversionAlert || row.status
                         )}`}
                       >
-                        {row.alertState || row.conversionAlert || row.status || '—'}
+                        {row.alertState || row.conversionAlert || row.jobStatus || row.status || '—'}
                       </span>
                     </div>
                     <div className="mt-1 text-slate-600 flex flex-wrap gap-x-3 gap-y-1">
@@ -645,21 +696,18 @@ export default function CoilProfile() {
                             : '—'}
                         </strong>
                       </span>
-                      <span>job: <strong>{row.jobStatus || row.status || '—'}</strong></span>
+                      <span>job status: <strong>{row.jobStatus || row.status || '—'}</strong></span>
                       <span>kg used: <strong>{row.kgUsed != null ? row.kgUsed.toLocaleString(undefined, { maximumFractionDigits: 2 }) : '—'}</strong></span>
                       <span>meter: <strong>{row.meters > 0 ? row.meters.toLocaleString() : '—'}</strong></span>
                       <span>conversion: <strong>{fmtConv2(row.actualConv)}</strong></span>
                       {(row.cuttingListId || row.jobID) ? (
-                        <Link
-                          to="/operations"
-                          state={{
-                            focusOpsTab: 'production',
-                            highlightCuttingListId: row.cuttingListId || row.jobID,
-                          }}
+                        <button
+                          type="button"
+                          onClick={() => openProductionTrace(row)}
                           className="text-[#134e4a] underline underline-offset-2 font-semibold"
                         >
                           Open trace
-                        </Link>
+                        </button>
                       ) : null}
                     </div>
                   </div>
@@ -706,16 +754,13 @@ export default function CoilProfile() {
                         {c.alertState || 'Within band'}
                       </span>
                       {(c.cuttingListId || c.jobID) ? (
-                        <Link
-                          to="/operations"
-                          state={{
-                            focusOpsTab: 'production',
-                            highlightCuttingListId: c.cuttingListId || c.jobID,
-                          }}
+                        <button
+                          type="button"
+                          onClick={() => openProductionTrace(c)}
                           className="ml-2 text-[#134e4a] underline underline-offset-2 font-semibold"
                         >
                           Open trace
-                        </Link>
+                        </button>
                       ) : null}
                     </p>
                   </li>
@@ -845,6 +890,13 @@ export default function CoilProfile() {
         coilLots={coilLots}
         cuttingLists={cuttingLists}
         defaultCoilNo={coil.coilNo}
+      />
+
+      <ProductionRegisterEditModal
+        isOpen={productionTraceModal != null}
+        onClose={() => setProductionTraceModal(null)}
+        cuttingListId={productionTraceModal?.cuttingListId}
+        subtitle={productionTraceModal?.subtitle}
       />
     </PageShell>
   );
