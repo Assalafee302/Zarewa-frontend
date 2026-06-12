@@ -55,6 +55,26 @@ export function isDomesticStaff(payrollGroup) {
   return normalizePayrollGroup(payrollGroup) === HR_PAYROLL_GROUPS.DOMESTIC;
 }
 
+export function isPayrollRunEligible(payrollGroup) {
+  return isBranchEmployee(payrollGroup);
+}
+
+export function requiresPaye(payrollGroup) {
+  return isBranchEmployee(payrollGroup);
+}
+
+export function requiresEmployeePensionDeduction(payrollGroup) {
+  return isBranchEmployee(payrollGroup);
+}
+
+export function requiresEmployerPensionContribution(payrollGroup) {
+  return isBranchEmployee(payrollGroup);
+}
+
+export function isStatutoryPayrollExempt(payrollGroup) {
+  return !isBranchEmployee(payrollGroup);
+}
+
 export function payrollGroupLabel(payrollGroup) {
   return PAYROLL_GROUP_LABELS[normalizePayrollGroup(payrollGroup)] || String(payrollGroup || 'Staff');
 }

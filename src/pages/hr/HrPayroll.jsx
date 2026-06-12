@@ -363,8 +363,9 @@ export default function HrPayroll({ embedded = false } = {}) {
     <div className="space-y-6">
       {!embedded ? (
         <p className="text-sm text-slate-600">
-          Create a monthly run to list all active staff with auto loan, pension, and attendance deductions. PAYE % is set
-          on each employee profile. Pension rates are configured under Payroll → Statutory.
+          Monthly payroll for branch staff only. Scholarship, mining, HQ special, and domestic staff are paid through
+          their own HR tracks — not this run. PAYE % is set on each branch employee profile. Pension rates are under
+          Payroll → Statutory.
         </p>
       ) : null}
 
@@ -418,7 +419,7 @@ export default function HrPayroll({ embedded = false } = {}) {
                 Create payroll run
               </button>
               <p className="w-full text-xs text-slate-500">
-                Staff list is built automatically. PAYE from profiles · pension from Statutory tab · December = year-end bonus.
+                Branch staff only · PAYE from profiles · pension from Statutory · December = year-end bonus.
               </p>
             </div>
           ) : null}
@@ -480,7 +481,7 @@ export default function HrPayroll({ embedded = false } = {}) {
 
                 {run.status === 'draft' && previewMode ? (
                   <p className="text-xs font-semibold text-amber-800 rounded-lg border border-amber-100 bg-amber-50 px-3 py-2">
-                    Recompute refreshes all staff lines from current profiles, loans, and attendance.
+                    Recompute refreshes branch staff lines from profiles, loans, and attendance.
                   </p>
                 ) : null}
 
@@ -503,7 +504,7 @@ export default function HrPayroll({ embedded = false } = {}) {
                       Recompute all staff
                     </button>
                     <span className="text-xs text-slate-500">
-                      PAYE per employee · pension in Statutory tab · loans & attendance automatic
+                      Branch staff only · PAYE per profile · pension in Statutory · loans & attendance automatic
                     </span>
                   </div>
                 ) : null}

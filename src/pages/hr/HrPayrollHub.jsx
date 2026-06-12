@@ -25,7 +25,7 @@ export default function HrPayrollHub() {
   return (
     <HrTabbedPage
       title="Payroll, Loans & Benefits"
-      description="HQ payroll runs, staff loans, beneficiaries, tax/pension analytics, salary matrix, and statutory costs."
+      description="Branch staff payroll runs, loans, beneficiaries, tax/pension analytics, salary matrix, and statutory rates."
       tabs={TABS}
       tab={tab}
       onTabChange={setTab}

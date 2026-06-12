@@ -137,7 +137,7 @@ export function HrPensionPolicySection() {
   return (
     <HrCard
       title="Pension & year-end bonus"
-      subtitle="Company-wide rates — applied automatically on payroll recompute. PAYE is set per staff profile."
+      subtitle="Company-wide rates for branch staff payroll. PAYE is set per branch employee profile. Domestic and other cohorts are exempt."
     >
       {error ? <div className="mb-3 rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-sm text-red-800">{error}</div> : null}
       {message ? <div className="mb-3 rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-2 text-sm text-emerald-900">{message}</div> : null}
