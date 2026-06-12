@@ -1,21 +1,22 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 import { PageHeader, PageShell, MainPanel } from '../layout';
-
-const NAV = [
-  { to: '/me', label: 'Overview', end: true },
-  { to: '/me/account', label: 'Account' },
-  { to: '/me/security', label: 'Security' },
-  { to: '/me/actions', label: 'What I can do' },
-];
+import { UserProfileProvider, useUserProfile } from '../../context/UserProfileContext';
+import { buildUserProfileNav } from '../../lib/userProfileActions';
 
 function ProfileSubnav() {
+  const { cohort, hasHrSelfService } = useUserProfile();
+  const nav = useMemo(
+    () => buildUserProfileNav(cohort, hasHrSelfService),
+    [cohort, hasHrSelfService]
+  );
+
   return (
     <nav
       className="flex gap-1 overflow-x-auto pb-1 -mx-1 px-1 custom-scrollbar"
       aria-label="Profile sections"
     >
-      {NAV.map((item) => (
+      {nav.map((item) => (
         <NavLink
           key={item.to}
           to={item.to}
@@ -35,14 +36,21 @@ function ProfileSubnav() {
   );
 }
 
-export function UserProfileShell() {
+function UserProfileShellInner() {
+  const { cohort } = useUserProfile();
+
+  const subtitle =
+    cohort === 'scholarship'
+      ? 'Your personal hub — school fees, stipend, documents, and account settings.'
+      : cohort === 'domestic'
+        ? 'Your personal hub — payslips, documents, and account settings.'
+        : cohort === 'account_only'
+          ? 'Your personal hub — account details, security, and workspace shortcuts.'
+          : 'Your personal hub — leave, loans, payslips, documents, and employment self-service.';
+
   return (
     <PageShell className="pb-10">
-      <PageHeader
-        eyebrow="Account"
-        title="My profile"
-        subtitle="Your personal workspace — account details, security, and shortcuts to what you can do."
-      />
+      <PageHeader eyebrow="Account" title="My profile" subtitle={subtitle} />
       <div className="mb-6">
         <ProfileSubnav />
       </div>
@@ -50,5 +58,13 @@ export function UserProfileShell() {
         <Outlet />
       </MainPanel>
     </PageShell>
+  );
+}
+
+export function UserProfileShell() {
+  return (
+    <UserProfileProvider>
+      <UserProfileShellInner />
+    </UserProfileProvider>
   );
 }

@@ -29,7 +29,17 @@ export function documentTitleForPath(pathname) {
     const labels = {
       account: 'Account',
       security: 'Security',
-      actions: 'What I can do',
+      services: 'All services',
+      school: 'My school',
+      leave: 'Leave',
+      loans: 'Loans',
+      documents: 'Documents',
+      payslips: 'Payslips',
+      attendance: 'Attendance',
+      employment: 'Employment',
+      policies: 'Policies',
+      grievance: 'Feedback',
+      'id-card': 'ID card',
     };
     return `My profile – ${labels[sec] || 'Overview'} | ${DOCUMENT_TITLE_BASE}`;
   }

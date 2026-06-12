@@ -1,36 +1,345 @@
 import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { apiFetch } from '../../lib/apiBase';
 import { useWorkspace } from '../../context/WorkspaceContext';
-import { canAccessMyProfileHr } from '../../lib/hrAccess';
+import { useUserProfile } from '../../context/UserProfileContext';
+import { HrSensitiveGate } from '../../components/hr/HrSensitiveGate';
+import { useHrSensitiveAccess } from '../../hooks/useHrSensitiveAccess';
+import { canViewOrgSensitiveHr } from '../../lib/hrAccess';
+import { formatNgn } from '../../lib/hrFormat';
+import { formatPeriodYyyymm } from '../../lib/hrPayroll';
+import { HrProfileCompleteness } from '../../components/hr/HrProfileCompleteness';
 import { ProfileHeroCard } from '../../components/profile/ProfileHeroCard';
 import { ProfileActionGrid } from '../../components/profile/ProfileActionGrid';
 
-export default function ProfileOverview() {
-  const ws = useWorkspace();
-  const showHrRequests = canAccessMyProfileHr(ws?.permissions);
-  const [requests, setRequests] = useState([]);
-  const [loadingRequests, setLoadingRequests] = useState(false);
+function QuickActionBtn({ to, children, icon }) {
+  const cls =
+    'flex flex-col items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-3 text-[10px] font-bold uppercase tracking-wider text-[#134e4a] shadow-sm hover:border-[#134e4a] hover:bg-teal-50/50 transition-colors no-underline';
+  return (
+    <Link to={to} className={cls}>
+      <span className="text-lg">{icon}</span>
+      {children}
+    </Link>
+  );
+}
+
+function SummaryCard({ title, children }) {
+  return (
+    <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+      <h3 className="mb-3 text-[10px] font-black uppercase tracking-widest text-slate-400">{title}</h3>
+      {children}
+    </div>
+  );
+}
+
+function ScholarshipOverviewTeaser() {
+  const [loading, setLoading] = useState(true);
+  const [profile, setProfile] = useState(null);
 
   useEffect(() => {
-    if (!showHrRequests) return;
     let cancelled = false;
     (async () => {
-      setLoadingRequests(true);
-      const { ok, data } = await apiFetch('/api/hr/requests?scope=mine&limit=5');
+      const { ok, data } = await apiFetch('/api/hr/me/school-profile');
       if (!cancelled) {
-        setRequests(ok && data?.ok ? data.requests || [] : []);
-        setLoadingRequests(false);
+        setProfile(ok && data?.ok ? data.profile : null);
+        setLoading(false);
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [showHrRequests]);
+  }, []);
 
-  const pending = requests.filter(
+  return (
+    <section className="rounded-2xl border border-violet-100 bg-gradient-to-br from-violet-50/80 to-white p-5 shadow-sm">
+      <div className="mb-4 flex flex-wrap items-end justify-between gap-2">
+        <div>
+          <h3 className="text-sm font-black text-slate-900">School & stipend</h3>
+          <p className="text-xs text-slate-500 mt-0.5">Your scholarship profile at a glance</p>
+        </div>
+        <Link to="/me/school" className="text-[11px] font-bold uppercase text-violet-700 hover:underline">
+          Full school profile →
+        </Link>
+      </div>
+      {loading ? (
+        <p className="text-sm text-slate-500">Loading…</p>
+      ) : profile ? (
+        <dl className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 text-sm">
+          <div>
+            <dt className="text-[10px] font-black uppercase tracking-widest text-slate-400">School</dt>
+            <dd className="mt-1 font-semibold text-slate-900">{profile.schoolName || '—'}</dd>
+          </div>
+          <div>
+            <dt className="text-[10px] font-black uppercase tracking-widest text-slate-400">Class / level</dt>
+            <dd className="mt-1 font-semibold text-slate-900">{profile.classLevel || '—'}</dd>
+          </div>
+          <div>
+            <dt className="text-[10px] font-black uppercase tracking-widest text-slate-400">School fees</dt>
+            <dd className="mt-1 font-semibold tabular-nums text-slate-900">
+              {profile.schoolFeesNgn != null ? formatNgn(profile.schoolFeesNgn) : '—'}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-[10px] font-black uppercase tracking-widest text-slate-400">Stipend step</dt>
+            <dd className="mt-1 font-semibold text-slate-900">
+              {profile.salaryStep != null ? `Step ${profile.salaryStep}` : '—'}
+            </dd>
+          </div>
+        </dl>
+      ) : (
+        <p className="text-sm text-slate-500">Open My school to view your scholarship details.</p>
+      )}
+    </section>
+  );
+}
+
+function EmployeeOverviewDashboard() {
+  const navigate = useNavigate();
+  const ws = useWorkspace();
+  const { me, hr, cohort, error: meError } = useUserProfile();
+  const sensitive = useHrSensitiveAccess();
+  const showSensitiveInline = canViewOrgSensitiveHr(ws?.permissions);
+
+  const [loading, setLoading] = useState(true);
+  const [balances, setBalances] = useState([]);
+  const [payslips, setPayslips] = useState([]);
+  const [requests, setRequests] = useState([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      const fetcher = showSensitiveInline || sensitive.isUnlocked ? sensitive.fetchWithSensitive : apiFetch;
+
+      const [balancesRes, payslipsRes, requestsRes] = await Promise.all([
+        apiFetch('/api/hr/leave/balances').catch(() => ({ ok: false })),
+        fetcher('/api/hr/payslips').catch(() => ({ ok: false })),
+        apiFetch('/api/hr/requests?scope=mine&limit=8').catch(() => ({ ok: false })),
+      ]);
+
+      if (cancelled) return;
+
+      if (balancesRes.ok && balancesRes.data?.ok) setBalances(balancesRes.data.balances || []);
+      if (payslipsRes.ok && payslipsRes.data?.ok) setPayslips(payslipsRes.data.payslips || []);
+      if (requestsRes.ok && requestsRes.data?.ok) setRequests(requestsRes.data.requests || []);
+      setLoading(false);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [sensitive.isUnlocked, showSensitiveInline, sensitive.fetchWithSensitive]);
+
+  if (meError) {
+    return (
+      <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-800">{meError}</div>
+    );
+  }
+
+  const lastPayslip = payslips[0] || null;
+  const pendingRequests = requests.filter(
     (r) => !['approved', 'rejected', 'cancelled', 'draft'].includes(String(r.status || '').toLowerCase())
   );
+
+  const quickActions = (
+    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-5">
+      {cohort !== 'domestic' && cohort !== 'special' ? (
+        <QuickActionBtn to="/me/leave" icon="🏖️">
+          Apply leave
+        </QuickActionBtn>
+      ) : null}
+      {cohort === 'employee' || cohort === 'special' ? (
+        <QuickActionBtn to="/me/loans" icon="💰">
+          Apply loan
+        </QuickActionBtn>
+      ) : null}
+      <QuickActionBtn to="/me/payslips" icon="📄">
+        Payslips
+      </QuickActionBtn>
+      <QuickActionBtn to="/me/documents" icon="📂">
+        Documents
+      </QuickActionBtn>
+      {cohort === 'employee' ? (
+        <QuickActionBtn to="/me/attendance" icon="🕐">
+          Attendance
+        </QuickActionBtn>
+      ) : null}
+      {cohort !== 'domestic' ? (
+        <>
+          <QuickActionBtn to="/me/policies" icon="📋">
+            Policies
+          </QuickActionBtn>
+          <QuickActionBtn to="/me/id-card" icon="🪪">
+            ID card
+          </QuickActionBtn>
+        </>
+      ) : null}
+    </div>
+  );
+
+  const summarySection = (
+    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      {cohort === 'employee' || cohort === 'special' ? (
+        <SummaryCard title="Leave balances">
+          {loading ? (
+            <p className="text-sm text-slate-500">Loading…</p>
+          ) : balances.length === 0 ? (
+            <p className="text-sm text-slate-500">No leave balances on record.</p>
+          ) : (
+            <ul className="space-y-1.5">
+              {balances.map((b) => (
+                <li key={b.leaveType} className="flex items-center justify-between text-sm">
+                  <span className="capitalize text-slate-700">{b.leaveType} leave</span>
+                  <span className="font-black tabular-nums text-[#134e4a]">{b.closingDays ?? b.balance ?? 0} days</span>
+                </li>
+              ))}
+            </ul>
+          )}
+          <Link to="/me/leave" className="mt-3 block text-[11px] font-bold uppercase text-[#134e4a] hover:underline">
+            Apply for leave →
+          </Link>
+        </SummaryCard>
+      ) : null}
+
+      <SummaryCard title="Last payslip">
+        {loading ? (
+          <p className="text-sm text-slate-500">Loading…</p>
+        ) : !lastPayslip ? (
+          <p className="text-sm text-slate-500">No payslips on file yet.</p>
+        ) : (
+          <>
+            <p className="text-[11px] text-slate-500">
+              {formatPeriodYyyymm(lastPayslip.periodYyyymm)} · {lastPayslip.runStatus}
+            </p>
+            {lastPayslip.amountsRedacted ? (
+              <p className="mt-1 text-sm text-slate-500 italic">Unlock to view amount</p>
+            ) : (
+              <>
+                <p className="mt-1 text-lg font-black tabular-nums text-slate-900">{formatNgn(lastPayslip.netNgn)}</p>
+                <p className="text-[11px] text-slate-500">Net pay</p>
+              </>
+            )}
+          </>
+        )}
+        <Link to="/me/payslips" className="mt-3 block text-[11px] font-bold uppercase text-[#134e4a] hover:underline">
+          All payslips →
+        </Link>
+      </SummaryCard>
+
+      <SummaryCard title="Recent requests">
+        {loading ? (
+          <p className="text-sm text-slate-500">Loading…</p>
+        ) : requests.length === 0 ? (
+          <p className="text-sm text-slate-500">No requests submitted yet.</p>
+        ) : (
+          <ul className="space-y-1.5">
+            {requests.slice(0, 5).map((r) => (
+              <li key={r.id} className="flex items-center justify-between gap-2 text-sm">
+                <span className="min-w-0 truncate text-slate-700">{r.title || r.kind || 'Request'}</span>
+                <span
+                  className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${
+                    r.status === 'approved'
+                      ? 'bg-emerald-50 text-emerald-800'
+                      : r.status === 'rejected'
+                        ? 'bg-red-50 text-red-800'
+                        : 'bg-amber-50 text-amber-800'
+                  }`}
+                >
+                  {String(r.status || 'pending').replace(/_/g, ' ')}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+        {pendingRequests.length > 0 ? (
+          <p className="mt-3 text-xs text-amber-800 bg-amber-50 rounded-lg px-3 py-2 border border-amber-100">
+            {pendingRequests.length} awaiting review
+          </p>
+        ) : null}
+      </SummaryCard>
+    </div>
+  );
+
+  const employmentDetails =
+    hr && cohort !== 'domestic' ? (
+      <SummaryCard title="Employment summary">
+        <dl className="grid grid-cols-1 gap-3 sm:grid-cols-2 text-sm">
+          <div>
+            <dt className="text-[10px] font-black uppercase tracking-widest text-slate-400">Job title</dt>
+            <dd className="mt-1 font-semibold text-slate-900">{hr.jobTitle || '—'}</dd>
+          </div>
+          <div>
+            <dt className="text-[10px] font-black uppercase tracking-widest text-slate-400">Date joined</dt>
+            <dd className="mt-1 font-semibold text-slate-900">{hr.dateJoinedIso || '—'}</dd>
+          </div>
+          <div>
+            <dt className="text-[10px] font-black uppercase tracking-widest text-slate-400">Employment type</dt>
+            <dd className="mt-1 font-semibold text-slate-900">{hr.employmentType || '—'}</dd>
+          </div>
+          {hr.compensationRedacted ? (
+            <div className="sm:col-span-2 rounded-xl border border-slate-100 bg-slate-50 px-3 py-2 text-xs text-slate-600">
+              Compensation figures are hidden. Unlock sensitive data to view salary and bank details.
+            </div>
+          ) : (
+            <>
+              <div>
+                <dt className="text-[10px] font-black uppercase tracking-widest text-slate-400">Base salary (monthly)</dt>
+                <dd className="mt-1 font-semibold tabular-nums text-slate-900">
+                  {hr.baseSalaryNgn != null ? formatNgn(hr.baseSalaryNgn) : '—'}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-[10px] font-black uppercase tracking-widest text-slate-400">Bank</dt>
+                <dd className="mt-1 font-semibold text-slate-900">
+                  {hr.bankName || '—'}
+                  {hr.bankAccountNoMasked ? ` · ${hr.bankAccountNoMasked}` : ''}
+                </dd>
+              </div>
+            </>
+          )}
+        </dl>
+        <Link to="/me/employment" className="mt-3 block text-[11px] font-bold uppercase text-[#134e4a] hover:underline">
+          Full employment record →
+        </Link>
+      </SummaryCard>
+    ) : null;
+
+  const content = (
+    <div className="space-y-5">
+      {me?.completeness ? (
+        <HrProfileCompleteness
+          completeness={me.completeness}
+          compact
+          onFixSection={(tabId) => {
+            const map = {
+              documents: '/me/documents',
+              employment: '/me/employment',
+              policies: '/me/policies',
+            };
+            navigate(map[tabId] || '/me/documents');
+          }}
+        />
+      ) : null}
+      {quickActions}
+      {summarySection}
+      {employmentDetails}
+    </div>
+  );
+
+  if (showSensitiveInline) return content;
+  return <HrSensitiveGate label="View your compensation and bank details">{content}</HrSensitiveGate>;
+}
+
+export default function ProfileOverview() {
+  const { cohort, hasHrSelfService, loading } = useUserProfile();
+
+  if (loading && hasHrSelfService) {
+    return (
+      <div className="space-y-6">
+        <ProfileHeroCard />
+        <p className="text-sm text-slate-600">Loading your profile…</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -40,77 +349,39 @@ export default function ProfileOverview() {
         <div className="mb-4 flex flex-wrap items-end justify-between gap-2">
           <div>
             <h3 className="text-sm font-black text-slate-900">Quick actions</h3>
-            <p className="text-xs text-slate-500 mt-0.5">Shortcuts based on your role and permissions</p>
+            <p className="text-xs text-slate-500 mt-0.5">Open the exact form or page for each action</p>
           </div>
-          <Link
-            to="/me/actions"
-            className="text-[11px] font-bold uppercase text-[#134e4a] hover:underline"
-          >
-            View all →
+          <Link to="/me/services" className="text-[11px] font-bold uppercase text-[#134e4a] hover:underline">
+            All services →
           </Link>
         </div>
-        <ProfileActionGrid compact />
+        <ProfileActionGrid compact excludeWorkspace />
       </section>
 
-      {showHrRequests ? (
-        <section className="rounded-2xl border border-slate-200/90 bg-white p-5 shadow-sm">
-          <div className="mb-3 flex items-center justify-between gap-2">
-            <h3 className="text-sm font-black text-slate-900">Recent requests</h3>
-            <Link to="/my-profile/leave" className="text-[11px] font-bold uppercase text-[#134e4a] hover:underline">
-              New request →
-            </Link>
-          </div>
-          {loadingRequests ? (
-            <p className="text-sm text-slate-500">Loading…</p>
-          ) : requests.length === 0 ? (
-            <p className="text-sm text-slate-500">No requests submitted yet.</p>
-          ) : (
-            <ul className="divide-y divide-slate-100">
-              {requests.map((r) => (
-                <li key={r.id} className="flex items-center justify-between gap-3 py-3 first:pt-0 last:pb-0">
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold text-slate-800">{r.title || r.kind || 'Request'}</p>
-                    <p className="text-[11px] text-slate-500 capitalize">{String(r.kind || '').replace(/_/g, ' ')}</p>
-                  </div>
-                  <span
-                    className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${
-                      r.status === 'approved'
-                        ? 'bg-emerald-50 text-emerald-800'
-                        : r.status === 'rejected'
-                          ? 'bg-red-50 text-red-800'
-                          : 'bg-amber-50 text-amber-800'
-                    }`}
-                  >
-                    {String(r.status || 'pending').replace(/_/g, ' ')}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-          {pending.length > 0 ? (
-            <p className="mt-3 text-xs text-amber-800 bg-amber-50 rounded-lg px-3 py-2 border border-amber-100">
-              {pending.length} request{pending.length === 1 ? '' : 's'} awaiting review.
-            </p>
-          ) : null}
-        </section>
+      {cohort === 'scholarship' ? <ScholarshipOverviewTeaser /> : null}
+
+      {hasHrSelfService && cohort !== 'scholarship' && cohort !== 'account_only' ? (
+        <EmployeeOverviewDashboard />
       ) : null}
 
-      <section className="grid gap-3 sm:grid-cols-2">
-        <Link
-          to="/me/account"
-          className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4 no-underline hover:border-teal-200 hover:bg-teal-50/40 transition-colors"
-        >
-          <p className="text-sm font-bold text-slate-900">Account details</p>
-          <p className="mt-1 text-xs text-slate-600">Update how you appear in Zarewa</p>
-        </Link>
-        <Link
-          to="/me/security"
-          className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4 no-underline hover:border-teal-200 hover:bg-teal-50/40 transition-colors"
-        >
-          <p className="text-sm font-bold text-slate-900">Password & security</p>
-          <p className="mt-1 text-xs text-slate-600">Change your sign-in password</p>
-        </Link>
-      </section>
+      {cohort === 'account_only' ? (
+        <section className="grid gap-3 sm:grid-cols-2">
+          <Link
+            to="/me/account"
+            className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4 no-underline hover:border-teal-200 hover:bg-teal-50/40 transition-colors"
+          >
+            <p className="text-sm font-bold text-slate-900">Account details</p>
+            <p className="mt-1 text-xs text-slate-600">Update how you appear in Zarewa</p>
+          </Link>
+          <Link
+            to="/me/security"
+            className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4 no-underline hover:border-teal-200 hover:bg-teal-50/40 transition-colors"
+          >
+            <p className="text-sm font-bold text-slate-900">Password & security</p>
+            <p className="mt-1 text-xs text-slate-600">Change your sign-in password</p>
+          </Link>
+        </section>
+      ) : null}
     </div>
   );
 }

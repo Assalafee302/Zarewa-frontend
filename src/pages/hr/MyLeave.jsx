@@ -16,7 +16,7 @@ const LEAVE_TYPES = [
 
 const STEPS = ['Type & dates', 'Details', 'Review'];
 
-export default function MyLeave() {
+export default function MyLeave({ staffLinkBase = '/my-profile' }) {
   const [modalOpen, setModalOpen] = useState(false);
   const [step, setStep] = useState(0);
   const [leaveType, setLeaveType] = useState('annual');
@@ -320,7 +320,7 @@ export default function MyLeave() {
       <section>
         <h2 className="text-[11px] font-black uppercase tracking-widest text-slate-500">My leave requests</h2>
         <div className="mt-3">
-          <HrRequestsPanel allowedScopes={['mine']} defaultScope="mine" kindFilter="leave" staffLinkBase="/my-profile" />
+          <HrRequestsPanel allowedScopes={['mine']} defaultScope="mine" kindFilter="leave" staffLinkBase={staffLinkBase} />
         </div>
       </section>
     </div>

@@ -1,7 +1,6 @@
 import {
   canAccessExecutiveHr,
   canAccessMainHrWorkspace,
-  canAccessMyProfileHr,
   canAccessTeamHr,
   canMarkHrAttendance,
   canRequestMyLeave,
@@ -18,21 +17,25 @@ import { hasPermissionInList } from './moduleAccess';
  *   to: string;
  *   category: 'account' | 'self_service' | 'team' | 'workspace';
  *   tone?: 'teal' | 'amber' | 'violet' | 'slate';
+ *   icon?: string;
  * }} UserProfileAction
  */
 
 /**
- * Build action tiles for the signed-in user (not HR-admin navigation).
  * @param {{
  *   permissions?: string[];
  *   roleKey?: string;
  *   canAccessModule?: (key: string) => boolean;
+ *   cohort?: string;
+ *   hasHrSelfService?: boolean;
  * }} ctx
  * @returns {UserProfileAction[]}
  */
 export function buildUserProfileActions(ctx = {}) {
   const permissions = ctx.permissions || [];
   const roleKey = String(ctx.roleKey || '').trim().toLowerCase();
+  const cohort = String(ctx.cohort || 'account_only');
+  const hasHr = Boolean(ctx.hasHrSelfService);
   const canModule = typeof ctx.canAccessModule === 'function' ? ctx.canAccessModule : () => false;
   const has = (p) => hasPermissionInList(permissions, p);
   const hr = (p) => hrHasPermission(permissions, p);
@@ -46,6 +49,7 @@ export function buildUserProfileActions(ctx = {}) {
       to: '/me/account',
       category: 'account',
       tone: 'teal',
+      icon: '👤',
     },
     {
       id: 'change-password',
@@ -54,118 +58,136 @@ export function buildUserProfileActions(ctx = {}) {
       to: '/me/security',
       category: 'account',
       tone: 'slate',
+      icon: '🔒',
     },
   ];
 
-  if (canModule('settings')) {
-    actions.push({
-      id: 'preferences',
-      label: 'Dashboard preferences',
-      description: 'Home layout and personal targets',
-      to: '/settings/preferences',
-      category: 'account',
-      tone: 'slate',
-    });
-  }
-
-  if (hr('hr.self') || canAccessMyProfileHr(permissions)) {
+  if (cohort === 'scholarship') {
     actions.push({
       id: 'school-profile',
-      label: 'My school profile',
-      description: 'Scholarship fees, stipend step, and term dates',
-      to: '/my-profile/school',
+      label: 'My school',
+      description: 'Fees, stipend step, and term dates',
+      to: '/me/school',
       category: 'self_service',
       tone: 'violet',
+      icon: '🎓',
     });
+    if (hr('hr.my_documents.view')) {
+      actions.push({
+        id: 'upload-document',
+        label: 'My documents',
+        description: 'Upload certificates and files',
+        to: '/me/documents',
+        category: 'self_service',
+        tone: 'violet',
+        icon: '📂',
+      });
+    }
+    return actions;
   }
+
+  if (!hasHr) return actions;
 
   if (canRequestMyLeave(permissions) || hr('hr.my_leave.request')) {
     actions.push({
       id: 'apply-leave',
       label: 'Apply for leave',
       description: 'Submit a leave request',
-      to: '/my-profile/leave',
+      to: '/me/leave',
       category: 'self_service',
       tone: 'teal',
+      icon: '🏖️',
     });
   }
 
-  if (hr('hr.my_loan.request') || canAccessMyProfileHr(permissions)) {
+  if (hr('hr.my_loan.request')) {
     actions.push({
       id: 'apply-loan',
       label: 'Apply for loan',
       description: 'Staff loan application',
-      to: '/my-profile/loans',
+      to: '/me/loans',
       category: 'self_service',
       tone: 'amber',
+      icon: '💰',
     });
   }
 
-  if (hr('hr.my_documents.view') || canAccessMyProfileHr(permissions)) {
+  if (hr('hr.my_documents.view')) {
     actions.push({
       id: 'upload-document',
-      label: 'Upload document',
+      label: 'My documents',
       description: 'Certificates, IDs, and files',
-      to: '/my-profile/documents',
+      to: '/me/documents',
       category: 'self_service',
       tone: 'violet',
+      icon: '📂',
     });
   }
 
   if (canViewMyPayslips(permissions)) {
     actions.push({
       id: 'payslips',
-      label: 'View payslips',
-      description: 'Download salary slips',
-      to: '/my-profile/payslips',
+      label: 'Payslips',
+      description: 'View and download salary slips',
+      to: '/me/payslips',
       category: 'self_service',
       tone: 'teal',
+      icon: '📄',
     });
   }
 
-  if (hr('hr.my_attendance.view') || canAccessMyProfileHr(permissions)) {
+  if (hr('hr.my_attendance.view') && cohort === 'employee') {
     actions.push({
       id: 'my-attendance',
       label: 'My attendance',
-      description: 'Attendance history and records',
-      to: '/my-profile/attendance',
+      description: 'Attendance records and guidance',
+      to: '/me/attendance',
       category: 'self_service',
       tone: 'slate',
+      icon: '🕐',
     });
   }
 
-  if (hr('hr.self') || canAccessMyProfileHr(permissions)) {
+  if (cohort === 'domestic') {
+    return actions;
+  }
+
+  if (hr('hr.self') || hr('hr.my_profile.view')) {
     actions.push({
-      id: 'policies',
-      label: 'Policies & handbook',
-      description: 'Company HR policies',
-      to: '/my-profile/policies',
+      id: 'employment',
+      label: 'Employment record',
+      description: 'Job details and HR profile',
+      to: '/me/employment',
       category: 'self_service',
       tone: 'slate',
+      icon: '💼',
+    });
+    actions.push({
+      id: 'policies',
+      label: 'Policies',
+      description: 'Company handbook and policies',
+      to: '/me/policies',
+      category: 'self_service',
+      tone: 'slate',
+      icon: '📋',
     });
     actions.push({
       id: 'grievance',
       label: 'Feedback & grievance',
       description: 'Raise feedback or a grievance',
-      to: '/my-profile/grievance',
+      to: '/me/grievance',
       category: 'self_service',
       tone: 'violet',
-    });
-    actions.push({
-      id: 'employment',
-      label: 'Employment record',
-      description: 'Job details and HR profile',
-      to: '/my-profile/employment',
-      category: 'self_service',
-      tone: 'slate',
+      icon: '💬',
     });
     actions.push({
       id: 'id-card',
       label: 'Staff ID card',
       description: 'View or print your ID',
-      to: '/my-profile/id-card',
+      to: '/me/id-card',
       category: 'self_service',
       tone: 'teal',
+      icon: '🪪',
     });
   }
 
@@ -177,6 +199,7 @@ export function buildUserProfileActions(ctx = {}) {
       to: '/manager?inbox=attendance',
       category: 'team',
       tone: 'teal',
+      icon: '✅',
     });
   }
 
@@ -188,6 +211,7 @@ export function buildUserProfileActions(ctx = {}) {
       to: '/team-hr',
       category: 'team',
       tone: 'amber',
+      icon: '👥',
     });
   }
 
@@ -199,6 +223,19 @@ export function buildUserProfileActions(ctx = {}) {
       to: '/manager',
       category: 'team',
       tone: 'violet',
+      icon: '📥',
+    });
+  }
+
+  if (canModule('settings')) {
+    actions.push({
+      id: 'preferences',
+      label: 'Dashboard preferences',
+      description: 'Home layout and targets',
+      to: '/settings/preferences',
+      category: 'workspace',
+      tone: 'slate',
+      icon: '⚙️',
     });
   }
 
@@ -210,6 +247,7 @@ export function buildUserProfileActions(ctx = {}) {
       to: '/hr',
       category: 'workspace',
       tone: 'teal',
+      icon: '🏢',
     });
   }
 
@@ -221,10 +259,57 @@ export function buildUserProfileActions(ctx = {}) {
       to: '/executive-hr',
       category: 'workspace',
       tone: 'violet',
+      icon: '⭐',
     });
   }
 
   return actions;
+}
+
+/** @param {string} cohort */
+export function buildUserProfileNav(cohort, hasHrSelfService) {
+  const base = [
+    { to: '/me', label: 'Overview', end: true },
+    { to: '/me/account', label: 'Account' },
+    { to: '/me/security', label: 'Security' },
+  ];
+
+  if (cohort === 'scholarship') {
+    return [
+      ...base,
+      { to: '/me/school', label: 'My school' },
+      { to: '/me/documents', label: 'Documents' },
+    ];
+  }
+
+  if (!hasHrSelfService) return base;
+
+  if (cohort === 'domestic') {
+    return [
+      ...base,
+      { to: '/me/payslips', label: 'Payslips' },
+      { to: '/me/documents', label: 'Documents' },
+      { to: '/me/policies', label: 'Policies' },
+    ];
+  }
+
+  const employee = [
+    ...base,
+    { to: '/me/leave', label: 'Leave' },
+    { to: '/me/loans', label: 'Loans' },
+    { to: '/me/documents', label: 'Documents' },
+    { to: '/me/payslips', label: 'Payslips' },
+    { to: '/me/employment', label: 'Employment' },
+    { to: '/me/policies', label: 'Policies' },
+    { to: '/me/grievance', label: 'Feedback' },
+    { to: '/me/id-card', label: 'ID card' },
+  ];
+
+  if (cohort === 'employee') {
+    employee.splice(5, 0, { to: '/me/attendance', label: 'Attendance' });
+  }
+
+  return employee;
 }
 
 export const USER_PROFILE_ACTION_CATEGORIES = [
