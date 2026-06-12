@@ -9,7 +9,10 @@ import HrOrgChart from './HrOrgChart';
 const HrIdCards = lazyWithRetry(() => import('./HrIdCards'), { id: 'HrIdCards' });
 
 const TABS = [
-  { id: 'directory', label: 'Directory' },
+  { id: 'directory', label: 'Employees' },
+  { id: 'scholarship', label: 'Scholarship' },
+  { id: 'domestic', label: 'Domestic staff' },
+  { id: 'hq-special', label: 'HQ & mining' },
   { id: 'org-chart', label: 'Org Chart' },
   { id: 'id-cards', label: 'ID Cards' },
 ];
@@ -27,13 +30,22 @@ export default function HrEmployees() {
   return (
     <HrTabbedPage
       title="Employees"
-      description="Staff directory, reporting lines, and ID card requests — the central employee hub for HQ HR."
+      description="Branch employees, scholarship beneficiaries, domestic staff, and HQ/mining — separate registers for special cohorts."
       tabs={TABS}
       tab={tab}
       onTabChange={setTab}
     >
       {tab === 'directory' ? (
-        <HrStaffDirectory staffBasePath={HR_EMPLOYEES} initialRegisterOpen={initialRegisterOpen} />
+        <HrStaffDirectory staffBasePath={HR_EMPLOYEES} cohort="employees" initialRegisterOpen={initialRegisterOpen} />
+      ) : null}
+      {tab === 'scholarship' ? (
+        <HrStaffDirectory staffBasePath={HR_EMPLOYEES} cohort="scholarship" listTitle="Scholarship beneficiaries" />
+      ) : null}
+      {tab === 'domestic' ? (
+        <HrStaffDirectory staffBasePath={HR_EMPLOYEES} cohort="domestic" listTitle="Domestic staff register" />
+      ) : null}
+      {tab === 'hq-special' ? (
+        <HrStaffDirectory staffBasePath={HR_EMPLOYEES} cohort="hq_special" listTitle="HQ administrative & mining" />
       ) : null}
       {tab === 'org-chart' ? <HrOrgChart staffBasePath={HR_EMPLOYEES} /> : null}
       {tab === 'id-cards' ? (

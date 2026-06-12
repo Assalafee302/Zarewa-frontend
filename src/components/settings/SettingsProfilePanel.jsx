@@ -91,8 +91,8 @@ export default function SettingsProfilePanel() {
         </h3>
         <p className="text-xs text-gray-500 mb-4 leading-relaxed">
           How you appear in the app. This is separate from HR employment records. Password changes are under{' '}
-          <Link to="/settings/security" className="font-semibold text-[#134e4a] underline-offset-2 hover:underline">
-            Security
+          <Link to="/me/security" className="font-semibold text-[#134e4a] underline-offset-2 hover:underline">
+            My profile → Security
           </Link>
           .
         </p>

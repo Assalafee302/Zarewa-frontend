@@ -12,6 +12,7 @@ export function HrSectionShell({
   navItems = [],
   children,
   useOutlet = true,
+  outletContext,
 }) {
   return (
     <PageShell className="pb-10">
@@ -22,7 +23,7 @@ export function HrSectionShell({
         </div>
       ) : null}
       <MainPanel>
-        {useOutlet ? <Outlet /> : children}
+        {useOutlet ? <Outlet context={outletContext} /> : children}
       </MainPanel>
     </PageShell>
   );

@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import ScholarshipSchoolProfile from '../../components/hr/ScholarshipSchoolProfile';
+import { useMyProfileCohort } from './MyProfile';
 import { apiFetch } from '../../lib/apiBase';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { HrSensitiveGate } from '../../components/hr/HrSensitiveGate';
@@ -38,6 +40,7 @@ function SummaryCard({ title, children }) {
 }
 
 export default function MyProfileOverview() {
+  const { cohort } = useMyProfileCohort();
   const ws = useWorkspace();
   const navigate = useNavigate();
   const sensitive = useHrSensitiveAccess();
@@ -94,6 +97,8 @@ export default function MyProfileOverview() {
       cancelled = true;
     };
   }, [sensitive.isUnlocked, showSensitiveInline, sensitive.fetchWithSensitive]);
+
+  if (cohort === 'scholarship') return <ScholarshipSchoolProfile />;
 
   if (loading && !profile) return <p className="text-sm text-slate-600">Loading your profile…</p>;
   if (error) {

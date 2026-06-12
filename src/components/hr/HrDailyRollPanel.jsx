@@ -77,7 +77,7 @@ export function HrDailyRollPanel({ branchManagerMode = false } = {}) {
     if (!effectiveBranchId) return { hasData: false };
     setMessage('');
     if (dirtyRef.current) return { hasData: true };
-    const staffQ = await apiFetch('/api/hr/staff');
+    const staffQ = await apiFetch('/api/hr/staff?attendanceEligible=1');
     const rollQ = await apiFetch(
       `/api/hr/attendance/daily-roll?branchId=${encodeURIComponent(effectiveBranchId)}&dayIso=${encodeURIComponent(dayIso)}`
     );
@@ -86,7 +86,10 @@ export function HrDailyRollPanel({ branchManagerMode = false } = {}) {
       return { error: staffQ.data?.error || 'Could not load branch staff.', hasData: false };
     }
     const branchStaff = (staffQ.data.staff || []).filter(
-      (s) => String(s.branchId || s.normalized?.branchId) === effectiveBranchId && String(s.status) === 'active'
+      (s) =>
+        String(s.branchId || s.normalized?.branchId) === effectiveBranchId &&
+        String(s.status) === 'active' &&
+        String(s.payrollGroup || 'branch_ops') === 'branch_ops'
     );
     setStaff(branchStaff);
     const map = {};

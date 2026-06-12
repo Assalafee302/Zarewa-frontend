@@ -44,7 +44,12 @@ function uniqueSorted(values) {
   return [...new Set(values.filter(Boolean))].sort((a, b) => String(a).localeCompare(String(b)));
 }
 
-export default function HrStaffDirectory({ staffBasePath = HR_EMPLOYEES, initialRegisterOpen = false } = {}) {
+export default function HrStaffDirectory({
+  staffBasePath = HR_EMPLOYEES,
+  cohort = 'employees',
+  listTitle = 'Staff directory',
+  initialRegisterOpen = false,
+} = {}) {
   const navigate = useNavigate();
   const ws = useWorkspace();
   const perms = ws?.permissions || [];
@@ -73,8 +78,13 @@ export default function HrStaffDirectory({ staffBasePath = HR_EMPLOYEES, initial
 
   const [masterDepartments, setMasterDepartments] = useState([]);
 
+  const isSpecialList = cohort !== 'employees';
+
   const { loading, error, reload } = useHrListLoad(async () => {
-    const q = includeInactive ? '?includeInactive=1' : '';
+    const params = new URLSearchParams();
+    if (includeInactive) params.set('includeInactive', '1');
+    if (cohort) params.set('cohort', cohort);
+    const q = params.toString() ? `?${params.toString()}` : '';
     const [staffRes, deptRes] = await Promise.all([
       apiFetch(`/api/hr/staff${q}`),
       fetchHrDepartments(false),
@@ -88,7 +98,7 @@ export default function HrStaffDirectory({ staffBasePath = HR_EMPLOYEES, initial
     setStaff(rows);
     if (deptRes.ok && deptRes.data?.ok) setMasterDepartments(deptRes.data.departments || []);
     return { hasData: true };
-  }, [includeInactive]);
+  }, [includeInactive, cohort]);
 
   const departments = useMemo(() => {
     const names = new Set([
@@ -206,6 +216,16 @@ export default function HrStaffDirectory({ staffBasePath = HR_EMPLOYEES, initial
         </div>
       ) : null}
 
+      {isSpecialList ? (
+        <div className="rounded-xl border border-violet-100 bg-violet-50/60 px-4 py-3 text-sm text-violet-950">
+          <p className="font-bold">{listTitle}</p>
+          <p className="mt-1 text-xs text-violet-900/80">
+            These people are not branch employees — they do not appear in the main employee directory and are excluded from
+            daily attendance.
+          </p>
+        </div>
+      ) : null}
+
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div className="flex flex-wrap gap-2 lg:order-2">
           {canBulkImport ? (
@@ -239,25 +259,27 @@ export default function HrStaffDirectory({ staffBasePath = HR_EMPLOYEES, initial
           />
         </div>
         <p className="text-xs font-medium text-slate-500 tabular-nums">
-          {filtered.length} of {staff.length} employee{staff.length === 1 ? '' : 's'}
+          {filtered.length} of {staff.length} record{staff.length === 1 ? '' : 's'}
           {staff.length === 0 && !loading && !error ? ' — try “All statuses” or refresh the page' : ''}
         </p>
       </div>
 
       <div className="flex flex-wrap gap-2">
-        <select
-          value={branchId}
-          onChange={(e) => setBranchId(e.target.value)}
-          className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700"
-          aria-label="Filter by branch"
-        >
-          <option value="">All branches</option>
-          {branches.map((b) => (
-            <option key={b.id} value={b.id}>
-              {b.name}
-            </option>
-          ))}
-        </select>
+        {!isSpecialList ? (
+          <select
+            value={branchId}
+            onChange={(e) => setBranchId(e.target.value)}
+            className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700"
+            aria-label="Filter by branch"
+          >
+            <option value="">All branches</option>
+            {branches.map((b) => (
+              <option key={b.id} value={b.id}>
+                {b.name}
+              </option>
+            ))}
+          </select>
+        ) : null}
         <select
           value={department}
           onChange={(e) => setDepartment(e.target.value)}

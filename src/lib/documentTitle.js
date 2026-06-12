@@ -24,6 +24,16 @@ export function documentTitleForPath(pathname) {
   if (p === '/edit-approvals') return `Edit approvals | ${DOCUMENT_TITLE_BASE}`;
   if (p === '/manager') return `Management dashboard | ${DOCUMENT_TITLE_BASE}`;
 
+  if (p === '/me' || p.startsWith('/me/')) {
+    const sec = p.split('/')[2] || 'overview';
+    const labels = {
+      account: 'Account',
+      security: 'Security',
+      actions: 'What I can do',
+    };
+    return `My profile – ${labels[sec] || 'Overview'} | ${DOCUMENT_TITLE_BASE}`;
+  }
+
   if (p === '/my-profile' || p.startsWith('/my-profile/')) {
     const sec = p.split('/')[2] || 'overview';
     const labels = {

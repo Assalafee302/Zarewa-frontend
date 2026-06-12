@@ -66,7 +66,8 @@ export function payrollGroupLabel(staff) {
   const map = {
     branch_ops: 'Branch staff',
     mining_div: 'Mining division',
-    scholarship: 'Scholarship / school',
+    hq_admin: 'HQ administrative',
+    scholarship: 'Scholarship beneficiary',
     chairman_staffs: 'Domestic staff',
   };
   return map[g] || String(g).replace(/_/g, ' ');

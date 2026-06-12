@@ -160,13 +160,10 @@ const Sidebar = ({ mobileOpen = false, onCloseMobile, collapsed = false, onToggl
     },
     {
       icon: <UserCircle size={18} />,
-      label: 'My Profile',
-      path: '/my-profile',
-      active: pathMatches(p, '/my-profile'),
-      visible:
-        (ws?.canAccessModule?.('my_profile_hr') ?? false) &&
-        !(ws?.canAccessModule?.('hr') ?? false) &&
-        !(ws?.canAccessModule?.('team_hr') ?? false),
+      label: 'My profile',
+      path: '/me',
+      active: pathMatches(p, '/me'),
+      visible: true,
     },
     {
       icon: <ClipboardCheck size={18} />,
@@ -205,6 +202,13 @@ const Sidebar = ({ mobileOpen = false, onCloseMobile, collapsed = false, onToggl
                 },
               ]
             : []),
+          {
+            icon: <UserCircle size={18} />,
+            label: 'My profile',
+            path: '/me',
+            active: pathMatches(p, '/me'),
+            visible: true,
+          },
         ]
       : fullMenuItems.filter((item) => item.visible !== false);
 
