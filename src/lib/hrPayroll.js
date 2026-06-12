@@ -1,5 +1,4 @@
 import { apiUrl } from './apiBase';
-import { hrSensitiveHeaders } from './hrSensitiveStorage';
 
 const EXPORT_KINDS = {
   treasury: 'treasury',
