@@ -16,7 +16,7 @@ const TABS = [
   { id: 'benefits', label: 'Benefits' },
   { id: 'tax-pension', label: 'Tax & Pension' },
   { id: 'salary-matrix', label: 'Salary Matrix' },
-  { id: 'statutory', label: 'Statutory' },
+  { id: 'statutory', label: 'Pension & Statutory' },
 ];
 
 export default function HrPayrollHub() {

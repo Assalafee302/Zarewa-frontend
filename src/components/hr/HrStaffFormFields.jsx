@@ -607,7 +607,7 @@ export function HrStaffFormFields({
             <Field label="Tax ID / PAYE reference">
               <input className={fieldCls} value={form.taxId} onChange={(e) => set('taxId', e.target.value)} />
             </Field>
-            <Field label="PAYE %">
+            <Field label="PAYE % (required for payroll)">
               <input
                 type="number"
                 min={0}
@@ -615,6 +615,7 @@ export function HrStaffFormFields({
                 className={fieldCls}
                 value={form.payeTaxPercent}
                 onChange={(e) => set('payeTaxPercent', e.target.value)}
+                placeholder="e.g. 7.5"
               />
             </Field>
             <Field label="Pension administrator">
@@ -623,7 +624,7 @@ export function HrStaffFormFields({
             <Field label="RSA PIN">
               <input className={fieldCls} value={form.pensionRsaPin} onChange={(e) => set('pensionRsaPin', e.target.value)} />
             </Field>
-            <Field label="Pension override %">
+            <Field label="Pension % override (optional)">
               <input
                 type="number"
                 min={0}
@@ -631,6 +632,7 @@ export function HrStaffFormFields({
                 className={fieldCls}
                 value={form.pensionPercentOverride}
                 onChange={(e) => set('pensionPercentOverride', e.target.value)}
+                placeholder="Uses company default if blank"
               />
             </Field>
             <Field label="NHIS number">

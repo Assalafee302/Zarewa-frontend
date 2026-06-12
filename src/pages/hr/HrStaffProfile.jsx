@@ -174,8 +174,8 @@ function CompensationTab({ staff, showSensitiveInline }) {
         title="Tax, pension & NHIS"
         subtitle="Statutory deduction references"
         rows={[
-          { label: 'PAYE %', value: staff?.compensationRedacted ? 'Hidden' : staff?.payeTaxPercent ?? '—' },
-          { label: 'Pension override %', value: staff?.compensationRedacted ? 'Hidden' : staff?.pensionPercentOverride ?? '—' },
+          { label: 'PAYE %', value: staff?.compensationRedacted ? 'Hidden' : staff?.payeTaxPercent ?? '— (required for payroll)' },
+          { label: 'Pension % override', value: staff?.compensationRedacted ? 'Hidden' : staff?.pensionPercentOverride ?? 'Company default' },
           { label: 'Tax ID', value: staff?.compensationRedacted ? 'Hidden' : staff?.taxId || '—' },
           { label: 'RSA PIN', value: staff?.compensationRedacted ? 'Hidden' : staff?.pensionRsaPin || '—' },
           { label: 'Pension administrator', value: staff?.profileExtra?.statutory?.pensionAdministrator || '—' },

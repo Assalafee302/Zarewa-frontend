@@ -88,10 +88,118 @@ export function HrPublicHolidaysSection({ embedded = false }) {
   return <HrCard title="Public holidays">{body}</HrCard>;
 }
 
+/** Editable pension and year-end bonus rates (stored in HR policy config). */
+export function HrPensionPolicySection() {
+  const [policy, setPolicy] = useState(null);
+  const [employeePct, setEmployeePct] = useState('8');
+  const [employerPct, setEmployerPct] = useState('10');
+  const [bonusRate, setBonusRate] = useState('50');
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState('');
+  const [error, setError] = useState('');
+
+  useHrListLoad(async () => {
+    const { ok, data } = await apiFetch('/api/hr/policy-config');
+    if (!ok || !data?.ok) {
+      setError(data?.error || 'Could not load pension policy.');
+      return { error: data?.error, hasData: false };
+    }
+    const p = data.policy || {};
+    setPolicy(p);
+    setEmployeePct(String(p.pensionEmployeePercent ?? 8));
+    setEmployerPct(String(p.pensionEmployerPercent ?? 10));
+    setBonusRate(String(Math.round((Number(p.halfMonthBonusRate ?? 0.5) || 0.5) * 100)));
+    setError('');
+    return { hasData: true };
+  }, []);
+
+  const save = async () => {
+    setSaving(true);
+    setMessage('');
+    setError('');
+    const { ok, data } = await apiFetch('/api/hr/policy-config', {
+      method: 'PATCH',
+      body: JSON.stringify({
+        pensionEmployeePercent: Number(employeePct),
+        pensionEmployerPercent: Number(employerPct),
+        halfMonthBonusRate: Number(bonusRate) / 100,
+      }),
+    });
+    setSaving(false);
+    if (!ok || !data?.ok) {
+      setError(data?.error || 'Could not save pension policy.');
+      return;
+    }
+    setPolicy(data.policy);
+    setMessage('Pension and bonus rates saved. Recompute draft payroll runs to apply changes.');
+  };
+
+  return (
+    <HrCard
+      title="Pension & year-end bonus"
+      subtitle="Company-wide rates — applied automatically on payroll recompute. PAYE is set per staff profile."
+    >
+      {error ? <div className="mb-3 rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-sm text-red-800">{error}</div> : null}
+      {message ? <div className="mb-3 rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-2 text-sm text-emerald-900">{message}</div> : null}
+      <div className="grid gap-4 sm:grid-cols-3">
+        <label className="text-xs font-semibold text-slate-600">
+          Employee pension %
+          <input
+            type="number"
+            min={0}
+            max={100}
+            step="0.1"
+            value={employeePct}
+            onChange={(e) => setEmployeePct(e.target.value)}
+            className="mt-1 block w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
+          />
+        </label>
+        <label className="text-xs font-semibold text-slate-600">
+          Employer pension %
+          <input
+            type="number"
+            min={0}
+            max={100}
+            step="0.1"
+            value={employerPct}
+            onChange={(e) => setEmployerPct(e.target.value)}
+            className="mt-1 block w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
+          />
+        </label>
+        <label className="text-xs font-semibold text-slate-600">
+          December bonus (% of base)
+          <input
+            type="number"
+            min={0}
+            max={200}
+            step="1"
+            value={bonusRate}
+            onChange={(e) => setBonusRate(e.target.value)}
+            className="mt-1 block w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
+          />
+        </label>
+      </div>
+      <p className="mt-3 text-xs text-slate-500">
+        Employer pension is an employer cost (not deducted from staff net pay). December runs auto-apply the year-end bonus.
+        {policy ? ` Current: ${policy.pensionEmployeePercent}% employee / ${policy.pensionEmployerPercent}% employer.` : ''}
+      </p>
+      <button
+        type="button"
+        onClick={save}
+        disabled={saving}
+        className="mt-4 rounded-xl bg-[#134e4a] px-4 py-2.5 text-[11px] font-bold uppercase text-white disabled:opacity-60"
+      >
+        {saving ? 'Saving…' : 'Save rates'}
+      </button>
+    </HrCard>
+  );
+}
+
 /** Working hours + statutory reference cards from handbook. */
 export function HrPolicyConfigSection() {
   return (
     <div className="space-y-6">
+      <HrPensionPolicySection />
       <HrCard title="Working hours policy" subtitle="Reference only — set by company handbook">
         <div className="grid gap-2 sm:grid-cols-2">
           <div className="rounded-xl border border-slate-200 bg-white p-3">
