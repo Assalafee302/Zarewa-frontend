@@ -60,6 +60,39 @@ export function buildCoilStockOverview(coilLots, masterData = null) {
   };
 }
 
+/** Highest on-hand first; zero or negative balances last. */
+export function compareSkuStockDisplay(a, b) {
+  const sa = Number(a?.stockLevel ?? a?.stock) || 0;
+  const sb = Number(b?.stockLevel ?? b?.stock) || 0;
+  const aZero = sa <= 0;
+  const bZero = sb <= 0;
+  if (aZero !== bZero) return aZero ? 1 : -1;
+  if (sb !== sa) return sb - sa;
+  return String(a?.name || a?.productID || '').localeCompare(String(b?.name || b?.productID || ''));
+}
+
+/**
+ * One row per product_id — branch-scoped accessories/stone SKUs are summed for display.
+ * @param {object[]} products bootstrap / inventory rows
+ * @param {(p: object) => boolean} filterPred
+ */
+export function rollupSkuStockDisplayRows(products, filterPred) {
+  const byPid = new Map();
+  for (const p of products || []) {
+    if (!filterPred(p)) continue;
+    const pid = String(p.productID || '').trim();
+    if (!pid) continue;
+    const stock = Number(p.stockLevel) || 0;
+    const prev = byPid.get(pid);
+    if (prev) {
+      prev.stockLevel = (Number(prev.stockLevel) || 0) + stock;
+    } else {
+      byPid.set(pid, { ...p, stockLevel: stock });
+    }
+  }
+  return [...byPid.values()].sort(compareSkuStockDisplay);
+}
+
 /**
  * @param {object[]} products
  * @param {'stone'|'accessory'} kind
@@ -70,24 +103,18 @@ export function buildSkuStockOverview(products, kind) {
       ? (p) => /^STONE-/i.test(String(p.productID || ''))
       : (p) => /^ACC-/i.test(String(p.productID || ''));
 
-  const rows = (products || [])
-    .filter(pred)
-    .map((p) => {
-      const stock = Number(p.stockLevel) || 0;
-      const threshold = Number(p.lowStockThreshold) || 0;
-      return {
-        productID: p.productID,
-        name: p.name || p.productID,
-        stock,
-        unit: p.unit || '',
-        low: threshold > 0 && stock < threshold,
-        reorderQty: Number(p.reorderQty) || 0,
-      };
-    })
-    .sort((a, b) => {
-      if (a.low !== b.low) return a.low ? -1 : 1;
-      return a.stock - b.stock;
-    });
+  const rows = rollupSkuStockDisplayRows(products, pred).map((p) => {
+    const stock = Number(p.stockLevel) || 0;
+    const threshold = Number(p.lowStockThreshold) || 0;
+    return {
+      productID: p.productID,
+      name: p.name || p.productID,
+      stock,
+      unit: p.unit || '',
+      low: threshold > 0 && stock < threshold,
+      reorderQty: Number(p.reorderQty) || 0,
+    };
+  });
 
   const lowCount = rows.filter((r) => r.low).length;
   const totalOnHand = rows.reduce((s, r) => s + r.stock, 0);

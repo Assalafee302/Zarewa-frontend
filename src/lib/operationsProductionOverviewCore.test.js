@@ -3,6 +3,7 @@ import {
   buildCoilStockOverview,
   buildSkuStockOverview,
   buildPendingProductionsOverview,
+  rollupSkuStockDisplayRows,
 } from './operationsProductionOverviewCore';
 
 describe('operationsProductionOverviewCore', () => {
@@ -42,6 +43,31 @@ describe('operationsProductionOverviewCore', () => {
     );
     expect(out.totalSkus).toBe(1);
     expect(out.lowCount).toBe(1);
+  });
+
+  it('rolls up branch-scoped accessory rows to one line per SKU', () => {
+    const rows = rollupSkuStockDisplayRows(
+      [
+        { productID: 'ACC-RIVET-PACK', name: 'Rivet pins (pack)', stockLevel: 12, branchId: 'BR-KD' },
+        { productID: 'ACC-RIVET-PACK', name: 'Rivet pins (pack)', stockLevel: 8, branchId: 'BR-YL' },
+        { productID: 'ACC-RIVET-PACK', name: 'Rivet pins (pack)', stockLevel: 0, branchId: 'BR-MDG' },
+      ],
+      (p) => /^ACC-/i.test(String(p.productID || ''))
+    );
+    expect(rows).toHaveLength(1);
+    expect(rows[0].stockLevel).toBe(20);
+  });
+
+  it('sorts SKU display highest stock first and zero stock last', () => {
+    const rows = rollupSkuStockDisplayRows(
+      [
+        { productID: 'ACC-A', name: 'Zero', stockLevel: 0 },
+        { productID: 'ACC-B', name: 'High', stockLevel: 50 },
+        { productID: 'ACC-C', name: 'Low', stockLevel: 5 },
+      ],
+      (p) => /^ACC-/i.test(String(p.productID || ''))
+    );
+    expect(rows.map((r) => r.productID)).toEqual(['ACC-B', 'ACC-C', 'ACC-A']);
   });
 
   it('finds unregistered cutting lists as pending', () => {
