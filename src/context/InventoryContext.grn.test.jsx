@@ -45,12 +45,13 @@ function ReceiveHarness() {
   const { purchaseOrders, products, confirmStoreReceipt } = useInventory();
   const po = purchaseOrders.find((p) => p.status === 'In Transit' || p.status === 'On loading');
   const line = po?.lines?.find((l) => l.qtyOrdered > l.qtyReceived);
-  const before =
-    products.find((p) => p.productID === line?.productID)?.stockLevel ?? null;
+  const productId = line?.productID || 'P-TEST-1';
+  const stock =
+    products.find((p) => p.productID === productId)?.stockLevel ?? null;
 
   return (
     <div>
-      <span data-testid="before">{before != null ? String(before) : 'none'}</span>
+      <span data-testid="stock">{stock != null ? String(stock) : 'none'}</span>
       <span data-testid="po">{po?.poID ?? 'none'}</span>
       <button
         type="button"
@@ -83,14 +84,14 @@ describe('InventoryContext GRN', () => {
       </InventoryProvider>
     );
 
-    const beforeEl = screen.getByTestId('before');
+    const beforeEl = screen.getByTestId('stock');
     const before = Number(beforeEl.textContent);
     expect(Number.isFinite(before)).toBe(true);
 
     await user.click(screen.getByRole('button', { name: /receive 100kg/i }));
 
     await waitFor(() => {
-      const next = Number(screen.getByTestId('before').textContent);
+      const next = Number(screen.getByTestId('stock').textContent);
       expect(next).toBeGreaterThanOrEqual(before + 100);
     });
   });
