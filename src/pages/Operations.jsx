@@ -671,6 +671,8 @@ const Operations = () => {
     })
   );
   const [coilLiveSearch, setCoilLiveSearch] = useState('');
+  const [coilSearchRemoteRows, setCoilSearchRemoteRows] = useState([]);
+  const [coilSearchRemoteLoading, setCoilSearchRemoteLoading] = useState(false);
   /** Stock management: filter in-transit POs and received stock panel (coil lots vs metre/unit SKUs). */
   const [stockReceiveKind, setStockReceiveKind] = useState(() => /** @type {'coil'|'stone'|'accessory'} */ ('coil'));
   const [productMovementModal, setProductMovementModal] = useState(null);
@@ -1201,12 +1203,61 @@ const Operations = () => {
     return coilLotsReceiptSorted.filter((c) => coilReceiptRowMatchesSearch(c, coilReceiptSearchParsed));
   }, [coilLotsReceiptSorted, coilReceiptSearchParsed, hasCoilReceiptSearch]);
 
-  const coilsReceiptTruncated =
-    !hasCoilReceiptSearch && coilLotsReceiptFiltered.length > STOCK_SIDE_LIST_LIMIT;
+  useEffect(() => {
+    if (!hasCoilReceiptSearch || stockReceiveKind !== 'coil') {
+      setCoilSearchRemoteRows([]);
+      setCoilSearchRemoteLoading(false);
+      return undefined;
+    }
+    const q = coilLiveSearch.trim();
+    if (q.length < 2) {
+      setCoilSearchRemoteRows([]);
+      setCoilSearchRemoteLoading(false);
+      return undefined;
+    }
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      void (async () => {
+        setCoilSearchRemoteLoading(true);
+        const r = await apiFetch(`/api/coil-lots/search?q=${encodeURIComponent(q)}&limit=80`);
+        if (cancelled) return;
+        setCoilSearchRemoteLoading(false);
+        if (r.ok && r.data?.ok && Array.isArray(r.data.coilLots)) {
+          setCoilSearchRemoteRows(r.data.coilLots);
+        } else {
+          setCoilSearchRemoteRows([]);
+        }
+      })();
+    }, 300);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [coilLiveSearch, hasCoilReceiptSearch, stockReceiveKind]);
+
   const coilLotsByReceipt = useMemo(() => {
-    if (hasCoilReceiptSearch) return coilLotsReceiptFiltered;
-    return coilLotsReceiptFiltered.slice(0, STOCK_SIDE_LIST_LIMIT);
-  }, [coilLotsReceiptFiltered, hasCoilReceiptSearch]);
+    if (!hasCoilReceiptSearch) return coilLotsReceiptFiltered;
+    const byNo = new Map();
+    for (const c of coilLots) {
+      if (coilReceiptRowMatchesSearch(c, coilReceiptSearchParsed)) byNo.set(c.coilNo, c);
+    }
+    for (const c of coilSearchRemoteRows) {
+      if (!byNo.has(c.coilNo) && coilReceiptRowMatchesSearch(c, coilReceiptSearchParsed)) {
+        byNo.set(c.coilNo, c);
+      }
+    }
+    const rows = [...byNo.values()];
+    const { key, dir } = coilReceiptSort;
+    rows.sort((a, b) => compareCoilReceiptRows(a, b, key, dir));
+    return rows;
+  }, [
+    hasCoilReceiptSearch,
+    coilLots,
+    coilSearchRemoteRows,
+    coilReceiptSearchParsed,
+    coilReceiptSort,
+    coilLotsReceiptFiltered,
+  ]);
 
   const anyReceivablePo = useMemo(
     () => purchaseOrders.some((p) => shouldShowPoInTransit(p)),
@@ -1987,8 +2038,6 @@ const Operations = () => {
                     <p className="text-[11px] font-medium text-slate-400">
                       No coils yet — confirm a receipt in the panel on the left.
                     </p>
-                  ) : coilLotsReceiptFiltered.length === 0 ? (
-                    <p className="text-[11px] font-medium text-slate-400">No coils match your search.</p>
                   ) : (
                     <>
                       <div className="flex flex-col gap-1.5 mb-2 shrink-0">
@@ -2002,23 +2051,24 @@ const Operations = () => {
                             type="search"
                             value={coilLiveSearch}
                             onChange={(e) => setCoilLiveSearch(e.target.value)}
-                            placeholder="Search — words must all match. Filters: coil:, colour:, gauge:, material:, po:, supplier:, kg:, status: …"
+                            placeholder="Coil no. e.g. 2043 or CL-26-2043 · colour gauge · po:…"
                             className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-9 pr-2.5 text-xs font-medium text-slate-800 placeholder:text-slate-400"
                           />
                         </label>
                         <p className="text-[10px] text-slate-500 leading-snug pl-0.5">
                           Example:{' '}
-                          <span className="font-mono text-slate-600">bush green 0.20</span> or{' '}
-                          <span className="font-mono text-slate-600">colour:bg gauge:0.2</span> — tap column titles to
-                          sort (toggle direction).
+                          <span className="font-mono text-slate-600">2043</span> or{' '}
+                          <span className="font-mono text-slate-600">bush green 0.20</span> — tap column titles to sort.
                         </p>
                       </div>
-                      {coilsReceiptTruncated ? (
-                        <p className="text-[10px] text-slate-500 mb-1.5">
-                          Showing {STOCK_SIDE_LIST_LIMIT} of {coilLotsReceiptFiltered.length}. Search or sort to find
-                          older coils.
+                      {coilLotsByReceipt.length === 0 ? (
+                        <p className="text-[11px] font-medium text-slate-400">
+                          {coilSearchRemoteLoading
+                            ? 'Searching coils…'
+                            : 'No coils match your search.'}
                         </p>
-                      ) : null}
+                      ) : (
+                    <>
                       <div className="-mx-0.5 overflow-x-auto rounded-lg border border-slate-200/80 bg-white/40 sm:mx-0">
                         <div className="min-w-[34rem] flex flex-col max-h-[min(26rem,52vh)]">
                           <div
@@ -2111,6 +2161,8 @@ const Operations = () => {
                           </ul>
                         </div>
                       </div>
+                    </>
+                      )}
                     </>
                   )}
                   </>
