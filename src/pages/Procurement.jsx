@@ -339,6 +339,8 @@ const Procurement = () => {
   const {
     purchaseOrders,
     inTransitLoads,
+    coilLots,
+    movements,
     products: invProducts,
     createPurchaseOrder,
     updatePurchaseOrder,
@@ -3178,6 +3180,9 @@ const Procurement = () => {
       <ProcurementPoPreviewSlideOver
         po={previewPo}
         isOpen={Boolean(previewPo)}
+        coilLots={coilLots}
+        movements={movements}
+        inTransitLoads={inTransitLoads}
         onClose={() => {
           setPreviewPo(null);
           setPreviewAp(null);

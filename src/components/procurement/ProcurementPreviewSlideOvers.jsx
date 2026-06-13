@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Printer, X } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { AlertTriangle, CheckCircle2, Info, Printer, X } from 'lucide-react';
 import { SlideOverPanel } from '../layout/SlideOverPanel';
 import { formatNgn } from '../../Data/mockData';
 import PurchaseOrderPrintView from './PurchaseOrderPrintView';
@@ -15,6 +16,7 @@ import {
   purchaseOrderCanAssignTransport,
   purchaseOrderTransportActionLabel,
 } from '../../lib/purchaseOrderWorkflow';
+import { buildPoReceiptPreview, poReceiptFmtQty } from '../../lib/poReceiptPreview';
 import { ZareApprovalHint } from '../ZareApprovalHint';
 
 function kindTitle(kind) {
@@ -39,6 +41,25 @@ const poActionBtn =
  * Read-only purchase order detail (Procurement → Purchases list).
  * Optional footer actions (approve, transport, transport fee, etc.).
  */
+function receiptDiagnosisUi(tone) {
+  if (tone === 'warn') {
+    return {
+      wrap: 'border-amber-200 bg-amber-50 text-amber-950',
+      Icon: AlertTriangle,
+    };
+  }
+  if (tone === 'ok') {
+    return {
+      wrap: 'border-emerald-200 bg-emerald-50 text-emerald-950',
+      Icon: CheckCircle2,
+    };
+  }
+  return {
+    wrap: 'border-sky-200 bg-sky-50 text-sky-950',
+    Icon: Info,
+  };
+}
+
 export function ProcurementPoPreviewSlideOver({
   po,
   isOpen,
@@ -50,9 +71,20 @@ export function ProcurementPoPreviewSlideOver({
   onReject,
   onAssignTransport,
   canApprovePo = true,
+  coilLots = [],
+  movements = [],
+  inTransitLoads = [],
 }) {
   const [showPrint, setShowPrint] = useState(false);
   const [printStampIso, setPrintStampIso] = useState('');
+
+  const receiptPreview = useMemo(
+    () =>
+      po
+        ? buildPoReceiptPreview({ po, coilLots, movements, inTransitLoads })
+        : null,
+    [po, coilLots, movements, inTransitLoads]
+  );
 
   if (!po) return null;
   const kind = procurementKindFromPo(po);
@@ -63,6 +95,8 @@ export function ProcurementPoPreviewSlideOver({
     (canEdit && onEdit) ||
     (pending && onApprove && onReject) ||
     (canTransport && onAssignTransport);
+  const diagUi = receiptDiagnosisUi(receiptPreview?.diagnosis?.tone);
+  const DiagIcon = diagUi.Icon;
 
   return (
     <SlideOverPanel
@@ -138,13 +172,13 @@ export function ProcurementPoPreviewSlideOver({
             </section>
 
             <section className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
-              <p className={`${detailLabel} mb-2`}>Lines</p>
+              <p className={`${detailLabel} mb-2`}>Lines (ordered)</p>
               <div className="overflow-x-auto rounded-lg border border-slate-100">
                 <table className="min-w-full text-left text-[10px]">
                   <thead>
                     <tr className="border-b border-slate-200 bg-slate-50/90">
                       <th className="px-2 py-1.5 font-bold text-slate-600">Product</th>
-                      <th className="px-2 py-1.5 font-bold text-slate-600">Qty</th>
+                      <th className="px-2 py-1.5 font-bold text-slate-600">Open</th>
                       <th className="px-2 py-1.5 font-bold text-slate-600 text-right">Unit</th>
                       <th className="px-2 py-1.5 font-bold text-slate-600 text-right">Line ₦</th>
                     </tr>
@@ -180,6 +214,152 @@ export function ProcurementPoPreviewSlideOver({
                 Ordered value {formatNgn(ordered)}
               </p>
             </section>
+
+            {receiptPreview ? (
+              <section className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm space-y-3">
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <p className={`${detailLabel} mb-0`}>Store receipt & stock</p>
+                  {receiptPreview.receivableInStock ? (
+                    <Link
+                      to="/operations"
+                      className="text-[9px] font-bold uppercase tracking-wide text-[#134e4a] hover:underline"
+                      onClick={onClose}
+                    >
+                      Open Stock receive →
+                    </Link>
+                  ) : null}
+                </div>
+
+                {receiptPreview.diagnosis?.message ? (
+                  <div
+                    className={`flex items-start gap-2 rounded-lg border px-2.5 py-2 text-[10px] leading-snug ${diagUi.wrap}`}
+                  >
+                    <DiagIcon size={14} className="mt-0.5 shrink-0" aria-hidden />
+                    <p>{receiptPreview.diagnosis.message}</p>
+                  </div>
+                ) : null}
+
+                <div className="overflow-x-auto rounded-lg border border-slate-100">
+                  <table className="min-w-full text-left text-[10px]">
+                    <thead>
+                      <tr className="border-b border-slate-200 bg-slate-50/90">
+                        <th className="px-2 py-1.5 font-bold text-slate-600">Line</th>
+                        <th className="px-2 py-1.5 font-bold text-slate-600 text-right">Ordered</th>
+                        <th className="px-2 py-1.5 font-bold text-slate-600 text-right">Received</th>
+                        <th className="px-2 py-1.5 font-bold text-slate-600 text-right">Open</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 tabular-nums">
+                      {receiptPreview.lineProgress.map((row) => (
+                        <tr key={row.lineKey || row.productID}>
+                          <td className="px-2 py-1.5 text-slate-800">
+                            <span className="font-medium">{row.productName || row.productID}</span>
+                            {row.complete ? (
+                              <span className="ml-1 text-[8px] font-bold uppercase text-emerald-700">Done</span>
+                            ) : row.partial ? (
+                              <span className="ml-1 text-[8px] font-bold uppercase text-amber-700">Partial</span>
+                            ) : row.notStarted ? (
+                              <span className="ml-1 text-[8px] font-bold uppercase text-slate-500">Pending</span>
+                            ) : null}
+                          </td>
+                          <td className="px-2 py-1.5 text-right text-slate-700">
+                            {poReceiptFmtQty(row.ordered, row.unit)}
+                          </td>
+                          <td className="px-2 py-1.5 text-right text-slate-700">
+                            {poReceiptFmtQty(row.received, row.unit)}
+                          </td>
+                          <td className="px-2 py-1.5 text-right font-semibold text-[#134e4a]">
+                            {poReceiptFmtQty(row.open, row.unit)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {receiptPreview.inTransitLoad ? (
+                  <dl className="grid grid-cols-1 gap-1.5 text-[10px] sm:grid-cols-2 border-t border-slate-100 pt-2">
+                    <div>
+                      <dt className={detailLabel}>In-transit load</dt>
+                      <dd className={detailValue}>{receiptPreview.inTransitLoad.id || '—'}</dd>
+                    </div>
+                    <div>
+                      <dt className={detailLabel}>Load status</dt>
+                      <dd className={detailValue}>{receiptPreview.inTransitLoad.status || '—'}</dd>
+                    </div>
+                    {receiptPreview.inTransitLoad.receivedAtISO ? (
+                      <div>
+                        <dt className={detailLabel}>Load received at</dt>
+                        <dd className={detailValue}>
+                          {String(receiptPreview.inTransitLoad.receivedAtISO).slice(0, 10)}
+                        </dd>
+                      </div>
+                    ) : null}
+                  </dl>
+                ) : null}
+
+                {receiptPreview.coils.length > 0 ? (
+                  <div className="border-t border-slate-100 pt-2 space-y-1">
+                    <p className={detailLabel}>Coils created ({receiptPreview.coils.length})</p>
+                    <ul className="max-h-36 overflow-y-auto custom-scrollbar space-y-1">
+                      {receiptPreview.coils.map((c) => (
+                        <li
+                          key={c.coilNo}
+                          className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-slate-100 bg-slate-50/80 px-2 py-1.5 text-[10px]"
+                        >
+                          <Link
+                            to={`/operations/coils/${encodeURIComponent(c.coilNo)}`}
+                            className="font-mono font-bold text-[#134e4a] hover:underline"
+                            onClick={onClose}
+                          >
+                            {c.coilNo}
+                          </Link>
+                          <span className="text-slate-600 tabular-nums">
+                            {Number(c.currentWeightKg ?? c.qtyRemaining ?? c.weightKg ?? 0).toLocaleString(undefined, {
+                              maximumFractionDigits: 2,
+                            })}{' '}
+                            kg live · {c.currentStatus || 'Available'}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
+
+                {receiptPreview.grnMovements.length > 0 ? (
+                  <div className="border-t border-slate-100 pt-2 space-y-1">
+                    <p className={detailLabel}>GRN stock postings ({receiptPreview.grnMovements.length})</p>
+                    <ul className="max-h-36 overflow-y-auto custom-scrollbar space-y-1">
+                      {receiptPreview.grnMovements.map((m, idx) => (
+                        <li
+                          key={`${m.atISO}-${m.productID}-${idx}`}
+                          className="rounded-md border border-slate-100 bg-slate-50/80 px-2 py-1.5 text-[10px] text-slate-700"
+                        >
+                          <span className="font-mono text-[9px] text-slate-500">{m.type}</span>
+                          <span className="mx-1">·</span>
+                          <span className="font-semibold">{m.productID}</span>
+                          <span className="mx-1">·</span>
+                          <span className="tabular-nums">
+                            {Number(m.qty).toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                          </span>
+                          {m.dateISO || m.atISO ? (
+                            <span className="text-slate-500">
+                              {' '}
+                              · {String(m.dateISO || m.atISO).slice(0, 10)}
+                            </span>
+                          ) : null}
+                          {m.detail ? (
+                            <p className="mt-0.5 text-[9px] text-slate-500 line-clamp-2" title={m.detail}>
+                              {m.detail}
+                            </p>
+                          ) : null}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
+              </section>
+            ) : null}
 
             <section className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
               <p className={`${detailLabel} mb-2`}>Transport & settlement</p>
