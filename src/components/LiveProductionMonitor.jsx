@@ -420,6 +420,40 @@ export function LiveProductionMonitor({
     () => (ws?.hasWorkspaceData && Array.isArray(ws?.snapshot?.coilLots) ? ws.snapshot.coilLots : []),
     [ws?.hasWorkspaceData, ws?.snapshot?.coilLots]
   );
+  const [coilLookupQuery, setCoilLookupQuery] = useState('');
+  const [coilLookupRemote, setCoilLookupRemote] = useState([]);
+
+  useEffect(() => {
+    const q = coilLookupQuery.trim();
+    if (q.length < 2) {
+      setCoilLookupRemote([]);
+      return undefined;
+    }
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      void (async () => {
+        const r = await apiFetch(`/api/coil-lots/search?q=${encodeURIComponent(q)}&limit=40`);
+        if (cancelled) return;
+        if (r.ok && r.data?.ok && Array.isArray(r.data.coilLots)) {
+          setCoilLookupRemote(r.data.coilLots);
+        } else {
+          setCoilLookupRemote([]);
+        }
+      })();
+    }, 300);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [coilLookupQuery]);
+
+  const coilLotsMerged = useMemo(() => {
+    const byNo = new Map(coilLots.map((lot) => [lot.coilNo, lot]));
+    for (const lot of coilLookupRemote) {
+      if (!byNo.has(lot.coilNo)) byNo.set(lot.coilNo, lot);
+    }
+    return [...byNo.values()];
+  }, [coilLots, coilLookupRemote]);
   const products = useMemo(
     () => (ws?.hasWorkspaceData && Array.isArray(ws?.snapshot?.products) ? ws.snapshot.products : []),
     [ws?.hasWorkspaceData, ws?.snapshot?.products]
@@ -627,8 +661,8 @@ export function LiveProductionMonitor({
   );
   const plannedMetersValue = Number(selectedJob?.plannedMeters || 0);
   const coilByNo = useMemo(
-    () => Object.fromEntries(coilLots.map((lot) => [lot.coilNo, lot])),
-    [coilLots]
+    () => Object.fromEntries(coilLotsMerged.map((lot) => [lot.coilNo, lot])),
+    [coilLotsMerged]
   );
 
   /** Opening kg already reserved for this job per coil (server state) — add back when showing kg free to allocate. */
@@ -645,7 +679,7 @@ export function LiveProductionMonitor({
 
   const availableCoils = useMemo(() => {
     const selectedCoils = new Set(selectedJobAllocations.map((row) => row.coilNo));
-    return coilLots
+    return coilLotsMerged
       .filter((coil) => {
         const rem = Number(coil.qtyRemaining ?? coil.currentWeightKg ?? 0);
         const empty = !Number.isFinite(rem) || rem <= 0.0001;
@@ -653,7 +687,7 @@ export function LiveProductionMonitor({
         return coil.currentStatus !== 'Consumed' || selectedCoils.has(coil.coilNo);
       })
       .sort((a, b) => String(a.coilNo || '').localeCompare(String(b.coilNo || '')));
-  }, [coilLots, selectedJobAllocations]);
+  }, [coilLotsMerged, selectedJobAllocations]);
   const masterDataForCoilSpec = ws?.snapshot?.masterData ?? null;
 
   const recommendedCoils = useMemo(() => {
@@ -1182,6 +1216,15 @@ export function LiveProductionMonitor({
     APP_DATA_TABLE_PAGE_SIZE,
     selectedJob?.jobID
   );
+
+  const stoneFlatsheetPostedForJob = useMemo(() => {
+    const jobId = selectedJob?.jobID;
+    if (!jobId) return false;
+    return (ws?.snapshot?.productionJobStoneFlatsheetUsage || []).some((u) => {
+      if (u.jobID !== jobId) return false;
+      return (Number(u.suppliedM2) || 0) + (Number(u.deductionM2) || 0) > 0;
+    });
+  }, [selectedJob?.jobID, ws?.snapshot?.productionJobStoneFlatsheetUsage]);
 
   const conversionPreviewKey = useMemo(() => {
     if (!canRunConversionPreview || !selectedJob?.jobID) return '';
@@ -2799,6 +2842,19 @@ export function LiveProductionMonitor({
                 Stone-coated: use Save & start (no coils) to begin the run.
               </span>
             ) : null}
+            {jobSt === 'Completed' &&
+            isStoneMeterQuote &&
+            quotedStoneFlatsheetLines.length > 0 &&
+            !stoneFlatsheetPostedForJob &&
+            canEditCompletedAccessoryCorrections ? (
+              <span className="inline-flex max-w-full items-start gap-1 rounded-md border border-sky-300 bg-sky-50 px-2 py-1 text-[10px] font-medium text-sky-950">
+                <Info size={14} className="mt-0.5 shrink-0" />
+                <span>
+                  Stone flatsheet m² was not recorded on this job. Enter supplied m² in the section below, then{' '}
+                  <strong>Save stone flatsheet</strong> — stone jobs use flatsheet stock (m²), not coil allocation.
+                </span>
+              </span>
+            ) : null}
             {canAddSupplementalCoil ? (
               <span className="inline-flex items-center gap-1 rounded-md border border-sky-200 bg-sky-50 px-2 py-1 text-[10px] text-sky-950">
                 <Plus size={14} className="shrink-0" />
@@ -3780,6 +3836,28 @@ export function LiveProductionMonitor({
                   >
                     Produced from offcut / accessories only
                   </button>
+                </div>
+              ) : null}
+              {!isStoneMeterQuote &&
+              !completionUsesOffcutMode &&
+              (canCaptureRun || canEditPlannedAllocations || canEditCompletedCoilCorrections) ? (
+                <div className="rounded-lg border border-slate-200 bg-slate-50/80 p-2 space-y-1">
+                  <label className="flex flex-col gap-0.5">
+                    <span className="text-[9px] font-bold uppercase tracking-wide text-slate-500">
+                      Find coil by number
+                    </span>
+                    <input
+                      type="search"
+                      value={coilLookupQuery}
+                      onChange={(e) => setCoilLookupQuery(e.target.value)}
+                      placeholder="e.g. 2043 or CL-26-2043"
+                      className="w-full rounded-md border border-slate-200 bg-white px-2 py-1.5 text-[11px] font-mono text-[#134e4a] outline-none focus:ring-2 focus:ring-[#134e4a]/15"
+                    />
+                  </label>
+                  <p className="text-[9px] text-slate-500 leading-snug">
+                    Searches the server when a coil is missing from the dropdown (e.g. recently received or not in
+                    sync).
+                  </p>
                 </div>
               ) : null}
               {!isStoneMeterQuote &&

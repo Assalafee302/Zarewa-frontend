@@ -54,6 +54,16 @@ import {
 import { compareSelectLabels } from '../lib/selectOptionSort';
 import { canonicalColourName } from '../lib/colourCanonicalization.js';
 import { printProductionFollowUpList } from '../lib/productionFollowUpPrint.js';
+import { productLineKey } from '../lib/stoneCoatedQuotationPolicy.js';
+
+function quotedStoneFlatsheetOnQuote(quotation) {
+  const products = quotation?.quotationLines?.products;
+  if (!Array.isArray(products)) return false;
+  return products.some((row) => {
+    const qty = Number(String(row?.qty ?? '').replace(/,/g, '')) || 0;
+    return qty > 0 && productLineKey(row?.name) === 'stone flatsheet';
+  });
+}
 
 /** Current kg on the coil (after production use); uses API fields when present. */
 function liveCoilWeightKg(lot) {
@@ -861,13 +871,21 @@ const Operations = () => {
           : closedRecord
             ? nCoils > 0
               ? `${nCoils} coil(s) on record`
-              : null
+              : liveMatKind === 'stone' && quotedStoneFlatsheetOnQuote(qMat)
+                ? 'Stone flatsheet m² — use correction if missing'
+                : null
             : status === 'Planned'
-              ? nCoils === 0
-                ? 'Coils: none (allocate before start)'
-                : `Coils: ${nCoils} allocated`
+              ? liveMatKind === 'stone'
+                ? nCoils === 0
+                  ? 'Stone job — no coil needed'
+                  : `Coils: ${nCoils} allocated`
+                : nCoils === 0
+                  ? 'Coils: none (allocate before start)'
+                  : `Coils: ${nCoils} allocated`
               : status === 'Running'
-                ? `Coils: ${nCoils} on line`
+                ? liveMatKind === 'stone' && nCoils === 0
+                  ? 'Stone run — record flatsheet m² below'
+                  : `Coils: ${nCoils} on line`
                 : null,
         priority: closedRecord
           ? isCancelled
@@ -875,7 +893,7 @@ const Operations = () => {
             : 'Done'
           : !job
             ? 'Wait'
-            : nCoils === 0 && status === 'Planned'
+            : nCoils === 0 && status === 'Planned' && liveMatKind !== 'stone'
               ? 'High'
               : job.managerReviewRequired ||
                   conversionHighLow ||
@@ -886,7 +904,7 @@ const Operations = () => {
         managerReviewRequired: Boolean(job?.managerReviewRequired),
         metreVarianceAttention,
         conversionHighLow,
-        needsCoil: !closedRecord && status === 'Planned' && nCoils === 0,
+        needsCoil: !closedRecord && status === 'Planned' && nCoils === 0 && liveMatKind !== 'stone',
         dueDateISO: job?.endDateISO || null,
         overdue:
           !closedRecord &&
@@ -1258,6 +1276,15 @@ const Operations = () => {
     coilReceiptSort,
     coilLotsReceiptFiltered,
   ]);
+
+  const coilReceiptIncludesArchived = useMemo(
+    () =>
+      hasCoilReceiptSearch &&
+      coilLotsByReceipt.some(
+        (c) => c.currentStatus === 'Consumed' || c.currentStatus === 'Finished'
+      ),
+    [hasCoilReceiptSearch, coilLotsByReceipt]
+  );
 
   const anyReceivablePo = useMemo(
     () => purchaseOrders.some((p) => shouldShowPoInTransit(p)),
@@ -2034,41 +2061,47 @@ const Operations = () => {
                 </h3>
                 {stockReceiveKind === 'coil' ? (
                   <>
-                    {coilLotsReceiptSorted.length === 0 ? (
-                    <p className="text-[11px] font-medium text-slate-400">
-                      No coils yet — confirm a receipt in the panel on the left.
-                    </p>
-                  ) : (
-                    <>
-                      <div className="flex flex-col gap-1.5 mb-2 shrink-0">
-                        <label className="relative min-w-0 w-full">
-                          <Search
-                            size={14}
-                            className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
-                            aria-hidden
-                          />
-                          <input
-                            type="search"
-                            value={coilLiveSearch}
-                            onChange={(e) => setCoilLiveSearch(e.target.value)}
-                            placeholder="Coil no. e.g. 2043 or CL-26-2043 · colour gauge · po:…"
-                            className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-9 pr-2.5 text-xs font-medium text-slate-800 placeholder:text-slate-400"
-                          />
-                        </label>
-                        <p className="text-[10px] text-slate-500 leading-snug pl-0.5">
-                          Example:{' '}
-                          <span className="font-mono text-slate-600">2043</span> or{' '}
-                          <span className="font-mono text-slate-600">bush green 0.20</span> — tap column titles to sort.
-                        </p>
-                      </div>
-                      {coilLotsByReceipt.length === 0 ? (
-                        <p className="text-[11px] font-medium text-slate-400">
-                          {coilSearchRemoteLoading
-                            ? 'Searching coils…'
-                            : 'No coils match your search.'}
-                        </p>
-                      ) : (
-                    <>
+                    <div className="flex flex-col gap-1.5 mb-2 shrink-0">
+                      <label className="relative min-w-0 w-full">
+                        <Search
+                          size={14}
+                          className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
+                          aria-hidden
+                        />
+                        <input
+                          type="search"
+                          value={coilLiveSearch}
+                          onChange={(e) => setCoilLiveSearch(e.target.value)}
+                          placeholder="Coil no. e.g. 2043 or CL-26-2043 · colour gauge · po:…"
+                          className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-9 pr-2.5 text-xs font-medium text-slate-800 placeholder:text-slate-400"
+                        />
+                      </label>
+                      <p className="text-[10px] text-slate-500 leading-snug pl-0.5">
+                        Example:{' '}
+                        <span className="font-mono text-slate-600">2043</span> or{' '}
+                        <span className="font-mono text-slate-600">bush green 0.20</span> — tap column titles to sort.
+                        Search also finds consumed coils not shown in the live list.
+                      </p>
+                    </div>
+                    {coilLotsReceiptSorted.length === 0 && !hasCoilReceiptSearch ? (
+                      <p className="text-[11px] font-medium text-slate-400">
+                        No coils yet — confirm a receipt in the panel on the left.
+                      </p>
+                    ) : coilLotsByReceipt.length === 0 ? (
+                      <p className="text-[11px] font-medium text-slate-400">
+                        {coilSearchRemoteLoading
+                          ? 'Searching coils…'
+                          : hasCoilReceiptSearch
+                            ? 'No coils match your search — check the coil was GRN-posted for this branch.'
+                            : 'No coils in the live list.'}
+                      </p>
+                    ) : (
+                      <>
+                        {coilReceiptIncludesArchived ? (
+                          <p className="text-[10px] text-amber-800 bg-amber-50 border border-amber-200/80 rounded-md px-2 py-1 mb-2">
+                            Some matches are consumed or finished — shown for lookup only.
+                          </p>
+                        ) : null}
                       <div className="-mx-0.5 overflow-x-auto rounded-lg border border-slate-200/80 bg-white/40 sm:mx-0">
                         <div className="min-w-[34rem] flex flex-col max-h-[min(26rem,52vh)]">
                           <div
@@ -2138,6 +2171,11 @@ const Operations = () => {
                                     <span className="text-[10px] text-slate-600 tabular-nums">{rcvd}</span>
                                     <span className="text-[11px] font-bold text-[#134e4a] truncate font-mono">
                                       {c.coilNo}
+                                      {c.currentStatus === 'Consumed' || c.currentStatus === 'Finished' ? (
+                                        <span className="ml-1 text-[9px] font-bold uppercase text-amber-700">
+                                          {c.currentStatus}
+                                        </span>
+                                      ) : null}
                                     </span>
                                     <span className="text-[10px] text-slate-800 truncate" title={coilColourLabel(c.colour)}>
                                       {coilColourLabel(c.colour)}
@@ -2162,9 +2200,7 @@ const Operations = () => {
                         </div>
                       </div>
                     </>
-                      )}
-                    </>
-                  )}
+                    )}
                   </>
                 ) : skuProductsLiveSorted.length === 0 ? (
                   <p className="text-[11px] font-medium text-slate-400">
