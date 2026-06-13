@@ -39,6 +39,7 @@ import { pickProductionJobForCuttingList } from '../lib/productionJobPick';
 import { productionQueueLineStatusPresentation } from '../lib/productionQueueLineStatus';
 import { procurementKindFromPo, poLineQtyLabel } from '../lib/procurementPoKind';
 import { shouldShowPoInTransit } from '../lib/inTransitVisibility.js';
+import { rollupSkuStockDisplayRows } from '../lib/operationsProductionOverviewCore.js';
 import {
   grnKindForPoLine,
   isCoilMeterBasisLine,
@@ -1222,9 +1223,7 @@ const Operations = () => {
       stockReceiveKind === 'stone'
         ? (p) => /^STONE-/i.test(String(p.productID || ''))
         : (p) => /^ACC-/i.test(String(p.productID || ''));
-    return [...inventoryRows]
-      .filter(pred)
-      .sort((a, b) => (Number(b.stockLevel) || 0) - (Number(a.stockLevel) || 0));
+    return rollupSkuStockDisplayRows(inventoryRows, pred);
   }, [inventoryRows, stockReceiveKind]);
 
   const skuLiveSearchNorm = coilLiveSearch.trim().toLowerCase();
@@ -1384,7 +1383,7 @@ const Operations = () => {
       const first = shortAlerts[0];
       const shortKg = Number(first?.shortKg) || 0;
       showToast(
-        `Receipt posted${coils ? ` · ${coils}` : ''}. MD alerted: received ${Number(first?.receivedKg || 0).toLocaleString()} kg vs ${Number(first?.orderedKg || 0).toLocaleString()} kg ordered (${shortKg.toLocaleString()} kg short).`,
+        `Receipt posted${coils ? ` · ${coils}` : ''}. Received ${Number(first?.receivedKg || 0).toLocaleString()} kg vs ${Number(first?.orderedKg || 0).toLocaleString()} kg ordered (${shortKg.toLocaleString()} kg short) — PO line closed; no further receipt on this line.`,
         { variant: 'warning' }
       );
     } else {
@@ -2158,10 +2157,8 @@ const Operations = () => {
                       {skuProductsByReceipt.map((p) => {
                         const live = Number(p.stockLevel) || 0;
                         const u = String(p.unit || '').trim() || (stockReceiveKind === 'stone' ? 'm' : 'u');
-                        const meta2 = [
-                          p.productID,
-                          `Live ${live.toLocaleString()} ${u}`,
-                        ].join(' · ');
+                        const label = String(p.name || p.productID || '—').trim();
+                        const meta2 = `${p.productID} · tap for movements`;
                         return (
                           <li key={p.productID}>
                             <button
@@ -2169,7 +2166,7 @@ const Operations = () => {
                               onClick={() =>
                                 setProductMovementModal({
                                   productID: p.productID,
-                                  name: p.name || p.productID,
+                                  name: label,
                                   unit: u,
                                 })
                               }
@@ -2177,19 +2174,21 @@ const Operations = () => {
                             >
                               <div className="min-w-0 leading-tight">
                                 <div className="flex items-center justify-between gap-2 min-w-0">
-                                  <p className="text-[11px] font-bold text-[#134e4a] truncate min-w-0">
-                                    <span className="font-mono">{p.productID}</span>
-                                    <span className="font-medium text-slate-600"> · {p.name || '—'}</span>
+                                  <p
+                                    className="text-[11px] font-bold text-[#134e4a] truncate min-w-0"
+                                    title={label}
+                                  >
+                                    {label}
                                   </p>
                                   <span className="text-[11px] font-black text-[#134e4a] tabular-nums shrink-0">
                                     {live.toLocaleString()} {u}
                                   </span>
                                 </div>
                                 <p
-                                  className="text-[10px] text-slate-500 mt-0.5 leading-snug line-clamp-2"
+                                  className="text-[10px] text-slate-500 mt-0.5 leading-snug line-clamp-1 font-mono"
                                   title={meta2}
                                 >
-                                  {meta2} · tap for movements
+                                  {meta2}
                                 </p>
                               </div>
                             </button>

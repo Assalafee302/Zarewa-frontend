@@ -33,10 +33,15 @@ import { useWorkspace } from '../context/WorkspaceContext';
 import { editMutationNeedsSecondApprovalRole } from '../lib/editApprovalUi';
 import { EditSecondApprovalInline } from './EditSecondApprovalInline';
 import OffcutIncidentPicker from './material/OffcutIncidentPicker';
-import { productLineKey, resolveStoneFlatsheetLengthM } from '../lib/stoneCoatedQuotationPolicy';
+import {
+  productLineKey,
+  quotationHasStoneMetreProductLines,
+  resolveStoneFlatsheetLengthM,
+} from '../lib/stoneCoatedQuotationPolicy';
 import { formatProductionPriceBlockMessage } from '../lib/productionPriceBlock';
 import {
   quotationIsAccessoriesOnlyForProduction,
+  quotationLinesGrouped,
   quotedAccessoryLinesForProduction,
 } from '../lib/quotationProductionLines';
 import { QuotationPriceExceptionPanel } from './QuotationPriceExceptionPanel';
@@ -553,6 +558,10 @@ export function LiveProductionMonitor({
   }, [linkedQuotation, linkedCuttingList, ws?.snapshot?.masterData?.materialTypes]);
   const isAccessoriesOnlyQuote = quotationIsAccessoriesOnlyForProduction(linkedQuotation);
   const isStoneAccessoriesOnlyQuote = isStoneMeterQuote && isAccessoriesOnlyQuote;
+  const stoneMetreConsumptionRequired = useMemo(() => {
+    const { products } = quotationLinesGrouped(linkedQuotation);
+    return quotationHasStoneMetreProductLines(products);
+  }, [linkedQuotation]);
   const registerMaterialLabel = useMemo(() => {
     if (isAccessoriesOnlyQuote) return 'Accessories only';
     const kind = resolveLiveJobMaterialKind({
@@ -822,6 +831,9 @@ export function LiveProductionMonitor({
   const canRunConversionPreview = useMemo(() => {
     if (!selectedJob?.jobID) return false;
     if (isStoneMeterQuote && !completionUsesOffcutMode) {
+      if (!stoneMetreConsumptionRequired) {
+        return jobSt === 'Running' || (jobSt === 'Completed' && canEditCompletedCoilCorrections);
+      }
       const m = Number(String(stoneMetersConsumed).replace(/,/g, ''));
       if (!Number.isFinite(m) || Math.abs(m) < 1e-9) return false;
       return jobSt === 'Running' || (jobSt === 'Completed' && canEditCompletedCoilCorrections);
@@ -843,6 +855,7 @@ export function LiveProductionMonitor({
     offcutSupplyMetersTotal,
     resolvesToOffcutCompletion,
     selectedJob?.jobID,
+    stoneMetreConsumptionRequired,
     stoneMetersConsumed,
   ]);
 
@@ -1350,6 +1363,9 @@ export function LiveProductionMonitor({
       return { validLineCount: 1, errors: [], canComplete: true };
     }
     if (isStoneMeterQuote && !completionUsesOffcutMode) {
+      if (!stoneMetreConsumptionRequired) {
+        return { validLineCount: 1, errors: [], canComplete: true };
+      }
       const m = Number(String(stoneMetersConsumed).replace(/,/g, ''));
       if (!Number.isFinite(m) || Math.abs(m) < 1e-9) {
         return {
@@ -1418,6 +1434,7 @@ export function LiveProductionMonitor({
     offcutMetersProduced,
     offcutSupplyMetersTotal,
     resolvesToOffcutCompletion,
+    stoneMetreConsumptionRequired,
     stoneMetersConsumed,
   ]);
 
@@ -3806,7 +3823,7 @@ export function LiveProductionMonitor({
                   </div>
                 </div>
               ) : null}
-              {isStoneMeterQuote && !isStoneAccessoriesOnlyQuote ? (
+              {isStoneMeterQuote && !isStoneAccessoriesOnlyQuote && stoneMetreConsumptionRequired ? (
                 <div className="rounded-lg border border-teal-100 bg-teal-50/50 p-3 text-[11px] text-slate-700 space-y-2">
                   <p>
                     <strong className="text-[#134e4a]">Stone-coated</strong> stock is tracked in metres (no coil
@@ -3828,6 +3845,14 @@ export function LiveProductionMonitor({
                   <p className="text-[9px] leading-snug text-slate-500">
                     Positive metres draw stone stock (balance may go negative). Negative metres return stock. Ensure
                     the quotation header matches the stone SKU (design, colour, gauge).
+                  </p>
+                </div>
+              ) : null}
+              {isStoneMeterQuote && !isStoneAccessoriesOnlyQuote && !stoneMetreConsumptionRequired ? (
+                <div className="rounded-lg border border-sky-100 bg-sky-50/50 p-3 text-[11px] text-slate-700 space-y-1">
+                  <p>
+                    <strong className="text-sky-900">Stone flatsheet only</strong> — no stone-coated metre draw on this
+                    job. Record supplied m² in the stone flatsheet section below, then complete.
                   </p>
                 </div>
               ) : null}

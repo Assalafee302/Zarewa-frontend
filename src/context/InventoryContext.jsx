@@ -698,7 +698,11 @@ export function InventoryProvider({ children }) {
             );
             if (!hit) return l;
             const q = Number(hit.qtyReceived);
-            return { ...l, qtyReceived: l.qtyReceived + q };
+            const received = l.qtyReceived + q;
+            const ordered = Number(l.qtyOrdered) || 0;
+            const closedReceived =
+              ordered > 0 && received > 0 && received < ordered ? ordered : received;
+            return { ...l, qtyReceived: closedReceived };
           });
           const allIn = nextLines.every(poLineFullyReceived);
           const nextStatus = allIn ? 'Received' : p.status;

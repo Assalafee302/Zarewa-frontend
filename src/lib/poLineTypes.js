@@ -112,6 +112,7 @@ export function isCoilMeterBasisLine(line) {
   );
 }
 
+/** Weighbridge vs PO paperwork — coil lines within this gap show as closed in UI before GRN snap. */
 export const COIL_RECEIPT_SHORT_KG_MIN = 50;
 export const COIL_RECEIPT_SHORT_PCT = 0.02;
 

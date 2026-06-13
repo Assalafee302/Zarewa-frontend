@@ -1,7 +1,9 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { Download, Plus, RefreshCw } from 'lucide-react';
+import { Download, Plus, Printer, RefreshCw } from 'lucide-react';
 import { apiFetch } from '../../lib/apiBase';
 import { formatNgn } from '../../Data/mockData';
+import { ReportPrintModal } from '../reports/ReportPrintModal';
+import { unreconciledBankLinesPrintPayload } from '../../lib/reconciliationPrint';
 
 /**
  * Daily bank line queue: list, detail, manual POST, PATCH match (CSV import out of v1 scope).
@@ -22,6 +24,8 @@ export function AccountBankReconciliationPanel({
   const [savingManual, setSavingManual] = useState(false);
   const [manual, setManual] = useState({ bankDateISO: '', description: '', amountNgn: '' });
   const [patchForm, setPatchForm] = useState({ systemMatch: '', settledAmountNgn: '', status: 'Review' });
+  const [printOpen, setPrintOpen] = useState(false);
+  const [printPayload, setPrintPayload] = useState(null);
 
   const filtered = useMemo(() => {
     const arr = Array.isArray(lines) ? lines : [];
@@ -57,6 +61,16 @@ export function AccountBankReconciliationPanel({
     }
     return m;
   }, [treasuryMovements]);
+
+  const openUnreconciledPrint = useCallback(() => {
+    const payload = unreconciledBankLinesPrintPayload(lines, { branchLabel });
+    if (!payload.rows.length) {
+      showToast?.('No unreconciled bank lines to print.', { variant: 'info' });
+      return;
+    }
+    setPrintPayload(payload);
+    setPrintOpen(true);
+  }, [branchLabel, lines, showToast]);
 
   const exportCsv = useCallback(() => {
     const rows = filtered.length ? filtered : lines;
@@ -185,6 +199,13 @@ export function AccountBankReconciliationPanel({
             className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-1 text-[9px] font-bold uppercase text-slate-700 hover:bg-slate-50"
           >
             <RefreshCw size={12} /> Refresh
+          </button>
+          <button
+            type="button"
+            onClick={openUnreconciledPrint}
+            className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-1 text-[9px] font-bold uppercase text-slate-700 hover:bg-slate-50"
+          >
+            <Printer size={12} /> Print unreconciled
           </button>
           <button
             type="button"
@@ -367,6 +388,21 @@ export function AccountBankReconciliationPanel({
           )}
         </div>
       </div>
+      <ReportPrintModal
+        isOpen={printOpen && !!printPayload}
+        onClose={() => {
+          setPrintOpen(false);
+          setPrintPayload(null);
+        }}
+        title={printPayload?.title ?? 'Unreconciled bank lines'}
+        periodLabel={printPayload?.periodLabel ?? ''}
+        columns={printPayload?.columns ?? []}
+        rows={printPayload?.rows ?? []}
+        summaryLines={printPayload?.summaryLines ?? []}
+        documentTypeLabel={printPayload?.documentTypeLabel ?? 'Bank reconciliation'}
+        layout={printPayload?.layout ?? 'landscape'}
+        denseSingleLine={Boolean(printPayload?.denseSingleLine)}
+      />
     </div>
   );
 }

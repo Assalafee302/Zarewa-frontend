@@ -81,12 +81,16 @@ import { FinanceDeskWorkQueues } from '../components/finance/FinanceDeskWorkQueu
 import {
   treasuryAccountBranchLabel,
   treasuryAccountDisplayName,
+  treasuryAccountIdForApiPayload,
   treasuryAccountsForWorkspace,
   workspaceTreasuryBranchId,
 } from '../lib/treasuryAccountsStore';
+import { isBranchScopedCreateBlocked, branchScopedCreateBlockedMessage } from '../lib/workspaceBranchCreate';
 import { compareSelectLabels } from '../lib/selectOptionSort';
 import { AccountBankReconciliationPanel } from '../components/account/AccountBankReconciliationPanel.jsx';
 import { AccountGlManualJournalCard } from '../components/account/AccountGlManualJournalCard.jsx';
+import { ReportPrintModal } from '../components/reports/ReportPrintModal';
+import { unreconciledReceiptsPrintPayload } from '../lib/reconciliationPrint';
 import {
   isReceiptPendingClearance,
   isReceiptReversed,
@@ -126,6 +130,8 @@ const Account = () => {
   const [showRefundPayModal, setShowRefundPayModal] = useState(false);
   const [statementAccount, setStatementAccount] = useState(null);
   const [showStatementPrintModal, setShowStatementPrintModal] = useState(false);
+  const [reconReceiptPrintOpen, setReconReceiptPrintOpen] = useState(false);
+  const [reconReceiptPrintPayload, setReconReceiptPrintPayload] = useState(null);
   const [statementPrintFromDate, setStatementPrintFromDate] = useState('');
   const [statementPrintToDate, setStatementPrintToDate] = useState('');
   const [selectedPayment, setSelectedPayment] = useState(null);
@@ -1479,6 +1485,25 @@ const Account = () => {
     () => sortedFilteredSalesReceipts.filter((r) => isReceiptPendingClearance(r)),
     [sortedFilteredSalesReceipts]
   );
+
+  const openUnreconciledReceiptsPrint = useCallback(() => {
+    const payload = unreconciledReceiptsPrintPayload(waitingConfirmationReceipts, liveTreasuryMovements, {
+      branchLabel: workspaceBranchLabel || ws?.snapshot?.branch?.name || ws?.workspaceBranchId || '',
+    });
+    if (!payload.rows.length) {
+      showToast('No unreconciled receipts to print.', { variant: 'info' });
+      return;
+    }
+    setReconReceiptPrintPayload(payload);
+    setReconReceiptPrintOpen(true);
+  }, [
+    waitingConfirmationReceipts,
+    liveTreasuryMovements,
+    workspaceBranchLabel,
+    ws?.snapshot?.branch?.name,
+    ws?.workspaceBranchId,
+    showToast,
+  ]);
   const confirmedReceipts = useMemo(
     () =>
       sortedFilteredSalesReceipts.filter(
@@ -2112,6 +2137,10 @@ const Account = () => {
   const saveBankAccount = async (e) => {
     e.preventDefault();
     const isEditTreasury = newBank.id != null && newBank.id !== '';
+    if (!isEditTreasury && isBranchScopedCreateBlocked(ws)) {
+      showToast(branchScopedCreateBlockedMessage(ws), { variant: 'error' });
+      return;
+    }
     const bal = isEditTreasury
       ? Number(treasuryEditImpliedBookStr || 0)
       : Number(newBank.balance || 0);
@@ -2146,8 +2175,8 @@ const Account = () => {
         ...(assignBranchId ? { branchId: assignBranchId } : {}),
       };
       if (newBank.id != null && newBank.id !== '') {
-        const nid = typeof newBank.id === 'number' ? newBank.id : Number(newBank.id);
-        if (Number.isFinite(nid)) body.id = nid;
+        const nid = treasuryAccountIdForApiPayload(newBank.id);
+        if (nid != null) body.id = nid;
       }
       const { ok, data } = await apiFetch('/api/treasury/accounts', {
         method: 'POST',
@@ -3196,6 +3225,15 @@ const Account = () => {
                             className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-[9px] font-black uppercase tracking-wide text-slate-600"
                           >
                             {receiptsSortDir === 'asc' ? 'Ascending' : 'Descending'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={openUnreconciledReceiptsPrint}
+                            className="inline-flex items-center gap-1 rounded-lg border border-amber-200 bg-amber-50 px-2 py-1 text-[9px] font-black uppercase tracking-wide text-amber-900 hover:bg-amber-100"
+                            title="Print full list of receipts pending finance clearance"
+                          >
+                            <Printer size={12} />
+                            Print unreconciled
                           </button>
                         </div>
                         <div className="text-[10px] text-slate-600 tabular-nums">
@@ -5396,6 +5434,22 @@ const Account = () => {
           )}
         </div>
       </ModalFrame>
+
+      <ReportPrintModal
+        isOpen={reconReceiptPrintOpen && !!reconReceiptPrintPayload}
+        onClose={() => {
+          setReconReceiptPrintOpen(false);
+          setReconReceiptPrintPayload(null);
+        }}
+        title={reconReceiptPrintPayload?.title ?? 'Unreconciled receipts'}
+        periodLabel={reconReceiptPrintPayload?.periodLabel ?? ''}
+        columns={reconReceiptPrintPayload?.columns ?? []}
+        rows={reconReceiptPrintPayload?.rows ?? []}
+        summaryLines={reconReceiptPrintPayload?.summaryLines ?? []}
+        documentTypeLabel={reconReceiptPrintPayload?.documentTypeLabel ?? 'Finance reconciliation'}
+        layout={reconReceiptPrintPayload?.layout ?? 'landscape'}
+        denseSingleLine={Boolean(reconReceiptPrintPayload?.denseSingleLine)}
+      />
 
       <ModalFrame isOpen={showStatementPrintModal} onClose={() => setShowStatementPrintModal(false)}>
         <div className="z-modal-panel max-w-md w-full p-6 sm:p-8">
