@@ -1174,12 +1174,8 @@ const Operations = () => {
     return sorted.filter((p) => transitPoSearchBlob(p).includes(transitSearchNorm));
   }, [transitOrdersAll, transitSort, transitSearchNorm]);
 
-  const transitOrdersTruncated =
-    !transitSearchNorm && transitOrdersSortedFiltered.length > STOCK_SIDE_LIST_LIMIT;
-  const transitOrders = useMemo(() => {
-    if (transitSearchNorm) return transitOrdersSortedFiltered;
-    return transitOrdersSortedFiltered.slice(0, STOCK_SIDE_LIST_LIMIT);
-  }, [transitOrdersSortedFiltered, transitSearchNorm]);
+  /** Receivable POs must all be visible — do not cap like coil/SKU side lists. */
+  const transitOrders = transitOrdersSortedFiltered;
 
   const coilLotsReceiptSorted = useMemo(() => {
     const finishedCoils = new Set(
@@ -1703,12 +1699,7 @@ const Operations = () => {
                       </select>
                     </div>
                   </div>
-                  {transitOrdersTruncated ? (
-                    <p className="text-[8px] font-semibold text-slate-500 mb-1">
-                      +{transitOrdersSortedFiltered.length - STOCK_SIDE_LIST_LIMIT} more — search or sort
-                    </p>
-                  ) : null}
-                  <ul className="space-y-1.5">
+                  <ul className="space-y-1.5 max-h-[min(70vh,520px)] overflow-y-auto">
                   {transitOrders.map((p) => {
                     const pk = procurementKindFromPo(p);
                     const openQty = p.lines.reduce((sum, l) => sum + poLineOpenQtyForReceiving(l), 0);
