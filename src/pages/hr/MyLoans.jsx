@@ -59,7 +59,7 @@ export default function MyLoans({ staffLinkBase = '/my-profile' }) {
   const policy = loanPolicy || {
     loanMinServiceYears: 3,
     loanMaxSalaryMonths: 4,
-    loanMaxRepaymentMonths: 4,
+    loanMaxRepaymentMonths: 12,
   };
 
   const amount = Math.round(Number(amountNgn) || 0);
@@ -77,7 +77,7 @@ export default function MyLoans({ staffLinkBase = '/my-profile' }) {
     if (amount > 0 && maxLoanNgn && amount > maxLoanNgn) {
       errs.push(`Amount exceeds policy maximum of ${formatNgn(maxLoanNgn)} (${policy.loanMaxSalaryMonths}× gross salary).`);
     }
-    if (months > Number(policy.loanMaxRepaymentMonths || 4)) {
+    if (months > Number(policy.loanMaxRepaymentMonths || 12)) {
       errs.push(`Repayment cannot exceed ${policy.loanMaxRepaymentMonths} months.`);
     }
     if (amount > 0 && months > 0 && deduction < minDeduction) {
@@ -237,7 +237,7 @@ export default function MyLoans({ staffLinkBase = '/my-profile' }) {
             <label className="text-xs font-semibold text-slate-600">
               Repayment period *
               <select className={HR_FIELD_CLASS} value={repaymentMonths} onChange={(e) => setRepaymentMonths(e.target.value)} required>
-                {Array.from({ length: Number(policy.loanMaxRepaymentMonths) || 4 }, (_, i) => i + 1).map((m) => (
+                {Array.from({ length: Number(policy.loanMaxRepaymentMonths) || 12 }, (_, i) => i + 1).map((m) => (
                   <option key={m} value={String(m)}>
                     {m} month{m === 1 ? '' : 's'}
                   </option>

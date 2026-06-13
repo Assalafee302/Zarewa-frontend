@@ -92,12 +92,13 @@ export function HrLoanApplicationForm({ onSuccess, onCancel }) {
         <label className="text-xs font-semibold text-slate-600">
           Repayment (months)
           <select className={HR_FIELD_CLASS} value={repaymentMonths} onChange={(e) => setRepaymentMonths(e.target.value)} required>
-            <option value="1">1 month</option>
-            <option value="2">2 months</option>
-            <option value="3">3 months</option>
-            <option value="4">4 months</option>
+            {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
+              <option key={m} value={String(m)}>
+                {m} month{m === 1 ? '' : 's'}
+              </option>
+            ))}
           </select>
-          <span className="mt-1 block font-normal text-slate-400 text-[11px]">Maximum repayment period is 4 months per company policy.</span>
+          <span className="mt-1 block font-normal text-slate-400 text-[11px]">Maximum repayment period is 12 months per company policy.</span>
         </label>
         <label className="text-xs font-semibold text-slate-600">
           Monthly deduction (₦)

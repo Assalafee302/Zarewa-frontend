@@ -16,7 +16,7 @@ export function HrLeavePolicySection({ executive = false }) {
   const [casualDays, setCasualDays] = useState('7');
   const [maternityDays, setMaternityDays] = useState('60');
   const [loanMinYears, setLoanMinYears] = useState('3');
-  const [loanMaxMonths, setLoanMaxMonths] = useState('4');
+  const [loanMaxMonths, setLoanMaxMonths] = useState('12');
   const [loanMaxSalaryMonths, setLoanMaxSalaryMonths] = useState('4');
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
@@ -35,7 +35,7 @@ export function HrLeavePolicySection({ executive = false }) {
     setCasualDays(String(p.casualLeaveDaysPerYear ?? 7));
     setMaternityDays(String(p.maternityLeaveDays ?? 60));
     setLoanMinYears(String(p.loanMinServiceYears ?? 3));
-    setLoanMaxMonths(String(p.loanMaxRepaymentMonths ?? 4));
+    setLoanMaxMonths(String(p.loanMaxRepaymentMonths ?? 12));
     setLoanMaxSalaryMonths(String(p.loanMaxSalaryMonths ?? 4));
     return { hasData: true };
   }, []);
