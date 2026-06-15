@@ -41,7 +41,7 @@ export const MODULE_ACCESS_POLICY = {
   ],
   reports: ['reports.view'],
   edit_approvals: ['dashboard.view'],
-  settings: ['settings.view', 'period.manage'],
+  settings: ['settings.view', 'settings.manage', 'period.manage'],
   office: ['office.use'],
   hr: [
     'hr.directory.view',

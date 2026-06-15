@@ -93,14 +93,14 @@ const Sidebar = ({ mobileOpen = false, onCloseMobile, collapsed = false, onToggl
       icon: <Truck size={18} />,
       label: 'Purchase',
       path: '/procurement',
-      visible: ws?.canAccessModule?.('procurement') ?? true,
+      visible: Boolean(ws?.canAccessModule?.('procurement')),
     },
     {
       icon: <ShoppingCart size={18} />,
       label: 'Sales',
       path: '/sales',
       active: pathMatches(p, '/sales') || pathMatches(p, '/customers'),
-      visible: ws?.canAccessModule?.('sales') ?? true,
+      visible: Boolean(ws?.canAccessModule?.('sales')),
     },
     {
       icon: <LayoutGrid size={18} />,
@@ -108,7 +108,7 @@ const Sidebar = ({ mobileOpen = false, onCloseMobile, collapsed = false, onToggl
       path: '/operations',
       to: { pathname: '/operations', state: { focusOpsTab: 'production' } },
       active: pathMatches(p, '/operations'),
-      visible: ws?.canAccessModule?.('operations') ?? true,
+      visible: Boolean(ws?.canAccessModule?.('operations')),
     },
     {
       icon: <Calculator size={18} />,

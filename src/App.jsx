@@ -12,6 +12,7 @@ import Sidebar from './components/Sidebar';
 import LoginScreen from './components/auth/LoginScreen';
 import UserOnboardingGate from './components/auth/UserOnboardingGate';
 import ModuleRouteGuard from './components/ModuleRouteGuard';
+import ManagerRouteGuard from './components/ManagerRouteGuard';
 import HrMainRouteGuard from './components/hr/HrMainRouteGuard';
 import FinanceDeskRouteGuard from './components/FinanceDeskRouteGuard';
 import LegacyAccountsRouteGuard from './components/LegacyAccountsRouteGuard';
@@ -62,7 +63,15 @@ import { debugBootLog } from './lib/debugBoot.js';
 /** Eager — loaded on most sign-ins; avoids lazy-chunk races with the app-shell bundle at startup. */
 import Dashboard from './pages/Dashboard';
 import ManagerDashboard from './pages/ManagerDashboard';
-import ExecutiveCommandCentre from './pages/ExecutiveCommandCentre';
+
+const ExecutiveCommandCentre = lazyWithRetry(
+  () =>
+    import('./pages/ExecutiveCommandCentre.jsx').then((m) => {
+      debugBootLog('App.jsx:exec-import-ok', 'ExecutiveCommandCentre chunk loaded', {}, 'E');
+      return { default: m.default };
+    }),
+  { id: 'ExecutiveCommandCentre' }
+);
 
 const AiAssistantDock = lazyWithRetry(
   () =>
@@ -1136,7 +1145,9 @@ function AppShell() {
               path="/manager"
               element={
                 <ModuleRouteGuard moduleKey="sales">
-                  <ManagerDashboard />
+                  <ManagerRouteGuard>
+                    <ManagerDashboard />
+                  </ManagerRouteGuard>
                 </ModuleRouteGuard>
               }
             />

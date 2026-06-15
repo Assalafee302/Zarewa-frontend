@@ -347,7 +347,7 @@ const Procurement = () => {
     setPurchaseOrderStatus,
     linkTransportToPurchaseOrder,
   } = useInventory();
-  const canRecordSupplierPayment = ws?.hasPermission?.('finance.pay') ?? true;
+  const canRecordSupplierPayment = Boolean(ws?.hasPermission?.('finance.pay'));
   const currentActorLabel = ws?.session?.user?.displayName ?? 'Accounts';
   const canAccessPriceList =
     (ws?.hasPermission?.('pricing.manage') || ws?.hasPermission?.('md.price_exception.approve')) ?? false;
@@ -3192,7 +3192,7 @@ const Procurement = () => {
           setPreviewAp(null);
           openPoEditor(po);
         }}
-        canEdit={ws?.hasPermission?.('purchase_orders.manage') ?? true}
+        canEdit={Boolean(ws?.hasPermission?.('purchase_orders.manage'))}
         wsCanMutate={ws?.canMutate}
         canApprovePo={Boolean(ws?.hasPermission?.('purchase_orders.manage') && ws?.canMutate)}
         onApprove={async (p) => {

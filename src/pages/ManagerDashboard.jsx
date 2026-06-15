@@ -78,6 +78,10 @@ import DeliveryGateDiagnosticsBanner from '../components/finance/DeliveryGateDia
 import { syncAccountingPolicyFlagsFromHealth, deliveryPaymentGateMode } from '../lib/accountingPolicyFlags';
 import { userMayApproveRefundRequests } from '../lib/refundsStore';
 import { canApproveProductionGate, productionGateOverrideDeniedMessage, productionGateOverrideNoteValid } from '../lib/productionGateAccess';
+import {
+  userMayPerformManagerQuotationClearance,
+  userMayReleaseQuotationPaymentHold,
+} from '../lib/workspaceGovernanceClient';
 import { CreditExceptionPanel } from '../components/finance/CreditExceptionPanel';
 import { useCreditExceptions } from '../hooks/useCreditExceptions';
 import { HrDailyRollPanel } from '../components/hr/HrDailyRollPanel';
@@ -160,6 +164,8 @@ const ManagerDashboard = () => {
   const canApprovePaymentRequests =
     Boolean(ws?.hasPermission?.('finance.approve')) || Boolean(ws?.hasPermission?.('*'));
   const canApproveProductionGateOverride = canApproveProductionGate(ws?.session?.user?.roleKey);
+  const canManagerClearance = userMayPerformManagerQuotationClearance(ws?.session?.user);
+  const canReleasePaymentHolds = userMayReleaseQuotationPaymentHold(ws?.session?.user);
   const canApproveRefunds = userMayApproveRefundRequests(ws);
   const { items: creditExceptionItems } = useCreditExceptions({
     branchId: ws?.workspaceBranchId || ws?.session?.branchId || null,
@@ -934,6 +940,14 @@ const ManagerDashboard = () => {
 
   const handleReview = async (quotationId, decision, reason = '') => {
     if (!quotationId) return;
+    if ((decision === 'clear' || decision === 'flag') && !canManagerClearance) {
+      showToast('Quotation clearance requires Branch Manager, MD, or Administrator authority.', { variant: 'error' });
+      return;
+    }
+    if (decision === 'release_payments' && !canReleasePaymentHolds) {
+      showToast('Releasing payment holds requires Managing Director or Administrator authority.', { variant: 'error' });
+      return;
+    }
     if (decision === 'approve_production') {
       const paidNgn = Math.round(
         Number(
@@ -989,6 +1003,10 @@ const ManagerDashboard = () => {
   };
 
   const handleClearAllClearance = async () => {
+    if (!canManagerClearance) {
+      showToast('Quotation clearance requires Branch Manager authority.', { variant: 'error' });
+      return;
+    }
     const rows = filteredInboxRows.filter((row) => row._inboxKind === 'clearance');
     const eligible = rows.filter((row) => {
       const paid = Math.round(Number(row.paid_ngn) || 0);
@@ -1700,7 +1718,7 @@ const ManagerDashboard = () => {
                   <p className="text-[11px] text-slate-500 mt-1">{tabMeta?.description}</p>
                 </div>
                 <motion.div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto sm:items-center">
-                  {activeTab !== 'attendance' && activeTab === 'orders' && filteredInboxRows.some((r) => r._inboxKind === 'clearance') ? (
+                  {activeTab !== 'attendance' && activeTab === 'orders' && canManagerClearance && filteredInboxRows.some((r) => r._inboxKind === 'clearance') ? (
                     <Button
                       type="button"
                       size="sm"
@@ -1951,6 +1969,8 @@ const ManagerDashboard = () => {
                         ) || 0
                       ),
                     })}
+                    canManagerClearance={canManagerClearance}
+                    canReleasePaymentHolds={canReleasePaymentHolds}
                     showReleasePayments={Boolean(
                       selectedUnifiedWorkItem?.managerClearedAtIso ||
                         selectedUnifiedWorkItem?.managerFlaggedAtIso ||

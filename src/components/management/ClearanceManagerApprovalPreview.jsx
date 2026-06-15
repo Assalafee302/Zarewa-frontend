@@ -33,6 +33,8 @@ export function ClearanceManagerApprovalPreview({
   onReleasePayments,
   onProductionOverride,
   canProductionOverride = true,
+  canManagerClearance = true,
+  canReleasePaymentHolds = false,
 }) {
   /** Keep line items visible during background refund-intel refresh when data is already loaded. */
   const loading = loadingAudit || (loadingIntel && !paymentIntel);
@@ -154,7 +156,7 @@ export function ClearanceManagerApprovalPreview({
               reason.
             </p>
 
-            {showReleasePayments ? (
+            {showReleasePayments && canReleasePaymentHolds ? (
               <button
                 type="button"
                 disabled={decisionBusy}
@@ -166,6 +168,7 @@ export function ClearanceManagerApprovalPreview({
               </button>
             ) : null}
 
+            {canManagerClearance ? (
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
               <button
                 type="button"
@@ -195,6 +198,11 @@ export function ClearanceManagerApprovalPreview({
                 <span className="text-[9px] font-black uppercase tracking-widest">Flag</span>
               </button>
             </div>
+            ) : (
+              <p className="mb-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[10px] text-amber-950">
+                Quotation clearance requires Branch Manager, MD, or Administrator login.
+              </p>
+            )}
 
             {fromProductionGate && canProductionOverride ? (
               <button
