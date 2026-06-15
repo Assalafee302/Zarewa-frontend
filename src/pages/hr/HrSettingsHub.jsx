@@ -1,22 +1,30 @@
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Navigate, useSearchParams } from 'react-router-dom';
 import { HrTabbedPage } from '../../components/hr/HrTabbedPage';
 import { HrLeavePolicySection } from '../../components/hr/HrLeavePolicySection';
 import {
   HrLegacyPayBackfillSection,
   HrOrgCatalogSection,
+  HrOrgGoLiveChecklistSection,
   HrStaffImportGuideSection,
 } from '../../components/hr/HrSettingsSections';
 import { HrBranchMappingPanel, HrDepartmentsPanel, HrDesignationsPanel } from '../../components/hr/HrMasterDataPanels';
 import { HrLetterReferencePanel } from '../../components/hr/HrLetterReferencePanel';
 import { HrStaffNumberingPanel } from '../../components/hr/HrStaffNumberingPanel';
 import {
+  HrOrgStructureSummary,
+  HrReferencesSummary,
   HrSettingsModuleLinks,
   HrSettingsScopePanel,
   HrSettingsTabIntro,
 } from '../../components/hr/hrSettingsUi';
 import { useWorkspace } from '../../context/WorkspaceContext';
-import { canEditLeavePolicy, canManageHrSettings, canViewHrSettings } from '../../lib/hrAccess';
+import {
+  canEditLeavePolicy,
+  canManageHrSettings,
+  canViewHrOrgStructure,
+  canViewHrSettings,
+} from '../../lib/hrAccess';
 import { HR_LEAVE, HR_PAYROLL, HR_SETTINGS, hrTabPath } from '../../lib/hrRoutes';
 import { HR_SETTINGS_PAGE, HR_SETTINGS_TABS } from '../../lib/hrSettingsUi';
 
@@ -55,14 +63,19 @@ export default function HrSettingsHub() {
   const permissions = ws?.permissions || [];
   const canManage = canManageHrSettings(permissions);
   const canEditPolicy = canEditLeavePolicy(permissions);
+  const canViewOrg = canViewHrOrgStructure(permissions);
   const canView = canViewHrSettings(permissions);
+  const [orgRefreshKey, setOrgRefreshKey] = useState(0);
 
-  const tabs = useMemo(
-    () => (canManage ? HR_SETTINGS_TABS : HR_SETTINGS_TABS.filter((t) => t.id === 'policies')),
-    [canManage]
-  );
+  const tabs = useMemo(() => {
+    if (canManage) return HR_SETTINGS_TABS;
+    const visible = [];
+    if (canEditPolicy) visible.push(HR_SETTINGS_TABS.find((t) => t.id === 'policies'));
+    if (canViewOrg) visible.push(HR_SETTINGS_TABS.find((t) => t.id === 'organization'));
+    return visible.filter(Boolean);
+  }, [canManage, canEditPolicy, canViewOrg]);
   const validTabIds = tabs.map((t) => t.id);
-  const defaultTab = canManage ? 'organization' : 'policies';
+  const defaultTab = canManage || (canViewOrg && !canEditPolicy) ? 'organization' : 'policies';
   const acceptedUrlTabs = [...validTabIds, ...Object.keys(TAB_ALIASES), ...Object.keys(EXTERNAL_TAB_REDIRECTS)];
 
   const [searchParams, setSearchParams] = useSearchParams();
@@ -107,7 +120,7 @@ export default function HrSettingsHub() {
     );
   }
 
-  const showModuleLinks = canManage;
+  const bumpOrgSummary = () => setOrgRefreshKey((k) => k + 1);
 
   return (
     <HrTabbedPage
@@ -117,16 +130,27 @@ export default function HrSettingsHub() {
       tab={tab}
       onTabChange={setTab}
     >
-      {tab === 'organization' && canManage ? (
+      {tab === 'organization' && canViewOrg ? (
         <div className="space-y-6">
           <HrSettingsTabIntro tabId="organization" />
-          <HrOrgCatalogSection />
-          <HrLegacyPayBackfillSection />
-          <HrStaffImportGuideSection />
-          <HrDepartmentsPanel />
-          <HrDesignationsPanel />
+          <HrOrgStructureSummary refreshKey={orgRefreshKey} />
+          <HrDepartmentsPanel refreshKey={orgRefreshKey} />
+          <HrDesignationsPanel refreshKey={orgRefreshKey} />
           <HrBranchMappingPanel />
-          {showModuleLinks ? <HrSettingsModuleLinks /> : null}
+          {canManage ? <HrOrgCatalogSection onCatalogUpdated={bumpOrgSummary} /> : null}
+          {canManage ? (
+            <details className="rounded-2xl border border-slate-100 bg-white shadow-sm">
+              <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-slate-700 sm:px-5">
+                Setup & migration tools
+              </summary>
+              <div className="space-y-6 border-t border-slate-50 px-4 pb-4 pt-4 sm:px-5">
+                <HrOrgGoLiveChecklistSection embedded />
+                <HrStaffImportGuideSection embedded />
+                <HrLegacyPayBackfillSection embedded />
+              </div>
+            </details>
+          ) : null}
+          {canManage ? <HrSettingsModuleLinks /> : null}
         </div>
       ) : null}
 
@@ -135,16 +159,17 @@ export default function HrSettingsHub() {
           <HrSettingsTabIntro tabId="policies" />
           <HrLeavePolicySection />
           {canManage ? <HrSettingsScopePanel /> : null}
-          {showModuleLinks ? <HrSettingsModuleLinks /> : null}
+          {canManage ? <HrSettingsModuleLinks /> : null}
         </div>
       ) : null}
 
       {tab === 'documents' && canManage ? (
         <div className="space-y-6">
           <HrSettingsTabIntro tabId="documents" />
+          <HrReferencesSummary />
           <HrLetterReferencePanel />
           <HrStaffNumberingPanel />
-          {showModuleLinks ? <HrSettingsModuleLinks /> : null}
+          <HrSettingsModuleLinks />
         </div>
       ) : null}
     </HrTabbedPage>

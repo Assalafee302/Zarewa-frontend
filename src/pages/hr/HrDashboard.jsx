@@ -11,7 +11,7 @@ import {
   getHrDashboardQuickActions,
   getHrDashboardQueueLines,
 } from '../../lib/hrDashboardUi';
-import { HR_ATTENDANCE, HR_DEVELOPMENT, HR_DISCIPLINE_EXIT, HR_DOCUMENTS, HR_EMPLOYEES, HR_SETTINGS, hrTabPath } from '../../lib/hrRoutes';
+import { HR_ATTENDANCE, HR_DEVELOPMENT, HR_DISCIPLINE_EXIT, HR_DOCUMENTS, HR_EMPLOYEES, HR_PAYROLL, HR_SETTINGS, hrTabPath } from '../../lib/hrRoutes';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { HrKpiCard } from '../../components/hr/HrKpiCard';
 import { HrOperationalReadinessPanel } from '../../components/hr/HrOperationalReadinessPanel';
@@ -299,7 +299,7 @@ const ACTION_ALERT_CONFIGS = [
     title: 'Compensation Review Due',
     borderCls: 'border-yellow-500',
     badgeCls: 'bg-yellow-100 text-yellow-900',
-    linkTo: HR_SETTINGS,
+    linkTo: hrTabPath(HR_PAYROLL, 'salary-matrix'),
     countLabel: (n) => `${n} above-matrix pay review${n !== 1 ? 's' : ''} due or overdue`,
     renderItem: (item, i) => (
       <li key={i} className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-700 py-1 border-b border-slate-100 last:border-0">
@@ -326,7 +326,7 @@ const ACTION_ALERT_CONFIGS = [
     title: 'Above-Matrix Pay — Undocumented',
     borderCls: 'border-orange-500',
     badgeCls: 'bg-orange-100 text-orange-900',
-    linkTo: HR_SETTINGS,
+    linkTo: hrTabPath(HR_PAYROLL, 'salary-matrix'),
     countLabel: (n) => `${n} staff with pay above matrix but no variance documentation`,
     renderItem: (item, i) => (
       <li key={i} className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-700 py-1 border-b border-slate-100 last:border-0">

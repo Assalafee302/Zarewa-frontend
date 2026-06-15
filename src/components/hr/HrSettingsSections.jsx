@@ -2,11 +2,11 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useHrListLoad } from '../../hooks/useHrListLoad';
 import { apiFetch } from '../../lib/apiBase';
-import { seedZarewaOrgStandard, seedDemoMultiRoleProfile, previewLegacyPayBackfill, runLegacyPayBackfill } from '../../lib/hrCompensation';
+import { seedZarewaOrgStandard, previewLegacyPayBackfill, runLegacyPayBackfill, fetchOrgCatalogMeta } from '../../lib/hrCompensation';
 import { fetchHrDepartments } from '../../lib/hrMasterData';
 import { canEditPensionPolicyRates, canManageHrSettings } from '../../lib/hrAccess';
 import { useWorkspace } from '../../context/WorkspaceContext';
-import { HR_DOCUMENTS, HR_LEAVE, HR_PAYROLL, hrTabPath } from '../../lib/hrRoutes';
+import { HR_DOCUMENTS, HR_EMPLOYEES, HR_LEAVE, HR_PAYROLL, hrTabPath } from '../../lib/hrRoutes';
 import { HrAddFormButton, HrFormModal } from './HrFormModal';
 import { HR_BTN_PRIMARY, HR_FIELD_CLASS } from './hrFormStyles';
 import { HrAlert, HrCard } from './hrPageUi';
@@ -276,7 +276,7 @@ export function HrSettingsRelatedLinks() {
 }
 
 /** Preview and run legacy above-matrix pay → payAdditionNgn backfill. */
-export function HrLegacyPayBackfillSection() {
+export function HrLegacyPayBackfillSection({ embedded = false }) {
   const ws = useWorkspace();
   const canManage = canManageHrSettings(ws?.permissions);
   const [preview, setPreview] = useState(null);
@@ -318,9 +318,15 @@ export function HrLegacyPayBackfillSection() {
 
   return (
     <HrCard
-      title="Legacy pay backfill"
-      subtitle="Convert inflated base pay into matrix + pay addition for staff already on level/step."
+      title={embedded ? undefined : 'Legacy pay backfill'}
+      subtitle={embedded ? undefined : 'Convert inflated base pay into matrix + pay addition for staff already on level/step.'}
     >
+      {embedded ? (
+        <>
+          <h4 className="text-sm font-semibold text-slate-800">Legacy pay backfill</h4>
+          <p className="mt-0.5 text-xs text-slate-500">One-time migration for staff paid above matrix without pay addition.</p>
+        </>
+      ) : null}
       {error ? <div className="mb-3"><HrAlert tone="error">{error}</HrAlert></div> : null}
       {message ? <div className="mb-3"><HrAlert tone="success">{message}</HrAlert></div> : null}
       <p className="text-xs text-slate-600">
@@ -364,44 +370,137 @@ export function HrLegacyPayBackfillSection() {
 }
 
 /** Points HR admins to bulk staff import with org/comp columns. */
-export function HrStaffImportGuideSection() {
+export function HrStaffImportGuideSection({ embedded = false }) {
   const ws = useWorkspace();
   const canManage = canManageHrSettings(ws?.permissions);
   if (!canManage) return null;
 
-  return (
-    <HrCard
-      title="Import live staff"
-      subtitle="Bulk register existing employees, then complete profiles in the directory."
-    >
+  const body = (
+    <>
       <p className="text-sm text-slate-600">
-        Use <strong>HR → Employees → Bulk Register Staff</strong> to upload the Excel template. Optional columns now
-        support designation code (e.g. HOA), payroll group, salary level/step, pay addition, and variance notes.
+        Use <strong>HR → Employees → Bulk Register Staff</strong> to upload the Excel template. Optional columns support
+        designation code, payroll group, salary level/step, pay addition, and variance notes.
       </p>
-      <Link
-        to="/hr/employees"
-        className={`${HR_BTN_PRIMARY} mt-4 inline-flex`}
-      >
+      <Link to="/hr/employees" className={`${HR_BTN_PRIMARY} mt-4 inline-flex`}>
         Open staff directory
       </Link>
+    </>
+  );
+
+  if (embedded) {
+    return (
+      <div>
+        <h4 className="text-sm font-semibold text-slate-800">Import live staff</h4>
+        <p className="mt-0.5 text-xs text-slate-500">Bulk register existing employees, then complete profiles.</p>
+        <div className="mt-3">{body}</div>
+      </div>
+    );
+  }
+
+  return (
+    <HrCard title="Import live staff" subtitle="Bulk register existing employees, then complete profiles in the directory.">
+      {body}
+    </HrCard>
+  );
+}
+
+const GO_LIVE_STEPS = [
+  { id: 'catalog', label: 'Load standard org catalog (departments, designations, all payroll matrices)' },
+  { id: 'import', label: 'Bulk import live staff (optional designation code + level/step + pay addition columns)' },
+  { id: 'backfill', label: 'Preview and run legacy pay backfill for inflated base salaries' },
+  { id: 'profiles', label: 'Configure multi-role profiles (primary + secondary desks + documented variance)' },
+  { id: 'variance', label: 'Review salary variance report and dashboard compensation alerts' },
+  { id: 'payroll', label: 'Run payroll preview — payslip shows matrix lines + pay addition separately' },
+];
+
+const GO_LIVE_STORAGE_KEY = 'zarewa-hr-org-go-live-checklist-v1';
+
+/** Local checklist for org/comp cutover — in-app only, no external notifications. */
+export function HrOrgGoLiveChecklistSection({ embedded = false }) {
+  const ws = useWorkspace();
+  const canManage = canManageHrSettings(ws?.permissions);
+  const [done, setDone] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem(GO_LIVE_STORAGE_KEY) || '{}');
+    } catch {
+      return {};
+    }
+  });
+
+  if (!canManage) return null;
+
+  const toggle = (id) => {
+    setDone((prev) => {
+      const next = { ...prev, [id]: !prev[id] };
+      localStorage.setItem(GO_LIVE_STORAGE_KEY, JSON.stringify(next));
+      return next;
+    });
+  };
+
+  const completed = GO_LIVE_STEPS.filter((s) => done[s.id]).length;
+
+  const body = (
+    <>
+      <p className="text-xs text-slate-600">
+        Track org and compensation cutover on this machine. Alerts stay in the HR dashboard and bell only.
+      </p>
+      <ul className="mt-3 space-y-2">
+        {GO_LIVE_STEPS.map((step) => (
+          <li key={step.id}>
+            <label className="flex items-start gap-2 text-sm text-slate-700 cursor-pointer">
+              <input type="checkbox" className="mt-1" checked={Boolean(done[step.id])} onChange={() => toggle(step.id)} />
+              <span>{step.label}</span>
+            </label>
+          </li>
+        ))}
+      </ul>
+      <p className="mt-3 text-xs font-semibold text-[#134e4a]">
+        {completed} of {GO_LIVE_STEPS.length} complete
+      </p>
+      <div className="mt-3 flex flex-wrap gap-2 text-xs">
+        <Link to={hrTabPath(HR_PAYROLL, 'salary-matrix')} className="font-semibold text-[#134e4a] hover:underline">
+          Salary matrix & variance →
+        </Link>
+        <Link to={HR_EMPLOYEES} className="font-semibold text-[#134e4a] hover:underline">
+          Staff directory →
+        </Link>
+      </div>
+    </>
+  );
+
+  if (embedded) {
+    return (
+      <div>
+        <h4 className="text-sm font-semibold text-slate-800">Org & pay cutover checklist</h4>
+        <div className="mt-3">{body}</div>
+      </div>
+    );
+  }
+
+  return (
+    <HrCard title="Org & pay cutover checklist" subtitle="One-time setup after deploy — in-app alerts only">
+      {body}
     </HrCard>
   );
 }
 
 /** Initial org setup — shown when no departments exist; reload tucked in details after setup. */
-export function HrOrgCatalogSection() {
+export function HrOrgCatalogSection({ onCatalogUpdated }) {
   const ws = useWorkspace();
   const canManage = canManageHrSettings(ws?.permissions);
   const [seedBusy, setSeedBusy] = useState(false);
-  const [demoBusy, setDemoBusy] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [departmentCount, setDepartmentCount] = useState(null);
+  const [catalogMeta, setCatalogMeta] = useState(null);
 
   useHrListLoad(async () => {
-    const { ok, data } = await fetchHrDepartments(true);
-    if (ok && data?.ok) {
-      setDepartmentCount((data.departments || []).length);
+    const [deptRes, metaRes] = await Promise.all([fetchHrDepartments(true), fetchOrgCatalogMeta()]);
+    if (deptRes.ok && deptRes.data?.ok) {
+      setDepartmentCount((deptRes.data.departments || []).length);
+    }
+    if (metaRes.ok && metaRes.data?.ok) {
+      setCatalogMeta(metaRes.data.catalog || null);
     }
     return { hasData: true };
   }, []);
@@ -419,21 +518,10 @@ export function HrOrgCatalogSection() {
       setMessage(
         `Catalog loaded: ${data.departmentsUpserted} departments, ${data.designationsUpserted} designations, ${data.matrixUpserted} salary matrix rows.`
       );
+      if (data.catalog) setCatalogMeta(data.catalog);
+      onCatalogUpdated?.();
     } else {
       setError(data?.error || 'Could not load organization catalog.');
-    }
-  };
-
-  const runDemoProfileSeed = async () => {
-    setDemoBusy(true);
-    setMessage('');
-    setError('');
-    const { ok, data } = await seedDemoMultiRoleProfile();
-    setDemoBusy(false);
-    if (ok && data?.ok) {
-      setMessage('Demo multi-role profile applied. Open the staff profile to review.');
-    } else {
-      setError(data?.error || 'Could not apply demo profile.');
     }
   };
 
@@ -441,16 +529,23 @@ export function HrOrgCatalogSection() {
     <>
       {error ? <div className="mb-3"><HrAlert tone="error">{error}</HrAlert></div> : null}
       {message ? <div className="mb-3"><HrAlert tone="success">{message}</HrAlert></div> : null}
+      {catalogMeta?.matrixPayrollGroupScales ? (
+        <div className="mb-3 rounded-xl border border-slate-100 bg-slate-50/80 p-3 text-xs text-slate-700">
+          <p className="font-semibold text-slate-800">Payroll group matrix scales (on branch baseline)</p>
+          <ul className="mt-2 space-y-1">
+            {Object.entries(catalogMeta.matrixPayrollGroupScales).map(([group, cfg]) => (
+              <li key={group}>
+                <span className="font-mono text-[#134e4a]">{group}</span>
+                {' — '}
+                {Math.round((cfg.scale ?? 1) * 100)}%
+                {cfg.label ? ` · ${cfg.label}` : ''}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
       <button type="button" className={HR_BTN_PRIMARY} disabled={seedBusy} onClick={runOrgSeed}>
         {seedBusy ? 'Loading catalog…' : 'Load standard catalog'}
-      </button>
-      <button
-        type="button"
-        className="mt-3 rounded-xl border border-violet-200 bg-violet-50 px-4 py-2 text-sm font-semibold text-violet-900 hover:bg-violet-100 disabled:opacity-60"
-        disabled={demoBusy}
-        onClick={runDemoProfileSeed}
-      >
-        {demoBusy ? 'Applying demo profile…' : 'Apply demo multi-role profile'}
       </button>
     </>
   );
