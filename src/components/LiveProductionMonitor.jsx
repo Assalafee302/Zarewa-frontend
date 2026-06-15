@@ -33,8 +33,9 @@ import { useWorkspace } from '../context/WorkspaceContext';
 import { editMutationNeedsSecondApprovalRole } from '../lib/editApprovalUi';
 import { EditSecondApprovalInline } from './EditSecondApprovalInline';
 import OffcutIncidentPicker from './material/OffcutIncidentPicker';
+import CoilDamageRecordModal from './operations/CoilDamageRecordModal';
 import {
-  productLineKey,
+  isStoneFlatsheetQuotationLine,
   quotationHasStoneMetreProductLines,
   resolveStoneFlatsheetLengthM,
 } from '../lib/stoneCoatedQuotationPolicy';
@@ -132,11 +133,6 @@ function clearProdSfDraftStorage(jobId) {
   } catch {
     // ignore
   }
-}
-
-function parseLineQty(value) {
-  const n = Number(String(value ?? '').replace(/,/g, ''));
-  return Number.isFinite(n) ? n : 0;
 }
 
 function createDraftLine(row = {}) {
@@ -376,6 +372,7 @@ export function LiveProductionMonitor({
   const [returnReason, setReturnReason] = useState('');
   const [returnSaving, setReturnSaving] = useState(false);
   const [cancelModalOpen, setCancelModalOpen] = useState(false);
+  const [materialIncidentModalOpen, setMaterialIncidentModalOpen] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
   const [cancelSaving, setCancelSaving] = useState(false);
   const [fgAdjDelta, setFgAdjDelta] = useState('');
@@ -676,6 +673,39 @@ export function LiveProductionMonitor({
     () => Object.fromEntries(coilLotsMerged.map((lot) => [lot.coilNo, lot])),
     [coilLotsMerged]
   );
+
+  const primaryIncidentCoilNo = useMemo(() => {
+    for (const row of selectedJobAllocations) {
+      const coil = String(row.coilNo || '').trim();
+      if (coil) return coil;
+    }
+    for (const row of draftAllocations) {
+      const coil = String(row.coilNo || '').trim();
+      if (coil) return coil;
+    }
+    return '';
+  }, [selectedJobAllocations, draftAllocations]);
+
+  const primaryIncidentBeforeKg = useMemo(() => {
+    if (!primaryIncidentCoilNo) return '';
+    const alloc = selectedJobAllocations.find((r) => r.coilNo === primaryIncidentCoilNo);
+    const opening = Number(alloc?.openingWeightKg);
+    if (Number.isFinite(opening) && opening > 0) return opening;
+    const draft = draftAllocations.find((r) => r.coilNo === primaryIncidentCoilNo);
+    const draftOpening = Number(draft?.openingWeightKg);
+    if (Number.isFinite(draftOpening) && draftOpening > 0) return draftOpening;
+    return '';
+  }, [primaryIncidentCoilNo, selectedJobAllocations, draftAllocations]);
+
+  const canReportMaterialIncident =
+    Boolean(selectedJob?.jobID) && !readOnly && !isStoneMeterQuote && jobSt !== 'Cancelled';
+
+  const openProductionMaterialIncident = () => {
+    if (!primaryIncidentCoilNo && (jobSt === 'Running' || jobSt === 'Completed')) {
+      showToast('No coil on this job yet — pick a coil in the incident form.', { variant: 'info' });
+    }
+    setMaterialIncidentModalOpen(true);
+  };
 
   /** Opening kg already reserved for this job per coil (server state) — add back when showing kg free to allocate. */
   const savedOpeningKgByCoil = useMemo(() => {
@@ -1010,8 +1040,31 @@ export function LiveProductionMonitor({
           lengthM,
         };
       })
-      .filter((r) => productLineKey(r.name) === 'stone flatsheet' && r.orderedM2 > 0 && r.lengthM != null);
+      .filter((r) => isStoneFlatsheetQuotationLine(r.name) && r.orderedM2 > 0 && r.lengthM != null);
   }, [selectedJob?.quotationRef, ws?.snapshot?.quotations]);
+
+  const stoneFlatsheetLinesMissingLength = useMemo(() => {
+    const ref = selectedJob?.quotationRef;
+    if (!ref || !Array.isArray(ws?.snapshot?.quotations)) return [];
+    const q = ws.snapshot.quotations.find((x) => x.id === ref);
+    const prod = q?.quotationLines?.products;
+    if (!Array.isArray(prod)) return [];
+    return prod
+      .filter((r) => {
+        const n = String(r?.name ?? '').trim();
+        const qm = Number(String(r?.qty ?? '').replace(/,/g, '')) || 0;
+        return isStoneFlatsheetQuotationLine(n) && qm > 0 && resolveStoneFlatsheetLengthM(r) == null;
+      })
+      .map((r) => String(r?.name ?? '').trim() || 'Stone flatsheet');
+  }, [selectedJob?.quotationRef, ws?.snapshot?.quotations]);
+
+  const showStoneFlatsheetIssuedSection =
+    quotedStoneFlatsheetLines.length > 0 &&
+    stoneFlatsheetCompletionDraft.length > 0 &&
+    !readOnly &&
+    (canCaptureRun ||
+      canEditCompletedAccessoryCorrections ||
+      (canEditPlannedAllocations && isStoneMeterQuote));
 
   useEffect(() => {
     const quotationRef = selectedJob?.quotationRef;
@@ -2713,6 +2766,18 @@ export function LiveProductionMonitor({
                       {savingAction === 'completedStoneFlatsheetCorrection' ? 'Saving…' : 'Save stone flatsheet'}
                     </button>
                   ) : null}
+                  {canReportMaterialIncident ? (
+                    <button
+                      type="button"
+                      onClick={openProductionMaterialIncident}
+                      disabled={savingAction !== ''}
+                      title="Record coil damage or production scrap — submits for manager approval."
+                      className="inline-flex items-center gap-1 rounded-md border border-amber-300 bg-amber-50 px-2 py-1 text-[11px] font-semibold text-amber-950 hover:bg-amber-100 disabled:opacity-45"
+                    >
+                      <AlertTriangle size={13} />
+                      Material incident
+                    </button>
+                  ) : null}
                   <button
                     type="button"
                     onClick={() => void persist('complete')}
@@ -2848,10 +2913,26 @@ export function LiveProductionMonitor({
                 Save coil + opening kg, then use Save & start.
               </span>
             ) : null}
+            {stoneFlatsheetLinesMissingLength.length > 0 && isStoneMeterQuote && !readOnly ? (
+              <span className="inline-flex max-w-full items-start gap-1 rounded-md border border-amber-300 bg-amber-50 px-2 py-1 text-[10px] font-medium text-amber-950">
+                <AlertTriangle size={14} className="mt-0.5 shrink-0" />
+                <span>
+                  Stone flatsheet on the quote is missing length (1.4 m, 1.5 m, or 2 m) for:{' '}
+                  <strong>{stoneFlatsheetLinesMissingLength.join(', ')}</strong>. Update the quotation product line
+                  (use <strong>Stone flatsheet</strong> with length — not Cladding, which is coil roofing), then refresh.
+                </span>
+              </span>
+            ) : null}
             {canEditPlannedAllocations && isStoneMeterQuote && !stoneAllocAck ? (
-              <span className="inline-flex items-center gap-1 rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-[10px] font-medium text-amber-950">
-                <AlertTriangle size={14} className="shrink-0" />
-                Stone-coated: use Save & start (no coils) to begin the run.
+              <span className="inline-flex max-w-full items-start gap-1 rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-[10px] font-medium text-amber-950">
+                <AlertTriangle size={14} className="mt-0.5 shrink-0" />
+                <span>
+                  Stone-coated: use <strong className="font-semibold">Save &amp; start</strong> (no coils) to begin the
+                  run.
+                  {quotedStoneFlatsheetLines.length > 0
+                    ? ' Enter stone flatsheet m² below before completing — fields are available while Planned.'
+                    : null}
+                </span>
               </span>
             ) : null}
             {jobSt === 'Completed' &&
@@ -3389,9 +3470,7 @@ export function LiveProductionMonitor({
             </div>
           ) : null}
 
-          {(canCaptureRun || canEditCompletedAccessoryCorrections) &&
-          isStoneMeterQuote &&
-          stoneFlatsheetCompletionDraft.length > 0 ? (
+          {showStoneFlatsheetIssuedSection ? (
             <div className="rounded-lg border border-sky-200/80 bg-sky-50/40 p-2 sm:p-2.5 space-y-1.5">
               <p className="text-[9px] font-black uppercase tracking-widest text-sky-900">
                 Stone flatsheet (m²){jobSt === 'Completed' ? ' — correction' : ''}
@@ -3399,6 +3478,9 @@ export function LiveProductionMonitor({
               <p className="text-[9px] text-slate-600 leading-snug">
                 Ordered m² on the quote vs already consumed on other completed jobs. Supplied + deduction counts against
                 remaining m² and reduces the stone flatsheet stock SKU for this colour and length.
+                {jobSt === 'Planned'
+                  ? ' You can enter m² while Planned; use Save & start before completing the job.'
+                  : null}
               </p>
               <div className="min-w-0 max-w-full rounded-lg border border-slate-200 bg-white">
                 <div className="z-scroll-x min-w-0 max-w-full overflow-x-auto overscroll-x-contain [-webkit-overflow-scrolling:touch]">
@@ -3437,7 +3519,10 @@ export function LiveProductionMonitor({
                                   setStoneFlatsheetCompletionDraft((prev) =>
                                     prev.map((r) => {
                                       if (r.key !== row.key) return r;
-                                      if (jId && selectedJob?.status === 'Running') {
+                                      if (
+                                        jId &&
+                                        (selectedJob?.status === 'Running' || selectedJob?.status === 'Planned')
+                                      ) {
                                         writeProdSfDraftEntry(jId, row.key, { s: v, d: r.deductionThisJobM2 });
                                       }
                                       return { ...r, suppliedThisJobM2: v };
@@ -3459,7 +3544,10 @@ export function LiveProductionMonitor({
                                   setStoneFlatsheetCompletionDraft((prev) =>
                                     prev.map((r) => {
                                       if (r.key !== row.key) return r;
-                                      if (jId && selectedJob?.status === 'Running') {
+                                      if (
+                                        jId &&
+                                        (selectedJob?.status === 'Running' || selectedJob?.status === 'Planned')
+                                      ) {
                                         writeProdSfDraftEntry(jId, row.key, { s: r.suppliedThisJobM2, d: v });
                                       }
                                       return { ...r, deductionThisJobM2: v };
@@ -4671,6 +4759,18 @@ export function LiveProductionMonitor({
                   {savingAction === 'completedStoneFlatsheetCorrection' ? 'Saving…' : 'Stone FS'}
                 </button>
               ) : null}
+              {canReportMaterialIncident ? (
+                <button
+                  type="button"
+                  onClick={openProductionMaterialIncident}
+                  disabled={savingAction !== ''}
+                  title="Record coil damage or production scrap — submits for manager approval."
+                  className="inline-flex items-center gap-0.5 rounded-md border border-amber-300 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-950 hover:bg-amber-100 disabled:opacity-45"
+                >
+                  <AlertTriangle size={12} />
+                  Material incident
+                </button>
+              ) : null}
               <button
                 type="button"
                 onClick={() => void persist('complete')}
@@ -4713,6 +4813,20 @@ export function LiveProductionMonitor({
           )}
         </div>
       ) : null}
+
+      <CoilDamageRecordModal
+        isOpen={materialIncidentModalOpen}
+        onClose={() => setMaterialIncidentModalOpen(false)}
+        coilLots={coilLotsMerged}
+        defaultCoilNo={primaryIncidentCoilNo}
+        defaultBeforeKg={primaryIncidentBeforeKg}
+        defaultProductionJobId={selectedJob?.jobID || ''}
+        lockProductionJob={Boolean(selectedJob?.jobID)}
+        incidentType="production_error"
+        onSuccess={async () => {
+          await ws?.refresh?.();
+        }}
+      />
 
       {returnModalOpen ? (
         <div

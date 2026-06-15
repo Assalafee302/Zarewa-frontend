@@ -24,7 +24,8 @@ describe('documentTitleForPath', () => {
   it('maps HR module paths', () => {
     expect(documentTitleForPath('/hr/dashboard')).toContain('Human Resources');
     expect(documentTitleForPath('/hr/staff/usr-1')).toContain('Staff profile');
-    expect(documentTitleForPath('/my-profile/overview')).toContain('My profile');
+    expect(documentTitleForPath('/my-profile/overview')).toContain('HR self-service');
+    expect(documentTitleForPath('/my-profile/leave')).toContain('Leave');
     expect(documentTitleForPath('/me/account')).toContain('Account & security');
     expect(documentTitleForPath('/me/security')).toContain('Account & security');
     expect(documentTitleForPath('/team-hr/staff')).toContain('Team HR');

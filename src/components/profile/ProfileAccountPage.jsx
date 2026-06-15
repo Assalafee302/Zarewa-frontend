@@ -8,6 +8,7 @@ import { apiFetch } from '../../lib/apiBase';
 import ProfileSecurityPanel from './ProfileSecurityPanel';
 import { MyAccessExplainer } from './MyAccessExplainer';
 import { ProfileCompletionPanel } from './ProfileCompletionPanel';
+import { HR_SELF_SERVICE_PATH, hrSelfServicePathForTab } from '../../lib/hrSelfServiceRoutes';
 
 export default function ProfileAccountPage() {
   const { show: showToast } = useToast();
@@ -113,15 +114,7 @@ export default function ProfileAccountPage() {
           completeness={completeness}
           documentSummary={me?.documentSummary}
           pendingProfileRequests={me?.pendingProfileRequests}
-          onFixSection={(tab) => {
-            const map = {
-              documents: '/me/documents',
-              employment: '/me/employment',
-              policies: '/me/policies',
-              school: '/me/school',
-            };
-            navigate(map[tab] || '/me/documents');
-          }}
+          onFixSection={(tab) => navigate(hrSelfServicePathForTab(tab))}
         />
       ) : null}
 
@@ -207,14 +200,14 @@ export default function ProfileAccountPage() {
         {cohort !== 'account_only' ? (
           <p className="mt-4 text-xs text-slate-600">
             Complete your{' '}
-            <Link to="/me/documents" className="font-semibold text-[#134e4a] hover:underline">
+            <Link to={HR_SELF_SERVICE_PATH.documents} className="font-semibold text-[#134e4a] hover:underline">
               documents
             </Link>{' '}
             and{' '}
-            <Link to="/me/policies" className="font-semibold text-[#134e4a] hover:underline">
+            <Link to={HR_SELF_SERVICE_PATH.policies} className="font-semibold text-[#134e4a] hover:underline">
               policies
             </Link>{' '}
-            so HR can verify and activate full self-service.
+            in HR self-service so HR can verify and activate full access.
           </p>
         ) : null}
       </section>

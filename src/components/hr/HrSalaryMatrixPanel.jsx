@@ -37,7 +37,7 @@ export function HrSalaryMatrixPanel() {
     notes: '',
   });
 
-  const { loading, error, setError, reload: load } = useHrListLoad(async () => {
+  const { loading, error, reload: load } = useHrListLoad(async () => {
     const { ok, data } = await apiFetch('/api/hr/salary-matrix');
     if (!ok || !data?.ok) {
       setRows([]);

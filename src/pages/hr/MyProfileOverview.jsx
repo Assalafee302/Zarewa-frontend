@@ -10,6 +10,7 @@ import { canViewOrgSensitiveHr } from '../../lib/hrAccess';
 import { formatNgn } from '../../lib/hrFormat';
 import { formatPeriodYyyymm } from '../../lib/hrPayroll';
 import { HrProfileCompleteness } from '../../components/hr/HrProfileCompleteness';
+import { HR_SELF_SERVICE_PATH, hrSelfServicePathForTab } from '../../lib/hrSelfServiceRoutes';
 
 function QuickActionBtn({ to, onClick, children, icon }) {
   const cls =
@@ -53,7 +54,6 @@ export default function MyProfileOverview() {
   const [balances, setBalances] = useState([]);
   const [payslips, setPayslips] = useState([]);
   const [requests, setRequests] = useState([]);
-  const [loans, setLoans] = useState([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -81,11 +81,7 @@ export default function MyProfileOverview() {
 
       if (balancesRes.ok && balancesRes.data?.ok) setBalances(balancesRes.data.balances || []);
       if (payslipsRes.ok && payslipsRes.data?.ok) {
-        const slips = payslipsRes.data.payslips || [];
-        setPayslips(slips);
-        // Extract active loans from payslip deductions if available
-        const activeLoans = slips.filter((s) => s.loanDeductionNgn > 0).slice(0, 1);
-        setLoans(activeLoans);
+        setPayslips(payslipsRes.data.payslips || []);
       }
       if (requestsRes.ok && requestsRes.data?.ok) {
         setRequests(requestsRes.data.requests || []);
@@ -109,7 +105,6 @@ export default function MyProfileOverview() {
 
   const hr = profile?.hr;
   const user = profile?.user;
-  const annualBalance = balances.find((b) => b.leaveType === 'annual');
   const lastPayslip = payslips[0] || null;
   const pendingRequests = requests.filter(
     (r) => r.status === 'hr_review' || r.status === 'gm_hr_review' || r.status === 'branch_manager_review',
@@ -162,28 +157,28 @@ export default function MyProfileOverview() {
 
   const quickActions = (
     <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-5">
-      <QuickActionBtn to="/my-profile/leave" icon="🏖️">
+      <QuickActionBtn to={HR_SELF_SERVICE_PATH.leave} icon="🏖️">
         Apply leave
       </QuickActionBtn>
-      <QuickActionBtn to="/my-profile/loans" icon="💰">
+      <QuickActionBtn to={HR_SELF_SERVICE_PATH.loans} icon="💰">
         Apply loan
       </QuickActionBtn>
-      <QuickActionBtn to="/my-profile/payslips" icon="📄">
+      <QuickActionBtn to={HR_SELF_SERVICE_PATH.payslips} icon="📄">
         View payslip
       </QuickActionBtn>
-      <QuickActionBtn to="/my-profile/documents" icon="📂">
+      <QuickActionBtn to={HR_SELF_SERVICE_PATH.documents} icon="📂">
         Upload document
       </QuickActionBtn>
-      <QuickActionBtn to="/my-profile/policies" icon="📋">
+      <QuickActionBtn to={HR_SELF_SERVICE_PATH.policies} icon="📋">
         Policies
       </QuickActionBtn>
-      <QuickActionBtn to="/my-profile/attendance" icon="🕐">
+      <QuickActionBtn to={HR_SELF_SERVICE_PATH.attendance} icon="🕐">
         Attendance
       </QuickActionBtn>
-      <QuickActionBtn to="/my-profile/benefits" icon="🎁">
+      <QuickActionBtn to={HR_SELF_SERVICE_PATH.benefits} icon="🎁">
         Benefits
       </QuickActionBtn>
-      <QuickActionBtn to="/my-profile/id-card" icon="🪪">
+      <QuickActionBtn to={HR_SELF_SERVICE_PATH.idCard} icon="🪪">
         ID card
       </QuickActionBtn>
     </div>
@@ -206,7 +201,7 @@ export default function MyProfileOverview() {
           </ul>
         )}
         <Link
-          to="/my-profile/leave"
+          to={HR_SELF_SERVICE_PATH.leave}
           className="mt-3 block text-[11px] font-bold uppercase text-[#134e4a] hover:underline"
         >
           Apply for leave →
@@ -235,7 +230,7 @@ export default function MyProfileOverview() {
           </>
         )}
         <Link
-          to="/my-profile/payslips"
+          to={HR_SELF_SERVICE_PATH.payslips}
           className="mt-3 block text-[11px] font-bold uppercase text-[#134e4a] hover:underline"
         >
           All payslips →
@@ -317,17 +312,21 @@ export default function MyProfileOverview() {
           completeness={profile.completeness}
           compact
           onFixSection={(tabId) => {
-            const map = { documents: '/my-profile/documents', employment: '/my-profile/employment', policies: '/my-profile/policies' };
-            navigate(map[tabId] || '/my-profile/documents');
+            navigate(hrSelfServicePathForTab(tabId));
           }}
         />
       ) : null}
       {quickActions}
       {summarySection}
-      {employmentDetails}
+      {showSensitiveInline || !hr?.compensationRedacted ? (
+        employmentDetails
+      ) : (
+        <HrSensitiveGate scope="compensation" label="View compensation and bank details">
+          {employmentDetails}
+        </HrSensitiveGate>
+      )}
     </div>
   );
 
-  if (showSensitiveInline) return content;
-  return <HrSensitiveGate label="View your compensation and bank details">{content}</HrSensitiveGate>;
+  return content;
 }

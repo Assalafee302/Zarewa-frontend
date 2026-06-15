@@ -474,7 +474,7 @@ const RefundModal = ({
   /** Monotonic counter so out-of-order `/api/refunds/preview` responses cannot overwrite newer results (e.g. after production accessory correction). */
   const refundsPreviewSeqRef = useRef(0);
   /** Line key from last preview that carried substitution credit — breakdown stays visible if category is renamed. */
-  const substitutionBreakdownLineKeyRef = useRef('');
+  const [substitutionBreakdownLineKey, setSubstitutionBreakdownLineKey] = useState('');
 
   useEffect(() => {
     if (!isOpen) setRefundGuideOpen(false);
@@ -828,7 +828,7 @@ const RefundModal = ({
       setPreviewError('');
       setWarnings([]);
       setSubstitutionPerMeterBreakdown([]);
-      substitutionBreakdownLineKeyRef.current = '';
+      setSubstitutionBreakdownLineKey('');
       const subPpm = Number(String(substitutionWorkbookPpmOverride ?? '').replace(/,/g, ''));
       const body = {
         quotationRef: quoteRef,
@@ -849,7 +849,7 @@ const RefundModal = ({
         setLastPreviewSnapshot(null);
         setEligibleRefundCategoriesFromPreview(null);
         setPreviewError(data?.error || 'Could not generate refund preview.');
-        substitutionBreakdownLineKeyRef.current = '';
+        setSubstitutionBreakdownLineKey('');
         return;
       }
 
@@ -919,7 +919,7 @@ const RefundModal = ({
           break;
         }
       }
-      substitutionBreakdownLineKeyRef.current = substitutionAnchorLineKey;
+      setSubstitutionBreakdownLineKey(substitutionAnchorLineKey);
 
       const includedSum = breakdownRows.reduce(
         (s, row) => s + (row.include === false ? 0 : roundMoneyLocal(row.amountNgn)),
@@ -952,7 +952,7 @@ const RefundModal = ({
     setEligibleRefundCategoriesFromPreview(null);
     setIncludeCommissionInPreview(false);
     setSubstitutionWorkbookPpmOverride('');
-    substitutionBreakdownLineKeyRef.current = '';
+    setSubstitutionBreakdownLineKey('');
   }, []);
 
   const applyVerifiedQuotationRef = useCallback(
@@ -1144,7 +1144,7 @@ const RefundModal = ({
       const ackCodes = Object.entries(productionAlignmentAck)
         .filter(([, v]) => v)
         .map(([k]) => k);
-      const { ok, data } = await apiFetch('/api/refunds/production-alignment-check', {
+      const { data } = await apiFetch('/api/refunds/production-alignment-check', {
         method: 'POST',
         body: JSON.stringify({
           quotationRef: form.quotationRef,
@@ -1302,7 +1302,6 @@ const RefundModal = ({
       return;
     }
 
-    const includedSum = sumLines(form.calculationLines);
     const hardCap =
       moneyContext?.refundHardCapNgn != null
         ? Math.round(Number(moneyContext.refundHardCapNgn))
@@ -2048,8 +2047,8 @@ const RefundModal = ({
                               ) : null}
                               {substitutionPerMeterBreakdown.length > 0 &&
                               (String(line.category || '').trim() === 'Substitution Difference' ||
-                                (substitutionBreakdownLineKeyRef.current &&
-                                  line.lineKey === substitutionBreakdownLineKeyRef.current)) ? (
+                                (substitutionBreakdownLineKey &&
+                                  line.lineKey === substitutionBreakdownLineKey)) ? (
                                 <div className="rounded-lg border border-sky-100 bg-sky-50/90 px-2.5 py-2 text-[10px] leading-snug text-slate-700 space-y-1.5">
                                   <p className="font-bold uppercase tracking-wide text-sky-800/90">
                                     How this amount is calculated

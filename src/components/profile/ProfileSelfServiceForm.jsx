@@ -8,7 +8,6 @@ import { HR_BTN_PRIMARY, HR_FIELD_CLASS, HR_TEXTAREA_CLASS } from '../hr/hrFormS
 
 const SECTIONS = [
   { id: 'personal', label: 'Personal' },
-  { id: 'bank', label: 'Bank' },
   { id: 'nok', label: 'Next of kin' },
   { id: 'qualifications', label: 'Qualifications' },
 ];
@@ -27,6 +26,7 @@ export function ProfileSelfServiceForm() {
   const { me, hr, reload } = useUserProfile();
   const [active, setActive] = useState('personal');
   const [busy, setBusy] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const dirtyRef = useRef(false);
 
   const staff = useMemo(() => {
@@ -73,8 +73,8 @@ export function ProfileSelfServiceForm() {
     <section className="rounded-2xl border border-teal-100 bg-teal-50/30 p-4 sm:p-5">
       <h3 className="text-base font-black text-slate-900 sm:text-sm">Your HR details</h3>
       <p className="mt-1 text-sm leading-relaxed text-slate-600 sm:text-xs">
-        Fill in personal, bank, next of kin, and qualification information. Job title and salary are maintained by HR.
-        Upload supporting documents under Documents.
+        Fill in personal, next of kin, and qualification information. Job title and salary are maintained by HR.
+        For bank or NIN changes, use the HR approval request form on this page.
       </p>
 
       <div className="mt-4 flex gap-1.5 overflow-x-auto pb-1 snap-x snap-mandatory custom-scrollbar [-webkit-overflow-scrolling:touch]">
@@ -145,42 +145,31 @@ export function ProfileSelfServiceForm() {
             <Field label="Residential address" className="sm:col-span-2">
               <input className={HR_FIELD_CLASS} value={form.residentialAddress || ''} onChange={(e) => set('residentialAddress', e.target.value)} />
             </Field>
-            <Field label="State of origin">
-              <input className={HR_FIELD_CLASS} value={form.stateOfOrigin || ''} onChange={(e) => set('stateOfOrigin', e.target.value)} />
-            </Field>
-            <Field label="Local government">
-              <input className={HR_FIELD_CLASS} value={form.localGovernment || ''} onChange={(e) => set('localGovernment', e.target.value)} />
-            </Field>
-            <Field label="Nationality">
-              <input className={HR_FIELD_CLASS} value={form.nationality || 'Nigerian'} onChange={(e) => set('nationality', e.target.value)} />
-            </Field>
-            <Field label="Blood group">
-              <input className={HR_FIELD_CLASS} value={form.bloodGroup || ''} onChange={(e) => set('bloodGroup', e.target.value)} />
-            </Field>
-          </div>
-        ) : null}
-
-        {active === 'bank' ? (
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Bank name">
-              <input className={HR_FIELD_CLASS} value={form.bankName || ''} onChange={(e) => set('bankName', e.target.value)} required />
-            </Field>
-            <Field label="Account name">
-              <input className={HR_FIELD_CLASS} value={form.bankAccountName || ''} onChange={(e) => set('bankAccountName', e.target.value)} required />
-            </Field>
-            <Field label="Account number" className="sm:col-span-2">
-              <input
-                className={`${HR_FIELD_CLASS} font-mono`}
-                value={form.bankAccountNo || ''}
-                onChange={(e) => set('bankAccountNo', e.target.value.replace(/\s/g, ''))}
-                placeholder={form.bankAccountNoMasked ? `Current: ${form.bankAccountNoMasked}` : '10 digits'}
-                inputMode="numeric"
-                required={!form.bankAccountNoMasked}
-              />
-            </Field>
-            <p className="sm:col-span-2 text-xs text-slate-500">
-              Re-enter your full account number to update bank details. HR uses this for payroll.
-            </p>
+            {showAdvanced ? (
+              <>
+                <Field label="State of origin">
+                  <input className={HR_FIELD_CLASS} value={form.stateOfOrigin || ''} onChange={(e) => set('stateOfOrigin', e.target.value)} />
+                </Field>
+                <Field label="Local government">
+                  <input className={HR_FIELD_CLASS} value={form.localGovernment || ''} onChange={(e) => set('localGovernment', e.target.value)} />
+                </Field>
+                <Field label="Nationality">
+                  <input className={HR_FIELD_CLASS} value={form.nationality || 'Nigerian'} onChange={(e) => set('nationality', e.target.value)} />
+                </Field>
+                <Field label="Blood group">
+                  <input className={HR_FIELD_CLASS} value={form.bloodGroup || ''} onChange={(e) => set('bloodGroup', e.target.value)} />
+                </Field>
+              </>
+            ) : null}
+            <div className="sm:col-span-2">
+              <button
+                type="button"
+                onClick={() => setShowAdvanced((v) => !v)}
+                className="text-[11px] font-bold uppercase tracking-wide text-[#134e4a] hover:underline"
+              >
+                {showAdvanced ? 'Hide optional fields' : 'Show optional fields (state, LGA, blood group)'}
+              </button>
+            </div>
           </div>
         ) : null}
 

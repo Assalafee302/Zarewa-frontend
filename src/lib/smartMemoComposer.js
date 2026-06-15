@@ -381,7 +381,6 @@ function buildZareHints(memoType, meta, checklist) {
 }
 
 /** @deprecated Use buildZareHints */
-const buildRunaHints = buildZareHints;
 
 /**
  * Rule-based memo improvement when AI is unavailable.

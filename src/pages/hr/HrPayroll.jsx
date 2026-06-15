@@ -244,6 +244,8 @@ export default function HrPayroll({ embedded = false } = {}) {
       ? Number(l.loanDeductionNgn)
       : (l.loanDeductions || []).reduce((s, x) => s + (Number(x.amountNgn) || 0), 0);
 
+  const recoveryFor = (l) => Number(l.incidentRecoveryNgn) || 0;
+
   const linesBody = (
     <div className="space-y-3">
       {totals && !totals.amountsRedacted ? (
@@ -264,13 +266,14 @@ export default function HrPayroll({ embedded = false } = {}) {
             <AppTableTh align="right">PAYE (₦)</AppTableTh>
             <AppTableTh align="right">Pension</AppTableTh>
             <AppTableTh align="right">Loans</AppTableTh>
+            <AppTableTh align="right">Recoveries</AppTableTh>
             <AppTableTh align="right">Other</AppTableTh>
             <AppTableTh align="right">Net</AppTableTh>
           </AppTableThead>
           <AppTableBody>
             {lines.length === 0 ? (
               <AppTableTr>
-                <AppTableTd colSpan={9} align="center">
+                <AppTableTd colSpan={10} align="center">
                   <span className="text-slate-500 py-4 block">
                     {run?.status === 'draft' ? 'No active staff on payroll. Add staff or click Recompute.' : 'No lines.'}
                   </span>
@@ -310,6 +313,7 @@ export default function HrPayroll({ embedded = false } = {}) {
                     </AppTableTd>
                     <AppTableTd align="right">{l.amountsRedacted ? '—' : formatNgn(l.pensionNgn)}</AppTableTd>
                     <AppTableTd align="right">{l.amountsRedacted ? '—' : formatNgn(loanFor(l))}</AppTableTd>
+                    <AppTableTd align="right">{l.amountsRedacted ? '—' : formatNgn(recoveryFor(l))}</AppTableTd>
                     <AppTableTd align="right">
                       {l.amountsRedacted ? '—' : formatNgn(l.disciplinaryOtherDeductionNgn ?? 0)}
                     </AppTableTd>
@@ -328,6 +332,9 @@ export default function HrPayroll({ embedded = false } = {}) {
                     <AppTableTd align="right">{formatNgn(totals.pensionTotalNgn)}</AppTableTd>
                     <AppTableTd align="right">
                       {formatNgn(lines.reduce((s, l) => s + (l.amountsRedacted ? 0 : loanFor(l)), 0))}
+                    </AppTableTd>
+                    <AppTableTd align="right">
+                      {formatNgn(lines.reduce((s, l) => s + (l.amountsRedacted ? 0 : recoveryFor(l)), 0))}
                     </AppTableTd>
                     <AppTableTd align="right">
                       {formatNgn(
@@ -511,16 +518,68 @@ export default function HrPayroll({ embedded = false } = {}) {
                     </button>
                   ) : null}
                   {(run.status === 'locked' || run.status === 'paid') && (canExport || canPay) ? (
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        const r = await downloadHrPayrollExport(selectedId, 'bank-upload');
-                        if (!r.ok) setError(r.error);
-                      }}
-                      className="rounded-lg border border-slate-200 px-3 py-1.5 text-[10px] font-bold uppercase text-[#134e4a]"
-                    >
-                      Bank payment file
-                    </button>
+                    <>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          const r = await downloadHrPayrollExport(selectedId, 'bank-upload');
+                          if (!r.ok) setError(r.error);
+                        }}
+                        className="rounded-lg border border-slate-200 px-3 py-1.5 text-[10px] font-bold uppercase text-[#134e4a]"
+                      >
+                        Bank payment file
+                      </button>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          const r = await downloadHrPayrollExport(selectedId, 'treasury');
+                          if (!r.ok) setError(r.error);
+                        }}
+                        className="rounded-lg border border-slate-200 px-3 py-1.5 text-[10px] font-bold uppercase text-[#134e4a]"
+                      >
+                        Treasury pack
+                      </button>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          const r = await downloadHrPayrollExport(selectedId, 'statutory');
+                          if (!r.ok) setError(r.error);
+                        }}
+                        className="rounded-lg border border-slate-200 px-3 py-1.5 text-[10px] font-bold uppercase text-[#134e4a]"
+                      >
+                        Statutory pack
+                      </button>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          const r = await downloadHrPayrollExport(selectedId, 'payslips');
+                          if (!r.ok) setError(r.error);
+                        }}
+                        className="rounded-lg border border-slate-200 px-3 py-1.5 text-[10px] font-bold uppercase text-[#134e4a]"
+                      >
+                        Payslips CSV
+                      </button>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          const r = await downloadHrPayrollExport(selectedId, 'payslips-pdf');
+                          if (!r.ok) setError(r.error);
+                        }}
+                        className="rounded-lg border border-slate-200 px-3 py-1.5 text-[10px] font-bold uppercase text-[#134e4a]"
+                      >
+                        Payslips PDF
+                      </button>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          const r = await downloadHrPayrollExport(selectedId, 'gl');
+                          if (!r.ok) setError(r.error);
+                        }}
+                        className="rounded-lg border border-slate-200 px-3 py-1.5 text-[10px] font-bold uppercase text-[#134e4a]"
+                      >
+                        GL journal
+                      </button>
+                    </>
                   ) : null}
                 </div>
 

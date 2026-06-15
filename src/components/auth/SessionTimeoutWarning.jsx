@@ -12,6 +12,7 @@ export default function SessionTimeoutWarning() {
   const ws = useWorkspace();
   const { hasUnsavedWork } = useUnsavedWorkRegistry();
   const [secondsLeft, setSecondsLeft] = useState(null);
+  const [msRemaining, setMsRemaining] = useState(null);
   const [sessionPaused, setSessionPaused] = useState(false);
   const [dismissed, setDismissed] = useState(false);
 
@@ -50,6 +51,7 @@ export default function SessionTimeoutWarning() {
 
     const tick = () => {
       const ms = expiresAtMs - Date.now();
+      setMsRemaining(ms);
       if (ms <= 0) {
         if (hasUnsavedWork) {
           setSessionPaused(true);
@@ -81,8 +83,8 @@ export default function SessionTimeoutWarning() {
 
   if (ws?.authRequired) return null;
 
-  const msRemaining = expiresAtMs - Date.now();
-  const inUnsavedHoldWindow = hasUnsavedWork && msRemaining <= warningSeconds * 1000;
+  const inUnsavedHoldWindow =
+    hasUnsavedWork && msRemaining != null && msRemaining <= warningSeconds * 1000;
 
   if ((sessionPaused && hasUnsavedWork) || inUnsavedHoldWindow) {
     return (

@@ -1,25 +1,15 @@
-import React, { Suspense } from 'react';
+import React from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
-import { lazyWithRetry } from '../lib/lazyWithRetry';
 import { UserProfileShell } from '../components/profile/UserProfileShell';
-import { ProfileSectionGuard } from '../components/profile/ProfileSectionGuard';
 import { ProfileSectionPage } from '../components/profile/ProfileSectionPage';
 import ProfileOverview from './profile/ProfileOverview';
 import ProfileAccount from './profile/ProfileAccount';
 import ProfileActions from './profile/ProfileActions';
-import ProfileLeaveAttendance from './profile/ProfileLeaveAttendance';
-import ScholarshipSchoolProfile from '../components/hr/ScholarshipSchoolProfile';
-import MyLoans from './hr/MyLoans';
-import MyProfileDocuments from './hr/MyProfileDocuments';
-import MyPayslips from './hr/MyPayslips';
-import ProfileEmploymentPage from './profile/ProfileEmploymentPage';
-import MyProfilePolicies from './hr/MyProfilePolicies';
-import MyProfileGrievance from './hr/MyProfileGrievance';
+import { ACCOUNT_PATH, HR_SELF_SERVICE_PATH } from '../lib/hrSelfServiceRoutes';
 
-const MyIdCard = lazyWithRetry(() => import('./hr/MyIdCard'), { id: 'MyIdCard' });
-
-function SectionFallback() {
-  return <p className="text-sm text-slate-600 py-6">Loading…</p>;
+/** HR self-service lives under /my-profile — keep /me as account hub + redirects. */
+function HrSelfServiceRedirect({ to }) {
+  return <Navigate to={to} replace />;
 }
 
 export default function UserProfile() {
@@ -37,114 +27,22 @@ export default function UserProfile() {
         />
         <Route path="services" element={<ProfileActions />} />
 
-        <Route
-          path="school"
-          element={
-            <ProfileSectionGuard requireHr requireScholarship>
-              <ProfileSectionPage title="My school" subtitle="Fees, stipend step, and term dates for your scholarship.">
-                <ScholarshipSchoolProfile />
-              </ProfileSectionPage>
-            </ProfileSectionGuard>
-          }
-        />
+        <Route path="school" element={<HrSelfServiceRedirect to={HR_SELF_SERVICE_PATH.school} />} />
+        <Route path="leave" element={<HrSelfServiceRedirect to={HR_SELF_SERVICE_PATH.leave} />} />
+        <Route path="loans" element={<HrSelfServiceRedirect to={HR_SELF_SERVICE_PATH.loans} />} />
+        <Route path="documents" element={<HrSelfServiceRedirect to={HR_SELF_SERVICE_PATH.documents} />} />
+        <Route path="payslips" element={<HrSelfServiceRedirect to={HR_SELF_SERVICE_PATH.payslips} />} />
+        <Route path="employment" element={<HrSelfServiceRedirect to={HR_SELF_SERVICE_PATH.employment} />} />
+        <Route path="policies" element={<HrSelfServiceRedirect to={HR_SELF_SERVICE_PATH.policies} />} />
+        <Route path="grievance" element={<HrSelfServiceRedirect to={HR_SELF_SERVICE_PATH.grievance} />} />
+        <Route path="id-card" element={<HrSelfServiceRedirect to={HR_SELF_SERVICE_PATH.idCard} />} />
+        <Route path="attendance" element={<HrSelfServiceRedirect to={HR_SELF_SERVICE_PATH.attendance} />} />
+        <Route path="benefits" element={<HrSelfServiceRedirect to={HR_SELF_SERVICE_PATH.benefits} />} />
+        <Route path="discipline" element={<HrSelfServiceRedirect to={HR_SELF_SERVICE_PATH.discipline} />} />
 
-        <Route
-          path="leave"
-          element={
-            <ProfileSectionGuard requireHr requireNotScholarship>
-              <ProfileSectionPage
-                title="Leave & attendance"
-                subtitle="Apply for leave, track requests, and view attendance guidance."
-              >
-                <ProfileLeaveAttendance />
-              </ProfileSectionPage>
-            </ProfileSectionGuard>
-          }
-        />
-
-        <Route
-          path="loans"
-          element={
-            <ProfileSectionGuard requireHr requireNotScholarship>
-              <ProfileSectionPage title="Loans" subtitle="Apply for a staff loan and view your repayment schedule.">
-                <MyLoans staffLinkBase="/me" />
-              </ProfileSectionPage>
-            </ProfileSectionGuard>
-          }
-        />
-
-        <Route
-          path="documents"
-          element={
-            <ProfileSectionGuard requireHr>
-              <ProfileSectionPage title="Documents" subtitle="Upload and manage your personal HR documents.">
-                <MyProfileDocuments />
-              </ProfileSectionPage>
-            </ProfileSectionGuard>
-          }
-        />
-
-        <Route
-          path="payslips"
-          element={
-            <ProfileSectionGuard requireHr>
-              <ProfileSectionPage title="Payslips" subtitle="View and download your salary slips.">
-                <MyPayslips />
-              </ProfileSectionPage>
-            </ProfileSectionGuard>
-          }
-        />
-
-        <Route
-          path="employment"
-          element={
-            <ProfileSectionGuard requireHr>
-              <ProfileSectionPage title="My HR details" subtitle="Personal, bank, next of kin, qualifications, and employment record.">
-                <ProfileEmploymentPage />
-              </ProfileSectionPage>
-            </ProfileSectionGuard>
-          }
-        />
-
-        <Route
-          path="policies"
-          element={
-            <ProfileSectionGuard requireHr>
-              <ProfileSectionPage title="Policies" subtitle="Company handbook and policy acknowledgements.">
-                <MyProfilePolicies />
-              </ProfileSectionPage>
-            </ProfileSectionGuard>
-          }
-        />
-
-        <Route
-          path="grievance"
-          element={
-            <ProfileSectionGuard requireHr requireNotScholarship>
-              <ProfileSectionPage title="Feedback & grievance" subtitle="Raise feedback or submit a grievance.">
-                <MyProfileGrievance />
-              </ProfileSectionPage>
-            </ProfileSectionGuard>
-          }
-        />
-
-        <Route
-          path="id-card"
-          element={
-            <ProfileSectionGuard requireHr requireNotScholarship>
-              <ProfileSectionPage title="Staff ID card" subtitle="View or print your staff identification card.">
-                <Suspense fallback={<SectionFallback />}>
-                  <MyIdCard />
-                </Suspense>
-              </ProfileSectionPage>
-            </ProfileSectionGuard>
-          }
-        />
-
-        <Route path="security" element={<Navigate to="/me/account#security" replace />} />
-        <Route path="attendance" element={<Navigate to="/me/leave" replace />} />
-        <Route path="actions" element={<Navigate to="/me/services" replace />} />
-        <Route path="*" element={<Navigate to="/me" replace />} />
+        <Route path="security" element={<Navigate to={`${ACCOUNT_PATH.account}#security`} replace />} />
+        <Route path="actions" element={<Navigate to={ACCOUNT_PATH.services} replace />} />
+        <Route path="*" element={<Navigate to={ACCOUNT_PATH.overview} replace />} />
       </Route>
     </Routes>
   );

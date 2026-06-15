@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { FilePlus, LifeBuoy, RefreshCw, Search } from 'lucide-react';
 import { PageShell } from '../components/layout';
@@ -6,7 +6,6 @@ import { BranchWorkspaceBar } from '../components/layout/BranchWorkspaceBar';
 import { useWorkspace } from '../context/WorkspaceContext';
 import { useHelpChat } from '../context/HelpChatContext';
 import { HELP_BOT_NAME } from '../lib/helpBotBrand';
-import { useToast } from '../context/ToastContext';
 import { getWorkspaceDeskNav } from '../lib/workspaceDeskNav';
 import { workItemShowsOnWorkspaceUnifiedInbox } from '../lib/workItemPersonalInbox';
 import { buildWorkspaceAiContext } from '../lib/workspaceAiContext';
@@ -20,7 +19,6 @@ import { suggestForumOfficeRecord } from '../lib/suggestForumOfficeRecord';
 export default function WorkspaceDesk() {
   const ws = useWorkspace();
   const helpChat = useHelpChat();
-  const { show: showToast } = useToast();
   const location = useLocation();
   const navigate = useNavigate();
 

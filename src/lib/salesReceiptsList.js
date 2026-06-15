@@ -3,6 +3,10 @@
  */
 import { loadLedgerEntries, amountDueOnQuotation } from './customerLedgerStore.js';
 import { companionOverpayNgnByReceiptId } from './customerLedgerCore.js';
+import {
+  receiptSalesPaymentStatusDetail,
+  receiptSalesPaymentStatusLabel,
+} from './receiptClearance.js';
 import { formatNgn } from '../Data/mockData.js';
 
 function reversalTargetId(raw) {
@@ -221,6 +225,19 @@ export function mergeReceiptRowsForSales(importedReceipts, quotations, _ledgerEp
  */
 export function quotationReceiptPrintHistory(quotationId, importedReceipts = []) {
   if (!quotationId) return [];
+  const mirrorById = new Map();
+  for (const r of importedReceipts || []) {
+    if (r?.id) mirrorById.set(String(r.id), r);
+    if (r?.ledgerEntryId) mirrorById.set(String(r.ledgerEntryId), r);
+  }
+  const cashierFields = (receiptId) => {
+    const mirror = mirrorById.get(String(receiptId || ''));
+    if (!mirror) return { cashierStatus: receiptSalesPaymentStatusLabel({}), cashierDetail: '' };
+    return {
+      cashierStatus: receiptSalesPaymentStatusLabel(mirror),
+      cashierDetail: receiptSalesPaymentStatusDetail(mirror) || '',
+    };
+  };
   const ledgerEntries = loadLedgerEntries();
   const reversedReceiptIds = new Set(
     ledgerEntries
@@ -242,6 +259,7 @@ export function quotationReceiptPrintHistory(quotationId, importedReceipts = [])
         amountNgn: Math.round(alloc + extra),
         source: 'Ledger',
         detail: e.bankReference || e.note || '—',
+        ...cashierFields(e.id),
       };
     });
 
@@ -262,6 +280,7 @@ export function quotationReceiptPrintHistory(quotationId, importedReceipts = [])
           : Math.round(Number(r.amountNgn) || 0),
       source: 'Imported',
       detail: r.method ? `Method: ${r.method}` : 'Imported receipt',
+      ...cashierFields(r.id),
     }));
 
   const byId = new Map();

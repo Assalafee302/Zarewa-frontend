@@ -39,7 +39,7 @@ export function useHrListLoad(loader, deps) {
       setLoading(false);
       return outcome;
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- explicit deps from caller
+    // eslint-disable-next-line react-hooks/exhaustive-deps, react-hooks/use-memo -- explicit deps from caller
     deps
   );
 

@@ -105,6 +105,15 @@ export function HrPayslipPrintModal({ isOpen, onClose, payslip }) {
                     {row('Gross pay', formatNgn(payslip.grossNgn))}
                     {row('Bonus', formatNgn(payslip.bonusNgn))}
                     {row('Attendance deduction', formatNgn(payslip.attendanceDeductionNgn))}
+                    {(payslip.incidentRecoveries || []).map((rc) =>
+                      row(
+                        `Incident recovery (${rc.caseNumber || rc.scheduleId || 'case'})`,
+                        formatNgn(rc.amountNgn)
+                      )
+                    )}
+                    {!(payslip.incidentRecoveries || []).length && payslip.incidentRecoveryNgn
+                      ? row('Incident recovery', formatNgn(payslip.incidentRecoveryNgn))
+                      : null}
                     {row('Other deduction', formatNgn(payslip.otherDeductionNgn))}
                     {row('PAYE tax', formatNgn(payslip.taxNgn))}
                     {row('Pension', formatNgn(payslip.pensionNgn))}

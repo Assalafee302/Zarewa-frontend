@@ -22,7 +22,7 @@ export default function ExecutiveHrContributions() {
   const [rows, setRows] = useState([]);
   const [busyBranch, setBusyBranch] = useState('');
 
-  const { loading, error, reload: load } = useHrListLoad(async () => {
+  const { loading, error, setError, reload: load } = useHrListLoad(async () => {
     const { ok, data } = await apiFetch(
       `/api/hr/branch-contributions?periodYyyymm=${encodeURIComponent(periodYyyymm)}`
     );

@@ -1,4 +1,4 @@
-import React, { Fragment, useMemo } from 'react';
+import React, { Fragment } from 'react';
 import { flattenQuotationLineItems, ledgerTypeStyle } from '../../lib/managerDashboardCore';
 import {
   coilIntelRowsForJob,
@@ -24,28 +24,6 @@ export function ManagementQuotationIntelGrid({ auditData, paymentIntel, formatNg
   const coils = Array.isArray(auditData?.jobCoils) ? auditData.jobCoils : [];
   const intelSum = paymentIntel?.summary;
   const dataQuality = Array.isArray(paymentIntel?.dataQualityIssues) ? paymentIntel.dataQualityIssues : [];
-
-  const checksByJob = useMemo(() => {
-    const m = new Map();
-    for (const c of checks) {
-      const jid = String(c.job_id || '');
-      if (!jid) continue;
-      if (!m.has(jid)) m.set(jid, []);
-      m.get(jid).push(c);
-    }
-    return m;
-  }, [checks]);
-
-  const coilsByJob = useMemo(() => {
-    const m = new Map();
-    for (const c of coils) {
-      const jid = String(c.job_id || '');
-      if (!jid) continue;
-      if (!m.has(jid)) m.set(jid, []);
-      m.get(jid).push(c);
-    }
-    return m;
-  }, [coils]);
 
   const accLines = intelSum?.accessoriesSummary?.lines || [];
   const stone = intelSum?.stoneFlatsheetSummary;

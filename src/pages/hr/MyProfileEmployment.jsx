@@ -2,6 +2,9 @@ import React from 'react';
 import { useUserProfile } from '../../context/UserProfileContext';
 import { formatNgn } from '../../lib/hrFormat';
 import { HrCard } from '../../components/hr/hrPageUi';
+import { ProfileSelfServiceForm } from '../../components/profile/ProfileSelfServiceForm';
+import { ProfileHrUpdateForm } from '../../components/profile/ProfileHrUpdateForm';
+import { HrSensitiveField } from '../../components/hr/HrSensitiveField';
 
 function DetailRow({ label, value }) {
   return (
@@ -12,14 +15,14 @@ function DetailRow({ label, value }) {
   );
 }
 
-export default function MyProfileEmployment() {
-  const { me, hr, user, initialLoading } = useUserProfile();
+export function MyProfileEmploymentSnapshot() {
+  const { hr, initialLoading } = useUserProfile();
 
   if (initialLoading) return <p className="text-sm text-slate-600">Loading employment details…</p>;
   if (!hr) {
     return (
       <p className="rounded-xl border border-amber-100 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-        No HR employment file on record yet. Contact HR, then use the form below to add your personal details.
+        No HR employment file on record yet. Contact HR, then complete the form above.
       </p>
     );
   }
@@ -31,11 +34,6 @@ export default function MyProfileEmployment() {
 
   return (
     <div className="space-y-4">
-      <p className="text-sm text-slate-600">
-        Official job and payroll data for {user?.displayName || me?.user?.displayName}. Update personal, bank, and
-        qualification details in the form below.
-      </p>
-
       <HrCard title="Personal snapshot">
         <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2 text-sm">
           <DetailRow label="Employee number" value={hr.employeeNo} />
@@ -60,7 +58,10 @@ export default function MyProfileEmployment() {
 
       <HrCard title="Compensation & payroll">
         {hr.compensationRedacted ? (
-          <p className="text-sm text-slate-500">Unlock sensitive data on Overview to view salary details.</p>
+          <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2 text-sm">
+            <HrSensitiveField label="Base salary (monthly)" redacted />
+            <HrSensitiveField label="Bank" redacted />
+          </dl>
         ) : (
           <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2 text-sm">
             <DetailRow label="Payroll group" value={hr.payrollGroup} />
@@ -69,10 +70,29 @@ export default function MyProfileEmployment() {
               value={hr.salaryLevel != null ? `${hr.salaryLevel} / ${hr.salaryStep ?? 1}` : '—'}
             />
             <DetailRow label="Base salary" value={hr.baseSalaryNgn != null ? formatNgn(hr.baseSalaryNgn) : '—'} />
-            <DetailRow label="Bank" value={[hr.bankName, hr.bankAccountName, hr.bankAccountNoMasked].filter(Boolean).join(' · ')} />
+            <DetailRow
+              label="Bank"
+              value={[hr.bankName, hr.bankAccountName, hr.bankAccountNoMasked].filter(Boolean).join(' · ')}
+            />
           </dl>
         )}
       </HrCard>
+    </div>
+  );
+}
+
+export default function MyProfileEmployment() {
+  return (
+    <div className="space-y-6">
+      <p className="text-sm text-slate-600">
+        Update personal and qualification details below. Official job title, salary, and bank changes require HR
+        approval — use the request form for NIN, next of kin, or bank updates.
+      </p>
+      <ProfileSelfServiceForm />
+      <div id="hr-update-request">
+        <ProfileHrUpdateForm />
+      </div>
+      <MyProfileEmploymentSnapshot />
     </div>
   );
 }

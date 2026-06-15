@@ -5,8 +5,26 @@ import { HrSensitiveUnlockModal } from './HrSensitiveUnlockModal';
 
 /**
  * Wraps sensitive HR content; shows unlock prompt until password verified.
+ * @param {{ children: React.ReactNode; label?: string; scope?: 'compensation' | 'payslip' | 'discipline' | 'general' }} props
  */
-export function HrSensitiveGate({ children, label = 'View sensitive HR data' }) {
+const SCOPE_LABELS = {
+  compensation: 'View your compensation and bank details',
+  payslip: 'View your payslip amounts',
+  discipline: 'View confidential discipline records',
+  general: 'View sensitive HR data',
+};
+
+const SCOPE_HINTS = {
+  compensation: 'Enter your account password to view salary, bank, and compensation details. Access expires after 15 minutes.',
+  payslip: 'Enter your account password to view payslip amounts. Access expires after 15 minutes.',
+  discipline: 'Enter your account password to view discipline details. Access expires after 15 minutes.',
+  general:
+    'Enter your account password to view compensation, payslips, bank, or discipline details. Access expires after 15 minutes.',
+};
+
+export function HrSensitiveGate({ children, label, scope = 'general' }) {
+  const resolvedLabel = label || SCOPE_LABELS[scope] || SCOPE_LABELS.general;
+  const hint = SCOPE_HINTS[scope] || SCOPE_HINTS.general;
   const sensitive = useHrSensitiveAccess();
   const [modalOpen, setModalOpen] = useState(false);
 
@@ -32,11 +50,8 @@ export function HrSensitiveGate({ children, label = 'View sensitive HR data' }) 
     <>
       <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/80 px-6 py-10 text-center">
         <Lock size={28} className="mx-auto text-slate-400" aria-hidden />
-        <p className="mt-3 text-sm font-semibold text-slate-800">{label}</p>
-        <p className="mx-auto mt-1 max-w-md text-xs text-slate-600 leading-relaxed">
-          Enter your account password to view compensation, payslips, bank, or discipline details. Access expires after
-          15 minutes.
-        </p>
+        <p className="mt-3 text-sm font-semibold text-slate-800">{resolvedLabel}</p>
+        <p className="mx-auto mt-1 max-w-md text-xs text-slate-600 leading-relaxed">{hint}</p>
         <button
           type="button"
           onClick={() => setModalOpen(true)}

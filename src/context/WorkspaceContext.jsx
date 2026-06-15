@@ -54,7 +54,7 @@ function workspacePollIntervalMs() {
   } catch {
     /* ignore */
   }
-  return 30000;
+  return 60_000;
 }
 
 function readBootstrapCache(session) {
@@ -149,7 +149,15 @@ export function WorkspaceProvider({ children }) {
   const [sessionMessage, setSessionMessage] = useState('');
   const sessionNoticeShownRef = useRef(false);
   const snapshotRef = useRef(null);
-  snapshotRef.current = snapshot;
+  const bootstrapPollEtagRef = useRef('');
+  const bootstrapFullEtagRef = useRef('');
+  const workspaceRevisionEtagRef = useRef('');
+  const loadedDomainsRef = useRef(new Set());
+  const fullBootstrapLoadedRef = useRef(false);
+
+  useEffect(() => {
+    snapshotRef.current = snapshot;
+  }, [snapshot]);
 
   const applySnapshot = useCallback((data, mode = 'ok') => {
     let merged = null;
@@ -195,6 +203,26 @@ export function WorkspaceProvider({ children }) {
     setRefreshEpoch((n) => n + 1);
   }, []);
 
+  const mergeSnapshotPatch = useCallback((patch) => {
+    if (!patch || patch.ok !== true) return null;
+    const { domain: _domain, ok: _ok, ...fields } = patch;
+    let merged = null;
+    setSnapshot((prev) => {
+      merged = mergeSessionOnboardingFlags(prev, {
+        ...(prev || {}),
+        ok: true,
+        ...fields,
+      });
+      if (Array.isArray(merged?.ledgerEntries)) {
+        replaceLedgerEntries(merged.ledgerEntries);
+      }
+      writeBootstrapCache(merged);
+      return merged;
+    });
+    setRefreshEpoch((n) => n + 1);
+    return merged;
+  }, []);
+
   const refreshDashboardSummary = useCallback(async () => {
     try {
       const headers = dashboardSummaryEtag ? { 'If-None-Match': dashboardSummaryEtag } : {};
@@ -229,11 +257,42 @@ export function WorkspaceProvider({ children }) {
   const refresh = useCallback(async (opts = {}) => {
     try {
       const mode = String(opts?.mode ?? '').trim();
+      const isPoll = Boolean(opts?.poll);
+      const forceFull = Boolean(opts?.forceFull);
+      const wantsLight =
+        !forceFull &&
+        !mode &&
+        !isPoll &&
+        !fullBootstrapLoadedRef.current &&
+        loadedDomainsRef.current.size === 0;
+      const effectiveMode = wantsLight ? 'dashboard' : mode;
       const qsParts = [];
-      if (mode) qsParts.push(`mode=${encodeURIComponent(mode)}`);
-      if (opts?.poll) qsParts.push('poll=1');
+      if (effectiveMode) qsParts.push(`mode=${encodeURIComponent(effectiveMode)}`);
+      if (isPoll) qsParts.push('poll=1');
       const qs = qsParts.length ? `?${qsParts.join('&')}` : '';
-      const { ok, status: httpStatus, data } = await apiFetch(`/api/bootstrap${qs}`);
+      if (!isPoll) {
+        bootstrapPollEtagRef.current = '';
+      }
+      const etag = isPoll ? bootstrapPollEtagRef.current : bootstrapFullEtagRef.current;
+      const r = await fetch(apiUrl(`/api/bootstrap${qs}`), {
+        method: 'GET',
+        credentials: 'include',
+        headers: etag ? { 'If-None-Match': etag } : {},
+      });
+      if (r.status === 304) {
+        return snapshotRef.current;
+      }
+      const text = await r.text();
+      let data = null;
+      try {
+        data = text ? JSON.parse(text) : null;
+      } catch {
+        data = { ok: false, error: String(text || 'Invalid JSON').slice(0, 500) };
+      }
+      const httpStatus = r.status;
+      const nextEtag = r.headers.get('ETag') || '';
+      if (isPoll) bootstrapPollEtagRef.current = nextEtag;
+      else bootstrapFullEtagRef.current = nextEtag;
       if (httpStatus === 401 || data?.code === 'AUTH_REQUIRED') {
         const uid = snapshotRef.current?.session?.user?.id;
         if (uid && hasPendingPasswordChange(uid)) {
@@ -244,6 +303,9 @@ export function WorkspaceProvider({ children }) {
         setStatus('auth_required');
         setSnapshot(null);
         setLastError(null);
+        loadedDomainsRef.current = new Set();
+        fullBootstrapLoadedRef.current = false;
+        workspaceRevisionEtagRef.current = '';
         if (!sessionNoticeShownRef.current) {
           setSessionMessage('Your session has expired. Please sign in again.');
           sessionNoticeShownRef.current = true;
@@ -254,7 +316,10 @@ export function WorkspaceProvider({ children }) {
       if (data?.code === 'CSRF_INVALID') {
         setSessionMessage('Your session security token expired. Please sign in again.');
       }
-      if (!ok || !data?.ok) throw new Error(data?.error || 'Bootstrap failed');
+      if (!r.ok || !data?.ok) throw new Error(data?.error || 'Bootstrap failed');
+      if (!effectiveMode && !isPoll) {
+        fullBootstrapLoadedRef.current = true;
+      }
       return applySnapshot(withPendingPasswordSession(data), 'ok');
     } catch (e) {
       const cached = readBootstrapCache(snapshotRef.current?.session);
@@ -270,9 +335,83 @@ export function WorkspaceProvider({ children }) {
       setStatus('offline');
       setSnapshot(null);
       setLastError(String(e.message || e));
+      loadedDomainsRef.current = new Set();
+      fullBootstrapLoadedRef.current = false;
+      workspaceRevisionEtagRef.current = '';
       return null;
     }
   }, [applySnapshot]);
+
+  const ensureDomainLoaded = useCallback(
+    async (domain) => {
+      const key = String(domain || '').trim().toLowerCase();
+      if (!key) return snapshotRef.current;
+      if (loadedDomainsRef.current.has(key)) return snapshotRef.current;
+      try {
+        const r = await fetch(apiUrl(`/api/workspace/${encodeURIComponent(key)}-snapshot`), {
+          method: 'GET',
+          credentials: 'include',
+        });
+        if (r.status === 304) {
+          loadedDomainsRef.current.add(key);
+          return snapshotRef.current;
+        }
+        const data = await r.json().catch(() => null);
+        if (!r.ok || !data?.ok) return snapshotRef.current;
+        loadedDomainsRef.current.delete(key);
+        loadedDomainsRef.current.add(key);
+        return mergeSnapshotPatch(data) ?? snapshotRef.current;
+      } catch {
+        return snapshotRef.current;
+      }
+    },
+    [mergeSnapshotPatch]
+  );
+
+  const ensureFullBootstrap = useCallback(async () => {
+    if (fullBootstrapLoadedRef.current) return snapshotRef.current;
+    const result = await refresh({ forceFull: true });
+    if (result) fullBootstrapLoadedRef.current = true;
+    return result;
+  }, [refresh]);
+
+  const pollWorkspaceChanges = useCallback(async () => {
+    try {
+      const headers = workspaceRevisionEtagRef.current
+        ? { 'If-None-Match': workspaceRevisionEtagRef.current }
+        : {};
+      const revRes = await fetch(apiUrl('/api/workspace/revision'), {
+        method: 'GET',
+        credentials: 'include',
+        headers,
+      });
+      if (revRes.status === 304) return snapshotRef.current;
+      const revEtag = revRes.headers.get('ETag') || '';
+      if (revEtag) workspaceRevisionEtagRef.current = revEtag;
+      loadedDomainsRef.current = new Set();
+      if (!revRes.ok) {
+        await refresh({
+          poll: true,
+          forceFull: fullBootstrapLoadedRef.current || loadedDomainsRef.current.size > 0,
+        });
+        return snapshotRef.current;
+      }
+      const revData = await revRes.json().catch(() => null);
+      if (!revData?.ok) {
+        await refresh({
+          poll: true,
+          forceFull: fullBootstrapLoadedRef.current || loadedDomainsRef.current.size > 0,
+        });
+        return snapshotRef.current;
+      }
+      return refresh({
+        poll: true,
+        forceFull: fullBootstrapLoadedRef.current || loadedDomainsRef.current.size > 0,
+      });
+    } catch {
+      return snapshotRef.current;
+    }
+  }, [refresh]);
 
   const login = useCallback(
     async (username, password) => {
@@ -320,13 +459,13 @@ export function WorkspaceProvider({ children }) {
         const needsPasswordChange =
           Boolean(data.user?.mustChangePassword) || hasPendingPasswordChange(data.user?.id);
         if (!needsPasswordChange) {
-          // Fast initial render: dashboard summary + dashboard bootstrap first, then full snapshot.
+          loadedDomainsRef.current = new Set();
+          fullBootstrapLoadedRef.current = false;
+          workspaceRevisionEtagRef.current = '';
+          bootstrapPollEtagRef.current = '';
+          bootstrapFullEtagRef.current = '';
           await refreshDashboardSummary();
           await refresh({ mode: 'dashboard' });
-          setTimeout(() => {
-            refreshDashboardSummary();
-            refresh();
-          }, 0);
         }
         return { ok: true, data };
       } catch (e) {
@@ -403,6 +542,11 @@ export function WorkspaceProvider({ children }) {
     if (uid) clearPendingPasswordChange(uid);
     replaceLedgerEntries([]);
     clearBootstrapCache();
+    bootstrapPollEtagRef.current = '';
+    bootstrapFullEtagRef.current = '';
+    workspaceRevisionEtagRef.current = '';
+    loadedDomainsRef.current = new Set();
+    fullBootstrapLoadedRef.current = false;
     setSnapshot(null);
     setDashboardSummary(null);
     setDashboardSummaryEtag('');
@@ -419,6 +563,11 @@ export function WorkspaceProvider({ children }) {
     }
     replaceLedgerEntries([]);
     clearBootstrapCache();
+    bootstrapPollEtagRef.current = '';
+    bootstrapFullEtagRef.current = '';
+    workspaceRevisionEtagRef.current = '';
+    loadedDomainsRef.current = new Set();
+    fullBootstrapLoadedRef.current = false;
     setSnapshot(null);
     setDashboardSummary(null);
     setDashboardSummaryEtag('');
@@ -522,7 +671,12 @@ export function WorkspaceProvider({ children }) {
       if (!ok || !data?.ok) {
         return { ok: false, error: data?.error || 'Could not update workspace.' };
       }
-      await refresh();
+      loadedDomainsRef.current = new Set();
+      fullBootstrapLoadedRef.current = false;
+      workspaceRevisionEtagRef.current = '';
+      bootstrapPollEtagRef.current = '';
+      bootstrapFullEtagRef.current = '';
+      await refresh({ mode: 'dashboard' });
       return { ok: true, data };
     },
     [refresh]
@@ -537,10 +691,10 @@ export function WorkspaceProvider({ children }) {
   );
 
   useEffect(() => {
-    refresh();
+    void refresh({ mode: 'dashboard' });
   }, [refresh]);
 
-  /** Timer + tab focus: merge latest bootstrap into state and warm session cache. */
+  /** Timer + tab focus: cheap revision check, then bootstrap poll only when data changed. */
   useEffect(() => {
     if (status !== 'ok') return undefined;
     const ms = workspacePollIntervalMs();
@@ -548,14 +702,14 @@ export function WorkspaceProvider({ children }) {
       if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
       const uid = snapshotRef.current?.session?.user?.id;
       if (uid && hasPendingPasswordChange(uid)) return;
-      void refresh({ poll: true });
+      void pollWorkspaceChanges();
       void refreshDashboardSummary();
     };
     const id = window.setInterval(pull, ms);
     const onVisible = () => {
       if (document.visibilityState === 'visible') {
         void touchSessionActivity();
-        void refresh({ poll: true });
+        void pollWorkspaceChanges();
         void refreshDashboardSummary();
       }
     };
@@ -564,7 +718,7 @@ export function WorkspaceProvider({ children }) {
       window.clearInterval(id);
       document.removeEventListener('visibilitychange', onVisible);
     };
-  }, [status, refresh, refreshDashboardSummary, touchSessionActivity]);
+  }, [status, pollWorkspaceChanges, refreshDashboardSummary, touchSessionActivity]);
 
   const session = snapshot?.session ?? null;
   const branchScope = snapshot?.branchScope ?? null;
@@ -646,6 +800,9 @@ export function WorkspaceProvider({ children }) {
       lastError,
       refresh,
       refreshDashboardSummary,
+      pollWorkspaceChanges,
+      ensureDomainLoaded,
+      ensureFullBootstrap,
       refreshEpoch,
       /** Live server reachable — reads and writes go to API. */
       apiOnline: status === 'ok',
@@ -692,6 +849,9 @@ export function WorkspaceProvider({ children }) {
       lastError,
       refresh,
       refreshDashboardSummary,
+      pollWorkspaceChanges,
+      ensureDomainLoaded,
+      ensureFullBootstrap,
       refreshEpoch,
       hasWorkspaceData,
       usingCachedData,

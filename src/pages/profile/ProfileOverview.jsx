@@ -11,6 +11,7 @@ import { formatPeriodYyyymm } from '../../lib/hrPayroll';
 import { ProfileCompletionPanel } from '../../components/profile/ProfileCompletionPanel';
 import { ProfileHeroCard } from '../../components/profile/ProfileHeroCard';
 import { ProfileActionGrid } from '../../components/profile/ProfileActionGrid';
+import { HR_SELF_SERVICE_PATH, hrSelfServicePathForTab } from '../../lib/hrSelfServiceRoutes';
 
 function QuickActionBtn({ to, children, icon }) {
   const cls =
@@ -57,7 +58,7 @@ function ScholarshipOverviewTeaser() {
           <h3 className="text-sm font-black text-slate-900">School & stipend</h3>
           <p className="text-xs text-slate-500 mt-0.5">Your scholarship profile at a glance</p>
         </div>
-        <Link to="/me/school" className="text-[11px] font-bold uppercase text-violet-700 hover:underline">
+        <Link to={HR_SELF_SERVICE_PATH.school} className="text-[11px] font-bold uppercase text-violet-700 hover:underline">
           Full school profile →
         </Link>
       </div>
@@ -96,7 +97,7 @@ function ScholarshipOverviewTeaser() {
 function EmployeeOverviewDashboard() {
   const navigate = useNavigate();
   const ws = useWorkspace();
-  const { me, hr, cohort, error: meError, completeness, documentSummary, pendingProfileRequests } = useUserProfile();
+  const { hr, cohort, error: meError, completeness, documentSummary, pendingProfileRequests } = useUserProfile();
   const sensitive = useHrSensitiveAccess();
   const showSensitiveInline = canViewOrgSensitiveHr(ws?.permissions);
 
@@ -145,27 +146,27 @@ function EmployeeOverviewDashboard() {
   const quickActions = (
     <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-5">
       {cohort !== 'domestic' && cohort !== 'special' ? (
-        <QuickActionBtn to="/me/leave" icon="🏖️">
+        <QuickActionBtn to="/my-profile/leave" icon="🏖️">
           {cohort === 'employee' ? 'Leave & attendance' : 'Leave'}
         </QuickActionBtn>
       ) : null}
       {cohort === 'employee' || cohort === 'special' ? (
-        <QuickActionBtn to="/me/loans" icon="💰">
+        <QuickActionBtn to="/my-profile/loans" icon="💰">
           Apply loan
         </QuickActionBtn>
       ) : null}
-      <QuickActionBtn to="/me/payslips" icon="📄">
+      <QuickActionBtn to="/my-profile/payslips" icon="📄">
         Payslips
       </QuickActionBtn>
-      <QuickActionBtn to="/me/documents" icon="📂">
+      <QuickActionBtn to="/my-profile/documents" icon="📂">
         Documents
       </QuickActionBtn>
       {cohort !== 'domestic' ? (
         <>
-          <QuickActionBtn to="/me/policies" icon="📋">
+          <QuickActionBtn to="/my-profile/policies" icon="📋">
             Policies
           </QuickActionBtn>
-          <QuickActionBtn to="/me/id-card" icon="🪪">
+          <QuickActionBtn to="/my-profile/id-card" icon="🪪">
             ID card
           </QuickActionBtn>
         </>
@@ -191,7 +192,7 @@ function EmployeeOverviewDashboard() {
               ))}
             </ul>
           )}
-          <Link to="/me/leave" className="mt-3 block text-[11px] font-bold uppercase text-[#134e4a] hover:underline">
+          <Link to="/my-profile/leave" className="mt-3 block text-[11px] font-bold uppercase text-[#134e4a] hover:underline">
             Apply for leave →
           </Link>
         </SummaryCard>
@@ -217,7 +218,7 @@ function EmployeeOverviewDashboard() {
             )}
           </>
         )}
-        <Link to="/me/payslips" className="mt-3 block text-[11px] font-bold uppercase text-[#134e4a] hover:underline">
+        <Link to="/my-profile/payslips" className="mt-3 block text-[11px] font-bold uppercase text-[#134e4a] hover:underline">
           All payslips →
         </Link>
       </SummaryCard>
@@ -294,13 +295,13 @@ function EmployeeOverviewDashboard() {
             </>
           )}
         </dl>
-        <Link to="/me/employment" className="mt-3 block text-[11px] font-bold uppercase text-[#134e4a] hover:underline">
+        <Link to="/my-profile/employment" className="mt-3 block text-[11px] font-bold uppercase text-[#134e4a] hover:underline">
           Full employment record →
         </Link>
       </SummaryCard>
     ) : null;
 
-  const content = (
+  return (
     <div className="space-y-5">
       {completeness ? (
         <ProfileCompletionPanel
@@ -308,23 +309,21 @@ function EmployeeOverviewDashboard() {
           documentSummary={documentSummary}
           pendingProfileRequests={pendingProfileRequests}
           onFixSection={(tabId) => {
-            const map = {
-              documents: '/me/documents',
-              employment: '/me/employment',
-              policies: '/me/policies',
-            };
-            navigate(map[tabId] || '/me/documents');
+            navigate(hrSelfServicePathForTab(tabId));
           }}
         />
       ) : null}
       {quickActions}
       {summarySection}
-      {employmentDetails}
+      {showSensitiveInline || !hr?.compensationRedacted ? (
+        employmentDetails
+      ) : (
+        <HrSensitiveGate scope="compensation" label="View compensation and bank details">
+          {employmentDetails}
+        </HrSensitiveGate>
+      )}
     </div>
   );
-
-  if (showSensitiveInline) return content;
-  return <HrSensitiveGate label="View your compensation and bank details">{content}</HrSensitiveGate>;
 }
 
 export default function ProfileOverview() {
@@ -342,6 +341,18 @@ export default function ProfileOverview() {
   return (
     <div className="space-y-6">
       <ProfileHeroCard />
+
+      {hasHrSelfService && cohort !== 'account_only' ? (
+        <Link
+          to={HR_SELF_SERVICE_PATH.overview}
+          className="block rounded-2xl border border-teal-100 bg-gradient-to-br from-teal-50/80 to-white p-4 no-underline shadow-sm transition hover:border-teal-200"
+        >
+          <p className="text-sm font-black text-[#134e4a]">HR self-service</p>
+          <p className="mt-1 text-xs text-slate-600">
+            Leave, payslips, employment forms, documents, and policies — open the full HR hub →
+          </p>
+        </Link>
+      ) : null}
 
       <section className="rounded-2xl border border-slate-200/90 bg-white p-5 shadow-sm">
         <div className="mb-4 flex flex-wrap items-end justify-between gap-2">

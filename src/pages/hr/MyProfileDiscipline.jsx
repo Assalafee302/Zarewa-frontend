@@ -4,6 +4,7 @@ import { useHrListLoad } from '../../hooks/useHrListLoad';
 import { apiFetch } from '../../lib/apiBase';
 import { HR_BTN_PRIMARY, HR_BTN_SECONDARY, HR_FIELD_CLASS } from '../../components/hr/hrFormStyles';
 import { HrCard } from '../../components/hr/hrPageUi';
+import { HrConfidentialBanner } from '../../components/hr/HrSensitiveField';
 
 const STATUS_PILL = {
   open: 'bg-sky-50 text-sky-800 border-sky-200',
@@ -73,6 +74,9 @@ export default function MyProfileDiscipline() {
 
   return (
     <div className="space-y-4">
+      <HrConfidentialBanner>
+        Discipline records are confidential. Do not discuss case details in open areas or share screenshots.
+      </HrConfidentialBanner>
       <p className="text-sm text-slate-600">
         View discipline cases addressed to you, submit written responses, and file appeals when permitted.
       </p>

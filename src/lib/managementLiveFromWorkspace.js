@@ -8,7 +8,6 @@ import { formatPersonName } from './formatPersonName.js';
 import {
   cuttingListInProductionGate,
   quotationIsFlaggedForAudit,
-  quotationIsOverdueForCollections,
   quotationNeedsManagerClearance,
 } from './managementQueueFilters.js';
 import { productionAttributedRevenueNgn, productionOutputDateISO } from './liveAnalytics.js';

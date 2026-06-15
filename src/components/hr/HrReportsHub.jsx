@@ -15,7 +15,7 @@ import { HrResponsiveTable } from './HrResponsiveTable';
 import { HR_BTN_PRIMARY, HR_BTN_SECONDARY } from './hrFormStyles';
 import { HR_EMPLOYEES } from '../../lib/hrRoutes';
 
-function ExportButton({ label, format, disabled, disabledReason, onClick, busy }) {
+function ExportButton({ label, disabled, disabledReason, onClick, busy }) {
   return (
     <button
       type="button"

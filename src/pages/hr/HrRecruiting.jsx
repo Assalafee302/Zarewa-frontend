@@ -35,7 +35,7 @@ function countByStatus(applicants) {
   return counts;
 }
 
-export default function HrRecruiting({ embedded = false } = {}) {
+export default function HrRecruiting() {
   const ws = useWorkspace();
   const navigate = useNavigate();
   const canManage = hrHasPermission(ws?.permissions, 'hr.staff.manage');

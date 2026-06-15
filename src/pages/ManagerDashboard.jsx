@@ -34,7 +34,6 @@ import { useWorkspace } from '../context/WorkspaceContext';
 import { useInventory } from '../context/InventoryContext';
 import { useToast } from '../context/ToastContext';
 import { formatNgn } from '../Data/mockData';
-import { receiptCashReceivedNgn } from '../lib/salesReceiptsList';
 import { effectiveManagerTargetsPerMonth, mergeDashboardPrefs } from '../lib/dashboardPrefs';
 import { userCanApproveEditMutationsClient } from '../lib/editApprovalUi';
 import { ExpenseRequestFormFields } from '../components/office/ExpenseRequestFormFields.jsx';
@@ -133,7 +132,7 @@ const ManagerDashboard = () => {
   const [activeTab, setActiveTab] = useState('attention');
   const [attentionFilter, setAttentionFilter] = useState('all');
   const [attentionItems, setAttentionItems] = useState([]);
-  const [attentionSummary, setAttentionSummary] = useState(null);
+  const [, setAttentionSummary] = useState(null);
   const [poAuditData, setPoAuditData] = useState(null);
   const [loadingPoAudit, setLoadingPoAudit] = useState(false);
   const [deliveryGateMode, setDeliveryGateMode] = useState('off');
@@ -163,7 +162,6 @@ const ManagerDashboard = () => {
   );
   const canApprovePaymentRequests =
     Boolean(ws?.hasPermission?.('finance.approve')) || Boolean(ws?.hasPermission?.('*'));
-  const canApproveProductionGateOverride = canApproveProductionGate(ws?.session?.user?.roleKey);
   const canManagerClearance = userMayPerformManagerQuotationClearance(ws?.session?.user);
   const canReleasePaymentHolds = userMayReleaseQuotationPaymentHold(ws?.session?.user);
   const canApproveRefunds = userMayApproveRefundRequests(ws);
@@ -222,24 +220,6 @@ const ManagerDashboard = () => {
     }
     return out;
   }, [unifiedWorkItems]);
-  const resolveManagerWorkItem = useCallback(
-    (kind, row, extra = {}) => {
-      if (!row) return null;
-      if (kind === 'clearance') return unifiedBySource.get(`quotation_clearance:${String(row.id || '').trim()}`) || null;
-      if (kind === 'production') {
-        const qref = String(row.quotation_ref || extra.quoteId || '').trim();
-        return unifiedBySource.get(`production_gate:${qref}`) || null;
-      }
-      if (kind === 'flagged') return unifiedBySource.get(`flagged_transaction:${String(row.id || '').trim()}`) || null;
-      if (kind === 'refunds') return unifiedBySource.get(`refund_request:${String(row.refund_id || '').trim()}`) || null;
-      if (kind === 'payments') return unifiedBySource.get(`payment_request:${String(row.request_id || '').trim()}`) || null;
-      if (kind === 'conversions') return unifiedBySource.get(`conversion_review:${String(row.job_id || '').trim()}`) || null;
-      if (kind === 'edit_approvals') return unifiedBySource.get(`edit_approval:${String(row.id || '').trim()}`) || null;
-      if (kind === 'material') return unifiedBySource.get(`material_incident:${String(row.id || '').trim()}`) || null;
-      return null;
-    },
-    [unifiedBySource]
-  );
   const openUnifiedWorkItem = useCallback(
     (item) => {
       if (selectedIntel?.kind === 'payment') {

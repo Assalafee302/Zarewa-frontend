@@ -164,8 +164,7 @@ export default function MyLeave({ staffLinkBase = '/my-profile', embedded = fals
         startDateIso &&
         endDateIso &&
         Number(daysRequested) > 0 &&
-        !casualBlockedByProbation &&
-        !exceedsBalance
+        !casualBlockedByProbation
       : step === 1
         ? handoverTo.trim().length >= 2
         : true;
@@ -272,7 +271,10 @@ export default function MyLeave({ staffLinkBase = '/my-profile', embedded = fals
           <div className="grid gap-4 sm:grid-cols-2">
             <label className="text-xs font-semibold text-slate-600 sm:col-span-2">
               Handover to (name / role)
-              <input value={handoverTo} onChange={(e) => setHandoverTo(e.target.value)} className={HR_FIELD_CLASS} />
+              <input value={handoverTo} onChange={(e) => setHandoverTo(e.target.value)} className={HR_FIELD_CLASS} placeholder="Colleague who will cover your duties" />
+              <span className="mt-1 block text-[11px] font-normal normal-case text-slate-500">
+                Name a colleague or acting supervisor — not yourself.
+              </span>
             </label>
             <label className="text-xs font-semibold text-slate-600 sm:col-span-2">
               Contact during leave
@@ -333,7 +335,7 @@ export default function MyLeave({ staffLinkBase = '/my-profile', embedded = fals
             <>
               <button
                 type="button"
-                disabled={busy || casualBlockedByProbation || exceedsBalance}
+                disabled={busy || casualBlockedByProbation}
                 onClick={saveDraft}
                 className={HR_BTN_SECONDARY}
               >
@@ -341,7 +343,7 @@ export default function MyLeave({ staffLinkBase = '/my-profile', embedded = fals
               </button>
               <button
                 type="button"
-                disabled={busy || casualBlockedByProbation || exceedsBalance}
+                disabled={busy || casualBlockedByProbation}
                 onClick={saveAndSubmit}
                 className={HR_BTN_PRIMARY}
               >

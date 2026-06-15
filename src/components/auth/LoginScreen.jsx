@@ -52,7 +52,7 @@ export default function LoginScreen() {
         <section className="rounded-[28px] border border-white/70 bg-white/80 p-5 shadow-[0_24px_80px_-32px_rgba(15,23,42,0.35)] backdrop-blur-xl sm:rounded-[32px] sm:p-10">
           <img
             src={ZAREWA_LOGO_SRC}
-            alt=""
+            alt="Zarewa Aluminium and Plastics"
             className="h-14 w-auto max-w-[220px] object-contain object-left sm:h-[4.25rem]"
             width={220}
             height={68}

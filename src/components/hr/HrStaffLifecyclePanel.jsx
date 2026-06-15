@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { hrHasPermission } from '../../lib/hrAccess';
 import {
@@ -30,7 +30,12 @@ export function HrStaffLifecyclePanel({ userId, isSelf = false, initialLifecycle
   const [msg, setMsg] = useState('');
   const [err, setErr] = useState('');
 
-  const { reload } = useHrListLoad(async () => {
+  const [nowMs, setNowMs] = useState(0);
+  useEffect(() => {
+    setNowMs(Date.now());
+  }, []);
+
+  useHrListLoad(async () => {
     const { ok, data } = await fetchHrStaffLifecycle(userId);
     if (!ok || !data?.ok) {
       setLifecycle(null);
@@ -175,7 +180,7 @@ export function HrStaffLifecyclePanel({ userId, isSelf = false, initialLifecycle
                 onChange={(e) => setLastDay(e.target.value)}
               />
               {lastDay ? (() => {
-                const daysNotice = Math.round((new Date(lastDay).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+                const daysNotice = Math.round((new Date(lastDay).getTime() - nowMs) / (1000 * 60 * 60 * 24));
                 return daysNotice < 30 ? (
                   <span className="mt-1 block font-normal text-red-700 text-[11px]">⚠️ This is less than the required 30-day notice period per company policy.</span>
                 ) : (

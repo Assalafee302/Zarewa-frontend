@@ -228,7 +228,13 @@ const Sidebar = ({ mobileOpen = false, onCloseMobile, collapsed = false, onToggl
           className={`flex min-w-0 items-center gap-3 ${collapsed ? 'lg:flex-initial lg:justify-center' : 'flex-1'}`}
         >
           <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white p-0.5 shadow-lg shadow-teal-950/40 ring-1 ring-white/20">
-            <img src={ZAREWA_LOGO_SRC} alt="" className="h-full w-full object-contain" width={36} height={36} />
+            <img
+              src={ZAREWA_LOGO_SRC}
+              alt="Zarewa Aluminium and Plastics"
+              className="h-full w-full object-contain"
+              width={36}
+              height={36}
+            />
           </div>
           <div className={`min-w-0 ${collapsed ? 'lg:hidden' : ''}`}>
             <p className="font-black text-2xl uppercase leading-none tracking-tight text-white">Zarewa</p>

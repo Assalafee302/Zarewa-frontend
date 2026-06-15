@@ -31,11 +31,13 @@ const STATUS_PILL = {
 const BLANK_APPLY = { requestType: 'new', reason: '', notes: '', bloodGroup: '', emergencyContact: '', lostDamaged: false };
 
 function IdCardPreview({ request, person, onClose, onPrint, temporary = false }) {
+  const [fallbackExpiryDate, setFallbackExpiryDate] = useState('');
+  useEffect(() => {
+    setFallbackExpiryDate(new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10));
+  }, []);
   const showPhoto = person?.avatarUrl && (person.avatarUrl.startsWith('https://') || person.avatarUrl.startsWith('data:image/'));
   const issueDate = request.issueDateIso?.slice(0, 10) || new Date().toISOString().slice(0, 10);
-  const expiryDate =
-    request.expiryDateIso?.slice(0, 10) ||
-    new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  const expiryDate = request.expiryDateIso?.slice(0, 10) || fallbackExpiryDate;
   const verifyCode = request.id?.slice(-8).toUpperCase() || 'VERIFY';
 
   return (
@@ -118,7 +120,7 @@ function TempIdCardModal({ request, staff, onClose }) {
   return <IdCardPreview request={request} person={person} onClose={onClose} temporary />;
 }
 
-export default function HrIdCards({ embedded = false } = {}) {
+export default function HrIdCards() {
   const ws = useWorkspace();
   const isManager = canManageHrStaff(ws?.permissions);
   const currentUserId = ws?.userId;

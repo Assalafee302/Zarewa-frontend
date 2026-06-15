@@ -7,6 +7,7 @@ import {
   canViewMyPayslips,
   hrHasPermission,
 } from './hrAccess';
+import { ACCOUNT_PATH, HR_SELF_SERVICE_PATH } from './hrSelfServiceRoutes';
 import { hasPermissionInList } from './moduleAccess';
 
 /**
@@ -46,7 +47,7 @@ export function buildUserProfileActions(ctx = {}) {
       id: 'account-security',
       label: 'Account & security',
       description: 'Profile, email, photo, and password',
-      to: '/me/account',
+      to: ACCOUNT_PATH.account,
       category: 'account',
       tone: 'teal',
       icon: '👤',
@@ -58,7 +59,7 @@ export function buildUserProfileActions(ctx = {}) {
       id: 'school-profile',
       label: 'My school',
       description: 'Fees, stipend step, and term dates',
-      to: '/me/school',
+      to: HR_SELF_SERVICE_PATH.school,
       category: 'self_service',
       tone: 'violet',
       icon: '🎓',
@@ -68,7 +69,7 @@ export function buildUserProfileActions(ctx = {}) {
         id: 'upload-document',
         label: 'My documents',
         description: 'Upload certificates and files',
-        to: '/me/documents',
+        to: HR_SELF_SERVICE_PATH.documents,
         category: 'self_service',
         tone: 'violet',
         icon: '📂',
@@ -87,7 +88,7 @@ export function buildUserProfileActions(ctx = {}) {
         cohort === 'employee'
           ? 'Apply for leave and view attendance guidance'
           : 'Submit and track leave requests',
-      to: '/me/leave',
+      to: HR_SELF_SERVICE_PATH.leave,
       category: 'self_service',
       tone: 'teal',
       icon: '🏖️',
@@ -99,7 +100,7 @@ export function buildUserProfileActions(ctx = {}) {
       id: 'apply-loan',
       label: 'Apply for loan',
       description: 'Staff loan application',
-      to: '/me/loans',
+      to: HR_SELF_SERVICE_PATH.loans,
       category: 'self_service',
       tone: 'amber',
       icon: '💰',
@@ -111,7 +112,7 @@ export function buildUserProfileActions(ctx = {}) {
       id: 'upload-document',
       label: 'My documents',
       description: 'Certificates, IDs, and files',
-      to: '/me/documents',
+      to: HR_SELF_SERVICE_PATH.documents,
       category: 'self_service',
       tone: 'violet',
       icon: '📂',
@@ -123,7 +124,7 @@ export function buildUserProfileActions(ctx = {}) {
       id: 'payslips',
       label: 'Payslips',
       description: 'View and download salary slips',
-      to: '/me/payslips',
+      to: HR_SELF_SERVICE_PATH.payslips,
       category: 'self_service',
       tone: 'teal',
       icon: '📄',
@@ -139,7 +140,7 @@ export function buildUserProfileActions(ctx = {}) {
       id: 'employment',
       label: 'Employment record',
       description: 'Job details and HR profile',
-      to: '/me/employment',
+      to: HR_SELF_SERVICE_PATH.employment,
       category: 'self_service',
       tone: 'slate',
       icon: '💼',
@@ -148,7 +149,7 @@ export function buildUserProfileActions(ctx = {}) {
       id: 'policies',
       label: 'Policies',
       description: 'Company handbook and policies',
-      to: '/me/policies',
+      to: HR_SELF_SERVICE_PATH.policies,
       category: 'self_service',
       tone: 'slate',
       icon: '📋',
@@ -157,7 +158,7 @@ export function buildUserProfileActions(ctx = {}) {
       id: 'grievance',
       label: 'Feedback & grievance',
       description: 'Raise feedback or a grievance',
-      to: '/me/grievance',
+      to: HR_SELF_SERVICE_PATH.grievance,
       category: 'self_service',
       tone: 'violet',
       icon: '💬',
@@ -165,8 +166,8 @@ export function buildUserProfileActions(ctx = {}) {
     actions.push({
       id: 'id-card',
       label: 'Staff ID card',
-      description: 'View or print your ID',
-      to: '/me/id-card',
+      description: 'Request or track your ID card',
+      to: HR_SELF_SERVICE_PATH.idCard,
       category: 'self_service',
       tone: 'teal',
       icon: '🪪',
@@ -248,53 +249,27 @@ export function buildUserProfileActions(ctx = {}) {
   return actions;
 }
 
-/** @param {string} cohort */
+/** @param {string} cohort @param {boolean} hasHrSelfService */
 export function buildUserProfileNav(cohort, hasHrSelfService) {
-  const base = [
-    { to: '/me', label: 'Overview', end: true },
-    { to: '/me/account', label: 'Account & security' },
+  const nav = [
+    { to: ACCOUNT_PATH.overview, label: 'Overview', end: true },
+    { to: ACCOUNT_PATH.account, label: 'Account & security' },
+    { to: ACCOUNT_PATH.services, label: 'All services' },
   ];
 
-  if (cohort === 'scholarship') {
-    return [
-      ...base,
-      { to: '/me/school', label: 'My school' },
-      { to: '/me/employment', label: 'My details' },
-      { to: '/me/documents', label: 'Documents' },
-      { to: '/me/policies', label: 'Policies' },
-    ];
+  if (hasHrSelfService) {
+    nav.push({
+      to: HR_SELF_SERVICE_PATH.overview,
+      label: cohort === 'scholarship' ? 'HR profile' : 'HR self-service',
+    });
   }
 
-  if (!hasHrSelfService) return base;
-
-  if (cohort === 'domestic') {
-    return [
-      ...base,
-      { to: '/me/employment', label: 'My details' },
-      { to: '/me/payslips', label: 'Payslips' },
-      { to: '/me/documents', label: 'Documents' },
-      { to: '/me/policies', label: 'Policies' },
-    ];
-  }
-
-  const employee = [
-    ...base,
-    { to: '/me/leave', label: cohort === 'employee' ? 'Leave & attendance' : 'Leave' },
-    { to: '/me/loans', label: 'Loans' },
-    { to: '/me/documents', label: 'Documents' },
-    { to: '/me/payslips', label: 'Payslips' },
-    { to: '/me/employment', label: 'My details' },
-    { to: '/me/policies', label: 'Policies' },
-    { to: '/me/grievance', label: 'Feedback' },
-    { to: '/me/id-card', label: 'ID card' },
-  ];
-
-  return employee;
+  return nav;
 }
 
 export const USER_PROFILE_ACTION_CATEGORIES = [
   { key: 'account', label: 'Account' },
-  { key: 'self_service', label: 'Self-service' },
+  { key: 'self_service', label: 'HR self-service' },
   { key: 'team', label: 'Team & management' },
   { key: 'workspace', label: 'Workspaces' },
 ];

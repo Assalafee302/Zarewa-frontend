@@ -1,5 +1,4 @@
 import React from 'react';
-import { debugBootLog } from '../lib/debugBoot.js';
 import { attemptChunkReload } from '../lib/lazyWithRetry.js';
 import { humanizeReactError } from '../lib/reactErrorMessage.js';
 
@@ -24,7 +23,6 @@ export class AppErrorBoundary extends React.Component {
       stack: String(error?.stack || '').slice(0, 800),
       componentStack: String(info?.componentStack || '').slice(0, 400),
     };
-    debugBootLog('AppErrorBoundary.jsx:didCatch', 'React error boundary caught error', payload, 'A');
     try {
       sessionStorage.setItem('zarewa.boot.error', JSON.stringify({ ...payload, build: typeof __ZAREWA_BUILD_ID__ !== 'undefined' ? __ZAREWA_BUILD_ID__ : '', at: Date.now() }));
     } catch {

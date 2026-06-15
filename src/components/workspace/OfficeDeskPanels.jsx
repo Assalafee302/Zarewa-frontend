@@ -115,7 +115,7 @@ export function OfficeForumPanel({ scope = 'branch', onTurnIntoOfficeRecord }) {
   );
 }
 
-export function FilingPanel({ items, inboxCtx }) {
+export function FilingPanel({ items }) {
   const needsFiling = items.filter((i) => i.filingIncomplete);
   const filed = items.filter((i) => !i.filingIncomplete && String(i.status || '').toLowerCase() === 'filed');
   return (
@@ -133,7 +133,6 @@ export function FilingPanel({ items, inboxCtx }) {
 }
 
 export function ExpenseConversionsPanel({ items, onOpenItem }) {
-  const ws = useWorkspace();
   const candidates = items.filter((i) => {
     const tid = officeThreadIdFromWorkItem(i);
     return tid && (i.requiresApproval || String(i.status || '').includes('submitted'));

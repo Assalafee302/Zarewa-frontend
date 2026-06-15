@@ -33,6 +33,7 @@ const HrAnalytics = lazyWithRetry(() => import('./HrAnalytics'), { id: 'HrAnalyt
 const HR_NAV = [
   { to: '/hr/dashboard', label: 'Dashboard', end: true },
   { to: '/hr/employees', label: 'Employees' },
+  { to: '/hr/requests', label: 'Requests' },
   { to: '/hr/attendance', label: 'Attendance' },
   { to: '/hr/leave', label: 'Leave' },
   { to: '/hr/payroll', label: 'Payroll' },
@@ -69,6 +70,8 @@ export default function HumanResources() {
             title="Human Resources"
             subtitle="HQ payroll, staff records, leave, attendance, and people operations for Zarewa."
             navItems={navItems}
+            stickySubnav
+            compact
           />
         }
       >

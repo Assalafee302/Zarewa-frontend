@@ -71,6 +71,7 @@ export default function HrStaffDirectory({
   const [status, setStatus] = useState('');
   const [includeInactive, setIncludeInactive] = useState(false);
   const [registerOpen, setRegisterOpen] = useState(initialRegisterOpen);
+  const [compactTable, setCompactTable] = useState(false);
 
   useEffect(() => {
     if (initialRegisterOpen) setRegisterOpen(true);
@@ -138,6 +139,32 @@ export default function HrStaffDirectory({
       return hay.includes(q);
     });
   }, [staff, search, branchId, department, employmentType, status]);
+
+  const exportRosterCsv = () => {
+    const esc = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+    const header = ['Name', 'EmployeeNo', 'Branch', 'Department', 'JobTitle', 'Status', 'Joined'];
+    if (showSalary) header.push('BaseSalary');
+    const lines = filtered.map((s) => {
+      const row = [
+        s.displayName,
+        s.employeeNo,
+        s.branchId,
+        s.department,
+        s.jobTitle,
+        s.status,
+        s.dateJoinedIso,
+      ];
+      if (showSalary) row.push(s.compensationRedacted ? '' : s.baseSalaryNgn);
+      return row.map(esc).join(',');
+    });
+    const blob = new Blob([[header.join(','), ...lines].join('\n')], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `staff-roster-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <div className="space-y-6">
@@ -228,6 +255,17 @@ export default function HrStaffDirectory({
 
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div className="flex flex-wrap gap-2 lg:order-2">
+          <button
+            type="button"
+            onClick={exportRosterCsv}
+            className="inline-flex items-center justify-center rounded-xl border border-slate-200 px-4 py-2.5 text-[11px] font-bold uppercase tracking-wide text-slate-700 hover:bg-slate-50"
+          >
+            Export CSV
+          </button>
+          <label className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-[11px] font-bold uppercase text-slate-600">
+            <input type="checkbox" checked={compactTable} onChange={(e) => setCompactTable(e.target.checked)} />
+            Compact
+          </label>
           {canBulkImport ? (
             <button
               type="button"
@@ -334,7 +372,7 @@ export default function HrStaffDirectory({
       {!loading || staff.length > 0 ? (
         !error ? (
         <AppTableWrap>
-          <AppTable role="numeric">
+          <AppTable role="numeric" className={compactTable ? 'text-xs' : undefined}>
             <AppTableThead>
               <AppTableTh>Name</AppTableTh>
               <AppTableTh>Staff ID</AppTableTh>
@@ -342,7 +380,13 @@ export default function HrStaffDirectory({
               <AppTableTh>Department</AppTableTh>
               <AppTableTh>Job title</AppTableTh>
               <AppTableTh>Group</AppTableTh>
-              {showSalary ? <AppTableTh>Base salary</AppTableTh> : null}
+              {showSalary ? (
+                <AppTableTh>
+                  <span className="inline-flex items-center gap-1">
+                    🔒 Base salary
+                  </span>
+                </AppTableTh>
+              ) : null}
               <AppTableTh>Joined</AppTableTh>
               <AppTableTh>Status</AppTableTh>
             </AppTableThead>

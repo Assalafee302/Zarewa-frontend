@@ -1,18 +1,18 @@
 import React from 'react';
 import { PageTabs } from '../layout/PageTabs';
-import { HrPageIntro } from './hrPageUi';
+import { HrPageBody, HrPageIntro } from './hrPageUi';
 
 /**
  * Standard tabbed HR hub layout — title, optional actions, PageTabs, content.
  */
-export function HrTabbedPage({ title, description, actions, tabs, tab, onTabChange, children }) {
+export function HrTabbedPage({ title, description, actions, tabs, tab, onTabChange, compact = true, children }) {
   return (
-    <div className="space-y-6">
+    <HrPageBody compact={compact}>
       <HrPageIntro title={title} description={description} actions={actions} />
       {tabs?.length ? (
         <PageTabs tabs={tabs} value={tab} onChange={onTabChange} />
       ) : null}
       <div>{children}</div>
-    </div>
+    </HrPageBody>
   );
 }

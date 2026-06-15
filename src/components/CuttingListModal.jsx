@@ -142,51 +142,6 @@ function cuttingListMinPaidFractionFromSession(session) {
   return 0.7;
 }
 
-function branchCodeForDraft(session) {
-  const bid = String(session?.currentBranchId || '').trim();
-  const branches = Array.isArray(session?.branches) ? session.branches : [];
-  const row = branches.find((b) => b.id === bid);
-  if (row?.code) {
-    const c = String(row.code).trim().toUpperCase();
-    if (c === 'KAD') return 'KD';
-    if (c === 'YOL') return 'YL';
-    if (c === 'MAI') return 'MDG';
-    return c;
-  }
-  if (bid === 'BR-KAD' || bid === 'BR-KD') return 'KD';
-  if (bid === 'BR-YOL' || bid === 'BR-YL') return 'YL';
-  if (bid === 'BR-MAI' || bid === 'BR-MDG') return 'MDG';
-  return 'KD';
-}
-
-function nextDraftCuttingListId(cuttingLists, branchCode, yearFull = new Date().getFullYear()) {
-  const yy = String(yearFull).slice(-2);
-  const esc = branchCode.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const reHumanYy = new RegExp(`^CL-${esc}-${yy}-(\\d+)$`);
-  const reHumanFull = new RegExp(`^CL-${esc}-${yearFull}-(\\d+)$`);
-  const reLegacyYear = new RegExp(`^CL-${yearFull}-(\\d+)$`);
-  const reLegacyYy = new RegExp(`^CL-${yy}-(\\d+)$`);
-  let max = 0;
-  for (const row of cuttingLists || []) {
-    const id = String(row.id || '');
-    let m = id.match(reHumanYy);
-    if (m) max = Math.max(max, parseInt(m[1], 10));
-    else {
-      m = id.match(reHumanFull);
-      if (m) max = Math.max(max, parseInt(m[1], 10));
-      else {
-        m = id.match(reLegacyYear);
-        if (m) max = Math.max(max, parseInt(m[1], 10));
-        else {
-          m = id.match(reLegacyYy);
-          if (m) max = Math.max(max, parseInt(m[1], 10));
-        }
-      }
-    }
-  }
-  return `CL-${branchCode}-${yy}-${String(max + 1).padStart(4, '0')}`;
-}
-
 /** Book paid on quote: receipt allocations in DB + ADVANCE_APPLIED (matches `quotations.paid_ngn`). */
 function bookPaidTowardQuotation(q) {
   return Math.max(0, Number(q.paidNgn ?? q.paid_ngn) || 0);
@@ -539,19 +494,7 @@ const CuttingListModal = ({
     return String(row?.inventoryModel || '').trim() === STONE_METER_INVENTORY_MODEL;
   }, [selectedQuotation, ws?.snapshot?.masterData?.materialTypes]);
 
-  const cuttingCategoriesUi = useMemo(() => {
-    if (!isStoneMeterCuttingList) return CATEGORIES;
-    /** Stone flatsheet uses the same line bucket as "Cladding" in the DB; label it clearly. It prints and stays on the list but does not drive coil job planned metres (server). */
-    return CATEGORIES.map((c) => (c.type === 'Cladding' ? { ...c, title: 'Stone flatsheet' } : c));
-  }, [isStoneMeterCuttingList]);
-
-  const draftBranchCode = useMemo(() => branchCodeForDraft(ws?.session), [ws?.session]);
-
-  /** Next CL serial if you save *now* — branch-wide; not reserved; same preview for every unsaved draft until one saves. */
-  const nextBranchCuttingListSerialPreview = useMemo(
-    () => nextDraftCuttingListId(cuttingLists, draftBranchCode),
-    [cuttingLists, draftBranchCode]
-  );
+  const cuttingCategoriesUi = useMemo(() => CATEGORIES, []);
 
   const savedCuttingListId = String(editData?.id ?? '').trim();
   const isDraftRecord = cuttingListIsDraft(editData);
@@ -631,7 +574,7 @@ const CuttingListModal = ({
       receiptsForQuotation: quoteReceipts,
       productionFooterName: editData?.handledBy || activeDisplayName || handledByLabel,
       treasuryMovements: Array.isArray(ws?.snapshot?.treasuryMovements) ? ws.snapshot.treasuryMovements : [],
-      claddingSectionTitle: isStoneMeterCuttingList ? 'Stone flatsheet' : '',
+      claddingSectionTitle: '',
       omitCladdingSection: false,
       printCount: printCountForSheet,
       lastPrintedAtISO: lastPrintedAtForSheet,

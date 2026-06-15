@@ -13,7 +13,6 @@ import {
 } from '../../components/ui/AppDataTable';
 import {
   approveExecutivePayment,
-  deleteChairmanExpense,
   deleteExecutiveSchoolFee,
   downloadExecutivePaymentExport,
   fetchChairmanExpenses,

@@ -2,8 +2,12 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 
 /** Constrains page content width inside HR main panel. */
-export function HrPageBody({ children, className = '' }) {
-  return <div className={`mx-auto w-full max-w-5xl space-y-6 ${className}`}>{children}</div>;
+export function HrPageBody({ children, className = '', compact = false }) {
+  return (
+    <div className={`mx-auto w-full ${compact ? 'max-w-full space-y-4' : 'max-w-5xl space-y-6'} ${className}`}>
+      {children}
+    </div>
+  );
 }
 
 export function HrPageIntro({ title, description, actions, children }) {

@@ -1,5 +1,4 @@
 import {
-  isConfidentialLevel,
   RESTRICTED_WORK_ITEM_PLACEHOLDER,
 } from './workspaceConfidentialAccess.js';
 import { categoryForWorkItem, categoryMetaForWorkItem } from './workspaceCategoryRegistry.js';
@@ -81,7 +80,6 @@ export function normalizeWorkItem(raw, ctx = {}) {
     (item.senderUserId ? 'Staff member' : 'System');
   const summary = String(item.summary || '').replace(/\s+/g, ' ').trim();
   const bodyPreview = String(item.body || '').replace(/\s+/g, ' ').trim().slice(0, 160);
-  const confidential = isConfidentialLevel(item.confidentiality);
   const redacted = Boolean(item.redacted);
   const previewText = redacted
     ? RESTRICTED_WORK_ITEM_PLACEHOLDER.previewText

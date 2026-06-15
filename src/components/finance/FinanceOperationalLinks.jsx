@@ -20,16 +20,19 @@ export function FinanceOperationalLinks({ className = '' }) {
       <p className="w-full text-[10px] font-bold uppercase tracking-wide text-slate-500">
         Operational finance (legacy workspace)
       </p>
-      {links.map(({ to, label, icon: Icon }) => (
-        <Link
-          key={to}
-          to={to}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[10px] font-bold uppercase text-teal-900 hover:border-teal-300 hover:bg-teal-50/60"
-        >
-          <Icon size={12} />
-          {label}
-        </Link>
-      ))}
+      {links.map((link) => {
+        const LinkIcon = link.icon;
+        return (
+          <Link
+            key={link.to}
+            to={link.to}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[10px] font-bold uppercase text-teal-900 hover:border-teal-300 hover:bg-teal-50/60"
+          >
+            <LinkIcon size={12} />
+            {link.label}
+          </Link>
+        );
+      })}
     </div>
   );
 }

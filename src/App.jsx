@@ -59,36 +59,18 @@ import SessionTimeoutWarning from './components/auth/SessionTimeoutWarning';
 import { notificationPrompt } from './lib/aiAssistUi';
 import { searchWorkspaceSnapshot } from './lib/workspaceSearchLocal';
 import { formatPersonName } from './lib/formatPersonName';
-import { debugBootLog } from './lib/debugBoot.js';
 /** Eager — loaded on most sign-ins; avoids lazy-chunk races with the app-shell bundle at startup. */
 import Dashboard from './pages/Dashboard';
 import ManagerDashboard from './pages/ManagerDashboard';
 
 const ExecutiveCommandCentre = lazyWithRetry(
-  () =>
-    import('./pages/ExecutiveCommandCentre.jsx').then((m) => {
-      debugBootLog('App.jsx:exec-import-ok', 'ExecutiveCommandCentre chunk loaded', {}, 'E');
-      return { default: m.default };
-    }),
+  () => import('./pages/ExecutiveCommandCentre.jsx'),
   { id: 'ExecutiveCommandCentre' }
 );
 
 const AiAssistantDock = lazyWithRetry(
   () =>
-    import('./components/AiAssistantDock.jsx')
-      .then((m) => {
-        debugBootLog('App.jsx:ai-dock-import-ok', 'AiAssistantDock chunk loaded', {}, 'E');
-        return { default: m.AiAssistantDock };
-      })
-      .catch((err) => {
-        debugBootLog(
-          'App.jsx:ai-dock-import-fail',
-          'AiAssistantDock chunk failed',
-          { message: String(err?.message || err), stack: String(err?.stack || '').slice(0, 600) },
-          'E'
-        );
-        throw err;
-      }),
+    import('./components/AiAssistantDock.jsx').then((m) => ({ default: m.AiAssistantDock })),
   { id: 'AiAssistantDock' }
 );
 const WorkspaceCommandPalette = lazyWithRetry(
@@ -628,7 +610,7 @@ function AppShell() {
                     aria-autocomplete="list"
                     aria-expanded={headerSearch.trim().length >= 2}
                     enterKeyHint="search"
-                    className="w-full min-h-10 rounded-xl border border-slate-200/90 bg-white py-2.5 pl-10 pr-3 text-[15px] font-medium shadow-sm outline-none transition focus:border-teal-300/60 focus:ring-2 focus:ring-teal-500/15 sm:z-toolbar-shell sm:min-h-12 sm:py-3 sm:pl-12 sm:pr-14 sm:text-[13px] sm:focus:ring-4"
+                    className="w-full min-h-10 rounded-xl border border-slate-200/90 bg-white py-2.5 pl-10 pr-3 text-[15px] font-medium shadow-sm outline-none transition focus:border-teal-300/60 focus:ring-2 focus:ring-teal-500/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/25 sm:z-toolbar-shell sm:min-h-12 sm:py-3 sm:pl-12 sm:pr-14 sm:text-[13px] sm:focus:ring-4"
                   />
                   <div className="pointer-events-none absolute right-3 top-1/2 hidden -translate-y-1/2 items-center gap-1 rounded-lg border border-gray-100 bg-gray-50/90 px-2 py-1 sm:flex">
                     <Command size={10} className="text-gray-400" />
@@ -1257,22 +1239,6 @@ function LoadingScreen() {
 
 function AuthGate() {
   const ws = useWorkspace();
-
-  useEffect(() => {
-    const screen = !ws
-      ? 'no-ws'
-      : ws.status === 'checking'
-        ? 'checking'
-        : ws.authRequired || (ws.status === 'offline' && !ws.snapshot)
-          ? 'login'
-          : 'appshell';
-    debugBootLog(
-      'App.jsx:AuthGate',
-      'Auth gate screen',
-      { screen, status: ws?.status, authRequired: Boolean(ws?.authRequired) },
-      'A'
-    );
-  }, [ws, ws?.status, ws?.authRequired, ws?.snapshot]);
 
   if (!ws) {
     return <LoadingScreen />;

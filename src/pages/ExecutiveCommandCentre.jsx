@@ -97,16 +97,6 @@ function formatPeriodWindow(period) {
   return `${period.startISO} – ${period.endISO}`;
 }
 
-function cashMetricDisplay(label, val, flags = {}) {
-  const isCount =
-    flags.isCount === true ||
-    flags.isCount === 'true' ||
-    /\(count\)/i.test(String(label || '')) ||
-    /awaiting md$/i.test(String(label || '').trim());
-  if (isCount) return String(Number(val) || 0);
-  return formatNgn(Number(val) || 0);
-}
-
 function KpiCard({ label, value, sub, icon, loading, accent, estimated }) {
   return (
     <div

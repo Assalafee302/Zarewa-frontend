@@ -221,17 +221,26 @@ export function OperationsProductionOverview({
 
         <OverviewCard
           title="Stone-coated stock"
-          hint="Metre / sheet SKUs for stone-coated profiles."
+          hint="Metre SKUs (trim/roofing) and flatsheet m² (STONE-FS-*) — separate tabs in stock management."
           icon={<Package size={16} />}
         >
           <SkuList overview={stoneStock} emptyLabel="No stone-coated SKUs in workspace." />
-          <button
-            type="button"
-            onClick={() => onGoInventory?.('stone')}
-            className="mt-3 inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide text-[#134e4a] hover:underline"
-          >
-            Manage stone stock <ChevronRight size={12} />
-          </button>
+          <div className="mt-3 flex flex-wrap gap-x-3 gap-y-1">
+            <button
+              type="button"
+              onClick={() => onGoInventory?.('stone_meter')}
+              className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide text-[#134e4a] hover:underline"
+            >
+              Stone metres <ChevronRight size={12} />
+            </button>
+            <button
+              type="button"
+              onClick={() => onGoInventory?.('stone_flatsheet')}
+              className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide text-sky-800 hover:underline"
+            >
+              Stone flatsheet m² <ChevronRight size={12} />
+            </button>
+          </div>
         </OverviewCard>
 
         <OverviewCard

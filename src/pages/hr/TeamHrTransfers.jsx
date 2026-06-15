@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { apiFetch } from '../../lib/apiBase';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { useHrListLoad } from '../../hooks/useHrListLoad';
 import { createHrTransferRecommendation, fetchHrTransferRecommendations } from '../../lib/hrExtended';
 import { HrAddFormButton, HrFormModal } from '../../components/hr/HrFormModal';
-import { HR_BTN_PRIMARY, HR_FIELD_CLASS } from '../../components/hr/hrFormStyles';
+import { HR_BTN_PRIMARY, HR_BTN_SECONDARY, HR_FIELD_CLASS } from '../../components/hr/hrFormStyles';
 import {
   AppTable,
   AppTableBody,
@@ -26,6 +26,8 @@ export default function TeamHrTransfers() {
   const [reason, setReason] = useState('');
   const [formErr, setFormErr] = useState('');
   const [message, setMessage] = useState('');
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
 
   useHrListLoad(async () => {
     const { ok, data } = await apiFetch('/api/hr/staff');
@@ -42,6 +44,29 @@ export default function TeamHrTransfers() {
     setRecs(data.recommendations || []);
     return { hasData: true };
   }, []);
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return recs.filter((r) => {
+      if (statusFilter && r.status !== statusFilter) return false;
+      if (!q) return true;
+      return [r.staffDisplayName, r.fromBranchId, r.toBranchId, r.status, r.reason].join(' ').toLowerCase().includes(q);
+    });
+  }, [recs, search, statusFilter]);
+
+  const exportCsv = () => {
+    const esc = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+    const lines = filtered.map((r) =>
+      [r.staffDisplayName, r.fromBranchId, r.toBranchId, r.status, r.reason].map(esc).join(',')
+    );
+    const blob = new Blob([['Staff,From,To,Status,Reason', ...lines].join('\n')], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `transfer-recommendations-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   const submit = async (e) => {
     e.preventDefault();
@@ -73,6 +98,25 @@ export default function TeamHrTransfers() {
           history.
         </p>
         <HrAddFormButton onClick={() => setModalOpen(true)}>Recommend transfer</HrAddFormButton>
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        <input
+          type="search"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search staff or branch…"
+          className={`${HR_FIELD_CLASS} min-w-[200px] flex-1`}
+        />
+        <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className={HR_FIELD_CLASS}>
+          <option value="">All statuses</option>
+          <option value="pending">Pending</option>
+          <option value="approved">Approved</option>
+          <option value="rejected">Rejected</option>
+        </select>
+        <button type="button" className={HR_BTN_SECONDARY} onClick={exportCsv}>
+          Export CSV
+        </button>
       </div>
 
       <HrFormModal isOpen={modalOpen} onClose={() => setModalOpen(false)} title="Recommend branch transfer" size="md">
@@ -126,7 +170,7 @@ export default function TeamHrTransfers() {
             </AppTableTr>
           </AppTableThead>
           <AppTableBody>
-            {recs.map((r) => (
+            {filtered.map((r) => (
               <AppTableTr key={r.id}>
                 <AppTableTd>{r.staffDisplayName}</AppTableTd>
                 <AppTableTd>
@@ -139,6 +183,7 @@ export default function TeamHrTransfers() {
         </AppTable>
       </AppTableWrap>
       {loading ? <p className="text-sm text-slate-500">Loading…</p> : null}
+      {!loading && !filtered.length ? <p className="text-sm text-slate-500">No transfer recommendations match filters.</p> : null}
     </div>
   );
 }

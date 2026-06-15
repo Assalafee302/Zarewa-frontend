@@ -1,6 +1,7 @@
 import React from 'react';
-import MyProfileEmployment from '../../pages/hr/MyProfileEmployment';
+import { MyProfileEmploymentSnapshot } from '../../pages/hr/MyProfileEmployment';
 import { ProfileSelfServiceForm } from '../../components/profile/ProfileSelfServiceForm';
+import { ProfileHrUpdateForm } from '../../components/profile/ProfileHrUpdateForm';
 import { useUserProfile } from '../../context/UserProfileContext';
 
 export default function ProfileEmploymentPage() {
@@ -10,7 +11,10 @@ export default function ProfileEmploymentPage() {
   return (
     <div className="space-y-6">
       <ProfileSelfServiceForm />
-      {showEmploymentRecord ? <MyProfileEmployment /> : null}
+      <div id="hr-update-request">
+        <ProfileHrUpdateForm />
+      </div>
+      {showEmploymentRecord ? <MyProfileEmploymentSnapshot /> : null}
     </div>
   );
 }

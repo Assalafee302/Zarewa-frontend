@@ -38,6 +38,7 @@ import { CONVERSION_FLAG_RATIO, formatNgn } from '../Data/mockData';
 import { useToast } from '../context/ToastContext';
 import { useInventory } from '../context/InventoryContext';
 import { useWorkspace } from '../context/WorkspaceContext';
+import { useWorkspaceDomain } from '../hooks/useWorkspaceDomain';
 import { apiFetch, apiUrl } from '../lib/apiBase';
 import { purchaseOrderOrderedValueNgn } from '../lib/liveAnalytics';
 import { procurementKindFromPo } from '../lib/procurementPoKind';
@@ -119,68 +120,6 @@ function kgPerMFromStripDensity(materialKey, gaugeMm) {
   const rho = densityKgPerM3ForProcurementKey(materialKey);
   if (rho == null || !Number.isFinite(gaugeMm) || gaugeMm <= 0) return null;
   return rho * PROCUREMENT_STRIP_WIDTH_M * (gaugeMm / 1000);
-}
-
-function coilMaterialKindFromProductId(productID) {
-  if (productID === 'PRD-102') return 'aluzinc';
-  if (productID === 'COIL-ALU') return 'aluminium';
-  return '';
-}
-
-function purchaseOrderToCoilModalDraft(po) {
-  return {
-    poID: po.poID,
-    supplierID: po.supplierID,
-    orderDateISO: po.orderDateISO,
-    expectedDeliveryISO: po.expectedDeliveryISO || '',
-    lines: (po.lines || []).map((l) => ({
-      lineKey: l.lineKey,
-      materialKind: coilMaterialKindFromProductId(l.productID),
-      color: l.color || '',
-      gauge: l.gauge || '',
-      kg: l.qtyOrdered,
-      meters: l.metersOffered,
-      pricePerKg: l.unitPricePerKgNgn ?? l.unitPriceNgn,
-    })),
-  };
-}
-
-function purchaseOrderToStoneModalDraft(po, products) {
-  return {
-    poID: po.poID,
-    supplierID: po.supplierID,
-    orderDateISO: po.orderDateISO,
-    expectedDeliveryISO: po.expectedDeliveryISO || '',
-    lines: (po.lines || []).map((l) => {
-      const p = products.find((x) => x.productID === l.productID);
-      const da = p?.dashboardAttrs || {};
-      return {
-        rowUid: l.lineKey,
-        existingLineKey: l.lineKey,
-        designLabel: da.stoneDesign || '',
-        colourLabel: da.stoneColour || l.color || '',
-        gaugeLabel: da.stoneGauge || l.gauge || '',
-        metres: l.qtyOrdered,
-        pricePerM: l.unitPriceNgn,
-      };
-    }),
-  };
-}
-
-function purchaseOrderToAccessoryModalDraft(po) {
-  return {
-    poID: po.poID,
-    supplierID: po.supplierID,
-    orderDateISO: po.orderDateISO,
-    expectedDeliveryISO: po.expectedDeliveryISO || '',
-    lines: (po.lines || []).map((l) => ({
-      rowUid: l.lineKey,
-      existingLineKey: l.lineKey,
-      productID: l.productID,
-      qty: l.qtyOrdered,
-      unitPrice: l.unitPriceNgn,
-    })),
-  };
 }
 
 function poLineSummaryLabel(kind) {
@@ -336,6 +275,7 @@ const Procurement = () => {
   const navigate = useNavigate();
   const { show: showToast } = useToast();
   const ws = useWorkspace();
+  useWorkspaceDomain('procurement');
   const {
     purchaseOrders,
     inTransitLoads,
@@ -1652,7 +1592,7 @@ const Procurement = () => {
                       placeholder="Search purchase orders & suppliers…"
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-lg py-2 pl-9 pr-3 text-xs outline-none focus:ring-2 focus:ring-[#134e4a]/10"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-lg py-2 pl-9 pr-3 text-xs outline-none focus:ring-2 focus:ring-[#134e4a]/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#134e4a]/25"
                     />
                   </div>
                   {activeTab === 'purchases' || activeTab === 'conversion' ? (
@@ -2147,7 +2087,7 @@ const Procurement = () => {
       />
 
       <CoilPurchaseOrderModal
-        isOpen={false && showCoilPoModal}
+        isOpen={false}
         editDraft={coilPoEditDraft}
         onClose={() => {
           setShowCoilPoModal(false);
@@ -2197,7 +2137,7 @@ const Procurement = () => {
       />
 
       <StonePurchaseOrderModal
-        isOpen={false && showStonePoModal}
+        isOpen={false}
         editDraft={stonePoEditDraft}
         onClose={() => {
           setShowStonePoModal(false);
@@ -2248,7 +2188,7 @@ const Procurement = () => {
       />
 
       <AccessoryPurchaseOrderModal
-        isOpen={false && showAccessoryPoModal}
+        isOpen={false}
         editDraft={accessoryPoEditDraft}
         onClose={() => {
           setShowAccessoryPoModal(false);

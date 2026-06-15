@@ -27,6 +27,7 @@ export default function TodayWorkCards({ counts, onNavigate }) {
   );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useTodayWorkCounts(items, inboxCtx) {
   return React.useMemo(() => countTaskQueueTabs(items, inboxCtx), [items, inboxCtx]);
 }

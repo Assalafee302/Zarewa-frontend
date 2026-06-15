@@ -41,6 +41,7 @@ import { editMutationNeedsSecondApprovalRole } from '../lib/editApprovalUi';
 import { formatNgn } from '../Data/mockData';
 import { useToast } from '../context/ToastContext';
 import { useWorkspace } from '../context/WorkspaceContext';
+import { useWorkspaceDomain } from '../hooks/useWorkspaceDomain';
 import { apiFetch } from '../lib/apiBase';
 import {
   normalizeRefund,
@@ -104,6 +105,7 @@ const Account = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const { show: showToast } = useToast();
   const ws = useWorkspace();
+  useWorkspaceDomain('finance');
 
   const [activeTab, setActiveTab] = useState('treasury');
   const [searchQuery, setSearchQuery] = useState('');
@@ -220,7 +222,6 @@ const Account = () => {
   const [receiptsSortDir, setReceiptsSortDir] = useState('desc');
   const [waitingReceiptsPage, setWaitingReceiptsPage] = useState(0);
   const [confirmedReceiptsPage, setConfirmedReceiptsPage] = useState(0);
-  const [receiptClearanceResetBusy, setReceiptClearanceResetBusy] = useState(false);
 
   useEffect(() => {
     if (!expenseOutflowEdit?.rows?.length) {
@@ -1051,9 +1052,9 @@ const Account = () => {
         );
         return;
       }
+      const poId = String(selectedPayment.id);
       setTreasuryPayoutSubmitting(true);
       try {
-        const poId = String(selectedPayment.id);
         for (const line of validLines) {
           const { ok, data } = await apiFetch(`/api/purchase-orders/${encodeURIComponent(poId)}/post-transport`, {
             method: 'POST',
@@ -1554,77 +1555,6 @@ const Account = () => {
   const canFinanceReceiptSettlement = Boolean(
     ws?.hasPermission?.('finance.pay') || ws?.hasPermission?.('finance.post')
   );
-
-  const branchClearedReceiptCount = useMemo(
-    () =>
-      salesReceipts.filter(
-        (r) => !isReceiptReversed(r) && Boolean(r.financeReconciliationSavedAtISO)
-      ).length,
-    [salesReceipts]
-  );
-
-  const resetAllReceiptClearance = useCallback(async () => {
-    if (!canBypassReceiptRevisionApproval) {
-      showToast('Finance approval permission is required to reset receipt clearance.', {
-        variant: 'error',
-      });
-      return;
-    }
-    if (!ws?.canMutate) {
-      showToast('Connect to the API server to reset receipt clearance.', { variant: 'error' });
-      return;
-    }
-    const count = branchClearedReceiptCount;
-    if (count <= 0) {
-      showToast('No finance-cleared receipts in this branch.', { variant: 'info' });
-      return;
-    }
-    const proceed = window.confirm(
-      `Reset finance clearance on ${count} receipt(s) in this branch?\n\n` +
-        'They will return to Pending clearance so you can clear them one by one (oldest first).\n\n' +
-        'Treasury postings and ledger entries are NOT reversed — only clearance status is reset.'
-    );
-    if (!proceed) return;
-    const phrase = window.prompt(
-      `Type ${RECEIPT_CLEARANCE_RESET_CONFIRM_PHRASE} to confirm:`
-    );
-    if (phrase == null) return;
-    if (String(phrase).trim() !== RECEIPT_CLEARANCE_RESET_CONFIRM_PHRASE) {
-      showToast('Confirmation phrase did not match — reset cancelled.', { variant: 'error' });
-      return;
-    }
-    setReceiptClearanceResetBusy(true);
-    try {
-      const { ok, status, data } = await apiFetch('/api/sales-receipts/reset-clearance', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ confirmPhrase: RECEIPT_CLEARANCE_RESET_CONFIRM_PHRASE }),
-      });
-      if (!ok || !data?.ok) {
-        showToast(data?.error || `Could not reset clearance (${status}).`, { variant: 'error' });
-        return;
-      }
-      const n = Number(data.resetCount) || 0;
-      showToast(
-        n > 0
-          ? `${n} receipt(s) moved back to Pending clearance. Sort by Receipt date · Ascending to work oldest first.`
-          : 'No cleared receipts were found to reset.',
-        { variant: n > 0 ? 'success' : 'info' }
-      );
-      setReceiptsSortKey('date');
-      setReceiptsSortDir('asc');
-      setWaitingReceiptsPage(0);
-      setConfirmedReceiptsPage(0);
-      await ws.refresh();
-    } finally {
-      setReceiptClearanceResetBusy(false);
-    }
-  }, [
-    branchClearedReceiptCount,
-    canBypassReceiptRevisionApproval,
-    showToast,
-    ws,
-  ]);
 
   const openReceiptFinance = useCallback(
     (r) => {

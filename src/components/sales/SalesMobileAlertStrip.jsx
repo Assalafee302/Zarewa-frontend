@@ -10,6 +10,7 @@ export default function SalesMobileAlertStrip({
   pendingRefunds = 0,
   awaitingPayRefunds = 0,
   followUpCount = 0,
+  awaitingCashierReceipts = 0,
 }) {
   const items = [];
   if (salesTab === 'quotations' && followUpCount > 0) {
@@ -24,8 +25,11 @@ export default function SalesMobileAlertStrip({
   if (salesTab === 'refund' && awaitingPayRefunds > 0) {
     items.push({ label: `${awaitingPayRefunds} approved — awaiting Finance`, tone: 'teal' });
   }
-  if (salesTab === 'receipts' && pendingApproval > 0) {
-    items.push({ label: `${pendingApproval} unconfirmed receipt${pendingApproval !== 1 ? 's' : ''}`, tone: 'amber' });
+  if (salesTab === 'receipts' && awaitingCashierReceipts > 0) {
+    items.push({
+      label: `${awaitingCashierReceipts} payment${awaitingCashierReceipts !== 1 ? 's' : ''} awaiting cashier`,
+      tone: 'amber',
+    });
   }
 
   if (items.length === 0) return null;

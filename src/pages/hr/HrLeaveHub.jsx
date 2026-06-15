@@ -1,4 +1,4 @@
-import React, { lazy, Suspense, useMemo } from 'react';
+import React, { Suspense, useMemo } from 'react';
 import { useHrUrlTab } from '../../hooks/useHrUrlTab';
 import { HrTabbedPage } from '../../components/hr/HrTabbedPage';
 import { HrPublicHolidaysSection } from '../../components/hr/HrSettingsSections';

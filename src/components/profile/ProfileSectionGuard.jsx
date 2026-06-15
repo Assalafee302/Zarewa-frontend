@@ -1,6 +1,7 @@
 import React from 'react';
 import { Navigate } from 'react-router-dom';
 import { useUserProfile } from '../../context/UserProfileContext';
+import { HR_SELF_SERVICE_PATH } from '../../lib/hrSelfServiceRoutes';
 
 /**
  * @param {{ requireHr?: boolean; requireScholarship?: boolean; requireNotScholarship?: boolean; children: React.ReactNode }} props
@@ -19,7 +20,7 @@ export function ProfileSectionGuard({
     return <Navigate to="/me" replace />;
   }
   if (requireNotScholarship && isScholarship) {
-    return <Navigate to="/me/school" replace />;
+    return <Navigate to={HR_SELF_SERVICE_PATH.school} replace />;
   }
   if (requireHr && !hasHrSelfService) {
     return (

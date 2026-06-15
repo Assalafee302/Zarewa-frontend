@@ -84,6 +84,7 @@ export function UserProfileProvider({ children }) {
   return <UserProfileContext.Provider value={value}>{children}</UserProfileContext.Provider>;
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useUserProfile() {
   const ctx = useContext(UserProfileContext);
   if (!ctx) throw new Error('useUserProfile must be used within UserProfileProvider');

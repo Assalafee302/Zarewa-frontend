@@ -1,4 +1,5 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { apiFetch } from '../../lib/apiBase';
 import { fetchHrAnalyticsDashboard } from '../../lib/hrMasterData';
 import { HrCard, HrPageIntro } from '../../components/hr/hrPageUi';
@@ -534,6 +535,14 @@ export default function HrAnalytics() {
       <HrPageIntro
         title="HR Analytics"
         description="Workforce insights — attendance trends, headcount breakdown, loan portfolio, and turnover."
+        actions={
+          <Link
+            to="/hr/documents?tab=reports"
+            className="rounded-xl border border-[#134e4a]/30 px-4 py-2 text-[11px] font-bold uppercase tracking-wide text-[#134e4a] hover:bg-teal-50 no-underline"
+          >
+            Full reports &amp; export →
+          </Link>
+        }
       />
 
       <div className="flex flex-wrap gap-1 border-b border-slate-200 pb-px">

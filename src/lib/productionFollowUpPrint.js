@@ -31,7 +31,7 @@ function materialFromQuotation(q) {
 }
 
 /** @param {object[]} followUpFlags */
-function followUpNotes(row, followUpFlags) {
+function followUpNotes(row) {
   const parts = [];
   if (row.coilLabel) parts.push(row.coilLabel);
   if (row.needsCoil) parts.push('No coil allocated');

@@ -28,9 +28,6 @@ const labelClass =
   'text-[8px] font-semibold text-slate-400 uppercase tracking-wide ml-0.5 mb-0.5 block';
 const headerInputClass =
   'w-full bg-white border border-slate-200 rounded-lg py-1.5 px-2.5 min-h-[2rem] text-[11px] font-semibold text-[#134e4a] outline-none focus:ring-2 focus:ring-[#134e4a]/15';
-const lineInputClass =
-  'w-full bg-white border border-slate-200 rounded-md py-0.5 px-1.5 min-h-[1.625rem] h-[1.625rem] text-[10px] font-semibold text-[#134e4a] outline-none focus:ring-2 focus:ring-[#134e4a]/15 leading-none';
-
 const MATERIAL_OPTS = [
   { value: 'aluminium', label: 'Aluminium' },
   { value: 'aluzinc', label: 'Aluzinc' },

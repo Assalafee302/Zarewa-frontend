@@ -57,7 +57,6 @@ export default function HrTransfers({ embedded = false } = {}) {
   const [recommendations, setRecommendations] = useState([]);
   const [statusFilter, setStatusFilter] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
-  const [reviewModal, setReviewModal] = useState(null);
   const [form, setForm] = useState(emptyForm());
   const [busy, setBusy] = useState(false);
 

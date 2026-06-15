@@ -212,7 +212,7 @@ export function RefundManagerApprovalPreview({
     const ackCodes = Object.entries(productionAlignmentAck)
       .filter(([, v]) => v)
       .map(([k]) => k);
-    const { ok, data } = await apiFetch('/api/refunds/production-alignment-check', {
+    const { data } = await apiFetch('/api/refunds/production-alignment-check', {
       method: 'POST',
       body: JSON.stringify({
         quotationRef: qref,

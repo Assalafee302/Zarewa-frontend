@@ -31,8 +31,8 @@ export function documentTitleForPath(pathname) {
       security: 'Account & security',
       services: 'All services',
       school: 'My school',
-      leave: 'Leave & attendance',
-      attendance: 'Leave & attendance',
+      leave: 'Leave',
+      attendance: 'Attendance',
       loans: 'Loans',
       documents: 'Documents',
       payslips: 'Payslips',
@@ -41,24 +41,29 @@ export function documentTitleForPath(pathname) {
       grievance: 'Feedback',
       'id-card': 'ID card',
     };
-    return `My profile – ${labels[sec] || 'Overview'} | ${DOCUMENT_TITLE_BASE}`;
+    return `Account – ${labels[sec] || 'Overview'} | ${DOCUMENT_TITLE_BASE}`;
   }
 
   if (p === '/my-profile' || p.startsWith('/my-profile/')) {
     const sec = p.split('/')[2] || 'overview';
     const labels = {
       overview: 'Overview',
+      school: 'My school',
       employment: 'Employment',
-      leave: 'My leave',
-      loans: 'My loans',
+      leave: 'Leave',
+      loans: 'Loans',
       attendance: 'Attendance',
       payslips: 'Payslips',
       documents: 'Documents',
       benefits: 'Benefits',
       policies: 'Policies',
+      grievance: 'Feedback',
+      'id-card': 'ID card',
+      discipline: 'Discipline',
+      surveys: 'Surveys',
       help: 'HR help',
     };
-    return `My profile – ${labels[sec] || 'HR'} | ${DOCUMENT_TITLE_BASE}`;
+    return `HR self-service – ${labels[sec] || 'Overview'} | ${DOCUMENT_TITLE_BASE}`;
   }
 
   if (p === '/team-hr' || p.startsWith('/team-hr/')) {

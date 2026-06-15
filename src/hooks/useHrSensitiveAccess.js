@@ -1,27 +1,34 @@
 import { useCallback, useEffect, useState } from 'react';
 import { apiFetch } from '../lib/apiBase';
-import {
-  clearHrSensitiveUnlock,
-  hrSensitiveHeaders,
-  readHrSensitiveUnlock,
-  writeHrSensitiveUnlock,
-} from '../lib/hrSensitiveStorage';
+import { clearHrSensitiveUnlock } from '../lib/hrSensitiveStorage';
 
 /**
  * Password re-verify gate for compensation, payslips, bank details, etc.
+ * Unlock token is stored in an HttpOnly cookie — not in sessionStorage.
  */
 export function useHrSensitiveAccess() {
-  const [unlock, setUnlock] = useState(() => readHrSensitiveUnlock());
+  const [unlockExpiresAtIso, setUnlockExpiresAtIso] = useState(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
+  const [isUnlocked, setIsUnlocked] = useState(false);
+
   useEffect(() => {
-    const tick = () => setUnlock(readHrSensitiveUnlock());
+    const tick = () => {
+      setUnlockExpiresAtIso((prev) => {
+        if (!prev) {
+          setIsUnlocked(false);
+          return prev;
+        }
+        const stillValid = Date.parse(prev) > Date.now();
+        setIsUnlocked(stillValid);
+        return stillValid ? prev : null;
+      });
+    };
+    tick();
     const id = window.setInterval(tick, 30_000);
     return () => window.clearInterval(id);
   }, []);
-
-  const isUnlocked = Boolean(unlock?.token);
 
   const verifyPassword = useCallback(async (password, purpose = 'general') => {
     setBusy(true);
@@ -35,9 +42,7 @@ export function useHrSensitiveAccess() {
         setError(data?.error || 'Incorrect password.');
         return false;
       }
-      const payload = { token: data.token, expiresAtIso: data.expiresAtIso };
-      writeHrSensitiveUnlock(payload);
-      setUnlock(payload);
+      setUnlockExpiresAtIso(data.expiresAtIso);
       return true;
     } catch {
       setError('Could not verify password. Try again.');
@@ -47,27 +52,28 @@ export function useHrSensitiveAccess() {
     }
   }, []);
 
-  const lock = useCallback(() => {
+  const lock = useCallback(async () => {
     clearHrSensitiveUnlock();
-    setUnlock(null);
+    setUnlockExpiresAtIso(null);
+    try {
+      await apiFetch('/api/hr/sensitive/lock', { method: 'POST' });
+    } catch {
+      /* cookie clear is best-effort */
+    }
   }, []);
 
   const fetchWithSensitive = useCallback((path, options = {}) => {
-    return apiFetch(path, {
-      ...options,
-      headers: { ...(options.headers || {}), ...hrSensitiveHeaders() },
-    });
+    return apiFetch(path, options);
   }, []);
 
   return {
     isUnlocked,
-    unlockExpiresAtIso: unlock?.expiresAtIso ?? null,
+    unlockExpiresAtIso,
     busy,
     error,
     setError,
     verifyPassword,
     lock,
     fetchWithSensitive,
-    sensitiveHeaders: hrSensitiveHeaders,
   };
 }

@@ -10,6 +10,9 @@ export function HrSectionShell({
   title,
   subtitle,
   navItems = [],
+  moreNavItems = [],
+  stickySubnav = false,
+  compact = false,
   children,
   useOutlet = true,
   outletContext,
@@ -19,10 +22,10 @@ export function HrSectionShell({
       <PageHeader title={title} subtitle={subtitle} />
       {navItems.length > 0 ? (
         <div className="mb-6">
-          <HrSubnav items={navItems} />
+          <HrSubnav items={navItems} moreItems={moreNavItems} sticky={stickySubnav} />
         </div>
       ) : null}
-      <MainPanel>
+      <MainPanel className={compact ? '!p-3 sm:!p-5 !min-h-0' : ''}>
         {useOutlet ? <Outlet context={outletContext} /> : children}
       </MainPanel>
     </PageShell>

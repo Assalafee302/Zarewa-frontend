@@ -45,7 +45,18 @@ import { ModalFrame } from '../components/layout';
 import { AdvancePaymentPrintView } from '../components/receipt/ReceiptPrintViews';
 import QuotationModal from '../components/QuotationModal';
 import ReceiptModal from '../components/ReceiptModal';
-import { isReceiptCleared, isReceiptPendingClearance } from '../lib/receiptClearance.js';
+import {
+  receiptMatchesSalesPaymentFilter,
+  receiptSalesPaymentFilterBucket,
+  receiptSalesPaymentStatusChipClass,
+  receiptSalesPaymentStatusLabel,
+  receiptSalesPaymentStatusTitle,
+} from '../lib/receiptClearance.js';
+import {
+  SalesReceiptAwaitingAlert,
+  SalesReceiptPaymentStatusFilter,
+  SalesReceiptPaymentStatusLegend,
+} from '../components/sales/SalesReceiptPaymentUi';
 import AdvancePaymentModal from '../components/AdvancePaymentModal';
 import CuttingListModal from '../components/CuttingListModal';
 import RefundModal from '../components/RefundModal';
@@ -59,6 +70,7 @@ import { useToast } from '../context/ToastContext';
 import { useCustomers } from '../context/CustomersContext';
 import { useInventory } from '../context/InventoryContext';
 import { useWorkspace } from '../context/WorkspaceContext';
+import { useWorkspaceDomain } from '../hooks/useWorkspaceDomain';
 import { spotPricesForSalesSidebar } from '../lib/spotPricesFromMasterData';
 import { apiFetch } from '../lib/apiBase';
 import { computeCuttingListMaterialReadiness } from '../lib/salesCuttingListMaterialReadiness';
@@ -110,7 +122,6 @@ import {
   roughMetersFromKg,
 } from '../lib/salesStockCore';
 import {
-  canonicalColourName,
   mergeStockColourSelectOptions,
   stockCheckSelectOptionsFromCoilRows,
   stockCheckSelectOptionsFromMasterData,
@@ -178,6 +189,7 @@ const Sales = () => {
   const { customers: customerRecords } = useCustomers();
   const { products: invProducts, coilLots } = useInventory();
   const ws = useWorkspace();
+  useWorkspaceDomain('sales');
 
   const [activeTab, setActiveTab] = useState('quotations');
   const [searchQuery, setSearchQuery] = useState('');
@@ -206,6 +218,7 @@ const Sales = () => {
   const [showCount, setShowCount] = useState(20);
   const [showArchivedQuotations, setShowArchivedQuotations] = useState(false);
   const [salesListSort, setSalesListSort] = useState({ field: 'id', dir: 'desc' });
+  const [receiptPaymentStatusFilter, setReceiptPaymentStatusFilter] = useState('all');
   const [stockMatType, setStockMatType] = useState('');
   const [stockGaugeFilter, setStockGaugeFilter] = useState('');
   const [stockColourFilter, setStockColourFilter] = useState('');
@@ -355,7 +368,6 @@ const Sales = () => {
         const gaugeLabel = String(lot.gaugeLabel || '').trim() || attrs?.gauge || '—';
         const gNum = firstGaugeNumeric(gaugeLabel);
         const colourRaw = String(lot.colour || '').trim() || String(attrs?.colour || '').trim();
-        const colourLabel = canonicalColourName(masterData, colourRaw) || colourRaw;
         const materialType =
           String(lot.materialTypeName || '').trim() || attrs?.materialType || p?.name || lot.productID;
         const estM = roughMetersFromKg(kgNum, gNum);
@@ -406,7 +418,6 @@ const Sales = () => {
           const share = Math.max(0, Math.round(kgTotal / n));
           tokens.forEach((tok, i) => {
             const estM = roughMetersFromKg(share, gNum);
-            const colourLabel = canonicalColourName(masterData, tok) || tok;
             pushRow({
               id: `${p.productID}-${i + 1}`,
               colour: colourShort(tok, masterData),
@@ -637,9 +648,24 @@ const Sales = () => {
     cuttingListsRef.current = cuttingLists;
   }, [quotations, mergedReceiptRows, refunds, cuttingLists]);
 
+  const receiptPaymentStatusCounts = useMemo(() => {
+    const rows = mergedReceiptRowsWithCuttingMeta;
+    let awaiting = 0;
+    let confirmed = 0;
+    for (const row of rows) {
+      const bucket = receiptSalesPaymentFilterBucket(row);
+      if (bucket === 'awaiting') awaiting += 1;
+      if (bucket === 'confirmed') confirmed += 1;
+    }
+    return { all: rows.length, awaiting, confirmed };
+  }, [mergedReceiptRowsWithCuttingMeta]);
+
+  const awaitingCashierReceiptCount = receiptPaymentStatusCounts.awaiting;
+
   const filteredMergedReceipts = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
     const filtered = mergedReceiptRowsWithCuttingMeta.filter((row) => {
+      if (!receiptMatchesSalesPaymentFilter(row, receiptPaymentStatusFilter)) return false;
       if (!q) return true;
       const blob = [
         row.id,
@@ -662,7 +688,7 @@ const Sales = () => {
     });
     const sorted = sortReceiptsList(filtered, salesListSort.field, salesListSort.dir);
     return sorted.slice(0, showCount);
-  }, [mergedReceiptRowsWithCuttingMeta, searchQuery, showCount, salesListSort]);
+  }, [mergedReceiptRowsWithCuttingMeta, searchQuery, showCount, salesListSort, receiptPaymentStatusFilter]);
 
   const filteredCuttingLists = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
@@ -727,7 +753,10 @@ const Sales = () => {
           (x) => x.status !== 'Approved' && !isQuotationArchivedRow(x)
         ).length,
       },
-      receipts: { shown: filteredMergedReceipts.length },
+      receipts: {
+        shown: filteredMergedReceipts.length,
+        awaitingCashier: awaitingCashierReceiptCount,
+      },
       cuttinglist: { shown: filteredCuttingLists.length },
       refund: {
         shown: filteredRefunds.length,
@@ -742,6 +771,7 @@ const Sales = () => {
     [
       filteredQuotations,
       filteredMergedReceipts,
+      awaitingCashierReceiptCount,
       filteredCuttingLists,
       filteredRefunds,
       filteredCustomersCount,
@@ -1304,7 +1334,21 @@ const Sales = () => {
         pendingRefunds={listStats.refund.pending}
         awaitingPayRefunds={listStats.refund.awaitingPay}
         followUpCount={quotationFollowUpRows.length}
+        awaitingCashierReceipts={listStats.receipts.awaitingCashier}
       />
+
+      {salesTab === 'receipts' ? (
+        <div className="hidden lg:block">
+          <SalesReceiptAwaitingAlert
+            count={awaitingCashierReceiptCount}
+            onFilterAwaiting={
+              receiptPaymentStatusFilter === 'awaiting'
+                ? undefined
+                : () => setReceiptPaymentStatusFilter('awaiting')
+            }
+          />
+        </div>
+      ) : null}
 
       <div className="grid grid-cols-1 gap-6 lg:gap-8 min-w-0 lg:grid-cols-4">
         {salesTab !== 'customers' && (
@@ -1743,6 +1787,12 @@ const Sales = () => {
                           onChange={setSearchQuery}
                           placeholder="Search payment ID, customer, quotation, cutting list…"
                         />
+                        <SalesReceiptPaymentStatusFilter
+                          value={receiptPaymentStatusFilter}
+                          onChange={setReceiptPaymentStatusFilter}
+                          counts={receiptPaymentStatusCounts}
+                        />
+                        <SalesReceiptPaymentStatusLegend />
                         <SalesListSortBar
                           fields={SALES_TABLE_SORT_FIELD_OPTIONS.receipts}
                           field={salesListSort.field}
@@ -1758,7 +1808,9 @@ const Sales = () => {
                     {filteredMergedReceipts.length === 0 ? (
                       <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50/50 py-14 px-6 text-center">
                         <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest">
-                          No payments match your search
+                          {receiptPaymentStatusFilter === 'all'
+                            ? 'No payments match your search'
+                            : 'No payments match this filter'}
                         </p>
                       </div>
                     ) : (
@@ -1835,21 +1887,12 @@ const Sales = () => {
                                         {quotePayCount}× on quote
                                       </span>
                                     ) : null}
-                                    {isReceiptPendingClearance(r) ? (
-                                      <span
-                                        className={`${CHIP} border-amber-200 bg-amber-50 text-amber-900 shrink-0 whitespace-nowrap`}
-                                        title="Finance must confirm this payment against bank/cash"
-                                      >
-                                        Pending clearance
-                                      </span>
-                                    ) : isReceiptCleared(r) ? (
-                                      <span
-                                        className={`${CHIP} border-emerald-200 bg-emerald-50 text-emerald-900 shrink-0 whitespace-nowrap`}
-                                        title={r.financeReconciliationSavedAtISO || ''}
-                                      >
-                                        Cleared
-                                      </span>
-                                    ) : null}
+                                    <span
+                                      className={`${CHIP} ${receiptSalesPaymentStatusChipClass(r)} shrink-0 whitespace-nowrap`}
+                                      title={receiptSalesPaymentStatusTitle(r)}
+                                    >
+                                      {receiptSalesPaymentStatusLabel(r)}
+                                    </span>
                                     {r.financeDeliveryClearedAtISO ? (
                                       <span
                                         className={`${CHIP} border-emerald-200/70 bg-emerald-50/80 text-emerald-800 shrink-0 whitespace-nowrap`}

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { useHrListLoad } from '../../hooks/useHrListLoad';
 import { canManageHrDiscipline, canGenerateHrLetters } from '../../lib/hrAccess';
@@ -33,6 +33,11 @@ import {
   AppTableTr,
   AppTableWrap,
 } from '../ui/AppDataTable';
+import HrCaseResponsibilityPanel from './HrCaseResponsibilityPanel';
+import HrCaseClosureChecklist from './HrCaseClosureChecklist';
+import HrIncidentCreateWizard from './HrIncidentCreateWizard';
+import HrIncidentAuditPackPanel from './HrIncidentAuditPackPanel';
+import HrAssetCustodyPanel from './HrAssetCustodyPanel';
 
 function StatusPill({ status }) {
   const m = statusMeta(status);
@@ -193,11 +198,15 @@ function CaseDetailModal({ caseId, onClose, onUpdated, canManage, canLetter }) {
                 {workflow.managementDecision ? (
                   <button type="button" disabled={busy} className={HR_BTN_PRIMARY} onClick={() => runPatch({ managementDecision: workflow.managementDecision, sanction: workflow.sanction })}>Record decision</button>
                 ) : null}
-                <button type="button" disabled={busy} className={HR_BTN_PRIMARY} onClick={() => runPatch({ action: 'close', finalOutcome: workflow.sanction || 'closed' })}>Close case</button>
               </div>
             </div>
           </HrCard>
         ) : null}
+
+        <HrCaseResponsibilityPanel caseId={caseId} canManage={canManage} onSaved={load} />
+        <HrCaseClosureChecklist caseId={caseId} canManage={canManage} detail={detail} onUpdated={load} />
+        <HrIncidentAuditPackPanel registryId={detail.registryId} caseId={caseId} />
+        <HrAssetCustodyPanel assetId={detail.assetId} machineId={detail.machineId} canManage={canManage} />
 
         <HrCard title="Timeline" subtitle="Audit events for this case">
           <ul className="space-y-2 text-sm">
@@ -271,6 +280,7 @@ export default function HrDisciplineCasesPanel() {
   const [staff, setStaff] = useState([]);
   const [filters, setFilters] = useState({ status: '', caseType: '', severity: '' });
   const [createOpen, setCreateOpen] = useState(false);
+  const [wizardOpen, setWizardOpen] = useState(false);
   const [detailId, setDetailId] = useState(searchParams.get('caseId') || '');
   const [form, setForm] = useState({
     userId: '',
@@ -394,7 +404,12 @@ export default function HrDisciplineCasesPanel() {
             ))}
           </select>
         </label>
-        {canManage ? <HrAddFormButton onClick={() => setCreateOpen(true)}>Open case</HrAddFormButton> : null}
+        {canManage ? (
+          <>
+            <HrAddFormButton onClick={() => setWizardOpen(true)}>New incident</HrAddFormButton>
+            <HrAddFormButton onClick={() => setCreateOpen(true)}>Open case</HrAddFormButton>
+          </>
+        ) : null}
       </div>
 
       {error ? <div className="rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-sm text-red-800">{error}</div> : null}
@@ -512,6 +527,19 @@ export default function HrDisciplineCasesPanel() {
           onUpdated={reload}
           canManage={canManage}
           canLetter={canLetter}
+        />
+      ) : null}
+
+      {wizardOpen ? (
+        <HrIncidentCreateWizard
+          open
+          staff={staff}
+          onClose={() => setWizardOpen(false)}
+          onCreated={(row) => {
+            setWizardOpen(false);
+            reload();
+            if (row?.caseId) setDetailId(row.caseId);
+          }}
         />
       ) : null}
     </div>

@@ -6,6 +6,20 @@ export const INCIDENT_TYPES = [
   { id: 'yard_offcut', label: 'Yard offcut / trim / scratch' },
 ];
 
+/** Short guidance shown on the new-incident card and in the record modal. */
+export const INCIDENT_RECORD_HINTS = {
+  coil_stain:
+    'Pick the coil — gauge, colour, and before kg fill automatically from the register. List each damaged section like a cutting list, then submit for manager approval.',
+  supplier_defect:
+    'Select the affected coil from the register. Record the defective section lengths, weigh before and after removal, then submit for manager approval.',
+  production_error:
+    'Link the production job, pick the coil, and list material lost on the line. Weigh before and after cutting out the error, then submit for approval.',
+  customer_return:
+    'Select the coil or material being returned. Record returned lengths, weigh before and after, and choose where the material goes (pool, sellable, scrap, or supplier return).',
+  yard_offcut:
+    'Pick the coil from the yard register. List trim or scratch sections removed, weigh before and after, then submit for manager approval.',
+};
+
 export const MATERIAL_FAMILIES = [
   { id: 'aluminium', label: 'Aluminium' },
   { id: 'aluzinc', label: 'Aluzinc' },

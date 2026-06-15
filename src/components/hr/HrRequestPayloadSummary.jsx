@@ -71,6 +71,7 @@ function PayloadGrid({ rows, compact }) {
 }
 
 /** Approval chain labels for request status. */
+// eslint-disable-next-line react-refresh/only-export-components
 export function hrRequestApprovalChain(status) {
   const chain = ['Draft', 'Branch manager', 'HR review', 'GM HR', 'Approved'];
   const idx =

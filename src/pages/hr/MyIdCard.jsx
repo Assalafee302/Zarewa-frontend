@@ -194,28 +194,50 @@ export default function MyIdCard() {
         ) : requests.length === 0 ? (
           <p className="text-sm text-slate-600">No ID card requests yet. Use the button above to apply.</p>
         ) : (
-          <AppTableWrap>
-            <AppTable>
-              <AppTableThead>
-                <AppTableTh>Title</AppTableTh>
-                <AppTableTh>Status</AppTableTh>
-                <AppTableTh>Submitted</AppTableTh>
-                <AppTableTh>Notes</AppTableTh>
-              </AppTableThead>
-              <AppTableBody>
-                {requests.map((r) => (
-                  <AppTableTr key={r.id}>
-                    <AppTableTd>{r.title || 'ID card request'}</AppTableTd>
-                    <AppTableTd>{statusBadge(r.status)}</AppTableTd>
-                    <AppTableTd>
-                      {r.submittedAtIso ? String(r.submittedAtIso).slice(0, 10) : r.createdAtIso?.slice(0, 10) || '—'}
-                    </AppTableTd>
-                    <AppTableTd>{r.body || '—'}</AppTableTd>
-                  </AppTableTr>
-                ))}
-              </AppTableBody>
-            </AppTable>
-          </AppTableWrap>
+          <>
+            <div className="md:hidden space-y-3">
+              {requests.map((r) => (
+                <article
+                  key={`${r.id}-m`}
+                  className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="text-sm font-bold text-slate-900">{r.title || 'ID card request'}</p>
+                    {statusBadge(r.status)}
+                  </div>
+                  <p className="mt-2 text-xs text-slate-500">
+                    Submitted{' '}
+                    {r.submittedAtIso ? String(r.submittedAtIso).slice(0, 10) : r.createdAtIso?.slice(0, 10) || '—'}
+                  </p>
+                  {r.body ? <p className="mt-2 text-sm text-slate-600">{r.body}</p> : null}
+                </article>
+              ))}
+            </div>
+            <div className="hidden md:block">
+              <AppTableWrap>
+                <AppTable>
+                  <AppTableThead>
+                    <AppTableTh>Title</AppTableTh>
+                    <AppTableTh>Status</AppTableTh>
+                    <AppTableTh>Submitted</AppTableTh>
+                    <AppTableTh>Notes</AppTableTh>
+                  </AppTableThead>
+                  <AppTableBody>
+                    {requests.map((r) => (
+                      <AppTableTr key={r.id}>
+                        <AppTableTd>{r.title || 'ID card request'}</AppTableTd>
+                        <AppTableTd>{statusBadge(r.status)}</AppTableTd>
+                        <AppTableTd>
+                          {r.submittedAtIso ? String(r.submittedAtIso).slice(0, 10) : r.createdAtIso?.slice(0, 10) || '—'}
+                        </AppTableTd>
+                        <AppTableTd>{r.body || '—'}</AppTableTd>
+                      </AppTableTr>
+                    ))}
+                  </AppTableBody>
+                </AppTable>
+              </AppTableWrap>
+            </div>
+          </>
         )}
       </section>
     </div>

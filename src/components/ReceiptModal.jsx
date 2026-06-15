@@ -44,6 +44,12 @@ import { EditSecondApprovalInline } from './EditSecondApprovalInline';
 import { editMutationNeedsSecondApprovalRole } from '../lib/editApprovalUi';
 import { ZareHelpButton } from './ZareHelpButton';
 import { buildZareTransactionContext } from '../lib/zareTransactionContext';
+import {
+  receiptSalesPaymentStatusChipClass,
+  receiptSalesPaymentStatusDetail,
+  receiptSalesPaymentStatusLabel,
+  receiptSalesPaymentStatusTitle,
+} from '../lib/receiptClearance';
 
 function newLineId() {
   return `pl-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
@@ -454,12 +460,16 @@ const ReceiptModal = ({
     [quotationRef, importedReceiptsForHistory, ledgerNonce]
   );
 
-  const editingReceiptHistoricNgn = useMemo(() => {
-    if (!isEdit || editingReceiptEntryIds.size === 0) return 0;
-    return quotationPaymentHistory
-      .filter((r) => editingReceiptEntryIds.has(String(r.id || '').trim()))
-      .reduce((s, r) => s + (Math.round(Number(r.amountNgn) || 0) || 0), 0);
-  }, [isEdit, quotationPaymentHistory, editingReceiptEntryIds]);
+  const receiptCashierPrintStatus = useMemo(() => {
+    const row = isExistingPayment ? editData : null;
+    if (!row) {
+      return { label: receiptSalesPaymentStatusLabel({}), detail: receiptSalesPaymentStatusDetail({}) || '' };
+    }
+    return {
+      label: receiptSalesPaymentStatusLabel(row),
+      detail: receiptSalesPaymentStatusDetail(row) || '',
+    };
+  }, [isExistingPayment, editData]);
 
   /** Max new cash that can be posted on this quote (edit mode: due only — historic voucher amount is already on the ledger). */
   const postingHeadroomNgn = useMemo(() => {
@@ -748,7 +758,7 @@ const ReceiptModal = ({
           }
           setPostingHint(null);
           showToast(
-            `₦${total.toLocaleString('en-NG')} recorded on ${selectedQuotation.id} — awaiting Finance clearance.`
+            `₦${total.toLocaleString('en-NG')} recorded on ${selectedQuotation.id} — awaiting cashier confirmation.`
           );
           await onLedgerChange?.();
           abandonUnsavedAndRun(() => onClose());
@@ -786,7 +796,7 @@ const ReceiptModal = ({
           }
           setPostingHint(null);
           showToast(
-            `₦${total.toLocaleString('en-NG')} recorded on ${selectedQuotation.id} — awaiting Finance clearance.`
+            `₦${total.toLocaleString('en-NG')} recorded on ${selectedQuotation.id} — awaiting cashier confirmation.`
           );
           await onLedgerChange?.();
           abandonUnsavedAndRun(() => onClose());
@@ -799,7 +809,7 @@ const ReceiptModal = ({
         }
         setPostingHint(null);
         showToast(
-          `₦${total.toLocaleString('en-NG')} recorded on ${selectedQuotation.id} — awaiting Finance clearance.`
+          `₦${total.toLocaleString('en-NG')} recorded on ${selectedQuotation.id} — awaiting cashier confirmation.`
         );
       } else {
         const res = recordReceiptWithQuotation({
@@ -903,6 +913,14 @@ const ReceiptModal = ({
                 >
                   {modeBadgeLabel}
                 </span>
+                {readOnly && isExistingPayment ? (
+                  <span
+                    className={`shrink-0 rounded-md border px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide ${receiptSalesPaymentStatusChipClass(editData)}`}
+                    title={receiptSalesPaymentStatusTitle(editData)}
+                  >
+                    {receiptSalesPaymentStatusLabel(editData)}
+                  </span>
+                ) : null}
               </div>
               <p className="text-[9px] font-semibold text-slate-400 uppercase tracking-widest truncate mt-0.5">
                 {modalSubtitle}
@@ -937,10 +955,17 @@ const ReceiptModal = ({
         </div>
 
         {readOnly ? (
-          <div className="px-5 py-2 bg-slate-50 border-b border-slate-200 text-[10px] font-medium text-slate-600">
-            {editData?.source === 'ledger'
-              ? 'Posted payment — view and print only. To fix a mistake, Finance reverses this entry and you post the correct amount again.'
-              : 'View only. Imported history rows are not the live ledger; new money is always a separate post.'}
+          <div className="px-5 py-2 bg-slate-50 border-b border-slate-200 text-[10px] font-medium text-slate-600 space-y-1">
+            <p>
+              {editData?.source === 'ledger'
+                ? 'Posted payment — view and print only. To fix a mistake, Finance reverses this entry and you post the correct amount again.'
+                : 'View only. Imported history rows are not the live ledger; new money is always a separate post.'}
+            </p>
+            {isExistingPayment ? (
+              <p className="font-semibold text-slate-800">
+                {receiptSalesPaymentStatusDetail(editData) || receiptSalesPaymentStatusLabel(editData)}
+              </p>
+            ) : null}
           </div>
         ) : null}
         {!ws?.canMutate ? (
@@ -1347,6 +1372,8 @@ const ReceiptModal = ({
                       lines={printLinesPayload}
                       totalNgn={lineTotalNgn}
                       reference={remarks}
+                      cashierStatusLabel={receiptCashierPrintStatus.label}
+                      cashierStatusDetail={receiptCashierPrintStatus.detail}
                     />
                   ) : (
                     <ReceiptPrintFull
@@ -1362,6 +1389,8 @@ const ReceiptModal = ({
                       totalNgn={lineTotalNgn}
                       reference={remarks}
                       handledBy={handledByLabel}
+                      cashierStatusLabel={receiptCashierPrintStatus.label}
+                      cashierStatusDetail={receiptCashierPrintStatus.detail}
                     />
                   )}
                 </div>

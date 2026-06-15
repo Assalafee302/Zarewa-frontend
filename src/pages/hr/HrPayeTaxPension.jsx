@@ -490,7 +490,7 @@ function PensionTab({ runs, lines, latestRun, loading, policy }) {
 // ════════════════════════════════════════════════════════════════════════════════
 // MAIN PAGE
 // ════════════════════════════════════════════════════════════════════════════════
-export default function HrPayeTaxPension({ embedded = false } = {}) {
+export default function HrPayeTaxPension() {
   const ws = useWorkspace();
   const sensitive = useHrSensitiveAccess();
   const showSensitiveInline = canViewOrgSensitiveHr(ws?.permissions || []);

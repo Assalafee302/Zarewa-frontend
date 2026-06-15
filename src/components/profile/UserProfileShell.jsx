@@ -41,12 +41,12 @@ function UserProfileShellInner() {
 
   const subtitle =
     cohort === 'scholarship'
-        ? 'Your personal hub — school fees, stipend, documents, and account settings.'
-        : cohort === 'domestic'
-          ? 'Your personal hub — payslips, documents, and account settings.'
-          : cohort === 'account_only'
-            ? 'Your personal hub — account, security, and workspace shortcuts.'
-            : 'Your personal hub — leave, attendance, loans, payslips, and employment self-service.';
+      ? 'Account hub — password, access, and shortcuts. School fees, documents, and stipend are in HR self-service.'
+      : cohort === 'domestic'
+        ? 'Account hub — password and access. Payslips and documents are in HR self-service.'
+        : cohort === 'account_only'
+          ? 'Account hub — profile, security, and workspace shortcuts.'
+          : 'Account hub — password and access. Leave, payslips, and employment forms are in HR self-service.';
 
   return (
     <PageShell className="pb-[max(2.5rem,env(safe-area-inset-bottom))]">

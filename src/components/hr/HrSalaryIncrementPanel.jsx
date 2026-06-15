@@ -109,10 +109,15 @@ export function HrSalaryIncrementPanel({ userId, staff, canViewAmounts, onUpdate
   const newBase = Number(baseSalaryNgn) || 0;
   const delta = prevBase != null && canViewAmounts ? newBase - Number(prevBase) : null;
 
+  const [nowMs, setNowMs] = useState(0);
+  useEffect(() => {
+    setNowMs(Date.now());
+  }, []);
+
   // Promotion eligibility: find most recent entry where reason mentions 'promotion'
   const lastPromoEntry = history.find((h) => /promotion/i.test(h.reason || ''));
   const yearsFromLastPromo = lastPromoEntry?.effectiveFromIso
-    ? (Date.now() - new Date(lastPromoEntry.effectiveFromIso).getTime()) / (1000 * 60 * 60 * 24 * 365.25)
+    ? (nowMs - new Date(lastPromoEntry.effectiveFromIso).getTime()) / (1000 * 60 * 60 * 24 * 365.25)
     : null;
   const nextEligibleDate = lastPromoEntry?.effectiveFromIso
     ? new Date(new Date(lastPromoEntry.effectiveFromIso).getTime() + 3 * 365.25 * 24 * 60 * 60 * 1000)

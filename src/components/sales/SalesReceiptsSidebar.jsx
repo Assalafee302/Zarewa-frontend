@@ -12,6 +12,11 @@ import { loadLedgerEntries } from '../../lib/customerLedgerStore';
 import { dismissAdvanceEntryId, loadDismissedAdvanceIds } from '../../lib/advanceEntryUiStore';
 import { formatNgn } from '../../Data/mockData';
 import { receiptCashReceivedNgn } from '../../lib/salesReceiptsList';
+import {
+  receiptSalesPaymentStatusChipClass,
+  receiptSalesPaymentStatusLabel,
+  receiptSalesPaymentStatusTitle,
+} from '../../lib/receiptClearance.js';
 
 const PANEL_CLASS =
   'flex flex-col h-full min-h-[min(520px,72vh)] rounded-xl border border-slate-200/90 bg-white shadow-sm overflow-hidden';
@@ -136,13 +141,21 @@ export function ReceiptsTransactionsPanel({
               className="w-full text-left rounded-lg border border-slate-100 bg-slate-50/80 hover:bg-white hover:border-teal-100 px-2.5 py-2 transition-colors"
             >
               <div className="flex items-center justify-between gap-2 mb-1">
-                <span
-                  className={`text-[8px] font-bold uppercase px-1.5 py-0.5 rounded ${
-                    r.source === 'ledger' ? 'bg-emerald-200 text-emerald-900' : 'bg-slate-200 text-slate-600'
-                  }`}
-                >
-                  {r.source === 'ledger' ? 'Ledger' : 'Imported'}
-                </span>
+                <div className="flex items-center gap-1 min-w-0">
+                  <span
+                    className={`text-[8px] font-bold uppercase px-1.5 py-0.5 rounded ${
+                      r.source === 'ledger' ? 'bg-emerald-200 text-emerald-900' : 'bg-slate-200 text-slate-600'
+                    }`}
+                  >
+                    {r.source === 'ledger' ? 'Ledger' : 'Imported'}
+                  </span>
+                  <span
+                    className={`text-[7px] font-bold uppercase px-1.5 py-0.5 rounded border ${receiptSalesPaymentStatusChipClass(r)}`}
+                    title={receiptSalesPaymentStatusTitle(r)}
+                  >
+                    {receiptSalesPaymentStatusLabel(r)}
+                  </span>
+                </div>
                 <span className="text-[10px] font-black text-emerald-700 tabular-nums">{r.amount}</span>
               </div>
               <p className="text-[10px] font-bold text-[#134e4a] tabular-nums">{r.id}</p>

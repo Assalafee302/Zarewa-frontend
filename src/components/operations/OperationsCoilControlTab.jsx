@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import CoilDamageApprovalPanel from './CoilDamageApprovalPanel';
 import CoilDamageRecordModal from './CoilDamageRecordModal';
+import { INCIDENT_TYPES } from '../../lib/materialIncidentConstants';
 import { useInventory } from '../../context/InventoryContext';
 import { useToast } from '../../context/ToastContext';
 import { useWorkspace } from '../../context/WorkspaceContext';
@@ -98,7 +99,7 @@ function ModalPanel({ title, children, onClose, footer }) {
 export default function OperationsCoilControlTab() {
   const { show: showToast } = useToast();
   const ws = useWorkspace();
-  const { products: inventoryRows, coilLots, coilControlEvents } = useInventory();
+  const { products: inventoryRows, coilLots, coilControlEvents: events, refreshInventory } = useInventory();
 
   const cuttingLists = useMemo(
     () => (Array.isArray(ws?.snapshot?.cuttingLists) ? ws.snapshot.cuttingLists : []),
@@ -107,10 +108,20 @@ export default function OperationsCoilControlTab() {
 
   const [modal, setModal] = useState(null);
   const [damageModalOpen, setDamageModalOpen] = useState(false);
+  const [damageModalIncidentType, setDamageModalIncidentType] = useState('coil_stain');
+  const [damageModalCoilNo, setDamageModalCoilNo] = useState('');
+  const [incidentTypePick, setIncidentTypePick] = useState('coil_stain');
   const [saving, setSaving] = useState(false);
   const [historyFilter, setHistoryFilter] = useState('all');
 
   const defaultDate = useMemo(() => new Date().toISOString().slice(0, 10), []);
+
+  const openMaterialIncident = (incidentType = 'coil_stain', defaultCoilNo = '') => {
+    setDamageModalIncidentType(incidentType);
+    setDamageModalCoilNo(String(defaultCoilNo || '').trim());
+    setIncidentTypePick(incidentType);
+    setDamageModalOpen(true);
+  };
 
   const [adjustForm, setAdjustForm] = useState({
     coilNo: '',
@@ -179,6 +190,17 @@ export default function OperationsCoilControlTab() {
     note: '',
     date: '',
   });
+
+  const suggestedIncidentCoilNo = useMemo(() => {
+    const candidates = [
+      adjustForm.coilNo,
+      scrapForm.coilNo,
+      returnInForm.coilNo,
+      headForm.coilNo,
+      defectForm.coilNo,
+    ];
+    return candidates.map((v) => String(v || '').trim()).find(Boolean) || '';
+  }, [adjustForm.coilNo, scrapForm.coilNo, returnInForm.coilNo, headForm.coilNo, defectForm.coilNo]);
 
   useEffect(() => {
     setAdjustForm((s) => ({ ...s, date: s.date || defaultDate }));
@@ -480,14 +502,30 @@ export default function OperationsCoilControlTab() {
       </p>
 
       <div className="flex flex-wrap gap-2">
-        <button
-          type="button"
-          onClick={() => setDamageModalOpen(true)}
-          className="inline-flex items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-4 py-2 text-[10px] font-black uppercase tracking-wide text-amber-950 shadow-sm hover:bg-amber-100"
-        >
-          <AlertTriangle size={14} aria-hidden />
-          Coil damage record
-        </button>
+        <div className="inline-flex flex-wrap items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 shadow-sm">
+          <AlertTriangle size={14} aria-hidden className="text-amber-800 shrink-0" />
+          <label className="inline-flex items-center gap-1.5">
+            <span className="text-[9px] font-black uppercase tracking-wide text-amber-900/70">Incident</span>
+            <select
+              value={incidentTypePick}
+              onChange={(e) => setIncidentTypePick(e.target.value)}
+              className="rounded-lg border border-amber-200/80 bg-white py-1.5 pl-2 pr-7 text-[10px] font-bold text-amber-950 outline-none"
+            >
+              {INCIDENT_TYPES.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <button
+            type="button"
+            onClick={() => openMaterialIncident(incidentTypePick, suggestedIncidentCoilNo)}
+            className="rounded-full bg-amber-900 px-3 py-1.5 text-[10px] font-black uppercase tracking-wide text-white hover:bg-amber-950"
+          >
+            Record incident
+          </button>
+        </div>
         <button
           type="button"
           onClick={() => setModal('adjust')}
@@ -530,11 +568,25 @@ export default function OperationsCoilControlTab() {
         </button>
         <button
           type="button"
-          onClick={() => setModal('supplier')}
+          onClick={() => {
+            const coil = String(defectForm.coilNo || suggestedIncidentCoilNo || '').trim();
+            if (coil) setDefectForm((s) => ({ ...s, coilNo: coil }));
+            openMaterialIncident('supplier_defect', coil);
+          }}
           className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-[10px] font-black uppercase tracking-wide text-[#134e4a] shadow-sm hover:bg-slate-50"
+          title="Record supplier defect as a material incident (manager approval)"
         >
           <Truck size={14} aria-hidden />
-          Supplier defect
+          Supplier defect incident
+        </button>
+        <button
+          type="button"
+          onClick={() => setModal('supplier')}
+          className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-[10px] font-black uppercase tracking-wide text-slate-500 shadow-sm hover:bg-slate-50"
+          title="Quick supplier defect log (legacy coil control)"
+        >
+          <Truck size={14} aria-hidden />
+          Legacy defect log
         </button>
       </div>
 
@@ -1282,7 +1334,16 @@ export default function OperationsCoilControlTab() {
         isOpen={damageModalOpen}
         onClose={() => setDamageModalOpen(false)}
         coilLots={coilLots}
-        cuttingLists={cuttingLists}
+        defaultCoilNo={damageModalCoilNo}
+        incidentType={damageModalIncidentType}
+        onIncidentTypeChange={(next) => {
+          setDamageModalIncidentType(next);
+          setIncidentTypePick(next);
+        }}
+        onSuccess={async () => {
+          refreshInventory?.();
+          await ws?.refresh?.();
+        }}
       />
     </div>
   );

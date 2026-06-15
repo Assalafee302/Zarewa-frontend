@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
   managementAttentionItemPath,
-  managementAttentionItemToNotification,
   pushAttentionRowAlerts,
 } from './attentionRowNotifications.js';
 

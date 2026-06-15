@@ -119,10 +119,6 @@ export function ManagementAuditSections({ auditData, loadingAudit, formatNgn, ap
   const cuttingLists = Array.isArray(auditData.cuttingLists) ? auditData.cuttingLists : [];
   const productionLogs = Array.isArray(auditData.productionLogs) ? auditData.productionLogs : [];
   const stageActors = auditData.stageActors || {};
-  const salesReceipts = Array.isArray(auditData.salesReceipts) ? auditData.salesReceipts : [];
-
-  const actorSub = u.L ? 'text-[9px] text-slate-500' : 'text-[9px] text-white/40';
-
   return (
     <Fragment>
       {sum ? (

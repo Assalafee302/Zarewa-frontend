@@ -1,7 +1,12 @@
 import React, { useMemo, useState } from 'react';
 import { formatNgn } from '../../Data/mockData';
 import { downloadFinanceCsv } from '../../lib/exportFinanceCsv';
-import { isReceiptCleared, isReceiptPendingClearance } from '../../lib/receiptClearance';
+import {
+  isReceiptCleared,
+  isReceiptPendingClearance,
+  receiptSalesPaymentStatusLabel,
+  SALES_RECEIPT_PAYMENT_STATUS_AWAITING_CASHIER,
+} from '../../lib/receiptClearance';
 import { approvedRefundsAwaitingPayment } from '../../lib/refundsStore';
 import { effectiveOutstandingNgn } from '../../lib/paymentOutstandingTolerance';
 import { FinanceReportPanel } from './FinanceReportPanel';
@@ -25,7 +30,7 @@ export function CashierDeskReports({ receipts, paymentRequests, refunds, trialDa
       .map((r) => ({
         _key: r.id,
         id: r.id,
-        status: isReceiptPendingClearance(r) ? 'Pending confirmation' : isReceiptCleared(r) ? 'Confirmed' : 'Other',
+        status: receiptSalesPaymentStatusLabel(r),
         amount: formatNgn(r.amountNgn),
         customer: r.customer || r.customerID || '—',
         quote: r.quotationRef || r.quotationID || '—',
@@ -117,8 +122,12 @@ export function CashierDeskReports({ receipts, paymentRequests, refunds, trialDa
       >
         {loaded && activitySummary ? (
           <ul className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm font-semibold text-slate-800">
-            <li className="rounded-lg bg-slate-50 px-3 py-2">Confirmed today: {activitySummary.confirmedToday}</li>
-            <li className="rounded-lg bg-amber-50 px-3 py-2">Pending confirmation: {activitySummary.pending}</li>
+            <li className="rounded-lg bg-slate-50 px-3 py-2">
+              Cashier confirmed today: {activitySummary.confirmedToday}
+            </li>
+            <li className="rounded-lg bg-amber-50 px-3 py-2">
+              {SALES_RECEIPT_PAYMENT_STATUS_AWAITING_CASHIER}: {activitySummary.pending}
+            </li>
             <li className="rounded-lg bg-amber-50 px-3 py-2">
               Treasury not settled: {activitySummary.treasuryUnsettled}
             </li>

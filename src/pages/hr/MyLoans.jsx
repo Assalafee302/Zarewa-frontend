@@ -162,7 +162,7 @@ export default function MyLoans({ staffLinkBase = '/my-profile' }) {
             guarantor form
           </a>
           , have it signed, then{' '}
-          <Link to="/me/documents" className="font-bold underline">
+          <Link to={`${staffLinkBase}/documents`} className="font-bold underline">
             upload it
           </Link>{' '}
           before applying.

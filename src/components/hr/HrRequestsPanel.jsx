@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { Link } from 'react-router-dom';
 import { apiFetch } from '../../lib/apiBase';
@@ -55,6 +55,8 @@ export function HrRequestsPanel({
   const [bulkProgress, setBulkProgress] = useState('');
   const [bulkRejectReason, setBulkRejectReason] = useState('');
   const [showBulkRejectPrompt, setShowBulkRejectPrompt] = useState(false);
+  const [filterSearch, setFilterSearch] = useState('');
+  const [filterKindLocal, setFilterKindLocal] = useState('');
 
   const REASON_CODES = [
     { value: 'policy', label: 'Policy' },
@@ -138,6 +140,33 @@ export function HrRequestsPanel({
   const reviewableRequests = requests.filter((r) => canReviewRow(r));
   const allReviewableSelected =
     reviewableRequests.length > 0 && reviewableRequests.every((r) => selectedIds.includes(r.id));
+
+  const visibleRequests = useMemo(() => {
+    let rows = requests;
+    const kind = kindFilter || filterKindLocal;
+    if (kind) rows = rows.filter((r) => r.kind === kind);
+    const q = filterSearch.trim().toLowerCase();
+    if (!q) return rows;
+    return rows.filter((r) => {
+      const hay = [r.title, r.kind, r.status, r.staffDisplayName, r.userId, r.id].join(' ').toLowerCase();
+      return hay.includes(q);
+    });
+  }, [requests, kindFilter, filterKindLocal, filterSearch]);
+
+  const exportQueueCsv = () => {
+    const esc = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+    const header = ['ID', 'Title', 'Kind', 'Status', 'Employee', 'Submitted'];
+    const lines = visibleRequests.map((r) =>
+      [r.id, r.title, r.kind, r.status, r.staffDisplayName || r.userId, r.submittedAtIso?.slice(0, 10)].map(esc).join(',')
+    );
+    const blob = new Blob([[header.join(','), ...lines].join('\n')], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `hr-requests-${scope}-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   const toggleSelectAll = () => {
     if (allReviewableSelected) {
@@ -383,6 +412,35 @@ export function HrRequestsPanel({
         ))}
       </div>
 
+      <div className="flex flex-wrap items-center gap-2">
+        {!kindFilter ? (
+          <select
+            value={filterKindLocal}
+            onChange={(e) => setFilterKindLocal(e.target.value)}
+            className={`${HR_FIELD_CLASS} max-w-[160px] text-xs`}
+            aria-label="Filter by request kind"
+          >
+            <option value="">All kinds</option>
+            <option value="leave">Leave</option>
+            <option value="loan">Loan</option>
+            <option value="profile_change">Profile change</option>
+            <option value="id_card">ID card</option>
+          </select>
+        ) : null}
+        <input
+          type="search"
+          value={filterSearch}
+          onChange={(e) => setFilterSearch(e.target.value)}
+          placeholder="Search title, employee…"
+          className={`${HR_FIELD_CLASS} min-w-[180px] flex-1 text-sm`}
+        />
+        {scope !== 'mine' ? (
+          <button type="button" onClick={exportQueueCsv} className={HR_BTN_SECONDARY}>
+            Export CSV
+          </button>
+        ) : null}
+      </div>
+
       {error ? (
         <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-800">{error}</div>
       ) : null}
@@ -453,41 +511,54 @@ export function HrRequestsPanel({
         </div>
       ) : null}
 
-      {!loading || requests.length > 0 ? (
+      {!loading || visibleRequests.length > 0 ? (
         <>
           <div className="md:hidden space-y-3">
-            {requests.length === 0 ? (
+            {visibleRequests.length === 0 ? (
               <p className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">
                 No requests in this queue.
               </p>
             ) : (
-              requests.map((r) => (
+              visibleRequests.map((r) => (
                 <article key={r.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                  <div className="flex items-start justify-between gap-3">
-                    <h4 className="text-sm font-bold leading-snug text-slate-900">{r.title || 'Request'}</h4>
-                    <span
-                      className={`shrink-0 inline-flex rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase ${hrRequestStatusClass(r.status)}`}
-                    >
-                      {hrRequestStatusLabel(r.status)}
-                    </span>
-                  </div>
-                  <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 text-xs">
-                    <div>
-                      <dt className="font-bold uppercase tracking-wide text-slate-400">Kind</dt>
-                      <dd className="mt-0.5 font-semibold text-slate-800">{hrRequestKindLabel(r.kind)}</dd>
-                    </div>
-                    <div>
-                      <dt className="font-bold uppercase tracking-wide text-slate-400">Submitted</dt>
-                      <dd className="mt-0.5 font-semibold tabular-nums text-slate-800">{r.submittedAtIso?.slice(0, 10) || '—'}</dd>
-                    </div>
-                    {showEmployeeColumn ? (
-                      <div className="col-span-2">
-                        <dt className="font-bold uppercase tracking-wide text-slate-400">Employee</dt>
-                        <dd className="mt-0.5">{renderEmployeeCell(r)}</dd>
-                      </div>
+                  <div className="flex items-start gap-3">
+                    {canReviewRow(r) ? (
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.includes(r.id)}
+                        onChange={() => toggleSelect(r.id)}
+                        aria-label={`Select ${r.title || 'request'}`}
+                        className="mt-1 rounded"
+                      />
                     ) : null}
-                  </dl>
-                  <div className="mt-4">{renderRequestActions(r)}</div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-start justify-between gap-3">
+                        <h4 className="text-sm font-bold leading-snug text-slate-900">{r.title || 'Request'}</h4>
+                        <span
+                          className={`shrink-0 inline-flex rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase ${hrRequestStatusClass(r.status)}`}
+                        >
+                          {hrRequestStatusLabel(r.status)}
+                        </span>
+                      </div>
+                      <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 text-xs">
+                        <div>
+                          <dt className="font-bold uppercase tracking-wide text-slate-400">Kind</dt>
+                          <dd className="mt-0.5 font-semibold text-slate-800">{hrRequestKindLabel(r.kind)}</dd>
+                        </div>
+                        <div>
+                          <dt className="font-bold uppercase tracking-wide text-slate-400">Submitted</dt>
+                          <dd className="mt-0.5 font-semibold tabular-nums text-slate-800">{r.submittedAtIso?.slice(0, 10) || '—'}</dd>
+                        </div>
+                        {showEmployeeColumn ? (
+                          <div className="col-span-2">
+                            <dt className="font-bold uppercase tracking-wide text-slate-400">Employee</dt>
+                            <dd className="mt-0.5">{renderEmployeeCell(r)}</dd>
+                          </div>
+                        ) : null}
+                      </dl>
+                      <div className="mt-4">{renderRequestActions(r)}</div>
+                    </div>
+                  </div>
                 </article>
               ))
             )}
@@ -518,14 +589,14 @@ export function HrRequestsPanel({
                   <AppTableTh>Actions</AppTableTh>
                 </AppTableThead>
                 <AppTableBody>
-                  {requests.length === 0 ? (
+                  {visibleRequests.length === 0 ? (
                     <AppTableTr>
                       <AppTableTd colSpan={showEmployeeColumn ? 7 : 6} align="center">
                         <span className="text-slate-500 py-4 block">No requests in this queue.</span>
                       </AppTableTd>
                     </AppTableTr>
                   ) : (
-                    requests.map((r) => (
+                    visibleRequests.map((r) => (
                       <AppTableTr key={r.id}>
                         <AppTableTd>
                           {canReviewRow(r) ? (

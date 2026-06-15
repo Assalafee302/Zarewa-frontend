@@ -50,7 +50,6 @@ import { refundApprovedAmount, refundOutstandingAmount } from '../lib/refundsSto
 import {
   advanceBalanceNgn,
   overpayCreditBalanceNgn,
-  amountDueOnQuotation,
   receivableDueOnQuotation,
   entriesForCustomer,
   recordRefundAdvance,

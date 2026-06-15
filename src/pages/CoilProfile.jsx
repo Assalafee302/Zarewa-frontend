@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { MainPanel, ModalFrame, PageHeader, PageShell } from '../components/layout';
 import CoilDamageRecordModal from '../components/operations/CoilDamageRecordModal';
+import { INCIDENT_TYPES } from '../lib/materialIncidentConstants';
 import { ProductionRegisterEditModal } from '../components/operations/ProductionRegisterEditModal';
 import { pickProductionJobForFocusId } from '../lib/productionJobPick';
 import { useInventory } from '../context/InventoryContext';
@@ -78,11 +79,13 @@ export default function CoilProfile() {
   const { coilNo: coilNoParam } = useParams();
   const coilNo = decodeURIComponent(String(coilNoParam || '')).trim();
   const coilNoKey = coilKey(coilNo);
-  const { coilLots, movements } = useInventory();
+  const { coilLots, movements, refreshInventory } = useInventory();
   const { show: showToast } = useToast();
   const ws = useWorkspace();
   const [actionModal, setActionModal] = useState('');
   const [damageModalOpen, setDamageModalOpen] = useState(false);
+  const [damageModalIncidentType, setDamageModalIncidentType] = useState('coil_stain');
+  const [incidentTypePick, setIncidentTypePick] = useState('coil_stain');
   const [savingAction, setSavingAction] = useState(false);
   const [scrapForm, setScrapForm] = useState({ kg: '', meters: '', bookRef: '', reason: 'Damaged edge / offcut', note: '' });
   const [returnForm, setReturnForm] = useState({ kg: '', reason: 'Unused from production', note: '' });
@@ -114,6 +117,12 @@ export default function CoilProfile() {
     () => coilLots.find((c) => coilKey(c.coilNo) === coilNoKey),
     [coilLots, coilNoKey]
   );
+
+  const openMaterialIncident = (incidentType = 'coil_stain') => {
+    setDamageModalIncidentType(incidentType);
+    setIncidentTypePick(incidentType);
+    setDamageModalOpen(true);
+  };
 
   const mayEditCoilMaster = useMemo(
     () => canEditCoilLotMasterData(ws?.session?.user?.roleKey),
@@ -531,14 +540,28 @@ export default function CoilProfile() {
                 Finish roll
               </button>
             ) : null}
-            <button
-              type="button"
-              className="z-btn-secondary inline-flex items-center gap-1.5 border-amber-200 bg-amber-50 text-amber-950 hover:bg-amber-100"
-              onClick={() => setDamageModalOpen(true)}
-            >
-              <AlertTriangle size={16} aria-hidden />
-              Record damage
-            </button>
+            <div className="inline-flex flex-wrap items-center gap-1.5 rounded-xl border border-amber-200 bg-amber-50 px-2 py-1.5">
+              <select
+                value={incidentTypePick}
+                onChange={(e) => setIncidentTypePick(e.target.value)}
+                className="rounded-lg border border-amber-200/80 bg-white py-1.5 pl-2 pr-7 text-[10px] font-bold text-amber-950 outline-none max-w-[11rem]"
+                aria-label="Incident type"
+              >
+                {INCIDENT_TYPES.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.label}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                className="z-btn-secondary inline-flex items-center gap-1.5 border-amber-300 bg-amber-100 text-amber-950 hover:bg-amber-200"
+                onClick={() => openMaterialIncident(incidentTypePick)}
+              >
+                <AlertTriangle size={16} aria-hidden />
+                Record incident
+              </button>
+            </div>
             <button type="button" className="z-btn-secondary inline-flex" onClick={() => setActionModal('scrap')}>
               Scrap
             </button>
@@ -888,8 +911,16 @@ export default function CoilProfile() {
         isOpen={damageModalOpen}
         onClose={() => setDamageModalOpen(false)}
         coilLots={coilLots}
-        cuttingLists={cuttingLists}
-        defaultCoilNo={coil.coilNo}
+        defaultCoilNo={coil?.coilNo || coilNo}
+        incidentType={damageModalIncidentType}
+        onIncidentTypeChange={(next) => {
+          setDamageModalIncidentType(next);
+          setIncidentTypePick(next);
+        }}
+        onSuccess={async () => {
+          refreshInventory?.();
+          await ws?.refresh?.();
+        }}
       />
 
       <ProductionRegisterEditModal

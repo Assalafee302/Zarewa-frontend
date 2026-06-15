@@ -31,6 +31,8 @@ export function HrOvertimeRequestsPanel({ branchScoped = false } = {}) {
   const [staff, setStaff] = useState([]);
   const [form, setForm] = useState({ userId: '', workDateIso: '', startTime: '08:00', endTime: '18:00', reason: '', submit: true });
   const [note, setNote] = useState('');
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [bulkBusy, setBulkBusy] = useState(false);
 
   const canRequest = hrHasPermission(perms, 'hr.overtime.request');
   const canReview = hrHasPermission(perms, 'hr.overtime.review');
@@ -69,6 +71,19 @@ export function HrOvertimeRequestsPanel({ branchScoped = false } = {}) {
     window.open('/api/hr/reports/export/overtime', '_blank');
   };
 
+  const bulkBranchEndorse = async () => {
+    const ids = selectedIds.slice();
+    setBulkBusy(true);
+    for (const id of ids) {
+      await branchReviewHrOvertimeRequest(id, { approve: true, note: 'Bulk branch endorsement' });
+    }
+    setBulkBusy(false);
+    setSelectedIds([]);
+    await reload();
+  };
+
+  const reviewable = requests.filter((r) => canReview && r.status === 'submitted');
+
   return (
     <HrCard
       title="Overtime requests"
@@ -84,6 +99,11 @@ export function HrOvertimeRequestsPanel({ branchScoped = false } = {}) {
         <input type="date" className={HR_FIELD_CLASS} value={fromIso} onChange={(e) => setFromIso(e.target.value)} />
         <input type="date" className={HR_FIELD_CLASS} value={toIso} onChange={(e) => setToIso(e.target.value)} />
         <button type="button" className={HR_BTN_SECONDARY} onClick={exportCsv}>Export CSV</button>
+        {canReview && selectedIds.length > 0 ? (
+          <button type="button" className={HR_BTN_PRIMARY} disabled={bulkBusy} onClick={bulkBranchEndorse}>
+            Endorse selected ({selectedIds.length})
+          </button>
+        ) : null}
       </div>
       {error ? <div className="mb-3 rounded-lg border border-amber-100 bg-amber-50 px-3 py-2 text-sm text-amber-900">{error}</div> : null}
       {loading && !requests.length ? <p className="text-sm text-slate-600">Loading…</p> : requests.length === 0 ? (
@@ -93,6 +113,19 @@ export function HrOvertimeRequestsPanel({ branchScoped = false } = {}) {
           <AppTable>
             <AppTableThead>
               <AppTableTr>
+                {canReview ? (
+                  <AppTableTh>
+                    <input
+                      type="checkbox"
+                      checked={reviewable.length > 0 && reviewable.every((r) => selectedIds.includes(r.id))}
+                      onChange={() => {
+                        if (reviewable.every((r) => selectedIds.includes(r.id))) setSelectedIds([]);
+                        else setSelectedIds(reviewable.map((r) => r.id));
+                      }}
+                      aria-label="Select all submitted"
+                    />
+                  </AppTableTh>
+                ) : null}
                 <AppTableTh>Staff</AppTableTh>
                 <AppTableTh>Date</AppTableTh>
                 <AppTableTh>Hours</AppTableTh>
@@ -104,6 +137,21 @@ export function HrOvertimeRequestsPanel({ branchScoped = false } = {}) {
             <AppTableBody>
               {requests.map((r) => (
                 <AppTableTr key={r.id}>
+                  {canReview ? (
+                    <AppTableTd>
+                      {r.status === 'submitted' ? (
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.includes(r.id)}
+                          onChange={() =>
+                            setSelectedIds((prev) =>
+                              prev.includes(r.id) ? prev.filter((x) => x !== r.id) : [...prev, r.id]
+                            )
+                          }
+                        />
+                      ) : null}
+                    </AppTableTd>
+                  ) : null}
                   <AppTableTd>{r.displayName}</AppTableTd>
                   <AppTableTd>{r.workDateIso}</AppTableTd>
                   <AppTableTd>{r.calculatedHours}</AppTableTd>

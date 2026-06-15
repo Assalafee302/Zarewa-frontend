@@ -44,10 +44,6 @@ function cellValue(row, col) {
  * @param {{ columns: {key:string;label:string;render?:Function;linkKey?:string}[]; rows: object[]; emptyMessage?: string; mobileCards?: boolean }} props
  */
 export function HrResponsiveTable({ columns, rows, emptyMessage = 'No records.', mobileCards = true }) {
-  const displayCols = columns.some((c) => c.key === 'action')
-    ? columns
-    : [...columns, { key: 'action', label: 'Action' }];
-
   if (!rows?.length) {
     return (
       <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50/50 px-4 py-8 text-center text-sm text-slate-500">

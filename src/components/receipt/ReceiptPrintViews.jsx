@@ -12,7 +12,7 @@ function fmt(n) {
   return `₦${v.toLocaleString('en-NG', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
 }
 
-function QuotationPaymentHistoryBlock({ rows = [], highlightReceiptId = '' }) {
+function QuotationPaymentHistoryBlock({ rows = [], highlightReceiptId = '', showCashierStatus = false }) {
   if (!rows.length) return null;
   return (
     <section className="mt-4 print:mt-3">
@@ -25,6 +25,7 @@ function QuotationPaymentHistoryBlock({ rows = [], highlightReceiptId = '' }) {
             <th className={TH}>Date</th>
             <th className={TH}>Reference</th>
             <th className={TH}>Source</th>
+            {showCashierStatus ? <th className={TH}>Cashier</th> : null}
             <th className={THR}>Amount</th>
           </tr>
         </thead>
@@ -42,6 +43,14 @@ function QuotationPaymentHistoryBlock({ rows = [], highlightReceiptId = '' }) {
                   {isThis ? ' · this receipt' : ''}
                 </td>
                 <td className={`${TD} text-slate-600`}>{row.source}</td>
+                {showCashierStatus ? (
+                  <td className={`${TD} text-slate-600`}>
+                    <span className="font-semibold text-slate-800">{row.cashierStatus || '—'}</span>
+                    {row.cashierDetail ? (
+                      <span className="block text-[9px] text-slate-500 print:text-[8pt]">{row.cashierDetail}</span>
+                    ) : null}
+                  </td>
+                ) : null}
                 <td className={`${TD} text-right font-semibold tabular-nums text-[#134e4a]`}>
                   {fmt(row.amountNgn)}
                 </td>
@@ -52,6 +61,19 @@ function QuotationPaymentHistoryBlock({ rows = [], highlightReceiptId = '' }) {
       </table>
       <p className="mt-2 text-[9px] text-slate-500">Ledger + imported rows; totals match books.</p>
     </section>
+  );
+}
+
+function CashierConfirmationBlock({ statusLabel = '', statusDetail = '' }) {
+  if (!statusLabel) return null;
+  return (
+    <div className="rounded-lg border border-slate-200 bg-slate-50/80 px-3 py-2.5 print:border-slate-300">
+      <p className="text-[9px] font-bold uppercase tracking-widest text-slate-500 print:text-[8pt]">
+        Cashier confirmation
+      </p>
+      <p className="mt-0.5 text-[11px] font-semibold text-slate-900 print:text-[10pt]">{statusLabel}</p>
+      {statusDetail ? <p className="mt-0.5 text-[10px] text-slate-600 print:text-[9pt]">{statusDetail}</p> : null}
+    </div>
   );
 }
 
@@ -66,6 +88,8 @@ export function ReceiptPrintQuick({
   lines = [],
   totalNgn = 0,
   reference = '',
+  cashierStatusLabel = '',
+  cashierStatusDetail = '',
 }) {
   const lineSum = lines.reduce((s, l) => s + (Number(l.amount) || 0), 0);
   const total = Number(totalNgn) || lineSum;
@@ -100,9 +124,16 @@ export function ReceiptPrintQuick({
             <p className="mt-0.5 break-all">{reference}</p>
           </div>
         ) : null}
+        <div className="sm:col-span-2">
+          <CashierConfirmationBlock statusLabel={cashierStatusLabel} statusDetail={cashierStatusDetail} />
+        </div>
       </section>
 
-      <QuotationPaymentHistoryBlock rows={quotationPaymentHistory} highlightReceiptId={highlightReceiptId} />
+      <QuotationPaymentHistoryBlock
+        rows={quotationPaymentHistory}
+        highlightReceiptId={highlightReceiptId}
+        showCashierStatus
+      />
 
       <section className="mt-4 print:mt-3">
         <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-slate-500 print:text-[9pt]">
@@ -148,6 +179,8 @@ export function ReceiptPrintFull({
   totalNgn = 0,
   reference = '',
   handledBy = '—',
+  cashierStatusLabel = '',
+  cashierStatusDetail = '',
 }) {
   const total = Number(totalNgn) || lines.reduce((s, l) => s + (Number(l.amount) || 0), 0);
   const displayCustomerName = formatPersonName(customerName);
@@ -196,6 +229,9 @@ export function ReceiptPrintFull({
             Project: {projectName?.trim() ? projectName : '—'}
           </p>
         </div>
+        <div className="sm:col-span-2">
+          <CashierConfirmationBlock statusLabel={cashierStatusLabel} statusDetail={cashierStatusDetail} />
+        </div>
       </section>
 
       {quotationPaymentHistory.length > 0 ? (
@@ -209,6 +245,7 @@ export function ReceiptPrintFull({
                 <th className={TH}>Date</th>
                 <th className={TH}>Reference</th>
                 <th className={TH}>Source</th>
+                <th className={TH}>Cashier</th>
                 <th className={THR}>Amount</th>
               </tr>
             </thead>
@@ -231,6 +268,12 @@ export function ReceiptPrintFull({
                       ) : null}
                     </td>
                     <td className={`${TD} text-slate-600`}>{row.source}</td>
+                    <td className={`${TD} text-slate-600`}>
+                      <span className="font-semibold text-slate-800">{row.cashierStatus || '—'}</span>
+                      {row.cashierDetail ? (
+                        <span className="block text-[9px] text-slate-500 print:text-[8pt]">{row.cashierDetail}</span>
+                      ) : null}
+                    </td>
                     <td className={`${TD} text-right font-semibold tabular-nums text-[#134e4a]`}>
                       {fmt(row.amountNgn)}
                     </td>

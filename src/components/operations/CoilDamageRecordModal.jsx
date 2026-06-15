@@ -6,6 +6,11 @@ import { apiFetch } from '../../lib/apiBase';
 import MaterialIncidentDetailModal from '../material/MaterialIncidentDetailModal';
 import MaterialIncidentPrintPortal from '../material/MaterialIncidentPrintPortal';
 import {
+  INCIDENT_TYPES,
+  RETURN_DISPOSITIONS,
+  INCIDENT_RECORD_HINTS,
+} from '../../lib/materialIncidentConstants';
+import {
   coilDamagePreview,
   normalizeDamageLinesForPayload,
   sumDamageLineMeters,
@@ -36,16 +41,33 @@ function parseNum(v) {
   return Number.isFinite(n) ? n : 0;
 }
 
-const defaultForm = (defaultDate) => ({
+const defaultForm = (defaultDate, incidentType = 'coil_stain') => ({
   coilNo: '',
   beforeKg: '',
   afterKg: '',
   returnDisposition: 'offcut_pool',
+  productionJobId: '',
+  customerLabel: '',
   note: '',
   date: defaultDate,
   submitForApproval: true,
+  incidentType,
   lines: [emptyLine()],
 });
+
+function incidentTypeLabel(type) {
+  return INCIDENT_TYPES.find((t) => t.id === type)?.label || 'Material incident';
+}
+
+function dispositionOptions(incidentType) {
+  if (incidentType === 'customer_return') {
+    return RETURN_DISPOSITIONS.map((d) => ({ id: d.id, label: d.label, hint: '' }));
+  }
+  return [
+    { id: 'offcut_pool', label: 'Offcut pool', hint: 'Reusable metres' },
+    { id: 'scrap', label: 'Scrap', hint: 'Reject / waste' },
+  ];
+}
 
 /**
  * Streamlined coil damage modal: pick coil → spec auto-fills, before kg suggested from free kg,
@@ -56,12 +78,17 @@ export default function CoilDamageRecordModal({
   onClose,
   coilLots = [],
   defaultCoilNo = '',
+  defaultBeforeKg = '',
+  defaultProductionJobId = '',
+  lockProductionJob = false,
+  incidentType: incidentTypeProp = 'coil_stain',
+  onIncidentTypeChange,
   onSuccess,
 }) {
   const { show: showToast } = useToast();
   const ws = useWorkspace();
   const defaultDate = useMemo(() => new Date().toISOString().slice(0, 10), []);
-  const [form, setForm] = useState(() => defaultForm(defaultDate));
+  const [form, setForm] = useState(() => defaultForm(defaultDate, incidentTypeProp));
   const [saving, setSaving] = useState(false);
   const [fieldError, setFieldError] = useState('');
   const [savedResult, setSavedResult] = useState(null);
@@ -93,13 +120,14 @@ export default function CoilDamageRecordModal({
     });
   }, [form.beforeKg, form.afterKg, totalMeters, selectedCoil, freeKg]);
 
-  const fillFromCoil = (coilNo) => {
+  const fillFromCoil = (coilNo, beforeKgOverride) => {
     const c = sortedCoils.find((x) => x.coilNo === coilNo);
     if (!c) {
       setForm((prev) => ({ ...prev, coilNo }));
       return;
     }
-    const suggested = suggestedOpeningKgFromFree(coilFreeKg(c));
+    const override = String(beforeKgOverride ?? '').trim();
+    const suggested = override || suggestedOpeningKgFromFree(coilFreeKg(c));
     setForm((prev) => ({
       ...prev,
       coilNo: c.coilNo,
@@ -110,20 +138,29 @@ export default function CoilDamageRecordModal({
     setFieldError('');
   };
 
+  const activeIncidentType = form.incidentType || incidentTypeProp;
+  const dispositionChoices = useMemo(() => dispositionOptions(activeIncidentType), [activeIncidentType]);
+  const recordHint = INCIDENT_RECORD_HINTS[activeIncidentType] || INCIDENT_RECORD_HINTS.coil_stain;
+
   useEffect(() => {
     if (!isOpen) return;
     setFieldError('');
     setSavedResult(null);
     setPrintPayload(null);
-    const base = defaultForm(defaultDate);
+    const base = defaultForm(defaultDate, incidentTypeProp);
+    const trimmedCoil = String(defaultCoilNo || '').trim();
+    const trimmedJob = String(defaultProductionJobId || '').trim();
+    const trimmedBeforeKg = String(defaultBeforeKg ?? '').trim();
     setForm({
       ...base,
-      coilNo: defaultCoilNo || '',
+      coilNo: trimmedCoil,
+      productionJobId: trimmedJob,
+      beforeKg: trimmedBeforeKg,
       lines: [emptyLine()],
     });
-    if (defaultCoilNo) fillFromCoil(defaultCoilNo);
+    if (trimmedCoil) fillFromCoil(trimmedCoil, trimmedBeforeKg);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- reset only when modal opens
-  }, [isOpen, defaultCoilNo, defaultDate]);
+  }, [isOpen, defaultCoilNo, defaultBeforeKg, defaultProductionJobId, defaultDate]);
 
   const openPrint = async (id) => {
     const { ok, data } = await apiFetch(`/api/material-incidents/${encodeURIComponent(id)}/print-payload`);
@@ -181,6 +218,9 @@ export default function CoilDamageRecordModal({
       lines,
       note: form.note.trim(),
       returnDisposition: form.returnDisposition,
+      incidentType: activeIncidentType,
+      productionJobId: form.productionJobId.trim() || undefined,
+      customerLabel: form.customerLabel.trim() || undefined,
     };
     const validated = validateCoilDamagePayload(payload, {
       maxRemoveKg: selectedCoil ? freeKg : undefined,
@@ -189,6 +229,11 @@ export default function CoilDamageRecordModal({
     if (!validated.ok) {
       setFieldError(validated.error);
       return showToast(validated.error, { variant: 'error' });
+    }
+    if (activeIncidentType === 'production_error' && !form.productionJobId.trim()) {
+      const err = 'Production job is required for production error incidents.';
+      setFieldError(err);
+      return showToast(err, { variant: 'error' });
     }
 
     setSaving(true);
@@ -226,18 +271,17 @@ export default function CoilDamageRecordModal({
     <ModalFrame
       isOpen={isOpen}
       onClose={() => !saving && (savedResult ? handleDone() : onClose())}
-      title="Record coil damage"
+      title={`Record ${incidentTypeLabel(activeIncidentType).toLowerCase()}`}
       surface="plain"
       showCloseButton={false}
     >
       <div className="mx-auto w-full max-w-3xl rounded-2xl border border-slate-200 bg-white shadow-xl max-h-[min(90dvh,880px)] flex flex-col overflow-hidden">
         <div className="flex items-start justify-between gap-3 border-b border-slate-100 px-5 py-4 shrink-0">
           <div>
-            <h2 className="text-sm font-black uppercase tracking-wide text-[#134e4a]">Record coil damage</h2>
-            <p className="mt-1 text-[11px] text-slate-500 leading-relaxed max-w-xl">
-              Select the coil — spec and before kg fill automatically. Weigh before and after cutting out the bad
-              section, list each damaged length, then submit for approval.
-            </p>
+            <h2 className="text-sm font-black uppercase tracking-wide text-[#134e4a]">
+              Record {incidentTypeLabel(activeIncidentType)}
+            </h2>
+            <p className="mt-1 text-[11px] text-slate-500 leading-relaxed max-w-xl">{recordHint}</p>
           </div>
           <button
             type="button"
@@ -304,6 +348,62 @@ export default function CoilDamageRecordModal({
           </div>
         ) : (
         <form className="flex-1 overflow-y-auto px-5 py-4 space-y-4" onSubmit={handleSubmit}>
+          <div className="space-y-2">
+            <label className="block text-[10px] font-bold text-gray-400 uppercase">Incident type</label>
+            <select
+              value={activeIncidentType}
+              onChange={(e) => {
+                const next = e.target.value;
+                setForm((s) => ({
+                  ...s,
+                  incidentType: next,
+                  returnDisposition: 'offcut_pool',
+                  productionJobId: next === 'production_error' ? s.productionJobId : '',
+                  customerLabel: next === 'customer_return' ? s.customerLabel : '',
+                }));
+                onIncidentTypeChange?.(next);
+              }}
+              className="w-full rounded-xl border border-gray-100 bg-gray-50 py-3 px-4 text-sm font-bold text-[#134e4a] outline-none focus:ring-2 focus:ring-teal-500/15"
+            >
+              {INCIDENT_TYPES.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {activeIncidentType === 'production_error' ? (
+            <div>
+              <label className="block text-[10px] font-bold text-gray-400 uppercase">Production job</label>
+              <input
+                required
+                readOnly={lockProductionJob}
+                value={form.productionJobId}
+                onChange={(e) => setForm((s) => ({ ...s, productionJobId: e.target.value }))}
+                className={`w-full rounded-xl border border-gray-100 py-3 px-4 text-sm font-bold outline-none focus:ring-2 focus:ring-teal-500/15 ${
+                  lockProductionJob ? 'bg-slate-100 text-slate-700 cursor-default' : 'bg-gray-50'
+                }`}
+                placeholder="JOB-…"
+              />
+              {lockProductionJob ? (
+                <p className="mt-1 text-[10px] text-slate-500">Linked to the active production job.</p>
+              ) : null}
+            </div>
+          ) : null}
+
+          {activeIncidentType === 'customer_return' ? (
+            <div>
+              <label className="block text-[10px] font-bold text-gray-400 uppercase">Customer (optional)</label>
+              <input
+                value={form.customerLabel}
+                onChange={(e) => setForm((s) => ({ ...s, customerLabel: e.target.value }))}
+                className="w-full rounded-xl border border-gray-100 bg-gray-50 py-3 px-4 text-sm font-bold outline-none focus:ring-2 focus:ring-teal-500/15"
+                placeholder="Customer name or reference"
+              />
+            </div>
+          ) : null}
+
           <div className="space-y-2">
             <label className="block text-[10px] font-bold text-gray-400 uppercase">Coil number</label>
             <select
@@ -467,12 +567,11 @@ export default function CoilDamageRecordModal({
           </div>
 
           <div className="space-y-2">
-            <p className="text-[10px] font-bold text-gray-400 uppercase">What happens to the cut-out steel?</p>
-            <div className="inline-flex rounded-xl border border-slate-200 bg-slate-50 p-1 gap-1">
-              {[
-                { id: 'offcut_pool', label: 'Offcut pool', hint: 'Reusable metres' },
-                { id: 'scrap', label: 'Scrap', hint: 'Reject / waste' },
-              ].map((opt) => (
+            <p className="text-[10px] font-bold text-gray-400 uppercase">
+              {activeIncidentType === 'customer_return' ? 'Return disposition' : 'What happens to the cut-out steel?'}
+            </p>
+            <div className="flex flex-wrap gap-1 rounded-xl border border-slate-200 bg-slate-50 p-1">
+              {dispositionChoices.map((opt) => (
                 <button
                   key={opt.id}
                   type="button"
@@ -484,9 +583,11 @@ export default function CoilDamageRecordModal({
                   }`}
                 >
                   <span className="block text-[11px] font-bold">{opt.label}</span>
-                  <span className={`block text-[9px] ${form.returnDisposition === opt.id ? 'text-teal-100' : 'text-slate-400'}`}>
-                    {opt.hint}
-                  </span>
+                  {opt.hint ? (
+                    <span className={`block text-[9px] ${form.returnDisposition === opt.id ? 'text-teal-100' : 'text-slate-400'}`}>
+                      {opt.hint}
+                    </span>
+                  ) : null}
                 </button>
               ))}
             </div>
@@ -528,14 +629,14 @@ export default function CoilDamageRecordModal({
           ) : null}
 
           <div>
-            <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Damage note</label>
+            <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">Notes</label>
             <textarea
               required
               rows={2}
               minLength={8}
               value={form.note}
               onChange={(e) => setForm((s) => ({ ...s, note: e.target.value }))}
-              placeholder="Where on the coil, what damage, and what was cut out — min. 8 characters"
+              placeholder="Describe what happened — min. 8 characters"
               className="w-full rounded-xl border border-gray-100 bg-gray-50 py-3 px-4 text-sm outline-none resize-none focus:ring-2 focus:ring-teal-500/15"
             />
           </div>

@@ -7,7 +7,7 @@ import { useInventory } from '../../context/InventoryContext';
 import { useToast } from '../../context/ToastContext';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { apiFetch } from '../../lib/apiBase';
-import { coilDamagePreview } from '../../lib/coilDamageRecordCore';
+import { coilDamagePreview, isCoilDamageIncident } from '../../lib/coilDamageRecordCore';
 import { fmtConv2 } from '../../lib/conversionKgPerM';
 import { INCIDENT_TYPES, RETURN_DISPOSITIONS } from '../../lib/materialIncidentConstants';
 import { ZareApprovalHint } from '../ZareApprovalHint';
@@ -29,7 +29,7 @@ function dispositionLabel(id) {
 }
 
 /**
- * Branch manager queue for coil damage / production-error material incidents.
+ * Branch manager queue for coil-linked material incidents (kg + metres on approval).
  */
 export default function CoilDamageApprovalPanel() {
   const { show: showToast } = useToast();
@@ -54,12 +54,12 @@ export default function CoilDamageApprovalPanel() {
         return;
       }
       const fallback = (materialIncidents || []).filter(
-        (r) => r.status === 'submitted' && (r.incidentType === 'coil_stain' || r.incidentType === 'production_error')
+        (r) => r.status === 'submitted' && isCoilDamageIncident(r)
       );
       setRows(fallback);
     } catch {
       const fallback = (materialIncidents || []).filter(
-        (r) => r.status === 'submitted' && (r.incidentType === 'coil_stain' || r.incidentType === 'production_error')
+        (r) => r.status === 'submitted' && isCoilDamageIncident(r)
       );
       setRows(fallback);
     } finally {
@@ -93,7 +93,7 @@ export default function CoilDamageApprovalPanel() {
     try {
       const { ok, data } = await apiFetch(`/api/material-incidents/${encodeURIComponent(id)}/approve`, {
         method: 'POST',
-        body: JSON.stringify({ managerRemark: String(remarks[id] || '').trim() || 'Approved — coil damage posted.' }),
+        body: JSON.stringify({ managerRemark: String(remarks[id] || '').trim() || 'Approved — material incident posted.' }),
       });
       if (!ok || !data?.ok) {
         showToast(data?.error || 'Approval failed.', { variant: 'error' });
@@ -164,11 +164,11 @@ export default function CoilDamageApprovalPanel() {
           <ShieldCheck size={18} className="text-amber-900" aria-hidden />
           <div>
             <h2 className="text-sm font-black uppercase tracking-wide text-amber-950">
-              Pending coil damage approval
+              Pending material incident approval
             </h2>
             <p className="text-[11px] text-amber-900/80 mt-0.5">
-              {enrichedRows.length} incident{enrichedRows.length === 1 ? '' : 's'} awaiting branch manager sign-off
-              before kg and metres post to stock.
+              {enrichedRows.length} coil-linked incident{enrichedRows.length === 1 ? '' : 's'} awaiting branch manager
+              sign-off before kg and metres post to stock.
             </p>
           </div>
         </div>

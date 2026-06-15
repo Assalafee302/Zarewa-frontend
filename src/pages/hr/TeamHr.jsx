@@ -28,6 +28,8 @@ export default function TeamHr() {
             title="Team HR"
             subtitle="Branch manager tools — attendance, endorsements, and team coverage. Salary and payroll values are not shown here."
             navItems={NAV}
+            stickySubnav
+            compact
           />
         }
       >

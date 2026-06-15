@@ -31,13 +31,14 @@ import MaterialExceptions from './MaterialExceptions';
 import { useInventory } from '../context/InventoryContext';
 import { useToast } from '../context/ToastContext';
 import { useWorkspace } from '../context/WorkspaceContext';
+import { useWorkspaceDomain } from '../hooks/useWorkspaceDomain';
 import { apiFetch } from '../lib/apiBase';
 import { APP_DATA_TABLE_PAGE_SIZE, useAppTablePaging } from '../lib/appDataTable';
 import { AppTablePager, AppTableWrap } from '../components/ui/AppDataTable';
 import { productionJobNeedsManagerReviewAttention } from '../lib/productionReview';
 import { pickProductionJobForCuttingList } from '../lib/productionJobPick';
 import { productionQueueLineStatusPresentation } from '../lib/productionQueueLineStatus';
-import { procurementKindFromPo, poLineQtyLabel } from '../lib/procurementPoKind';
+import { procurementKindFromPo } from '../lib/procurementPoKind';
 import { shouldShowPoInTransit } from '../lib/inTransitVisibility.js';
 import { rollupSkuStockDisplayRows } from '../lib/operationsProductionOverviewCore.js';
 import {
@@ -54,14 +55,14 @@ import {
 import { compareSelectLabels } from '../lib/selectOptionSort';
 import { canonicalColourName } from '../lib/colourCanonicalization.js';
 import { printProductionFollowUpList } from '../lib/productionFollowUpPrint.js';
-import { productLineKey } from '../lib/stoneCoatedQuotationPolicy.js';
+import { isStoneFlatsheetQuotationLine } from '../lib/stoneCoatedQuotationPolicy.js';
 
 function quotedStoneFlatsheetOnQuote(quotation) {
   const products = quotation?.quotationLines?.products;
   if (!Array.isArray(products)) return false;
   return products.some((row) => {
     const qty = Number(String(row?.qty ?? '').replace(/,/g, '')) || 0;
-    return qty > 0 && productLineKey(row?.name) === 'stone flatsheet';
+    return qty > 0 && isStoneFlatsheetQuotationLine(row?.name);
   });
 }
 
@@ -216,12 +217,31 @@ const PANEL_TITLE = {
 /** Rows per page for production line lists (live jobs, closed queue, manager review). */
 const PRODUCTION_TABLE_PAGE_SIZE = 10;
 
-/** Coil / stone / accessory — single control for both receive and on-hand panels. */
+/** Coil / stone metres / stone flatsheet m² / accessory — receive and on-hand panels. */
 const STOCK_RECEIVE_KIND_TABS = [
   { id: 'coil', label: 'Coil' },
-  { id: 'stone', label: 'Stone' },
+  { id: 'stone_meter', label: 'Stone (m)' },
+  { id: 'stone_flatsheet', label: 'Flatsheet (m²)' },
   { id: 'accessory', label: 'Accessories' },
 ];
+
+function isStoneFlatsheetSku(productID) {
+  return /^STONE-FS-/i.test(String(productID || ''));
+}
+
+function isStoneMetreSku(productID) {
+  const pid = String(productID || '');
+  return /^STONE-/i.test(pid) && !/^STONE-FS-/i.test(pid);
+}
+
+/** @param {string | undefined} kind */
+function normalizeStockReceiveKind(kind) {
+  if (kind === 'stone_meter' || kind === 'stone_flatsheet' || kind === 'accessory' || kind === 'coil') {
+    return kind;
+  }
+  if (kind === 'stone') return 'stone_meter';
+  return 'coil';
+}
 
 /** Matches `confirmStoreReceipt` — POs store can post GRN against */
 const PO_RECEIVABLE_STATUSES = ['Approved', 'On loading', 'In Transit'];
@@ -291,20 +311,6 @@ function transitPoSearchBlob(p) {
 
 /** Matches server GRN default `CL-YY-####` (writeOps.postPurchaseOrderGrn). */
 const CL_COIL_NO_RE = /^CL-(\d{2})-(\d{1,6})$/i;
-const METER_BASIS_EPS = 0.001;
-
-function isMeterBasisCoilLine(line) {
-  const upkg = Number(line?.unitPricePerKgNgn);
-  const meters = Number(line?.metersOffered);
-  const ordered = Number(line?.qtyOrdered);
-  return (
-    (!Number.isFinite(upkg) || upkg <= 0) &&
-    Number.isFinite(meters) &&
-    meters > 0 &&
-    Number.isFinite(ordered) &&
-    Math.abs(ordered - meters) <= METER_BASIS_EPS
-  );
-}
 
 function maxClSequenceForYear(coilLots, yy2, extraCoilNos = []) {
   let max = 0;
@@ -572,6 +578,7 @@ const Operations = () => {
     coilLots,
   } = useInventory();
   const ws = useWorkspace();
+  useWorkspaceDomain('operations');
   const canReceiveInventory = Boolean(ws?.hasPermission?.('inventory.receive'));
   const canAdjustInventory = Boolean(ws?.hasPermission?.('inventory.adjust'));
 
@@ -684,7 +691,9 @@ const Operations = () => {
   const [coilSearchRemoteRows, setCoilSearchRemoteRows] = useState([]);
   const [coilSearchRemoteLoading, setCoilSearchRemoteLoading] = useState(false);
   /** Stock management: filter in-transit POs and received stock panel (coil lots vs metre/unit SKUs). */
-  const [stockReceiveKind, setStockReceiveKind] = useState(() => /** @type {'coil'|'stone'|'accessory'} */ ('coil'));
+  const [stockReceiveKind, setStockReceiveKind] = useState(
+    () => /** @type {'coil'|'stone_meter'|'stone_flatsheet'|'accessory'} */ ('coil')
+  );
   const [productMovementModal, setProductMovementModal] = useState(null);
   const [productMovementsLoading, setProductMovementsLoading] = useState(false);
   const [productMovementsRows, setProductMovementsRows] = useState([]);
@@ -1091,7 +1100,7 @@ const Operations = () => {
 
   const goOverviewInventory = useCallback((kind) => {
     setActiveTab('inventory');
-    if (kind === 'stone' || kind === 'accessory' || kind === 'coil') setStockReceiveKind(kind);
+    setStockReceiveKind(normalizeStockReceiveKind(kind));
   }, []);
 
   const toggleCoilReceiptSort = useCallback((key) => {
@@ -1142,7 +1151,8 @@ const Operations = () => {
       setActiveTab('inventory');
       if (invSku) {
         const p = invSku.toUpperCase();
-        if (p.startsWith('STONE-')) setStockReceiveKind('stone');
+        if (isStoneFlatsheetSku(p)) setStockReceiveKind('stone_flatsheet');
+        else if (p.startsWith('STONE-')) setStockReceiveKind('stone_meter');
         else if (p.startsWith('ACC-')) setStockReceiveKind('accessory');
         else setStockReceiveKind('coil');
         setCoilLiveSearch(invSku);
@@ -1294,9 +1304,11 @@ const Operations = () => {
   const skuProductsLiveSorted = useMemo(() => {
     if (stockReceiveKind === 'coil') return [];
     const pred =
-      stockReceiveKind === 'stone'
-        ? (p) => /^STONE-/i.test(String(p.productID || ''))
-        : (p) => /^ACC-/i.test(String(p.productID || ''));
+      stockReceiveKind === 'stone_meter'
+        ? (p) => isStoneMetreSku(p.productID)
+        : stockReceiveKind === 'stone_flatsheet'
+          ? (p) => isStoneFlatsheetSku(p.productID)
+          : (p) => /^ACC-/i.test(String(p.productID || ''));
     return rollupSkuStockDisplayRows(inventoryRows, pred);
   }, [inventoryRows, stockReceiveKind]);
 
@@ -2055,9 +2067,11 @@ const Operations = () => {
                   <Scale size={16} className="text-[#134e4a]" />
                   {stockReceiveKind === 'coil'
                     ? 'Received coils — live weight'
-                    : stockReceiveKind === 'stone'
-                      ? 'Received stone — live metres'
-                      : 'Received accessories — live qty'}
+                    : stockReceiveKind === 'stone_meter'
+                      ? 'Stone-coated trim — live metres (STONE-* SKUs, not flatsheet)'
+                      : stockReceiveKind === 'stone_flatsheet'
+                        ? 'Stone flatsheet — live m² (STONE-FS-* SKUs)'
+                        : 'Received accessories — live qty'}
                 </h3>
                 {stockReceiveKind === 'coil' ? (
                   <>
@@ -2204,8 +2218,13 @@ const Operations = () => {
                   </>
                 ) : skuProductsLiveSorted.length === 0 ? (
                   <p className="text-[11px] font-medium text-slate-400">
-                    No {stockReceiveKind === 'stone' ? 'stone-coated' : 'accessory'} SKUs in catalog yet — create a PO
-                    or receipt in Procurement.
+                    No{' '}
+                    {stockReceiveKind === 'stone_meter'
+                      ? 'stone-coated metre'
+                      : stockReceiveKind === 'stone_flatsheet'
+                        ? 'stone flatsheet'
+                        : 'accessory'}{' '}
+                    SKUs in catalog yet — create a PO or receipt in Procurement.
                   </p>
                 ) : skuProductsReceiptFiltered.length === 0 ? (
                   <p className="text-[11px] font-medium text-slate-400">No rows match your search.</p>
@@ -2235,7 +2254,13 @@ const Operations = () => {
                     <ul className="space-y-1.5">
                       {skuProductsByReceipt.map((p) => {
                         const live = Number(p.stockLevel) || 0;
-                        const u = String(p.unit || '').trim() || (stockReceiveKind === 'stone' ? 'm' : 'u');
+                        const u =
+                          String(p.unit || '').trim() ||
+                          (stockReceiveKind === 'stone_meter'
+                            ? 'm'
+                            : stockReceiveKind === 'stone_flatsheet'
+                              ? 'm²'
+                              : 'u');
                         const label = String(p.name || p.productID || '—').trim();
                         const meta2 = `${p.productID} · tap for movements`;
                         return (
