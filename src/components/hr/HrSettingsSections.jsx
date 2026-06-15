@@ -1,11 +1,25 @@
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useHrListLoad } from '../../hooks/useHrListLoad';
 import { apiFetch } from '../../lib/apiBase';
+import { seedZarewaOrgStandard, seedDemoMultiRoleProfile, previewLegacyPayBackfill, runLegacyPayBackfill } from '../../lib/hrCompensation';
+import { fetchHrDepartments } from '../../lib/hrMasterData';
 import { canEditPensionPolicyRates, canManageHrSettings } from '../../lib/hrAccess';
 import { useWorkspace } from '../../context/WorkspaceContext';
+import { HR_DOCUMENTS, HR_LEAVE, HR_PAYROLL, hrTabPath } from '../../lib/hrRoutes';
 import { HrAddFormButton, HrFormModal } from './HrFormModal';
 import { HR_BTN_PRIMARY, HR_FIELD_CLASS } from './hrFormStyles';
-import { HrCard } from './hrPageUi';
+import { HrAlert, HrCard } from './hrPageUi';
+
+function PolicyMetric({ label, value, detail }) {
+  return (
+    <div className="rounded-xl border border-slate-100 bg-slate-50/60 p-4">
+      <p className="text-xs font-semibold text-slate-500">{label}</p>
+      <p className="mt-1 text-sm font-semibold text-slate-900">{value}</p>
+      {detail ? <p className="mt-0.5 text-xs text-slate-500">{detail}</p> : null}
+    </div>
+  );
+}
 
 /** Reusable public holidays CRUD — used in Leave hub and Settings hub. */
 export function HrPublicHolidaysSection({ embedded = false }) {
@@ -39,10 +53,15 @@ export function HrPublicHolidaysSection({ embedded = false }) {
 
   const body = (
     <>
-      <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
-        {!embedded ? <h2 className="text-sm font-black text-slate-800">Public holidays</h2> : null}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        {!embedded ? null : (
+          <p className="text-sm text-slate-600 max-w-2xl">
+            Company-wide non-working days used for leave and attendance calculations.
+          </p>
+        )}
         {canManage ? <HrAddFormButton onClick={() => setHolidayModalOpen(true)}>Add holiday</HrAddFormButton> : null}
       </div>
+
       <HrFormModal isOpen={holidayModalOpen} onClose={() => setHolidayModalOpen(false)} title="Add public holiday" size="sm">
         <form onSubmit={saveHoliday} className="space-y-3">
           <label className="text-xs font-semibold text-slate-600 block">
@@ -69,14 +88,17 @@ export function HrPublicHolidaysSection({ embedded = false }) {
           </button>
         </form>
       </HrFormModal>
-      {message ? <p className="text-sm text-emerald-800 mb-2">{message}</p> : null}
+
+      {message ? <div className="mb-3"><HrAlert tone="success">{message}</HrAlert></div> : null}
+
       {holidays.length === 0 ? (
         <p className="text-sm text-slate-500">No public holidays configured.</p>
       ) : (
-        <ul className="text-sm text-slate-700 space-y-1">
+        <ul className="mt-4 divide-y divide-slate-100 rounded-xl border border-slate-100">
           {holidays.map((h) => (
-            <li key={h.dayIso || h.id}>
-              {h.dayIso} — {h.label}
+            <li key={h.dayIso || h.id} className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 text-sm">
+              <span className="font-medium text-slate-800">{h.label}</span>
+              <span className="tabular-nums text-slate-500">{h.dayIso}</span>
             </li>
           ))}
         </ul>
@@ -84,7 +106,13 @@ export function HrPublicHolidaysSection({ embedded = false }) {
     </>
   );
 
-  if (embedded) return body;
+  if (embedded) {
+    return (
+      <HrCard title="Public holidays" subtitle="Non-working days for leave and attendance">
+        {body}
+      </HrCard>
+    );
+  }
   return <HrCard title="Public holidays">{body}</HrCard>;
 }
 
@@ -133,16 +161,16 @@ export function HrPensionPolicySection() {
       return;
     }
     setPolicy(data.policy);
-    setMessage('Pension and bonus rates saved. Recompute draft payroll runs to apply changes.');
+    setMessage('Rates saved. Recompute draft payroll runs to apply changes.');
   };
 
   return (
     <HrCard
       title="Pension & year-end bonus"
-      subtitle="Company-wide pension rates (HR Executive). Applied automatically to eligible branch staff on payroll. PAYE is a fixed monthly ₦ amount per staff profile."
+      subtitle="Company-wide rates applied to eligible branch staff on payroll. PAYE is set per staff profile."
     >
-      {error ? <div className="mb-3 rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-sm text-red-800">{error}</div> : null}
-      {message ? <div className="mb-3 rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-2 text-sm text-emerald-900">{message}</div> : null}
+      {error ? <div className="mb-3"><HrAlert tone="error">{error}</HrAlert></div> : null}
+      {message ? <div className="mb-3"><HrAlert tone="success">{message}</HrAlert></div> : null}
       <div className="grid gap-4 sm:grid-cols-3">
         <label className="text-xs font-semibold text-slate-600">
           Employee pension %
@@ -179,20 +207,21 @@ export function HrPensionPolicySection() {
             step="1"
             value={bonusRate}
             onChange={(e) => setBonusRate(e.target.value)}
-            className="mt-1 block w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
+            disabled={!canEditPension}
+            className="mt-1 block w-full rounded-xl border border-slate-200 px-3 py-2 text-sm disabled:bg-slate-50"
           />
         </label>
       </div>
       <p className="mt-3 text-xs text-slate-500">
-        Employer pension is an employer cost (not deducted from staff net pay). December runs auto-apply the year-end bonus.
+        Employer pension is an employer cost and is not deducted from net pay. December runs apply the year-end bonus automatically.
         {policy ? ` Current: ${policy.pensionEmployeePercent}% employee / ${policy.pensionEmployerPercent}% employer.` : ''}
-        {!canEditPension ? ' Pension rate changes require HR Executive access.' : ''}
+        {!canEditPension ? ' Pension changes require HR Executive access.' : ''}
       </p>
       <button
         type="button"
         onClick={save}
         disabled={saving || !canEditPension}
-        className="mt-4 rounded-xl bg-[#134e4a] px-4 py-2.5 text-[11px] font-bold uppercase text-white disabled:opacity-60"
+        className={`${HR_BTN_PRIMARY} mt-4`}
       >
         {saving ? 'Saving…' : canEditPension ? 'Save rates' : 'Executive access required'}
       </button>
@@ -200,102 +229,298 @@ export function HrPensionPolicySection() {
   );
 }
 
-/** Working hours + statutory reference cards from handbook. */
+/** Points to payroll, leave, and reports — kept for Leave hub embed; settings uses hrSettingsUi module links. */
+export function HrSettingsRelatedLinks() {
+  const links = [
+    {
+      label: 'Public holidays',
+      hint: 'Non-working days for leave and attendance',
+      to: hrTabPath(HR_LEAVE, 'holidays'),
+    },
+    {
+      label: 'Salary matrix',
+      hint: 'Level and step amounts by payroll group',
+      to: hrTabPath(HR_PAYROLL, 'salary-matrix'),
+    },
+    {
+      label: 'Pension & statutory reference',
+      hint: 'Pension rates, ITF/NSITF, and handbook schedules',
+      to: hrTabPath(HR_PAYROLL, 'statutory'),
+    },
+    {
+      label: 'PAYE & pension profiles',
+      hint: 'Individual staff tax and pension setup',
+      to: hrTabPath(HR_PAYROLL, 'tax-pension'),
+    },
+    {
+      label: 'HR reports',
+      hint: 'Exports, compliance packs, and salary variance',
+      to: hrTabPath(HR_DOCUMENTS, 'reports'),
+    },
+  ];
+
+  return (
+    <HrCard title="Configured elsewhere" subtitle="Day-to-day payroll, leave, and reporting tools live in their own modules">
+      <ul className="divide-y divide-slate-100 rounded-xl border border-slate-100">
+        {links.map((item) => (
+          <li key={item.to}>
+            <Link to={item.to} className="flex flex-col gap-0.5 px-4 py-3 hover:bg-slate-50/80 sm:flex-row sm:items-center sm:justify-between">
+              <span className="text-sm font-semibold text-[#134e4a]">{item.label}</span>
+              <span className="text-xs text-slate-500">{item.hint}</span>
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </HrCard>
+  );
+}
+
+/** Preview and run legacy above-matrix pay → payAdditionNgn backfill. */
+export function HrLegacyPayBackfillSection() {
+  const ws = useWorkspace();
+  const canManage = canManageHrSettings(ws?.permissions);
+  const [preview, setPreview] = useState(null);
+  const [busy, setBusy] = useState('');
+  const [message, setMessage] = useState('');
+  const [error, setError] = useState('');
+  const [autoDocument, setAutoDocument] = useState(true);
+
+  if (!canManage) return null;
+
+  const runPreview = async () => {
+    setBusy('preview');
+    setMessage('');
+    setError('');
+    setPreview(null);
+    const { ok, data } = await previewLegacyPayBackfill();
+    setBusy('');
+    if (ok && data?.ok) {
+      setPreview(data);
+    } else {
+      setError(data?.error || 'Preview failed.');
+    }
+  };
+
+  const runExecute = async () => {
+    if (!preview?.updatedCount && !window.confirm('No rows matched in preview. Run anyway?')) return;
+    setBusy('run');
+    setMessage('');
+    setError('');
+    const { ok, data } = await runLegacyPayBackfill({ autoDocument });
+    setBusy('');
+    if (ok && data?.ok) {
+      setPreview(data);
+      setMessage(`Backfill complete: ${data.updatedCount} profile(s) updated, ${data.skippedCount} skipped.`);
+    } else {
+      setError(data?.error || 'Backfill failed.');
+    }
+  };
+
+  return (
+    <HrCard
+      title="Legacy pay backfill"
+      subtitle="Convert inflated base pay into matrix + pay addition for staff already on level/step."
+    >
+      {error ? <div className="mb-3"><HrAlert tone="error">{error}</HrAlert></div> : null}
+      {message ? <div className="mb-3"><HrAlert tone="success">{message}</HrAlert></div> : null}
+      <p className="text-xs text-slate-600">
+        Run preview first. Staff who already have <code className="text-[11px]">payAdditionNgn</code> set are skipped.
+      </p>
+      <label className="mt-3 flex items-center gap-2 text-xs text-slate-700">
+        <input type="checkbox" checked={autoDocument} onChange={(e) => setAutoDocument(e.target.checked)} />
+        Auto-document variance as multi-role consolidation when missing
+      </label>
+      <div className="mt-4 flex flex-wrap gap-2">
+        <button type="button" className={HR_BTN_PRIMARY} disabled={Boolean(busy)} onClick={runPreview}>
+          {busy === 'preview' ? 'Previewing…' : 'Preview backfill'}
+        </button>
+        <button
+          type="button"
+          className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-2 text-sm font-semibold text-amber-950 hover:bg-amber-100 disabled:opacity-60"
+          disabled={Boolean(busy) || !preview}
+          onClick={runExecute}
+        >
+          {busy === 'run' ? 'Running…' : 'Run backfill'}
+        </button>
+      </div>
+      {preview ? (
+        <div className="mt-4 rounded-xl border border-slate-100 bg-slate-50/80 p-3 text-xs text-slate-700">
+          <p>
+            Scanned {preview.scanned} · Would update {preview.updatedCount} · Skip {preview.skippedCount}
+            {preview.dryRun === false ? ' (executed)' : ' (preview only)'}
+          </p>
+          {(preview.updated || []).slice(0, 8).map((u) => (
+            <p key={u.userId} className="mt-1 tabular-nums">
+              {u.displayName}: addition ₦{(u.payAdditionNgn || 0).toLocaleString()} (was ₦{(u.previousTotalNgn || 0).toLocaleString()} total)
+            </p>
+          ))}
+          {(preview.updated || []).length > 8 ? (
+            <p className="mt-1 text-slate-500">+ {(preview.updated || []).length - 8} more</p>
+          ) : null}
+        </div>
+      ) : null}
+    </HrCard>
+  );
+}
+
+/** Points HR admins to bulk staff import with org/comp columns. */
+export function HrStaffImportGuideSection() {
+  const ws = useWorkspace();
+  const canManage = canManageHrSettings(ws?.permissions);
+  if (!canManage) return null;
+
+  return (
+    <HrCard
+      title="Import live staff"
+      subtitle="Bulk register existing employees, then complete profiles in the directory."
+    >
+      <p className="text-sm text-slate-600">
+        Use <strong>HR → Employees → Bulk Register Staff</strong> to upload the Excel template. Optional columns now
+        support designation code (e.g. HOA), payroll group, salary level/step, pay addition, and variance notes.
+      </p>
+      <Link
+        to="/hr/employees"
+        className={`${HR_BTN_PRIMARY} mt-4 inline-flex`}
+      >
+        Open staff directory
+      </Link>
+    </HrCard>
+  );
+}
+
+/** Initial org setup — shown when no departments exist; reload tucked in details after setup. */
+export function HrOrgCatalogSection() {
+  const ws = useWorkspace();
+  const canManage = canManageHrSettings(ws?.permissions);
+  const [seedBusy, setSeedBusy] = useState(false);
+  const [demoBusy, setDemoBusy] = useState(false);
+  const [message, setMessage] = useState('');
+  const [error, setError] = useState('');
+  const [departmentCount, setDepartmentCount] = useState(null);
+
+  useHrListLoad(async () => {
+    const { ok, data } = await fetchHrDepartments(true);
+    if (ok && data?.ok) {
+      setDepartmentCount((data.departments || []).length);
+    }
+    return { hasData: true };
+  }, []);
+
+  if (!canManage) return null;
+
+  const runOrgSeed = async () => {
+    setSeedBusy(true);
+    setMessage('');
+    setError('');
+    const { ok, data } = await seedZarewaOrgStandard();
+    setSeedBusy(false);
+    if (ok && data?.ok) {
+      setDepartmentCount(Math.max(departmentCount || 0, data.departmentsUpserted || 1));
+      setMessage(
+        `Catalog loaded: ${data.departmentsUpserted} departments, ${data.designationsUpserted} designations, ${data.matrixUpserted} salary matrix rows.`
+      );
+    } else {
+      setError(data?.error || 'Could not load organization catalog.');
+    }
+  };
+
+  const runDemoProfileSeed = async () => {
+    setDemoBusy(true);
+    setMessage('');
+    setError('');
+    const { ok, data } = await seedDemoMultiRoleProfile();
+    setDemoBusy(false);
+    if (ok && data?.ok) {
+      setMessage('Demo multi-role profile applied. Open the staff profile to review.');
+    } else {
+      setError(data?.error || 'Could not apply demo profile.');
+    }
+  };
+
+  const seedControls = (
+    <>
+      {error ? <div className="mb-3"><HrAlert tone="error">{error}</HrAlert></div> : null}
+      {message ? <div className="mb-3"><HrAlert tone="success">{message}</HrAlert></div> : null}
+      <button type="button" className={HR_BTN_PRIMARY} disabled={seedBusy} onClick={runOrgSeed}>
+        {seedBusy ? 'Loading catalog…' : 'Load standard catalog'}
+      </button>
+      <button
+        type="button"
+        className="mt-3 rounded-xl border border-violet-200 bg-violet-50 px-4 py-2 text-sm font-semibold text-violet-900 hover:bg-violet-100 disabled:opacity-60"
+        disabled={demoBusy}
+        onClick={runDemoProfileSeed}
+      >
+        {demoBusy ? 'Applying demo profile…' : 'Apply demo multi-role profile'}
+      </button>
+    </>
+  );
+
+  if (departmentCount === 0) {
+    return (
+      <HrCard
+        title="Set up organization structure"
+        subtitle="Start with the standard Zarewa department and job title catalog, then adjust as needed."
+      >
+        {seedControls}
+      </HrCard>
+    );
+  }
+
+  if (departmentCount == null) return null;
+
+  return (
+    <details className="rounded-2xl border border-slate-100 bg-white shadow-sm">
+      <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-slate-700 sm:px-5">
+        Advanced: reload standard catalog
+      </summary>
+      <div className="border-t border-slate-50 px-4 pb-4 pt-3 sm:px-5">
+        <p className="mb-3 text-xs text-slate-500">
+          Re-imports master departments, designations, and salary matrix levels. Existing records are updated safely.
+        </p>
+        {seedControls}
+      </div>
+    </details>
+  );
+}
+
+/** Pension, working hours, and statutory reference — used in Payroll hub. */
 export function HrPolicyConfigSection() {
   return (
     <div className="space-y-6">
       <HrPensionPolicySection />
-      <HrCard title="Working hours policy" subtitle="Reference only — set by company handbook">
-        <div className="grid gap-2 sm:grid-cols-2">
-          <div className="rounded-xl border border-slate-200 bg-white p-3">
-            <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1">Monday – Friday</p>
-            <p className="font-semibold">8:00 AM – 5:00 PM</p>
-            <p className="text-xs text-slate-500">9 hours · 1 hr lunch break</p>
-          </div>
-          <div className="rounded-xl border border-slate-200 bg-white p-3">
-            <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1">Saturday</p>
-            <p className="font-semibold">9:00 AM – 4:00 PM</p>
-            <p className="text-xs text-slate-500">7 hours</p>
-          </div>
-          <div className="rounded-xl border border-slate-200 bg-white p-3">
-            <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1">Overtime</p>
-            <p className="text-xs text-slate-600">Applies beyond 9 hrs Mon–Fri or 7 hrs Saturday (Phase 2 workflow)</p>
-          </div>
-          <div className="rounded-xl border border-slate-200 bg-white p-3">
-            <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1">Salary payment day</p>
-            <p className="font-semibold">25th of each month</p>
-          </div>
+
+      <HrCard title="Working hours" subtitle="Reference schedule from the company handbook">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <PolicyMetric label="Monday – Friday" value="8:00 AM – 5:00 PM" detail="9 hours incl. 1 hr lunch" />
+          <PolicyMetric label="Saturday" value="9:00 AM – 4:00 PM" detail="7 hours" />
+          <PolicyMetric label="Salary payment day" value="25th of each month" />
         </div>
       </HrCard>
-      <HrCard title="Statutory deductions" subtitle="Employer costs — fixed by law">
+
+      <HrCard title="Statutory employer costs" subtitle="Fixed by law — not configurable in this screen">
         <div className="grid gap-3 sm:grid-cols-2">
-          <div className="rounded-xl border border-amber-100 bg-amber-50/60 p-3">
-            <p className="text-[10px] font-black uppercase tracking-widest text-amber-700 mb-1">ITF</p>
-            <p className="text-sm font-semibold text-slate-800">1% of gross payroll</p>
-          </div>
-          <div className="rounded-xl border border-amber-100 bg-amber-50/60 p-3">
-            <p className="text-[10px] font-black uppercase tracking-widest text-amber-700 mb-1">NSITF</p>
-            <p className="text-sm font-semibold text-slate-800">1% of gross payroll</p>
-          </div>
-          <div className="rounded-xl border border-slate-200 bg-white p-3 sm:col-span-2">
-            <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1">NHIS</p>
-            <p className="text-xs text-slate-600">Optional — configure per staff in their profile.</p>
+          <PolicyMetric
+            label="ITF (Industrial Training Fund)"
+            value="1% of gross payroll"
+            detail="Employer cost · paid to ITF"
+          />
+          <PolicyMetric
+            label="NSITF (Social Insurance Trust Fund)"
+            value="1% of gross payroll"
+            detail="Employer cost · paid to NSITF"
+          />
+          <div className="sm:col-span-2">
+            <PolicyMetric
+              label="NHIS (health insurance)"
+              value="Optional per staff"
+              detail="Configure on individual staff profiles; deductions appear on payslips."
+            />
           </div>
         </div>
+        <p className="mt-4 text-xs text-slate-500">
+          ITF and NSITF are employer costs included in statutory export packs. They are not deducted from staff salaries.
+        </p>
       </HrCard>
     </div>
-  );
-}
-
-/** Module health probe from /api/hr/health */
-export function HrModuleHealthSection() {
-  const [health, setHealth] = useState(null);
-  const [error, setError] = useState('');
-
-  useHrListLoad(async () => {
-    const { ok, data } = await apiFetch('/api/hr/health');
-    if (!ok || !data?.ok) {
-      setHealth(null);
-      setError(data?.error || 'Could not load module health.');
-      return { error: data?.error, hasData: false };
-    }
-    setHealth(data);
-    setError('');
-    return { hasData: true };
-  }, []);
-
-  if (error) {
-    return <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-800">{error}</div>;
-  }
-  if (!health) return <p className="text-sm text-slate-600">Loading module health…</p>;
-
-  const modules = health.modules || {};
-  return (
-    <HrCard title="Module health" subtitle="Schema readiness from /api/hr/health">
-      <p className="text-sm font-semibold text-slate-800 mb-2">
-        Production ready:{' '}
-        <span className={health.productionReady ? 'text-emerald-700' : 'text-amber-700'}>
-          {health.productionReady ? 'Yes' : 'No'}
-        </span>
-      </p>
-      <ul className="text-sm text-slate-700 space-y-1">
-        {Object.entries(modules).map(([key, ready]) => (
-          <li key={key} className="flex items-center gap-2">
-            <span className={ready ? 'text-emerald-600' : 'text-red-600'} aria-hidden>{ready ? '✓' : '✗'}</span>
-            <span className="capitalize">{key.replace(/_/g, ' ')}</span>
-          </li>
-        ))}
-      </ul>
-      {Array.isArray(health.blockers) && health.blockers.length > 0 ? (
-        <div className="mt-4 rounded-xl border border-amber-100 bg-amber-50 px-3 py-2 text-xs text-amber-950">
-          <p className="font-bold mb-1">Blockers</p>
-          <ul className="list-disc pl-4 space-y-0.5">
-            {health.blockers.map((b) => (
-              <li key={b}>{b}</li>
-            ))}
-          </ul>
-        </div>
-      ) : null}
-    </HrCard>
   );
 }

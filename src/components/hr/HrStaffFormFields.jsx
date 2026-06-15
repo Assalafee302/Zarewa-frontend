@@ -12,7 +12,11 @@ import {
   HR_STAFF_FORM_TABS,
 } from '../../lib/hrStaffFormMeta';
 import { fetchHrDepartments, fetchHrDesignations } from '../../lib/hrMasterData';
+import { fetchMatrixCompensationLookup } from '../../lib/hrCompensation';
+import { formatNgn } from '../../lib/hrFormat';
+import { HrCompensationExtrasPanel } from './HrCompensationExtrasPanel';
 import { HrManagerPicker } from './HrManagerPicker';
+import { FAMILY_BENEFITS } from '../../lib/familyBenefitsUi';
 import { apiFetch } from '../../lib/apiBase';
 import { isBranchEmployee } from '../../shared/hrStaffCohorts';
 
@@ -60,6 +64,8 @@ export function HrStaffFormFields({
   const [departments, setDepartments] = useState([]);
   const [designations, setDesignations] = useState([]);
   const [masterLoading, setMasterLoading] = useState(true);
+  const [matrixPreview, setMatrixPreview] = useState(null);
+  const [matrixBusy, setMatrixBusy] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -131,17 +137,105 @@ export function HrStaffFormFields({
     }));
   };
 
-  const onDesignationChange = (desId) => {
+  const onDesignationChange = async (desId) => {
     const des = designations.find((d) => d.id === desId);
+    const nextLevel = des?.defaultSalaryLevel != null ? String(des.defaultSalaryLevel) : form.salaryLevel;
+    const nextStep = des?.defaultSalaryStep != null ? String(des.defaultSalaryStep) : form.salaryStep || '1';
     setForm((f) => ({
       ...f,
       designationId: desId || '',
       jobTitle: des?.title || f.jobTitle,
-      promotionGrade: des?.seniorityBand || f.promotionGrade,
-      salaryLevel: des?.defaultSalaryLevel != null ? String(des.defaultSalaryLevel) : f.salaryLevel,
-      salaryStep: des?.defaultSalaryStep != null ? String(des.defaultSalaryStep) : f.salaryStep,
+      promotionGrade: des?.gradeCategory || des?.seniorityBand || f.promotionGrade,
+      salaryLevel: nextLevel,
+      salaryStep: nextStep,
+      payAdditionNgn: '',
+      applyMatrixPay: true,
       jobDescriptionPreview: des?.jobDescription || '',
     }));
+    if (!desId || !nextLevel) {
+      setMatrixPreview(null);
+      return;
+    }
+    setMatrixBusy(true);
+    const { ok, data } = await fetchMatrixCompensationLookup({
+      payrollGroup: form.payrollGroup || 'branch_ops',
+      salaryLevel: nextLevel,
+      salaryStep: nextStep,
+    });
+    setMatrixBusy(false);
+    if (ok && data?.ok) {
+      setMatrixPreview(data);
+      setForm((f) => ({
+        ...f,
+        baseSalaryNgn: String(data.matrix.baseSalaryNgn ?? ''),
+        housingAllowanceNgn: String(data.matrix.housingAllowanceNgn ?? ''),
+        transportAllowanceNgn: String(data.matrix.transportAllowanceNgn ?? ''),
+        payAdditionNgn: '',
+        applyMatrixPay: true,
+      }));
+    }
+  };
+
+  const refreshMatrixPreview = async (level, step, payrollGroup) => {
+    if (!level) {
+      setMatrixPreview(null);
+      return null;
+    }
+    setMatrixBusy(true);
+    const { ok, data } = await fetchMatrixCompensationLookup({
+      payrollGroup: payrollGroup || 'branch_ops',
+      salaryLevel: level,
+      salaryStep: step || 1,
+    });
+    setMatrixBusy(false);
+    if (ok && data?.ok) {
+      setMatrixPreview(data);
+      return data;
+    }
+    setMatrixPreview(null);
+    return null;
+  };
+
+  useEffect(() => {
+    if (!showCompensation || activeTab !== 'payroll' || !form.salaryLevel) return;
+    let cancelled = false;
+    (async () => {
+      const data = await refreshMatrixPreview(form.salaryLevel, form.salaryStep || 1, form.payrollGroup);
+      if (cancelled || !data?.matrix) return;
+      setForm((f) => ({
+        ...f,
+        baseSalaryNgn: String(data.matrix.baseSalaryNgn ?? f.baseSalaryNgn ?? ''),
+        housingAllowanceNgn: String(data.matrix.housingAllowanceNgn ?? f.housingAllowanceNgn ?? ''),
+        transportAllowanceNgn: String(data.matrix.transportAllowanceNgn ?? f.transportAllowanceNgn ?? ''),
+      }));
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [form.salaryLevel, form.salaryStep, form.payrollGroup, showCompensation, activeTab, setForm]);
+
+  const payAdditionNgn = Number(form.payAdditionNgn) || 0;
+  const matrixComponentTotal =
+    matrixPreview?.totalNgn ??
+    (Number(form.baseSalaryNgn) || 0) +
+      (Number(form.housingAllowanceNgn) || 0) +
+      (Number(form.transportAllowanceNgn) || 0) -
+      payAdditionNgn;
+  const actualPayTotal = matrixComponentTotal + payAdditionNgn;
+
+  const applyMatrixPay = async () => {
+    if (!form.salaryLevel) return;
+    const data = await refreshMatrixPreview(form.salaryLevel, form.salaryStep || 1, form.payrollGroup);
+    if (data?.matrix) {
+      setForm((f) => ({
+        ...f,
+        baseSalaryNgn: String(data.matrix.baseSalaryNgn ?? ''),
+        housingAllowanceNgn: String(data.matrix.housingAllowanceNgn ?? ''),
+        transportAllowanceNgn: String(data.matrix.transportAllowanceNgn ?? ''),
+        payAdditionNgn: '',
+        applyMatrixPay: true,
+      }));
+    }
   };
 
   return (
@@ -471,6 +565,79 @@ export function HrStaffFormFields({
                 ))}
               </select>
             </Field>
+            {form.payrollGroup === 'scholarship' ? (
+              <div className="sm:col-span-2 rounded-2xl border border-violet-100 bg-violet-50/40 p-4 space-y-3">
+                <p className="text-xs font-black uppercase tracking-wide text-violet-800">{FAMILY_BENEFITS.staffFormSection}</p>
+                <p className="text-xs text-violet-900/80">
+                  Link the executive benefits record so payments and self-service stay in sync.
+                </p>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <Field label="Benefits beneficiary ID" hint="From Chairman Accounts → Beneficiaries (e.g. EXBEN-…).">
+                    <input
+                      className={fieldCls}
+                      value={form.schoolBeneficiaryId || ''}
+                      onChange={(e) => set('schoolBeneficiaryId', e.target.value)}
+                      placeholder="EXBEN-…"
+                    />
+                  </Field>
+                  <Field label="School name">
+                    <input
+                      className={fieldCls}
+                      value={form.schoolNameProfile || ''}
+                      onChange={(e) => set('schoolNameProfile', e.target.value)}
+                    />
+                  </Field>
+                  <Field label="Class / level">
+                    <input
+                      className={fieldCls}
+                      value={form.schoolClassLevel || ''}
+                      onChange={(e) => set('schoolClassLevel', e.target.value)}
+                    />
+                  </Field>
+                  <Field label="Academic session">
+                    <input
+                      className={fieldCls}
+                      value={form.schoolAcademicSession || ''}
+                      onChange={(e) => set('schoolAcademicSession', e.target.value)}
+                      placeholder="2025/2026"
+                    />
+                  </Field>
+                  <Field label="Current term">
+                    <input
+                      className={fieldCls}
+                      value={form.schoolCurrentTerm || ''}
+                      onChange={(e) => set('schoolCurrentTerm', e.target.value)}
+                      placeholder="Term 1"
+                    />
+                  </Field>
+                  <Field label="Term school fees (₦)">
+                    <input
+                      type="number"
+                      min={0}
+                      className={fieldCls}
+                      value={form.schoolFeesNgnProfile || ''}
+                      onChange={(e) => set('schoolFeesNgnProfile', e.target.value)}
+                    />
+                  </Field>
+                  <Field label="Term starts">
+                    <input
+                      type="date"
+                      className={fieldCls}
+                      value={form.schoolTermStartIso || ''}
+                      onChange={(e) => set('schoolTermStartIso', e.target.value)}
+                    />
+                  </Field>
+                  <Field label="Term ends">
+                    <input
+                      type="date"
+                      className={fieldCls}
+                      value={form.schoolTermEndIso || ''}
+                      onChange={(e) => set('schoolTermEndIso', e.target.value)}
+                    />
+                  </Field>
+                </div>
+              </div>
+            ) : null}
             <Field label="Senior / junior band">
               <input
                 className={fieldCls}
@@ -488,41 +655,48 @@ export function HrStaffFormFields({
                 onChange={(e) => set('salaryLevel', e.target.value)}
               />
             </Field>
-            <Field label="Salary step">
+            <Field label="Salary step" hint="Step 1 = entry · 2 = experienced · 3 = long service">
               <input
                 type="number"
                 min={1}
+                max={3}
                 className={fieldCls}
                 value={form.salaryStep}
                 onChange={(e) => set('salaryStep', e.target.value)}
               />
             </Field>
-            <Field label="Base salary (₦ / month)">
+            <div className="sm:col-span-2 rounded-2xl border border-slate-200 bg-white p-4 space-y-3">
+              <p className="text-xs font-black uppercase tracking-wide text-[#134e4a]">Standard matrix pay</p>
+              <div className="grid gap-3 sm:grid-cols-3 text-xs">
+                <div>
+                  <span className="text-slate-500">Base</span>
+                  <p className="font-semibold tabular-nums text-slate-800">{formatNgn(matrixPreview?.matrix?.baseSalaryNgn ?? form.baseSalaryNgn)}</p>
+                </div>
+                <div>
+                  <span className="text-slate-500">Housing</span>
+                  <p className="font-semibold tabular-nums text-slate-800">{formatNgn(matrixPreview?.matrix?.housingAllowanceNgn ?? form.housingAllowanceNgn)}</p>
+                </div>
+                <div>
+                  <span className="text-slate-500">Transport</span>
+                  <p className="font-semibold tabular-nums text-slate-800">{formatNgn(matrixPreview?.matrix?.transportAllowanceNgn ?? form.transportAllowanceNgn)}</p>
+                </div>
+              </div>
+              <p className="text-xs text-slate-600">
+                Matrix total: <span className="font-bold tabular-nums">{formatNgn(matrixComponentTotal)}</span>
+              </p>
+            </div>
+            <Field label="Pay addition (₦ / month)" hint="Manual top-up above matrix — multi-role, director emolument, retention, etc. Leave blank if on matrix only.">
               <input
                 type="number"
                 min={0}
                 className={fieldCls}
-                value={form.baseSalaryNgn}
-                onChange={(e) => set('baseSalaryNgn', e.target.value)}
+                value={form.payAdditionNgn}
+                onChange={(e) => set('payAdditionNgn', e.target.value)}
+                placeholder="0"
               />
             </Field>
-            <Field label="Housing allowance (₦)">
-              <input
-                type="number"
-                min={0}
-                className={fieldCls}
-                value={form.housingAllowanceNgn}
-                onChange={(e) => set('housingAllowanceNgn', e.target.value)}
-              />
-            </Field>
-            <Field label="Transport allowance (₦)">
-              <input
-                type="number"
-                min={0}
-                className={fieldCls}
-                value={form.transportAllowanceNgn}
-                onChange={(e) => set('transportAllowanceNgn', e.target.value)}
-              />
+            <Field label="Actual monthly pay (computed)">
+              <input className={`${fieldCls} bg-slate-50 font-semibold tabular-nums`} readOnly value={formatNgn(actualPayTotal)} />
             </Field>
             <Field label="Salary status">
               <select className={fieldCls} value={form.salaryStatus || 'active'} onChange={(e) => set('salaryStatus', e.target.value)}>
@@ -541,6 +715,17 @@ export function HrStaffFormFields({
               />
             </Field>
           </div>
+          <HrCompensationExtrasPanel
+            form={form}
+            setForm={setForm}
+            branches={branches}
+            designations={designations}
+            matrixPreview={matrixPreview}
+            matrixComponentTotal={matrixComponentTotal}
+            actualPayTotal={actualPayTotal}
+            onApplyMatrix={applyMatrixPay}
+            matrixBusy={matrixBusy}
+          />
         </section>
       ) : null}
 
@@ -605,7 +790,7 @@ export function HrStaffFormFields({
             <p className="mt-1 text-xs text-slate-500">
               {isBranchEmployee(form.payrollGroup)
                 ? 'Monthly PAYE deduction (₦) is entered manually per staff. Pension is deducted from payroll using company policy rates for eligible branch staff.'
-                : 'Domestic, scholarship, mining, and HQ special staff are not on branch payroll — no PAYE or pension deductions.'}
+                : 'Domestic, executive family, mining, and HQ special staff are not on branch payroll — no PAYE or pension deductions.'}
             </p>
           </div>
           <div className="grid gap-4 sm:grid-cols-2">

@@ -136,7 +136,7 @@ function CompensationTab({ staff, showSensitiveInline }) {
           rows={[
             {
               label: 'Pay channel',
-              value: ebp.payChannel === 'executive_stipend' ? 'Monthly stipend' : 'Domestic monthly salary',
+              value: ebp.payChannel === 'executive_stipend' ? 'Monthly allowance' : 'Domestic monthly salary',
             },
             {
               label: 'Linked in Executive benefits',
@@ -168,7 +168,7 @@ function CompensationTab({ staff, showSensitiveInline }) {
             <Link to={ebp.managePath || '/executive-hr/benefits'} className="font-bold text-[#134e4a] underline">
               Executive benefits
             </Link>
-            {ebp.payChannel === 'executive_stipend' ? ' → Monthly Stipends' : ' → Domestic Staff'}.
+            {ebp.payChannel === 'executive_stipend' ? ' → Monthly allowances' : ' → Domestic Staff'}.
           </p>
         </div>
       ) : null}
@@ -200,6 +200,61 @@ function CompensationTab({ staff, showSensitiveInline }) {
             label: 'Transport allowance',
             value: staff?.compensationRedacted ? 'Hidden' : formatNgn(staff?.transportAllowanceNgn),
           },
+          {
+            label: 'Standard matrix total',
+            value: staff?.compensationRedacted
+              ? 'Hidden'
+              : staff?.compensation?.matrixTotalNgn != null
+                ? formatNgn(staff.compensation.matrixTotalNgn)
+                : '—',
+          },
+          {
+            label: 'Pay addition',
+            value: staff?.compensationRedacted
+              ? 'Hidden'
+              : staff?.compensation?.payAdditionNgn > 0
+                ? formatNgn(staff.compensation.payAdditionNgn)
+                : '—',
+          },
+          {
+            label: 'Actual monthly pay',
+            value: staff?.compensationRedacted
+              ? 'Hidden'
+              : formatNgn(
+                  (Number(staff?.baseSalaryNgn) || 0) +
+                    (Number(staff?.housingAllowanceNgn) || 0) +
+                    (Number(staff?.transportAllowanceNgn) || 0)
+                ),
+          },
+          {
+            label: 'Pay vs matrix',
+            value: staff?.compensationRedacted
+              ? 'Hidden'
+              : staff?.compensation?.aboveMatrix
+                ? `+${formatNgn(staff.compensation.varianceNgn)} (${staff.profileExtra?.compensationVariance?.type || 'undocumented'})`
+                : 'On matrix',
+          },
+          ...(staff?.profileExtra?.employmentMeta?.corporateTitle
+            ? [
+                {
+                  label: 'Corporate title',
+                  value: staff.profileExtra.employmentMeta.corporateTitle,
+                },
+              ]
+            : []),
+          ...(Array.isArray(staff?.compensation?.mergedOffices) && staff.compensation.mergedOffices.length
+            ? [
+                {
+                  label: 'Merged desks',
+                  value: staff.compensation.mergedOffices
+                    .map(
+                      (o) =>
+                        `${o.role || o.label || 'Desk'}${o.label && o.role !== o.label ? '' : ''}${o.branchId ? ` · ${o.branchId}` : ''}${o.acting ? ' (acting)' : o.primary ? ' (primary)' : ''}`
+                    )
+                    .join('; '),
+                },
+              ]
+            : []),
           {
             label: 'Salary status',
             value: staff?.profileExtra?.employmentMeta?.salaryStatus || 'active',

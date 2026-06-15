@@ -119,6 +119,7 @@ export function HrBulkStaffImportModal({ open, onClose, onImported }) {
         <p className="text-sm text-slate-600">
           Upload the full staff list. Blank or invalid cells are ignored. Each new person gets login{' '}
           <strong>surname.employee-id</strong> with password <strong>Zarewa@123</strong> (change on first login).
+          Optional org/comp columns: designation code, payroll group, salary level/step, pay addition, variance type/notes.
         </p>
 
         <fieldset className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-3 space-y-2">

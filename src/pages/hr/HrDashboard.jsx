@@ -1,12 +1,27 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { apiFetch } from '../../lib/apiBase';
+import { useWorkspace } from '../../context/WorkspaceContext';
 import { useHrListLoad } from '../../hooks/useHrListLoad';
 import { hrRequestStatusClass } from '../../lib/hrFormat';
-import { HR_ATTENDANCE, HR_DEVELOPMENT, HR_DISCIPLINE_EXIT, HR_DOCUMENTS, HR_EMPLOYEES, HR_PAYROLL, HR_REQUESTS, hrTabPath } from '../../lib/hrRoutes';
+import { canManageHrSettings, canViewHrReports } from '../../lib/hrAccess';
+import {
+  getHrDashboardIntro,
+  getHrDashboardOverviewKpis,
+  getHrDashboardQuickActions,
+  getHrDashboardQueueLines,
+} from '../../lib/hrDashboardUi';
+import { HR_ATTENDANCE, HR_DEVELOPMENT, HR_DISCIPLINE_EXIT, HR_DOCUMENTS, HR_EMPLOYEES, HR_SETTINGS, hrTabPath } from '../../lib/hrRoutes';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { HrKpiCard } from '../../components/hr/HrKpiCard';
+import { HrOperationalReadinessPanel } from '../../components/hr/HrOperationalReadinessPanel';
+import { HrPageBody, HrPageIntro } from '../../components/hr/hrPageUi';
 import { HrProfileWorkPanel } from '../../components/hr/HrProfileWorkPanel';
+import {
+  ProfileInlineAlert,
+  ProfileMetricSkeleton,
+  ProfileOverviewSection,
+} from '../../components/profile/profileOverviewUi';
 import {
   AppTable,
   AppTableBody,
@@ -164,21 +179,6 @@ const ACTION_ALERT_CONFIGS = [
     ),
   },
   {
-    key: 'overtimeAwaitingApproval',
-    icon: '⏱',
-    title: 'Overtime — Awaiting Approval',
-    borderCls: 'border-blue-400',
-    badgeCls: 'bg-blue-100 text-blue-900',
-    linkTo: hrTabPath(HR_ATTENDANCE, 'overtime'),
-    countLabel: (n) => `${n} overtime request${n !== 1 ? 's' : ''} pending approval`,
-    renderItem: (item, i) => (
-      <li key={i} className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-700 py-1 border-b border-slate-100 last:border-0">
-        <span><strong>{item.staffDisplayName || item.displayName || 'Staff'}</strong></span>
-        <span className="font-mono text-slate-500">{item.overtimeDateIso?.slice(0, 10) || item.status}</span>
-      </li>
-    ),
-  },
-  {
     key: 'exitClearancePending',
     icon: '🚪',
     title: 'Exit Clearance Pending',
@@ -256,6 +256,97 @@ const ACTION_ALERT_CONFIGS = [
       </li>
     ),
   },
+  {
+    key: 'actingRoleAlerts',
+    icon: '🎭',
+    title: 'Acting Roles — Review Required',
+    borderCls: 'border-fuchsia-400',
+    badgeCls: 'bg-fuchsia-100 text-fuchsia-900',
+    countLabel: (n) => `${n} acting role${n !== 1 ? 's' : ''} expiring, overdue, or missing end date`,
+    renderItem: (item, i) => {
+      const label =
+        item.alertType === 'acting_role_overdue'
+          ? 'Overdue'
+          : item.alertType === 'acting_role_missing_end'
+            ? 'No end date'
+            : item.daysRemaining != null
+              ? `${item.daysRemaining} day${item.daysRemaining !== 1 ? 's' : ''} left`
+              : 'Expiring soon';
+      return (
+        <li key={i} className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-700 py-1 border-b border-slate-100 last:border-0">
+          <span>
+            <strong>{item.displayName || 'Staff'}</strong>
+            {item.roleTitle ? ` — ${item.roleTitle}` : ''}
+            {item.roleBranchId ? ` · ${item.roleBranchId}` : ''}
+          </span>
+          <span className="flex items-center gap-2">
+            <span className={`font-mono ${item.alertType === 'acting_role_overdue' ? 'text-red-700 font-semibold' : 'text-fuchsia-800'}`}>
+              {item.endDateIso || label}
+            </span>
+            {item.userId ? (
+              <Link to={`${HR_EMPLOYEES}/${encodeURIComponent(item.userId)}`} className="text-[#134e4a] font-bold hover:underline">
+                Update →
+              </Link>
+            ) : null}
+          </span>
+        </li>
+      );
+    },
+  },
+  {
+    key: 'compensationReviewDue',
+    icon: '💰',
+    title: 'Compensation Review Due',
+    borderCls: 'border-yellow-500',
+    badgeCls: 'bg-yellow-100 text-yellow-900',
+    linkTo: HR_SETTINGS,
+    countLabel: (n) => `${n} above-matrix pay review${n !== 1 ? 's' : ''} due or overdue`,
+    renderItem: (item, i) => (
+      <li key={i} className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-700 py-1 border-b border-slate-100 last:border-0">
+        <span>
+          <strong>{item.displayName || 'Staff'}</strong>
+          {item.varianceType ? ` — ${String(item.varianceType).replace(/_/g, ' ')}` : ''}
+        </span>
+        <span className="flex items-center gap-2">
+          <span className={`font-mono ${item.daysRemaining != null && item.daysRemaining < 0 ? 'text-red-700 font-semibold' : 'text-yellow-800'}`}>
+            {item.reviewDueIso || '—'}
+          </span>
+          {item.userId ? (
+            <Link to={`${HR_EMPLOYEES}/${encodeURIComponent(item.userId)}`} className="text-[#134e4a] font-bold hover:underline">
+              Review →
+            </Link>
+          ) : null}
+        </span>
+      </li>
+    ),
+  },
+  {
+    key: 'undocumentedCompensationVariance',
+    icon: '📝',
+    title: 'Above-Matrix Pay — Undocumented',
+    borderCls: 'border-orange-500',
+    badgeCls: 'bg-orange-100 text-orange-900',
+    linkTo: HR_SETTINGS,
+    countLabel: (n) => `${n} staff with pay above matrix but no variance documentation`,
+    renderItem: (item, i) => (
+      <li key={i} className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-700 py-1 border-b border-slate-100 last:border-0">
+        <span>
+          <strong>{item.displayName || 'Staff'}</strong>
+          {item.jobTitle ? ` — ${item.jobTitle}` : ''}
+        </span>
+        <span className="flex items-center gap-2">
+          {item.varianceNgn != null ? (
+            <span className="font-mono text-orange-800">+₦{Number(item.varianceNgn).toLocaleString()}</span>
+          ) : null}
+          {item.userId ? (
+            <Link to={`${HR_EMPLOYEES}/${encodeURIComponent(item.userId)}`} className="text-[#134e4a] font-bold hover:underline">
+              Document →
+            </Link>
+          ) : null}
+        </span>
+      </li>
+    ),
+  },
 ];
 
 function AlertCard({ cfg, items }) {
@@ -328,6 +419,9 @@ function ActionAlertCard({ cfg, items }) {
 }
 
 export default function HrDashboard() {
+  const ws = useWorkspace();
+  const permissions = ws?.permissions || [];
+  const roleKey = ws?.session?.user?.roleKey;
   const [obs, setObs] = useState(null);
   const [inbox, setInbox] = useState(null);
   const [staffCounts, setStaffCounts] = useState(null);
@@ -363,142 +457,115 @@ export default function HrDashboard() {
   }, []);
 
   if (loading && !obs) {
-    return <p className="text-sm text-slate-600">Loading HR dashboard…</p>;
+    return (
+      <HrPageBody>
+        <ProfileMetricSkeleton count={4} />
+      </HrPageBody>
+    );
   }
 
   if (error) {
     return (
-      <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-800">{error}</div>
+      <HrPageBody>
+        <ProfileInlineAlert variant="error">{error}</ProfileInlineAlert>
+      </HrPageBody>
     );
   }
 
   const summary = obs?.summary || {};
   const counts = inbox?.counts || {};
   const staff = staffCounts || {};
+  const intro = getHrDashboardIntro(roleKey, permissions);
+  const overviewKpis = getHrDashboardOverviewKpis({ counts, summary, staff, alerts, permissions });
+  const queueLines = getHrDashboardQueueLines(counts, summary, permissions);
+  const quickActions = getHrDashboardQuickActions(permissions);
+  const showDataQuality = canManageHrSettings(permissions) || canViewHrReports(permissions);
 
   return (
-    <div className="space-y-8">
-      <section>
-        <h2 className="text-[11px] font-black uppercase tracking-widest text-slate-500">Overview</h2>
-        <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <Link to={HR_EMPLOYEES} className="block"><HrKpiCard label="Active staff" value={staff.active ?? summary.activeStaff ?? '—'} tone="teal" /></Link>
-          <Link to={HR_EMPLOYEES} className="block">
-            <HrKpiCard
-              label="On probation"
-              value={staff.onProbation ?? alerts?.probationEnding?.length ?? 0}
-              tone={Number(staff.onProbation ?? alerts?.probationEnding?.length ?? 0) > 0 ? 'amber' : 'default'}
-            />
-          </Link>
-          <Link to={HR_REQUESTS} className="block">
-            <HrKpiCard
-              label="Pending requests"
-              value={counts.pendingHrReview ?? summary.pendingHrReview ?? 0}
-              tone={Number(counts.pendingHrReview ?? summary.pendingHrReview) > 0 ? 'amber' : 'default'}
-            />
-          </Link>
-          <Link to="/hr/discipline-exit?tab=incidents" className="block">
-            <HrKpiCard
-              label="Open incidents"
-              value={summary.openIncidents ?? 0}
-              tone={Number(summary.openIncidents) > 0 ? 'amber' : 'default'}
-            />
-          </Link>
-        </div>
-        <p className="mt-2 text-xs text-slate-500 tabular-nums">
-          {staff.total ?? '—'} total staff · {staff.inactive ?? 0} inactive
-        </p>
-      </section>
+    <HrPageBody>
+      <HrPageIntro title={intro.title} description={intro.description} />
 
-      <section>
-        <h2 className="text-[11px] font-black uppercase tracking-widest text-slate-500">Today&apos;s HR actions</h2>
-        <div className="mt-3 rounded-2xl border border-slate-100 bg-white p-4 text-sm text-slate-700 shadow-sm">
-          <ul className="space-y-2">
-            <li>
-              <span className="font-semibold text-[#134e4a]">HR queue:</span>{' '}
-              {counts.pendingHrReview ?? 0} awaiting HR review
-            </li>
-            <li>
-              <span className="font-semibold text-[#134e4a]">Branch endorsements:</span>{' '}
-              {counts.pendingBranchEndorse ?? summary.pendingBranchEndorse ?? 0}
-            </li>
-            <li>
-              <span className="font-semibold text-[#134e4a]">GM HR final:</span>{' '}
-              {counts.pendingGmHrReview ?? summary.pendingGmHrReview ?? 0}
-            </li>
-            <li>
-              <span className="font-semibold text-[#134e4a]">Draft payroll runs:</span>{' '}
-              {counts.draftPayrollRuns ?? 0}
-            </li>
-          </ul>
-          <div className="mt-4 flex flex-wrap gap-2">
-            <Link
-              to={`${HR_EMPLOYEES}?tab=directory&register=1`}
-              className="rounded-lg border border-[#134e4a]/20 bg-[#134e4a] px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide text-white hover:bg-[#0f3d39]"
-            >
-              Register employee
+      {showDataQuality ? <HrOperationalReadinessPanel /> : null}
+
+      <ProfileOverviewSection title="Overview" subtitle={`${staff.total ?? '—'} total staff · ${staff.inactive ?? 0} inactive`}>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {overviewKpis.map((kpi) => (
+            <Link key={kpi.label} to={kpi.href} className="block">
+              <HrKpiCard label={kpi.label} value={kpi.value} tone={kpi.tone} />
             </Link>
-            <Link
-              to={HR_REQUESTS}
-              className="rounded-lg border border-slate-200 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide text-[#134e4a] hover:bg-slate-50"
-            >
-              Review requests
-            </Link>
-            <Link
-              to={HR_PAYROLL}
-              className="rounded-lg border border-slate-200 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide text-[#134e4a] hover:bg-slate-50"
-            >
-              Create payroll run
-            </Link>
-            <Link
-              to={hrTabPath(HR_DOCUMENTS, 'reports')}
-              className="rounded-lg border border-slate-200 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide text-[#134e4a] hover:bg-slate-50"
-            >
-              Open reports
-            </Link>
-          </div>
+          ))}
         </div>
-      </section>
+      </ProfileOverviewSection>
+
+      <ProfileOverviewSection title="Today's HR actions" subtitle="Queues and quick links for your role">
+        <div className="text-sm text-slate-700">
+          {queueLines.length ? (
+            <ul className="space-y-2">
+              {queueLines.map((line) => (
+                <li key={line.label}>
+                  <Link to={line.href} className="font-semibold text-[#134e4a] hover:underline">
+                    {line.label}:
+                  </Link>{' '}
+                  {line.count} pending
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-slate-500">No approval queues assigned to your role.</p>
+          )}
+          {quickActions.length ? (
+            <div className="mt-4 flex flex-wrap gap-2">
+              {quickActions.map((action) => (
+                <Link
+                  key={action.label}
+                  to={action.href}
+                  className={
+                    action.primary
+                      ? 'rounded-lg border border-[#134e4a]/20 bg-[#134e4a] px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide text-white hover:bg-[#0f3d39]'
+                      : 'rounded-lg border border-slate-200 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide text-[#134e4a] hover:bg-slate-50'
+                  }
+                >
+                  {action.label}
+                </Link>
+              ))}
+            </div>
+          ) : null}
+        </div>
+      </ProfileOverviewSection>
 
       <HrProfileWorkPanel queue={profileWorkQueue} />
 
       {alerts !== null ? (
-        <section>
-          <h2 className="text-[11px] font-black uppercase tracking-widest text-slate-500">Action required</h2>
-          <div className="mt-3 space-y-2">
+        <ProfileOverviewSection title="Action required" subtitle="Workflow items needing HR attention">
+          <div className="space-y-2">
             {ACTION_ALERT_CONFIGS.every((cfg) => !((alerts[cfg.key] || []).length)) ? (
-              <div className="flex items-center gap-3 rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
-                <span aria-hidden>✓</span> No pending Phase 2 workflow actions
-              </div>
+              <ProfileInlineAlert variant="success">No pending workflow actions</ProfileInlineAlert>
             ) : (
               ACTION_ALERT_CONFIGS.map((cfg) => (
                 <ActionAlertCard key={cfg.key} cfg={cfg} items={alerts[cfg.key] || []} />
               ))
             )}
           </div>
-        </section>
+        </ProfileOverviewSection>
       ) : null}
 
       {alerts !== null ? (
-        <section>
-          <h2 className="text-[11px] font-black uppercase tracking-widest text-slate-500">Alerts &amp; Reminders</h2>
-          <div className="mt-3 space-y-2">
+        <ProfileOverviewSection title="Alerts & reminders" subtitle="Probation, contracts, birthdays, and document expiry">
+          <div className="space-y-2">
             {ALERT_CONFIGS.every((cfg) => !((alerts[cfg.key] || []).length)) ? (
-              <div className="flex items-center gap-3 rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
-                <span aria-hidden>✓</span> No calendar alerts today
-              </div>
+              <ProfileInlineAlert variant="success">No calendar alerts today</ProfileInlineAlert>
             ) : (
               ALERT_CONFIGS.map((cfg) => (
                 <AlertCard key={cfg.key} cfg={cfg} items={alerts[cfg.key] || []} />
               ))
             )}
           </div>
-        </section>
+        </ProfileOverviewSection>
       ) : null}
 
       {recentRequests.length > 0 ? (
-        <section>
-          <h2 className="text-[11px] font-black uppercase tracking-widest text-slate-500">Recent requests</h2>
-          <div className="mt-3 overflow-x-auto">
+        <ProfileOverviewSection title="Recent requests" subtitle="Latest employee requests across the org">
+          <div className="overflow-x-auto">
             <AppTableWrap>
               <AppTable>
                 <AppTableThead>
@@ -537,13 +604,8 @@ export default function HrDashboard() {
               </AppTable>
             </AppTableWrap>
           </div>
-        </section>
+        </ProfileOverviewSection>
       ) : null}
-
-      <p className="text-xs text-slate-500">
-        HQ payroll is prepared centrally. Branch salary contributions are tracked for MD review and do not block payroll
-        payment.
-      </p>
-    </div>
+    </HrPageBody>
   );
 }

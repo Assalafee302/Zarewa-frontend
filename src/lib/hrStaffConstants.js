@@ -4,8 +4,8 @@ export const HR_PAYROLL_GROUPS = [
   { value: 'branch_ops', label: 'Branch staff' },
   { value: 'mining_div', label: 'Mining division' },
   { value: 'hq_admin', label: 'HQ administrative' },
-  { value: 'scholarship', label: 'Scholarship beneficiary' },
-  { value: 'chairman_staffs', label: 'Domestic staff' },
+  { value: 'scholarship', label: 'Executive family' },
+  { value: 'chairman_staffs', label: 'Household staff' },
 ];
 
 export const HR_EMPLOYMENT_TYPES = [
@@ -43,6 +43,27 @@ export const HR_LEAVE_BANDS = [
   { value: 'executive', label: 'Executive (maps to senior)' },
 ];
 
+/** Documented when actual pay exceeds salary matrix — see docs/HR/ZAREWA-COMPENSATION-AND-EXCEPTIONS.md */
+export const HR_COMPENSATION_VARIANCE_TYPES = [
+  { value: 'merit_outstanding', label: 'Merit / outstanding performance' },
+  { value: 'scarce_skill_retention', label: 'Scarce skill / retention' },
+  { value: 'multi_role_consolidation', label: 'Multi-role consolidation' },
+  { value: 'director_emolument', label: 'Director emolument (board)' },
+  { value: 'acting_allowance', label: 'Acting role allowance' },
+  { value: 'market_adjustment', label: 'Market adjustment' },
+  { value: 'special_occasion', label: 'Special occasion' },
+];
+
+export const HR_SECONDARY_ROLE_TEMPLATE = {
+  designationId: '',
+  role: '',
+  officeKey: '',
+  branchId: '',
+  acting: false,
+  endDateIso: '',
+  notes: '',
+};
+
 export const HR_GENDERS = [
   { value: '', label: 'Select gender' },
   { value: 'male', label: 'Male' },
@@ -75,6 +96,8 @@ export function emptyStaffForm(defaultBranchId = '') {
     baseSalaryNgn: '',
     housingAllowanceNgn: '',
     transportAllowanceNgn: '',
+    payAdditionNgn: '',
+    boardMember: false,
     payeTaxPercent: '',
     payeTaxNgn: '',
     pensionPercentOverride: '',
@@ -126,5 +149,14 @@ export function emptyStaffForm(defaultBranchId = '') {
     nhisNumber: '',
     professionalCertificates: '',
     specialConditions: '',
+    corporateTitle: '',
+    secondaryRoles: [],
+    compensationVarianceType: '',
+    compensationVarianceNotes: '',
+    compensationVarianceReviewDueIso: '',
+    compensationVarianceMemoRef: '',
+    applyMatrixPay: false,
+    applyRecommendedRoleKey: false,
+    applyMultiRolePermissions: true,
   };
 }

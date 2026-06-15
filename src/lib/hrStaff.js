@@ -14,7 +14,9 @@ export function staffToForm(staff) {
   const hrNotes = staff.profileExtra?.hrNotes || {};
   const statutory = staff.profileExtra?.statutory || {};
   const qualifications = staff.profileExtra?.qualifications || {};
+  const school = staff.profileExtra?.schoolProfile || {};
   return {
+    roleKey: staff.roleKey || '',
     branchId: staff.branchId || staff.normalized?.branchId || '',
     employeeNo: staff.employeeNo || '',
     jobTitle: staff.jobTitle || '',
@@ -35,6 +37,15 @@ export function staffToForm(staff) {
     baseSalaryNgn: staff.baseSalaryNgn != null ? String(staff.baseSalaryNgn) : '',
     housingAllowanceNgn: staff.housingAllowanceNgn != null ? String(staff.housingAllowanceNgn) : '',
     transportAllowanceNgn: staff.transportAllowanceNgn != null ? String(staff.transportAllowanceNgn) : '',
+    payAdditionNgn:
+      staff.profileExtra?.compensation?.payAdditionNgn != null
+        ? String(staff.profileExtra.compensation.payAdditionNgn)
+        : staff.compensation?.payAdditionNgn != null
+          ? String(staff.compensation.payAdditionNgn)
+          : staff.compensation?.varianceNgn > 0
+            ? String(staff.compensation.varianceNgn)
+            : '',
+    boardMember: Boolean(staff.profileExtra?.employmentMeta?.boardMember),
     payeTaxPercent: staff.payeTaxPercent != null ? String(staff.payeTaxPercent) : '',
     payeTaxNgn: staff.payeTaxNgn != null ? String(staff.payeTaxNgn) : '',
     pensionPercentOverride: staff.pensionPercentOverride != null ? String(staff.pensionPercentOverride) : '',
@@ -55,6 +66,14 @@ export function staffToForm(staff) {
     nhisNumber: statutory.nhisNumber || '',
     professionalCertificates: qualifications.professionalCertificates || '',
     specialConditions: hrNotes.specialConditions || '',
+    corporateTitle: empMeta.corporateTitle || '',
+    secondaryRoles: Array.isArray(empMeta.secondaryRoles) ? empMeta.secondaryRoles : [],
+    compensationVarianceType: staff.profileExtra?.compensationVariance?.type || '',
+    compensationVarianceNotes: staff.profileExtra?.compensationVariance?.notes || '',
+    compensationVarianceReviewDueIso: staff.profileExtra?.compensationVariance?.reviewDueIso || '',
+    compensationVarianceMemoRef: staff.profileExtra?.compensationVariance?.memoRef || '',
+    applyMatrixPay: false,
+    applyRecommendedRoleKey: false,
     trainingSummary: staff.trainingSummary || '',
     welfareNotes: staff.welfareNotes || '',
     hrInternalNotes: hrNotes.internalRemarks || '',
@@ -90,6 +109,16 @@ export function staffToForm(staff) {
     nextOfKinRelationship: staff.nextOfKin?.relationship || '',
     nextOfKinAddress: staff.nextOfKin?.address || '',
     nextOfKinAltPhone: staff.nextOfKin?.altPhone || personal.emergencyAltPhone || '',
+    schoolBeneficiaryId: school.beneficiaryId || '',
+    schoolNameProfile: school.schoolName || staff.department || '',
+    schoolClassLevel: school.classLevel || staff.jobTitle || '',
+    schoolAcademicSession: school.academicSession || '',
+    schoolCurrentTerm: school.currentTerm || '',
+    schoolTermStartIso: school.termStartIso || '',
+    schoolTermEndIso: school.termEndIso || '',
+    schoolFeeCadence: school.feeCadence || 'termly',
+    schoolFeesNgnProfile: school.schoolFeesNgn != null ? String(school.schoolFeesNgn) : '',
+    schoolNotes: school.notes || '',
   };
 }
 
@@ -123,6 +152,7 @@ export function formToProfilePatch(form, { originalBranchId } = {}) {
     payrollGroup: form.payrollGroup,
     salaryLevel: numOrUndef(form.salaryLevel),
     salaryStep: numOrUndef(form.salaryStep),
+    payAdditionNgn: numOrUndef(form.payAdditionNgn) ?? 0,
     baseSalaryNgn: numOrUndef(form.baseSalaryNgn) ?? 0,
     housingAllowanceNgn: numOrUndef(form.housingAllowanceNgn) ?? 0,
     transportAllowanceNgn: numOrUndef(form.transportAllowanceNgn) ?? 0,
@@ -175,7 +205,33 @@ export function formToProfilePatch(form, { originalBranchId } = {}) {
     nhisNumber: form.nhisNumber || null,
     professionalCertificates: form.professionalCertificates || null,
     specialConditions: form.specialConditions || null,
+    corporateTitle: form.corporateTitle || null,
+    boardMember: form.boardMember === true,
+    secondaryRoles: Array.isArray(form.secondaryRoles) ? form.secondaryRoles : [],
+    compensationVarianceType: form.compensationVarianceType || null,
+    compensationVarianceNotes: form.compensationVarianceNotes || null,
+    compensationVarianceReviewDueIso: form.compensationVarianceReviewDueIso || null,
+    compensationVarianceMemoRef: form.compensationVarianceMemoRef || null,
+    applyMatrixPay: form.applyMatrixPay === true,
+    applyRecommendedRoleKey: form.applyRecommendedRoleKey === true,
+    applyMultiRolePermissions: form.applyMultiRolePermissions !== false,
   };
+  if (form.payrollGroup === 'scholarship') {
+    body.schoolProfile = {
+      beneficiaryId: String(form.schoolBeneficiaryId || '').trim() || null,
+      schoolName: String(form.schoolNameProfile || form.department || '').trim() || null,
+      classLevel: String(form.schoolClassLevel || form.jobTitle || '').trim() || null,
+      academicSession: String(form.schoolAcademicSession || '').trim() || null,
+      currentTerm: String(form.schoolCurrentTerm || '').trim() || null,
+      termStartIso: String(form.schoolTermStartIso || '').trim() || null,
+      termEndIso: String(form.schoolTermEndIso || '').trim() || null,
+      feeCadence: String(form.schoolFeeCadence || 'termly').trim() || 'termly',
+      schoolFeesNgn: numOrUndef(form.schoolFeesNgnProfile),
+      notes: String(form.schoolNotes || '').trim() || null,
+    };
+    if (body.schoolProfile.schoolName) body.department = body.schoolProfile.schoolName;
+    if (body.schoolProfile.classLevel) body.jobTitle = body.schoolProfile.classLevel;
+  }
   if (originalBranchId && String(form.branchId) !== String(originalBranchId)) {
     body.branchChangeReason = String(form.branchChangeReason || '').trim() || 'Branch transfer';
   }
