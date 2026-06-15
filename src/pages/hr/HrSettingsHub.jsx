@@ -4,6 +4,7 @@ import { HrTabbedPage } from '../../components/hr/HrTabbedPage';
 import { HrLeavePolicySection } from '../../components/hr/HrLeavePolicySection';
 import {
   HrLegacyPayBackfillSection,
+  HrMatrixRevisionSection,
   HrOrgCatalogSection,
   HrOrgGoLiveChecklistSection,
   HrStaffImportGuideSection,
@@ -147,6 +148,7 @@ export default function HrSettingsHub() {
                 <HrOrgGoLiveChecklistSection embedded />
                 <HrStaffImportGuideSection embedded />
                 <HrLegacyPayBackfillSection embedded />
+                <HrMatrixRevisionSection embedded />
               </div>
             </details>
           ) : null}

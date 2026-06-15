@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useHrListLoad } from '../../hooks/useHrListLoad';
 import { apiFetch } from '../../lib/apiBase';
-import { seedZarewaOrgStandard, previewLegacyPayBackfill, runLegacyPayBackfill, fetchOrgCatalogMeta } from '../../lib/hrCompensation';
+import { seedZarewaOrgStandard, previewLegacyPayBackfill, runLegacyPayBackfill, fetchOrgCatalogMeta, previewMatrixRevisionApply, runMatrixRevisionApply } from '../../lib/hrCompensation';
 import { fetchHrDepartments } from '../../lib/hrMasterData';
 import { canEditPensionPolicyRates, canManageHrSettings } from '../../lib/hrAccess';
 import { useWorkspace } from '../../context/WorkspaceContext';
@@ -369,6 +369,115 @@ export function HrLegacyPayBackfillSection({ embedded = false }) {
   );
 }
 
+/** Re-apply matrix rates to staff profiles (keeps pay addition). */
+export function HrMatrixRevisionSection({ embedded = false }) {
+  const ws = useWorkspace();
+  const canManage = canManageHrSettings(ws?.permissions);
+  const [preview, setPreview] = useState(null);
+  const [busy, setBusy] = useState('');
+  const [message, setMessage] = useState('');
+  const [error, setError] = useState('');
+  const [payrollGroup, setPayrollGroup] = useState('');
+
+  if (!canManage) return null;
+
+  const runPreview = async () => {
+    setBusy('preview');
+    setMessage('');
+    setError('');
+    setPreview(null);
+    const { ok, data } = await previewMatrixRevisionApply({ payrollGroup: payrollGroup || undefined });
+    setBusy('');
+    if (ok && data?.ok) setPreview(data);
+    else setError(data?.error || 'Preview failed.');
+  };
+
+  const runExecute = async () => {
+    if (!preview?.updatedCount && !window.confirm('No profiles would change. Run anyway?')) return;
+    setBusy('run');
+    setMessage('');
+    setError('');
+    const { ok, data } = await runMatrixRevisionApply({ payrollGroup: payrollGroup || undefined });
+    setBusy('');
+    if (ok && data?.ok) {
+      setPreview(data);
+      setMessage(`Matrix revision applied: ${data.updatedCount} profile(s) updated.`);
+    } else {
+      setError(data?.error || 'Apply failed.');
+    }
+  };
+
+  const inner = (
+    <>
+      {error ? <div className="mb-3"><HrAlert tone="error">{error}</HrAlert></div> : null}
+      {message ? <div className="mb-3"><HrAlert tone="success">{message}</HrAlert></div> : null}
+      <p className="text-xs text-slate-600">
+        After reloading the catalog or editing matrix rows, preview then apply new matrix base/housing/transport to all
+        staff on level/step. Existing <code className="text-[11px]">payAdditionNgn</code> is preserved.
+      </p>
+      <label className="mt-3 block text-xs font-semibold text-slate-600">
+        Payroll group (optional)
+        <select
+          className={`${HR_FIELD_CLASS} mt-1`}
+          value={payrollGroup}
+          onChange={(e) => setPayrollGroup(e.target.value)}
+        >
+          <option value="">All groups</option>
+          <option value="branch_ops">branch_ops</option>
+          <option value="hq_admin">hq_admin</option>
+          <option value="mining_div">mining_div</option>
+          <option value="scholarship">scholarship</option>
+          <option value="chairman_staffs">chairman_staffs</option>
+        </select>
+      </label>
+      <div className="mt-4 flex flex-wrap gap-2">
+        <button type="button" className={HR_BTN_PRIMARY} disabled={Boolean(busy)} onClick={runPreview}>
+          {busy === 'preview' ? 'Previewing…' : 'Preview matrix apply'}
+        </button>
+        <button
+          type="button"
+          className="rounded-xl border border-teal-300 bg-teal-50 px-4 py-2 text-sm font-semibold text-teal-950 hover:bg-teal-100 disabled:opacity-60"
+          disabled={Boolean(busy) || !preview}
+          onClick={runExecute}
+        >
+          {busy === 'run' ? 'Applying…' : 'Apply to profiles'}
+        </button>
+      </div>
+      {preview ? (
+        <div className="mt-4 rounded-xl border border-slate-100 bg-slate-50/80 p-3 text-xs text-slate-700">
+          <p>
+            Scanned {preview.scanned} · Would update {preview.updatedCount} · Skip {preview.skippedCount}
+            {preview.dryRun === false ? ' (applied)' : ' (preview only)'}
+          </p>
+          {(preview.updated || []).slice(0, 6).map((u) => (
+            <p key={u.userId} className="mt-1 tabular-nums">
+              {u.displayName}: {u.previousTotalNgn?.toLocaleString()} → {u.newTotalNgn?.toLocaleString()} (
+              {u.deltaNgn >= 0 ? '+' : ''}
+              {u.deltaNgn?.toLocaleString()})
+            </p>
+          ))}
+        </div>
+      ) : null}
+    </>
+  );
+
+  if (embedded) {
+    return (
+      <div>
+        <h4 className="text-sm font-semibold text-slate-800">Apply matrix revision</h4>
+        <p className="mt-0.5 text-xs text-slate-500">Push updated matrix rates to staff profiles.</p>
+        <div className="mt-3">{inner}</div>
+      </div>
+    );
+  }
+
+  return (
+    <HrCard title="Apply matrix revision" subtitle="Sync profile pay to current matrix (keeps pay additions)">
+      {inner}
+    </HrCard>
+  );
+}
+
 /** Points HR admins to bulk staff import with org/comp columns. */
 export function HrStaffImportGuideSection({ embedded = false }) {
   const ws = useWorkspace();
@@ -408,6 +517,7 @@ const GO_LIVE_STEPS = [
   { id: 'catalog', label: 'Load standard org catalog (departments, designations, all payroll matrices)' },
   { id: 'import', label: 'Bulk import live staff (optional designation code + level/step + pay addition columns)' },
   { id: 'backfill', label: 'Preview and run legacy pay backfill for inflated base salaries' },
+  { id: 'matrix', label: 'After matrix changes: preview and apply matrix revision to staff profiles' },
   { id: 'profiles', label: 'Configure multi-role profiles (primary + secondary desks + documented variance)' },
   { id: 'variance', label: 'Review salary variance report and dashboard compensation alerts' },
   { id: 'payroll', label: 'Run payroll preview — payslip shows matrix lines + pay addition separately' },

@@ -38,6 +38,25 @@ export function runLegacyPayBackfill({ autoDocument = false } = {}) {
   });
 }
 
+export function previewMatrixRevisionApply({ payrollGroup } = {}) {
+  return apiFetch('/api/hr/compensation/apply-matrix-revision', {
+    method: 'POST',
+    body: JSON.stringify({ execute: false, payrollGroup: payrollGroup || undefined }),
+  });
+}
+
+export function runMatrixRevisionApply({ payrollGroup, reason, effectiveFromIso } = {}) {
+  return apiFetch('/api/hr/compensation/apply-matrix-revision', {
+    method: 'POST',
+    body: JSON.stringify({
+      execute: true,
+      payrollGroup: payrollGroup || undefined,
+      reason: reason || undefined,
+      effectiveFromIso: effectiveFromIso || undefined,
+    }),
+  });
+}
+
 export function fetchOfficeCoverage(officeKey, branchId) {
   const q = new URLSearchParams({ officeKey });
   if (branchId) q.set('branchId', branchId);
