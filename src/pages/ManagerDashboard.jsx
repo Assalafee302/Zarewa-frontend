@@ -77,6 +77,9 @@ import { OfficialRecordBanner } from '../components/management/OfficialRecordBan
 import DeliveryGateDiagnosticsBanner from '../components/finance/DeliveryGateDiagnosticsBanner';
 import { syncAccountingPolicyFlagsFromHealth, deliveryPaymentGateMode } from '../lib/accountingPolicyFlags';
 import { userMayApproveRefundRequests } from '../lib/refundsStore';
+import { canApproveProductionGate, productionGateOverrideNoteValid } from '../lib/productionGateAccess';
+import { CreditExceptionPanel } from '../components/finance/CreditExceptionPanel';
+import { useCreditExceptions } from '../hooks/useCreditExceptions';
 import { HrDailyRollPanel } from '../components/hr/HrDailyRollPanel';
 import { canMarkHrAttendance } from '../lib/hrAccess';
 
@@ -92,9 +95,14 @@ const ManagerDashboard = () => {
   const lastRefundIntelQrefRef = useRef('');
   const ws = useWorkspace();
   const showAttendanceTab = canMarkHrAttendance(ws?.permissions);
+  const managerRoleKey = String(ws?.session?.user?.roleKey || '').toLowerCase();
+  const showDeliveryCreditTab = ['md', 'admin', 'sales_manager', 'finance_manager'].includes(managerRoleKey);
   const managerInboxTabs = useMemo(
-    () => MANAGER_INBOX_TABS.filter((t) => t.key !== 'attendance' || showAttendanceTab),
-    [showAttendanceTab]
+    () =>
+      MANAGER_INBOX_TABS.filter((t) => t.key !== 'attendance' || showAttendanceTab).filter(
+        (t) => t.key !== 'credit' || showDeliveryCreditTab
+      ),
+    [showAttendanceTab, showDeliveryCreditTab]
   );
   const { show: showToast } = useToast();
   const [loading, setLoading] = useState(true);
@@ -151,7 +159,16 @@ const ManagerDashboard = () => {
   );
   const canApprovePaymentRequests =
     Boolean(ws?.hasPermission?.('finance.approve')) || Boolean(ws?.hasPermission?.('*'));
+  const canApproveProductionGateOverride = canApproveProductionGate(ws?.session?.user?.roleKey);
   const canApproveRefunds = userMayApproveRefundRequests(ws);
+  const { items: creditExceptionItems } = useCreditExceptions({
+    branchId: ws?.workspaceBranchId || ws?.session?.branchId || null,
+    enabled: showDeliveryCreditTab,
+  });
+  const pendingCreditCount = useMemo(
+    () => creditExceptionItems.filter((i) => i.status === 'pending').length,
+    [creditExceptionItems]
+  );
 
   const selectedRefundRecord = useMemo(() => {
     if (selectedIntel?.kind !== 'refund' || !selectedIntel.refundId) return null;
@@ -750,6 +767,7 @@ const ManagerDashboard = () => {
       qc: (displayItems.pendingConversionReviews ?? []).length,
       material: materialIncidentQueue.length,
       attendance: 0,
+      credit: pendingCreditCount,
     }),
     [
       attentionItems.length,
@@ -757,6 +775,7 @@ const ManagerDashboard = () => {
       cashOutInboxRows.length,
       displayItems.pendingConversionReviews,
       materialIncidentQueue.length,
+      pendingCreditCount,
     ]
   );
 
@@ -915,6 +934,27 @@ const ManagerDashboard = () => {
 
   const handleReview = async (quotationId, decision, reason = '') => {
     if (!quotationId) return;
+    if (decision === 'approve_production') {
+      if (!canApproveProductionGateOverride) {
+        showToast('Production gate override requires Branch Manager or MD approval.', { variant: 'error' });
+        return;
+      }
+      let overrideReason = String(reason || '').trim();
+      if (!productionGateOverrideNoteValid(overrideReason)) {
+        const prompted =
+          window.prompt(
+            'Why may production proceed below the payment threshold? (required, at least 8 characters)'
+          ) ?? '';
+        overrideReason = prompted.trim();
+      }
+      if (!productionGateOverrideNoteValid(overrideReason)) {
+        if (overrideReason !== '' || reason === '') {
+          showToast('Override reason must be at least 8 characters.', { variant: 'error' });
+        }
+        return;
+      }
+      reason = overrideReason;
+    }
     setDecisionBusy(true);
     const { ok, data } = await apiFetch('/api/management/review', {
       method: 'POST',
@@ -1743,13 +1783,18 @@ const ManagerDashboard = () => {
             </div>
             <div
               className={
-                activeTab === 'attendance'
+                activeTab === 'attendance' || activeTab === 'credit'
                   ? 'p-4 sm:p-5'
                   : 'min-h-[420px] max-h-[min(56vh,560px)] overflow-y-auto custom-scrollbar'
               }
             >
               {activeTab === 'attendance' ? (
                 <HrDailyRollPanel branchManagerMode />
+              ) : activeTab === 'credit' ? (
+                <CreditExceptionPanel
+                  branchId={ws?.workspaceBranchId || ws?.session?.branchId || null}
+                  roleKey={ws?.session?.user?.roleKey}
+                />
               ) : loading ? (
                 <div className="flex flex-col items-center justify-center py-24 text-slate-400 gap-3">
                   <RefreshCw size={28} className="animate-spin text-[#134e4a]" />
@@ -1889,6 +1934,7 @@ const ManagerDashboard = () => {
                     reviewContext={selectedIntel.reviewContext || 'clearance'}
                     fromProductionGate={Boolean(selectedIntel.fromProductionGate)}
                     cuttingListId={selectedIntel.cuttingListId || ''}
+                    canProductionOverride={canApproveProductionGateOverride}
                     showReleasePayments={Boolean(
                       selectedUnifiedWorkItem?.managerClearedAtIso ||
                         selectedUnifiedWorkItem?.managerFlaggedAtIso ||

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { RefreshCw } from 'lucide-react';
 import { apiFetch } from '../../lib/apiBase';
 import { formatPersonName } from '../../lib/formatPersonName';
+import { canApproveProductionGate, PRODUCTION_GATE_OVERRIDE_NOTE_MIN_LEN } from '../../lib/productionGateAccess';
 
 function toneClass(tone) {
   if (tone === 'rose') return 'border-rose-300 bg-rose-50 text-rose-950';
@@ -153,7 +154,7 @@ export function ProductionPaymentGateOverridePanel({
   quotationId,
   intel,
   canMutate = true,
-  hasManagePermission = false,
+  roleKey = '',
   onSuccess,
 }) {
   const [note, setNote] = useState('');
@@ -162,20 +163,21 @@ export function ProductionPaymentGateOverridePanel({
 
   const qid = String(quotationId || '').trim();
   const showPanel = intel?.paymentGateRequired && !intel?.managerProductionApprovedAtISO;
+  const mayOverride = canApproveProductionGate(roleKey);
 
   if (!qid || !showPanel) return null;
-  if (!canMutate || !hasManagePermission) {
+  if (!canMutate || !mayOverride) {
     return (
       <p className="mt-2 rounded-md border border-slate-200 bg-slate-50 px-2 py-1.5 text-[9px] text-slate-600">
-        Payment gate override requires <span className="font-bold">quotations.manage</span> permission.
+        Payment gate override requires <span className="font-bold">Branch Manager or MD</span> approval.
       </p>
     );
   }
 
   const submit = async () => {
     const reason = note.trim();
-    if (reason.length < 8) {
-      setError('Enter an override reason (at least 8 characters).');
+    if (reason.length < PRODUCTION_GATE_OVERRIDE_NOTE_MIN_LEN) {
+      setError(`Enter an override reason (at least ${PRODUCTION_GATE_OVERRIDE_NOTE_MIN_LEN} characters).`);
       return;
     }
     setError('');

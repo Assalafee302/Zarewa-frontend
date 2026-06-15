@@ -25,6 +25,8 @@ import { FinanceTrialExceptionPanel } from '../components/finance/FinanceTrialEx
 import { userMayViewFinanceTrialOversightClient } from '../lib/financeTrialExceptionsAccess';
 import { userMayViewManagementReportsClient } from '../lib/reportsAccess';
 import CommandCentreIntelligenceTab from '../components/exec/CommandCentreIntelligenceTab';
+import { ExecutiveWorkItemReviewModal } from '../components/exec/ExecutiveWorkItemReviewModal';
+import { execWorkItemOpensInModal } from '../lib/execWorkItemReview';
 
 const EXEC_TABS = [
   { id: 'overview', label: 'Overview' },
@@ -223,6 +225,7 @@ export default function ExecutiveCommandCentre() {
   const [reserveModalOpen, setReserveModalOpen] = useState(false);
   const [reserveForm, setReserveForm] = useState(EMPTY_RESERVE_FORM);
   const [reserveSaving, setReserveSaving] = useState(false);
+  const [reviewItem, setReviewItem] = useState(null);
   const [reserveModalBusy, setReserveModalBusy] = useState(false);
 
   const roleKey = String(ws?.session?.user?.roleKey || '').toLowerCase();
@@ -277,6 +280,15 @@ export default function ExecutiveCommandCentre() {
   }, [load]);
 
   const readOnly = Boolean(data?.workTray?.readOnlyForActor ?? data?.actor?.readOnlyExecutiveView);
+
+  const handleWorkTrayAction = (row) => {
+    if (!row) return;
+    if (execWorkItemOpensInModal(row.kind, row)) {
+      setReviewItem(row);
+      return;
+    }
+    navigate(row.route || '/manager');
+  };
   const canManageReservePolicy = Boolean(data?.actor?.canManageReservePolicy);
 
   const openReservePolicyModal = useCallback(async () => {
@@ -760,7 +772,7 @@ export default function ExecutiveCommandCentre() {
           subtitle={
             readOnly
               ? 'Summary and read-only items — open routes to review detail.'
-              : 'Use Review to open the manager desk or module route. Server enforces approvals.'
+              : 'Review opens here on Command Centre when you can act — no redirect to Sales or Manager for approvals.'
           }
           icon={<Shield size={18} className="text-[#134e4a]" />}
         >
@@ -820,7 +832,7 @@ export default function ExecutiveCommandCentre() {
                       <td className="py-2.5 text-right">
                         <button
                           type="button"
-                          onClick={() => navigate(row.route || '/manager')}
+                          onClick={() => handleWorkTrayAction(row)}
                           className="rounded-lg border border-[#134e4a]/30 bg-[#134e4a]/5 px-3 py-1.5 text-[10px] font-black uppercase text-[#134e4a] hover:bg-[#134e4a]/10"
                         >
                           {row.summaryOnly
@@ -1099,6 +1111,14 @@ export default function ExecutiveCommandCentre() {
           </div>
         </div>
       ) : null}
+
+      <ExecutiveWorkItemReviewModal
+        item={reviewItem}
+        isOpen={Boolean(reviewItem)}
+        onClose={() => setReviewItem(null)}
+        onCompleted={load}
+        readOnly={readOnly}
+      />
     </MainPanel>
   );
 }

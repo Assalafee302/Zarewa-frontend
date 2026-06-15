@@ -26,6 +26,11 @@ export const MANAGER_INBOX_TABS = [
     description: 'Offcut / return incidents awaiting branch manager approval',
   },
   {
+    key: 'credit',
+    label: 'Delivery credit',
+    description: 'Approve delivery on credit while receivable stays outstanding (MD above branch limits)',
+  },
+  {
     key: 'attendance',
     label: 'Staff attendance',
     description: 'Mark daily present, late, or absent for your branch staff',

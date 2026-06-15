@@ -32,6 +32,7 @@ export function ClearanceManagerApprovalPreview({
   onFlag,
   onReleasePayments,
   onProductionOverride,
+  canProductionOverride = true,
 }) {
   /** Keep line items visible during background refund-intel refresh when data is already loaded. */
   const loading = loadingAudit || (loadingIntel && !paymentIntel);
@@ -193,7 +194,7 @@ export function ClearanceManagerApprovalPreview({
               </button>
             </div>
 
-            {fromProductionGate ? (
+            {fromProductionGate && canProductionOverride ? (
               <button
                 type="button"
                 disabled={decisionBusy}
@@ -203,6 +204,11 @@ export function ClearanceManagerApprovalPreview({
                 <Zap size={16} />
                 <span className="text-[10px] font-black uppercase tracking-widest">Production override (low payment)</span>
               </button>
+            ) : null}
+            {fromProductionGate && !canProductionOverride ? (
+              <p className="mt-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-[10px] text-slate-600">
+                Production gate override requires Branch Manager or MD login.
+              </p>
             ) : null}
           </IntelPanel>
         </div>

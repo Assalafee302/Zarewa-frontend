@@ -10,21 +10,11 @@ import { CreditExceptionRequestModal } from './CreditExceptionRequestModal';
 import { CreditExceptionReports } from './CreditExceptionReports';
 import { FinanceTabs } from './FinanceTabs';
 import { FinanceActionButton } from './FinanceActionButton';
-
-function canApproveCredit(roleKey) {
-  const rk = String(roleKey || '').toLowerCase();
-  return ['md', 'admin', 'sales_manager', 'branch_manager'].includes(rk);
-}
-
-function canRevokeCredit(roleKey) {
-  const rk = String(roleKey || '').toLowerCase();
-  return ['md', 'admin', 'finance_manager'].includes(rk);
-}
-
-function canRequestCredit(roleKey) {
-  const rk = String(roleKey || '').toLowerCase();
-  return ['md', 'admin', 'sales_manager', 'branch_manager', 'finance_manager'].includes(rk);
-}
+import {
+  canApproveCreditExceptionItem,
+  canRequestCreditException,
+  canRevokeCreditException,
+} from '../../lib/creditExceptionAccess';
 
 const SUB_TABS = [
   { id: 'queue', label: 'Work queue' },
@@ -63,7 +53,7 @@ export function CreditExceptionPanel({ branchId, roleKey, trialCredit, compact =
         icon={<CreditCard size={16} className="text-teal-700" />}
         action={
           <div className="flex flex-wrap gap-2">
-            {canRequestCredit(roleKey) ? (
+            {canRequestCreditException(roleKey) ? (
               <FinanceActionButton
                 variant="primary"
                 onClick={() => {
@@ -124,8 +114,8 @@ export function CreditExceptionPanel({ branchId, roleKey, trialCredit, compact =
                   <CreditExceptionApprovalCard
                     key={item.id}
                     item={item}
-                    canApprove={canApproveCredit(roleKey)}
-                    canRevoke={canRevokeCredit(roleKey)}
+                    canApprove={canApproveCreditExceptionItem(roleKey, item, policy)}
+                    canRevoke={canRevokeCreditException(roleKey)}
                     onDone={reload}
                   />
                 ))}
@@ -143,7 +133,7 @@ export function CreditExceptionPanel({ branchId, roleKey, trialCredit, compact =
                   <CreditExceptionApprovalCard
                     key={item.id}
                     item={item}
-                    canRevoke={canRevokeCredit(roleKey)}
+                    canRevoke={canRevokeCreditException(roleKey)}
                     onDone={reload}
                   />
                 ))}

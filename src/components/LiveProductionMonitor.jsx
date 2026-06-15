@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertTriangle,
   BarChart3,
@@ -45,6 +45,10 @@ import {
   quotedAccessoryLinesForProduction,
 } from '../lib/quotationProductionLines';
 import { QuotationPriceExceptionPanel } from './QuotationPriceExceptionPanel';
+import {
+  ProductionJobIntelBanner,
+  ProductionPaymentGateOverridePanel,
+} from './production/ProductionPhase11B';
 import { ProductionConversionReasonFields } from './operations/ProductionConversionReasonFields';
 import {
   conversionVarianceReasonLabel,
@@ -390,6 +394,8 @@ export function LiveProductionMonitor({
   /** Business date for start / completion (YYYY-MM-DD). */
   const [productionDateIso, setProductionDateIso] = useState(() => new Date().toISOString().slice(0, 10));
   const [completionDateIso, setCompletionDateIso] = useState(() => new Date().toISOString().slice(0, 10));
+  const [jobIntel, setJobIntel] = useState(null);
+  const [jobIntelLoading, setJobIntelLoading] = useState(false);
   const productionJobs = useMemo(
     () => (ws?.hasWorkspaceData && Array.isArray(ws?.snapshot?.productionJobs) ? ws.snapshot.productionJobs : []),
     [ws?.hasWorkspaceData, ws?.snapshot?.productionJobs]
@@ -567,18 +573,6 @@ export function LiveProductionMonitor({
     if (!clId || !Array.isArray(ws?.snapshot?.cuttingLists)) return null;
     return ws.snapshot.cuttingLists.find((c) => c.id === clId) ?? null;
   }, [selectedJob?.cuttingListId, ws?.snapshot?.cuttingLists]);
-  const productionClosedForQuote = useMemo(() => {
-    const qid = String(selectedJob?.quotationRef ?? '').trim();
-    if (!qid) return false;
-    if (String(linkedQuotation?.status ?? '').trim().toLowerCase() === 'void') return true;
-    const jobs = Array.isArray(ws?.snapshot?.productionJobs) ? ws.snapshot.productionJobs : [];
-    return jobs.some((j) => {
-      const ref = String(j.quotationRef ?? j.quotation_ref ?? '').trim();
-      if (ref !== qid) return false;
-      const st = String(j.status ?? '').trim().toLowerCase();
-      return st === 'completed' || st === 'cancelled';
-    });
-  }, [selectedJob?.quotationRef, linkedQuotation?.status, ws?.snapshot?.productionJobs]);
   const isStoneMeterQuote = useMemo(() => {
     if (linkedQuotation?.stoneMeterQuote === true) return true;
     if (String(linkedQuotation?.materialTypeId || '').trim() === 'MAT-005') return true;
@@ -628,6 +622,24 @@ export function LiveProductionMonitor({
     selectedJob?.machineName,
     registerMaterialLabel,
   ]);
+
+  const reloadJobIntel = useCallback(async () => {
+    const jobId = String(selectedJob?.jobID || '').trim();
+    if (!jobId) {
+      setJobIntel(null);
+      return;
+    }
+    setJobIntelLoading(true);
+    const { ok, data } = await apiFetch(`/api/production-jobs/${encodeURIComponent(jobId)}/intel`);
+    setJobIntelLoading(false);
+    if (ok && data?.intel) setJobIntel(data.intel);
+    else setJobIntel(null);
+  }, [selectedJob?.jobID]);
+
+  useEffect(() => {
+    void reloadJobIntel();
+  }, [reloadJobIntel]);
+
   const completionUsesOffcutMode =
     isStoneAccessoriesOnlyQuote ||
     (!isStoneMeterQuote && (completionSourceMode === 'offcut' || isAccessoriesOnlyQuote));
@@ -3117,8 +3129,41 @@ export function LiveProductionMonitor({
                 <QuotationPriceExceptionPanel
                   quotationId={selectedJob.quotationRef}
                   quotation={linkedQuotation}
-                  productionClosedForQuote={productionClosedForQuote}
                 />
+              ) : null}
+
+              {selectedJob?.jobID ? (
+                <details className="rounded-lg border border-slate-200/90 bg-white/90 px-2.5 py-2 text-[10px] text-slate-800 shadow-sm">
+                  <summary className="cursor-pointer list-none font-black uppercase tracking-wide text-[#134e4a] marker:content-none">
+                    Job intelligence
+                    {jobIntel?.paymentGateRequired && !jobIntel?.managerProductionApprovedAtISO ? (
+                      <span className="ml-2 rounded-md bg-rose-100 px-1.5 py-0.5 text-[8px] font-black text-rose-900">
+                        Payment gate
+                      </span>
+                    ) : null}
+                  </summary>
+                  <div className="mt-2 space-y-2">
+                    {jobIntelLoading ? (
+                      <p className="text-[10px] text-slate-500">Loading job intelligence…</p>
+                    ) : jobIntel ? (
+                      <>
+                        <ProductionJobIntelBanner intel={jobIntel} formatMeters={formatMeters} />
+                        <ProductionPaymentGateOverridePanel
+                          quotationId={selectedJob.quotationRef}
+                          intel={jobIntel}
+                          canMutate={ws?.canMutate !== false}
+                          roleKey={ws?.session?.user?.roleKey}
+                          onSuccess={() => {
+                            void reloadJobIntel();
+                            void ws.refresh?.();
+                          }}
+                        />
+                      </>
+                    ) : (
+                      <p className="text-[10px] text-slate-500">No intelligence available for this job.</p>
+                    )}
+                  </div>
+                </details>
               ) : null}
 
               {allocationUniqueRollCapacityInsight &&

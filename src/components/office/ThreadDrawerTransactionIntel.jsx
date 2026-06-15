@@ -22,6 +22,11 @@ import { useWorkspace } from '../../context/WorkspaceContext';
 import { printExpenseRequestRecord } from '../../lib/expenseRequestPrint';
 import { formatRefundReasonCategory } from '../../lib/managerDashboardCore';
 import { EditSecondApprovalInline } from '../EditSecondApprovalInline';
+import {
+  canApproveProductionGate,
+  productionGateOverrideNoteValid,
+  PRODUCTION_GATE_OVERRIDE_NOTE_MIN_LEN,
+} from '../../lib/productionGateAccess';
 
 function humanizeDocType(documentType) {
   return String(documentType || 'Work item')
@@ -297,6 +302,29 @@ export function ThreadDrawerTransactionIntel({ workItem, variant = 'aside', onMa
   const handleQuotationReview = useCallback(
     async (decision, reason = '') => {
       if (!qref) return;
+      if (decision === 'approve_production') {
+        if (!canApproveProductionGate(ws?.session?.user?.roleKey)) {
+          showToast('Production gate override requires Branch Manager or MD approval.', { variant: 'error' });
+          return;
+        }
+        let overrideReason = String(reason || '').trim();
+        if (!productionGateOverrideNoteValid(overrideReason)) {
+          const prompted =
+            window.prompt(
+              `Why may production proceed below the payment threshold? (required, at least ${PRODUCTION_GATE_OVERRIDE_NOTE_MIN_LEN} characters)`
+            ) ?? '';
+          overrideReason = prompted.trim();
+        }
+        if (!productionGateOverrideNoteValid(overrideReason)) {
+          if (overrideReason !== '' || reason === '') {
+            showToast(`Override reason must be at least ${PRODUCTION_GATE_OVERRIDE_NOTE_MIN_LEN} characters.`, {
+              variant: 'error',
+            });
+          }
+          return;
+        }
+        reason = overrideReason;
+      }
       setDecisionBusy(true);
       try {
         const { ok, data } = await apiFetch('/api/management/review', {
@@ -319,7 +347,7 @@ export function ThreadDrawerTransactionIntel({ workItem, variant = 'aside', onMa
         setDecisionBusy(false);
       }
     },
-    [qref, showToast, ws.refresh, onManagementDecisionSuccess]
+    [qref, showToast, ws.refresh, ws?.session?.user?.roleKey, onManagementDecisionSuccess]
   );
 
   const handlePaymentDecision = useCallback(
@@ -809,7 +837,7 @@ export function ThreadDrawerTransactionIntel({ workItem, variant = 'aside', onMa
                 <Flag size={15} strokeWidth={2.25} />
                 Flag for audit
               </button>
-              {dt === 'production_gate' ? (
+              {dt === 'production_gate' && canApproveProductionGate(ws?.session?.user?.roleKey) ? (
                 <button
                   type="button"
                   disabled={decisionBusy}

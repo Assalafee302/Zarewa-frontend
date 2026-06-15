@@ -3,22 +3,18 @@ import { apiFetch } from '../lib/apiBase';
 import { formatNgn } from '../Data/mockData';
 import { ZareApprovalHint } from './ZareApprovalHint';
 import {
-  quotationBmPriceExceptionApproved,
-  quotationFlaggedForMdPriceReview,
-  quotationMdPriceReviewConfirmed,
-  quotationRefundBlockedPendingMdPriceConfirm,
+  quotationBelowFloorExceptionApproved,
+  quotationBelowFloorPendingMdApproval,
 } from '../lib/quotationPriceException';
 import { useWorkspace } from '../context/WorkspaceContext';
 import { useToast } from '../context/ToastContext';
 
 /**
- * Below-floor pricing gate: branch manager (or admin) approves before production start;
- * MD confirms after production before customer refund.
+ * Below-floor pricing gate: MD or administrator approves before cutting list and production.
  *
  * @param {{
  *   quotationId: string;
  *   quotation?: object | null;
- *   productionClosedForQuote?: boolean;
  *   onQuotationUpdated?: (q: object) => void;
  *   className?: string;
  * }} props
@@ -26,7 +22,6 @@ import { useToast } from '../context/ToastContext';
 export function QuotationPriceExceptionPanel({
   quotationId,
   quotation,
-  productionClosedForQuote = false,
   onQuotationUpdated,
   className = '',
 }) {
@@ -37,13 +32,14 @@ export function QuotationPriceExceptionPanel({
   const [hasFloorRows, setHasFloorRows] = useState(false);
   const [quoteRow, setQuoteRow] = useState(quotation ?? null);
   const [loading, setLoading] = useState(false);
-  const [bmApproving, setBmApproving] = useState(false);
-  const [mdConfirming, setMdConfirming] = useState(false);
+  const [mdApproving, setMdApproving] = useState(false);
 
-  const canApproveBmPriceException = useMemo(() => {
+  const canApproveMdPriceException = useMemo(() => {
+    if (ws?.hasPermission?.('*')) return true;
+    if (ws?.hasPermission?.('md.price_exception.approve')) return true;
     const rk = String(ws?.session?.user?.roleKey ?? '').trim().toLowerCase();
-    return rk === 'sales_manager' || rk === 'branch_manager' || rk === 'admin';
-  }, [ws?.session?.user?.roleKey]);
+    return rk === 'md' || rk === 'admin';
+  }, [ws?.session?.user?.roleKey, ws]);
 
   const mergeQuote = useCallback(
     (q) => {
@@ -93,83 +89,45 @@ export function QuotationPriceExceptionPanel({
     };
   }, [qid, quotation?.pricingViolations, mergeQuote]);
 
-  const bmApproved = quotationBmPriceExceptionApproved(quoteRow);
+  const mdApproved = quotationBelowFloorExceptionApproved(quoteRow);
   const showPanel = hasFloorRows && violations.length > 0;
   if (!qid || !showPanel) return null;
 
-  const onBmPriceExceptionApprove = async () => {
+  const onMdPriceExceptionApprove = async () => {
     if (!ws?.canMutate) {
       showToast('You do not have permission to record approvals.', { variant: 'error' });
       return;
     }
-    if (!canApproveBmPriceException || !ws?.hasPermission?.('refunds.approve')) {
-      showToast(
-        'Only a branch manager or administrator (with refund approval) may approve a below-floor price exception.',
-        { variant: 'error' }
-      );
-      return;
-    }
-    if (
-      !window.confirm(
-        'Approve below-floor pricing for this quotation? Production may start. The Managing Director must confirm after production before any customer refund.'
-      )
-    )
-      return;
-    setBmApproving(true);
-    try {
-      const { ok, data } = await apiFetch(`/api/quotations/${encodeURIComponent(qid)}/bm-price-exception`, {
-        method: 'PATCH',
-        body: JSON.stringify({}),
+    if (!canApproveMdPriceException) {
+      showToast('Only the Managing Director or an administrator may approve a below-floor price exception.', {
+        variant: 'error',
       });
-      if (!ok || !data?.ok) {
-        showToast(data?.error || 'Could not record branch manager approval.', { variant: 'error' });
-        return;
-      }
-      if (data.quotation) mergeQuote(data.quotation);
-      showToast('Below-floor approval recorded — you can Save & start production.');
-      if (typeof ws?.refresh === 'function') await ws.refresh();
-    } finally {
-      setBmApproving(false);
-    }
-  };
-
-  const onMdPriceExceptionConfirm = async () => {
-    if (!ws?.canMutate) {
-      showToast('You do not have permission to record MD confirmation.', { variant: 'error' });
-      return;
-    }
-    if (!ws?.hasPermission?.('md.price_exception.approve')) {
-      showToast('Only the Managing Director can confirm this below-floor exception.', { variant: 'error' });
-      return;
-    }
-    if (!productionClosedForQuote) {
-      showToast('Complete or cancel production on this quotation before MD confirmation.', { variant: 'error' });
       return;
     }
     if (
       !window.confirm(
-        'Confirm MD review of the below-floor price exception? Customer refunds on this quotation may proceed after this step.'
+        'Approve below-floor pricing for this quotation? Cutting lists and production may proceed after this step.'
       )
     )
       return;
-    setMdConfirming(true);
+    setMdApproving(true);
     try {
       const { ok, data } = await apiFetch(
-        `/api/quotations/${encodeURIComponent(qid)}/md-price-exception-confirm`,
+        `/api/quotations/${encodeURIComponent(qid)}/md-price-exception-approve`,
         {
           method: 'PATCH',
           body: JSON.stringify({}),
         }
       );
       if (!ok || !data?.ok) {
-        showToast(data?.error || 'Could not record MD confirmation.', { variant: 'error' });
+        showToast(data?.error || 'Could not record MD approval.', { variant: 'error' });
         return;
       }
       if (data.quotation) mergeQuote(data.quotation);
-      showToast('MD price review confirmed.');
+      showToast('MD below-floor approval recorded — cutting list and production may proceed.');
       if (typeof ws?.refresh === 'function') await ws.refresh();
     } finally {
-      setMdConfirming(false);
+      setMdApproving(false);
     }
   };
 
@@ -178,13 +136,11 @@ export function QuotationPriceExceptionPanel({
       className={`rounded-xl border border-amber-300 bg-amber-50/95 px-3 py-2.5 space-y-2 ${className}`.trim()}
       role="status"
     >
-      <p className="text-[10px] font-black text-amber-950 uppercase tracking-wide">Pricing policy — production blocked</p>
+      <p className="text-[10px] font-black text-amber-950 uppercase tracking-wide">Pricing policy</p>
       <p className="text-[10px] text-amber-950/90 leading-relaxed">
-        {bmApproved
-          ? quotationRefundBlockedPendingMdPriceConfirm(quoteRow)
-            ? 'Branch manager approved below-floor pricing — production may proceed. After production, the Managing Director must confirm before any customer refund.'
-            : 'Below-floor exception is on file — production may proceed if coils and other gates are satisfied.'
-          : 'Quoted ₦/m is below the current material workbook floor on one or more lines. This often happens when the quote was prepared before prices were synced. Production cannot start until a branch manager or administrator approves the locked quote price.'}
+        {mdApproved
+          ? 'MD below-floor approval is on file — cutting lists and production may proceed if other gates are satisfied.'
+          : 'Quoted ₦/m is below the material workbook floor on one or more lines. Cutting lists and production are blocked until the Managing Director or an administrator approves this exception.'}
       </p>
       {loading ? <p className="text-[9px] text-amber-900/70">Checking pricing…</p> : null}
       <ul className="text-[10px] text-amber-950 space-y-1 list-disc pl-4">
@@ -196,54 +152,34 @@ export function QuotationPriceExceptionPanel({
           </li>
         ))}
       </ul>
-      {ws?.canMutate &&
-      canApproveBmPriceException &&
-      ws?.hasPermission?.('refunds.approve') &&
-      !bmApproved ? (
+      {ws?.canMutate && canApproveMdPriceException && !mdApproved ? (
         <button
           type="button"
-          onClick={() => void onBmPriceExceptionApprove()}
-          disabled={bmApproving}
-          className="inline-flex items-center justify-center rounded-lg bg-amber-800 px-3 py-2 text-[10px] font-bold uppercase tracking-wide text-white hover:bg-amber-900 disabled:opacity-40"
+          onClick={() => void onMdPriceExceptionApprove()}
+          disabled={mdApproving}
+          className="inline-flex items-center justify-center rounded-lg bg-[#134e4a] px-3 py-2 text-[10px] font-bold uppercase tracking-wide text-white hover:bg-[#0f3d39] disabled:opacity-40"
         >
-          {bmApproving ? 'Recording…' : 'Approve below-floor pricing (unlock production)'}
+          {mdApproving ? 'Recording…' : 'MD: approve below-floor pricing'}
         </button>
       ) : null}
-      {!bmApproved && (!canApproveBmPriceException || !ws?.hasPermission?.('refunds.approve')) ? (
+      {!mdApproved && !canApproveMdPriceException ? (
         <ZareApprovalHint
           compact
           context={{
             referenceNo: qid,
             documentType: 'quotation',
             status: 'pricing_blocked',
-            canApprove: canApproveBmPriceException && ws?.hasPermission?.('refunds.approve'),
+            canApprove: false,
             missingPermission:
-              'Below-floor pricing needs branch manager or administrator approval (refunds.approve).',
-            zareQuery: `Why can't I approve below-floor pricing on quotation ${qid}?`,
+              'Below-floor pricing needs Managing Director or administrator approval before cutting list or production.',
+            zareQuery: `Why can't I create a cutting list on quotation ${qid} with below-floor pricing?`,
           }}
         />
       ) : null}
-      {ws?.canMutate &&
-      ws?.hasPermission?.('md.price_exception.approve') &&
-      quotationRefundBlockedPendingMdPriceConfirm(quoteRow) &&
-      productionClosedForQuote ? (
-        <button
-          type="button"
-          onClick={() => void onMdPriceExceptionConfirm()}
-          disabled={mdConfirming}
-          className="inline-flex items-center justify-center rounded-lg bg-[#134e4a] px-3 py-2 text-[10px] font-bold uppercase tracking-wide text-white hover:bg-[#0f3d39] disabled:opacity-40"
-        >
-          {mdConfirming ? 'Confirming…' : 'MD: confirm review (required before refund)'}
-        </button>
-      ) : null}
-      {quotationRefundBlockedPendingMdPriceConfirm(quoteRow) && !productionClosedForQuote ? (
-        <p className="text-[9px] text-amber-900/85">
-          MD confirmation is only needed <strong className="font-semibold">after</strong> production is completed or
-          cancelled — not to start the run.
-        </p>
-      ) : null}
-      {bmApproved && quotationFlaggedForMdPriceReview(quoteRow) && quotationMdPriceReviewConfirmed(quoteRow) ? (
-        <p className="text-[9px] text-emerald-900/90 font-medium">MD review confirmed — refunds may proceed when eligible.</p>
+      {mdApproved ? (
+        <p className="text-[9px] text-emerald-900/90 font-medium">MD approval on file.</p>
+      ) : quotationBelowFloorPendingMdApproval(quoteRow) ? (
+        <p className="text-[9px] text-amber-900/85">Awaiting MD or administrator approval.</p>
       ) : null}
     </div>
   );
