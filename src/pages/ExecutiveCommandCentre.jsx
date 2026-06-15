@@ -27,6 +27,11 @@ import { userMayViewManagementReportsClient } from '../lib/reportsAccess';
 import CommandCentreIntelligenceTab from '../components/exec/CommandCentreIntelligenceTab';
 import { ExecutiveWorkItemReviewModal } from '../components/exec/ExecutiveWorkItemReviewModal';
 import { execWorkItemOpensInModal } from '../lib/execWorkItemReview';
+import {
+  approvalTierChipClass,
+  EXEC_APPROVAL_TIER_MD_ONLY,
+  EXEC_APPROVAL_TIER_SHARED,
+} from '../lib/execApprovalTier';
 
 const EXEC_TABS = [
   { id: 'overview', label: 'Overview' },
@@ -53,6 +58,12 @@ function alertTone(level) {
   if (level === 'warning') return 'border-amber-300 bg-amber-50/90 text-amber-950';
   if (level === 'opportunity') return 'border-emerald-200 bg-emerald-50/80 text-emerald-950';
   return 'border-slate-200 bg-slate-50 text-slate-800';
+}
+
+function approvalTierChip(tier) {
+  if (tier === EXEC_APPROVAL_TIER_MD_ONLY) return approvalTierChipClass(tier);
+  if (tier === EXEC_APPROVAL_TIER_SHARED) return approvalTierChipClass(tier);
+  return 'bg-slate-100 text-slate-700 ring-slate-200';
 }
 
 function priorityChip(p) {
@@ -227,6 +238,7 @@ export default function ExecutiveCommandCentre() {
   const [reserveSaving, setReserveSaving] = useState(false);
   const [reviewItem, setReviewItem] = useState(null);
   const [reserveModalBusy, setReserveModalBusy] = useState(false);
+  const [workTrayFilter, setWorkTrayFilter] = useState('all');
 
   const roleKey = String(ws?.session?.user?.roleKey || '').toLowerCase();
   const roleLabel = roleKey === 'md' ? 'Managing Director' : roleKey === 'ceo' ? 'CEO' : roleKey || 'Executive';
@@ -256,7 +268,7 @@ export default function ExecutiveCommandCentre() {
   const { data: trialData, loading: trialLoading, error: trialError, reload: reloadTrial } =
     useFinanceTrialExceptions({
       branchId: trialBranchScope,
-      enabled: mayFinanceOversight,
+      enabled: mayFinanceOversight && activeTab === 'finance',
     });
 
   const load = useCallback(async () => {
@@ -280,6 +292,19 @@ export default function ExecutiveCommandCentre() {
   }, [load]);
 
   const readOnly = Boolean(data?.workTray?.readOnlyForActor ?? data?.actor?.readOnlyExecutiveView);
+
+  const workTrayItems = data?.workTray?.items || [];
+  const workTrayMdOnlyCount = data?.workTray?.summary?.mdOnly ?? 0;
+  const workTraySharedCount = data?.workTray?.summary?.shared ?? 0;
+  const filteredWorkTrayItems = useMemo(() => {
+    if (workTrayFilter === 'md_only') {
+      return workTrayItems.filter((row) => row.approvalTier === EXEC_APPROVAL_TIER_MD_ONLY);
+    }
+    if (workTrayFilter === 'shared') {
+      return workTrayItems.filter((row) => row.approvalTier === EXEC_APPROVAL_TIER_SHARED);
+    }
+    return workTrayItems;
+  }, [workTrayFilter, workTrayItems]);
 
   const handleWorkTrayAction = (row) => {
     if (!row) return;
@@ -772,15 +797,56 @@ export default function ExecutiveCommandCentre() {
           subtitle={
             readOnly
               ? 'Summary and read-only items — open routes to review detail.'
-              : 'Review opens here on Command Centre when you can act — no redirect to Sales or Manager for approvals.'
+              : 'MD-only items are listed first. Branch Manager and finance can handle shared queue items without you.'
           }
           icon={<Shield size={18} className="text-[#134e4a]" />}
         >
+          <div className="mb-4 flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setWorkTrayFilter('all')}
+              className={`rounded-lg px-3 py-1.5 text-[10px] font-black uppercase ring-1 ${
+                workTrayFilter === 'all'
+                  ? 'bg-[#134e4a] text-white ring-[#134e4a]'
+                  : 'bg-white text-slate-700 ring-slate-200 hover:bg-slate-50'
+              }`}
+            >
+              All ({workTrayMdOnlyCount + workTraySharedCount})
+            </button>
+            <button
+              type="button"
+              onClick={() => setWorkTrayFilter('md_only')}
+              className={`rounded-lg px-3 py-1.5 text-[10px] font-black uppercase ring-1 ${
+                workTrayFilter === 'md_only'
+                  ? 'bg-violet-700 text-white ring-violet-700'
+                  : `${approvalTierChip(EXEC_APPROVAL_TIER_MD_ONLY)} hover:opacity-90`
+              }`}
+            >
+              MD only ({workTrayMdOnlyCount})
+            </button>
+            <button
+              type="button"
+              onClick={() => setWorkTrayFilter('shared')}
+              className={`rounded-lg px-3 py-1.5 text-[10px] font-black uppercase ring-1 ${
+                workTrayFilter === 'shared'
+                  ? 'bg-sky-700 text-white ring-sky-700'
+                  : `${approvalTierChip(EXEC_APPROVAL_TIER_SHARED)} hover:opacity-90`
+              }`}
+            >
+              BM / Finance ({workTraySharedCount})
+            </button>
+            {workTrayMdOnlyCount > 0 ? (
+              <p className="text-[10px] text-violet-900 font-semibold ml-1">
+                {workTrayMdOnlyCount} item{workTrayMdOnlyCount === 1 ? '' : 's'} need your sign-off only.
+              </p>
+            ) : null}
+          </div>
           <div className="overflow-x-auto">
-            <table className="w-full text-xs min-w-[800px]">
+            <table className="w-full text-xs min-w-[880px]">
               <thead>
                 <tr className="border-b text-[10px] font-black uppercase text-slate-500">
                   <th className="py-2 text-left">Priority</th>
+                  <th className="py-2 text-left">Approver</th>
                   <th className="py-2 text-left">Type</th>
                   <th className="py-2 text-left">Branch</th>
                   <th className="py-2 text-right">Amount</th>
@@ -791,20 +857,35 @@ export default function ExecutiveCommandCentre() {
                 </tr>
               </thead>
               <tbody>
-                {(data?.workTray?.items || []).length === 0 && !busy ? (
+                {filteredWorkTrayItems.length === 0 && !busy ? (
                   <tr>
-                    <td colSpan={8} className="py-8 text-center text-slate-500">
-                      No pending executive items.
+                    <td colSpan={9} className="py-8 text-center text-slate-500">
+                      {workTrayFilter === 'all'
+                        ? 'No pending executive items.'
+                        : 'No items in this queue.'}
                     </td>
                   </tr>
                 ) : (
-                  (data?.workTray?.items || []).map((row) => (
-                    <tr key={row.id} className="border-b border-slate-50">
+                  filteredWorkTrayItems.map((row) => (
+                    <tr
+                      key={row.id}
+                      className={`border-b border-slate-50 ${
+                        row.approvalTier === EXEC_APPROVAL_TIER_MD_ONLY ? 'bg-violet-50/40' : ''
+                      }`}
+                    >
                       <td className="py-2.5">
                         <span
                           className={`inline-flex rounded-md px-2 py-0.5 text-[9px] font-black uppercase ring-1 ${priorityChip(row.priority)}`}
                         >
                           {row.priority}
+                        </span>
+                      </td>
+                      <td className="py-2.5">
+                        <span
+                          className={`inline-flex rounded-md px-2 py-0.5 text-[9px] font-black uppercase ring-1 ${approvalTierChip(row.approvalTier)}`}
+                          title={row.approvalTierReason || row.approvalTierLabel || ''}
+                        >
+                          {row.approvalTierLabel || (row.approvalTier === EXEC_APPROVAL_TIER_MD_ONLY ? 'MD only' : 'Shared')}
                         </span>
                       </td>
                       <td className="py-2.5 font-semibold capitalize">
