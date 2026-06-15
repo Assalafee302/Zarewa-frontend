@@ -65,8 +65,10 @@ export function ClearanceManagerApprovalPreview({
           </p>
           {fromProductionGate ? (
             <p className="mt-1 text-[10px] leading-snug text-amber-800">
-              Production gate (low payment){cuttingListId ? ` · cutting list ${cuttingListId}` : ''}. Use production
-              override only after you accept the risk.
+              Production gate (low payment){cuttingListId ? ` · cutting list ${cuttingListId}` : ''}.{' '}
+              {Math.round(Number(inboxRow?.paid_ngn) || 0) <= 0
+                ? 'Zero payment — MD approval required before cutting list / production.'
+                : 'Branch Manager may approve when some payment is on file but below threshold.'}
             </p>
           ) : null}
           {reviewContext === 'flagged' && inboxRow?.manager_flag_reason ? (
@@ -206,8 +208,10 @@ export function ClearanceManagerApprovalPreview({
               </button>
             ) : null}
             {fromProductionGate && !canProductionOverride ? (
-              <p className="mt-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-[10px] text-slate-600">
-                Production gate override requires Branch Manager or MD login.
+              <p className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[10px] text-amber-950">
+                {Math.round(Number(inboxRow?.paid_ngn) || 0) <= 0
+                  ? 'Zero payment on this quote — only the Managing Director can record production approval.'
+                  : 'Production gate override requires Branch Manager or MD login.'}
               </p>
             ) : null}
           </IntelPanel>

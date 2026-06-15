@@ -24,6 +24,7 @@ import { formatRefundReasonCategory } from '../../lib/managerDashboardCore';
 import { EditSecondApprovalInline } from '../EditSecondApprovalInline';
 import {
   canApproveProductionGate,
+  productionGateOverrideDeniedMessage,
   productionGateOverrideNoteValid,
   PRODUCTION_GATE_OVERRIDE_NOTE_MIN_LEN,
 } from '../../lib/productionGateAccess';
@@ -299,12 +300,21 @@ export function ThreadDrawerTransactionIntel({ workItem, variant = 'aside', onMa
     };
   }, [workItem, dt, qref, fetchAudit]);
 
+  const quotePaidNgnForGate = useMemo(() => {
+    const fromAudit = Math.round(Number(auditData?.summary?.paidNgn ?? auditData?.quotation?.paidNgn) || 0);
+    if (fromAudit > 0) return fromAudit;
+    const q = (Array.isArray(ws?.snapshot?.quotations) ? ws.snapshot.quotations : []).find(
+      (row) => String(row.id || '').trim() === String(qref || '').trim()
+    );
+    return Math.round(Number(q?.paidNgn ?? q?.paid_ngn) || 0);
+  }, [auditData, qref, ws?.snapshot?.quotations]);
+
   const handleQuotationReview = useCallback(
     async (decision, reason = '') => {
       if (!qref) return;
       if (decision === 'approve_production') {
-        if (!canApproveProductionGate(ws?.session?.user?.roleKey)) {
-          showToast('Production gate override requires Branch Manager or MD approval.', { variant: 'error' });
+        if (!canApproveProductionGate(ws?.session?.user?.roleKey, { paidNgn: quotePaidNgnForGate })) {
+          showToast(productionGateOverrideDeniedMessage(quotePaidNgnForGate), { variant: 'error' });
           return;
         }
         let overrideReason = String(reason || '').trim();
@@ -347,7 +357,7 @@ export function ThreadDrawerTransactionIntel({ workItem, variant = 'aside', onMa
         setDecisionBusy(false);
       }
     },
-    [qref, showToast, ws.refresh, ws?.session?.user?.roleKey, onManagementDecisionSuccess]
+    [qref, showToast, ws.refresh, ws?.session?.user?.roleKey, quotePaidNgnForGate, onManagementDecisionSuccess]
   );
 
   const handlePaymentDecision = useCallback(
@@ -837,7 +847,8 @@ export function ThreadDrawerTransactionIntel({ workItem, variant = 'aside', onMa
                 <Flag size={15} strokeWidth={2.25} />
                 Flag for audit
               </button>
-              {dt === 'production_gate' && canApproveProductionGate(ws?.session?.user?.roleKey) ? (
+              {dt === 'production_gate' &&
+              canApproveProductionGate(ws?.session?.user?.roleKey, { paidNgn: quotePaidNgnForGate }) ? (
                 <button
                   type="button"
                   disabled={decisionBusy}

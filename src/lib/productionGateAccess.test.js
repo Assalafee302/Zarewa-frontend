@@ -3,10 +3,11 @@ import { canApproveProductionGate, productionGateOverrideNoteValid } from './pro
 import { canApproveCreditExceptionItem } from './creditExceptionAccess.js';
 
 describe('production gate access', () => {
-  it('branch manager and md may override production gate', () => {
-    expect(canApproveProductionGate('sales_manager')).toBe(true);
-    expect(canApproveProductionGate('md')).toBe(true);
-    expect(canApproveProductionGate('sales_staff')).toBe(false);
+  it('branch manager may override only when payment exists', () => {
+    expect(canApproveProductionGate('sales_manager', { paidNgn: 200_000 })).toBe(true);
+    expect(canApproveProductionGate('sales_manager', { paidNgn: 0 })).toBe(false);
+    expect(canApproveProductionGate('md', { paidNgn: 0 })).toBe(true);
+    expect(canApproveProductionGate('sales_staff', { paidNgn: 200_000 })).toBe(false);
   });
 
   it('requires 8+ character override note', () => {

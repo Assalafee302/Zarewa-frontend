@@ -24,6 +24,7 @@ import { formatNgn } from '../Data/mockData';
 import { receiptCashReceivedNgn, normalizeReceiptMatchDashes } from '../lib/salesReceiptsList';
 import { STONE_METER_INVENTORY_MODEL } from '../lib/stoneCoatedQuotationPolicy';
 import { normalizeJobStatus } from '../lib/productionJobPick';
+import { productionGateOverrideEffective, quotationHasRecordedPayment } from '../lib/productionGateAccess';
 
 /** Compare quote / receipt links when pasted refs use en-dash etc. */
 function normQuoteKey(s) {
@@ -231,7 +232,7 @@ function cashPaidOnQuotation(quotationId, receiptRows, ledgerEntries) {
 
 /** Paid fraction gate (branch setting): actual cash in, or book allocation, or manager override. */
 function meetsCuttingListPayThreshold(q, receiptRows, ledgerEntries, minPaidFraction = 0.7) {
-  if (q.manager_production_approved_at_iso || q.managerProductionApprovedAtISO) return true;
+  if (productionGateOverrideEffective(q)) return true;
   const total = Number(q.totalNgn ?? q.total_ngn) || 0;
   if (total <= 0) return false;
   const mf =
@@ -1396,8 +1397,9 @@ const CuttingListModal = ({
                           Low payment ({payPercentOnQuote}% book · need {minPaidPercentLabel}% for cutting without override)
                         </p>
                         <p className="text-[10px] text-amber-800 leading-snug">
-                          You cannot save this cutting list until a manager approves production for this quotation on the Manager dashboard
-                          (Transaction Intel → Override). After approval, refresh and try again.
+                          {quotationHasRecordedPayment(selectedQuotation.paidNgn ?? selectedQuotation.paid_ngn)
+                            ? 'Branch Manager may approve production below the payment threshold on the Manager dashboard. After approval, refresh and try again.'
+                            : 'This quotation has zero payment — only the Managing Director may approve cutting list / production on the Manager dashboard. After MD approval, refresh and try again.'}
                         </p>
                       </div>
                     </div>

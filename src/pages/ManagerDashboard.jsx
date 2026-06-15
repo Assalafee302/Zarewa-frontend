@@ -77,7 +77,7 @@ import { OfficialRecordBanner } from '../components/management/OfficialRecordBan
 import DeliveryGateDiagnosticsBanner from '../components/finance/DeliveryGateDiagnosticsBanner';
 import { syncAccountingPolicyFlagsFromHealth, deliveryPaymentGateMode } from '../lib/accountingPolicyFlags';
 import { userMayApproveRefundRequests } from '../lib/refundsStore';
-import { canApproveProductionGate, productionGateOverrideNoteValid } from '../lib/productionGateAccess';
+import { canApproveProductionGate, productionGateOverrideDeniedMessage, productionGateOverrideNoteValid } from '../lib/productionGateAccess';
 import { CreditExceptionPanel } from '../components/finance/CreditExceptionPanel';
 import { useCreditExceptions } from '../hooks/useCreditExceptions';
 import { HrDailyRollPanel } from '../components/hr/HrDailyRollPanel';
@@ -935,8 +935,16 @@ const ManagerDashboard = () => {
   const handleReview = async (quotationId, decision, reason = '') => {
     if (!quotationId) return;
     if (decision === 'approve_production') {
-      if (!canApproveProductionGateOverride) {
-        showToast('Production gate override requires Branch Manager or MD approval.', { variant: 'error' });
+      const paidNgn = Math.round(
+        Number(
+          selectedIntel?.kind === 'quotation' && selectedIntel.quoteId === quotationId
+            ? selectedIntel.row?.paid_ngn ?? selectedIntel.row?.paidNgn
+            : items.pendingClearance.find((q) => q.id === quotationId)?.paid_ngn ??
+                items.productionOverrides.find((o) => o.quotation_ref === quotationId)?.paid_ngn
+        ) || 0
+      );
+      if (!canApproveProductionGate(ws?.session?.user?.roleKey, { paidNgn })) {
+        showToast(productionGateOverrideDeniedMessage(paidNgn), { variant: 'error' });
         return;
       }
       let overrideReason = String(reason || '').trim();
@@ -1934,7 +1942,15 @@ const ManagerDashboard = () => {
                     reviewContext={selectedIntel.reviewContext || 'clearance'}
                     fromProductionGate={Boolean(selectedIntel.fromProductionGate)}
                     cuttingListId={selectedIntel.cuttingListId || ''}
-                    canProductionOverride={canApproveProductionGateOverride}
+                    canProductionOverride={canApproveProductionGate(ws?.session?.user?.roleKey, {
+                      paidNgn: Math.round(
+                        Number(
+                          selectedIntel.row?.paid_ngn ??
+                            auditData?.summary?.paidNgn ??
+                            auditData?.quotation?.paidNgn
+                        ) || 0
+                      ),
+                    })}
                     showReleasePayments={Boolean(
                       selectedUnifiedWorkItem?.managerClearedAtIso ||
                         selectedUnifiedWorkItem?.managerFlaggedAtIso ||

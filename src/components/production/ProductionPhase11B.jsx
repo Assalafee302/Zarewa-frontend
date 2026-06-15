@@ -103,12 +103,17 @@ export function ProductionJobIntelBanner({ intel, formatMeters }) {
     alerts.push({
       tone: 'rose',
       title: `Payment gate — ${intel.quotePaidPct ?? '—'}% paid`,
-      body: `Quote paid below ${Math.round((intel.paymentGateMinFraction || 0.7) * 100)}% — BM production override required before cutting list / production.`,
+      body: intel.zeroPaymentMdGateRequired
+        ? `Quote has no payment — Managing Director approval required before cutting list / production.`
+        : `Quote paid below ${Math.round((intel.paymentGateMinFraction || 0.7) * 100)}% — Branch Manager may approve production to proceed.`,
     });
   } else if (intel.managerProductionApprovedAtISO) {
     alerts.push({
       tone: 'amber',
-      title: 'BM production gate override',
+      title:
+        intel.managerProductionApprovalLevel === 'md' || intel.managerProductionApprovalLevel === 'admin'
+          ? 'MD production gate override'
+          : 'BM production gate override',
       body: `${formatPersonName(intel.managerProductionApprovedByName || 'Manager')} · ${(intel.managerProductionApprovedAtISO || '').slice(0, 10)}${
         intel.managerProductionPaidFractionAtApproval != null
           ? ` · ${Math.round(Number(intel.managerProductionPaidFractionAtApproval) * 1000) / 10}% paid at approval`
@@ -163,13 +168,22 @@ export function ProductionPaymentGateOverridePanel({
 
   const qid = String(quotationId || '').trim();
   const showPanel = intel?.paymentGateRequired && !intel?.managerProductionApprovedAtISO;
-  const mayOverride = canApproveProductionGate(roleKey);
+  const paidNgn = Math.round(Number(intel?.quotePaidNgn) || 0);
+  const mayOverride = canApproveProductionGate(roleKey, { paidNgn });
 
   if (!qid || !showPanel) return null;
   if (!canMutate || !mayOverride) {
     return (
       <p className="mt-2 rounded-md border border-slate-200 bg-slate-50 px-2 py-1.5 text-[9px] text-slate-600">
-        Payment gate override requires <span className="font-bold">Branch Manager or MD</span> approval.
+        {paidNgn <= 0 ? (
+          <>
+            Zero payment — only <span className="font-bold">Managing Director</span> can approve cutting list / production.
+          </>
+        ) : (
+          <>
+            Payment gate override requires <span className="font-bold">Branch Manager or MD</span> approval.
+          </>
+        )}
       </p>
     );
   }
@@ -197,10 +211,13 @@ export function ProductionPaymentGateOverridePanel({
 
   return (
     <div className="mt-2 rounded-lg border border-rose-200 bg-rose-50/70 p-2.5 space-y-2">
-      <p className="text-[9px] font-black uppercase tracking-wide text-rose-900">BM production gate override</p>
+      <p className="text-[9px] font-black uppercase tracking-wide text-rose-900">
+        {paidNgn <= 0 ? 'MD zero-payment production override' : 'BM production gate override'}
+      </p>
       <p className="text-[10px] text-rose-950 leading-snug">
-        Quote paid {intel.quotePaidPct ?? '—'}% — record branch manager approval to document why production proceeded below
-        the {Math.round((intel.paymentGateMinFraction || 0.7) * 100)}% threshold.
+        {paidNgn <= 0
+          ? `Quote has no payment — record MD approval to document why cutting list / production may proceed.`
+          : `Quote paid ${intel.quotePaidPct ?? '—'}% — record branch manager approval to document why production proceeded below the ${Math.round((intel.paymentGateMinFraction || 0.7) * 100)}% threshold.`}
       </p>
       <textarea
         rows={2}
