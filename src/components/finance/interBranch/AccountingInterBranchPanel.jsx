@@ -250,15 +250,26 @@ export function AccountingInterBranchPanel({ branchScopeLabel = '', workspaceBra
             />
           </div>
         }
-        footer={<AppTablePager paging={paging} noun="transfer" />}
+        footer={
+          <AppTablePager
+            showingFrom={paging.showingFrom}
+            showingTo={paging.showingTo}
+            total={paging.total}
+            hasPrev={paging.hasPrev}
+            hasNext={paging.hasNext}
+            onPrev={paging.goPrev}
+            onNext={paging.goNext}
+            pageSize={PAGE_SIZE}
+          />
+        }
       >
         {loading && !loans.length ? (
           <p className="text-[11px] text-slate-500 py-8 text-center">Loading transfers…</p>
-        ) : paging.pageItems.length === 0 ? (
+        ) : paging.slice.length === 0 ? (
           <p className="text-[11px] text-slate-500 py-8 text-center">No inter-branch transfers in this scope.</p>
         ) : (
           <ul className="space-y-1.5">
-            {paging.pageItems.map((loan) => (
+            {paging.slice.map((loan) => (
               <li key={loan.loanId}>
                 <button
                   type="button"
