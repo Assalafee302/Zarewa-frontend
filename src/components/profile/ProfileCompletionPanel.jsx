@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { HrProfileCompleteness } from '../hr/HrProfileCompleteness';
+import { FAMILY_BENEFITS } from '../../lib/familyBenefitsUi';
 import { HR_SELF_SERVICE_PATH } from '../../lib/hrSelfServiceRoutes';
 
 const VERIFY_LABEL = {
@@ -29,15 +30,23 @@ export function ProfileCompletionPanel({
     const docs = documentSummary || {};
     return (
       <div className="rounded-2xl border border-violet-100 bg-violet-50/50 p-4">
-        <p className="text-sm font-black text-slate-900">Scholarship profile</p>
-        <p className="mt-1 text-xs text-slate-600">Complete your school details, documents, and policies in HR self-service.</p>
+        <p className="text-sm font-black text-slate-900">{FAMILY_BENEFITS.profileSetupTitle}</p>
+        <p className="mt-1 text-xs text-slate-600">{FAMILY_BENEFITS.profileSetupHint}</p>
         <ul className="mt-3 space-y-2">
           <li>
             <Link
               to={HR_SELF_SERVICE_PATH.school}
               className="flex min-h-11 items-center rounded-xl border border-violet-200 bg-white px-4 py-3 text-sm font-semibold text-violet-900 no-underline active:bg-violet-50"
             >
-              My school profile →
+              {FAMILY_BENEFITS.hubTitle} →
+            </Link>
+          </li>
+          <li>
+            <Link
+              to={HR_SELF_SERVICE_PATH.requests}
+              className="flex min-h-11 items-center rounded-xl border border-violet-200 bg-white px-4 py-3 text-sm font-semibold text-violet-900 no-underline active:bg-violet-50"
+            >
+              Submit a request →
             </Link>
           </li>
           {(docs.pending || 0) > 0 || (docs.rejected || 0) > 0 ? (

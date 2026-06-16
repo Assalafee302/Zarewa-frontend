@@ -1,9 +1,10 @@
-import React, { Suspense } from 'react';
+import React, { Suspense, useMemo } from 'react';
 import { lazyWithRetry } from '../../lib/lazyWithRetry';
 import { Navigate, Route, Routes, useParams } from 'react-router-dom';
 import { HrSectionShell } from '../../components/hr/HrSectionShell';
 import HrTabRedirect from '../../components/hr/HrTabRedirect';
 import { useWorkspace } from '../../context/WorkspaceContext';
+import { buildHrMainNav } from '../../lib/hrMainNav';
 import {
   HR_ATTENDANCE,
   HR_DEVELOPMENT,
@@ -30,21 +31,6 @@ import HrSettingsHub from './HrSettingsHub';
 
 const HrAnalytics = lazyWithRetry(() => import('./HrAnalytics'), { id: 'HrAnalytics' });
 
-const HR_NAV = [
-  { to: '/hr/dashboard', label: 'Dashboard', end: true },
-  { to: '/hr/employees', label: 'Employees' },
-  { to: '/hr/requests', label: 'Requests' },
-  { to: '/hr/attendance', label: 'Attendance' },
-  { to: '/hr/leave', label: 'Leave' },
-  { to: '/hr/payroll', label: 'Payroll' },
-  { to: '/hr/recruitment', label: 'Recruitment' },
-  { to: '/hr/development', label: 'Development' },
-  { to: '/hr/discipline-exit', label: 'Discipline & Exit' },
-  { to: '/hr/documents', label: 'Documents' },
-  { to: '/hr/settings', label: 'Settings' },
-  { to: '/hr/analytics', label: 'Analytics' },
-];
-
 function LegacyStaffProfileRedirect() {
   const { userId } = useParams();
   return <Navigate to={`/hr/employees/${encodeURIComponent(userId || '')}`} replace />;
@@ -57,10 +43,10 @@ function LegacyStaffRegisterRedirect() {
 export default function HumanResources() {
   const ws = useWorkspace();
   const showExecutive = ws?.canAccessModule?.('executive_hr');
-
-  const navItems = showExecutive
-    ? [...HR_NAV, { to: '/executive-hr', label: 'Executive' }]
-    : HR_NAV;
+  const { navItems, moreNavItems } = useMemo(
+    () => buildHrMainNav(ws?.permissions || [], { showExecutive }),
+    [ws?.permissions, showExecutive]
+  );
 
   return (
     <Routes>
@@ -70,6 +56,7 @@ export default function HumanResources() {
             title="Human Resources"
             subtitle="HQ payroll, staff records, leave, attendance, and people operations for Zarewa."
             navItems={navItems}
+            moreNavItems={moreNavItems}
             stickySubnav
             compact
           />
@@ -90,7 +77,6 @@ export default function HumanResources() {
         <Route path="documents" element={<HrDocumentsHub />} />
         <Route path="settings" element={<HrSettingsHub />} />
 
-        {/* Requests — no nav item; linked from dashboard */}
         <Route path="requests" element={<HrRequests />} />
 
         {/* Legacy redirects */}

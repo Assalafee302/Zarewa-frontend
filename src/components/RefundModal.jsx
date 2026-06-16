@@ -636,7 +636,6 @@ const RefundModal = ({
     quotations,
     quotationRefsWithBlockingRefund,
     quotationRefsProduced,
-    mode,
     form.quotationRef,
   ]);
 

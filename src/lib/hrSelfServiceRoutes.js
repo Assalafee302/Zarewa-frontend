@@ -4,7 +4,10 @@ export const HR_SELF_SERVICE_BASE = '/my-profile';
 /** @type {Record<string, string>} */
 export const HR_SELF_SERVICE_PATH = {
   overview: `${HR_SELF_SERVICE_BASE}/overview`,
+  home: `${HR_SELF_SERVICE_BASE}/home`,
   school: `${HR_SELF_SERVICE_BASE}/school`,
+  payments: `${HR_SELF_SERVICE_BASE}/payments`,
+  requests: `${HR_SELF_SERVICE_BASE}/requests`,
   employment: `${HR_SELF_SERVICE_BASE}/employment`,
   leave: `${HR_SELF_SERVICE_BASE}/leave`,
   loans: `${HR_SELF_SERVICE_BASE}/loans`,
@@ -39,6 +42,7 @@ export const LEGACY_ME_HR_REDIRECTS = {
   '/me/benefits': HR_SELF_SERVICE_PATH.benefits,
   '/me/discipline': HR_SELF_SERVICE_PATH.discipline,
   '/me/school': HR_SELF_SERVICE_PATH.school,
+  '/me/payments': HR_SELF_SERVICE_PATH.payments,
 };
 
 /**

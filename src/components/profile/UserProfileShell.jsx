@@ -3,6 +3,7 @@ import { NavLink, Outlet } from 'react-router-dom';
 import { PageHeader, PageShell, MainPanel } from '../layout';
 import { UserProfileProvider, useUserProfile } from '../../context/UserProfileContext';
 import { buildUserProfileNav } from '../../lib/userProfileActions';
+import { ProfileHubSwitcher } from './ProfileHubSwitcher';
 
 function ProfileSubnav() {
   const { cohort, hasHrSelfService } = useUserProfile();
@@ -13,8 +14,8 @@ function ProfileSubnav() {
 
   return (
     <nav
-      className="flex gap-1.5 overflow-x-auto pb-1 snap-x snap-mandatory custom-scrollbar [-webkit-overflow-scrolling:touch]"
-      aria-label="Profile sections"
+      aria-label="Account sections"
+      className="flex w-full min-w-0 gap-1 overflow-x-auto overscroll-x-contain rounded-2xl border border-white/80 bg-white/90 p-1 shadow-sm sm:p-1.5 [-webkit-overflow-scrolling:touch]"
     >
       {nav.map((item) => (
         <NavLink
@@ -22,10 +23,10 @@ function ProfileSubnav() {
           to={item.to}
           end={item.end}
           className={({ isActive }) =>
-            `shrink-0 snap-start rounded-xl px-4 py-2.5 min-h-11 inline-flex items-center text-xs font-bold uppercase tracking-wide border transition-colors ${
+            `shrink-0 rounded-xl px-2.5 py-2 min-h-10 inline-flex items-center text-[9px] font-bold uppercase tracking-[0.12em] transition no-underline sm:px-3 sm:py-2.5 sm:min-h-11 sm:text-[10px] ${
               isActive
-                ? 'bg-[#134e4a] text-white border-[#134e4a] shadow-sm'
-                : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300 active:bg-slate-50'
+                ? 'bg-[#134e4a] text-white shadow-md shadow-teal-950/15'
+                : 'text-slate-500 hover:bg-slate-50 hover:text-[#134e4a]'
             }`
           }
         >
@@ -41,17 +42,18 @@ function UserProfileShellInner() {
 
   const subtitle =
     cohort === 'scholarship'
-      ? 'Account hub — password, access, and shortcuts. School fees, documents, and stipend are in HR self-service.'
+      ? 'Password, access, and shortcuts. School fees and allowance are in My benefits.'
       : cohort === 'domestic'
-        ? 'Account hub — password and access. Payslips and documents are in HR self-service.'
+        ? 'Password, access, and shortcuts. Salary and documents are in My pay.'
         : cohort === 'account_only'
-          ? 'Account hub — profile, security, and workspace shortcuts.'
-          : 'Account hub — password and access. Leave, payslips, and employment forms are in HR self-service.';
+          ? 'Profile, security, and workspace shortcuts.'
+          : 'Password and access. Leave, payslips, and employment forms are in HR self-service.';
 
   return (
     <PageShell className="pb-[max(2.5rem,env(safe-area-inset-bottom))]">
       <PageHeader eyebrow="Account" title="My profile" subtitle={subtitle} />
-      <div className="sticky top-0 z-30 -mx-2 mb-4 border-b border-slate-200/80 bg-[#F8FAFC]/95 px-2 py-2 backdrop-blur-md sm:-mx-1 sm:px-1">
+      <div className="sticky top-0 z-30 mb-3 space-y-2 border-b border-slate-200/80 bg-[#F8FAFC]/95 px-1 py-2 backdrop-blur-md sm:mb-4 sm:space-y-3 sm:px-0">
+        <ProfileHubSwitcher />
         <ProfileSubnav />
       </div>
       <MainPanel>

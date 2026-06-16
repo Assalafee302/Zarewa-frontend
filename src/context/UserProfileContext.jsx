@@ -13,8 +13,7 @@ export function UserProfileProvider({ children }) {
   const hasDataRef = useRef(false);
   const loadGenRef = useRef(0);
 
-  const permissionsKey = useMemo(() => (ws?.permissions || []).join('|'), [ws?.permissions]);
-  const hasHrSelfService = useMemo(() => canAccessMyProfileHr(ws?.permissions), [permissionsKey]);
+  const hasHrSelfService = useMemo(() => canAccessMyProfileHr(ws?.permissions), [ws?.permissions]);
 
   const reload = useCallback(async (opts = {}) => {
     if (!hasHrSelfService) {

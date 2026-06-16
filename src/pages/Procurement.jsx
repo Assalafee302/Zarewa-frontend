@@ -315,7 +315,7 @@ const Procurement = () => {
     const s = ws.snapshot;
     setAgents(Array.isArray(s.transportAgents) ? s.transportAgents.map((a) => ({ ...a })) : []);
     setSuppliers(Array.isArray(s.suppliers) ? s.suppliers.map((x) => ({ ...x })) : []);
-  }, [ws?.refreshEpoch, ws?.hasWorkspaceData]);
+  }, [ws?.refreshEpoch, ws?.hasWorkspaceData, ws?.snapshot]);
    
 
   const [showMaterialPricingWorkbook, setShowMaterialPricingWorkbook] = useState(false);
@@ -485,10 +485,9 @@ const Procurement = () => {
     [
       ws?.hasWorkspaceData,
       ws?.snapshot,
-      ws?.session?.currentBranchId,
+      ws?.session,
       ws?.branchScope,
       ws?.viewAllBranches,
-      ws?.refreshEpoch,
     ]
   );
 
@@ -497,7 +496,7 @@ const Procurement = () => {
       ws?.hasWorkspaceData && Array.isArray(ws?.snapshot?.accountsPayable)
         ? ws.snapshot.accountsPayable.map((x) => ({ ...x }))
         : [],
-    [ws?.hasWorkspaceData, ws?.snapshot?.accountsPayable, ws?.refreshEpoch]
+    [ws?.hasWorkspaceData, ws?.snapshot?.accountsPayable]
   );
 
   const todayIso = useMemo(() => new Date().toISOString().slice(0, 10), []);

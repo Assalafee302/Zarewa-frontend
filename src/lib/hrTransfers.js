@@ -41,3 +41,38 @@ export function patchHrTransferRequest(id, body) {
     body: JSON.stringify(body),
   });
 }
+
+/** Visual approval chain for transfer workflow. */
+export function hrTransferApprovalChain(transferType, status) {
+  const type = String(transferType || '').toLowerCase();
+  const needsBranch = type === 'inter_branch';
+  const needsGm = ['inter_branch', 'hq_to_branch', 'branch_to_hq'].includes(type);
+  let chain;
+  if (needsBranch && needsGm) {
+    chain = ['Draft', 'Branch review', 'HR review', 'GM approval', 'Approved', 'Completed'];
+  } else if (needsGm) {
+    chain = ['Draft', 'HR review', 'GM approval', 'Approved', 'Completed'];
+  } else {
+    chain = ['Draft', 'HR review', 'Approved', 'Completed'];
+  }
+
+  const statusIdx = {
+    draft: 0,
+    submitted: needsBranch ? 1 : 1,
+    branch_review: chain.indexOf('Branch review'),
+    hr_review: chain.indexOf('HR review'),
+    gm_approval: chain.indexOf('GM approval'),
+    approved: chain.indexOf('Approved'),
+    completed: chain.length - 1,
+  };
+  const rejected = status === 'rejected';
+  const idx = statusIdx[status] ?? (rejected ? chain.length - 2 : 0);
+  return { chain, currentIdx: idx >= 0 ? idx : 0, status, rejected };
+}
+
+export const TRANSFER_QUEUE_SCOPES = {
+  branch_queue: 'branch_review',
+  hr_queue: 'hr_review',
+  gm_queue: 'gm_approval',
+  complete_queue: 'approved',
+};

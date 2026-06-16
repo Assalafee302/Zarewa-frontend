@@ -43,7 +43,7 @@ export function WorkspaceInboxToolbar({
   onCategoryChange,
 }) {
   const [filtersOpen, setFiltersOpen] = useState(false);
-  const f = { ...DEFAULT_INBOX_FILTERS, ...filters };
+  const f = useMemo(() => ({ ...DEFAULT_INBOX_FILTERS, ...filters }), [filters]);
   const activeCount = countActiveFilters(f, category);
 
   const chips = useMemo(() => {

@@ -3,6 +3,9 @@ import { useHrListLoad } from '../../hooks/useHrListLoad';
 import { acceptHrPolicy, fetchHrPolicyRequirements } from '../../lib/hrExtended';
 import { apiFetch, apiUrl } from '../../lib/apiBase';
 import { useWorkspace } from '../../context/WorkspaceContext';
+import { HrPageBody, HrPageIntro } from '../../components/hr/hrPageUi';
+import { ProfileFormField } from '../../components/profile/profileFormUi';
+import { ProfileInlineAlert, ProfileOverviewSection } from '../../components/profile/profileOverviewUi';
 
 function policyDocumentUrl(key) {
   return apiUrl(`/api/hr/policy-documents/${encodeURIComponent(key)}`);
@@ -101,87 +104,77 @@ export default function MyProfilePolicies() {
   };
 
   return (
-    <div className="space-y-5 pb-4">
-      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
-        <p className="text-base font-black text-slate-900 sm:text-sm">Company policies — read & sign once</p>
-        <p className="mt-1 text-sm leading-relaxed text-slate-600 sm:text-xs">
-          All joining policies are combined below. Read the full text, then sign once to acknowledge every outstanding
-          policy. HR stores your signature on file.
-        </p>
-        {allAccepted ? (
-          <p className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-sm font-semibold text-emerald-800">
-            All required policies signed. Thank you.
-          </p>
-        ) : (
-          <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-900">
-            {missing.length} policy/policies still need your signature.
-          </p>
-        )}
-      </div>
+    <HrPageBody>
+      <HrPageIntro
+        title="Company policies"
+        description="Read and sign required policies once. HR stores your typed signature on file."
+      />
 
-      {error ? (
-        <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-800">{error}</div>
+      {allAccepted ? (
+        <ProfileInlineAlert variant="success">All required policies signed. Thank you.</ProfileInlineAlert>
+      ) : missing.length ? (
+        <ProfileInlineAlert variant="warning">
+          {missing.length} policy/policies still need your signature.
+        </ProfileInlineAlert>
       ) : null}
 
-      <label className="block text-xs font-bold uppercase tracking-wider text-gray-500">
-        Your signature (typed full name)
-        <input
-          className="z-input mt-1.5"
-          value={signature}
-          onChange={(e) => setSignature(e.target.value)}
-          autoComplete="name"
-          enterKeyHint="done"
-        />
-      </label>
+      {error ? <ProfileInlineAlert variant="error">{error}</ProfileInlineAlert> : null}
 
-      <div
-        className="max-h-[min(50dvh,420px)] overflow-y-auto rounded-2xl border border-slate-200 bg-slate-50/80 p-4 text-sm leading-relaxed text-slate-800 whitespace-pre-wrap custom-scrollbar sm:p-5"
-        onScroll={(e) => {
-          const el = e.currentTarget;
-          if (el.scrollTop + el.clientHeight >= el.scrollHeight - 32) setScrolledToEnd(true);
-        }}
-      >
-        {loading && !loaded ? (
-          <p className="text-slate-500">Loading policies…</p>
-        ) : policies.length === 0 ? (
-          <p className="text-slate-500">No policies required for your account.</p>
-        ) : (
-          combinedBody
-        )}
-      </div>
-      {!scrolledToEnd && missing.length && policies.length ? (
-        <p className="text-sm text-slate-500 sm:text-xs">Scroll to the end of the policy text to enable bulk sign.</p>
-      ) : null}
+      <ProfileOverviewSection title="Read & sign" subtitle="Scroll through all policies, then sign below">
+        <ProfileFormField label="Your signature (typed full name)" htmlFor="policy-signature">
+          <input
+            id="policy-signature"
+            className="z-input"
+            value={signature}
+            onChange={(e) => setSignature(e.target.value)}
+            autoComplete="name"
+            enterKeyHint="done"
+          />
+        </ProfileFormField>
 
-      {missing.length ? (
-        <button
-          type="button"
-          disabled={busy || !signature.trim() || (!scrolledToEnd && missing.length > 1)}
-          onClick={acceptAll}
-          className="z-btn-primary w-full min-h-12 disabled:opacity-50"
+        <div
+          className="mt-4 max-h-[min(50dvh,420px)] overflow-y-auto rounded-2xl border border-slate-200 bg-slate-50/80 p-4 text-sm leading-relaxed text-slate-800 whitespace-pre-wrap custom-scrollbar sm:p-5"
+          onScroll={(e) => {
+            const el = e.currentTarget;
+            if (el.scrollTop + el.clientHeight >= el.scrollHeight - 32) setScrolledToEnd(true);
+          }}
         >
-          {busy ? 'Recording…' : `I have read and accept all policies (${missing.length})`}
-        </button>
-      ) : null}
+          {loading && !loaded ? (
+            <p className="text-slate-500">Loading policies…</p>
+          ) : policies.length === 0 ? (
+            <p className="text-slate-500">No policies required for your account.</p>
+          ) : (
+            combinedBody
+          )}
+        </div>
+        {!scrolledToEnd && missing.length && policies.length ? (
+          <p className="mt-3 text-xs text-slate-500">Scroll to the end of the policy text to enable bulk sign.</p>
+        ) : null}
 
-      <details className="rounded-xl border border-slate-100 bg-white p-4">
-        <summary className="cursor-pointer min-h-11 flex items-center text-xs font-bold uppercase tracking-wide text-slate-500">
-          Individual policy status
-        </summary>
-        <ul className="mt-3 space-y-3">
+        {missing.length ? (
+          <button
+            type="button"
+            disabled={busy || !signature.trim() || (!scrolledToEnd && missing.length > 1)}
+            onClick={acceptAll}
+            className="z-btn-primary mt-4 w-full min-h-12 disabled:opacity-50"
+          >
+            {busy ? 'Recording…' : `I have read and accept all policies (${missing.length})`}
+          </button>
+        ) : null}
+      </ProfileOverviewSection>
+
+      <ProfileOverviewSection title="Individual policy status" subtitle="Download or sign policies one at a time">
+        <ul className="space-y-3">
           {policies.map((p) => {
             const isMissing = missingKeys.has(`${p.key}:${p.version}`);
             return (
-              <li
-                key={`${p.key}-${p.version}`}
-                className="rounded-xl border border-slate-100 bg-slate-50/80 p-3"
-              >
+              <li key={`${p.key}-${p.version}`} className="rounded-xl border border-slate-100 bg-slate-50/80 p-3">
                 <p className="text-sm font-semibold text-slate-800">{p.label}</p>
                 <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
                   <a
                     href={policyDocumentUrl(p.key)}
                     download={`${p.key}-policy.txt`}
-                    className="z-btn-secondary min-h-10 w-full sm:w-auto text-center no-underline"
+                    className="z-btn-secondary min-h-10 w-full text-center no-underline sm:w-auto"
                   >
                     Download
                   </a>
@@ -204,17 +197,11 @@ export default function MyProfilePolicies() {
             );
           })}
         </ul>
-      </details>
+      </ProfileOverviewSection>
 
       {message ? (
-        <p
-          className={`rounded-xl px-4 py-3 text-sm ${
-            messageOk ? 'border border-emerald-100 bg-emerald-50 text-emerald-800' : 'border border-red-100 bg-red-50 text-red-800'
-          }`}
-        >
-          {message}
-        </p>
+        <ProfileInlineAlert variant={messageOk ? 'success' : 'error'}>{message}</ProfileInlineAlert>
       ) : null}
-    </div>
+    </HrPageBody>
   );
 }

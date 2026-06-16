@@ -23,21 +23,23 @@ describe('buildUserProfileActions', () => {
     expect(paths.every((p) => p.startsWith('/my-profile'))).toBe(true);
   });
 
-  it('routes scholarship school and documents to /my-profile', () => {
+  it('routes scholarship actions to /my-profile', () => {
     const actions = buildUserProfileActions({
       permissions: ['hr.self', 'hr.my_documents.view'],
       cohort: 'scholarship',
       hasHrSelfService: true,
     });
     expect(actions.find((a) => a.id === 'school-profile')?.to).toBe(HR_SELF_SERVICE_PATH.school);
+    expect(actions.find((a) => a.id === 'scholarship-payments')?.to).toBe(HR_SELF_SERVICE_PATH.payments);
+    expect(actions.find((a) => a.id === 'scholarship-requests')?.to).toBe(HR_SELF_SERVICE_PATH.requests);
     expect(actions.find((a) => a.id === 'upload-document')?.to).toBe(HR_SELF_SERVICE_PATH.documents);
   });
 });
 
 describe('buildUserProfileNav', () => {
-  it('shows account tabs plus HR self-service link', () => {
+  it('shows account hub tabs only (HR area uses hub switcher)', () => {
     const nav = buildUserProfileNav('employee', true);
-    expect(nav.map((n) => n.to)).toEqual(['/me', '/me/account', '/me/services', HR_SELF_SERVICE_PATH.overview]);
+    expect(nav.map((n) => n.to)).toEqual(['/me', '/me/account', '/me/services']);
   });
 
   it('omits HR link when user has no HR self-service', () => {

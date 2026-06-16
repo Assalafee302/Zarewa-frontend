@@ -708,6 +708,7 @@ const QuotationModal = ({
   const { customers } = useCustomers();
   const { show: showToast } = useToast();
   const ws = useWorkspace();
+  const wsHasPermission = ws?.hasPermission;
   const archivedLifecycle =
     Boolean(editData?.id) && ['Expired', 'Void'].includes(String(editData?.status || '').trim());
   const readOnly = accessMode === 'view' || archivedLifecycle;
@@ -762,7 +763,20 @@ const QuotationModal = ({
   const prevMaterialTypeIdForStoneRef = useRef(null);
 
   const quotationHydrateSig = useMemo(
-    () => (isOpen ? quotationHydrateSignature(editData) : ''),
+    () =>
+      isOpen
+        ? quotationHydrateSignature({
+            id: editData?.id,
+            customerID: editData?.customerID,
+            dateISO: editData?.dateISO,
+            materialTypeId: editData?.materialTypeId,
+            materialGauge: editData?.materialGauge,
+            materialColor: editData?.materialColor,
+            materialDesign: editData?.materialDesign,
+            projectName: editData?.projectName,
+            quotationLines: editData?.quotationLines,
+          })
+        : '',
     [
       isOpen,
       editData?.id,
@@ -794,12 +808,10 @@ const QuotationModal = ({
       compareSelectLabels(treasuryAccountDisplayName(a), treasuryAccountDisplayName(b))
     );
   }, [
-    /** Epoch ties treasury list to intentional workspace refresh, not silent snapshot churn. */
-    ws?.refreshEpoch,
-    ws?.hasWorkspaceData,
     ws?.branchScope,
     ws?.viewAllBranches,
-    ws?.session?.currentBranchId,
+    ws?.snapshot,
+    ws?.session,
   ]);
 
   const materialTypeOptions = useMemo(() => {
@@ -1002,9 +1014,7 @@ const QuotationModal = ({
     const narrowed = filtered.length ? filtered : base;
     return [...narrowed].sort((a, b) => compareSelectLabels(a.label, b.label));
   }, [
-    liveMasterData?.colours,
-    liveMasterData?.materialTypes,
-    liveMasterData?.priceList,
+    liveMasterData,
     materialTypeId,
     priceListItems,
     editData?.branchId,
@@ -1249,11 +1259,11 @@ const QuotationModal = ({
   );
 
   const canApproveMdPriceException = useMemo(() => {
-    if (ws?.hasPermission?.('*')) return true;
-    if (ws?.hasPermission?.('md.price_exception.approve')) return true;
+    if (wsHasPermission?.('*')) return true;
+    if (wsHasPermission?.('md.price_exception.approve')) return true;
     const rk = String(ws?.session?.user?.roleKey ?? '').trim().toLowerCase();
     return rk === 'md' || rk === 'admin';
-  }, [ws?.session?.user?.roleKey, ws]);
+  }, [ws?.session?.user?.roleKey, wsHasPermission]);
 
   const validateProductWorkbookFloors = useCallback(() => {
     if (quotationBelowFloorExceptionApproved(editData)) return null;
@@ -1281,7 +1291,6 @@ const QuotationModal = ({
     selectedMaterialTypeMeta,
     materialGauge,
     materialDesign,
-    editData?.branchId,
   ]);
 
   useEffect(() => {
@@ -1329,7 +1338,7 @@ const QuotationModal = ({
       setAccessoryRows([emptyOrderLine()]);
       setServiceRows([emptyOrderLine()]);
     }
-  }, [isOpen, quotationHydrateSig, customers, treasuryPayAccountsLive, editData?.materialTypeId]);
+  }, [isOpen, quotationHydrateSig, customers, treasuryPayAccountsLive, editData]);
 
   /** Stone-coated: strip incompatible lines / reset header when material type changes. */
   useEffect(() => {
@@ -1495,7 +1504,7 @@ const QuotationModal = ({
     () => String(editData?.dateISO || new Date().toISOString().slice(0, 10)),
     [editData?.dateISO]
   );
-  const periodLocks = ws?.snapshot?.periodLocks ?? [];
+  const periodLocks = useMemo(() => ws?.snapshot?.periodLocks ?? [], [ws?.snapshot?.periodLocks]);
   const applyAdvanceDateLocked = useMemo(
     () => Boolean(useLedgerApi && isVoucherDateInLockedPeriod(applyAdvanceDateISO, periodLocks)),
     [useLedgerApi, applyAdvanceDateISO, periodLocks]
@@ -1598,7 +1607,7 @@ const QuotationModal = ({
 
   const pricingViolationsList = useMemo(
     () => (Array.isArray(editData?.pricingViolations) ? editData.pricingViolations : []),
-    [editData?.pricingViolations, editData?.id]
+    [editData?.pricingViolations]
   );
 
   const quotationPaidNgn = useMemo(() => {
@@ -1619,14 +1628,13 @@ const QuotationModal = ({
     ws?.snapshot?.quotations,
     ws?.snapshot?.receipts,
     ws?.snapshot?.ledgerEntries,
-    ws?.refreshEpoch,
   ]);
   const quotationEditNeedsSecondApproval = useMemo(() => {
     const id = editData?.id;
     if (!id) return false;
     const receipts = Array.isArray(ws?.snapshot?.receipts) ? ws.snapshot.receipts : [];
     return quotationEditNeedsSecondApprovalClient(ws?.session?.user?.roleKey, receipts, id);
-  }, [editData?.id, ws?.session?.user?.roleKey, ws?.snapshot?.receipts, ws?.refreshEpoch]);
+  }, [editData?.id, ws?.session?.user?.roleKey, ws?.snapshot?.receipts]);
   const quotationBalanceAfterPaidNgn = Math.max(0, grandTotalNgn - quotationPaidNgn);
 
   const quoteDueNgn = useMemo(() => {
@@ -1641,7 +1649,7 @@ const QuotationModal = ({
       { id: editData.id, totalNgn: grandTotalNgn, paidNgn: quotationPaidNgn },
       jobs
     );
-  }, [editData?.id, grandTotalNgn, quotationPaidNgn, ws?.snapshot?.productionJobs, ws?.refreshEpoch]);
+  }, [editData?.id, grandTotalNgn, quotationPaidNgn, ws?.snapshot?.productionJobs]);
 
   const quoteBalancePolicyLabel = useMemo(() => {
     if (!accountingPolicyV1LabelsEnabled() || !quotePaymentPolicy) return null;

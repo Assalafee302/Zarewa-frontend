@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Lock, Save } from 'lucide-react';
 import { useToast } from '../../context/ToastContext';
 import { useWorkspace } from '../../context/WorkspaceContext';
+import { ProfileFormActions, ProfileFormField, ProfileFormSection } from './profileFormUi';
 
 export default function ProfileSecurityPanel() {
   const { show: showToast } = useToast();
@@ -42,27 +43,25 @@ export default function ProfileSecurityPanel() {
   };
 
   return (
-    <div className="rounded-3xl border border-slate-200/90 bg-white p-6 shadow-sm max-w-xl">
-      <h3 className="z-section-title flex items-center gap-2">
-        <Lock size={14} /> Password & security
-      </h3>
-      <p className="text-xs text-slate-500 mb-5 leading-relaxed">
-        Changing your password affects this login. You may need to sign in again on other devices.
-      </p>
+    <ProfileFormSection
+      icon={<Lock size={16} />}
+      title="Password & security"
+      subtitle="Changing your password affects this login. You may need to sign in again on other devices."
+    >
       <form className="space-y-4" onSubmit={submit}>
-        <div>
-          <label className="z-field-label">Current password</label>
+        <ProfileFormField label="Current password" htmlFor="current-password">
           <input
+            id="current-password"
             type="password"
             value={passwordForm.currentPassword}
             onChange={(e) => setPasswordForm((p) => ({ ...p, currentPassword: e.target.value }))}
             className="z-input"
             autoComplete="current-password"
           />
-        </div>
-        <div>
-          <label className="z-field-label">New password</label>
+        </ProfileFormField>
+        <ProfileFormField label="New password" htmlFor="new-password" hint="At least 8 characters.">
           <input
+            id="new-password"
             type="password"
             value={passwordForm.newPassword}
             onChange={(e) => setPasswordForm((p) => ({ ...p, newPassword: e.target.value }))}
@@ -70,21 +69,23 @@ export default function ProfileSecurityPanel() {
             autoComplete="new-password"
             minLength={8}
           />
-        </div>
-        <div>
-          <label className="z-field-label">Confirm new password</label>
+        </ProfileFormField>
+        <ProfileFormField label="Confirm new password" htmlFor="confirm-password">
           <input
+            id="confirm-password"
             type="password"
             value={passwordForm.confirmPassword}
             onChange={(e) => setPasswordForm((p) => ({ ...p, confirmPassword: e.target.value }))}
             className="z-input"
             autoComplete="new-password"
           />
-        </div>
-        <button type="submit" disabled={busy} className="z-btn-secondary w-full justify-center disabled:opacity-50">
-          <Save size={16} /> {busy ? 'Updating…' : 'Update password'}
-        </button>
+        </ProfileFormField>
+        <ProfileFormActions>
+          <button type="submit" disabled={busy} className="z-btn-secondary min-h-11 w-full justify-center disabled:opacity-50 sm:w-auto">
+            <Save size={16} aria-hidden /> {busy ? 'Updating…' : 'Update password'}
+          </button>
+        </ProfileFormActions>
       </form>
-    </div>
+    </ProfileFormSection>
   );
 }

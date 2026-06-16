@@ -14,20 +14,22 @@ const MODULE_HINTS = [
   { key: 'manager', label: 'Management', path: '/manager', perm: 'sales.manage' },
   { key: 'settings', label: 'Settings', path: '/settings', perm: 'settings.view' },
 ];
+const EMPTY_PERMISSIONS = [];
 
 export function MyAccessExplainer() {
   const ws = useWorkspace();
-  const permissions = ws?.permissions || [];
+  const permissions = useMemo(() => ws?.permissions ?? EMPTY_PERMISSIONS, [ws?.permissions]);
   const user = ws?.session?.user;
+  const wsCanAccessModule = ws?.canAccessModule;
 
   const modules = useMemo(() => {
     return MODULE_HINTS.filter((m) => {
       if (m.perm && permissions.includes(m.perm)) return true;
-      return typeof ws?.canAccessModule === 'function'
-        ? ws.canAccessModule(m.key)
+      return typeof wsCanAccessModule === 'function'
+        ? wsCanAccessModule(m.key)
         : canAccessModuleWithPermissions(permissions, m.key);
     });
-  }, [permissions, ws?.canAccessModule]);
+  }, [permissions, wsCanAccessModule]);
 
   return (
     <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">

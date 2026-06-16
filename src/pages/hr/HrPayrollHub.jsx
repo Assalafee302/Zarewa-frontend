@@ -4,6 +4,7 @@ import { useHrUrlTab } from '../../hooks/useHrUrlTab';
 import { HrTabbedPage } from '../../components/hr/HrTabbedPage';
 import { HrPolicyConfigSection } from '../../components/hr/HrSettingsSections';
 import { HrSalaryMatrixPanel } from '../../components/hr/HrSalaryMatrixPanel';
+import { HrSalaryVarianceReportSection } from '../../components/hr/HrSalaryVarianceReportSection';
 import HrPayroll from './HrPayroll';
 import HrLoans from './HrLoans';
 import HrBenefits from './HrBenefits';
@@ -25,7 +26,7 @@ export default function HrPayrollHub() {
   return (
     <HrTabbedPage
       title="Payroll, Loans & Benefits"
-      description="Branch staff payroll runs, loans, beneficiaries, salary matrix, and statutory pension rates."
+      description="HQ payroll runs (branch, HQ admin, mining), loans, beneficiaries, salary matrix, and statutory pension rates."
       tabs={TABS}
       tab={tab}
       onTabChange={setTab}
@@ -34,9 +35,10 @@ export default function HrPayrollHub() {
       {tab === 'loans' ? <HrLoans embedded /> : null}
       {tab === 'benefits' ? <HrBenefits embedded /> : null}
       {tab === 'salary-matrix' ? (
-        <div className="space-y-4">
-          <p className="text-sm text-slate-600">Level and step amounts by payroll group — used for increments and promotions.</p>
+        <div className="space-y-6">
+          <p className="text-sm text-slate-600">Level and step amounts by payroll group — used for increments, promotions, and variance review.</p>
           <HrSalaryMatrixPanel />
+          <HrSalaryVarianceReportSection embedded />
         </div>
       ) : null}
       {tab === 'tax-pension' ? (

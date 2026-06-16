@@ -1,15 +1,27 @@
 import React, { useState } from 'react';
 import { useHrListLoad } from '../../hooks/useHrListLoad';
 import { apiFetch } from '../../lib/apiBase';
-import { canAccessExecutiveHr, canManageHrSettings } from '../../lib/hrAccess';
+import { canEditLeavePolicy } from '../../lib/hrAccess';
 import { useWorkspace } from '../../context/WorkspaceContext';
-import { HrCard } from './hrPageUi';
+import { HrAlert, HrCard } from './hrPageUi';
 import { HR_BTN_PRIMARY, HR_FIELD_CLASS } from './hrFormStyles';
 
-/** Executive / HR settings — default annual leave days per entitlement band. */
-export function HrLeavePolicySection({ executive = false }) {
+function PolicyFieldGroup({ title, description, children }) {
+  return (
+    <div className="space-y-3 border-t border-slate-100 pt-5 first:border-t-0 first:pt-0">
+      <div>
+        <h4 className="text-xs font-bold uppercase tracking-wide text-slate-500">{title}</h4>
+        {description ? <p className="mt-0.5 text-xs text-slate-500">{description}</p> : null}
+      </div>
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{children}</div>
+    </div>
+  );
+}
+
+/** Company-wide leave entitlements and staff loan limits (HR Settings). */
+export function HrLeavePolicySection() {
   const ws = useWorkspace();
-  const canEdit = executive ? canAccessExecutiveHr(ws?.permissions) : canManageHrSettings(ws?.permissions);
+  const canEdit = canEditLeavePolicy(ws?.permissions);
   const [policy, setPolicy] = useState(null);
   const [annualSenior, setAnnualSenior] = useState('21');
   const [annualJunior, setAnnualJunior] = useState('14');
@@ -63,60 +75,61 @@ export function HrLeavePolicySection({ executive = false }) {
       return;
     }
     setPolicy(data.policy);
-    setMessage('Leave and loan policy saved. Recompute leave balances to apply new entitlements.');
+    setMessage('Policy saved. Recompute leave balances on the Leave module to apply new entitlements.');
   };
 
   return (
     <HrCard
-      title={executive ? 'Leave & loan policy (company defaults)' : 'Leave entitlement defaults'}
-      subtitle="Annual days by band, casual leave, and staff loan limits used across the company."
+      title="Company defaults"
+      subtitle="Applied to branch payroll staff unless overridden on an individual profile."
     >
-      {error ? <div className="mb-3 rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-sm text-red-800">{error}</div> : null}
-      {message ? <div className="mb-3 rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-2 text-sm text-emerald-900">{message}</div> : null}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      {error ? <div className="mb-3"><HrAlert tone="error">{error}</HrAlert></div> : null}
+      {message ? <div className="mb-3"><HrAlert tone="success">{message}</HrAlert></div> : null}
+
+      <PolicyFieldGroup title="Leave entitlements" description="Annual days by seniority band set on each employee profile.">
         <label className="text-xs font-semibold text-slate-600">
-          Annual leave — senior band (days)
+          Senior band (days / year)
           <input type="number" min={0} className={HR_FIELD_CLASS} value={annualSenior} onChange={(e) => setAnnualSenior(e.target.value)} disabled={!canEdit} />
         </label>
         <label className="text-xs font-semibold text-slate-600">
-          Annual leave — junior band (days)
+          Junior band (days / year)
           <input type="number" min={0} className={HR_FIELD_CLASS} value={annualJunior} onChange={(e) => setAnnualJunior(e.target.value)} disabled={!canEdit} />
         </label>
         <label className="text-xs font-semibold text-slate-600">
-          Casual leave per year (days)
+          Casual leave (days / year)
           <input type="number" min={0} className={HR_FIELD_CLASS} value={casualDays} onChange={(e) => setCasualDays(e.target.value)} disabled={!canEdit} />
         </label>
         <label className="text-xs font-semibold text-slate-600">
           Maternity leave (days)
           <input type="number" min={0} className={HR_FIELD_CLASS} value={maternityDays} onChange={(e) => setMaternityDays(e.target.value)} disabled={!canEdit} />
         </label>
-        {executive ? (
-          <>
-            <label className="text-xs font-semibold text-slate-600">
-              Min service years for loan
-              <input type="number" min={0} step="0.5" className={HR_FIELD_CLASS} value={loanMinYears} onChange={(e) => setLoanMinYears(e.target.value)} disabled={!canEdit} />
-            </label>
-            <label className="text-xs font-semibold text-slate-600">
-              Max loan repayment (months)
-              <input type="number" min={1} max={12} className={HR_FIELD_CLASS} value={loanMaxMonths} onChange={(e) => setLoanMaxMonths(e.target.value)} disabled={!canEdit} />
-            </label>
-            <label className="text-xs font-semibold text-slate-600">
-              Max loan = gross salary ×
-              <input type="number" min={1} max={12} className={HR_FIELD_CLASS} value={loanMaxSalaryMonths} onChange={(e) => setLoanMaxSalaryMonths(e.target.value)} disabled={!canEdit} />
-            </label>
-          </>
-        ) : null}
-      </div>
+      </PolicyFieldGroup>
+
+      <PolicyFieldGroup title="Staff loans" description="Limits enforced when branch staff submit loan requests.">
+        <label className="text-xs font-semibold text-slate-600">
+          Minimum service (years)
+          <input type="number" min={0} step="0.5" className={HR_FIELD_CLASS} value={loanMinYears} onChange={(e) => setLoanMinYears(e.target.value)} disabled={!canEdit} />
+        </label>
+        <label className="text-xs font-semibold text-slate-600">
+          Maximum repayment (months)
+          <input type="number" min={1} max={12} className={HR_FIELD_CLASS} value={loanMaxMonths} onChange={(e) => setLoanMaxMonths(e.target.value)} disabled={!canEdit} />
+        </label>
+        <label className="text-xs font-semibold text-slate-600">
+          Maximum amount (× gross salary)
+          <input type="number" min={1} max={12} className={HR_FIELD_CLASS} value={loanMaxSalaryMonths} onChange={(e) => setLoanMaxSalaryMonths(e.target.value)} disabled={!canEdit} />
+        </label>
+      </PolicyFieldGroup>
+
       {canEdit ? (
-        <button type="button" onClick={save} disabled={saving} className={`${HR_BTN_PRIMARY} mt-4`}>
-          {saving ? 'Saving…' : 'Save policy'}
+        <button type="button" onClick={save} disabled={saving} className={`${HR_BTN_PRIMARY} mt-5`}>
+          {saving ? 'Saving…' : 'Save company policy'}
         </button>
       ) : (
-        <p className="mt-4 text-xs text-slate-500">View only — contact HR settings admin to change.</p>
+        <p className="mt-5 text-xs text-slate-500">View only — contact HR administration or Executive HR to request changes.</p>
       )}
       {policy ? (
-        <p className="mt-3 text-[11px] text-slate-500">
-          Per-staff band is set on the employee profile. These values are the company defaults for accrual.
+        <p className="mt-3 text-xs text-slate-500">
+          Executive family and household staff follow separate benefit rules under Executive HR.
         </p>
       ) : null}
     </HrCard>

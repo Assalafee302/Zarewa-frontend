@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { FAMILY_BENEFITS } from '../../lib/familyBenefitsUi';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { useHrListLoad } from '../../hooks/useHrListLoad';
 import { canManageHrBenefits } from '../../lib/hrAccess';
@@ -101,7 +102,7 @@ export default function HrBenefits({ embedded = false } = {}) {
       <div className="flex flex-wrap items-center justify-between gap-3">
         {!embedded ? (
           <p className="text-sm text-slate-600">
-            Manage allowances, scholarship beneficiaries, and domestic staff benefit schedules separate from payroll lines.
+            Manage allowances, executive family beneficiaries, and domestic staff benefit schedules separate from payroll lines.
           </p>
         ) : null}
         {tab === 'beneficiaries' && canManage ? (
@@ -149,7 +150,7 @@ export default function HrBenefits({ embedded = false } = {}) {
             Type
             <select className={HR_FIELD_CLASS} value={form.beneficiaryType} onChange={(e) => setForm({ ...form, beneficiaryType: e.target.value })}>
               <option value="allowance">Allowance</option>
-              <option value="scholarship">Scholarship</option>
+              <option value="scholarship">Executive family</option>
               <option value="domestic">Domestic staff</option>
             </select>
           </label>

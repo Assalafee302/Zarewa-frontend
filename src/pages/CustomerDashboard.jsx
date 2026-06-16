@@ -367,7 +367,7 @@ const CustomerDashboard = () => {
       cancelled = true;
       window.cancelAnimationFrame(t1);
     };
-  }, [location.hash, location.pathname, customer?.customerID]);
+  }, [location.hash, location.pathname, customer, customer?.customerID]);
 
   useEffect(() => {
     if (!customerKey) return;

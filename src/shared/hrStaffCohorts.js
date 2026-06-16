@@ -26,8 +26,8 @@ export const PAYROLL_GROUP_LABELS = {
   [HR_PAYROLL_GROUPS.BRANCH_OPS]: 'Branch staff',
   [HR_PAYROLL_GROUPS.MINING]: 'Mining division',
   [HR_PAYROLL_GROUPS.HQ_ADMIN]: 'HQ administrative',
-  [HR_PAYROLL_GROUPS.SCHOLARSHIP]: 'Scholarship beneficiary',
-  [HR_PAYROLL_GROUPS.DOMESTIC]: 'Domestic staff',
+  [HR_PAYROLL_GROUPS.SCHOLARSHIP]: 'Executive family',
+  [HR_PAYROLL_GROUPS.DOMESTIC]: 'Household staff',
 };
 
 export function normalizePayrollGroup(payrollGroup) {
@@ -55,20 +55,26 @@ export function isDomesticStaff(payrollGroup) {
   return normalizePayrollGroup(payrollGroup) === HR_PAYROLL_GROUPS.DOMESTIC;
 }
 
+export const PAYROLL_RUN_ELIGIBLE_GROUPS = [
+  HR_PAYROLL_GROUPS.BRANCH_OPS,
+  HR_PAYROLL_GROUPS.HQ_ADMIN,
+  HR_PAYROLL_GROUPS.MINING,
+];
+
 export function isPayrollRunEligible(payrollGroup) {
-  return isBranchEmployee(payrollGroup);
+  return PAYROLL_RUN_ELIGIBLE_GROUPS.includes(normalizePayrollGroup(payrollGroup));
 }
 
 export function requiresPaye(payrollGroup) {
-  return isBranchEmployee(payrollGroup);
+  return isPayrollRunEligible(payrollGroup);
 }
 
 export function requiresEmployeePensionDeduction(payrollGroup) {
-  return isBranchEmployee(payrollGroup);
+  return isPayrollRunEligible(payrollGroup);
 }
 
 export function requiresEmployerPensionContribution(payrollGroup) {
-  return isBranchEmployee(payrollGroup);
+  return isPayrollRunEligible(payrollGroup);
 }
 
 function parseProfileExtra(extra) {
@@ -89,7 +95,7 @@ export function staffMeetsPensionPolicy(staff) {
 }
 
 export function isStatutoryPayrollExempt(payrollGroup) {
-  return !isBranchEmployee(payrollGroup);
+  return !isPayrollRunEligible(payrollGroup);
 }
 
 export function usesExecutiveBenefitsMonthlyPay(payrollGroup) {

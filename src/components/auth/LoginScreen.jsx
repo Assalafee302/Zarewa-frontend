@@ -13,17 +13,19 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const sessionMessage = ws?.sessionMessage;
+  const clearSessionMessage = ws?.clearSessionMessage;
 
   useEffect(() => {
-    if (!ws?.sessionMessage) return undefined;
-    const message = ws.sessionMessage;
+    if (!sessionMessage) return undefined;
+    const message = sessionMessage;
     setError(message);
-    ws.clearSessionMessage?.();
+    clearSessionMessage?.();
     const t = window.setTimeout(() => {
       setError((current) => (current === message ? '' : current));
     }, 6000);
     return () => window.clearTimeout(t);
-  }, [ws?.sessionMessage, ws?.clearSessionMessage]);
+  }, [sessionMessage, clearSessionMessage]);
 
   const submitLogin = async (e) => {
     e.preventDefault();

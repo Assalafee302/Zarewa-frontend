@@ -3,6 +3,13 @@ import { Link } from 'react-router-dom';
 import { apiFetch } from '../../lib/apiBase';
 import { useHrListLoad } from '../../hooks/useHrListLoad';
 import { HrKpiCard } from '../../components/hr/HrKpiCard';
+import { HrPageBody, HrPageIntro } from '../../components/hr/hrPageUi';
+import {
+  ProfileInlineAlert,
+  ProfileMetricSkeleton,
+  ProfileOverviewSection,
+  ProfileQuickAction,
+} from '../../components/profile/profileOverviewUi';
 
 export default function TeamHrHome() {
   const { data, loading, error, reload } = useHrListLoad(
@@ -15,26 +22,34 @@ export default function TeamHrHome() {
   );
 
   if (loading) {
-    return <p className="text-sm text-slate-500 py-8 text-center">Loading team dashboard…</p>;
+    return (
+      <HrPageBody>
+        <ProfileMetricSkeleton count={4} />
+      </HrPageBody>
+    );
   }
+
   if (error) {
     return (
-      <div className="rounded-xl border border-red-100 bg-red-50/50 p-4 text-sm text-red-800">
-        {error.message || 'Could not load team dashboard.'}
-        <button type="button" className="ml-3 font-bold underline" onClick={() => void reload()}>
-          Retry
-        </button>
-      </div>
+      <HrPageBody>
+        <ProfileInlineAlert variant="error">
+          {error.message || 'Could not load team dashboard.'}{' '}
+          <button type="button" className="font-bold underline" onClick={() => void reload()}>
+            Retry
+          </button>
+        </ProfileInlineAlert>
+      </HrPageBody>
     );
   }
 
   const s = data || {};
 
   return (
-    <div className="space-y-6">
-      <p className="text-xs text-slate-500">
-        Branch-scoped team overview — endorsements and coverage only. Salary and bank data are not shown here.
-      </p>
+    <HrPageBody>
+      <HrPageIntro
+        title="Team dashboard"
+        description="Branch-scoped overview — endorsements and coverage only. Salary and bank data are not shown here."
+      />
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
         <HrKpiCard label="Branch staff" value={s.count ?? 0} hint="Active team members" tone="teal" to="/team-hr/staff" />
@@ -53,9 +68,9 @@ export default function TeamHrHome() {
           to="/team-hr/requests"
         />
         <HrKpiCard
-          label="Transfer recommendations"
+          label="Transfer endorsements"
           value={s.pendingTransfer ?? 0}
-          hint="Pending recommendations"
+          hint="Awaiting branch review"
           tone={s.pendingTransfer > 0 ? 'amber' : 'default'}
           to="/team-hr/transfers"
         />
@@ -83,26 +98,39 @@ export default function TeamHrHome() {
         <HrKpiCard label="Leave calendar" value="→" hint="Upcoming leave" tone="emerald" to="/team-hr/leave-calendar" />
       </div>
 
-      <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-        <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-500">Quick actions</h3>
+      <ProfileOverviewSection title="Quick actions" subtitle="Common manager tasks for your branch">
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+          <ProfileQuickAction to="/team-hr/staff" icon="👥">
+            Team roster
+          </ProfileQuickAction>
+          <ProfileQuickAction to="/manager?inbox=attendance" icon="✓">
+            Attendance
+          </ProfileQuickAction>
+          <ProfileQuickAction to="/team-hr/requests" icon="📋">
+            Endorsements
+          </ProfileQuickAction>
+          <ProfileQuickAction to="/team-hr/incidents" icon="⚠️">
+            Incidents
+          </ProfileQuickAction>
+          <ProfileQuickAction to="/team-hr/transfers" icon="↔️">
+            Transfers
+          </ProfileQuickAction>
+        </div>
         <div className="mt-3 flex flex-wrap gap-2">
           {[
-            { to: '/team-hr/staff', label: 'View team roster' },
-            { to: '/manager?inbox=attendance', label: 'Mark daily attendance' },
-            { to: '/team-hr/requests', label: 'Endorse leave / loan' },
-            { to: '/team-hr/incidents', label: 'Submit incident' },
-            { to: '/team-hr/transfers', label: 'Recommend transfer' },
+            { to: '/team-hr/leave-calendar', label: 'Leave calendar' },
+            { to: '/team-hr/attendance', label: 'Absence reports' },
           ].map((a) => (
             <Link
               key={a.to}
               to={a.to}
-              className="inline-flex items-center rounded-lg border border-teal-100 bg-teal-50/60 px-3 py-2 text-[11px] font-bold text-[#134e4a] hover:bg-teal-100/80"
+              className="inline-flex min-h-10 items-center rounded-xl border border-teal-100 bg-teal-50/60 px-3 py-2 text-[11px] font-bold text-[#134e4a] no-underline hover:bg-teal-100/80"
             >
-              {a.label}
+              {a.label} →
             </Link>
           ))}
         </div>
-      </section>
-    </div>
+      </ProfileOverviewSection>
+    </HrPageBody>
   );
 }

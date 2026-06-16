@@ -1,12 +1,13 @@
-import React, { useMemo, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { useToast } from '../../context/ToastContext';
 import { useHrListLoad } from '../../hooks/useHrListLoad';
-import { canManageHrTransfers } from '../../lib/hrAccess';
+import { canEndorseBranchHr, canGenerateHrLetters, canGmApproveHrRequests, canManageHrTransfers } from '../../lib/hrAccess';
 import { apiFetch } from '../../lib/apiBase';
 import { fetchHrTransferRecommendations, reviewHrTransferRecommendation } from '../../lib/hrExtended';
 import {
+  TRANSFER_QUEUE_SCOPES,
   TRANSFER_TYPES,
   createHrTransferRequest,
   fetchHrTransferRequests,
@@ -15,6 +16,8 @@ import {
 import { fetchHrDepartments } from '../../lib/hrMasterData';
 import { HR_EMPLOYEES } from '../../lib/hrRoutes';
 import { HrAddFormButton, HrFormModal } from '../../components/hr/HrFormModal';
+import HrTransferStageBar from '../../components/hr/HrTransferStageBar';
+import HrTransfersOverview from '../../components/hr/HrTransfersOverview';
 import { HrCard, HrEmptyState, HrStatusPill } from '../../components/hr/hrPageUi';
 import { HrResponsiveTable } from '../../components/hr/HrResponsiveTable';
 import {
@@ -22,7 +25,6 @@ import {
 } from '../../components/ui/AppDataTable';
 import { HR_BTN_PRIMARY, HR_BTN_SECONDARY, HR_FIELD_CLASS } from '../../components/hr/hrFormStyles';
 import { navigateToHrLetter, transferLetterKind } from '../../lib/hrLetterDeepLink';
-import { canGenerateHrLetters } from '../../lib/hrAccess';
 
 const emptyForm = () => ({
   userId: '',
@@ -36,12 +38,24 @@ const emptyForm = () => ({
   submit: true,
 });
 
+const TRANSFER_VIEWS = [
+  { id: 'overview', label: 'Overview' },
+  { id: 'queue', label: 'Pending queue' },
+  { id: 'all', label: 'All transfers' },
+];
+
 export default function HrTransfers({ embedded = false } = {}) {
   const ws = useWorkspace();
   const navigate = useNavigate();
   const { show: toast } = useToast();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const transferIdParam = searchParams.get('transferId') || '';
+  const scopeParam = searchParams.get('scope') || '';
+  const viewParam = searchParams.get('transferView') || 'overview';
   const perms = ws?.permissions || [];
   const canManage = canManageHrTransfers(perms);
+  const canEndorse = canEndorseBranchHr(perms);
+  const canGm = canGmApproveHrRequests(perms);
   const canLetter = canGenerateHrLetters(perms);
 
   const branches = useMemo(() => {
@@ -56,9 +70,14 @@ export default function HrTransfers({ embedded = false } = {}) {
   const [transfers, setTransfers] = useState([]);
   const [recommendations, setRecommendations] = useState([]);
   const [statusFilter, setStatusFilter] = useState('');
+  const [transferView, setTransferView] = useState(
+    TRANSFER_VIEWS.some((v) => v.id === viewParam) ? viewParam : 'overview'
+  );
   const [modalOpen, setModalOpen] = useState(false);
   const [form, setForm] = useState(emptyForm());
   const [busy, setBusy] = useState(false);
+  const [detailTransfer, setDetailTransfer] = useState(null);
+  const [rejectReason, setRejectReason] = useState('');
 
   useHrListLoad(async () => {
     const [staffRes, deptRes] = await Promise.all([apiFetch('/api/hr/staff'), fetchHrDepartments()]);
@@ -68,7 +87,9 @@ export default function HrTransfers({ embedded = false } = {}) {
   }, []);
 
   const { loading, error, reload } = useHrListLoad(async () => {
-    const params = statusFilter ? { status: statusFilter } : {};
+    const params = {};
+    if (statusFilter) params.status = statusFilter;
+    else if (transferView === 'queue') params.pending = '1';
     const [tr, rec] = await Promise.all([
       fetchHrTransferRequests(params),
       fetchHrTransferRecommendations(),
@@ -80,7 +101,36 @@ export default function HrTransfers({ embedded = false } = {}) {
     setTransfers(tr.data.transfers || []);
     if (rec.ok && rec.data?.ok) setRecommendations(rec.data.recommendations || []);
     return { hasData: true };
-  }, [statusFilter]);
+  }, [statusFilter, transferView]);
+
+  useEffect(() => {
+    if (scopeParam && TRANSFER_QUEUE_SCOPES[scopeParam]) {
+      setStatusFilter(TRANSFER_QUEUE_SCOPES[scopeParam]);
+      if (transferView === 'overview') setTransferView('queue');
+    }
+  }, [scopeParam, transferView]);
+
+  useEffect(() => {
+    if (transferIdParam && !loading) {
+      const match = transfers.find((t) => t.id === transferIdParam);
+      if (match) setDetailTransfer(match);
+    }
+  }, [transferIdParam, transfers, loading]);
+
+  const setTransferViewAndUrl = (viewId, extra = {}) => {
+    setTransferView(viewId);
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.set('transferView', viewId);
+      if (extra.scope) next.set('scope', extra.scope);
+      else if (viewId === 'overview') {
+        next.delete('scope');
+        next.delete('transferId');
+      }
+      if (extra.clearTransferId) next.delete('transferId');
+      return next;
+    });
+  };
 
   const selectedStaff = staff.find((s) => s.userId === form.userId);
 
@@ -106,9 +156,6 @@ export default function HrTransfers({ embedded = false } = {}) {
     reload();
   };
 
-  const [detailTransfer, setDetailTransfer] = useState(null);
-  const [rejectReason, setRejectReason] = useState('');
-
   const doAction = async (id, action, extra = {}) => {
     setBusy(true);
     const { ok, data } = await patchHrTransferRequest(id, { action, ...extra });
@@ -125,26 +172,26 @@ export default function HrTransfers({ embedded = false } = {}) {
 
   const transferActions = (t) => {
     const actions = [];
-    if (t.status === 'submitted' && t.transferType === 'inter_branch') {
-      actions.push({ key: 'branch_review', label: 'Branch review' });
+    if (t.status === 'branch_review' && (canManage || canEndorse)) {
+      actions.push({ key: 'hr_review', label: 'Endorse → HR' });
     }
-    if (['submitted', 'branch_review'].includes(t.status)) {
-      actions.push({ key: 'hr_review', label: 'HR review' });
-    }
-    if (t.status === 'hr_review') {
+    if (t.status === 'hr_review' && canManage) {
       actions.push({
-        key: t.requiresGmApproval ? 'approve' : 'approve',
+        key: 'approve',
         label: t.requiresGmApproval ? 'Send to GM/MD' : 'Approve',
       });
     }
-    if (t.status === 'gm_approval') {
-      actions.push({ key: 'approve', label: 'GM/MD approve' });
+    if (t.status === 'gm_approval' && canGm) {
+      actions.push({ key: 'approve', label: 'GM approve' });
     }
-    if (t.status === 'approved') {
+    if (t.status === 'approved' && canManage) {
       actions.push({ key: 'complete', label: 'Complete transfer' });
     }
-    if (t.status === 'rejected') {
+    if (t.status === 'rejected' && canManage) {
       actions.push({ key: 'resubmit', label: 'Resubmit' });
+    }
+    if (canManage && !['completed', 'cancelled', 'rejected'].includes(t.status)) {
+      actions.push({ key: 'reject', label: 'Reject', variant: 'danger' });
     }
     return actions;
   };
@@ -164,7 +211,7 @@ export default function HrTransfers({ embedded = false } = {}) {
       <div className="flex flex-wrap items-start justify-between gap-3">
         {!embedded ? (
           <p className="text-sm text-slate-600 max-w-2xl">
-            Manage inter-branch, in-branch, and role transfers with approval workflow. Completed transfers update the employee profile.
+            Branch review → HR review → GM approval (when required) → complete on effective date. Profile updates on completion.
           </p>
         ) : null}
         {canManage ? (
@@ -172,6 +219,33 @@ export default function HrTransfers({ embedded = false } = {}) {
         ) : null}
       </div>
 
+      <div className="flex flex-wrap gap-2 border-b border-slate-100 pb-2">
+        {TRANSFER_VIEWS.map((v) => (
+          <button
+            key={v.id}
+            type="button"
+            onClick={() => setTransferViewAndUrl(v.id, { clearTransferId: true })}
+            className={`rounded-lg px-3 py-1.5 text-xs font-bold uppercase tracking-wide ${
+              transferView === v.id ? 'bg-teal-800 text-white' : 'border border-slate-200 text-slate-600 hover:bg-slate-50'
+            }`}
+          >
+            {v.label}
+          </button>
+        ))}
+      </div>
+
+      {transferView === 'overview' ? (
+        <HrTransfersOverview
+          canManage={canManage || canEndorse}
+          onOpenQueue={(scope) => {
+            setStatusFilter(TRANSFER_QUEUE_SCOPES[scope] || '');
+            setTransferViewAndUrl('queue', { scope });
+          }}
+        />
+      ) : null}
+
+      {(transferView === 'queue' || transferView === 'all') ? (
+        <>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <HrCard className="!p-3">
           <p className="text-[10px] font-black uppercase text-slate-500">Pending</p>
@@ -236,8 +310,10 @@ export default function HrTransfers({ embedded = false } = {}) {
           </AppTableWrap>
         )}
       </HrCard>
+        </>
+      ) : null}
 
-      {recommendations.length > 0 ? (
+      {transferView === 'all' && recommendations.length > 0 ? (
         <HrCard title="Branch manager recommendations">
           <HrResponsiveTable
             columns={[
@@ -335,6 +411,7 @@ export default function HrTransfers({ embedded = false } = {}) {
       >
         {detailTransfer ? (
           <div className="space-y-4 text-sm">
+            <HrTransferStageBar transferType={detailTransfer.transferType} status={detailTransfer.status} />
             <div className="grid gap-2 sm:grid-cols-2">
               <p><span className="text-slate-500">Employee:</span> <strong>{detailTransfer.staffDisplayName}</strong></p>
               <p><span className="text-slate-500">Type:</span> {String(detailTransfer.transferType || '').replace(/_/g, ' ')}</p>
@@ -402,7 +479,19 @@ export default function HrTransfers({ embedded = false } = {}) {
             {canManage && !detailTransfer.rejecting ? (
               <div className="flex flex-wrap gap-2 border-t border-slate-100 pt-3">
                 {transferActions(detailTransfer).map((a) => (
-                  <button key={a.key} type="button" className={HR_BTN_PRIMARY} disabled={busy} onClick={() => doAction(detailTransfer.id, a.key === 'resubmit' ? 'resubmit' : a.key, a.key === 'resubmit' ? { reason: detailTransfer.reason } : {})}>
+                  <button
+                    key={a.key}
+                    type="button"
+                    className={a.variant === 'danger' ? `${HR_BTN_SECONDARY} !text-red-700 !border-red-200` : HR_BTN_PRIMARY}
+                    disabled={busy}
+                    onClick={() => {
+                      if (a.key === 'reject') {
+                        setDetailTransfer({ ...detailTransfer, rejecting: true });
+                        return;
+                      }
+                      doAction(detailTransfer.id, a.key === 'resubmit' ? 'resubmit' : a.key, a.key === 'resubmit' ? { reason: detailTransfer.reason } : {});
+                    }}
+                  >
                     {a.label}
                   </button>
                 ))}

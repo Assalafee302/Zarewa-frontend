@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { apiFetch } from '../../lib/apiBase';
 import { HrCard } from './hrPageUi';
 import { HR_BTN_PRIMARY, HR_FIELD_CLASS } from './hrFormStyles';
@@ -9,18 +9,18 @@ export function HrSkillsMatrixPanel({ userId, canEdit = false }) {
   const [form, setForm] = useState({ skillName: '', proficiencyLevel: '3' });
   const [busy, setBusy] = useState(false);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     const [s1, s2] = await Promise.all([
       apiFetch(`/api/hr/staff/${encodeURIComponent(userId)}/skills`),
       apiFetch(`/api/hr/staff/${encodeURIComponent(userId)}/promotion-readiness`),
     ]);
     if (s1.ok && s1.data?.ok) setSkills(s1.data.skills || []);
     if (s2.ok && s2.data?.ok) setReadiness(s2.data);
-  };
+  }, [userId]);
 
   useEffect(() => {
     if (userId) load();
-  }, [userId]);
+  }, [userId, load]);
 
   const save = async (e) => {
     e.preventDefault();

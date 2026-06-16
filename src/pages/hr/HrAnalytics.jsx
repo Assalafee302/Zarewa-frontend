@@ -94,16 +94,6 @@ function DashboardTab() {
             ))}
           </ul>
         </HrCard>
-        <HrCard title="Overtime hours trend (no pay)">
-          <ul className="space-y-1 text-sm">
-            {(data.attendanceTrend?.months || []).map((m, i) => (
-              <li key={m} className="flex justify-between">
-                <span>{m}</span>
-                <strong>{data.attendanceTrend?.overtimeHours?.[i] ?? 0} hrs</strong>
-              </li>
-            ))}
-          </ul>
-        </HrCard>
       </div>
       {data.payrollTrend?.periods?.length ? (
         <HrCard title="Payroll net pay trend (authorized)">

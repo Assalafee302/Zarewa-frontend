@@ -1,4 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { FAMILY_BENEFITS } from '../../lib/familyBenefitsUi';
+import { DOMESTIC_BENEFITS } from '../../lib/domesticStaffUi';
 import { useSearchParams } from 'react-router-dom';
 import { HrAddFormButton, HrFormModal } from '../../components/hr/HrFormModal';
 import { HR_BTN_PRIMARY, HR_BTN_SECONDARY, HR_FIELD_CLASS } from '../../components/hr/hrFormStyles';
@@ -33,10 +35,10 @@ import {
 } from '../../lib/hrExecutiveBenefits';
 
 const TABS = [
-  { id: 'beneficiaries', label: 'Beneficiaries' },
+  { id: 'beneficiaries', label: FAMILY_BENEFITS.adminBeneficiariesTab },
   { id: 'school-fees', label: 'School Fees' },
-  { id: 'stipends', label: 'Monthly Stipends' },
-  { id: 'domestic', label: 'Domestic Staff' },
+  { id: 'stipends', label: FAMILY_BENEFITS.adminStipendsTab },
+  { id: 'domestic', label: 'Household Staff' },
   { id: 'payments', label: 'Payment Approvals' },
   { id: 'export', label: 'Bank Export' },
   { id: 'expenses', label: 'Chairman Expenses' },
@@ -163,6 +165,13 @@ export default function HrExecutiveBenefitsHub({ embedded = false } = {}) {
     setFormErr('');
   };
 
+  useEffect(() => {
+    const staffId = searchParams.get('staff');
+    if (tab !== 'domestic' || !staffId || loading || modal) return;
+    const row = domestic.find((d) => String(d.id) === String(staffId));
+    if (row) openModal('domestic', row);
+  }, [tab, searchParams, domestic, loading, modal]);
+
   const saveForm = async () => {
     setFormErr('');
     try {
@@ -236,8 +245,8 @@ export default function HrExecutiveBenefitsHub({ embedded = false } = {}) {
     const map = {
       beneficiary: form.id ? 'Edit beneficiary' : 'Register beneficiary',
       fee: form.id ? 'Edit school fee' : 'School fee request',
-      stipend: form.id ? 'Edit stipend' : 'Monthly stipend',
-      domestic: form.id ? 'Edit domestic staff' : 'Register domestic staff',
+      stipend: form.id ? 'Edit allowance' : 'Monthly allowance',
+      domestic: form.id ? 'Edit household staff' : 'Register household staff',
       expense: form.id ? 'Edit expense' : 'Chairman expense',
     };
     return map[modal] || '';
@@ -248,9 +257,7 @@ export default function HrExecutiveBenefitsHub({ embedded = false } = {}) {
       {!embedded ? (
         <header className="mb-6">
           <h1 className="text-2xl font-black text-[#134e4a]">Executive Benefits</h1>
-          <p className="mt-1 text-sm text-slate-600">
-            Scholarships, stipends, domestic staff, and beneficiary payments — separate from operational payroll.
-          </p>
+          <p className="mt-1 text-sm text-slate-600">{FAMILY_BENEFITS.adminExecutiveSubtitle}</p>
         </header>
       ) : null}
 
@@ -259,12 +266,12 @@ export default function HrExecutiveBenefitsHub({ embedded = false } = {}) {
       ) : dashboard ? (
         <div className="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <KpiCard label="Pending school fees" value={dashboard.pendingSchoolFees} />
-          <KpiCard label="Active stipends" value={dashboard.activeStipends} />
-          <KpiCard label="Domestic staff" value={dashboard.domesticCount} />
+          <KpiCard label={FAMILY_BENEFITS.adminActiveAllowances} value={dashboard.activeStipends} />
+          <KpiCard label="Household staff" value={dashboard.domesticCount} />
           <KpiCard label="Pending approvals" value={dashboard.pendingPayments} />
           <KpiCard label="Approved — not exported" value={dashboard.approvedUnexported} />
           <KpiCard label="School fees paid (YTD)" value={formatNgn(dashboard.schoolFeesPaidYear)} />
-          <KpiCard label="Stipends due this month" value={formatNgn(dashboard.stipendsDueMonth)} />
+          <KpiCard label={FAMILY_BENEFITS.adminAllowancesDueMonth} value={formatNgn(dashboard.stipendsDueMonth)} />
           <KpiCard label="Domestic payroll total" value={formatNgn(dashboard.domesticPayrollTotal)} />
         </div>
       ) : null}
@@ -371,7 +378,7 @@ export default function HrExecutiveBenefitsHub({ embedded = false } = {}) {
         {!loading && tab === 'stipends' ? (
           <>
             <div className="mb-3 flex justify-end">
-              <HrAddFormButton onClick={() => openModal('stipend', { status: 'active', paymentFrequency: 'monthly' })}>Add stipend</HrAddFormButton>
+              <HrAddFormButton onClick={() => openModal('stipend', { status: 'active', paymentFrequency: 'monthly' })}>Add allowance</HrAddFormButton>
             </div>
             <AppTableWrap>
               <AppTable>
@@ -406,6 +413,10 @@ export default function HrExecutiveBenefitsHub({ embedded = false } = {}) {
 
         {!loading && tab === 'domestic' ? (
           <>
+            <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-4">
+              <p className="text-sm font-semibold text-amber-950">{DOMESTIC_BENEFITS.benefitsTabHint}</p>
+              <p className="mt-1 text-xs text-amber-900/80">{DOMESTIC_BENEFITS.adminManagedHint}</p>
+            </div>
             <div className="mb-3 flex justify-end">
               <HrAddFormButton onClick={() => openModal('domestic', { status: 'active' })}>Register staff</HrAddFormButton>
             </div>
@@ -449,7 +460,7 @@ export default function HrExecutiveBenefitsHub({ embedded = false } = {}) {
                   <input className={HR_FIELD_CLASS} value={exportPeriod} onChange={(e) => setExportPeriod(e.target.value)} placeholder="202606" />
                 </div>
                 <button type="button" className={HR_BTN_PRIMARY} disabled={exportBusy} onClick={() => void handleExport()}>
-                  {exportBusy ? 'Exporting…' : 'Beneficiary Stipend Payment Export'}
+                  {exportBusy ? 'Exporting…' : FAMILY_BENEFITS.adminAllowanceExport}
                 </button>
                 <p className="text-xs text-slate-500">Exports approved payments only. Not staff salary export.</p>
               </div>
@@ -529,7 +540,7 @@ export default function HrExecutiveBenefitsHub({ embedded = false } = {}) {
           <div className="space-y-3 text-sm text-slate-600">
             <p>Executive payment actions are recorded in the HR audit trail. Use <strong>HR Reports → Executive payment audit</strong> for full export.</p>
             <p className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-3">
-              Audited events include: beneficiary changes, school fee submissions, stipend updates, domestic staff changes, approvals, bank exports, and proof of payment.
+              Audited events include: beneficiary changes, school fee submissions, allowance updates, domestic staff changes, approvals, bank exports, and proof of payment.
             </p>
           </div>
         ) : null}

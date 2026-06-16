@@ -2,14 +2,12 @@ import React from 'react';
 import { useHrUrlTab } from '../../hooks/useHrUrlTab';
 import { HrTabbedPage } from '../../components/hr/HrTabbedPage';
 import { HrAbsenceReportsPanel } from '../../components/hr/HrAbsenceReportsPanel';
-import { HrOvertimeRequestsPanel } from '../../components/hr/HrOvertimeRequestsPanel';
 import HrPhase2Placeholder from '../../components/hr/HrPhase2Placeholder';
 import HrAttendance from './HrAttendance';
 
 const TABS = [
   { id: 'uploads', label: 'Uploads' },
   { id: 'exceptions', label: 'Exceptions' },
-  { id: 'overtime', label: 'Overtime' },
   { id: 'deduction-preview', label: 'Deduction Preview' },
 ];
 export default function HrAttendanceHub() {
@@ -38,6 +36,6 @@ export default function HrAttendanceHub() {
           <HrAbsenceReportsPanel />
         </div>
       ) : null}
-      {tab === 'overtime' ? <HrOvertimeRequestsPanel /> : null}    </HrTabbedPage>
+    </HrTabbedPage>
   );
 }

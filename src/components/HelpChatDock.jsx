@@ -692,6 +692,8 @@ export function HelpChatDock() {
       tryLocalAnswer,
       helpMode,
       pendingPageContext,
+      briefingSnapshot,
+      dailyBriefing,
     ]
   );
 

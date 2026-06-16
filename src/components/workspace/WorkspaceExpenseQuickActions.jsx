@@ -40,7 +40,7 @@ export function WorkspaceExpenseQuickActions() {
     [
       ws?.hasWorkspaceData,
       ws?.snapshot,
-      ws?.session?.currentBranchId,
+      ws?.session,
       ws?.branchScope,
       ws?.viewAllBranches,
     ]

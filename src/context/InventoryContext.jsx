@@ -88,6 +88,10 @@ function findPoLine(po, entry) {
 
 export function InventoryProvider({ children }) {
   const ws = useWorkspace();
+  const wsHasWorkspaceData = ws?.hasWorkspaceData;
+  const wsSnapshot = ws?.snapshot;
+  const wsCanMutate = ws?.canMutate;
+  const wsRefresh = ws?.refresh;
   const [products, setProducts] = useState([]);
   const [purchaseOrders, setPurchaseOrders] = useState([]);
   const [movements, setMovements] = useState([]);
@@ -104,7 +108,7 @@ export function InventoryProvider({ children }) {
    * via the next successful refresh or be re-applied after sync.
    */
   useEffect(() => {
-    if (!ws?.hasWorkspaceData || !ws?.snapshot) {
+    if (!wsHasWorkspaceData || !wsSnapshot) {
       setProducts([]);
       setPurchaseOrders([]);
       setMovements([]);
@@ -116,7 +120,7 @@ export function InventoryProvider({ children }) {
       setInTransitLoads([]);
       return;
     }
-    const s = ws.snapshot;
+    const s = wsSnapshot;
     if (Array.isArray(s.products)) {
       setProducts(s.products.map((p) => ({ ...p })));
     }
@@ -171,7 +175,7 @@ export function InventoryProvider({ children }) {
     if (Array.isArray(s.inTransitLoads)) {
       setInTransitLoads(s.inTransitLoads.map((load) => ({ ...load, lines: Array.isArray(load.lines) ? load.lines.map((line) => ({ ...line })) : [] })));
     }
-  }, [ws?.refreshEpoch, ws?.hasWorkspaceData]);
+  }, [wsHasWorkspaceData, wsSnapshot]);
    
 
   const appendMovement = useCallback((entry) => {
@@ -225,7 +229,7 @@ export function InventoryProvider({ children }) {
         );
       if (!normalizedLines.length) return { ok: false, error: 'Add at least one valid line.' };
 
-      if (ws?.canMutate) {
+      if (wsCanMutate) {
         const { ok, data } = await apiFetch('/api/purchase-orders', {
           method: 'POST',
           body: JSON.stringify({
@@ -283,7 +287,7 @@ export function InventoryProvider({ children }) {
           ref: poID,
           detail: `${supplierName} · ${normalizedLines.length} coil line(s)`,
         });
-        void ws.refresh?.();
+        void wsRefresh?.();
         return { ok: true, poID };
       }
 
@@ -322,7 +326,7 @@ export function InventoryProvider({ children }) {
       });
       return { ok: true, poID: createdId };
     },
-    [appendMovement, products, ws]
+    [appendMovement, products, ws, wsCanMutate, wsRefresh]
   );
 
   const updatePurchaseOrder = useCallback(
@@ -361,7 +365,7 @@ export function InventoryProvider({ children }) {
         );
       if (!normalizedLines.length) return { ok: false, error: 'Add at least one valid line.' };
 
-      if (ws?.canMutate) {
+      if (wsCanMutate) {
         const { ok, data } = await apiFetch(`/api/purchase-orders/${encodeURIComponent(id)}`, {
           method: 'PATCH',
           body: JSON.stringify({
@@ -413,7 +417,7 @@ export function InventoryProvider({ children }) {
           ref: id,
           detail: `${supplierName} · ${normalizedLines.length} line(s) revised`,
         });
-        void ws.refresh?.();
+        void wsRefresh?.();
         return { ok: true, poID: id };
       }
 
@@ -444,7 +448,7 @@ export function InventoryProvider({ children }) {
       });
       return { ok: true, poID: id };
     },
-    [appendMovement, products, ws.refresh, ws.canMutate]
+    [appendMovement, products, wsCanMutate, wsRefresh]
   );
 
   const linkTransportToPurchaseOrder = useCallback(
@@ -466,7 +470,7 @@ export function InventoryProvider({ children }) {
         editApprovalId,
       } = {}
     ) => {
-      if (!ws?.canMutate) {
+      if (!wsCanMutate) {
         return {
           ok: false,
           error:
@@ -497,15 +501,15 @@ export function InventoryProvider({ children }) {
       if (!ok || !data?.ok) {
         return { ok: false, error: data?.error || 'Could not link transport.' };
       }
-      await ws.refresh();
+      await wsRefresh?.();
       return { ok: true };
     },
-    [ws.refresh, ws.canMutate]
+    [wsCanMutate, wsRefresh]
   );
 
   const postPurchaseOrderTransport = useCallback(
     async (poID, body = {}) => {
-      if (!ws?.canMutate) {
+      if (!wsCanMutate) {
         return {
           ok: false,
           error:
@@ -519,17 +523,17 @@ export function InventoryProvider({ children }) {
       if (!ok || !data?.ok) {
         return { ok: false, error: data?.error || 'Could not post transport.' };
       }
-      await ws.refresh();
+      await wsRefresh?.();
       return { ok: true };
     },
-    [ws.refresh, ws.canMutate]
+    [wsCanMutate, wsRefresh]
   );
 
   const recordPurchaseSupplierPayment = useCallback(
     async (poID, amountNgn, note = '', opts = {}) => {
       const amt = Number(amountNgn);
       if (Number.isNaN(amt) || amt <= 0) return { ok: false, error: 'Invalid amount.' };
-      if (ws?.canMutate) {
+      if (wsCanMutate) {
         const { ok, data } = await apiFetch(
           `/api/purchase-orders/${encodeURIComponent(poID)}/supplier-payment`,
           {
@@ -547,7 +551,7 @@ export function InventoryProvider({ children }) {
         if (!ok || !data?.ok) {
           return { ok: false, error: data?.error || 'Could not record payment.' };
         }
-        await ws.refresh();
+        await wsRefresh?.();
         return { ok: true };
       }
       setPurchaseOrders((prev) =>
@@ -564,12 +568,12 @@ export function InventoryProvider({ children }) {
       });
       return { ok: true };
     },
-    [appendMovement, ws.refresh, ws.canMutate]
+    [appendMovement, wsCanMutate, wsRefresh]
   );
 
   const setPurchaseOrderStatus = useCallback(
     async (poID, status, { editApprovalId } = {}) => {
-      if (ws?.canMutate) {
+      if (wsCanMutate) {
         const { ok, data } = await apiFetch(
           `/api/purchase-orders/${encodeURIComponent(poID)}/status`,
           {
@@ -583,7 +587,7 @@ export function InventoryProvider({ children }) {
         if (!ok || !data?.ok) {
           return { ok: false, error: data?.error || 'Could not update PO status.' };
         }
-        await ws.refresh();
+        await wsRefresh?.();
         return { ok: true };
       }
       setPurchaseOrders((prev) =>
@@ -592,7 +596,7 @@ export function InventoryProvider({ children }) {
       appendMovement({ type: 'PO_STATUS', ref: poID, detail: status });
       return { ok: true };
     },
-    [appendMovement, ws.refresh, ws.canMutate]
+    [appendMovement, wsCanMutate, wsRefresh]
   );
 
   const confirmStoreReceipt = useCallback(
@@ -621,7 +625,7 @@ export function InventoryProvider({ children }) {
         }
       }
 
-      if (ws?.canMutate) {
+      if (wsCanMutate) {
         const { ok, data } = await apiFetch(
           `/api/purchase-orders/${encodeURIComponent(poID)}/grn`,
           {
@@ -637,7 +641,7 @@ export function InventoryProvider({ children }) {
         if (!ok || !data?.ok) {
           return { ok: false, error: data?.error || 'GRN failed on server.' };
         }
-        await ws.refresh();
+        await wsRefresh?.();
         return {
           ok: true,
           coilNos: data.coilNos || [],
@@ -743,14 +747,14 @@ export function InventoryProvider({ children }) {
 
       return { ok: true, coilNos: coilNumbers };
     },
-    [purchaseOrders, products, appendMovement, ws.refresh, ws.canMutate]
+    [purchaseOrders, appendMovement, wsCanMutate, wsRefresh]
   );
 
   const adjustStock = useCallback(
     async (productID, type, qty, reasonCode, note, dateISO, opts = {}) => {
       const q = Number(qty);
       if (Number.isNaN(q) || q <= 0) return { ok: false, error: 'Invalid quantity.' };
-      if (ws?.canMutate) {
+      if (wsCanMutate) {
         const { ok, status, data } = await apiFetch('/api/inventory/adjust', {
           method: 'POST',
           body: JSON.stringify({
@@ -774,7 +778,7 @@ export function InventoryProvider({ children }) {
         if (!ok || !data?.ok) {
           return { ok: false, error: data?.error || 'Adjustment failed on server.' };
         }
-        await ws.refresh();
+        await wsRefresh?.();
         return { ok: true };
       }
       const delta = type === 'Increase' ? q : -q;
@@ -796,7 +800,7 @@ export function InventoryProvider({ children }) {
       });
       return { ok: true };
     },
-    [appendMovement, ws.refresh, ws.canMutate]
+    [appendMovement, wsCanMutate, wsRefresh]
   );
 
   const transferToProduction = useCallback(
@@ -807,7 +811,7 @@ export function InventoryProvider({ children }) {
       if (!p || p.stockLevel < q) {
         return { ok: false, error: 'Insufficient stock in store.' };
       }
-      if (ws?.canMutate) {
+      if (wsCanMutate) {
         const { ok, data } = await apiFetch('/api/inventory/transfer-to-production', {
           method: 'POST',
           body: JSON.stringify({
@@ -820,7 +824,7 @@ export function InventoryProvider({ children }) {
         if (!ok || !data?.ok) {
           return { ok: false, error: data?.error || 'Transfer failed on server.' };
         }
-        await ws.refresh();
+        await wsRefresh?.();
         return { ok: true };
       }
       setProducts((prev) =>
@@ -841,7 +845,7 @@ export function InventoryProvider({ children }) {
       });
       return { ok: true };
     },
-    [products, appendMovement, ws.refresh, ws.canMutate]
+    [products, appendMovement, wsCanMutate, wsRefresh]
   );
 
   const receiveFinishedGoods = useCallback(
@@ -876,7 +880,7 @@ export function InventoryProvider({ children }) {
         }
       }
 
-      if (ws?.canMutate) {
+      if (wsCanMutate) {
         const { ok, data } = await apiFetch('/api/inventory/finished-goods', {
           method: 'POST',
           body: JSON.stringify({
@@ -892,7 +896,7 @@ export function InventoryProvider({ children }) {
         if (!ok || !data?.ok) {
           return { ok: false, error: data?.error || 'Finished goods post failed on server.' };
         }
-        await ws.refresh();
+        await wsRefresh?.();
         return { ok: true };
       }
 
@@ -934,7 +938,7 @@ export function InventoryProvider({ children }) {
       });
       return { ok: true };
     },
-    [appendMovement, wipByProduct, ws.refresh, ws.canMutate]
+    [appendMovement, wipByProduct, wsCanMutate, wsRefresh]
   );
 
   const value = useMemo(

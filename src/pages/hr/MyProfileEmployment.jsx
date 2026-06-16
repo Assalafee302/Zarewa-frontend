@@ -1,10 +1,22 @@
 import React from 'react';
 import { useUserProfile } from '../../context/UserProfileContext';
 import { formatNgn } from '../../lib/hrFormat';
-import { HrCard } from '../../components/hr/hrPageUi';
+import { HrCard, HrPageBody, HrPageIntro } from '../../components/hr/hrPageUi';
 import { ProfileSelfServiceForm } from '../../components/profile/ProfileSelfServiceForm';
 import { ProfileHrUpdateForm } from '../../components/profile/ProfileHrUpdateForm';
 import { HrSensitiveField } from '../../components/hr/HrSensitiveField';
+import {
+  ProfileInlineAlert,
+  ProfileMetricSkeleton,
+  ProfileOverviewSection,
+} from '../../components/profile/profileOverviewUi';
+import { ProfilePageAnchors } from '../../components/profile/profileFormUi';
+
+const EMPLOYMENT_ANCHORS = [
+  { id: 'personal-update', label: 'Personal' },
+  { id: 'hr-request', label: 'HR request' },
+  { id: 'snapshot', label: 'Record' },
+];
 
 function DetailRow({ label, value }) {
   return (
@@ -18,12 +30,12 @@ function DetailRow({ label, value }) {
 export function MyProfileEmploymentSnapshot() {
   const { hr, initialLoading } = useUserProfile();
 
-  if (initialLoading) return <p className="text-sm text-slate-600">Loading employment details…</p>;
+  if (initialLoading) return <ProfileMetricSkeleton count={2} />;
   if (!hr) {
     return (
-      <p className="rounded-xl border border-amber-100 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-        No HR employment file on record yet. Contact HR, then complete the form above.
-      </p>
+      <ProfileInlineAlert variant="warning">
+        No HR employment file on record yet. Contact HR, then complete the forms above.
+      </ProfileInlineAlert>
     );
   }
 
@@ -83,16 +95,33 @@ export function MyProfileEmploymentSnapshot() {
 
 export default function MyProfileEmployment() {
   return (
-    <div className="space-y-6">
-      <p className="text-sm text-slate-600">
-        Update personal and qualification details below. Official job title, salary, and bank changes require HR
-        approval — use the request form for NIN, next of kin, or bank updates.
-      </p>
-      <ProfileSelfServiceForm />
-      <div id="hr-update-request">
+    <HrPageBody>
+      <HrPageIntro
+        title="Employment record"
+        description="Update personal details yourself. Job title, salary, and bank changes go through HR approval — use the request form for NIN, next of kin, or bank updates."
+      />
+
+      <ProfilePageAnchors items={EMPLOYMENT_ANCHORS} />
+
+      <ProfileOverviewSection
+        id="personal-update"
+        title="Update personal details"
+        subtitle="Phone, qualification, and other self-service fields"
+      >
+        <ProfileSelfServiceForm />
+      </ProfileOverviewSection>
+
+      <ProfileOverviewSection
+        id="hr-request"
+        title="Request HR update"
+        subtitle="NIN, next of kin, bank account, and other changes that need approval"
+      >
         <ProfileHrUpdateForm />
-      </div>
-      <MyProfileEmploymentSnapshot />
-    </div>
+      </ProfileOverviewSection>
+
+      <ProfileOverviewSection id="snapshot" title="Your record" subtitle="Official employment data maintained by HR">
+        <MyProfileEmploymentSnapshot />
+      </ProfileOverviewSection>
+    </HrPageBody>
   );
 }

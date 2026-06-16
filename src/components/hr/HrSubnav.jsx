@@ -1,5 +1,6 @@
 import React from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useLocation } from 'react-router-dom';
+
 
 const linkClass = ({ isActive }) =>
   `shrink-0 rounded-xl px-3 py-2 text-[10px] font-bold uppercase tracking-[0.12em] transition no-underline ${
@@ -14,6 +15,13 @@ const linkClass = ({ isActive }) =>
  */
 export function HrSubnav({ items, moreItems = [], sticky = false }) {
   const [moreOpen, setMoreOpen] = React.useState(false);
+  const location = useLocation();
+  const moreActive = moreItems.some((item) => location.pathname.startsWith(item.to));
+
+  React.useEffect(() => {
+    setMoreOpen(false);
+  }, [location.pathname]);
+
   const navCls = sticky
     ? 'sticky top-[var(--app-header-offset,0px)] z-20 mb-0 bg-[#f8fafc]/95 backdrop-blur-sm py-2 -mx-1 px-1'
     : '';
@@ -35,7 +43,9 @@ export function HrSubnav({ items, moreItems = [], sticky = false }) {
               type="button"
               onClick={() => setMoreOpen((o) => !o)}
               className={`rounded-xl px-3 py-2 min-h-11 text-[10px] font-bold uppercase tracking-[0.12em] transition ${
-                moreOpen ? 'bg-[#134e4a] text-white' : 'text-slate-500 hover:bg-slate-50 hover:text-[#134e4a]'
+                moreOpen || moreActive
+                  ? 'bg-[#134e4a] text-white'
+                  : 'text-slate-500 hover:bg-slate-50 hover:text-[#134e4a]'
               }`}
             >
               More ▾

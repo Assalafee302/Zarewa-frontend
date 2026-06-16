@@ -81,7 +81,7 @@ export function HrPromotionFromMatrix({ userId, staff, canViewAmounts, onUpdated
               <select className={HR_FIELD_CLASS} value={payrollGroup} onChange={(e) => setPayrollGroup(e.target.value)}>
                 <option value="branch_ops">Branch staff</option>
                 <option value="mining_div">Mining</option>
-                <option value="scholarship">Scholarship</option>
+                <option value="scholarship">Executive family</option>
                 <option value="chairman_staffs">Domestic</option>
               </select>
             </label>

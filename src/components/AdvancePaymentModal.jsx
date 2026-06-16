@@ -48,18 +48,17 @@ const AdvancePaymentModal = ({
       compareSelectLabels(treasuryAccountDisplayName(a), treasuryAccountDisplayName(b))
     );
   }, [
-    ws?.refreshEpoch,
-    ws?.hasWorkspaceData,
     ws?.branchScope,
     ws?.viewAllBranches,
-    ws?.session?.currentBranchId,
+    ws?.snapshot,
+    ws?.session,
   ]);
 
   const customersSorted = useMemo(
     () => [...(customers || [])].sort((a, b) => compareSelectLabels(a.name, b.name)),
     [customers]
   );
-  const periodLocks = ws?.snapshot?.periodLocks ?? [];
+  const periodLocks = useMemo(() => ws?.snapshot?.periodLocks ?? [], [ws?.snapshot?.periodLocks]);
   const voucherInLockedPeriod = useMemo(
     () => Boolean(useLedgerApi && isVoucherDateInLockedPeriod(dateISO, periodLocks)),
     [useLedgerApi, dateISO, periodLocks]

@@ -7,6 +7,13 @@ import { canViewOrgSensitiveHr } from '../../lib/hrAccess';
 import { formatNgn } from '../../lib/hrFormat';
 import { formatPeriodYyyymm } from '../../lib/hrPayroll';
 import { HrPayslipPrintModal } from '../../components/hr/HrPayslipPrintModal';
+import { HrPageBody, HrPageIntro } from '../../components/hr/hrPageUi';
+import {
+  ProfileEmptyState,
+  ProfileInlineAlert,
+  ProfileMetricSkeleton,
+  ProfileOverviewSection,
+} from '../../components/profile/profileOverviewUi';
 import {
   AppTable,
   AppTableBody,
@@ -22,7 +29,7 @@ function PayslipRowActions({ payslip, onView }) {
     <button
       type="button"
       onClick={() => onView(payslip)}
-      className="rounded-lg border border-[#134e4a]/30 px-3 py-1.5 text-[10px] font-bold uppercase text-[#134e4a] hover:bg-teal-50"
+      className="min-h-10 rounded-lg border border-[#134e4a]/30 px-3 py-1.5 text-[10px] font-bold uppercase text-[#134e4a] hover:bg-teal-50"
     >
       View / PDF
     </button>
@@ -63,15 +70,18 @@ export default function MyPayslips() {
 
   const openPayslip = (p) => setPrintPayslip(p);
 
-  const body = (
+  const payslipList = (
     <>
-      {loading && payslips.length === 0 ? <p className="text-sm text-slate-600">Loading payslips…</p> : null}
+      {loading && payslips.length === 0 ? <ProfileMetricSkeleton count={2} /> : null}
       {!loading && payslips.length === 0 ? (
-        <p className="text-sm text-slate-600">No locked or paid payslips on file yet.</p>
+        <ProfileEmptyState
+          title="No payslips yet"
+          description="Payslips appear after HQ locks payroll and finance marks the run paid. Check back after the next payroll cycle."
+        />
       ) : null}
       {payslips.length > 0 ? (
         <>
-          <div className="md:hidden space-y-3">
+          <div className="space-y-3 md:hidden">
             {payslips.map((p) => (
               <article
                 key={`${p.runId}-${p.periodYyyymm}-m`}
@@ -86,7 +96,7 @@ export default function MyPayslips() {
                     {p.amountsRedacted ? '—' : formatNgn(p.netNgn)}
                   </p>
                 </div>
-                <div className="mt-3 flex items-center justify-between text-xs text-slate-600">
+                <div className="mt-3 flex items-center justify-between gap-2 text-xs text-slate-600">
                   <span>Gross: {p.amountsRedacted ? '—' : formatNgn(p.grossNgn)}</span>
                   <PayslipRowActions payslip={p} onView={openPayslip} />
                 </div>
@@ -132,17 +142,28 @@ export default function MyPayslips() {
   );
 
   return (
-    <div className="space-y-4">
-      <p className="text-sm text-slate-600">
-        Payslips appear after HQ locks payroll and finance marks the run paid. Tap a row to view or download PDF.
-      </p>
-      <div className="rounded-xl border border-slate-100 bg-slate-50/80 px-4 py-3 text-xs text-slate-600">
-        Your employer also contributes <strong>ITF (1%)</strong> and <strong>NSITF (1%)</strong> on your behalf. These are employer costs and do <strong>not</strong> reduce your take-home pay.
-      </div>
-      {error ? (
-        <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-800">{error}</div>
-      ) : null}
-      {showSensitiveInline ? body : <HrSensitiveGate scope="payslip" label="View your payslip amounts">{body}</HrSensitiveGate>}
-    </div>
+    <HrPageBody>
+      <HrPageIntro
+        title="Payslips"
+        description="View and download payslips after payroll is locked and paid. Tap a row to open the PDF view."
+      />
+
+      <ProfileInlineAlert variant="info">
+        Your employer also contributes <strong>ITF (1%)</strong> and <strong>NSITF (1%)</strong> on your behalf.
+        These are employer costs and do not reduce your take-home pay.
+      </ProfileInlineAlert>
+
+      {error ? <ProfileInlineAlert variant="error">{error}</ProfileInlineAlert> : null}
+
+      <ProfileOverviewSection title="Payslip history" subtitle="Locked and paid payroll runs">
+        {showSensitiveInline ? (
+          payslipList
+        ) : (
+          <HrSensitiveGate scope="payslip" label="View your payslip amounts">
+            {payslipList}
+          </HrSensitiveGate>
+        )}
+      </ProfileOverviewSection>
+    </HrPageBody>
   );
 }

@@ -5,6 +5,13 @@ import { fetchHrBeneficiaries } from '../../lib/hrExtended';
 import { canViewOrgSensitiveHr } from '../../lib/hrAccess';
 import { formatNgn } from '../../lib/hrFormat';
 import { HrSensitiveGate } from '../../components/hr/HrSensitiveGate';
+import { HrPageBody, HrPageIntro } from '../../components/hr/hrPageUi';
+import {
+  ProfileEmptyState,
+  ProfileInlineAlert,
+  ProfileMetricSkeleton,
+  ProfileOverviewSection,
+} from '../../components/profile/profileOverviewUi';
 
 export default function MyProfileBenefits() {
   const ws = useWorkspace();
@@ -36,19 +43,32 @@ export default function MyProfileBenefits() {
   );
 
   return (
-    <div className="space-y-4">
-      <p className="text-sm text-slate-600">Allowances and benefits linked to your staff record.</p>
-      {error ? <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-800">{error}</div> : null}
-      {!loading && !items.length ? <p className="text-sm text-slate-500">No benefits on your file.</p> : null}
-      {items.length > 0 ? (
-        showSensitiveInline ? (
-          list
-        ) : (
-          <HrSensitiveGate scope="compensation" label="View benefit amounts">
-            {list}
-          </HrSensitiveGate>
-        )
-      ) : null}
-    </div>
+    <HrPageBody>
+      <HrPageIntro
+        title="Benefits"
+        description="Allowances and benefits linked to your staff record. Amounts may require unlocking sensitive data."
+      />
+
+      {error ? <ProfileInlineAlert variant="error">{error}</ProfileInlineAlert> : null}
+
+      <ProfileOverviewSection title="Your benefits" subtitle="Monthly allowances on your HR file">
+        {loading ? <ProfileMetricSkeleton count={1} /> : null}
+        {!loading && !items.length ? (
+          <ProfileEmptyState
+            title="No benefits on file"
+            description="If you expect housing, transport, or other allowances, contact HR to confirm your record."
+          />
+        ) : null}
+        {!loading && items.length > 0 ? (
+          showSensitiveInline ? (
+            list
+          ) : (
+            <HrSensitiveGate scope="compensation" label="View benefit amounts">
+              {list}
+            </HrSensitiveGate>
+          )
+        ) : null}
+      </ProfileOverviewSection>
+    </HrPageBody>
   );
 }

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { applyCaseDecision, DECISION_TYPE_OPTIONS, fetchCaseClosureCheck } from '../../lib/hrIncidents';
 import { patchDisciplineCase } from '../../lib/hrDisciplineCases';
 import { HR_BTN_PRIMARY, HR_BTN_SECONDARY, HR_FIELD_CLASS } from './hrFormStyles';
@@ -10,14 +10,14 @@ export default function HrCaseClosureChecklist({ caseId, canManage, detail, onUp
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
 
-  const refresh = async () => {
+  const refresh = useCallback(async () => {
     const { ok, data } = await fetchCaseClosureCheck(caseId);
     if (ok && data?.ok !== undefined) setCheck({ ok: data.ok, blockers: data.blockers || [] });
-  };
+  }, [caseId]);
 
   useEffect(() => {
     refresh();
-  }, [caseId, detail?.status, detail?.decisionType]);
+  }, [refresh, detail?.status, detail?.decisionType]);
 
   const saveLoss = async () => {
     setBusy(true);
@@ -89,6 +89,12 @@ export default function HrCaseClosureChecklist({ caseId, canManage, detail, onUp
           <button type="button" disabled={busy || !decisionType} className={HR_BTN_SECONDARY} onClick={applyDecision}>
             Apply decision (triggers payroll/letter)
           </button>
+          {decisionType === 'deduction' && Number(lossValueNgn) > 0 ? (
+            <p className="sm:col-span-2 text-xs text-slate-600 rounded-lg bg-slate-50 p-2">
+              Applying salary deduction creates recovery schedules and draft recovery letters for each responsible party.
+              Submit, approve, and <strong>issue</strong> each letter before the case can close.
+            </p>
+          ) : null}
           <button type="button" disabled={busy || !check.ok} className={HR_BTN_PRIMARY} onClick={closeCase}>
             Close case
           </button>

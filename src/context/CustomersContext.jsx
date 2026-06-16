@@ -8,24 +8,28 @@ const CustomersContext = createContext(null);
 
 export function CustomersProvider({ children }) {
   const ws = useWorkspace();
+  const wsHasWorkspaceData = ws?.hasWorkspaceData;
+  const wsSnapshot = ws?.snapshot;
+  const wsCanMutate = ws?.canMutate;
+  const wsRefresh = ws?.refresh;
   const { show: showToast } = useToast();
   const [customers, setCustomers] = useState([]);
 
    
   useEffect(() => {
-    if (!ws?.hasWorkspaceData || !ws?.snapshot) {
+    if (!wsHasWorkspaceData || !wsSnapshot) {
       setCustomers([]);
       return;
     }
-    const s = ws.snapshot;
+    const s = wsSnapshot;
     const list = s.customers;
     setCustomers(Array.isArray(list) ? list.map((c) => ({ ...c })) : []);
-  }, [ws?.refreshEpoch, ws?.hasWorkspaceData]);
+  }, [wsHasWorkspaceData, wsSnapshot]);
    
 
   const addCustomer = useCallback(
     async (record) => {
-      if (!ws?.canMutate) {
+      if (!wsCanMutate) {
         showToast('Reconnect to save customers — read-only workspace.', { variant: 'info' });
         throw new Error('Read-only workspace.');
       }
@@ -34,17 +38,17 @@ export function CustomersProvider({ children }) {
         body: JSON.stringify(record),
       });
       if (!ok || !data?.ok) throw new Error(data?.error || 'Create customer API failed');
-      await ws.refresh();
+      await wsRefresh?.();
       return data?.customerID || record.customerID;
     },
-    [showToast, ws.refresh, ws.canMutate]
+    [showToast, wsCanMutate, wsRefresh]
   );
 
   const deleteCustomer = useCallback(
     async (customerID) => {
       const id = String(customerID ?? '').trim();
       if (!id) throw new Error('Customer id required.');
-      if (!ws?.canMutate) {
+      if (!wsCanMutate) {
         showToast('Reconnect to delete customers — read-only workspace.', { variant: 'info' });
         throw new Error('Read-only workspace.');
       }
@@ -56,9 +60,9 @@ export function CustomersProvider({ children }) {
         err.blockers = data?.blockers;
         throw err;
       }
-      await ws.refresh();
+      await wsRefresh?.();
     },
-    [showToast, ws.refresh, ws.canMutate]
+    [showToast, wsCanMutate, wsRefresh]
   );
 
   const value = useMemo(

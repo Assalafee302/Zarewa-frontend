@@ -36,6 +36,8 @@ export const HR_REQUEST_KIND_LABELS = {
   retirement: 'Retirement',
   appeal: 'Appeal',
   profile_change: 'Profile change',
+  scholarship_profile_update: 'School details update',
+  scholarship_fee_request: 'School fee request',
   bonus: 'Bonus',
   training: 'Training',
   promotion: 'Promotion',
@@ -67,8 +69,8 @@ export function payrollGroupLabel(staff) {
     branch_ops: 'Branch staff',
     mining_div: 'Mining division',
     hq_admin: 'HQ administrative',
-    scholarship: 'Scholarship beneficiary',
-    chairman_staffs: 'Domestic staff',
+    scholarship: 'Executive family',
+    chairman_staffs: 'Household staff',
   };
   return map[g] || String(g).replace(/_/g, ' ');
 }

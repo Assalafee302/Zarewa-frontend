@@ -6,6 +6,14 @@ export async function fetchExecutiveBenefitsDashboard() {
   return data.dashboard;
 }
 
+/** CEO / Chairman — all children with fee and allowance status. */
+export async function fetchExecutiveFamilyDashboard(filters = {}) {
+  const q = new URLSearchParams(filters).toString();
+  const { ok, data } = await apiFetch(`/api/hr/executive/family-dashboard${q ? `?${q}` : ''}`);
+  if (!ok || !data?.ok) throw new Error(data?.error || 'Could not load family dashboard.');
+  return data;
+}
+
 export async function fetchExecutiveBeneficiaries(filters = {}) {
   const q = new URLSearchParams(filters).toString();
   const { ok, data } = await apiFetch(`/api/hr/executive/beneficiaries${q ? `?${q}` : ''}`);

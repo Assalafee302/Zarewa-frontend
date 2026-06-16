@@ -42,6 +42,7 @@ export function OfficeThreadConversationDrawer({
   onConvertExpenseConsumed,
 }) {
   const ws = useWorkspace();
+  const wsGetUnifiedWorkItemById = ws?.getUnifiedWorkItemById;
   const { show: showToast } = useToast();
   const canOffice = Boolean(ws?.canAccessModule?.('office'));
   const payFileRef = useRef(null);
@@ -71,8 +72,8 @@ export function OfficeThreadConversationDrawer({
   const selectedThreadWorkItem = useMemo(() => {
     const wid = detail?.thread?.relatedWorkItemId;
     if (!wid) return detail?.workItem || null;
-    return ws?.getUnifiedWorkItemById?.(wid) || detail?.workItem || null;
-  }, [detail?.thread?.relatedWorkItemId, detail?.workItem, ws.getUnifiedWorkItemById]);
+    return wsGetUnifiedWorkItemById?.(wid) || detail?.workItem || null;
+  }, [detail?.thread?.relatedWorkItemId, detail?.workItem, wsGetUnifiedWorkItemById]);
 
   const drawerIntelWorkItem = useMemo(() => {
     if (selectedThreadWorkItem && workItemShowsOfficeDrawerTransactionIntel(selectedThreadWorkItem.documentType)) {

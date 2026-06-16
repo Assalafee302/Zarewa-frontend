@@ -67,7 +67,7 @@ export function ExecutiveReportPacksSection({ showToast }) {
   }, [packKind, packDate, weekEnd, showToast]);
 
   return (
-    <section className="z-soft-panel p-5 sm:p-6 mb-8">
+    <section className="z-soft-panel p-5 sm:p-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h4 className="text-base font-black text-[#134e4a] tracking-tight flex items-center gap-2">
@@ -75,8 +75,7 @@ export function ExecutiveReportPacksSection({ showToast }) {
             Executive daily &amp; weekly packs
           </h4>
           <p className="text-xs text-slate-600 mt-1.5 max-w-2xl leading-relaxed">
-            One-click MD oversight summaries: open attention counts, sales receipts, operations activity, and month
-            exception roll-ups. Use for morning briefings and weekly leadership reviews.
+            MD oversight summaries: attention counts, sales receipts, operations activity, and exception roll-ups.
           </p>
         </div>
       </div>
@@ -118,7 +117,7 @@ export function ExecutiveReportPacksSection({ showToast }) {
           type="button"
           onClick={() => void loadPack()}
           disabled={loading}
-          className="rounded-lg bg-[#134e4a] px-4 py-2.5 text-sm font-bold text-white hover:bg-[#0f3d39] disabled:opacity-60 flex items-center gap-2"
+          className="z-btn-primary flex items-center gap-2"
         >
           {loading ? <Loader2 size={16} className="animate-spin" /> : <Calendar size={16} />}
           Load pack
@@ -132,7 +131,7 @@ export function ExecutiveReportPacksSection({ showToast }) {
                 pack
               )
             }
-            className="rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-slate-800 hover:bg-slate-50 flex items-center gap-2"
+            className="z-btn-secondary flex items-center gap-2"
           >
             <Printer size={16} />
             Print

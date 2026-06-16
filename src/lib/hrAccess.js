@@ -71,6 +71,28 @@ export function canEditPensionPolicyRates(permissions) {
   );
 }
 
+/** Leave entitlements and staff loan limits — mirrors PATCH /api/hr/policy-config. */
+export function canEditLeavePolicy(permissions) {
+  if (hasPermissionInList(permissions, '*')) return true;
+  return (
+    hrHasPermission(permissions, 'hr.settings.manage') ||
+    hrHasPermission(permissions, 'hr.staff.manage') ||
+    hrHasPermission(permissions, 'hr.payroll.manage') ||
+    hrHasPermission(permissions, 'hr.executive.benefits.manage') ||
+    hrHasPermission(permissions, 'hr.payroll.md_approve')
+  );
+}
+
+/** Read-only org structure in Administration (departments, titles, branches). */
+export function canViewHrOrgStructure(permissions) {
+  return canManageHrSettings(permissions) || hrHasPermission(permissions, 'hr.directory.view');
+}
+
+/** @param {string[] | undefined} permissions */
+export function canViewHrSettings(permissions) {
+  return canViewHrOrgStructure(permissions) || canEditLeavePolicy(permissions);
+}
+
 /** Executive-only keys — do not unlock main HR admin workspace (Phase 10). */
 export const HR_EXECUTIVE_ONLY_PERMISSIONS = ['hr.executive.view', 'hr.payroll.md_approve'];
 
@@ -127,6 +149,38 @@ export function canAccessMyProfileHr(permissions) {
   if (hasPermissionInList(permissions, '*')) return true;
   if (MY_PROFILE_HR_PERMISSIONS.some((p) => hrHasPermission(permissions, p))) return true;
   return canAccessMainHrWorkspace(permissions) || canAccessTeamHr(permissions);
+}
+
+/** @param {string[] | undefined} permissions */
+export function canAccessScholarshipDomesticExecutive(permissions) {
+  if (hasPermissionInList(permissions, '*')) return true;
+  if (!canAccessExecutiveBenefits(permissions)) return false;
+  return (
+    hrHasPermission(permissions, 'hr.chairman.manage') ||
+    hrHasPermission(permissions, 'hr.executive.benefits.manage') ||
+    hrHasPermission(permissions, 'hr.directory.view') ||
+    hrHasPermission(permissions, 'hr.staff.manage')
+  );
+}
+
+/** @param {string[] | undefined} permissions */
+export function canViewScholarshipDomesticRegisters(permissions) {
+  if (hasPermissionInList(permissions, '*')) return true;
+  if (canAccessExecutiveBenefits(permissions)) return true;
+  return hrHasPermission(permissions, 'hr.directory.view') || hrHasPermission(permissions, 'hr.staff.manage');
+}
+
+/** @param {string[] | undefined} permissions */
+export function canManageScholarshipDomesticRegisters(permissions) {
+  if (hasPermissionInList(permissions, '*')) return true;
+  if (
+    hrHasPermission(permissions, 'hr.executive.benefits.manage') ||
+    hrHasPermission(permissions, 'hr.chairman.manage') ||
+    hrHasPermission(permissions, 'hr.special_beneficiary.manage')
+  ) {
+    return true;
+  }
+  return hrHasPermission(permissions, 'hr.staff.manage');
 }
 
 /** @param {string[] | undefined} permissions */
@@ -197,13 +251,22 @@ export function canGmApprovePayroll(permissions) {
 }
 
 /** @param {string[] | undefined} permissions */
+export function canPayPayroll(permissions) {
+  return hrHasPermission(permissions, 'hr.payroll.pay');
+}
+
+/** @param {string[] | undefined} permissions */
 export function canMdApprovePayroll(permissions) {
   return hrHasPermission(permissions, 'hr.payroll.md_approve');
 }
 
 /** @param {string[] | undefined} permissions */
-export function canPayPayroll(permissions) {
-  return hrHasPermission(permissions, 'hr.payroll.pay');
+export function canApproveSalaryReduction(permissions) {
+  return (
+    hrHasPermission(permissions, 'hr.special_increment.approve') ||
+    hrHasPermission(permissions, 'hr.payroll.md_approve') ||
+    hrHasPermission(permissions, '*')
+  );
 }
 
 /** @param {string[] | undefined} permissions */

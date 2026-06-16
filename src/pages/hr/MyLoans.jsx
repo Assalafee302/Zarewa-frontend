@@ -6,7 +6,8 @@ import { HrRequestsPanel } from '../../components/hr/HrRequestsPanel';
 import { createHrLoanRequest } from '../../lib/hrStaff';
 import { fetchStaffLoanSchedule } from '../../lib/hrMasterData';
 import { HrAddFormButton, HrFormModal } from '../../components/hr/HrFormModal';
-import { HrCard } from '../../components/hr/hrPageUi';
+import { HrCard, HrPageBody, HrPageIntro } from '../../components/hr/hrPageUi';
+import { ProfileInlineAlert, ProfileOverviewSection } from '../../components/profile/profileOverviewUi';
 import { formatNgn } from '../../lib/hrFormat';
 import { HR_BTN_PRIMARY, HR_FIELD_CLASS } from '../../components/hr/hrFormStyles';
 import { GUARANTOR_FORM_TEMPLATE_URL } from '../../lib/hrStaffDocumentKinds';
@@ -56,11 +57,15 @@ export default function MyLoans({ staffLinkBase = '/my-profile' }) {
     })();
   }, [userId, message]);
 
-  const policy = loanPolicy || {
-    loanMinServiceYears: 3,
-    loanMaxSalaryMonths: 4,
-    loanMaxRepaymentMonths: 12,
-  };
+  const policy = useMemo(
+    () =>
+      loanPolicy || {
+        loanMinServiceYears: 3,
+        loanMaxSalaryMonths: 4,
+        loanMaxRepaymentMonths: 12,
+      },
+    [loanPolicy]
+  );
 
   const amount = Math.round(Number(amountNgn) || 0);
   const months = Math.round(Number(repaymentMonths) || 0);
@@ -94,7 +99,7 @@ export default function MyLoans({ staffLinkBase = '/my-profile' }) {
 
   useEffect(() => {
     if (minDeduction > 0 && !deductionPerMonthNgn) setDeductionPerMonthNgn(String(minDeduction));
-  }, [minDeduction, amount, months]);
+  }, [minDeduction, amount, months, deductionPerMonthNgn]);
 
   const submit = async (e) => {
     e.preventDefault();
@@ -139,24 +144,17 @@ export default function MyLoans({ staffLinkBase = '/my-profile' }) {
   };
 
   return (
-    <div className="space-y-8">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h2 className="text-[11px] font-black uppercase tracking-widest text-slate-500">Staff loans</h2>
-          <p className="mt-1 text-xs text-slate-600">
-            Salary-backed loan — max {policy.loanMaxSalaryMonths}× gross salary, up to {policy.loanMaxRepaymentMonths}{' '}
-            months repayment, min {policy.loanMinServiceYears} years service.
-          </p>
-        </div>
-        <HrAddFormButton onClick={() => setModalOpen(true)}>Apply for loan</HrAddFormButton>
-      </div>
+    <HrPageBody>
+      <HrPageIntro
+        title="Staff loans"
+        description={`Salary-backed loan — max ${policy.loanMaxSalaryMonths}× gross salary, up to ${policy.loanMaxRepaymentMonths} months repayment, min ${policy.loanMinServiceYears} years service.`}
+        actions={<HrAddFormButton onClick={() => setModalOpen(true)}>Apply for loan</HrAddFormButton>}
+      />
 
-      {message ? (
-        <div className="rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">{message}</div>
-      ) : null}
+      {message ? <ProfileInlineAlert variant="success">{message}</ProfileInlineAlert> : null}
 
       {!hasGuarantorDoc ? (
-        <div className="rounded-xl border border-violet-100 bg-violet-50 px-4 py-3 text-sm text-violet-950">
+        <ProfileInlineAlert variant="warning">
           Download the{' '}
           <a href={GUARANTOR_FORM_TEMPLATE_URL} download className="font-bold underline">
             guarantor form
@@ -166,20 +164,19 @@ export default function MyLoans({ staffLinkBase = '/my-profile' }) {
             upload it
           </Link>{' '}
           before applying.
-        </div>
+        </ProfileInlineAlert>
       ) : null}
 
       {activeLoans.length ? (
-        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+        <ProfileInlineAlert variant="warning">
           Active loan outstanding:{' '}
           <strong>{formatNgn(activeLoans.reduce((s, l) => s + (l.outstandingNgn || 0), 0))}</strong>. Contact HR for
           exceptional top-up.
-        </div>
+        </ProfileInlineAlert>
       ) : null}
 
       {schedule.length ? (
-        <section className="space-y-3">
-          <h2 className="text-[11px] font-black uppercase tracking-widest text-slate-500">Loan & repayment schedule</h2>
+        <ProfileOverviewSection title="Loan & repayment schedule" subtitle="Approved loans and outstanding balances">
           <div className="grid gap-3 sm:grid-cols-2">
             {schedule.map((loan) => (
               <HrCard key={loan.requestId} className="!p-4">
@@ -195,7 +192,7 @@ export default function MyLoans({ staffLinkBase = '/my-profile' }) {
               </HrCard>
             ))}
           </div>
-        </section>
+        </ProfileOverviewSection>
       ) : null}
 
       <HrFormModal
@@ -288,10 +285,9 @@ export default function MyLoans({ staffLinkBase = '/my-profile' }) {
         </form>
       </HrFormModal>
 
-      <section>
-        <h2 className="text-[11px] font-black uppercase tracking-widest text-slate-500 mb-3">My loan requests</h2>
-        <HrRequestsPanel allowedScopes={['mine']} defaultScope="mine" kindFilter="loan" staffLinkBase={staffLinkBase} />
-      </section>
-    </div>
+      <ProfileOverviewSection title="My loan requests" subtitle="Drafts and applications awaiting HR review">
+        <HrRequestsPanel allowedScopes={['mine']} defaultScope="mine" kindFilter="loan" staffLinkBase={staffLinkBase} showStageBar />
+      </ProfileOverviewSection>
+    </HrPageBody>
   );
 }

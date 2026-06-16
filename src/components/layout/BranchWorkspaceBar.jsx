@@ -4,6 +4,7 @@ import { useWorkspace } from '../../context/WorkspaceContext';
 
 export function BranchWorkspaceBar() {
   const ws = useWorkspace();
+  const wsUpdateWorkspace = ws.updateWorkspace;
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
 
@@ -24,11 +25,11 @@ export function BranchWorkspaceBar() {
       if (!id || id === currentId) return;
       setError(null);
       setBusy(true);
-      const r = await ws.updateWorkspace({ currentBranchId: id });
+      const r = await wsUpdateWorkspace({ currentBranchId: id });
       setBusy(false);
       if (!r.ok) setError(r.error || 'Update failed');
     },
-    [currentId, ws.updateWorkspace]
+    [currentId, wsUpdateWorkspace]
   );
 
   const onWorkspaceScopeChange = useCallback(
@@ -39,7 +40,7 @@ export function BranchWorkspaceBar() {
         if (viewAll) return;
         setError(null);
         setBusy(true);
-        const r = await ws.updateWorkspace({ viewAllBranches: true });
+        const r = await wsUpdateWorkspace({ viewAllBranches: true });
         setBusy(false);
         if (!r.ok) setError(r.error || 'Update failed');
         return;
@@ -47,11 +48,11 @@ export function BranchWorkspaceBar() {
       if (v === currentId && !viewAll) return;
       setError(null);
       setBusy(true);
-      const r = await ws.updateWorkspace({ currentBranchId: v, viewAllBranches: false });
+      const r = await wsUpdateWorkspace({ currentBranchId: v, viewAllBranches: false });
       setBusy(false);
       if (!r.ok) setError(r.error || 'Update failed');
     },
-    [currentId, viewAll, ws.updateWorkspace]
+    [currentId, viewAll, wsUpdateWorkspace]
   );
 
   if (!ws.apiOnline || branches.length === 0) return null;

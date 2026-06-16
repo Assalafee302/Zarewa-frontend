@@ -578,6 +578,7 @@ const Operations = () => {
     coilLots,
   } = useInventory();
   const ws = useWorkspace();
+  const wsRefresh = ws?.refresh;
   useWorkspaceDomain('operations');
   const canReceiveInventory = Boolean(ws?.hasPermission?.('inventory.receive'));
   const canAdjustInventory = Boolean(ws?.hasPermission?.('inventory.adjust'));
@@ -1028,7 +1029,7 @@ const Operations = () => {
       if (productionFilter === 'coils_allocated') return Boolean(row.hasCoilsAllocated);
       return true;
     });
-  }, [productionQueueModel, productionFilter, searchQuery]);
+  }, [productionQueueModel, productionFilter]);
 
   const productionQueueRows = useMemo(
     () =>
@@ -1586,10 +1587,10 @@ const Operations = () => {
     if (activeTab !== 'inventory') return undefined;
     if (!ws?.hasWorkspaceData) return undefined;
     const t = window.setInterval(() => {
-      void ws.refresh?.();
+      void wsRefresh?.();
     }, 15000);
     return () => window.clearInterval(t);
-  }, [activeTab, ws?.hasWorkspaceData, ws.refresh]);
+  }, [activeTab, ws?.hasWorkspaceData, wsRefresh]);
 
   const openProductionQueueRow = (item) => {
     if (ws?.canMutate) {

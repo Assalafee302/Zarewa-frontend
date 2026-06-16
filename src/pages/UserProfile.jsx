@@ -20,7 +20,7 @@ export default function UserProfile() {
         <Route
           path="account"
           element={
-            <ProfileSectionPage title="Account & security" subtitle="Profile details, access info, and password.">
+            <ProfileSectionPage subtitle="Update profile, password, and review your access.">
               <ProfileAccount />
             </ProfileSectionPage>
           }

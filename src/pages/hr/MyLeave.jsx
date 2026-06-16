@@ -3,6 +3,8 @@ import { apiFetch } from '../../lib/apiBase';
 import { HrRequestsPanel } from '../../components/hr/HrRequestsPanel';
 import { daysBetweenIso } from '../../lib/hrRequests';
 import { HrAddFormButton, HrFormModal } from '../../components/hr/HrFormModal';
+import { HrPageBody, HrPageIntro } from '../../components/hr/hrPageUi';
+import { ProfileInlineAlert, ProfileOverviewSection } from '../../components/profile/profileOverviewUi';
 import { HR_BTN_PRIMARY, HR_BTN_SECONDARY, HR_FIELD_CLASS } from '../../components/hr/hrFormStyles';
 
 const LEAVE_TYPES = [
@@ -170,35 +172,51 @@ export default function MyLeave({ staffLinkBase = '/my-profile', embedded = fals
         : true;
 
   return (
-    <div className="space-y-8">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          {!embedded ? (
-            <>
-              <h2 className="text-xs font-black uppercase tracking-widest text-slate-500 sm:text-[11px]">Leave</h2>
-              {annualBalance ? (
-                <p className="mt-1 text-sm text-slate-600 sm:text-xs">
-                  Annual balance (current period): <strong>{annualBalance.closingDays}</strong> days remaining
-                </p>
-              ) : balancesError ? (
-                <p className="mt-1 text-sm text-amber-800">{balancesError}</p>
-              ) : null}
-            </>
-          ) : annualBalance ? (
+    <HrPageBody compact={embedded}>
+      {!embedded ? (
+        <HrPageIntro
+          title="Leave"
+          description="Apply for leave and track approvals. HR uses your handover details when endorsing requests."
+          actions={<HrAddFormButton onClick={() => setModalOpen(true)}>Apply for leave</HrAddFormButton>}
+        />
+      ) : (
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          {annualBalance ? (
             <p className="text-sm text-slate-600">
               Annual balance: <strong>{annualBalance.closingDays}</strong> days remaining
             </p>
           ) : balancesError ? (
             <p className="text-sm text-amber-800">{balancesError}</p>
           ) : null}
+          <HrAddFormButton onClick={() => setModalOpen(true)}>Apply for leave</HrAddFormButton>
         </div>
-        <HrAddFormButton onClick={() => setModalOpen(true)}>Apply for leave</HrAddFormButton>
-      </div>
+      )}
 
-      {message ? (
-        <div className="rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
-          {message}
-        </div>
+      {message ? <ProfileInlineAlert variant="success">{message}</ProfileInlineAlert> : null}
+
+      {!embedded && balances.length > 0 ? (
+        <ProfileOverviewSection title="Your balances" subtitle="Days remaining in the current leave period">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+            {balances.map((b) => (
+              <div
+                key={b.leaveType}
+                className="rounded-xl border border-slate-100 bg-slate-50/70 px-3 py-2.5"
+              >
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 capitalize">
+                  {b.leaveType} leave
+                </p>
+                <p className="mt-1 text-lg font-black tabular-nums text-[#134e4a]">
+                  {b.closingDays ?? b.balance ?? 0}
+                  <span className="ml-1 text-xs font-bold text-slate-500">days</span>
+                </p>
+              </div>
+            ))}
+          </div>
+        </ProfileOverviewSection>
+      ) : null}
+
+      {!embedded && balancesError && balances.length === 0 ? (
+        <ProfileInlineAlert variant="warning">{balancesError}</ProfileInlineAlert>
       ) : null}
 
       <HrFormModal isOpen={modalOpen} onClose={closeModal} title="Apply for leave" size="lg">
@@ -354,14 +372,12 @@ export default function MyLeave({ staffLinkBase = '/my-profile', embedded = fals
         </div>
       </HrFormModal>
 
-      <section>
-        {!embedded ? (
-          <h2 className="text-xs font-black uppercase tracking-widest text-slate-500 sm:text-[11px]">My leave requests</h2>
-        ) : null}
-        <div className={embedded ? '' : 'mt-3'}>
-          <HrRequestsPanel allowedScopes={['mine']} defaultScope="mine" kindFilter="leave" staffLinkBase={staffLinkBase} />
-        </div>
-      </section>
-    </div>
+      <ProfileOverviewSection
+        title="My leave requests"
+        subtitle="Drafts waiting to submit and requests under HR review"
+      >
+        <HrRequestsPanel allowedScopes={['mine']} defaultScope="mine" kindFilter="leave" staffLinkBase={staffLinkBase} showStageBar />
+      </ProfileOverviewSection>
+    </HrPageBody>
   );
 }

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { useHrListLoad } from '../../hooks/useHrListLoad';
 import { useToast } from '../../context/ToastContext';
@@ -27,7 +28,7 @@ const emptyDesig = () => ({
   active: true,
 });
 
-export function HrDepartmentsPanel() {
+export function HrDepartmentsPanel({ refreshKey = 0 }) {
   const ws = useWorkspace();
   const { show: toast } = useToast();
   const canEdit = canManageHrSettings(ws?.permissions || []);
@@ -50,7 +51,7 @@ export function HrDepartmentsPanel() {
     }
     setRows(data.departments || []);
     return { hasData: true };
-  }, []);
+  }, [refreshKey]);
 
   const openNew = () => {
     setEditId('');
@@ -85,9 +86,8 @@ export function HrDepartmentsPanel() {
   };
 
   return (
-    <HrCard title="Departments" subtitle="Canonical department list for staff assignment and reporting.">
-      <div className="mb-4 flex flex-wrap justify-between gap-2">
-        <p className="text-sm text-slate-600 max-w-xl">Define HQ and branch-scoped departments. Staff profiles reference these for consistency.</p>
+    <HrCard title="Departments" subtitle="HQ and branch departments linked from staff profiles and reports">
+      <div className="mb-4 flex flex-wrap justify-end gap-2">
         {canEdit ? <HrAddFormButton onClick={openNew}>Add department</HrAddFormButton> : null}
       </div>
       {error ? (
@@ -154,7 +154,7 @@ export function HrDepartmentsPanel() {
   );
 }
 
-export function HrDesignationsPanel() {
+export function HrDesignationsPanel({ refreshKey = 0 }) {
   const ws = useWorkspace();
   const { show: toast } = useToast();
   const canEdit = canManageHrSettings(ws?.permissions || []);
@@ -176,7 +176,7 @@ export function HrDesignationsPanel() {
     }
     setRows(desRes.data.designations || []);
     return { hasData: true };
-  }, []);
+  }, [refreshKey]);
 
   const openNew = () => {
     setEditId('');
@@ -225,9 +225,8 @@ export function HrDesignationsPanel() {
   };
 
   return (
-    <HrCard title="Designations / Job Titles" subtitle="Job titles with descriptions, grades, and default salary levels.">
-      <div className="mb-4 flex flex-wrap justify-between gap-2">
-        <p className="text-sm text-slate-600 max-w-xl">Each designation includes duties, qualifications, and reporting line for HR letters and profiles.</p>
+    <HrCard title="Job titles & descriptions" subtitle="Designations with grades, duties, and default salary levels">
+      <div className="mb-4 flex flex-wrap justify-end gap-2">
         {canEdit ? <HrAddFormButton onClick={openNew}>Add designation</HrAddFormButton> : null}
       </div>
       {error ? (
@@ -327,9 +326,10 @@ export function HrBranchMappingPanel() {
     name: b.name || b.id,
   }));
   return (
-    <HrCard title="Branch / Office Mapping" subtitle="HQ and branch offices used for staff assignment and transfers.">
+    <HrCard title="Branch offices" subtitle="Sales branches and HQ offices used for staff assignment and transfers">
       <p className="mb-4 text-sm text-slate-600">
-        Branches are managed in workspace settings. Use transfers to move staff between HQ and branches; department scope on each department record controls where it applies.
+        Branch records are maintained in workspace governance. HR uses them for employee location, transfers, and
+        branch-scoped departments.
       </p>
       {branches.length ? (
         <HrResponsiveTable
@@ -340,8 +340,14 @@ export function HrBranchMappingPanel() {
           rows={branches}
         />
       ) : (
-        <HrEmptyState title="No branches configured" description="Configure workspace branches in system settings." />
+        <HrEmptyState title="No branches configured" description="Add branches in system governance settings." />
       )}
+      <Link
+        to="/settings/governance"
+        className="mt-4 inline-flex text-xs font-semibold text-[#134e4a] hover:underline"
+      >
+        Open workspace governance →
+      </Link>
     </HrCard>
   );
 }

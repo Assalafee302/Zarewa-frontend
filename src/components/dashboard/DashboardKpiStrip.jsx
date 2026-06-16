@@ -128,7 +128,7 @@ export function DashboardKpiStrip({ sectionClassName = 'mb-8', metricsWindow, om
     [
       ws?.hasWorkspaceData,
       ws?.snapshot,
-      ws?.session?.currentBranchId,
+      ws?.session,
       ws?.branchScope,
       ws?.viewAllBranches,
     ]

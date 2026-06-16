@@ -13,6 +13,7 @@ export function HrSectionShell({
   moreNavItems = [],
   stickySubnav = false,
   compact = false,
+  beforeNav = null,
   children,
   useOutlet = true,
   outletContext,
@@ -20,6 +21,7 @@ export function HrSectionShell({
   return (
     <PageShell className="pb-10">
       <PageHeader title={title} subtitle={subtitle} />
+      {beforeNav ? <div className="mb-4">{beforeNav}</div> : null}
       {navItems.length > 0 ? (
         <div className="mb-6">
           <HrSubnav items={navItems} moreItems={moreNavItems} sticky={stickySubnav} />

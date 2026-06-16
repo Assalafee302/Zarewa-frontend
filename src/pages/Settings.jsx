@@ -69,6 +69,7 @@ const Settings = () => {
   const navigate = useNavigate();
   const { show: showToast } = useToast();
   const ws = useWorkspace();
+  const wsRefresh = ws?.refresh;
   const activeSection = useSettingsSection();
   const governanceMatch = useMatch({ path: '/settings/governance', end: true });
 
@@ -172,7 +173,7 @@ const Settings = () => {
     try {
       await persistDashboardPrefsToServer(prefs);
       showToast('Preferences saved. Returning to dashboard.');
-      await ws.refresh();
+      await wsRefresh?.();
       navigate('/', { replace: true });
     } catch (e) {
       showToast(String(e.message || e), { variant: 'error' });
@@ -309,7 +310,10 @@ const Settings = () => {
     showIntegrationApiPanel ||
     auditLog.length > 0;
 
-  const workspaceBranches = ws?.snapshot?.workspaceBranches ?? [];
+  const workspaceBranches = useMemo(
+    () => ws?.snapshot?.workspaceBranches ?? [],
+    [ws?.snapshot?.workspaceBranches]
+  );
   const branchCuttingSig = workspaceBranches.map((b) => `${b.id}:${Number(b.cuttingListMinPaidFraction)}`).join(',');
   const [cuttingDraftPct, setCuttingDraftPct] = useState({});
   const [cuttingSaveBusy, setCuttingSaveBusy] = useState('');
@@ -327,7 +331,7 @@ const Settings = () => {
       next[b.id] = String(Math.min(100, Math.max(5, pct)));
     }
     setCuttingDraftPct(next);
-  }, [branchCuttingSig]);
+  }, [branchCuttingSig, workspaceBranches]);
 
   const saveBranchCuttingPct = async (branchId) => {
     const bid = String(branchId || '').trim();
@@ -346,7 +350,7 @@ const Settings = () => {
         showToast(data?.error || 'Could not update cutting threshold.', { variant: 'error' });
         return;
       }
-      await ws?.refresh?.();
+      await wsRefresh?.();
       showToast('Cutting list payment gate saved for branch.');
     } finally {
       setCuttingSaveBusy('');

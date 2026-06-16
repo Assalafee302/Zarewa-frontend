@@ -889,6 +889,8 @@ export function LiveProductionMonitor({
     jobSt,
     offcutInventoryMetersNum,
     offcutMetersProduced,
+    offcutSupplyMetersTotal,
+    resolvesToOffcutCompletion,
     selectedJob?.actualMeters,
     selectedJob?.effectiveOutputMeters,
     stoneMetersConsumed,
@@ -924,6 +926,7 @@ export function LiveProductionMonitor({
     return jobSt === 'Running' || (jobSt === 'Completed' && canEditCompletedCoilCorrections);
   }, [
     canEditCompletedCoilCorrections,
+    completionUsesOffcutMode,
     draftAllocations,
     isStoneMeterQuote,
     jobSt,
@@ -983,8 +986,7 @@ export function LiveProductionMonitor({
         ? selectedJobAllocations.map((row) => createDraftLine(row))
         : [createDraftLine()]
     );
-    // Intentionally omit selectedJobAllocations from deps: array identity churns on unrelated `ws` updates; syncKey captures server edits.
-  }, [selectedJob?.jobID, selectedJobAllocationsSyncKey]);
+  }, [selectedJob?.jobID, selectedJobAllocationsSyncKey, selectedJobAllocations]);
 
   useEffect(() => {
     setSignoffRemark('');
@@ -1534,6 +1536,7 @@ export function LiveProductionMonitor({
     }
     return { validLineCount, errors, canComplete: validLineCount > 0 && errors.length === 0 };
   }, [
+    completionUsesOffcutMode,
     draftAllocations,
     isAccessoriesOnlyQuote,
     isStoneMeterQuote,

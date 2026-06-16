@@ -26,6 +26,8 @@ export function QuotationPriceExceptionPanel({
   className = '',
 }) {
   const ws = useWorkspace();
+  const wsHasPermission = ws?.hasPermission;
+  const wsRoleKey = ws?.session?.user?.roleKey;
   const { showToast } = useToast();
   const qid = String(quotationId || '').trim();
   const [violations, setViolations] = useState([]);
@@ -35,11 +37,11 @@ export function QuotationPriceExceptionPanel({
   const [mdApproving, setMdApproving] = useState(false);
 
   const canApproveMdPriceException = useMemo(() => {
-    if (ws?.hasPermission?.('*')) return true;
-    if (ws?.hasPermission?.('md.price_exception.approve')) return true;
-    const rk = String(ws?.session?.user?.roleKey ?? '').trim().toLowerCase();
+    if (wsHasPermission?.('*')) return true;
+    if (wsHasPermission?.('md.price_exception.approve')) return true;
+    const rk = String(wsRoleKey ?? '').trim().toLowerCase();
     return rk === 'md' || rk === 'admin';
-  }, [ws?.session?.user?.roleKey, ws]);
+  }, [wsHasPermission, wsRoleKey]);
 
   const mergeQuote = useCallback(
     (q) => {

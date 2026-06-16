@@ -2,6 +2,13 @@ import React, { useEffect, useState } from 'react';
 import { apiFetch } from '../../lib/apiBase';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { HrAddFormButton, HrFormModal } from '../../components/hr/HrFormModal';
+import { HrPageBody, HrPageIntro } from '../../components/hr/hrPageUi';
+import {
+  ProfileEmptyState,
+  ProfileInlineAlert,
+  ProfileMetricSkeleton,
+  ProfileOverviewSection,
+} from '../../components/profile/profileOverviewUi';
 import { HR_BTN_PRIMARY, HR_FIELD_CLASS } from '../../components/hr/hrFormStyles';
 import {
   AppTable,
@@ -123,22 +130,14 @@ export default function MyIdCard() {
   };
 
   return (
-    <div className="space-y-8">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h2 className="text-[11px] font-black uppercase tracking-widest text-slate-500">ID card requests</h2>
-          <p className="mt-1 text-xs text-slate-600">
-            Request a new or replacement employee ID card. HR will process and issue the card.
-          </p>
-        </div>
-        <HrAddFormButton onClick={() => setModalOpen(true)}>Request ID card</HrAddFormButton>
-      </div>
+    <HrPageBody>
+      <HrPageIntro
+        title="ID card"
+        description="Request a new or replacement employee ID card. HR processes and issues the card after approval."
+        actions={<HrAddFormButton onClick={() => setModalOpen(true)}>Request ID card</HrAddFormButton>}
+      />
 
-      {message ? (
-        <div className="rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
-          {message}
-        </div>
-      ) : null}
+      {message ? <ProfileInlineAlert variant="success">{message}</ProfileInlineAlert> : null}
 
       {/* Apply modal */}
       <HrFormModal isOpen={modalOpen} onClose={closeModal} title="Request employee ID card" size="lg">
@@ -184,16 +183,16 @@ export default function MyIdCard() {
         </form>
       </HrFormModal>
 
-      {/* Requests list */}
-      <section>
-        <h3 className="mb-3 text-[10px] font-black uppercase tracking-widest text-slate-500">My ID card requests</h3>
-        {listError ? (
-          <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-800">{listError}</div>
-        ) : loading ? (
-          <p className="text-sm text-slate-600">Loading…</p>
-        ) : requests.length === 0 ? (
-          <p className="text-sm text-slate-600">No ID card requests yet. Use the button above to apply.</p>
-        ) : (
+      <ProfileOverviewSection title="My ID card requests" subtitle="Track submitted and approved requests">
+        {listError ? <ProfileInlineAlert variant="error">{listError}</ProfileInlineAlert> : null}
+        {loading ? <ProfileMetricSkeleton count={1} /> : null}
+        {!loading && !listError && requests.length === 0 ? (
+          <ProfileEmptyState
+            title="No ID card requests yet"
+            description="Use Request ID card above when you need a first card, replacement, or update after a name change."
+          />
+        ) : null}
+        {!loading && requests.length > 0 ? (
           <>
             <div className="md:hidden space-y-3">
               {requests.map((r) => (
@@ -238,8 +237,8 @@ export default function MyIdCard() {
               </AppTableWrap>
             </div>
           </>
-        )}
-      </section>
-    </div>
+        ) : null}
+      </ProfileOverviewSection>
+    </HrPageBody>
   );
 }

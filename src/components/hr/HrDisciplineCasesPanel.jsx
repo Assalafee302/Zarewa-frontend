@@ -38,6 +38,12 @@ import HrCaseClosureChecklist from './HrCaseClosureChecklist';
 import HrIncidentCreateWizard from './HrIncidentCreateWizard';
 import HrIncidentAuditPackPanel from './HrIncidentAuditPackPanel';
 import HrAssetCustodyPanel from './HrAssetCustodyPanel';
+import HrAccountabilityStageBar from './HrAccountabilityStageBar';
+import HrCaseAssetLinkPanel from './HrCaseAssetLinkPanel';
+import HrCaseRecoveryPanel from './HrCaseRecoveryPanel';
+import HrCaseAttendancePanel from './HrCaseAttendancePanel';
+import HrCasePartyLettersPanel from './HrCasePartyLettersPanel';
+import { fetchCaseClosureCheck, fetchCaseResponsibility } from '../../lib/hrIncidents';
 
 function StatusPill({ status }) {
   const m = statusMeta(status);
@@ -59,6 +65,11 @@ function CaseDetailModal({ caseId, onClose, onUpdated, canManage, canLetter }) {
   const [detail, setDetail] = useState(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
+  const [activeStage, setActiveStage] = useState('report');
+  const [responsibilityOk, setResponsibilityOk] = useState(false);
+  const [responsibleUserIds, setResponsibleUserIds] = useState([]);
+  const [recoveryCount, setRecoveryCount] = useState(0);
+  const [closureOk, setClosureOk] = useState(false);
   const [evidenceDesc, setEvidenceDesc] = useState('');
   const [witnessForm, setWitnessForm] = useState({ witnessName: '', witnessRole: '', statement: '' });
   const [workflow, setWorkflow] = useState({
@@ -73,6 +84,21 @@ function CaseDetailModal({ caseId, onClose, onUpdated, canManage, canLetter }) {
     if (!caseId) return;
     const { ok, data } = await fetchDisciplineCase(caseId);
     if (ok && data?.ok) setDetail(data.case);
+    const [resp, close] = await Promise.all([
+      fetchCaseResponsibility(caseId),
+      fetchCaseClosureCheck(caseId),
+    ]);
+    if (resp.ok && resp.data?.ok) {
+      const parties = resp.data.parties || [];
+      const sum = parties.reduce((s, p) => s + (Number(p.responsibilityWeight) || 0), 0);
+      setResponsibilityOk(parties.length > 0 && Math.abs(sum - 100) < 0.01);
+      setResponsibleUserIds(parties.map((p) => p.userId).filter(Boolean));
+    }
+    if (close.ok && close.data) {
+      setClosureOk(Boolean(close.data.ok));
+    }
+    const { ok: rsOk, data: rsData } = await apiFetch(`/api/hr/discipline-cases/${encodeURIComponent(caseId)}/recovery-schedules`);
+    if (rsOk && rsData?.ok) setRecoveryCount((rsData.schedules || []).length);
   }, [caseId]);
 
   useEffect(() => {
@@ -158,10 +184,63 @@ function CaseDetailModal({ caseId, onClose, onUpdated, canManage, canLetter }) {
           <div><span className="font-semibold">Branch:</span> {detail.branchId}</div>
           <div><span className="font-semibold">Department:</span> {detail.department || '—'}</div>
           <div><span className="font-semibold">Incident:</span> {detail.incidentDateIso || '—'}</div>
+          {detail.registryId ? (
+            <div className="sm:col-span-2"><span className="font-semibold">Registry:</span> {detail.registryId}</div>
+          ) : null}
+          {detail.lossValueNgn ? (
+            <div><span className="font-semibold">Loss:</span> ₦{Number(detail.lossValueNgn).toLocaleString()}</div>
+          ) : null}
+          {detail.assetId ? (
+            <div><span className="font-semibold">Asset:</span> {detail.assetId}</div>
+          ) : null}
         </div>
 
-        {canManage ? (
+        <HrAccountabilityStageBar
+          detail={detail}
+          responsibilityOk={responsibilityOk}
+          recoveryCount={recoveryCount}
+          closureOk={closureOk}
+          activeStage={activeStage}
+          onStageClick={setActiveStage}
+        />
+
+        {(activeStage === 'report' || activeStage === 'investigate') && canManage ? (
           <HrCard title="Workflow actions" subtitle="Advance the case through HR process">
+            {(detail.appeals || []).length ? (
+              <div className="mb-4 rounded-lg border border-violet-100 bg-violet-50/50 p-3 text-sm">
+                <p className="text-xs font-bold uppercase text-violet-800 mb-2">Appeals</p>
+                <ul className="space-y-2">
+                  {(detail.appeals || []).map((a) => (
+                    <li key={a.id} className="text-slate-800">
+                      <span className="font-semibold capitalize">{a.status || 'pending'}</span>
+                      {a.filedAtIso ? ` · ${a.filedAtIso.slice(0, 10)}` : ''}
+                      <p className="text-slate-600 whitespace-pre-wrap mt-1">{a.grounds}</p>
+                      {a.outcome ? <p className="text-xs text-violet-900 mt-1">Outcome: {a.outcome}</p> : null}
+                    </li>
+                  ))}
+                </ul>
+                {detail.appealStatus === 'pending' ? (
+                  <div className="flex flex-wrap gap-2 mt-3">
+                    <button
+                      type="button"
+                      disabled={busy}
+                      className={HR_BTN_SECONDARY}
+                      onClick={() => runPatch({ action: 'resolve_appeal', appealOutcome: 'upheld' })}
+                    >
+                      Uphold appeal
+                    </button>
+                    <button
+                      type="button"
+                      disabled={busy}
+                      className={HR_BTN_SECONDARY}
+                      onClick={() => runPatch({ action: 'resolve_appeal', appealOutcome: 'rejected' })}
+                    >
+                      Reject appeal
+                    </button>
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
             <div className="space-y-3">
               <label className="block text-xs font-semibold text-slate-600">
                 Employee response
@@ -203,24 +282,42 @@ function CaseDetailModal({ caseId, onClose, onUpdated, canManage, canLetter }) {
           </HrCard>
         ) : null}
 
-        <HrCaseResponsibilityPanel caseId={caseId} canManage={canManage} onSaved={load} />
-        <HrCaseClosureChecklist caseId={caseId} canManage={canManage} detail={detail} onUpdated={load} />
-        <HrIncidentAuditPackPanel registryId={detail.registryId} caseId={caseId} />
-        <HrAssetCustodyPanel assetId={detail.assetId} machineId={detail.machineId} canManage={canManage} />
+        {(activeStage === 'investigate' || activeStage === 'report') && detail.branchId && detail.incidentDateIso ? (
+          <HrCaseAttendancePanel
+            branchId={detail.branchId}
+            dayIso={detail.incidentDateIso}
+            userIds={[
+              detail.userId,
+              ...(detail.meta?.involvedStaffIds || []),
+              ...responsibleUserIds,
+            ].filter(Boolean)}
+          />
+        ) : null}
 
-        <HrCard title="Timeline" subtitle="Audit events for this case">
-          <ul className="space-y-2 text-sm">
-            {(detail.events || []).map((ev) => (
-              <li key={ev.id} className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-2">
-                <div className="text-xs font-semibold text-teal-800">{ev.eventKind?.replace(/_/g, ' ')}</div>
-                <div className="text-slate-700">{ev.note}</div>
-                <div className="text-[11px] text-slate-500 mt-1">{ev.createdAtIso?.slice(0, 16)}</div>
-              </li>
-            ))}
-          </ul>
-        </HrCard>
+        {(activeStage === 'responsibility' || activeStage === 'report') ? (
+          <HrCaseResponsibilityPanel caseId={caseId} canManage={canManage} onSaved={load} />
+        ) : null}
 
-        {canManage ? (
+        {(activeStage === 'asset' || activeStage === 'report') ? (
+          <>
+            <HrCaseAssetLinkPanel caseId={caseId} detail={detail} canManage={canManage} onSaved={load} />
+            <HrAssetCustodyPanel assetId={detail.assetId} machineId={detail.machineId} canManage={canManage} />
+          </>
+        ) : null}
+
+        {(activeStage === 'decision' || activeStage === 'close' || activeStage === 'report') ? (
+          <>
+            <HrCaseRecoveryPanel caseId={caseId} detail={detail} />
+            <HrCasePartyLettersPanel detail={detail} canManage={canManage} onUpdated={load} />
+            <HrCaseClosureChecklist caseId={caseId} canManage={canManage} detail={detail} onUpdated={load} />
+          </>
+        ) : null}
+
+        {activeStage === 'audit' || activeStage === 'report' ? (
+          <HrIncidentAuditPackPanel registryId={detail.registryId} caseId={caseId} />
+        ) : null}
+
+        {(activeStage === 'evidence' || activeStage === 'investigate') && canManage ? (
           <>
             <HrCard title="Evidence" subtitle="Document links and descriptions">
               <ul className="mb-3 space-y-1 text-sm">
@@ -247,6 +344,18 @@ function CaseDetailModal({ caseId, onClose, onUpdated, canManage, canLetter }) {
             </HrCard>
           </>
         ) : null}
+
+        <HrCard title="Timeline" subtitle="Audit events for this case">
+          <ul className="space-y-2 text-sm">
+            {(detail.events || []).map((ev) => (
+              <li key={ev.id} className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-2">
+                <div className="text-xs font-semibold text-teal-800">{ev.eventKind?.replace(/_/g, ' ')}</div>
+                <div className="text-slate-700">{ev.note}</div>
+                <div className="text-[11px] text-slate-500 mt-1">{ev.createdAtIso?.slice(0, 16)}</div>
+              </li>
+            ))}
+          </ul>
+        </HrCard>
 
         {canLetter ? (
           <HrCard title="Letters" subtitle="Generate linked discipline letters">
@@ -289,6 +398,9 @@ export default function HrDisciplineCasesPanel() {
     incidentDateIso: new Date().toISOString().slice(0, 10),
     description: '',
     payrollBlockFlags: { promotionBlocked: false, salaryChangeBlocked: false },
+    lossValueNgn: '',
+    assetId: '',
+    location: '',
   });
   const [formErr, setFormErr] = useState('');
   const [busy, setBusy] = useState(false);
@@ -345,7 +457,12 @@ export default function HrDisciplineCasesPanel() {
     }
     setBusy(true);
     setFormErr('');
-    const { ok, data } = await createDisciplineCase(form);
+    const { ok, data } = await createDisciplineCase({
+      ...form,
+      lossValueNgn: form.lossValueNgn ? Number(form.lossValueNgn) : undefined,
+      assetId: form.assetId?.trim() || undefined,
+      meta: form.location?.trim() ? { location: form.location.trim() } : undefined,
+    });
     setBusy(false);
     if (!ok || !data?.ok) {
       setFormErr(data?.error || 'Could not create case.');
@@ -501,6 +618,20 @@ export default function HrDisciplineCasesPanel() {
               Description / allegation
               <textarea className={`${HR_FIELD_CLASS} min-h-[120px]`} required minLength={10} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
             </label>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className="block text-xs font-semibold text-slate-600">
+                Asset ID
+                <input className={HR_FIELD_CLASS} value={form.assetId} onChange={(e) => setForm({ ...form, assetId: e.target.value })} placeholder="PUMP-FACT-002" />
+              </label>
+              <label className="block text-xs font-semibold text-slate-600">
+                Loss value (NGN)
+                <input type="number" className={HR_FIELD_CLASS} value={form.lossValueNgn} onChange={(e) => setForm({ ...form, lossValueNgn: e.target.value })} />
+              </label>
+              <label className="block text-xs font-semibold text-slate-600 sm:col-span-2">
+                Location
+                <input className={HR_FIELD_CLASS} value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} placeholder="factory store" />
+              </label>
+            </div>
             <fieldset className="rounded-xl border border-amber-100 bg-amber-50/50 p-3">
               <legend className="px-1 text-xs font-semibold text-amber-900">Payroll impact flags</legend>
               <label className="flex items-center gap-2 text-xs text-slate-700">

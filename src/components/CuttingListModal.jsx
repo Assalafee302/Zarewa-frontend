@@ -316,6 +316,8 @@ const CuttingListModal = ({
 }) => {
   const { show: showToast } = useToast();
   const ws = useWorkspace();
+  const wsCanMutate = Boolean(ws?.canMutate);
+  const wsRefresh = ws?.refresh;
   const activeDisplayName = String(ws?.session?.user?.displayName ?? '').trim();
   const minPaidFraction = useMemo(() => cuttingListMinPaidFractionFromSession(ws?.session), [ws?.session]);
   const minPaidPercentLabel = Math.round(minPaidFraction * 100);
@@ -349,7 +351,13 @@ const CuttingListModal = ({
   const lastCuttingListHydrateSigRef = useRef('');
 
   const cuttingListHydrateSig = useMemo(
-    () => (isOpen ? cuttingListHydrateSignature(editData) : ''),
+    () =>
+      isOpen
+        ? cuttingListHydrateSignature({
+            id: editData?.id,
+            quotationRef: editData?.quotationRef,
+          })
+        : '',
     [isOpen, editData?.id, editData?.quotationRef]
   );
 
@@ -374,7 +382,11 @@ const CuttingListModal = ({
   const canClearProductionHold = Boolean(ws?.hasPermission?.('production.release'));
 
   const cuttingListEditNeedsSecondApproval = useMemo(
-    () => cuttingListEditNeedsSecondApprovalClient(ws?.session?.user?.roleKey, editData),
+    () =>
+      cuttingListEditNeedsSecondApprovalClient(ws?.session?.user?.roleKey, {
+        id: editData?.id,
+        productionRegistered: editData?.productionRegistered,
+      }),
     [ws?.session?.user?.roleKey, editData?.id, editData?.productionRegistered]
   );
 
@@ -484,16 +496,6 @@ const CuttingListModal = ({
     return String(row?.name ?? '').trim();
   }, [selectedQuotation, ws?.snapshot?.masterData?.materialTypes]);
 
-  const isStoneMeterCuttingList = useMemo(() => {
-    const q = selectedQuotation;
-    if (!q) return false;
-    if (q.stoneMeterQuote) return true;
-    const mid = String(q.materialTypeId || '').trim();
-    const types = ws?.snapshot?.masterData?.materialTypes ?? [];
-    const row = types.find((t) => String(t?.id ?? '').trim() === mid);
-    return String(row?.inventoryModel || '').trim() === STONE_METER_INVENTORY_MODEL;
-  }, [selectedQuotation, ws?.snapshot?.masterData?.materialTypes]);
-
   const cuttingCategoriesUi = useMemo(() => CATEGORIES, []);
 
   const savedCuttingListId = String(editData?.id ?? '').trim();
@@ -586,7 +588,6 @@ const CuttingListModal = ({
       selectedQuotation,
       materialSpec,
       materialTypeLabel,
-      isStoneMeterCuttingList,
       dateISO,
       machineName,
       editData,
@@ -612,7 +613,7 @@ const CuttingListModal = ({
 
   const runCuttingListPrint = useCallback(async () => {
     const id = String(editData?.id ?? '').trim();
-    if (id && ws?.canMutate) {
+    if (id && wsCanMutate) {
       setRecordingPrint(true);
       const { ok, data } = await apiFetch(`/api/cutting-lists/${encodeURIComponent(id)}/record-print`, {
         method: 'POST',
@@ -629,13 +630,13 @@ const CuttingListModal = ({
           if (nextBy) setLastPrintedByForSheet(nextBy);
         });
         if (data.cuttingList) onCuttingListUpdated?.(data.cuttingList);
-        await ws?.refresh?.();
+        await wsRefresh?.();
       } else {
         showToast(data?.error || 'Print count could not be saved — printing anyway.', { variant: 'warning' });
       }
     }
     window.print();
-  }, [editData?.id, ws, printCountForSheet, onCuttingListUpdated, showToast]);
+  }, [editData?.id, wsCanMutate, wsRefresh, printCountForSheet, onCuttingListUpdated, showToast]);
 
    
   useEffect(() => {
@@ -962,7 +963,7 @@ const CuttingListModal = ({
 
   const clearProductionHold = useCallback(async () => {
     const id = editData?.id;
-    if (!id || !ws?.canMutate || !canClearProductionHold) return;
+    if (!id || !wsCanMutate || !canClearProductionHold) return;
     setClearingHold(true);
     const { ok, data } = await apiFetch(`/api/cutting-lists/${encodeURIComponent(id)}/clear-production-hold`, {
       method: 'POST',
@@ -975,12 +976,12 @@ const CuttingListModal = ({
     }
     showToast('Production hold cleared. You can send this list to the queue.', { variant: 'success' });
     if (data?.cuttingList) onCuttingListUpdated?.(data.cuttingList);
-    await ws?.refresh?.();
-  }, [editData?.id, ws.refresh, ws.canMutate, showToast, onCuttingListUpdated, canClearProductionHold]);
+    await wsRefresh?.();
+  }, [editData?.id, wsCanMutate, wsRefresh, showToast, onCuttingListUpdated, canClearProductionHold]);
 
   const registerProduction = useCallback(async () => {
     const id = editData?.id;
-    if (!id || !ws?.canMutate) return;
+    if (!id || !wsCanMutate) return;
     if (editData?.productionRegistered) {
       showToast('This cutting list is already linked to a production job.', { variant: 'error' });
       return;
@@ -1007,8 +1008,8 @@ const CuttingListModal = ({
     }
     showToast('Cutting list added to the production queue.', { variant: 'success' });
     if (data?.cuttingList) onCuttingListUpdated?.(data.cuttingList);
-    await ws?.refresh?.();
-  }, [editData?.id, editData?.productionRegistered, editData?.productionReleasePending, machineName, ws.refresh, ws.canMutate, showToast, onCuttingListUpdated]);
+    await wsRefresh?.();
+  }, [editData?.id, editData?.productionRegistered, editData?.productionReleasePending, machineName, wsCanMutate, wsRefresh, showToast, onCuttingListUpdated]);
 
   return (
     <ModalFrame isOpen={isOpen} onClose={handleClose} modal={!showPrintPreview}>

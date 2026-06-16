@@ -186,11 +186,10 @@ const ReceiptModal = ({
       compareSelectLabels(treasuryAccountDisplayName(a), treasuryAccountDisplayName(b))
     );
   }, [
-    ws?.refreshEpoch,
-    ws?.hasWorkspaceData,
     ws?.branchScope,
     ws?.viewAllBranches,
-    ws?.session?.currentBranchId,
+    ws?.snapshot,
+    ws?.session,
   ]);
 
   const defaultAccountId = treasuryList[0]?.id ?? '';
@@ -199,14 +198,28 @@ const ReceiptModal = ({
   const [showQSearch, setShowQSearch] = useState(false);
   const [postingHint, setPostingHint] = useState(null);
 
-  const periodLocks = ws?.snapshot?.periodLocks ?? [];
+  const periodLocks = useMemo(() => ws?.snapshot?.periodLocks ?? [], [ws?.snapshot?.periodLocks]);
   const voucherInLockedPeriod = useMemo(
     () => Boolean(useLedgerApi && isVoucherDateInLockedPeriod(voucherDate, periodLocks)),
     [useLedgerApi, voucherDate, periodLocks]
   );
 
   const receiptHydrateSig = useMemo(
-    () => (isOpen ? receiptModalHydrateSignature(editData) : ''),
+    () =>
+      isOpen
+        ? receiptModalHydrateSignature({
+            id: editData?.id,
+            source: editData?.source,
+            quotationRef: editData?.quotationRef,
+            dateISO: editData?.dateISO,
+            amountNgn: editData?.amountNgn,
+            cashReceivedNgn: editData?.cashReceivedNgn,
+            handledBy: editData?.handledBy,
+            customer: editData?.customer,
+            paymentLines: editData?.paymentLines,
+            _ledgerEntry: editData?._ledgerEntry,
+          })
+        : '',
     [
       isOpen,
       editData?.id,
@@ -350,7 +363,7 @@ const ReceiptModal = ({
       setPaymentLines([emptyPaymentLine(vd, defaultAccountId)]);
     }
     setReceiptEditApprovalId('');
-  }, [isOpen, receiptHydrateSig]);
+  }, [isOpen, receiptHydrateSig, editData, defaultAccountId, ws?.snapshot?.treasuryMovements]);
 
   /** Treasury default account arrived after open: fill blank line account ids without full re-hydrate. */
   useEffect(() => {
@@ -384,8 +397,6 @@ const ReceiptModal = ({
     ws?.hasWorkspaceData,
     ws?.snapshot?.receipts,
     ws?.snapshot?.ledgerEntries,
-    ws?.refreshEpoch,
-    ledgerNonce,
   ]);
 
   const quotationRowForPayments = useMemo(() => {
@@ -444,7 +455,7 @@ const ReceiptModal = ({
       if (t) s.add(t);
     }
     return s;
-  }, [isEdit, editData?.id, editData?.ledgerEntryId, editData?._ledgerEntry?.id]);
+  }, [isEdit, editData]);
 
   const treasuryByIdStr = useMemo(() => {
     const m = new Map();
@@ -457,7 +468,7 @@ const ReceiptModal = ({
       quotationRef
         ? quotationReceiptPrintHistory(quotationRef, importedReceiptsForHistory)
         : [],
-    [quotationRef, importedReceiptsForHistory, ledgerNonce]
+    [quotationRef, importedReceiptsForHistory]
   );
 
   const receiptCashierPrintStatus = useMemo(() => {

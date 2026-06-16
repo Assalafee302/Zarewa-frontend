@@ -167,7 +167,7 @@ export function HrPensionPolicySection() {
   return (
     <HrCard
       title="Pension & year-end bonus"
-      subtitle="Company-wide rates applied to eligible branch staff on payroll. PAYE is set per staff profile."
+      subtitle="Company-wide rates for branch, HQ, and mining staff on payroll. PAYE is set per staff profile."
     >
       {error ? <div className="mb-3"><HrAlert tone="error">{error}</HrAlert></div> : null}
       {message ? <div className="mb-3"><HrAlert tone="success">{message}</HrAlert></div> : null}
@@ -225,6 +225,128 @@ export function HrPensionPolicySection() {
       >
         {saving ? 'Saving…' : canEditPension ? 'Save rates' : 'Executive access required'}
       </button>
+    </HrCard>
+  );
+}
+
+/** Default treasury bank account for payroll payout when finance does not pick one. */
+export function HrPayrollTreasuryPolicySection() {
+  const ws = useWorkspace();
+  const canManage = canManageHrSettings(ws?.permissions) || canEditPensionPolicyRates(ws?.permissions);
+  const treasuryAccounts = React.useMemo(
+    () =>
+      (Array.isArray(ws?.snapshot?.treasuryAccounts) ? ws.snapshot.treasuryAccounts : []).filter((a) => {
+        const t = String(a?.type || '').toLowerCase();
+        return t === 'bank' || t === 'current' || t === 'savings' || !t;
+      }),
+    [ws?.snapshot?.treasuryAccounts]
+  );
+
+  const [policy, setPolicy] = useState(null);
+  const [accountId, setAccountId] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState('');
+  const [error, setError] = useState('');
+
+  useHrListLoad(async () => {
+    const { ok, data } = await apiFetch('/api/hr/policy-config');
+    if (!ok || !data?.ok) {
+      setError(data?.error || 'Could not load payroll treasury setting.');
+      return { error: data?.error, hasData: false };
+    }
+    const p = data.policy || {};
+    setPolicy(p);
+    setAccountId(p.payrollTreasuryAccountId != null ? String(p.payrollTreasuryAccountId) : '');
+    setError('');
+    return { hasData: true };
+  }, []);
+
+  const save = async () => {
+    setSaving(true);
+    setMessage('');
+    setError('');
+    const payload =
+      accountId.trim() === '' ?
+        { payrollTreasuryAccountId: null }
+      : { payrollTreasuryAccountId: Number(accountId) };
+    const { ok, data } = await apiFetch('/api/hr/policy-config', {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    });
+    setSaving(false);
+    if (!ok || !data?.ok) {
+      setError(data?.error || 'Could not save payroll treasury account.');
+      return;
+    }
+    setPolicy(data.policy);
+    setMessage('Default payroll bank account saved.');
+  };
+
+  const selected = treasuryAccounts.find((a) => String(a.id) === accountId);
+
+  return (
+    <HrCard
+      title="Payroll payout account"
+      subtitle="Default bank account when finance marks payroll paid without choosing an account."
+    >
+      {error ? (
+        <div className="mb-3">
+          <HrAlert tone="error">{error}</HrAlert>
+        </div>
+      ) : null}
+      {message ? (
+        <div className="mb-3">
+          <HrAlert tone="success">{message}</HrAlert>
+        </div>
+      ) : null}
+
+      <div className="space-y-3">
+        <label className="block text-xs font-semibold text-slate-600">
+          Treasury bank account
+          <select
+            value={accountId}
+            onChange={(e) => setAccountId(e.target.value)}
+            disabled={!canManage}
+            className="mt-1 block w-full max-w-lg rounded-xl border border-slate-200 px-3 py-3 text-sm disabled:bg-slate-50"
+          >
+            <option value="">— Prompt finance each time —</option>
+            {treasuryAccounts.map((a) => (
+              <option key={a.id} value={String(a.id)}>
+                {a.name || a.bankName || `Account ${a.id}`}
+                {a.accNo ? ` · ${a.accNo}` : ''}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        {treasuryAccounts.length === 0 ? (
+          <p className="text-xs text-amber-800 rounded-xl border border-amber-100 bg-amber-50 px-3 py-2">
+            No bank treasury accounts in this workspace. Add accounts under Finance first.
+          </p>
+        ) : null}
+
+        {selected ? (
+          <p className="text-xs text-slate-500">
+            Selected: {selected.name || selected.bankName}
+            {selected.balance != null ? ` · Book balance ₦${Number(selected.balance).toLocaleString()}` : ''}
+          </p>
+        ) : (
+          <p className="text-xs text-slate-500">
+            {policy?.payrollTreasuryAccountId ?
+              'Saved default is used when finance marks paid without selecting an account.'
+            : 'Finance must pick an account on each mark-paid unless you set a default here.'}
+          </p>
+        )}
+
+        <button
+          type="button"
+          onClick={save}
+          disabled={saving || !canManage}
+          className={`${HR_BTN_PRIMARY} w-full sm:w-auto min-h-[44px]`}
+        >
+          {saving ? 'Saving…' : canManage ? 'Save payout account' : 'Settings access required'}
+        </button>
+      </div>
     </HrCard>
   );
 }
@@ -693,6 +815,7 @@ export function HrPolicyConfigSection() {
   return (
     <div className="space-y-6">
       <HrPensionPolicySection />
+      <HrPayrollTreasuryPolicySection />
 
       <HrCard title="Working hours" subtitle="Reference schedule from the company handbook">
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">

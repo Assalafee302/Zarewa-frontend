@@ -18,8 +18,8 @@ const GROUPS = [
   { value: 'branch_ops', label: 'Branch staff' },
   { value: 'mining_div', label: 'Mining division' },
   { value: 'hq_admin', label: 'HQ administrative' },
-  { value: 'scholarship', label: 'Scholarship beneficiary' },
-  { value: 'chairman_staffs', label: 'Domestic staff' },
+  { value: 'scholarship', label: 'Executive family' },
+  { value: 'chairman_staffs', label: 'Household staff' },
 ];
 
 export function HrSalaryMatrixPanel() {

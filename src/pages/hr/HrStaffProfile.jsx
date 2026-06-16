@@ -705,6 +705,7 @@ export default function HrStaffProfile() {
               <HrSalaryIncrementPanel
                 userId={userId}
                 staff={staff}
+                permissions={ws?.permissions || []}
                 canViewAmounts={showSensitiveInline || sensitive.isUnlocked || !staff.compensationRedacted}
                 onUpdated={reloadProfile}
               />

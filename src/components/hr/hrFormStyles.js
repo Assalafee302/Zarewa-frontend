@@ -16,3 +16,14 @@ export const HR_BTN_ADD =
 /** Touch-friendly pill for scope tabs and small actions */
 export const HR_BTN_PILL =
   'inline-flex min-h-10 items-center justify-center rounded-xl px-4 py-2.5 text-xs font-bold uppercase tracking-wide';
+
+/** Card shell used in accountability / security panels */
+export const HR_CARD = 'rounded-2xl border border-slate-100 bg-white p-4 shadow-sm sm:p-5';
+
+export const HR_MUTED = 'text-xs text-slate-500';
+
+export const HR_SECTION_TITLE = 'text-sm font-black text-slate-900';
+
+/** Standalone input (no label margin) — same field styling as HR_FIELD_CLASS */
+export const HR_INPUT =
+  'block w-full min-h-11 rounded-xl border border-slate-200 bg-gray-50 px-4 py-3 text-base sm:text-sm font-semibold text-zarewa-teal shadow-sm outline-none transition-all focus:border-teal-500/35 focus:ring-2 focus:ring-zarewa-teal/10';

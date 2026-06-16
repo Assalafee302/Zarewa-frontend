@@ -145,6 +145,28 @@ export function recomputePayrollRun(runId) {
   return apiFetch(`/api/hr/payroll-runs/${encodeURIComponent(runId)}/recompute`, { method: 'POST' });
 }
 
+export function mdApprovePayrollRun(runId) {
+  return apiFetch(`/api/hr/payroll-runs/${encodeURIComponent(runId)}/md-approve`, { method: 'POST' });
+}
+
+export function markPayrollRunPaid(runId, body = {}) {
+  return apiFetch(`/api/hr/payroll-runs/${encodeURIComponent(runId)}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status: 'paid', ...body }),
+  });
+}
+
+export function recordPayrollBankExportTotal(runId, totalNgn) {
+  return apiFetch(`/api/hr/payroll-runs/${encodeURIComponent(runId)}/bank-export-record`, {
+    method: 'POST',
+    body: JSON.stringify({ totalNgn }),
+  });
+}
+
+export function fetchPayrollMissingBank(runId) {
+  return apiFetch(`/api/hr/payroll-runs/${encodeURIComponent(runId)}/missing-bank`);
+}
+
 export function fetchHrPolicyRequirements() {
   return apiFetch('/api/hr/policy-requirements');
 }

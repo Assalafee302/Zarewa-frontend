@@ -50,6 +50,10 @@ const DESK_SUB_TABS = [
  */
 export function FinanceDeskWorkQueues({ onConfirmReceipt, onPayRequest, onPayRefund, onGoToTab }) {
   const ws = useWorkspace();
+  const wsSnapshotTreasuryAccounts = ws?.snapshot?.treasuryAccounts;
+  const wsSession = ws?.session;
+  const wsBranchScope = ws?.branchScope;
+  const wsViewAllBranches = ws?.viewAllBranches;
   const [deskSubTab, setDeskSubTab] = useState('work');
   const [showDetails, setShowDetails] = useState(false);
 
@@ -60,10 +64,14 @@ export function FinanceDeskWorkQueues({ onConfirmReceipt, onPayRequest, onPayRef
   const treasuryAccounts = useMemo(
     () =>
       treasuryAccountsForWorkspace(
-        Array.isArray(ws?.snapshot?.treasuryAccounts) ? ws.snapshot.treasuryAccounts : [],
-        ws
+        {
+          treasuryAccounts: Array.isArray(wsSnapshotTreasuryAccounts) ? wsSnapshotTreasuryAccounts : [],
+          branchScope: wsBranchScope,
+        },
+        wsSession,
+        { branchScope: wsBranchScope, viewAllBranches: wsViewAllBranches }
       ),
-    [ws?.snapshot?.treasuryAccounts, ws]
+    [wsSnapshotTreasuryAccounts, wsSession, wsBranchScope, wsViewAllBranches]
   );
   const paymentRequests = useMemo(
     () => (Array.isArray(ws?.snapshot?.paymentRequests) ? ws.snapshot.paymentRequests : []),

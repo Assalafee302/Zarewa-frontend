@@ -35,7 +35,7 @@ export default function LinkAdvanceModal({
     return new Date().toISOString().slice(0, 10);
   }, [advanceEntry?.atISO, advanceEntry?.at_iso]);
 
-  const periodLocks = ws?.snapshot?.periodLocks ?? [];
+  const periodLocks = useMemo(() => ws?.snapshot?.periodLocks ?? [], [ws?.snapshot?.periodLocks]);
   const dateLocked = useMemo(
     () => Boolean(useLedgerApi && isVoucherDateInLockedPeriod(applyDateISO, periodLocks)),
     [useLedgerApi, applyDateISO, periodLocks]
@@ -46,7 +46,7 @@ export default function LinkAdvanceModal({
       isOpen && advanceEntry
         ? `linkadv:${advanceEntry.id ?? ''}:${advanceEntry.customerID ?? ''}:${advanceEntry.amountNgn ?? ''}`
         : '',
-    [isOpen, advanceEntry?.id, advanceEntry?.customerID, advanceEntry?.amountNgn]
+    [isOpen, advanceEntry]
   );
 
   const { captureEdited, wrapClose, abandonUnsavedAndRun } = useTrackedUnsavedForm('modal-link-advance', {

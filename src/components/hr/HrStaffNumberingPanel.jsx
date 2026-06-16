@@ -3,7 +3,7 @@ import { apiFetch } from '../../lib/apiBase';
 import { canManageHrSettings } from '../../lib/hrAccess';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { HR_BTN_PRIMARY, HR_BTN_SECONDARY, HR_FIELD_CLASS } from './hrFormStyles';
-import { HrCard } from './hrPageUi';
+import { HrAlert, HrCard } from './hrPageUi';
 import { HrResponsiveTable } from './HrResponsiveTable';
 
 export function HrStaffNumberingPanel() {
@@ -31,6 +31,7 @@ export function HrStaffNumberingPanel() {
   const saveConfig = async () => {
     setBusy(true);
     setError('');
+    setMessage('');
     const { ok, data } = await apiFetch('/api/hr/settings/staff-numbering', {
       method: 'PUT',
       body: JSON.stringify(config || {}),
@@ -40,7 +41,7 @@ export function HrStaffNumberingPanel() {
       setError(data?.error || 'Could not save settings.');
       return;
     }
-    setMessage('Staff numbering settings saved.');
+    setMessage('Employee number format saved.');
     await load();
   };
 
@@ -51,6 +52,7 @@ export function HrStaffNumberingPanel() {
     }
     setBusy(true);
     setError('');
+    setMessage('');
     const { ok, data } = await apiFetch('/api/hr/settings/staff-numbering/apply', {
       method: 'POST',
       body: JSON.stringify({ confirmPhrase: confirm, config }),
@@ -66,7 +68,7 @@ export function HrStaffNumberingPanel() {
   };
 
   if (!canManage) {
-    return <p className="text-sm text-slate-600">Staff numbering requires HR settings permission.</p>;
+    return <p className="text-sm text-slate-600">Staff numbering requires HR administration access.</p>;
   }
 
   const previewRows = (preview?.mappings || []).slice(0, 50).map((m) => ({
@@ -77,8 +79,14 @@ export function HrStaffNumberingPanel() {
   }));
 
   return (
-    <div className="space-y-4">
-      <HrCard title="Staff numbering" subtitle="Reserve 1–5 for CEO/MD/Directors; live numbers start from 6">
+    <div className="space-y-6">
+      {error ? <HrAlert tone="error">{error}</HrAlert> : null}
+      {message ? <HrAlert tone="success">{message}</HrAlert> : null}
+
+      <HrCard
+        title="Employee numbers"
+        subtitle="Display reference on ID cards and letters — payroll and audit use internal user IDs"
+      >
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="text-xs font-semibold text-slate-600">
             Format
@@ -92,29 +100,35 @@ export function HrStaffNumberingPanel() {
             <input className={HR_FIELD_CLASS} value={config?.prefix || ''} onChange={(e) => setConfig({ ...config, prefix: e.target.value })} placeholder="ZAR-" />
           </label>
           <label className="text-xs font-semibold text-slate-600">
-            Starting number
+            First assignable number
             <input type="number" min={6} className={HR_FIELD_CLASS} value={config?.startingNumber ?? 6} onChange={(e) => setConfig({ ...config, startingNumber: Number(e.target.value) })} />
           </label>
         </div>
-        <div className="mt-3 space-y-2">
-          <p className="text-xs font-bold text-slate-500 uppercase">Reserved numbers</p>
-          {(config?.reserved || []).map((r, i) => (
-            <div key={i} className="flex gap-2 text-xs">
-              <span className="font-mono font-bold w-8">{r.number}</span>
-              <span className="text-slate-600">{r.label}</span>
-            </div>
-          ))}
+        <div className="mt-4 space-y-2">
+          <p className="text-xs font-semibold text-slate-500">Reserved for executive roles</p>
+          {(config?.reserved || []).length ? (
+            (config?.reserved || []).map((r, i) => (
+              <div key={i} className="flex gap-2 text-xs">
+                <span className="w-8 font-mono font-bold">{r.number}</span>
+                <span className="text-slate-600">{r.label}</span>
+              </div>
+            ))
+          ) : (
+            <p className="text-xs text-slate-500">Numbers 1–5 are typically reserved for CEO, MD, and directors.</p>
+          )}
         </div>
-        <button type="button" onClick={saveConfig} disabled={busy} className={`${HR_BTN_SECONDARY} mt-3`}>Save configuration</button>
+        <button type="button" onClick={saveConfig} disabled={busy} className={`${HR_BTN_SECONDARY} mt-4`}>
+          Save number format
+        </button>
       </HrCard>
 
       {previewRows.length ? (
-        <HrCard title="Renumbering preview" subtitle="Review before applying — old numbers kept in audit history">
+        <HrCard title="Renumbering preview" subtitle="Review proposed numbers before applying — history is retained">
           <HrResponsiveTable
             columns={[
               { key: 'staff', label: 'Staff' },
-              { key: 'current', label: 'Current No' },
-              { key: 'newNo', label: 'New No' },
+              { key: 'current', label: 'Current' },
+              { key: 'newNo', label: 'Proposed' },
               { key: 'note', label: 'Note' },
             ]}
             rows={previewRows}
@@ -126,21 +140,23 @@ export function HrStaffNumberingPanel() {
         </HrCard>
       ) : null}
 
-      <HrCard title="Apply live renumbering" subtitle="Final action — requires confirmation">
-        <p className="text-xs text-red-800 bg-red-50 border border-red-100 rounded-lg px-3 py-2 mb-3">
-          I understand this will reset live staff employee numbers. Payroll and letters use internal user IDs — employee numbers are display references.
-        </p>
-        <label className="text-xs font-semibold text-slate-600 block max-w-md">
-          Type <span className="font-mono">RESET LIVE STAFF NUMBERS</span> to confirm
-          <input className={HR_FIELD_CLASS} value={confirm} onChange={(e) => setConfirm(e.target.value)} />
-        </label>
-        <button type="button" onClick={applyRenumber} disabled={busy || preview?.conflicts?.length} className={`${HR_BTN_PRIMARY} mt-3`}>
-          Apply renumbering
-        </button>
-      </HrCard>
-
-      {message ? <p className="text-sm text-emerald-800">{message}</p> : null}
-      {error ? <p className="text-sm text-red-800">{error}</p> : null}
+      <details className="rounded-2xl border border-red-100 bg-red-50/20 shadow-sm">
+        <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-red-950 sm:px-5">
+          Apply live renumbering (confirmation required)
+        </summary>
+        <div className="border-t border-red-100/80 px-4 pb-4 pt-3 sm:px-5">
+          <p className="mb-3 text-xs text-red-900/90">
+            Updates display employee numbers for all in-scope staff. Internal user IDs used by payroll are unchanged.
+          </p>
+          <label className="text-xs font-semibold text-slate-600 block max-w-md">
+            Type <span className="font-mono">RESET LIVE STAFF NUMBERS</span> to confirm
+            <input className={HR_FIELD_CLASS} value={confirm} onChange={(e) => setConfirm(e.target.value)} />
+          </label>
+          <button type="button" onClick={applyRenumber} disabled={busy || preview?.conflicts?.length} className={`${HR_BTN_PRIMARY} mt-3`}>
+            Apply renumbering
+          </button>
+        </div>
+      </details>
     </div>
   );
 }

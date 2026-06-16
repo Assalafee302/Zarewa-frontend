@@ -50,6 +50,30 @@ export function HrRequestPayloadSummary({ request, compact = false }) {
     return <PayloadGrid rows={rows} compact={compact} />;
   }
 
+  if (kind === 'scholarship_profile_update') {
+    const rows = [
+      ['School', p.schoolName],
+      ['Class', p.classLevel],
+      ['Session', p.academicSession || p.academicYear],
+      ['Term', p.currentTerm || p.term],
+      ['Term start', p.termStartIso],
+      ['Term end', p.termEndIso],
+      ['Notes', p.notes || request?.body],
+    ].filter(([, v]) => v != null && v !== '');
+    return <PayloadGrid rows={rows} compact={compact} />;
+  }
+
+  if (kind === 'scholarship_fee_request') {
+    const rows = [
+      ['Term', p.term],
+      ['Session', p.academicSession || p.academicYear],
+      ['Amount', p.amountRequestedNgn != null ? formatNgn(p.amountRequestedNgn) : null],
+      ['Fee type', p.feeType],
+      ['Notes', p.notes || request?.body],
+    ].filter(([, v]) => v != null && v !== '');
+    return <PayloadGrid rows={rows} compact={compact} />;
+  }
+
   if (request?.body) {
     return <p className="text-xs text-slate-600">{request.body}</p>;
   }
@@ -72,14 +96,33 @@ function PayloadGrid({ rows, compact }) {
 
 /** Approval chain labels for request status. */
 // eslint-disable-next-line react-refresh/only-export-components
-export function hrRequestApprovalChain(status) {
-  const chain = ['Draft', 'Branch manager', 'HR review', 'GM HR', 'Approved'];
+export function hrRequestApprovalChain(status, kind) {
+  const k = String(kind || '').toLowerCase();
+  if (k === 'scholarship_profile_update' || k === 'scholarship_fee_request') {
+    const chain = ['Draft', 'HR review', 'Approved'];
+    const idx =
+      status === 'draft'
+        ? 0
+        : status === 'hr_review'
+          ? 1
+          : ['approved', 'rejected', 'hr_rejected'].includes(status)
+            ? 2
+            : 1;
+    return { chain, currentIdx: idx, status };
+  }
+  const chain = ['Draft', 'HR review', 'Branch manager', 'GM HR', 'Approved'];
+  const rejected = ['rejected', 'hr_rejected', 'gm_rejected'].includes(status);
   const idx =
-    status === 'draft' ? 0
-    : status === 'branch_manager_review' ? 1
-    : status === 'hr_review' ? 2
-    : status === 'gm_hr_review' ? 3
-    : ['approved', 'rejected', 'hr_rejected', 'gm_rejected'].includes(status) ? 4
-    : 1;
-  return { chain, currentIdx: idx, status };
+    status === 'draft'
+      ? 0
+      : status === 'hr_review'
+        ? 1
+        : status === 'branch_manager_review'
+          ? 2
+          : status === 'gm_hr_review'
+            ? 3
+            : status === 'approved' || rejected
+              ? 4
+              : 1;
+  return { chain, currentIdx: idx, status, rejected };
 }

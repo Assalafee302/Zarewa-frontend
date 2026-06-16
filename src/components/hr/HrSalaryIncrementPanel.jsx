@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useHrListLoad } from '../../hooks/useHrListLoad';
 import { applyHrSalaryIncrement, fetchHrSalaryHistory } from '../../lib/hrStaff';
 import { fetchDraftPayrollRuns, recomputePayrollRun } from '../../lib/hrExtended';
+import { canApproveSalaryReduction } from '../../lib/hrAccess';
 import { formatNgn } from '../../lib/hrFormat';
 import { HrAddFormButton, HrFormModal } from './HrFormModal';
 import { HR_BTN_PRIMARY, HR_FIELD_CLASS } from './hrFormStyles';
@@ -16,9 +17,9 @@ import {
 } from '../ui/AppDataTable';
 
 /**
- * @param {{ userId: string; staff: object; canViewAmounts: boolean; onUpdated?: () => void }} props
+ * @param {{ userId: string; staff: object; canViewAmounts: boolean; permissions?: string[]; onUpdated?: () => void }} props
  */
-export function HrSalaryIncrementPanel({ userId, staff, canViewAmounts, onUpdated }) {
+export function HrSalaryIncrementPanel({ userId, staff, canViewAmounts, permissions = [], onUpdated }) {
   const [modalOpen, setModalOpen] = useState(false);
   const [history, setHistory] = useState([]);
   const [effectiveFromIso, setEffectiveFromIso] = useState(new Date().toISOString().slice(0, 10));
@@ -41,7 +42,7 @@ export function HrSalaryIncrementPanel({ userId, staff, canViewAmounts, onUpdate
     setTransportAllowanceNgn(staff.transportAllowanceNgn != null ? String(staff.transportAllowanceNgn) : '');
     setSalaryLevel(staff.salaryLevel != null ? String(staff.salaryLevel) : '');
     setSalaryStep(staff.salaryStep != null ? String(staff.salaryStep) : '1');
-  }, [staff?.userId, staff?.baseSalaryNgn]);
+  }, [staff]);
 
   useHrListLoad(async () => {
     const { ok, data } = await fetchDraftPayrollRuns();
@@ -106,8 +107,19 @@ export function HrSalaryIncrementPanel({ userId, staff, canViewAmounts, onUpdate
 
   const prev = history[0];
   const prevBase = prev?.amountsRedacted ? null : prev?.baseSalaryNgn;
+  const prevHousing = prev?.amountsRedacted ? null : prev?.housingAllowanceNgn;
+  const prevTransport = prev?.amountsRedacted ? null : prev?.transportAllowanceNgn;
   const newBase = Number(baseSalaryNgn) || 0;
-  const delta = prevBase != null && canViewAmounts ? newBase - Number(prevBase) : null;
+  const newHousing = Number(housingAllowanceNgn) || 0;
+  const newTransport = Number(transportAllowanceNgn) || 0;
+  const prevTotal =
+    prevBase != null && canViewAmounts ?
+      Number(prevBase) + Number(prevHousing || 0) + Number(prevTransport || 0)
+    : null;
+  const newTotal = newBase + newHousing + newTransport;
+  const delta = prevTotal != null && canViewAmounts ? newTotal - prevTotal : null;
+  const isReduction = delta != null && delta < 0;
+  const canReduce = canApproveSalaryReduction(permissions);
 
   const [nowMs, setNowMs] = useState(0);
   useEffect(() => {
@@ -131,7 +143,7 @@ export function HrSalaryIncrementPanel({ userId, staff, canViewAmounts, onUpdate
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-500">Salary history</h4>
         {canViewAmounts ? (
-          <HrAddFormButton onClick={() => setModalOpen(true)}>Record increment</HrAddFormButton>
+          <HrAddFormButton onClick={() => setModalOpen(true)}>Record adjustment</HrAddFormButton>
         ) : null}
       </div>
 
@@ -154,8 +166,18 @@ export function HrSalaryIncrementPanel({ userId, staff, canViewAmounts, onUpdate
         )
       )}
 
-      <HrFormModal isOpen={modalOpen} onClose={() => setModalOpen(false)} title="Record salary increment" size="lg">
+      <HrFormModal isOpen={modalOpen} onClose={() => setModalOpen(false)} title="Record salary adjustment" size="lg">
         <form onSubmit={submit} className="space-y-4">
+          {isReduction && !canReduce ? (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+              Salary reductions require Managing Director or special increment approval permission.
+            </div>
+          ) : null}
+          {isReduction && canReduce ? (
+            <div className="rounded-xl border border-purple-100 bg-purple-50 px-3 py-2 text-sm text-purple-900">
+              Reduction of {formatNgn(Math.abs(delta))} — document a detailed reason (minimum 10 characters).
+            </div>
+          ) : null}
           {error ? (
             <div className="rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-sm text-red-800">{error}</div>
           ) : null}
@@ -225,14 +247,18 @@ export function HrSalaryIncrementPanel({ userId, staff, canViewAmounts, onUpdate
               />
             </label>
             <label className="text-xs font-semibold text-slate-600 sm:col-span-2">
-              Reason (audit trail)
+              Reason {isReduction ? '(required — min 10 chars for reductions)' : '(audit trail)'}
               <input
                 className={HR_FIELD_CLASS}
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
-                placeholder="e.g. Annual increment 2026, promotion to senior officer"
+                placeholder={
+                  isReduction ?
+                    'e.g. Reduction: acting allowance ended, role reverted to matrix pay'
+                  : 'e.g. Annual increment 2026, promotion to senior officer'
+                }
                 required
-                minLength={3}
+                minLength={isReduction ? 10 : 3}
               />
             </label>
           </div>

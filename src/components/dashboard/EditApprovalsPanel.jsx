@@ -10,6 +10,7 @@ import { apiFetch } from '../../lib/apiBase';
  */
 export default function EditApprovalsPanel() {
   const ws = useWorkspace();
+  const wsRefreshEditApprovalsPending = ws?.refreshEditApprovalsPending;
   const { show: showToast } = useToast();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -25,8 +26,8 @@ export default function EditApprovalsPanel() {
       return;
     }
     setItems(Array.isArray(data.items) ? data.items : []);
-    await (ws?.refreshEditApprovalsPending?.() ?? Promise.resolve());
-  }, [showToast, ws.refresh, ws.refreshEditApprovalsPending]);
+    await (wsRefreshEditApprovalsPending?.() ?? Promise.resolve());
+  }, [showToast, wsRefreshEditApprovalsPending]);
 
   useEffect(() => {
     void load();

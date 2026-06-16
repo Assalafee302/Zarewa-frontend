@@ -254,10 +254,14 @@ function AppShell() {
   const [officeSummary, setOfficeSummary] = useState(null);
   const [hrNotifSummary, setHrNotifSummary] = useState(null);
   const [managementAttention, setManagementAttention] = useState(null);
+  const wsHasPermission = ws?.hasPermission;
+  const wsCanAccessModule = ws?.canAccessModule;
+  const wsSnapshot = ws?.snapshot;
+  const wsApiOnline = ws?.apiOnline;
   const canSeeOfficeModule = Boolean(ws?.canAccessModule?.('office'));
   const canSeeHrModule = Boolean(ws?.canAccessModule?.('hr') || ws?.canAccessModule?.('team_hr'));
   const canFetchMgmtAttention = useMemo(() => {
-    const has = (p) => Boolean(ws?.hasPermission?.(p));
+    const has = (p) => Boolean(wsHasPermission?.(p));
     return (
       has('*') ||
       has('audit.view') ||
@@ -265,7 +269,7 @@ function AppShell() {
       has('sales.manage') ||
       has('quotations.manage')
     );
-  }, [ws?.hasPermission]);
+  }, [wsHasPermission]);
   useEffect(() => {
     if (!canSeeOfficeModule) {
       setOfficeSummary(null);
@@ -322,17 +326,17 @@ function AppShell() {
   const notificationItemsRaw = useMemo(
     () =>
       buildWorkspaceNotifications({
-        snapshot: ws?.snapshot,
-        hasPermission: (p) => ws?.hasPermission?.(p),
-        canAccessModule: (m) => ws?.canAccessModule?.(m),
+        snapshot: wsSnapshot,
+        hasPermission: (p) => wsHasPermission?.(p),
+        canAccessModule: (m) => wsCanAccessModule?.(m),
         officeSummary,
         hrNotifSummary,
         managementAttention,
       }),
     [
-      ws?.snapshot,
-      ws?.hasPermission,
-      ws?.canAccessModule,
+      wsSnapshot,
+      wsHasPermission,
+      wsCanAccessModule,
       officeSummary,
       hrNotifSummary,
       managementAttention,
@@ -447,7 +451,7 @@ function AppShell() {
       return undefined;
     }
     searchDebounceRef.current = window.setTimeout(async () => {
-      if (ws?.apiOnline) {
+      if (wsApiOnline) {
         setSearchFromCache(false);
         setSearchBusy(true);
         const { ok, data } = await apiFetch(
@@ -461,13 +465,13 @@ function AppShell() {
       }
       setSearchFromCache(true);
       setSearchHits(
-        searchWorkspaceSnapshot(ws?.snapshot, q, (p) => ws?.hasPermission?.(p), 18)
+        searchWorkspaceSnapshot(wsSnapshot, q, (p) => wsHasPermission?.(p), 18)
       );
     }, 260);
     return () => {
       if (searchDebounceRef.current) window.clearTimeout(searchDebounceRef.current);
     };
-  }, [headerSearch, ws?.apiOnline, ws?.snapshot, ws?.hasPermission]);
+  }, [headerSearch, wsApiOnline, wsSnapshot, wsHasPermission]);
 
   const guardedNavigate = useCallback(
     (to, opts) => {

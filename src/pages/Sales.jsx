@@ -189,6 +189,9 @@ const Sales = () => {
   const { customers: customerRecords } = useCustomers();
   const { products: invProducts, coilLots } = useInventory();
   const ws = useWorkspace();
+  const wsRefresh = ws?.refresh;
+  const wsCanMutate = ws?.canMutate;
+  const wsHasPermission = ws?.hasPermission;
   useWorkspaceDomain('sales');
 
   const [activeTab, setActiveTab] = useState('quotations');
@@ -292,8 +295,8 @@ const Sales = () => {
 
   const onLedgerSynced = useCallback(async () => {
     bumpLedger();
-    if (ws?.canMutate) await ws.refresh();
-  }, [bumpLedger, ws.refresh, ws.canMutate]);
+    if (wsCanMutate) await wsRefresh?.();
+  }, [bumpLedger, wsCanMutate, wsRefresh]);
 
   const runAdminSalesDerivedReconcile = useCallback(async () => {
     if (!isAdminRole) return;
@@ -633,7 +636,7 @@ const Sales = () => {
       salesReceipts: mergedReceiptRowsWithCuttingMeta,
       ledgerEntries: loadLedgerEntries(),
     }),
-    [mergedReceiptRowsWithCuttingMeta, ledgerSyncKey]
+    [mergedReceiptRowsWithCuttingMeta]
   );
 
   const quotationsRef = useRef(quotations);
@@ -775,7 +778,7 @@ const Sales = () => {
       filteredCuttingLists,
       filteredRefunds,
       filteredCustomersCount,
-      customerRecords.length,
+      customerRecords,
     ]
   );
 
@@ -950,7 +953,7 @@ const Sales = () => {
     (q) => {
       setActiveTab('refund');
       setSearchQuery('');
-      if (!ws?.hasPermission?.('refunds.request')) {
+      if (!wsHasPermission?.('refunds.request')) {
         showToast('Your role cannot submit refund requests.', { variant: 'error' });
         return;
       }
@@ -963,7 +966,7 @@ const Sales = () => {
       setRefundModalKey((k) => k + 1);
       setShowRefundModal(true);
     },
-    [showToast, ws?.hasPermission]
+    [showToast, wsHasPermission]
   );
 
   // Logic to handle opening modals for "New"
@@ -1091,10 +1094,10 @@ const Sales = () => {
         showToast(data?.error || 'Could not delete quotation.', { variant: 'error' });
         return;
       }
-      if (ws?.canMutate) await ws.refresh();
+      if (wsCanMutate) await wsRefresh?.();
       showToast(`Deleted quotation ${quotationId} and linked receipts/cutting lists.`);
     },
-    [canDeleteSalesRecord, confirmDangerousDelete, showToast, ws]
+    [canDeleteSalesRecord, confirmDangerousDelete, showToast, wsCanMutate, wsRefresh]
   );
 
   const deleteReceipt = useCallback(
@@ -1136,10 +1139,10 @@ const Sales = () => {
         );
         return;
       }
-      if (ws?.canMutate) await ws.refresh();
+      if (wsCanMutate) await wsRefresh?.();
       showToast(`Deleted cutting list ${cuttingListId}.`);
     },
-    [canDeleteSalesRecord, confirmDangerousDelete, showToast, ws]
+    [canDeleteSalesRecord, confirmDangerousDelete, showToast, wsCanMutate, wsRefresh]
   );
 
   const pushCuttingListToProduction = useCallback(
@@ -1147,17 +1150,17 @@ const Sales = () => {
       const id = String(cuttingList?.id || '').trim();
       if (!id) return;
       const canRegisterProduction =
-        ws?.hasPermission?.('sales.manage') ||
-        ws?.hasPermission?.('quotations.manage') ||
-        ws?.hasPermission?.('production.manage') ||
-        ws?.hasPermission?.('operations.manage');
+        wsHasPermission?.('sales.manage') ||
+        wsHasPermission?.('quotations.manage') ||
+        wsHasPermission?.('production.manage') ||
+        wsHasPermission?.('operations.manage');
       if (!canRegisterProduction) {
         showToast('Ask an admin for quotation, sales, operations, or production access to push to queue.', {
           variant: 'error',
         });
         return;
       }
-      if (!ws?.canMutate) {
+      if (!wsCanMutate) {
         showToast('System offline (read-only). Reconnect and refresh before pushing to queue.', {
           variant: 'error',
         });
@@ -1192,10 +1195,10 @@ const Sales = () => {
         showToast(data?.error || 'Could not add to production queue.', { variant: 'error' });
         return;
       }
-      if (ws?.canMutate) await ws.refresh();
+      if (wsCanMutate) await wsRefresh?.();
       showToast('Cutting list added to the production queue.', { variant: 'success' });
     },
-    [showToast, ws]
+    [showToast, wsCanMutate, wsRefresh, wsHasPermission]
   );
 
   const isAnyModalOpen =

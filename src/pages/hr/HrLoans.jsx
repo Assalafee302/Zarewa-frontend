@@ -13,16 +13,15 @@ import { HR_EMPLOYEES } from '../../lib/hrRoutes';
 
 export default function HrLoans({ embedded = false } = {}) {
   const ws = useWorkspace();
-  const perms = ws?.permissions || [];
   const [loanModalOpen, setLoanModalOpen] = useState(false);
-
   const allowedScopes = useMemo(() => {
+    const perms = ws?.permissions || [];
     const scopes = [];
     if (canReviewHrRequests(perms)) scopes.push('hr_queue');
     if (canGmApproveHrRequests(perms)) scopes.push('gm_queue');
     scopes.push('all');
     return scopes;
-  }, [perms]);
+  }, [ws?.permissions]);
 
   return (
     <div className="space-y-8">
@@ -38,7 +37,7 @@ export default function HrLoans({ embedded = false } = {}) {
         ) : (
           <p className="text-sm text-slate-600">Staff loan requests, approvals, and finance disbursement tracking.</p>
         )}
-        {canManageHrStaff(perms) ? (
+        {canManageHrStaff(ws?.permissions) ? (
           <HrAddFormButton onClick={() => setLoanModalOpen(true)}>New staff loan</HrAddFormButton>
         ) : null}
       </div>

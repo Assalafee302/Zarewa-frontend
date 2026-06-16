@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 /** Max rows rendered at once — keeps lists light for re-renders. */
 export const APP_DATA_TABLE_PAGE_SIZE = 20;
@@ -12,10 +12,17 @@ export const APP_DATA_TABLE_PAGE_SIZE = 20;
 export function useAppTablePaging(items, pageSize = APP_DATA_TABLE_PAGE_SIZE, ...resetDeps) {
   const [page, setPage] = useState(0);
   const total = items?.length ?? 0;
+  const prevResetDepsRef = useRef(resetDeps);
 
   useEffect(() => {
-    setPage(0);
-  }, resetDeps);
+    const prev = prevResetDepsRef.current;
+    const changed =
+      prev.length !== resetDeps.length || resetDeps.some((dep, index) => !Object.is(dep, prev[index]));
+    if (changed) {
+      setPage(0);
+      prevResetDepsRef.current = resetDeps;
+    }
+  }, [resetDeps]);
 
   const totalPages = total === 0 ? 1 : Math.ceil(total / pageSize);
   const safePage = Math.min(page, Math.max(0, totalPages - 1));

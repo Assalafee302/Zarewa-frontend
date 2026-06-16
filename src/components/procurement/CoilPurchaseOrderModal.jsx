@@ -155,7 +155,7 @@ export default function CoilPurchaseOrderModal({
       })
     );
     return [...fromMaster, ...extras].sort((a, b) => compareSelectLabels(a.label, b.label));
-  }, [masterData?.colours]);
+  }, [masterData]);
 
   const gaugeOptions = useMemo(() => {
     const fromMaster = (masterData?.gauges || []).filter((row) => row.active);

@@ -8,10 +8,14 @@ import { useWorkspace } from '../context/WorkspaceContext';
 export function useWorkspaceDomain(domain) {
   const ws = useWorkspace();
   const key = String(domain || '').trim().toLowerCase();
+  const wsStatus = ws?.status;
+  const wsEnsureDomainLoaded = ws?.ensureDomainLoaded;
+  const wsBranchScope = ws?.branchScope;
+  const wsRefreshEpoch = ws?.refreshEpoch;
 
   useEffect(() => {
-    if (!key || ws?.status !== 'ok') return undefined;
-    void ws.ensureDomainLoaded?.(key);
+    if (!key || wsStatus !== 'ok') return undefined;
+    void wsEnsureDomainLoaded?.(key);
     return undefined;
-  }, [key, ws?.status, ws?.ensureDomainLoaded, ws?.branchScope, ws?.refreshEpoch]);
+  }, [key, wsStatus, wsEnsureDomainLoaded, wsBranchScope, wsRefreshEpoch]);
 }

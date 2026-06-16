@@ -283,7 +283,7 @@ export default function ExecutiveCommandCentre() {
 
   const readOnly = Boolean(data?.workTray?.readOnlyForActor ?? data?.actor?.readOnlyExecutiveView);
 
-  const workTrayItems = data?.workTray?.items || [];
+  const workTrayItems = useMemo(() => data?.workTray?.items || [], [data?.workTray?.items]);
   const workTrayMdOnlyCount = data?.workTray?.summary?.mdOnly ?? 0;
   const workTraySharedCount = data?.workTray?.summary?.shared ?? 0;
   const filteredWorkTrayItems = useMemo(() => {

@@ -1,10 +1,17 @@
-import React, { useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useHrListLoad } from '../../hooks/useHrListLoad';
 import { apiFetch } from '../../lib/apiBase';
-import { HR_BTN_PRIMARY, HR_BTN_SECONDARY, HR_FIELD_CLASS } from '../../components/hr/hrFormStyles';
-import { HrCard } from '../../components/hr/hrPageUi';
+import { HR_BTN_PRIMARY, HR_BTN_SECONDARY } from '../../components/hr/hrFormStyles';
+import { HrPageBody, HrPageIntro } from '../../components/hr/hrPageUi';
 import { HrConfidentialBanner } from '../../components/hr/HrSensitiveField';
+import { ProfileFormField } from '../../components/profile/profileFormUi';
+import {
+  ProfileEmptyState,
+  ProfileInlineAlert,
+  ProfileMetricSkeleton,
+  ProfileOverviewSection,
+} from '../../components/profile/profileOverviewUi';
 
 const STATUS_PILL = {
   open: 'bg-sky-50 text-sky-800 border-sky-200',
@@ -26,7 +33,7 @@ export default function MyProfileDiscipline() {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
 
-  const { loading, reload } = useHrListLoad(async () => {
+  const { loading, error: loadError, reload } = useHrListLoad(async () => {
     const { ok, data } = await fetchMyDisciplineCases();
     if (!ok || !data?.ok) {
       setCases([]);
@@ -34,6 +41,18 @@ export default function MyProfileDiscipline() {
     }
     setCases(data.cases || []);
     return { hasData: true };
+  }, []);
+
+  const selectCase = useCallback((caseId) => {
+    setSelected((prev) => {
+      const next = prev === caseId ? null : caseId;
+      if (next !== prev) {
+        setResponse('');
+        setAppealGrounds('');
+        setError('');
+      }
+      return next;
+    });
   }, []);
 
   const submitResponse = async (caseId) => {
@@ -73,96 +92,156 @@ export default function MyProfileDiscipline() {
   };
 
   return (
-    <div className="space-y-4">
+    <HrPageBody>
+      <HrPageIntro
+        title="Discipline cases"
+        description="View cases addressed to you, submit written responses, and file appeals when permitted."
+      />
+
       <HrConfidentialBanner>
         Discipline records are confidential. Do not discuss case details in open areas or share screenshots.
       </HrConfidentialBanner>
-      <p className="text-sm text-slate-600">
-        View discipline cases addressed to you, submit written responses, and file appeals when permitted.
-      </p>
 
-      {error ? <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-800">{error}</div> : null}
-      {message ? <div className="rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">{message}</div> : null}
+      {loadError ? <ProfileInlineAlert variant="error">{loadError}</ProfileInlineAlert> : null}
+      {error ? <ProfileInlineAlert variant="error">{error}</ProfileInlineAlert> : null}
+      {message ? <ProfileInlineAlert variant="success">{message}</ProfileInlineAlert> : null}
 
-      {loading && !cases.length ? <p className="text-sm text-slate-500">Loading…</p> : null}
-      {!loading && !cases.length ? (
-        <HrCard title="No cases" subtitle="You have no discipline cases on record." />
-      ) : null}
+      <ProfileOverviewSection title="Your cases" subtitle="Tap a case to expand details and respond">
+        {loading && !cases.length ? <ProfileMetricSkeleton count={1} /> : null}
+        {!loading && !cases.length ? (
+          <ProfileEmptyState
+            title="No discipline cases"
+            description="You have no discipline cases on record. If HR opens a case, it will appear here."
+            actionTo="/my-profile/documents"
+            actionLabel="My documents"
+          />
+        ) : null}
 
-      <ul className="space-y-3">
-        {cases.map((c) => {
-          const pill = STATUS_PILL[c.status] || 'bg-slate-50 text-slate-700 border-slate-200';
-          const expanded = selected === c.id;
-          const canRespond = ['open', 'awaiting_employee_response'].includes(c.status);
-          const canAppeal = c.appealStatus === 'open' || c.status === 'awaiting_appeal';
-          return (
-            <li key={c.id} className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
-              <button type="button" className="w-full text-left" onClick={() => setSelected(expanded ? null : c.id)}>
-                <div className="flex flex-wrap items-start justify-between gap-2">
-                  <div>
-                    <p className="font-bold text-slate-900">{c.caseNumber || c.id}</p>
-                    <p className="text-xs text-slate-500">{c.caseType || 'Discipline'} · {c.severity || '—'}</p>
+        <ul className="space-y-3">
+          {cases.map((c) => {
+            const pill = STATUS_PILL[c.status] || 'bg-slate-50 text-slate-700 border-slate-200';
+            const expanded = selected === c.id;
+            const canRespond = ['open', 'awaiting_employee_response'].includes(c.status);
+            const canAppeal =
+              (c.appealStatus === 'open' || c.status === 'awaiting_appeal') &&
+              c.appealStatus !== 'pending' &&
+              !['upheld', 'rejected'].includes(String(c.appealStatus || ''));
+            return (
+              <li key={c.id} className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+                <button type="button" className="w-full text-left" onClick={() => selectCase(c.id)}>
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <div>
+                      <p className="font-bold text-slate-900">{c.caseNumber || c.id}</p>
+                      <p className="text-xs text-slate-500">
+                        {c.caseType || 'Discipline'} · {c.severity || '—'}
+                      </p>
+                    </div>
+                    <span className={`rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase ${pill}`}>
+                      {c.status}
+                    </span>
                   </div>
-                  <span className={`rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase ${pill}`}>{c.status}</span>
-                </div>
-                {c.summary ? <p className="mt-2 text-sm text-slate-700">{c.summary}</p> : null}
-              </button>
+                  {c.summary ? <p className="mt-2 text-sm text-slate-700">{c.summary}</p> : null}
+                </button>
 
-              {expanded ? (
-                <div className="mt-4 space-y-3 border-t border-slate-100 pt-4 text-sm">
-                  {c.description ? (
-                    <div>
-                      <p className="text-xs font-bold uppercase text-slate-400">Details</p>
-                      <p className="text-slate-700 whitespace-pre-wrap">{c.description}</p>
-                    </div>
-                  ) : null}
-                  {c.managementDecision ? (
-                    <div>
-                      <p className="text-xs font-bold uppercase text-slate-400">Decision</p>
-                      <p className="text-slate-700 whitespace-pre-wrap">{c.managementDecision}</p>
-                    </div>
-                  ) : null}
-                  {c.employeeResponse ? (
-                    <div>
-                      <p className="text-xs font-bold uppercase text-slate-400">Your response</p>
-                      <p className="text-slate-700 whitespace-pre-wrap">{c.employeeResponse}</p>
-                    </div>
-                  ) : null}
+                {expanded ? (
+                  <div className="mt-4 space-y-3 border-t border-slate-100 pt-4 text-sm">
+                    {c.description ? (
+                      <div>
+                        <p className="text-xs font-bold uppercase text-slate-400">Details</p>
+                        <p className="whitespace-pre-wrap text-slate-700">{c.description}</p>
+                      </div>
+                    ) : null}
+                    {c.managementDecision ? (
+                      <div>
+                        <p className="text-xs font-bold uppercase text-slate-400">Decision</p>
+                        <p className="whitespace-pre-wrap text-slate-700">{c.managementDecision}</p>
+                      </div>
+                    ) : null}
+                    {c.employeeResponse ? (
+                      <div>
+                        <p className="text-xs font-bold uppercase text-slate-400">Your response</p>
+                        <p className="whitespace-pre-wrap text-slate-700">{c.employeeResponse}</p>
+                      </div>
+                    ) : null}
+                    {c.appealStatus ? (
+                      <div>
+                        <p className="text-xs font-bold uppercase text-slate-400">Appeal status</p>
+                        <p className="capitalize text-slate-700">
+                          {c.appealStatus === 'pending'
+                            ? 'Under review — HR will notify you when a decision is recorded.'
+                            : c.appealStatus === 'upheld'
+                              ? 'Upheld — see outcome below.'
+                              : c.appealStatus === 'rejected'
+                                ? 'Rejected — see outcome below.'
+                                : c.appealStatus.replace(/_/g, ' ')}
+                        </p>
+                      </div>
+                    ) : null}
+                    {c.finalOutcome ? (
+                      <div>
+                        <p className="text-xs font-bold uppercase text-slate-400">Outcome</p>
+                        <p className="whitespace-pre-wrap text-slate-700">{c.finalOutcome}</p>
+                      </div>
+                    ) : null}
 
-                  {canRespond ? (
-                    <div className="space-y-2">
-                      <label className="text-xs font-semibold text-slate-600 block">
-                        Written response
-                        <textarea className={HR_FIELD_CLASS} rows={4} value={response} onChange={(e) => setResponse(e.target.value)} />
-                      </label>
-                      <button type="button" disabled={busy || !response.trim()} onClick={() => submitResponse(c.id)} className={HR_BTN_PRIMARY}>
-                        Submit response
-                      </button>
-                    </div>
-                  ) : null}
+                    {canRespond ? (
+                      <div className="space-y-2">
+                        <ProfileFormField label="Written response" htmlFor={`response-${c.id}`}>
+                          <textarea
+                            id={`response-${c.id}`}
+                            className="z-input min-h-[96px]"
+                            rows={4}
+                            value={response}
+                            onChange={(e) => setResponse(e.target.value)}
+                          />
+                        </ProfileFormField>
+                        <button
+                          type="button"
+                          disabled={busy || !response.trim()}
+                          onClick={() => submitResponse(c.id)}
+                          className={HR_BTN_PRIMARY}
+                        >
+                          Submit response
+                        </button>
+                      </div>
+                    ) : null}
 
-                  {canAppeal ? (
-                    <div className="space-y-2">
-                      <label className="text-xs font-semibold text-slate-600 block">
-                        Appeal grounds
-                        <textarea className={HR_FIELD_CLASS} rows={3} value={appealGrounds} onChange={(e) => setAppealGrounds(e.target.value)} />
-                      </label>
-                      <button type="button" disabled={busy || !appealGrounds.trim()} onClick={() => submitAppeal(c.id)} className={HR_BTN_SECONDARY}>
-                        Submit appeal
-                      </button>
-                    </div>
-                  ) : null}
+                    {canAppeal ? (
+                      <div className="space-y-2">
+                        <ProfileFormField label="Appeal grounds" htmlFor={`appeal-${c.id}`}>
+                          <textarea
+                            id={`appeal-${c.id}`}
+                            className="z-input min-h-[72px]"
+                            rows={3}
+                            value={appealGrounds}
+                            onChange={(e) => setAppealGrounds(e.target.value)}
+                          />
+                        </ProfileFormField>
+                        <button
+                          type="button"
+                          disabled={busy || !appealGrounds.trim()}
+                          onClick={() => submitAppeal(c.id)}
+                          className={HR_BTN_SECONDARY}
+                        >
+                          Submit appeal
+                        </button>
+                      </div>
+                    ) : null}
 
-                  <p className="text-xs text-slate-500">
-                    Approved letters addressed to you appear in{' '}
-                    <Link to="/my-profile/documents" className="font-bold text-[#134e4a] hover:underline">My documents</Link>.
-                  </p>
-                </div>
-              ) : null}
-            </li>
-          );
-        })}
-      </ul>
-    </div>
+                    <p className="text-xs text-slate-500">
+                      Approved letters addressed to you appear in{' '}
+                      <Link to="/my-profile/documents" className="font-bold text-[#134e4a] hover:underline">
+                        My documents
+                      </Link>
+                      .
+                    </p>
+                  </div>
+                ) : null}
+              </li>
+            );
+          })}
+        </ul>
+      </ProfileOverviewSection>
+    </HrPageBody>
   );
 }

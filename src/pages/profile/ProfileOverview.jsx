@@ -1,34 +1,30 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { apiFetch } from '../../lib/apiBase';
-import { useWorkspace } from '../../context/WorkspaceContext';
+import React, { useEffect, useState } from 'react';
 import { useUserProfile } from '../../context/UserProfileContext';
-import { HrSensitiveGate } from '../../components/hr/HrSensitiveGate';
-import { useHrSensitiveAccess } from '../../hooks/useHrSensitiveAccess';
-import { canViewOrgSensitiveHr } from '../../lib/hrAccess';
 import { formatNgn } from '../../lib/hrFormat';
-import { formatPeriodYyyymm } from '../../lib/hrPayroll';
 import { ProfileCompletionPanel } from '../../components/profile/ProfileCompletionPanel';
 import { ProfileHeroCard } from '../../components/profile/ProfileHeroCard';
 import { ProfileActionGrid } from '../../components/profile/ProfileActionGrid';
-import { HR_SELF_SERVICE_PATH, hrSelfServicePathForTab } from '../../lib/hrSelfServiceRoutes';
+import {
+  ProfileHeroSkeleton,
+  ProfileHubBanner,
+  ProfileInlineAlert,
+  ProfileOverviewSection,
+} from '../../components/profile/profileOverviewUi';
+import { ACCOUNT_PATH, HR_SELF_SERVICE_PATH } from '../../lib/hrSelfServiceRoutes';
+import { FAMILY_BENEFITS, familyParentLine } from '../../lib/familyBenefitsUi';
+import { DOMESTIC_BENEFITS, domesticEmployerLine } from '../../lib/domesticStaffUi';
+import { apiFetch } from '../../lib/apiBase';
+import { Link } from 'react-router-dom';
 
-function QuickActionBtn({ to, children, icon }) {
-  const cls =
-    'flex min-h-[72px] flex-col items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-3 text-xs font-bold uppercase tracking-wider text-[#134e4a] shadow-sm active:border-[#134e4a] active:bg-teal-50/50 transition-colors no-underline sm:text-[10px]';
+function ScholarshipTeaserSkeleton() {
   return (
-    <Link to={to} className={cls}>
-      <span className="text-lg">{icon}</span>
-      {children}
-    </Link>
-  );
-}
-
-function SummaryCard({ title, children }) {
-  return (
-    <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
-      <h3 className="mb-3 text-[10px] font-black uppercase tracking-widest text-slate-400">{title}</h3>
-      {children}
+    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4" aria-hidden>
+      {Array.from({ length: 4 }).map((_, i) => (
+        <div key={i} className="animate-pulse space-y-2 rounded-xl bg-violet-50/50 p-3">
+          <div className="h-2 w-16 rounded bg-violet-100" />
+          <div className="h-4 w-24 rounded bg-violet-100/80" />
+        </div>
+      ))}
     </div>
   );
 }
@@ -40,7 +36,7 @@ function ScholarshipOverviewTeaser() {
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const { ok, data } = await apiFetch('/api/hr/me/school-profile');
+      const { ok, data } = await apiFetch('/api/hr/me/scholarship-summary');
       if (!cancelled) {
         setProfile(ok && data?.ok ? data.profile : null);
         setLoading(false);
@@ -52,322 +48,175 @@ function ScholarshipOverviewTeaser() {
   }, []);
 
   return (
-    <section className="rounded-2xl border border-violet-100 bg-gradient-to-br from-violet-50/80 to-white p-5 shadow-sm">
-      <div className="mb-4 flex flex-wrap items-end justify-between gap-2">
-        <div>
-          <h3 className="text-sm font-black text-slate-900">School & stipend</h3>
-          <p className="text-xs text-slate-500 mt-0.5">Your scholarship profile at a glance</p>
-        </div>
-        <Link to={HR_SELF_SERVICE_PATH.school} className="text-[11px] font-bold uppercase text-violet-700 hover:underline">
-          Full school profile →
-        </Link>
-      </div>
+    <ProfileOverviewSection
+      title={FAMILY_BENEFITS.accountTeaserTitle}
+      subtitle={FAMILY_BENEFITS.accountTeaserSubtitle}
+      actionTo={HR_SELF_SERVICE_PATH.school}
+      actionLabel={FAMILY_BENEFITS.accountTeaserAction}
+      className="border-violet-100 bg-gradient-to-br from-violet-50/60 to-white"
+    >
       {loading ? (
-        <p className="text-sm text-slate-500">Loading…</p>
+        <ScholarshipTeaserSkeleton />
       ) : profile ? (
         <dl className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 text-sm">
-          <div>
+          {profile.linkedExecutiveLabel || profile.linkedExecutive ? (
+            <div className="rounded-xl border border-violet-100/80 bg-white/70 px-3 py-2.5 sm:col-span-2 lg:col-span-4">
+              <dt className="text-[10px] font-black uppercase tracking-widest text-slate-400">Linked executive</dt>
+              <dd className="mt-1 font-semibold text-violet-900">{familyParentLine(profile)}</dd>
+            </div>
+          ) : null}
+          <div className="rounded-xl border border-violet-100/80 bg-white/70 px-3 py-2.5">
             <dt className="text-[10px] font-black uppercase tracking-widest text-slate-400">School</dt>
             <dd className="mt-1 font-semibold text-slate-900">{profile.schoolName || '—'}</dd>
           </div>
-          <div>
+          <div className="rounded-xl border border-violet-100/80 bg-white/70 px-3 py-2.5">
             <dt className="text-[10px] font-black uppercase tracking-widest text-slate-400">Class / level</dt>
             <dd className="mt-1 font-semibold text-slate-900">{profile.classLevel || '—'}</dd>
           </div>
-          <div>
+          <div className="rounded-xl border border-violet-100/80 bg-white/70 px-3 py-2.5">
             <dt className="text-[10px] font-black uppercase tracking-widest text-slate-400">School fees</dt>
             <dd className="mt-1 font-semibold tabular-nums text-slate-900">
               {profile.schoolFeesNgn != null ? formatNgn(profile.schoolFeesNgn) : '—'}
             </dd>
           </div>
-          <div>
-            <dt className="text-[10px] font-black uppercase tracking-widest text-slate-400">Stipend step</dt>
+          <div className="rounded-xl border border-violet-100/80 bg-white/70 px-3 py-2.5">
+            <dt className="text-[10px] font-black uppercase tracking-widest text-slate-400">Monthly allowance</dt>
             <dd className="mt-1 font-semibold text-slate-900">
               {profile.salaryStep != null ? `Step ${profile.salaryStep}` : '—'}
             </dd>
           </div>
         </dl>
       ) : (
-        <p className="text-sm text-slate-500">Open My school to view your scholarship details.</p>
+        <p className="text-sm text-slate-500">Open My benefits to view school fees and allowance details.</p>
       )}
-    </section>
+    </ProfileOverviewSection>
   );
 }
 
-function EmployeeOverviewDashboard() {
-  const navigate = useNavigate();
-  const ws = useWorkspace();
-  const { hr, cohort, error: meError, completeness, documentSummary, pendingProfileRequests } = useUserProfile();
-  const sensitive = useHrSensitiveAccess();
-  const showSensitiveInline = canViewOrgSensitiveHr(ws?.permissions);
-
+function DomesticOverviewTeaser() {
   const [loading, setLoading] = useState(true);
-  const [balances, setBalances] = useState([]);
-  const [payslips, setPayslips] = useState([]);
-  const [requests, setRequests] = useState([]);
-  const hasDashboardDataRef = useRef(false);
+  const [profile, setProfile] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      if (!hasDashboardDataRef.current) setLoading(true);
-      const fetcher = showSensitiveInline || sensitive.isUnlocked ? sensitive.fetchWithSensitive : apiFetch;
-
-      const [balancesRes, payslipsRes, requestsRes] = await Promise.all([
-        apiFetch('/api/hr/leave/balances').catch(() => ({ ok: false })),
-        fetcher('/api/hr/payslips').catch(() => ({ ok: false })),
-        apiFetch('/api/hr/requests?scope=mine&limit=8').catch(() => ({ ok: false })),
-      ]);
-
-      if (cancelled) return;
-
-      if (balancesRes.ok && balancesRes.data?.ok) setBalances(balancesRes.data.balances || []);
-      if (payslipsRes.ok && payslipsRes.data?.ok) setPayslips(payslipsRes.data.payslips || []);
-      if (requestsRes.ok && requestsRes.data?.ok) setRequests(requestsRes.data.requests || []);
-      hasDashboardDataRef.current = true;
-      setLoading(false);
+      const { ok, data } = await apiFetch('/api/hr/me/domestic-summary');
+      if (!cancelled) {
+        setProfile(ok && data?.ok ? data.profile : null);
+        setLoading(false);
+      }
     })();
     return () => {
       cancelled = true;
     };
-  }, [sensitive.isUnlocked, showSensitiveInline, sensitive.fetchWithSensitive]);
-
-  if (meError) {
-    return (
-      <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-800">{meError}</div>
-    );
-  }
-
-  const lastPayslip = payslips[0] || null;
-  const pendingRequests = requests.filter(
-    (r) => !['approved', 'rejected', 'cancelled', 'draft'].includes(String(r.status || '').toLowerCase())
-  );
-
-  const quickActions = (
-    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-5">
-      {cohort !== 'domestic' && cohort !== 'special' ? (
-        <QuickActionBtn to="/my-profile/leave" icon="🏖️">
-          {cohort === 'employee' ? 'Leave & attendance' : 'Leave'}
-        </QuickActionBtn>
-      ) : null}
-      {cohort === 'employee' || cohort === 'special' ? (
-        <QuickActionBtn to="/my-profile/loans" icon="💰">
-          Apply loan
-        </QuickActionBtn>
-      ) : null}
-      <QuickActionBtn to="/my-profile/payslips" icon="📄">
-        Payslips
-      </QuickActionBtn>
-      <QuickActionBtn to="/my-profile/documents" icon="📂">
-        Documents
-      </QuickActionBtn>
-      {cohort !== 'domestic' ? (
-        <>
-          <QuickActionBtn to="/my-profile/policies" icon="📋">
-            Policies
-          </QuickActionBtn>
-          <QuickActionBtn to="/my-profile/id-card" icon="🪪">
-            ID card
-          </QuickActionBtn>
-        </>
-      ) : null}
-    </div>
-  );
-
-  const summarySection = (
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-      {cohort === 'employee' || cohort === 'special' ? (
-        <SummaryCard title="Leave balances">
-          {loading ? (
-            <p className="text-sm text-slate-500">Loading…</p>
-          ) : balances.length === 0 ? (
-            <p className="text-sm text-slate-500">No leave balances on record.</p>
-          ) : (
-            <ul className="space-y-1.5">
-              {balances.map((b) => (
-                <li key={b.leaveType} className="flex items-center justify-between text-sm">
-                  <span className="capitalize text-slate-700">{b.leaveType} leave</span>
-                  <span className="font-black tabular-nums text-[#134e4a]">{b.closingDays ?? b.balance ?? 0} days</span>
-                </li>
-              ))}
-            </ul>
-          )}
-          <Link to="/my-profile/leave" className="mt-3 block text-[11px] font-bold uppercase text-[#134e4a] hover:underline">
-            Apply for leave →
-          </Link>
-        </SummaryCard>
-      ) : null}
-
-      <SummaryCard title="Last payslip">
-        {loading ? (
-          <p className="text-sm text-slate-500">Loading…</p>
-        ) : !lastPayslip ? (
-          <p className="text-sm text-slate-500">No payslips on file yet.</p>
-        ) : (
-          <>
-            <p className="text-[11px] text-slate-500">
-              {formatPeriodYyyymm(lastPayslip.periodYyyymm)} · {lastPayslip.runStatus}
-            </p>
-            {lastPayslip.amountsRedacted ? (
-              <p className="mt-1 text-sm text-slate-500 italic">Unlock to view amount</p>
-            ) : (
-              <>
-                <p className="mt-1 text-lg font-black tabular-nums text-slate-900">{formatNgn(lastPayslip.netNgn)}</p>
-                <p className="text-[11px] text-slate-500">Net pay</p>
-              </>
-            )}
-          </>
-        )}
-        <Link to="/my-profile/payslips" className="mt-3 block text-[11px] font-bold uppercase text-[#134e4a] hover:underline">
-          All payslips →
-        </Link>
-      </SummaryCard>
-
-      <SummaryCard title="Recent requests">
-        {loading ? (
-          <p className="text-sm text-slate-500">Loading…</p>
-        ) : requests.length === 0 ? (
-          <p className="text-sm text-slate-500">No requests submitted yet.</p>
-        ) : (
-          <ul className="space-y-1.5">
-            {requests.slice(0, 5).map((r) => (
-              <li key={r.id} className="flex items-center justify-between gap-2 text-sm">
-                <span className="min-w-0 truncate text-slate-700">{r.title || r.kind || 'Request'}</span>
-                <span
-                  className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${
-                    r.status === 'approved'
-                      ? 'bg-emerald-50 text-emerald-800'
-                      : r.status === 'rejected'
-                        ? 'bg-red-50 text-red-800'
-                        : 'bg-amber-50 text-amber-800'
-                  }`}
-                >
-                  {String(r.status || 'pending').replace(/_/g, ' ')}
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
-        {pendingRequests.length > 0 ? (
-          <p className="mt-3 text-xs text-amber-800 bg-amber-50 rounded-lg px-3 py-2 border border-amber-100">
-            {pendingRequests.length} awaiting review
-          </p>
-        ) : null}
-      </SummaryCard>
-    </div>
-  );
-
-  const employmentDetails =
-    hr && cohort !== 'domestic' ? (
-      <SummaryCard title="Employment summary">
-        <dl className="grid grid-cols-1 gap-3 sm:grid-cols-2 text-sm">
-          <div>
-            <dt className="text-[10px] font-black uppercase tracking-widest text-slate-400">Job title</dt>
-            <dd className="mt-1 font-semibold text-slate-900">{hr.jobTitle || '—'}</dd>
-          </div>
-          <div>
-            <dt className="text-[10px] font-black uppercase tracking-widest text-slate-400">Date joined</dt>
-            <dd className="mt-1 font-semibold text-slate-900">{hr.dateJoinedIso || '—'}</dd>
-          </div>
-          <div>
-            <dt className="text-[10px] font-black uppercase tracking-widest text-slate-400">Employment type</dt>
-            <dd className="mt-1 font-semibold text-slate-900">{hr.employmentType || '—'}</dd>
-          </div>
-          {hr.compensationRedacted ? (
-            <div className="sm:col-span-2 rounded-xl border border-slate-100 bg-slate-50 px-3 py-2 text-xs text-slate-600">
-              Compensation figures are hidden. Unlock sensitive data to view salary and bank details.
-            </div>
-          ) : (
-            <>
-              <div>
-                <dt className="text-[10px] font-black uppercase tracking-widest text-slate-400">Base salary (monthly)</dt>
-                <dd className="mt-1 font-semibold tabular-nums text-slate-900">
-                  {hr.baseSalaryNgn != null ? formatNgn(hr.baseSalaryNgn) : '—'}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-[10px] font-black uppercase tracking-widest text-slate-400">Bank</dt>
-                <dd className="mt-1 font-semibold text-slate-900">
-                  {hr.bankName || '—'}
-                  {hr.bankAccountNoMasked ? ` · ${hr.bankAccountNoMasked}` : ''}
-                </dd>
-              </div>
-            </>
-          )}
-        </dl>
-        <Link to="/my-profile/employment" className="mt-3 block text-[11px] font-bold uppercase text-[#134e4a] hover:underline">
-          Full employment record →
-        </Link>
-      </SummaryCard>
-    ) : null;
+  }, []);
 
   return (
-    <div className="space-y-5">
-      {completeness ? (
-        <ProfileCompletionPanel
-          completeness={completeness}
-          documentSummary={documentSummary}
-          pendingProfileRequests={pendingProfileRequests}
-          onFixSection={(tabId) => {
-            navigate(hrSelfServicePathForTab(tabId));
-          }}
-        />
-      ) : null}
-      {quickActions}
-      {summarySection}
-      {showSensitiveInline || !hr?.compensationRedacted ? (
-        employmentDetails
+    <ProfileOverviewSection
+      title={DOMESTIC_BENEFITS.accountTeaserTitle}
+      subtitle={DOMESTIC_BENEFITS.accountTeaserSubtitle}
+      actionTo={HR_SELF_SERVICE_PATH.home}
+      actionLabel={DOMESTIC_BENEFITS.accountTeaserAction}
+      className="border-amber-100 bg-gradient-to-br from-amber-50/60 to-white"
+    >
+      {loading ? (
+        <ScholarshipTeaserSkeleton />
+      ) : profile ? (
+        <dl className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 text-sm">
+          {profile.assignedExecutiveLabel ? (
+            <div className="rounded-xl border border-amber-100/80 bg-white/70 px-3 py-2.5 sm:col-span-2 lg:col-span-3">
+              <dt className="text-[10px] font-black uppercase tracking-widest text-slate-400">Employer</dt>
+              <dd className="mt-1 font-semibold text-amber-900">{domesticEmployerLine(profile)}</dd>
+            </div>
+          ) : null}
+          <div className="rounded-xl border border-amber-100/80 bg-white/70 px-3 py-2.5">
+            <dt className="text-[10px] font-black uppercase tracking-widest text-slate-400">Role</dt>
+            <dd className="mt-1 font-semibold text-slate-900">{profile.designation || '—'}</dd>
+          </div>
+          <div className="rounded-xl border border-amber-100/80 bg-white/70 px-3 py-2.5">
+            <dt className="text-[10px] font-black uppercase tracking-widest text-slate-400">Location</dt>
+            <dd className="mt-1 font-semibold text-slate-900">{profile.workLocation || '—'}</dd>
+          </div>
+          <div className="rounded-xl border border-amber-100/80 bg-white/70 px-3 py-2.5">
+            <dt className="text-[10px] font-black uppercase tracking-widest text-slate-400">Monthly salary</dt>
+            <dd className="mt-1 font-semibold tabular-nums text-slate-900">
+              {profile.monthlySalaryNgn != null ? formatNgn(profile.monthlySalaryNgn) : '—'}
+            </dd>
+          </div>
+        </dl>
       ) : (
-        <HrSensitiveGate scope="compensation" label="View compensation and bank details">
-          {employmentDetails}
-        </HrSensitiveGate>
+        <p className="text-sm text-slate-500">Open My pay to view salary and payment details.</p>
       )}
-    </div>
+    </ProfileOverviewSection>
   );
 }
 
 export default function ProfileOverview() {
-  const { cohort, hasHrSelfService, initialLoading, documentSummary, pendingProfileRequests } = useUserProfile();
+  const { cohort, hasHrSelfService, initialLoading, error, documentSummary, pendingProfileRequests } = useUserProfile();
 
   if (initialLoading && hasHrSelfService) {
     return (
       <div className="space-y-6">
-        <ProfileHeroCard />
-        <p className="text-sm text-slate-600">Loading your profile…</p>
+        <ProfileHeroSkeleton />
+        <div className="animate-pulse rounded-2xl border border-slate-200 bg-white p-5">
+          <div className="mb-4 h-4 w-32 rounded bg-slate-200" />
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="h-[72px] rounded-xl bg-slate-100" />
+            ))}
+          </div>
+        </div>
       </div>
     );
   }
+
+  const hrHubCopy =
+    cohort === 'scholarship'
+      ? 'School fees, monthly allowance, payments, and documents.'
+      : cohort === 'domestic'
+        ? 'Monthly salary, payments, and documents.'
+        : 'Leave, payslips, employment record, documents, and policies.';
+
+  const hrHubTo =
+    cohort === 'scholarship'
+      ? HR_SELF_SERVICE_PATH.school
+      : cohort === 'domestic'
+        ? HR_SELF_SERVICE_PATH.home
+        : HR_SELF_SERVICE_PATH.overview;
+  const hrHubTitle =
+    cohort === 'scholarship' ? FAMILY_BENEFITS.hubTitle : cohort === 'domestic' ? DOMESTIC_BENEFITS.hubTitle : 'HR self-service';
+  const hrHubTone = cohort === 'scholarship' ? 'violet' : cohort === 'domestic' ? 'amber' : 'teal';
 
   return (
     <div className="space-y-6">
       <ProfileHeroCard />
 
+      {error ? <ProfileInlineAlert variant="error">{error}</ProfileInlineAlert> : null}
+
       {hasHrSelfService && cohort !== 'account_only' ? (
-        <Link
-          to={HR_SELF_SERVICE_PATH.overview}
-          className="block rounded-2xl border border-teal-100 bg-gradient-to-br from-teal-50/80 to-white p-4 no-underline shadow-sm transition hover:border-teal-200"
-        >
-          <p className="text-sm font-black text-[#134e4a]">HR self-service</p>
-          <p className="mt-1 text-xs text-slate-600">
-            Leave, payslips, employment forms, documents, and policies — open the full HR hub →
-          </p>
-        </Link>
+        <ProfileHubBanner
+          to={hrHubTo}
+          title={hrHubTitle}
+          description={
+            cohort === 'scholarship' || cohort === 'domestic'
+              ? `${hrHubCopy} Open your full hub.`
+              : `${hrHubCopy} Open your full HR hub.`
+          }
+          tone={hrHubTone}
+        />
       ) : null}
 
-      <section className="rounded-2xl border border-slate-200/90 bg-white p-5 shadow-sm">
-        <div className="mb-4 flex flex-wrap items-end justify-between gap-2">
-          <div>
-            <h3 className="text-sm font-black text-slate-900">Quick actions</h3>
-            <p className="text-xs text-slate-500 mt-0.5">Open the exact form or page for each action</p>
-          </div>
-          <Link to="/me/services" className="text-[11px] font-bold uppercase text-[#134e4a] hover:underline">
-            All services →
-          </Link>
-        </div>
+      <ProfileOverviewSection
+        title="Quick actions"
+        subtitle="Jump straight to the form or page you need"
+        actionTo={ACCOUNT_PATH.services}
+        actionLabel="All services"
+      >
         <ProfileActionGrid compact excludeWorkspace />
-      </section>
+      </ProfileOverviewSection>
 
       {cohort === 'scholarship' ? <ScholarshipOverviewTeaser /> : null}
+      {cohort === 'domestic' ? <DomesticOverviewTeaser /> : null}
 
       {hasHrSelfService && cohort === 'scholarship' ? (
         <ProfileCompletionPanel
@@ -377,20 +226,23 @@ export default function ProfileOverview() {
         />
       ) : null}
 
-      {hasHrSelfService && cohort !== 'scholarship' && cohort !== 'account_only' ? (
-        <EmployeeOverviewDashboard />
+      {cohort === 'account_only' ? (
+        <ProfileHubBanner
+          to={ACCOUNT_PATH.account}
+          title="Account & security"
+          description="Profile details, access info, and password."
+          tone="slate"
+        />
       ) : null}
 
-      {cohort === 'account_only' ? (
-        <section>
-          <Link
-            to="/me/account"
-            className="block rounded-2xl border border-slate-200 bg-slate-50/80 p-4 no-underline hover:border-teal-200 hover:bg-teal-50/40 transition-colors"
-          >
-            <p className="text-sm font-bold text-slate-900">Account & security</p>
-            <p className="mt-1 text-xs text-slate-600">Profile details, access info, and password</p>
+      {hasHrSelfService && cohort !== 'account_only' ? (
+        <p className="text-center text-xs text-slate-500">
+          Password and sign-in settings live under{' '}
+          <Link to={ACCOUNT_PATH.account} className="font-semibold text-[#134e4a] hover:underline">
+            Account & security
           </Link>
-        </section>
+          .
+        </p>
       ) : null}
     </div>
   );

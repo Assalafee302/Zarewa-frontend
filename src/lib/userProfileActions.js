@@ -8,6 +8,8 @@ import {
   hrHasPermission,
 } from './hrAccess';
 import { ACCOUNT_PATH, HR_SELF_SERVICE_PATH } from './hrSelfServiceRoutes';
+import { FAMILY_BENEFITS } from './familyBenefitsUi';
+import { DOMESTIC_BENEFITS } from './domesticStaffUi';
 import { hasPermissionInList } from './moduleAccess';
 
 /**
@@ -57,12 +59,30 @@ export function buildUserProfileActions(ctx = {}) {
   if (cohort === 'scholarship') {
     actions.push({
       id: 'school-profile',
-      label: 'My school',
-      description: 'Fees, stipend step, and term dates',
+      label: FAMILY_BENEFITS.hubTitle,
+      description: 'School fees, allowance, and term dates',
       to: HR_SELF_SERVICE_PATH.school,
       category: 'self_service',
       tone: 'violet',
-      icon: '🎓',
+      icon: '🏫',
+    });
+    actions.push({
+      id: 'scholarship-requests',
+      label: 'Requests',
+      description: 'Update school details or request fees',
+      to: HR_SELF_SERVICE_PATH.requests,
+      category: 'self_service',
+      tone: 'violet',
+      icon: '📝',
+    });
+    actions.push({
+      id: 'scholarship-payments',
+      label: 'My payments',
+      description: 'School fees and allowance history',
+      to: HR_SELF_SERVICE_PATH.payments,
+      category: 'self_service',
+      tone: 'violet',
+      icon: '💳',
     });
     if (hr('hr.my_documents.view')) {
       actions.push({
@@ -75,6 +95,24 @@ export function buildUserProfileActions(ctx = {}) {
         icon: '📂',
       });
     }
+    actions.push({
+      id: 'policies',
+      label: 'Policies',
+      description: FAMILY_BENEFITS.policiesDescription,
+      to: HR_SELF_SERVICE_PATH.policies,
+      category: 'self_service',
+      tone: 'violet',
+      icon: '📋',
+    });
+    actions.push({
+      id: 'grievance',
+      label: 'Contact office',
+      description: FAMILY_BENEFITS.contactDescription,
+      to: HR_SELF_SERVICE_PATH.grievance,
+      category: 'self_service',
+      tone: 'violet',
+      icon: '💬',
+    });
     return actions;
   }
 
@@ -132,6 +170,53 @@ export function buildUserProfileActions(ctx = {}) {
   }
 
   if (cohort === 'domestic') {
+    actions.push({
+      id: 'domestic-home',
+      label: DOMESTIC_BENEFITS.hubTitle,
+      description: 'Monthly salary and payment history',
+      to: HR_SELF_SERVICE_PATH.home,
+      category: 'self_service',
+      tone: 'amber',
+      icon: '🏠',
+    });
+    actions.push({
+      id: 'domestic-payments',
+      label: 'My payments',
+      description: 'Salary payment history',
+      to: HR_SELF_SERVICE_PATH.payments,
+      category: 'self_service',
+      tone: 'amber',
+      icon: '💰',
+    });
+    if (hr('hr.my_documents.view')) {
+      actions.push({
+        id: 'upload-document',
+        label: 'My documents',
+        description: 'Upload certificates and files',
+        to: HR_SELF_SERVICE_PATH.documents,
+        category: 'self_service',
+        tone: 'amber',
+        icon: '📂',
+      });
+    }
+    actions.push({
+      id: 'policies',
+      label: 'Policies',
+      description: DOMESTIC_BENEFITS.policiesDescription,
+      to: HR_SELF_SERVICE_PATH.policies,
+      category: 'self_service',
+      tone: 'amber',
+      icon: '📋',
+    });
+    actions.push({
+      id: 'grievance',
+      label: 'Contact office',
+      description: DOMESTIC_BENEFITS.contactDescription,
+      to: HR_SELF_SERVICE_PATH.grievance,
+      category: 'self_service',
+      tone: 'amber',
+      icon: '💬',
+    });
     return actions;
   }
 
@@ -251,20 +336,13 @@ export function buildUserProfileActions(ctx = {}) {
 
 /** @param {string} cohort @param {boolean} hasHrSelfService */
 export function buildUserProfileNav(cohort, hasHrSelfService) {
-  const nav = [
+  void cohort;
+  void hasHrSelfService;
+  return [
     { to: ACCOUNT_PATH.overview, label: 'Overview', end: true },
     { to: ACCOUNT_PATH.account, label: 'Account & security' },
     { to: ACCOUNT_PATH.services, label: 'All services' },
   ];
-
-  if (hasHrSelfService) {
-    nav.push({
-      to: HR_SELF_SERVICE_PATH.overview,
-      label: cohort === 'scholarship' ? 'HR profile' : 'HR self-service',
-    });
-  }
-
-  return nav;
 }
 
 export const USER_PROFILE_ACTION_CATEGORIES = [

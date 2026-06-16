@@ -145,17 +145,33 @@ export function RefundManagerApprovalPreview({
   );
   const totals = auditData?.totals || {};
   const cuttingLists = Array.isArray(auditData?.cuttingLists) ? auditData.cuttingLists : [];
-  const productionLogs = Array.isArray(auditData?.productionLogs) ? auditData.productionLogs : [];
-  const checks = Array.isArray(auditData?.conversionChecks) ? auditData.conversionChecks : [];
-  const coils = Array.isArray(auditData?.jobCoils) ? auditData.jobCoils : [];
+  const productionLogs = useMemo(
+    () => (Array.isArray(auditData?.productionLogs) ? auditData.productionLogs : []),
+    [auditData?.productionLogs]
+  );
+  const checks = useMemo(
+    () => (Array.isArray(auditData?.conversionChecks) ? auditData.conversionChecks : []),
+    [auditData?.conversionChecks]
+  );
+  const coils = useMemo(
+    () => (Array.isArray(auditData?.jobCoils) ? auditData.jobCoils : []),
+    [auditData?.jobCoils]
+  );
   const stageActors = auditData?.stageActors || {};
   const salesReceipts = Array.isArray(auditData?.salesReceipts) ? auditData.salesReceipts : [];
   const intelSum = refundIntel?.summary;
-  const dataQuality = Array.isArray(refundIntel?.dataQualityIssues) ? refundIntel.dataQualityIssues : [];
-  const productionSuggested = Array.isArray(refundIntel?.productionSuggestedCategories)
-    ? refundIntel.productionSuggestedCategories
-    : [];
-  const calcLines = refund?.calculationLines || [];
+  const dataQuality = useMemo(
+    () => (Array.isArray(refundIntel?.dataQualityIssues) ? refundIntel.dataQualityIssues : []),
+    [refundIntel?.dataQualityIssues]
+  );
+  const productionSuggested = useMemo(
+    () =>
+      Array.isArray(refundIntel?.productionSuggestedCategories)
+        ? refundIntel.productionSuggestedCategories
+        : [],
+    [refundIntel?.productionSuggestedCategories]
+  );
+  const calcLines = useMemo(() => refund?.calculationLines || [], [refund?.calculationLines]);
   const lineArithmeticIssues = useMemo(
     () => auditRefundCalculationLineArithmetic(calcLines),
     [calcLines]

@@ -154,6 +154,8 @@ function IntelCollapsible({ title, defaultOpen = false, children }) {
 export function ThreadDrawerTransactionIntel({ workItem, variant = 'aside', onManagementDecisionSuccess }) {
   const { show: showToast } = useToast();
   const ws = useWorkspace();
+  const wsRefresh = ws?.refresh;
+  const wsRoleKey = ws?.session?.user?.roleKey;
   const [auditData, setAuditData] = useState(null);
   const [loadingAudit, setLoadingAudit] = useState(false);
   const [refundIntelExtras, setRefundIntelExtras] = useState(null);
@@ -313,7 +315,7 @@ export function ThreadDrawerTransactionIntel({ workItem, variant = 'aside', onMa
     async (decision, reason = '') => {
       if (!qref) return;
       if (decision === 'approve_production') {
-        if (!canApproveProductionGate(ws?.session?.user?.roleKey, { paidNgn: quotePaidNgnForGate })) {
+        if (!canApproveProductionGate(wsRoleKey, { paidNgn: quotePaidNgnForGate })) {
           showToast(productionGateOverrideDeniedMessage(quotePaidNgnForGate), { variant: 'error' });
           return;
         }
@@ -351,13 +353,13 @@ export function ThreadDrawerTransactionIntel({ workItem, variant = 'aside', onMa
           flag: 'Moved to flagged queue for audit.',
         };
         showToast(labels[decision] || 'Updated.', { variant: 'success' });
-        await (ws.refresh?.() ?? Promise.resolve());
+        await (wsRefresh?.() ?? Promise.resolve());
         onManagementDecisionSuccess?.();
       } finally {
         setDecisionBusy(false);
       }
     },
-    [qref, showToast, ws.refresh, ws?.session?.user?.roleKey, quotePaidNgnForGate, onManagementDecisionSuccess]
+    [qref, showToast, wsRefresh, wsRoleKey, quotePaidNgnForGate, onManagementDecisionSuccess]
   );
 
   const handlePaymentDecision = useCallback(
@@ -378,10 +380,10 @@ export function ThreadDrawerTransactionIntel({ workItem, variant = 'aside', onMa
       showToast(status === 'Approved' ? 'Payment request approved.' : 'Payment request rejected.', {
         variant: 'success',
       });
-      await (ws.refresh?.() ?? Promise.resolve());
+      await (wsRefresh?.() ?? Promise.resolve());
       onManagementDecisionSuccess?.();
     },
-    [sourceId, showToast, ws.refresh, onManagementDecisionSuccess]
+    [sourceId, showToast, wsRefresh, onManagementDecisionSuccess]
   );
 
   const handleRefundDecision = useCallback(
@@ -405,10 +407,10 @@ export function ThreadDrawerTransactionIntel({ workItem, variant = 'aside', onMa
         return;
       }
       showToast(status === 'Approved' ? 'Refund approved.' : 'Refund rejected.', { variant: 'success' });
-      await (ws.refresh?.() ?? Promise.resolve());
+      await (wsRefresh?.() ?? Promise.resolve());
       onManagementDecisionSuccess?.();
     },
-    [sourceId, refundDetail, showToast, ws.refresh, onManagementDecisionSuccess]
+    [sourceId, refundDetail, showToast, wsRefresh, onManagementDecisionSuccess]
   );
 
   const handleConversionSignoff = useCallback(async () => {
@@ -439,14 +441,14 @@ export function ThreadDrawerTransactionIntel({ workItem, variant = 'aside', onMa
     showToast('Conversion review signed off.', { variant: 'success' });
     setConversionSignoffRemark('');
     setConversionSignoffEditApprovalId('');
-    await (ws.refresh?.() ?? Promise.resolve());
+    await (wsRefresh?.() ?? Promise.resolve());
     onManagementDecisionSuccess?.();
   }, [
     sourceId,
     conversionSignoffRemark,
     conversionSignoffEditApprovalId,
     showToast,
-    ws.refresh,
+    wsRefresh,
     onManagementDecisionSuccess,
   ]);
 

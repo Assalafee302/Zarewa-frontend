@@ -15,6 +15,9 @@ import {
   AppTableWrap,
 } from '../../components/ui/AppDataTable';
 
+const STATUTORY_BTN =
+  'inline-flex min-h-[44px] w-full items-center justify-center rounded-xl bg-[#134e4a] px-4 py-2.5 text-[11px] font-bold uppercase text-white touch-manipulation active:scale-[0.98] transition-transform sm:w-auto';
+
 // ── CSV export helper ──────────────────────────────────────────────────────────
 function downloadCsv(filename, rows, headers) {
   const csv = [
@@ -157,16 +160,38 @@ function PayeTab({ runs, lines, latestRun, loading }) {
 
       {/* Per-staff table */}
       <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
           <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-500">Per-staff PAYE</h3>
-          <button
-            type="button"
-            onClick={exportFirs}
-            className="rounded-xl bg-[#134e4a] px-4 py-2 text-[11px] font-bold uppercase text-white"
-          >
+          <button type="button" onClick={exportFirs} className={STATUTORY_BTN}>
             Export FIRS Schedule
           </button>
         </div>
+        {loading ? (
+          <p className="py-4 text-center text-sm text-slate-500">Loading…</p>
+        ) : staffPaye.length === 0 ? (
+          <p className="rounded-xl border border-dashed border-slate-200 bg-slate-50/50 px-4 py-8 text-center text-sm text-slate-500">
+            No lines. Select a payroll run with computed lines.
+          </p>
+        ) : (
+          <>
+            <div className="space-y-2 md:hidden">
+              {staffPaye.map((s) => (
+                <article key={`${s.userId}-m`} className="rounded-xl border border-slate-100 bg-slate-50/50 p-3">
+                  <p className="text-sm font-semibold text-slate-900">{s.name}</p>
+                  <div className="mt-2 flex justify-between text-xs">
+                    <span className="text-slate-500">Gross</span>
+                    <span className="tabular-nums font-medium">{s.amountsRedacted ? '—' : formatNgn(s.gross)}</span>
+                  </div>
+                  <div className="mt-1 flex justify-between text-xs">
+                    <span className="text-slate-500">PAYE</span>
+                    <span className="tabular-nums font-bold text-[#134e4a]">
+                      {s.amountsRedacted ? '—' : formatNgn(s.payeAmount)}
+                    </span>
+                  </div>
+                </article>
+              ))}
+            </div>
+            <div className="hidden md:block">
         <AppTableWrap>
           <AppTable role="numeric">
             <AppTableThead>
@@ -201,6 +226,9 @@ function PayeTab({ runs, lines, latestRun, loading }) {
             </AppTableBody>
           </AppTable>
         </AppTableWrap>
+            </div>
+          </>
+        )}
       </div>
 
       {/* Monthly trend */}
@@ -219,6 +247,25 @@ function PayeTab({ runs, lines, latestRun, loading }) {
       {filingHistory.length > 0 ? (
         <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
           <h3 className="mb-3 text-[10px] font-black uppercase tracking-widest text-slate-500">Filing history</h3>
+          <div className="space-y-2 md:hidden">
+            {filingHistory.map((h) => (
+              <article key={`${h.period}-m`} className="rounded-xl border border-slate-100 bg-slate-50/50 p-3 text-xs">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-bold text-slate-800">{h.period}</span>
+                  <span
+                    className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                      h.status === 'Filed' ? 'bg-emerald-50 text-emerald-800' : 'bg-amber-50 text-amber-800'
+                    }`}
+                  >
+                    {h.status}
+                  </span>
+                </div>
+                <p className="mt-1 tabular-nums text-slate-700">{h.amount}</p>
+                <p className="mt-0.5 capitalize text-slate-500">{h.runStatus}</p>
+              </article>
+            ))}
+          </div>
+          <div className="hidden md:block">
           <AppTableWrap>
             <AppTable>
               <AppTableThead>
@@ -251,6 +298,7 @@ function PayeTab({ runs, lines, latestRun, loading }) {
               </AppTableBody>
             </AppTable>
           </AppTableWrap>
+          </div>
         </div>
       ) : null}
     </div>
@@ -385,16 +433,50 @@ function PensionTab({ runs, lines, latestRun, loading, policy }) {
 
       {/* Per-staff RSA table */}
       <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
           <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-500">Per-staff RSA contributions</h3>
-          <button
-            type="button"
-            onClick={exportPfa}
-            className="rounded-xl bg-[#134e4a] px-4 py-2 text-[11px] font-bold uppercase text-white"
-          >
+          <button type="button" onClick={exportPfa} className={STATUTORY_BTN}>
             Export PFA Schedule
           </button>
         </div>
+        {loading ? (
+          <p className="py-4 text-center text-sm text-slate-500">Loading…</p>
+        ) : staffPension.length === 0 ? (
+          <p className="rounded-xl border border-dashed border-slate-200 bg-slate-50/50 px-4 py-8 text-center text-sm text-slate-500">
+            No lines. Select a payroll run with computed lines.
+          </p>
+        ) : (
+          <>
+            <div className="space-y-2 md:hidden">
+              {staffPension.map((s) => (
+                <article
+                  key={`${s.userId}-m`}
+                  className={`rounded-xl border p-3 ${s.missingRsa ? 'border-amber-200 bg-amber-50/40' : 'border-slate-100 bg-slate-50/50'}`}
+                >
+                  <p className="text-sm font-semibold text-slate-900">{s.name}</p>
+                  <p className="mt-0.5 text-[11px] text-slate-500">{s.pfaName}</p>
+                  <p className="mt-1 font-mono text-[11px] text-slate-600">
+                    RSA:{' '}
+                    {s.missingRsa ? (
+                      <span className="rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-bold text-red-700">Missing</span>
+                    ) : (
+                      s.rsaPin
+                    )}
+                  </p>
+                  <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
+                    <div>
+                      <span className="text-slate-500">Employee</span>
+                      <p className="tabular-nums font-medium">{s.amountsRedacted ? '—' : formatNgn(s.empContrib)}</p>
+                    </div>
+                    <div>
+                      <span className="text-slate-500">Employer</span>
+                      <p className="tabular-nums font-medium">{s.amountsRedacted ? '—' : formatNgn(s.errContrib)}</p>
+                    </div>
+                  </div>
+                </article>
+              ))}
+            </div>
+            <div className="hidden md:block">
         <AppTableWrap>
           <AppTable role="numeric">
             <AppTableThead>
@@ -443,12 +525,34 @@ function PensionTab({ runs, lines, latestRun, loading, policy }) {
             </AppTableBody>
           </AppTable>
         </AppTableWrap>
+            </div>
+          </>
+        )}
       </div>
 
       {/* Remittance history */}
       {remittanceHistory.length > 0 ? (
         <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
           <h3 className="mb-3 text-[10px] font-black uppercase tracking-widest text-slate-500">Remittance history</h3>
+          <div className="space-y-2 md:hidden">
+            {remittanceHistory.map((h) => (
+              <article key={`${h.period}-m`} className="rounded-xl border border-slate-100 bg-slate-50/50 p-3 text-xs">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-bold text-slate-800">{h.period}</span>
+                  <span
+                    className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                      h.status === 'Remitted' ? 'bg-emerald-50 text-emerald-800' : 'bg-amber-50 text-amber-800'
+                    }`}
+                  >
+                    {h.status}
+                  </span>
+                </div>
+                <p className="mt-1 tabular-nums text-slate-700">{h.total}</p>
+                <p className="mt-0.5 capitalize text-slate-500">{h.runStatus}</p>
+              </article>
+            ))}
+          </div>
+          <div className="hidden md:block">
           <AppTableWrap>
             <AppTable>
               <AppTableThead>
@@ -481,6 +585,7 @@ function PensionTab({ runs, lines, latestRun, loading, policy }) {
               </AppTableBody>
             </AppTable>
           </AppTableWrap>
+          </div>
         </div>
       ) : null}
     </div>
@@ -570,22 +675,20 @@ export default function HrPayeTaxPension() {
 
       {/* Run selector */}
       {runs.length > 0 ? (
-        <div className="flex flex-wrap items-end gap-2">
-          <label className="text-xs font-semibold text-slate-600">
-            Payroll run
-            <select
-              value={selectedRunId}
-              onChange={(e) => setSelectedRunId(e.target.value)}
-              className="mt-1 block w-48 rounded-xl border border-slate-200 px-3 py-2 text-sm"
-            >
-              {runs.map((r) => (
-                <option key={r.id} value={r.id}>
-                  {formatPeriodYyyymm(r.periodYyyymm)} · {r.status}
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
+        <label className="block w-full max-w-md text-xs font-semibold text-slate-600">
+          Payroll run
+          <select
+            value={selectedRunId}
+            onChange={(e) => setSelectedRunId(e.target.value)}
+            className="mt-1 block w-full rounded-xl border border-slate-200 px-3 py-3 text-sm"
+          >
+            {runs.map((r) => (
+              <option key={r.id} value={r.id}>
+                {formatPeriodYyyymm(r.periodYyyymm)} · {r.status}
+              </option>
+            ))}
+          </select>
+        </label>
       ) : loading ? (
         <p className="text-sm text-slate-600">Loading runs…</p>
       ) : (
@@ -593,7 +696,7 @@ export default function HrPayeTaxPension() {
       )}
 
       {/* Tabs */}
-      <div className="flex flex-wrap gap-1 border-b border-slate-200 pb-px">
+      <div className="flex gap-1 border-b border-slate-200 pb-px overflow-x-auto">
         {[
           { key: 'paye', label: 'PAYE Tax' },
           { key: 'pension', label: 'Pension' },
@@ -602,7 +705,7 @@ export default function HrPayeTaxPension() {
             key={t.key}
             type="button"
             onClick={() => setTab(t.key)}
-            className={`rounded-t-lg px-4 py-2 text-xs font-bold uppercase ${
+            className={`shrink-0 min-h-[44px] rounded-t-lg px-4 py-2.5 text-xs font-bold uppercase touch-manipulation ${
               tab === t.key ? 'border border-b-white bg-white text-[#134e4a]' : 'text-slate-500'
             }`}
           >

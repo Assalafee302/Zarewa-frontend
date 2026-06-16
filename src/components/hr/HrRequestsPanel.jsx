@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { Link } from 'react-router-dom';
 import { apiFetch } from '../../lib/apiBase';
@@ -22,6 +22,7 @@ import {
   AppTableWrap,
 } from '../ui/AppDataTable';
 import { HrRequestPayloadSummary, hrRequestApprovalChain } from './HrRequestPayloadSummary';
+import HrRequestStageBar from './HrRequestStageBar';
 import { HR_BTN_PILL, HR_BTN_PRIMARY, HR_BTN_SECONDARY, HR_FIELD_CLASS, HR_TEXTAREA_CLASS } from './hrFormStyles';
 
 const SCOPE_LABELS = {
@@ -34,13 +35,17 @@ const SCOPE_LABELS = {
 
 /**
  * Shared HR requests list with optional approval actions.
- * @param {{ allowedScopes: string[]; defaultScope?: string; kindFilter?: string; staffLinkBase?: string }} props
+ * @param {{ allowedScopes: string[]; defaultScope?: string; kindFilter?: string; kindsInclude?: string[]; hideKindFilter?: boolean; staffLinkBase?: string; focusRequestId?: string; showStageBar?: boolean }} props
  */
 export function HrRequestsPanel({
   allowedScopes = ['mine'],
   defaultScope = 'mine',
   kindFilter = '',
+  kindsInclude = null,
+  hideKindFilter = false,
   staffLinkBase = '/hr/staff',
+  focusRequestId = '',
+  showStageBar = false,
 }) {
   const ws = useWorkspace();
   const canLetter = canGenerateHrLetters(ws?.session?.permissions);
@@ -79,6 +84,12 @@ export function HrRequestsPanel({
     return { hasData: true };
   }, [scope, kindFilter]);
 
+  useEffect(() => {
+    if (defaultScope && allowedScopes.includes(defaultScope)) {
+      setScope(defaultScope);
+    }
+  }, [defaultScope, allowedScopes]);
+
   const canReviewRow = useCallback(
     (r) =>
       (scope === 'hr_queue' && r.status === 'hr_review') ||
@@ -86,6 +97,14 @@ export function HrRequestsPanel({
       (scope === 'gm_queue' && r.status === 'gm_hr_review'),
     [scope]
   );
+
+  useEffect(() => {
+    if (!focusRequestId || loading) return;
+    const match = requests.find((r) => r.id === focusRequestId);
+    if (!match) return;
+    setExpandedId(focusRequestId);
+    if (canReviewRow(match)) setReviewId(focusRequestId);
+  }, [focusRequestId, requests, loading, canReviewRow]);
 
   const runReview = async (requestId, status, approve) => {
     const path = hrRequestReviewPath(requestId, status);
@@ -143,6 +162,10 @@ export function HrRequestsPanel({
 
   const visibleRequests = useMemo(() => {
     let rows = requests;
+    if (kindsInclude?.length) {
+      const allowed = new Set(kindsInclude);
+      rows = rows.filter((r) => allowed.has(r.kind));
+    }
     const kind = kindFilter || filterKindLocal;
     if (kind) rows = rows.filter((r) => r.kind === kind);
     const q = filterSearch.trim().toLowerCase();
@@ -151,7 +174,7 @@ export function HrRequestsPanel({
       const hay = [r.title, r.kind, r.status, r.staffDisplayName, r.userId, r.id].join(' ').toLowerCase();
       return hay.includes(q);
     });
-  }, [requests, kindFilter, filterKindLocal, filterSearch]);
+  }, [requests, kindFilter, filterKindLocal, filterSearch, kindsInclude]);
 
   const exportQueueCsv = () => {
     const esc = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
@@ -309,6 +332,7 @@ export function HrRequestsPanel({
       </div>
       {expandedId === r.id ? (
         <div className="mt-3 rounded-xl border border-slate-100 bg-white p-3">
+          {showStageBar ? <HrRequestStageBar status={r.status} kind={r.kind} /> : null}
           <HrRequestPayloadSummary request={r} compact />
           {r.reviewNotes?.length ? (
             <div className="mt-2 border-t border-slate-100 pt-2">
@@ -332,7 +356,7 @@ export function HrRequestsPanel({
           </div>
           <HrRequestPayloadSummary request={r} compact />
           {(() => {
-            const { chain, currentIdx } = hrRequestApprovalChain(r.status);
+            const { chain, currentIdx } = hrRequestApprovalChain(r.status, r.kind);
             return (
               <div>
                 <p className="text-[10px] font-bold uppercase text-slate-400 mb-1">Approval chain</p>
@@ -413,7 +437,7 @@ export function HrRequestsPanel({
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        {!kindFilter ? (
+        {!kindFilter && !hideKindFilter && !kindsInclude?.length ? (
           <select
             value={filterKindLocal}
             onChange={(e) => setFilterKindLocal(e.target.value)}

@@ -36,7 +36,7 @@ export function HrLoanApplicationForm({ onSuccess, onCancel }) {
     if (minDeduction > 0 && !deductionPerMonthNgn) {
       setDeductionPerMonthNgn(String(minDeduction));
     }
-  }, [minDeduction, amount, months]);
+  }, [minDeduction, amount, months, deductionPerMonthNgn]);
 
   const submit = async (e) => {
     e.preventDefault();

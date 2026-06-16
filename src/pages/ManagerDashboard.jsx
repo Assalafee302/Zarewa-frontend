@@ -397,7 +397,10 @@ const ManagerDashboard = () => {
     };
   }, [mergedPrefsForTargets.managerTargetsPersonalOverride, ws?.snapshot?.orgManagerTargets]);
 
-  const materialIncidentQueue = items.pendingMaterialIncidents ?? [];
+  const materialIncidentQueue = useMemo(
+    () => items.pendingMaterialIncidents ?? [],
+    [items.pendingMaterialIncidents]
+  );
   const pendingOrderSignOffCount = displayItems.pendingClearance?.length ?? 0;
 
   const displaySnapshots = useMemo(() => {
@@ -440,7 +443,7 @@ const ManagerDashboard = () => {
     metricPeriod,
   ]);
 
-  const fetchData = async ({ background = false } = {}) => {
+  const fetchData = useCallback(async ({ background = false } = {}) => {
     if (!background) setLoading(true);
     setLoadError(null);
     try {
@@ -494,11 +497,11 @@ const ManagerDashboard = () => {
       setLoading(false);
       managerQueuesHydratedRef.current = true;
     }
-  };
+  }, [ws?.session?.user?.roleKey, ws?.permissions]);
 
   useEffect(() => {
     void fetchData({ background: managerQueuesHydratedRef.current });
-  }, [ws?.refreshEpoch]);
+  }, [ws?.refreshEpoch, fetchData]);
 
   const mgrBranchId = ws.viewAllBranches ? '' : ws.branchScope || ws.session?.currentBranchId || '';
   const mgrBranchLabel = useMemo(() => {
@@ -915,7 +918,7 @@ const ManagerDashboard = () => {
         void fetchPoAudit(po);
       }
     },
-    [fetchPoAudit, navigate, openQuotationIntel]
+    [fetchPoAudit, openQuotationIntel]
   );
 
   const handleReview = async (quotationId, decision, reason = '') => {

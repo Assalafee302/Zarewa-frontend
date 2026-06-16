@@ -28,41 +28,6 @@ export function fetchHrAbsenceAlerts() {
   return apiFetch('/api/hr/absence-reports/alerts');
 }
 
-export function fetchHrOvertimeRequests(params = {}) {
-  const q = new URLSearchParams();
-  Object.entries(params).forEach(([k, v]) => { if (v) q.set(k, v); });
-  return apiFetch(`/api/hr/overtime-requests?${q}`);
-}
-
-export function createHrOvertimeRequest(body) {
-  return apiFetch('/api/hr/overtime-requests', { method: 'POST', body: JSON.stringify(body) });
-}
-
-export function submitHrOvertimeRequest(id) {
-  return apiFetch(`/api/hr/overtime-requests/${encodeURIComponent(id)}/submit`, { method: 'PATCH' });
-}
-
-export function branchReviewHrOvertimeRequest(id, body) {
-  return apiFetch(`/api/hr/overtime-requests/${encodeURIComponent(id)}/branch-review`, {
-    method: 'PATCH',
-    body: JSON.stringify(body),
-  });
-}
-
-export function approveHrOvertimeRequest(id, body) {
-  return apiFetch(`/api/hr/overtime-requests/${encodeURIComponent(id)}/approve`, {
-    method: 'PATCH',
-    body: JSON.stringify(body),
-  });
-}
-
-export function rejectHrOvertimeRequest(id, body) {
-  return apiFetch(`/api/hr/overtime-requests/${encodeURIComponent(id)}/reject`, {
-    method: 'PATCH',
-    body: JSON.stringify(body),
-  });
-}
-
 export function fetchHrExitClearance(params = {}) {
   const q = new URLSearchParams();
   Object.entries(params).forEach(([k, v]) => { if (v) q.set(k, v); });

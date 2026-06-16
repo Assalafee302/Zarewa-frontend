@@ -1,6 +1,19 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 
+export {
+  HR_BTN_PRIMARY,
+  HR_BTN_SECONDARY,
+  HR_BTN_ADD,
+  HR_BTN_PILL,
+  HR_CARD,
+  HR_FIELD_CLASS,
+  HR_INPUT,
+  HR_MUTED,
+  HR_SECTION_TITLE,
+  HR_TEXTAREA_CLASS,
+} from './hrFormStyles';
+
 /** Constrains page content width inside HR main panel. */
 export function HrPageBody({ children, className = '', compact = false }) {
   return (

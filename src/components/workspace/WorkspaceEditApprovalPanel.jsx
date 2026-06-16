@@ -10,6 +10,8 @@ import { userCanApproveEditMutationsClient } from '../../lib/editApprovalUi';
  */
 export default function WorkspaceEditApprovalPanel({ item, onDone }) {
   const ws = useWorkspace();
+  const wsCanMutate = ws?.canMutate;
+  const wsRefresh = ws?.refresh;
   const { show: showToast } = useToast();
   const [busy, setBusy] = useState(false);
   const id = String(item?.sourceId || item?.referenceNo || '').trim();
@@ -19,7 +21,7 @@ export default function WorkspaceEditApprovalPanel({ item, onDone }) {
 
   const approve = useCallback(async () => {
     if (!id) return;
-    if (!ws?.canMutate) {
+    if (!wsCanMutate) {
       showToast('Reconnect to approve — workspace is read-only.', { variant: 'info' });
       return;
     }
@@ -34,12 +36,12 @@ export default function WorkspaceEditApprovalPanel({ item, onDone }) {
         return;
       }
       showToast('Edit approval granted — one save is allowed with this token.');
-      await ws.refresh?.();
+      await wsRefresh?.();
       onDone?.();
     } finally {
       setBusy(false);
     }
-  }, [id, onDone, showToast, ws.refresh, ws.canMutate]);
+  }, [id, onDone, showToast, wsCanMutate, wsRefresh]);
 
   if (!id) {
     return <p className="p-4 text-sm text-slate-500">Missing approval id.</p>;

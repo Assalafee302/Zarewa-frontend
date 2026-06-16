@@ -20,12 +20,15 @@ function formatGaugeDisplay(raw) {
  */
 export default function WorkspaceCoilMaterialPanel({ item, onDone }) {
   const ws = useWorkspace();
+  const wsHasPermission = ws?.hasPermission;
+  const wsRefresh = ws?.refresh;
   const { show: showToast } = useToast();
   const [busy, setBusy] = useState(false);
   const [materialRows, setMaterialRows] = useState([]);
 
   const sourceKind = String(item?.sourceKind || '').trim().toLowerCase();
   const sourceId = String(item?.sourceId || '').trim();
+  const canOpsAcknowledge = useMemo(() => hasOpsAck({ hasPermission: wsHasPermission }), [wsHasPermission]);
 
   const coilRow = useMemo(() => {
     if (sourceKind !== 'coil_request' || !sourceId) return null;
@@ -56,7 +59,7 @@ export default function WorkspaceCoilMaterialPanel({ item, onDone }) {
 
   const acknowledgeCoil = useCallback(async () => {
     if (!sourceId || sourceKind !== 'coil_request') return;
-    if (!hasOpsAck(ws)) {
+    if (!canOpsAcknowledge) {
       showToast('You do not have permission to acknowledge coil requests.', { variant: 'error' });
       return;
     }
@@ -71,12 +74,12 @@ export default function WorkspaceCoilMaterialPanel({ item, onDone }) {
         return;
       }
       showToast('Coil request acknowledged — procurement can proceed.');
-      await ws.refresh?.();
+      await wsRefresh?.();
       onDone?.();
     } finally {
       setBusy(false);
     }
-  }, [onDone, showToast, sourceId, sourceKind, ws.refresh, ws.hasPermission]);
+  }, [onDone, showToast, sourceId, sourceKind, canOpsAcknowledge, wsRefresh]);
 
   const mr = materialRows[0];
   const pendingCoil = coilRow && String(coilRow.status || '').toLowerCase() === 'pending';
@@ -120,7 +123,7 @@ export default function WorkspaceCoilMaterialPanel({ item, onDone }) {
         <p className="mt-4 text-sm text-amber-800">Could not load material request details.</p>
       ) : null}
 
-      {sourceKind === 'coil_request' && pendingCoil && hasOpsAck(ws) ? (
+      {sourceKind === 'coil_request' && pendingCoil && canOpsAcknowledge ? (
         <div className="mt-6">
           <button
             type="button"

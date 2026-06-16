@@ -95,7 +95,7 @@ function ActionTile({ action, compact = false }) {
   return (
     <Link
       to={action.to}
-      className={`group flex min-h-[72px] items-start justify-between gap-3 rounded-2xl border p-4 no-underline transition-colors active:scale-[0.99] ${tone} ${compact ? 'min-h-[68px] p-3' : ''}`}
+      className={`group flex min-h-[72px] items-start justify-between gap-3 rounded-2xl border p-4 no-underline transition-all active:scale-[0.99] hover:shadow-sm ${tone} ${compact ? 'min-h-[72px] p-3' : ''}`}
     >
       <div className="min-w-0 flex gap-3">
         {action.icon ? (
