@@ -36,6 +36,12 @@ export function AccountingSectionNav({ sections, value, onChange }) {
               }`}
             >
               {formatNgn(s.subtotalNgn ?? 0)} · {s.count ?? 0} line{(s.count ?? 0) === 1 ? '' : 's'}
+              {(s.unlinkedLegacyCount ?? 0) > 0 ? (
+                <span className={active ? ' text-amber-200' : ' text-amber-700'}>
+                  {' '}
+                  · {s.unlinkedLegacyCount} unlinked
+                </span>
+              ) : null}
             </span>
           </button>
         );

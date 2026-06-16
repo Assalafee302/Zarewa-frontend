@@ -152,6 +152,11 @@ export function AccountingRegisterDetailModal({
                     {categoryLabel}
                   </span>
                 ) : null}
+                {item.partyLinkStatus === 'unlinked' ? (
+                  <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[8px] font-bold uppercase text-amber-900">
+                    Not linked
+                  </span>
+                ) : null}
               </div>
             </div>
             <div className="text-right shrink-0">
@@ -159,6 +164,21 @@ export function AccountingRegisterDetailModal({
               <p className="text-xl font-black text-[#134e4a] tabular-nums">{formatNgn(item.amountNgn)}</p>
             </div>
           </div>
+
+          {item.partyLinkStatus === 'unlinked' && item.partyLinkWarning ? (
+            <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-[11px] text-amber-950 leading-relaxed">
+              {item.partyLinkWarning}
+              {canManage && onEdit ? (
+                <button
+                  type="button"
+                  onClick={() => onEdit(item)}
+                  className="mt-2 block text-[10px] font-bold uppercase tracking-wide text-amber-900 underline hover:no-underline"
+                >
+                  Edit and link party
+                </button>
+              ) : null}
+            </div>
+          ) : null}
 
           <ProcurementFormSection letter="D" title="Details" compact>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

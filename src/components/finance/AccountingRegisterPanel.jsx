@@ -230,6 +230,13 @@ export function AccountingRegisterPanel({
         </AccountingDeskNotice>
       ) : null}
 
+      {(data?.summary?.unlinkedLegacyCount ?? 0) > 0 ? (
+        <AccountingDeskNotice tone="warn">
+          {data.summary.unlinkedLegacyCount} inherited line(s) are not linked to a customer, supplier, employee, or
+          branch master record. Edit each flagged row and pick the correct party from the list.
+        </AccountingDeskNotice>
+      ) : null}
+
       <AccountingSectionNav sections={sections} value={activeSection} onChange={setActiveSection} />
 
       <SalesListTableFrame

@@ -55,8 +55,7 @@ export const ACCOUNTING_REGISTER_CONFIG = {
     },
     legacyQuickAdd: {
       category: 'project_overpayment',
-      partyName: 'April roofing project',
-      description: 'Pre-system project overpayment — refundable to customer',
+      description: 'Pre-system project overpayment — refundable to customer (select customer below)',
       reference: 'April project overpayment',
     },
   },

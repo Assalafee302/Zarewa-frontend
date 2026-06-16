@@ -66,6 +66,11 @@ export function AccountingRegisterRow({ sectionId, item, canManage, onSelect, on
               Legacy
             </span>
           ) : null}
+          {item.partyLinkStatus === 'unlinked' ? (
+            <span className="ml-1 rounded-full bg-amber-100 px-1.5 py-0.5 text-[8px] font-bold uppercase text-amber-900">
+              Not linked
+            </span>
+          ) : null}
         </p>
         <p className="text-[8px] text-slate-500 mt-0.5 leading-snug line-clamp-2" title={meta}>
           {meta || '—'}
