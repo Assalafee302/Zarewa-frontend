@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import {
   ArrowLeft,
@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { MainPanel, ModalFrame, PageHeader, PageShell } from '../components/layout';
 import CoilDamageRecordModal from '../components/operations/CoilDamageRecordModal';
+import CoilEditMasterModal from '../components/operations/CoilEditMasterModal';
 import { INCIDENT_TYPES } from '../lib/materialIncidentConstants';
 import { ProductionRegisterEditModal } from '../components/operations/ProductionRegisterEditModal';
 import { pickProductionJobForFocusId } from '../lib/productionJobPick';
@@ -88,16 +89,6 @@ export default function CoilProfile() {
   const [scrapForm, setScrapForm] = useState({ kg: '', meters: '', bookRef: '', reason: 'Damaged edge / offcut', note: '' });
   const [returnForm, setReturnForm] = useState({ kg: '', reason: 'Unused from production', note: '' });
   const [finishForm, setFinishForm] = useState({ note: '', cuttingListRef: '' });
-  const [editForm, setEditForm] = useState({
-    colour: '',
-    gaugeLabel: '',
-    materialTypeName: '',
-    currentKg: '',
-    receivedKg: '',
-    stockForm: 'coil',
-  });
-  const [editKgBaseline, setEditKgBaseline] = useState({ receivedKg: null, currentKg: null });
-  const editFormHydratedRef = useRef('');
   const [holdersMeta, setHoldersMeta] = useState(null);
   const [holdersLoading, setHoldersLoading] = useState(false);
   const [reconcilingReservation, setReconcilingReservation] = useState(false);
@@ -128,28 +119,6 @@ export default function CoilProfile() {
     () => canEditCoilLotMasterData(ws?.session?.user?.roleKey),
     [ws?.session?.user?.roleKey]
   );
-
-  useEffect(() => {
-    if (actionModal !== 'edit') {
-      editFormHydratedRef.current = '';
-      return;
-    }
-    if (!coil) return;
-    const hydrateKey = `${coil.coilNo}:edit`;
-    if (editFormHydratedRef.current === hydrateKey) return;
-    editFormHydratedRef.current = hydrateKey;
-    const recv = asNum(coil.weightKg || coil.qtyReceived);
-    const cur = liveKg(coil);
-    setEditForm({
-      colour: String(coil.colour ?? '').trim(),
-      gaugeLabel: String(coil.gaugeLabel ?? coil.gauge ?? '').trim(),
-      materialTypeName: String(coil.materialTypeName ?? coil.materialType ?? '').trim(),
-      currentKg: cur > 0 ? String(cur) : '',
-      receivedKg: recv > 0 ? String(recv) : '',
-      stockForm: String(coil.stockForm || 'coil').toLowerCase() === 'roll' ? 'roll' : 'coil',
-    });
-    setEditKgBaseline({ receivedKg: recv, currentKg: cur });
-  }, [actionModal, coil]);
 
   const cuttingLists = useMemo(
     () => (Array.isArray(ws?.snapshot?.cuttingLists) ? ws.snapshot.cuttingLists : []),
@@ -469,47 +438,6 @@ export default function CoilProfile() {
     }
   };
 
-  const submitEditMaster = async (e) => {
-    e.preventDefault();
-    if (!coil) return;
-    if (!ws?.canMutate) return showToast('Workspace is read-only.', { variant: 'error' });
-    const recvStr = editForm.receivedKg.trim();
-    const recvNum = recvStr ? Number(recvStr) : null;
-    if (recvStr && (!Number.isFinite(recvNum) || recvNum < 0)) {
-      return showToast('Received kg must be a valid non-negative number.', { variant: 'error' });
-    }
-    const curStr = editForm.currentKg.trim();
-    const curNum = curStr ? Number(curStr) : NaN;
-    if (curStr && (!Number.isFinite(curNum) || curNum < 0)) {
-      return showToast('Current on-hand kg must be a valid non-negative number.', { variant: 'error' });
-    }
-    const body = {
-      colour: editForm.colour.trim(),
-      gaugeLabel: editForm.gaugeLabel.trim(),
-      materialTypeName: editForm.materialTypeName.trim(),
-      stockForm: editForm.stockForm,
-    };
-    const receivedChanged =
-      recvStr && editKgBaseline.receivedKg != null && Math.abs(recvNum - editKgBaseline.receivedKg) > 1e-6;
-    const currentChanged =
-      curStr && editKgBaseline.currentKg != null && Math.abs(curNum - editKgBaseline.currentKg) > 1e-6;
-    if (receivedChanged) body.receivedKg = recvNum;
-    if (currentChanged) body.currentWeightKg = curNum;
-    setSavingAction(true);
-    try {
-      const { ok, data } = await apiFetch(`/api/coil-lots/${encodeURIComponent(coil.coilNo)}/master-data`, {
-        method: 'PATCH',
-        body: JSON.stringify(body),
-      });
-      if (!ok || !data?.ok) return showToast(data?.error || 'Update failed.', { variant: 'error' });
-      await ws.refresh?.();
-      showToast('Coil details updated.');
-      setActionModal('');
-    } finally {
-      setSavingAction(false);
-    }
-  };
-
   return (
     <PageShell>
       <PageHeader
@@ -539,7 +467,7 @@ export default function CoilProfile() {
             </Link>
             {mayEditCoilMaster ? (
               <button type="button" className="z-btn-secondary inline-flex items-center gap-1.5" onClick={() => setActionModal('edit')}>
-                <Pencil size={16} aria-hidden /> Edit details
+                <Pencil size={16} aria-hidden /> Edit &amp; recalculate
               </button>
             ) : null}
             {finishRollEligible ? (
@@ -869,73 +797,17 @@ export default function CoilProfile() {
           <button className="z-btn-primary" type="submit" disabled={savingAction}>Post return</button>
         </form>
       </ModalFrame>
-      <ModalFrame isOpen={actionModal === 'edit'} onClose={closeActionModal}>
-        <form onSubmit={submitEditMaster} className="space-y-3" onInput={captureEdited} onChange={captureEdited}>
-          <h3 className="text-lg font-black text-[#134e4a]">Edit coil details</h3>
-          <p className="text-xs text-slate-600 leading-relaxed">
-            For branch managers, the MD, and administrators only. Received kg updates the GRN book figure (
-            <code className="text-[11px]">qty_received</code> / <code className="text-[11px]">weight_kg</code>
-            ). Current on-hand kg is unchanged — use <strong>Coil control</strong> for live mass adjustments.
-          </p>
-          <label className="block">
-            <span className="text-[10px] font-bold text-slate-500 uppercase">Colour</span>
-            <input className="z-input w-full mt-0.5" value={editForm.colour} onChange={(e) => setEditForm((f) => ({ ...f, colour: e.target.value }))} />
-          </label>
-          <label className="block">
-            <span className="text-[10px] font-bold text-slate-500 uppercase">Gauge</span>
-            <input className="z-input w-full mt-0.5" value={editForm.gaugeLabel} onChange={(e) => setEditForm((f) => ({ ...f, gaugeLabel: e.target.value }))} />
-          </label>
-          <label className="block">
-            <span className="text-[10px] font-bold text-slate-500 uppercase">Material type (description)</span>
-            <input className="z-input w-full mt-0.5" value={editForm.materialTypeName} onChange={(e) => setEditForm((f) => ({ ...f, materialTypeName: e.target.value }))} />
-          </label>
-          <label className="block">
-            <span className="text-[10px] font-bold text-slate-500 uppercase">Stock form</span>
-            <select
-              className="z-input w-full mt-0.5"
-              value={editForm.stockForm}
-              onChange={(e) => setEditForm((f) => ({ ...f, stockForm: e.target.value }))}
-            >
-              <option value="coil">Coil (gross kg — spool deducted in register)</option>
-              <option value="roll">Roll (net kg — no spool deduction)</option>
-            </select>
-          </label>
-          <label className="block">
-            <span className="text-[10px] font-bold text-slate-500 uppercase">Current on-hand kg</span>
-            <input
-              className="z-input w-full mt-0.5"
-              type="number"
-              min="0"
-              step="0.01"
-              value={editForm.currentKg}
-              onChange={(e) => setEditForm((f) => ({ ...f, currentKg: e.target.value }))}
-            />
-            <p className="mt-1 text-[10px] text-slate-500">Free kg is calculated from this value minus reserved kg.</p>
-          </label>
-          <label className="block">
-            <span className="text-[10px] font-bold text-slate-500 uppercase">Received kg (GRN)</span>
-            <input className="z-input w-full mt-0.5" type="number" min="0" step="0.01" value={editForm.receivedKg} onChange={(e) => {
-              const v = e.target.value;
-              setEditForm((f) => {
-                const next = { ...f, receivedKg: v };
-                const baseRecv = editKgBaseline.receivedKg;
-                const baseCur = editKgBaseline.currentKg;
-                if (
-                  baseRecv != null &&
-                  baseCur != null &&
-                  Math.abs(baseRecv - baseCur) < 0.02 &&
-                  v.trim() !== ''
-                ) {
-                  next.currentKg = v;
-                }
-                return next;
-              });
-            }} />
-            <p className="mt-1 text-[10px] text-slate-500">Correcting GRN kg also updates on-hand when it still matches the old received figure.</p>
-          </label>
-          <button className="z-btn-primary" type="submit" disabled={savingAction}>Save changes</button>
-        </form>
-      </ModalFrame>
+
+      <CoilEditMasterModal
+        isOpen={actionModal === 'edit'}
+        onClose={closeActionModal}
+        coil={coil}
+        reservedKg={reservedKg}
+        onSaved={async () => {
+          await refreshInventory?.();
+          await refreshProductionHolders();
+        }}
+      />
 
       <CoilDamageRecordModal
         isOpen={damageModalOpen}
