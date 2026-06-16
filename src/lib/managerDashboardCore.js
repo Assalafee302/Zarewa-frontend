@@ -26,6 +26,11 @@ export const MANAGER_INBOX_TABS = [
     description: 'Offcut / return incidents awaiting branch manager approval',
   },
   {
+    key: 'procurement',
+    label: 'PO lifecycle',
+    description: 'Purchase orders awaiting approval — review commitment before procurement proceeds',
+  },
+  {
     key: 'credit',
     label: 'Delivery credit',
     description: 'Approve delivery on credit while receivable stays outstanding (MD above branch limits)',
@@ -77,6 +82,7 @@ export function normalizeManagerInboxRoute(rawInbox) {
   if (k === 'edit_approvals' || k === 'edits') return { tab: 'edits', attentionFilter: 'all' };
   if (k === 'governance') return { tab: 'governance', attentionFilter: 'all' };
   if (k === 'material') return { tab: 'material', attentionFilter: 'material' };
+  if (k === 'procurement' || k === 'purchase_orders' || k === 'po') return { tab: 'procurement', attentionFilter: 'all' };
   if (k === 'attendance') return { tab: 'attendance', attentionFilter: 'all' };
   if (MANAGER_INBOX_TABS.some((t) => t.key === k)) return { tab: k, attentionFilter: 'all' };
   return { tab: 'attention', attentionFilter: 'all' };
@@ -133,6 +139,15 @@ export function buildEditApprovalInboxRows(editApprovalPending) {
     ...row,
     _inboxKind: 'edit_approval',
     _rowKey: `edit:${row.id}`,
+  }));
+}
+
+/** @param {object[]} poRows */
+export function buildProcurementInboxRows(poRows) {
+  return (Array.isArray(poRows) ? poRows : []).map((row) => ({
+    ...row,
+    _inboxKind: 'purchase_order',
+    _rowKey: `po:${row.po_id}`,
   }));
 }
 
@@ -273,6 +288,8 @@ export function matchesInboxSearch(query, row, tabKey) {
     );
   } else if (tabKey === 'edit_approvals' || tabKey === 'edits') {
     parts.push(row.id, row.entityKind, row.entityId, row.requestedByDisplay, row.requestedByUserId, row.status);
+  } else if (tabKey === 'procurement') {
+    parts.push(row.po_id, row.supplier_name, row.status);
   } else if (tabKey === 'governance') {
     parts.push(row.id, row.title, row.subtitle, row.quotationRef, row.refundId, row.jobId);
     if (Array.isArray(row.reasons)) parts.push(...row.reasons);

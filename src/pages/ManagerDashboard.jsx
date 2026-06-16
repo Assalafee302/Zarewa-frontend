@@ -13,6 +13,7 @@ import {
   ManagementRemarkDialog,
 } from '../components/branchManager/ManagementRemarkDialog';
 import { useBranchManagerWorkstation } from '../hooks/useBranchManagerWorkstation';
+import { EditApprovalDetailModal } from '../components/branchManager/EditApprovalDetailModal';
 import { userMayViewManagementReportsClient } from '../lib/reportsAccess';
 
 const HEALTH_TAB_MAP = {
@@ -20,6 +21,7 @@ const HEALTH_TAB_MAP = {
   cash: 'cash_out',
   production: 'qc',
   material: 'material',
+  procurement: 'procurement',
   governance: 'governance',
   staff: 'attendance',
 };
@@ -77,7 +79,7 @@ const ManagerDashboard = () => {
         </div>
       ) : null}
 
-      <BranchManagerHealthStrip signals={bm.healthSignals} onSelect={handleHealthSelect} />
+      <BranchManagerHealthStrip signals={bm.healthSignals} onSelect={handleHealthSelect} compact />
 
       {!bm.loading && bm.pendingOrderSignOffCount > 0 ? (
         <div className="rounded-2xl border border-teal-200 bg-teal-50 px-4 py-4 mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -178,6 +180,22 @@ const ManagerDashboard = () => {
           await bm.fetchData();
           await (bm.ws.refresh?.() ?? Promise.resolve());
           bm.closeIntelModal();
+        }}
+        onGovernanceOpenRefund={bm.openGovernanceLinkedRefund}
+        onGovernanceOpenQuotation={bm.openGovernanceLinkedQuotation}
+        onGovernanceOpenProductionQc={bm.openGovernanceLinkedProductionQc}
+        onGovernanceOpenProcurement={bm.openProcurementDesk}
+      />
+
+      <EditApprovalDetailModal
+        isOpen={bm.editApprovalModal.open}
+        editApprovalId={bm.editApprovalModal.id}
+        inboxRow={bm.editApprovalModal.row}
+        canApprove={bm.canApproveEdits}
+        onClose={bm.closeEditApprovalModal}
+        onDecisionComplete={async () => {
+          await bm.fetchData();
+          await (bm.ws.refreshEditApprovalsPending?.() ?? Promise.resolve());
         }}
       />
 

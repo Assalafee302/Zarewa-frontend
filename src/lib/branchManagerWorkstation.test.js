@@ -20,12 +20,13 @@ describe('branchManagerWorkstation', () => {
         cashOutCount: 1,
         qcCount: 0,
         materialCount: 1,
+        procurementCount: 2,
         governanceCount: 1,
         editsCount: 2,
         creditPendingCount: 0,
         stockRegisterCount: 1,
       })
-    ).toBe(8);
+    ).toBe(10);
   });
 
   it('buildManagerTargetSourceMeta includes line text', () => {
@@ -35,8 +36,9 @@ describe('branchManagerWorkstation', () => {
   });
 
   it('buildBranchHealthSignals returns operational areas', () => {
-    const signals = buildBranchHealthSignals({ ordersCount: 3, governanceCount: 1 });
+    const signals = buildBranchHealthSignals({ ordersCount: 3, governanceCount: 1, procurementCount: 2 });
     expect(signals.find((s) => s.key === 'orders')?.tone).toBe('amber');
+    expect(signals.find((s) => s.key === 'procurement')?.count).toBe(2);
     expect(signals.find((s) => s.key === 'governance')?.tone).toBe('red');
   });
 });

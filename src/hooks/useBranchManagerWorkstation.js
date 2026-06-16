@@ -25,6 +25,7 @@ import {
   buildCashOutInboxRows,
   buildEditApprovalInboxRows,
   buildGovernanceInboxRows,
+  buildProcurementInboxRows,
   buildOrdersInboxRows,
   filterAttentionItems,
   formatRefundReasonCategory,
@@ -123,6 +124,7 @@ export function useBranchManagerWorkstation() {
     pendingExpenses: [],
     pendingConversionReviews: [],
     pendingMaterialIncidents: [],
+    pendingPurchaseOrders: [],
   });
   /** @type {[null | { kind: string; quoteId?: string; refundId?: string; requestId?: string; jobId?: string; materialIncidentId?: string; row: object; cuttingListId?: string; fromProductionGate?: boolean; reviewContext?: string }, Function]} */
   const [selectedIntel, setSelectedIntel] = useState(null);
@@ -139,6 +141,7 @@ export function useBranchManagerWorkstation() {
   const [poAuditData, setPoAuditData] = useState(null);
   const [loadingPoAudit, setLoadingPoAudit] = useState(false);
   const [deliveryGateMode, setDeliveryGateMode] = useState('off');
+  const [editApprovalModal, setEditApprovalModal] = useState({ open: false, id: '', row: null });
   const [editApprovalPending, setEditApprovalPending] = useState([]);
   const [conversionSignoffRemark, setConversionSignoffRemark] = useState('');
   const [conversionSignoffEditApprovalId, setConversionSignoffEditApprovalId] = useState('');
@@ -154,6 +157,7 @@ export function useBranchManagerWorkstation() {
   /** @type {['month' | '4months' | 'half' | 'year', Function]} */
   const [metricPeriod, setMetricPeriod] = useState('month');
 
+  const canApproveEdits = userCanApproveEditMutationsClient(ws?.session?.user?.roleKey, ws?.permissions);
   const showExecProdShortcut = useMemo(
     () => canSeeExecutiveProductionEditShortcut(ws?.session?.user?.roleKey, ws?.permissions),
     [ws?.session?.user?.roleKey, ws?.permissions]
@@ -301,7 +305,8 @@ export function useBranchManagerWorkstation() {
     selectedIntel?.kind === 'purchase_order' ||
     selectedIntel?.kind === 'payment' ||
     selectedIntel?.kind === 'conversion' ||
-    selectedIntel?.kind === 'material';
+    selectedIntel?.kind === 'material' ||
+    selectedIntel?.kind === 'governance';
   const intelModalTitle =
     selectedIntel?.kind === 'refund'
       ? 'Refund approval review'
@@ -319,7 +324,9 @@ export function useBranchManagerWorkstation() {
               ? 'Conversion QC sign-off'
               : selectedIntel?.kind === 'material'
                 ? 'Material incident review'
-                : 'Transaction intel';
+                : selectedIntel?.kind === 'governance'
+                  ? 'Governance & risk review'
+                  : 'Transaction intel';
 
   const displayItems = useMemo(() => {
     if (ws?.hasWorkspaceData && ws.snapshot) {
@@ -337,6 +344,10 @@ export function useBranchManagerWorkstation() {
   const editInboxRows = useMemo(
     () => buildEditApprovalInboxRows(editApprovalPending),
     [editApprovalPending]
+  );
+  const procurementInboxRows = useMemo(
+    () => buildProcurementInboxRows(displayItems.pendingPurchaseOrders ?? []),
+    [displayItems.pendingPurchaseOrders]
   );
 
   const unifiedWorkItems = useMemo(
@@ -517,6 +528,10 @@ export function useBranchManagerWorkstation() {
     () => displayItems.pendingMaterialIncidents ?? [],
     [displayItems.pendingMaterialIncidents]
   );
+  const procurementQueue = useMemo(
+    () => displayItems.pendingPurchaseOrders ?? [],
+    [displayItems.pendingPurchaseOrders]
+  );
   const pendingOrderSignOffCount = displayItems.pendingClearance?.length ?? 0;
 
   const displaySnapshots = useMemo(() => {
@@ -592,6 +607,7 @@ export function useBranchManagerWorkstation() {
             pendingExpenses: d.pendingExpenses ?? [],
             pendingConversionReviews: d.pendingConversionReviews ?? [],
             pendingMaterialIncidents: d.pendingMaterialIncidents ?? [],
+            pendingPurchaseOrders: d.pendingPurchaseOrders ?? [],
           });
         } else {
           const msg =
@@ -767,7 +783,7 @@ export function useBranchManagerWorkstation() {
     if (!po || loading) return;
     if (poDeepLinked.current === po) return;
     poDeepLinked.current = po;
-    setActiveTab('attention');
+    setActiveTab('procurement');
     setSelectedIntel({ kind: 'purchase_order', poId: po, row: { poID: po } });
     void fetchPoAudit(po);
   }, [fetchPoAudit, loading, searchParams]);
@@ -823,8 +839,10 @@ export function useBranchManagerWorkstation() {
     if (!eid || loading) return;
     if (editApprovalDeepLinked.current === eid) return;
     editApprovalDeepLinked.current = eid;
+    const row = editApprovalPending.find((r) => String(r.id) === eid) || { id: eid };
+    setEditApprovalModal({ open: true, id: eid, row });
     setActiveTab('edits');
-  }, [loading, searchParams]);
+  }, [editApprovalPending, loading, searchParams]);
 
   useEffect(() => {
     setConversionSignoffRemark('');
@@ -935,6 +953,7 @@ export function useBranchManagerWorkstation() {
       cash_out: cashOutInboxRows.length,
       qc: (displayItems.pendingConversionReviews ?? []).length,
       material: materialIncidentQueue.length,
+      procurement: procurementInboxRows.length,
       governance: governanceInboxRows.length,
       edits: editInboxRows.length,
       attendance: attendancePendingCount,
@@ -950,6 +969,7 @@ export function useBranchManagerWorkstation() {
       materialIncidentQueue.length,
       ordersInboxRows.length,
       pendingCreditCount,
+      procurementInboxRows.length,
     ]
   );
 
@@ -960,6 +980,7 @@ export function useBranchManagerWorkstation() {
         cashOutCount: tabCounts.cash_out,
         qcCount: tabCounts.qc,
         materialCount: tabCounts.material,
+        procurementCount: tabCounts.procurement,
         governanceCount: tabCounts.governance,
         editsCount: tabCounts.edits,
         creditPendingCount: tabCounts.credit,
@@ -975,6 +996,7 @@ export function useBranchManagerWorkstation() {
         cashOutCount: tabCounts.cash_out,
         qcCount: tabCounts.qc,
         materialCount: tabCounts.material,
+        procurementCount: tabCounts.procurement,
         governanceCount: tabCounts.governance,
         editsCount: tabCounts.edits,
         creditPendingCount: tabCounts.credit,
@@ -997,6 +1019,8 @@ export function useBranchManagerWorkstation() {
       list = displayItems.pendingConversionReviews ?? [];
     } else if (activeTab === 'material') {
       list = materialIncidentQueue;
+    } else if (activeTab === 'procurement') {
+      list = procurementInboxRows;
     } else if (activeTab === 'governance') {
       list = governanceInboxRows;
     } else if (activeTab === 'edits') {
@@ -1016,6 +1040,7 @@ export function useBranchManagerWorkstation() {
     inboxSearch,
     materialIncidentQueue,
     ordersInboxRows,
+    procurementInboxRows,
   ]);
 
   const producedSalesProgress =
@@ -1069,6 +1094,41 @@ export function useBranchManagerWorkstation() {
     setActiveTab('material');
   }, []);
 
+  const openPurchaseOrderIntel = useCallback(
+    (row) => {
+      const poId = String(row?.po_id || row?.poID || row?.id || '').trim();
+      if (!poId) return;
+      setAuditData(null);
+      setRefundIntelExtras(null);
+      setSelectedIntel({ kind: 'purchase_order', poId, row: { poID: poId, ...row } });
+      setActiveTab('procurement');
+      void fetchPoAudit(poId);
+    },
+    [fetchPoAudit]
+  );
+
+  const openGovernanceIntel = useCallback((item) => {
+    if (!item) return;
+    setSelectedIntel({
+      kind: 'governance',
+      governanceId: item.id,
+      row: item.row || {},
+      item: { ...item },
+    });
+    setActiveTab('governance');
+  }, []);
+
+  const openEditApprovalIntel = useCallback((row) => {
+    const id = String(row?.id || '').trim();
+    if (!id) return;
+    setEditApprovalModal({ open: true, id, row: row || null });
+    setActiveTab('edits');
+  }, []);
+
+  const closeEditApprovalModal = useCallback(() => {
+    setEditApprovalModal({ open: false, id: '', row: null });
+  }, []);
+
   const openAttentionItem = useCallback(
     (item) => {
       if (!item) return;
@@ -1116,44 +1176,19 @@ export function useBranchManagerWorkstation() {
         return;
       }
       if (kind === 'edit_approvals') {
-        setActiveTab('edits');
+        openEditApprovalIntel(item.row || row);
         return;
       }
       if (kind === 'governance') {
-        const refundId = item.refundId || row.refundId;
-        if (refundId) {
-          setAuditData(null);
-          setRefundIntelExtras(null);
-          setSelectedIntel({
-            kind: 'refund',
-            refundId,
-            row: { refund_id: refundId, quotation_ref: item.quotationRef || row.quotationRef || '', ...row },
-          });
-          setActiveTab('cash_out');
-          return;
-        }
-        const qref = String(item.quotationRef || row.quotationRef || '').trim();
-        if (qref) {
-          openQuotationIntel(
-            qref,
-            { id: qref, customer_name: row.customer_name || item.subtitle || '' },
-            { fromProductionGate: true, cuttingListId: item.cuttingListId || row.cuttingListId || '' }
-          );
-          setActiveTab('orders');
-          return;
-        }
-        setActiveTab('governance');
+        openGovernanceIntel(item);
         return;
       }
       if (item.poId) {
         const po = item.poId;
-        setAuditData(null);
-        setRefundIntelExtras(null);
-        setSelectedIntel({ kind: 'purchase_order', poId: po, row: { poID: po, ...row } });
-        void fetchPoAudit(po);
+        openPurchaseOrderIntel({ po_id: po, ...row });
       }
     },
-    [fetchPoAudit, openMaterialIncidentIntel, openQuotationIntel]
+    [openEditApprovalIntel, openGovernanceIntel, openMaterialIncidentIntel, openPurchaseOrderIntel, openQuotationIntel]
   );
 
   const handleReview = useCallback(
@@ -1486,6 +1521,42 @@ export function useBranchManagerWorkstation() {
     [navigate, selectedIntel?.materialIncidentId]
   );
 
+  const openProcurementDesk = useCallback(() => {
+    navigate('/procurement');
+  }, [navigate]);
+
+  const openGovernanceLinkedRefund = useCallback((refundId) => {
+    const id = String(refundId || '').trim();
+    if (!id) return;
+    setAuditData(null);
+    setRefundIntelExtras(null);
+    setSelectedIntel({
+      kind: 'refund',
+      refundId: id,
+      row: { refund_id: id },
+    });
+    setActiveTab('cash_out');
+  }, []);
+
+  const openGovernanceLinkedQuotation = useCallback(
+    (quotationRef) => {
+      const qref = String(quotationRef || '').trim();
+      if (!qref) return;
+      openQuotationIntel(qref, { id: qref }, { fromProductionGate: true });
+      setActiveTab('orders');
+    },
+    [openQuotationIntel]
+  );
+
+  const openGovernanceLinkedProductionQc = useCallback((jobId) => {
+    const jid = String(jobId || '').trim();
+    if (!jid) return;
+    setAuditData(null);
+    setRefundIntelExtras(null);
+    setSelectedIntel({ kind: 'conversion', jobId: jid, row: { job_id: jid } });
+    setActiveTab('qc');
+  }, []);
+
   const handleApproveEditApproval = useCallback(
     async (editApprovalId) => {
       const id = String(editApprovalId || '').trim();
@@ -1627,6 +1698,8 @@ export function useBranchManagerWorkstation() {
     cashOutInboxRows,
     governanceInboxRows,
     editInboxRows,
+    procurementInboxRows,
+    procurementQueue,
     unifiedWorkItems,
     unifiedBySource,
     openUnifiedWorkItem,
@@ -1655,6 +1728,12 @@ export function useBranchManagerWorkstation() {
     productionMetresProgress,
     openQuotationIntel,
     openMaterialIncidentIntel,
+    openPurchaseOrderIntel,
+    openGovernanceIntel,
+    openEditApprovalIntel,
+    closeEditApprovalModal,
+    editApprovalModal,
+    canApproveEdits,
     openAttentionItem,
     handleReview,
     handleClearAllClearance,
@@ -1667,6 +1746,10 @@ export function useBranchManagerWorkstation() {
     handleProductionOverrideSelectedQuotation,
     closeIntelModal,
     openMaterialIncidentOperations,
+    openGovernanceLinkedRefund,
+    openGovernanceLinkedQuotation,
+    openGovernanceLinkedProductionQc,
+    openProcurementDesk,
     handleApproveEditApproval,
     requestRemark,
     cancelRemarkDialog,

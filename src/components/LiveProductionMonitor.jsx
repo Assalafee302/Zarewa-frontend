@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertTriangle,
   BarChart3,
@@ -51,6 +51,7 @@ import {
   ProductionPaymentGateOverridePanel,
 } from './production/ProductionPhase11B';
 import { ProductionConversionReasonFields } from './operations/ProductionConversionReasonFields';
+import ProductionCoilAllocationRow from './operations/ProductionCoilAllocationRow';
 import {
   conversionVarianceReasonLabel,
   findConversionReasonOption,
@@ -59,6 +60,7 @@ import { liveJobMaterialPresentation, resolveLiveJobMaterialKind } from '../lib/
 
 /** Matches server: closing below this (kg) may use “Finish roll” on completion to clear the tail from stock. */
 const COIL_TAIL_FINISH_MAX_KG = 85;
+const EMPTY_COIL_SET = new Set();
 
 const PROD_ACCESSORY_DRAFT_STORAGE_PREFIX = 'zarewa.prodAccessoryDraft.v1:';
 
@@ -362,6 +364,7 @@ export function LiveProductionMonitor({
   const { show: showToast } = useToast();
   const [selectedJobId, setSelectedJobId] = useState('');
   const [draftAllocations, setDraftAllocations] = useState([createDraftLine()]);
+  const deferredDraftAllocations = useDeferredValue(draftAllocations);
   const [savingAction, setSavingAction] = useState('');
   const [signoffRemark, setSignoffRemark] = useState('');
   const [signoffEditApprovalId, setSignoffEditApprovalId] = useState('');
@@ -768,6 +771,39 @@ export function LiveProductionMonitor({
     () => availableCoils.filter((c) => !recommendedCoilNoSet.has(c.coilNo)),
     [availableCoils, recommendedCoilNoSet]
   );
+
+  const coilPickerOptions = useMemo(() => {
+    const mk = (coils, group) =>
+      coils.map((coil) => {
+        const addBack = savedOpeningKgByCoil.get(coil.coilNo) ?? 0;
+        const optFree = coilFreeKgForJob(coil, addBack);
+        return {
+          coilNo: coil.coilNo,
+          label: coilPickerOptionText(coil, optFree, plannedMetersValue),
+          group,
+        };
+      });
+    return [...mk(recommendedCoils, 'recommended'), ...mk(otherCoilsForSelect, 'other')];
+  }, [recommendedCoils, otherCoilsForSelect, savedOpeningKgByCoil, plannedMetersValue]);
+
+  const coilAssignmentKey = useMemo(
+    () => draftAllocations.map((r) => `${r.id}:${String(r.coilNo ?? '').trim()}`).join('|'),
+    [draftAllocations]
+  );
+
+  const coilsSelectedByRowId = useMemo(() => {
+    const byId = new Map();
+    for (const row of draftAllocations) {
+      const others = new Set(
+        draftAllocations
+          .filter((r) => r.id !== row.id)
+          .map((r) => String(r.coilNo ?? '').trim())
+          .filter(Boolean)
+      );
+      byId.set(row.id, others);
+    }
+    return byId;
+  }, [coilAssignmentKey, draftAllocations]);
 
   const reservedKg = useMemo(
     () =>
@@ -1317,7 +1353,7 @@ export function LiveProductionMonitor({
         offcutSupply: offcutSupplySelections,
       });
     }
-    const previewLines = draftAllocations
+    const previewLines = deferredDraftAllocations
       .filter((row) => draftRowConversionPreviewReady(row))
       .map((row) => completionLineFromDraft(row));
     return JSON.stringify({
@@ -1330,7 +1366,7 @@ export function LiveProductionMonitor({
     accessoriesSuppliedForApi,
     stoneFlatsheetSuppliedForApi,
     canRunConversionPreview,
-    draftAllocations,
+    deferredDraftAllocations,
     isAccessoriesOnlyQuote,
     isStoneMeterQuote,
     offcutInventoryMetersNum,
@@ -1354,11 +1390,11 @@ export function LiveProductionMonitor({
       setConversionPreviewLoading(false);
       return;
     }
-    setConversionPreviewLoading(true);
     setConversionPreviewError('');
     const seq = ++conversionPreviewSeqRef.current;
     conversionPreviewTimerRef.current = window.setTimeout(() => {
       conversionPreviewTimerRef.current = null;
+      setConversionPreviewLoading(true);
       void (async () => {
         const parsed = JSON.parse(conversionPreviewKey);
         const previewPath = `/api/production-jobs/${encodeURIComponent(parsed.job)}/conversion-preview`;
@@ -1397,7 +1433,7 @@ export function LiveProductionMonitor({
         setConversionPreview(data);
         setConversionPreviewError('');
       })();
-    }, 450);
+    }, 750);
     return () => {
       if (conversionPreviewTimerRef.current) {
         clearTimeout(conversionPreviewTimerRef.current);
@@ -1796,73 +1832,81 @@ export function LiveProductionMonitor({
     }
   };
 
-  const updateDraftRow = (id, patch) => {
-    setDraftAllocations((prev) => {
-      if (Object.prototype.hasOwnProperty.call(patch, 'coilNo')) {
-        const newCoil = String(patch.coilNo ?? '').trim();
-        if (newCoil && prev.some((r) => r.id !== id && String(r.coilNo ?? '').trim() === newCoil)) {
-          queueMicrotask(() =>
-            showToast('That coil is already selected on another line. Pick a different coil.', { variant: 'error' })
-          );
-          return prev;
-        }
-      }
-      return prev.map((row) => {
-        if (row.id !== id) return row;
-        const next = { ...row, ...patch };
-        if (Object.prototype.hasOwnProperty.call(patch, 'closingWeightKg')) {
-          const cl = Number(next.closingWeightKg);
-          if (Number.isFinite(cl)) next.closingWeightKg = Math.round(cl);
-          if (!Number.isFinite(cl) || cl < 0 || cl >= COIL_TAIL_FINISH_MAX_KG) {
-            next.finishCoil = false;
+  const updateDraftRow = useCallback(
+    (id, patch) => {
+      setDraftAllocations((prev) => {
+        if (Object.prototype.hasOwnProperty.call(patch, 'coilNo')) {
+          const newCoil = String(patch.coilNo ?? '').trim();
+          if (newCoil && prev.some((r) => r.id !== id && String(r.coilNo ?? '').trim() === newCoil)) {
+            queueMicrotask(() =>
+              showToast('That coil is already selected on another line. Pick a different coil.', { variant: 'error' })
+            );
+            return prev;
           }
         }
-        if (Object.prototype.hasOwnProperty.call(patch, 'openingWeightKg')) {
-          const op = Number(String(next.openingWeightKg ?? '').replace(/,/g, ''));
-          if (Number.isFinite(op)) next.openingWeightKg = Math.round(op);
-        }
-        if (
-          Object.prototype.hasOwnProperty.call(patch, 'coilNo') &&
-          !Object.prototype.hasOwnProperty.call(patch, 'openingWeightKg')
-        ) {
-          const newCoil = String(patch.coilNo ?? '').trim();
-          if (newCoil) {
-            const lot = coilByNo[newCoil];
-            if (lot) {
-              const addBack = savedOpeningKgByCoil.get(newCoil) ?? 0;
-              const draftUsedElsewhere = prev.reduce((sum, r) => {
-                if (r.id === id) return sum;
-                if (String(r.coilNo ?? '').trim() !== newCoil) return sum;
-                const op = Number(String(r.openingWeightKg ?? '').replace(/,/g, ''));
-                return sum + (Number.isFinite(op) && op > 0 ? op : 0);
-              }, 0);
-              const freeKg = Math.max(0, coilFreeKgForJob(lot, addBack) - draftUsedElsewhere);
-              const suggested = suggestedOpeningKgFromFree(freeKg);
-              if (suggested) next.openingWeightKg = suggested;
+        return prev.map((row) => {
+          if (row.id !== id) return row;
+          const next = { ...row, ...patch };
+          if (Object.prototype.hasOwnProperty.call(patch, 'closingWeightKg')) {
+            const cl = Number(next.closingWeightKg);
+            if (Number.isFinite(cl)) next.closingWeightKg = Math.round(cl);
+            if (!Number.isFinite(cl) || cl < 0 || cl >= COIL_TAIL_FINISH_MAX_KG) {
+              next.finishCoil = false;
             }
           }
-        }
-        return next;
+          if (Object.prototype.hasOwnProperty.call(patch, 'openingWeightKg')) {
+            const op = Number(String(next.openingWeightKg ?? '').replace(/,/g, ''));
+            if (Number.isFinite(op)) next.openingWeightKg = Math.round(op);
+          }
+          if (
+            Object.prototype.hasOwnProperty.call(patch, 'coilNo') &&
+            !Object.prototype.hasOwnProperty.call(patch, 'openingWeightKg')
+          ) {
+            const newCoil = String(patch.coilNo ?? '').trim();
+            if (newCoil) {
+              const lot = coilByNo[newCoil];
+              if (lot) {
+                const addBack = savedOpeningKgByCoil.get(newCoil) ?? 0;
+                const draftUsedElsewhere = prev.reduce((sum, r) => {
+                  if (r.id === id) return sum;
+                  if (String(r.coilNo ?? '').trim() !== newCoil) return sum;
+                  const op = Number(String(r.openingWeightKg ?? '').replace(/,/g, ''));
+                  return sum + (Number.isFinite(op) && op > 0 ? op : 0);
+                }, 0);
+                const freeKg = Math.max(0, coilFreeKgForJob(lot, addBack) - draftUsedElsewhere);
+                const suggested = suggestedOpeningKgFromFree(freeKg);
+                if (suggested) next.openingWeightKg = suggested;
+              }
+            }
+          }
+          return next;
+        });
       });
-    });
-  };
+    },
+    [coilByNo, savedOpeningKgByCoil, showToast]
+  );
 
   const addDraftRow = () => {
     if (!canAppendCoilRow) return;
     setDraftAllocations((prev) => [...prev, createDraftLine()]);
   };
 
-  const removeDraftRow = (id) => {
-    const row = draftAllocations.find((r) => r.id === id);
-    if (!row) return;
-    if (canEditPlannedAllocations) {
-      setDraftAllocations((prev) => (prev.length <= 1 ? [createDraftLine()] : prev.filter((r) => r.id !== id)));
-      return;
-    }
-    if ((canAddSupplementalCoil || canEditCompletedCoilCorrections) && isDraftAllocationRow(row)) {
-      setDraftAllocations((prev) => (prev.length <= 1 ? [createDraftLine()] : prev.filter((r) => r.id !== id)));
-    }
-  };
+  const removeDraftRow = useCallback(
+    (id) => {
+      setDraftAllocations((prev) => {
+        const row = prev.find((r) => r.id === id);
+        if (!row) return prev;
+        if (canEditPlannedAllocations) {
+          return prev.length <= 1 ? [createDraftLine()] : prev.filter((r) => r.id !== id);
+        }
+        if ((canAddSupplementalCoil || canEditCompletedCoilCorrections) && isDraftAllocationRow(row)) {
+          return prev.length <= 1 ? [createDraftLine()] : prev.filter((r) => r.id !== id);
+        }
+        return prev;
+      });
+    },
+    [canEditPlannedAllocations, canAddSupplementalCoil, canEditCompletedCoilCorrections]
+  );
 
   const buildCompleteBody = () => {
     const productionDate = productionDateIso || new Date().toISOString().slice(0, 10);

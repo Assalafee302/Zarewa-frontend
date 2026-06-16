@@ -11,6 +11,7 @@ import {
   RefreshCw,
   Search,
   ShieldCheck,
+  ShoppingCart,
   Sparkles,
   Users,
 } from 'lucide-react';
@@ -57,6 +58,9 @@ export function BranchManagerCommandInbox(props) {
     openQuotationIntel,
     openAttentionItem,
     openMaterialIncidentIntel,
+    openPurchaseOrderIntel,
+    openGovernanceIntel,
+    openEditApprovalIntel,
     handleApproveEditApproval,
     formatPersonName,
     formatRefundReasonCategory,
@@ -89,9 +93,9 @@ export function BranchManagerCommandInbox(props) {
           <button
             type="button"
             className="shrink-0 rounded-lg bg-[#134e4a] px-3 py-1.5 text-[10px] font-black uppercase text-white hover:brightness-105"
-            onClick={() => void handleApproveEditApproval?.(e.id)}
+            onClick={() => openEditApprovalIntel?.(e)}
           >
-            Approve
+            Review
           </button>
         </div>
       );
@@ -335,12 +339,43 @@ export function BranchManagerCommandInbox(props) {
       );
     }
 
+    if (activeTab === 'procurement') {
+      return (
+        <button
+          key={row._rowKey || row.po_id}
+          type="button"
+          onClick={() => openPurchaseOrderIntel?.(row)}
+          className={`${inboxRowBase} hover:bg-indigo-50/50 focus-visible:ring-indigo-300/40 ${
+            selectedIntel?.kind === 'purchase_order' && selectedIntel.poId === row.po_id ? 'bg-indigo-50/80' : ''
+          }`}
+        >
+          <span className="shrink-0 rounded-md bg-indigo-100 px-1.5 py-0.5 text-[8px] font-black uppercase text-indigo-900">
+            PO
+          </span>
+          <span className="shrink-0 text-xs font-mono font-bold text-[#134e4a]">{row.po_id}</span>
+          <span className="min-w-0 flex-1 truncate text-[11px] font-semibold text-slate-700">
+            {row.supplier_name || 'Supplier pending'}
+            {row.line_count != null ? (
+              <>
+                {' · '}
+                <span className="text-slate-500">{row.line_count} line{row.line_count === 1 ? '' : 's'}</span>
+              </>
+            ) : null}
+          </span>
+          <span className="shrink-0 text-[10px] font-bold text-indigo-800 tabular-nums whitespace-nowrap">
+            {asMoney(row.total_ngn)}
+          </span>
+          <ChevronRight size={14} className="shrink-0 text-slate-300 group-hover:text-indigo-700" />
+        </button>
+      );
+    }
+
     if (activeTab === 'governance') {
       return (
         <button
           key={row._rowKey || row.id}
           type="button"
-          onClick={() => openAttentionItem?.(row)}
+          onClick={() => openGovernanceIntel?.(row)}
           className={`${inboxRowBase} hover:bg-rose-50/50 focus-visible:ring-rose-300/40`}
         >
           <span className="shrink-0 rounded-md bg-rose-100 px-1.5 py-0.5 text-[8px] font-black uppercase text-rose-900">
@@ -375,10 +410,10 @@ export function BranchManagerCommandInbox(props) {
           </span>
           <button
             type="button"
-            onClick={() => void handleApproveEditApproval?.(e.id)}
+            onClick={() => openEditApprovalIntel?.(e)}
             className="shrink-0 rounded-lg bg-[#134e4a] px-3 py-1.5 text-[10px] font-black uppercase text-white hover:brightness-105"
           >
-            Approve
+            Review
           </button>
         </div>
       );
@@ -389,7 +424,7 @@ export function BranchManagerCommandInbox(props) {
 
   return (
     <Card className="overflow-hidden border-slate-200/90 shadow-sm">
-      <div className="p-4 border-b border-slate-100 bg-slate-50/80">
+      <div className="sticky top-0 z-20 p-4 border-b border-slate-100 bg-slate-50/95 backdrop-blur-sm">
         <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
           <div>
             <h2 className="text-sm font-black text-[#134e4a] tracking-tight flex items-center gap-2">
@@ -507,6 +542,8 @@ export function BranchManagerCommandInbox(props) {
               <BarChart3 size={36} className="opacity-25 mb-3 text-violet-600" />
             ) : activeTab === 'material' ? (
               <ClipboardList size={36} className="opacity-25 mb-3 text-teal-600" />
+            ) : activeTab === 'procurement' ? (
+              <ShoppingCart size={36} className="opacity-25 mb-3 text-indigo-600" />
             ) : activeTab === 'governance' ? (
               <AlertTriangle size={36} className="opacity-25 mb-3 text-rose-600" />
             ) : activeTab === 'edits' ? (

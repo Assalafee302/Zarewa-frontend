@@ -15,6 +15,7 @@ import { OfficialRecordBanner } from '../management/OfficialRecordBanner';
 import { ZareApprovalHint } from '../ZareApprovalHint';
 import { EditSecondApprovalInline } from '../EditSecondApprovalInline';
 import MaterialIncidentDetailModal from '../material/MaterialIncidentDetailModal';
+import { GovernanceDetailPanel } from './GovernanceDetailPanel';
 
 export function ManagementDecisionModal({
   selectedIntel,
@@ -57,6 +58,10 @@ export function ManagementDecisionModal({
   loadingPoAudit,
   navigate,
   onMaterialDecisionSuccess,
+  onGovernanceOpenRefund,
+  onGovernanceOpenQuotation,
+  onGovernanceOpenProductionQc,
+  onGovernanceOpenProcurement,
 }) {
   const { show: showToast } = useToast();
   const [materialDecisionRemark, setMaterialDecisionRemark] = useState('');
@@ -192,7 +197,17 @@ export function ManagementDecisionModal({
               isLight ? 'bg-slate-100 space-y-3 text-slate-800' : 'space-y-5 text-white'
             }`}
           >
-            {selectedIntel?.kind === 'quotation' ? (
+            {selectedIntel?.kind === 'governance' ? (
+              <GovernanceDetailPanel
+                item={selectedIntel.item || selectedIntel}
+                formatNgn={asMoney}
+                onClose={closeIntelModal}
+                onOpenRefund={onGovernanceOpenRefund}
+                onOpenQuotation={onGovernanceOpenQuotation}
+                onOpenProductionQc={onGovernanceOpenProductionQc}
+                onOpenProcurement={onGovernanceOpenProcurement}
+              />
+            ) : selectedIntel?.kind === 'quotation' ? (
               <>
                 <OfficialRecordBanner
                   item={selectedUnifiedWorkItem}

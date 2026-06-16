@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   buildCashOutInboxRows,
   buildOrdersInboxRows,
+  buildProcurementInboxRows,
   filterAttentionItems,
   flattenQuotationLineItems,
   formatRefundReasonCategory,
@@ -59,6 +60,9 @@ describe('managerDashboardCore', () => {
       pendingExpenses: [{ request_id: 'P1' }],
     });
     expect(cash).toHaveLength(2);
+    const pos = buildProcurementInboxRows([{ po_id: 'PO-1', supplier_name: 'Steel Co' }]);
+    expect(pos).toHaveLength(1);
+    expect(pos[0]._inboxKind).toBe('purchase_order');
   });
 
   it('normalizes legacy inbox routes', () => {
@@ -67,6 +71,7 @@ describe('managerDashboardCore', () => {
     expect(normalizeManagerInboxRoute('flagged')).toEqual({ tab: 'attention', attentionFilter: 'flagged' });
     expect(normalizeManagerInboxRoute('material')).toEqual({ tab: 'material', attentionFilter: 'material' });
     expect(normalizeManagerInboxRoute('governance')).toEqual({ tab: 'governance', attentionFilter: 'all' });
+    expect(normalizeManagerInboxRoute('procurement')).toEqual({ tab: 'procurement', attentionFilter: 'all' });
     expect(normalizeManagerInboxRoute('edits')).toEqual({ tab: 'edits', attentionFilter: 'all' });
   });
 

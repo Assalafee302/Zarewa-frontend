@@ -25,6 +25,7 @@ export function computeBranchOpenActionCount({
   materialCount = 0,
   governanceCount = 0,
   editsCount = 0,
+  procurementCount = 0,
   creditPendingCount = 0,
   stockRegisterCount = 0,
 } = {}) {
@@ -35,6 +36,7 @@ export function computeBranchOpenActionCount({
     materialCount +
     governanceCount +
     editsCount +
+    procurementCount +
     creditPendingCount +
     stockRegisterCount
   );
@@ -53,6 +55,7 @@ export function buildBranchHealthSignals({
   editsCount = 0,
   creditPendingCount = 0,
   stockRegisterCount = 0,
+  procurementCount = 0,
   lowStockCount = 0,
   attendancePendingCount = 0,
 } = {}) {
@@ -63,6 +66,13 @@ export function buildBranchHealthSignals({
       tone: healthToneFromCount(ordersCount),
       count: ordersCount,
       hint: 'Sign-off, flags, production gate',
+    },
+    {
+      key: 'procurement',
+      label: 'POs',
+      tone: healthToneFromCount(procurementCount),
+      count: procurementCount,
+      hint: 'Purchase orders awaiting approval',
     },
     {
       key: 'cash',

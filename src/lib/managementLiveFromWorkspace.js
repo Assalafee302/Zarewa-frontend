@@ -10,6 +10,7 @@ import {
   quotationIsFlaggedForAudit,
   quotationNeedsManagerClearance,
 } from './managementQueueFilters.js';
+import { purchaseOrderIsPendingApproval, purchaseOrderLineTotalNgn } from './procurementStatus.js';
 import { productionAttributedRevenueNgn, productionOutputDateISO } from './liveAnalytics.js';
 
 /** @typedef {'month' | '4months' | 'half' | 'year'} ManagerMetricPeriodKey */
@@ -57,6 +58,7 @@ export function buildManagementQueuesFromSnapshot(snapshot) {
   const paymentRequests = Array.isArray(snapshot?.paymentRequests) ? snapshot.paymentRequests : [];
   const productionJobs = Array.isArray(snapshot?.productionJobs) ? snapshot.productionJobs : [];
   const materialIncidents = Array.isArray(snapshot?.materialIncidents) ? snapshot.materialIncidents : [];
+  const purchaseOrders = Array.isArray(snapshot?.purchaseOrders) ? snapshot.purchaseOrders : [];
 
   const quoteById = new Map(quotations.map((q) => [q.id, q]));
 
@@ -171,6 +173,19 @@ export function buildManagementQueuesFromSnapshot(snapshot) {
     }))
     .sort((a, b) => String(b.date_iso || '').localeCompare(String(a.date_iso || '')));
 
+  const pendingPurchaseOrders = purchaseOrders
+    .filter((po) => purchaseOrderIsPendingApproval(po))
+    .map((po) => ({
+      po_id: po.poID,
+      supplier_name: po.supplierName || '',
+      order_date_iso: po.orderDateISO || '',
+      status: po.status,
+      total_ngn: purchaseOrderLineTotalNgn(po),
+      branch_id: po.branchId || '',
+      line_count: Array.isArray(po.lines) ? po.lines.length : 0,
+    }))
+    .sort((a, b) => String(b.order_date_iso || '').localeCompare(String(a.order_date_iso || '')));
+
   return {
     pendingClearance,
     flagged,
@@ -179,6 +194,7 @@ export function buildManagementQueuesFromSnapshot(snapshot) {
     pendingExpenses,
     pendingConversionReviews,
     pendingMaterialIncidents,
+    pendingPurchaseOrders,
   };
 }
 
