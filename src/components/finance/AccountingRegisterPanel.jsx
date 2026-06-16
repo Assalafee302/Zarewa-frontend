@@ -117,7 +117,7 @@ export function AccountingRegisterPanel({
       title: config.title,
       branchScopeLabel: branchScopeLabel || data.branchScope || 'Company-wide',
     });
-    if (!ok) showToast('Allow pop-ups to print the register.', { variant: 'error' });
+    if (!ok) showToast('Could not open print preview.', { variant: 'error' });
   }, [data, registerSide, config.title, branchScopeLabel, showToast]);
 
   const handleClearLegacy = useCallback(
@@ -156,10 +156,11 @@ export function AccountingRegisterPanel({
   }, [currentSection, registerSide, showToast]);
 
   const emptyHint = config.emptySectionHints[currentSection?.id] || 'No lines in this section.';
+  const canAddLegacy = canManage && Boolean(branchId);
 
   const headerActions = (
     <>
-      {canManage && legacyQuickAdd ? (
+      {canAddLegacy && legacyQuickAdd ? (
         <button
           type="button"
           onClick={() => openLegacyModal(legacyQuickAdd)}
@@ -168,7 +169,7 @@ export function AccountingRegisterPanel({
           <Plus size={12} /> Record overpayment
         </button>
       ) : null}
-      {canManage ? (
+      {canAddLegacy ? (
         <button
           type="button"
           onClick={() => openLegacyModal(null)}
@@ -234,6 +235,13 @@ export function AccountingRegisterPanel({
         <AccountingDeskNotice tone="warn">
           {data.summary.unlinkedLegacyCount} inherited line(s) are not linked to a customer, supplier, employee, or
           branch master record. Edit each flagged row and pick the correct party from the list.
+        </AccountingDeskNotice>
+      ) : null}
+
+      {canManage && !branchId ? (
+        <AccountingDeskNotice tone="info">
+          Select a single branch in the workspace bar to add or edit inherited register lines. Company-wide view is
+          read-only.
         </AccountingDeskNotice>
       ) : null}
 

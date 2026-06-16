@@ -67,6 +67,8 @@ export function AccountingAssetsPanel({
   const { show: showToast } = useToast();
   const branches = ws?.snapshot?.workspaceBranches ?? ws?.session?.branches ?? [];
   const { data, loading, error, reload } = useAccountingAssets({ branchId, enabled });
+  const workspaceLockedBranch = branchId && branchId !== 'ALL' ? String(branchId).trim() : '';
+  const canAddAsset = canManage && Boolean(workspaceLockedBranch);
   const mutations = useAccountingRegisterMutations({ onDone: reload });
 
   const [filter, setFilter] = useState('all');
@@ -136,7 +138,7 @@ export function AccountingAssetsPanel({
       branchScopeLabel: branchScopeLabel || branchId || 'Company-wide',
       categoryLabel: CATEGORY_OPTIONS.find((o) => o.id === filter)?.label,
     });
-    if (!ok) showToast('Allow pop-ups to print the register.', { variant: 'error' });
+    if (!ok) showToast('Could not open print preview.', { variant: 'error' });
   };
 
   const handleDispose = async (asset, disposalDateIso) => {
@@ -172,7 +174,7 @@ export function AccountingAssetsPanel({
     const result = await mutations.createAsset({
       name: form.name.trim(),
       category: form.category,
-      branchId: form.branchId,
+      branchId: workspaceLockedBranch || form.branchId,
       acquisitionDateIso: form.acquisitionDateIso,
       costNgn: Math.round(Number(form.costNgn) || 0),
       salvageNgn: Math.round(Number(form.salvageNgn) || 0),
@@ -205,7 +207,7 @@ export function AccountingAssetsPanel({
         compact
         actions={
           <>
-            {canManage ? (
+            {canAddAsset ? (
               <button
                 type="button"
                 onClick={() => setModalOpen(true)}
@@ -321,7 +323,7 @@ export function AccountingAssetsPanel({
         )}
       </SalesListTableFrame>
 
-      {modalOpen && canManage ? (
+      {modalOpen && canAddAsset ? (
         <ModalFrame isOpen onClose={() => setModalOpen(false)} title="Add fixed asset" surface="plain">
           <div className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white shadow-xl overflow-hidden">
             <div className="h-1 bg-[#134e4a]" />
@@ -343,11 +345,19 @@ export function AccountingAssetsPanel({
                   {branches.length ? (
                     <label className="block text-[10px] font-bold uppercase tracking-wide text-slate-500">
                       Branch
-                      <select className={INPUT} value={form.branchId} onChange={(e) => setForm((f) => ({ ...f, branchId: e.target.value }))}>
-                        {branches.map((b) => (
-                          <option key={b.id || b.branchId} value={b.id || b.branchId}>{b.name || b.label || b.id}</option>
-                        ))}
-                      </select>
+                      {workspaceLockedBranch ? (
+                        <input
+                          className={`${INPUT} bg-slate-50 text-slate-600`}
+                          value={branchName(branches, workspaceLockedBranch)}
+                          readOnly
+                        />
+                      ) : (
+                        <select className={INPUT} value={form.branchId} onChange={(e) => setForm((f) => ({ ...f, branchId: e.target.value }))}>
+                          {branches.map((b) => (
+                            <option key={b.id || b.branchId} value={b.id || b.branchId}>{b.name || b.label || b.id}</option>
+                          ))}
+                        </select>
+                      )}
                     </label>
                   ) : null}
                   <label className="block text-[10px] font-bold uppercase tracking-wide text-slate-500">

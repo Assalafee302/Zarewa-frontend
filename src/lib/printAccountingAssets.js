@@ -1,4 +1,5 @@
 import { formatNgn } from '../Data/mockData';
+import { openPrintHtmlDocument } from './officeDeskPrint';
 
 function escapeHtml(s) {
   return String(s)
@@ -55,11 +56,5 @@ export function printAccountingAssets({ assets, summary, branchScopeLabel, categ
   </table>
 </body></html>`;
 
-  const w = window.open('', '_blank', 'noopener,noreferrer,width=960,height=720');
-  if (!w) return false;
-  w.document.write(html);
-  w.document.close();
-  w.focus();
-  w.onload = () => w.print();
-  return true;
+  return openPrintHtmlDocument(html, 'Fixed assets register');
 }

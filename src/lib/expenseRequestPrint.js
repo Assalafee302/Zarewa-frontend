@@ -1,3 +1,5 @@
+import { openPrintHtmlDocument } from './officeDeskPrint';
+
 /**
  * Opens a print-friendly expense / payment request record (filing copy).
  * @param {object} doc
@@ -28,10 +30,7 @@ export function printExpenseRequestRecord(doc, formatNgn) {
         .join('')
     : `<tr><td colspan="4" class="muted">No line-item breakdown stored for this request.</td></tr>`;
 
-  const w = window.open('', '_blank');
-  if (!w) return false;
-
-  w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"/><title>Expense request ${escapeHtml(requestID)}</title>
+  const html = `<!DOCTYPE html><html><head><meta charset="utf-8"/><title>Expense request ${escapeHtml(requestID)}</title>
 <style>
   body{font-family:system-ui,-apple-system,sans-serif;padding:28px;color:#111;max-width:800px;margin:0 auto;}
   h1{font-size:20px;margin:0 0 4px;}
@@ -57,11 +56,9 @@ export function printExpenseRequestRecord(doc, formatNgn) {
   <p class="muted" style="font-size:11px;margin-top:20px;">
     ${attachmentPresent ? `Attachment on file: ${escapeHtml(attachmentName || 'invoice / receipt')}` : 'No attachment on file.'}
   </p>
-</body></html>`);
-  w.document.close();
-  w.focus();
-  w.print();
-  return true;
+</body></html>`;
+
+  return openPrintHtmlDocument(html, `Expense request ${requestID}`);
 }
 
 function escapeHtml(s) {

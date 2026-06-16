@@ -57,6 +57,7 @@ import {
   receiptLedgerReceiptTreasurySplits,
 } from '../lib/salesReceiptsList';
 import { printExpenseRequestRecord } from '../lib/expenseRequestPrint';
+import { openPrintHtmlDocument } from '../lib/officeDeskPrint';
 import { ExpenseRequestFormFields } from '../components/office/ExpenseRequestFormFields.jsx';
 import { buildPaymentRequestBodyFromForm, initialExpenseRequestFormState } from '../lib/expenseRequestFormCore.js';
 import { EXPENSE_CATEGORY_OPTIONS } from '../shared/expenseCategories.js';
@@ -135,7 +136,6 @@ const Account = () => {
   const [showTransferModal, setShowTransferModal] = useState(false);
   const [editingTransferBatchId, setEditingTransferBatchId] = useState('');
   const [deletingTransferBatchId, setDeletingTransferBatchId] = useState('');
-  const [showInterBranchModal, setShowInterBranchModal] = useState(false);
   const [showRefundPayModal, setShowRefundPayModal] = useState(false);
   const [statementAccount, setStatementAccount] = useState(null);
   const [showStatementPrintModal, setShowStatementPrintModal] = useState(false);
@@ -530,7 +530,6 @@ const Account = () => {
     showExpenseModal ||
     showPayRequestModal ||
     showTransferModal ||
-    showInterBranchModal ||
     showRefundPayModal ||
     statementAccount != null ||
     receiptFinanceRow != null;
@@ -661,15 +660,10 @@ const Account = () => {
         </tr>`;
       })
       .join('');
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) {
-      showToast('Pop-up blocked. Allow pop-ups to print statements.', { type: 'warning' });
-      return;
-    }
     const accountTitle = `${statementAccount.name || 'Treasury account'}${
       statementAccount.bankName ? ` · ${statementAccount.bankName}` : ''
     }`;
-    printWindow.document.write(`<!doctype html>
+    const html = `<!doctype html>
 <html>
 <head>
   <meta charset="utf-8" />
@@ -713,22 +707,21 @@ const Account = () => {
     <tbody>${rowsHtml}</tbody>
   </table>
 </body>
-</html>`);
-    printWindow.document.close();
-    printWindow.focus();
+</html>`;
     if (autoPrint) {
-      // Wait for the new document to render before invoking print preview,
-      // otherwise some browsers may open a blank print dialog.
-      const triggerPrint = () => {
-        try {
-          printWindow.focus();
-          printWindow.print();
-        } catch {
-          // Keep the statement tab open so users can still print manually.
-        }
-      };
-      printWindow.onload = triggerPrint;
-      setTimeout(triggerPrint, 350);
+      if (!openPrintHtmlDocument(html, `Statement - ${accountTitle}`)) {
+        showToast('Could not open print preview.', { type: 'warning' });
+        return;
+      }
+    } else {
+      const previewWindow = window.open('', '_blank');
+      if (!previewWindow) {
+        showToast('Pop-up blocked. Allow pop-ups to open the statement preview.', { type: 'warning' });
+        return;
+      }
+      previewWindow.document.write(html);
+      previewWindow.document.close();
+      previewWindow.focus();
     }
     setShowStatementPrintModal(false);
   }, [

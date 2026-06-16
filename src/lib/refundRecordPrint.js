@@ -1,4 +1,5 @@
 import { formatPersonName } from './formatPersonName.js';
+import { openPrintHtmlDocument } from './officeDeskPrint.js';
 
 /**
  * Print-friendly refund request / record (filing copy).
@@ -61,10 +62,7 @@ export function printRefundRecord(record, formatNgn) {
           .join('')
       : '';
 
-  const w = window.open('', '_blank');
-  if (!w) return false;
-
-  w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"/><title>Refund ${escapeHtml(refundID)}</title>
+  const html = `<!DOCTYPE html><html><head><meta charset="utf-8"/><title>Refund ${escapeHtml(refundID)}</title>
 <style>
   body{font-family:system-ui,-apple-system,sans-serif;padding:28px;color:#111;max-width:800px;margin:0 auto;}
   h1{font-size:20px;margin:0 0 4px;}
@@ -103,11 +101,9 @@ export function printRefundRecord(record, formatNgn) {
       ? `<h2 style="font-size:14px;margin-top:20px;">Treasury payouts</h2><table><thead><tr><th>Posted</th><th class="right">Amount</th><th>Reference / account</th></tr></thead><tbody>${payoutRows}</tbody></table>`
       : ''
   }
-</body></html>`);
-  w.document.close();
-  w.focus();
-  w.print();
-  return true;
+</body></html>`;
+
+  return openPrintHtmlDocument(html, `Refund ${refundID}`);
 }
 
 function escapeHtml(s) {

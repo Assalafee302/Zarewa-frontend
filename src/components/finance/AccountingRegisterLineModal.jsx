@@ -66,8 +66,10 @@ export function AccountingRegisterLineModal({
   }, [ws?.snapshot?.suppliers]);
 
   const seed = editLine || initialValues || {};
+  const workspaceLockedBranch =
+    branchId && branchId !== 'ALL' ? String(branchId).trim() : '';
   const defaultBranch =
-    seed.branchId || (branchId && branchId !== 'ALL' ? branchId : branches[0]?.id || '');
+    seed.branchId || workspaceLockedBranch || branches[0]?.id || '';
 
   const isEdit = Boolean(editLine?.id);
   const sideNoun = registerSide === 'creditor' ? 'receivable' : 'payable';
@@ -333,28 +335,34 @@ export function AccountingRegisterLineModal({
                 {branches.length ? (
                   <label className={`block text-[10px] font-bold uppercase tracking-wide text-slate-500 ${!partyKind ? '' : 'sm:col-span-2'}`}>
                     {partyKind === 'branch' ? 'This branch *' : 'Branch'}
-                    <select
-                      className={INPUT}
-                      value={selectedBranch}
-                      onChange={(e) => {
-                        const next = e.target.value;
-                        setSelectedBranch(next);
-                        if (partyKind === 'branch' && partyRef === next) {
-                          setPartyRef('');
-                          setPartyName('');
-                        }
-                      }}
-                      required={partyKind === 'branch'}
-                    >
-                      {branches.map((b) => {
-                        const id = branchOptionId(b);
-                        return (
-                          <option key={id} value={id}>
-                            {branchOptionLabel(b)}
-                          </option>
-                        );
-                      })}
-                    </select>
+                    {workspaceLockedBranch ? (
+                      <input className={`${INPUT} bg-slate-50 text-slate-600`} value={branchOptionLabel(
+                        branches.find((b) => branchOptionId(b) === selectedBranch) || { id: selectedBranch }
+                      )} readOnly />
+                    ) : (
+                      <select
+                        className={INPUT}
+                        value={selectedBranch}
+                        onChange={(e) => {
+                          const next = e.target.value;
+                          setSelectedBranch(next);
+                          if (partyKind === 'branch' && partyRef === next) {
+                            setPartyRef('');
+                            setPartyName('');
+                          }
+                        }}
+                        required={partyKind === 'branch'}
+                      >
+                        {branches.map((b) => {
+                          const id = branchOptionId(b);
+                          return (
+                            <option key={id} value={id}>
+                              {branchOptionLabel(b)}
+                            </option>
+                          );
+                        })}
+                      </select>
+                    )}
                   </label>
                 ) : null}
               </div>
