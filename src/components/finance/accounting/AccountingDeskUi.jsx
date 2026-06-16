@@ -1,5 +1,6 @@
 import React from 'react';
 import { formatNgn } from '../../Data/mockData';
+import { Link } from 'react-router-dom';
 
 /** Matches Procurement list row chrome */
 export const ACCOUNTING_CARD_ROW =
@@ -109,4 +110,52 @@ export function filterRegisterItems(items, query) {
       .toLowerCase();
     return blob.includes(q);
   });
+}
+
+/** Shared field styling — matches Procurement / Sales lists */
+export const ACCOUNTING_FIELD_LABEL =
+  'block text-[10px] font-bold uppercase tracking-wide text-slate-500';
+
+export const ACCOUNTING_INPUT =
+  'mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-[11px] font-semibold text-slate-800 outline-none transition-all focus:border-[#134e4a]/35 focus:ring-2 focus:ring-[#134e4a]/10 shadow-sm';
+
+/**
+ * @param {{ children: React.ReactNode; className?: string }} props
+ */
+export function AccountingFilterGrid({ children, className = '' }) {
+  return (
+    <div
+      className={`grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 items-end ${className}`}
+    >
+      {children}
+    </div>
+  );
+}
+
+/**
+ * @param {{ title: string; description?: string; to?: string; state?: object; onClick?: () => void }} props
+ */
+export function AccountingReportLinkRow({ title, description, to, state, onClick }) {
+  const inner = (
+    <>
+      <p className="text-[11px] font-bold text-[#134e4a]">{title}</p>
+      {description ? <p className="text-[8px] text-slate-500 mt-0.5 leading-snug">{description}</p> : null}
+    </>
+  );
+  if (to) {
+    return (
+      <li className={`${ACCOUNTING_CARD_ROW} block`}>
+        <Link to={to} state={state} className="block min-w-0">
+          {inner}
+        </Link>
+      </li>
+    );
+  }
+  return (
+    <li className={`${ACCOUNTING_CARD_ROW} cursor-pointer`}>
+      <button type="button" className="w-full text-left min-w-0" onClick={onClick}>
+        {inner}
+      </button>
+    </li>
+  );
 }
