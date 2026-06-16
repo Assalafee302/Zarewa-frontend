@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { AlertCircle, AlertTriangle, RefreshCw, Users } from 'lucide-react';
+import { AlertCircle, AlertTriangle, RefreshCw } from 'lucide-react';
 import { formatNgn } from '../../Data/mockData';
 import { ProcurementFormSection } from '../procurement/ProcurementFormSection';
 import { AccountingDeskKpiCard, AccountingDeskNotice } from './accounting/AccountingDeskUi';
@@ -215,53 +215,46 @@ export function FinanceTrialExceptionPanel({ variant, data, loading, error, onRe
       ) : null}
 
       {flags.deliveryPaymentGateMode && flags.deliveryPaymentGateMode !== 'off' ? (
-        <div className="rounded-2xl border border-rose-200 bg-rose-50/70 p-4">
-          <p className="text-xs font-black uppercase tracking-wide text-rose-900">
+        <AccountingDeskNotice tone="warn">
+          <p className="font-bold uppercase tracking-wide text-[10px] mb-1">
             Delivery payment gate (AP1b — {flags.deliveryPaymentGateMode})
           </p>
-          <p className="text-xs font-medium text-rose-950 mt-1 leading-relaxed">
+          <p>
             {flags.deliveryPaymentGateMode === 'enforce'
               ? 'Unpaid deliveries are blocked on POST /api/deliveries/:id/confirm.'
               : 'Unpaid deliveries still confirm but are audited. Use payment-release-check before dispatch.'}
           </p>
-        </div>
+        </AccountingDeskNotice>
       ) : null}
 
       {variant === 'cashier' && flags.accountingPolicyV1Diagnostics && ap1c?.available ? (
-        <div className="rounded-xl border border-amber-200 bg-amber-50/80 px-4 py-3">
-          <p className="text-xs font-bold text-amber-950">
-            AP1c dry-run: {ap1c.receiptsBeforeProductionCredited1200Count ?? 0} receipt(s) pre-production
-            posted to GL 1200 (should be 2500). Accounting Desk has full detail. No GL changed.
-          </p>
-        </div>
+        <AccountingDeskNotice tone="warn">
+          AP1c dry-run: {ap1c.receiptsBeforeProductionCredited1200Count ?? 0} receipt(s) pre-production posted to GL
+          1200 (should be 2500). Accounting Desk has full detail. No GL changed.
+        </AccountingDeskNotice>
       ) : null}
 
       {flags.accountingPolicyV1Diagnostics && ap1c?.available ? (
-        <div className="rounded-xl border border-violet-200 bg-violet-50/50 px-4 py-3 text-xs font-medium text-violet-950 space-y-1">
+        <AccountingDeskNotice tone="info">
           <p>
-            <span className="font-black uppercase tracking-wide text-violet-900">AP1c dry-run: </span>
+            <span className="font-bold uppercase tracking-wide">AP1c dry-run: </span>
             Pre-prod GL 1200 {ap1c.receiptsBeforeProductionCredited1200Count ?? 0} · Release gap ₦
             {Number(ap1c.releaseGapNgn || 0).toLocaleString()} · AR risk ₦
             {Number(ap1c.potentialArOverstatementNgn || 0).toLocaleString()}
           </p>
-          {(ap1c.receiptReversalsMissingResolvableMetaCount > 0 ||
-            ap1c.refundPayoutsRevenueReviewCount > 0) && (
-            <p className="text-amber-900">
-              AP1c-4: reversals unresolved {ap1c.receiptReversalsMissingResolvableMetaCount ?? 0} · refunds
-              needing revenue review {ap1c.refundPayoutsRevenueReviewCount ?? 0}
+          {(ap1c.receiptReversalsMissingResolvableMetaCount > 0 || ap1c.refundPayoutsRevenueReviewCount > 0) && (
+            <p className="mt-1 text-amber-900">
+              AP1c-4: reversals unresolved {ap1c.receiptReversalsMissingResolvableMetaCount ?? 0} · refunds needing
+              revenue review {ap1c.refundPayoutsRevenueReviewCount ?? 0}
             </p>
           )}
-        </div>
+        </AccountingDeskNotice>
       ) : null}
 
       {flags.accountingPolicyV1Diagnostics && ap1 ? (
-        <div className="rounded-2xl border border-violet-200 bg-violet-50/60 p-4 space-y-3">
-          <p className="text-xs font-black uppercase tracking-wide text-violet-900">
-            Accounting Policy v1 diagnostics (AP1a)
-          </p>
-          <p className="text-xs font-medium text-violet-950 leading-relaxed">
-            {data?.accountingPolicyV1Note ||
-              'Read-only indicators; GL timing unchanged until AP1c.'}
+        <ProcurementFormSection letter="A" title="Accounting Policy v1 diagnostics (AP1a)" compact>
+          <p className="text-[11px] font-medium text-violet-950 leading-relaxed mb-3">
+            {data?.accountingPolicyV1Note || 'Read-only indicators; GL timing unchanged until AP1c.'}
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             <CountCard
@@ -292,43 +285,39 @@ export function FinanceTrialExceptionPanel({ variant, data, loading, error, onRe
               }
             />
           </div>
-        </div>
+        </ProcurementFormSection>
       ) : null}
 
-      <div className="rounded-2xl border border-slate-200 bg-slate-50/50 p-4">
-        <h3 className="text-xs font-bold uppercase tracking-wide text-slate-600 mb-3 flex items-center gap-2">
-          <Users size={14} />
-          Role adoption (trial monitoring)
-        </h3>
+      <ProcurementFormSection letter="R" title="Role adoption (trial monitoring)" compact>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
           <RoleBars title="Receipt confirmations by role" rows={adoption.receiptConfirmationsByRole} />
           <RoleBars title="Payment approvals by role" rows={adoption.paymentApprovalsByRole} />
           <RoleBars title="Payment payouts by role" rows={adoption.paymentPayoutsByRole} />
         </div>
-        <p className="text-xs font-medium text-slate-600 mt-3">
+        <p className="text-[10px] font-medium text-slate-600 mt-3">
           Active cashier users: {adoption.cashierActiveUserCount ?? 0} · Finance manager receipt confirmations:{' '}
           {adoption.financeManagerReceiptConfirmationCount ?? 0}
           {adoption.financeManagerOverrideNote ? (
             <span className="block mt-1 text-slate-500">{adoption.financeManagerOverrideNote}</span>
           ) : null}
         </p>
-      </div>
+      </ProcurementFormSection>
 
-      <div className="flex flex-wrap gap-3 text-xs font-bold">
+      <div className="flex flex-wrap gap-3 text-[10px] font-bold">
         {variant !== 'cashier' ? (
-          <Link to="/accounts?tab=desk" className="text-teal-800 hover:underline">
+          <Link to="/accounts?tab=desk" className="text-[#134e4a] hover:underline">
             Cashier Desk →
           </Link>
         ) : null}
         {variant !== 'accounting' ? (
-          <Link to="/accounting" className="text-teal-800 hover:underline">
+          <Link to="/accounting" className="text-[#134e4a] hover:underline">
             Accounting Desk →
           </Link>
         ) : null}
-        <Link to="/accounts?tab=receipts" className="text-teal-800 hover:underline">
+        <Link to="/accounts?tab=receipts" className="text-[#134e4a] hover:underline">
           Finance receipts queue →
         </Link>
-        <Link to="/exec" className="text-teal-800 hover:underline">
+        <Link to="/exec" className="text-[#134e4a] hover:underline">
           Command Centre →
         </Link>
       </div>
