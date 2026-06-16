@@ -3732,8 +3732,7 @@ const Account = () => {
                   <div className="rounded-xl border border-slate-200 bg-slate-50/80 px-4 py-3 text-[11px] text-slate-600 leading-relaxed">
                     Cross-branch treasury funding (propose, MD approval, repayments) is managed on{' '}
                     <Link
-                      to="/accounting"
-                      state={{ focusTab: 'interBranch' }}
+                      to="/accounting?tab=interBranch"
                       className="font-semibold text-[#134e4a] hover:underline"
                     >
                       Accounting Desk → Inter-branch

@@ -1,19 +1,19 @@
 import React, { useMemo, useState } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
-import { formatNgn } from '../../Data/mockData';
-import { apiFetch } from '../../lib/apiBase';
+import { formatNgn } from '../../../Data/mockData';
+import { apiFetch } from '../../../lib/apiBase';
 import {
   emptyProposeForm,
   emptyRepaymentPlanRow,
   sumRepaymentPlanNgn,
-} from '../../lib/interBranchLoanUi';
+} from '../../../lib/interBranchLoanUi';
 import {
   treasuryAccountDisplayName,
   treasuryAccountsFromSnapshot,
-} from '../../lib/treasuryAccountsStore';
-import { compareSelectLabels } from '../../lib/selectOptionSort';
-import { ModalFrame } from '../layout/ModalFrame';
-import { ProcurementFormSection } from '../procurement/ProcurementFormSection';
+} from '../../../lib/treasuryAccountsStore';
+import { compareSelectLabels } from '../../../lib/selectOptionSort';
+import { ModalFrame } from '../../layout/ModalFrame';
+import { ProcurementFormSection } from '../../procurement/ProcurementFormSection';
 
 const INPUT =
   'mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-[11px] font-semibold text-slate-800 outline-none transition-all focus:border-[#134e4a]/35 focus:ring-2 focus:ring-[#134e4a]/10 shadow-sm';

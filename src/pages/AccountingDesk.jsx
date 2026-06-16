@@ -79,14 +79,17 @@ export default function AccountingDesk() {
   const permissions = ws?.session?.user?.permissions;
   const branchId = ws.viewAllBranches ? null : ws.branchScope || ws.session?.currentBranchId;
   const mayRegisters = userMayViewAp1cDryRunClient(roleKey, permissions);
+  const mayInterBranch = hasFinanceView || mayRegisters;
 
   useEffect(() => {
     const focus = location.state?.focusTab;
-    if (focus && TAB_LABELS[focus]) setTab(focus);
+    const queryTab = new URLSearchParams(location.search).get('tab');
+    if (queryTab && TAB_LABELS[queryTab]) setTab(queryTab);
+    else if (focus && TAB_LABELS[focus]) setTab(focus);
     else if (focus === 'supplier-ap' || focus === 'costing') setTab('debtors');
     else if (focus === 'inter-branch' || focus === 'interBranch') setTab('interBranch');
     else if (focus) setTab('creditors');
-  }, [location.state?.focusTab]);
+  }, [location.state?.focusTab, location.search]);
 
   useEffect(() => {
     document.title = `${TAB_LABELS[tab] || 'Accounting Desk'} | ${DOCUMENT_TITLE_BASE}`;
@@ -97,8 +100,8 @@ export default function AccountingDesk() {
     accessDenied = 'Registers require Head of Accounts or accounting desk access.';
   } else if (tab === 'reconciliation' && !hasFinanceView) {
     accessDenied = 'Reconciliation requires finance view access.';
-  } else if (tab === 'interBranch' && !hasFinanceView) {
-    accessDenied = 'Inter-branch transfers require finance view access.';
+  } else if (tab === 'interBranch' && !mayInterBranch) {
+    accessDenied = 'Inter-branch transfers require finance or accounting desk access.';
   }
 
   return (
@@ -167,7 +170,7 @@ export default function AccountingDesk() {
             />
           ) : null}
 
-          {!accessDenied && tab === 'interBranch' && hasFinanceView ? (
+          {!accessDenied && tab === 'interBranch' && mayInterBranch ? (
             <AccountingInterBranchPanel
               branchScopeLabel={branchScopeLabel}
               workspaceBranchId={branchId || ws?.branchScope || ws?.session?.currentBranchId || ''}

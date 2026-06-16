@@ -1,19 +1,19 @@
 import React, { useMemo, useState } from 'react';
 import { ArrowRightLeft, Plus, RefreshCw } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { formatNgn } from '../../Data/mockData';
-import { useInterBranchLoans } from '../../hooks/useInterBranchLoans';
-import { useWorkspace } from '../../context/WorkspaceContext';
-import { treasuryAccountsFromSnapshot } from '../../lib/treasuryAccountsStore';
+import { formatNgn } from '../../../Data/mockData';
+import { useInterBranchLoans } from '../../../hooks/useInterBranchLoans';
+import { useWorkspace } from '../../../context/WorkspaceContext';
+import { treasuryAccountsFromSnapshot } from '../../../lib/treasuryAccountsStore';
 import {
   AccountingDeskKpiCard,
   AccountingDeskNotice,
   ACCOUNTING_CARD_ROW,
 } from '../accounting/AccountingDeskUi';
 import { AccountingRegisterHeader } from '../accounting/AccountingRegisterLayout';
-import { SalesListSearchInput, SalesListSortBar, SalesListTableFrame } from '../sales/SalesListTableFrame';
-import { AppTablePager } from '../ui/AppDataTable';
-import { useAppTablePaging } from '../../lib/appDataTable';
+import { SalesListSearchInput, SalesListSortBar, SalesListTableFrame } from '../../sales/SalesListTableFrame';
+import { AppTablePager } from '../../ui/AppDataTable';
+import { useAppTablePaging } from '../../../lib/appDataTable';
 import { InterBranchProposeModal } from './InterBranchProposeModal';
 import { InterBranchLoanDetailModal } from './InterBranchLoanDetailModal';
 import { InterBranchStatusBadge } from './InterBranchRepayModal';

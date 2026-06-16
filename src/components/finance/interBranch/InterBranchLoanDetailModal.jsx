@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { Check, X } from 'lucide-react';
-import { formatNgn } from '../../Data/mockData';
-import { apiFetch } from '../../lib/apiBase';
-import { ModalFrame } from '../layout/ModalFrame';
+import { formatNgn } from '../../../Data/mockData';
+import { apiFetch } from '../../../lib/apiBase';
+import { ModalFrame } from '../../layout/ModalFrame';
 import { InterBranchRepayModal, InterBranchStatusBadge } from './InterBranchRepayModal';
 
 /**
