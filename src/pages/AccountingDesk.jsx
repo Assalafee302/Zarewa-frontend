@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Scale, Users, Building2, Landmark, Wallet, CreditCard } from 'lucide-react';
+import { Scale, Users, Building2, Landmark, Wallet, CreditCard, ArrowRightLeft } from 'lucide-react';
 import { PageShell, MainPanel, PageHeader, PageTabs } from '../components/layout';
 import { useToast } from '../context/ToastContext';
 import { useWorkspace } from '../context/WorkspaceContext';
@@ -12,6 +12,7 @@ import { FinancePayrollPaymentsPanel } from '../components/finance/FinancePayrol
 import { AccountingCreditorsPanel } from '../components/finance/AccountingCreditorsPanel';
 import { AccountingDebtorsPanel } from '../components/finance/AccountingDebtorsPanel';
 import { AccountingAssetsPanel } from '../components/finance/AccountingAssetsPanel';
+import { AccountingInterBranchPanel } from '../components/finance/interBranch/AccountingInterBranchPanel';
 
 function defaultPeriodRange() {
   const now = new Date();
@@ -25,6 +26,7 @@ const TAB_LABELS = {
   creditors: 'Creditors',
   debtors: 'Debtors',
   assets: 'Fixed assets',
+  interBranch: 'Inter-branch',
   credit: 'Credit approval',
   reconciliation: 'Reconciliation',
   payroll: 'Payroll',
@@ -35,6 +37,7 @@ const TAB_HINTS = {
   creditors: 'Amounts owed to the company — receivables, prepayments, and opening balances.',
   debtors: 'Amounts owed by the company — supplier AP, deposits, and credits to refund.',
   assets: 'Plant, property, and equipment register.',
+  interBranch: 'Cross-branch treasury funding — propose, approve, repay, and track balances.',
   credit: 'Approve delivery before full payment is received.',
   reconciliation: 'Bank and cash tie-out for the selected period.',
   payroll: 'Bulk bank file and treasury posting after HR locks the run.',
@@ -45,6 +48,7 @@ const ACCOUNTING_TABS = [
   { id: 'creditors', label: 'Creditors', icon: <Users size={16} /> },
   { id: 'debtors', label: 'Debtors', icon: <Wallet size={16} /> },
   { id: 'assets', label: 'Fixed assets', icon: <Building2 size={16} /> },
+  { id: 'interBranch', label: 'Inter-branch', icon: <ArrowRightLeft size={16} /> },
   { id: 'credit', label: 'Credit approval', icon: <CreditCard size={16} /> },
   { id: 'reconciliation', label: 'Reconciliation', icon: <Scale size={16} /> },
   { id: 'payroll', label: 'Payroll', icon: <Landmark size={16} /> },
@@ -80,6 +84,7 @@ export default function AccountingDesk() {
     const focus = location.state?.focusTab;
     if (focus && TAB_LABELS[focus]) setTab(focus);
     else if (focus === 'supplier-ap' || focus === 'costing') setTab('debtors');
+    else if (focus === 'inter-branch' || focus === 'interBranch') setTab('interBranch');
     else if (focus) setTab('creditors');
   }, [location.state?.focusTab]);
 
@@ -92,6 +97,8 @@ export default function AccountingDesk() {
     accessDenied = 'Registers require Head of Accounts or accounting desk access.';
   } else if (tab === 'reconciliation' && !hasFinanceView) {
     accessDenied = 'Reconciliation requires finance view access.';
+  } else if (tab === 'interBranch' && !hasFinanceView) {
+    accessDenied = 'Inter-branch transfers require finance view access.';
   }
 
   return (
@@ -157,6 +164,13 @@ export default function AccountingDesk() {
               enabled
               canManage={mayRegisters}
               branchScopeLabel={branchScopeLabel}
+            />
+          ) : null}
+
+          {!accessDenied && tab === 'interBranch' && hasFinanceView ? (
+            <AccountingInterBranchPanel
+              branchScopeLabel={branchScopeLabel}
+              workspaceBranchId={branchId || ws?.branchScope || ws?.session?.currentBranchId || ''}
             />
           ) : null}
 

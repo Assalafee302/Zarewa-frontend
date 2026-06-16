@@ -5,7 +5,6 @@ import { formatNgn } from '../../Data/mockData';
 import { useInterBranchLoans } from '../../hooks/useInterBranchLoans';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { treasuryAccountsFromSnapshot } from '../../lib/treasuryAccountsStore';
-import { interBranchStatusMeta } from '../../lib/interBranchLoanUi';
 import {
   AccountingDeskKpiCard,
   AccountingDeskNotice,
@@ -41,7 +40,6 @@ const STATUS_FILTERS = [
 export function AccountingInterBranchPanel({ branchScopeLabel = '', workspaceBranchId = '' }) {
   const ws = useWorkspace();
   const { loans, balances, loading, error, reload } = useInterBranchLoans({ enabled: true });
-
   const [statusFilter, setStatusFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [sort, setSort] = useState({ field: 'date', dir: 'desc' });
@@ -68,6 +66,11 @@ export function AccountingInterBranchPanel({ branchScopeLabel = '', workspaceBra
   const canMdApprove = Boolean(ws?.hasPermission?.('inter_branch_loan.md_approve'));
   const canRepay =
     Boolean(ws?.hasPermission?.('treasury.manage')) || Boolean(ws?.hasPermission?.('finance.pay'));
+
+  const refreshAll = async () => {
+    await reload();
+    await ws?.refresh?.();
+  };
 
   const summary = useMemo(() => {
     const active = loans.filter((l) => l.status === 'active');
@@ -120,7 +123,7 @@ export function AccountingInterBranchPanel({ branchScopeLabel = '', workspaceBra
       <div className="rounded-lg border border-dashed border-rose-200 bg-rose-50/50 py-10 px-6 text-center">
         <p className="text-[10px] font-semibold text-rose-800 uppercase tracking-widest">Could not load transfers</p>
         <p className="mt-2 text-[11px] text-rose-700">{error}</p>
-        <button type="button" onClick={reload} className="mt-3 text-[10px] font-bold text-[#134e4a] hover:underline">
+        <button type="button" onClick={() => void refreshAll()} className="mt-3 text-[10px] font-bold text-[#134e4a] hover:underline">
           Retry
         </button>
       </div>
@@ -148,7 +151,7 @@ export function AccountingInterBranchPanel({ branchScopeLabel = '', workspaceBra
             ) : null}
             <button
               type="button"
-              onClick={reload}
+              onClick={() => void refreshAll()}
               disabled={loading}
               className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[9px] font-semibold uppercase tracking-wider text-[#134e4a] hover:bg-slate-50 disabled:opacity-40"
             >
@@ -306,7 +309,7 @@ export function AccountingInterBranchPanel({ branchScopeLabel = '', workspaceBra
           onClose={() => setProposeOpen(false)}
           onSaved={() => {
             setProposeOpen(false);
-            void reload();
+            void refreshAll();
           }}
         />
       ) : null}
@@ -319,7 +322,7 @@ export function AccountingInterBranchPanel({ branchScopeLabel = '', workspaceBra
           canMdApprove={canMdApprove}
           canRepay={canRepay && ws?.canMutate}
           onClose={() => setSelectedLoanId('')}
-          onChanged={reload}
+          onChanged={() => void refreshAll()}
         />
       ) : null}
     </div>
