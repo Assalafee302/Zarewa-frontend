@@ -7,11 +7,18 @@ import { useAp2SupplierDiagnostics } from '../../hooks/useAp2SupplierDiagnostics
 import { useAp2ApRebuild } from '../../hooks/useAp2ApRebuild';
 import { Ap2ApRebuildModal } from './Ap2ApRebuildModal';
 import { Ap2cAccountingSections } from './Ap2cAccountingSections';
-import { FinanceActionButton } from './FinanceActionButton';
 import { FinanceDataTable } from './FinanceDataTable';
 import { FinanceEmptyState } from './FinanceEmptyState';
 import { FinanceOperationalLinks } from './FinanceOperationalLinks';
-import { FinanceReportPanel } from './FinanceReportPanel';
+import { ProcurementFormSection } from '../procurement/ProcurementFormSection';
+import {
+  AccountingDeskKpiCard,
+  AccountingDeskNotice,
+  AccountingDeskPageIntro,
+  ACCOUNTING_FIELD_LABEL,
+  ACCOUNTING_INPUT,
+} from './accounting/AccountingDeskUi';
+import { AccountingDeskTableSection } from './accounting/AccountingDeskTableSection';
 
 const BRANCH_OPTIONS = [
   { id: 'ALL', label: 'All branches' },
@@ -23,22 +30,6 @@ const BRANCH_OPTIONS = [
 function defaultPeriodKey() {
   const now = new Date();
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-}
-
-function MetricCard({ label, value, hint, tone = 'slate' }) {
-  const tones = {
-    amber: 'border-amber-200 bg-amber-50/70',
-    rose: 'border-rose-200 bg-rose-50/70',
-    teal: 'border-teal-200 bg-teal-50/50',
-    slate: 'border-slate-200 bg-white',
-  };
-  return (
-    <div className={`rounded-2xl border p-4 ${tones[tone] || tones.slate}`}>
-      <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">{label}</p>
-      <p className="mt-1 text-xl font-black tabular-nums text-[#134e4a]">{value}</p>
-      {hint ? <p className="mt-1 text-xs font-medium text-slate-600">{hint}</p> : null}
-    </div>
-  );
 }
 
 function poSupplierLink(row) {
@@ -219,33 +210,24 @@ export function Ap2SupplierDiagnosticsPanel({
   };
 
   return (
-    <div className="space-y-6">
-      <div className="rounded-2xl border border-amber-200/90 bg-amber-50/50 px-4 py-3 text-sm font-medium text-amber-950 leading-relaxed flex gap-2">
-        <ShieldAlert size={18} className="shrink-0 mt-0.5" />
-        <span>
-          System-calculated diagnostic. Head of Accounts should review before AP basis is changed. No payable or
-          inventory values were modified.
-        </span>
-      </div>
-
-      {!compact ? <FinanceOperationalLinks /> : null}
-
-      <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-4">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <p className="text-sm font-black text-[#134e4a]">Supplier, GRN &amp; payables</p>
-            <p className="text-sm font-medium text-slate-600 mt-1">
-              Ordered commitment vs received goods vs payments vs current AP. Management diagnostic — not AP rebuild.
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <FinanceActionButton variant="primary" onClick={() => reload()} disabled={loading || !enabled}>
-              <RefreshCw size={14} className={`mr-1 inline ${loading ? 'animate-spin' : ''}`} />
+    <div className="grid grid-cols-1 gap-4 lg:gap-6 min-w-0">
+      <AccountingDeskPageIntro
+        title="Supplier, GRN & payables"
+        description="Ordered commitment vs received goods vs payments vs current AP. Management diagnostic — not AP rebuild."
+        action={
+          <>
+            <button
+              type="button"
+              onClick={() => reload()}
+              disabled={loading || !enabled}
+              className="inline-flex items-center gap-1 rounded-lg bg-[#134e4a] text-white px-3 py-1.5 text-[9px] font-semibold uppercase tracking-wider shadow-sm hover:brightness-105 disabled:opacity-50"
+            >
+              <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />
               Load diagnostics
-            </FinanceActionButton>
+            </button>
             {!compact && mayPreviewRebuild ? (
-              <FinanceActionButton
-                variant="secondary"
+              <button
+                type="button"
                 onClick={async () => {
                   setRebuildOpen(true);
                   await rebuildApi.loadPreview({
@@ -256,19 +238,29 @@ export function Ap2SupplierDiagnosticsPanel({
                   });
                 }}
                 disabled={rebuildApi.previewLoading}
+                className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[9px] font-semibold uppercase tracking-wider text-[#134e4a] hover:bg-slate-50 disabled:opacity-50"
               >
                 Preview AP correction
-              </FinanceActionButton>
+              </button>
             ) : null}
-          </div>
-        </div>
+          </>
+        }
+      />
 
-        {!compact ? (
-          <div className="flex flex-wrap gap-3 items-end border-b border-slate-100 pb-4">
-            <label className="text-xs font-bold text-slate-600">
+      <AccountingDeskNotice tone="warn">
+        System-calculated diagnostic. Head of Accounts should review before AP basis is changed. No payable or inventory
+        values were modified.
+      </AccountingDeskNotice>
+
+      {!compact ? <FinanceOperationalLinks /> : null}
+
+      {!compact ? (
+        <ProcurementFormSection letter="F" title="Filters" compact>
+          <div className="flex flex-wrap gap-3 items-end">
+            <label className={ACCOUNTING_FIELD_LABEL}>
               Branch
               <select
-                className="ml-2 rounded-lg border px-2 py-1 text-sm font-medium"
+                className={`${ACCOUNTING_INPUT} mt-1`}
                 value={branchId || 'ALL'}
                 onChange={(e) => setBranchId(e.target.value)}
               >
@@ -279,39 +271,42 @@ export function Ap2SupplierDiagnosticsPanel({
                 ))}
               </select>
             </label>
-            <label className="text-xs font-bold text-slate-600">
+            <label className={ACCOUNTING_FIELD_LABEL}>
               Period
               <input
                 type="month"
-                className="ml-2 rounded-lg border px-2 py-1 text-sm"
+                className={`${ACCOUNTING_INPUT} mt-1`}
                 value={period}
                 onChange={(e) => setPeriod(e.target.value)}
               />
             </label>
-            <label className="text-xs font-bold text-slate-600">
+            <label className={ACCOUNTING_FIELD_LABEL}>
               Supplier ID
               <input
-                className="ml-2 rounded-lg border px-2 py-1 text-sm w-28"
+                className={`${ACCOUNTING_INPUT} mt-1 w-28`}
                 value={supplierFilter}
                 onChange={(e) => setSupplierFilter(e.target.value)}
                 placeholder="optional"
               />
             </label>
-            <label className="text-xs font-bold text-slate-600">
+            <label className={ACCOUNTING_FIELD_LABEL}>
               PO status
               <input
-                className="ml-2 rounded-lg border px-2 py-1 text-sm w-28"
+                className={`${ACCOUNTING_INPUT} mt-1 w-28`}
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
                 placeholder="optional"
               />
             </label>
-            <label className="inline-flex items-center gap-2 text-xs font-bold text-slate-600">
+            <label className="inline-flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-slate-600">
               <input type="checkbox" checked={showDiffOnly} onChange={(e) => setShowDiffOnly(e.target.checked)} />
               AP difference only
             </label>
           </div>
-        ) : null}
+        </ProcurementFormSection>
+      ) : null}
+
+      <div className="space-y-4">
 
         {error ? (
           <p className="text-sm font-medium text-rose-800 flex items-center gap-2">
