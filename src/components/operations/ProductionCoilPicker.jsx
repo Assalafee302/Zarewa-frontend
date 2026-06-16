@@ -2,6 +2,7 @@ import React, { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 
 const MAX_VISIBLE = 48;
+const EMPTY_COIL_SET = new Set();
 
 function filterOptions(options, query, value, disabledCoils) {
   const q = query.trim().toLowerCase();
@@ -50,7 +51,7 @@ function ProductionCoilPicker({
   const [query, setQuery] = useState('');
   const rootRef = useRef(null);
   const searchRef = useRef(null);
-  const disabledSet = disabledCoils ?? new Set();
+  const disabledSet = disabledCoils ?? EMPTY_COIL_SET;
 
   const selectedLabel = useMemo(() => {
     if (!value) return '';
