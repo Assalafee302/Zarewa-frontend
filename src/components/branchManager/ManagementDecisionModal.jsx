@@ -263,13 +263,6 @@ export function ManagementDecisionModal({
               />
             ) : selectedIntel?.kind === 'refund' ? (
               <>
-                <OfficialRecordBanner
-                  item={selectedUnifiedWorkItem}
-                  light={isLight}
-                  quoteFallbackId={officialRecordFallbackId}
-                  showOpenRecord={selectedIntel?.kind === 'payment'}
-                  onOpenRecord={openUnifiedWorkItem}
-                />
                 {!canApproveRefunds ? (
                   <ZareApprovalHint
                     context={{
@@ -295,6 +288,7 @@ export function ManagementDecisionModal({
                   decisionBusy={decisionBusy}
                   deliveryPaymentGate={deliveryGateMode}
                   refundExecutiveThresholdNgn={Number(ws?.snapshot?.orgGovernanceLimits?.refundExecutiveThresholdNgn) || 1_000_000}
+                  officialRecord={selectedUnifiedWorkItem}
                   onApprove={(decisionExtras) => handleRefundDecision?.('Approved', decisionExtras)}
                   onReject={(decisionExtras) => handleRefundDecision?.('Rejected', decisionExtras)}
                   onOpenSales={() =>
