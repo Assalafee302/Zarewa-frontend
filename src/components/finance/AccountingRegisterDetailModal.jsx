@@ -14,6 +14,7 @@ import { useRegisterSettlements, useRegisterSettlementMutations } from '../../ho
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { AccountingRegisterSettlementRequestModal } from './AccountingRegisterSettlementRequestModal';
 import { AccountingRegisterSettlementPayModal } from './AccountingRegisterSettlementPayModal';
+import { AccountingRegisterSettlementDecisionModal } from './AccountingRegisterSettlementDecisionModal';
 
 const SECTION_ACTIONS = {
   staff_loans: [
@@ -90,13 +91,15 @@ export function AccountingRegisterDetailModal({
   const ws = useWorkspace();
   const [requestOpen, setRequestOpen] = useState(false);
   const [payTarget, setPayTarget] = useState(null);
+  const [decisionTarget, setDecisionTarget] = useState(null);
+  const [decisionMode, setDecisionMode] = useState('Approved');
   const legacyLine = Boolean(item?.isLegacy && sectionId === 'legacy_inherited');
   const canWithdraw = legacyLine && registerSide === 'debtor' && canManage;
   const { items: settlements, reload: reloadSettlements } = useRegisterSettlements({
     registerLineId: legacyLine ? item?.id : undefined,
     enabled: legacyLine && Boolean(item?.id),
   });
-  const { busy: settleBusy, decideSettlement } = useRegisterSettlementMutations();
+  const { busy: settleBusy } = useRegisterSettlementMutations();
   const canApprove =
     ws?.hasPermission?.('finance.approve') ||
     ws?.hasPermission?.('refunds.approve') ||
@@ -221,14 +224,10 @@ export function AccountingRegisterDetailModal({
                             <button
                               type="button"
                               disabled={settleBusy}
-                              onClick={() =>
-                                void decideSettlement(s.settlementId, { status: 'Approved' }).then((r) => {
-                                  if (r.ok) {
-                                    void reloadSettlements();
-                                    onSettlementChanged?.();
-                                  }
-                                })
-                              }
+                              onClick={() => {
+                                setDecisionTarget(s);
+                                setDecisionMode('Approved');
+                              }}
                               className="rounded border border-teal-200 bg-teal-50 px-2 py-0.5 text-[8px] font-bold uppercase text-teal-900"
                             >
                               Approve
@@ -236,11 +235,10 @@ export function AccountingRegisterDetailModal({
                             <button
                               type="button"
                               disabled={settleBusy}
-                              onClick={() =>
-                                void decideSettlement(s.settlementId, { status: 'Rejected' }).then((r) => {
-                                  if (r.ok) void reloadSettlements();
-                                })
-                              }
+                              onClick={() => {
+                                setDecisionTarget(s);
+                                setDecisionMode('Rejected');
+                              }}
                               className="rounded border border-rose-200 bg-rose-50 px-2 py-0.5 text-[8px] font-bold uppercase text-rose-800"
                             >
                               Reject
@@ -316,6 +314,16 @@ export function AccountingRegisterDetailModal({
         onClose={() => setRequestOpen(false)}
         onSaved={() => {
           setRequestOpen(false);
+          void reloadSettlements();
+          onSettlementChanged?.();
+        }}
+      />
+      <AccountingRegisterSettlementDecisionModal
+        settlement={decisionTarget}
+        open={Boolean(decisionTarget)}
+        mode={decisionMode}
+        onClose={() => setDecisionTarget(null)}
+        onDone={() => {
           void reloadSettlements();
           onSettlementChanged?.();
         }}

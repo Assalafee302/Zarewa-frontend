@@ -1,8 +1,11 @@
 import React, { useMemo, useState } from 'react';
-import { Building2, Plus, RefreshCw } from 'lucide-react';
+import { Building2, FileSpreadsheet, Plus, Printer, RefreshCw } from 'lucide-react';
 import { formatNgn } from '../../Data/mockData';
+import { downloadFinanceCsv } from '../../lib/exportFinanceCsv';
+import { printAccountingAssets } from '../../lib/printAccountingAssets';
 import { useAccountingAssets, useAccountingRegisterMutations } from '../../hooks/useAccountingSubledger';
 import { useWorkspace } from '../../context/WorkspaceContext';
+import { useToast } from '../../context/ToastContext';
 import { ModalFrame } from '../layout/ModalFrame';
 import { ProcurementFormSection } from '../procurement/ProcurementFormSection';
 import {
@@ -14,11 +17,12 @@ import { AppTablePager } from '../ui/AppDataTable';
 import { useAppTablePaging } from '../../lib/appDataTable';
 import {
   AccountingDeskKpiCard,
-  ACCOUNTING_CARD_ROW,
   filterRegisterItems,
   sortRegisterItems,
 } from './accounting/AccountingDeskUi';
 import { AccountingFilterSelect, AccountingRegisterHeader } from './accounting/AccountingRegisterLayout';
+import { AccountingAssetRow } from './accounting/AccountingAssetRow';
+import { AccountingAssetDetailModal } from './AccountingAssetDetailModal';
 
 const ASSETS_PAGE_SIZE = 15;
 
@@ -60,12 +64,14 @@ export function AccountingAssetsPanel({
   branchScopeLabel = '',
 }) {
   const ws = useWorkspace();
+  const { show: showToast } = useToast();
   const branches = ws?.snapshot?.workspaceBranches ?? ws?.session?.branches ?? [];
   const { data, loading, error, reload } = useAccountingAssets({ branchId, enabled });
   const mutations = useAccountingRegisterMutations({ onDone: reload });
 
   const [filter, setFilter] = useState('all');
   const [modalOpen, setModalOpen] = useState(false);
+  const [selectedAsset, setSelectedAsset] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [sort, setSort] = useState({ field: 'amount', dir: 'desc' });
   const [form, setForm] = useState({
@@ -101,6 +107,48 @@ export function AccountingAssetsPanel({
       })),
     [filteredByCategory, branches]
   );
+
+  const exportAssets = () => {
+    const rows = filteredByCategory;
+    if (!rows.length) return;
+    downloadFinanceCsv(
+      `fixed-assets-${filter}`,
+      ['id', 'name', 'category', 'branchId', 'acquisitionDateIso', 'costNgn', 'accumulatedDepreciationNgn', 'netBookValueNgn', 'status'],
+      rows.map((a) => ({
+        id: a.id,
+        name: a.name,
+        category: a.category,
+        branchId: a.branchId,
+        acquisitionDateIso: a.acquisitionDateIso,
+        costNgn: a.costNgn,
+        accumulatedDepreciationNgn: a.accumulatedDepreciationNgn,
+        netBookValueNgn: a.netBookValueNgn,
+        status: a.status,
+      }))
+    );
+    showToast('Exported to CSV.', { variant: 'success' });
+  };
+
+  const handlePrint = () => {
+    const ok = printAccountingAssets({
+      assets: filteredByCategory,
+      summary,
+      branchScopeLabel: branchScopeLabel || branchId || 'Company-wide',
+      categoryLabel: CATEGORY_OPTIONS.find((o) => o.id === filter)?.label,
+    });
+    if (!ok) showToast('Allow pop-ups to print the register.', { variant: 'error' });
+  };
+
+  const handleDispose = async (asset, disposalDateIso) => {
+    const result = await mutations.disposeAsset(asset.id, disposalDateIso);
+    if (result?.ok) {
+      showToast('Asset marked disposed.', { variant: 'success' });
+      setSelectedAsset(null);
+      reload();
+    } else {
+      showToast('Could not dispose asset.', { variant: 'error' });
+    }
+  };
 
   const filteredItems = useMemo(
     () => sortRegisterItems(filterRegisterItems(tableItems, searchQuery), sort.field, sort.dir),
@@ -168,6 +216,22 @@ export function AccountingAssetsPanel({
             ) : null}
             <button
               type="button"
+              onClick={exportAssets}
+              disabled={!filteredByCategory.length}
+              className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[9px] font-semibold uppercase tracking-wider text-[#134e4a] hover:bg-slate-50 disabled:opacity-40"
+            >
+              <FileSpreadsheet size={12} /> Export
+            </button>
+            <button
+              type="button"
+              onClick={handlePrint}
+              disabled={!filteredByCategory.length}
+              className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[9px] font-semibold uppercase tracking-wider text-[#134e4a] hover:bg-slate-50 disabled:opacity-40"
+            >
+              <Printer size={12} /> Print
+            </button>
+            <button
+              type="button"
               onClick={reload}
               disabled={loading}
               className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[9px] font-semibold uppercase tracking-wider text-[#134e4a] hover:bg-slate-50 disabled:opacity-40"
@@ -195,7 +259,17 @@ export function AccountingAssetsPanel({
                 onChange={setFilter}
                 options={CATEGORY_OPTIONS}
               />
-              <span className="text-[10px] text-slate-500 ml-auto tabular-nums">{filteredItems.length} assets</span>
+              <div className="flex items-center gap-2 ml-auto shrink-0">
+                <button
+                  type="button"
+                  onClick={exportAssets}
+                  disabled={!filteredItems.length}
+                  className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[9px] font-semibold uppercase tracking-wider text-[#134e4a] hover:bg-slate-50 disabled:opacity-40"
+                >
+                  <FileSpreadsheet size={12} /> Export
+                </button>
+                <span className="text-[10px] text-slate-500 tabular-nums">{filteredItems.length} assets</span>
+              </div>
             </div>
             <SalesListSearchInput
               value={searchQuery}
@@ -222,22 +296,13 @@ export function AccountingAssetsPanel({
           <>
             <ul className="space-y-1.5">
               {paging.slice.map((row) => (
-                <li key={row.id} className={`${ACCOUNTING_CARD_ROW} flex flex-wrap items-start justify-between gap-2`}>
-                  <div className="min-w-0 flex-1 leading-tight">
-                    <p className="text-[11px] font-bold text-[#134e4a] truncate">{row.partyName}</p>
-                    <p className="text-[8px] text-slate-500 mt-0.5">{row.detail}</p>
-                    <p className="text-[9px] text-slate-600 mt-1">
-                      {row.reference} · Cost {formatNgn(row.costNgn)} ·{' '}
-                      <span className={row.status === 'active' ? 'text-emerald-800 font-semibold' : 'text-slate-500'}>
-                        {row.status === 'active' ? 'Active' : 'Disposed'}
-                      </span>
-                    </p>
-                  </div>
-                  <div className="text-right shrink-0">
-                    <span className="block text-[8px] font-semibold text-slate-500 uppercase">NBV</span>
-                    <span className="text-[11px] font-black text-[#134e4a] tabular-nums">{formatNgn(row.amountNgn)}</span>
-                  </div>
-                </li>
+                <AccountingAssetRow
+                  key={row.id}
+                  asset={row.raw}
+                  categoryLabel={row.reference}
+                  branchLabel={branchName(branches, row.raw.branchId)}
+                  onSelect={setSelectedAsset}
+                />
               ))}
             </ul>
             <div className="mt-3 text-[10px] text-slate-600">
@@ -312,6 +377,15 @@ export function AccountingAssetsPanel({
           </div>
         </ModalFrame>
       ) : null}
+
+      <AccountingAssetDetailModal
+        asset={selectedAsset}
+        branchLabel={selectedAsset ? branchName(branches, selectedAsset.branchId) : ''}
+        canManage={canManage}
+        busy={mutations.busy}
+        onClose={() => setSelectedAsset(null)}
+        onDispose={handleDispose}
+      />
     </div>
   );
 }

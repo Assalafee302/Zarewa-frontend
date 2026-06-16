@@ -4,6 +4,7 @@ import { formatNgn } from '../../Data/mockData';
 import { useRegisterSettlements, useRegisterSettlementMutations } from '../../hooks/useAccountingRegisterSettlements';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { AccountingRegisterSettlementPayModal } from './AccountingRegisterSettlementPayModal';
+import { AccountingRegisterSettlementDecisionModal } from './AccountingRegisterSettlementDecisionModal';
 
 const STATUS_TONE = {
   Pending: 'bg-amber-50 text-amber-900 border-amber-200',
@@ -19,8 +20,10 @@ const STATUS_TONE = {
 export function AccountingRegisterSettlementsPanel({ branchId, onChanged }) {
   const ws = useWorkspace();
   const { items, reload } = useRegisterSettlements({ branchId, enabled: true });
-  const { busy, decideSettlement } = useRegisterSettlementMutations();
+  const { busy } = useRegisterSettlementMutations();
   const [payTarget, setPayTarget] = useState(null);
+  const [decisionTarget, setDecisionTarget] = useState(null);
+  const [decisionMode, setDecisionMode] = useState('Approved');
 
   const canApprove =
     ws?.hasPermission?.('finance.approve') ||
@@ -31,16 +34,9 @@ export function AccountingRegisterSettlementsPanel({ branchId, onChanged }) {
   const pending = useMemo(() => items.filter((i) => i.status === 'Pending'), [items]);
   const approved = useMemo(() => items.filter((i) => i.status === 'Approved'), [items]);
 
-  const handleDecision = async (settlementId, status) => {
-    const note =
-      status === 'Rejected'
-        ? window.prompt('Rejection note (optional)') || ''
-        : window.prompt('Approval note (optional)') || '';
-    const result = await decideSettlement(settlementId, { status, note });
-    if (result.ok) {
-      await reload();
-      onChanged?.();
-    }
+  const openDecision = (settlement, status) => {
+    setDecisionTarget(settlement);
+    setDecisionMode(status);
   };
 
   if (!pending.length && !approved.length) return null;
@@ -72,7 +68,7 @@ export function AccountingRegisterSettlementsPanel({ branchId, onChanged }) {
                         <button
                           type="button"
                           disabled={busy}
-                          onClick={() => void handleDecision(s.settlementId, 'Approved')}
+                          onClick={() => openDecision(s, 'Approved')}
                           className="inline-flex items-center gap-0.5 rounded border border-teal-200 bg-teal-50 px-2 py-1 text-[8px] font-bold uppercase text-teal-900"
                         >
                           <Check size={10} /> Approve
@@ -80,7 +76,7 @@ export function AccountingRegisterSettlementsPanel({ branchId, onChanged }) {
                         <button
                           type="button"
                           disabled={busy}
-                          onClick={() => void handleDecision(s.settlementId, 'Rejected')}
+                          onClick={() => openDecision(s, 'Rejected')}
                           className="inline-flex items-center gap-0.5 rounded border border-rose-200 bg-rose-50 px-2 py-1 text-[8px] font-bold uppercase text-rose-800"
                         >
                           <X size={10} /> Reject
@@ -136,6 +132,16 @@ export function AccountingRegisterSettlementsPanel({ branchId, onChanged }) {
         </div>
       </div>
 
+      <AccountingRegisterSettlementDecisionModal
+        settlement={decisionTarget}
+        open={Boolean(decisionTarget)}
+        mode={decisionMode}
+        onClose={() => setDecisionTarget(null)}
+        onDone={() => {
+          void reload();
+          onChanged?.();
+        }}
+      />
       <AccountingRegisterSettlementPayModal
         settlement={payTarget}
         open={Boolean(payTarget)}
