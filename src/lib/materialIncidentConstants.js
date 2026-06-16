@@ -13,7 +13,7 @@ export const INCIDENT_RECORD_HINTS = {
   supplier_defect:
     'Select the affected coil from the register. Record the defective section lengths, weigh before and after removal, then submit for manager approval.',
   production_error:
-    'Link the production job, pick the coil, and list material lost on the line. Weigh before and after cutting out the error, then submit for approval.',
+    'Pick the coil and list material lost on the line. Weigh before and after cutting out the error, then submit for approval.',
   customer_return:
     'Select the coil or material being returned. Record returned lengths, weigh before and after, and choose where the material goes (pool, sellable, scrap, or supplier return).',
   yard_offcut:
