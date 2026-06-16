@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { AlertTriangle, ChevronDown, RefreshCw, ShieldAlert } from 'lucide-react';
+import { AlertTriangle, ChevronDown, RefreshCw } from 'lucide-react';
 import { formatNgn } from '../../Data/mockData';
 import { downloadFinanceCsv } from '../../lib/exportFinanceCsv';
 import { useAp2SupplierDiagnostics } from '../../hooks/useAp2SupplierDiagnostics';
@@ -338,46 +338,46 @@ export function Ap2SupplierDiagnosticsPanel({
             </p>
 
             <div className={`grid gap-3 ${compact ? 'grid-cols-2 sm:grid-cols-3' : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'}`}>
-              <MetricCard label="Ordered commitment" value={formatNgn(s.poOrderedValueNgn)} tone="slate" />
-              <MetricCard label="Received goods value" value={formatNgn(s.grnReceivedValueNgn)} tone="teal" />
-              <MetricCard label="Supplier paid" value={formatNgn(s.supplierPaidNgn)} />
-              <MetricCard label="Current payable" value={formatNgn(s.currentApNgn)} />
-              <MetricCard
+              <AccountingDeskKpiCard label="Ordered commitment" value={formatNgn(s.poOrderedValueNgn)} />
+              <AccountingDeskKpiCard label="Received goods value" value={formatNgn(s.grnReceivedValueNgn)} tone="teal" />
+              <AccountingDeskKpiCard label="Supplier paid" value={formatNgn(s.supplierPaidNgn)} />
+              <AccountingDeskKpiCard label="Current payable" value={formatNgn(s.currentApNgn)} />
+              <AccountingDeskKpiCard
                 label="Expected payable from GRN"
                 value={formatNgn(s.expectedApReceivedBasisNgn)}
                 hint="max(received − paid, 0)"
                 tone="teal"
               />
-              <MetricCard
+              <AccountingDeskKpiCard
                 label="AP difference"
                 value={formatNgn(s.apDifferenceNgn)}
                 hint="current AP − expected"
-                tone={Math.abs(s.apDifferenceNgn) > 0 ? 'amber' : 'slate'}
+                tone={Math.abs(s.apDifferenceNgn) > 0 ? 'amber' : 'default'}
               />
-              <MetricCard
+              <AccountingDeskKpiCard
                 label="Supplier advance risk"
                 value={formatNgn(s.paidNotReceivedNgn)}
                 hint={`${s.overpaidSupplierCount ?? 0} supplier(s)`}
-                tone={(s.paidNotReceivedNgn || 0) > 0 ? 'rose' : 'amber'}
+                tone="amber"
               />
-              <MetricCard label="Received but unpaid" value={formatNgn(s.receivedNotPaidNgn)} tone="amber" />
+              <AccountingDeskKpiCard label="Received but unpaid" value={formatNgn(s.receivedNotPaidNgn)} tone="amber" />
               {!compact ? (
                 <>
-                  <MetricCard label="Order balance not received" value={formatNgn(s.orderedNotReceivedNgn)} />
-                  <MetricCard
+                  <AccountingDeskKpiCard label="Order balance not received" value={formatNgn(s.orderedNotReceivedNgn)} />
+                  <AccountingDeskKpiCard
                     label="Payable without GRN"
                     value={String(s.payableWithoutGrnCount ?? 0)}
-                    tone={(s.payableWithoutGrnCount || 0) > 0 ? 'amber' : 'slate'}
+                    tone={(s.payableWithoutGrnCount || 0) > 0 ? 'amber' : 'default'}
                   />
-                  <MetricCard
+                  <AccountingDeskKpiCard
                     label="GRN without payable"
                     value={String(s.grnWithoutPayableCount ?? 0)}
-                    tone={(s.grnWithoutPayableCount || 0) > 0 ? 'amber' : 'slate'}
+                    tone={(s.grnWithoutPayableCount || 0) > 0 ? 'amber' : 'default'}
                   />
-                  <MetricCard
+                  <AccountingDeskKpiCard
                     label="Missing cost"
                     value={String(s.missingCostCount ?? 0)}
-                    tone={(s.missingCostCount || 0) > 0 ? 'rose' : 'slate'}
+                    tone={(s.missingCostCount || 0) > 0 ? 'amber' : 'default'}
                   />
                 </>
               ) : null}
@@ -404,11 +404,18 @@ export function Ap2SupplierDiagnosticsPanel({
 
             {!compact ? (
               <>
-                <FinanceReportPanel
+                <AccountingDeskTableSection
                   title="PO ordered vs received vs paid"
                   description="Procurement commitment compared to GRN value and supplier payments."
-                  onLoad={() => reload()}
+                  onReload={() => reload()}
+                  loading={loading}
                   onExport={exportPoCsv}
+                  exportDisabled={!poTableRows.length}
+                  empty={
+                    !poTableRows.length ? (
+                      <FinanceEmptyState title="No PO rows" description="Adjust filters or branch scope." />
+                    ) : null
+                  }
                 >
                   {poTableRows.length ? (
                     <FinanceDataTable
@@ -425,12 +432,10 @@ export function Ap2SupplierDiagnosticsPanel({
                       ]}
                       rows={poTableRows}
                     />
-                  ) : (
-                    <FinanceEmptyState title="No PO rows" description="Adjust filters or branch scope." />
-                  )}
-                </FinanceReportPanel>
+                  ) : null}
+                </AccountingDeskTableSection>
 
-                <FinanceReportPanel title="Supplier exposure" description="Aggregated by supplier for the selected scope.">
+                <AccountingDeskTableSection title="Supplier exposure" description="Aggregated by supplier for the selected scope.">
                   <FinanceDataTable
                     columns={[
                       { key: 'supplier', label: 'Supplier' },
@@ -444,9 +449,9 @@ export function Ap2SupplierDiagnosticsPanel({
                     ]}
                     rows={supplierRows}
                   />
-                </FinanceReportPanel>
+                </AccountingDeskTableSection>
 
-                <FinanceReportPanel
+                <AccountingDeskTableSection
                   title="AP difference list"
                   description="Where system AP differs from received-goods basis."
                   onExport={() =>
@@ -462,6 +467,12 @@ export function Ap2SupplierDiagnosticsPanel({
                       }))
                     )
                   }
+                  exportDisabled={!diffRows.length}
+                  empty={
+                    !diffRows.length ? (
+                      <FinanceEmptyState title="No AP differences" description="Current AP matches expected for all POs in scope." />
+                    ) : null
+                  }
                 >
                   {diffRows.length ? (
                     <FinanceDataTable
@@ -474,14 +485,17 @@ export function Ap2SupplierDiagnosticsPanel({
                       ]}
                       rows={diffRows}
                     />
-                  ) : (
-                    <FinanceEmptyState title="No AP differences" description="Current AP matches expected for all POs in scope." />
-                  )}
-                </FinanceReportPanel>
+                  ) : null}
+                </AccountingDeskTableSection>
 
-                <FinanceReportPanel
+                <AccountingDeskTableSection
                   title="Missing inventory cost"
                   description="Received stock or PO lines without reliable unit or landed cost."
+                  empty={
+                    !missingRows.length ? (
+                      <FinanceEmptyState title="No missing cost flags" description="Coil landed cost and line prices appear present." />
+                    ) : null
+                  }
                 >
                   {missingRows.length ? (
                     <FinanceDataTable
@@ -493,31 +507,31 @@ export function Ap2SupplierDiagnosticsPanel({
                       ]}
                       rows={missingRows}
                     />
-                  ) : (
-                    <FinanceEmptyState title="No missing cost flags" description="Coil landed cost and line prices appear present." />
-                  )}
-                </FinanceReportPanel>
+                  ) : null}
+                </AccountingDeskTableSection>
 
-                <button
-                  type="button"
-                  onClick={() => setShowTechnical((v) => !v)}
-                  className="inline-flex items-center gap-1 text-xs font-bold text-slate-500 hover:text-teal-800"
-                >
-                  <ChevronDown size={14} className={showTechnical ? 'rotate-180' : ''} />
-                  {showTechnical ? 'Hide' : 'Show'} policy notes
-                </button>
-                {showTechnical && notes.length ? (
-                  <ul className="list-disc pl-5 text-xs font-medium text-slate-600 space-y-1">
-                    {notes.map((n, i) => (
-                      <li key={i}>{n}</li>
-                    ))}
-                  </ul>
-                ) : null}
+                <ProcurementFormSection letter="N" title="Policy notes" compact>
+                  <button
+                    type="button"
+                    onClick={() => setShowTechnical((v) => !v)}
+                    className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-slate-500 hover:text-[#134e4a]"
+                  >
+                    <ChevronDown size={14} className={showTechnical ? 'rotate-180' : ''} />
+                    {showTechnical ? 'Hide' : 'Show'} notes
+                  </button>
+                  {showTechnical && notes.length ? (
+                    <ul className="mt-2 list-disc pl-5 text-[10px] font-medium text-slate-600 space-y-1">
+                      {notes.map((n, i) => (
+                        <li key={i}>{n}</li>
+                      ))}
+                    </ul>
+                  ) : null}
+                </ProcurementFormSection>
               </>
             ) : null}
           </>
         ) : null}
-      </section>
+      </div>
 
       <Ap2ApRebuildModal
         open={rebuildOpen}
