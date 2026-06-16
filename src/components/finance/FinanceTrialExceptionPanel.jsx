@@ -1,21 +1,18 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { AlertCircle, AlertTriangle, Info, RefreshCw, Users } from 'lucide-react';
+import { AlertCircle, AlertTriangle, RefreshCw, Users } from 'lucide-react';
+import { formatNgn } from '../../Data/mockData';
+import { ProcurementFormSection } from '../procurement/ProcurementFormSection';
+import { AccountingDeskKpiCard, AccountingDeskNotice } from './accounting/AccountingDeskUi';
 
-function CountCard({ label, count, tone = 'slate', hint }) {
-  const tones = {
-    amber: 'border-amber-200 bg-amber-50/80 text-amber-950',
-    rose: 'border-rose-200 bg-rose-50/80 text-rose-950',
-    slate: 'border-slate-200 bg-white text-slate-900',
-    indigo: 'border-indigo-200 bg-indigo-50/80 text-indigo-950',
-  };
-  const cls = tones[tone] || tones.slate;
+function CountCard({ label, count, tone = 'default', hint }) {
   return (
-    <div className={`rounded-2xl border p-4 ${cls}`}>
-      <p className="text-[10px] font-bold uppercase tracking-wide opacity-80">{label}</p>
-      <p className="text-2xl font-black tabular-nums mt-1">{Number(count) || 0}</p>
-      {hint ? <p className="text-xs font-medium mt-1 opacity-90">{hint}</p> : null}
-    </div>
+    <AccountingDeskKpiCard
+      label={label}
+      value={typeof count === 'number' && count > 999 ? formatNgn(count) : count ?? 0}
+      hint={hint}
+      tone={tone === 'amber' ? 'amber' : tone === 'teal' ? 'teal' : 'default'}
+    />
   );
 }
 
@@ -56,18 +53,15 @@ export function FinanceTrialExceptionPanel({ variant, data, loading, error, onRe
   const confirmed = data?.confirmedReceipts || {};
 
   const trialBanner = (
-    <div className="rounded-2xl border border-sky-200 bg-sky-50/80 p-4 flex gap-3">
-      <Info size={18} className="text-sky-800 shrink-0 mt-0.5" />
-      <div className="text-sm font-medium text-sky-950 leading-relaxed">
-        <p className="font-black text-sky-900 mb-1">Trial / onboarding month</p>
-        <p>{data?.trialPhaseNote || 'Exception counts may include training entries and finance-manager assist.'}</p>
-        {flags.enforceDualControlPayments ? (
-          <p className="mt-2 text-rose-800 font-bold">Strict dual-control enforcement is ON on this server.</p>
-        ) : (
-          <p className="mt-2 text-sky-800/90">{dual.message}</p>
-        )}
-      </div>
-    </div>
+    <AccountingDeskNotice tone="trial">
+      <p className="font-bold mb-1">Trial / onboarding month</p>
+      <p>{data?.trialPhaseNote || 'Exception counts may include training entries and finance-manager assist.'}</p>
+      {flags.enforceDualControlPayments ? (
+        <p className="mt-2 text-rose-800 font-bold">Strict dual-control enforcement is ON on this server.</p>
+      ) : (
+        <p className="mt-2 opacity-90">{dual.message}</p>
+      )}
+    </AccountingDeskNotice>
   );
 
   if (loading && !data) {
@@ -101,11 +95,11 @@ export function FinanceTrialExceptionPanel({ variant, data, loading, error, onRe
   return (
     <section className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-sm font-black text-slate-800 flex items-center gap-2">
+        <h2 className="text-[10px] font-bold uppercase tracking-widest text-[#134e4a] flex items-center gap-2">
           {variant === 'oversight' ? (
-            <AlertTriangle size={16} className="text-rose-700" />
+            <AlertTriangle size={14} className="text-rose-700" />
           ) : (
-            <AlertCircle size={16} className="text-amber-700" />
+            <AlertCircle size={14} className="text-amber-700" />
           )}
           {variant === 'cashier'
             ? 'Cashier exception summary'
@@ -117,9 +111,9 @@ export function FinanceTrialExceptionPanel({ variant, data, loading, error, onRe
           <button
             type="button"
             onClick={() => onReload()}
-            className="text-xs font-bold text-teal-800 inline-flex items-center gap-1"
+            className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[9px] font-semibold uppercase tracking-wider text-[#134e4a] hover:bg-slate-50"
           >
-            <RefreshCw size={14} />
+            <RefreshCw size={12} />
             Refresh
           </button>
         ) : null}
@@ -129,10 +123,10 @@ export function FinanceTrialExceptionPanel({ variant, data, loading, error, onRe
 
       {variant === 'cashier' ? (
         <>
-          <p className="text-sm font-semibold text-teal-900 bg-teal-50/80 border border-teal-100 rounded-xl px-4 py-3">
+          <AccountingDeskNotice tone="info">
             Training: Cashier confirms actual payment received (bank/cash) — not every accounting line.
-          </p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          </AccountingDeskNotice>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             <CountCard label="Pending receipt confirmations" count={ex.pendingReceiptClearance} tone="amber" />
             <CountCard
               label="Treasury in, not finance-settled"
@@ -149,10 +143,10 @@ export function FinanceTrialExceptionPanel({ variant, data, loading, error, onRe
 
       {variant === 'accounting' ? (
         <>
-          <p className="text-sm font-semibold text-indigo-900 bg-indigo-50/80 border border-indigo-100 rounded-xl px-4 py-3">
+          <AccountingDeskNotice tone="info">
             Training: Head of Accounts reviews exceptions and reconciliation — not routine cashier confirmation.
-          </p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          </AccountingDeskNotice>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             <CountCard label="Pending receipt clearance (all)" count={ex.pendingReceiptClearance} tone="amber" />
             <CountCard label="Bank amount ≠ receipt" count={ex.receiptBankAmountMismatch} tone="amber" />
             <CountCard label="Receipt without treasury movement" count={ex.receiptWithoutTreasuryMovement} tone="rose" />
@@ -173,19 +167,18 @@ export function FinanceTrialExceptionPanel({ variant, data, loading, error, onRe
               }
             />
           </div>
-          <div className="rounded-2xl border border-amber-200 bg-amber-50/50 p-4">
-            <p className="text-xs font-bold uppercase tracking-wide text-amber-900 mb-2">Dual-control warnings (not blocked)</p>
-            <ul className="text-sm font-medium text-amber-950 space-y-1">
+          <ProcurementFormSection letter="D" title="Dual-control warnings (not blocked)" compact>
+            <ul className="text-[11px] font-medium text-amber-950 space-y-1">
               <li>Payment approve + pay same display name: {dual.paymentSameDisplayName ?? 0}</li>
               <li>Refund approve + pay same display name: {dual.refundSameDisplayName ?? 0}</li>
               <li>Refund same user requested + approved: {dual.refundSameUserRequestAndApprove ?? 0}</li>
             </ul>
-          </div>
+          </ProcurementFormSection>
         </>
       ) : null}
 
       {variant === 'oversight' ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           <CountCard label="Unresolved high-risk (score)" count={ex.unresolvedHighRiskCount} tone="rose" />
           <CountCard label="Same-name payment approve+pay" count={dual.paymentSameDisplayName} tone="amber" />
           <CountCard label="Same-name refund approve+pay" count={dual.refundSameDisplayName} tone="amber" />
@@ -201,30 +194,24 @@ export function FinanceTrialExceptionPanel({ variant, data, loading, error, onRe
       ) : null}
 
       {credit ? (
-        <div className="rounded-2xl border border-teal-200 bg-teal-50/50 p-4">
-          <p className="text-xs font-black uppercase tracking-wide text-teal-900">Delivery credit (AP1d)</p>
-          <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+        <ProcurementFormSection letter="C" title="Delivery credit (AP1d)" compact>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
             <CountCard label="Pending credit requests" count={credit.pendingCreditExceptionsCount} tone="amber" />
             <CountCard
               label="Approved credit exposure"
               count={credit.approvedCreditExposureNgn}
-              tone="slate"
               hint="Receivable still outstanding"
             />
             <CountCard label="Overdue approved credit" count={credit.overdueApprovedCreditCount} tone="amber" />
-            <CountCard label="Deliveries allowed by credit" count={credit.deliveriesAllowedByCreditCount} tone="slate" />
-            <CountCard
-              label="Unpaid deliveries, no credit"
-              count={credit.deliveriesWarningNoCreditCount}
-              tone="rose"
-            />
+            <CountCard label="Deliveries allowed by credit" count={credit.deliveriesAllowedByCreditCount} />
+            <CountCard label="Unpaid deliveries, no credit" count={credit.deliveriesWarningNoCreditCount} tone="amber" />
           </div>
           {variant !== 'cashier' ? (
-            <Link to="/accounting" className="mt-2 inline-block text-xs font-bold text-teal-800 hover:underline">
+            <Link to="/accounting" className="mt-2 inline-block text-[10px] font-bold text-[#134e4a] hover:underline">
               Review on Accounting Desk → Credit
             </Link>
           ) : null}
-        </div>
+        </ProcurementFormSection>
       ) : null}
 
       {flags.deliveryPaymentGateMode && flags.deliveryPaymentGateMode !== 'off' ? (

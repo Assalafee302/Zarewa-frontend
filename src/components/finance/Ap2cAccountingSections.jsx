@@ -4,9 +4,13 @@ import { AlertTriangle, ChevronDown, RefreshCw } from 'lucide-react';
 import { formatNgn } from '../../Data/mockData';
 import { downloadFinanceCsv } from '../../lib/exportFinanceCsv';
 import { useAp2cReports } from '../../hooks/useAp2cReports';
-import { FinanceActionButton } from './FinanceActionButton';
 import { FinanceDataTable } from './FinanceDataTable';
-import { FinanceReportPanel } from './FinanceReportPanel';
+import { ProcurementFormSection } from '../procurement/ProcurementFormSection';
+import {
+  AccountingDeskKpiCard,
+  AccountingDeskPageIntro,
+} from './accounting/AccountingDeskUi';
+import { AccountingDeskTableSection } from './accounting/AccountingDeskTableSection';
 
 /**
  * @param {{
@@ -35,54 +39,62 @@ export function Ap2cAccountingSections({
   const alignmentChecks = (alignment?.checks || []).slice(0, compact ? 2 : 6);
 
   return (
-    <div className="space-y-6 border-t border-slate-200 pt-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <p className="text-sm font-black text-[#134e4a]">Supplier advances &amp; inventory (AP2c)</p>
-          <p className="text-xs font-medium text-slate-600 mt-1">
-            Management diagnostic — accounting value. Not statutory until Head of Accounts sign-off.
-          </p>
-        </div>
-        <FinanceActionButton variant="secondary" onClick={() => loadAll(filters)} disabled={loading || !enabled}>
-          <RefreshCw size={14} className={`mr-1 inline ${loading ? 'animate-spin' : ''}`} />
-          Load AP2c reports
-        </FinanceActionButton>
-      </div>
+    <div className="space-y-4 border-t border-slate-200 pt-6">
+      <AccountingDeskPageIntro
+        title="Supplier advances & inventory (AP2c)"
+        description="Management diagnostic — accounting value. Not statutory until Head of Accounts sign-off."
+        action={
+          <button
+            type="button"
+            onClick={() => loadAll(filters)}
+            disabled={loading || !enabled}
+            className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[9px] font-semibold uppercase tracking-wider text-[#134e4a] hover:bg-slate-50 disabled:opacity-50"
+          >
+            <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />
+            Load AP2c
+          </button>
+        }
+      />
 
       {error ? (
-        <p className="text-sm text-rose-800 flex items-center gap-2">
+        <p className="text-[11px] font-medium text-rose-800 flex items-center gap-2">
           <AlertTriangle size={16} />
           {error}
         </p>
       ) : null}
 
       <div className={`grid gap-3 ${compact ? 'grid-cols-2' : 'grid-cols-2 lg:grid-cols-4'}`}>
-        <div className="rounded-xl border border-rose-200/80 bg-rose-50/40 p-3">
-          <p className="text-[10px] font-bold uppercase text-rose-800">Supplier advances</p>
-          <p className="text-lg font-black tabular-nums">{formatNgn(advance?.summary?.totalSupplierAdvanceNgn ?? 0)}</p>
-          <p className="text-[10px] text-rose-900/80">{advance?.summary?.paidNotReceivedCount ?? 0} paid not received</p>
-        </div>
-        <div className="rounded-xl border border-amber-200/80 bg-amber-50/40 p-3">
-          <p className="text-[10px] font-bold uppercase text-amber-800">Received not paid</p>
-          <p className="text-lg font-black tabular-nums">{formatNgn(advance?.summary?.totalReceivedNotPaidNgn ?? 0)}</p>
-        </div>
-        <div className="rounded-xl border border-teal-200/80 bg-teal-50/40 p-3">
-          <p className="text-[10px] font-bold uppercase text-teal-800">Inventory (accounting)</p>
-          <p className="text-lg font-black tabular-nums">{formatNgn(inventory?.accountingValueNgn ?? 0)}</p>
-          <p className="text-[10px] text-teal-900/80">
-            Replacement: {inventory?.replacementStatus === 'not_configured' ? 'Not configured' : formatNgn(inventory?.replacementValueNgn)}
-          </p>
-        </div>
-        <div className="rounded-xl border border-slate-200 p-3">
-          <p className="text-[10px] font-bold uppercase text-slate-500">GL alignment warnings</p>
-          <p className="text-lg font-black tabular-nums">{alignment?.warningCount ?? 0}</p>
-          <p className="text-[10px] text-slate-600">{inventory?.missingCostCount ?? 0} missing cost</p>
-        </div>
+        <AccountingDeskKpiCard
+          label="Supplier advances"
+          value={formatNgn(advance?.summary?.totalSupplierAdvanceNgn ?? 0)}
+          hint={`${advance?.summary?.paidNotReceivedCount ?? 0} paid not received`}
+          tone="amber"
+        />
+        <AccountingDeskKpiCard
+          label="Received not paid"
+          value={formatNgn(advance?.summary?.totalReceivedNotPaidNgn ?? 0)}
+          tone="amber"
+        />
+        <AccountingDeskKpiCard
+          label="Inventory (accounting)"
+          value={formatNgn(inventory?.accountingValueNgn ?? 0)}
+          hint={
+            inventory?.replacementStatus === 'not_configured'
+              ? 'Replacement not configured'
+              : `Replacement ${formatNgn(inventory?.replacementValueNgn)}`
+          }
+          tone="teal"
+        />
+        <AccountingDeskKpiCard
+          label="GL alignment warnings"
+          value={alignment?.warningCount ?? 0}
+          hint={`${inventory?.missingCostCount ?? 0} missing cost`}
+        />
       </div>
 
       {!compact ? (
         <>
-          <FinanceReportPanel
+          <AccountingDeskTableSection
             title="Supplier advances"
             description="Prepayments where supplier paid exceeds received goods value."
             onExport={() =>
@@ -97,6 +109,7 @@ export function Ap2cAccountingSections({
                 }))
               )
             }
+            exportDisabled={!topAdvances.length}
           >
             <FinanceDataTable
               columns={[
@@ -111,26 +124,28 @@ export function Ap2cAccountingSections({
                 pos: r.poCount,
               }))}
             />
-          </FinanceReportPanel>
+          </AccountingDeskTableSection>
 
-          <FinanceReportPanel
+          <AccountingDeskTableSection
             title="Inventory valuation"
             description="Accounting value from landed/unit cost. Management replacement value not configured unless price basis added."
             onExport={() =>
               downloadFinanceCsv('inventory-valuation', ['key', 'accountingValueNgn', 'coilCount'], inventory?.byBranch || [])
             }
           >
-            <p className="text-sm font-medium text-slate-700 mb-2">
-              Month avg unit price: {inventory?.monthlyAveragePurchasePriceNgn != null ? formatNgn(inventory.monthlyAveragePurchasePriceNgn) : '—'}
+            <p className="text-[11px] font-medium text-slate-700 mb-2">
+              Month avg unit price:{' '}
+              {inventory?.monthlyAveragePurchasePriceNgn != null ? formatNgn(inventory.monthlyAveragePurchasePriceNgn) : '—'}
               {' · '}
-              Highest month: {inventory?.highestPurchasePriceMonthNgn != null ? formatNgn(inventory.highestPurchasePriceMonthNgn) : '—'}
+              Highest month:{' '}
+              {inventory?.highestPurchasePriceMonthNgn != null ? formatNgn(inventory.highestPurchasePriceMonthNgn) : '—'}
             </p>
-            <FinanceActionButton variant="link" to="/accounting">
+            <Link to="/accounting" className="text-[10px] font-bold text-[#134e4a] hover:underline">
               Review missing cost →
-            </FinanceActionButton>
-          </FinanceReportPanel>
+            </Link>
+          </AccountingDeskTableSection>
 
-          <FinanceReportPanel title="AP / inventory / GL alignment" description="Management tie-out — not statutory.">
+          <AccountingDeskTableSection title="AP / inventory / GL alignment" description="Management tie-out — not statutory.">
             {alignmentChecks.length ? (
               <ul className="space-y-2 text-sm">
                 {alignmentChecks.map((c) => (
@@ -150,28 +165,30 @@ export function Ap2cAccountingSections({
                 ))}
               </ul>
             ) : (
-              <p className="text-sm text-slate-600">Load AP2c reports to see alignment checks.</p>
+              <p className="text-[11px] text-slate-600">Load AP2c reports to see alignment checks.</p>
             )}
-            <Link to="/accounts?tab=audit" className="inline-block mt-2 text-xs font-bold text-teal-800 hover:underline">
+            <Link to="/accounts?tab=audit" className="inline-block mt-2 text-[10px] font-bold text-[#134e4a] hover:underline">
               Finance → Audit trail
             </Link>
-          </FinanceReportPanel>
+          </AccountingDeskTableSection>
 
-          <button
-            type="button"
-            onClick={() => setShowTechnical((v) => !v)}
-            className="text-xs font-bold text-slate-500 hover:text-teal-800 inline-flex items-center gap-1"
-          >
-            <ChevronDown size={14} className={showTechnical ? 'rotate-180' : ''} />
-            {showTechnical ? 'Hide' : 'Show'} supplier advance GL notes
-          </button>
-          {showTechnical && advance?.supplierAdvanceGl?.designNotes ? (
-            <ul className="list-disc pl-5 text-xs text-slate-600 space-y-1">
-              {advance.supplierAdvanceGl.designNotes.map((n, i) => (
-                <li key={i}>{n}</li>
-              ))}
-            </ul>
-          ) : null}
+          <ProcurementFormSection letter="G" title="Supplier advance GL notes" compact>
+            <button
+              type="button"
+              onClick={() => setShowTechnical((v) => !v)}
+              className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-slate-500 hover:text-[#134e4a]"
+            >
+              <ChevronDown size={14} className={showTechnical ? 'rotate-180' : ''} />
+              {showTechnical ? 'Hide' : 'Show'} design notes
+            </button>
+            {showTechnical && advance?.supplierAdvanceGl?.designNotes ? (
+              <ul className="mt-2 list-disc pl-5 text-[10px] text-slate-600 space-y-1">
+                {advance.supplierAdvanceGl.designNotes.map((n, i) => (
+                  <li key={i}>{n}</li>
+                ))}
+              </ul>
+            ) : null}
+          </ProcurementFormSection>
         </>
       ) : null}
     </div>

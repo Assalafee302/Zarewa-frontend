@@ -1,24 +1,36 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { RefreshCw, Scale } from 'lucide-react';
 import { apiFetch } from '../../lib/apiBase';
 import { formatNgn } from '../../Data/mockData';
+import { ProcurementFormSection } from '../procurement/ProcurementFormSection';
+import {
+  AccountingDeskKpiCard,
+  AccountingDeskNotice,
+  AccountingDeskPageIntro,
+  ACCOUNTING_FIELD_LABEL,
+  ACCOUNTING_INPUT,
+} from '../finance/accounting/AccountingDeskUi';
+import { AccountingDeskTableSection } from '../finance/accounting/AccountingDeskTableSection';
 
 function defaultPeriodFromEndDate(endDate) {
   const s = String(endDate || '').slice(0, 7);
   return /^\d{4}-\d{2}$/.test(s) ? s : new Date().toISOString().slice(0, 7);
 }
 
-function severityChipClass(severity) {
-  if (severity === 'warn') return 'bg-amber-100 text-amber-900 border-amber-200';
-  return 'bg-slate-100 text-slate-700 border-slate-200';
-}
-
 /**
  * Phase A1 — operational cash tie-out (receipt confirmation basis). Not statutory reconciliation.
+ * @param {{ endDate?: string; hasFinanceView?: boolean; showToast?: Function; branchScopeLabel?: string; deskLayout?: boolean }} props
  */
-export function ReportsFinanceReconciliationPackSection({ endDate, hasFinanceView, showToast, branchScopeLabel }) {
+export function ReportsFinanceReconciliationPackSection({
+  endDate,
+  hasFinanceView,
+  showToast,
+  branchScopeLabel,
+  deskLayout = false,
+}) {
   const [period, setPeriod] = useState(() => defaultPeriodFromEndDate(endDate));
   const [loading, setLoading] = useState(false);
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(deskLayout);
   const [data, setData] = useState(null);
 
   useEffect(() => {
@@ -49,10 +61,10 @@ export function ReportsFinanceReconciliationPackSection({ endDate, hasFinanceVie
   }, [hasFinanceView, period, showToast]);
 
   useEffect(() => {
-    if (open && hasFinanceView && !data && !loading) {
+    if ((open || deskLayout) && hasFinanceView && !data && !loading) {
       void load();
     }
-  }, [open, hasFinanceView, data, loading, load]);
+  }, [open, deskLayout, hasFinanceView, data, loading, load]);
 
   const pack = data?.pack;
   const cashRows = data?.cashFlowSummary?.rows || [];
@@ -63,6 +75,167 @@ export function ReportsFinanceReconciliationPackSection({ endDate, hasFinanceVie
   );
 
   if (!hasFinanceView) return null;
+
+  const content = (
+    <div className="space-y-4">
+      <AccountingDeskNotice tone="warn">
+        {data?.disclaimer ||
+          'Operational tie-out based on receipt confirmation. Formal bank statement reconciliation is separate.'}
+        {' '}
+        Cashier confirms receipts; Head of Accounts reviews tie-out; MD reviews exceptions.
+      </AccountingDeskNotice>
+
+      <ProcurementFormSection letter="P" title="Period" compact>
+        <div className="flex flex-wrap items-end gap-3">
+          <label className={ACCOUNTING_FIELD_LABEL}>
+            Month
+            <input
+              type="month"
+              className={`${ACCOUNTING_INPUT} mt-1`}
+              value={period}
+              onChange={(e) => setPeriod(e.target.value)}
+            />
+          </label>
+          <button
+            type="button"
+            disabled={loading}
+            onClick={() => void load()}
+            className="inline-flex items-center gap-1 rounded-lg bg-[#134e4a] text-white px-3 py-1.5 text-[9px] font-semibold uppercase tracking-wider shadow-sm hover:brightness-105 disabled:opacity-50"
+          >
+            <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />
+            {loading ? 'Loading…' : 'Load / refresh'}
+          </button>
+          {branchScopeLabel ? (
+            <span className="text-[10px] font-semibold text-slate-500 pb-1">Scope: {branchScopeLabel}</span>
+          ) : null}
+        </div>
+      </ProcurementFormSection>
+
+      {data?.cashConfirmationBasis ? (
+        <p className="text-[11px] font-medium text-slate-700 leading-relaxed">
+          <span className="font-bold text-slate-800">Receipt confirmation basis:</span> {data.cashConfirmationBasis}{' '}
+          <span className="text-slate-500">
+            ({data.formalBankReconciliationStatus || 'Formal bank reconciliation pending'})
+          </span>
+        </p>
+      ) : null}
+
+      {pack?.ok ? (
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+          <AccountingDeskKpiCard label="Confirmed sales receipts" value={formatNgn(pack.salesReceiptsPostedNgn)} />
+          <AccountingDeskKpiCard label="Ledger receipt-like" value={formatNgn(pack.ledgerReceiptLikeNgn)} />
+          <AccountingDeskKpiCard label="Treasury customer inflow" value={formatNgn(pack.treasuryCustomerInNgn)} />
+          <AccountingDeskKpiCard
+            label="GL cash 1000 (month)"
+            value={formatNgn(pack.glCash1000Month?.netNgn ?? 0)}
+            hint="Net debits − credits"
+            tone="teal"
+          />
+          <AccountingDeskKpiCard
+            label="GL AR 1200 (month)"
+            value={formatNgn(pack.glAr1200Month?.netNgn ?? 0)}
+            hint="Not full AR subledger"
+            tone="teal"
+          />
+        </div>
+      ) : null}
+
+      {cashRows.length > 0 ? (
+        <AccountingDeskTableSection title="Treasury movement summary" description="By movement type for the period">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-slate-50 text-left text-[10px] font-bold uppercase tracking-wide text-slate-600">
+                  <th className="px-3 py-2">Type</th>
+                  <th className="px-3 py-2 text-right">Amount (₦)</th>
+                </tr>
+              </thead>
+              <tbody>
+                {cashRows.map((row) => (
+                  <tr key={row.type} className="border-t border-slate-100">
+                    <td className="px-3 py-2 font-semibold text-slate-800">{row.type}</td>
+                    <td className="px-3 py-2 text-right font-bold tabular-nums">{formatNgn(row.totalNgn)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {data?.cashFlowSummary?.netTreasuryMovementNgn != null ? (
+            <p className="text-[10px] font-semibold text-slate-600 mt-2">
+              Net treasury movement (signed as stored): {formatNgn(data.cashFlowSummary.netTreasuryMovementNgn)}
+            </p>
+          ) : null}
+        </AccountingDeskTableSection>
+      ) : null}
+
+      {warnNotes.length > 0 ? (
+        <AccountingDeskNotice tone="warn">
+          <p className="text-[10px] font-bold uppercase tracking-widest mb-2">Warnings / differences</p>
+          <ul className="space-y-1 text-[11px]">
+            {warnNotes.map((n) => (
+              <li key={n.code}>{n.message}</li>
+            ))}
+          </ul>
+        </AccountingDeskNotice>
+      ) : null}
+
+      {(data?.notes || []).length > 0 ? (
+        <ProcurementFormSection letter="N" title={`All notes (${data.notes.length})`} compact>
+          <ul className="space-y-2">
+            {data.notes.map((n) => (
+              <li
+                key={n.code}
+                className={`rounded-lg border px-3 py-2 text-[10px] font-medium ${
+                  n.severity === 'warn'
+                    ? 'border-amber-200 bg-amber-50 text-amber-900'
+                    : 'border-slate-200 bg-slate-50 text-slate-700'
+                }`}
+              >
+                <span className="font-bold uppercase tracking-wide">{n.code}</span> — {n.message}
+              </li>
+            ))}
+          </ul>
+        </ProcurementFormSection>
+      ) : null}
+
+      {pack?.note ? (
+        <p className="text-[10px] font-medium text-slate-500 leading-relaxed border-t border-slate-100 pt-3">{pack.note}</p>
+      ) : null}
+    </div>
+  );
+
+  if (deskLayout) {
+    return (
+      <div className="grid grid-cols-1 gap-4 lg:gap-6 min-w-0">
+        <AccountingDeskPageIntro
+          title="Finance reconciliation & cash confirmation"
+          description="Operational tie-out based on receipt confirmation, customer ledger, treasury movement, and GL activity."
+          action={
+            <button
+              type="button"
+              onClick={() => void load()}
+              disabled={loading}
+              className="inline-flex items-center gap-1 rounded-lg bg-[#134e4a] text-white px-3 py-1.5 text-[9px] font-semibold uppercase tracking-wider shadow-sm hover:brightness-105 disabled:opacity-50"
+            >
+              <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />
+              Refresh
+            </button>
+          }
+        />
+        <div className="flex flex-wrap gap-2">
+          {['Management draft', 'Not statutory', 'Receipt confirmation basis', 'Head of Accounts review'].map((label) => (
+            <span
+              key={label}
+              className="inline-flex items-center rounded-full border border-amber-200/80 bg-amber-50 px-2.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-amber-900"
+            >
+              {label}
+            </span>
+          ))}
+        </div>
+        {content}
+      </div>
+    );
+  }
 
   return (
     <div
@@ -76,10 +249,12 @@ export function ReportsFinanceReconciliationPackSection({ endDate, hasFinanceVie
         aria-expanded={open}
       >
         <div>
-          <h3 className="z-section-title !mb-1">Finance Reconciliation &amp; Cash Confirmation Pack</h3>
+          <h3 className="z-section-title !mb-1 flex items-center gap-2">
+            <Scale size={16} className="text-[#134e4a]" />
+            Finance Reconciliation &amp; Cash Confirmation Pack
+          </h3>
           <p className="text-sm font-medium text-slate-600 max-w-3xl leading-relaxed">
             Operational tie-out based on receipt confirmation, customer ledger, treasury movement, and GL activity.
-            Formal bank statement reconciliation is separate and not the primary control in this pack.
           </p>
         </div>
         <span className="text-xs font-bold text-teal-800 uppercase tracking-wide shrink-0">
@@ -87,165 +262,7 @@ export function ReportsFinanceReconciliationPackSection({ endDate, hasFinanceVie
         </span>
       </button>
 
-      <div className="flex flex-wrap gap-2 mt-3">
-        {['Management draft', 'Not statutory', 'Receipt confirmation basis', 'Head of Accounts review'].map((label) => (
-          <span
-            key={label}
-            className="inline-flex items-center rounded-full border border-amber-200/80 bg-amber-50 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-900"
-          >
-            {label}
-          </span>
-        ))}
-      </div>
-
-      {open ? (
-        <div className="mt-5 space-y-5 border-t border-slate-100 pt-5">
-          <div className="rounded-xl border border-amber-200 bg-amber-50/80 px-4 py-3 text-sm font-medium text-amber-950 leading-relaxed">
-            <p className="font-bold mb-1">{data?.label || 'Finance reconciliation and cash confirmation pack'}</p>
-            <p>{data?.disclaimer}</p>
-            <p className="mt-2 text-xs text-amber-900/90">
-              <span className="font-bold">Cashier:</span> confirms receipts and cash movement.{' '}
-              <span className="font-bold">Head of Accounts:</span> reviews reconciliation and GL tie-out.{' '}
-              <span className="font-bold">MD:</span> reviews exceptions.
-            </p>
-          </div>
-
-          <div className="flex flex-wrap items-end gap-3">
-            <label className="flex flex-col gap-1 text-xs font-bold text-slate-600 uppercase tracking-wide">
-              Period (month)
-              <input
-                type="month"
-                className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-800"
-                value={period}
-                onChange={(e) => setPeriod(e.target.value)}
-              />
-            </label>
-            <button
-              type="button"
-              className="z-btn-primary px-4 py-2 text-sm font-bold rounded-lg"
-              disabled={loading}
-              onClick={() => void load()}
-            >
-              {loading ? 'Loading…' : 'Load / Refresh'}
-            </button>
-            {branchScopeLabel ? (
-              <span className="text-xs font-semibold text-slate-500 pb-2">Scope: {branchScopeLabel}</span>
-            ) : null}
-          </div>
-
-          {data?.cashConfirmationBasis ? (
-            <p className="text-sm font-medium text-slate-700 leading-relaxed">
-              <span className="font-bold text-slate-800">Receipt confirmation basis:</span> {data.cashConfirmationBasis}{' '}
-              <span className="text-slate-500">
-                ({data.formalBankReconciliationStatus || 'Formal bank reconciliation pending'})
-              </span>
-            </p>
-          ) : null}
-
-          {pack?.ok ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4">
-                <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500 mb-1">
-                  Confirmed sales receipts
-                </p>
-                <p className="text-xl font-black text-slate-900 tabular-nums">{formatNgn(pack.salesReceiptsPostedNgn)}</p>
-              </div>
-              <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4">
-                <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500 mb-1">
-                  Ledger receipt-like
-                </p>
-                <p className="text-xl font-black text-slate-900 tabular-nums">{formatNgn(pack.ledgerReceiptLikeNgn)}</p>
-              </div>
-              <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4">
-                <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500 mb-1">
-                  Treasury customer inflow
-                </p>
-                <p className="text-xl font-black text-slate-900 tabular-nums">{formatNgn(pack.treasuryCustomerInNgn)}</p>
-              </div>
-              <div className="rounded-xl border border-teal-100 bg-teal-50/40 p-4">
-                <p className="text-[10px] font-bold uppercase tracking-wide text-teal-800 mb-1">
-                  GL cash 1000 (month activity)
-                </p>
-                <p className="text-lg font-black text-teal-900 tabular-nums">
-                  {formatNgn(pack.glCash1000Month?.netNgn ?? 0)}
-                </p>
-                <p className="text-xs text-teal-800/80 mt-1 font-medium">Net debits − credits in period</p>
-              </div>
-              <div className="rounded-xl border border-teal-100 bg-teal-50/40 p-4">
-                <p className="text-[10px] font-bold uppercase tracking-wide text-teal-800 mb-1">
-                  GL AR 1200 (month activity)
-                </p>
-                <p className="text-lg font-black text-teal-900 tabular-nums">
-                  {formatNgn(pack.glAr1200Month?.netNgn ?? 0)}
-                </p>
-                <p className="text-xs text-teal-800/80 mt-1 font-medium">Not full AR subledger balance</p>
-              </div>
-            </div>
-          ) : null}
-
-          {cashRows.length > 0 ? (
-            <div>
-              <h4 className="text-sm font-black text-slate-800 mb-2">Treasury movement summary (by type)</h4>
-              <div className="overflow-x-auto rounded-xl border border-slate-200">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="bg-slate-50 text-left text-[10px] font-bold uppercase tracking-wide text-slate-600">
-                      <th className="px-3 py-2">Type</th>
-                      <th className="px-3 py-2 text-right">Amount (₦)</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {cashRows.map((row) => (
-                      <tr key={row.type} className="border-t border-slate-100">
-                        <td className="px-3 py-2 font-semibold text-slate-800">{row.type}</td>
-                        <td className="px-3 py-2 text-right font-bold tabular-nums">{formatNgn(row.totalNgn)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              {data?.cashFlowSummary?.netTreasuryMovementNgn != null ? (
-                <p className="text-xs font-semibold text-slate-600 mt-2">
-                  Net treasury movement (signed as stored): {formatNgn(data.cashFlowSummary.netTreasuryMovementNgn)}
-                </p>
-              ) : null}
-            </div>
-          ) : null}
-
-          {warnNotes.length > 0 ? (
-            <div className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3">
-              <p className="text-xs font-bold uppercase tracking-wide text-amber-900 mb-2">Warnings / differences</p>
-              <ul className="space-y-2 text-sm font-medium text-amber-950">
-                {warnNotes.map((n) => (
-                  <li key={n.code}>{n.message}</li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
-
-          {(data?.notes || []).length > 0 ? (
-            <details className="text-sm">
-              <summary className="font-bold text-slate-700 cursor-pointer">All notes ({data.notes.length})</summary>
-              <ul className="mt-2 space-y-2">
-                {data.notes.map((n) => (
-                  <li
-                    key={n.code}
-                    className={`rounded-lg border px-3 py-2 text-xs font-medium ${severityChipClass(n.severity)}`}
-                  >
-                    <span className="font-bold uppercase tracking-wide">{n.code}</span> — {n.message}
-                  </li>
-                ))}
-              </ul>
-            </details>
-          ) : null}
-
-          {pack?.note ? (
-            <p className="text-xs font-medium text-slate-500 leading-relaxed border-t border-slate-100 pt-3">
-              {pack.note}
-            </p>
-          ) : null}
-        </div>
-      ) : null}
+      {open ? <div className="mt-5 border-t border-slate-100 pt-5">{content}</div> : null}
     </div>
   );
 }

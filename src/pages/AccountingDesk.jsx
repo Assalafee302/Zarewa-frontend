@@ -46,7 +46,6 @@ import { FinancePayrollPaymentsPanel } from '../components/finance/FinancePayrol
 import { AccountingCreditorsPanel } from '../components/finance/AccountingCreditorsPanel';
 import { AccountingDebtorsPanel } from '../components/finance/AccountingDebtorsPanel';
 import { AccountingAssetsPanel } from '../components/finance/AccountingAssetsPanel';
-import { userMayViewAp1cDryRunClient } from '../lib/financeTrialExceptionsAccess';
 
 function defaultPeriodRange() {
   const now = new Date();
@@ -291,6 +290,7 @@ export default function AccountingDesk() {
                   hasFinanceView={hasFinanceView}
                   showToast={showToast}
                   branchScopeLabel={branchScopeLabel}
+                  deskLayout
                 />
               ) : null}
 
