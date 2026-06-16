@@ -28,30 +28,44 @@ const INPUT =
  * @param {{
  *   registerSide: 'creditor' | 'debtor';
  *   branchId?: string | null;
+ *   initialValues?: object | null;
+ *   editLine?: object | null;
  *   onClose: () => void;
  *   onSaved: () => void;
  * }} props
  */
-export function AccountingRegisterLineModal({ registerSide, branchId, onClose, onSaved }) {
+export function AccountingRegisterLineModal({
+  registerSide,
+  branchId,
+  initialValues = null,
+  editLine = null,
+  onClose,
+  onSaved,
+}) {
   const ws = useWorkspace();
   const branches = ws?.snapshot?.workspaceBranches ?? ws?.session?.branches ?? [];
-  const defaultBranch = branchId && branchId !== 'ALL' ? branchId : branches[0]?.id || '';
+  const seed = editLine || initialValues || {};
+  const defaultBranch =
+    seed.branchId || (branchId && branchId !== 'ALL' ? branchId : branches[0]?.id || '');
 
-  const [partyName, setPartyName] = useState('');
-  const [partyRef, setPartyRef] = useState('');
-  const [amountNgn, setAmountNgn] = useState('');
-  const [asAtDateIso, setAsAtDateIso] = useState('');
-  const [category, setCategory] = useState(CATEGORIES[registerSide][0].value);
-  const [description, setDescription] = useState('');
-  const [reference, setReference] = useState('');
+  const isEdit = Boolean(editLine?.id);
+  const sideNoun = registerSide === 'creditor' ? 'receivable' : 'payable';
+
+  const [partyName, setPartyName] = useState(seed.partyName || '');
+  const [partyRef, setPartyRef] = useState(seed.partyRef || '');
+  const [amountNgn, setAmountNgn] = useState(seed.amountNgn != null ? String(seed.amountNgn) : '');
+  const [asAtDateIso, setAsAtDateIso] = useState(seed.asAtDateIso || '');
+  const [category, setCategory] = useState(seed.category || CATEGORIES[registerSide][0].value);
+  const [description, setDescription] = useState(seed.description || seed.detail || '');
+  const [reference, setReference] = useState(seed.reference || '');
   const [selectedBranch, setSelectedBranch] = useState(defaultBranch);
-  const [notes, setNotes] = useState('');
+  const [notes, setNotes] = useState(seed.notes || '');
 
-  const { busy, error, createLine } = useAccountingRegisterMutations();
+  const { busy, error, createLine, updateLine } = useAccountingRegisterMutations();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const result = await createLine({
+    const payload = {
       registerSide,
       partyName: partyName.trim(),
       partyRef: partyRef.trim() || undefined,
@@ -63,7 +77,11 @@ export function AccountingRegisterLineModal({ registerSide, branchId, onClose, o
       branchId: selectedBranch || undefined,
       source: 'legacy',
       notes: notes.trim() || undefined,
-    });
+    };
+
+    const result = isEdit
+      ? await updateLine(editLine.id, payload)
+      : await createLine(payload);
     if (result.ok) onSaved();
   };
 
@@ -71,17 +89,19 @@ export function AccountingRegisterLineModal({ registerSide, branchId, onClose, o
     <ModalFrame
       isOpen
       onClose={onClose}
-      title={`Add inherited ${registerSide === 'creditor' ? 'receivable' : 'payable'}`}
+      title={isEdit ? `Edit inherited ${sideNoun}` : `Add inherited ${sideNoun}`}
       surface="plain"
     >
       <div className="w-full max-w-lg rounded-2xl border border-slate-200/90 bg-white shadow-xl overflow-hidden">
         <div className="h-1 bg-[#134e4a]" />
         <div className="p-5 sm:p-6 max-h-[min(85dvh,720px)] overflow-y-auto custom-scrollbar">
           <h2 className="text-lg font-bold text-[#134e4a]">
-            Add inherited {registerSide === 'creditor' ? 'receivable' : 'payable'}
+            {isEdit ? 'Edit inherited' : 'Add inherited'} {sideNoun}
           </h2>
           <p className="mt-1 text-[10px] text-slate-500 leading-relaxed">
-            For balances from before go-live or not captured in live transactions (e.g. April project overpayment).
+            {isEdit
+              ? 'Update party, amount, or reference for this open legacy line.'
+              : 'For balances from before go-live or not captured in live transactions (e.g. April project overpayment).'}
           </p>
 
           <form className="mt-5 space-y-4" onSubmit={handleSubmit}>
@@ -206,7 +226,7 @@ export function AccountingRegisterLineModal({ registerSide, branchId, onClose, o
                 disabled={busy}
                 className="inline-flex items-center rounded-lg bg-[#134e4a] text-white px-3 py-1.5 text-[9px] font-semibold uppercase tracking-wider disabled:opacity-50"
               >
-                {busy ? 'Saving…' : 'Save line'}
+                {busy ? 'Saving…' : isEdit ? 'Save changes' : 'Save line'}
               </button>
             </div>
           </form>

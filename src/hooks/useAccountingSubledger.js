@@ -127,6 +127,25 @@ export function useAccountingRegisterMutations(opts = {}) {
     [onDone]
   );
 
+  const updateLine = useCallback(
+    async (lineId, body) => {
+      setBusy(true);
+      setError('');
+      const { ok, data: d } = await apiFetch(
+        `/api/accounting/register-lines/${encodeURIComponent(lineId)}`,
+        { method: 'PATCH', body: JSON.stringify(body) }
+      );
+      setBusy(false);
+      if (!ok || !d?.ok) {
+        setError(d?.error || 'Could not update register line.');
+        return { ok: false };
+      }
+      onDone?.();
+      return { ok: true, line: d.line };
+    },
+    [onDone]
+  );
+
   const clearLine = useCallback(
     async (lineId) => {
       setBusy(true);
@@ -183,5 +202,5 @@ export function useAccountingRegisterMutations(opts = {}) {
     [onDone]
   );
 
-  return { busy, error, createLine, clearLine, createAsset, disposeAsset };
+  return { busy, error, createLine, updateLine, clearLine, createAsset, disposeAsset };
 }

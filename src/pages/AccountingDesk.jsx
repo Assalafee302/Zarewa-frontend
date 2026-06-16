@@ -240,7 +240,12 @@ export default function AccountingDesk() {
 
         {tab === 'creditors' && mayAccountingSubledger ? (
           <section className="col-span-full">
-            <AccountingCreditorsPanel branchId={trialBranch} enabled canManage={mayAccountingSubledger} />
+            <AccountingCreditorsPanel
+              branchId={trialBranch}
+              enabled
+              canManage={mayAccountingSubledger}
+              branchScopeLabel={branchScopeLabel}
+            />
           </section>
         ) : tab === 'creditors' ? (
           <p className="col-span-full text-[11px] font-medium text-slate-600">
@@ -250,7 +255,12 @@ export default function AccountingDesk() {
 
         {tab === 'debtors' && mayAccountingSubledger ? (
           <section className="col-span-full">
-            <AccountingDebtorsPanel branchId={trialBranch} enabled canManage={mayAccountingSubledger} />
+            <AccountingDebtorsPanel
+              branchId={trialBranch}
+              enabled
+              canManage={mayAccountingSubledger}
+              branchScopeLabel={branchScopeLabel}
+            />
           </section>
         ) : tab === 'debtors' ? (
           <p className="col-span-full text-[11px] font-medium text-slate-600">
