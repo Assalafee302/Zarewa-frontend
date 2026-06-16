@@ -1,5 +1,5 @@
 import React from 'react';
-import { formatNgn } from '../../Data/mockData';
+import { formatNgn } from '../../../Data/mockData';
 import { Link } from 'react-router-dom';
 
 /** Matches Procurement list row chrome */

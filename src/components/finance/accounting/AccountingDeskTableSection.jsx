@@ -1,6 +1,6 @@
 import React from 'react';
 import { FileSpreadsheet, RefreshCw } from 'lucide-react';
-import { SalesListTableFrame } from '../sales/SalesListTableFrame';
+import { SalesListTableFrame } from '../../sales/SalesListTableFrame';
 
 /**
  * Procurement-style table section for Accounting Desk tabs.
