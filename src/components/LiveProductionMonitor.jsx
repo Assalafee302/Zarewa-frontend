@@ -12,7 +12,6 @@ import {
   Plus,
   Save,
   Sparkles,
-  Trash2,
   Undo2,
   Ban,
   X,
