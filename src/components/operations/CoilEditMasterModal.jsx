@@ -4,7 +4,7 @@ import { ModalFrame } from '../layout';
 import { useToast } from '../../context/ToastContext';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { apiFetch } from '../../lib/apiBase';
-import { coilOnHandKg } from '../../lib/coilStockKg';
+import { coilFreeKg, coilKgUsed, coilOnHandKg, coilReceivedKg } from '../../lib/coilStockKg';
 import { normalizeGaugeLabelForMasterData } from '../../lib/coilExcelImport';
 
 function asNum(v) {
@@ -18,7 +18,7 @@ function formatKg(n) {
 }
 
 function buildFormFromCoil(coil) {
-  const recv = asNum(coil?.weightKg || coil?.qtyReceived);
+  const recv = coilReceivedKg(coil);
   const cur = coilOnHandKg(coil);
   const aligned = Math.abs(recv - cur) < 0.02;
   return {
@@ -95,7 +95,8 @@ export default function CoilEditMasterModal({ isOpen, onClose, coil, reservedKg 
     return Number.isFinite(r) && r >= 0 ? r : null;
   }, [form.receivedKg]);
 
-  const draftFree = Math.max(0, draftOnHand - asNum(reservedKg));
+  const draftUsed = draftReceived != null ? Math.max(0, draftReceived - draftOnHand) : coil ? coilKgUsed(coil) : 0;
+  const draftFree = coilFreeKg({ qtyReserved: reservedKg, currentWeightKg: draftOnHand });
 
   const canSave = Boolean(ws?.canMutate);
 
@@ -199,12 +200,18 @@ export default function CoilEditMasterModal({ isOpen, onClose, coil, reservedKg 
             <Scale size={14} className="text-[#134e4a]" aria-hidden />
             Live preview (after save)
           </p>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-            <PreviewTile label="On-hand kg" value={`${formatKg(draftOnHand)} kg`} />
+          <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-2">
             <PreviewTile label="Received (GRN)" value={draftReceived != null ? `${formatKg(draftReceived)} kg` : '—'} />
+            <PreviewTile label="Kg used" value={`${formatKg(draftUsed)} kg`} hint="Received − on-hand" />
+            <PreviewTile label="On-hand kg" value={`${formatKg(draftOnHand)} kg`} />
             <PreviewTile label="Reserved" value={`${formatKg(reservedKg)} kg`} hint="Active production jobs" />
             <PreviewTile label="Free to use" value={`${formatKg(draftFree)} kg`} accent />
           </div>
+          <p className="mt-2 text-[10px] text-slate-500 leading-snug tabular-nums">
+            received {formatKg(draftReceived ?? coilReceivedKg(coil))} − used {formatKg(draftUsed)} = on-hand{' '}
+            {formatKg(draftOnHand)} · on-hand {formatKg(draftOnHand)} − reserved {formatKg(reservedKg)} = free{' '}
+            {formatKg(draftFree)} kg
+          </p>
         </div>
 
         <form className="space-y-5" onSubmit={submit}>

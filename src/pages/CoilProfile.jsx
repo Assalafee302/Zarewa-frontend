@@ -21,7 +21,7 @@ import { useWorkspace } from '../context/WorkspaceContext';
 import { useTrackedUnsavedForm } from '../hooks/useTrackedUnsavedForm';
 import { apiFetch } from '../lib/apiBase';
 import { fmtConv2 } from '../lib/conversionKgPerM.js';
-import { coilOnHandKg } from '../lib/coilStockKg.js';
+import { coilFreeKg, coilKgUsed, coilOnHandKg, coilReceivedKg } from '../lib/coilStockKg.js';
 
 function asNum(v) {
   const n = Number(v);
@@ -266,7 +266,8 @@ export default function CoilProfile() {
   }
 
   const currentKg = liveKg(coil);
-  const receivedKg = asNum(coil.weightKg || coil.qtyReceived);
+  const receivedKg = coilReceivedKg(coil);
+  const kgUsed = coilKgUsed(coil);
   const reservedKg = asNum(coil.qtyReserved);
   const expectedReservedKg =
     holdersMeta != null ? asNum(holdersMeta.expectedReservedKg) : null;
@@ -274,7 +275,7 @@ export default function CoilProfile() {
     holdersMeta != null
       ? Math.max(0, asNum(holdersMeta.orphanReservedKg))
       : Math.max(0, reservedKg - (expectedReservedKg ?? 0));
-  const freeKg = Math.max(0, currentKg - reservedKg);
+  const freeKg = coilFreeKg(coil);
   const canReconcileReservation = Boolean(
     ws?.canMutate && (ws?.hasPermission?.('production.manage') || ws?.hasPermission?.('operations.manage'))
   );
@@ -534,24 +535,36 @@ export default function CoilProfile() {
         <MainPanel className="flex-1 min-w-0 !pt-0">
           <section id="coil-overview" className="rounded-zarewa border border-gray-100 bg-white shadow-sm p-5 mb-8 scroll-mt-28">
             <h3 className="text-xs font-bold text-[#134e4a] uppercase tracking-widest mb-4">Overview</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
-              <div className="rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-3">
-                <p className="text-[9px] uppercase font-bold text-slate-400">Current kg</p>
-                <p className="text-lg font-black text-[#134e4a] tabular-nums">{currentKg.toLocaleString()}</p>
-              </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-3">
               <div className="rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-3">
                 <p className="text-[9px] uppercase font-bold text-slate-400">Received at GRN</p>
                 <p className="text-lg font-black text-[#134e4a] tabular-nums">{receivedKg.toLocaleString()}</p>
               </div>
               <div className="rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-3">
+                <p className="text-[9px] uppercase font-bold text-slate-400">Kg used</p>
+                <p className="text-lg font-black text-[#134e4a] tabular-nums">{kgUsed.toLocaleString()}</p>
+              </div>
+              <div className="rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-3">
+                <p className="text-[9px] uppercase font-bold text-slate-400">On-hand kg</p>
+                <p className="text-lg font-black text-[#134e4a] tabular-nums">{currentKg.toLocaleString()}</p>
+              </div>
+              <div className="rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-3">
                 <p className="text-[9px] uppercase font-bold text-slate-400">Reserved</p>
                 <p className="text-lg font-black text-[#134e4a] tabular-nums">{reservedKg.toLocaleString()}</p>
               </div>
-              <div className="rounded-lg border border-slate-200 bg-slate-50/50 px-3 py-3">
-                <p className="text-[9px] uppercase font-bold text-slate-400">Free to use</p>
+              <div className="rounded-lg border border-[#134e4a]/30 bg-[#134e4a]/5 px-3 py-3 col-span-2 sm:col-span-1">
+                <p className="text-[9px] uppercase font-bold text-slate-500">Free to use</p>
                 <p className="text-lg font-black text-[#134e4a] tabular-nums">{freeKg.toLocaleString()}</p>
               </div>
             </div>
+            <p className="mt-3 rounded-lg border border-slate-100 bg-slate-50/80 px-3 py-2 text-[11px] text-slate-600 leading-relaxed tabular-nums">
+              <strong className="text-slate-700">Book arithmetic:</strong>{' '}
+              received <strong>{receivedKg.toLocaleString()}</strong> − used <strong>{kgUsed.toLocaleString()}</strong>{' '}
+              = on-hand <strong>{currentKg.toLocaleString()}</strong>
+              {' · '}
+              on-hand <strong>{currentKg.toLocaleString()}</strong> − reserved <strong>{reservedKg.toLocaleString()}</strong>{' '}
+              = free <strong>{freeKg.toLocaleString()}</strong> kg
+            </p>
             <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs text-slate-600">
               <p>Colour: <strong>{coil.colour || '—'}</strong></p>
               <p>Gauge: <strong>{coil.gaugeLabel || coil.gauge || '—'}</strong></p>
