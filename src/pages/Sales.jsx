@@ -1024,6 +1024,13 @@ const Sales = () => {
             calculationLines: normalized.calculationLines,
             calculationNotes: normalized.calculationNotes,
             suggestedLines: normalized.suggestedLines,
+            ...(normalized.status === 'Approved'
+              ? {
+                  productionAlignmentAcknowledgedCodes:
+                    normalized.productionAlignmentAcknowledgedCodes || [],
+                  productionAlignmentOverrideNote: normalized.productionAlignmentOverrideNote || '',
+                }
+              : {}),
           };
       const { ok, data } = await apiFetch(path, {
         method: 'POST',

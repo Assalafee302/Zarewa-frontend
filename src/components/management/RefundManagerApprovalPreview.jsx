@@ -11,6 +11,8 @@ import { userMayOverrideProductionAlignment } from '../../lib/workspaceGovernanc
 import {
   auditRefundCalculationLineArithmetic,
   expectedAmountFromRefundLineLabel,
+  scaleRefundCalculationLinesToApprovedAmount,
+  sumRefundCalculationLines,
 } from '../../lib/refundLineArithmetic';
 
 function refundCategoryTokens(value) {
@@ -89,7 +91,7 @@ function ActorCaption({ name, dateIso, className = 'text-[9px] text-slate-500' }
 }
 
 function sumCalcLines(lines) {
-  return (lines || []).reduce((s, l) => s + (Number(l.amountNgn ?? l.amount_ngn) || 0), 0);
+  return sumRefundCalculationLines(lines);
 }
 
 /**
@@ -110,12 +112,20 @@ export function RefundManagerApprovalPreview({
   onApprove,
   onReject,
   onOpenSales,
+  onEditDetails,
+  editDetailsLabel = 'Edit breakdown & payee',
 }) {
   const ws = useWorkspace();
   const [productionAlignmentIssues, setProductionAlignmentIssues] = useState([]);
   const [productionAlignmentAck, setProductionAlignmentAck] = useState({});
   const [productionAlignmentOverrideNote, setProductionAlignmentOverrideNote] = useState('');
   const [alignmentCheckLoading, setAlignmentCheckLoading] = useState(false);
+  const [approvedAmountNgn, setApprovedAmountNgn] = useState('');
+  const [approvalAmountError, setApprovalAmountError] = useState('');
+  const [managerComments, setManagerComments] = useState('');
+  const [rejectNoteError, setRejectNoteError] = useState('');
+
+  const REJECT_NOTE_MIN = 3;
 
   const canOverrideProductionAlignment = useMemo(
     () => userMayOverrideProductionAlignment(ws?.user?.roleKey ?? ws?.session?.user?.roleKey),
@@ -204,9 +214,14 @@ export function RefundManagerApprovalPreview({
   const stone = intelSum?.stoneFlatsheetSummary;
 
   const requestedAmountNgn = Number(refund?.amountNgn ?? inboxRow?.amount_ngn) || 0;
+  const paidOnQuoteNgn = Number(sum?.paidNgn ?? intelSum?.bookedOnQuotationNgn) || 0;
+  const reservedOtherRefundsNgn = otherRefunds.reduce(
+    (s, r) => s + (Number(r.amount_ngn ?? r.amountNgn) || 0),
+    0
+  );
+  const maxApprovableNgn = Math.max(0, paidOnQuoteNgn - reservedOtherRefundsNgn);
   const requiresMdApproval = requestedAmountNgn > Number(refundExecutiveThresholdNgn) || 0;
   const orderTotalNgn = Number(sum?.orderTotalNgn) || 0;
-  const paidOnQuoteNgn = Number(sum?.paidNgn) || 0;
   const paymentPct =
     orderTotalNgn > 0 ? Math.round((paidOnQuoteNgn / orderTotalNgn) * 1000) / 10 : null;
   const deliveryGateActive = deliveryPaymentGate === 'enforce' || deliveryPaymentGate === 'warn';
@@ -217,6 +232,13 @@ export function RefundManagerApprovalPreview({
     () => refundCategoryTokens(refund?.reasonCategory ?? inboxRow?.reason_category),
     [refund?.reasonCategory, inboxRow?.reason_category]
   );
+
+  useEffect(() => {
+    setApprovedAmountNgn(String(requestedAmountNgn || ''));
+    setApprovalAmountError('');
+    setManagerComments('');
+    setRejectNoteError('');
+  }, [refundId, requestedAmountNgn]);
 
   const runAlignmentCheck = useCallback(async () => {
     const qref = String(refund?.quotationRef ?? inboxRow?.quotation_ref ?? '').trim();
@@ -274,13 +296,84 @@ export function RefundManagerApprovalPreview({
   ]);
 
   const handleApproveClick = () => {
-    if (alignmentBlocksApprove) return;
+    if (alignmentBlocksApprove || lineArithmeticBlocksApprove) return;
+    const approved = Math.round(Number(approvedAmountNgn) || 0);
+    if (approved <= 0) {
+      setApprovalAmountError('Approved amount must be positive.');
+      return;
+    }
+    if (approved > requestedAmountNgn) {
+      setApprovalAmountError(
+        `Approved amount cannot exceed the requested ₦${requestedAmountNgn.toLocaleString('en-NG')}.`
+      );
+      return;
+    }
+    if (maxApprovableNgn > 0 && approved > maxApprovableNgn + 1) {
+      setApprovalAmountError(
+        `Approved amount exceeds quotation headroom (max ₦${maxApprovableNgn.toLocaleString('en-NG')} after other open refunds).`
+      );
+      return;
+    }
+
+    const lineSum = sumCalcLines(calcLines);
+    let linesForDecision = calcLines;
+    if (calcLines.length > 0 && Math.abs(lineSum - approved) > 1) {
+      if (Math.abs(lineSum - requestedAmountNgn) <= 1 && approved <= requestedAmountNgn + 1) {
+        linesForDecision = scaleRefundCalculationLinesToApprovedAmount(calcLines, approved);
+        const scaledSum = sumCalcLines(linesForDecision);
+        if (Math.abs(scaledSum - approved) > 1) {
+          setApprovalAmountError('Could not align breakdown lines to the approved amount. Open Sales to edit lines.');
+          return;
+        }
+        const scaledArithmetic = auditRefundCalculationLineArithmetic(linesForDecision);
+        if (scaledArithmetic.length > 0) {
+          setApprovalAmountError(
+            'Partial approval would break line arithmetic. Open Sales to adjust individual lines.'
+          );
+          return;
+        }
+      } else {
+        setApprovalAmountError(
+          `Breakdown total is ₦${Math.round(lineSum).toLocaleString('en-NG')} — edit lines in Sales or approve the full requested amount.`
+        );
+        return;
+      }
+    }
+
+    setApprovalAmountError('');
     const ackCodes = Object.entries(productionAlignmentAck)
       .filter(([, v]) => v)
       .map(([k]) => k);
     onApprove?.({
+      approvedAmountNgn: approved,
+      calculationLines:
+        linesForDecision.length > 0
+          ? linesForDecision
+              .filter((l) => l?.include !== false)
+              .map((l) => ({
+                label: String(l.label || l.description || '').trim(),
+                amountNgn: Math.round(Number(l.amountNgn ?? l.amount_ngn) || 0),
+                category: l.category,
+              }))
+              .filter((l) => l.label && l.amountNgn > 0)
+          : undefined,
       productionAlignmentAcknowledgedCodes: ackCodes,
       productionAlignmentOverrideNote: productionAlignmentOverrideNote.trim(),
+      managerComments: managerComments.trim(),
+      inlineManagerNote: true,
+    });
+  };
+
+  const handleRejectClick = () => {
+    const note = managerComments.trim();
+    if (note.length < REJECT_NOTE_MIN) {
+      setRejectNoteError(`Enter a rejection reason (at least ${REJECT_NOTE_MIN} characters).`);
+      return;
+    }
+    setRejectNoteError('');
+    onReject?.({
+      managerComments: note,
+      inlineManagerNote: true,
     });
   };
   const priorRefundCategories = useMemo(() => {
@@ -956,6 +1049,81 @@ export function RefundManagerApprovalPreview({
           </div>
         ) : null}
 
+        <div className="mb-3 space-y-2">
+          <label className="block text-[9px] font-bold uppercase tracking-wide text-slate-500" htmlFor="inbox-approved-amount">
+            Approved amount (₦)
+          </label>
+          <input
+            id="inbox-approved-amount"
+            type="number"
+            min={1}
+            max={requestedAmountNgn || undefined}
+            value={approvedAmountNgn}
+            onChange={(e) => {
+              setApprovedAmountNgn(e.target.value);
+              setApprovalAmountError('');
+            }}
+            disabled={decisionBusy || loading}
+            className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-bold tabular-nums text-[#134e4a] outline-none focus:ring-2 focus:ring-emerald-500/25 disabled:opacity-50"
+          />
+          <p className="text-[10px] font-medium text-slate-600 leading-snug">
+            Requested {formatNgn(requestedAmountNgn)}
+            {paidOnQuoteNgn > 0 ? (
+              <>
+                {' '}
+                · Paid on quote {formatNgn(paidOnQuoteNgn)}
+                {reservedOtherRefundsNgn > 0
+                  ? ` · Other open refunds ${formatNgn(reservedOtherRefundsNgn)}`
+                  : ''}
+                {' '}
+                · Approvable cap {formatNgn(maxApprovableNgn)}
+              </>
+            ) : null}
+          </p>
+          {approvedAmountNgn &&
+          requestedAmountNgn > 0 &&
+          Math.round(Number(approvedAmountNgn) || 0) < requestedAmountNgn &&
+          Math.abs(sumCalcLines(calcLines) - requestedAmountNgn) <= 1 ? (
+            <p className="text-[10px] font-semibold text-teal-800 leading-snug">
+              Line amounts will scale proportionally to the approved total when you approve.
+            </p>
+          ) : null}
+          {approvalAmountError ? (
+            <p className="text-[10px] font-semibold text-rose-800 leading-snug" role="alert">
+              {approvalAmountError}
+            </p>
+          ) : null}
+        </div>
+
+        <div className="mb-3 space-y-2">
+          <label
+            className="block text-[9px] font-bold uppercase tracking-wide text-slate-500"
+            htmlFor="refund-decision-note"
+          >
+            Decision note
+          </label>
+          <textarea
+            id="refund-decision-note"
+            rows={2}
+            value={managerComments}
+            onChange={(e) => {
+              setManagerComments(e.target.value);
+              if (rejectNoteError) setRejectNoteError('');
+            }}
+            disabled={decisionBusy || loading}
+            placeholder="Optional for approval. Required for rejection — explain what should change."
+            className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-[11px] text-slate-800 outline-none focus:ring-2 focus:ring-[#134e4a]/20 resize-none disabled:opacity-50"
+          />
+          <p className="text-[9px] font-medium text-slate-500 leading-snug">
+            Saved to the audit trail as manager comments on approve or reject.
+          </p>
+          {rejectNoteError ? (
+            <p className="text-[10px] font-semibold text-rose-800 leading-snug" role="alert">
+              {rejectNoteError}
+            </p>
+          ) : null}
+        </div>
+
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           <button
             type="button"
@@ -969,14 +1137,23 @@ export function RefundManagerApprovalPreview({
           <button
             type="button"
             disabled={decisionBusy || loading}
-            onClick={onReject}
+            onClick={handleRejectClick}
             className="flex flex-col items-center gap-1.5 rounded-xl bg-rose-600 p-3.5 text-white transition-colors hover:bg-rose-500 disabled:opacity-50"
           >
             <RotateCcw size={18} />
             <span className="text-[9px] font-black uppercase tracking-widest">Reject</span>
           </button>
         </div>
-        {onOpenSales ? (
+        {onEditDetails ? (
+          <button
+            type="button"
+            disabled={decisionBusy}
+            onClick={onEditDetails}
+            className="mt-2 w-full py-2 text-[10px] font-bold uppercase tracking-wide text-slate-400 transition-colors hover:text-slate-700"
+          >
+            {editDetailsLabel}
+          </button>
+        ) : onOpenSales ? (
           <button
             type="button"
             disabled={decisionBusy}

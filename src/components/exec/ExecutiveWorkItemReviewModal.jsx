@@ -137,12 +137,37 @@ export function ExecutiveWorkItemReviewModal({ item, isOpen, onClose, onComplete
     await finish();
   };
 
-  const handleRefundDecision = async (status) => {
+  const handleRefundDecision = async (status, decisionExtras = {}) => {
     if (!review.refundId || readOnly) return;
+    const note = String(decisionExtras.managerComments ?? '').trim();
+    if (status === 'Rejected' && decisionExtras.inlineManagerNote && note.length < 3) {
+      showToast('Enter a rejection reason (at least 3 characters).', { variant: 'error' });
+      return;
+    }
     setBusy(true);
+    const fallbackAmount = Number(review.row?.amount_ngn) || 0;
+    const amount =
+      status === 'Approved'
+        ? Math.round(Number(decisionExtras.approvedAmountNgn) || fallbackAmount)
+        : 0;
     const { ok, data } = await apiFetch(`/api/refunds/${encodeURIComponent(review.refundId)}/decision`, {
       method: 'POST',
-      body: JSON.stringify({ status, note: status === 'Approved' ? 'Executive approval' : 'Rejected' }),
+      body: JSON.stringify({
+        status,
+        managerComments:
+          note ||
+          (status === 'Approved' ? 'Executive approval' : 'Rejected'),
+        ...(status === 'Approved' && amount > 0 ? { approvedAmountNgn: amount } : {}),
+        ...(status === 'Approved' && Array.isArray(decisionExtras.calculationLines) && decisionExtras.calculationLines.length
+          ? { calculationLines: decisionExtras.calculationLines }
+          : {}),
+        ...(status === 'Approved'
+          ? {
+              productionAlignmentAcknowledgedCodes: decisionExtras.productionAlignmentAcknowledgedCodes || [],
+              productionAlignmentOverrideNote: decisionExtras.productionAlignmentOverrideNote || '',
+            }
+          : {}),
+      }),
     });
     setBusy(false);
     if (!ok || data?.ok === false) {
@@ -417,8 +442,8 @@ export function ExecutiveWorkItemReviewModal({ item, isOpen, onClose, onComplete
                 refundExecutiveThresholdNgn={
                   Number(ws?.snapshot?.orgGovernanceLimits?.refundExecutiveThresholdNgn) || 1_000_000
                 }
-                onApprove={() => void handleRefundDecision('Approved')}
-                onReject={() => void handleRefundDecision('Rejected')}
+                onApprove={(decisionExtras) => void handleRefundDecision('Approved', decisionExtras)}
+                onReject={(decisionExtras) => void handleRefundDecision('Rejected', decisionExtras)}
               />
             </>
           ) : null}

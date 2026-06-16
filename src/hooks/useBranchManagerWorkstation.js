@@ -1362,23 +1362,36 @@ export function useBranchManagerWorkstation() {
   }, [canManagerClearance, fetchData, filteredInboxRows, requestConfirm, showToast, ws]);
 
   const handleRefundDecision = useCallback(
-    async (status, alignmentExtras = {}) => {
+    async (status, decisionExtras = {}) => {
       if (selectedIntel?.kind !== 'refund') return;
-      const asked = await requestRemark({
-        title: status === 'Approved' ? 'Approval note (optional)' : 'Rejection reason (optional)',
-        description:
-          status === 'Approved'
-            ? 'Add an optional manager note for this refund approval.'
-            : 'Add an optional reason for rejecting this refund.',
-        confirmLabel: status === 'Approved' ? 'Approve refund' : 'Reject refund',
-        minLength: 0,
-        optional: true,
-        variant: status === 'Approved' ? 'default' : 'warning',
-        onSubmit: 'refund_decision_note',
-      });
-      if (!asked?.ok) return;
-      const note = String(asked.value || '').trim();
-      const amount = Number(selectedIntel.row?.amount_ngn) || 0;
+      let note = '';
+      if (decisionExtras.inlineManagerNote) {
+        note = String(decisionExtras.managerComments ?? '').trim();
+        if (status === 'Rejected' && note.length < 3) {
+          showToast('Enter a rejection reason (at least 3 characters).', { variant: 'error' });
+          return;
+        }
+      } else {
+        const asked = await requestRemark({
+          title: status === 'Approved' ? 'Approval note (optional)' : 'Rejection reason (optional)',
+          description:
+            status === 'Approved'
+              ? 'Add an optional manager note for this refund approval.'
+              : 'Add an optional reason for rejecting this refund.',
+          confirmLabel: status === 'Approved' ? 'Approve refund' : 'Reject refund',
+          minLength: 0,
+          optional: true,
+          variant: status === 'Approved' ? 'default' : 'warning',
+          onSubmit: 'refund_decision_note',
+        });
+        if (!asked?.ok) return;
+        note = String(asked.value || '').trim();
+      }
+      const fallbackAmount = Number(selectedIntel.row?.amount_ngn) || 0;
+      const amount =
+        status === 'Approved'
+          ? Math.round(Number(decisionExtras.approvedAmountNgn) || fallbackAmount)
+          : 0;
       setDecisionBusy(true);
       const { ok, data } = await apiFetch(
         `/api/refunds/${encodeURIComponent(selectedIntel.refundId)}/decision`,
@@ -1388,10 +1401,14 @@ export function useBranchManagerWorkstation() {
             status,
             managerComments: note,
             ...(status === 'Approved' && amount > 0 ? { approvedAmountNgn: amount } : {}),
-            ...(status === 'Approved' && alignmentExtras?.productionAlignmentAcknowledgedCodes
+            ...(status === 'Approved' && Array.isArray(decisionExtras.calculationLines) && decisionExtras.calculationLines.length
+              ? { calculationLines: decisionExtras.calculationLines }
+              : {}),
+            ...(status === 'Approved'
               ? {
-                  productionAlignmentAcknowledgedCodes: alignmentExtras.productionAlignmentAcknowledgedCodes,
-                  productionAlignmentOverrideNote: alignmentExtras.productionAlignmentOverrideNote || '',
+                  productionAlignmentAcknowledgedCodes:
+                    decisionExtras.productionAlignmentAcknowledgedCodes || [],
+                  productionAlignmentOverrideNote: decisionExtras.productionAlignmentOverrideNote || '',
                 }
               : {}),
           }),

@@ -50,7 +50,10 @@ import { listRefundPayeeSuggestions, touchRefundPayeeAccount, refundPayeeDedupeK
 import {
   auditRefundCalculationLineArithmetic,
   expectedAmountFromRefundLineLabel,
+  scaleRefundCalculationLinesToApprovedAmount,
 } from '../lib/refundLineArithmetic';
+import { RefundManagerApprovalPreview } from './management/RefundManagerApprovalPreview';
+import { deliveryPaymentGateMode } from '../lib/accountingPolicyFlags';
 
 const REFUND_CATEGORY_HINTS = {
   'Unproduced meterage':
@@ -67,7 +70,6 @@ function roundMoneyLocal(n) {
   return Math.round(Number(n) || 0);
 }
 
-/** Build reason categories from included breakdown lines (expands bundled transport/install). */
 function deriveReasonCategoriesFromLines(lines) {
   const s = new Set();
   for (const l of lines || []) {
@@ -84,6 +86,21 @@ function deriveReasonCategoriesFromLines(lines) {
     }
   }
   return Array.from(s);
+}
+
+function refundCategoryTokens(value) {
+  if (Array.isArray(value)) return value.map((x) => String(x ?? '').trim()).filter(Boolean);
+  const s = String(value ?? '').trim();
+  if (!s) return [];
+  if (s.startsWith('[')) {
+    try {
+      const parsed = JSON.parse(s);
+      return Array.isArray(parsed) ? parsed.map((x) => String(x ?? '').trim()).filter(Boolean) : [s];
+    } catch {
+      return [s];
+    }
+  }
+  return s.split(/[,;|]/).map((x) => x.trim()).filter(Boolean);
 }
 
 function parseQuoteQtyDisplay(qty, unit) {
@@ -315,40 +332,6 @@ function sumLinesByCategory(lines) {
 
 const AMOUNT_LINE_TOL = 1;
 
-/**
- * When an approver sets a lower approved amount but lines still sum to the original request,
- * scale included line amounts proportionally so the API line-sum check passes.
- */
-function scaleCalculationLinesToApprovedAmount(lines, targetNgn) {
-  const target = roundMoneyLocal(targetNgn);
-  if (!Array.isArray(lines) || target <= 0) return lines;
-  const includedIndices = [];
-  let sum = 0;
-  for (let i = 0; i < lines.length; i += 1) {
-    if (lines[i]?.include === false) continue;
-    const n = Number(String(lines[i]?.amountNgn ?? '').replace(/,/g, ''));
-    if (!Number.isNaN(n) && n > 0) {
-      includedIndices.push(i);
-      sum += roundMoneyLocal(n);
-    }
-  }
-  if (includedIndices.length === 0 || sum <= 0) return lines;
-  if (Math.abs(sum - target) <= AMOUNT_LINE_TOL) return lines;
-
-  const scale = target / sum;
-  const next = lines.map((l) => ({ ...l }));
-  let allocated = 0;
-  for (let j = 0; j < includedIndices.length; j += 1) {
-    const i = includedIndices[j];
-    const raw = Number(String(lines[i]?.amountNgn ?? '').replace(/,/g, ''));
-    const isLast = j === includedIndices.length - 1;
-    const amt = isLast ? target - allocated : roundMoneyLocal(raw * scale);
-    next[i] = { ...next[i], amountNgn: amt };
-    allocated += amt;
-  }
-  return next;
-}
-
 /** Sales staff who prepared the quotation (`handled_by` in DB). */
 function quotationPreparedByLabel(q) {
   return String(q?.handled_by ?? q?.handledBy ?? '').trim();
@@ -451,7 +434,7 @@ const RefundModal = ({
   const [includeCommissionInPreview, setIncludeCommissionInPreview] = useState(false);
   /** Optional list ₦/m for the **produced** coil when `price_list_items` has no row for coil gauge + design (substitution preview). */
   const [substitutionWorkbookPpmOverride, setSubstitutionWorkbookPpmOverride] = useState('');
-  const [refundIntelExpanded, setRefundIntelExpanded] = useState(() => mode !== 'create');
+  const [refundIntelExpanded, setRefundIntelExpanded] = useState(() => mode === 'view');
   /** From refund preview: paid on quote vs overpay split (ledger RECEIPT + OVERPAY_ADVANCE). */
   const [moneyContext, setMoneyContext] = useState(null);
   const [categorySuggestedMaxNgn, setCategorySuggestedMaxNgn] = useState(null);
@@ -468,6 +451,11 @@ const RefundModal = ({
   const [quotationServerVerifiedRef, setQuotationServerVerifiedRef] = useState('');
   const [manualQuotationVerifyBusy, setManualQuotationVerifyBusy] = useState(false);
   const [manualQuotationVerifyError, setManualQuotationVerifyError] = useState('');
+  const [approvalEditMode, setApprovalEditMode] = useState(false);
+  const [approvalAuditData, setApprovalAuditData] = useState(null);
+  const [loadingApprovalAudit, setLoadingApprovalAudit] = useState(false);
+  const [approvalRefundIntel, setApprovalRefundIntel] = useState(null);
+  const [loadingApprovalIntel, setLoadingApprovalIntel] = useState(false);
 
   const productionFingerprintRef = useRef('');
   const previewLoadedForQuoteRef = useRef('');
@@ -482,7 +470,7 @@ const RefundModal = ({
 
   useEffect(() => {
     if (!isOpen) return;
-    setRefundIntelExpanded(mode !== 'create');
+    setRefundIntelExpanded(mode === 'view');
   }, [isOpen, mode]);
 
   const fetchEligibleQuotes = useCallback(async () => {
@@ -553,6 +541,10 @@ const RefundModal = ({
     setSubstitutionWorkbookPpmOverride('');
     setManualQuotationVerifyBusy(false);
     setManualQuotationVerifyError('');
+    setProductionAlignmentIssues([]);
+    setProductionAlignmentAck({});
+    setProductionAlignmentOverrideNote('');
+    setApprovalEditMode(false);
 
     if (mode === 'create') {
       void fetchEligibleQuotes();
@@ -1076,6 +1068,44 @@ const RefundModal = ({
 
   const readOnly = mode === 'view';
   const showApproval = mode === 'approve' && record?.status === 'Pending';
+  const showApprovalReview = showApproval && !approvalEditMode;
+
+  useEffect(() => {
+    if (!isOpen || !showApproval) {
+      setApprovalAuditData(null);
+      setApprovalRefundIntel(null);
+      setLoadingApprovalAudit(false);
+      setLoadingApprovalIntel(false);
+      return undefined;
+    }
+    const qref = String(record?.quotationRef || record?.quotation_ref || '').trim();
+    if (!qref) return undefined;
+    let cancelled = false;
+    (async () => {
+      setLoadingApprovalAudit(true);
+      setLoadingApprovalIntel(true);
+      const [auditRes, intelRes] = await Promise.all([
+        apiFetch(`/api/management/quotation-audit?quotationRef=${encodeURIComponent(qref)}`),
+        apiFetch(`/api/refunds/intelligence?quotationRef=${encodeURIComponent(qref)}`),
+      ]);
+      if (cancelled) return;
+      setLoadingApprovalAudit(false);
+      setLoadingApprovalIntel(false);
+      if (auditRes.ok && auditRes.data) setApprovalAuditData(auditRes.data);
+      else {
+        setApprovalAuditData({
+          ok: false,
+          error: auditRes.data?.error || 'Could not load quotation audit.',
+        });
+      }
+      if (intelRes.ok && intelRes.data && intelRes.data.ok !== false) setApprovalRefundIntel(intelRes.data);
+      else setApprovalRefundIntel(null);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, showApproval, record?.quotationRef, record?.quotation_ref, record?.refundID]);
+
   const approvalQuoteRef = String(record?.quotationRef || record?.quotation_ref || '').trim();
   const approvalQuoteRow = useMemo(() => {
     if (!approvalQuoteRef) return null;
@@ -1095,7 +1125,7 @@ const RefundModal = ({
 
   const { captureEdited, wrapClose, abandonUnsavedAndRun } = useTrackedUnsavedForm('modal-refund', {
     isOpen,
-    blockTracking: readOnly,
+    blockTracking: readOnly || showApprovalReview,
     hydrateKey: refundHydrateKey,
   });
   const handleClose = wrapClose(() => onClose());
@@ -1134,7 +1164,17 @@ const RefundModal = ({
   );
 
   useEffect(() => {
-    if (mode !== 'create' || !form.quotationRef || derivedReasonCategories.length === 0) {
+    const qref =
+      mode === 'create'
+        ? String(form.quotationRef || '').trim()
+        : String(record?.quotationRef || record?.quotation_ref || form.quotationRef || '').trim();
+    const categories =
+      mode === 'create'
+        ? derivedReasonCategories
+        : derivedReasonCategories.length > 0
+          ? derivedReasonCategories
+          : refundCategoryTokens(record?.reasonCategory ?? record?.reason_category);
+    if ((mode !== 'create' && !showApproval) || !qref || categories.length === 0) {
       setProductionAlignmentIssues([]);
       return undefined;
     }
@@ -1146,8 +1186,8 @@ const RefundModal = ({
       const { data } = await apiFetch('/api/refunds/production-alignment-check', {
         method: 'POST',
         body: JSON.stringify({
-          quotationRef: form.quotationRef,
-          reasonCategory: derivedReasonCategories,
+          quotationRef: qref,
+          reasonCategory: categories,
           productionAlignmentAcknowledgedCodes: ackCodes,
           productionAlignmentOverrideNote: productionAlignmentOverrideNote.trim(),
         }),
@@ -1160,14 +1200,19 @@ const RefundModal = ({
     return () => clearTimeout(timer);
   }, [
     mode,
+    showApproval,
     form.quotationRef,
+    record?.quotationRef,
+    record?.quotation_ref,
+    record?.reasonCategory,
+    record?.reason_category,
     derivedReasonCategories,
     productionAlignmentAck,
     productionAlignmentOverrideNote,
   ]);
 
-  const alignmentBlocksSubmit = useMemo(() => {
-    if (mode !== 'create') return false;
+  const alignmentBlocksAction = useMemo(() => {
+    if (mode !== 'create' && !showApproval) return false;
     if (alignmentCheckLoading) return true;
     if (productionAlignmentIssues.length === 0) return false;
     const hasBlock = productionAlignmentIssues.some((i) => i.submitAction === 'block');
@@ -1178,6 +1223,7 @@ const RefundModal = ({
     return needAck.some((i) => !productionAlignmentAck[i.code]);
   }, [
     mode,
+    showApproval,
     alignmentCheckLoading,
     productionAlignmentIssues,
     canOverrideProductionAlignment,
@@ -1406,30 +1452,48 @@ const RefundModal = ({
     }
   };
 
-  const submitApproval = async () => {
+  const submitApprovalDecision = async ({
+    status: statusOverride,
+    approvedAmount: approvedAmountOverride,
+    calculationLines: linesOverride,
+    managerComments: commentsOverride,
+    alignmentAckCodes,
+    alignmentOverrideNote,
+  } = {}) => {
     if (!record?.refundID) return;
+    const decisionStatus = statusOverride ?? approvalStatus;
+    const decisionNote = String(commentsOverride ?? managerComments).trim();
+    if (decisionStatus === 'Rejected' && decisionNote.length < 3) {
+      setPreviewError('Enter a rejection reason (at least 3 characters).');
+      return;
+    }
     const nextApprovedAmountNgn =
-      approvalStatus === 'Approved'
-        ? Number(approvedAmountNgn) || recordApprovedAmount || Number(record?.amountNgn) || 0
+      decisionStatus === 'Approved'
+        ? Math.round(
+            Number(approvedAmountOverride ?? approvedAmountNgn) ||
+              recordApprovedAmount ||
+              Number(record?.amountNgn) ||
+              0
+          )
         : 0;
 
-    if (approvalStatus === 'Approved' && nextApprovedAmountNgn <= 0) {
+    if (decisionStatus === 'Approved' && nextApprovedAmountNgn <= 0) {
       setPreviewError('Approved amount must be positive.');
       return;
     }
 
     const requestedTotal = Math.round(Number(record?.amountNgn) || 0);
-    const lineSum = sumLines(form.calculationLines);
-    let linesForDecision = form.calculationLines;
+    let linesForDecision = linesOverride ?? form.calculationLines;
 
-    if (approvalStatus === 'Approved') {
+    if (decisionStatus === 'Approved' && !linesOverride) {
+      const lineSum = sumLines(form.calculationLines);
       if (Math.abs(lineSum - nextApprovedAmountNgn) <= AMOUNT_LINE_TOL) {
         linesForDecision = form.calculationLines;
       } else if (
         Math.abs(lineSum - requestedTotal) <= AMOUNT_LINE_TOL &&
         nextApprovedAmountNgn <= requestedTotal + AMOUNT_LINE_TOL
       ) {
-        linesForDecision = scaleCalculationLinesToApprovedAmount(
+        linesForDecision = scaleRefundCalculationLinesToApprovedAmount(
           form.calculationLines,
           nextApprovedAmountNgn
         );
@@ -1452,7 +1516,9 @@ const RefundModal = ({
         );
         return;
       }
+    }
 
+    if (decisionStatus === 'Approved') {
       const approvalArithmeticIssues = auditRefundCalculationLineArithmetic(linesForDecision);
       if (approvalArithmeticIssues.length > 0) {
         const first = approvalArithmeticIssues[0];
@@ -1467,18 +1533,29 @@ const RefundModal = ({
 
     setPreviewError('');
     setSaving(true);
+    const ackCodes =
+      alignmentAckCodes ??
+      Object.entries(productionAlignmentAck)
+        .filter(([, v]) => v)
+        .map(([k]) => k);
     const result = await onPersist?.({
       ...record,
-      status: approvalStatus,
+      status: decisionStatus,
       approvalDate: approvalDate.trim() || new Date().toISOString().slice(0, 10),
-      managerComments: managerComments.trim(),
+      managerComments: decisionNote,
       approvedAmountNgn: nextApprovedAmountNgn,
       calculationLines: linesForDecision.map((l) => ({ ...l, amountNgn: Number(l.amountNgn) })),
       calculationNotes: form.calculationNotes.trim(),
+      productionAlignmentAcknowledgedCodes: ackCodes,
+      productionAlignmentOverrideNote: String(
+        alignmentOverrideNote ?? productionAlignmentOverrideNote
+      ).trim(),
     });
     setSaving(false);
     if (result?.ok !== false) abandonUnsavedAndRun(() => onClose());
   };
+
+  const submitApproval = async () => submitApprovalDecision();
 
   const handleFormSubmit = async (e) => {
     e.preventDefault();
@@ -1623,7 +1700,7 @@ const RefundModal = ({
           onInput={captureEdited}
           onChange={captureEdited}
         >
-          {refundGuideOpen ? (
+          {refundGuideOpen && !showApprovalReview ? (
             <div
               id="refund-guide-panel"
               role="region"
@@ -1664,7 +1741,7 @@ const RefundModal = ({
             </div>
           ) : null}
 
-          {record?.refundID ? (
+          {record?.refundID && !showApprovalReview ? (
             <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-2 shadow-sm">
               <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">Activity timeline</p>
               <ul className="text-xs text-slate-700 space-y-1.5 font-medium">
@@ -1729,17 +1806,87 @@ const RefundModal = ({
             </div>
           ) : null}
 
-          {previewLoading ? (
+          {previewLoading && !showApprovalReview ? (
             <p className="text-xs font-semibold text-slate-500" role="status">
               Updating refund preview…
             </p>
           ) : null}
+
           {previewError ? (
             <div
               className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs text-rose-900"
               role="alert"
             >
               {previewError}
+            </div>
+          ) : null}
+
+          {showApprovalReview ? (
+            <>
+              {!canApproveRefunds || ws?.canMutate === false || refundBlockedByMdPricing ? (
+                <ZareApprovalHint
+                  context={{
+                    referenceNo: record?.refundID,
+                    documentType: 'refund_request',
+                    status: record?.status,
+                    canApprove: canApproveRefunds && ws?.canMutate !== false && !refundBlockedByMdPricing,
+                    canMutate: ws?.canMutate !== false,
+                    missingPermission: !canApproveRefunds
+                      ? 'Refund approval requires refunds.approve or finance.approve.'
+                      : refundBlockedByMdPricing
+                        ? 'Managing Director must confirm below-floor pricing after production before this refund can be approved.'
+                        : undefined,
+                    zareQuery: `Why can't I approve refund ${record?.refundID || ''}?`,
+                  }}
+                />
+              ) : null}
+              <RefundManagerApprovalPreview
+                refundId={record?.refundID}
+                refundRecord={record}
+                auditData={approvalAuditData}
+                loadingAudit={loadingApprovalAudit}
+                refundIntel={approvalRefundIntel}
+                loadingIntel={loadingApprovalIntel}
+                formatNgn={formatNgnPrint}
+                decisionBusy={saving}
+                deliveryPaymentGate={deliveryPaymentGateMode()}
+                refundExecutiveThresholdNgn={
+                  Number(ws?.snapshot?.orgGovernanceLimits?.refundExecutiveThresholdNgn) || 1_000_000
+                }
+                onApprove={(decisionExtras) =>
+                  void submitApprovalDecision({
+                    status: 'Approved',
+                    approvedAmount: decisionExtras.approvedAmountNgn,
+                    calculationLines: decisionExtras.calculationLines,
+                    alignmentAckCodes: decisionExtras.productionAlignmentAcknowledgedCodes,
+                    alignmentOverrideNote: decisionExtras.productionAlignmentOverrideNote,
+                    managerComments: decisionExtras.managerComments,
+                  })
+                }
+                onReject={(decisionExtras) =>
+                  void submitApprovalDecision({
+                    status: 'Rejected',
+                    managerComments: decisionExtras.managerComments,
+                  })
+                }
+                onEditDetails={() => setApprovalEditMode(true)}
+                editDetailsLabel="Edit breakdown & payee"
+              />
+            </>
+          ) : (
+            <>
+          {showApproval && approvalEditMode ? (
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50/90 px-4 py-3">
+              <p className="text-[11px] font-semibold text-amber-950">
+                Editing request details — adjust lines or payee, then save your decision.
+              </p>
+              <button
+                type="button"
+                onClick={() => setApprovalEditMode(false)}
+                className="shrink-0 rounded-lg border border-amber-300 bg-white px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide text-amber-900 hover:bg-amber-50"
+              >
+                Back to review
+              </button>
             </div>
           ) : null}
 
@@ -3007,11 +3154,13 @@ const RefundModal = ({
           ) : null}
 
           {/* Production alignment (Phase 11C) */}
-          {mode === 'create' && productionAlignmentIssues.length > 0 ? (
+          {(mode === 'create' || showApproval) && productionAlignmentIssues.length > 0 ? (
             <div className="rounded-xl border border-amber-200 bg-amber-50/80 p-4 space-y-3">
               <div className="flex items-center gap-2">
                 <AlertTriangle size={16} className="text-amber-700 shrink-0" />
-                <p className="text-xs font-black text-amber-950">Production alignment</p>
+                <p className="text-xs font-black text-amber-950">
+                  Production alignment{showApproval ? ' (approval gate)' : ''}
+                </p>
                 {alignmentCheckLoading ? (
                   <span className="text-[10px] text-amber-800">Checking…</span>
                 ) : null}
@@ -3054,9 +3203,9 @@ const RefundModal = ({
                   />
                 </label>
               ) : null}
-              {alignmentBlocksSubmit ? (
+              {alignmentBlocksAction ? (
                 <p className="text-[10px] font-semibold text-rose-800" role="alert">
-                  Resolve alignment warnings above before submitting.
+                  Resolve alignment warnings above before {showApproval ? 'approving' : 'submitting'}.
                 </p>
               ) : null}
             </div>
@@ -3076,6 +3225,8 @@ const RefundModal = ({
               </div>
             </div>
           )}
+            </>
+          )}
         </form>
 
         {/* Footer Actions */}
@@ -3089,12 +3240,12 @@ const RefundModal = ({
             >
               Cancel
             </button>
-            {!readOnly && (
+            {!readOnly && (mode === 'create' || (showApproval && approvalEditMode)) && (
               <button
                 type="submit"
                 disabled={
                   saving ||
-                  alignmentBlocksSubmit ||
+                  alignmentBlocksAction ||
                   (mode === 'create' && !form.quotationRef) ||
                   (mode === 'create' && exceedsRefundableHeadroom)
                 }

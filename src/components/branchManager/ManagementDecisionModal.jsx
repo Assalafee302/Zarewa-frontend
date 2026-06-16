@@ -295,8 +295,8 @@ export function ManagementDecisionModal({
                   decisionBusy={decisionBusy}
                   deliveryPaymentGate={deliveryGateMode}
                   refundExecutiveThresholdNgn={Number(ws?.snapshot?.orgGovernanceLimits?.refundExecutiveThresholdNgn) || 1_000_000}
-                  onApprove={(alignmentExtras) => handleRefundDecision?.('Approved', alignmentExtras)}
-                  onReject={() => handleRefundDecision?.('Rejected')}
+                  onApprove={(decisionExtras) => handleRefundDecision?.('Approved', decisionExtras)}
+                  onReject={(decisionExtras) => handleRefundDecision?.('Rejected', decisionExtras)}
                   onOpenSales={() =>
                     navigate?.('/sales', {
                       state: {
@@ -305,12 +305,6 @@ export function ManagementDecisionModal({
                       },
                     })
                   }
-                />
-                <ManagementAuditSections
-                  auditData={auditData}
-                  loadingAudit={loadingAudit}
-                  formatNgn={asMoney}
-                  appearance="light"
                 />
               </>
             ) : selectedIntel?.kind === 'payment' ? (
