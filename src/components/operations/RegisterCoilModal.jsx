@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Plus, X } from 'lucide-react';
 import { ModalFrame } from '../layout';
 import { useToast } from '../../context/ToastContext';
@@ -54,6 +54,7 @@ export default function RegisterCoilModal({ isOpen, onClose, coilLots = [], onSu
   const { show: showToast } = useToast();
   const [busy, setBusy] = useState(false);
   const [form, setForm] = useState(() => defaultForm(coilLots));
+  const wasOpenRef = useRef(false);
 
   const masterData = ws?.snapshot?.masterData ?? null;
   const colourOptions = useMemo(() => {
@@ -74,9 +75,12 @@ export default function RegisterCoilModal({ isOpen, onClose, coilLots = [], onSu
       .filter(Boolean);
   }, [masterData?.gauges]);
 
+  // Reset only when the modal opens — not when coilLots refreshes in the background.
   useEffect(() => {
-    if (!isOpen) return;
-    setForm(defaultForm(coilLots));
+    if (isOpen && !wasOpenRef.current) {
+      setForm(defaultForm(coilLots));
+    }
+    wasOpenRef.current = isOpen;
   }, [isOpen, coilLots]);
 
   const canRegister = Boolean(

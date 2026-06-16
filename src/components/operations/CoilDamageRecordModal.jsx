@@ -16,6 +16,7 @@ import {
   sumDamageLineMeters,
   validateCoilDamagePayload,
 } from '../../lib/coilDamageRecordCore';
+import { coilFreeKg } from '../../lib/coilStockKg';
 import { fmtConv2 } from '../../lib/conversionKgPerM';
 import { ModalFrame } from '../layout/ModalFrame';
 
@@ -23,13 +24,6 @@ let lineSeq = 0;
 const newLineId = () => `dmg-line-${++lineSeq}`;
 const emptyLine = () => ({ id: newLineId(), lengthM: '', quantity: '1', conditionNote: '' });
 
-/** kg available on roll: on-hand minus reservations (same as production register). */
-function coilFreeKg(lot) {
-  if (!lot) return 0;
-  return Math.max(0, Number(lot.qtyRemaining || 0) - Number(lot.qtyReserved || 0));
-}
-
-/** Default before kg when picking a coil — matches production register (2 decimal places). */
 function suggestedOpeningKgFromFree(freeKg) {
   const n = Number(freeKg);
   if (!Number.isFinite(n) || n <= 0) return '';

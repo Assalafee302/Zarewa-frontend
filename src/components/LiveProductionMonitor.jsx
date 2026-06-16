@@ -41,6 +41,7 @@ import {
   resolveStoneFlatsheetLengthM,
 } from '../lib/stoneCoatedQuotationPolicy';
 import { formatProductionPriceBlockMessage } from '../lib/productionPriceBlock';
+import { coilFreeKg as coilFreeKgForJob } from '../lib/coilStockKg';
 import {
   quotationIsAccessoriesOnlyForProduction,
   quotationLinesGrouped,
@@ -182,15 +183,6 @@ function formatKgPerM(value) {
 /** Table cells for posted conversion. */
 function formatKgPerMCompact(value) {
   return fmtConv2(value);
-}
-
-/** kg available for this job: on-hand minus reservations, plus opening already saved on this job for the coil. */
-function coilFreeKgForJob(lot, addBackKg = 0) {
-  if (!lot) return 0;
-  return Math.max(
-    0,
-    Number(lot.qtyRemaining || 0) - Number(lot.qtyReserved || 0) + (Number(addBackKg) || 0)
-  );
 }
 
 /** Default opening kg when picking a coil — same value as free kg in the picker (2 decimal places). */

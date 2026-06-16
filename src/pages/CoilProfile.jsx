@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import {
   ArrowLeft,
@@ -20,6 +20,7 @@ import { useWorkspace } from '../context/WorkspaceContext';
 import { useTrackedUnsavedForm } from '../hooks/useTrackedUnsavedForm';
 import { apiFetch } from '../lib/apiBase';
 import { fmtConv2 } from '../lib/conversionKgPerM.js';
+import { coilOnHandKg } from '../lib/coilStockKg.js';
 
 function asNum(v) {
   const n = Number(v);
@@ -27,10 +28,7 @@ function asNum(v) {
 }
 
 function liveKg(lot) {
-  if (lot?.currentWeightKg != null) return Math.max(0, asNum(lot.currentWeightKg));
-  if (lot?.qtyRemaining != null) return Math.max(0, asNum(lot.qtyRemaining));
-  if (lot?.weightKg != null) return Math.max(0, asNum(lot.weightKg));
-  return Math.max(0, asNum(lot?.qtyReceived));
+  return coilOnHandKg(lot);
 }
 
 function avg(nums) {
@@ -98,6 +96,8 @@ export default function CoilProfile() {
     receivedKg: '',
     stockForm: 'coil',
   });
+  const [editKgBaseline, setEditKgBaseline] = useState({ receivedKg: null, currentKg: null });
+  const editFormHydratedRef = useRef('');
   const [holdersMeta, setHoldersMeta] = useState(null);
   const [holdersLoading, setHoldersLoading] = useState(false);
   const [reconcilingReservation, setReconcilingReservation] = useState(false);
@@ -130,7 +130,14 @@ export default function CoilProfile() {
   );
 
   useEffect(() => {
-    if (actionModal !== 'edit' || !coil) return;
+    if (actionModal !== 'edit') {
+      editFormHydratedRef.current = '';
+      return;
+    }
+    if (!coil) return;
+    const hydrateKey = `${coil.coilNo}:edit`;
+    if (editFormHydratedRef.current === hydrateKey) return;
+    editFormHydratedRef.current = hydrateKey;
     const recv = asNum(coil.weightKg || coil.qtyReceived);
     const cur = liveKg(coil);
     setEditForm({
@@ -141,6 +148,7 @@ export default function CoilProfile() {
       receivedKg: recv > 0 ? String(recv) : '',
       stockForm: String(coil.stockForm || 'coil').toLowerCase() === 'roll' ? 'roll' : 'coil',
     });
+    setEditKgBaseline({ receivedKg: recv, currentKg: cur });
   }, [actionModal, coil]);
 
   const cuttingLists = useMemo(
@@ -481,8 +489,12 @@ export default function CoilProfile() {
       materialTypeName: editForm.materialTypeName.trim(),
       stockForm: editForm.stockForm,
     };
-    if (recvStr) body.receivedKg = recvNum;
-    if (curStr) body.currentWeightKg = curNum;
+    const receivedChanged =
+      recvStr && editKgBaseline.receivedKg != null && Math.abs(recvNum - editKgBaseline.receivedKg) > 1e-6;
+    const currentChanged =
+      curStr && editKgBaseline.currentKg != null && Math.abs(curNum - editKgBaseline.currentKg) > 1e-6;
+    if (receivedChanged) body.receivedKg = recvNum;
+    if (currentChanged) body.currentWeightKg = curNum;
     setSavingAction(true);
     try {
       const { ok, data } = await apiFetch(`/api/coil-lots/${encodeURIComponent(coil.coilNo)}/master-data`, {
@@ -902,7 +914,23 @@ export default function CoilProfile() {
           </label>
           <label className="block">
             <span className="text-[10px] font-bold text-slate-500 uppercase">Received kg (GRN)</span>
-            <input className="z-input w-full mt-0.5" type="number" min="0" step="0.01" value={editForm.receivedKg} onChange={(e) => setEditForm((f) => ({ ...f, receivedKg: e.target.value }))} />
+            <input className="z-input w-full mt-0.5" type="number" min="0" step="0.01" value={editForm.receivedKg} onChange={(e) => {
+              const v = e.target.value;
+              setEditForm((f) => {
+                const next = { ...f, receivedKg: v };
+                const baseRecv = editKgBaseline.receivedKg;
+                const baseCur = editKgBaseline.currentKg;
+                if (
+                  baseRecv != null &&
+                  baseCur != null &&
+                  Math.abs(baseRecv - baseCur) < 0.02 &&
+                  v.trim() !== ''
+                ) {
+                  next.currentKg = v;
+                }
+                return next;
+              });
+            }} />
             <p className="mt-1 text-[10px] text-slate-500">Correcting GRN kg also updates on-hand when it still matches the old received figure.</p>
           </label>
           <button className="z-btn-primary" type="submit" disabled={savingAction}>Save changes</button>
