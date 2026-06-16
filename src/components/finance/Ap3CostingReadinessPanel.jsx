@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { AlertTriangle, RefreshCw, ShieldAlert } from 'lucide-react';
+import { AlertTriangle, RefreshCw } from 'lucide-react';
 import { formatNgn } from '../../Data/mockData';
 import { downloadFinanceCsv } from '../../lib/exportFinanceCsv';
 import { useAp3CostingReadiness } from '../../hooks/useAp3CostingReadiness';
@@ -86,81 +86,103 @@ export function Ap3CostingReadinessPanel({
   };
 
   return (
-    <div className="space-y-6">
-      <div className="rounded-2xl border border-amber-200/80 bg-amber-50/50 px-4 py-3 flex gap-3">
-        <ShieldAlert className="shrink-0 text-amber-800" size={20} />
-        <div>
-          <p className="text-sm font-black text-amber-950">Readiness only — not final cost per metre</p>
-          <p className="text-xs font-medium text-amber-900/90 mt-1">
-            Material cost, labour, diesel, and overhead readiness before full cost per metre. Draft / estimated
-            values. Needs Head of Accounts review. AP3a does not post GL or change costing.
-          </p>
-        </div>
-      </div>
+    <div className="grid grid-cols-1 gap-4 lg:gap-6 min-w-0">
+      <AccountingDeskPageIntro
+        title="Costing readiness"
+        description="Material cost, labour, diesel, and overhead readiness before full cost per metre. Draft values — Head of Accounts review."
+        action={
+          !compact ? (
+            <>
+              <button
+                type="button"
+                onClick={() => load(filters)}
+                disabled={loading || !enabled}
+                className="inline-flex items-center gap-1 rounded-lg bg-[#134e4a] text-white px-3 py-1.5 text-[9px] font-semibold uppercase tracking-wider shadow-sm hover:brightness-105 disabled:opacity-50"
+              >
+                <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />
+                Load readiness
+              </button>
+              <button
+                type="button"
+                onClick={exportCsv}
+                disabled={!data}
+                className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[9px] font-semibold uppercase tracking-wider text-[#134e4a] hover:bg-slate-50 disabled:opacity-50"
+              >
+                Export
+              </button>
+            </>
+          ) : (
+            <button
+              type="button"
+              onClick={() => load(filters)}
+              disabled={loading || !enabled}
+              className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[9px] font-semibold uppercase tracking-wider text-[#134e4a] hover:bg-slate-50 disabled:opacity-50"
+            >
+              <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />
+              Refresh
+            </button>
+          )
+        }
+      />
+
+      <AccountingDeskNotice tone="warn">
+        Readiness only — not final cost per metre. AP3a does not post GL or change costing.
+      </AccountingDeskNotice>
 
       {!compact ? (
-        <div className="flex flex-wrap items-end gap-3 rounded-2xl border border-slate-200 bg-slate-50/50 p-4">
-          <label className="text-xs font-bold text-slate-600">
-            Branch
-            <select
-              className="mt-1 block rounded-lg border border-slate-200 px-2 py-1.5 text-sm"
-              value={branchId}
-              onChange={(e) => setBranchId(e.target.value)}
-            >
-              {BRANCH_OPTIONS.map((b) => (
-                <option key={b.id} value={b.id}>
-                  {b.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="text-xs font-bold text-slate-600">
-            Period
-            <input
-              type="month"
-              className="mt-1 block rounded-lg border border-slate-200 px-2 py-1.5 text-sm"
-              value={period}
-              onChange={(e) => setPeriod(e.target.value)}
-            />
-          </label>
-          <label className="text-xs font-bold text-slate-600">
-            Material family
-            <input
-              className="mt-1 block rounded-lg border border-slate-200 px-2 py-1.5 text-sm w-32"
-              value={materialFamily}
-              onChange={(e) => setMaterialFamily(e.target.value)}
-              placeholder="Optional"
-            />
-          </label>
-          <label className="text-xs font-bold text-slate-600">
-            Gauge
-            <input
-              className="mt-1 block rounded-lg border border-slate-200 px-2 py-1.5 text-sm w-24"
-              value={gauge}
-              onChange={(e) => setGauge(e.target.value)}
-            />
-          </label>
-          <label className="text-xs font-bold text-slate-600">
-            Colour
-            <input
-              className="mt-1 block rounded-lg border border-slate-200 px-2 py-1.5 text-sm w-24"
-              value={colour}
-              onChange={(e) => setColour(e.target.value)}
-            />
-          </label>
-          <FinanceActionButton variant="primary" onClick={() => load(filters)} disabled={loading || !enabled}>
-            <RefreshCw size={14} className={`mr-1 inline ${loading ? 'animate-spin' : ''}`} />
-            Load costing readiness
-          </FinanceActionButton>
-          <FinanceActionButton variant="secondary" onClick={exportCsv} disabled={!data}>
-            Export report
-          </FinanceActionButton>
-        </div>
-      ) : (
-        <FinanceActionButton variant="secondary" onClick={() => load(filters)} disabled={loading || !enabled}>
-          Refresh costing readiness
-        </FinanceActionButton>
-      )}
+        <ProcurementFormSection letter="F" title="Filters" compact>
+          <div className="flex flex-wrap gap-3 items-end">
+            <label className={ACCOUNTING_FIELD_LABEL}>
+              Branch
+              <select
+                className={`${ACCOUNTING_INPUT} mt-1`}
+                value={branchId}
+                onChange={(e) => setBranchId(e.target.value)}
+              >
+                {BRANCH_OPTIONS.map((b) => (
+                  <option key={b.id} value={b.id}>
+                    {b.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className={ACCOUNTING_FIELD_LABEL}>
+              Period
+              <input
+                type="month"
+                className={`${ACCOUNTING_INPUT} mt-1`}
+                value={period}
+                onChange={(e) => setPeriod(e.target.value)}
+              />
+            </label>
+            <label className={ACCOUNTING_FIELD_LABEL}>
+              Material family
+              <input
+                className={`${ACCOUNTING_INPUT} mt-1 w-32`}
+                value={materialFamily}
+                onChange={(e) => setMaterialFamily(e.target.value)}
+                placeholder="Optional"
+              />
+            </label>
+            <label className={ACCOUNTING_FIELD_LABEL}>
+              Gauge
+              <input
+                className={`${ACCOUNTING_INPUT} mt-1 w-24`}
+                value={gauge}
+                onChange={(e) => setGauge(e.target.value)}
+              />
+            </label>
+            <label className={ACCOUNTING_FIELD_LABEL}>
+              Colour
+              <input
+                className={`${ACCOUNTING_INPUT} mt-1 w-24`}
+                value={colour}
+                onChange={(e) => setColour(e.target.value)}
+              />
+            </label>
+          </div>
+        </ProcurementFormSection>
+      ) : null}
 
       {error ? (
         <p className="text-sm text-rose-800 flex items-center gap-2">
@@ -179,44 +201,44 @@ export function Ap3CostingReadinessPanel({
       {data ? (
         <>
           <div className={`grid gap-3 ${compact ? 'grid-cols-2' : 'grid-cols-2 lg:grid-cols-4'}`}>
-            <MetricCard label="Readiness score" value={`${data.readinessScore ?? 0}%`} hint="Draft" tone="teal" />
-            <MetricCard
+            <AccountingDeskKpiCard label="Readiness score" value={`${data.readinessScore ?? 0}%`} hint="Draft" tone="teal" />
+            <AccountingDeskKpiCard
               label="Completed jobs"
               value={s?.completedJobs ?? 0}
               hint={`${s?.producedMetres ?? 0} m produced`}
             />
-            <MetricCard
+            <AccountingDeskKpiCard
               label="Jobs with coil consumption"
               value={s?.jobsWithCoilConsumption ?? 0}
               hint={`${s?.jobsMissingCoilConsumption ?? 0} missing consumption`}
-              tone={(s?.jobsMissingCoilConsumption || 0) > 0 ? 'amber' : 'slate'}
+              tone={(s?.jobsMissingCoilConsumption || 0) > 0 ? 'amber' : 'default'}
             />
-            <MetricCard
+            <AccountingDeskKpiCard
               label="Material cost / m (draft)"
               value={s?.materialCostPerMetreNgn ? formatNgn(s.materialCostPerMetreNgn) : '—'}
               hint="Estimated · coil only"
             />
-            <MetricCard
+            <AccountingDeskKpiCard
               label="Missing coil cost"
               value={s?.missingCoilCostCount ?? 0}
-              tone={(s?.missingCoilCostCount || 0) > 0 ? 'rose' : 'slate'}
+              tone={(s?.missingCoilCostCount || 0) > 0 ? 'amber' : 'default'}
             />
-            <MetricCard
+            <AccountingDeskKpiCard
               label="Labour data"
               value={s?.payrollMappable ? 'Mappable' : 'Not ready'}
-              hint={formatNgn(s?.labourExpenseNgn ?? 0) + ' expenses'}
+              hint={`${formatNgn(s?.labourExpenseNgn ?? 0)} expenses`}
               tone={s?.payrollMappable ? 'teal' : 'amber'}
             />
-            <MetricCard
+            <AccountingDeskKpiCard
               label="Diesel data"
               value={s?.dieselSeparated ? 'Separated' : 'Weak'}
               hint={formatNgn(s?.dieselExpenseNgn ?? 0)}
               tone={s?.dieselSeparated ? 'teal' : 'amber'}
             />
-            <MetricCard
+            <AccountingDeskKpiCard
               label="Unclassified expenses"
               value={formatNgn(s?.unclassifiedExpenseNgn ?? 0)}
-              tone={(s?.unclassifiedExpenseNgn || 0) > 0 ? 'amber' : 'slate'}
+              tone={(s?.unclassifiedExpenseNgn || 0) > 0 ? 'amber' : 'default'}
             />
           </div>
 
@@ -247,11 +269,7 @@ export function Ap3CostingReadinessPanel({
 
           {!compact ? (
             <>
-              <FinanceReportPanel
-                title="Branch readiness"
-                subtitle="Draft material cost per metre by branch"
-                badge="Readiness only"
-              >
+              <AccountingDeskTableSection title="Branch readiness" description="Draft material cost per metre by branch">
                 <FinanceDataTable
                   columns={[
                     { key: 'branchId', label: 'Branch' },
@@ -268,9 +286,9 @@ export function Ap3CostingReadinessPanel({
                   rows={data.byBranch || []}
                   emptyMessage="No branch rows in period."
                 />
-              </FinanceReportPanel>
+              </AccountingDeskTableSection>
 
-              <FinanceReportPanel title="Product family — material cost / m" badge="Draft">
+              <AccountingDeskTableSection title="Product family — material cost / m" description="Draft estimates by family">
                 <FinanceDataTable
                   columns={[
                     { key: 'productFamily', label: 'Family' },
@@ -284,9 +302,9 @@ export function Ap3CostingReadinessPanel({
                   ]}
                   rows={data.byProductFamily || []}
                 />
-              </FinanceReportPanel>
+              </AccountingDeskTableSection>
 
-              <FinanceReportPanel title="Gauge / colour — material cost / m" badge="Draft">
+              <AccountingDeskTableSection title="Gauge / colour — material cost / m">
                 <FinanceDataTable
                   columns={[
                     { key: 'gauge', label: 'Gauge' },
@@ -300,9 +318,9 @@ export function Ap3CostingReadinessPanel({
                   ]}
                   rows={data.byGaugeColour || []}
                 />
-              </FinanceReportPanel>
+              </AccountingDeskTableSection>
 
-              <FinanceReportPanel title="Production expense classification" badge="Needs HoA review">
+              <AccountingDeskTableSection title="Production expense classification" description="Needs HoA review">
                 <FinanceDataTable
                   columns={[
                     { key: 'label', label: 'Bucket' },
@@ -315,9 +333,9 @@ export function Ap3CostingReadinessPanel({
                   ]}
                   rows={data.expenseClassification || []}
                 />
-              </FinanceReportPanel>
+              </AccountingDeskTableSection>
 
-              <FinanceReportPanel title="Missing data samples" badge="Readiness only">
+              <AccountingDeskTableSection title="Missing data samples" description="Readiness only">
                 <FinanceDataTable
                   columns={[
                     { key: 'kind', label: 'Issue' },
@@ -328,25 +346,25 @@ export function Ap3CostingReadinessPanel({
                   rows={data.missingDataSamples || []}
                 />
                 <div className="mt-3 flex flex-wrap gap-2">
-                  <FinanceActionButton variant="link" to="/manager">
+                  <Link to="/manager" className="text-[10px] font-bold text-[#134e4a] hover:underline">
                     View production jobs
-                  </FinanceActionButton>
-                  <FinanceActionButton variant="link" to="/accounts?tab=movements">
-                    View expense classification (Treasury)
-                  </FinanceActionButton>
+                  </Link>
+                  <Link to="/accounts?tab=movements" className="text-[10px] font-bold text-[#134e4a] hover:underline">
+                    Expense classification (Treasury)
+                  </Link>
                 </div>
-              </FinanceReportPanel>
+              </AccountingDeskTableSection>
 
-              <FinanceReportPanel title="Proposed costing policy" badge="MD / HoA approval required">
-                <pre className="text-xs bg-slate-50 rounded-lg p-3 overflow-auto max-h-48">
+              <ProcurementFormSection letter="P" title="Proposed costing policy" compact>
+                <pre className="text-[10px] bg-slate-50 rounded-lg p-3 overflow-auto max-h-48">
                   {JSON.stringify(data.proposedCostingPolicy, null, 2)}
                 </pre>
-                <ul className="mt-2 text-xs text-slate-600 list-disc pl-4 space-y-1">
+                <ul className="mt-2 text-[10px] text-slate-600 list-disc pl-4 space-y-1">
                   {(data.policyNotes || []).map((n) => (
                     <li key={n}>{n}</li>
                   ))}
                 </ul>
-              </FinanceReportPanel>
+              </ProcurementFormSection>
             </>
           ) : (
             <Link to="/accounting" className="text-xs font-bold text-teal-800 hover:underline">
