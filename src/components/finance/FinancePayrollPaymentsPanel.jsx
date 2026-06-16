@@ -1,10 +1,17 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { Landmark, RefreshCw } from 'lucide-react';
 import { apiFetch } from '../../lib/apiBase';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { downloadHrPayrollExport, formatPeriodYyyymm } from '../../lib/hrPayroll';
 import { markPayrollRunPaid } from '../../lib/hrExtended';
 import { formatNgn } from '../../lib/hrFormat';
-import { FinanceKpiCard } from './FinanceKpiCard';
+import { ProcurementFormSection } from '../procurement/ProcurementFormSection';
+import {
+  AccountingDeskKpiCard,
+  AccountingDeskPageIntro,
+  ACCOUNTING_FIELD_LABEL,
+  ACCOUNTING_INPUT,
+} from './accounting/AccountingDeskUi';
 
 /** Approved / locked payroll runs — bank bulk payment file and treasury posting. */
 export function FinancePayrollPaymentsPanel() {
@@ -79,14 +86,7 @@ export function FinancePayrollPaymentsPanel() {
 
   const downloadBankFile = async () => {
     if (!selectedId) return;
-    setMessage('');
-    const r = await downloadHrPayrollExport(selectedId, 'bank-upload');
-    if (!r.ok) {
-      setError(r.error);
-      return;
-    }
-    setError('');
-    setMessage('Bank payment file downloaded. Upload to your bank portal for bulk salary payment.');
+    await downloadHrPayrollExport(selectedId);
   };
 
   const markPaid = async () => {
@@ -107,11 +107,11 @@ export function FinancePayrollPaymentsPanel() {
       return;
     }
     const treasuryNote =
-      data.treasury?.movementId ?
-        ` Treasury movement ${data.treasury.movementId} posted (₦${Number(data.treasury.amountNgn || 0).toLocaleString()}).`
-      : data.treasury?.alreadyPosted ?
-        ' Treasury was already posted for this run.'
-      : '';
+      data.treasury?.movementId
+        ? ` Treasury movement ${data.treasury.movementId} posted (₦${Number(data.treasury.amountNgn || 0).toLocaleString()}).`
+        : data.treasury?.alreadyPosted
+          ? ' Treasury was already posted for this run.'
+          : '';
     setMessage(`Payroll marked paid.${treasuryNote}`);
     await loadRuns();
   };
@@ -119,76 +119,103 @@ export function FinancePayrollPaymentsPanel() {
   const selected = runs.find((r) => r.id === selectedId);
 
   return (
-    <div className="space-y-4 rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
-      <div>
-        <h3 className="text-sm font-bold text-slate-900">Payroll bank payments</h3>
-        <p className="mt-1 text-sm text-slate-600">
-          After GM HR or MD approves and HR locks the run, download the bulk bank file, pay staff, then mark paid to
-          post the net total to treasury.
-        </p>
-      </div>
+    <div className="grid grid-cols-1 gap-4 lg:gap-6 min-w-0">
+      <AccountingDeskPageIntro
+        title="Payroll bank payments"
+        description="After GM HR or MD approves and HR locks the run, download the bulk bank file, pay staff, then mark paid to post net total to treasury."
+        action={
+          <button
+            type="button"
+            onClick={loadRuns}
+            disabled={loading}
+            className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[9px] font-semibold uppercase tracking-wider text-[#134e4a] hover:bg-slate-50"
+          >
+            <RefreshCw size={12} className={loading ? 'animate-spin' : ''} /> Refresh queue
+          </button>
+        }
+      />
 
-      {error ? <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-800">{error}</div> : null}
+      {error ? (
+        <div className="rounded-xl border border-rose-200 bg-rose-50/50 px-4 py-3 text-[11px] font-medium text-rose-800">
+          {error}
+        </div>
+      ) : null}
       {message ? (
-        <div className="rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">{message}</div>
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50/50 px-4 py-3 text-[11px] font-medium text-emerald-900">
+          {message}
+        </div>
       ) : null}
 
-      {loading ? <p className="text-sm text-slate-500">Loading payroll queue…</p> : null}
+      {loading ? <p className="text-[11px] text-slate-500">Loading payroll queue…</p> : null}
 
       {!loading && runs.length === 0 ? (
-        <p className="text-sm text-slate-600">No approved or locked payroll runs yet.</p>
+        <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50/50 py-14 px-6 text-center">
+          <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest">
+            No approved or locked payroll runs yet
+          </p>
+        </div>
       ) : null}
 
       {runs.length > 0 ? (
         <>
-          <label className="block text-xs font-semibold text-slate-600">
-            Payroll run
-            <select
-              value={selectedId}
-              onChange={(e) => setSelectedId(e.target.value)}
-              className="mt-1 block w-full max-w-md rounded-xl border border-slate-200 px-3 py-3 text-sm min-h-[44px]"
-            >
-              {runs.map((r) => (
-                <option key={r.id} value={r.id}>
-                  {formatPeriodYyyymm(r.periodYyyymm)} — {r.status}
-                  {r.gmApprovedAtIso ? ' · GM approved' : ''}
-                  {r.mdApprovedAtIso ? ' · MD approved' : ''}
-                </option>
-              ))}
-            </select>
-          </label>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <AccountingDeskKpiCard icon={<Landmark size={12} />} label="Queue" value={runs.length} tone="teal" />
+            {totals && !totals.amountsRedacted ? (
+              <>
+                <AccountingDeskKpiCard label="Staff" value={String(totals.headcount)} />
+                <AccountingDeskKpiCard label="Net payable" value={formatNgn(totals.netTotalNgn)} tone="teal" />
+              </>
+            ) : null}
+          </div>
 
-          {totals && !totals.amountsRedacted ? (
-            <div className="grid gap-3 sm:grid-cols-3">
-              <FinanceKpiCard label="Staff" value={String(totals.headcount)} />
-              <FinanceKpiCard label="Net payable" value={formatNgn(totals.netTotalNgn)} />
-              <FinanceKpiCard label="PAYE total" value={formatNgn(totals.taxTotalNgn)} />
+          <ProcurementFormSection letter="1" title="Select run & treasury account" compact>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <label className={ACCOUNTING_FIELD_LABEL}>
+                Payroll run
+                <select
+                  value={selectedId}
+                  onChange={(e) => setSelectedId(e.target.value)}
+                  className={ACCOUNTING_INPUT}
+                >
+                  {runs.map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {formatPeriodYyyymm(r.periodYyyymm)} — {r.status}
+                      {r.gmApprovedAtIso ? ' · GM approved' : ''}
+                      {r.mdApprovedAtIso ? ' · MD approved' : ''}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className={ACCOUNTING_FIELD_LABEL}>
+                Pay from treasury account
+                <select
+                  value={treasuryAccountId}
+                  onChange={(e) => setTreasuryAccountId(e.target.value)}
+                  className={ACCOUNTING_INPUT}
+                >
+                  {bankAccounts.length === 0 ? <option value="">No bank accounts in workspace</option> : null}
+                  {bankAccounts.map((a) => (
+                    <option key={a.id} value={String(a.id)}>
+                      {a.name || a.bankName || `Account ${a.id}`}
+                      {a.accNo ? ` · ${a.accNo}` : ''}
+                    </option>
+                  ))}
+                </select>
+              </label>
             </div>
-          ) : null}
-
-          <label className="block text-xs font-semibold text-slate-600">
-            Pay from treasury account
-            <select
-              value={treasuryAccountId}
-              onChange={(e) => setTreasuryAccountId(e.target.value)}
-              className="mt-1 block w-full max-w-md rounded-xl border border-slate-200 px-3 py-3 text-sm min-h-[44px]"
-            >
-              {bankAccounts.length === 0 ? <option value="">No bank accounts in workspace</option> : null}
-              {bankAccounts.map((a) => (
-                <option key={a.id} value={String(a.id)}>
-                  {a.name || a.bankName || `Account ${a.id}`}
-                  {a.accNo ? ` · ${a.accNo}` : ''}
-                </option>
-              ))}
-            </select>
-          </label>
+            {totals && !totals.amountsRedacted ? (
+              <p className="mt-3 text-[10px] text-slate-600">
+                PAYE total: <span className="font-bold tabular-nums">{formatNgn(totals.taxTotalNgn)}</span>
+              </p>
+            ) : null}
+          </ProcurementFormSection>
 
           <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
             <button
               type="button"
               onClick={downloadBankFile}
               disabled={!selectedId || selected?.status === 'draft'}
-              className="inline-flex min-h-[44px] w-full items-center justify-center rounded-xl bg-[#134e4a] px-4 py-2.5 text-[11px] font-bold uppercase text-white disabled:opacity-50 sm:w-auto touch-manipulation"
+              className="inline-flex min-h-[44px] items-center justify-center rounded-lg bg-[#134e4a] px-4 py-2.5 text-[9px] font-semibold uppercase tracking-wider text-white disabled:opacity-50"
             >
               Download bank payment file
             </button>
@@ -197,13 +224,15 @@ export function FinancePayrollPaymentsPanel() {
                 type="button"
                 onClick={markPaid}
                 disabled={busy || !treasuryAccountId}
-                className="inline-flex min-h-[44px] w-full items-center justify-center rounded-xl bg-emerald-700 px-4 py-2.5 text-[11px] font-bold uppercase text-white disabled:opacity-50 sm:w-auto touch-manipulation"
+                className="inline-flex min-h-[44px] items-center justify-center rounded-lg bg-emerald-700 px-4 py-2.5 text-[9px] font-semibold uppercase tracking-wider text-white disabled:opacity-50"
               >
                 Mark paid & post treasury
               </button>
             ) : null}
             {selected?.status === 'draft' ? (
-              <span className="text-xs text-amber-800 leading-relaxed">Lock run in HR after GM/MD approval before bank upload.</span>
+              <span className="text-[10px] text-amber-800 leading-relaxed self-center">
+                Lock run in HR after GM/MD approval before bank upload.
+              </span>
             ) : null}
           </div>
         </>
