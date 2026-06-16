@@ -346,6 +346,7 @@ export function AccountingRegisterPanel({
             setSelectedItem(null);
             setClearTarget(item);
           }}
+          onSettlementChanged={onReload}
           clearing={mutBusy && clearingId === selectedItem.id}
         />
       ) : null}

@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, Building2, ExternalLink, FileText, Pencil, Trash2, User } from 'lucide-react';
+import { ArrowRight, Building2, Banknote, ExternalLink, FileText, Pencil, Trash2, User } from 'lucide-react';
 import { formatNgn } from '../../Data/mockData';
 import {
   accountingRegisterPartyLink,
@@ -10,6 +10,10 @@ import { REGISTER_CATEGORY_LABELS } from '../../lib/accountingRegisterConfig';
 import { ModalFrame } from '../layout/ModalFrame';
 import { ProcurementFormSection } from '../procurement/ProcurementFormSection';
 import { AccountingRegisterNavLink } from './AccountingRegisterNavLink';
+import { useRegisterSettlements, useRegisterSettlementMutations } from '../../hooks/useAccountingRegisterSettlements';
+import { useWorkspace } from '../../context/WorkspaceContext';
+import { AccountingRegisterSettlementRequestModal } from './AccountingRegisterSettlementRequestModal';
+import { AccountingRegisterSettlementPayModal } from './AccountingRegisterSettlementPayModal';
 
 const SECTION_ACTIONS = {
   staff_loans: [
@@ -67,6 +71,7 @@ function DetailField({ label, children }) {
  *   onClose: () => void;
  *   onClear?: (item: object) => void;
  *   onEdit?: (item: object) => void;
+ *   onSettlementChanged?: () => void;
  *   clearing?: boolean;
  * }} props
  */
@@ -79,8 +84,25 @@ export function AccountingRegisterDetailModal({
   onClose,
   onClear,
   onEdit,
+  onSettlementChanged,
   clearing,
 }) {
+  const ws = useWorkspace();
+  const [requestOpen, setRequestOpen] = useState(false);
+  const [payTarget, setPayTarget] = useState(null);
+  const legacyLine = Boolean(item?.isLegacy && sectionId === 'legacy_inherited');
+  const canWithdraw = legacyLine && registerSide === 'debtor' && canManage;
+  const { items: settlements, reload: reloadSettlements } = useRegisterSettlements({
+    registerLineId: legacyLine ? item?.id : undefined,
+    enabled: legacyLine && Boolean(item?.id),
+  });
+  const { busy: settleBusy, decideSettlement } = useRegisterSettlementMutations();
+  const canApprove =
+    ws?.hasPermission?.('finance.approve') ||
+    ws?.hasPermission?.('refunds.approve') ||
+    ws?.hasPermission?.('*');
+  const canPay = ws?.hasPermission?.('finance.pay');
+
   if (!item) return null;
 
   const partyLink = accountingRegisterPartyLink(sectionId, item);
@@ -175,7 +197,84 @@ export function AccountingRegisterDetailModal({
             </ProcurementFormSection>
           ) : null}
 
+          {legacyLine && settlements.length ? (
+            <ProcurementFormSection letter="S" title="Withdrawal requests" compact>
+              <ul className="space-y-1.5">
+                {settlements.map((s) => {
+                  const out = Math.max(0, (s.approvedAmountNgn || s.amountNgn) - (s.paidAmountNgn || 0));
+                  return (
+                    <li
+                      key={s.settlementId}
+                      className="rounded-lg border border-slate-200/80 bg-white px-3 py-2 text-[10px]"
+                    >
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <span className="font-bold text-[#134e4a]">{s.settlementId}</span>
+                        <span className="font-semibold text-slate-600">{s.status}</span>
+                      </div>
+                      <p className="mt-0.5 text-slate-600">
+                        {formatNgn(s.amountNgn)}
+                        {s.status === 'Approved' ? ` · pay ${formatNgn(out)}` : ''}
+                      </p>
+                      <div className="mt-1.5 flex flex-wrap gap-1">
+                        {s.status === 'Pending' && canApprove ? (
+                          <>
+                            <button
+                              type="button"
+                              disabled={settleBusy}
+                              onClick={() =>
+                                void decideSettlement(s.settlementId, { status: 'Approved' }).then((r) => {
+                                  if (r.ok) {
+                                    void reloadSettlements();
+                                    onSettlementChanged?.();
+                                  }
+                                })
+                              }
+                              className="rounded border border-teal-200 bg-teal-50 px-2 py-0.5 text-[8px] font-bold uppercase text-teal-900"
+                            >
+                              Approve
+                            </button>
+                            <button
+                              type="button"
+                              disabled={settleBusy}
+                              onClick={() =>
+                                void decideSettlement(s.settlementId, { status: 'Rejected' }).then((r) => {
+                                  if (r.ok) void reloadSettlements();
+                                })
+                              }
+                              className="rounded border border-rose-200 bg-rose-50 px-2 py-0.5 text-[8px] font-bold uppercase text-rose-800"
+                            >
+                              Reject
+                            </button>
+                          </>
+                        ) : null}
+                        {s.status === 'Approved' && canPay && out > 0 ? (
+                          <button
+                            type="button"
+                            onClick={() => setPayTarget(s)}
+                            className="rounded bg-[#134e4a] text-white px-2 py-0.5 text-[8px] font-bold uppercase"
+                          >
+                            Pay
+                          </button>
+                        ) : null}
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            </ProcurementFormSection>
+          ) : null}
+
           <div className="flex flex-wrap justify-end gap-2 pt-3 mt-2 border-t border-slate-100">
+            {canWithdraw ? (
+              <button
+                type="button"
+                onClick={() => setRequestOpen(true)}
+                className="inline-flex items-center gap-1 rounded-lg border border-teal-200 bg-teal-50 px-3 py-1.5 text-[9px] font-semibold uppercase tracking-wider text-teal-950 hover:bg-teal-100"
+              >
+                <Banknote size={12} />
+                Request withdrawal
+              </button>
+            ) : null}
             {canManage && sectionId === 'legacy_inherited' && onEdit ? (
               <button
                 type="button"
@@ -210,6 +309,28 @@ export function AccountingRegisterDetailModal({
           </div>
         </div>
       </div>
+
+      <AccountingRegisterSettlementRequestModal
+        item={item}
+        open={requestOpen}
+        onClose={() => setRequestOpen(false)}
+        onSaved={() => {
+          setRequestOpen(false);
+          void reloadSettlements();
+          onSettlementChanged?.();
+        }}
+      />
+      <AccountingRegisterSettlementPayModal
+        settlement={payTarget}
+        open={Boolean(payTarget)}
+        onClose={() => setPayTarget(null)}
+        onPaid={() => {
+          setPayTarget(null);
+          void reloadSettlements();
+          onSettlementChanged?.();
+          onClose();
+        }}
+      />
     </ModalFrame>
   );
 }
