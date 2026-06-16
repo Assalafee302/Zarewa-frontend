@@ -343,10 +343,11 @@ export function WorkspaceProvider({ children }) {
   }, [applySnapshot]);
 
   const ensureDomainLoaded = useCallback(
-    async (domain) => {
+    async (domain, opts = {}) => {
       const key = String(domain || '').trim().toLowerCase();
+      const force = Boolean(opts?.force);
       if (!key) return snapshotRef.current;
-      if (loadedDomainsRef.current.has(key)) return snapshotRef.current;
+      if (!force && loadedDomainsRef.current.has(key)) return snapshotRef.current;
       try {
         const r = await fetch(apiUrl(`/api/workspace/${encodeURIComponent(key)}-snapshot`), {
           method: 'GET',

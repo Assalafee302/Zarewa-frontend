@@ -634,6 +634,15 @@ export function LiveProductionMonitor({
     else setJobIntel(null);
   }, [selectedJob?.jobID]);
 
+  /** Reload production jobs, coils, and yard stock — much faster than full workspace bootstrap. */
+  const refreshProductionWorkspace = useCallback(async () => {
+    if (typeof ws?.ensureDomainLoaded === 'function') {
+      await ws.ensureDomainLoaded('operations', { force: true });
+      return;
+    }
+    await ws?.refresh?.();
+  }, [ws]);
+
   useEffect(() => {
     void reloadJobIntel();
   }, [reloadJobIntel]);
@@ -1714,7 +1723,7 @@ export function LiveProductionMonitor({
         });
         return;
       }
-      await ws.refresh();
+      await refreshProductionWorkspace();
       showToast('Manager sign-off recorded.');
       setSignoffRemark('');
       setSignoffEditApprovalId('');
@@ -1749,7 +1758,7 @@ export function LiveProductionMonitor({
       }
       setCancelModalOpen(false);
       setCancelReason('');
-      await ws.refresh();
+      await refreshProductionWorkspace();
       showToast('Job cancelled — coil reservations released; cutting list set to Waiting.');
     } catch (e) {
       showToast(e?.message || 'Network error.', { variant: 'error' });
@@ -1782,7 +1791,7 @@ export function LiveProductionMonitor({
       }
       setReturnModalOpen(false);
       setReturnReason('');
-      await ws.refresh();
+      await refreshProductionWorkspace();
       showToast('Job returned to plan — you can fix coils and save allocation again.');
     } catch (e) {
       showToast(e?.message || 'Network error.', { variant: 'error' });
@@ -1837,7 +1846,7 @@ export function LiveProductionMonitor({
       setFgAdjDelta('');
       setFgAdjNote('');
       setPostCompletionEditApprovalId('');
-      await ws.refresh();
+      await refreshProductionWorkspace();
       showToast(`Adjustment recorded. Stock now ~${Number(data.productStockMetersAfter).toFixed(2)} m for SKU.`);
     } catch (e) {
       showToast(e?.message || 'Network error.', { variant: 'error' });
@@ -2051,10 +2060,10 @@ export function LiveProductionMonitor({
         if (!res.ok || !res.data?.ok) {
           setSavingAction('');
           showToast(res.data?.error || 'Could not apply correction.', { variant: 'error' });
-          await ws.refresh();
+          await refreshProductionWorkspace();
           return;
         }
-        await ws.refresh();
+        await refreshProductionWorkspace();
         setSavingAction('');
         setPostCompletionEditApprovalId('');
         showToast('Completed job coil correction saved.');
@@ -2100,10 +2109,10 @@ export function LiveProductionMonitor({
         if (!res.ok || !res.data?.ok) {
           setSavingAction('');
           showToast(res.data?.error || 'Could not apply accessory correction.', { variant: 'error' });
-          await ws.refresh();
+          await refreshProductionWorkspace();
           return;
         }
-        await ws.refresh();
+        await refreshProductionWorkspace();
         setSavingAction('');
         setPostCompletionEditApprovalId('');
         showToast('Completed job accessory correction saved.');
@@ -2149,10 +2158,10 @@ export function LiveProductionMonitor({
         if (!res.ok || !res.data?.ok) {
           setSavingAction('');
           showToast(res.data?.error || 'Could not apply stone flatsheet correction.', { variant: 'error' });
-          await ws.refresh();
+          await refreshProductionWorkspace();
           return;
         }
-        await ws.refresh();
+        await refreshProductionWorkspace();
         setSavingAction('');
         setPostCompletionEditApprovalId('');
         showToast('Stone flatsheet correction saved.');
@@ -2205,7 +2214,7 @@ export function LiveProductionMonitor({
           if (!resRl.ok || !resRl.data?.ok) {
             setSavingAction('');
             showToast(resRl.data?.error || 'Could not save run log.', { variant: 'error' });
-            await ws.refresh();
+            await refreshProductionWorkspace();
             return;
           }
         }
@@ -2244,12 +2253,12 @@ export function LiveProductionMonitor({
             if (!resA.ok || !resA.data?.ok) {
               setSavingAction('');
               showToast(resA.data?.error || 'Could not save new coil.', { variant: 'error' });
-              await ws.refresh();
+              await refreshProductionWorkspace();
               return;
             }
           }
         }
-        await ws.refresh();
+        await refreshProductionWorkspace();
         setSavingAction('');
         showToast('Saved.');
       } catch (e) {
@@ -2268,7 +2277,6 @@ export function LiveProductionMonitor({
           showToast(res.data?.error || 'Could not save stone job allocation.', { variant: 'error' });
           return;
         }
-        await ws.refresh();
         const startRes = await apiFetch(`${jobApi}/start`, {
           method: 'POST',
           body: JSON.stringify({ startedAtISO: productionDateIso }),
@@ -2283,11 +2291,11 @@ export function LiveProductionMonitor({
             ),
             { variant: 'error' }
           );
-          await ws.refresh();
+          await refreshProductionWorkspace();
           return;
         }
         setStoneAllocAck(true);
-        await ws.refresh();
+        await refreshProductionWorkspace();
         showToast(`Stone-coated job saved and production started for ${listLabel}.`);
         return;
       }
@@ -2306,10 +2314,10 @@ export function LiveProductionMonitor({
             ),
             { variant: 'error' }
           );
-          await ws.refresh();
+          await refreshProductionWorkspace();
           return;
         }
-        await ws.refresh();
+        await refreshProductionWorkspace();
         showToast(`Offcut/accessories run started for ${listLabel}.`);
         return;
       }
@@ -2371,8 +2379,11 @@ export function LiveProductionMonitor({
         showToast(res.data?.error || 'Could not update production.', { variant: 'error' });
         return;
       }
-      await ws.refresh();
-      if (alsoStartAfterAlloc && selectedJob.status === 'Planned') {
+      const willStartAfterAlloc = alsoStartAfterAlloc && selectedJob.status === 'Planned';
+      if (!willStartAfterAlloc) {
+        await refreshProductionWorkspace();
+      }
+      if (willStartAfterAlloc) {
         const startRes = await apiFetch(`${jobApi}/start`, {
           method: 'POST',
           body: JSON.stringify({ startedAtISO: productionDateIso }),
@@ -2387,10 +2398,10 @@ export function LiveProductionMonitor({
             ),
             { variant: 'error' }
           );
-          await ws.refresh();
+          await refreshProductionWorkspace();
           return;
         }
-        await ws.refresh();
+        await refreshProductionWorkspace();
         showToast(`Coils saved and production started for ${listLabel}.`);
         return;
       }
@@ -2507,7 +2518,7 @@ export function LiveProductionMonitor({
       );
       return;
     }
-    await ws.refresh();
+    await refreshProductionWorkspace();
     if (type === 'start') {
       showToast(`Production started for ${listLabel}.`);
     } else {
@@ -3291,7 +3302,7 @@ export function LiveProductionMonitor({
                           roleKey={ws?.session?.user?.roleKey}
                           onSuccess={() => {
                             void reloadJobIntel();
-                            void ws.refresh?.();
+                            void refreshProductionWorkspace();
                           }}
                         />
                       </>
@@ -4672,7 +4683,7 @@ export function LiveProductionMonitor({
         defaultBeforeKg={primaryIncidentBeforeKg}
         incidentType="production_error"
         onSuccess={async () => {
-          await ws?.refresh?.();
+          await refreshProductionWorkspace();
         }}
       />
 
