@@ -1,43 +1,119 @@
-import React, { memo } from 'react';
+import React, { memo, useCallback, useMemo } from 'react';
 import { AlertTriangle, CircleHelp, Trash2 } from 'lucide-react';
-import ProductionCoilPicker from './ProductionCoilPicker';
-
-const COIL_TAIL_FINISH_MAX_KG = 85;
 
 function formatKg(value) {
   const next = Number(value);
   return Number.isFinite(next) ? `${next.toFixed(2)} kg` : '—';
 }
 
-function ProductionCoilAllocationRow({
+function draftRowConversionPreviewReady(row) {
+  const coil = row.coilNo?.trim();
+  const op = Number(row.openingWeightKg);
+  const cl = Number(row.closingWeightKg);
+  const m = Number(row.metersProduced);
+  return (
+    Boolean(coil) &&
+    Number.isFinite(op) &&
+    op > 0 &&
+    Number.isFinite(cl) &&
+    cl >= 0 &&
+    cl <= op &&
+    Number.isFinite(m) &&
+    m > 0
+  );
+}
+
+/**
+ * Coil `<select>` with recommended / other optgroups — pattern unchanged, memoized so
+ * typing in kg/metres fields on other rows does not rebuild every `<option>`.
+ */
+const ProductionRegisterCoilSelect = memo(function ProductionRegisterCoilSelect({
+  rowId,
+  value,
+  onFieldChange,
+  disabled,
+  title,
+  recommendedOptions,
+  otherOptions,
+  disabledCoilNos,
+}) {
+  const disabledSet = useMemo(() => {
+    if (disabledCoilNos instanceof Set) return disabledCoilNos;
+    return new Set(Array.isArray(disabledCoilNos) ? disabledCoilNos : []);
+  }, [disabledCoilNos]);
+
+  const handleChange = useCallback(
+    (e) => onFieldChange(rowId, { coilNo: e.target.value }),
+    [onFieldChange, rowId]
+  );
+
+  return (
+    <select
+      disabled={disabled}
+      title={title}
+      value={value}
+      onChange={handleChange}
+      className="min-h-11 w-full min-w-0 max-w-full rounded-md border border-slate-200 bg-white py-2 px-2 text-[11px] font-bold text-[#134e4a] outline-none transition-all focus:border-[#134e4a]/40 focus:ring-1 focus:ring-[#134e4a]/20 disabled:opacity-60 lg:min-h-0 lg:py-1.5"
+    >
+      <option value="">Select coil...</option>
+      {recommendedOptions.length > 0 ? (
+        <optgroup label="Recommended (matches quotation)">
+          {recommendedOptions.map((opt) => (
+            <option key={opt.coilNo} value={opt.coilNo} disabled={disabledSet.has(opt.coilNo)}>
+              {opt.label}
+            </option>
+          ))}
+        </optgroup>
+      ) : null}
+      {otherOptions.length > 0 ? (
+        <optgroup label={recommendedOptions.length > 0 ? 'Other coils' : 'Available coils'}>
+          {otherOptions.map((opt) => (
+            <option key={opt.coilNo} value={opt.coilNo} disabled={disabledSet.has(opt.coilNo)}>
+              {opt.label}
+            </option>
+          ))}
+        </optgroup>
+      ) : null}
+    </select>
+  );
+});
+
+/**
+ * One production-register coil line — isolated re-renders per row.
+ */
+export const ProductionRegisterCoilRow = memo(function ProductionRegisterCoilRow({
   row,
   index,
   lot,
   freeKg,
-  draftRow,
   inModal,
-  canPickCoilAndOpening,
-  coilSelectLockedRunningPrimary,
   coilSelectTitle,
-  coilPickerOptions,
-  coilsSelectedOnOtherLines,
+  coilSelectLockedRunningPrimary,
+  canPickCoilAndOpening,
   canCaptureRun,
   canEditCompletedCoilCorrections,
   readOnly,
   jobSt,
+  draftRow,
   showRemove,
   specWarn,
-  previewReady,
-  onUpdate,
+  coilTailFinishMaxKg,
+  recommendedOptions,
+  otherOptions,
+  disabledCoilNos,
+  onFieldChange,
   onRemove,
 }) {
+  const coilSelectDisabledTitle = coilSelectLockedRunningPrimary
+    ? 'Primary coil is fixed while the run is open. Use Return to plan to change coils, or add a new coil row for an extra roll.'
+    : coilSelectTitle;
   const lotMat = lot ? String(lot.materialTypeName || '').trim() : '';
 
   return (
     <div
       className={`rounded-xl border border-slate-200/90 bg-gradient-to-b from-white to-slate-50/40 shadow-sm ${
         inModal ? 'p-1.5' : 'p-2'
-      } ${previewReady ? 'ring-1 ring-teal-400/35' : ''}`}
+      } ${draftRowConversionPreviewReady(row) ? 'ring-1 ring-teal-400/35' : ''}`}
     >
       <div
         className={`min-w-0 flex flex-col gap-2 pb-1 lg:grid lg:items-end lg:gap-x-2 lg:overflow-visible lg:pb-0 ${
@@ -76,18 +152,18 @@ function ProductionCoilAllocationRow({
           <span className="hidden min-w-0 lg:block" aria-hidden />
         )}
         <div className="flex min-w-0 flex-1 flex-col gap-px">
-          <label className="whitespace-nowrap text-[8px] font-bold uppercase tracking-wide text-slate-500">Coil</label>
-          <ProductionCoilPicker
+          <label className="whitespace-nowrap text-[8px] font-bold uppercase tracking-wide text-slate-500">
+            Coil
+          </label>
+          <ProductionRegisterCoilSelect
+            rowId={row.id}
             value={row.coilNo}
-            onChange={(coilNo) => onUpdate(row.id, { coilNo })}
+            onFieldChange={onFieldChange}
             disabled={!canPickCoilAndOpening}
-            title={
-              coilSelectLockedRunningPrimary
-                ? 'Primary coil is fixed while the run is open. Use Return to plan to change coils, or add a new coil row for an extra roll.'
-                : coilSelectTitle || 'Choose a received coil from stock.'
-            }
-            options={coilPickerOptions}
-            disabledCoils={coilsSelectedOnOtherLines}
+            title={coilSelectDisabledTitle}
+            recommendedOptions={recommendedOptions}
+            otherOptions={otherOptions}
+            disabledCoilNos={disabledCoilNos}
           />
         </div>
 
@@ -102,7 +178,7 @@ function ProductionCoilAllocationRow({
               step="0.01"
               disabled={!canPickCoilAndOpening}
               value={row.openingWeightKg}
-              onChange={(e) => onUpdate(row.id, { openingWeightKg: e.target.value })}
+              onChange={(e) => onFieldChange(row.id, { openingWeightKg: e.target.value })}
               className="min-h-10 w-full rounded-md border border-slate-200 bg-white py-2 px-1.5 text-xs font-bold tabular-nums text-[#134e4a] outline-none transition-all focus:border-[#134e4a]/40 focus:ring-1 focus:ring-[#134e4a]/20 disabled:opacity-60 lg:min-h-0 lg:py-1.5"
             />
           </div>
@@ -117,7 +193,7 @@ function ProductionCoilAllocationRow({
               step="0.01"
               disabled={!(canCaptureRun || canEditCompletedCoilCorrections)}
               value={row.closingWeightKg}
-              onChange={(e) => onUpdate(row.id, { closingWeightKg: e.target.value })}
+              onChange={(e) => onFieldChange(row.id, { closingWeightKg: e.target.value })}
               className="min-h-10 w-full rounded-md border border-slate-200 bg-white py-2 px-1.5 text-xs font-bold tabular-nums text-[#134e4a] outline-none transition-all focus:border-[#134e4a]/40 focus:ring-1 focus:ring-[#134e4a]/20 disabled:opacity-60 lg:min-h-0 lg:py-1.5"
             />
           </div>
@@ -132,29 +208,30 @@ function ProductionCoilAllocationRow({
               step="0.01"
               disabled={!(canCaptureRun || canEditCompletedCoilCorrections)}
               value={row.metersProduced}
-              onChange={(e) => onUpdate(row.id, { metersProduced: e.target.value })}
+              onChange={(e) => onFieldChange(row.id, { metersProduced: e.target.value })}
               className="min-h-10 w-full rounded-md border border-slate-200 bg-white py-2 px-1.5 text-xs font-bold tabular-nums text-[#134e4a] outline-none transition-all focus:border-[#134e4a]/40 focus:ring-1 focus:ring-[#134e4a]/20 disabled:opacity-60 lg:min-h-0 lg:py-1.5"
             />
           </div>
         </div>
 
         <div className="flex min-w-0 flex-1 flex-col gap-px">
-          <label className="whitespace-nowrap text-[8px] font-bold uppercase tracking-wide text-slate-500">Note</label>
+          <label className="whitespace-nowrap text-[8px] font-bold uppercase tracking-wide text-slate-500">
+            Note
+          </label>
           <input
             type="text"
             value={row.note}
-            onChange={(e) => onUpdate(row.id, { note: e.target.value })}
-            disabled={
-              (readOnly && !canEditCompletedCoilCorrections) ||
-              (jobSt === 'Running' && !draftRow && !canCaptureRun)
-            }
+            onChange={(e) => onFieldChange(row.id, { note: e.target.value })}
+            disabled={(readOnly && !canEditCompletedCoilCorrections) || (jobSt === 'Running' && !draftRow && !canCaptureRun)}
             placeholder="Trim, splice…"
             className="min-h-10 min-w-0 w-full rounded-md border border-slate-200 bg-white py-2 px-2 text-[11px] font-medium text-slate-800 outline-none transition-all focus:border-slate-300 focus:ring-1 focus:ring-slate-200/80 disabled:opacity-60 lg:min-h-0 lg:py-1.5"
           />
         </div>
 
         <div className="flex w-full flex-col gap-px text-center lg:w-[3.25rem] lg:shrink-0">
-          <span className="whitespace-nowrap text-[8px] font-bold uppercase tracking-wide text-teal-800/90">Used</span>
+          <span className="whitespace-nowrap text-[8px] font-bold uppercase tracking-wide text-teal-800/90">
+            Used
+          </span>
           <span className="text-xs font-black tabular-nums leading-none text-[#134e4a]">
             {Number(row.openingWeightKg) >= Number(row.closingWeightKg || 0) && row.closingWeightKg !== ''
               ? formatKg(Number(row.openingWeightKg) - Number(row.closingWeightKg || 0))
@@ -179,18 +256,18 @@ function ProductionCoilAllocationRow({
       Number(row.openingWeightKg) > 0 &&
       Number.isFinite(Number(row.closingWeightKg)) &&
       Number(row.closingWeightKg) >= 0 &&
-      Number(row.closingWeightKg) < COIL_TAIL_FINISH_MAX_KG &&
+      Number(row.closingWeightKg) < coilTailFinishMaxKg &&
       Number(row.closingWeightKg) <= Number(row.openingWeightKg) ? (
         <label className="mt-2 flex cursor-pointer items-center gap-2 rounded-md border border-amber-200/90 bg-amber-50/80 px-2 py-2 text-[11px] font-medium text-amber-950">
           <input
             type="checkbox"
             checked={Boolean(row.finishCoil)}
-            onChange={(e) => onUpdate(row.id, { finishCoil: e.target.checked })}
+            onChange={(e) => onFieldChange(row.id, { finishCoil: e.target.checked })}
             className="h-[1.125rem] w-[1.125rem] shrink-0 rounded border-amber-400 text-[#134e4a] focus:ring-2 focus:ring-[#134e4a]/30"
           />
           <span className="min-w-0 flex-1 leading-snug">
             <strong className="font-semibold">Roll finished</strong>
-            <span className="text-amber-900/90"> (tail under {COIL_TAIL_FINISH_MAX_KG} kg)</span>
+            <span className="text-amber-900/90"> (tail under {coilTailFinishMaxKg} kg)</span>
           </span>
           <button
             type="button"
@@ -221,44 +298,4 @@ function ProductionCoilAllocationRow({
       ) : null}
     </div>
   );
-}
-
-function rowPropsEqual(prev, next) {
-  const a = prev.row;
-  const b = next.row;
-  if (a.id !== b.id) return false;
-  if (
-    a.coilNo !== b.coilNo ||
-    a.openingWeightKg !== b.openingWeightKg ||
-    a.closingWeightKg !== b.closingWeightKg ||
-    a.metersProduced !== b.metersProduced ||
-    a.note !== b.note ||
-    a.finishCoil !== b.finishCoil ||
-    a.specMismatch !== b.specMismatch
-  ) {
-    return false;
-  }
-  return (
-    prev.index === next.index &&
-    prev.lot === next.lot &&
-    prev.freeKg === next.freeKg &&
-    prev.draftRow === next.draftRow &&
-    prev.inModal === next.inModal &&
-    prev.canPickCoilAndOpening === next.canPickCoilAndOpening &&
-    prev.coilSelectLockedRunningPrimary === next.coilSelectLockedRunningPrimary &&
-    prev.coilSelectTitle === next.coilSelectTitle &&
-    prev.coilPickerOptions === next.coilPickerOptions &&
-    prev.coilsSelectedOnOtherLines === next.coilsSelectedOnOtherLines &&
-    prev.canCaptureRun === next.canCaptureRun &&
-    prev.canEditCompletedCoilCorrections === next.canEditCompletedCoilCorrections &&
-    prev.readOnly === next.readOnly &&
-    prev.jobSt === next.jobSt &&
-    prev.showRemove === next.showRemove &&
-    prev.specWarn === next.specWarn &&
-    prev.previewReady === next.previewReady &&
-    prev.onUpdate === next.onUpdate &&
-    prev.onRemove === next.onRemove
-  );
-}
-
-export default memo(ProductionCoilAllocationRow, rowPropsEqual);
+});
