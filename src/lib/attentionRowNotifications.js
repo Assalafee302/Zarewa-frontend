@@ -41,8 +41,13 @@ export function managementAttentionItemPath(item) {
     const jid = String(item.jobId || item.title || '').trim();
     return jid ? `/manager?inbox=qc&jobId=${encodeURIComponent(jid)}` : '/manager?inbox=qc';
   }
-  if (kind === 'material') return '/manager?inbox=material';
-  if (kind === 'edit_approvals') return '/manager?inbox=edit_approvals';
+  if (kind === 'material') {
+    const mid = String(item?.title || item?.row?.id || '').trim();
+    return mid
+      ? `/manager?inbox=material&materialIncidentId=${encodeURIComponent(mid)}`
+      : '/manager?inbox=material';
+  }
+  if (kind === 'edit_approvals') return '/manager?inbox=edits';
   if (kind === 'governance') {
     if (item.refundId) {
       return `/manager?inbox=cash_out&refundId=${encodeURIComponent(String(item.refundId))}`;
@@ -53,6 +58,7 @@ export function managementAttentionItemPath(item) {
     if (item.quotationRef) {
       return `/manager?inbox=orders&quoteRef=${encodeURIComponent(String(item.quotationRef))}`;
     }
+    return '/manager?inbox=governance';
   }
   return '/manager?inbox=attention';
 }

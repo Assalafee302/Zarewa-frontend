@@ -6,6 +6,7 @@ import { ManagementIntelSlideOver } from './ManagementIntelSlideOver';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { officeThreadIdFromWorkItem } from '../../lib/officeThreadFromWorkItem';
 import { workItemShowsOnWorkspaceUnifiedInbox } from '../../lib/workItemPersonalInbox';
+import { managerWorkItemPath, workItemShouldOpenManagerDesk } from '../../lib/managerWorkItemRoute';
 import {
   groupFileTrayItemsByCategory,
   workItemNeedsActionForUser,
@@ -38,7 +39,7 @@ function fallbackRoute(item) {
   if (item.documentType === 'payment_request') return { to: '/accounts', state: { accountsTab: 'requests' } };
   if (item.documentType === 'material_request') return { to: '/operations', state: { focusOpsTab: 'inventory' } };
   if (item.documentType === 'material_incident') {
-    return { to: '/operations', state: { focusOpsTab: 'materialExceptions', materialIncidentId: item.sourceId } };
+    return { to: managerWorkItemPath(item) };
   }
   if (String(item.documentType || '').startsWith('hr_')) return { to: '/' };
   return { to: '/' };
@@ -138,6 +139,12 @@ export default function UnifiedWorkItemsPanel({ hideFooter = false, view: viewPr
               setIntelDrawerWorkItem(null);
               if (isMailControlled) onOpenMailReader(officeTid);
               else setMemoDrawerThreadId(officeTid);
+              return;
+            }
+            if (workItemShouldOpenManagerDesk(item, inboxCtx)) {
+              setMemoDrawerThreadId(null);
+              setIntelDrawerWorkItem(null);
+              navigate(managerWorkItemPath(item));
               return;
             }
             if (workItemShowsOfficeDrawerTransactionIntel(item.documentType)) {

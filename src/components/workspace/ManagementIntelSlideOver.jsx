@@ -1,8 +1,9 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { X } from 'lucide-react';
 import { SlideOverPanel } from '../layout/SlideOverPanel';
 import { ThreadDrawerTransactionIntel } from '../office/ThreadDrawerTransactionIntel';
+import { managerWorkItemPath } from '../../lib/managerWorkItemRoute';
 
 /**
  * Slide-over for workspace inbox management rows — light shell aligned with Office/workspace.
@@ -26,10 +27,10 @@ export function ManagementIntelSlideOver({ workItem, isOpen, onDismiss }) {
           </div>
           <div className="flex shrink-0 items-center gap-2">
             <Link
-              to="/manager"
+              to={managerWorkItemPath(workItem)}
               className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-[10px] font-bold uppercase tracking-wide text-slate-700 shadow-sm hover:bg-slate-50"
             >
-              Manager
+              Open workstation
             </Link>
             <button
               type="button"

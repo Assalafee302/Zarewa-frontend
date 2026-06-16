@@ -31,6 +31,16 @@ export const MANAGER_INBOX_TABS = [
     description: 'Approve delivery on credit while receivable stays outstanding (MD above branch limits)',
   },
   {
+    key: 'governance',
+    label: 'Risk & governance',
+    description: 'Dual-control segregation warnings and payment-gate breaches on completed jobs',
+  },
+  {
+    key: 'edits',
+    label: 'Edit approvals',
+    description: 'Second-party approval required before sensitive records are saved',
+  },
+  {
     key: 'attendance',
     label: 'Staff attendance',
     description: 'Mark daily present, late, or absent for your branch staff',
@@ -64,7 +74,8 @@ export function normalizeManagerInboxRoute(rawInbox) {
   if (k === 'clearance' || k === 'production') return { tab: 'orders', attentionFilter: 'orders' };
   if (k === 'refunds' || k === 'payments') return { tab: 'cash_out', attentionFilter: 'cash' };
   if (k === 'conversions') return { tab: 'qc', attentionFilter: 'qc' };
-  if (k === 'edit_approvals') return { tab: 'attention', attentionFilter: 'edits' };
+  if (k === 'edit_approvals' || k === 'edits') return { tab: 'edits', attentionFilter: 'all' };
+  if (k === 'governance') return { tab: 'governance', attentionFilter: 'all' };
   if (k === 'material') return { tab: 'material', attentionFilter: 'material' };
   if (k === 'attendance') return { tab: 'attendance', attentionFilter: 'all' };
   if (MANAGER_INBOX_TABS.some((t) => t.key === k)) return { tab: k, attentionFilter: 'all' };
@@ -109,6 +120,22 @@ export function buildOrdersInboxRows(displayItems) {
 /**
  * @param {{ pendingRefunds?: object[]; pendingExpenses?: object[] }} displayItems
  */
+/** @param {object[]} attentionItems */
+export function buildGovernanceInboxRows(attentionItems) {
+  return (Array.isArray(attentionItems) ? attentionItems : [])
+    .filter((it) => String(it?.kind || '').toLowerCase() === 'governance')
+    .map((row) => ({ ...row, _rowKey: `governance:${row.id}` }));
+}
+
+/** @param {object[]} editApprovalPending */
+export function buildEditApprovalInboxRows(editApprovalPending) {
+  return (Array.isArray(editApprovalPending) ? editApprovalPending : []).map((row) => ({
+    ...row,
+    _inboxKind: 'edit_approval',
+    _rowKey: `edit:${row.id}`,
+  }));
+}
+
 export function buildCashOutInboxRows(displayItems) {
   const refunds = (displayItems?.pendingRefunds || []).map((row) => ({
     ...row,
@@ -244,8 +271,11 @@ export function matchesInboxSearch(query, row, tabKey) {
       row.product_name,
       row.conversion_alert_state
     );
-  } else if (tabKey === 'edit_approvals') {
+  } else if (tabKey === 'edit_approvals' || tabKey === 'edits') {
     parts.push(row.id, row.entityKind, row.entityId, row.requestedByDisplay, row.requestedByUserId, row.status);
+  } else if (tabKey === 'governance') {
+    parts.push(row.id, row.title, row.subtitle, row.quotationRef, row.refundId, row.jobId);
+    if (Array.isArray(row.reasons)) parts.push(...row.reasons);
   }
   return parts.some((p) => String(p ?? '').toLowerCase().includes(s));
 }

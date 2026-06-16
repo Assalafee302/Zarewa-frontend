@@ -207,7 +207,7 @@ function pushBranchManagerAlerts(items, { snapshot, roleKey, hasPermission, mana
         detail: `${editPending.length} sensitive edit(s) waiting for second-party OK.`,
         severity: 'warning',
         priority: 80,
-      path: '/manager?inbox=edit_approvals',
+      path: '/manager?inbox=edits',
       state: {},
       });
     }

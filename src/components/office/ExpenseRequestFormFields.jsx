@@ -1,6 +1,6 @@
 import React from 'react';
 import { Paperclip, Plus, X } from 'lucide-react';
-import { EXPENSE_CATEGORY_OPTIONS } from '../../shared/expenseCategories.js';
+import { EXPENSE_CATEGORY_OPTIONS, isCapexExpenseCategory } from '../../shared/expenseCategories.js';
 import {
   createExpenseRequestLineItem,
   expenseRequestLineTotal,
@@ -102,6 +102,12 @@ export function ExpenseRequestFormFields({
         <p className="text-[10px] text-gray-400 mt-1 ml-1">
           Standard chart — same list as posted expenses for consistent month-end reporting.
         </p>
+        {isCapexExpenseCategory(form.expenseCategory) ? (
+          <p className="text-[10px] text-teal-800 mt-2 ml-1 rounded-lg border border-teal-200/80 bg-teal-50/80 px-2.5 py-2 leading-snug">
+            Capex category — when this expense is fully paid from treasury, Accounting will auto-register a fixed asset
+            and post capitalization to the GL.
+          </p>
+        ) : null}
       </div>
       <div>
         <div className="flex items-center justify-between gap-2 mb-2">

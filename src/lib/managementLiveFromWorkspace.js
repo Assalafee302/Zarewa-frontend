@@ -48,7 +48,7 @@ export function managementPeriodStartISO(periodKey) {
 /**
  * Mirrors server `listManagementItems` shapes for the SPA inbox (snake_case row fields).
  * @param {object} snapshot
- * @returns {{ pendingClearance: object[]; flagged: object[]; productionOverrides: object[]; pendingRefunds: object[]; pendingExpenses: object[]; pendingConversionReviews: object[] }}
+ * @returns {{ pendingClearance: object[]; flagged: object[]; productionOverrides: object[]; pendingRefunds: object[]; pendingExpenses: object[]; pendingConversionReviews: object[]; pendingMaterialIncidents: object[] }}
  */
 export function buildManagementQueuesFromSnapshot(snapshot) {
   const quotations = Array.isArray(snapshot?.quotations) ? snapshot.quotations : [];
@@ -56,6 +56,7 @@ export function buildManagementQueuesFromSnapshot(snapshot) {
   const refunds = Array.isArray(snapshot?.refunds) ? snapshot.refunds : [];
   const paymentRequests = Array.isArray(snapshot?.paymentRequests) ? snapshot.paymentRequests : [];
   const productionJobs = Array.isArray(snapshot?.productionJobs) ? snapshot.productionJobs : [];
+  const materialIncidents = Array.isArray(snapshot?.materialIncidents) ? snapshot.materialIncidents : [];
 
   const quoteById = new Map(quotations.map((q) => [q.id, q]));
 
@@ -156,6 +157,20 @@ export function buildManagementQueuesFromSnapshot(snapshot) {
       String(b.completed_at_iso || '').localeCompare(String(a.completed_at_iso || ''))
     );
 
+  const pendingMaterialIncidents = materialIncidents
+    .filter((m) => String(m.status || '').toLowerCase() === 'submitted')
+    .map((m) => ({
+      id: m.id,
+      incident_type: m.incidentType ?? m.incident_type ?? '',
+      gauge_label: m.gaugeLabel ?? m.gauge_label ?? '',
+      colour: m.colour ?? '',
+      total_meters: Number(m.totalMeters ?? m.total_meters) || 0,
+      date_iso: m.dateISO ?? m.date_iso ?? '',
+      storekeeper_remark: m.storekeeperRemark ?? m.storekeeper_remark ?? '',
+      branch_id: m.branchId ?? m.branch_id ?? '',
+    }))
+    .sort((a, b) => String(b.date_iso || '').localeCompare(String(a.date_iso || '')));
+
   return {
     pendingClearance,
     flagged,
@@ -163,6 +178,7 @@ export function buildManagementQueuesFromSnapshot(snapshot) {
     pendingRefunds,
     pendingExpenses,
     pendingConversionReviews,
+    pendingMaterialIncidents,
   };
 }
 

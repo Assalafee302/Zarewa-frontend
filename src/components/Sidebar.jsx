@@ -76,7 +76,7 @@ const Sidebar = ({ mobileOpen = false, onCloseMobile, collapsed = false, onToggl
       icon: <ShieldCheck size={18} />,
       label: 'Management',
       path: '/manager',
-      visible: ['sales_manager', 'admin', 'md'].includes(ws?.session?.user?.roleKey),
+      visible: ['sales_manager', 'branch_manager', 'admin', 'md'].includes(ws?.session?.user?.roleKey),
     },
     {
       icon: <LayoutDashboard size={18} />,

@@ -5,6 +5,7 @@ import { downloadFinanceCsv } from '../../lib/exportFinanceCsv';
 import { printAccountingAssets } from '../../lib/printAccountingAssets';
 import { useAccountingAssets, useAccountingRegisterMutations } from '../../hooks/useAccountingSubledger';
 import { useWorkspace } from '../../context/WorkspaceContext';
+import { treasuryAccountsForWorkspace } from '../../lib/treasuryAccountsStore';
 import { useToast } from '../../context/ToastContext';
 import { ModalFrame } from '../layout/ModalFrame';
 import { ProcurementFormSection } from '../procurement/ProcurementFormSection';
@@ -66,6 +67,10 @@ export function AccountingAssetsPanel({
   const ws = useWorkspace();
   const { show: showToast } = useToast();
   const branches = ws?.snapshot?.workspaceBranches ?? ws?.session?.branches ?? [];
+  const treasuryAccounts = useMemo(
+    () => treasuryAccountsForWorkspace(ws?.snapshot, ws?.session),
+    [ws?.snapshot, ws?.session]
+  );
   const { data, loading, error, reload } = useAccountingAssets({ branchId, enabled });
   const workspaceLockedBranch = branchId && branchId !== 'ALL' ? String(branchId).trim() : '';
   const canAddAsset = canManage && Boolean(workspaceLockedBranch);
@@ -141,14 +146,18 @@ export function AccountingAssetsPanel({
     if (!ok) showToast('Could not open print preview.', { variant: 'error' });
   };
 
-  const handleDispose = async (asset, disposalDateIso) => {
-    const result = await mutations.disposeAsset(asset.id, disposalDateIso);
+  const handleDispose = async (asset, payload) => {
+    const result = await mutations.disposeAsset(asset.id, payload);
     if (result?.ok) {
-      showToast('Asset marked disposed.', { variant: 'success' });
+      const msg =
+        payload?.saleProceedsNgn > 0
+          ? `Asset sold — ${formatNgn(payload.saleProceedsNgn)} recorded in treasury.`
+          : 'Asset disposed.';
+      showToast(msg, { variant: 'success' });
       setSelectedAsset(null);
       reload();
     } else {
-      showToast('Could not dispose asset.', { variant: 'error' });
+      showToast(mutations.error || 'Could not dispose asset.', { variant: 'error' });
     }
   };
 
@@ -201,7 +210,7 @@ export function AccountingAssetsPanel({
     <div className="space-y-4 min-w-0">
       <AccountingRegisterHeader
         title="Fixed assets register"
-        subtitle="Cost, depreciation, and net book value."
+        subtitle="Cost, depreciation, and NBV. Capex purchases auto-register; sales post treasury and GL."
         totalLabel="Net book value"
         totalValue={formatNgn(summary.nbvNgn)}
         compact
@@ -391,6 +400,7 @@ export function AccountingAssetsPanel({
       <AccountingAssetDetailModal
         asset={selectedAsset}
         branchLabel={selectedAsset ? branchName(branches, selectedAsset.branchId) : ''}
+        treasuryAccounts={treasuryAccounts}
         canManage={canManage}
         busy={mutations.busy}
         onClose={() => setSelectedAsset(null)}

@@ -184,12 +184,22 @@ export function useAccountingRegisterMutations(opts = {}) {
   );
 
   const disposeAsset = useCallback(
-    async (assetId, disposalDateIso) => {
+    async (assetId, payload) => {
       setBusy(true);
       setError('');
+      const body =
+        typeof payload === 'string'
+          ? { disposalDateIso: payload }
+          : {
+              disposalDateIso: payload?.disposalDateIso,
+              saleProceedsNgn: payload?.saleProceedsNgn,
+              treasuryAccountId: payload?.treasuryAccountId,
+              reference: payload?.reference,
+              note: payload?.note,
+            };
       const { ok, data: d } = await apiFetch(
         `/api/accounting/assets/${encodeURIComponent(assetId)}/dispose`,
-        { method: 'POST', body: JSON.stringify({ disposalDateIso }) }
+        { method: 'POST', body: JSON.stringify(body) }
       );
       setBusy(false);
       if (!ok || !d?.ok) {
@@ -197,7 +207,7 @@ export function useAccountingRegisterMutations(opts = {}) {
         return { ok: false };
       }
       onDone?.();
-      return { ok: true };
+      return { ok: true, ...d };
     },
     [onDone]
   );

@@ -227,7 +227,7 @@ function HomeRoute() {
   if (rk === 'ceo' || rk === 'md') {
     return <Navigate to="/exec" replace />;
   }
-  if (rk === 'sales_manager') {
+  if (rk === 'sales_manager' || rk === 'branch_manager') {
     return <Navigate to="/manager" replace />;
   }
   if (rk === 'cashier') {

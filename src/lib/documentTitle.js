@@ -23,7 +23,7 @@ export function documentTitleForPath(pathname) {
 
   if (p === '/reports') return `Reports | ${DOCUMENT_TITLE_BASE}`;
   if (p === '/edit-approvals') return `Edit approvals | ${DOCUMENT_TITLE_BASE}`;
-  if (p === '/manager') return `Management dashboard | ${DOCUMENT_TITLE_BASE}`;
+  if (p === '/manager') return `Branch manager workstation | ${DOCUMENT_TITLE_BASE}`;
 
   if (p === '/me' || p.startsWith('/me/')) {
     const sec = p.split('/')[2] || 'overview';

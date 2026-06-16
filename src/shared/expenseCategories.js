@@ -51,7 +51,22 @@ export const EXPENSE_CATEGORY_OPTIONS = Object.freeze([
   'Generator',
 ]);
 
+/** Capex categories that auto-register in Accounting → Fixed assets when fully paid. */
+export const CAPEX_EXPENSE_CATEGORIES = Object.freeze([
+  'Land and buildings',
+  'Plant and machinery',
+  'Furniture & fittings',
+  'Generator',
+]);
+
+const CAPEX_SET = new Set(CAPEX_EXPENSE_CATEGORIES);
+
 const SET = new Set(EXPENSE_CATEGORY_OPTIONS);
+
+/** @param {string} category */
+export function isCapexExpenseCategory(category) {
+  return CAPEX_SET.has(String(category || '').trim());
+}
 
 const FALLBACK = 'Others';
 

@@ -66,6 +66,8 @@ describe('managerDashboardCore', () => {
     expect(normalizeManagerInboxRoute('refunds')).toEqual({ tab: 'cash_out', attentionFilter: 'cash' });
     expect(normalizeManagerInboxRoute('flagged')).toEqual({ tab: 'attention', attentionFilter: 'flagged' });
     expect(normalizeManagerInboxRoute('material')).toEqual({ tab: 'material', attentionFilter: 'material' });
+    expect(normalizeManagerInboxRoute('governance')).toEqual({ tab: 'governance', attentionFilter: 'all' });
+    expect(normalizeManagerInboxRoute('edits')).toEqual({ tab: 'edits', attentionFilter: 'all' });
   });
 
   it('filters attention items by chip', () => {
