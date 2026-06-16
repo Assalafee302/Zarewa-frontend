@@ -4,11 +4,18 @@ import { AlertTriangle, RefreshCw, ShieldAlert } from 'lucide-react';
 import { formatNgn } from '../../Data/mockData';
 import { downloadFinanceCsv } from '../../lib/exportFinanceCsv';
 import { useAp3CostingReadiness } from '../../hooks/useAp3CostingReadiness';
-import { FinanceActionButton } from './FinanceActionButton';
 import { FinanceDataTable } from './FinanceDataTable';
 import { FinanceEmptyState } from './FinanceEmptyState';
-import { FinanceReportPanel } from './FinanceReportPanel';
 import { Ap3MaterialCostSection } from './Ap3MaterialCostSection';
+import { ProcurementFormSection } from '../procurement/ProcurementFormSection';
+import {
+  AccountingDeskKpiCard,
+  AccountingDeskNotice,
+  AccountingDeskPageIntro,
+  ACCOUNTING_FIELD_LABEL,
+  ACCOUNTING_INPUT,
+} from './accounting/AccountingDeskUi';
+import { AccountingDeskTableSection } from './accounting/AccountingDeskTableSection';
 
 const BRANCH_OPTIONS = [
   { id: 'ALL', label: 'All branches' },
@@ -30,22 +37,6 @@ function buildCostingReadinessFilters({ branchId, period, materialFamily, gauge,
     gauge: gauge.trim() || undefined,
     colour: colour.trim() || undefined,
   };
-}
-
-function MetricCard({ label, value, hint, tone = 'slate' }) {
-  const tones = {
-    amber: 'border-amber-200 bg-amber-50/70',
-    rose: 'border-rose-200 bg-rose-50/70',
-    teal: 'border-teal-200 bg-teal-50/50',
-    slate: 'border-slate-200 bg-white',
-  };
-  return (
-    <div className={`rounded-2xl border p-4 ${tones[tone] || tones.slate}`}>
-      <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">{label}</p>
-      <p className="mt-1 text-xl font-black tabular-nums text-[#134e4a]">{value}</p>
-      {hint ? <p className="mt-1 text-xs font-medium text-slate-600">{hint}</p> : null}
-    </div>
-  );
 }
 
 /**
