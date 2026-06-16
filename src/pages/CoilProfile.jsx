@@ -898,10 +898,12 @@ export default function CoilProfile() {
               value={editForm.currentKg}
               onChange={(e) => setEditForm((f) => ({ ...f, currentKg: e.target.value }))}
             />
+            <p className="mt-1 text-[10px] text-slate-500">Free kg is calculated from this value minus reserved kg.</p>
           </label>
           <label className="block">
             <span className="text-[10px] font-bold text-slate-500 uppercase">Received kg (GRN)</span>
             <input className="z-input w-full mt-0.5" type="number" min="0" step="0.01" value={editForm.receivedKg} onChange={(e) => setEditForm((f) => ({ ...f, receivedKg: e.target.value }))} />
+            <p className="mt-1 text-[10px] text-slate-500">Correcting GRN kg also updates on-hand when it still matches the old received figure.</p>
           </label>
           <button className="z-btn-primary" type="submit" disabled={savingAction}>Save changes</button>
         </form>

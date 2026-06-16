@@ -25,6 +25,7 @@ import { MainPanel, PageHeader, PageShell, PageTabs, ModalFrame } from '../compo
 import { WorkspacePanelToolbar } from '../components/workspace';
 import { AiAskButton } from '../components/AiAskButton';
 import { ProductionRegisterEditModal } from '../components/operations/ProductionRegisterEditModal';
+import RegisterCoilModal from '../components/operations/RegisterCoilModal';
 import { OperationsProductionOverview } from '../components/operations/OperationsProductionOverview';
 import { StockRegisterMonthEndModal } from '../components/reports/StockRegisterMonthEndModal';
 import MaterialExceptions from './MaterialExceptions';
@@ -582,6 +583,12 @@ const Operations = () => {
   useWorkspaceDomain('operations');
   const canReceiveInventory = Boolean(ws?.hasPermission?.('inventory.receive'));
   const canAdjustInventory = Boolean(ws?.hasPermission?.('inventory.adjust'));
+  const canRegisterCoil = Boolean(
+    ws?.hasPermission?.('purchase_orders.manage') ||
+      ws?.hasPermission?.('inventory.receive') ||
+      ws?.hasPermission?.('operations.manage') ||
+      ws?.hasPermission?.('production.manage')
+  );
 
   const [activeTab, setActiveTab] = useState('overview');
   const [materialIncidentFocusId, setMaterialIncidentFocusId] = useState('');
@@ -606,6 +613,7 @@ const Operations = () => {
   }, [ws?.hasWorkspaceData, productionActiveFilter]);
   const [showStockAdjust, setShowStockAdjust] = useState(false);
   const [showCoilRequest, setShowCoilRequest] = useState(false);
+  const [showRegisterCoil, setShowRegisterCoil] = useState(false);
   /** `job` = live API job row; `pending` = offline cutting list queue (no traceability). */
   const [productionTraceModal, setProductionTraceModal] = useState(null);
   const [monthEndStockOpen, setMonthEndStockOpen] = useState(false);
@@ -1579,6 +1587,7 @@ const Operations = () => {
   const isAnyModalOpen =
     showStockAdjust ||
     showCoilRequest ||
+    showRegisterCoil ||
     completeChecklistModal != null ||
     productionTraceModal != null ||
     productMovementModal != null;
@@ -2100,7 +2109,23 @@ const Operations = () => {
                     </div>
                     {coilLotsReceiptSorted.length === 0 && !hasCoilReceiptSearch ? (
                       <p className="text-[11px] font-medium text-slate-400">
-                        No coils yet — confirm a receipt in the panel on the left.
+                        No coils yet — confirm a receipt in the panel on the left
+                        {canRegisterCoil ? (
+                          <>
+                            {' '}
+                            or{' '}
+                            <button
+                              type="button"
+                              className="font-semibold text-[#134e4a] underline-offset-2 hover:underline"
+                              onClick={() => setShowRegisterCoil(true)}
+                            >
+                              register a coil
+                            </button>{' '}
+                            you forgot to add.
+                          </>
+                        ) : (
+                          '.'
+                        )}
                       </p>
                     ) : coilLotsByReceipt.length === 0 ? (
                       <p className="text-[11px] font-medium text-slate-400">
@@ -2329,6 +2354,17 @@ const Operations = () => {
             >
                   <Box size={16} /> Adjust stock
             </button>
+            {canRegisterCoil && stockReceiveKind === 'coil' ? (
+              <button
+                type="button"
+                disabled={!ws?.canMutate}
+                title="Add a single coil missed on bulk import"
+                onClick={() => setShowRegisterCoil(true)}
+                className="z-btn-secondary disabled:opacity-40 disabled:pointer-events-none"
+              >
+                <Plus size={16} /> Register coil
+              </button>
+            ) : null}
             <button
               type="button"
               onClick={() => setShowCoilRequest(true)}
@@ -3091,6 +3127,12 @@ const Operations = () => {
             </form>
         </div>
       </ModalFrame>
+
+      <RegisterCoilModal
+        isOpen={showRegisterCoil}
+        onClose={() => setShowRegisterCoil(false)}
+        coilLots={coilLots}
+      />
 
       <ModalFrame isOpen={showCoilRequest} onClose={() => setShowCoilRequest(false)}>
         <div className="z-modal-panel max-w-lg p-8 overflow-y-auto">
