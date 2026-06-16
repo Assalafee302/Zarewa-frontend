@@ -46,7 +46,6 @@ const defaultForm = (defaultDate, incidentType = 'coil_stain') => ({
   beforeKg: '',
   afterKg: '',
   returnDisposition: 'offcut_pool',
-  productionJobId: '',
   customerLabel: '',
   note: '',
   date: defaultDate,
@@ -79,8 +78,6 @@ export default function CoilDamageRecordModal({
   coilLots = [],
   defaultCoilNo = '',
   defaultBeforeKg = '',
-  defaultProductionJobId = '',
-  lockProductionJob = false,
   incidentType: incidentTypeProp = 'coil_stain',
   onIncidentTypeChange,
   onSuccess,
@@ -149,18 +146,16 @@ export default function CoilDamageRecordModal({
     setPrintPayload(null);
     const base = defaultForm(defaultDate, incidentTypeProp);
     const trimmedCoil = String(defaultCoilNo || '').trim();
-    const trimmedJob = String(defaultProductionJobId || '').trim();
     const trimmedBeforeKg = String(defaultBeforeKg ?? '').trim();
     setForm({
       ...base,
       coilNo: trimmedCoil,
-      productionJobId: trimmedJob,
       beforeKg: trimmedBeforeKg,
       lines: [emptyLine()],
     });
     if (trimmedCoil) fillFromCoil(trimmedCoil, trimmedBeforeKg);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- reset only when modal opens
-  }, [isOpen, defaultCoilNo, defaultBeforeKg, defaultProductionJobId, defaultDate]);
+  }, [isOpen, defaultCoilNo, defaultBeforeKg, defaultDate]);
 
   const openPrint = async (id) => {
     const { ok, data } = await apiFetch(`/api/material-incidents/${encodeURIComponent(id)}/print-payload`);
@@ -219,7 +214,6 @@ export default function CoilDamageRecordModal({
       note: form.note.trim(),
       returnDisposition: form.returnDisposition,
       incidentType: activeIncidentType,
-      productionJobId: form.productionJobId.trim() || undefined,
       customerLabel: form.customerLabel.trim() || undefined,
     };
     const validated = validateCoilDamagePayload(payload, {
@@ -229,11 +223,6 @@ export default function CoilDamageRecordModal({
     if (!validated.ok) {
       setFieldError(validated.error);
       return showToast(validated.error, { variant: 'error' });
-    }
-    if (activeIncidentType === 'production_error' && !form.productionJobId.trim()) {
-      const err = 'Production job is required for production error incidents.';
-      setFieldError(err);
-      return showToast(err, { variant: 'error' });
     }
 
     setSaving(true);
@@ -358,7 +347,6 @@ export default function CoilDamageRecordModal({
                   ...s,
                   incidentType: next,
                   returnDisposition: 'offcut_pool',
-                  productionJobId: next === 'production_error' ? s.productionJobId : '',
                   customerLabel: next === 'customer_return' ? s.customerLabel : '',
                 }));
                 onIncidentTypeChange?.(next);
@@ -372,25 +360,6 @@ export default function CoilDamageRecordModal({
               ))}
             </select>
           </div>
-
-          {activeIncidentType === 'production_error' ? (
-            <div>
-              <label className="block text-[10px] font-bold text-gray-400 uppercase">Production job</label>
-              <input
-                required
-                readOnly={lockProductionJob}
-                value={form.productionJobId}
-                onChange={(e) => setForm((s) => ({ ...s, productionJobId: e.target.value }))}
-                className={`w-full rounded-xl border border-gray-100 py-3 px-4 text-sm font-bold outline-none focus:ring-2 focus:ring-teal-500/15 ${
-                  lockProductionJob ? 'bg-slate-100 text-slate-700 cursor-default' : 'bg-gray-50'
-                }`}
-                placeholder="JOB-…"
-              />
-              {lockProductionJob ? (
-                <p className="mt-1 text-[10px] text-slate-500">Linked to the active production job.</p>
-              ) : null}
-            </div>
-          ) : null}
 
           {activeIncidentType === 'customer_return' ? (
             <div>

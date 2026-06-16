@@ -4823,8 +4823,6 @@ export function LiveProductionMonitor({
         coilLots={coilLotsMerged}
         defaultCoilNo={primaryIncidentCoilNo}
         defaultBeforeKg={primaryIncidentBeforeKg}
-        defaultProductionJobId={selectedJob?.jobID || ''}
-        lockProductionJob={Boolean(selectedJob?.jobID)}
         incidentType="production_error"
         onSuccess={async () => {
           await ws?.refresh?.();
