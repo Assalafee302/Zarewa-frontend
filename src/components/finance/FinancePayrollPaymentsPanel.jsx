@@ -8,10 +8,10 @@ import { formatNgn } from '../../lib/hrFormat';
 import { ProcurementFormSection } from '../procurement/ProcurementFormSection';
 import {
   AccountingDeskKpiCard,
-  AccountingDeskPageIntro,
   ACCOUNTING_FIELD_LABEL,
   ACCOUNTING_INPUT,
 } from './accounting/AccountingDeskUi';
+import { AccountingRegisterHeader } from './accounting/AccountingRegisterLayout';
 
 /** Approved / locked payroll runs — bank bulk payment file and treasury posting. */
 export function FinancePayrollPaymentsPanel() {
@@ -119,18 +119,19 @@ export function FinancePayrollPaymentsPanel() {
   const selected = runs.find((r) => r.id === selectedId);
 
   return (
-    <div className="grid grid-cols-1 gap-4 lg:gap-6 min-w-0">
-      <AccountingDeskPageIntro
+    <div className="space-y-4 min-w-0">
+      <AccountingRegisterHeader
         title="Payroll bank payments"
-        description="After GM HR or MD approves and HR locks the run, download the bulk bank file, pay staff, then mark paid to post net total to treasury."
-        action={
+        subtitle="Download bulk bank file after HR locks the run, pay staff, then mark paid to post net total to treasury."
+        compact
+        actions={
           <button
             type="button"
             onClick={loadRuns}
             disabled={loading}
             className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[9px] font-semibold uppercase tracking-wider text-[#134e4a] hover:bg-slate-50"
           >
-            <RefreshCw size={12} className={loading ? 'animate-spin' : ''} /> Refresh queue
+            <RefreshCw size={12} className={loading ? 'animate-spin' : ''} /> Refresh
           </button>
         }
       />

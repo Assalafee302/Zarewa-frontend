@@ -19,6 +19,7 @@ export function documentTitleForPath(pathname) {
 
   if (p === '/deliveries') return `Store & production | ${DOCUMENT_TITLE_BASE}`;
   if (p === '/accounts') return `Finance & accounts | ${DOCUMENT_TITLE_BASE}`;
+  if (p === '/accounting') return `Accounting Desk | ${DOCUMENT_TITLE_BASE}`;
 
   if (p === '/reports') return `Reports | ${DOCUMENT_TITLE_BASE}`;
   if (p === '/edit-approvals') return `Edit approvals | ${DOCUMENT_TITLE_BASE}`;

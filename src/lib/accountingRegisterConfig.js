@@ -6,9 +6,8 @@
 export const ACCOUNTING_REGISTER_CONFIG = {
   creditor: {
     title: 'Creditors register',
-    eyebrow: 'Amounts owed to Zarewa',
-    description:
-      'Staff loans, customer trade receivables, supplier prepayments, inter-branch receivables, and inherited opening balances.',
+    eyebrow: 'Receivables & prepayments',
+    description: 'Amounts owed to the company — staff loans, trade receivables, supplier prepayments, and opening balances.',
     helpPoints: [
       'Customer receivables include quotations with completed production only.',
       'Supplier prepayments are payments before GRN — verify in Procurement before clearing.',
@@ -31,9 +30,8 @@ export const ACCOUNTING_REGISTER_CONFIG = {
   },
   debtor: {
     title: 'Debtors register',
-    eyebrow: 'Amounts Zarewa owes or must refund',
-    description:
-      'Supplier payables, customer deposits, overpayment credits, unlinked receipts, inter-branch payables, and inherited balances.',
+    eyebrow: 'Payables & credits',
+    description: 'Amounts the company owes — supplier AP, customer deposits, refundable overpayments, and opening balances.',
     helpPoints: [
       'Record pre-system overpayments (e.g. April project ~₦8M) via Add legacy line → Project overpayment.',
       'Significant overpayments should be reviewed for refund or re-application to the correct quotation.',

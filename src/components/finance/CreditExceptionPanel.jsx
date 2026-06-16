@@ -1,64 +1,73 @@
 import React, { useMemo, useState } from 'react';
-import { CreditCard, Plus, RefreshCw } from 'lucide-react';
+import { CreditCard, FileSpreadsheet, Plus, RefreshCw } from 'lucide-react';
 import { formatNgn } from '../../Data/mockData';
+import { downloadFinanceCsv } from '../../lib/exportFinanceCsv';
 import { useCreditExceptions } from '../../hooks/useCreditExceptions';
-import { PageTabs } from '../layout/PageTabs';
 import { FinanceEmptyState } from './FinanceEmptyState';
 import { CreditExceptionApprovalCard } from './CreditExceptionApprovalCard';
 import { CreditExceptionRequestModal } from './CreditExceptionRequestModal';
-import { CreditExceptionReports } from './CreditExceptionReports';
 import {
   canApproveCreditExceptionItem,
   canRequestCreditException,
   canRevokeCreditException,
 } from '../../lib/creditExceptionAccess';
-import {
-  AccountingDeskKpiCard,
-  AccountingDeskNotice,
-  AccountingDeskPageIntro,
-  ACCOUNTING_CARD_ROW,
-} from './accounting/AccountingDeskUi';
-
-const SUB_TABS = [
-  { id: 'queue', label: 'Work queue' },
-  { id: 'reports', label: 'Reports' },
-];
+import { AccountingDeskKpiCard, AccountingDeskNotice } from './accounting/AccountingDeskUi';
+import { AccountingRegisterHeader } from './accounting/AccountingRegisterLayout';
 
 /**
- * @param {{ branchId?: string | null; roleKey?: string; trialCredit?: object | null; compact?: boolean }} props
+ * @param {{ branchId?: string | null; roleKey?: string; compact?: boolean }} props
  */
-export function CreditExceptionPanel({ branchId, roleKey, trialCredit, compact = false }) {
-  const [subTab, setSubTab] = useState('queue');
+export function CreditExceptionPanel({ branchId, roleKey, compact = false }) {
   const [requestOpen, setRequestOpen] = useState(false);
   const [requestQuote, setRequestQuote] = useState('');
   const { items, policy, loading, error, reload } = useCreditExceptions({ branchId, enabled: true });
   const pending = useMemo(() => items.filter((i) => i.status === 'pending'), [items]);
   const approved = useMemo(() => items.filter((i) => i.status === 'approved'), [items]);
-  const exposure = trialCredit?.approvedCreditExposureNgn ?? approved.reduce((s, i) => s + (i.amountNgn || 0), 0);
+  const exposure = approved.reduce((s, i) => s + (i.amountNgn || 0), 0);
+  const overdueCount = useMemo(
+    () => approved.filter((i) => i.dueDateIso && i.dueDateIso < new Date().toISOString().slice(0, 10)).length,
+    [approved]
+  );
+
+  const exportList = () => {
+    downloadFinanceCsv(
+      'delivery-credit-exceptions',
+      ['quotationRef', 'customer', 'status', 'amountNgn', 'branchId', 'dueDateIso'],
+      items.map((i) => ({
+        quotationRef: i.quotationRef,
+        customer: i.customerName || i.customerId,
+        status: i.status,
+        amountNgn: i.amountNgn,
+        branchId: i.branchId,
+        dueDateIso: i.dueDateIso,
+      }))
+    );
+  };
 
   if (compact) {
     return (
-      <div className={`${ACCOUNTING_CARD_ROW} p-3`}>
-        <p className="text-[11px] text-slate-600">
-          {trialCredit?.pendingCreditExceptionsCount ?? 0} pending · {formatNgn(exposure)} exposure
-        </p>
-      </div>
+      <p className="text-[11px] text-slate-600">
+        {pending.length} pending · {formatNgn(exposure)} exposure
+      </p>
     );
   }
 
   return (
     <>
-      <div className="grid grid-cols-1 gap-4 lg:gap-6 min-w-0">
-        <AccountingDeskPageIntro
-          title="Delivery credit exceptions"
-          description="Approved credit allows delivery while receivable stays outstanding. Review before approve or reject."
-          action={
+      <div className="space-y-4 min-w-0">
+        <AccountingRegisterHeader
+          title="Delivery credit approval"
+          subtitle="Approve delivery before full payment. Receivable remains outstanding until settled."
+          totalLabel="Approved exposure"
+          totalValue={formatNgn(exposure)}
+          compact
+          actions={
             <>
               {canRequestCreditException(roleKey) ? (
                 <button
                   type="button"
                   onClick={() => {
-                    const q = window.prompt('Quotation reference for credit request (e.g. QT-KD-26-0001)');
+                    const q = window.prompt('Quotation reference (e.g. QT-KD-26-0001)');
                     if (q?.trim()) {
                       setRequestQuote(q.trim());
                       setRequestOpen(true);
@@ -66,9 +75,17 @@ export function CreditExceptionPanel({ branchId, roleKey, trialCredit, compact =
                   }}
                   className="inline-flex items-center gap-1 rounded-lg bg-[#134e4a] text-white px-3 py-1.5 text-[9px] font-semibold uppercase tracking-wider shadow-sm hover:brightness-105"
                 >
-                  <Plus size={12} /> Request credit
+                  <Plus size={12} /> Request
                 </button>
               ) : null}
+              <button
+                type="button"
+                onClick={exportList}
+                disabled={!items.length}
+                className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[9px] font-semibold uppercase tracking-wider text-[#134e4a] hover:bg-slate-50 disabled:opacity-40"
+              >
+                <FileSpreadsheet size={12} /> Export
+              </button>
               <button
                 type="button"
                 onClick={() => reload()}
@@ -80,79 +97,75 @@ export function CreditExceptionPanel({ branchId, roleKey, trialCredit, compact =
           }
         />
 
-        {policy?.policyNote ? (
-          <AccountingDeskNotice tone="warn">{policy.policyNote}</AccountingDeskNotice>
-        ) : null}
+        {policy?.policyNote ? <AccountingDeskNotice tone="warn">{policy.policyNote}</AccountingDeskNotice> : null}
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <AccountingDeskKpiCard
-            icon={<CreditCard size={12} />}
-            label="Pending requests"
-            value={trialCredit?.pendingCreditExceptionsCount ?? pending.length}
-            tone="amber"
-          />
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <AccountingDeskKpiCard icon={<CreditCard size={12} />} label="Pending" value={pending.length} tone="amber" />
           <AccountingDeskKpiCard label="Approved exposure" value={formatNgn(exposure)} tone="teal" />
-          <AccountingDeskKpiCard label="Overdue credit" value={trialCredit?.overdueApprovedCreditCount ?? '—'} tone="amber" />
-          <AccountingDeskKpiCard label="Deliveries without credit" value={trialCredit?.deliveriesWarningNoCreditCount ?? '—'} />
+          <AccountingDeskKpiCard label="Overdue" value={overdueCount} tone={overdueCount ? 'amber' : 'default'} />
+          <AccountingDeskKpiCard label="Active approvals" value={approved.length} />
         </div>
 
-        <PageTabs tabs={SUB_TABS} value={subTab} onChange={setSubTab} />
-
-        {subTab === 'reports' ? <CreditExceptionReports branchId={branchId} /> : null}
-
-        {subTab === 'queue' ? (
-          <div className="space-y-4">
-            {error ? (
-              <FinanceEmptyState
-                title="Could not load"
-                description={error}
-                action={
-                  <button
-                    type="button"
-                    onClick={() => reload()}
-                    className="rounded-lg bg-[#134e4a] text-white px-3 py-1.5 text-[9px] font-semibold uppercase tracking-wider"
-                  >
-                    Retry
-                  </button>
-                }
-              />
-            ) : loading && !items.length ? (
-              <p className="text-[11px] text-slate-500">Loading…</p>
-            ) : pending.length ? (
-              <div className="space-y-2">
-                <h3 className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Pending approval</h3>
-                {pending.slice(0, 12).map((item) => (
-                  <CreditExceptionApprovalCard
-                    key={item.id}
-                    item={item}
-                    canApprove={canApproveCreditExceptionItem(roleKey, item, policy)}
-                    canRevoke={canRevokeCreditException(roleKey)}
-                    onDone={reload}
-                  />
-                ))}
-              </div>
-            ) : (
-              <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50/50 py-14 px-6 text-center">
-                <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest">
-                  No pending credit requests
+        {error ? (
+          <FinanceEmptyState
+            title="Could not load"
+            description={error}
+            action={
+              <button
+                type="button"
+                onClick={() => reload()}
+                className="rounded-lg bg-[#134e4a] text-white px-3 py-1.5 text-[9px] font-semibold uppercase tracking-wider"
+              >
+                Retry
+              </button>
+            }
+          />
+        ) : loading && !items.length ? (
+          <p className="text-[11px] text-slate-500">Loading…</p>
+        ) : (
+          <div className="space-y-6">
+            <section>
+              <h3 className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-2">
+                Pending approval ({pending.length})
+              </h3>
+              {pending.length ? (
+                <div className="space-y-2">
+                  {pending.map((item) => (
+                    <CreditExceptionApprovalCard
+                      key={item.id}
+                      item={item}
+                      canApprove={canApproveCreditExceptionItem(roleKey, item, policy)}
+                      canRevoke={canRevokeCreditException(roleKey)}
+                      onDone={reload}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <p className="text-[11px] text-slate-500 py-6 text-center border border-dashed border-slate-200 rounded-lg">
+                  No pending requests.
                 </p>
-              </div>
-            )}
+              )}
+            </section>
+
             {approved.length ? (
-              <div className="space-y-2 pt-2">
-                <h3 className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Approved (active)</h3>
-                {approved.slice(0, 6).map((item) => (
-                  <CreditExceptionApprovalCard
-                    key={item.id}
-                    item={item}
-                    canRevoke={canRevokeCreditException(roleKey)}
-                    onDone={reload}
-                  />
-                ))}
-              </div>
+              <section>
+                <h3 className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-2">
+                  Active approvals ({approved.length})
+                </h3>
+                <div className="space-y-2">
+                  {approved.map((item) => (
+                    <CreditExceptionApprovalCard
+                      key={item.id}
+                      item={item}
+                      canRevoke={canRevokeCreditException(roleKey)}
+                      onDone={reload}
+                    />
+                  ))}
+                </div>
+              </section>
             ) : null}
           </div>
-        ) : null}
+        )}
       </div>
 
       <CreditExceptionRequestModal

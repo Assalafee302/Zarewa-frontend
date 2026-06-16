@@ -3,10 +3,10 @@ import { RefreshCw, Scale } from 'lucide-react';
 import { apiFetch } from '../../lib/apiBase';
 import { formatNgn } from '../../Data/mockData';
 import { ProcurementFormSection } from '../procurement/ProcurementFormSection';
+import { AccountingRegisterHeader } from '../finance/accounting/AccountingRegisterLayout';
 import {
   AccountingDeskKpiCard,
   AccountingDeskNotice,
-  AccountingDeskPageIntro,
   ACCOUNTING_FIELD_LABEL,
   ACCOUNTING_INPUT,
 } from '../finance/accounting/AccountingDeskUi';
@@ -206,11 +206,12 @@ export function ReportsFinanceReconciliationPackSection({
 
   if (deskLayout) {
     return (
-      <div className="grid grid-cols-1 gap-4 lg:gap-6 min-w-0">
-        <AccountingDeskPageIntro
-          title="Finance reconciliation & cash confirmation"
-          description="Operational tie-out based on receipt confirmation, customer ledger, treasury movement, and GL activity."
-          action={
+      <div className="space-y-4 min-w-0">
+        <AccountingRegisterHeader
+          title="Bank & cash reconciliation"
+          subtitle="Operational tie-out: receipt confirmation, customer ledger, treasury movements, and GL cash activity."
+          compact
+          actions={
             <button
               type="button"
               onClick={() => void load()}
@@ -222,16 +223,6 @@ export function ReportsFinanceReconciliationPackSection({
             </button>
           }
         />
-        <div className="flex flex-wrap gap-2">
-          {['Management draft', 'Not statutory', 'Receipt confirmation basis', 'Head of Accounts review'].map((label) => (
-            <span
-              key={label}
-              className="inline-flex items-center rounded-full border border-amber-200/80 bg-amber-50 px-2.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-amber-900"
-            >
-              {label}
-            </span>
-          ))}
-        </div>
         {content}
       </div>
     );

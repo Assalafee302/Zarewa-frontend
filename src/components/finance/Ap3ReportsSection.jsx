@@ -47,15 +47,14 @@ export function Ap3ReportsSection({ mayView = false }) {
       <div>
         <p className="text-sm font-black text-[#134e4a]">AP3 — Costing (readiness)</p>
         <p className="text-xs font-medium text-slate-600">
-          Readiness only — not final cost per metre. Open Accounting Desk → Costing tab.
+          Readiness only — not final cost per metre. See Reports for costing diagnostics.
         </p>
       </div>
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
         {cards.map((c) => (
           <Link
             key={c.id}
-            to="/accounting"
-            state={{ focusTab: 'costing' }}
+            to="/reports"
             className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm hover:border-teal-300 transition"
           >
             <div className="flex items-start gap-2">

@@ -9,7 +9,7 @@ function escapeHtml(s) {
 }
 
 /**
- * Print creditors or debtors register summary (management draft).
+ * Print creditors or debtors register summary.
  * @param {{ data: object; registerSide: 'creditor' | 'debtor'; title: string; branchScopeLabel?: string }} opts
  * @returns {boolean}
  */
@@ -71,10 +71,10 @@ export function printAccountingRegister({ data, registerSide, title, branchScope
   th{background:#f8fafc;font-size:9px;text-transform:uppercase;letter-spacing:.04em;}
   td.num{text-align:right;font-variant-numeric:tabular-nums;font-weight:600;}
   .total{font-size:14px;font-weight:800;color:#134e4a;margin:12px 0;}
-  .draft{font-size:9px;color:#b45309;text-transform:uppercase;font-weight:700;}
+  .footnote{font-size:9px;color:#64748b;text-transform:uppercase;font-weight:600;letter-spacing:.04em;}
   @media print{body{padding:0;}}
 </style></head><body>
-  <p class="draft">Management draft — not statutory</p>
+  <p class="footnote">Internal register · ${escapeHtml(branchScopeLabel || data.branchScope || 'Company-wide')}</p>
   <h1>${escapeHtml(title)}</h1>
   <p class="meta">${escapeHtml(sideLabel)}<br/>
   Scope: ${escapeHtml(branchScopeLabel || data.branchScope || 'Company-wide')} · Printed ${escapeHtml(printedAt)}<br/>
