@@ -14,26 +14,36 @@ export const PROFILE_TEXTAREA_CLASS = 'z-input min-h-[88px] resize-y';
  *   className?: string;
  * }} props
  */
-export function ProfileFormSection({ id, icon, title, subtitle, children, className = '', flat = false }) {
+export function ProfileFormSection({ id, icon, title, subtitle, children, className = '', flat = false, compact = false }) {
   return (
     <section
       id={id}
-      className={`scroll-mt-24 overflow-hidden rounded-xl border border-slate-200/90 bg-white shadow-sm ${className}`}
+      className={`scroll-mt-4 overflow-hidden rounded-xl border ${
+        compact
+          ? 'border-slate-100 bg-white shadow-none'
+          : 'border-slate-200/90 bg-white shadow-sm'
+      } ${className}`}
     >
-      {!flat ? <ProfileAccentBar /> : null}
-      <div className="p-4 sm:p-5">
-        <header className={`${flat ? 'mb-4' : 'mb-4 border-b border-slate-100 pb-3'}`}>
+      {!flat && !compact ? <ProfileAccentBar /> : null}
+      <div className={compact ? 'p-3.5 sm:p-4' : 'p-4 sm:p-5'}>
+        <header className={`${flat || compact ? 'mb-3' : 'mb-4 border-b border-slate-100 pb-3'}`}>
           <h3
             className={
-              flat
+              flat || compact
                 ? 'flex items-center gap-2 text-sm font-bold text-slate-900'
                 : 'flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-slate-500'
             }
           >
-            {icon ? <span className="text-[#134e4a]">{icon}</span> : null}
+            {icon ? (
+              <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ${compact ? 'bg-teal-50 text-[#134e4a]' : 'text-[#134e4a]'}`}>
+                {icon}
+              </span>
+            ) : null}
             {title}
           </h3>
-          {subtitle ? <p className="mt-1.5 text-sm leading-relaxed text-slate-600">{subtitle}</p> : null}
+          {subtitle ? (
+            <p className={`${compact ? 'mt-1' : 'mt-1.5'} text-xs leading-relaxed text-slate-500 sm:text-sm`}>{subtitle}</p>
+          ) : null}
         </header>
         {children}
       </div>
@@ -58,11 +68,33 @@ export function ProfileFormField({ label, hint, htmlFor, required = false, child
 }
 
 /**
- * Horizontal in-page section jumps — Sales-style anchor bar.
- * @param {{ items: { id: string; label: string }[] }} props
+ * Horizontal section jumps — sticky in modal, scrollable on phone.
+ * @param {{ items: { id: string; label: string }[]; variant?: 'page' | 'modal' }} props
  */
-export function ProfilePageAnchors({ items }) {
+export function ProfilePageAnchors({ items, variant = 'page' }) {
   if (!items.length) return null;
+
+  if (variant === 'modal') {
+    return (
+      <nav
+        aria-label="Form sections"
+        className="flex shrink-0 gap-1.5 overflow-x-auto border-b border-slate-100 bg-white px-4 py-2.5 custom-scrollbar [-webkit-overflow-scrolling:touch] [scrollbar-width:thin] sm:px-5"
+      >
+        {items.map((item, index) => (
+          <a
+            key={item.id}
+            href={`#${item.id}`}
+            className="group flex shrink-0 snap-start items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-700 no-underline transition hover:border-[#134e4a]/30 hover:bg-teal-50/50 hover:text-[#134e4a]"
+          >
+            <span className="flex h-5 w-5 items-center justify-center rounded-md bg-white text-[10px] font-bold text-slate-400 ring-1 ring-slate-200 group-hover:text-[#134e4a]">
+              {index + 1}
+            </span>
+            {item.label}
+          </a>
+        ))}
+      </nav>
+    );
+  }
 
   return (
     <nav

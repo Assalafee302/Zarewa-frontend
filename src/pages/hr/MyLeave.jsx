@@ -3,7 +3,10 @@ import { apiFetch } from '../../lib/apiBase';
 import { HrRequestsPanel } from '../../components/hr/HrRequestsPanel';
 import { daysBetweenIso } from '../../lib/hrRequests';
 import { HrAddFormButton, HrFormModal } from '../../components/hr/HrFormModal';
-import { ProfilePageBody, ProfilePageIntro } from '../../components/profile/profilePageUi';
+import { WorkPayHero } from '../../components/profile/WorkPayHero';
+import { leaveTypeLabel } from '../../lib/hrLeaveUi';
+import { MyLeaveCalendarStrip } from '../../components/hr/MyLeaveCalendarStrip';
+import { ProfilePageBody } from '../../components/profile/profilePageUi';
 import { ProfileInlineAlert, ProfileOverviewSection } from '../../components/profile/profileOverviewUi';
 import { ProfileKpiCard } from '../../components/profile/profileDesign';
 import { ProfileProbationBanner } from '../../components/profile/ProfileProbationBanner';
@@ -162,10 +165,11 @@ export default function MyLeave({ staffLinkBase = '/my-profile', embedded = fals
     <ProfilePageBody className={embedded ? '!space-y-4' : ''}>
       {!embedded ? (
         <>
-          <ProfilePageIntro
+          <WorkPayHero
+            eyebrow="Work & pay"
             title="Leave"
-            description="Apply for leave and track approvals. HR uses your handover details when endorsing requests."
-            actions={<HrAddFormButton onClick={() => setModalOpen(true)}>Apply for leave</HrAddFormButton>}
+            description="Check balances, apply for leave, and track approvals. HR uses your handover details when endorsing requests."
+            action={<HrAddFormButton onClick={() => setModalOpen(true)}>Apply for leave</HrAddFormButton>}
           />
           <ProfileProbationBanner />
         </>
@@ -188,7 +192,7 @@ export default function MyLeave({ staffLinkBase = '/my-profile', embedded = fals
         <ProfileOverviewSection title="Your balances" subtitle="Days remaining in the current leave period">
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
             {balances.map((b) => (
-              <ProfileKpiCard key={b.leaveType} label={`${b.leaveType} leave`}>
+              <ProfileKpiCard key={b.leaveType} label={leaveTypeLabel(b.leaveType)}>
                 <p className="text-2xl font-black tabular-nums tracking-tight text-[#134e4a]">
                   {b.closingDays ?? b.balance ?? 0}
                   <span className="ml-1 text-xs font-bold text-slate-500">days</span>
@@ -201,6 +205,12 @@ export default function MyLeave({ staffLinkBase = '/my-profile', embedded = fals
 
       {!embedded && balancesError && balances.length === 0 ? (
         <ProfileInlineAlert variant="warning">{balancesError}</ProfileInlineAlert>
+      ) : null}
+
+      {!embedded ? (
+        <ProfileOverviewSection title="Approved leave ahead" subtitle="Your approved leave in the next six months">
+          <MyLeaveCalendarStrip />
+        </ProfileOverviewSection>
       ) : null}
 
       <HrFormModal isOpen={modalOpen} onClose={closeModal} title="Apply for leave" size="lg">
@@ -304,7 +314,7 @@ export default function MyLeave({ staffLinkBase = '/my-profile', embedded = fals
           <dl className="grid gap-3 text-sm sm:grid-cols-2">
             <div>
               <dt className="text-[10px] font-black uppercase text-slate-400">Type</dt>
-              <dd className="font-semibold">{leaveType}</dd>
+              <dd className="font-semibold">{leaveTypeLabel(leaveType)}</dd>
             </div>
             <div>
               <dt className="text-[10px] font-black uppercase text-slate-400">Dates</dt>

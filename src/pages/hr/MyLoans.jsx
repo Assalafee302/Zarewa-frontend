@@ -6,7 +6,9 @@ import { HrRequestsPanel } from '../../components/hr/HrRequestsPanel';
 import { createHrLoanRequest } from '../../lib/hrStaff';
 import { fetchStaffLoanSchedule } from '../../lib/hrMasterData';
 import { HrAddFormButton, HrFormModal } from '../../components/hr/HrFormModal';
-import { ProfilePageBody, ProfilePageIntro } from '../../components/profile/profilePageUi';
+import { WorkPayHero } from '../../components/profile/WorkPayHero';
+import { computeLoanEligibility, loanRepaymentPreview } from '../../lib/hrLoanEligibility';
+import { ProfilePageBody } from '../../components/profile/profilePageUi';
 import { ProfileInlineAlert, ProfileOverviewSection } from '../../components/profile/profileOverviewUi';
 import { ProfileKpiCard, ProfileStatusChip } from '../../components/profile/profileDesign';
 import { useUserProfile } from '../../context/UserProfileContext';
@@ -16,7 +18,7 @@ import { GUARANTOR_FORM_TEMPLATE_URL } from '../../lib/hrStaffDocumentKinds';
 
 export default function MyLoans({ staffLinkBase = '/my-profile' }) {
   const ws = useWorkspace();
-  const { hr, loanPolicy: ctxLoanPolicy, reload } = useUserProfile();
+  const { hr, loanPolicy: ctxLoanPolicy, reload, me } = useUserProfile();
   const userId = ws?.session?.user?.id;
   const [modalOpen, setModalOpen] = useState(false);
 
@@ -47,16 +49,12 @@ export default function MyLoans({ staffLinkBase = '/my-profile' }) {
   useEffect(() => {
     if (!userId) return;
     (async () => {
-      const [schedRes, docsRes] = await Promise.all([
-        fetchStaffLoanSchedule(userId),
-        apiFetch(`/api/hr/staff/${encodeURIComponent(userId)}/documents`),
-      ]);
+      const schedRes = await fetchStaffLoanSchedule(userId);
       if (schedRes.ok && schedRes.data?.ok) setSchedule(schedRes.data.schedule || []);
-      if (docsRes.ok && docsRes.data?.ok) {
-        setHasGuarantorDoc((docsRes.data.documents || []).some((d) => d.docKind === 'guarantor_form'));
-      }
+      const docs = me?.documents || [];
+      setHasGuarantorDoc(docs.some((d) => d.docKind === 'guarantor_form'));
     })();
-  }, [userId, message]);
+  }, [userId, message, me?.documents]);
 
   const policy = useMemo(
     () =>
@@ -76,12 +74,29 @@ export default function MyLoans({ staffLinkBase = '/my-profile' }) {
       ? Math.round(grossSalaryNgn * Number(policy.loanMaxSalaryMonths))
       : null;
   const activeLoans = schedule.filter((l) => l.status === 'active' || l.outstandingNgn > 0);
+  const activeOutstanding = activeLoans.reduce((s, l) => s + (l.outstandingNgn || 0), 0);
   const deduction = Number(deductionPerMonthNgn) || minDeduction;
 
+  const eligibility = useMemo(
+    () =>
+      computeLoanEligibility({
+        hr,
+        loanPolicy: policy,
+        hasGuarantorDoc,
+        activeLoanOutstandingNgn: activeOutstanding,
+      }),
+    [hr, policy, hasGuarantorDoc, activeOutstanding]
+  );
+
+  const repaymentPreview = useMemo(
+    () => loanRepaymentPreview(amount, months),
+    [amount, months]
+  );
+
   const policyErrors = useMemo(() => {
-    const errs = [];
-    if (amount > 0 && maxLoanNgn && amount > maxLoanNgn) {
-      errs.push(`Amount exceeds policy maximum of ${formatNgn(maxLoanNgn)} (${policy.loanMaxSalaryMonths}× gross salary).`);
+    const errs = [...eligibility.issues];
+    if (amount > 0 && eligibility.maxLoanNgn && amount > eligibility.maxLoanNgn) {
+      errs.push(`Amount exceeds policy maximum of ${formatNgn(eligibility.maxLoanNgn)} (${policy.loanMaxSalaryMonths}× gross salary).`);
     }
     if (months > Number(policy.loanMaxRepaymentMonths || 12)) {
       errs.push(`Repayment cannot exceed ${policy.loanMaxRepaymentMonths} months.`);
@@ -89,14 +104,8 @@ export default function MyLoans({ staffLinkBase = '/my-profile' }) {
     if (amount > 0 && months > 0 && deduction < minDeduction) {
       errs.push(`Monthly deduction must be at least ${formatNgn(minDeduction)} to repay in ${months} month(s).`);
     }
-    if (activeLoans.length > 0) {
-      errs.push('You have an active loan. New applications require HR exceptional approval.');
-    }
-    if (!hasGuarantorDoc) {
-      errs.push('Upload a signed guarantor form under Documents before applying.');
-    }
     return errs;
-  }, [amount, maxLoanNgn, months, policy, deduction, minDeduction, activeLoans.length, hasGuarantorDoc]);
+  }, [amount, eligibility.maxLoanNgn, months, policy, deduction, minDeduction, eligibility.issues]);
 
   useEffect(() => {
     if (minDeduction > 0 && !deductionPerMonthNgn) setDeductionPerMonthNgn(String(minDeduction));
@@ -147,11 +156,54 @@ export default function MyLoans({ staffLinkBase = '/my-profile' }) {
 
   return (
     <ProfilePageBody>
-      <ProfilePageIntro
+      <WorkPayHero
+        eyebrow="Work & pay"
         title="Staff loans"
-        description={`Salary-backed loan — max ${policy.loanMaxSalaryMonths}× gross salary, up to ${policy.loanMaxRepaymentMonths} months repayment, min ${policy.loanMinServiceYears} years service.`}
-        actions={<HrAddFormButton onClick={() => setModalOpen(true)}>Apply for loan</HrAddFormButton>}
+        description={`Salary-backed loans — up to ${policy.loanMaxSalaryMonths}× gross salary, ${policy.loanMaxRepaymentMonths} months max repayment, ${policy.loanMinServiceYears}+ years service.`}
+        action={
+          <HrAddFormButton onClick={() => setModalOpen(true)} disabled={!eligibility.eligible}>
+            Apply for loan
+          </HrAddFormButton>
+        }
+        badge={
+          eligibility.eligible ? (
+            <span className="rounded-full bg-emerald-500/20 px-2.5 py-0.5 text-[10px] font-bold uppercase text-white ring-1 ring-white/30">
+              Eligible
+            </span>
+          ) : (
+            <span className="rounded-full bg-amber-500/20 px-2.5 py-0.5 text-[10px] font-bold uppercase text-white ring-1 ring-white/30">
+              Action needed
+            </span>
+          )
+        }
       />
+
+      <ProfileOverviewSection title="Eligibility" subtitle="Requirements before you apply">
+        <div
+          className={`rounded-xl border px-4 py-3 text-sm ${
+            eligibility.eligible ? 'border-emerald-100 bg-emerald-50/80 text-emerald-950' : 'border-amber-100 bg-amber-50/80 text-amber-950'
+          }`}
+        >
+          <p className="font-semibold">
+            Service: ~{eligibility.serviceYears.toFixed(1)} years
+            {eligibility.maxLoanNgn ? ` · Max loan ${formatNgn(eligibility.maxLoanNgn)}` : ''}
+          </p>
+          {eligibility.issues.length ? (
+            <ul className="mt-2 space-y-1 text-xs">
+              {eligibility.issues.map((line) => (
+                <li key={line}>• {line}</li>
+              ))}
+            </ul>
+          ) : (
+            <p className="mt-1 text-xs">You meet the standard policy checks. Open the application form to proceed.</p>
+          )}
+          {eligibility.warnings.map((w) => (
+            <p key={w} className="mt-2 text-xs text-slate-600">
+              {w}
+            </p>
+          ))}
+        </div>
+      </ProfileOverviewSection>
 
       {message ? <ProfileInlineAlert variant="success">{message}</ProfileInlineAlert> : null}
 
@@ -214,11 +266,20 @@ export default function MyLoans({ staffLinkBase = '/my-profile' }) {
       >
         <form onSubmit={submit} className="space-y-4">
           {error ? <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-800">{error}</div> : null}
-          {maxLoanNgn ? (
+          {maxLoanNgn || eligibility.maxLoanNgn ? (
             <div className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-2 text-xs text-slate-700">
-              Policy maximum: <strong>{formatNgn(maxLoanNgn)}</strong> ({policy.loanMaxSalaryMonths}× gross{' '}
+              Policy maximum: <strong>{formatNgn(eligibility.maxLoanNgn || maxLoanNgn)}</strong> ({policy.loanMaxSalaryMonths}× gross{' '}
               {grossSalaryNgn ? formatNgn(grossSalaryNgn) : 'salary'}). Min monthly deduction:{' '}
               {minDeduction ? formatNgn(minDeduction) : '—'}.
+            </div>
+          ) : null}
+          {repaymentPreview ? (
+            <div className="rounded-xl border border-teal-100 bg-teal-50/60 px-3 py-3 text-sm text-teal-950">
+              <p className="font-semibold">Repayment preview</p>
+              <p className="mt-1 text-xs">
+                {formatNgn(repaymentPreview.monthlyDeductionNgn)}/month × {repaymentPreview.repaymentMonths} months ={' '}
+                {formatNgn(repaymentPreview.totalNgn)} payroll deduction
+              </p>
             </div>
           ) : null}
           {policyErrors.length ? (

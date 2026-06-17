@@ -175,29 +175,28 @@ export function ProfileOnboardingForm({ variant = 'page', onSubmitted }) {
     onSubmitted?.();
   };
 
-  const scrollClass =
-    variant === 'modal'
-      ? 'space-y-4'
-      : 'max-h-none space-y-4 overflow-visible sm:max-h-[calc(100vh-14rem)] sm:overflow-y-auto sm:pr-1 sm:[scrollbar-gutter:stable]';
+  const progressPct = validation.ok
+    ? 100
+    : Math.min(95, Math.max(8, 100 - validation.missing.length * 6));
 
-  const footerClass =
-    variant === 'modal'
-      ? 'sticky bottom-0 z-10 -mx-1 border-t border-slate-200 bg-white/95 px-1 py-3 backdrop-blur-md'
-      : 'sticky bottom-0 z-10 -mx-1 border-t border-slate-200 bg-[#F8FAFC]/95 px-1 py-3 backdrop-blur-md sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:px-0 sm:py-0';
+  const sectionProps = variant === 'modal' ? { compact: true, flat: true } : {};
 
-  return (
-    <div className="space-y-4">
-      <ProfileOnboardingStatus missingCount={validation.missing.length} />
-      <ProfilePageAnchors items={ANCHORS} />
-
-      <div className={scrollClass}>
-        <ProfileFormSection
-          id="legal-name"
-          icon={<User size={16} />}
-          title="Legal name"
-          subtitle="Your official full name — used on payslips, ID card, and directory"
-        >
-          <div className="mb-4 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5">
+  const formSections = (
+    <>
+      <ProfileFormSection
+        id="legal-name"
+        icon={<User size={16} />}
+        title="Legal name"
+        subtitle="Your official full name — used on payslips, ID card, and directory"
+        {...sectionProps}
+      >
+          <div
+            className={`mb-4 rounded-lg border px-3 py-2.5 ${
+              variant === 'modal'
+                ? 'border-teal-100 bg-teal-50/50'
+                : 'border-slate-200 bg-slate-50'
+            }`}
+          >
             <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">Full name preview</p>
             <p className="mt-0.5 text-base font-semibold text-slate-900">{legalName || '—'}</p>
             <p className="mt-1 text-[11px] text-slate-500">Generated from the fields below. Not editable separately.</p>
@@ -237,6 +236,7 @@ export function ProfileOnboardingForm({ variant = 'page', onSubmitted }) {
           icon={<Phone size={16} />}
           title="Contact & personal"
           subtitle="How HR and payroll can reach you"
+          {...sectionProps}
         >
           <div className="grid gap-4 sm:grid-cols-2">
             <ProfileFormField label="Phone number" required>
@@ -310,6 +310,7 @@ export function ProfileOnboardingForm({ variant = 'page', onSubmitted }) {
           icon={<User size={16} />}
           title="Identity numbers"
           subtitle="11-digit NIN and BVN as on your official documents"
+          {...sectionProps}
         >
           <div className="grid gap-4 sm:grid-cols-2">
             <ProfileFormField label="NIN" required hint="National Identification Number">
@@ -340,6 +341,7 @@ export function ProfileOnboardingForm({ variant = 'page', onSubmitted }) {
           icon={<MapPin size={16} />}
           title="Residential address"
           subtitle="Your current home address"
+          {...sectionProps}
         >
           <div className="grid gap-4 sm:grid-cols-2">
             <ProfileFormField label="Street address" required className="sm:col-span-2">
@@ -373,6 +375,7 @@ export function ProfileOnboardingForm({ variant = 'page', onSubmitted }) {
           icon={<Users size={16} />}
           title="Next of kin"
           subtitle="Emergency contact on your HR file"
+          {...sectionProps}
         >
           <div className="grid gap-4 sm:grid-cols-2">
             <ProfileFormField label="Full name" required>
@@ -424,6 +427,7 @@ export function ProfileOnboardingForm({ variant = 'page', onSubmitted }) {
           icon={<GraduationCap size={16} />}
           title="Education & qualifications"
           subtitle="Highest qualification and professional certificates"
+          {...sectionProps}
         >
           <div className="grid gap-4 sm:grid-cols-2">
             <ProfileFormField label="Highest qualification" required>
@@ -480,6 +484,7 @@ export function ProfileOnboardingForm({ variant = 'page', onSubmitted }) {
           icon={<CreditCard size={16} />}
           title="Bank details"
           subtitle="Salary account — HR will verify before payroll"
+          {...sectionProps}
         >
           <div className="grid gap-4 sm:grid-cols-2">
             <ProfileFormField label="Bank name">
@@ -507,47 +512,112 @@ export function ProfileOnboardingForm({ variant = 'page', onSubmitted }) {
             </ProfileFormField>
           </div>
         </ProfileFormSection>
+    </>
+  );
+
+  const missingBlock =
+    validation.missing.length > 0 ? (
+      <div
+        className={`rounded-lg border px-3 py-2.5 text-xs ${
+          variant === 'modal'
+            ? 'border-amber-100 bg-amber-50/80 text-amber-950'
+            : 'border-slate-200 bg-slate-50 text-slate-600'
+        }`}
+      >
+        <p className="font-semibold text-slate-800">Required before submit</p>
+        <ul className="mt-1.5 flex flex-wrap gap-1.5">
+          {validation.missing.map((m) => (
+            <li
+              key={m.id}
+              className="rounded-md bg-white/80 px-2 py-0.5 text-[11px] font-medium text-slate-700 ring-1 ring-slate-200/80"
+            >
+              {m.label}
+            </li>
+          ))}
+        </ul>
+      </div>
+    ) : null;
+
+  const actionFooter = (
+    <ProfileFormActions className={variant === 'modal' ? '!border-t-0 !pt-0' : ''}>
+      <button
+        type="button"
+        disabled={busy || submitBusy}
+        onClick={() => void save()}
+        className={`${HR_BTN_SECONDARY} min-h-11 w-full sm:w-auto`}
+      >
+        {busy ? 'Saving…' : 'Save progress'}
+      </button>
+      {!showConfirmSubmit ? (
+        <button
+          type="button"
+          disabled={busy || submitBusy || !validation.ok}
+          onClick={() => setShowConfirmSubmit(true)}
+          className={`${HR_BTN_PRIMARY} min-h-11 w-full sm:w-auto`}
+        >
+          Submit to HR
+        </button>
+      ) : (
+        <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center">
+          <p className="text-xs text-slate-600 sm:flex-1">
+            After submit you cannot edit directly — only through HR-approved requests.
+          </p>
+          <button type="button" onClick={() => setShowConfirmSubmit(false)} className={HR_BTN_SECONDARY}>
+            Cancel
+          </button>
+          <button type="button" disabled={submitBusy} onClick={() => void submit()} className={HR_BTN_PRIMARY}>
+            {submitBusy ? 'Submitting…' : 'Confirm submit'}
+          </button>
+        </div>
+      )}
+    </ProfileFormActions>
+  );
+
+  if (variant === 'modal') {
+    return (
+      <div className="flex min-h-0 flex-1 flex-col">
+        <div className="shrink-0 border-b border-slate-100 bg-slate-50/90 px-4 py-3 sm:px-6">
+          <div className="flex items-center justify-between gap-3 text-xs">
+            <span className="font-semibold text-slate-600">
+              {validation.ok ? 'Ready to submit' : `${validation.missing.length} required field(s) left`}
+            </span>
+            <span className="font-bold tabular-nums text-[#134e4a]">{progressPct}%</span>
+          </div>
+          <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-200/90">
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-[#134e4a] to-teal-500 transition-all duration-300"
+              style={{ width: `${progressPct}%` }}
+            />
+          </div>
+        </div>
+
+        <ProfilePageAnchors items={ANCHORS} variant="modal" />
+
+        <div className="min-h-0 flex-1 space-y-3 overflow-y-auto custom-scrollbar bg-slate-50/40 px-4 py-4 sm:space-y-4 sm:px-6 sm:py-5">
+          {formSections}
+        </div>
+
+        <footer className="shrink-0 space-y-3 border-t border-slate-200 bg-white px-4 py-3 shadow-[0_-8px_24px_-12px_rgba(15,23,42,0.12)] sm:px-6 sm:py-4">
+          {missingBlock}
+          {actionFooter}
+        </footer>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <ProfileOnboardingStatus missingCount={validation.missing.length} />
+      <ProfilePageAnchors items={ANCHORS} />
+
+      <div className="max-h-none space-y-4 overflow-visible sm:max-h-[calc(100vh-14rem)] sm:overflow-y-auto sm:pr-1 sm:[scrollbar-gutter:stable] custom-scrollbar">
+        {formSections}
       </div>
 
-      {validation.missing.length > 0 ? (
-        <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-xs text-slate-600">
-          <p className="font-medium text-slate-800">Required before submit:</p>
-          <ul className="mt-1 list-inside list-disc space-y-0.5">
-            {validation.missing.map((m) => (
-              <li key={m.id}>{m.label}</li>
-            ))}
-          </ul>
-        </div>
-      ) : null}
+      {missingBlock}
 
-      <div className={footerClass}>
-        <ProfileFormActions>
-          <button type="button" disabled={busy || submitBusy} onClick={() => void save()} className={HR_BTN_SECONDARY}>
-            {busy ? 'Saving…' : 'Save progress'}
-          </button>
-          {!showConfirmSubmit ? (
-            <button
-              type="button"
-              disabled={busy || submitBusy || !validation.ok}
-              onClick={() => setShowConfirmSubmit(true)}
-              className={HR_BTN_PRIMARY}
-            >
-              Submit to HR
-            </button>
-          ) : (
-            <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center">
-              <p className="text-xs text-slate-600 sm:flex-1">
-                After submit you cannot edit directly — only through HR-approved requests.
-              </p>
-              <button type="button" onClick={() => setShowConfirmSubmit(false)} className={HR_BTN_SECONDARY}>
-                Cancel
-              </button>
-              <button type="button" disabled={submitBusy} onClick={() => void submit()} className={HR_BTN_PRIMARY}>
-                {submitBusy ? 'Submitting…' : 'Confirm submit'}
-              </button>
-            </div>
-          )}
-        </ProfileFormActions>
+      <div className="sticky bottom-0 z-10 -mx-1 border-t border-slate-200 bg-[#F8FAFC]/95 px-1 py-3 backdrop-blur-md sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:px-0 sm:py-0">
+        {actionFooter}
       </div>
     </div>
   );

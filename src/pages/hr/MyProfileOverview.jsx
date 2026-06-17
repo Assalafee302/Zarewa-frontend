@@ -20,6 +20,7 @@ import {
 } from '../../components/profile/profileOverviewUi';
 import { ProfileKpiCard, ProfileKpiSkeleton, ProfileStatusChip } from '../../components/profile/profileDesign';
 import { HR_SELF_SERVICE_PATH } from '../../lib/hrSelfServiceRoutes';
+import { leaveTypeLabel } from '../../lib/hrLeaveUi';
 import { myProfileOverviewFetchPlan } from '../../lib/myProfileOverviewFetch';
 import { ProfileProbationBanner } from '../../components/profile/ProfileProbationBanner';
 
@@ -35,11 +36,12 @@ export default function MyProfileOverview() {
   const [balances, setBalances] = useState([]);
   const [payslips, setPayslips] = useState([]);
   const [requests, setRequests] = useState([]);
+  const [attendance, setAttendance] = useState(null);
   const hasDashboardDataRef = useRef(false);
 
   useEffect(() => {
     const plan = myProfileOverviewFetchPlan(cohort);
-    if (!plan.leaveBalances && !plan.payslips && !plan.requests) {
+    if (!plan.leaveBalances && !plan.payslips && !plan.requests && !plan.attendance) {
       setLoading(false);
       return undefined;
     }
@@ -49,7 +51,7 @@ export default function MyProfileOverview() {
       if (!hasDashboardDataRef.current) setLoading(true);
       const fetcher = showSensitiveInline || sensitive.isUnlocked ? sensitive.fetchWithSensitive : apiFetch;
 
-      const [balancesRes, payslipsRes, requestsRes] = await Promise.all([
+      const [balancesRes, payslipsRes, requestsRes, attendanceRes] = await Promise.all([
         plan.leaveBalances
           ? apiFetch('/api/hr/leave/balances').catch(() => ({ ok: false }))
           : Promise.resolve({ ok: false }),
@@ -58,6 +60,9 @@ export default function MyProfileOverview() {
           : Promise.resolve({ ok: false, data: null }),
         plan.requests
           ? apiFetch('/api/hr/requests?scope=mine&limit=8').catch(() => ({ ok: false, data: null }))
+          : Promise.resolve({ ok: false, data: null }),
+        plan.attendance
+          ? apiFetch('/api/hr/me/attendance-summary').catch(() => ({ ok: false, data: null }))
           : Promise.resolve({ ok: false, data: null }),
       ]);
 
@@ -69,6 +74,8 @@ export default function MyProfileOverview() {
       else setPayslips([]);
       if (requestsRes.ok && requestsRes.data?.ok) setRequests(requestsRes.data.requests || []);
       else setRequests([]);
+      if (attendanceRes.ok && attendanceRes.data?.ok) setAttendance(attendanceRes.data);
+      else setAttendance(null);
 
       hasDashboardDataRef.current = true;
       setLoading(false);
@@ -102,12 +109,12 @@ export default function MyProfileOverview() {
   const pendingRequests = requests.filter(
     (r) => !['approved', 'rejected', 'cancelled', 'draft'].includes(String(r.status || '').toLowerCase())
   );
-  const metricCount = cohort === 'employee' || cohort === 'special' ? 3 : 2;
+  const metricCount = cohort === 'employee' || cohort === 'special' ? 4 : 2;
 
   const summarySection = loading ? (
     <ProfileKpiSkeleton count={metricCount} />
   ) : (
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
       {cohort === 'employee' || cohort === 'special' ? (
         <ProfileKpiCard label="Leave balances" to={HR_SELF_SERVICE_PATH.leave} actionLabel="Apply for leave">
           {balances.length === 0 ? (
@@ -121,11 +128,34 @@ export default function MyProfileOverview() {
             <ul className="space-y-2">
               {balances.map((b) => (
                 <li key={b.leaveType} className="flex items-center justify-between gap-2 text-sm">
-                  <span className="capitalize text-slate-700">{b.leaveType} leave</span>
+                  <span className="text-slate-700">{leaveTypeLabel(b.leaveType)}</span>
                   <span className="font-black tabular-nums text-slate-900">{b.closingDays ?? b.balance ?? 0} days</span>
                 </li>
               ))}
             </ul>
+          )}
+        </ProfileKpiCard>
+      ) : null}
+
+      {cohort === 'employee' || cohort === 'special' ? (
+        <ProfileKpiCard label="Attendance" to={HR_SELF_SERVICE_PATH.attendance} actionLabel="View details">
+          {!attendance ? (
+            <ProfileEmptyState
+              title="No roll data"
+              description="Daily attendance for this month is not recorded yet."
+              actionTo={HR_SELF_SERVICE_PATH.attendance}
+              actionLabel="Attendance"
+            />
+          ) : (
+            <>
+              <p className="text-sm text-slate-700">
+                <strong>{attendance.absentDays ?? 0}</strong> absent · <strong>{attendance.lateDays ?? 0}</strong> late
+              </p>
+              <p className="mt-2 text-lg font-black tabular-nums text-[#134e4a]">
+                {formatNgn(attendance.deductionNgn || 0)}
+              </p>
+              <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Est. deduction</p>
+            </>
           )}
         </ProfileKpiCard>
       ) : null}
@@ -143,8 +173,8 @@ export default function MyProfileOverview() {
             <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
               {formatPeriodYyyymm(lastPayslip.periodYyyymm)} · {lastPayslip.runStatus}
             </p>
-            {lastPayslip.amountsRedacted ? (
-              <p className="mt-2 text-sm italic text-slate-500">Unlock to view amount</p>
+            {lastPayslip.amountsRedacted || (!showSensitiveInline && !sensitive.isUnlocked) ? (
+              <p className="mt-2 text-sm italic text-slate-500">Unlock payslips to view amount</p>
             ) : (
               <>
                 <p className="mt-2 text-2xl font-black tabular-nums tracking-tight text-slate-900">

@@ -14,5 +14,6 @@ export function myProfileOverviewFetchPlan(cohort) {
     leaveBalances: cohort === 'employee' || cohort === 'special',
     payslips: true,
     requests: true,
+    attendance: cohort === 'employee' || cohort === 'special',
   };
 }
