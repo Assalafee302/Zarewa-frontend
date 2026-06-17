@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import DomesticStaffHub from '../../components/hr/DomesticStaffHub';
 import ScholarshipSchoolProfile from '../../components/hr/ScholarshipSchoolProfile';
-import { useMyProfileCohort } from './MyProfile';
+import { useMyProfileCohort } from './useMyProfileCohort';
 import { apiFetch } from '../../lib/apiBase';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { useUserProfile } from '../../context/UserProfileContext';
