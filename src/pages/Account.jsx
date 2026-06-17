@@ -196,7 +196,6 @@ const Account = () => {
   const [expenseOutflowEdit, setExpenseOutflowEdit] = useState(null);
   const [expenseOutflowLineIdx, setExpenseOutflowLineIdx] = useState(0);
   const [expenseOutflowSaving, setExpenseOutflowSaving] = useState(false);
-  const [expenseOutflowEditApprovalId, setExpenseOutflowEditApprovalId] = useState('');
   /** movementId -> drafts for per-payment treasury correction */
   const [paymentCorrectionDrafts, setPaymentCorrectionDrafts] = useState({});
   /** Receipts tab: list paging & sort */
@@ -1803,7 +1802,6 @@ const Account = () => {
         if (i >= 0) lineIdx = i;
       }
       setExpenseOutflowLineIdx(lineIdx);
-      setExpenseOutflowEditApprovalId('');
       setExpenseOutflowEdit({ headline, subline, rows });
     },
     [mapTreasuryMovementToPayFromRow, showToast]
@@ -1900,9 +1898,6 @@ const Account = () => {
           treasuryAccountId: tid,
           postedAtISO: row.postedDate ? `${row.postedDate}T12:00:00.000Z` : undefined,
           ...(String(row.note || '').trim() ? { note: String(row.note).trim() } : {}),
-          ...(expenseOutflowEditApprovalId.trim()
-            ? { editApprovalId: expenseOutflowEditApprovalId.trim() }
-            : {}),
         };
         const { ok, data } = await apiFetch(
           `/api/treasury/movements/${encodeURIComponent(row.movementId)}/expense-out-correction`,
@@ -1919,12 +1914,11 @@ const Account = () => {
         await ws.refresh();
         showToast(data?.noOp ? 'No changes to apply.' : 'Pay-from account updated.');
         setExpenseOutflowEdit(null);
-        setExpenseOutflowEditApprovalId('');
       } finally {
         setExpenseOutflowSaving(false);
       }
     },
-    [expenseOutflowEdit, expenseOutflowLineIdx, expenseOutflowEditApprovalId, ws, showToast]
+    [expenseOutflowEdit, expenseOutflowLineIdx, ws, showToast]
   );
 
   const savePayRequest = async (e) => {
@@ -3829,20 +3823,19 @@ const Account = () => {
                   <p className="text-[9px] text-slate-500 leading-snug">
                     Also uses the page header search. The table lists posted treasury <strong>debits</strong> (refunds,
                     supplier/AP payments, expense requests, transport, direct expenses, receipt reversals). Use{' '}
-                    <strong>Edit</strong> on a row to correct which bank or cash account was debited (expenses and
-                    purchases). <strong>Delete</strong> and <strong>Reverse payout</strong> require the right finance
-                    permissions;
-                    officers need a manager <strong>KPI approval code</strong> (below) before those actions succeed.
-                    Administrators and MD are exempt.
+                    <strong>Edit</strong> on a row to correct which bank or cash account was debited (no approval code
+                    needed). <strong>Delete</strong> and <strong>Reverse payout</strong> require the right finance
+                    permissions; officers need a manager <strong>KPI approval code</strong> (below) before those
+                    actions succeed. Administrators and MD are exempt.
                   </p>
                 </div>
 
                 {needsPaymentsMutateSecondApproval ? (
                   <div className="rounded-lg border border-amber-200 bg-amber-50/90 px-3 py-2.5 space-y-2">
                     <p className="text-[10px] text-amber-950 font-semibold leading-snug">
-                      Officer / finance roles: rollout delete, payment-request or refund payout reversal, and the KPI
-                      gate below apply to you. Request an edit approval from a manager for the same expense, purchase
-                      payment, payment request, or refund ID, then paste the code.
+                      Officer / finance roles: rollout delete and payment-request or refund payout reversal need the KPI
+                      gate below. Request an edit approval from a manager for the same expense, payment request, or
+                      refund ID, then paste the code.
                     </p>
                     {paymentsApprovalEntity ? (
                       <div className="space-y-1.5">
@@ -5737,7 +5730,6 @@ const Account = () => {
         isOpen={expenseOutflowEdit != null}
         onClose={() => {
           setExpenseOutflowEdit(null);
-          setExpenseOutflowEditApprovalId('');
         }}
       >
         <div className="z-modal-panel max-w-lg w-full max-h-[90vh] overflow-y-auto p-6 sm:p-8">
@@ -5749,7 +5741,6 @@ const Account = () => {
               type="button"
               onClick={() => {
                 setExpenseOutflowEdit(null);
-                setExpenseOutflowEditApprovalId('');
               }}
               className="p-2 text-gray-400 hover:text-red-500 rounded-xl"
               aria-label="Close"
@@ -5834,14 +5825,6 @@ const Account = () => {
                         </label>
                       </div>
                     )}
-                    {movementId ? (
-                      <EditSecondApprovalInline
-                        entityKind="treasury_movement"
-                        entityId={movementId}
-                        value={expenseOutflowEditApprovalId}
-                        onChange={setExpenseOutflowEditApprovalId}
-                      />
-                    ) : null}
                   </>
                 );
               })()}
