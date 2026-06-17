@@ -4,6 +4,7 @@ import { apiFetch } from '../../lib/apiBase';
 import { canEditLeavePolicy } from '../../lib/hrAccess';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { HrAlert, HrCard } from './hrPageUi';
+import { HrHandbookReferenceCard } from './HrHandbookReferenceCard';
 import { HR_BTN_PRIMARY, HR_FIELD_CLASS } from './hrFormStyles';
 
 function PolicyFieldGroup({ title, description, children }) {
@@ -132,6 +133,7 @@ export function HrLeavePolicySection() {
           Executive family and household staff follow separate benefit rules under Executive HR.
         </p>
       ) : null}
+      <HrHandbookReferenceCard />
     </HrCard>
   );
 }

@@ -102,6 +102,23 @@ export default function HrLeave({ embedded = false, showYearEndOnly = false } = 
     await reload();
   };
 
+  const recomputeMaternity = async () => {
+    setBusy(true);
+    setMessage('');
+    const { ok, data } = await apiFetch('/api/hr/leave/balances/recompute', {
+      method: 'POST',
+      body: JSON.stringify({ periodYyyymm, leaveType: 'maternity' }),
+    });
+    setBusy(false);
+    if (!ok || !data?.ok) {
+      setError(data?.error || 'Maternity recompute failed.');
+      return;
+    }
+    const year = periodYyyymm.slice(0, 4);
+    setMessage(`Recomputed maternity leave for ${data.users ?? 'all'} staff (${year} entitlement).`);
+    await reload();
+  };
+
   if (showYearEndOnly) {
     return (
       <div className="space-y-4">
@@ -157,14 +174,24 @@ export default function HrLeave({ embedded = false, showYearEndOnly = false } = 
           />
         </label>
         {canManage ? (
-          <button
-            type="button"
-            disabled={busy}
-            onClick={recompute}
-            className="rounded-xl bg-[#134e4a] px-4 py-2.5 text-[11px] font-bold uppercase text-white disabled:opacity-50"
-          >
-            Recompute annual
-          </button>
+          <>
+            <button
+              type="button"
+              disabled={busy}
+              onClick={recompute}
+              className="rounded-xl bg-[#134e4a] px-4 py-2.5 text-[11px] font-bold uppercase text-white disabled:opacity-50"
+            >
+              Recompute annual
+            </button>
+            <button
+              type="button"
+              disabled={busy}
+              onClick={recomputeMaternity}
+              className="rounded-xl border border-[#134e4a] bg-white px-4 py-2.5 text-[11px] font-bold uppercase text-[#134e4a] disabled:opacity-50"
+            >
+              Recompute maternity
+            </button>
+          </>
         ) : null}
         {canManage ? (
           <button

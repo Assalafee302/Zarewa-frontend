@@ -15,7 +15,7 @@ import HrPerformanceRecognitionPanel from '../../components/hr/HrPerformanceReco
 import HrIncidentRegistryPanel from '../../components/hr/HrIncidentRegistryPanel';
 import HrAccountabilityOverview from '../../components/hr/HrAccountabilityOverview';
 import HrAccountabilityMemoQueue from '../../components/hr/HrAccountabilityMemoQueue';
-import { HrGrievanceForm, HrGrievanceQueue } from '../../components/hr/HrGrievancePanels';
+import HrDisciplinePlaybookPanel from '../../components/hr/HrDisciplinePlaybookPanel';
 
 /** Two top-level areas — cases/incidents/grievances vs exit movement. */
 const TABS = [
@@ -25,6 +25,7 @@ const TABS = [
 
 const CASE_VIEWS = [
   { id: 'cases', label: 'Cases' },
+  { id: 'playbook', label: 'Discipline guide' },
   { id: 'memos', label: 'Memos' },
   { id: 'grievances', label: 'Grievances' },
   { id: 'registry', label: 'Registry' },
@@ -193,6 +194,7 @@ export default function HrDisciplineExitHub() {
           ) : null}
           <SubViewPills views={CASE_VIEWS} active={caseView} onChange={setCaseViewAndUrl} />
           {caseView === 'cases' ? <HrDisciplineCasesPanel /> : null}
+          {caseView === 'playbook' ? <HrDisciplinePlaybookPanel /> : null}
           {caseView === 'memos' ? (
             <TeamHrIncidents focusMemoId={memoId} onFocusHandled={() => clearSearchParam('memoId')} />
           ) : null}

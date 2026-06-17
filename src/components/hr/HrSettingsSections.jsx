@@ -4,11 +4,12 @@ import { useHrListLoad } from '../../hooks/useHrListLoad';
 import { apiFetch } from '../../lib/apiBase';
 import { seedZarewaOrgStandard, previewLegacyPayBackfill, runLegacyPayBackfill, fetchOrgCatalogMeta, previewMatrixRevisionApply, runMatrixRevisionApply } from '../../lib/hrCompensation';
 import { fetchHrDepartments } from '../../lib/hrMasterData';
+import { downloadBlankStaffRegistrationFormPdf } from '../../lib/hrStaff';
 import { canEditPensionPolicyRates, canManageHrSettings } from '../../lib/hrAccess';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { HR_DOCUMENTS, HR_EMPLOYEES, HR_LEAVE, HR_PAYROLL, hrTabPath } from '../../lib/hrRoutes';
 import { HrAddFormButton, HrFormModal } from './HrFormModal';
-import { HR_BTN_PRIMARY, HR_FIELD_CLASS } from './hrFormStyles';
+import { HR_BTN_PRIMARY, HR_BTN_SECONDARY, HR_FIELD_CLASS } from './hrFormStyles';
 import { HrAlert, HrCard } from './hrPageUi';
 
 function PolicyMetric({ label, value, detail }) {
@@ -604,7 +605,14 @@ export function HrMatrixRevisionSection({ embedded = false }) {
 export function HrStaffImportGuideSection({ embedded = false }) {
   const ws = useWorkspace();
   const canManage = canManageHrSettings(ws?.permissions);
+  const [formBusy, setFormBusy] = useState(false);
   if (!canManage) return null;
+
+  const downloadBlankForm = async () => {
+    setFormBusy(true);
+    await downloadBlankStaffRegistrationFormPdf();
+    setFormBusy(false);
+  };
 
   const body = (
     <>
@@ -612,9 +620,14 @@ export function HrStaffImportGuideSection({ embedded = false }) {
         Use <strong>HR → Employees → Bulk Register Staff</strong> to upload the Excel template. Optional columns support
         designation code, payroll group, salary level/step, pay addition, and variance notes.
       </p>
-      <Link to="/hr/employees" className={`${HR_BTN_PRIMARY} mt-4 inline-flex`}>
-        Open staff directory
-      </Link>
+      <div className="mt-4 flex flex-wrap gap-2">
+        <Link to="/hr/employees" className={HR_BTN_PRIMARY}>
+          Open staff directory
+        </Link>
+        <button type="button" disabled={formBusy} onClick={downloadBlankForm} className={HR_BTN_SECONDARY}>
+          {formBusy ? 'Preparing…' : 'Blank staff form PDF'}
+        </button>
+      </div>
     </>
   );
 

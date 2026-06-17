@@ -1,4 +1,4 @@
-import { apiFetch } from './apiBase';
+import { apiFetch, apiUrl } from './apiBase';
 
 function numOrUndef(v) {
   if (v === '' || v == null) return undefined;
@@ -326,6 +326,60 @@ export async function updateHrStaffProfile(userId, body) {
     method: 'PATCH',
     body: JSON.stringify(body),
   });
+}
+
+/** Download printable staff registration form PDF. */
+export async function downloadStaffRegistrationFormPdf(userId) {
+  const id = String(userId || '').trim();
+  if (!id) return { ok: false, error: 'Staff not found.' };
+  const path = `/api/hr/staff/${encodeURIComponent(id)}/registration-form.pdf`;
+  const r = await fetch(apiUrl(path), { credentials: 'include' });
+  if (!r.ok) {
+    let err = 'Download failed.';
+    try {
+      const j = await r.json();
+      err = j.error || err;
+    } catch {
+      /* ignore */
+    }
+    return { ok: false, error: err };
+  }
+  const blob = await r.blob();
+  const filename =
+    r.headers.get('Content-Disposition')?.match(/filename="([^"]+)"/)?.[1] || 'staff-registration.pdf';
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+  return { ok: true };
+}
+
+/** Download blank staff registration form PDF. */
+export async function downloadBlankStaffRegistrationFormPdf() {
+  const path = '/api/hr/templates/staff-registration-form.pdf';
+  const r = await fetch(apiUrl(path), { credentials: 'include' });
+  if (!r.ok) {
+    let err = 'Download failed.';
+    try {
+      const j = await r.json();
+      err = j.error || err;
+    } catch {
+      /* ignore */
+    }
+    return { ok: false, error: err };
+  }
+  const blob = await r.blob();
+  const filename =
+    r.headers.get('Content-Disposition')?.match(/filename="([^"]+)"/)?.[1] || 'Zarewa-Staff-Registration-Form.pdf';
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+  return { ok: true };
 }
 
 export async function fetchHrBranchTransfers() {

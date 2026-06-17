@@ -21,7 +21,7 @@ import { HrStaffFileChecklist } from '../../components/hr/HrStaffFileChecklist';
 import { HrSkillsMatrixPanel } from '../../components/hr/HrSkillsMatrixPanel';
 import { CRITICAL_MISSING_LABELS } from '../../lib/hrStaffDocumentKinds';
 import { HR_BTN_PRIMARY, HR_BTN_SECONDARY } from '../../components/hr/hrFormStyles';
-import { formToProfilePatch, staffToForm, updateHrStaffProfile } from '../../lib/hrStaff';
+import { formToProfilePatch, staffToForm, updateHrStaffProfile, downloadStaffRegistrationFormPdf } from '../../lib/hrStaff';
 import { createHrIdCardRequest } from '../../lib/hrIdCards';
 import {
   blankIdCardApplyForm,
@@ -347,6 +347,7 @@ export default function HrStaffProfile() {
   const [idCardErr, setIdCardErr] = useState('');
   const [idCardBusy, setIdCardBusy] = useState(false);
   const [idCardMsg, setIdCardMsg] = useState('');
+  const [formPdfBusy, setFormPdfBusy] = useState(false);
 
   useEffect(() => {
     setStaff(null);
@@ -409,6 +410,14 @@ export default function HrStaffProfile() {
     setIdCardErr('');
     setIdCardMsg('');
     setIdCardModal(true);
+  };
+
+  const downloadRegistrationForm = async () => {
+    if (!userId) return;
+    setFormPdfBusy(true);
+    const { ok, error: err } = await downloadStaffRegistrationFormPdf(userId);
+    setFormPdfBusy(false);
+    if (!ok) setError(err || 'Could not download staff form.');
   };
 
   const submitIdCardRequest = async (e) => {
@@ -565,6 +574,14 @@ export default function HrStaffProfile() {
           </span>
           {canManage && !editing ? (
             <>
+              <button
+                type="button"
+                onClick={downloadRegistrationForm}
+                disabled={formPdfBusy}
+                className="rounded-xl border border-slate-200 bg-white px-3 py-1 text-[10px] font-bold uppercase tracking-wide text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+              >
+                {formPdfBusy ? 'Preparing…' : 'Staff form PDF'}
+              </button>
               <button
                 type="button"
                 onClick={openIdCardModal}

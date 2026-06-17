@@ -35,6 +35,8 @@ const emptyForm = () => ({
   effectiveDateIso: new Date().toISOString().slice(0, 10),
   reason: '',
   notes: '',
+  mdPolicyException: false,
+  policyExceptionReason: '',
   submit: true,
 });
 
@@ -78,6 +80,7 @@ export default function HrTransfers({ embedded = false } = {}) {
   const [busy, setBusy] = useState(false);
   const [detailTransfer, setDetailTransfer] = useState(null);
   const [rejectReason, setRejectReason] = useState('');
+  const [approvalException, setApprovalException] = useState({ mdPolicyException: false, policyExceptionReason: '' });
 
   useHrListLoad(async () => {
     const [staffRes, deptRes] = await Promise.all([apiFetch('/api/hr/staff'), fetchHrDepartments()]);
@@ -147,7 +150,13 @@ export default function HrTransfers({ embedded = false } = {}) {
     const { ok, data } = await createHrTransferRequest(payload);
     setBusy(false);
     if (!ok || !data?.ok) {
-      toast(data?.error || 'Could not create transfer.', { variant: 'error' });
+      const msg = data?.error || 'Could not create transfer.';
+      toast(
+        data?.policyBlocked
+          ? `${msg} Check “MD / GMHR policy exception” and enter the exception memo reason.`
+          : msg,
+        { variant: 'error' }
+      );
       return;
     }
     toast('Transfer request submitted.', { variant: 'success' });
@@ -157,18 +166,45 @@ export default function HrTransfers({ embedded = false } = {}) {
   };
 
   const doAction = async (id, action, extra = {}) => {
+    if (
+      (action === 'approve' || action === 'gm_approval') &&
+      approvalException.mdPolicyException &&
+      !String(approvalException.policyExceptionReason || '').trim()
+    ) {
+      toast('Enter the MD / GMHR exception reason before continuing.', { variant: 'error' });
+      return;
+    }
     setBusy(true);
-    const { ok, data } = await patchHrTransferRequest(id, { action, ...extra });
+    const payload = { action, ...extra };
+    if (action === 'approve' || action === 'gm_approval') {
+      if (approvalException.mdPolicyException) {
+        payload.mdPolicyException = true;
+        payload.policyExceptionReason = approvalException.policyExceptionReason;
+      }
+    }
+    const { ok, data } = await patchHrTransferRequest(id, payload);
     setBusy(false);
     if (!ok || !data?.ok) {
-      toast(data?.error || 'Action failed.', { variant: 'error' });
+      const msg = data?.error || 'Action failed.';
+      toast(
+        data?.policyBlocked
+          ? `${msg} Record MD/GMHR exception below, then approve again.`
+          : msg,
+        { variant: 'error' }
+      );
       return;
     }
     toast(`Transfer ${action.replace(/_/g, ' ')}.`, { variant: 'success' });
     setDetailTransfer(null);
     setRejectReason('');
+    setApprovalException({ mdPolicyException: false, policyExceptionReason: '' });
     reload();
   };
+
+  const transferNeedsTenureGate = (t) =>
+    t &&
+    ((t.status === 'gm_approval' && (canGm || canManage)) ||
+      (t.status === 'hr_review' && canManage));
 
   const transferActions = (t) => {
     const actions = [];
@@ -396,6 +432,33 @@ export default function HrTransfers({ embedded = false } = {}) {
             Reason
             <textarea className={HR_FIELD_CLASS} rows={2} value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value })} required />
           </label>
+          <div className="sm:col-span-2 rounded-lg border border-amber-100 bg-amber-50/60 p-3 space-y-2">
+            <p className="text-xs text-amber-900">
+              Tenure policy: branch transfers require 3 years; internal rotations require 2 years (branch managers exempt from internal minimum).
+            </p>
+            <label className="flex items-start gap-2 text-xs font-semibold text-slate-700">
+              <input
+                type="checkbox"
+                className="mt-0.5"
+                checked={Boolean(form.mdPolicyException)}
+                onChange={(e) => setForm({ ...form, mdPolicyException: e.target.checked })}
+              />
+              MD / GMHR policy exception (written memo on file)
+            </label>
+            {form.mdPolicyException ? (
+              <label className="block text-xs font-semibold text-slate-600">
+                Exception reason
+                <textarea
+                  className={HR_FIELD_CLASS}
+                  rows={2}
+                  value={form.policyExceptionReason}
+                  onChange={(e) => setForm({ ...form, policyExceptionReason: e.target.value })}
+                  placeholder="Reference MD memo, date, and business justification"
+                  required
+                />
+              </label>
+            ) : null}
+          </div>
           <div className="sm:col-span-2 flex gap-2">
             <button type="submit" disabled={busy} className={HR_BTN_PRIMARY}>{busy ? 'Submitting…' : 'Submit transfer'}</button>
             <button type="button" className={HR_BTN_SECONDARY} onClick={() => setModalOpen(false)}>Cancel</button>
@@ -405,7 +468,11 @@ export default function HrTransfers({ embedded = false } = {}) {
 
       <HrFormModal
         isOpen={Boolean(detailTransfer)}
-        onClose={() => { setDetailTransfer(null); setRejectReason(''); }}
+        onClose={() => {
+          setDetailTransfer(null);
+          setRejectReason('');
+          setApprovalException({ mdPolicyException: false, policyExceptionReason: '' });
+        }}
         title="Transfer details"
         size="lg"
       >
@@ -419,6 +486,11 @@ export default function HrTransfers({ embedded = false } = {}) {
               <p><span className="text-slate-500">Effective:</span> {detailTransfer.effectiveDateIso || '—'}</p>
               <p className="sm:col-span-2"><span className="text-slate-500">Route:</span> {branchName[detailTransfer.fromBranchId] || detailTransfer.fromBranchId} → {branchName[detailTransfer.toBranchId] || detailTransfer.toDepartment || '—'}</p>
               <p className="sm:col-span-2"><span className="text-slate-500">Reason:</span> {detailTransfer.reason || '—'}</p>
+              {detailTransfer.notes ? (
+                <p className="sm:col-span-2 text-xs text-slate-700 bg-slate-50 rounded-lg px-3 py-2 whitespace-pre-wrap">
+                  <span className="font-semibold text-slate-500">Notes:</span> {detailTransfer.notes}
+                </p>
+              ) : null}
               {detailTransfer.rejectionReason ? (
                 <p className="sm:col-span-2 text-red-800 bg-red-50 rounded-lg px-3 py-2"><span className="font-semibold">Rejection:</span> {detailTransfer.rejectionReason}</p>
               ) : null}
@@ -475,6 +547,35 @@ export default function HrTransfers({ embedded = false } = {}) {
               >
                 Generate transfer letter
               </button>
+            ) : null}
+            {transferNeedsTenureGate(detailTransfer) && !detailTransfer.rejecting ? (
+              <div className="rounded-lg border border-amber-100 bg-amber-50/60 p-3 space-y-2">
+                <p className="text-xs text-amber-900">
+                  Tenure is checked before sending to GM and at final approval. Use MD exception only when a written memo is on file.
+                </p>
+                <label className="flex items-start gap-2 text-xs font-semibold text-slate-700">
+                  <input
+                    type="checkbox"
+                    className="mt-0.5"
+                    checked={approvalException.mdPolicyException}
+                    onChange={(e) =>
+                      setApprovalException((prev) => ({ ...prev, mdPolicyException: e.target.checked }))
+                    }
+                  />
+                  MD / GMHR policy exception
+                </label>
+                {approvalException.mdPolicyException ? (
+                  <textarea
+                    className={HR_FIELD_CLASS}
+                    rows={2}
+                    value={approvalException.policyExceptionReason}
+                    onChange={(e) =>
+                      setApprovalException((prev) => ({ ...prev, policyExceptionReason: e.target.value }))
+                    }
+                    placeholder="Exception memo reference and justification"
+                  />
+                ) : null}
+              </div>
             ) : null}
             {canManage && !detailTransfer.rejecting ? (
               <div className="flex flex-wrap gap-2 border-t border-slate-100 pt-3">

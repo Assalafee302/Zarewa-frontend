@@ -22,6 +22,7 @@ import { ProfileKpiCard, ProfileKpiSkeleton, ProfileStatusChip } from '../../com
 import { HR_SELF_SERVICE_PATH } from '../../lib/hrSelfServiceRoutes';
 import { leaveTypeLabel } from '../../lib/hrLeaveUi';
 import { myProfileOverviewFetchPlan } from '../../lib/myProfileOverviewFetch';
+import { currentPeriodYyyymm } from '../../lib/hrRequests';
 import { computeLoanEligibility } from '../../lib/hrLoanEligibility';
 import { fetchStaffLoanSchedule } from '../../lib/hrMasterData';
 import { ProfileProbationBanner } from '../../components/profile/ProfileProbationBanner';
@@ -66,7 +67,9 @@ export default function MyProfileOverview() {
           ? apiFetch('/api/hr/requests?scope=mine&limit=8').catch(() => ({ ok: false, data: null }))
           : Promise.resolve({ ok: false, data: null }),
         plan.attendance
-          ? apiFetch('/api/hr/me/attendance-summary').catch(() => ({ ok: false, data: null }))
+          ? apiFetch(`/api/hr/me/attendance-summary?periodYyyymm=${encodeURIComponent(currentPeriodYyyymm())}`).catch(
+              () => ({ ok: false, data: null })
+            )
           : Promise.resolve({ ok: false, data: null }),
         plan.loanSchedule && userId
           ? fetchStaffLoanSchedule(userId).catch(() => ({ ok: false, data: null }))
@@ -101,6 +104,18 @@ export default function MyProfileOverview() {
     };
   }, [cohort, sensitive.isUnlocked, showSensitiveInline, sensitive.fetchWithSensitive, userId]);
 
+  const hasGuarantorDoc = (me?.documents || []).some((d) => d.docKind === 'guarantor_form');
+  const loanEligibility = useMemo(
+    () =>
+      computeLoanEligibility({
+        hr,
+        loanPolicy,
+        hasGuarantorDoc,
+        activeLoanOutstandingNgn: loanOutstandingNgn,
+      }),
+    [hr, loanPolicy, hasGuarantorDoc, loanOutstandingNgn]
+  );
+
   if (cohort === 'scholarship') return <ScholarshipSchoolProfile />;
   if (cohort === 'domestic') return <DomesticStaffHub />;
 
@@ -124,17 +139,6 @@ export default function MyProfileOverview() {
   const lastPayslip = payslips[0] || null;
   const pendingRequests = requests.filter(
     (r) => !['approved', 'rejected', 'cancelled', 'draft'].includes(String(r.status || '').toLowerCase())
-  );
-  const hasGuarantorDoc = (me?.documents || []).some((d) => d.docKind === 'guarantor_form');
-  const loanEligibility = useMemo(
-    () =>
-      computeLoanEligibility({
-        hr,
-        loanPolicy,
-        hasGuarantorDoc,
-        activeLoanOutstandingNgn: loanOutstandingNgn,
-      }),
-    [hr, loanPolicy, hasGuarantorDoc, loanOutstandingNgn]
   );
   const metricCount = cohort === 'employee' || cohort === 'special' ? 5 : 2;
 
