@@ -1,7 +1,7 @@
 /**
  * Which dashboard API calls My Profile overview should make per cohort.
  * @param {string} cohort
- * @returns {{ leaveBalances: boolean; payslips: boolean; requests: boolean }}
+ * @returns {{ leaveBalances: boolean; payslips: boolean; requests: boolean; attendance?: boolean; loanSchedule?: boolean }}
  */
 export function myProfileOverviewFetchPlan(cohort) {
   if (cohort === 'scholarship') {
@@ -10,10 +10,12 @@ export function myProfileOverviewFetchPlan(cohort) {
   if (cohort === 'domestic') {
     return { leaveBalances: false, payslips: false, requests: false };
   }
+  const employee = cohort === 'employee' || cohort === 'special';
   return {
-    leaveBalances: cohort === 'employee' || cohort === 'special',
+    leaveBalances: employee,
     payslips: true,
     requests: true,
-    attendance: cohort === 'employee' || cohort === 'special',
+    attendance: employee,
+    loanSchedule: employee,
   };
 }

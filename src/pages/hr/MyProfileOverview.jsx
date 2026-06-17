@@ -23,6 +23,7 @@ import { HR_SELF_SERVICE_PATH } from '../../lib/hrSelfServiceRoutes';
 import { leaveTypeLabel } from '../../lib/hrLeaveUi';
 import { myProfileOverviewFetchPlan } from '../../lib/myProfileOverviewFetch';
 import { computeLoanEligibility } from '../../lib/hrLoanEligibility';
+import { fetchStaffLoanSchedule } from '../../lib/hrMasterData';
 import { ProfileProbationBanner } from '../../components/profile/ProfileProbationBanner';
 
 export default function MyProfileOverview() {
@@ -38,11 +39,13 @@ export default function MyProfileOverview() {
   const [payslips, setPayslips] = useState([]);
   const [requests, setRequests] = useState([]);
   const [attendance, setAttendance] = useState(null);
+  const [loanOutstandingNgn, setLoanOutstandingNgn] = useState(0);
   const hasDashboardDataRef = useRef(false);
+  const userId = ws?.session?.user?.id || user?.id;
 
   useEffect(() => {
     const plan = myProfileOverviewFetchPlan(cohort);
-    if (!plan.leaveBalances && !plan.payslips && !plan.requests && !plan.attendance) {
+    if (!plan.leaveBalances && !plan.payslips && !plan.requests && !plan.attendance && !plan.loanSchedule) {
       setLoading(false);
       return undefined;
     }
@@ -52,7 +55,7 @@ export default function MyProfileOverview() {
       if (!hasDashboardDataRef.current) setLoading(true);
       const fetcher = showSensitiveInline || sensitive.isUnlocked ? sensitive.fetchWithSensitive : apiFetch;
 
-      const [balancesRes, payslipsRes, requestsRes, attendanceRes] = await Promise.all([
+      const [balancesRes, payslipsRes, requestsRes, attendanceRes, loanSchedRes] = await Promise.all([
         plan.leaveBalances
           ? apiFetch('/api/hr/leave/balances').catch(() => ({ ok: false }))
           : Promise.resolve({ ok: false }),
@@ -64,6 +67,9 @@ export default function MyProfileOverview() {
           : Promise.resolve({ ok: false, data: null }),
         plan.attendance
           ? apiFetch('/api/hr/me/attendance-summary').catch(() => ({ ok: false, data: null }))
+          : Promise.resolve({ ok: false, data: null }),
+        plan.loanSchedule && userId
+          ? fetchStaffLoanSchedule(userId).catch(() => ({ ok: false, data: null }))
           : Promise.resolve({ ok: false, data: null }),
       ]);
 
@@ -77,6 +83,15 @@ export default function MyProfileOverview() {
       else setRequests([]);
       if (attendanceRes.ok && attendanceRes.data?.ok) setAttendance(attendanceRes.data);
       else setAttendance(null);
+      if (loanSchedRes.ok && loanSchedRes.data?.ok) {
+        const schedule = loanSchedRes.data.schedule || [];
+        const outstanding = schedule
+          .filter((l) => l.status === 'active' || Number(l.outstandingNgn) > 0)
+          .reduce((sum, l) => sum + (Number(l.outstandingNgn) || 0), 0);
+        setLoanOutstandingNgn(outstanding);
+      } else {
+        setLoanOutstandingNgn(0);
+      }
 
       hasDashboardDataRef.current = true;
       setLoading(false);
@@ -84,7 +99,7 @@ export default function MyProfileOverview() {
     return () => {
       cancelled = true;
     };
-  }, [cohort, sensitive.isUnlocked, showSensitiveInline, sensitive.fetchWithSensitive]);
+  }, [cohort, sensitive.isUnlocked, showSensitiveInline, sensitive.fetchWithSensitive, userId]);
 
   if (cohort === 'scholarship') return <ScholarshipSchoolProfile />;
   if (cohort === 'domestic') return <DomesticStaffHub />;
@@ -117,9 +132,9 @@ export default function MyProfileOverview() {
         hr,
         loanPolicy,
         hasGuarantorDoc,
-        activeLoanOutstandingNgn: 0,
+        activeLoanOutstandingNgn: loanOutstandingNgn,
       }),
-    [hr, loanPolicy, hasGuarantorDoc]
+    [hr, loanPolicy, hasGuarantorDoc, loanOutstandingNgn]
   );
   const metricCount = cohort === 'employee' || cohort === 'special' ? 5 : 2;
 
@@ -200,6 +215,11 @@ export default function MyProfileOverview() {
               ) : (
                 <p className="mt-2 text-xs text-slate-500">You meet standard policy checks.</p>
               )}
+              {loanOutstandingNgn > 0 ? (
+                <p className="mt-1 text-xs font-semibold text-slate-600">
+                  Outstanding: {formatNgn(loanOutstandingNgn)}
+                </p>
+              ) : null}
             </>
           )}
         </ProfileKpiCard>
