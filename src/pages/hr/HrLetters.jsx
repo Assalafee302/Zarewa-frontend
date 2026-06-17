@@ -34,7 +34,7 @@ import {
 const LETTER_GROUPS = [
   {
     label: 'Employment',
-    types: ['appointment', 'employment', 'confirmation', 'probation_extension', 'introduction', 'transfer', 'experience', 'certificate_of_service'],
+    types: ['appointment', 'employment', 'confirmation', 'probation_extension', 'introduction', 'transfer', 'experience', 'certificate_of_service', 'id_card_approval'],
   },
   {
     label: 'Salary & Promotion',
@@ -97,6 +97,7 @@ const LETTER_TYPES = [
   { value: 'confidentiality_pledge', label: 'Confidentiality Pledge' },
   { value: 'handbook_receipt', label: 'Handbook Receipt' },
   { value: 'certificate_of_service', label: 'Certificate of Service' },
+  { value: 'id_card_approval', label: 'ID Card Approval / Collection' },
   { value: 'hearing_invitation', label: 'Disciplinary hearing invitation' },
   { value: 'investigation_notice', label: 'Investigation notice' },
   { value: 'final_warning', label: 'Final warning letter' },
@@ -263,6 +264,12 @@ const EXTRA_FIELDS = {
   certificate_of_service: [
     { key: 'lastWorkingDay', label: 'Last working day', type: 'date' },
     { key: 'conductNote', label: 'Conduct note', type: 'text' },
+  ],
+  id_card_approval: [
+    { key: 'sourceRecordId', label: 'ID card request ID', type: 'text' },
+    { key: 'collectionDate', label: 'Collection date', type: 'date', required: true },
+    { key: 'collectionLocation', label: 'Collection location', type: 'text', required: true },
+    { key: 'replacementReason', label: 'Replacement reason (if any)', type: 'text' },
   ],
 };
 
@@ -450,6 +457,24 @@ Yours sincerely,
 _______________________
 Human Resources Manager
 Zarewa Aluminium & Plastics Ltd`;
+
+    case 'id_card_approval':
+      return `${header}RE: STAFF ID CARD APPROVAL — ${name.toUpperCase()}
+
+We are pleased to inform you that your staff identification card request${extra?.sourceRecordId ? ` (${extra.sourceRecordId})` : ''} has been approved and processed.
+
+  Employee Name:   ${name}
+  Employee No:     ${employeeNo || '—'}
+  Job Title:       ${jobTitle}
+  Department:      ${department || '—'}
+  Branch:          ${branch}
+${extra?.replacementReason ? `  Request reason:  ${extra.replacementReason}` : ''}
+
+Your ID card is ready for collection on ${extra?.collectionDate || '[collection date]'} from ${extra?.collectionLocation || 'the HR office'}.
+
+Please bring this letter and a valid means of identification when collecting your card. If you are replacing a lost card, any applicable replacement fee must be settled before collection.
+
+For enquiries, contact the Human Resources Department.${footer}`;
 
     default:
       return `${header}RE: HR LETTER — ${name.toUpperCase()}\n\n[Letter content]\n${footer}`;

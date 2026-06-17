@@ -13,6 +13,7 @@ import { HR_EMPLOYEES } from '../../lib/hrRoutes';
 import { HrSalaryIncrementPanel } from '../../components/hr/HrSalaryIncrementPanel';
 import { HrPromotionFromMatrix } from '../../components/hr/HrPromotionFromMatrix';
 import { HrFormModal } from '../../components/hr/HrFormModal';
+import { HrIdCardApplyFields } from '../../components/hr/HrIdCardApplyFields';
 import { HrStaffDocumentsPanel } from '../../components/hr/HrStaffDocumentsPanel';
 import { HrProfileCompleteness } from '../../components/hr/HrProfileCompleteness';
 import { HrCard } from '../../components/hr/hrPageUi';
@@ -20,6 +21,14 @@ import { HrSkillsMatrixPanel } from '../../components/hr/HrSkillsMatrixPanel';
 import { CRITICAL_MISSING_LABELS } from '../../lib/hrStaffDocumentKinds';
 import { HR_BTN_PRIMARY, HR_BTN_SECONDARY } from '../../components/hr/hrFormStyles';
 import { formToProfilePatch, staffToForm, updateHrStaffProfile } from '../../lib/hrStaff';
+import { createHrIdCardRequest } from '../../lib/hrIdCards';
+import {
+  blankIdCardApplyForm,
+  bloodGroupFromStaff,
+  emergencyContactFromStaff,
+  idCardApplyPayload,
+  validateIdCardApplyForm,
+} from '../../lib/hrIdCardForm';
 import { fetchStaffLoanSchedule } from '../../lib/hrMasterData';
 import {
   AppTable,
@@ -332,6 +341,11 @@ export default function HrStaffProfile() {
   const [saving, setSaving] = useState(false);
   const [originalBranchId, setOriginalBranchId] = useState('');
   const [editFormTab, setEditFormTab] = useState('personal');
+  const [idCardModal, setIdCardModal] = useState(false);
+  const [idCardForm, setIdCardForm] = useState(blankIdCardApplyForm);
+  const [idCardErr, setIdCardErr] = useState('');
+  const [idCardBusy, setIdCardBusy] = useState(false);
+  const [idCardMsg, setIdCardMsg] = useState('');
 
   useEffect(() => {
     setStaff(null);
@@ -383,6 +397,42 @@ export default function HrStaffProfile() {
     setEditing(false);
     setEditForm(null);
     setSaveError('');
+  };
+
+  const openIdCardModal = () => {
+    setIdCardForm({
+      ...blankIdCardApplyForm(),
+      bloodGroup: bloodGroupFromStaff(staff),
+      emergencyContact: emergencyContactFromStaff(staff),
+    });
+    setIdCardErr('');
+    setIdCardMsg('');
+    setIdCardModal(true);
+  };
+
+  const submitIdCardRequest = async (e) => {
+    e.preventDefault();
+    if (!userId) return;
+    const validation = validateIdCardApplyForm(idCardForm);
+    if (!validation.ok) {
+      setIdCardErr(validation.error);
+      return;
+    }
+    setIdCardBusy(true);
+    setIdCardErr('');
+    try {
+      const { ok, data } = await createHrIdCardRequest(idCardApplyPayload(idCardForm, userId));
+      if (!ok || !data?.ok) {
+        setIdCardErr(data?.error || 'Could not create ID card request.');
+        return;
+      }
+      setIdCardMsg('ID card request created for this employee.');
+      setIdCardModal(false);
+    } catch {
+      setIdCardErr('Could not create ID card request.');
+    } finally {
+      setIdCardBusy(false);
+    }
   };
 
   const saveProfile = async (e) => {
@@ -513,13 +563,22 @@ export default function HrStaffProfile() {
             {staff.status || 'unknown'}
           </span>
           {canManage && !editing ? (
-            <button
-              type="button"
-              onClick={startEdit}
-              className="rounded-xl border border-[#134e4a]/30 bg-[#134e4a]/5 px-3 py-1 text-[10px] font-bold uppercase tracking-wide text-[#134e4a] hover:bg-[#134e4a]/10"
-            >
-              Edit profile
-            </button>
+            <>
+              <button
+                type="button"
+                onClick={openIdCardModal}
+                className="rounded-xl border border-slate-200 bg-white px-3 py-1 text-[10px] font-bold uppercase tracking-wide text-slate-700 hover:bg-slate-50"
+              >
+                Request ID card
+              </button>
+              <button
+                type="button"
+                onClick={startEdit}
+                className="rounded-xl border border-[#134e4a]/30 bg-[#134e4a]/5 px-3 py-1 text-[10px] font-bold uppercase tracking-wide text-[#134e4a] hover:bg-[#134e4a]/10"
+              >
+                Edit profile
+              </button>
+            </>
           ) : null}
         </div>
       </div>
@@ -858,6 +917,36 @@ export default function HrStaffProfile() {
           </AppTableWrap>
         )
       ) : null}
+
+      {idCardMsg ? (
+        <div className="rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">{idCardMsg}</div>
+      ) : null}
+
+      <HrFormModal isOpen={idCardModal} onClose={() => setIdCardModal(false)} title="Request ID card for employee" size="md">
+        <form onSubmit={submitIdCardRequest} className="space-y-4">
+          {idCardErr ? (
+            <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-800">{idCardErr}</div>
+          ) : null}
+          <p className="text-xs text-slate-500">
+            Create an ID card request on behalf of {staff.displayName || staff.username}. Manage it from Employees → ID Cards.
+          </p>
+          <HrIdCardApplyFields form={idCardForm} setForm={setIdCardForm} />
+          <div className="flex flex-wrap gap-2 justify-end">
+            <Link
+              to={`/hr/letters?letterKind=id_card_approval&userId=${encodeURIComponent(userId)}`}
+              className={HR_BTN_SECONDARY}
+            >
+              Issue collection letter
+            </Link>
+            <button type="button" onClick={() => setIdCardModal(false)} className={HR_BTN_SECONDARY}>
+              Cancel
+            </button>
+            <button type="submit" disabled={idCardBusy} className={HR_BTN_PRIMARY}>
+              {idCardBusy ? 'Submitting…' : 'Create request'}
+            </button>
+          </div>
+        </form>
+      </HrFormModal>
 
       {Array.isArray(disciplinary) && disciplinary.length > 0 && tab === 'overview' ? (
         <section className="rounded-xl border border-slate-100 bg-slate-50/80 p-4">

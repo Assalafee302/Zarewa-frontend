@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { apiFetch } from '../../lib/apiBase';
 import { HrAddFormButton, HrFormModal } from '../../components/hr/HrFormModal';
-import { HR_BTN_PRIMARY, HR_BTN_SECONDARY, HR_FIELD_CLASS } from '../../components/hr/hrFormStyles';
+import { HR_BTN_PRIMARY, HR_BTN_SECONDARY } from '../../components/hr/hrFormStyles';
 import {
   AppTable,
   AppTableBody,
@@ -12,9 +12,17 @@ import {
   AppTableTr,
   AppTableWrap,
 } from '../../components/ui/AppDataTable';
+import { HrIdCardApplyFields } from '../../components/hr/HrIdCardApplyFields';
+import { IdCardPreview } from '../../components/hr/IdCardPreview';
 import { createHrIdCardRequest, fetchHrIdCards, patchHrIdCardRequest } from '../../lib/hrIdCards';
 import { canManageHrStaff } from '../../lib/hrAccess';
-import { HR_BLOOD_GROUPS } from '../../lib/hrStaffFormMeta';
+import {
+  blankIdCardApplyForm,
+  bloodGroupFromStaff,
+  emergencyContactFromStaff,
+  idCardApplyPayload,
+  validateIdCardApplyForm,
+} from '../../lib/hrIdCardForm';
 
 const STATUS_STEPS = ['pending', 'processing', 'printed', 'ready', 'collected', 'reissued', 'expired'];
 
@@ -27,93 +35,6 @@ const STATUS_PILL = {
   reissued: 'bg-violet-50 text-violet-900 border-violet-200',
   expired: 'bg-red-50 text-red-800 border-red-200',
 };
-
-const BLANK_APPLY = { requestType: 'new', reason: '', notes: '', bloodGroup: '', emergencyContact: '', lostDamaged: false };
-
-function IdCardPreview({ request, person, onClose, onPrint, temporary = false }) {
-  const [fallbackExpiryDate, setFallbackExpiryDate] = useState('');
-  useEffect(() => {
-    setFallbackExpiryDate(new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10));
-  }, []);
-  const showPhoto = person?.avatarUrl && (person.avatarUrl.startsWith('https://') || person.avatarUrl.startsWith('data:image/'));
-  const issueDate = request.issueDateIso?.slice(0, 10) || new Date().toISOString().slice(0, 10);
-  const expiryDate = request.expiryDateIso?.slice(0, 10) || fallbackExpiryDate;
-  const verifyCode = request.id?.slice(-8).toUpperCase() || 'VERIFY';
-
-  return (
-    <div className="space-y-4">
-      <style>{`
-        @media print {
-          body > *:not(#id-card-print-root) { display: none !important; }
-          #id-card-print-root { display: block !important; position: fixed; top: 0; left: 0; width: 100%; }
-          .no-print { display: none !important; }
-        }
-      `}</style>
-      <div id="id-card-print-root" className="flex flex-col items-center gap-4">
-        <div className="relative w-80 rounded-2xl border-2 border-[#134e4a] bg-white p-6 shadow-xl overflow-hidden">
-          {temporary ? (
-            <div className="pointer-events-none absolute inset-0 flex items-center justify-center opacity-[0.08]">
-              <span className="-rotate-12 text-2xl font-black uppercase tracking-widest text-[#134e4a]">Temporary</span>
-            </div>
-          ) : null}
-          <div className="relative text-center space-y-3">
-            <div className="text-xs font-black uppercase tracking-widest text-[#134e4a]">Zarewa Aluminium & Plastics Ltd</div>
-            {temporary ? (
-              <div className="inline-block rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-widest text-amber-900">
-                Temporary Staff ID
-              </div>
-            ) : (
-              <div className="text-[10px] uppercase tracking-widest text-slate-500 border-b border-slate-100 pb-2">
-                Staff identification
-              </div>
-            )}
-            {showPhoto ? (
-              <img src={person.avatarUrl} alt="" className="mx-auto h-20 w-20 rounded-full border-2 border-slate-200 object-cover" />
-            ) : (
-              <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full border-2 border-slate-200 bg-slate-100 text-xs text-slate-400">
-                Photo
-              </div>
-            )}
-            <div>
-              <p className="font-black text-[#134e4a] text-base">{person?.displayName || request.displayName || '—'}</p>
-              <p className="text-xs text-slate-500">{person?.employeeNo || request.employeeNo || '—'}</p>
-              <p className="text-xs text-slate-600 mt-1">{person?.jobTitle || request.jobTitle || '—'}</p>
-              <p className="text-xs text-slate-600">{person?.department || request.department || '—'}</p>
-              <p className="text-xs text-slate-500">{person?.branchId || request.branchId || '—'}</p>
-            </div>
-            {(request.bloodGroup || request.emergencyContact) && (
-              <div className="rounded-lg bg-slate-50 border border-slate-100 px-3 py-2 text-left text-[10px] text-slate-600 space-y-1">
-                {request.bloodGroup ? <p><span className="font-bold">Blood group:</span> {request.bloodGroup}</p> : null}
-                {request.emergencyContact ? <p><span className="font-bold">Emergency:</span> {request.emergencyContact}</p> : null}
-              </div>
-            )}
-            <div className="grid grid-cols-2 gap-2 text-[10px]">
-              <div className="rounded-lg bg-slate-50 px-2 py-1">
-                <p className="font-bold text-slate-400 uppercase">Issued</p>
-                <p className="font-semibold text-slate-700">{issueDate}</p>
-              </div>
-              <div className="rounded-lg bg-slate-50 px-2 py-1">
-                <p className="font-bold text-slate-400 uppercase">Expires</p>
-                <p className="font-semibold text-slate-700">{expiryDate}</p>
-              </div>
-            </div>
-            <div className="rounded-lg border border-dashed border-slate-200 px-2 py-1 text-[9px] font-mono text-slate-500">
-              Verification: {verifyCode}
-            </div>
-            <div className="border-t border-slate-100 pt-2 text-[9px] text-slate-400">
-              Authorised signature: ___________________
-            </div>
-            <p className="text-[9px] text-slate-400">Property of Zarewa Group. If found, please return to HR.</p>
-          </div>
-        </div>
-      </div>
-      <div className="flex gap-2 justify-end no-print">
-        <button type="button" onClick={onClose} className={HR_BTN_SECONDARY}>Close</button>
-        <button type="button" onClick={onPrint || (() => window.print())} className={HR_BTN_PRIMARY}>Print card</button>
-      </div>
-    </div>
-  );
-}
 
 function TempIdCardModal({ request, staff, onClose }) {
   const person = staff?.find((s) => s.userId === request?.userId) || request;
@@ -131,7 +52,8 @@ export default function HrIdCards() {
   const [error, setError] = useState('');
 
   const [applyModal, setApplyModal] = useState(false);
-  const [applyForm, setApplyForm] = useState(BLANK_APPLY);
+  const [applyForm, setApplyForm] = useState(blankIdCardApplyForm);
+  const [applyTargetUserId, setApplyTargetUserId] = useState('');
   const [applyErr, setApplyErr] = useState('');
   const [applyBusy, setApplyBusy] = useState(false);
   const [applyMsg, setApplyMsg] = useState('');
@@ -172,21 +94,46 @@ export default function HrIdCards() {
     }
   };
 
+  const resetApplyModal = () => {
+    setApplyForm(blankIdCardApplyForm());
+    setApplyTargetUserId(isManager ? '' : currentUserId || '');
+    setApplyErr('');
+    setApplyMsg('');
+  };
+
+  const onApplyTargetChange = (nextUserId) => {
+    setApplyTargetUserId(nextUserId);
+    const person = staff.find((s) => s.userId === nextUserId);
+    if (!person) return;
+    setApplyForm((f) => ({
+      ...f,
+      bloodGroup: bloodGroupFromStaff(person),
+      emergencyContact: emergencyContactFromStaff(person),
+    }));
+  };
+
   const submitApplication = async (e) => {
     e.preventDefault();
     setApplyErr('');
+    const targetUserId = isManager ? applyTargetUserId : currentUserId;
+    if (!targetUserId) {
+      setApplyErr('Select an employee for this ID card request.');
+      return;
+    }
+    const validation = validateIdCardApplyForm(applyForm);
+    if (!validation.ok) {
+      setApplyErr(validation.error);
+      return;
+    }
     setApplyBusy(true);
     try {
-      const { ok, data } = await createHrIdCardRequest({
-        ...applyForm,
-        userId: currentUserId,
-      });
+      const { ok, data } = await createHrIdCardRequest(idCardApplyPayload(applyForm, targetUserId));
       if (!ok || !data?.ok) {
         setApplyErr(data?.error || 'Submission failed.');
         return;
       }
       setApplyMsg('Your request has been submitted.');
-      setApplyForm(BLANK_APPLY);
+      setApplyForm(blankIdCardApplyForm());
       setApplyModal(false);
       await load();
     } catch {
@@ -233,7 +180,7 @@ export default function HrIdCards() {
             ? 'Manage staff ID card requests. Update status as cards are processed and issue temporary cards where needed.'
             : 'Apply for a new or replacement ID card. Track your request status here.'}
         </p>
-        <HrAddFormButton onClick={() => { setApplyForm(BLANK_APPLY); setApplyErr(''); setApplyMsg(''); setApplyModal(true); }}>
+        <HrAddFormButton onClick={() => { resetApplyModal(); setApplyModal(true); }}>
           Apply for ID Card
         </HrAddFormButton>
       </div>
@@ -355,64 +302,14 @@ export default function HrIdCards() {
         <form onSubmit={submitApplication} className="space-y-4">
           <p className="text-xs text-slate-500">Submit a request for a new or replacement staff ID card. HR will review and issue after verification.</p>
           {applyErr && <div className="rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-sm text-red-800">{applyErr}</div>}
-          <label className="text-xs font-semibold text-slate-600 block">
-            Request type
-            <select className={HR_FIELD_CLASS} value={applyForm.requestType} onChange={(e) => setApplyForm({ ...applyForm, requestType: e.target.value })}>
-              <option value="new">New ID card</option>
-              <option value="replacement">Replacement</option>
-              <option value="temporary">Temporary only</option>
-            </select>
-          </label>
-          {applyForm.requestType === 'replacement' && (
-            <>
-              <label className="text-xs font-semibold text-slate-600 block">
-                Reason for replacement
-                <select
-                  className={HR_FIELD_CLASS}
-                  value={applyForm.reason}
-                  onChange={(e) =>
-                    setApplyForm({
-                      ...applyForm,
-                      reason: e.target.value,
-                      lostDamaged: e.target.value === 'Lost' || e.target.value === 'Damaged',
-                    })
-                  }
-                >
-                  <option value="">Select…</option>
-                  <option value="Lost">Lost</option>
-                  <option value="Damaged">Damaged</option>
-                  <option value="Expired">Expired</option>
-                </select>
-              </label>
-            </>
-          )}
-          <label className="text-xs font-semibold text-slate-600 block">
-            Blood group (optional)
-            <select className={HR_FIELD_CLASS} value={applyForm.bloodGroup} onChange={(e) => setApplyForm({ ...applyForm, bloodGroup: e.target.value })}>
-              {HR_BLOOD_GROUPS.map((b) => (
-                <option key={b.value || 'none'} value={b.value}>{b.label}</option>
-              ))}
-            </select>
-          </label>
-          <label className="text-xs font-semibold text-slate-600 block">
-            Emergency contact (optional)
-            <input
-              className={HR_FIELD_CLASS}
-              value={applyForm.emergencyContact}
-              onChange={(e) => setApplyForm({ ...applyForm, emergencyContact: e.target.value })}
-              placeholder="Name and phone"
-            />
-          </label>
-          <label className="text-xs font-semibold text-slate-600 block">
-            Notes
-            <textarea
-              className={HR_FIELD_CLASS}
-              rows={3}
-              value={applyForm.notes}
-              onChange={(e) => setApplyForm({ ...applyForm, notes: e.target.value })}
-              placeholder="Any additional information…"
-            />
-          </label>
+          <HrIdCardApplyFields
+            form={applyForm}
+            setForm={setApplyForm}
+            showStaffSelect={isManager}
+            staffOptions={staff}
+            targetUserId={applyTargetUserId}
+            onTargetUserIdChange={onApplyTargetChange}
+          />
           <div className="flex gap-2 justify-end">
             <button type="button" onClick={() => setApplyModal(false)} className={HR_BTN_SECONDARY}>Cancel</button>
             <button type="submit" disabled={applyBusy} className={HR_BTN_PRIMARY}>
