@@ -11,6 +11,7 @@ export const WORKSPACE_ROLE_KEYS = [
   'operations_officer',
   'hr_admin',
   'gmhr',
+  'hr_portal_only',
 ];
 
 /** Legacy storekeeper logins map to operations_officer (one floor role). */
@@ -52,6 +53,7 @@ export const WORKSPACE_DEPARTMENT_LABELS = {
   operations_officer: 'Operations officer / Store keeper',
   hr_admin: 'HR / Admin',
   gmhr: 'GM HR',
+  hr_portal_only: 'HR portal only',
   general: 'General / cross-functional',
   customer: 'Customer relations',
   sales: 'Sales',
@@ -85,6 +87,7 @@ const DEFAULT_HOME_BY_ROLE = {
   sales_staff: '/',
   cashier: '/accounts',
   operations_officer: '/operations',
+  hr_portal_only: '/my-profile',
 };
 
 export function defaultHomePathForDepartment(deptId) {
@@ -121,10 +124,13 @@ export function pathToModuleKey(pathname) {
  * @param {string[]} permissions
  */
 export function resolvePostLoginPath(user, permissions) {
+  const roleKey = String(user?.roleKey || '').trim().toLowerCase();
+  if (roleKey === 'hr_portal_only') {
+    return '/my-profile';
+  }
   if (canAccessModuleWithPermissions(permissions, 'office')) {
     return '/office';
   }
-  const roleKey = String(user?.roleKey || '').trim().toLowerCase();
   if (roleKey === 'md' || roleKey === 'ceo') {
     const mod = pathToModuleKey('/exec');
     if (mod && !canAccessModuleWithPermissions(permissions, mod)) return '/';

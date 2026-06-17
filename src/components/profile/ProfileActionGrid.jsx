@@ -1,6 +1,27 @@
 import React, { useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { ChevronRight } from 'lucide-react';
+import {
+  BadgeCheck,
+  Briefcase,
+  Building2,
+  CalendarDays,
+  CheckCircle,
+  ChevronRight,
+  CreditCard,
+  FileText,
+  FolderOpen,
+  GraduationCap,
+  Home,
+  Inbox,
+  MessageSquare,
+  Receipt,
+  ScrollText,
+  Settings,
+  Star,
+  User,
+  Users,
+  Wallet,
+} from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { useUserProfile } from '../../context/UserProfileContext';
 import {
@@ -8,11 +29,26 @@ import {
   USER_PROFILE_ACTION_CATEGORIES,
 } from '../../lib/userProfileActions';
 
-const TONE_CLASS = {
-  teal: 'border-teal-100 bg-teal-50/50 hover:border-teal-200 hover:bg-teal-50',
-  amber: 'border-amber-100 bg-amber-50/40 hover:border-amber-200 hover:bg-amber-50',
-  violet: 'border-violet-100 bg-violet-50/40 hover:border-violet-200 hover:border-violet-50',
-  slate: 'border-slate-200 bg-slate-50/60 hover:border-slate-300 hover:bg-slate-50',
+const ACTION_ICONS = {
+  user: User,
+  school: GraduationCap,
+  fileText: FileText,
+  creditCard: CreditCard,
+  folderOpen: FolderOpen,
+  scrollText: ScrollText,
+  messageSquare: MessageSquare,
+  calendarDays: CalendarDays,
+  wallet: Wallet,
+  receipt: Receipt,
+  home: Home,
+  briefcase: Briefcase,
+  badgeCheck: BadgeCheck,
+  checkCircle: CheckCircle,
+  users: Users,
+  inbox: Inbox,
+  settings: Settings,
+  building: Building2,
+  star: Star,
 };
 
 /**
@@ -73,7 +109,7 @@ export function ProfileActionGrid({ categoryFilter = null, compact = false, excl
     <div className="space-y-6">
       {byCategory.map((group) => (
         <section key={group.key}>
-          <h3 className="mb-3 text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">
+          <h3 className="mb-3 text-xs font-medium uppercase tracking-wide text-slate-400">
             {group.label}
           </h3>
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
@@ -89,33 +125,33 @@ export function ProfileActionGrid({ categoryFilter = null, compact = false, excl
 
 /** @param {{ action: import('../../lib/userProfileActions').UserProfileAction; compact?: boolean }} props */
 function ActionTile({ action, compact = false }) {
-  const tone = TONE_CLASS[action.tone || 'slate'];
+  const Icon = action.icon ? ACTION_ICONS[action.icon] : null;
   const isExternal = action.to.startsWith('/manager') || action.to.startsWith('/hr') || action.to.startsWith('/settings') || action.to.startsWith('/team') || action.to.startsWith('/executive');
 
   return (
     <Link
       to={action.to}
-      className={`group flex min-h-[72px] items-start justify-between gap-3 rounded-2xl border p-4 no-underline transition-all active:scale-[0.99] hover:shadow-sm ${tone} ${compact ? 'min-h-[72px] p-3' : ''}`}
+      className={`group flex min-h-[64px] items-start justify-between gap-3 rounded-lg border border-slate-200 bg-white p-4 no-underline transition-colors hover:border-slate-300 hover:bg-slate-50 ${compact ? 'p-3' : ''}`}
     >
       <div className="min-w-0 flex gap-3">
-        {action.icon ? (
-          <span className={`shrink-0 ${compact ? 'text-lg' : 'text-xl'}`} aria-hidden>
-            {action.icon}
+        {Icon ? (
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-600">
+            <Icon size={compact ? 16 : 18} aria-hidden />
           </span>
         ) : null}
         <div className="min-w-0">
-          <p className={`font-bold text-slate-900 ${compact ? 'text-xs' : 'text-[15px]'}`}>{action.label}</p>
+          <p className={`font-medium text-slate-900 ${compact ? 'text-xs' : 'text-sm'}`}>{action.label}</p>
           {action.description && !compact ? (
-            <p className="mt-1 text-xs leading-relaxed text-slate-600">{action.description}</p>
+            <p className="mt-0.5 text-xs leading-relaxed text-slate-500">{action.description}</p>
           ) : null}
           {isExternal && !compact ? (
-            <p className="mt-1 text-[10px] font-bold uppercase tracking-wide text-slate-400">Opens workspace</p>
+            <p className="mt-1 text-[10px] font-medium text-slate-400">Opens workspace</p>
           ) : null}
         </div>
       </div>
       <ChevronRight
         size={16}
-        className="mt-0.5 shrink-0 text-slate-400 transition group-hover:translate-x-0.5 group-hover:text-[#134e4a]"
+        className="mt-0.5 shrink-0 text-slate-400 transition group-hover:translate-x-0.5 group-hover:text-slate-600"
       />
     </Link>
   );

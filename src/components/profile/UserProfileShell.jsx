@@ -15,7 +15,7 @@ function ProfileSubnav() {
   return (
     <nav
       aria-label="Account sections"
-      className="flex w-full min-w-0 gap-1 overflow-x-auto overscroll-x-contain rounded-2xl border border-white/80 bg-white/90 p-1 shadow-sm sm:p-1.5 [-webkit-overflow-scrolling:touch]"
+      className="flex w-full min-w-0 gap-1 overflow-x-auto overscroll-x-contain rounded-lg border border-slate-200 bg-white p-1 [-webkit-overflow-scrolling:touch]"
     >
       {nav.map((item) => (
         <NavLink
@@ -23,10 +23,10 @@ function ProfileSubnav() {
           to={item.to}
           end={item.end}
           className={({ isActive }) =>
-            `shrink-0 rounded-xl px-2.5 py-2 min-h-10 inline-flex items-center text-[9px] font-bold uppercase tracking-[0.12em] transition no-underline sm:px-3 sm:py-2.5 sm:min-h-11 sm:text-[10px] ${
+            `shrink-0 rounded-md px-3 py-2 min-h-9 inline-flex items-center text-sm font-medium transition no-underline ${
               isActive
-                ? 'bg-[#134e4a] text-white shadow-md shadow-teal-950/15'
-                : 'text-slate-500 hover:bg-slate-50 hover:text-[#134e4a]'
+                ? 'bg-slate-900 text-white'
+                : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
             }`
           }
         >
@@ -42,17 +42,17 @@ function UserProfileShellInner() {
 
   const subtitle =
     cohort === 'scholarship'
-      ? 'Password, access, and shortcuts. School fees and allowance are in My benefits.'
+      ? 'Password, access, and shortcuts.'
       : cohort === 'domestic'
-        ? 'Password, access, and shortcuts. Salary and documents are in My pay.'
+        ? 'Password, access, and shortcuts.'
         : cohort === 'account_only'
           ? 'Profile, security, and workspace shortcuts.'
-          : 'Password and access. Leave, payslips, and employment forms are in HR self-service.';
+          : 'Password and access settings.';
 
   return (
     <PageShell className="pb-[max(2.5rem,env(safe-area-inset-bottom))]">
       <PageHeader eyebrow="Account" title="My profile" subtitle={subtitle} />
-      <div className="sticky top-0 z-30 mb-3 space-y-2 border-b border-slate-200/80 bg-[#F8FAFC]/95 px-1 py-2 backdrop-blur-md sm:mb-4 sm:space-y-3 sm:px-0">
+      <div className="sticky top-0 z-30 mb-4 space-y-3 border-b border-slate-200 bg-[#F8FAFC]/95 py-3 backdrop-blur-md">
         <ProfileHubSwitcher />
         <ProfileSubnav />
       </div>

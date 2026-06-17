@@ -18,7 +18,7 @@ import { HrCompensationExtrasPanel } from './HrCompensationExtrasPanel';
 import { HrManagerPicker } from './HrManagerPicker';
 import { FAMILY_BENEFITS } from '../../lib/familyBenefitsUi';
 import { apiFetch } from '../../lib/apiBase';
-import { isBranchEmployee } from '../../shared/hrStaffCohorts';
+import { isBranchEmployee, isErpAccessRestrictedPayrollGroup } from '../../shared/hrStaffCohorts';
 
 const fieldCls =
   'mt-1 block w-full rounded-xl border border-slate-200 px-3 py-2 text-sm shadow-sm focus:border-[#134e4a] focus:outline-none focus:ring-2 focus:ring-[#134e4a]/15';
@@ -108,6 +108,21 @@ export function HrStaffFormFields({
   }, []);
 
   const visibleTabs = HR_STAFF_FORM_TABS.filter((t) => showCompensation || !['payroll', 'bank', 'statutory'].includes(t.id));
+  const erpRestricted = isErpAccessRestrictedPayrollGroup(form.payrollGroup);
+  const registerableRoles = useMemo(
+    () =>
+      erpRestricted
+        ? HR_REGISTERABLE_ROLES.filter((r) => r.value === 'hr_portal_only')
+        : HR_REGISTERABLE_ROLES.filter((r) => r.value !== 'hr_portal_only'),
+    [erpRestricted]
+  );
+
+  useEffect(() => {
+    if (!isRegister) return;
+    if (erpRestricted && form.roleKey !== 'hr_portal_only') {
+      setForm((f) => ({ ...f, roleKey: 'hr_portal_only', selfServiceEligible: true }));
+    }
+  }, [erpRestricted, form.roleKey, isRegister, setForm]);
 
   const filteredDepartments = useMemo(
     () => departments.filter((d) => d.active !== false && branchMatchesScope(d, form.branchId)),
@@ -272,13 +287,24 @@ export function HrStaffFormFields({
               />
             </Field>
             <Field label="System role">
-              <select className={fieldCls} value={form.roleKey} onChange={(e) => set('roleKey', e.target.value)} required>
-                {HR_REGISTERABLE_ROLES.map((r) => (
+              <select
+                className={fieldCls}
+                value={form.roleKey}
+                onChange={(e) => set('roleKey', e.target.value)}
+                required
+                disabled={erpRestricted}
+              >
+                {registerableRoles.map((r) => (
                   <option key={r.value} value={r.value}>
                     {r.label}
                   </option>
                 ))}
               </select>
+              {erpRestricted ? (
+                <p className="mt-1 text-[11px] text-amber-800">
+                  Domestic, scholarship, and mining staff cannot access sales, finance, or operations — HR portal only.
+                </p>
+              ) : null}
             </Field>
           </div>
         </section>
@@ -363,6 +389,14 @@ export function HrStaffFormFields({
                 className={fieldCls}
                 value={form.ninNumber}
                 onChange={(e) => set('ninNumber', e.target.value.replace(/\D/g, '').slice(0, 11))}
+                inputMode="numeric"
+              />
+            </Field>
+            <Field label="BVN (11 digits)">
+              <input
+                className={fieldCls}
+                value={form.bvnNumber || ''}
+                onChange={(e) => set('bvnNumber', e.target.value.replace(/\D/g, '').slice(0, 11))}
                 inputMode="numeric"
               />
             </Field>
@@ -556,7 +590,16 @@ export function HrStaffFormFields({
               <select
                 className={fieldCls}
                 value={form.payrollGroup}
-                onChange={(e) => set('payrollGroup', e.target.value)}
+                onChange={(e) => {
+                  const pg = e.target.value;
+                  setForm((f) => ({
+                    ...f,
+                    payrollGroup: pg,
+                    ...(isErpAccessRestrictedPayrollGroup(pg)
+                      ? { roleKey: 'hr_portal_only', selfServiceEligible: true }
+                      : {}),
+                  }));
+                }}
               >
                 {HR_PAYROLL_GROUPS.map((g) => (
                   <option key={g.value} value={g.value}>

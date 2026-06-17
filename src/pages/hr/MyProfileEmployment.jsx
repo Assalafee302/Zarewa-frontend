@@ -51,6 +51,7 @@ export function MyProfileEmploymentSnapshot() {
           <DetailRow label="Employee number" value={hr.employeeNo} />
           <DetailRow label="Phone" value={personal.phone} />
           <DetailRow label="NIN" value={hr.ninNumber} />
+          <DetailRow label="BVN" value={hr.bvnNumber} />
           <DetailRow label="Next of kin" value={nok} />
           <DetailRow label="Qualification" value={hr.minimumQualification || hr.academicQualification} />
         </dl>
@@ -98,7 +99,7 @@ export default function MyProfileEmployment() {
     <HrPageBody>
       <HrPageIntro
         title="Employment record"
-        description="Update personal details yourself. Job title, salary, and bank changes go through HR approval — use the request form for NIN, next of kin, or bank updates."
+        description="Update personal details yourself. Job title, salary, and bank changes go through HR approval — use the request form for NIN, BVN, next of kin, or bank updates."
       />
 
       <ProfilePageAnchors items={EMPLOYMENT_ANCHORS} />
@@ -114,7 +115,7 @@ export default function MyProfileEmployment() {
       <ProfileOverviewSection
         id="hr-request"
         title="Request HR update"
-        subtitle="NIN, next of kin, bank account, and other changes that need approval"
+        subtitle="NIN, BVN, next of kin, bank account, and other changes that need approval"
       >
         <ProfileHrUpdateForm />
       </ProfileOverviewSection>

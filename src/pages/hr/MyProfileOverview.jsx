@@ -21,7 +21,6 @@ import {
   ProfileMetricCard,
   ProfileMetricSkeleton,
   ProfileOverviewSection,
-  ProfileQuickAction,
 } from '../../components/profile/profileOverviewUi';
 import { HR_SELF_SERVICE_PATH, hrSelfServicePathForTab } from '../../lib/hrSelfServiceRoutes';
 import { myProfileOverviewFetchPlan } from '../../lib/myProfileOverviewFetch';
@@ -108,47 +107,6 @@ export default function MyProfileOverview() {
   );
   const metricCount = cohort === 'employee' || cohort === 'special' ? 3 : 2;
 
-  const quickActions = (
-    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-5">
-      {cohort !== 'domestic' && cohort !== 'special' ? (
-        <ProfileQuickAction to={HR_SELF_SERVICE_PATH.leave} icon="🏖️">
-          {cohort === 'employee' ? 'Leave & attendance' : 'Leave'}
-        </ProfileQuickAction>
-      ) : null}
-      {cohort === 'employee' || cohort === 'special' ? (
-        <ProfileQuickAction to={HR_SELF_SERVICE_PATH.loans} icon="💰">
-          Apply loan
-        </ProfileQuickAction>
-      ) : null}
-      <ProfileQuickAction to={HR_SELF_SERVICE_PATH.payslips} icon="📄">
-        Payslips
-      </ProfileQuickAction>
-      <ProfileQuickAction to={HR_SELF_SERVICE_PATH.documents} icon="📂">
-        Documents
-      </ProfileQuickAction>
-      {cohort !== 'domestic' ? (
-        <>
-          <ProfileQuickAction to={HR_SELF_SERVICE_PATH.policies} icon="📋">
-            Policies
-          </ProfileQuickAction>
-          {cohort === 'employee' || cohort === 'special' ? (
-            <>
-              <ProfileQuickAction to={HR_SELF_SERVICE_PATH.attendance} icon="🕐">
-                Attendance
-              </ProfileQuickAction>
-              <ProfileQuickAction to={HR_SELF_SERVICE_PATH.benefits} icon="🎁">
-                Benefits
-              </ProfileQuickAction>
-            </>
-          ) : null}
-          <ProfileQuickAction to={HR_SELF_SERVICE_PATH.idCard} icon="🪪">
-            ID card
-          </ProfileQuickAction>
-        </>
-      ) : null}
-    </div>
-  );
-
   const summarySection = loading ? (
     <ProfileMetricSkeleton count={metricCount} />
   ) : (
@@ -167,7 +125,7 @@ export default function MyProfileOverview() {
               {balances.map((b) => (
                 <li key={b.leaveType} className="flex items-center justify-between gap-2 text-sm">
                   <span className="capitalize text-slate-700">{b.leaveType} leave</span>
-                  <span className="font-black tabular-nums text-[#134e4a]">
+                  <span className="font-semibold tabular-nums text-slate-900">
                     {b.closingDays ?? b.balance ?? 0} days
                   </span>
                 </li>
@@ -292,11 +250,7 @@ export default function MyProfileOverview() {
         />
       ) : null}
 
-      <ProfileOverviewSection title="Quick actions" subtitle="Common HR tasks for your role">
-        {quickActions}
-      </ProfileOverviewSection>
-
-      <ProfileOverviewSection title="At a glance" subtitle="Leave, pay, and requests in one place">
+      <ProfileOverviewSection title="At a glance" subtitle="Leave, pay, and requests">
         {summarySection}
       </ProfileOverviewSection>
 

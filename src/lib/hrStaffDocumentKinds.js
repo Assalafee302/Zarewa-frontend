@@ -6,13 +6,12 @@ export const HR_STAFF_DOC_KINDS = [
   { value: 'secondary_certificate', label: 'Secondary school certificate (WAEC/NECO)' },
   { value: 'tertiary_qualification', label: 'Degree / ND / HND / professional qualification' },
   { value: 'guarantor_form', label: 'Guarantor form(s)', downloadableTemplate: true },
-  { value: 'employment_letter', label: 'Employment / offer letter (signed copy)' },
+  { value: 'employment_letter', label: 'Appointment / employment letter (signed copy)' },
+  { value: 'employee_signature', label: 'Signature on white paper' },
   { value: 'nin_slip', label: 'NIN slip / NIN card' },
 ];
 
-export const HR_REQUIRED_DOC_KINDS = HR_STAFF_DOC_KINDS.filter((d) => d.value !== 'employment_letter').map(
-  (d) => d.value
-);
+export const HR_REQUIRED_DOC_KINDS = HR_STAFF_DOC_KINDS.map((d) => d.value);
 
 /** @param {string} kind */
 export function hrStaffDocKindLabel(kind) {
@@ -26,6 +25,7 @@ export const CRITICAL_MISSING_LABELS = {
   department: 'Department',
   branchId: 'Branch',
   ninNumber: 'NIN number',
+  bvnNumber: 'BVN number',
   nextOfKin: 'Next of kin',
   passportPhoto: 'Passport photograph',
   'doc:birth_certificate': 'Birth certificate',
@@ -33,7 +33,8 @@ export const CRITICAL_MISSING_LABELS = {
   'doc:secondary_certificate': 'Secondary certificate',
   'doc:tertiary_qualification': 'Tertiary qualification',
   'doc:guarantor_form': 'Guarantor form',
-  'doc:employment_letter': 'Employment letter',
+  'doc:employment_letter': 'Appointment / employment letter',
+  'doc:employee_signature': 'Signature on white paper',
   'doc:nin_slip': 'NIN slip',
 };
 

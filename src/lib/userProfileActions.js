@@ -52,7 +52,7 @@ export function buildUserProfileActions(ctx = {}) {
       to: ACCOUNT_PATH.account,
       category: 'account',
       tone: 'teal',
-      icon: '👤',
+      icon: 'user',
     },
   ];
 
@@ -64,7 +64,7 @@ export function buildUserProfileActions(ctx = {}) {
       to: HR_SELF_SERVICE_PATH.school,
       category: 'self_service',
       tone: 'violet',
-      icon: '🏫',
+      icon: 'school',
     });
     actions.push({
       id: 'scholarship-requests',
@@ -73,7 +73,7 @@ export function buildUserProfileActions(ctx = {}) {
       to: HR_SELF_SERVICE_PATH.requests,
       category: 'self_service',
       tone: 'violet',
-      icon: '📝',
+      icon: 'fileText',
     });
     actions.push({
       id: 'scholarship-payments',
@@ -82,7 +82,7 @@ export function buildUserProfileActions(ctx = {}) {
       to: HR_SELF_SERVICE_PATH.payments,
       category: 'self_service',
       tone: 'violet',
-      icon: '💳',
+      icon: 'creditCard',
     });
     if (hr('hr.my_documents.view')) {
       actions.push({
@@ -92,7 +92,7 @@ export function buildUserProfileActions(ctx = {}) {
         to: HR_SELF_SERVICE_PATH.documents,
         category: 'self_service',
         tone: 'violet',
-        icon: '📂',
+        icon: 'folderOpen',
       });
     }
     actions.push({
@@ -102,7 +102,7 @@ export function buildUserProfileActions(ctx = {}) {
       to: HR_SELF_SERVICE_PATH.policies,
       category: 'self_service',
       tone: 'violet',
-      icon: '📋',
+      icon: 'scrollText',
     });
     actions.push({
       id: 'grievance',
@@ -111,7 +111,7 @@ export function buildUserProfileActions(ctx = {}) {
       to: HR_SELF_SERVICE_PATH.grievance,
       category: 'self_service',
       tone: 'violet',
-      icon: '💬',
+      icon: 'messageSquare',
     });
     return actions;
   }
@@ -129,7 +129,7 @@ export function buildUserProfileActions(ctx = {}) {
       to: HR_SELF_SERVICE_PATH.leave,
       category: 'self_service',
       tone: 'teal',
-      icon: '🏖️',
+      icon: 'calendarDays',
     });
   }
 
@@ -141,7 +141,7 @@ export function buildUserProfileActions(ctx = {}) {
       to: HR_SELF_SERVICE_PATH.loans,
       category: 'self_service',
       tone: 'amber',
-      icon: '💰',
+      icon: 'wallet',
     });
   }
 
@@ -153,7 +153,7 @@ export function buildUserProfileActions(ctx = {}) {
       to: HR_SELF_SERVICE_PATH.documents,
       category: 'self_service',
       tone: 'violet',
-      icon: '📂',
+      icon: 'folderOpen',
     });
   }
 
@@ -165,7 +165,7 @@ export function buildUserProfileActions(ctx = {}) {
       to: HR_SELF_SERVICE_PATH.payslips,
       category: 'self_service',
       tone: 'teal',
-      icon: '📄',
+      icon: 'receipt',
     });
   }
 
@@ -177,7 +177,7 @@ export function buildUserProfileActions(ctx = {}) {
       to: HR_SELF_SERVICE_PATH.home,
       category: 'self_service',
       tone: 'amber',
-      icon: '🏠',
+      icon: 'home',
     });
     actions.push({
       id: 'domestic-payments',
@@ -186,7 +186,7 @@ export function buildUserProfileActions(ctx = {}) {
       to: HR_SELF_SERVICE_PATH.payments,
       category: 'self_service',
       tone: 'amber',
-      icon: '💰',
+      icon: 'wallet',
     });
     if (hr('hr.my_documents.view')) {
       actions.push({
@@ -196,7 +196,7 @@ export function buildUserProfileActions(ctx = {}) {
         to: HR_SELF_SERVICE_PATH.documents,
         category: 'self_service',
         tone: 'amber',
-        icon: '📂',
+        icon: 'folderOpen',
       });
     }
     actions.push({
@@ -206,7 +206,7 @@ export function buildUserProfileActions(ctx = {}) {
       to: HR_SELF_SERVICE_PATH.policies,
       category: 'self_service',
       tone: 'amber',
-      icon: '📋',
+      icon: 'scrollText',
     });
     actions.push({
       id: 'grievance',
@@ -215,7 +215,7 @@ export function buildUserProfileActions(ctx = {}) {
       to: HR_SELF_SERVICE_PATH.grievance,
       category: 'self_service',
       tone: 'amber',
-      icon: '💬',
+      icon: 'messageSquare',
     });
     return actions;
   }
@@ -228,7 +228,7 @@ export function buildUserProfileActions(ctx = {}) {
       to: HR_SELF_SERVICE_PATH.employment,
       category: 'self_service',
       tone: 'slate',
-      icon: '💼',
+      icon: 'briefcase',
     });
     actions.push({
       id: 'policies',
@@ -237,7 +237,7 @@ export function buildUserProfileActions(ctx = {}) {
       to: HR_SELF_SERVICE_PATH.policies,
       category: 'self_service',
       tone: 'slate',
-      icon: '📋',
+      icon: 'scrollText',
     });
     actions.push({
       id: 'grievance',
@@ -246,7 +246,7 @@ export function buildUserProfileActions(ctx = {}) {
       to: HR_SELF_SERVICE_PATH.grievance,
       category: 'self_service',
       tone: 'violet',
-      icon: '💬',
+      icon: 'messageSquare',
     });
     actions.push({
       id: 'id-card',
@@ -255,7 +255,7 @@ export function buildUserProfileActions(ctx = {}) {
       to: HR_SELF_SERVICE_PATH.idCard,
       category: 'self_service',
       tone: 'teal',
-      icon: '🪪',
+      icon: 'badgeCheck',
     });
   }
 
@@ -267,7 +267,7 @@ export function buildUserProfileActions(ctx = {}) {
       to: '/manager?inbox=attendance',
       category: 'team',
       tone: 'teal',
-      icon: '✅',
+      icon: 'checkCircle',
     });
   }
 
@@ -279,7 +279,7 @@ export function buildUserProfileActions(ctx = {}) {
       to: '/team-hr',
       category: 'team',
       tone: 'amber',
-      icon: '👥',
+      icon: 'users',
     });
   }
 
@@ -291,7 +291,7 @@ export function buildUserProfileActions(ctx = {}) {
       to: '/manager',
       category: 'team',
       tone: 'violet',
-      icon: '📥',
+      icon: 'inbox',
     });
   }
 
@@ -303,7 +303,7 @@ export function buildUserProfileActions(ctx = {}) {
       to: '/settings/preferences',
       category: 'workspace',
       tone: 'slate',
-      icon: '⚙️',
+      icon: 'settings',
     });
   }
 
@@ -315,7 +315,7 @@ export function buildUserProfileActions(ctx = {}) {
       to: '/hr',
       category: 'workspace',
       tone: 'teal',
-      icon: '🏢',
+      icon: 'building',
     });
   }
 
@@ -327,7 +327,7 @@ export function buildUserProfileActions(ctx = {}) {
       to: '/executive-hr',
       category: 'workspace',
       tone: 'violet',
-      icon: '⭐',
+      icon: 'star',
     });
   }
 

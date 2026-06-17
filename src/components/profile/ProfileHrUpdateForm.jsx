@@ -6,6 +6,7 @@ import { HR_BTN_PRIMARY, HR_FIELD_CLASS } from '../hr/hrFormStyles';
 
 const FIELDS = [
   { id: 'ninNumber', label: 'NIN number', type: 'text' },
+  { id: 'bvnNumber', label: 'BVN number', type: 'text' },
   { id: 'nextOfKin', label: 'Next of kin', type: 'nok' },
   { id: 'bankDetails', label: 'Bank details', type: 'bank' },
 ];
@@ -15,6 +16,7 @@ export function ProfileHrUpdateForm() {
   const { reload } = useUserProfile();
   const [field, setField] = useState('ninNumber');
   const [ninNumber, setNinNumber] = useState('');
+  const [bvnNumber, setBvnNumber] = useState('');
   const [nokName, setNokName] = useState('');
   const [nokPhone, setNokPhone] = useState('');
   const [nokRelationship, setNokRelationship] = useState('');
@@ -27,6 +29,9 @@ export function ProfileHrUpdateForm() {
   const buildPayload = () => {
     if (field === 'ninNumber') {
       return { field: 'ninNumber', requestedValue: ninNumber.trim(), currentValue: null };
+    }
+    if (field === 'bvnNumber') {
+      return { field: 'bvnNumber', requestedValue: bvnNumber.trim(), currentValue: null };
     }
     if (field === 'nextOfKin') {
       return {
@@ -50,6 +55,7 @@ export function ProfileHrUpdateForm() {
 
   const buildTitle = () => {
     if (field === 'ninNumber') return `Update NIN to ${ninNumber.trim()}`;
+    if (field === 'bvnNumber') return `Update BVN to ${bvnNumber.trim()}`;
     if (field === 'nextOfKin') return `Update next of kin: ${nokName.trim()}`;
     return `Update bank details: ${bankName.trim()}`;
   };
@@ -110,6 +116,13 @@ export function ProfileHrUpdateForm() {
           <label className="block text-xs font-semibold text-slate-600">
             New NIN
             <input className={`${HR_FIELD_CLASS} mt-1 font-mono`} value={ninNumber} onChange={(e) => setNinNumber(e.target.value)} minLength={11} maxLength={11} required />
+          </label>
+        ) : null}
+
+        {field === 'bvnNumber' ? (
+          <label className="block text-xs font-semibold text-slate-600">
+            New BVN
+            <input className={`${HR_FIELD_CLASS} mt-1 font-mono`} value={bvnNumber} onChange={(e) => setBvnNumber(e.target.value)} minLength={11} maxLength={11} required />
           </label>
         ) : null}
 

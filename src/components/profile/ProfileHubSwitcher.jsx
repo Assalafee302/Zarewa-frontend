@@ -18,32 +18,32 @@ export function ProfileHubSwitcher() {
   const onAccountHub = location.pathname === '/me' || location.pathname.startsWith('/me/');
 
   const tabClass = (active) =>
-    `inline-flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-xl px-3 py-2 text-[10px] font-bold uppercase tracking-wide transition no-underline sm:min-h-11 sm:flex-none sm:gap-2 sm:px-5 sm:text-xs ${
+    `inline-flex min-h-9 flex-1 items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition no-underline sm:flex-none ${
       active
-        ? 'bg-[#134e4a] text-white shadow-sm'
-        : 'text-slate-600 hover:bg-slate-50 hover:text-[#134e4a]'
+        ? 'bg-slate-900 text-white'
+        : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
     }`;
 
   const hrHubPath =
     cohort === 'scholarship' ? HR_SELF_SERVICE_PATH.school : cohort === 'domestic' ? HR_SELF_SERVICE_PATH.home : HR_SELF_SERVICE_PATH.overview;
   const hrHubLabel =
-    cohort === 'scholarship' ? FAMILY_BENEFITS.hubSwitcherLabel : cohort === 'domestic' ? DOMESTIC_BENEFITS.hubSwitcherLabel : 'HR hub';
+    cohort === 'scholarship' ? FAMILY_BENEFITS.hubSwitcherLabel : cohort === 'domestic' ? DOMESTIC_BENEFITS.hubSwitcherLabel : 'HR services';
 
   return (
     <nav
       aria-label="Profile area"
-      className="flex gap-1 rounded-2xl border border-slate-200/90 bg-white p-1 shadow-sm sm:mb-0 sm:p-1.5"
+      className="inline-flex gap-1 rounded-lg border border-slate-200 bg-white p-1"
     >
       <NavLink to={ACCOUNT_PATH.overview} className={({ isActive }) => tabClass(onAccountHub || isActive)} end>
-        <UserCircle size={15} className="shrink-0 sm:w-4 sm:h-4" aria-hidden />
-        <span className="truncate">Account</span>
+        <UserCircle size={16} className="shrink-0" aria-hidden />
+        <span>Account</span>
       </NavLink>
       <NavLink
         to={hrHubPath}
         className={({ isActive }) => tabClass(!onAccountHub && (isActive || location.pathname.startsWith('/my-profile')))}
       >
-        <Building2 size={15} className="shrink-0 sm:w-4 sm:h-4" aria-hidden />
-        <span className="truncate">{hrHubLabel}</span>
+        <Building2 size={16} className="shrink-0" aria-hidden />
+        <span>{hrHubLabel}</span>
       </NavLink>
     </nav>
   );

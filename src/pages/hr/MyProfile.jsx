@@ -1,7 +1,7 @@
-import React, { Suspense, useMemo } from 'react';
+import React, { Suspense } from 'react';
 import { lazyWithRetry } from '../../lib/lazyWithRetry';
 import { Navigate, Route, Routes, useOutletContext } from 'react-router-dom';
-import { HrSectionShell } from '../../components/hr/HrSectionShell';
+import { ProfileSectionShell } from '../../components/profile/ProfileSectionShell';
 import { UserProfileProvider, useUserProfile } from '../../context/UserProfileContext';
 import { ProfileHubSwitcher } from '../../components/profile/ProfileHubSwitcher';
 import { FAMILY_BENEFITS } from '../../lib/familyBenefitsUi';
@@ -28,42 +28,6 @@ import MyLoans from './MyLoans';
 
 const MyIdCard = lazyWithRetry(() => import('./MyIdCard'), { id: 'MyIdCard' });
 
-const EMPLOYEE_NAV_PRIMARY = [
-  { to: '/my-profile/overview', label: 'Overview', end: true },
-  { to: '/my-profile/leave', label: 'Leave' },
-  { to: '/my-profile/payslips', label: 'Payslips' },
-  { to: '/my-profile/documents', label: 'Documents' },
-  { to: '/my-profile/employment', label: 'Employment' },
-  { to: '/my-profile/loans', label: 'Loans' },
-];
-
-const EMPLOYEE_NAV_MORE = [
-  { to: '/my-profile/policies', label: 'Policies' },
-  { to: '/my-profile/attendance', label: 'Attendance' },
-  { to: '/my-profile/id-card', label: 'ID Card' },
-  { to: '/my-profile/benefits', label: 'Benefits' },
-  { to: '/my-profile/discipline', label: 'Discipline' },
-  { to: '/my-profile/surveys', label: 'Surveys' },
-  { to: '/my-profile/grievance', label: 'Feedback' },
-];
-
-const SCHOLARSHIP_NAV = [
-  { to: '/my-profile/school', label: FAMILY_BENEFITS.navOverview, end: true },
-  { to: '/my-profile/payments', label: FAMILY_BENEFITS.navPayments },
-  { to: '/my-profile/requests', label: FAMILY_BENEFITS.navRequests },
-  { to: '/my-profile/documents', label: FAMILY_BENEFITS.navDocuments },
-  { to: '/my-profile/policies', label: FAMILY_BENEFITS.navPolicies },
-  { to: '/my-profile/grievance', label: FAMILY_BENEFITS.navContact },
-];
-
-const DOMESTIC_NAV = [
-  { to: '/my-profile/home', label: DOMESTIC_BENEFITS.navOverview, end: true },
-  { to: '/my-profile/payments', label: DOMESTIC_BENEFITS.navPayments },
-  { to: '/my-profile/documents', label: DOMESTIC_BENEFITS.navDocuments },
-  { to: '/my-profile/policies', label: DOMESTIC_BENEFITS.navPolicies },
-  { to: '/my-profile/grievance', label: DOMESTIC_BENEFITS.navContact },
-];
-
 function MyProfilePaymentsRoute() {
   const { cohort } = useMyProfileCohort();
   if (cohort === 'scholarship') return <MyProfileScholarshipPayments />;
@@ -74,20 +38,12 @@ function MyProfilePaymentsRoute() {
 function MyProfileLayout() {
   const { cohort } = useUserProfile();
 
-  const navItems = useMemo(() => {
-    if (cohort === 'scholarship') return SCHOLARSHIP_NAV;
-    if (cohort === 'domestic') return DOMESTIC_NAV;
-    return EMPLOYEE_NAV_PRIMARY;
-  }, [cohort]);
-
-  const moreNavItems = cohort === 'employee' || cohort === 'special' ? EMPLOYEE_NAV_MORE : [];
-
   const subtitle =
     cohort === 'scholarship'
       ? FAMILY_BENEFITS.hubSubtitle
       : cohort === 'domestic'
         ? DOMESTIC_BENEFITS.hubSubtitle
-        : 'HR self-service — leave, loans, payslips, and documents. Account and password are under Account & security.';
+        : 'Leave, pay, documents, and employment records.';
 
   const shellTitle =
     cohort === 'scholarship' ? FAMILY_BENEFITS.hubTitle : cohort === 'domestic' ? DOMESTIC_BENEFITS.hubTitle : 'My profile';
@@ -95,16 +51,13 @@ function MyProfileLayout() {
   const isExecutiveBenefitsHub = cohort === 'scholarship' || cohort === 'domestic';
 
   return (
-    <HrSectionShell
+    <ProfileSectionShell
       title={shellTitle}
       subtitle={subtitle}
-      navItems={navItems}
-      moreNavItems={moreNavItems}
-      stickySubnav
-      compact
+      cohort={cohort}
       beforeNav={
         isExecutiveBenefitsHub ? (
-          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <ProfileHubSwitcher />
             <HrNotificationsPanel compact />
           </div>

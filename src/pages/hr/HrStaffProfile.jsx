@@ -600,6 +600,7 @@ export default function HrStaffProfile() {
                 { label: 'Phone', value: personal.phone || '—' },
                 { label: 'Email', value: staff.email || personal.email || '—' },
                 { label: 'NIN', value: staff.ninNumber || '—' },
+                { label: 'BVN', value: staff.bvnNumber || '—' },
                 { label: 'Address', value: personal.residentialAddress || '—' },
               ]}
             />

@@ -114,6 +114,14 @@ export function ProfileSelfServiceForm() {
                 inputMode="numeric"
               />
             </Field>
+            <Field label="BVN (11 digits)">
+              <input
+                className={`${HR_FIELD_CLASS} font-mono`}
+                value={form.bvnNumber || ''}
+                onChange={(e) => set('bvnNumber', e.target.value.replace(/\D/g, '').slice(0, 11))}
+                inputMode="numeric"
+              />
+            </Field>
             <Field label="Phone">
               <input className={HR_FIELD_CLASS} value={form.phone || ''} onChange={(e) => set('phone', e.target.value)} inputMode="tel" />
             </Field>

@@ -170,13 +170,6 @@ export default function ProfileOverview() {
     );
   }
 
-  const hrHubCopy =
-    cohort === 'scholarship'
-      ? 'School fees, monthly allowance, payments, and documents.'
-      : cohort === 'domestic'
-        ? 'Monthly salary, payments, and documents.'
-        : 'Leave, payslips, employment record, documents, and policies.';
-
   const hrHubTo =
     cohort === 'scholarship'
       ? HR_SELF_SERVICE_PATH.school
@@ -184,8 +177,7 @@ export default function ProfileOverview() {
         ? HR_SELF_SERVICE_PATH.home
         : HR_SELF_SERVICE_PATH.overview;
   const hrHubTitle =
-    cohort === 'scholarship' ? FAMILY_BENEFITS.hubTitle : cohort === 'domestic' ? DOMESTIC_BENEFITS.hubTitle : 'HR self-service';
-  const hrHubTone = cohort === 'scholarship' ? 'violet' : cohort === 'domestic' ? 'amber' : 'teal';
+    cohort === 'scholarship' ? FAMILY_BENEFITS.hubTitle : cohort === 'domestic' ? DOMESTIC_BENEFITS.hubTitle : 'HR services';
 
   return (
     <div className="space-y-6">
@@ -193,22 +185,9 @@ export default function ProfileOverview() {
 
       {error ? <ProfileInlineAlert variant="error">{error}</ProfileInlineAlert> : null}
 
-      {hasHrSelfService && cohort !== 'account_only' ? (
-        <ProfileHubBanner
-          to={hrHubTo}
-          title={hrHubTitle}
-          description={
-            cohort === 'scholarship' || cohort === 'domestic'
-              ? `${hrHubCopy} Open your full hub.`
-              : `${hrHubCopy} Open your full HR hub.`
-          }
-          tone={hrHubTone}
-        />
-      ) : null}
-
       <ProfileOverviewSection
         title="Quick actions"
-        subtitle="Jump straight to the form or page you need"
+        subtitle="Jump to the page you need"
         actionTo={ACCOUNT_PATH.services}
         actionLabel="All services"
       >
@@ -236,9 +215,13 @@ export default function ProfileOverview() {
       ) : null}
 
       {hasHrSelfService && cohort !== 'account_only' ? (
-        <p className="text-center text-xs text-slate-500">
-          Password and sign-in settings live under{' '}
-          <Link to={ACCOUNT_PATH.account} className="font-semibold text-[#134e4a] hover:underline">
+        <p className="text-xs text-slate-500">
+          HR services are in the sidebar when you open{' '}
+          <Link to={hrHubTo} className="font-medium text-slate-700 hover:underline">
+            {hrHubTitle}
+          </Link>
+          . Password settings are under{' '}
+          <Link to={ACCOUNT_PATH.account} className="font-medium text-slate-700 hover:underline">
             Account & security
           </Link>
           .

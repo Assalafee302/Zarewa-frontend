@@ -80,6 +80,7 @@ export function staffToForm(staff) {
     leaveEntitlementBand: staff.leaveEntitlementBand || '',
     branchChangeReason: '',
     ninNumber: staff.ninNumber || '',
+    bvnNumber: staff.bvnNumber || '',
     gender: staff.gender || '',
     dateOfBirthIso: staff.dateOfBirthIso || '',
     contractEndIso: staff.contractEndIso || '',
@@ -173,6 +174,7 @@ export function formToProfilePatch(form, { originalBranchId } = {}) {
     welfareNotes: form.welfareNotes || null,
     leaveEntitlementBand: form.leaveEntitlementBand || null,
     ninNumber: String(form.ninNumber || '').trim() || null,
+    bvnNumber: String(form.bvnNumber || '').trim() || null,
     gender: form.gender || null,
     dateOfBirthIso: form.dateOfBirthIso || null,
     dateOfBirth: form.dateOfBirthIso || null,
@@ -240,6 +242,7 @@ export function formToProfilePatch(form, { originalBranchId } = {}) {
 
 const SELF_SERVICE_PROFILE_KEYS = [
   'ninNumber',
+  'bvnNumber',
   'firstName',
   'middleName',
   'surname',
