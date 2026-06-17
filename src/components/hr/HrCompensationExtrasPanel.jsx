@@ -233,10 +233,10 @@ export function HrCompensationExtrasPanel({
           <label className="mt-2 flex items-center gap-2">
             <input
               type="checkbox"
-              checked={form.applyMultiRolePermissions !== false}
+              checked={form.applyMultiRolePermissions === true}
               onChange={(e) => set('applyMultiRolePermissions', e.target.checked)}
             />
-            Merge supplemental permissions from secondary desks
+            Merge supplemental permissions from secondary desks (requires permissions you hold)
           </label>
         </div>
       ) : null}

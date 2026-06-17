@@ -1135,11 +1135,11 @@ const Account = () => {
       { id: 'audit', icon: <ShieldCheck size={16} />, label: 'Audit' },
     ];
     const rk = ws?.session?.user?.roleKey;
-    const permissions = ws?.session?.user?.permissions;
+    const permissions = ws?.permissions;
     const allowed = getAllowedLegacyAccountTabs(rk, permissions);
     if (!allowed.length) return all;
     return all.filter((t) => allowed.includes(t.id));
-  }, [ws?.session?.user?.roleKey, ws?.session?.user?.permissions]);
+  }, [ws?.session?.user?.roleKey, ws?.permissions]);
 
   const handleAccountTabChange = useCallback(
     (tabId) => {
@@ -1198,7 +1198,7 @@ const Account = () => {
   useEffect(() => {
     const t = searchParams.get('tab');
     const rk = ws?.session?.user?.roleKey;
-    const permissions = ws?.session?.user?.permissions;
+    const permissions = ws?.permissions;
     const allowed = getAllowedLegacyAccountTabs(rk, permissions);
     const defaultTab = getDefaultLegacyAccountTab(rk, permissions);
 
@@ -1227,7 +1227,7 @@ const Account = () => {
       return;
     }
     applyTab(defaultTab);
-  }, [searchParams, ws?.session?.user?.roleKey, ws?.session?.user?.permissions, setSearchParams]);
+  }, [searchParams, ws?.session?.user?.roleKey, ws?.permissions, setSearchParams]);
 
   const canManageTreasury = Boolean(ws?.hasPermission?.('treasury.manage'));
   const canEditTreasuryTransfer =

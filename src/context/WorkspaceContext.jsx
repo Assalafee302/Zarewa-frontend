@@ -97,8 +97,23 @@ function clearBootstrapCache() {
 }
 
 /** Keep first-login flags when a fast bootstrap refresh omits them for the same user. */
+function attachUserPermissions(data) {
+  if (!data?.session?.user) return data;
+  const perms = data.permissions ?? data.session?.permissions ?? [];
+  if (!Array.isArray(perms) || !perms.length) return data;
+  const existing = data.session.user.permissions;
+  if (Array.isArray(existing) && existing.length) return data;
+  return {
+    ...data,
+    session: {
+      ...data.session,
+      user: { ...data.session.user, permissions: perms },
+    },
+  };
+}
+
 function mergeSessionOnboardingFlags(prevSnapshot, incoming) {
-  const normalized = normalizeWorkspacePersonNames(incoming);
+  const normalized = attachUserPermissions(normalizeWorkspacePersonNames(incoming));
   const prevUser = prevSnapshot?.session?.user;
   const nextUser = normalized?.session?.user;
   if (!nextUser?.id) {

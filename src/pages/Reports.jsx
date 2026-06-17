@@ -102,7 +102,7 @@ const Reports = () => {
 
   const showAccountingSections =
     ws.hasPermission('finance.view') &&
-    userMayViewAccountingSectionsOnReportsClient(ws?.session?.user?.roleKey, ws?.session?.user?.permissions);
+    userMayViewAccountingSectionsOnReportsClient(ws?.session?.user?.roleKey, ws?.permissions);
 
   return (
     <PageShell>
@@ -220,11 +220,11 @@ const Reports = () => {
                 }
                 mayViewAp2={userMayViewAp2SupplierDiagnosticsClient(
                   ws?.session?.user?.roleKey,
-                  ws?.session?.user?.permissions
+                  ws?.permissions
                 )}
                 mayViewAp3={userMayViewAp3CostingReadinessClient(
                   ws?.session?.user?.roleKey,
-                  ws?.session?.user?.permissions
+                  ws?.permissions
                 )}
               />
 

@@ -159,6 +159,6 @@ export function emptyStaffForm(defaultBranchId = '') {
     compensationVarianceMemoRef: '',
     applyMatrixPay: false,
     applyRecommendedRoleKey: false,
-    applyMultiRolePermissions: true,
+    applyMultiRolePermissions: false,
   };
 }

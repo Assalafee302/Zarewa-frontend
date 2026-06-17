@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, Navigate } from 'react-router-dom';
 import { BarChart3, Building2, Clock, Fuel, Inbox, Wrench } from 'lucide-react';
 import { PageShell } from '../components/layout';
 import { useWorkspace } from '../context/WorkspaceContext';
 import { apiFetch } from '../lib/apiBase';
 import { WS_SECTION_LABEL } from '../lib/workspaceUiTokens';
+import { userMayViewWorkspaceMonitoring } from '../lib/workspaceMonitoringAccess';
 
 function SummaryCard({ label, value, tone = 'slate' }) {
   const tones = {
@@ -38,7 +39,10 @@ export default function WorkspaceMonitoring() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  const mayView = userMayViewWorkspaceMonitoring(ws?.session?.user?.roleKey, ws?.permissions);
+
   useEffect(() => {
+    if (!mayView) return undefined;
     let cancelled = false;
     (async () => {
       setLoading(true);
@@ -51,7 +55,11 @@ export default function WorkspaceMonitoring() {
     return () => {
       cancelled = true;
     };
-  }, [ws?.refreshEpoch]);
+  }, [mayView, ws?.refreshEpoch]);
+
+  if (!mayView) {
+    return <Navigate to="/access-denied" replace state={{ moduleKey: 'workspace_monitoring' }} />;
+  }
 
   return (
     <PageShell>

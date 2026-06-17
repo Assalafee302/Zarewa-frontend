@@ -76,7 +76,7 @@ export default function AccountingDesk() {
     : ws.branchLabel || ws.branchScope || ws.session?.currentBranchId || '';
 
   const roleKey = ws?.session?.user?.roleKey;
-  const permissions = ws?.session?.user?.permissions;
+  const permissions = ws?.permissions;
   const branchId = ws.viewAllBranches ? null : ws.branchScope || ws.session?.currentBranchId;
   const mayRegisters = userMayViewAp1cDryRunClient(roleKey, permissions);
   const mayInterBranch = hasFinanceView || mayRegisters;

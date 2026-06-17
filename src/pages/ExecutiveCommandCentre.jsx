@@ -235,9 +235,9 @@ export default function ExecutiveCommandCentre() {
   const canPickBranch = Boolean(ws?.viewAllBranches || data?.actor?.canUseAllBranches);
   const mayFinanceOversight = userMayViewFinanceTrialOversightClient(
     roleKey,
-    ws?.session?.user?.permissions
+    ws?.permissions
   );
-  const mayViewBi = userMayViewManagementReportsClient(roleKey, ws?.session?.user?.permissions);
+  const mayViewBi = userMayViewManagementReportsClient(roleKey, ws?.permissions);
   const rawTab = searchParams.get('tab') || 'overview';
   const activeTab =
     rawTab === 'intelligence' && mayViewBi

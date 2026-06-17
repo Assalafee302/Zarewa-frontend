@@ -9,7 +9,7 @@ import CommandCentreIntelligenceTab from '../components/exec/CommandCentreIntell
 export default function BusinessIntelligence() {
   const ws = useWorkspace();
   const roleKey = ws?.session?.user?.roleKey;
-  const permissions = ws?.session?.user?.permissions;
+  const permissions = ws?.permissions;
   const mayView = userMayViewManagementReportsClient(roleKey, permissions);
   const hasExec = Boolean(ws?.hasPermission?.('exec.dashboard.view'));
 

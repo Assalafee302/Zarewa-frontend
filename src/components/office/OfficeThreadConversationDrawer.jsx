@@ -157,7 +157,7 @@ export function OfficeThreadConversationDrawer({
   const threadPayload = detail?.thread?.payload || {};
   const smartMemo = threadPayload.smartMemo || null;
   const attachmentList = Array.isArray(threadPayload.attachments) ? threadPayload.attachments : [];
-  const userPermissions = ws?.session?.user?.permissions || [];
+  const userPermissions = ws?.permissions || [];
 
   const printThreadView = useCallback(() => {
     if (!detail?.thread) return;

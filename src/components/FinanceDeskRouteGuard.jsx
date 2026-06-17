@@ -13,7 +13,7 @@ import {
 export default function FinanceDeskRouteGuard({ desk, children }) {
   const ws = useWorkspace();
   const rk = ws?.session?.user?.roleKey;
-  const permissions = ws?.session?.user?.permissions;
+  const permissions = ws?.permissions;
   const ok =
     desk === 'cashier'
       ? userMayViewCashierDeskClient(rk, permissions)

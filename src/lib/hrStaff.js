@@ -216,7 +216,7 @@ export function formToProfilePatch(form, { originalBranchId } = {}) {
     compensationVarianceMemoRef: form.compensationVarianceMemoRef || null,
     applyMatrixPay: form.applyMatrixPay === true,
     applyRecommendedRoleKey: form.applyRecommendedRoleKey === true,
-    applyMultiRolePermissions: form.applyMultiRolePermissions !== false,
+    applyMultiRolePermissions: form.applyMultiRolePermissions === true,
   };
   if (form.payrollGroup === 'scholarship') {
     body.schoolProfile = {

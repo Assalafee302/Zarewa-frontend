@@ -67,7 +67,7 @@ const Sidebar = ({ mobileOpen = false, onCloseMobile, collapsed = false, onToggl
     }`;
 
   const roleKey = ws?.session?.user?.roleKey;
-  const permissions = ws?.session?.user?.permissions;
+  const permissions = ws?.permissions;
   const mayViewBi = userMayViewManagementReportsClient(roleKey, permissions);
   const hasExecNav = Boolean(ws?.hasPermission?.('exec.dashboard.view'));
 

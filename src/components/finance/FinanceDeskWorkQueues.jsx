@@ -110,7 +110,7 @@ export function FinanceDeskWorkQueues({ onConfirmReceipt, onPayRequest, onPayRef
   );
 
   const roleKey = ws?.session?.user?.roleKey;
-  const permissions = ws?.session?.user?.permissions;
+  const permissions = ws?.permissions;
   const mayTrialApi = userMayViewFinanceTrialExceptionsClient(roleKey, permissions);
   const trialBranch = ws.viewAllBranches ? null : ws.branchScope || ws.session?.currentBranchId;
   const { data: trialData, loading: trialLoading, error: trialError, reload: reloadTrial } =

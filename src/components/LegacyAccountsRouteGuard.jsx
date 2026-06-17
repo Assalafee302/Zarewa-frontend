@@ -12,7 +12,7 @@ export default function LegacyAccountsRouteGuard({ children }) {
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const rk = ws?.session?.user?.roleKey;
-  const permissions = ws?.session?.user?.permissions;
+  const permissions = ws?.permissions;
   const tab = searchParams.get('tab') || location.state?.accountsTab || '';
 
   if (!userMayAccessLegacyAccountsRoute(rk, permissions)) {
