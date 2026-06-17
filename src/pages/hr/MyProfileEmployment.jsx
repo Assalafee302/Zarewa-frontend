@@ -1,28 +1,25 @@
 import React from 'react';
 import { useUserProfile } from '../../context/UserProfileContext';
 import { formatNgn } from '../../lib/hrFormat';
-import { HrCard, HrPageBody, HrPageIntro } from '../../components/hr/hrPageUi';
-import { ProfileSelfServiceForm } from '../../components/profile/ProfileSelfServiceForm';
-import { ProfileHrUpdateForm } from '../../components/profile/ProfileHrUpdateForm';
 import { HrSensitiveField } from '../../components/hr/HrSensitiveField';
+import ProfileOnboardingForm from '../../components/profile/ProfileOnboardingForm';
+import { ProfileHrUpdateForm } from '../../components/profile/ProfileHrUpdateForm';
+import { ProfileOnboardingWizard } from '../../components/profile/ProfileOnboardingWizard';
+import { ProfileProbationBanner } from '../../components/profile/ProfileProbationBanner';
+import { ProfilePageBody, ProfilePageIntro } from '../../components/profile/profilePageUi';
 import {
   ProfileInlineAlert,
   ProfileMetricSkeleton,
   ProfileOverviewSection,
 } from '../../components/profile/profileOverviewUi';
-import { ProfilePageAnchors } from '../../components/profile/profileFormUi';
-
-const EMPLOYMENT_ANCHORS = [
-  { id: 'personal-update', label: 'Personal' },
-  { id: 'hr-request', label: 'HR request' },
-  { id: 'snapshot', label: 'Record' },
-];
+import { ProfileModuleSection } from '../../components/profile/profileDesign';
+import { composeLegalDisplayName } from '../../lib/hrLegalDisplayName';
 
 function DetailRow({ label, value }) {
   return (
-    <div>
-      <dt className="text-[10px] font-black uppercase tracking-widest text-slate-400">{label}</dt>
-      <dd className="mt-1 font-semibold text-slate-900">{value || '—'}</dd>
+    <div className="z-list-row-compact">
+      <dt className="text-[10px] font-bold uppercase tracking-widest text-slate-400">{label}</dt>
+      <dd className="mt-1 text-sm font-semibold text-slate-900">{value || '—'}</dd>
     </div>
   );
 }
@@ -34,31 +31,37 @@ export function MyProfileEmploymentSnapshot() {
   if (!hr) {
     return (
       <ProfileInlineAlert variant="warning">
-        No HR employment file on record yet. Contact HR, then complete the forms above.
+        No HR employment file on record yet. Contact HR, then complete the form above.
       </ProfileInlineAlert>
     );
   }
 
   const personal = hr.profileExtra?.personal || {};
+  const legalName = composeLegalDisplayName(personal) || hr.legalDisplayName;
   const nok = hr.nextOfKin
     ? [hr.nextOfKin.name, hr.nextOfKin.phone, hr.nextOfKin.relationship].filter(Boolean).join(' · ')
     : '—';
 
   return (
     <div className="space-y-4">
-      <HrCard title="Personal snapshot">
-        <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2 text-sm">
+      <ProfileModuleSection title="Personal record">
+        <dl className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <DetailRow label="Full legal name" value={legalName} />
           <DetailRow label="Employee number" value={hr.employeeNo} />
           <DetailRow label="Phone" value={personal.phone} />
+          <DetailRow label="Personal email" value={personal.email} />
+          <DetailRow label="Gender" value={hr.gender} />
+          <DetailRow label="Date of birth" value={hr.dateOfBirthIso} />
           <DetailRow label="NIN" value={hr.ninNumber} />
           <DetailRow label="BVN" value={hr.bvnNumber} />
+          <DetailRow label="Address" value={personal.residentialAddress} />
           <DetailRow label="Next of kin" value={nok} />
           <DetailRow label="Qualification" value={hr.minimumQualification || hr.academicQualification} />
         </dl>
-      </HrCard>
+      </ProfileModuleSection>
 
-      <HrCard title="Employment (HR maintained)">
-        <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2 text-sm">
+      <ProfileModuleSection title="Employment (HR maintained)">
+        <dl className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <DetailRow label="Job title" value={hr.jobTitle} />
           <DetailRow label="Department" value={hr.department} />
           <DetailRow label="Branch" value={hr.branchId} />
@@ -67,16 +70,16 @@ export function MyProfileEmploymentSnapshot() {
           <DetailRow label="Probation ends" value={hr.probationEndIso} />
           <DetailRow label="Line manager" value={hr.lineManagerDisplayName || hr.lineManagerUserId} />
         </dl>
-      </HrCard>
+      </ProfileModuleSection>
 
-      <HrCard title="Compensation & payroll">
+      <ProfileModuleSection title="Compensation & payroll">
         {hr.compensationRedacted ? (
-          <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2 text-sm">
+          <dl className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <HrSensitiveField label="Base salary (monthly)" redacted />
             <HrSensitiveField label="Bank" redacted />
           </dl>
         ) : (
-          <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2 text-sm">
+          <dl className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <DetailRow label="Payroll group" value={hr.payrollGroup} />
             <DetailRow
               label="Level / step"
@@ -89,40 +92,48 @@ export function MyProfileEmploymentSnapshot() {
             />
           </dl>
         )}
-      </HrCard>
+      </ProfileModuleSection>
     </div>
   );
 }
 
 export default function MyProfileEmployment() {
+  const { hr } = useUserProfile();
+  const profileLocked = Boolean(hr?.profileLocked);
+
   return (
-    <HrPageBody>
-      <HrPageIntro
+    <ProfilePageBody>
+      <ProfilePageIntro
         title="Employment record"
-        description="Update personal details yourself. Job title, salary, and bank changes go through HR approval — use the request form for NIN, BVN, next of kin, or bank updates."
+        description={
+          profileLocked
+            ? 'Your profile is on file. View your record below or request HR to update locked fields.'
+            : 'Complete your personal details, save progress, then submit for HR review. Job title, salary, and org structure are maintained by HR.'
+        }
       />
 
-      <ProfilePageAnchors items={EMPLOYMENT_ANCHORS} />
+      <ProfileOnboardingWizard />
+      <ProfileProbationBanner />
 
       <ProfileOverviewSection
-        id="personal-update"
-        title="Update personal details"
-        subtitle="Phone, qualification, and other self-service fields"
+        title={profileLocked ? 'Your submitted record' : 'Complete your profile'}
+        subtitle={profileLocked ? 'Read-only view of your HR file' : 'All sections on one scrollable form'}
       >
-        <ProfileSelfServiceForm />
+        <ProfileOnboardingForm />
       </ProfileOverviewSection>
 
-      <ProfileOverviewSection
-        id="hr-request"
-        title="Request HR update"
-        subtitle="NIN, BVN, next of kin, bank account, and other changes that need approval"
-      >
-        <ProfileHrUpdateForm />
-      </ProfileOverviewSection>
+      {profileLocked ? (
+        <ProfileOverviewSection
+          title="Request an update"
+          subtitle="Changes to NIN, BVN, bank, or next of kin need HR approval"
+        >
+          <ProfileHrUpdateForm />
+        </ProfileOverviewSection>
+      ) : null}
 
-      <ProfileOverviewSection id="snapshot" title="Your record" subtitle="Official employment data maintained by HR">
+      <ProfileOverviewSection title="Full record" subtitle="Personal and employment data on file">
         <MyProfileEmploymentSnapshot />
       </ProfileOverviewSection>
-    </HrPageBody>
+    </ProfilePageBody>
   );
 }

@@ -19,6 +19,7 @@ import LegacyAccountsRouteGuard from './components/LegacyAccountsRouteGuard';
 import DocumentTitleSync from './components/DocumentTitleSync';
 import { AppErrorBoundary } from './components/AppErrorBoundary';
 import { canAccessMyProfileHr } from './lib/hrAccess';
+import ProfileRoutesLayout from './components/profile/ProfileRoutesLayout';
 import PrintSessionCleanup from './components/PrintSessionCleanup';
 import {
   Search,
@@ -902,7 +903,7 @@ function AppShell() {
                           }}
                         >
                           <User size={16} className="shrink-0 text-gray-400" aria-hidden />
-                          My profile
+                          Account
                         </button>
                         {canAccessMyProfileHr(ws?.permissions) ? (
                           <button
@@ -915,7 +916,7 @@ function AppShell() {
                             }}
                           >
                             <User size={16} className="shrink-0 text-gray-400" aria-hidden />
-                            HR self-service
+                            HR services
                           </button>
                         ) : null}
                         <button
@@ -1137,24 +1138,26 @@ function AppShell() {
                 </ModuleRouteGuard>
               }
             />
-            <Route
-              path="/me/*"
-              element={
-                <Suspense fallback={<LoadingScreen />}>
-                  <UserProfile />
-                </Suspense>
-              }
-            />
-            <Route
-              path="/my-profile/*"
-              element={
-                <ModuleRouteGuard moduleKey="my_profile_hr">
+            <Route element={<ProfileRoutesLayout />}>
+              <Route
+                path="/me/*"
+                element={
                   <Suspense fallback={<LoadingScreen />}>
-                    <MyProfile />
+                    <UserProfile />
                   </Suspense>
-                </ModuleRouteGuard>
-              }
-            />
+                }
+              />
+              <Route
+                path="/my-profile/*"
+                element={
+                  <ModuleRouteGuard moduleKey="my_profile_hr">
+                    <Suspense fallback={<LoadingScreen />}>
+                      <MyProfile />
+                    </Suspense>
+                  </ModuleRouteGuard>
+                }
+              />
+            </Route>
             <Route
               path="/executive-hr/*"
               element={

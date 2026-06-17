@@ -291,6 +291,10 @@ export async function updateMyHrProfile(form) {
   });
 }
 
+export async function submitMyHrProfile() {
+  return apiFetch('/api/hr/me/profile/submit', { method: 'POST' });
+}
+
 /** @param {object} form */
 export function formToRegisterBody(form) {
   const body = {

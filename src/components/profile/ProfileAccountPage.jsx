@@ -1,5 +1,5 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Lock, Shield, User } from 'lucide-react';
 import { useToast } from '../../context/ToastContext';
 import { useWorkspace } from '../../context/WorkspaceContext';
@@ -7,9 +7,10 @@ import { useUserProfile } from '../../context/UserProfileContext';
 import { apiFetch } from '../../lib/apiBase';
 import ProfileSecurityPanel from './ProfileSecurityPanel';
 import { MyAccessExplainer } from './MyAccessExplainer';
-import { ProfileCompletionPanel } from './ProfileCompletionPanel';
+import { ProfileHealthPanel } from './ProfileHealthPanel';
 import { ProfileFormActions, ProfileFormField, ProfileFormSection, ProfilePageAnchors } from './profileFormUi';
-import { HR_SELF_SERVICE_PATH, hrSelfServicePathForTab } from '../../lib/hrSelfServiceRoutes';
+import { composeLegalDisplayName } from '../../lib/hrLegalDisplayName';
+import { HR_SELF_SERVICE_PATH } from '../../lib/hrSelfServiceRoutes';
 
 const ACCOUNT_ANCHORS = [
   { id: 'profile-details', label: 'Profile' },
@@ -39,14 +40,12 @@ function AvatarPreview({ url, displayName }) {
 export default function ProfileAccountPage() {
   const { show: showToast } = useToast();
   const ws = useWorkspace();
-  const { me, user: hrUser, hasHrSelfService, reload, completeness, cohort } = useUserProfile();
-  const navigate = useNavigate();
+  const { me, user: hrUser, hasHrSelfService, reload, completeness, cohort, hr } = useUserProfile();
 
   const sessionUser = ws?.session?.user;
   const user = hrUser || sessionUser;
   const canMutate = ws?.canMutate !== false;
 
-  const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
   const [username, setUsername] = useState('');
   const [usernameRequest, setUsernameRequest] = useState('');
@@ -55,6 +54,13 @@ export default function ProfileAccountPage() {
   const [requestBusy, setRequestBusy] = useState(false);
   const formDirtyRef = useRef(false);
 
+  const legalName = useMemo(() => {
+    const personal = hr?.profileExtra?.personal || {};
+    const composed = composeLegalDisplayName(personal);
+    return composed || user?.displayName || '—';
+  }, [hr?.profileExtra?.personal, user?.displayName]);
+
+  const hasHrRecord = Boolean(hr);
   const canChangeUsernameFreely = user?.canChangeUsernameFreely !== false && (user?.usernameChangeCount || 0) < 1;
   const anchors = canChangeUsernameFreely
     ? ACCOUNT_ANCHORS
@@ -62,11 +68,10 @@ export default function ProfileAccountPage() {
 
   useEffect(() => {
     if (formDirtyRef.current) return;
-    setDisplayName(user?.displayName ?? '');
     setEmail(user?.email ?? '');
     setUsername(user?.username ?? '');
     setAvatarUrl(user?.avatarUrl ?? '');
-  }, [user?.id, user?.displayName, user?.email, user?.username, user?.avatarUrl]);
+  }, [user?.id, user?.email, user?.username, user?.avatarUrl]);
 
   const submitProfile = async (e) => {
     e.preventDefault();
@@ -77,7 +82,6 @@ export default function ProfileAccountPage() {
     setSaving(true);
     try {
       const body = {
-        displayName: displayName.trim(),
         email: email.trim() ? email.trim().toLowerCase() : null,
         avatarUrl: avatarUrl.trim() || null,
       };
@@ -140,12 +144,12 @@ export default function ProfileAccountPage() {
       <ProfilePageAnchors items={anchors} />
 
       {hasHrSelfService ? (
-        <ProfileCompletionPanel
-          variant={cohort === 'scholarship' ? 'scholarship' : 'employee'}
+        <ProfileHealthPanel
           completeness={completeness}
           documentSummary={me?.documentSummary}
           pendingProfileRequests={me?.pendingProfileRequests}
-          onFixSection={(tab) => navigate(hrSelfServicePathForTab(tab))}
+          unreadNotifications={me?.unreadNotifications}
+          compact
         />
       ) : null}
 
@@ -157,32 +161,40 @@ export default function ProfileAccountPage() {
           subtitle="How you appear in Zarewa. Official employment data is maintained by HR."
         >
           <form className="space-y-5" onSubmit={submitProfile}>
-            <div className="flex flex-wrap items-center gap-4 rounded-2xl border border-slate-100 bg-slate-50/60 p-4">
-              <AvatarPreview url={avatarUrl} displayName={displayName || user?.displayName} />
+            <div className="flex flex-wrap items-center gap-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
+              <AvatarPreview url={avatarUrl} displayName={legalName} />
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-bold text-slate-900">{displayName || user?.displayName || '—'}</p>
+                <p className="text-sm font-semibold text-slate-900">{legalName}</p>
                 <p className="text-xs text-slate-500">@{username || user?.username || '—'}</p>
               </div>
             </div>
 
-            <ProfileFormField label="Display name" htmlFor="profile-display-name">
-              <input
-                id="profile-display-name"
-                className="z-input"
-                value={displayName}
-                onChange={(e) => {
-                  formDirtyRef.current = true;
-                  setDisplayName(e.target.value);
-                }}
-                maxLength={120}
-                disabled={!canMutate}
-              />
+            <ProfileFormField
+              label="Full legal name"
+              hint={
+                hasHrRecord
+                  ? 'Set from first, middle, and surname under HR services → Employment. Cannot be edited here.'
+                  : 'Your display name on the system.'
+              }
+            >
+              <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-800">
+                <Lock size={14} className="shrink-0 text-slate-400" aria-hidden />
+                <span>{legalName}</span>
+              </div>
+              {hasHrRecord ? (
+                <p className="mt-2 text-xs">
+                  <Link to={HR_SELF_SERVICE_PATH.employment} className="font-medium text-slate-700 hover:underline">
+                    Update name in Employment record
+                  </Link>
+                  {hr?.profileLocked ? ' via HR request' : ''}
+                </p>
+              ) : null}
             </ProfileFormField>
 
             <ProfileFormField
-              label="Profile photo URL"
+              label="App profile photo URL"
               htmlFor="profile-avatar-url"
-              hint="Optional. Use an https:// image link. Shown on your account hub and ID previews."
+              hint="Optional. Shown in chat and approvals — not your HR ID card photo. Upload passport photos under HR → Documents."
             >
               <input
                 id="profile-avatar-url"

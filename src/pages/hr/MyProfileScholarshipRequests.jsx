@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { apiFetch } from '../../lib/apiBase';
 import { HR_BTN_PRIMARY, HR_FIELD_CLASS } from '../../components/hr/hrFormStyles';
-import { HrPageBody, HrPageIntro } from '../../components/hr/hrPageUi';
+import { ProfilePageBody, ProfilePageIntro } from '../../components/profile/profilePageUi';
 import { HR_SELF_SERVICE_PATH } from '../../lib/hrSelfServiceRoutes';
 import { FamilyBenefitsContextBar } from '../../components/hr/FamilyBenefitsContextBar';
 import { FAMILY_BENEFITS } from '../../lib/familyBenefitsUi';
@@ -155,15 +155,15 @@ export default function MyProfileScholarshipRequests() {
 
   if (loading) {
     return (
-      <HrPageBody>
+      <ProfilePageBody>
         <ProfileMetricSkeleton count={1} />
-      </HrPageBody>
+      </ProfilePageBody>
     );
   }
 
   return (
-    <HrPageBody>
-      <HrPageIntro
+    <ProfilePageBody>
+      <ProfilePageIntro
         title={FAMILY_BENEFITS.requestsTitle}
         description={FAMILY_BENEFITS.requestsIntro}
         actions={
@@ -339,6 +339,6 @@ export default function MyProfileScholarshipRequests() {
           )}
         </ProfileOverviewSection>
       ) : null}
-    </HrPageBody>
+    </ProfilePageBody>
   );
 }

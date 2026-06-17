@@ -160,7 +160,7 @@ const Sidebar = ({ mobileOpen = false, onCloseMobile, collapsed = false, onToggl
     },
     {
       icon: <UserCircle size={18} />,
-      label: 'My profile',
+      label: 'Account',
       path: '/me',
       active: pathMatches(p, '/me'),
       visible: true,
@@ -204,7 +204,7 @@ const Sidebar = ({ mobileOpen = false, onCloseMobile, collapsed = false, onToggl
             : []),
           {
             icon: <UserCircle size={18} />,
-            label: 'My profile',
+            label: 'Account',
             path: '/me',
             active: pathMatches(p, '/me'),
             visible: true,

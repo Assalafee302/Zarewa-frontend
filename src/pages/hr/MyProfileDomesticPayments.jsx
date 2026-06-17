@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { HR_BTN_PRIMARY } from '../../components/hr/hrFormStyles';
-import { HrPageBody, HrPageIntro } from '../../components/hr/hrPageUi';
+import { ProfilePageBody, ProfilePageIntro } from '../../components/profile/profilePageUi';
 import { DomesticStaffContextBar } from '../../components/hr/DomesticStaffContextBar';
 import ScholarshipPaymentsPanel from '../../components/hr/ScholarshipPaymentsPanel';
 import { DOMESTIC_BENEFITS } from '../../lib/domesticStaffUi';
@@ -53,23 +53,23 @@ export default function MyProfileDomesticPayments() {
 
   if (loading) {
     return (
-      <HrPageBody>
+      <ProfilePageBody>
         <ProfileMetricSkeleton count={1} />
-      </HrPageBody>
+      </ProfilePageBody>
     );
   }
 
   if (error) {
     return (
-      <HrPageBody>
+      <ProfilePageBody>
         <ProfileInlineAlert variant="error">{error}</ProfileInlineAlert>
-      </HrPageBody>
+      </ProfilePageBody>
     );
   }
 
   return (
-    <HrPageBody>
-      <HrPageIntro
+    <ProfilePageBody>
+      <ProfilePageIntro
         title={DOMESTIC_BENEFITS.paymentsPageTitle}
         description={DOMESTIC_BENEFITS.paymentsSubtitle}
         actions={
@@ -102,6 +102,6 @@ export default function MyProfileDomesticPayments() {
           hubPath={HR_SELF_SERVICE_PATH.home}
         />
       </ProfileOverviewSection>
-    </HrPageBody>
+    </ProfilePageBody>
   );
 }

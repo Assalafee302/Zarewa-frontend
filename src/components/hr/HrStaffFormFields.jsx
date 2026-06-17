@@ -573,7 +573,7 @@ export function HrStaffFormFields({
               checked={form.selfServiceEligible}
               onChange={(e) => set('selfServiceEligible', e.target.checked)}
             />
-            Self-service eligible (My profile leave & payslips)
+            Self-service eligible (HR services — leave & payslips)
           </label>
         </div>
       </section>

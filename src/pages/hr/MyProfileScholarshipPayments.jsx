@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { apiFetch } from '../../lib/apiBase';
 import { downloadScholarshipStatementPdf } from '../../lib/hrScholarship';
 import { HR_BTN_PRIMARY, HR_FIELD_CLASS } from '../../components/hr/hrFormStyles';
-import { HrPageBody, HrPageIntro } from '../../components/hr/hrPageUi';
+import { ProfilePageBody, ProfilePageIntro } from '../../components/profile/profilePageUi';
 import { FamilyBenefitsContextBar } from '../../components/hr/FamilyBenefitsContextBar';
 import ScholarshipPaymentsPanel from '../../components/hr/ScholarshipPaymentsPanel';
 import { FAMILY_BENEFITS } from '../../lib/familyBenefitsUi';
@@ -64,23 +64,23 @@ export default function MyProfileScholarshipPayments() {
 
   if (loading) {
     return (
-      <HrPageBody>
+      <ProfilePageBody>
         <ProfileMetricSkeleton count={1} />
-      </HrPageBody>
+      </ProfilePageBody>
     );
   }
 
   if (error) {
     return (
-      <HrPageBody>
+      <ProfilePageBody>
         <ProfileInlineAlert variant="error">{error}</ProfileInlineAlert>
-      </HrPageBody>
+      </ProfilePageBody>
     );
   }
 
   return (
-    <HrPageBody>
-      <HrPageIntro
+    <ProfilePageBody>
+      <ProfilePageIntro
         title={FAMILY_BENEFITS.paymentsPageTitle}
         description={FAMILY_BENEFITS.paymentsSubtitle}
         actions={
@@ -122,6 +122,6 @@ export default function MyProfileScholarshipPayments() {
       <ProfileOverviewSection title={FAMILY_BENEFITS.paymentsTitle} subtitle={FAMILY_BENEFITS.paymentsSubtitle}>
         <ScholarshipPaymentsPanel payments={payments} />
       </ProfileOverviewSection>
-    </HrPageBody>
+    </ProfilePageBody>
   );
 }

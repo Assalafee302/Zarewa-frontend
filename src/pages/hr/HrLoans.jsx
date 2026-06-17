@@ -30,7 +30,7 @@ export default function HrLoans({ embedded = false } = {}) {
           <p className="text-sm text-slate-600 max-w-2xl">
             Staff apply for loans from{' '}
             <Link to="/my-profile/loans" className="font-semibold text-[#134e4a] hover:underline">
-              My profile → My loans
+              HR services → Loans
             </Link>{' '}
             (when self-service is enabled). HR can originate applications here and track approvals below.
           </p>

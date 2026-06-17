@@ -1,35 +1,32 @@
 import React, { useMemo } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 import { PageHeader, PageShell, MainPanel } from '../layout';
-import { UserProfileProvider, useUserProfile } from '../../context/UserProfileContext';
+import { useUserProfile } from '../../context/UserProfileContext';
 import { buildUserProfileNav } from '../../lib/userProfileActions';
-import { ProfileHubSwitcher } from './ProfileHubSwitcher';
+import { ProfileHubTabs } from './ProfileHubTabs';
+import { HrNotificationsPanel } from '../hr/HrNotificationsPanel';
 
-function ProfileSubnav() {
+function AccountSubnav() {
   const { cohort, hasHrSelfService } = useUserProfile();
   const nav = useMemo(
     () => buildUserProfileNav(cohort, hasHrSelfService),
     [cohort, hasHrSelfService]
   );
 
+  const tabClass = (active) =>
+    `shrink-0 rounded-xl px-4 py-2.5 text-[11px] font-bold uppercase tracking-[0.06em] no-underline transition-all ${
+      active
+        ? 'bg-[#134e4a] text-white shadow-lg shadow-teal-950/15'
+        : 'text-slate-500 hover:bg-slate-50 hover:text-[#134e4a]'
+    }`;
+
   return (
     <nav
       aria-label="Account sections"
-      className="flex w-full min-w-0 gap-1 overflow-x-auto overscroll-x-contain rounded-lg border border-slate-200 bg-white p-1 [-webkit-overflow-scrolling:touch]"
+      className="inline-flex w-full max-w-full min-w-0 flex-wrap gap-1 overflow-x-auto overscroll-x-contain rounded-2xl border border-white/80 bg-white/88 p-1.5 shadow-[0_16px_32px_-26px_rgba(15,23,42,0.35)] backdrop-blur-xl [-webkit-overflow-scrolling:touch]"
     >
       {nav.map((item) => (
-        <NavLink
-          key={item.to}
-          to={item.to}
-          end={item.end}
-          className={({ isActive }) =>
-            `shrink-0 rounded-md px-3 py-2 min-h-9 inline-flex items-center text-sm font-medium transition no-underline ${
-              isActive
-                ? 'bg-slate-900 text-white'
-                : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-            }`
-          }
-        >
+        <NavLink key={item.to} to={item.to} end={item.end} className={({ isActive }) => tabClass(isActive)}>
           {item.label}
         </NavLink>
       ))}
@@ -38,24 +35,37 @@ function ProfileSubnav() {
 }
 
 function UserProfileShellInner() {
-  const { cohort } = useUserProfile();
+  const { cohort, hasHrSelfService } = useUserProfile();
 
   const subtitle =
-    cohort === 'scholarship'
-      ? 'Password, access, and shortcuts.'
-      : cohort === 'domestic'
-        ? 'Password, access, and shortcuts.'
-        : cohort === 'account_only'
-          ? 'Profile, security, and workspace shortcuts.'
-          : 'Password and access settings.';
+    cohort === 'scholarship' || cohort === 'domestic'
+      ? 'Password, access, and shortcuts to your benefits hub.'
+      : cohort === 'account_only'
+        ? 'Profile, security, and workspace shortcuts.'
+        : 'Sign-in details, security, and shortcuts to HR services.';
 
   return (
     <PageShell className="pb-[max(2.5rem,env(safe-area-inset-bottom))]">
-      <PageHeader eyebrow="Account" title="My profile" subtitle={subtitle} />
-      <div className="sticky top-0 z-30 mb-4 space-y-3 border-b border-slate-200 bg-[#F8FAFC]/95 py-3 backdrop-blur-md">
-        <ProfileHubSwitcher />
-        <ProfileSubnav />
+      <PageHeader
+        eyebrow="Profile"
+        title="Account"
+        subtitle={subtitle}
+        tabs={
+          <div className="flex w-full min-w-0 flex-col items-stretch gap-3 sm:items-end">
+            <ProfileHubTabs />
+            {hasHrSelfService && cohort !== 'account_only' ? (
+              <div className="flex w-full justify-end">
+                <HrNotificationsPanel compact />
+              </div>
+            ) : null}
+          </div>
+        }
+      />
+
+      <div className="mb-4">
+        <AccountSubnav />
       </div>
+
       <MainPanel>
         <Outlet />
       </MainPanel>
@@ -64,9 +74,5 @@ function UserProfileShellInner() {
 }
 
 export function UserProfileShell() {
-  return (
-    <UserProfileProvider>
-      <UserProfileShellInner />
-    </UserProfileProvider>
-  );
+  return <UserProfileShellInner />;
 }

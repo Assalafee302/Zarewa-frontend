@@ -74,7 +74,13 @@ export function UserProfileProvider({ children }) {
       pendingProfileRequests: me?.pendingProfileRequests ?? [],
       loanPolicy: me?.loanPolicy ?? null,
       leaveEntitlementDays: me?.leaveEntitlementDays ?? null,
+      onboardingChecklist: me?.onboardingChecklist ?? null,
+      lifecycle: me?.lifecycle ?? null,
+      unreadNotifications: me?.unreadNotifications ?? 0,
       isEmployee: cohort === 'employee' || cohort === 'special',
+      profileLocked: me?.hr?.profileLocked ?? false,
+      profileSubmittedAtIso: me?.hr?.profileSubmittedAtIso ?? null,
+      profileVerifiedAtIso: me?.hr?.profileVerifiedAtIso ?? null,
       initialLoading: loading && !me,
     }),
     [loading, error, me, cohort, hasHrSelfService, reload, ws?.session?.user]

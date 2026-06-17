@@ -951,7 +951,7 @@ const OPERATIONAL_TOPICS = [
   },
   {
     module: 'settings',
-    action: 'update my profile and security',
+    action: 'update account and HR services security',
     title: 'Profile & security',
     answer: 'Users update display name and password.',
     steps: [

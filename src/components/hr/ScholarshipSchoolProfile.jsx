@@ -9,13 +9,14 @@ import {
   paymentHealthMeta,
   PAYMENT_KIND_ICON,
 } from '../../lib/scholarshipUi';
-import { HrPageBody, HrPageIntro } from './hrPageUi';
+import { ProfilePageBody, ProfilePageIntro } from '../profile/profilePageUi';
 import {
   ProfileHeroSkeleton,
   ProfileInlineAlert,
   ProfileMetricSkeleton,
   ProfileOverviewSection,
 } from '../profile/profileOverviewUi';
+import { ProfileKpiCard } from '../profile/profileDesign';
 import { ScholarshipPaymentTracker } from './ScholarshipPaymentTracker';
 import { ScholarshipRemindersPanel } from './ScholarshipRemindersPanel';
 import { ScholarshipTermCalendar } from './ScholarshipTermCalendar';
@@ -112,17 +113,17 @@ export default function ScholarshipSchoolProfile() {
 
   if (loading) {
     return (
-      <HrPageBody>
+      <ProfilePageBody>
         <ProfileHeroSkeleton />
         <ProfileMetricSkeleton count={4} />
-      </HrPageBody>
+      </ProfilePageBody>
     );
   }
   if (error) {
     return (
-      <HrPageBody>
+      <ProfilePageBody>
         <ProfileInlineAlert variant="error">{error}</ProfileInlineAlert>
-      </HrPageBody>
+      </ProfilePageBody>
     );
   }
   if (!summary?.profile) return null;
@@ -148,8 +149,8 @@ export default function ScholarshipSchoolProfile() {
     (profile.linkedExecutiveLabel ? `Beneficiary of ${profile.linkedExecutiveLabel}` : null);
 
   return (
-    <HrPageBody>
-      <HrPageIntro title={FAMILY_BENEFITS.hubTitle} description={FAMILY_BENEFITS.hubSubtitle} />
+    <ProfilePageBody>
+      <ProfilePageIntro title={FAMILY_BENEFITS.hubTitle} description={FAMILY_BENEFITS.hubSubtitle} />
 
       <div className="relative overflow-hidden rounded-2xl border border-violet-200/80 bg-gradient-to-br from-violet-700 via-violet-800 to-indigo-950 p-5 text-white shadow-xl shadow-violet-900/20 sm:p-6">
         <div
@@ -321,17 +322,15 @@ export default function ScholarshipSchoolProfile() {
       ) : null}
 
       {profile.notes ? <ProfileInlineAlert variant="info">{profile.notes}</ProfileInlineAlert> : null}
-    </HrPageBody>
+    </ProfilePageBody>
   );
 }
 
 function InfoCard({ label, value, hint }) {
   return (
-    <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
-      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">{label}</p>
-      <p className="mt-1 text-lg font-black text-slate-900">{value || '—'}</p>
-      {hint ? <p className="mt-1 text-xs text-slate-500">{hint}</p> : null}
-    </div>
+    <ProfileKpiCard label={label} hint={hint}>
+      <p className="text-xl font-black tabular-nums tracking-tight text-slate-900">{value || '—'}</p>
+    </ProfileKpiCard>
   );
 }
 

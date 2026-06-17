@@ -2,11 +2,9 @@ import React, { Suspense } from 'react';
 import { lazyWithRetry } from '../../lib/lazyWithRetry';
 import { Navigate, Route, Routes, useOutletContext } from 'react-router-dom';
 import { ProfileSectionShell } from '../../components/profile/ProfileSectionShell';
-import { UserProfileProvider, useUserProfile } from '../../context/UserProfileContext';
-import { ProfileHubSwitcher } from '../../components/profile/ProfileHubSwitcher';
+import { useUserProfile } from '../../context/UserProfileContext';
 import { FAMILY_BENEFITS } from '../../lib/familyBenefitsUi';
 import { DOMESTIC_BENEFITS } from '../../lib/domesticStaffUi';
-import { HrNotificationsPanel } from '../../components/hr/HrNotificationsPanel';
 import MyProfileHome from './MyProfileHome';
 import MyProfileOverview from './MyProfileOverview';
 import MyProfileEmployment from './MyProfileEmployment';
@@ -46,25 +44,17 @@ function MyProfileLayout() {
         : 'Leave, pay, documents, and employment records.';
 
   const shellTitle =
-    cohort === 'scholarship' ? FAMILY_BENEFITS.hubTitle : cohort === 'domestic' ? DOMESTIC_BENEFITS.hubTitle : 'My profile';
-
-  const isExecutiveBenefitsHub = cohort === 'scholarship' || cohort === 'domestic';
+    cohort === 'scholarship'
+      ? FAMILY_BENEFITS.hubTitle
+      : cohort === 'domestic'
+        ? DOMESTIC_BENEFITS.hubTitle
+        : 'HR services';
 
   return (
     <ProfileSectionShell
       title={shellTitle}
       subtitle={subtitle}
       cohort={cohort}
-      beforeNav={
-        isExecutiveBenefitsHub ? (
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <ProfileHubSwitcher />
-            <HrNotificationsPanel compact />
-          </div>
-        ) : (
-          <ProfileHubSwitcher />
-        )
-      }
       outletContext={{ cohort }}
     />
   );
@@ -85,8 +75,7 @@ function MyProfileIndexRedirect() {
 
 export default function MyProfile() {
   return (
-    <UserProfileProvider>
-      <Routes>
+    <Routes>
         <Route element={<MyProfileLayout />}>
           <Route index element={<MyProfileIndexRedirect />} />
           <Route path="overview" element={<MyProfileOverview />} />
@@ -116,6 +105,5 @@ export default function MyProfile() {
           <Route path="help" element={<Navigate to="/my-profile/overview" replace />} />
         </Route>
       </Routes>
-    </UserProfileProvider>
   );
 }

@@ -3,21 +3,22 @@ import { Link } from 'react-router-dom';
 import { useHrListLoad } from '../../hooks/useHrListLoad';
 import { apiFetch } from '../../lib/apiBase';
 import { HR_BTN_PRIMARY, HR_BTN_SECONDARY } from '../../components/hr/hrFormStyles';
-import { HrPageBody, HrPageIntro } from '../../components/hr/hrPageUi';
 import { HrConfidentialBanner } from '../../components/hr/HrSensitiveField';
 import { ProfileFormField } from '../../components/profile/profileFormUi';
+import { ProfilePageBody, ProfilePageIntro } from '../../components/profile/profilePageUi';
 import {
   ProfileEmptyState,
   ProfileInlineAlert,
   ProfileMetricSkeleton,
   ProfileOverviewSection,
 } from '../../components/profile/profileOverviewUi';
+import { ProfileListRow, ProfileStatusChip } from '../../components/profile/profileDesign';
 
-const STATUS_PILL = {
-  open: 'bg-sky-50 text-sky-800 border-sky-200',
-  awaiting_employee_response: 'bg-amber-50 text-amber-900 border-amber-200',
-  appealed: 'bg-violet-50 text-violet-900 border-violet-200',
-  closed: 'bg-slate-100 text-slate-600 border-slate-200',
+const STATUS_VARIANT = {
+  open: 'info',
+  awaiting_employee_response: 'pending',
+  appealed: 'info',
+  closed: 'neutral',
 };
 
 function fetchMyDisciplineCases() {
@@ -92,14 +93,21 @@ export default function MyProfileDiscipline() {
   };
 
   return (
-    <HrPageBody>
-      <HrPageIntro
-        title="Discipline cases"
-        description="View cases addressed to you, submit written responses, and file appeals when permitted."
+    <ProfilePageBody>
+      <ProfilePageIntro
+        title="Conduct record"
+        description="View cases addressed to you, submit written responses, and file appeals when permitted. Records are confidential."
+        actions={
+          cases.length > 0 ? (
+            <ProfileStatusChip variant="pending">{cases.length} on file</ProfileStatusChip>
+          ) : (
+            <ProfileStatusChip variant="approved">No active cases</ProfileStatusChip>
+          )
+        }
       />
 
       <HrConfidentialBanner>
-        Discipline records are confidential. Do not discuss case details in open areas or share screenshots.
+        Conduct records are confidential. Do not discuss case details in open areas or share screenshots.
       </HrConfidentialBanner>
 
       {loadError ? <ProfileInlineAlert variant="error">{loadError}</ProfileInlineAlert> : null}
@@ -110,16 +118,16 @@ export default function MyProfileDiscipline() {
         {loading && !cases.length ? <ProfileMetricSkeleton count={1} /> : null}
         {!loading && !cases.length ? (
           <ProfileEmptyState
-            title="No discipline cases"
-            description="You have no discipline cases on record. If HR opens a case, it will appear here."
+            title="No conduct cases"
+            description="You have no conduct cases on record. If HR opens a case, it will appear here."
             actionTo="/my-profile/documents"
             actionLabel="My documents"
           />
         ) : null}
 
-        <ul className="space-y-3">
+        <ul className="space-y-2">
           {cases.map((c) => {
-            const pill = STATUS_PILL[c.status] || 'bg-slate-50 text-slate-700 border-slate-200';
+            const variant = STATUS_VARIANT[c.status] || 'neutral';
             const expanded = selected === c.id;
             const canRespond = ['open', 'awaiting_employee_response'].includes(c.status);
             const canAppeal =
@@ -127,60 +135,42 @@ export default function MyProfileDiscipline() {
               c.appealStatus !== 'pending' &&
               !['upheld', 'rejected'].includes(String(c.appealStatus || ''));
             return (
-              <li key={c.id} className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
-                <button type="button" className="w-full text-left" onClick={() => selectCase(c.id)}>
-                  <div className="flex flex-wrap items-start justify-between gap-2">
-                    <div>
-                      <p className="font-bold text-slate-900">{c.caseNumber || c.id}</p>
-                      <p className="text-xs text-slate-500">
-                        {c.caseType || 'Discipline'} · {c.severity || '—'}
-                      </p>
-                    </div>
-                    <span className={`rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase ${pill}`}>
-                      {c.status}
+              <li key={c.id} className="overflow-hidden rounded-xl border border-slate-200/90 bg-white shadow-sm">
+                <button
+                  type="button"
+                  className="w-full px-4 py-3 text-left"
+                  onClick={() => selectCase(c.id)}
+                >
+                  <ProfileListRow className="!border-0 !bg-transparent !shadow-none !p-0">
+                    <span className="min-w-0">
+                      <span className="block font-bold text-slate-900">{c.caseNumber || c.id}</span>
+                      <span className="text-xs text-slate-500">
+                        {c.caseType || 'Conduct'} · {c.severity || '—'}
+                      </span>
                     </span>
-                  </div>
+                    <ProfileStatusChip variant={variant}>{c.status}</ProfileStatusChip>
+                  </ProfileListRow>
                   {c.summary ? <p className="mt-2 text-sm text-slate-700">{c.summary}</p> : null}
                 </button>
 
                 {expanded ? (
-                  <div className="mt-4 space-y-3 border-t border-slate-100 pt-4 text-sm">
+                  <div className="space-y-3 border-t border-slate-100 px-4 pb-4 pt-3 text-sm">
                     {c.description ? (
                       <div>
-                        <p className="text-xs font-bold uppercase text-slate-400">Details</p>
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Details</p>
                         <p className="whitespace-pre-wrap text-slate-700">{c.description}</p>
                       </div>
                     ) : null}
                     {c.managementDecision ? (
                       <div>
-                        <p className="text-xs font-bold uppercase text-slate-400">Decision</p>
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Decision</p>
                         <p className="whitespace-pre-wrap text-slate-700">{c.managementDecision}</p>
                       </div>
                     ) : null}
                     {c.employeeResponse ? (
                       <div>
-                        <p className="text-xs font-bold uppercase text-slate-400">Your response</p>
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Your response</p>
                         <p className="whitespace-pre-wrap text-slate-700">{c.employeeResponse}</p>
-                      </div>
-                    ) : null}
-                    {c.appealStatus ? (
-                      <div>
-                        <p className="text-xs font-bold uppercase text-slate-400">Appeal status</p>
-                        <p className="capitalize text-slate-700">
-                          {c.appealStatus === 'pending'
-                            ? 'Under review — HR will notify you when a decision is recorded.'
-                            : c.appealStatus === 'upheld'
-                              ? 'Upheld — see outcome below.'
-                              : c.appealStatus === 'rejected'
-                                ? 'Rejected — see outcome below.'
-                                : c.appealStatus.replace(/_/g, ' ')}
-                        </p>
-                      </div>
-                    ) : null}
-                    {c.finalOutcome ? (
-                      <div>
-                        <p className="text-xs font-bold uppercase text-slate-400">Outcome</p>
-                        <p className="whitespace-pre-wrap text-slate-700">{c.finalOutcome}</p>
                       </div>
                     ) : null}
 
@@ -228,9 +218,9 @@ export default function MyProfileDiscipline() {
                       </div>
                     ) : null}
 
-                    <p className="text-xs text-slate-500">
+                    <p className="z-meta-text">
                       Approved letters addressed to you appear in{' '}
-                      <Link to="/my-profile/documents" className="font-bold text-[#134e4a] hover:underline">
+                      <Link to="/my-profile/documents" className="font-semibold text-[#134e4a] hover:underline">
                         My documents
                       </Link>
                       .
@@ -242,6 +232,6 @@ export default function MyProfileDiscipline() {
           })}
         </ul>
       </ProfileOverviewSection>
-    </HrPageBody>
+    </ProfilePageBody>
   );
 }

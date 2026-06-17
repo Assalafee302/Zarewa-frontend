@@ -28,6 +28,7 @@ import {
   buildUserProfileActions,
   USER_PROFILE_ACTION_CATEGORIES,
 } from '../../lib/userProfileActions';
+import { ProfileAccentBar } from './profileDesign';
 
 const ACTION_ICONS = {
   user: User,
@@ -85,11 +86,7 @@ export function ProfileActionGrid({ categoryFilter = null, compact = false, excl
   })).filter((g) => g.items.length > 0);
 
   if (filtered.length === 0) {
-    return (
-      <p className="text-sm text-slate-500">
-        No extra actions for your role. You can still update your account and password.
-      </p>
-    );
+    return <p className="z-meta-text">No extra actions for your role. You can still update account and password.</p>;
   }
 
   if (compact) {
@@ -109,9 +106,7 @@ export function ProfileActionGrid({ categoryFilter = null, compact = false, excl
     <div className="space-y-6">
       {byCategory.map((group) => (
         <section key={group.key}>
-          <h3 className="mb-3 text-xs font-medium uppercase tracking-wide text-slate-400">
-            {group.label}
-          </h3>
+          <h3 className="mb-3 text-[10px] font-bold uppercase tracking-widest text-slate-400">{group.label}</h3>
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
             {group.items.map((action) => (
               <ActionTile key={action.id} action={action} />
@@ -126,32 +121,38 @@ export function ProfileActionGrid({ categoryFilter = null, compact = false, excl
 /** @param {{ action: import('../../lib/userProfileActions').UserProfileAction; compact?: boolean }} props */
 function ActionTile({ action, compact = false }) {
   const Icon = action.icon ? ACTION_ICONS[action.icon] : null;
-  const isExternal = action.to.startsWith('/manager') || action.to.startsWith('/hr') || action.to.startsWith('/settings') || action.to.startsWith('/team') || action.to.startsWith('/executive');
+  const isExternal =
+    action.to.startsWith('/manager') ||
+    action.to.startsWith('/hr') ||
+    action.to.startsWith('/settings') ||
+    action.to.startsWith('/team') ||
+    action.to.startsWith('/executive');
 
   return (
     <Link
       to={action.to}
-      className={`group flex min-h-[64px] items-start justify-between gap-3 rounded-lg border border-slate-200 bg-white p-4 no-underline transition-colors hover:border-slate-300 hover:bg-slate-50 ${compact ? 'p-3' : ''}`}
+      className={`group relative flex min-h-[72px] items-start justify-between gap-3 overflow-hidden rounded-xl border border-slate-200/90 bg-white no-underline shadow-sm transition-colors hover:border-[#134e4a]/25 hover:bg-teal-50/20 ${compact ? 'p-3' : 'p-4'}`}
     >
-      <div className="min-w-0 flex gap-3">
+      <ProfileAccentBar className="absolute inset-x-0 top-0 rounded-none" />
+      <div className="min-w-0 flex gap-3 pt-1">
         {Icon ? (
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-600">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-teal-50 text-[#134e4a]">
             <Icon size={compact ? 16 : 18} aria-hidden />
           </span>
         ) : null}
         <div className="min-w-0">
-          <p className={`font-medium text-slate-900 ${compact ? 'text-xs' : 'text-sm'}`}>{action.label}</p>
+          <p className={`font-semibold text-slate-900 ${compact ? 'text-xs' : 'text-sm'}`}>{action.label}</p>
           {action.description && !compact ? (
             <p className="mt-0.5 text-xs leading-relaxed text-slate-500">{action.description}</p>
           ) : null}
           {isExternal && !compact ? (
-            <p className="mt-1 text-[10px] font-medium text-slate-400">Opens workspace</p>
+            <p className="mt-1 text-[10px] font-semibold uppercase tracking-wide text-slate-400">Opens workspace</p>
           ) : null}
         </div>
       </div>
       <ChevronRight
         size={16}
-        className="mt-0.5 shrink-0 text-slate-400 transition group-hover:translate-x-0.5 group-hover:text-slate-600"
+        className="mt-1 shrink-0 text-slate-400 transition group-hover:translate-x-0.5 group-hover:text-[#134e4a]"
       />
     </Link>
   );

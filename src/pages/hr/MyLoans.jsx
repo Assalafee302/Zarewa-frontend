@@ -6,14 +6,17 @@ import { HrRequestsPanel } from '../../components/hr/HrRequestsPanel';
 import { createHrLoanRequest } from '../../lib/hrStaff';
 import { fetchStaffLoanSchedule } from '../../lib/hrMasterData';
 import { HrAddFormButton, HrFormModal } from '../../components/hr/HrFormModal';
-import { HrCard, HrPageBody, HrPageIntro } from '../../components/hr/hrPageUi';
+import { ProfilePageBody, ProfilePageIntro } from '../../components/profile/profilePageUi';
 import { ProfileInlineAlert, ProfileOverviewSection } from '../../components/profile/profileOverviewUi';
+import { ProfileKpiCard, ProfileStatusChip } from '../../components/profile/profileDesign';
+import { useUserProfile } from '../../context/UserProfileContext';
 import { formatNgn } from '../../lib/hrFormat';
 import { HR_BTN_PRIMARY, HR_FIELD_CLASS } from '../../components/hr/hrFormStyles';
 import { GUARANTOR_FORM_TEMPLATE_URL } from '../../lib/hrStaffDocumentKinds';
 
 export default function MyLoans({ staffLinkBase = '/my-profile' }) {
   const ws = useWorkspace();
+  const { hr, loanPolicy: ctxLoanPolicy, reload } = useUserProfile();
   const userId = ws?.session?.user?.id;
   const [modalOpen, setModalOpen] = useState(false);
 
@@ -29,28 +32,26 @@ export default function MyLoans({ staffLinkBase = '/my-profile' }) {
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [schedule, setSchedule] = useState([]);
-  const [loanPolicy, setLoanPolicy] = useState(null);
-  const [grossSalaryNgn, setGrossSalaryNgn] = useState(null);
   const [hasGuarantorDoc, setHasGuarantorDoc] = useState(false);
+
+  const loanPolicy = ctxLoanPolicy;
+  const grossSalaryNgn = useMemo(() => {
+    if (!hr) return null;
+    const gross =
+      (Number(hr.baseSalaryNgn) || 0) +
+      (Number(hr.housingAllowanceNgn) || 0) +
+      (Number(hr.transportAllowanceNgn) || 0);
+    return gross > 0 ? gross : Number(hr.baseSalaryNgn) || null;
+  }, [hr]);
 
   useEffect(() => {
     if (!userId) return;
     (async () => {
-      const [schedRes, meRes, docsRes] = await Promise.all([
+      const [schedRes, docsRes] = await Promise.all([
         fetchStaffLoanSchedule(userId),
-        apiFetch('/api/hr/me'),
         apiFetch(`/api/hr/staff/${encodeURIComponent(userId)}/documents`),
       ]);
       if (schedRes.ok && schedRes.data?.ok) setSchedule(schedRes.data.schedule || []);
-      if (meRes.ok && meRes.data?.ok) {
-        const hr = meRes.data.hr || {};
-        setLoanPolicy(meRes.data.loanPolicy || null);
-        const gross =
-          (Number(hr.baseSalaryNgn) || 0) +
-          (Number(hr.housingAllowanceNgn) || 0) +
-          (Number(hr.transportAllowanceNgn) || 0);
-        setGrossSalaryNgn(gross > 0 ? gross : Number(hr.baseSalaryNgn) || null);
-      }
       if (docsRes.ok && docsRes.data?.ok) {
         setHasGuarantorDoc((docsRes.data.documents || []).some((d) => d.docKind === 'guarantor_form'));
       }
@@ -141,11 +142,12 @@ export default function MyLoans({ staffLinkBase = '/my-profile' }) {
     setTermsAck(false);
     setPolicyAck(false);
     setModalOpen(false);
+    await reload?.();
   };
 
   return (
-    <HrPageBody>
-      <HrPageIntro
+    <ProfilePageBody>
+      <ProfilePageIntro
         title="Staff loans"
         description={`Salary-backed loan — max ${policy.loanMaxSalaryMonths}× gross salary, up to ${policy.loanMaxRepaymentMonths} months repayment, min ${policy.loanMinServiceYears} years service.`}
         actions={<HrAddFormButton onClick={() => setModalOpen(true)}>Apply for loan</HrAddFormButton>}
@@ -179,17 +181,25 @@ export default function MyLoans({ staffLinkBase = '/my-profile' }) {
         <ProfileOverviewSection title="Loan & repayment schedule" subtitle="Approved loans and outstanding balances">
           <div className="grid gap-3 sm:grid-cols-2">
             {schedule.map((loan) => (
-              <HrCard key={loan.requestId} className="!p-4">
-                <p className="font-bold text-slate-900">{loan.title}</p>
-                <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
-                  <dt className="text-slate-500">Approved</dt>
-                  <dd className="font-semibold tabular-nums">{formatNgn(loan.amountNgn)}</dd>
-                  <dt className="text-slate-500">Monthly</dt>
-                  <dd className="font-semibold tabular-nums">{formatNgn(loan.monthlyDeductionNgn)}</dd>
-                  <dt className="text-slate-500">Outstanding</dt>
-                  <dd className="font-semibold text-[#134e4a]">{formatNgn(loan.outstandingNgn)}</dd>
+              <ProfileKpiCard key={loan.requestId} label={loan.title || 'Staff loan'}>
+                <dl className="mt-1 grid grid-cols-2 gap-x-3 gap-y-2 text-xs">
+                  <div>
+                    <dt className="text-slate-500">Approved</dt>
+                    <dd className="font-bold tabular-nums text-slate-900">{formatNgn(loan.amountNgn)}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-slate-500">Monthly</dt>
+                    <dd className="font-bold tabular-nums text-slate-900">{formatNgn(loan.monthlyDeductionNgn)}</dd>
+                  </div>
+                  <div className="col-span-2">
+                    <dt className="text-slate-500">Outstanding</dt>
+                    <dd className="text-lg font-black tabular-nums text-[#134e4a]">{formatNgn(loan.outstandingNgn)}</dd>
+                  </div>
                 </dl>
-              </HrCard>
+                <ProfileStatusChip variant={loan.outstandingNgn > 0 ? 'pending' : 'approved'}>
+                  {loan.status || 'active'}
+                </ProfileStatusChip>
+              </ProfileKpiCard>
             ))}
           </div>
         </ProfileOverviewSection>
@@ -288,6 +298,6 @@ export default function MyLoans({ staffLinkBase = '/my-profile' }) {
       <ProfileOverviewSection title="My loan requests" subtitle="Drafts and applications awaiting HR review">
         <HrRequestsPanel allowedScopes={['mine']} defaultScope="mine" kindFilter="loan" staffLinkBase={staffLinkBase} showStageBar />
       </ProfileOverviewSection>
-    </HrPageBody>
+    </ProfilePageBody>
   );
 }

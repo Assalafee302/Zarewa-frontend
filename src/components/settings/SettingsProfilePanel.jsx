@@ -90,13 +90,18 @@ export default function SettingsProfilePanel({ embedInMyProfile = false }) {
           <User size={14} /> Your profile
         </h3>
         <p className="text-xs text-gray-500 mb-4 leading-relaxed">
-          How you appear in the app. This is separate from HR employment records.
+          How you appear in the app (sidebar, chat, approvals). This is <strong>not</strong> your official HR ID photo — upload
+          passport photos under{' '}
+          <Link to="/my-profile/documents" className="font-semibold text-[#134e4a] underline-offset-2 hover:underline">
+            HR services → Documents
+          </Link>
+          .
           {embedInMyProfile ? ' Change your password in the section below.' : (
             <>
               {' '}
               Password changes are under{' '}
               <Link to="/me/account" className="font-semibold text-[#134e4a] underline-offset-2 hover:underline">
-                My profile → Account
+                Account → Account & security
               </Link>
               .
             </>
@@ -129,9 +134,13 @@ export default function SettingsProfilePanel({ embedInMyProfile = false }) {
           </div>
 
           <div>
-            <label className="z-field-label">Profile image</label>
+            <label className="z-field-label">App profile image</label>
             <p className="text-[11px] text-slate-500 mb-2">
-              Paste an <span className="font-medium">https</span> URL, or upload a small PNG, JPEG, or WebP.
+              Shown in the sidebar and user menu. For your <strong>official ID photo</strong>, upload under{' '}
+              <Link to="/my-profile/documents" className="font-medium text-[#134e4a] hover:underline">
+                HR services → Documents
+              </Link>
+              .
             </p>
             <div className="flex flex-wrap items-start gap-4">
               {showAvatarPreview ? (

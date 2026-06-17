@@ -2,13 +2,14 @@ import React, { useState } from 'react';
 import { apiFetch } from '../../lib/apiBase';
 import { useToast } from '../../context/ToastContext';
 import { useUserProfile } from '../../context/UserProfileContext';
-import { HR_BTN_PRIMARY, HR_FIELD_CLASS } from '../hr/hrFormStyles';
+import { HR_BTN_PRIMARY } from '../hr/hrFormStyles';
+import { ProfileFormField, PROFILE_INPUT_CLASS, PROFILE_TEXTAREA_CLASS } from './profileFormUi';
 
 const FIELDS = [
-  { id: 'ninNumber', label: 'NIN number', type: 'text' },
-  { id: 'bvnNumber', label: 'BVN number', type: 'text' },
-  { id: 'nextOfKin', label: 'Next of kin', type: 'nok' },
-  { id: 'bankDetails', label: 'Bank details', type: 'bank' },
+  { id: 'ninNumber', label: 'NIN number' },
+  { id: 'bvnNumber', label: 'BVN number' },
+  { id: 'nextOfKin', label: 'Next of kin' },
+  { id: 'bankDetails', label: 'Bank details' },
 ];
 
 export function ProfileHrUpdateForm() {
@@ -95,77 +96,94 @@ export function ProfileHrUpdateForm() {
   };
 
   return (
-    <section className="rounded-2xl border border-teal-100 bg-teal-50/30 p-5">
-      <h3 className="text-sm font-black text-slate-900">Request HR record update</h3>
-      <p className="mt-1 text-xs text-slate-600">
-        Official employment fields are updated by HR after review. Submit a change request below.
+    <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+      <h3 className="text-sm font-semibold text-slate-900">Request HR record update</h3>
+      <p className="mt-1 text-xs leading-relaxed text-slate-500">
+        Your profile is locked. Submit a change request and HR will review before updating your official record.
       </p>
       <form className="mt-4 space-y-4" onSubmit={submit}>
-        <label className="block text-xs font-semibold text-slate-600">
-          What to update
-          <select className={`${HR_FIELD_CLASS} mt-1`} value={field} onChange={(e) => setField(e.target.value)}>
+        <ProfileFormField label="What to update">
+          <select className={PROFILE_INPUT_CLASS} value={field} onChange={(e) => setField(e.target.value)}>
             {FIELDS.map((f) => (
               <option key={f.id} value={f.id}>
                 {f.label}
               </option>
             ))}
           </select>
-        </label>
+        </ProfileFormField>
 
         {field === 'ninNumber' ? (
-          <label className="block text-xs font-semibold text-slate-600">
-            New NIN
-            <input className={`${HR_FIELD_CLASS} mt-1 font-mono`} value={ninNumber} onChange={(e) => setNinNumber(e.target.value)} minLength={11} maxLength={11} required />
-          </label>
+          <ProfileFormField label="New NIN" hint="11 digits">
+            <input
+              className={`${PROFILE_INPUT_CLASS} font-mono`}
+              value={ninNumber}
+              onChange={(e) => setNinNumber(e.target.value.replace(/\D/g, '').slice(0, 11))}
+              inputMode="numeric"
+              maxLength={11}
+              required
+            />
+          </ProfileFormField>
         ) : null}
 
         {field === 'bvnNumber' ? (
-          <label className="block text-xs font-semibold text-slate-600">
-            New BVN
-            <input className={`${HR_FIELD_CLASS} mt-1 font-mono`} value={bvnNumber} onChange={(e) => setBvnNumber(e.target.value)} minLength={11} maxLength={11} required />
-          </label>
+          <ProfileFormField label="New BVN" hint="11 digits">
+            <input
+              className={`${PROFILE_INPUT_CLASS} font-mono`}
+              value={bvnNumber}
+              onChange={(e) => setBvnNumber(e.target.value.replace(/\D/g, '').slice(0, 11))}
+              inputMode="numeric"
+              maxLength={11}
+              required
+            />
+          </ProfileFormField>
         ) : null}
 
         {field === 'nextOfKin' ? (
-          <div className="grid gap-3 sm:grid-cols-2">
-            <label className="text-xs font-semibold text-slate-600">
-              Name
-              <input className={`${HR_FIELD_CLASS} mt-1`} value={nokName} onChange={(e) => setNokName(e.target.value)} required />
-            </label>
-            <label className="text-xs font-semibold text-slate-600">
-              Phone
-              <input className={`${HR_FIELD_CLASS} mt-1`} value={nokPhone} onChange={(e) => setNokPhone(e.target.value)} required />
-            </label>
-            <label className="text-xs font-semibold text-slate-600 sm:col-span-2">
-              Relationship
-              <input className={`${HR_FIELD_CLASS} mt-1`} value={nokRelationship} onChange={(e) => setNokRelationship(e.target.value)} required />
-            </label>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <ProfileFormField label="Name">
+              <input className={PROFILE_INPUT_CLASS} value={nokName} onChange={(e) => setNokName(e.target.value)} required />
+            </ProfileFormField>
+            <ProfileFormField label="Phone">
+              <input className={PROFILE_INPUT_CLASS} value={nokPhone} onChange={(e) => setNokPhone(e.target.value)} inputMode="tel" required />
+            </ProfileFormField>
+            <ProfileFormField label="Relationship" className="sm:col-span-2">
+              <input className={PROFILE_INPUT_CLASS} value={nokRelationship} onChange={(e) => setNokRelationship(e.target.value)} required />
+            </ProfileFormField>
           </div>
         ) : null}
 
         {field === 'bankDetails' ? (
-          <div className="grid gap-3 sm:grid-cols-2">
-            <label className="text-xs font-semibold text-slate-600">
-              Bank name
-              <input className={`${HR_FIELD_CLASS} mt-1`} value={bankName} onChange={(e) => setBankName(e.target.value)} required />
-            </label>
-            <label className="text-xs font-semibold text-slate-600">
-              Account name
-              <input className={`${HR_FIELD_CLASS} mt-1`} value={bankAccountName} onChange={(e) => setBankAccountName(e.target.value)} required />
-            </label>
-            <label className="text-xs font-semibold text-slate-600 sm:col-span-2">
-              Account number
-              <input className={`${HR_FIELD_CLASS} mt-1 font-mono`} value={bankAccountNo} onChange={(e) => setBankAccountNo(e.target.value)} required />
-            </label>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <ProfileFormField label="Bank name">
+              <input className={PROFILE_INPUT_CLASS} value={bankName} onChange={(e) => setBankName(e.target.value)} required />
+            </ProfileFormField>
+            <ProfileFormField label="Account name">
+              <input className={PROFILE_INPUT_CLASS} value={bankAccountName} onChange={(e) => setBankAccountName(e.target.value)} required />
+            </ProfileFormField>
+            <ProfileFormField label="Account number" className="sm:col-span-2">
+              <input
+                className={`${PROFILE_INPUT_CLASS} font-mono`}
+                value={bankAccountNo}
+                onChange={(e) => setBankAccountNo(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                inputMode="numeric"
+                required
+              />
+            </ProfileFormField>
           </div>
         ) : null}
 
-        <label className="block text-xs font-semibold text-slate-600">
-          Reason for change
-          <textarea className={`${HR_FIELD_CLASS} mt-1 min-h-[72px]`} value={reason} onChange={(e) => setReason(e.target.value)} required minLength={10} placeholder="Why is this update needed?" />
-        </label>
+        <ProfileFormField label="Reason for change" hint="At least 10 characters">
+          <textarea
+            className={PROFILE_TEXTAREA_CLASS}
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            required
+            minLength={10}
+            placeholder="Why is this update needed?"
+          />
+        </ProfileFormField>
 
-        <button type="submit" disabled={busy} className={HR_BTN_PRIMARY}>
+        <button type="submit" disabled={busy} className={`${HR_BTN_PRIMARY} w-full sm:w-auto`}>
           {busy ? 'Submitting…' : 'Submit to HR for approval'}
         </button>
       </form>

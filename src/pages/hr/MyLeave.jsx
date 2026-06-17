@@ -3,8 +3,11 @@ import { apiFetch } from '../../lib/apiBase';
 import { HrRequestsPanel } from '../../components/hr/HrRequestsPanel';
 import { daysBetweenIso } from '../../lib/hrRequests';
 import { HrAddFormButton, HrFormModal } from '../../components/hr/HrFormModal';
-import { HrPageBody, HrPageIntro } from '../../components/hr/hrPageUi';
+import { ProfilePageBody, ProfilePageIntro } from '../../components/profile/profilePageUi';
 import { ProfileInlineAlert, ProfileOverviewSection } from '../../components/profile/profileOverviewUi';
+import { ProfileKpiCard } from '../../components/profile/profileDesign';
+import { ProfileProbationBanner } from '../../components/profile/ProfileProbationBanner';
+import { useUserProfile } from '../../context/UserProfileContext';
 import { HR_BTN_PRIMARY, HR_BTN_SECONDARY, HR_FIELD_CLASS } from '../../components/hr/hrFormStyles';
 
 const LEAVE_TYPES = [
@@ -34,7 +37,8 @@ export default function MyLeave({ staffLinkBase = '/my-profile', embedded = fals
   const [message, setMessage] = useState('');
   const [balances, setBalances] = useState([]);
   const [balancesError, setBalancesError] = useState('');
-  const [probationEndIso, setProbationEndIso] = useState(null);
+  const { hr } = useUserProfile();
+  const probationEndIso = hr?.probationEndIso || null;
 
   const autoDays = useMemo(() => daysBetweenIso(startDateIso, endDateIso), [startDateIso, endDateIso]);
 
@@ -53,23 +57,6 @@ export default function MyLeave({ staffLinkBase = '/my-profile', embedded = fals
         } else {
           setBalancesError(data?.error || 'Could not load leave balances.');
         }
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const { ok, data } = await apiFetch('/api/hr/me');
-        if (!cancelled && ok && data?.ok) {
-          setProbationEndIso(data.hr?.probationEndIso || null);
-        }
-      } catch {
-        // ignore — probation check is informational
       }
     })();
     return () => {
@@ -172,13 +159,16 @@ export default function MyLeave({ staffLinkBase = '/my-profile', embedded = fals
         : true;
 
   return (
-    <HrPageBody compact={embedded}>
+    <ProfilePageBody className={embedded ? '!space-y-4' : ''}>
       {!embedded ? (
-        <HrPageIntro
-          title="Leave"
-          description="Apply for leave and track approvals. HR uses your handover details when endorsing requests."
-          actions={<HrAddFormButton onClick={() => setModalOpen(true)}>Apply for leave</HrAddFormButton>}
-        />
+        <>
+          <ProfilePageIntro
+            title="Leave"
+            description="Apply for leave and track approvals. HR uses your handover details when endorsing requests."
+            actions={<HrAddFormButton onClick={() => setModalOpen(true)}>Apply for leave</HrAddFormButton>}
+          />
+          <ProfileProbationBanner />
+        </>
       ) : (
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           {annualBalance ? (
@@ -196,20 +186,14 @@ export default function MyLeave({ staffLinkBase = '/my-profile', embedded = fals
 
       {!embedded && balances.length > 0 ? (
         <ProfileOverviewSection title="Your balances" subtitle="Days remaining in the current leave period">
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
             {balances.map((b) => (
-              <div
-                key={b.leaveType}
-                className="rounded-xl border border-slate-100 bg-slate-50/70 px-3 py-2.5"
-              >
-                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 capitalize">
-                  {b.leaveType} leave
-                </p>
-                <p className="mt-1 text-lg font-black tabular-nums text-[#134e4a]">
+              <ProfileKpiCard key={b.leaveType} label={`${b.leaveType} leave`}>
+                <p className="text-2xl font-black tabular-nums tracking-tight text-[#134e4a]">
                   {b.closingDays ?? b.balance ?? 0}
                   <span className="ml-1 text-xs font-bold text-slate-500">days</span>
                 </p>
-              </div>
+              </ProfileKpiCard>
             ))}
           </div>
         </ProfileOverviewSection>
@@ -378,6 +362,6 @@ export default function MyLeave({ staffLinkBase = '/my-profile', embedded = fals
       >
         <HrRequestsPanel allowedScopes={['mine']} defaultScope="mine" kindFilter="leave" staffLinkBase={staffLinkBase} showStageBar />
       </ProfileOverviewSection>
-    </HrPageBody>
+    </ProfilePageBody>
   );
 }

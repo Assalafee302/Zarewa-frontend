@@ -49,12 +49,17 @@ export function MyAccessExplainer() {
           ))}
           <li>
             <Link to="/me" className="flex min-h-11 items-center rounded-xl border border-teal-100 bg-teal-50/50 px-4 py-3 text-sm font-semibold text-[#134e4a] no-underline active:bg-teal-100">
-              My profile (always)
+              Account (always)
+            </Link>
+          </li>
+          <li>
+            <Link to="/my-profile" className="flex min-h-11 items-center rounded-xl border border-slate-100 bg-slate-50/80 px-4 py-3 text-sm font-semibold text-[#134e4a] no-underline active:bg-teal-50">
+              HR services
             </Link>
           </li>
         </ul>
       ) : (
-        <p className="mt-3 text-sm text-slate-600">You have My profile and any modules granted by your administrator.</p>
+        <p className="mt-3 text-sm text-slate-600">You have Account, HR services, and any modules granted by your administrator.</p>
       )}
       <details className="mt-4">
         <summary className="cursor-pointer text-[11px] font-bold uppercase tracking-wide text-slate-500">

@@ -3,59 +3,46 @@ import { FAMILY_BENEFITS } from '../../lib/familyBenefitsUi';
 import { DOMESTIC_BENEFITS } from '../../lib/domesticStaffUi';
 import { Link } from 'react-router-dom';
 import { ChevronRight } from 'lucide-react';
+import { ProfileKpiCard, ProfileModuleSection, ProfileAccentBar } from './profileDesign';
+import { ProfileOnboardingCompleteChip } from './ProfileOnboardingWizard';
 
 const COHORT_CHIP = {
   scholarship: 'bg-violet-50 text-violet-700 border-violet-200',
   domestic: 'bg-amber-50 text-amber-800 border-amber-200',
   special: 'bg-sky-50 text-sky-800 border-sky-200',
-  employee: 'bg-slate-100 text-slate-700 border-slate-200',
+  employee: 'bg-teal-50 text-teal-800 border-teal-200',
 };
 
+/** @deprecated Prefer ProfileModuleSection — thin wrapper for legacy imports. */
 export function ProfileOverviewSection({ id, title, subtitle, actionTo, actionLabel, children, className = '' }) {
   return (
-    <section
+    <ProfileModuleSection
       id={id}
-      className={`scroll-mt-28 rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5 ${className}`}
+      title={title}
+      subtitle={subtitle}
+      actionTo={actionTo}
+      actionLabel={actionLabel}
+      className={className}
     >
-      {title || actionTo ? (
-        <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
-          {title ? (
-            <div>
-              <h3 className="text-sm font-semibold text-slate-900">{title}</h3>
-              {subtitle ? <p className="mt-0.5 text-xs text-slate-500">{subtitle}</p> : null}
-            </div>
-          ) : (
-            <div />
-          )}
-          {actionTo ? (
-            <Link
-              to={actionTo}
-              className="inline-flex min-h-9 items-center gap-0.5 text-xs font-medium text-slate-600 no-underline hover:text-slate-900"
-            >
-              {actionLabel}
-              <ChevronRight size={14} aria-hidden />
-            </Link>
-          ) : null}
-        </div>
-      ) : null}
       {children}
-    </section>
+    </ProfileModuleSection>
   );
 }
 
 export function ProfileHubBanner({ to, title, description, tone = 'slate' }) {
   const tones = {
     slate: 'border-slate-200 bg-slate-50 hover:border-slate-300 hover:bg-slate-100/80',
-    teal: 'border-slate-200 bg-slate-50 hover:border-slate-300 hover:bg-slate-100/80',
-    violet: 'border-slate-200 bg-slate-50 hover:border-slate-300 hover:bg-slate-100/80',
-    amber: 'border-slate-200 bg-slate-50 hover:border-slate-300 hover:bg-slate-100/80',
+    teal: 'border-teal-100 bg-teal-50/50 hover:border-teal-200 hover:bg-teal-50',
+    violet: 'border-violet-100 bg-violet-50/50 hover:border-violet-200 hover:bg-violet-50',
+    amber: 'border-amber-100 bg-amber-50/50 hover:border-amber-200 hover:bg-amber-50',
   };
   return (
     <Link
       to={to}
-      className={`group flex min-h-[64px] items-center justify-between gap-4 rounded-xl border p-4 no-underline transition-colors ${tones[tone] || tones.slate}`}
+      className={`group relative flex min-h-[72px] items-center justify-between gap-4 overflow-hidden rounded-xl border p-4 no-underline transition-colors ${tones[tone] || tones.slate}`}
     >
-      <div className="min-w-0">
+      <ProfileAccentBar className="absolute inset-x-0 top-0 rounded-none" />
+      <div className="min-w-0 pt-1">
         <p className="text-sm font-semibold text-slate-900">{title}</p>
         <p className="mt-0.5 text-xs leading-relaxed text-slate-600">{description}</p>
       </div>
@@ -72,64 +59,43 @@ export function ProfileQuickAction({ to, icon: Icon, children }) {
   return (
     <Link
       to={to}
-      className="flex min-h-[64px] flex-col items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-3 text-xs font-medium text-slate-700 shadow-sm no-underline transition-colors hover:border-slate-300 hover:bg-slate-50"
+      className="relative flex min-h-[72px] flex-col items-center justify-center gap-2 overflow-hidden rounded-xl border border-slate-200/90 bg-white px-3 py-3 text-xs font-semibold uppercase tracking-wide text-slate-700 shadow-sm no-underline transition-colors hover:border-[#134e4a]/30 hover:bg-teal-50/30"
     >
-      {Icon ? <Icon size={18} className="text-slate-500" aria-hidden /> : null}
+      <ProfileAccentBar className="absolute inset-x-0 top-0 rounded-none" />
+      {Icon ? <Icon size={18} className="mt-1 text-[#134e4a]" aria-hidden /> : null}
       <span className="text-center leading-tight">{children}</span>
     </Link>
   );
 }
 
+/** @deprecated Use ProfileKpiCard */
 export function ProfileMetricCard({ title, footerTo, footerLabel, children }) {
   return (
-    <div className="flex h-full flex-col rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-      <h3 className="mb-3 text-xs font-medium text-slate-500">{title}</h3>
-      <div className="min-h-[4.5rem] flex-1">{children}</div>
-      {footerTo ? (
-        <Link
-          to={footerTo}
-          className="mt-3 inline-flex min-h-8 items-center gap-0.5 text-xs font-medium text-slate-600 no-underline hover:text-slate-900"
-        >
-          {footerLabel}
-          <ChevronRight size={12} aria-hidden />
-        </Link>
-      ) : null}
-    </div>
+    <ProfileKpiCard
+      label={title}
+      value={children}
+      to={footerTo}
+      actionLabel={footerLabel}
+    />
   );
 }
 
-export function ProfileMetricSkeleton({ count = 3 }) {
-  return (
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3" aria-busy="true" aria-label="Loading summary">
-      {Array.from({ length: count }).map((_, i) => (
-        <div key={i} className="animate-pulse rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
-          <div className="mb-3 h-2 w-20 rounded bg-slate-200" />
-          <div className="space-y-2">
-            <div className="h-3 w-full rounded bg-slate-100" />
-            <div className="h-3 w-2/3 rounded bg-slate-100" />
-            <div className="h-5 w-1/2 rounded bg-slate-100" />
-          </div>
-          <div className="mt-4 h-2 w-24 rounded bg-slate-100" />
-        </div>
-      ))}
-    </div>
-  );
-}
+export { ProfileKpiSkeleton as ProfileMetricSkeleton } from './profileDesign';
 
 export function ProfileHeroSkeleton() {
   return (
     <div
-      className="animate-pulse rounded-xl border border-slate-200 bg-white p-6 shadow-sm"
+      className="animate-pulse overflow-hidden rounded-xl border border-slate-200/90 bg-white shadow-sm"
       aria-busy="true"
       aria-label="Loading profile"
     >
-      <div className="flex flex-col gap-5 sm:flex-row sm:items-start">
+      <div className="h-1 bg-slate-200" />
+      <div className="flex flex-col gap-5 p-6 sm:flex-row sm:items-start">
         <div className="h-16 w-16 shrink-0 rounded-lg bg-slate-200" />
         <div className="min-w-0 flex-1 space-y-3">
           <div className="h-2 w-24 rounded bg-slate-200" />
           <div className="h-6 w-48 max-w-full rounded bg-slate-200" />
-          <div className="h-3 w-36 max-w-full rounded bg-slate-100" />
-          <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
             {Array.from({ length: 6 }).map((_, i) => (
               <div key={i} className="h-8 rounded-lg bg-slate-100" />
             ))}
@@ -140,9 +106,6 @@ export function ProfileHeroSkeleton() {
   );
 }
 
-/**
- * Compact identity row for HR self-service overview (page header already shows section title).
- */
 export function ProfileIdentityStrip({ user, hr, cohort }) {
   const initials = (user?.displayName || 'U')
     .split(/\s+/)
@@ -157,47 +120,57 @@ export function ProfileIdentityStrip({ user, hr, cohort }) {
   const chipClass = COHORT_CHIP[cohort] || COHORT_CHIP.employee;
 
   const chipLabel =
-    cohort === 'special' ? 'HQ / special' : cohort === 'domestic' ? DOMESTIC_BENEFITS.badgeLabel : cohort === 'scholarship' ? FAMILY_BENEFITS.badgeLabel : 'Employee';
+    cohort === 'special'
+      ? 'HQ / special'
+      : cohort === 'domestic'
+        ? DOMESTIC_BENEFITS.badgeLabel
+        : cohort === 'scholarship'
+          ? FAMILY_BENEFITS.badgeLabel
+          : 'Employee';
 
   return (
-    <div className="flex flex-wrap items-center gap-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-      {showAvatar ? (
-        <img
-          src={hr.photoUrl}
-          alt=""
-          className="h-14 w-14 shrink-0 rounded-lg border border-slate-200 object-cover"
-        />
-      ) : (
-        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-slate-100 text-lg font-semibold text-slate-700">
-          {initials}
-        </div>
-      )}
-      <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-center gap-2">
-          <p className="truncate text-lg font-semibold text-slate-900">{user?.displayName || '—'}</p>
-          {cohort ? (
-            <span className={`rounded-md border px-2 py-0.5 text-[10px] font-medium ${chipClass}`}>
-              {chipLabel}
-            </span>
-          ) : null}
-        </div>
-        <p className="mt-0.5 truncate text-sm text-slate-600">{hr?.jobTitle || '—'}</p>
-        <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-xs text-slate-500">
-          {hr?.employeeNo ? (
-            <span>
-              Emp. <strong className="font-semibold text-slate-700">{hr.employeeNo}</strong>
-            </span>
-          ) : null}
-          {hr?.branchName || hr?.branchId ? (
-            <span>
-              Branch <strong className="font-semibold text-slate-700">{hr.branchName || hr.branchId}</strong>
-            </span>
-          ) : null}
-          {hr?.department ? (
-            <span>
-              Dept <strong className="font-semibold text-slate-700">{hr.department}</strong>
-            </span>
-          ) : null}
+    <div className="relative overflow-hidden rounded-xl border border-slate-200/90 bg-white shadow-sm">
+      <ProfileAccentBar />
+      <div className="flex flex-wrap items-center gap-4 p-4 sm:p-5">
+        {showAvatar ? (
+          <img
+            src={hr.photoUrl}
+            alt=""
+            className="h-14 w-14 shrink-0 rounded-lg border border-slate-200 object-cover"
+          />
+        ) : (
+          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-[#134e4a] text-lg font-bold text-white">
+            {initials}
+          </div>
+        )}
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="truncate text-lg font-black tracking-tight text-slate-900">{user?.displayName || '—'}</p>
+            {cohort ? (
+              <span className={`rounded-md border px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide ${chipClass}`}>
+                {chipLabel}
+              </span>
+            ) : null}
+            <ProfileOnboardingCompleteChip />
+          </div>
+          <p className="mt-0.5 truncate text-sm text-slate-600">{hr?.jobTitle || '—'}</p>
+          <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500">
+            {hr?.employeeNo ? (
+              <span>
+                Emp <strong className="font-semibold text-slate-800">{hr.employeeNo}</strong>
+              </span>
+            ) : null}
+            {hr?.branchName || hr?.branchId ? (
+              <span>
+                Branch <strong className="font-semibold text-slate-800">{hr.branchName || hr.branchId}</strong>
+              </span>
+            ) : null}
+            {hr?.department ? (
+              <span>
+                Dept <strong className="font-semibold text-slate-800">{hr.department}</strong>
+              </span>
+            ) : null}
+          </div>
         </div>
       </div>
     </div>
@@ -225,18 +198,15 @@ export function ProfileEmptyHint({ children }) {
   return <p className="text-sm leading-relaxed text-slate-500">{children}</p>;
 }
 
-/**
- * @param {{ title: string; description?: string; actionTo?: string; actionLabel?: string }} props
- */
 export function ProfileEmptyState({ title, description, actionTo, actionLabel }) {
   return (
-    <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50/60 px-4 py-7 text-center sm:px-6 sm:py-8">
+    <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50/80 px-4 py-8 text-center sm:px-6">
       <p className="text-sm font-semibold text-slate-800">{title}</p>
       {description ? <p className="mt-1.5 text-xs leading-relaxed text-slate-500">{description}</p> : null}
       {actionTo && actionLabel ? (
         <Link
           to={actionTo}
-          className="mt-4 inline-flex min-h-9 items-center gap-1 rounded-lg border border-slate-200 bg-white px-4 py-2 text-xs font-medium text-slate-700 no-underline transition hover:bg-slate-50"
+          className="z-btn-secondary mt-4 !px-4 !py-2 !text-[10px] uppercase tracking-wide"
         >
           {actionLabel}
           <ChevronRight size={14} aria-hidden />

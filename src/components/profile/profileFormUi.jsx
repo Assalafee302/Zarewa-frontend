@@ -1,4 +1,8 @@
 import React from 'react';
+import { ProfileAccentBar } from './profileDesign';
+
+export const PROFILE_INPUT_CLASS = 'z-input';
+export const PROFILE_TEXTAREA_CLASS = 'z-input min-h-[88px] resize-y';
 
 /**
  * @param {{
@@ -12,39 +16,40 @@ import React from 'react';
  */
 export function ProfileFormSection({ id, icon, title, subtitle, children, className = '' }) {
   return (
-    <section
-      id={id}
-      className={`scroll-mt-28 rounded-3xl border border-slate-200/90 bg-white p-5 shadow-sm sm:p-6 ${className}`}
-    >
-      <header className="mb-5">
-        <h3 className="flex items-center gap-2 text-sm font-black text-slate-900">
-          {icon ? <span className="text-[#134e4a]">{icon}</span> : null}
-          {title}
-        </h3>
-        {subtitle ? <p className="mt-1 text-xs leading-relaxed text-slate-500">{subtitle}</p> : null}
-      </header>
-      {children}
+    <section id={id} className={`scroll-mt-24 overflow-hidden rounded-xl border border-slate-200/90 bg-white shadow-sm ${className}`}>
+      <ProfileAccentBar />
+      <div className="p-4 sm:p-5">
+        <header className="mb-4 border-b border-slate-100 pb-3">
+          <h3 className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-slate-500">
+            {icon ? <span className="text-[#134e4a]">{icon}</span> : null}
+            {title}
+          </h3>
+          {subtitle ? <p className="mt-2 text-sm leading-relaxed text-slate-600">{subtitle}</p> : null}
+        </header>
+        {children}
+      </div>
     </section>
   );
 }
 
 /**
- * @param {{ label: string; hint?: string; htmlFor?: string; children: import('react').ReactNode; className?: string }} props
+ * @param {{ label: string; hint?: string; htmlFor?: string; required?: boolean; children: import('react').ReactNode; className?: string }} props
  */
-export function ProfileFormField({ label, hint, htmlFor, children, className = '' }) {
+export function ProfileFormField({ label, hint, htmlFor, required = false, children, className = '' }) {
   return (
     <div className={className}>
       <label className="z-field-label" htmlFor={htmlFor}>
         {label}
+        {required ? <span className="ml-0.5 text-red-500">*</span> : null}
       </label>
-      {children}
-      {hint ? <p className="mt-1.5 text-[11px] leading-relaxed text-slate-500">{hint}</p> : null}
+      <div className="mt-1.5">{children}</div>
+      {hint ? <p className="z-meta-text mt-1">{hint}</p> : null}
     </div>
   );
 }
 
 /**
- * Horizontal in-page section jumps (account form layout).
+ * Horizontal in-page section jumps — Sales-style anchor bar.
  * @param {{ items: { id: string; label: string }[] }} props
  */
 export function ProfilePageAnchors({ items }) {
@@ -53,13 +58,13 @@ export function ProfilePageAnchors({ items }) {
   return (
     <nav
       aria-label="On this page"
-      className="sticky top-[var(--app-header-offset,0px)] z-20 -mx-0.5 mb-4 flex gap-1 overflow-x-auto rounded-2xl border border-slate-200/90 bg-[#F8FAFC]/95 p-1 backdrop-blur-md sm:-mx-1 sm:gap-1.5 sm:p-1.5 [-webkit-overflow-scrolling:touch]"
+      className="sticky top-[var(--app-header-offset,0px)] z-20 mb-4 flex gap-1 overflow-x-auto rounded-2xl border border-white/80 bg-white/88 p-1.5 backdrop-blur-xl [-webkit-overflow-scrolling:touch]"
     >
       {items.map((item) => (
         <a
           key={item.id}
           href={`#${item.id}`}
-          className="shrink-0 rounded-xl border border-transparent px-2.5 py-1.5 text-[9px] font-bold uppercase tracking-wide text-slate-600 no-underline transition hover:border-slate-200 hover:bg-white hover:text-[#134e4a] sm:px-3 sm:py-2 sm:text-[10px]"
+          className="shrink-0 rounded-xl px-4 py-2.5 text-[11px] font-bold uppercase tracking-[0.06em] text-slate-500 no-underline transition hover:bg-slate-50 hover:text-[#134e4a]"
         >
           {item.label}
         </a>

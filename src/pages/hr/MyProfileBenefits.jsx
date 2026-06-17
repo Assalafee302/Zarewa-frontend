@@ -5,13 +5,14 @@ import { fetchHrBeneficiaries } from '../../lib/hrExtended';
 import { canViewOrgSensitiveHr } from '../../lib/hrAccess';
 import { formatNgn } from '../../lib/hrFormat';
 import { HrSensitiveGate } from '../../components/hr/HrSensitiveGate';
-import { HrPageBody, HrPageIntro } from '../../components/hr/hrPageUi';
+import { ProfilePageBody, ProfilePageIntro } from '../../components/profile/profilePageUi';
 import {
   ProfileEmptyState,
   ProfileInlineAlert,
   ProfileMetricSkeleton,
   ProfileOverviewSection,
 } from '../../components/profile/profileOverviewUi';
+import { ProfileListRow } from '../../components/profile/profileDesign';
 
 export default function MyProfileBenefits() {
   const ws = useWorkspace();
@@ -29,22 +30,26 @@ export default function MyProfileBenefits() {
   }, []);
 
   const list = (
-    <ul className="divide-y divide-slate-100 rounded-xl border border-slate-100 bg-white text-sm">
+    <ul className="space-y-1.5">
       {items.map((b) => (
-        <li key={b.id} className="flex flex-col gap-1 px-4 py-3 sm:flex-row sm:justify-between sm:gap-3">
-          <span>
-            <span className="font-semibold">{b.displayName}</span>
-            <span className="text-slate-500"> · {b.beneficiaryType}</span>
-          </span>
-          <span className="shrink-0 font-semibold tabular-nums">{formatNgn(b.monthlyAmountNgn)}/mo</span>
+        <li key={b.id}>
+          <ProfileListRow>
+            <span className="min-w-0">
+              <span className="block text-sm font-semibold text-slate-900">{b.displayName}</span>
+              <span className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{b.beneficiaryType}</span>
+            </span>
+            <span className="shrink-0 text-sm font-black tabular-nums text-[#134e4a]">
+              {formatNgn(b.monthlyAmountNgn)}/mo
+            </span>
+          </ProfileListRow>
         </li>
       ))}
     </ul>
   );
 
   return (
-    <HrPageBody>
-      <HrPageIntro
+    <ProfilePageBody>
+      <ProfilePageIntro
         title="Benefits"
         description="Allowances and benefits linked to your staff record. Amounts may require unlocking sensitive data."
       />
@@ -69,6 +74,6 @@ export default function MyProfileBenefits() {
           )
         ) : null}
       </ProfileOverviewSection>
-    </HrPageBody>
+    </ProfilePageBody>
   );
 }

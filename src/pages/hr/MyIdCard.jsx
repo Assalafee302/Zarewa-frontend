@@ -2,13 +2,14 @@ import React, { useEffect, useState } from 'react';
 import { apiFetch } from '../../lib/apiBase';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { HrAddFormButton, HrFormModal } from '../../components/hr/HrFormModal';
-import { HrPageBody, HrPageIntro } from '../../components/hr/hrPageUi';
+import { ProfilePageBody, ProfilePageIntro } from '../../components/profile/profilePageUi';
 import {
   ProfileEmptyState,
   ProfileInlineAlert,
   ProfileMetricSkeleton,
   ProfileOverviewSection,
 } from '../../components/profile/profileOverviewUi';
+import { ProfileListRow, ProfileStatusChip } from '../../components/profile/profileDesign';
 import { HR_BTN_PRIMARY, HR_FIELD_CLASS } from '../../components/hr/hrFormStyles';
 import {
   AppTable,
@@ -29,18 +30,10 @@ const ID_CARD_REASONS = [
   { value: 'other', label: 'Other' },
 ];
 
-function statusBadge(status) {
-  const cls =
-    status === 'approved' || status === 'issued'
-      ? 'bg-emerald-50 text-emerald-800'
-      : status === 'rejected'
-        ? 'bg-red-50 text-red-800'
-        : 'bg-amber-50 text-amber-800';
-  return (
-    <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${cls}`}>
-      {String(status || '—').replace(/_/g, ' ')}
-    </span>
-  );
+function statusChip(status) {
+  const variant =
+    status === 'approved' || status === 'issued' ? 'approved' : status === 'rejected' ? 'rejected' : 'pending';
+  return <ProfileStatusChip variant={variant}>{String(status || '—').replace(/_/g, ' ')}</ProfileStatusChip>;
 }
 
 export default function MyIdCard() {
@@ -130,8 +123,8 @@ export default function MyIdCard() {
   };
 
   return (
-    <HrPageBody>
-      <HrPageIntro
+    <ProfilePageBody>
+      <ProfilePageIntro
         title="ID card"
         description="Request a new or replacement employee ID card. HR processes and issues the card after approval."
         actions={<HrAddFormButton onClick={() => setModalOpen(true)}>Request ID card</HrAddFormButton>}
@@ -194,22 +187,18 @@ export default function MyIdCard() {
         ) : null}
         {!loading && requests.length > 0 ? (
           <>
-            <div className="md:hidden space-y-3">
+            <div className="space-y-2 md:hidden">
               {requests.map((r) => (
-                <article
-                  key={`${r.id}-m`}
-                  className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <p className="text-sm font-bold text-slate-900">{r.title || 'ID card request'}</p>
-                    {statusBadge(r.status)}
-                  </div>
-                  <p className="mt-2 text-xs text-slate-500">
-                    Submitted{' '}
-                    {r.submittedAtIso ? String(r.submittedAtIso).slice(0, 10) : r.createdAtIso?.slice(0, 10) || '—'}
-                  </p>
-                  {r.body ? <p className="mt-2 text-sm text-slate-600">{r.body}</p> : null}
-                </article>
+                <ProfileListRow key={`${r.id}-m`}>
+                  <span className="min-w-0">
+                    <span className="block text-sm font-semibold text-slate-900">{r.title || 'ID card request'}</span>
+                    <span className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                      Submitted{' '}
+                      {r.submittedAtIso ? String(r.submittedAtIso).slice(0, 10) : r.createdAtIso?.slice(0, 10) || '—'}
+                    </span>
+                  </span>
+                  {statusChip(r.status)}
+                </ProfileListRow>
               ))}
             </div>
             <div className="hidden md:block">
@@ -225,7 +214,7 @@ export default function MyIdCard() {
                     {requests.map((r) => (
                       <AppTableTr key={r.id}>
                         <AppTableTd>{r.title || 'ID card request'}</AppTableTd>
-                        <AppTableTd>{statusBadge(r.status)}</AppTableTd>
+                        <AppTableTd>{statusChip(r.status)}</AppTableTd>
                         <AppTableTd>
                           {r.submittedAtIso ? String(r.submittedAtIso).slice(0, 10) : r.createdAtIso?.slice(0, 10) || '—'}
                         </AppTableTd>
@@ -239,6 +228,6 @@ export default function MyIdCard() {
           </>
         ) : null}
       </ProfileOverviewSection>
-    </HrPageBody>
+    </ProfilePageBody>
   );
 }

@@ -60,11 +60,11 @@ export function documentTitleForPath(pathname) {
       policies: 'Policies',
       grievance: 'Feedback',
       'id-card': 'ID card',
-      discipline: 'Discipline',
+      discipline: 'Conduct',
       surveys: 'Surveys',
       help: 'HR help',
     };
-    return `HR self-service – ${labels[sec] || 'Overview'} | ${DOCUMENT_TITLE_BASE}`;
+    return `HR services – ${labels[sec] || 'Overview'} | ${DOCUMENT_TITLE_BASE}`;
   }
 
   if (p === '/team-hr' || p.startsWith('/team-hr/')) {

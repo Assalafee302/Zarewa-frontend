@@ -7,13 +7,14 @@ import { canViewOrgSensitiveHr } from '../../lib/hrAccess';
 import { formatNgn } from '../../lib/hrFormat';
 import { formatPeriodYyyymm } from '../../lib/hrPayroll';
 import { HrPayslipPrintModal } from '../../components/hr/HrPayslipPrintModal';
-import { HrPageBody, HrPageIntro } from '../../components/hr/hrPageUi';
+import { ProfilePageBody, ProfilePageIntro } from '../../components/profile/profilePageUi';
 import {
   ProfileEmptyState,
   ProfileInlineAlert,
   ProfileMetricSkeleton,
   ProfileOverviewSection,
 } from '../../components/profile/profileOverviewUi';
+import { ProfileKpiCard, ProfileListRow, ProfileStatusChip } from '../../components/profile/profileDesign';
 import {
   AppTable,
   AppTableBody,
@@ -29,7 +30,7 @@ function PayslipRowActions({ payslip, onView }) {
     <button
       type="button"
       onClick={() => onView(payslip)}
-      className="min-h-10 rounded-lg border border-[#134e4a]/30 px-3 py-1.5 text-[10px] font-bold uppercase text-[#134e4a] hover:bg-teal-50"
+      className="z-btn-secondary !px-3 !py-1.5 !text-[10px] uppercase tracking-wide"
     >
       View / PDF
     </button>
@@ -69,6 +70,7 @@ export default function MyPayslips() {
   }, [sensitive.isUnlocked, showSensitiveInline, sensitive.fetchWithSensitive]);
 
   const openPayslip = (p) => setPrintPayslip(p);
+  const lastPayslip = payslips[0];
 
   const payslipList = (
     <>
@@ -79,28 +81,37 @@ export default function MyPayslips() {
           description="Payslips appear after HQ locks payroll and finance marks the run paid. Check back after the next payroll cycle."
         />
       ) : null}
+      {lastPayslip && !loading ? (
+        <div className="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <ProfileKpiCard label="Last net pay">
+            <p className="text-2xl font-black tabular-nums tracking-tight text-[#134e4a]">
+              {lastPayslip.amountsRedacted ? 'Unlock to view' : formatNgn(lastPayslip.netNgn)}
+            </p>
+            <p className="mt-1 text-[10px] font-bold uppercase tracking-wide text-slate-400">
+              {formatPeriodYyyymm(lastPayslip.periodYyyymm)}
+            </p>
+          </ProfileKpiCard>
+          <ProfileKpiCard label="Periods on file">
+            <p className="text-2xl font-black tabular-nums text-slate-900">{payslips.length}</p>
+          </ProfileKpiCard>
+        </div>
+      ) : null}
       {payslips.length > 0 ? (
         <>
-          <div className="space-y-3 md:hidden">
+          <div className="space-y-2 md:hidden">
             {payslips.map((p) => (
-              <article
-                key={`${p.runId}-${p.periodYyyymm}-m`}
-                className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <p className="text-sm font-bold text-slate-900">{formatPeriodYyyymm(p.periodYyyymm)}</p>
-                    <p className="text-[11px] text-slate-500">{p.runStatus}</p>
-                  </div>
-                  <p className="text-sm font-black tabular-nums text-[#134e4a]">
+              <ProfileListRow key={`${p.runId}-${p.periodYyyymm}-m`}>
+                <span className="min-w-0">
+                  <span className="block text-sm font-semibold text-slate-900">{formatPeriodYyyymm(p.periodYyyymm)}</span>
+                  <span className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{p.runStatus}</span>
+                </span>
+                <span className="flex shrink-0 flex-col items-end gap-2">
+                  <span className="text-sm font-black tabular-nums text-[#134e4a]">
                     {p.amountsRedacted ? '—' : formatNgn(p.netNgn)}
-                  </p>
-                </div>
-                <div className="mt-3 flex items-center justify-between gap-2 text-xs text-slate-600">
-                  <span>Gross: {p.amountsRedacted ? '—' : formatNgn(p.grossNgn)}</span>
+                  </span>
                   <PayslipRowActions payslip={p} onView={openPayslip} />
-                </div>
-              </article>
+                </span>
+              </ProfileListRow>
             ))}
           </div>
           <div className="hidden md:block">
@@ -117,7 +128,11 @@ export default function MyPayslips() {
                   {payslips.map((p) => (
                     <AppTableTr key={`${p.runId}-${p.periodYyyymm}`}>
                       <AppTableTd>{formatPeriodYyyymm(p.periodYyyymm)}</AppTableTd>
-                      <AppTableTd>{p.runStatus}</AppTableTd>
+                      <AppTableTd>
+                        <ProfileStatusChip variant={p.runStatus === 'paid' ? 'approved' : 'pending'}>
+                          {p.runStatus}
+                        </ProfileStatusChip>
+                      </AppTableTd>
                       <AppTableTd align="right">
                         {p.amountsRedacted ? '—' : formatNgn(p.grossNgn)}
                       </AppTableTd>
@@ -142,8 +157,8 @@ export default function MyPayslips() {
   );
 
   return (
-    <HrPageBody>
-      <HrPageIntro
+    <ProfilePageBody>
+      <ProfilePageIntro
         title="Payslips"
         description="View and download payslips after payroll is locked and paid. Tap a row to open the PDF view."
       />
@@ -164,6 +179,6 @@ export default function MyPayslips() {
           </HrSensitiveGate>
         )}
       </ProfileOverviewSection>
-    </HrPageBody>
+    </ProfilePageBody>
   );
 }

@@ -3,9 +3,10 @@ import { useHrListLoad } from '../../hooks/useHrListLoad';
 import { acceptHrPolicy, fetchHrPolicyRequirements } from '../../lib/hrExtended';
 import { apiFetch, apiUrl } from '../../lib/apiBase';
 import { useWorkspace } from '../../context/WorkspaceContext';
-import { HrPageBody, HrPageIntro } from '../../components/hr/hrPageUi';
+import { ProfilePageBody, ProfilePageIntro } from '../../components/profile/profilePageUi';
 import { ProfileFormField } from '../../components/profile/profileFormUi';
 import { ProfileInlineAlert, ProfileOverviewSection } from '../../components/profile/profileOverviewUi';
+import { ProfileListRow, ProfileStatusChip } from '../../components/profile/profileDesign';
 
 function policyDocumentUrl(key) {
   return apiUrl(`/api/hr/policy-documents/${encodeURIComponent(key)}`);
@@ -104,10 +105,17 @@ export default function MyProfilePolicies() {
   };
 
   return (
-    <HrPageBody>
-      <HrPageIntro
+    <ProfilePageBody>
+      <ProfilePageIntro
         title="Company policies"
         description="Read and sign required policies once. HR stores your typed signature on file."
+        actions={
+          missing.length ? (
+            <ProfileStatusChip variant="pending">{missing.length} to sign</ProfileStatusChip>
+          ) : allAccepted ? (
+            <ProfileStatusChip variant="approved">All signed</ProfileStatusChip>
+          ) : null
+        }
       />
 
       {allAccepted ? (
@@ -133,7 +141,7 @@ export default function MyProfilePolicies() {
         </ProfileFormField>
 
         <div
-          className="mt-4 max-h-[min(50dvh,420px)] overflow-y-auto rounded-2xl border border-slate-200 bg-slate-50/80 p-4 text-sm leading-relaxed text-slate-800 whitespace-pre-wrap custom-scrollbar sm:p-5"
+          className="mt-4 max-h-[min(50dvh,420px)] overflow-y-auto rounded-xl border border-slate-200 bg-slate-50/80 p-4 text-sm leading-relaxed text-slate-800 whitespace-pre-wrap custom-scrollbar sm:p-5"
           onScroll={(e) => {
             const el = e.currentTarget;
             if (el.scrollTop + el.clientHeight >= el.scrollHeight - 32) setScrolledToEnd(true);
@@ -148,7 +156,7 @@ export default function MyProfilePolicies() {
           )}
         </div>
         {!scrolledToEnd && missing.length && policies.length ? (
-          <p className="mt-3 text-xs text-slate-500">Scroll to the end of the policy text to enable bulk sign.</p>
+          <p className="mt-3 z-meta-text">Scroll to the end of the policy text to enable bulk sign.</p>
         ) : null}
 
         {missing.length ? (
@@ -164,35 +172,40 @@ export default function MyProfilePolicies() {
       </ProfileOverviewSection>
 
       <ProfileOverviewSection title="Individual policy status" subtitle="Download or sign policies one at a time">
-        <ul className="space-y-3">
+        <ul className="space-y-2">
           {policies.map((p) => {
             const isMissing = missingKeys.has(`${p.key}:${p.version}`);
             return (
-              <li key={`${p.key}-${p.version}`} className="rounded-xl border border-slate-100 bg-slate-50/80 p-3">
-                <p className="text-sm font-semibold text-slate-800">{p.label}</p>
-                <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-                  <a
-                    href={policyDocumentUrl(p.key)}
-                    download={`${p.key}-policy.txt`}
-                    className="z-btn-secondary min-h-10 w-full text-center no-underline sm:w-auto"
-                  >
-                    Download
-                  </a>
-                  {isMissing ? (
-                    <button
-                      type="button"
-                      className="z-btn-primary min-h-10 w-full sm:w-auto"
-                      disabled={busy}
-                      onClick={() => acceptOne(p.key, p.version)}
+              <li key={`${p.key}-${p.version}`}>
+                <ProfileListRow>
+                  <span className="min-w-0">
+                    <span className="block text-sm font-semibold text-slate-900">{p.label}</span>
+                    <span className="text-[10px] font-bold uppercase tracking-wide text-slate-400">v{p.version}</span>
+                  </span>
+                  <span className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+                    <a
+                      href={policyDocumentUrl(p.key)}
+                      download={`${p.key}-policy.txt`}
+                      className="z-btn-secondary !px-3 !py-1.5 !text-[10px] uppercase tracking-wide no-underline"
                     >
-                      Sign this policy
-                    </button>
-                  ) : (
-                    <span className="inline-flex min-h-10 items-center text-sm font-bold text-emerald-700">
-                      Signed {p.signedAtIso ? String(p.signedAtIso).slice(0, 10) : ''}
-                    </span>
-                  )}
-                </div>
+                      Download
+                    </a>
+                    {isMissing ? (
+                      <button
+                        type="button"
+                        className="z-btn-primary !px-3 !py-1.5 !text-[10px] uppercase tracking-wide"
+                        disabled={busy}
+                        onClick={() => acceptOne(p.key, p.version)}
+                      >
+                        Sign
+                      </button>
+                    ) : (
+                      <ProfileStatusChip variant="approved">
+                        Signed {p.signedAtIso ? String(p.signedAtIso).slice(0, 10) : ''}
+                      </ProfileStatusChip>
+                    )}
+                  </span>
+                </ProfileListRow>
               </li>
             );
           })}
@@ -202,6 +215,6 @@ export default function MyProfilePolicies() {
       {message ? (
         <ProfileInlineAlert variant={messageOk ? 'success' : 'error'}>{message}</ProfileInlineAlert>
       ) : null}
-    </HrPageBody>
+    </ProfilePageBody>
   );
 }

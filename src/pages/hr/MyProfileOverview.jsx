@@ -1,5 +1,4 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import DomesticStaffHub from '../../components/hr/DomesticStaffHub';
 import ScholarshipSchoolProfile from '../../components/hr/ScholarshipSchoolProfile';
 import { useMyProfileCohort } from './MyProfile';
@@ -11,26 +10,25 @@ import { useHrSensitiveAccess } from '../../hooks/useHrSensitiveAccess';
 import { canViewOrgSensitiveHr } from '../../lib/hrAccess';
 import { formatNgn } from '../../lib/hrFormat';
 import { formatPeriodYyyymm } from '../../lib/hrPayroll';
-import { HrProfileCompleteness } from '../../components/hr/HrProfileCompleteness';
-import { HrPageBody } from '../../components/hr/hrPageUi';
+import { ProfileHealthPanel } from '../../components/profile/ProfileHealthPanel';
 import {
   ProfileEmptyState,
   ProfileHeroSkeleton,
   ProfileIdentityStrip,
   ProfileInlineAlert,
-  ProfileMetricCard,
-  ProfileMetricSkeleton,
   ProfileOverviewSection,
 } from '../../components/profile/profileOverviewUi';
-import { HR_SELF_SERVICE_PATH, hrSelfServicePathForTab } from '../../lib/hrSelfServiceRoutes';
+import { ProfileKpiCard, ProfileKpiSkeleton, ProfileStatusChip } from '../../components/profile/profileDesign';
+import { HR_SELF_SERVICE_PATH } from '../../lib/hrSelfServiceRoutes';
 import { myProfileOverviewFetchPlan } from '../../lib/myProfileOverviewFetch';
+import { ProfileOnboardingWizard } from '../../components/profile/ProfileOnboardingWizard';
+import { ProfileProbationBanner } from '../../components/profile/ProfileProbationBanner';
 
 export default function MyProfileOverview() {
   const { cohort: layoutCohort } = useMyProfileCohort();
-  const { hr, user, completeness, error, initialLoading } = useUserProfile();
+  const { hr, user, me, completeness, error, initialLoading } = useUserProfile();
   const cohort = layoutCohort || 'employee';
   const ws = useWorkspace();
-  const navigate = useNavigate();
   const sensitive = useHrSensitiveAccess();
   const showSensitiveInline = canViewOrgSensitiveHr(ws?.permissions);
 
@@ -86,18 +84,18 @@ export default function MyProfileOverview() {
 
   if (initialLoading && !hr) {
     return (
-      <HrPageBody>
+      <div className="space-y-6">
         <ProfileHeroSkeleton />
-        <ProfileMetricSkeleton count={cohort === 'domestic' ? 2 : 3} />
-      </HrPageBody>
+        <ProfileKpiSkeleton count={3} />
+      </div>
     );
   }
 
   if (error) {
     return (
-      <HrPageBody>
+      <div className="space-y-4">
         <ProfileInlineAlert variant="error">{error}</ProfileInlineAlert>
-      </HrPageBody>
+      </div>
     );
   }
 
@@ -108,15 +106,15 @@ export default function MyProfileOverview() {
   const metricCount = cohort === 'employee' || cohort === 'special' ? 3 : 2;
 
   const summarySection = loading ? (
-    <ProfileMetricSkeleton count={metricCount} />
+    <ProfileKpiSkeleton count={metricCount} />
   ) : (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {cohort === 'employee' || cohort === 'special' ? (
-        <ProfileMetricCard title="Leave balances" footerTo={HR_SELF_SERVICE_PATH.leave} footerLabel="Apply for leave">
+        <ProfileKpiCard label="Leave balances" to={HR_SELF_SERVICE_PATH.leave} actionLabel="Apply for leave">
           {balances.length === 0 ? (
             <ProfileEmptyState
               title="No leave balances"
-              description="HR may still be setting up your leave record. You can still submit a request."
+              description="HR may still be setting up your leave record."
               actionTo={HR_SELF_SERVICE_PATH.leave}
               actionLabel="Apply for leave"
             />
@@ -125,46 +123,46 @@ export default function MyProfileOverview() {
               {balances.map((b) => (
                 <li key={b.leaveType} className="flex items-center justify-between gap-2 text-sm">
                   <span className="capitalize text-slate-700">{b.leaveType} leave</span>
-                  <span className="font-semibold tabular-nums text-slate-900">
-                    {b.closingDays ?? b.balance ?? 0} days
-                  </span>
+                  <span className="font-black tabular-nums text-slate-900">{b.closingDays ?? b.balance ?? 0} days</span>
                 </li>
               ))}
             </ul>
           )}
-        </ProfileMetricCard>
+        </ProfileKpiCard>
       ) : null}
 
-      <ProfileMetricCard title="Last payslip" footerTo={HR_SELF_SERVICE_PATH.payslips} footerLabel="All payslips">
+      <ProfileKpiCard label="Last payslip" to={HR_SELF_SERVICE_PATH.payslips} actionLabel="All payslips">
         {!lastPayslip ? (
           <ProfileEmptyState
             title="No payslips yet"
-            description="Payslips appear after payroll is locked for a period."
+            description="Payslips appear after payroll is locked."
             actionTo={HR_SELF_SERVICE_PATH.payslips}
             actionLabel="View payslips"
           />
         ) : (
           <>
-            <p className="text-[11px] text-slate-500">
+            <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
               {formatPeriodYyyymm(lastPayslip.periodYyyymm)} · {lastPayslip.runStatus}
             </p>
             {lastPayslip.amountsRedacted ? (
               <p className="mt-2 text-sm italic text-slate-500">Unlock to view amount</p>
             ) : (
               <>
-                <p className="mt-2 text-xl font-black tabular-nums text-slate-900">{formatNgn(lastPayslip.netNgn)}</p>
-                <p className="text-[11px] text-slate-500">Net pay</p>
+                <p className="mt-2 text-2xl font-black tabular-nums tracking-tight text-slate-900">
+                  {formatNgn(lastPayslip.netNgn)}
+                </p>
+                <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Net pay</p>
               </>
             )}
           </>
         )}
-      </ProfileMetricCard>
+      </ProfileKpiCard>
 
-      <ProfileMetricCard title="Recent requests">
+      <ProfileKpiCard label="Recent requests">
         {requests.length === 0 ? (
           <ProfileEmptyState
             title="No requests yet"
-            description="Leave, loan, and profile change requests will show here once submitted."
+            description="Leave, loan, and profile requests appear here."
             actionTo={HR_SELF_SERVICE_PATH.leave}
             actionLabel="Apply for leave"
           />
@@ -173,59 +171,55 @@ export default function MyProfileOverview() {
             {requests.slice(0, 5).map((r) => (
               <li key={r.id} className="flex items-center justify-between gap-2 text-sm">
                 <span className="min-w-0 truncate text-slate-700">{r.title || r.kind || 'Request'}</span>
-                <span
-                  className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${
-                    r.status === 'approved'
-                      ? 'bg-emerald-50 text-emerald-800'
-                      : r.status === 'rejected'
-                        ? 'bg-red-50 text-red-800'
-                        : 'bg-amber-50 text-amber-800'
-                  }`}
+                <ProfileStatusChip
+                  variant={
+                    r.status === 'approved' ? 'approved' : r.status === 'rejected' ? 'rejected' : 'pending'
+                  }
                 >
                   {String(r.status || 'pending').replace(/_/g, ' ')}
-                </span>
+                </ProfileStatusChip>
               </li>
             ))}
           </ul>
         )}
         {pendingRequests.length > 0 ? (
-          <p className="mt-3 rounded-lg border border-amber-100 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-900">
+          <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900">
             {pendingRequests.length} awaiting review
           </p>
         ) : null}
-      </ProfileMetricCard>
+      </ProfileKpiCard>
     </div>
   );
 
   const employmentBody =
     hr && cohort !== 'domestic' ? (
       <dl className="grid grid-cols-1 gap-3 sm:grid-cols-2 text-sm">
-        <div>
-          <dt className="text-[10px] font-black uppercase tracking-widest text-slate-400">Job title</dt>
+        <div className="z-list-row-compact">
+          <dt className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Job title</dt>
           <dd className="mt-1 font-semibold text-slate-900">{hr.jobTitle || '—'}</dd>
         </div>
-        <div>
-          <dt className="text-[10px] font-black uppercase tracking-widest text-slate-400">Date joined</dt>
+        <div className="z-list-row-compact">
+          <dt className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Date joined</dt>
           <dd className="mt-1 font-semibold text-slate-900">{hr.dateJoinedIso || '—'}</dd>
         </div>
-        <div>
-          <dt className="text-[10px] font-black uppercase tracking-widest text-slate-400">Employment type</dt>
-          <dd className="mt-1 font-semibold text-slate-900">{hr.employmentType || '—'}</dd>
+        <div className="z-list-row-compact">
+          <dt className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Employment type</dt>
+          <dd className="mt-1 font-semibold capitalize text-slate-900">{hr.employmentType || '—'}</dd>
         </div>
         {hr.compensationRedacted ? (
-          <div className="sm:col-span-2 rounded-xl border border-slate-100 bg-slate-50 px-3 py-2.5 text-xs leading-relaxed text-slate-600">
-            Compensation figures are hidden. Unlock your sensitive data to view salary and bank details.
+          <div className="sm:col-span-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-xs leading-relaxed text-slate-600">
+            Compensation is hidden. Unlock sensitive data to view salary and bank details.
           </div>
         ) : (
           <>
-            <div>
-              <dt className="text-[10px] font-black uppercase tracking-widest text-slate-400">Base salary (monthly)</dt>
-              <dd className="mt-1 font-semibold tabular-nums text-slate-900">
+            <div className="z-list-row-compact">
+              <dt className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Base salary (monthly)</dt>
+              <dd className="mt-1 font-black tabular-nums text-slate-900">
                 {hr.baseSalaryNgn != null ? formatNgn(hr.baseSalaryNgn) : '—'}
               </dd>
             </div>
-            <div>
-              <dt className="text-[10px] font-black uppercase tracking-widest text-slate-400">Bank</dt>
+            <div className="z-list-row-compact">
+              <dt className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Bank</dt>
               <dd className="mt-1 font-semibold text-slate-900">
                 {hr.bankName || '—'}
                 {hr.bankAccountNoMasked ? ` · ${hr.bankAccountNoMasked}` : ''}
@@ -237,18 +231,19 @@ export default function MyProfileOverview() {
     ) : null;
 
   return (
-    <HrPageBody>
+    <div className="space-y-6">
       <ProfileIdentityStrip user={user} hr={hr} cohort={cohort} />
 
-      {completeness ? (
-        <HrProfileCompleteness
-          completeness={completeness}
-          compact
-          onFixSection={(tabId) => {
-            navigate(hrSelfServicePathForTab(tabId));
-          }}
-        />
-      ) : null}
+      <ProfileOnboardingWizard />
+      <ProfileProbationBanner />
+
+      <ProfileHealthPanel
+        completeness={completeness}
+        documentSummary={me?.documentSummary}
+        pendingProfileRequests={me?.pendingProfileRequests}
+        unreadNotifications={me?.unreadNotifications}
+        compact
+      />
 
       <ProfileOverviewSection title="At a glance" subtitle="Leave, pay, and requests">
         {summarySection}
@@ -270,6 +265,6 @@ export default function MyProfileOverview() {
           )}
         </ProfileOverviewSection>
       ) : null}
-    </HrPageBody>
+    </div>
   );
 }
