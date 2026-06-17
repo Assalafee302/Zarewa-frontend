@@ -10,6 +10,7 @@ import {
   HrStaffImportGuideSection,
 } from '../../components/hr/HrSettingsSections';
 import { HrBranchMappingPanel, HrDepartmentsPanel, HrDesignationsPanel } from '../../components/hr/HrMasterDataPanels';
+import { HrExecutiveStructureHub } from '../../components/hr/HrExecutiveStructureHub';
 import { HrLetterReferencePanel } from '../../components/hr/HrLetterReferencePanel';
 import { HrStaffNumberingPanel } from '../../components/hr/HrStaffNumberingPanel';
 import {
@@ -32,8 +33,8 @@ import { HR_SETTINGS_PAGE, HR_SETTINGS_TABS } from '../../lib/hrSettingsUi';
 /** Retired settings tabs — send users to the module that owns the workflow. */
 const EXTERNAL_TAB_REDIRECTS = {
   holidays: hrTabPath(HR_LEAVE, 'holidays'),
-  compensation: hrTabPath(HR_PAYROLL, 'salary-matrix'),
-  'salary-matrix': hrTabPath(HR_PAYROLL, 'salary-matrix'),
+  compensation: hrTabPath(HR_SETTINGS, 'structure'),
+  'salary-matrix': hrTabPath(HR_SETTINGS, 'structure'),
   quality: '/hr/dashboard',
   readiness: '/hr/dashboard',
   'module-health': '/hr/dashboard',
@@ -43,6 +44,10 @@ const EXTERNAL_TAB_REDIRECTS = {
 const TAB_ALIASES = {
   'policy-config': 'policies',
   organization: 'organization',
+  structure: 'structure',
+  roles: 'structure',
+  'salary-matrix': 'structure',
+  matrix: 'structure',
   departments: 'organization',
   designations: 'organization',
   'job-descriptions': 'organization',
@@ -72,11 +77,14 @@ export default function HrSettingsHub() {
     if (canManage) return HR_SETTINGS_TABS;
     const visible = [];
     if (canEditPolicy) visible.push(HR_SETTINGS_TABS.find((t) => t.id === 'policies'));
-    if (canViewOrg) visible.push(HR_SETTINGS_TABS.find((t) => t.id === 'organization'));
+    if (canViewOrg) {
+      visible.push(HR_SETTINGS_TABS.find((t) => t.id === 'structure'));
+      visible.push(HR_SETTINGS_TABS.find((t) => t.id === 'organization'));
+    }
     return visible.filter(Boolean);
   }, [canManage, canEditPolicy, canViewOrg]);
   const validTabIds = tabs.map((t) => t.id);
-  const defaultTab = canManage || (canViewOrg && !canEditPolicy) ? 'organization' : 'policies';
+  const defaultTab = canManage ? 'structure' : canViewOrg ? 'organization' : 'policies';
   const acceptedUrlTabs = [...validTabIds, ...Object.keys(TAB_ALIASES), ...Object.keys(EXTERNAL_TAB_REDIRECTS)];
 
   const [searchParams, setSearchParams] = useSearchParams();
@@ -131,6 +139,13 @@ export default function HrSettingsHub() {
       tab={tab}
       onTabChange={setTab}
     >
+      {tab === 'structure' && canViewOrg ? (
+        <div className="space-y-6">
+          <HrSettingsTabIntro tabId="structure" />
+          <HrExecutiveStructureHub defaultSection="roles" embedded />
+        </div>
+      ) : null}
+
       {tab === 'organization' && canViewOrg ? (
         <div className="space-y-6">
           <HrSettingsTabIntro tabId="organization" />

@@ -12,9 +12,10 @@ import {
   HR_BLOOD_GROUPS,
   HR_STAFF_FORM_TABS,
 } from '../../lib/hrStaffFormMeta';
-import { fetchHrDepartments, fetchHrDesignations } from '../../lib/hrMasterData';
+import { fetchHrDepartments, fetchHrDesignations, fetchDesignationTenureEligibility } from '../../lib/hrMasterData';
 import { fetchMatrixCompensationLookup } from '../../lib/hrCompensation';
-import { formatNgn } from '../../lib/hrFormat';
+import { formatNgn, yearsOfServiceFromIso } from '../../lib/hrFormat';
+import { isActingDesignation } from '../../lib/hrOrgConstants';
 import { HrCompensationExtrasPanel } from './HrCompensationExtrasPanel';
 import { HrManagerPicker } from './HrManagerPicker';
 import { FAMILY_BENEFITS } from '../../lib/familyBenefitsUi';
@@ -67,6 +68,7 @@ export function HrStaffFormFields({
   const [masterLoading, setMasterLoading] = useState(true);
   const [matrixPreview, setMatrixPreview] = useState(null);
   const [matrixBusy, setMatrixBusy] = useState(false);
+  const [designationEligibility, setDesignationEligibility] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -109,6 +111,7 @@ export function HrStaffFormFields({
   }, []);
 
   const visibleTabs = HR_STAFF_FORM_TABS.filter((t) => showCompensation || !['payroll', 'bank', 'statutory'].includes(t.id));
+  const isRegister = mode === 'register';
   const erpRestricted = isErpAccessRestrictedPayrollGroup(form.payrollGroup);
   const registerableRoles = useMemo(
     () =>
@@ -167,8 +170,24 @@ export function HrStaffFormFields({
       payAdditionNgn: '',
       applyMatrixPay: true,
       jobDescriptionPreview: des?.jobDescription || '',
+      actingEndDateIso: isActingDesignation(desId, designations) ? f.actingEndDateIso : '',
     }));
-    if (!desId || !nextLevel) {
+    if (!desId) {
+      setMatrixPreview(null);
+      setDesignationEligibility(null);
+      return;
+    }
+    if (form.dateJoinedIso) {
+      const { ok, data } = await fetchDesignationTenureEligibility(desId, {
+        userId: editUserId || undefined,
+        dateJoinedIso: form.dateJoinedIso,
+      });
+      if (ok && data?.ok) setDesignationEligibility(data);
+      else setDesignationEligibility(null);
+    } else {
+      setDesignationEligibility(null);
+    }
+    if (!nextLevel) {
       setMatrixPreview(null);
       return;
     }
@@ -486,6 +505,59 @@ export function HrStaffFormFields({
               <p className="font-bold uppercase tracking-wide text-slate-400 mb-1">Job description</p>
               <p className="whitespace-pre-wrap">{selectedDesignation?.jobDescription || form.jobDescriptionPreview}</p>
             </div>
+          ) : null}
+          {form.dateJoinedIso && yearsOfServiceFromIso(form.dateJoinedIso) != null ? (
+            <div className="sm:col-span-2 rounded-xl border border-teal-100 bg-teal-50/60 px-3 py-2 text-xs text-teal-900">
+              <span className="font-bold">Years of service:</span> ~{yearsOfServiceFromIso(form.dateJoinedIso)} yrs
+              {selectedDesignation?.minServiceYears > 0 ? (
+                <span className="ml-2 text-teal-700">
+                  · Title requires {selectedDesignation.minServiceYears}+ yrs
+                </span>
+              ) : null}
+            </div>
+          ) : null}
+          {designationEligibility && !designationEligibility.eligible ? (
+            <div className="sm:col-span-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+              <p className="font-semibold">Tenure gate</p>
+              <p>
+                {designationEligibility.designationTitle} needs {designationEligibility.minServiceYears} year(s) of service.
+                Current: ~{designationEligibility.yearsOfService} yrs (short by {designationEligibility.shortfallYears}).
+                Use an Assistant/Trainee title, or record a tenure override below.
+              </p>
+            </div>
+          ) : null}
+          {isActingDesignation(form.designationId, designations) ? (
+            <Field label="Acting appointment end date" hint="Required for acting titles; max 6 months per policy">
+              <input
+                type="date"
+                className={fieldCls}
+                value={form.actingEndDateIso || ''}
+                onChange={(e) => set('actingEndDateIso', e.target.value)}
+                required
+              />
+            </Field>
+          ) : null}
+          {designationEligibility && !designationEligibility.eligible ? (
+            <>
+              <Field label="Tenure override (HR)">
+                <input
+                  type="checkbox"
+                  className="mt-2"
+                  checked={Boolean(form.tenureOverride)}
+                  onChange={(e) => set('tenureOverride', e.target.checked)}
+                />
+              </Field>
+              {form.tenureOverride ? (
+                <Field label="Override reason" hint="Min 12 characters — board letter, MD approval, etc.">
+                  <textarea
+                    className={fieldCls}
+                    rows={2}
+                    value={form.tenureOverrideReason || ''}
+                    onChange={(e) => set('tenureOverrideReason', e.target.value)}
+                  />
+                </Field>
+              ) : null}
+            </>
           ) : null}
           <Field label="Employment type">
             <select

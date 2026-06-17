@@ -675,6 +675,22 @@ export default function HrStaffProfile() {
                 { label: 'Employment type', value: staff.employmentType || '—' },
                 { label: 'Status', value: empMeta.employmentStatus || staff.status || '—' },
                 { label: 'Date joined', value: staff.dateJoinedIso?.slice(0, 10) || '—' },
+                {
+                  label: 'Years of service',
+                  value:
+                    staff.tenure?.yearsOfService != null
+                      ? `${staff.tenure.yearsOfService} yrs (${staff.tenure.yearsInCurrentLevel} at current level/step)`
+                      : yrs != null
+                        ? `${yrs} yrs`
+                        : '—',
+                },
+                {
+                  label: 'Pay rank',
+                  value:
+                    staff.salaryLevel != null
+                      ? `L${staff.salaryLevel} / Step ${staff.salaryStep ?? 1} · ${staff.promotionGrade || '—'}`
+                      : '—',
+                },
                 { label: 'Line manager', value: staff.lineManagerDisplayName || staff.lineManagerUserId || '—' },
               ]}
             />

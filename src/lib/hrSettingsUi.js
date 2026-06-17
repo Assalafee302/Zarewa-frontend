@@ -2,12 +2,18 @@ import { HR_DOCUMENTS, HR_EMPLOYEES, HR_LEAVE, HR_PAYROLL, hrTabPath } from './h
 
 /** Copy for each HR Settings tab — aligned with branch/HQ employee operations. */
 export const HR_SETTINGS_TABS = [
+  { id: 'structure', label: 'Roles & pay' },
   { id: 'organization', label: 'Org structure' },
   { id: 'policies', label: 'People policies' },
   { id: 'documents', label: 'References' },
 ];
 
 export const HR_SETTINGS_TAB_COPY = {
+  structure: {
+    title: 'Roles, grades & pay structure',
+    description:
+      'Executive view of all job titles with full terms of reference, departments, salary matrix (level × step), and the company pay grade ladder.',
+  },
   organization: {
     title: 'Organization structure',
     description:
@@ -29,7 +35,9 @@ export const HR_SETTINGS_TAB_COPY = {
 export const HR_SETTINGS_SCOPE = {
   title: 'What belongs here',
   includes: [
-    'Departments, job titles, and branch office mapping',
+    'Job titles with duties, qualifications, tenure gates, and default pay levels',
+    'Salary matrix by payroll group (level × step)',
+    'Departments, branch office mapping, and org catalog seed',
     'Leave entitlements and staff loan company defaults',
     'Letter reference and employee number formats',
   ],
@@ -47,9 +55,14 @@ export const HR_SETTINGS_MODULE_LINK_GROUPS = [
     title: 'Payroll & compensation',
     links: [
       {
+        label: 'Roles & pay structure',
+        hint: 'Titles, terms, matrix, grade ladder',
+        to: hrTabPath(HR_SETTINGS, 'structure'),
+      },
+      {
         label: 'Salary matrix',
         hint: 'Levels and steps by payroll group',
-        to: hrTabPath(HR_PAYROLL, 'salary-matrix'),
+        to: hrTabPath(HR_SETTINGS, 'structure'),
       },
       {
         label: 'Pension & statutory',

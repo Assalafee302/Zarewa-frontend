@@ -18,6 +18,10 @@ const emptyDesig = () => ({
   seniorityBand: '',
   defaultSalaryLevel: '',
   defaultSalaryStep: '',
+  minServiceYears: '',
+  titleTier: '',
+  functionalOfficeKey: '',
+  isActing: false,
   jobDescription: '',
   dutiesResponsibilities: '',
   reportingLine: '',
@@ -193,6 +197,10 @@ export function HrDesignationsPanel({ refreshKey = 0 }) {
       seniorityBand: row.seniorityBand || '',
       defaultSalaryLevel: row.defaultSalaryLevel ?? '',
       defaultSalaryStep: row.defaultSalaryStep ?? '',
+      minServiceYears: row.minServiceYears ?? '',
+      titleTier: row.titleTier || '',
+      functionalOfficeKey: row.functionalOfficeKey || '',
+      isActing: Boolean(row.isActing),
       jobDescription: row.jobDescription || '',
       dutiesResponsibilities: row.dutiesResponsibilities || '',
       reportingLine: row.reportingLine || '',
@@ -213,6 +221,8 @@ export function HrDesignationsPanel({ refreshKey = 0 }) {
       id: editId || undefined,
       defaultSalaryLevel: form.defaultSalaryLevel === '' ? null : Number(form.defaultSalaryLevel),
       defaultSalaryStep: form.defaultSalaryStep === '' ? null : Number(form.defaultSalaryStep),
+      minServiceYears: form.minServiceYears === '' ? null : Number(form.minServiceYears),
+      isActing: Boolean(form.isActing),
     });
     setBusy(false);
     if (!ok || !data?.ok) {
@@ -249,6 +259,8 @@ export function HrDesignationsPanel({ refreshKey = 0 }) {
             { key: 'title', label: 'Title' },
             { key: 'departmentName', label: 'Department' },
             { key: 'seniorityBand', label: 'Band' },
+            { key: 'minServiceYears', label: 'Min yrs' },
+            { key: 'titleTier', label: 'Tier' },
             { key: 'active', label: 'Status' },
             { key: 'actions', label: '' },
           ]}
@@ -256,6 +268,8 @@ export function HrDesignationsPanel({ refreshKey = 0 }) {
             ...r,
             departmentName: r.departmentName || '—',
             seniorityBand: r.seniorityBand || '—',
+            minServiceYears: r.minServiceYears != null ? r.minServiceYears : '—',
+            titleTier: r.titleTier || '—',
             active: r.active ? 'Active' : 'Inactive',
             actions: canEdit ? 'Edit' : 'View',
             _row: r,
@@ -289,6 +303,22 @@ export function HrDesignationsPanel({ refreshKey = 0 }) {
           <label className="block text-xs font-semibold text-slate-600">
             Seniority band
             <input className={HR_FIELD_CLASS} value={form.seniorityBand} onChange={(e) => setForm({ ...form, seniorityBand: e.target.value })} placeholder="Junior / Senior / Manager" />
+          </label>
+          <label className="block text-xs font-semibold text-slate-600">
+            Min years of service
+            <input type="number" min="0" step="0.5" className={HR_FIELD_CLASS} value={form.minServiceYears} onChange={(e) => setForm({ ...form, minServiceYears: e.target.value })} />
+          </label>
+          <label className="block text-xs font-semibold text-slate-600">
+            Title tier
+            <input className={HR_FIELD_CLASS} value={form.titleTier} onChange={(e) => setForm({ ...form, titleTier: e.target.value })} placeholder="trainee / assistant / officer / manager" />
+          </label>
+          <label className="block text-xs font-semibold text-slate-600 sm:col-span-2">
+            Functional office key
+            <input className={HR_FIELD_CLASS} value={form.functionalOfficeKey} onChange={(e) => setForm({ ...form, functionalOfficeKey: e.target.value })} placeholder="sales / production / finance" />
+          </label>
+          <label className="flex items-center gap-2 text-xs font-semibold text-slate-600 sm:col-span-2">
+            <input type="checkbox" checked={Boolean(form.isActing)} onChange={(e) => setForm({ ...form, isActing: e.target.checked })} />
+            Acting (temporary) title
           </label>
           <label className="block text-xs font-semibold text-slate-600 sm:col-span-2">
             Duties & responsibilities
