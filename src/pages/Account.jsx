@@ -192,7 +192,6 @@ const Account = () => {
   const [receiptBankAmtInput, setReceiptBankAmtInput] = useState('');
   const [receiptClearDelivery, setReceiptClearDelivery] = useState(false);
   const [receiptFinanceBusy, setReceiptFinanceBusy] = useState(false);
-  const [receiptFinanceEditApprovalId, setReceiptFinanceEditApprovalId] = useState('');
   /** Correct bank/cash account for expense or payment-request treasury outflows (same idea as receipt splits). */
   const [expenseOutflowEdit, setExpenseOutflowEdit] = useState(null);
   const [expenseOutflowLineIdx, setExpenseOutflowLineIdx] = useState(0);
@@ -1421,11 +1420,6 @@ const Account = () => {
     [salesReceipts]
   );
 
-  /** MD / finance.approve may revise reconciled receipts without a manager token. */
-  const canBypassReceiptRevisionApproval = Boolean(
-    ws?.hasPermission?.('finance.approve') || ws?.hasPermission?.('*')
-  );
-
   const receiptsVisibleInReconciliationQueue = useMemo(() => salesReceipts, [salesReceipts]);
 
   const filteredSalesReceipts = useMemo(() => {
@@ -1566,7 +1560,6 @@ const Account = () => {
 
   const openReceiptFinance = useCallback(
     (r) => {
-      setReceiptFinanceEditApprovalId('');
       setReceiptFinanceRow(r);
       const allocated = Number(r.amountNgn) || 0;
       const cash = r.cashReceivedNgn != null ? Number(r.cashReceivedNgn) || allocated : allocated;
@@ -1590,12 +1583,6 @@ const Account = () => {
       );
     },
     [liveTreasuryMovements, todayIso]
-  );
-
-  const receiptRevisionNeedsManagerApproval = Boolean(
-    receiptFinanceRow?.financeReconciliationSavedAtISO &&
-      !canBypassReceiptRevisionApproval &&
-      editMutationNeedsSecondApprovalRole(ws?.session?.user?.roleKey)
   );
 
   const reverseReceiptFinanceRow = useCallback(async () => {
@@ -1695,9 +1682,6 @@ const Account = () => {
               ),
               clearForDelivery: receiptClearDelivery,
               paymentLineCorrections,
-              ...(receiptFinanceEditApprovalId.trim()
-                ? { editApprovalId: receiptFinanceEditApprovalId.trim() }
-                : {}),
             }),
           }
         );
@@ -1707,7 +1691,6 @@ const Account = () => {
           return;
         }
         showToast('Receipt cleared — treasury updated and reconciliation finalized.');
-        setReceiptFinanceEditApprovalId('');
         setReceiptFinanceRow(null);
         setPaymentCorrectionDrafts({});
         await wsRefresh?.();
@@ -1719,7 +1702,6 @@ const Account = () => {
       receiptFinanceRow,
       receiptBankAmtInput,
       receiptClearDelivery,
-      receiptFinanceEditApprovalId,
       paymentCorrectionDrafts,
       liveTreasuryMovements,
       todayIso,
@@ -5878,7 +5860,6 @@ const Account = () => {
       <ModalFrame
         isOpen={receiptFinanceRow != null}
         onClose={() => {
-          setReceiptFinanceEditApprovalId('');
           setReceiptFinanceRow(null);
           setPaymentCorrectionDrafts({});
         }}
@@ -5889,7 +5870,6 @@ const Account = () => {
             <button
               type="button"
               onClick={() => {
-                setReceiptFinanceEditApprovalId('');
                 setReceiptFinanceRow(null);
                 setPaymentCorrectionDrafts({});
               }}
@@ -5902,18 +5882,6 @@ const Account = () => {
           {receiptFinanceRow ? (
             <form className="space-y-4" onSubmit={saveReceiptFinance}>
               <p className="text-[10px] text-slate-600 font-mono break-all">{receiptFinanceRow.id}</p>
-              {receiptRevisionNeedsManagerApproval ? (
-                <p className="text-[10px] text-amber-900 bg-amber-50/90 border border-amber-200/80 rounded-lg px-3 py-2">
-                  <span className="font-bold">Second edit.</span> This receipt was already reconciled once. Request
-                  manager approval below before saving changes.
-                </p>
-              ) : null}
-              {receiptFinanceRow.financeReconciliationSavedAtISO && canBypassReceiptRevisionApproval ? (
-                <p className="text-[10px] text-teal-900 bg-teal-50/90 border border-teal-200/80 rounded-lg px-3 py-2">
-                  <span className="font-bold">Finance approval.</span> You may revise this reconciled receipt without a
-                  separate manager token.
-                </p>
-              ) : null}
               {(() => {
                 const settleSplits = receiptLedgerReceiptTreasurySplits(
                   receiptFinanceRow,
@@ -5933,7 +5901,7 @@ const Account = () => {
                         each line.{' '}
                         <span className="font-semibold">
                           One save below updates treasury balances, records the bank total, and finalizes this receipt.
-                          A second change needs manager approval.
+                          You can revise reconciled payments here without a separate approval code.
                         </span>
                       </div>
                       {settleSplits.map((s) => {
@@ -6133,14 +6101,6 @@ const Account = () => {
                   Cleared for delivery — finance confirms this receipt is good to release downstream.
                 </span>
               </label>
-              {receiptFinanceRow?.id && receiptRevisionNeedsManagerApproval ? (
-                <EditSecondApprovalInline
-                  entityKind="sales_receipt"
-                  entityId={receiptFinanceRow.id}
-                  value={receiptFinanceEditApprovalId}
-                  onChange={setReceiptFinanceEditApprovalId}
-                />
-              ) : null}
               {!receiptFinanceRow?.financeReconciliationSavedAtISO &&
               (ws?.hasPermission?.('finance.reverse') || ws?.hasPermission?.('finance.pay')) ? (
                 <button
