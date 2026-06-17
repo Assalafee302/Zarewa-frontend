@@ -40,17 +40,23 @@ export function MyLeaveCalendarStrip() {
   }, [range.from, range.to]);
 
   if (loading) {
-    return <div className="h-20 animate-pulse rounded-xl bg-slate-100" aria-busy="true" />;
+    return (
+      <div className="space-y-2" aria-busy="true">
+        {Array.from({ length: 2 }).map((_, i) => (
+          <div key={i} className="h-16 animate-pulse rounded-xl bg-slate-100" />
+        ))}
+      </div>
+    );
   }
 
   if (error) {
-    return <p className="text-sm text-amber-800">{error}</p>;
+    return <p className="rounded-xl border border-amber-100 bg-amber-50/80 px-4 py-3 text-sm text-amber-900">{error}</p>;
   }
 
   if (!entries.length) {
     return (
-      <p className="rounded-xl border border-dashed border-slate-200 bg-white px-4 py-6 text-center text-sm text-slate-500">
-        No approved leave in the next six months.
+      <p className="rounded-xl border border-dashed border-slate-200 bg-white px-4 py-8 text-center text-sm text-slate-500">
+        No approved leave in the next six months. When HR approves leave, it will appear here.
       </p>
     );
   }
@@ -60,7 +66,7 @@ export function MyLeaveCalendarStrip() {
       {entries.map((e) => (
         <li
           key={e.requestId || `${e.startDateIso}-${e.endDateIso}`}
-          className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-100 bg-white px-3 py-3 shadow-sm"
+          className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-100 bg-white px-4 py-3 shadow-sm transition hover:border-teal-100 hover:shadow-md"
         >
           <div className="min-w-0">
             <p className="text-sm font-semibold text-slate-900">{leaveTypeLabel(e.leaveType)}</p>

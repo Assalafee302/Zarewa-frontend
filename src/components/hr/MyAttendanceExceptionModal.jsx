@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { apiFetch } from '../../lib/apiBase';
-import { HrAddFormButton, HrFormModal } from './HrFormModal';
+import { WorkPayFormModal } from '../profile/WorkPayFormModal';
+import { WorkPayFormAlert, WorkPayHeroButton } from '../profile/workPayFormUi';
+import { ProfileFormActions, ProfileFormField } from '../profile/profileFormUi';
 import { HR_BTN_PRIMARY, HR_BTN_SECONDARY, HR_FIELD_CLASS } from './hrFormStyles';
 
 const TYPES = [
@@ -64,51 +66,54 @@ export function MyAttendanceExceptionModal({ onSubmitted }) {
 
   return (
     <>
-      <HrAddFormButton onClick={() => setOpen(true)}>Request exception</HrAddFormButton>
-      <HrFormModal isOpen={open} onClose={close} title="Attendance exception" size="lg">
-        <p className="mb-4 text-sm text-slate-600">
-          Ask your branch manager to endorse an exception before payroll is locked for that month. Use this when you were
-          marked {type} for an approved reason (official duty, medical, etc.).
-        </p>
-        <form className="space-y-4" onSubmit={submit}>
-          {error ? (
-            <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-800">{error}</div>
-          ) : null}
-          <label className="block text-xs font-semibold text-slate-600">
-            Date
-            <input type="date" className={`mt-1 ${HR_FIELD_CLASS}`} value={dayIso} onChange={(e) => setDayIso(e.target.value)} required />
-          </label>
-          <label className="block text-xs font-semibold text-slate-600">
-            Exception type
-            <select className={`mt-1 ${HR_FIELD_CLASS}`} value={type} onChange={(e) => setType(e.target.value)}>
+      <WorkPayHeroButton onClick={() => setOpen(true)}>Request exception</WorkPayHeroButton>
+      <WorkPayFormModal
+        isOpen={open}
+        onClose={close}
+        eyebrow="Work & pay"
+        title="Attendance exception"
+        description="Ask your branch manager to endorse an exception before payroll locks for that month."
+        trackId="attendance-exception"
+        footer={
+          <ProfileFormActions className="!border-t-0 !pt-0">
+            <button type="button" onClick={close} className={HR_BTN_SECONDARY}>
+              Cancel
+            </button>
+            <button type="submit" form="attendance-exception-form" disabled={busy} className={HR_BTN_PRIMARY}>
+              {busy ? 'Submitting…' : 'Submit for endorsement'}
+            </button>
+          </ProfileFormActions>
+        }
+      >
+        <form id="attendance-exception-form" className="space-y-4" onSubmit={submit}>
+          <WorkPayFormAlert variant="info">
+            Use this when you were marked {type} for an approved reason (official duty, medical, etc.).
+          </WorkPayFormAlert>
+          {error ? <WorkPayFormAlert variant="error">{error}</WorkPayFormAlert> : null}
+          <ProfileFormField label="Date" required>
+            <input type="date" className={HR_FIELD_CLASS} value={dayIso} onChange={(e) => setDayIso(e.target.value)} required />
+          </ProfileFormField>
+          <ProfileFormField label="Exception type">
+            <select className={HR_FIELD_CLASS} value={type} onChange={(e) => setType(e.target.value)}>
               {TYPES.map((t) => (
                 <option key={t.value} value={t.value}>
                   {t.label}
                 </option>
               ))}
             </select>
-          </label>
-          <label className="block text-xs font-semibold text-slate-600">
-            Reason
+          </ProfileFormField>
+          <ProfileFormField label="Reason" hint="At least 10 characters — include context for your manager." required>
             <textarea
-              className={`mt-1 ${HR_FIELD_CLASS} min-h-[88px]`}
+              className={`${HR_FIELD_CLASS} min-h-[88px]`}
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               placeholder="Explain why this day should not count against payroll"
               required
               minLength={10}
             />
-          </label>
-          <div className="flex flex-col gap-2 sm:flex-row">
-            <button type="button" onClick={close} className={HR_BTN_SECONDARY}>
-              Cancel
-            </button>
-            <button type="submit" disabled={busy} className={HR_BTN_PRIMARY}>
-              {busy ? 'Submitting…' : 'Submit for endorsement'}
-            </button>
-          </div>
+          </ProfileFormField>
         </form>
-      </HrFormModal>
+      </WorkPayFormModal>
     </>
   );
 }

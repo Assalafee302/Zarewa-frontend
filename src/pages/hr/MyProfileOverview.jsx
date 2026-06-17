@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import DomesticStaffHub from '../../components/hr/DomesticStaffHub';
 import ScholarshipSchoolProfile from '../../components/hr/ScholarshipSchoolProfile';
 import { useMyProfileCohort } from './MyProfile';
@@ -22,11 +22,12 @@ import { ProfileKpiCard, ProfileKpiSkeleton, ProfileStatusChip } from '../../com
 import { HR_SELF_SERVICE_PATH } from '../../lib/hrSelfServiceRoutes';
 import { leaveTypeLabel } from '../../lib/hrLeaveUi';
 import { myProfileOverviewFetchPlan } from '../../lib/myProfileOverviewFetch';
+import { computeLoanEligibility } from '../../lib/hrLoanEligibility';
 import { ProfileProbationBanner } from '../../components/profile/ProfileProbationBanner';
 
 export default function MyProfileOverview() {
   const { cohort: layoutCohort } = useMyProfileCohort();
-  const { hr, user, me, completeness, error, initialLoading } = useUserProfile();
+  const { hr, user, me, completeness, error, initialLoading, loanPolicy } = useUserProfile();
   const cohort = layoutCohort || 'employee';
   const ws = useWorkspace();
   const sensitive = useHrSensitiveAccess();
@@ -109,12 +110,23 @@ export default function MyProfileOverview() {
   const pendingRequests = requests.filter(
     (r) => !['approved', 'rejected', 'cancelled', 'draft'].includes(String(r.status || '').toLowerCase())
   );
-  const metricCount = cohort === 'employee' || cohort === 'special' ? 4 : 2;
+  const hasGuarantorDoc = (me?.documents || []).some((d) => d.docKind === 'guarantor_form');
+  const loanEligibility = useMemo(
+    () =>
+      computeLoanEligibility({
+        hr,
+        loanPolicy,
+        hasGuarantorDoc,
+        activeLoanOutstandingNgn: 0,
+      }),
+    [hr, loanPolicy, hasGuarantorDoc]
+  );
+  const metricCount = cohort === 'employee' || cohort === 'special' ? 5 : 2;
 
   const summarySection = loading ? (
     <ProfileKpiSkeleton count={metricCount} />
   ) : (
-    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
       {cohort === 'employee' || cohort === 'special' ? (
         <ProfileKpiCard label="Leave balances" to={HR_SELF_SERVICE_PATH.leave} actionLabel="Apply for leave">
           {balances.length === 0 ? (
@@ -160,6 +172,39 @@ export default function MyProfileOverview() {
         </ProfileKpiCard>
       ) : null}
 
+      {cohort === 'employee' || cohort === 'special' ? (
+        <ProfileKpiCard label="Staff loans" to={HR_SELF_SERVICE_PATH.loans} actionLabel="Apply for loan">
+          {!hr ? (
+            <ProfileEmptyState
+              title="Employment record pending"
+              description="Loan eligibility appears once HR sets up your profile."
+              actionTo={HR_SELF_SERVICE_PATH.loans}
+              actionLabel="Loans"
+            />
+          ) : (
+            <>
+              <ProfileStatusChip variant={loanEligibility.eligible ? 'approved' : 'pending'}>
+                {loanEligibility.eligible ? 'Eligible' : 'Action needed'}
+              </ProfileStatusChip>
+              <p className="mt-2 text-sm text-slate-700">
+                ~{loanEligibility.serviceYears.toFixed(1)} years service
+                {loanEligibility.maxLoanNgn ? (
+                  <>
+                    {' '}
+                    · max <strong>{formatNgn(loanEligibility.maxLoanNgn)}</strong>
+                  </>
+                ) : null}
+              </p>
+              {loanEligibility.issues[0] ? (
+                <p className="mt-2 text-xs text-amber-900">{loanEligibility.issues[0]}</p>
+              ) : (
+                <p className="mt-2 text-xs text-slate-500">You meet standard policy checks.</p>
+              )}
+            </>
+          )}
+        </ProfileKpiCard>
+      ) : null}
+
       <ProfileKpiCard label="Last payslip" to={HR_SELF_SERVICE_PATH.payslips} actionLabel="All payslips">
         {!lastPayslip ? (
           <ProfileEmptyState
@@ -183,6 +228,14 @@ export default function MyProfileOverview() {
                 <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Net pay</p>
               </>
             )}
+            {lastPayslip.attendanceDeductionNgn > 0 ? (
+              <p className="mt-2 text-xs text-amber-800">
+                Attendance deduction:{' '}
+                {lastPayslip.amountsRedacted || (!showSensitiveInline && !sensitive.isUnlocked)
+                  ? '•••••• (unlock to view)'
+                  : formatNgn(lastPayslip.attendanceDeductionNgn)}
+              </p>
+            ) : null}
           </>
         )}
       </ProfileKpiCard>

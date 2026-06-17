@@ -5,10 +5,12 @@ import { formatNgn } from '../../lib/hrFormat';
 import { currentPeriodYyyymm } from '../../lib/hrRequests';
 import { HR_SELF_SERVICE_PATH } from '../../lib/hrSelfServiceRoutes';
 import { WorkPayHero } from '../../components/profile/WorkPayHero';
+import { WorkPayFilterBar } from '../../components/profile/workPayFormUi';
 import { ProfilePageBody } from '../../components/profile/profilePageUi';
 import { ProfileInlineAlert, ProfileOverviewSection } from '../../components/profile/profileOverviewUi';
 import { ProfileKpiCard, ProfileListRow, ProfileStatusChip } from '../../components/profile/profileDesign';
 import { ProfileProbationBanner } from '../../components/profile/ProfileProbationBanner';
+import { ProfileFormField } from '../../components/profile/profileFormUi';
 import { MyAttendanceExceptionModal } from '../../components/hr/MyAttendanceExceptionModal';
 import { HrRequestsPanel } from '../../components/hr/HrRequestsPanel';
 
@@ -71,17 +73,16 @@ export default function MyAttendance() {
       {message ? <ProfileInlineAlert variant="success">{message}</ProfileInlineAlert> : null}
       {error ? <ProfileInlineAlert variant="error">{error}</ProfileInlineAlert> : null}
 
-      <div className="flex flex-wrap items-end gap-3">
-        <label className="text-xs font-semibold text-slate-600">
-          Payroll month
+      <WorkPayFilterBar>
+        <ProfileFormField label="Payroll month" className="mb-0">
           <input
             type="month"
-            className="z-input mt-1"
+            className="z-input max-w-[12rem]"
             value={periodInputValue(period)}
             onChange={(e) => setPeriod(periodFromInput(e.target.value) || currentPeriodYyyymm())}
           />
-        </label>
-      </div>
+        </ProfileFormField>
+      </WorkPayFilterBar>
 
       {loading ? (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">

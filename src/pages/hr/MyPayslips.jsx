@@ -9,6 +9,8 @@ import { formatPeriodYyyymm } from '../../lib/hrPayroll';
 import { HR_SELF_SERVICE_PATH } from '../../lib/hrSelfServiceRoutes';
 import { HrPayslipPrintModal } from '../../components/hr/HrPayslipPrintModal';
 import { HrSensitiveUnlockBanner } from '../../components/hr/HrSensitiveUnlockBanner';
+import { WorkPayFilterBar } from '../../components/profile/workPayFormUi';
+import { ProfileFormField } from '../../components/profile/profileFormUi';
 import { WorkPayHero } from '../../components/profile/WorkPayHero';
 import { ProfilePageBody } from '../../components/profile/profilePageUi';
 import {
@@ -129,11 +131,14 @@ export default function MyPayslips() {
             <ProfileKpiCard label="Periods on file">
               <p className="text-2xl font-black tabular-nums text-slate-900">{payslips.length}</p>
             </ProfileKpiCard>
-            {lastPayslip.attendanceDeductionNgn > 0 && unlocked && !lastPayslip.amountsRedacted ? (
+            {lastPayslip.attendanceDeductionNgn > 0 ? (
               <ProfileKpiCard label="Last attendance deduction">
                 <p className="text-lg font-black tabular-nums text-amber-900">
-                  {formatNgn(lastPayslip.attendanceDeductionNgn)}
+                  {maskAmount(unlocked, lastPayslip.attendanceDeductionNgn, lastPayslip.amountsRedacted)}
                 </p>
+                {!unlocked || lastPayslip.amountsRedacted ? (
+                  <p className="mt-1 text-xs italic text-slate-500">Unlock to view amount</p>
+                ) : null}
                 <Link to={HR_SELF_SERVICE_PATH.attendance} className="mt-2 text-xs font-semibold text-[#134e4a] hover:underline">
                   View attendance →
                 </Link>
@@ -145,17 +150,18 @@ export default function MyPayslips() {
         {payslips.length > 0 ? (
           <>
             {years.length > 1 ? (
-              <label className="mb-3 block text-xs font-semibold text-slate-600">
-                Filter by year
-                <select className="z-input mt-1 max-w-[10rem]" value={yearFilter} onChange={(e) => setYearFilter(e.target.value)}>
-                  <option value="">All years</option>
-                  {years.map((y) => (
-                    <option key={y} value={y}>
-                      {y}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <WorkPayFilterBar className="mb-4">
+                <ProfileFormField label="Filter by year" className="mb-0">
+                  <select className="z-input max-w-[10rem]" value={yearFilter} onChange={(e) => setYearFilter(e.target.value)}>
+                    <option value="">All years</option>
+                    {years.map((y) => (
+                      <option key={y} value={y}>
+                        {y}
+                      </option>
+                    ))}
+                  </select>
+                </ProfileFormField>
+              </WorkPayFilterBar>
             ) : null}
 
             <div className="space-y-2 md:hidden">
@@ -164,9 +170,9 @@ export default function MyPayslips() {
                   <span className="min-w-0">
                     <span className="block text-sm font-semibold text-slate-900">{formatPeriodYyyymm(p.periodYyyymm)}</span>
                     <span className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{p.runStatus}</span>
-                    {p.attendanceDeductionNgn > 0 && unlocked && !p.amountsRedacted ? (
+                    {p.attendanceDeductionNgn > 0 ? (
                       <span className="mt-0.5 block text-[10px] text-amber-800">
-                        Attendance deduction: {formatNgn(p.attendanceDeductionNgn)}
+                        Attendance deduction: {maskAmount(unlocked, p.attendanceDeductionNgn, p.amountsRedacted)}
                       </span>
                     ) : null}
                   </span>

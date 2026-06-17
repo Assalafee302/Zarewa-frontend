@@ -23,15 +23,17 @@ export function HrSensitiveUnlockBanner({ scope = 'payslip', label = 'Unlock to 
 
   return (
     <>
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
-        <div className="flex min-w-0 items-center gap-2 text-sm text-slate-700">
-          <Lock size={16} className="shrink-0 text-slate-400" aria-hidden />
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-gradient-to-r from-slate-50 to-white px-4 py-3 shadow-sm">
+        <div className="flex min-w-0 items-center gap-2.5 text-sm text-slate-700">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white text-[#134e4a] shadow-sm ring-1 ring-slate-100">
+            <Lock size={16} aria-hidden />
+          </span>
           <span>{label}</span>
         </div>
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="shrink-0 rounded-xl bg-[#134e4a] px-4 py-2 text-xs font-bold text-white hover:brightness-110"
+          className="shrink-0 rounded-xl bg-[#134e4a] px-4 py-2.5 text-xs font-bold uppercase tracking-wide text-white hover:bg-[#0f3d3a]"
         >
           Unlock with password
         </button>

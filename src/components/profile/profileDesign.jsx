@@ -28,23 +28,26 @@ export function ProfileSectionHeader({ title, subtitle, action, className = '' }
 export function ProfileKpiCard({
   label,
   value,
+  children,
   hint,
   icon: Icon,
   to,
   actionLabel,
   highlight = false,
+  className = '',
 }) {
   const shell = highlight
     ? 'border-teal-200/90 bg-gradient-to-br from-teal-50/50 to-white'
     : 'border-slate-200/90 bg-white';
+  const content = value ?? children;
 
   return (
-    <div className={`flex h-full flex-col rounded-xl border p-4 shadow-sm ${shell}`}>
+    <div className={`flex h-full flex-col rounded-xl border p-4 shadow-sm ${shell} ${className}`}>
       <p className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
         {Icon ? <Icon size={13} className="text-[#134e4a]" aria-hidden /> : null}
         {label}
       </p>
-      <div className="mt-2 min-h-[2rem] flex-1 text-slate-900">{value}</div>
+      <div className="mt-2 min-h-[2rem] flex-1 text-slate-900">{content}</div>
       {hint ? <p className="mt-2 border-t border-slate-100 pt-2 text-[11px] leading-relaxed text-slate-500">{hint}</p> : null}
       {to && actionLabel ? (
         <Link

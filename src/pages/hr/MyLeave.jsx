@@ -2,8 +2,11 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { apiFetch } from '../../lib/apiBase';
 import { HrRequestsPanel } from '../../components/hr/HrRequestsPanel';
 import { daysBetweenIso } from '../../lib/hrRequests';
-import { HrAddFormButton, HrFormModal } from '../../components/hr/HrFormModal';
+import { HrAddFormButton } from '../../components/hr/HrFormModal';
+import { WorkPayFormModal } from '../../components/profile/WorkPayFormModal';
 import { WorkPayHero } from '../../components/profile/WorkPayHero';
+import { WorkPayFormAlert, WorkPayHeroButton } from '../../components/profile/workPayFormUi';
+import { ProfileFormActions, ProfileFormField } from '../../components/profile/profileFormUi';
 import { leaveTypeLabel } from '../../lib/hrLeaveUi';
 import { MyLeaveCalendarStrip } from '../../components/hr/MyLeaveCalendarStrip';
 import { ProfilePageBody } from '../../components/profile/profilePageUi';
@@ -169,7 +172,7 @@ export default function MyLeave({ staffLinkBase = '/my-profile', embedded = fals
             eyebrow="Work & pay"
             title="Leave"
             description="Check balances, apply for leave, and track approvals. HR uses your handover details when endorsing requests."
-            action={<HrAddFormButton onClick={() => setModalOpen(true)}>Apply for leave</HrAddFormButton>}
+            action={<WorkPayHeroButton onClick={() => setModalOpen(true)}>Apply for leave</WorkPayHeroButton>}
           />
           <ProfileProbationBanner />
         </>
@@ -192,7 +195,7 @@ export default function MyLeave({ staffLinkBase = '/my-profile', embedded = fals
         <ProfileOverviewSection title="Your balances" subtitle="Days remaining in the current leave period">
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
             {balances.map((b) => (
-              <ProfileKpiCard key={b.leaveType} label={leaveTypeLabel(b.leaveType)}>
+              <ProfileKpiCard key={b.leaveType} label={leaveTypeLabel(b.leaveType)} className="transition hover:shadow-md">
                 <p className="text-2xl font-black tabular-nums tracking-tight text-[#134e4a]">
                   {b.closingDays ?? b.balance ?? 0}
                   <span className="ml-1 text-xs font-bold text-slate-500">days</span>
@@ -213,158 +216,160 @@ export default function MyLeave({ staffLinkBase = '/my-profile', embedded = fals
         </ProfileOverviewSection>
       ) : null}
 
-      <HrFormModal isOpen={modalOpen} onClose={closeModal} title="Apply for leave" size="lg">
-        <div className="mb-4 flex flex-wrap gap-2">
-          {STEPS.map((label, i) => (
-            <span
-              key={label}
-              className={`rounded-full px-3 py-2 text-[10px] font-bold uppercase sm:text-[10px] ${
-                i === step ? 'bg-[#134e4a] text-white' : 'bg-slate-100 text-slate-500'
-              }`}
-            >
-              {i + 1}. {label}
-            </span>
-          ))}
-        </div>
-
-        {error ? (
-          <div className="mb-4 rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-800">{error}</div>
-        ) : null}
-
-        {step === 0 ? (
-          <div className="grid gap-4 sm:grid-cols-2">
-            <label className="text-xs font-semibold text-slate-600 sm:col-span-2">
-              Leave type
-              <select value={leaveType} onChange={(e) => setLeaveType(e.target.value)} className={HR_FIELD_CLASS}>
-                {LEAVE_TYPES.map((t) => (
-                  <option key={t.value} value={t.value}>
-                    {t.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            {casualBlockedByProbation ? (
-              <div className="sm:col-span-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
-                ⚠️ Casual leave is not available during probation (ends {new Date(probationEndIso).toLocaleDateString('en-NG', { day: '2-digit', month: 'short', year: 'numeric' })}).
-              </div>
+      <WorkPayFormModal
+        isOpen={modalOpen}
+        onClose={closeModal}
+        eyebrow="Work & pay"
+        title="Apply for leave"
+        description="Choose dates, name your handover contact, then submit for HR review."
+        steps={STEPS}
+        currentStep={step}
+        trackId="leave-application"
+        footer={
+          <ProfileFormActions className="!border-t-0 !pt-0">
+            {step > 0 ? (
+              <button type="button" onClick={() => setStep((s) => s - 1)} className={HR_BTN_SECONDARY}>
+                Back
+              </button>
             ) : null}
-            {exceedsBalance ? (
-              <div className="sm:col-span-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
-                ⚠️ Requested days ({daysNum}) exceed your {leaveType} balance ({typeBalance?.closingDays ?? typeBalance?.balance ?? 0} days). HR may reject or adjust this request.
-              </div>
-            ) : null}
-            {typeBalance && !exceedsBalance && daysNum > 0 ? (
-              <div className="sm:col-span-2 rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-2 text-xs text-emerald-900">
-                Balance after request (est.): <strong>{Math.max(0, Number(typeBalance.closingDays ?? typeBalance.balance ?? 0) - daysNum)}</strong> days remaining
-              </div>
-            ) : null}
-            <label className="text-xs font-semibold text-slate-600">
-              Start date
-              <input type="date" value={startDateIso} onChange={(e) => setStartDateIso(e.target.value)} className={HR_FIELD_CLASS} />
-            </label>
-            <label className="text-xs font-semibold text-slate-600">
-              End date
-              <input type="date" value={endDateIso} onChange={(e) => setEndDateIso(e.target.value)} className={HR_FIELD_CLASS} />
-            </label>
-            <label className="text-xs font-semibold text-slate-600">
-              Days requested
-              <input
-                type="number"
-                min={1}
-                value={daysRequested}
-                onChange={(e) => setDaysRequested(e.target.value)}
-                className={HR_FIELD_CLASS}
-              />
-            </label>
-          </div>
-        ) : null}
+            {step < 2 ? (
+              <button type="button" disabled={!canNext} onClick={() => setStep((s) => s + 1)} className={HR_BTN_PRIMARY}>
+                Next
+              </button>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  disabled={busy || casualBlockedByProbation}
+                  onClick={saveDraft}
+                  className={HR_BTN_SECONDARY}
+                >
+                  Save draft
+                </button>
+                <button
+                  type="button"
+                  disabled={busy || casualBlockedByProbation}
+                  onClick={saveAndSubmit}
+                  className={HR_BTN_PRIMARY}
+                >
+                  Submit for approval
+                </button>
+              </>
+            )}
+          </ProfileFormActions>
+        }
+      >
+        <div className="space-y-4">
+          {error ? <WorkPayFormAlert variant="error">{error}</WorkPayFormAlert> : null}
 
-        {step === 1 ? (
-          <div className="grid gap-4 sm:grid-cols-2">
-            <label className="text-xs font-semibold text-slate-600 sm:col-span-2">
-              Handover to (name / role)
-              <input value={handoverTo} onChange={(e) => setHandoverTo(e.target.value)} className={HR_FIELD_CLASS} placeholder="Colleague who will cover your duties" />
-              <span className="mt-1 block text-[11px] font-normal normal-case text-slate-500">
-                Name a colleague or acting supervisor — not yourself.
-              </span>
-            </label>
-            <label className="text-xs font-semibold text-slate-600 sm:col-span-2">
-              Contact during leave
-              <input
-                value={contactDuringLeave}
-                onChange={(e) => setContactDuringLeave(e.target.value)}
-                className={HR_FIELD_CLASS}
-                placeholder="Phone or email"
-              />
-            </label>
-            <label className="text-xs font-semibold text-slate-600 sm:col-span-2">
-              Reason for leave
-              <textarea
-                className={`${HR_FIELD_CLASS} min-h-[72px]`}
-                value={body}
-                onChange={(e) => setBody(e.target.value)}
-                placeholder="Brief reason — required for sick/compassionate leave"
-                required={leaveType === 'sick' || leaveType === 'compassionate'}
-              />
-            </label>
-          </div>
-        ) : null}
-
-        {step === 2 ? (
-          <dl className="grid gap-3 text-sm sm:grid-cols-2">
-            <div>
-              <dt className="text-[10px] font-black uppercase text-slate-400">Type</dt>
-              <dd className="font-semibold">{leaveTypeLabel(leaveType)}</dd>
+          {step === 0 ? (
+            <div className="grid gap-4 sm:grid-cols-2">
+              <ProfileFormField label="Leave type" className="sm:col-span-2">
+                <select value={leaveType} onChange={(e) => setLeaveType(e.target.value)} className={HR_FIELD_CLASS}>
+                  {LEAVE_TYPES.map((t) => (
+                    <option key={t.value} value={t.value}>
+                      {t.label}
+                    </option>
+                  ))}
+                </select>
+              </ProfileFormField>
+              {casualBlockedByProbation ? (
+                <WorkPayFormAlert variant="warning" className="sm:col-span-2">
+                  Casual leave is not available during probation (ends{' '}
+                  {new Date(probationEndIso).toLocaleDateString('en-NG', { day: '2-digit', month: 'short', year: 'numeric' })}).
+                </WorkPayFormAlert>
+              ) : null}
+              {exceedsBalance ? (
+                <WorkPayFormAlert variant="warning" className="sm:col-span-2">
+                  Requested days ({daysNum}) exceed your {leaveTypeLabel(leaveType)} balance (
+                  {typeBalance?.closingDays ?? typeBalance?.balance ?? 0} days). HR may reject or adjust this request.
+                </WorkPayFormAlert>
+              ) : null}
+              {typeBalance && !exceedsBalance && daysNum > 0 ? (
+                <WorkPayFormAlert variant="success" className="sm:col-span-2">
+                  Balance after request (est.):{' '}
+                  <strong>{Math.max(0, Number(typeBalance.closingDays ?? typeBalance.balance ?? 0) - daysNum)}</strong> days
+                  remaining
+                </WorkPayFormAlert>
+              ) : null}
+              <ProfileFormField label="Start date">
+                <input type="date" value={startDateIso} onChange={(e) => setStartDateIso(e.target.value)} className={HR_FIELD_CLASS} />
+              </ProfileFormField>
+              <ProfileFormField label="End date">
+                <input type="date" value={endDateIso} onChange={(e) => setEndDateIso(e.target.value)} className={HR_FIELD_CLASS} />
+              </ProfileFormField>
+              <ProfileFormField label="Days requested">
+                <input
+                  type="number"
+                  min={1}
+                  value={daysRequested}
+                  onChange={(e) => setDaysRequested(e.target.value)}
+                  className={HR_FIELD_CLASS}
+                />
+              </ProfileFormField>
             </div>
-            <div>
-              <dt className="text-[10px] font-black uppercase text-slate-400">Dates</dt>
-              <dd className="font-semibold">
-                {startDateIso} → {endDateIso} ({daysRequested} days)
-              </dd>
-            </div>
-            <div className="sm:col-span-2">
-              <dt className="text-[10px] font-black uppercase text-slate-400">Handover</dt>
-              <dd className="font-semibold">{handoverTo}</dd>
-            </div>
-            <label className="sm:col-span-2 text-xs font-semibold text-slate-600">
-              Additional notes
-              <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={3} className={HR_FIELD_CLASS} />
-            </label>
-          </dl>
-        ) : null}
-
-        <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-          {step > 0 ? (
-            <button type="button" onClick={() => setStep((s) => s - 1)} className={HR_BTN_SECONDARY}>
-              Back
-            </button>
           ) : null}
-          {step < 2 ? (
-            <button type="button" disabled={!canNext} onClick={() => setStep((s) => s + 1)} className={HR_BTN_PRIMARY}>
-              Next
-            </button>
-          ) : (
-            <>
-              <button
-                type="button"
-                disabled={busy || casualBlockedByProbation}
-                onClick={saveDraft}
-                className={HR_BTN_SECONDARY}
+
+          {step === 1 ? (
+            <div className="grid gap-4 sm:grid-cols-2">
+              <ProfileFormField
+                label="Handover to (name / role)"
+                hint="Name a colleague or acting supervisor — not yourself."
+                className="sm:col-span-2"
+                required
               >
-                Save draft
-              </button>
-              <button
-                type="button"
-                disabled={busy || casualBlockedByProbation}
-                onClick={saveAndSubmit}
-                className={HR_BTN_PRIMARY}
+                <input value={handoverTo} onChange={(e) => setHandoverTo(e.target.value)} className={HR_FIELD_CLASS} placeholder="Colleague who will cover your duties" />
+              </ProfileFormField>
+              <ProfileFormField label="Contact during leave" className="sm:col-span-2">
+                <input
+                  value={contactDuringLeave}
+                  onChange={(e) => setContactDuringLeave(e.target.value)}
+                  className={HR_FIELD_CLASS}
+                  placeholder="Phone or email"
+                />
+              </ProfileFormField>
+              <ProfileFormField
+                label="Reason for leave"
+                hint="Required for sick or compassionate leave."
+                className="sm:col-span-2"
+                required={leaveType === 'sick' || leaveType === 'compassionate'}
               >
-                Submit for approval
-              </button>
-            </>
-          )}
+                <textarea
+                  className={`${HR_FIELD_CLASS} min-h-[72px]`}
+                  value={body}
+                  onChange={(e) => setBody(e.target.value)}
+                  placeholder="Brief reason"
+                  required={leaveType === 'sick' || leaveType === 'compassionate'}
+                />
+              </ProfileFormField>
+            </div>
+          ) : null}
+
+          {step === 2 ? (
+            <div className="space-y-4">
+              <dl className="grid gap-3 rounded-xl border border-slate-100 bg-white p-4 text-sm sm:grid-cols-2">
+                <div>
+                  <dt className="text-[10px] font-black uppercase text-slate-400">Type</dt>
+                  <dd className="font-semibold">{leaveTypeLabel(leaveType)}</dd>
+                </div>
+                <div>
+                  <dt className="text-[10px] font-black uppercase text-slate-400">Dates</dt>
+                  <dd className="font-semibold">
+                    {startDateIso} → {endDateIso} ({daysRequested} days)
+                  </dd>
+                </div>
+                <div className="sm:col-span-2">
+                  <dt className="text-[10px] font-black uppercase text-slate-400">Handover</dt>
+                  <dd className="font-semibold">{handoverTo}</dd>
+                </div>
+              </dl>
+              <ProfileFormField label="Additional notes" className="sm:col-span-2">
+                <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={3} className={HR_FIELD_CLASS} />
+              </ProfileFormField>
+            </div>
+          ) : null}
         </div>
-      </HrFormModal>
+      </WorkPayFormModal>
 
       <ProfileOverviewSection
         title="My leave requests"

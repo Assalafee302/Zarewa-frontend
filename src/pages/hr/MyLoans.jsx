@@ -5,15 +5,17 @@ import { useWorkspace } from '../../context/WorkspaceContext';
 import { HrRequestsPanel } from '../../components/hr/HrRequestsPanel';
 import { createHrLoanRequest } from '../../lib/hrStaff';
 import { fetchStaffLoanSchedule } from '../../lib/hrMasterData';
-import { HrAddFormButton, HrFormModal } from '../../components/hr/HrFormModal';
+import { WorkPayFormModal } from '../../components/profile/WorkPayFormModal';
 import { WorkPayHero } from '../../components/profile/WorkPayHero';
+import { WorkPayFormAlert, WorkPayHeroButton } from '../../components/profile/workPayFormUi';
+import { ProfileFormActions, ProfileFormField } from '../../components/profile/profileFormUi';
 import { computeLoanEligibility, loanRepaymentPreview } from '../../lib/hrLoanEligibility';
 import { ProfilePageBody } from '../../components/profile/profilePageUi';
 import { ProfileInlineAlert, ProfileOverviewSection } from '../../components/profile/profileOverviewUi';
 import { ProfileKpiCard, ProfileStatusChip } from '../../components/profile/profileDesign';
 import { useUserProfile } from '../../context/UserProfileContext';
 import { formatNgn } from '../../lib/hrFormat';
-import { HR_BTN_PRIMARY, HR_FIELD_CLASS } from '../../components/hr/hrFormStyles';
+import { HR_BTN_PRIMARY, HR_BTN_SECONDARY, HR_FIELD_CLASS } from '../../components/hr/hrFormStyles';
 import { GUARANTOR_FORM_TEMPLATE_URL } from '../../lib/hrStaffDocumentKinds';
 
 export default function MyLoans({ staffLinkBase = '/my-profile' }) {
@@ -161,9 +163,9 @@ export default function MyLoans({ staffLinkBase = '/my-profile' }) {
         title="Staff loans"
         description={`Salary-backed loans — up to ${policy.loanMaxSalaryMonths}× gross salary, ${policy.loanMaxRepaymentMonths} months max repayment, ${policy.loanMinServiceYears}+ years service.`}
         action={
-          <HrAddFormButton onClick={() => setModalOpen(true)} disabled={!eligibility.eligible}>
+          <WorkPayHeroButton onClick={() => setModalOpen(true)} disabled={!eligibility.eligible}>
             Apply for loan
-          </HrAddFormButton>
+          </WorkPayHeroButton>
         }
         badge={
           eligibility.eligible ? (
@@ -257,41 +259,58 @@ export default function MyLoans({ staffLinkBase = '/my-profile' }) {
         </ProfileOverviewSection>
       ) : null}
 
-      <HrFormModal
+      <WorkPayFormModal
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
+        eyebrow="Work & pay"
         title="Apply for a staff loan"
         description="Applications are validated against company loan policy before HR review."
-        size="lg"
+        trackId="loan-application"
+        footer={
+          <ProfileFormActions className="!border-t-0 !pt-0">
+            <button type="button" onClick={() => setModalOpen(false)} className={HR_BTN_SECONDARY}>
+              Cancel
+            </button>
+            <button
+              type="submit"
+              form="loan-application-form"
+              disabled={busy || !termsAck || !policyAck || policyErrors.length > 0}
+              className={HR_BTN_PRIMARY}
+            >
+              {busy ? 'Submitting…' : 'Submit loan application'}
+            </button>
+          </ProfileFormActions>
+        }
       >
-        <form onSubmit={submit} className="space-y-4">
-          {error ? <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-800">{error}</div> : null}
+        <form id="loan-application-form" onSubmit={submit} className="space-y-4">
+          {error ? <WorkPayFormAlert variant="error">{error}</WorkPayFormAlert> : null}
           {maxLoanNgn || eligibility.maxLoanNgn ? (
-            <div className="rounded-xl border border-slate-100 bg-slate-50 px-3 py-2 text-xs text-slate-700">
+            <WorkPayFormAlert variant="info">
               Policy maximum: <strong>{formatNgn(eligibility.maxLoanNgn || maxLoanNgn)}</strong> ({policy.loanMaxSalaryMonths}× gross{' '}
               {grossSalaryNgn ? formatNgn(grossSalaryNgn) : 'salary'}). Min monthly deduction:{' '}
               {minDeduction ? formatNgn(minDeduction) : '—'}.
-            </div>
+            </WorkPayFormAlert>
           ) : null}
           {repaymentPreview ? (
-            <div className="rounded-xl border border-teal-100 bg-teal-50/60 px-3 py-3 text-sm text-teal-950">
+            <div className="rounded-xl border border-teal-100 bg-white px-4 py-3 text-sm text-teal-950 shadow-sm">
               <p className="font-semibold">Repayment preview</p>
-              <p className="mt-1 text-xs">
+              <p className="mt-1 text-xs text-slate-600">
                 {formatNgn(repaymentPreview.monthlyDeductionNgn)}/month × {repaymentPreview.repaymentMonths} months ={' '}
                 {formatNgn(repaymentPreview.totalNgn)} payroll deduction
               </p>
             </div>
           ) : null}
           {policyErrors.length ? (
-            <ul className="rounded-xl border border-amber-100 bg-amber-50 px-3 py-2 text-xs text-amber-950 space-y-1">
-              {policyErrors.map((pe) => (
-                <li key={pe}>• {pe}</li>
-              ))}
-            </ul>
+            <WorkPayFormAlert variant="warning">
+              <ul className="space-y-1">
+                {policyErrors.map((pe) => (
+                  <li key={pe}>• {pe}</li>
+                ))}
+              </ul>
+            </WorkPayFormAlert>
           ) : null}
           <div className="grid gap-4 sm:grid-cols-2">
-            <label className="text-xs font-semibold text-slate-600">
-              Requested amount (₦) *
+            <ProfileFormField label="Requested amount (₦)" required>
               <input
                 type="number"
                 min={1}
@@ -301,9 +320,8 @@ export default function MyLoans({ staffLinkBase = '/my-profile' }) {
                 onChange={(e) => setAmountNgn(e.target.value)}
                 required
               />
-            </label>
-            <label className="text-xs font-semibold text-slate-600">
-              Repayment period *
+            </ProfileFormField>
+            <ProfileFormField label="Repayment period" required>
               <select className={HR_FIELD_CLASS} value={repaymentMonths} onChange={(e) => setRepaymentMonths(e.target.value)} required>
                 {Array.from({ length: Number(policy.loanMaxRepaymentMonths) || 12 }, (_, i) => i + 1).map((m) => (
                   <option key={m} value={String(m)}>
@@ -311,9 +329,8 @@ export default function MyLoans({ staffLinkBase = '/my-profile' }) {
                   </option>
                 ))}
               </select>
-            </label>
-            <label className="text-xs font-semibold text-slate-600">
-              Monthly deduction (₦) *
+            </ProfileFormField>
+            <ProfileFormField label="Monthly deduction (₦)" required>
               <input
                 type="number"
                 min={minDeduction || 1}
@@ -322,19 +339,16 @@ export default function MyLoans({ staffLinkBase = '/my-profile' }) {
                 onChange={(e) => setDeductionPerMonthNgn(e.target.value)}
                 required
               />
-            </label>
-            <label className="text-xs font-semibold text-slate-600">
-              Deduction start period
+            </ProfileFormField>
+            <ProfileFormField label="Deduction start period">
               <input type="month" className={HR_FIELD_CLASS} value={expectedStartPeriod} onChange={(e) => setExpectedStartPeriod(e.target.value)} />
-            </label>
-            <label className="text-xs font-semibold text-slate-600 sm:col-span-2">
-              Purpose *
+            </ProfileFormField>
+            <ProfileFormField label="Purpose" required className="sm:col-span-2">
               <textarea className={`${HR_FIELD_CLASS} min-h-[72px]`} value={purpose} onChange={(e) => setPurpose(e.target.value)} required minLength={10} />
-            </label>
-            <label className="text-xs font-semibold text-slate-600 sm:col-span-2">
-              Guarantor name(s)
-              <input className={HR_FIELD_CLASS} value={guarantorNote} onChange={(e) => setGuarantorNote(e.target.value)} placeholder="As on uploaded guarantor form" />
-            </label>
+            </ProfileFormField>
+            <ProfileFormField label="Guarantor name(s)" hint="As on uploaded guarantor form." className="sm:col-span-2">
+              <input className={HR_FIELD_CLASS} value={guarantorNote} onChange={(e) => setGuarantorNote(e.target.value)} placeholder="Full name(s)" />
+            </ProfileFormField>
             <label className="flex items-start gap-2 text-xs font-semibold text-slate-600 sm:col-span-2">
               <input type="checkbox" className="mt-1" checked={policyAck} onChange={(e) => setPolicyAck(e.target.checked)} required />
               <span>
@@ -350,11 +364,8 @@ export default function MyLoans({ staffLinkBase = '/my-profile' }) {
               </span>
             </label>
           </div>
-          <button type="submit" disabled={busy || !termsAck || !policyAck || policyErrors.length > 0} className={HR_BTN_PRIMARY}>
-            {busy ? 'Submitting…' : 'Submit loan application'}
-          </button>
         </form>
-      </HrFormModal>
+      </WorkPayFormModal>
 
       <ProfileOverviewSection title="My loan requests" subtitle="Drafts and applications awaiting HR review">
         <HrRequestsPanel allowedScopes={['mine']} defaultScope="mine" kindFilter="loan" staffLinkBase={staffLinkBase} showStageBar />
