@@ -49,12 +49,14 @@ export const LEGACY_ME_HR_REDIRECTS = {
  * @param {string} tabId — profile completeness section id
  * @returns {string}
  */
-export function hrSelfServicePathForTab(tabId) {
+export function hrSelfServicePathForTab(tabId, { openForm = false } = {}) {
   const map = {
     documents: HR_SELF_SERVICE_PATH.documents,
     employment: HR_SELF_SERVICE_PATH.employment,
     policies: HR_SELF_SERVICE_PATH.policies,
     school: HR_SELF_SERVICE_PATH.school,
   };
-  return map[tabId] || HR_SELF_SERVICE_PATH.documents;
+  const path = map[tabId] || HR_SELF_SERVICE_PATH.documents;
+  if (openForm && tabId === 'employment') return `${path}?form=1`;
+  return path;
 }

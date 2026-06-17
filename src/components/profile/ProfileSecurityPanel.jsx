@@ -4,7 +4,7 @@ import { useToast } from '../../context/ToastContext';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { ProfileFormActions, ProfileFormField, ProfileFormSection } from './profileFormUi';
 
-export default function ProfileSecurityPanel() {
+export default function ProfileSecurityPanel({ flat = false }) {
   const { show: showToast } = useToast();
   const ws = useWorkspace();
   const [passwordForm, setPasswordForm] = useState({
@@ -44,6 +44,7 @@ export default function ProfileSecurityPanel() {
 
   return (
     <ProfileFormSection
+      flat={flat}
       icon={<Lock size={16} />}
       title="Password & security"
       subtitle="Changing your password affects this login. You may need to sign in again on other devices."
@@ -81,7 +82,11 @@ export default function ProfileSecurityPanel() {
           />
         </ProfileFormField>
         <ProfileFormActions>
-          <button type="submit" disabled={busy} className="z-btn-secondary min-h-11 w-full justify-center disabled:opacity-50 sm:w-auto">
+          <button
+            type="submit"
+            disabled={busy}
+            className="z-btn-primary min-h-11 w-full justify-center disabled:opacity-50 sm:w-auto"
+          >
             <Save size={16} aria-hidden /> {busy ? 'Updating…' : 'Update password'}
           </button>
         </ProfileFormActions>

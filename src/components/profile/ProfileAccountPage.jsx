@@ -7,8 +7,9 @@ import { useUserProfile } from '../../context/UserProfileContext';
 import { apiFetch } from '../../lib/apiBase';
 import ProfileSecurityPanel from './ProfileSecurityPanel';
 import { MyAccessExplainer } from './MyAccessExplainer';
-import { ProfileHealthPanel } from './ProfileHealthPanel';
+import { AccountSettingsHero } from './AccountSettingsHero';
 import { ProfileFormActions, ProfileFormField, ProfileFormSection, ProfilePageAnchors } from './profileFormUi';
+import { ProfileModuleSection } from './profileDesign';
 import { composeLegalDisplayName } from '../../lib/hrLegalDisplayName';
 import { HR_SELF_SERVICE_PATH } from '../../lib/hrSelfServiceRoutes';
 
@@ -29,9 +30,9 @@ function AvatarPreview({ url, displayName }) {
     .toUpperCase();
 
   return valid ? (
-    <img src={url} alt="" className="h-16 w-16 rounded-2xl border-2 border-slate-200 object-cover shadow-sm" />
+    <img src={url} alt="" className="h-14 w-14 rounded-xl border border-slate-200 object-cover shadow-sm sm:h-16 sm:w-16 sm:rounded-2xl" />
   ) : (
-    <div className="flex h-16 w-16 items-center justify-center rounded-2xl border-2 border-slate-200 bg-[#134e4a] text-lg font-black text-white shadow-sm">
+    <div className="flex h-14 w-14 items-center justify-center rounded-xl border border-slate-200 bg-[#134e4a] text-base font-black text-white shadow-sm sm:h-16 sm:w-16 sm:rounded-2xl sm:text-lg">
       {initials}
     </div>
   );
@@ -40,7 +41,7 @@ function AvatarPreview({ url, displayName }) {
 export default function ProfileAccountPage() {
   const { show: showToast } = useToast();
   const ws = useWorkspace();
-  const { me, user: hrUser, hasHrSelfService, reload, completeness, cohort, hr } = useUserProfile();
+  const { user: hrUser, cohort, hr } = useUserProfile();
 
   const sessionUser = ws?.session?.user;
   const user = hrUser || sessionUser;
@@ -99,7 +100,6 @@ export default function ProfileAccountPage() {
       }
       showToast('Profile saved.');
       formDirtyRef.current = false;
-      await reload?.();
     } finally {
       setSaving(false);
     }
@@ -131,40 +131,34 @@ export default function ProfileAccountPage() {
     const submitted = await apiFetch(`/api/hr/requests/${encodeURIComponent(id)}/submit`, { method: 'PATCH' });
     setRequestBusy(false);
     if (!submitted.ok || !submitted.data?.ok) {
-      showToast(submitted.data?.error || 'Request saved but submit failed. Check My requests to submit the draft.', { variant: 'error' });
+      showToast(submitted.data?.error || 'Request saved but submit failed. Check My requests to submit the draft.', {
+        variant: 'error',
+      });
       return;
     }
     showToast('Username change submitted for HR approval.');
     setUsernameRequest('');
-    await reload?.();
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 sm:space-y-8">
+      <AccountSettingsHero />
+
       <ProfilePageAnchors items={anchors} />
 
-      {hasHrSelfService ? (
-        <ProfileHealthPanel
-          completeness={completeness}
-          documentSummary={me?.documentSummary}
-          pendingProfileRequests={me?.pendingProfileRequests}
-          unreadNotifications={me?.unreadNotifications}
-          compact
-        />
-      ) : null}
-
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
+      <div className="grid gap-6 lg:grid-cols-2 lg:items-start lg:gap-8">
         <ProfileFormSection
           id="profile-details"
+          flat
           icon={<User size={16} />}
           title="Profile & login"
           subtitle="How you appear in Zarewa. Official employment data is maintained by HR."
         >
-          <form className="space-y-5" onSubmit={submitProfile}>
-            <div className="flex flex-wrap items-center gap-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
+          <form className="space-y-4" onSubmit={submitProfile}>
+            <div className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-100 bg-slate-50/80 p-3.5 sm:gap-4 sm:p-4">
               <AvatarPreview url={avatarUrl} displayName={legalName} />
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-semibold text-slate-900">{legalName}</p>
+                <p className="text-sm font-bold text-slate-900">{legalName}</p>
                 <p className="text-xs text-slate-500">@{username || user?.username || '—'}</p>
               </div>
             </div>
@@ -173,17 +167,20 @@ export default function ProfileAccountPage() {
               label="Full legal name"
               hint={
                 hasHrRecord
-                  ? 'Set from first, middle, and surname under HR services → Employment. Cannot be edited here.'
+                  ? 'Set from first, middle, and surname under HR services → Employment.'
                   : 'Your display name on the system.'
               }
             >
-              <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-800">
+              <div className="flex min-h-11 items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-800">
                 <Lock size={14} className="shrink-0 text-slate-400" aria-hidden />
-                <span>{legalName}</span>
+                <span className="min-w-0 truncate">{legalName}</span>
               </div>
               {hasHrRecord ? (
                 <p className="mt-2 text-xs">
-                  <Link to={HR_SELF_SERVICE_PATH.employment} className="font-medium text-slate-700 hover:underline">
+                  <Link
+                    to={`${HR_SELF_SERVICE_PATH.employment}?form=1`}
+                    className="font-semibold text-[#134e4a] hover:underline"
+                  >
                     Update name in Employment record
                   </Link>
                   {hr?.profileLocked ? ' via HR request' : ''}
@@ -194,7 +191,7 @@ export default function ProfileAccountPage() {
             <ProfileFormField
               label="App profile photo URL"
               htmlFor="profile-avatar-url"
-              hint="Optional. Shown in chat and approvals — not your HR ID card photo. Upload passport photos under HR → Documents."
+              hint="Optional. Shown in chat and approvals — not your HR ID photo."
             >
               <input
                 id="profile-avatar-url"
@@ -222,17 +219,18 @@ export default function ProfileAccountPage() {
                     }}
                     pattern="[a-z0-9._-]{3,40}"
                     disabled={!canMutate}
+                    autoComplete="username"
                   />
-                  <p className="mt-1.5 rounded-lg border border-amber-100 bg-amber-50 px-2.5 py-1.5 text-[11px] text-amber-900">
+                  <p className="mt-1.5 rounded-lg border border-amber-100 bg-amber-50 px-2.5 py-2 text-[11px] leading-relaxed text-amber-900">
                     You may change your username once freely. Further changes require HR approval.
                   </p>
                 </>
               ) : (
                 <>
-                  <p className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 font-mono text-sm">
+                  <p className="flex min-h-11 items-center rounded-lg border border-slate-200 bg-slate-50 px-3 font-mono text-sm">
                     @{user?.username}
                   </p>
-                  <p className="mt-1.5 text-[11px] text-slate-500">Request HR to change it again in the Username section.</p>
+                  <p className="mt-1.5 text-[11px] text-slate-500">Request HR to change it again below.</p>
                 </>
               )}
             </ProfileFormField>
@@ -248,6 +246,8 @@ export default function ProfileAccountPage() {
                   setEmail(e.target.value);
                 }}
                 disabled={!canMutate}
+                autoComplete="email"
+                inputMode="email"
               />
             </ProfileFormField>
 
@@ -261,12 +261,13 @@ export default function ProfileAccountPage() {
 
         <div className="space-y-6">
           <div id="security">
-            <ProfileSecurityPanel />
+            <ProfileSecurityPanel flat />
           </div>
 
           {!canChangeUsernameFreely ? (
             <ProfileFormSection
               id="username-request"
+              flat
               icon={<User size={16} />}
               title="Request username change"
               subtitle="HR will review and apply approved username changes."
@@ -279,6 +280,9 @@ export default function ProfileAccountPage() {
                     placeholder="new.username"
                     value={usernameRequest}
                     onChange={(e) => setUsernameRequest(e.target.value.toLowerCase())}
+                    autoComplete="off"
+                    autoCapitalize="off"
+                    spellCheck={false}
                   />
                 </ProfileFormField>
                 <ProfileFormActions>
@@ -292,30 +296,35 @@ export default function ProfileAccountPage() {
         </div>
       </div>
 
-      <ProfileFormSection
+      <ProfileModuleSection
         id="your-access"
-        icon={<Shield size={16} />}
         title="Your access"
         subtitle="Roles and permissions are assigned by HR and administrators."
+        flush
       >
-        <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
-          <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Role</p>
-          <p className="mt-1 text-sm font-black text-[#134e4a]">{user?.roleLabel || '—'}</p>
+        <div className="rounded-xl border border-slate-200/80 bg-white p-4 shadow-sm sm:p-5">
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-100 bg-slate-50/80 px-4 py-3">
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Current role</p>
+              <p className="mt-0.5 text-sm font-black text-[#134e4a]">{user?.roleLabel || '—'}</p>
+            </div>
+            <Shield size={20} className="shrink-0 text-slate-300" aria-hidden />
+          </div>
+          {cohort !== 'account_only' ? (
+            <p className="mt-4 text-xs leading-relaxed text-slate-600">
+              Complete your{' '}
+              <Link to={HR_SELF_SERVICE_PATH.documents} className="font-semibold text-[#134e4a] hover:underline">
+                documents
+              </Link>{' '}
+              and{' '}
+              <Link to={HR_SELF_SERVICE_PATH.policies} className="font-semibold text-[#134e4a] hover:underline">
+                policies
+              </Link>{' '}
+              in HR services so HR can verify and activate full access.
+            </p>
+          ) : null}
         </div>
-        {cohort !== 'account_only' ? (
-          <p className="mt-4 text-xs leading-relaxed text-slate-600">
-            Complete your{' '}
-            <Link to={HR_SELF_SERVICE_PATH.documents} className="font-semibold text-[#134e4a] hover:underline">
-              documents
-            </Link>{' '}
-            and{' '}
-            <Link to={HR_SELF_SERVICE_PATH.policies} className="font-semibold text-[#134e4a] hover:underline">
-              policies
-            </Link>{' '}
-            in HR self-service so HR can verify and activate full access.
-          </p>
-        ) : null}
-      </ProfileFormSection>
+      </ProfileModuleSection>
 
       <MyAccessExplainer />
     </div>

@@ -14,17 +14,26 @@ export const PROFILE_TEXTAREA_CLASS = 'z-input min-h-[88px] resize-y';
  *   className?: string;
  * }} props
  */
-export function ProfileFormSection({ id, icon, title, subtitle, children, className = '' }) {
+export function ProfileFormSection({ id, icon, title, subtitle, children, className = '', flat = false }) {
   return (
-    <section id={id} className={`scroll-mt-24 overflow-hidden rounded-xl border border-slate-200/90 bg-white shadow-sm ${className}`}>
-      <ProfileAccentBar />
+    <section
+      id={id}
+      className={`scroll-mt-24 overflow-hidden rounded-xl border border-slate-200/90 bg-white shadow-sm ${className}`}
+    >
+      {!flat ? <ProfileAccentBar /> : null}
       <div className="p-4 sm:p-5">
-        <header className="mb-4 border-b border-slate-100 pb-3">
-          <h3 className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-slate-500">
+        <header className={`${flat ? 'mb-4' : 'mb-4 border-b border-slate-100 pb-3'}`}>
+          <h3
+            className={
+              flat
+                ? 'flex items-center gap-2 text-sm font-bold text-slate-900'
+                : 'flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-slate-500'
+            }
+          >
             {icon ? <span className="text-[#134e4a]">{icon}</span> : null}
             {title}
           </h3>
-          {subtitle ? <p className="mt-2 text-sm leading-relaxed text-slate-600">{subtitle}</p> : null}
+          {subtitle ? <p className="mt-1.5 text-sm leading-relaxed text-slate-600">{subtitle}</p> : null}
         </header>
         {children}
       </div>
@@ -58,13 +67,13 @@ export function ProfilePageAnchors({ items }) {
   return (
     <nav
       aria-label="On this page"
-      className="sticky top-[var(--app-header-offset,0px)] z-20 mb-4 flex gap-1 overflow-x-auto rounded-2xl border border-white/80 bg-white/88 p-1.5 backdrop-blur-xl [-webkit-overflow-scrolling:touch]"
+      className="sticky top-[var(--app-header-offset,0px)] z-20 mb-4 flex gap-1.5 overflow-x-auto rounded-xl border border-slate-200/80 bg-white p-1.5 shadow-sm [-webkit-overflow-scrolling:touch] [scrollbar-width:none] sm:flex-wrap sm:overflow-visible [&::-webkit-scrollbar]:hidden"
     >
       {items.map((item) => (
         <a
           key={item.id}
           href={`#${item.id}`}
-          className="shrink-0 rounded-xl px-4 py-2.5 text-[11px] font-bold uppercase tracking-[0.06em] text-slate-500 no-underline transition hover:bg-slate-50 hover:text-[#134e4a]"
+          className="shrink-0 snap-start rounded-lg px-4 py-2.5 text-xs font-semibold text-slate-600 no-underline transition hover:bg-slate-50 hover:text-[#134e4a] sm:text-[11px] sm:font-bold sm:uppercase sm:tracking-[0.06em]"
         >
           {item.label}
         </a>

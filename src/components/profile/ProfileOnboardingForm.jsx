@@ -58,8 +58,9 @@ function buildStaffForValidation(form, hr) {
 
 /**
  * Employee self-service onboarding form — save draft, submit for HR lock.
+ * @param {{ variant?: 'page' | 'modal'; onSubmitted?: () => void }} props
  */
-export function ProfileOnboardingForm() {
+export function ProfileOnboardingForm({ variant = 'page', onSubmitted }) {
   const { show: showToast } = useToast();
   const { me, hr, reload } = useUserProfile();
   const profileLocked = Boolean(hr?.profileLocked);
@@ -171,15 +172,25 @@ export function ProfileOnboardingForm() {
     }
     showToast('Profile submitted. HR will review your record.');
     await reload?.();
+    onSubmitted?.();
   };
+
+  const scrollClass =
+    variant === 'modal'
+      ? 'space-y-4'
+      : 'max-h-none space-y-4 overflow-visible sm:max-h-[calc(100vh-14rem)] sm:overflow-y-auto sm:pr-1 sm:[scrollbar-gutter:stable]';
+
+  const footerClass =
+    variant === 'modal'
+      ? 'sticky bottom-0 z-10 -mx-1 border-t border-slate-200 bg-white/95 px-1 py-3 backdrop-blur-md'
+      : 'sticky bottom-0 z-10 -mx-1 border-t border-slate-200 bg-[#F8FAFC]/95 px-1 py-3 backdrop-blur-md sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:px-0 sm:py-0';
 
   return (
     <div className="space-y-4">
       <ProfileOnboardingStatus missingCount={validation.missing.length} />
-
       <ProfilePageAnchors items={ANCHORS} />
 
-      <div className="max-h-none space-y-4 overflow-visible sm:max-h-[calc(100vh-14rem)] sm:overflow-y-auto sm:pr-1 sm:[scrollbar-gutter:stable]">
+      <div className={scrollClass}>
         <ProfileFormSection
           id="legal-name"
           icon={<User size={16} />}
@@ -509,7 +520,7 @@ export function ProfileOnboardingForm() {
         </div>
       ) : null}
 
-      <div className="sticky bottom-0 z-10 -mx-1 border-t border-slate-200 bg-[#F8FAFC]/95 px-1 py-3 backdrop-blur-md sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:px-0 sm:py-0">
+      <div className={footerClass}>
         <ProfileFormActions>
           <button type="button" disabled={busy || submitBusy} onClick={() => void save()} className={HR_BTN_SECONDARY}>
             {busy ? 'Saving…' : 'Save progress'}

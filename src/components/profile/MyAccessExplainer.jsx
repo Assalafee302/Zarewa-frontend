@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import { Link } from 'react-router-dom';
+import { ChevronRight, LayoutGrid } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { canAccessModuleWithPermissions } from '../../lib/moduleAccess';
 
@@ -15,6 +16,22 @@ const MODULE_HINTS = [
   { key: 'settings', label: 'Settings', path: '/settings', perm: 'settings.view' },
 ];
 const EMPTY_PERMISSIONS = [];
+
+function AccessLink({ to, children, highlight = false }) {
+  return (
+    <Link
+      to={to}
+      className={`group flex min-h-12 items-center justify-between gap-3 rounded-xl border px-4 py-3 text-sm font-semibold no-underline transition active:scale-[0.99] ${
+        highlight
+          ? 'border-teal-200 bg-teal-50/60 text-[#134e4a] hover:bg-teal-50'
+          : 'border-slate-100 bg-slate-50/80 text-slate-800 hover:border-slate-200 hover:bg-white'
+      }`}
+    >
+      <span className="min-w-0 truncate">{children}</span>
+      <ChevronRight size={16} className="shrink-0 text-slate-300 group-hover:text-[#134e4a]" aria-hidden />
+    </Link>
+  );
+}
 
 export function MyAccessExplainer() {
   const ws = useWorkspace();
@@ -32,48 +49,64 @@ export function MyAccessExplainer() {
   }, [permissions, wsCanAccessModule]);
 
   return (
-    <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-      <h3 className="text-sm font-black text-slate-900">What you can access</h3>
-      <p className="mt-1 text-xs text-slate-600">
-        Your role is <strong>{user?.roleLabel || user?.roleKey}</strong>. HR and administrators assign which parts of
-        Zarewa you can use.
-      </p>
-      {modules.length ? (
-        <ul className="mt-4 grid gap-2 sm:grid-cols-2">
-          {modules.map((m) => (
-            <li key={m.key}>
-              <Link to={m.path} className="flex min-h-11 items-center rounded-xl border border-slate-100 bg-slate-50/80 px-4 py-3 text-sm font-semibold text-[#134e4a] no-underline active:bg-teal-50">
-                {m.label}
-              </Link>
-            </li>
-          ))}
-          <li>
-            <Link to="/me" className="flex min-h-11 items-center rounded-xl border border-teal-100 bg-teal-50/50 px-4 py-3 text-sm font-semibold text-[#134e4a] no-underline active:bg-teal-100">
-              Account (always)
-            </Link>
-          </li>
-          <li>
-            <Link to="/my-profile" className="flex min-h-11 items-center rounded-xl border border-slate-100 bg-slate-50/80 px-4 py-3 text-sm font-semibold text-[#134e4a] no-underline active:bg-teal-50">
-              HR services
-            </Link>
-          </li>
-        </ul>
-      ) : (
-        <p className="mt-3 text-sm text-slate-600">You have Account, HR services, and any modules granted by your administrator.</p>
-      )}
-      <details className="mt-4">
-        <summary className="cursor-pointer text-[11px] font-bold uppercase tracking-wide text-slate-500">
-          Technical permissions ({permissions.length})
-        </summary>
-        <div className="mt-2 flex flex-wrap gap-1.5">
-          {permissions.slice(0, 24).map((p) => (
-            <span key={p} className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] font-mono text-slate-600">
-              {p}
-            </span>
-          ))}
-          {permissions.length > 24 ? <span className="text-xs text-slate-400">+{permissions.length - 24} more</span> : null}
+    <section className="overflow-hidden rounded-xl border border-slate-200/90 bg-white shadow-sm">
+      <div className="border-b border-slate-100 px-4 py-4 sm:px-5">
+        <div className="flex items-start gap-3">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-teal-50 text-[#134e4a]">
+            <LayoutGrid size={18} aria-hidden />
+          </span>
+          <div className="min-w-0">
+            <h3 className="text-sm font-bold text-slate-900">What you can access</h3>
+            <p className="mt-1 text-xs leading-relaxed text-slate-600">
+              Role: <strong className="font-semibold text-slate-800">{user?.roleLabel || user?.roleKey}</strong>.
+              HR and administrators control which workspaces you can open.
+            </p>
+          </div>
         </div>
-      </details>
+      </div>
+
+      <div className="p-4 sm:p-5">
+        {modules.length ? (
+          <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            {modules.map((m) => (
+              <li key={m.key}>
+                <AccessLink to={m.path}>{m.label}</AccessLink>
+              </li>
+            ))}
+            <li>
+              <AccessLink to="/me" highlight>
+                Account (always)
+              </AccessLink>
+            </li>
+            <li>
+              <AccessLink to="/my-profile">HR services</AccessLink>
+            </li>
+          </ul>
+        ) : (
+          <p className="text-sm leading-relaxed text-slate-600">
+            You have Account, HR services, and any modules granted by your administrator.
+          </p>
+        )}
+
+        <details className="mt-4 rounded-lg border border-slate-100 bg-slate-50/50 px-3 py-2">
+          <summary className="cursor-pointer list-none text-xs font-semibold text-slate-600 [&::-webkit-details-marker]:hidden">
+            Technical permissions ({permissions.length})
+          </summary>
+          <div className="mt-2 flex flex-wrap gap-1.5 pb-1">
+            {permissions.slice(0, 24).map((p) => (
+              <span
+                key={p}
+                className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[10px] font-mono text-slate-600"
+              >
+                {p}
+              </span>
+            ))}
+            {permissions.length > 24 ? (
+              <span className="text-xs text-slate-400">+{permissions.length - 24} more</span>
+            ) : null}
+          </div>
+        </details>
+      </div>
     </section>
   );
 }

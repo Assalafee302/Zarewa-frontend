@@ -22,6 +22,7 @@ export function ProfileActionQueue({
   unreadNotifications = 0,
   onFixSection,
   className = '',
+  embedded = false,
 }) {
   const items = useMemo(() => {
     /** @type {{ id: string; label: string; to?: string; onClick?: () => void; variant: string; icon: import('react').ReactNode }[]} */
@@ -76,7 +77,7 @@ export function ProfileActionQueue({
         id: `section-${section.id}`,
         label: `Complete ${section.label?.toLowerCase() || section.id}`,
         onClick: onFixSection ? () => onFixSection(section.fixTab) : undefined,
-        to: onFixSection ? undefined : hrSelfServicePathForTab(section.fixTab),
+        to: onFixSection ? undefined : hrSelfServicePathForTab(section.fixTab, { openForm: section.fixTab === 'employment' }),
         variant: 'info',
         icon: <Shield size={14} className="shrink-0 text-sky-600" aria-hidden />,
       });
@@ -86,7 +87,7 @@ export function ProfileActionQueue({
       queue.push({
         id: `req-${r.id}`,
         label: r.title || 'Profile change request',
-        to: HR_SELF_SERVICE_PATH.employment,
+        to: `${HR_SELF_SERVICE_PATH.employment}?form=1`,
         variant: 'pending',
         icon: <AlertCircle size={14} className="shrink-0 text-violet-600" aria-hidden />,
       });
@@ -107,26 +108,32 @@ export function ProfileActionQueue({
 
   if (!items.length) return null;
 
+  const list = (
+    <ul className={embedded ? '' : undefined}>
+      {items.map((item) => (
+        <li key={item.id}>
+          <ProfileListRow to={item.to} onClick={item.onClick}>
+            <span className="flex min-w-0 flex-1 items-center gap-2.5">
+              {item.icon}
+              <span className="min-w-0 truncate font-medium">{item.label}</span>
+            </span>
+            <span className="flex shrink-0 items-center gap-2">
+              <ProfileStatusChip variant={item.variant === 'rejected' ? 'rejected' : item.variant === 'approved' ? 'approved' : 'pending'}>
+                {item.variant === 'rejected' ? 'Action' : 'Pending'}
+              </ProfileStatusChip>
+              <ChevronRight size={14} className="text-slate-400" aria-hidden />
+            </span>
+          </ProfileListRow>
+        </li>
+      ))}
+    </ul>
+  );
+
+  if (embedded) return list;
+
   return (
     <ProfileModuleSection title="Action queue" subtitle="Items that need your attention" className={className} flush>
-      <ul>
-        {items.map((item) => (
-          <li key={item.id}>
-            <ProfileListRow to={item.to} onClick={item.onClick}>
-              <span className="flex min-w-0 flex-1 items-center gap-2.5">
-                {item.icon}
-                <span className="min-w-0 truncate font-medium">{item.label}</span>
-              </span>
-              <span className="flex shrink-0 items-center gap-2">
-                <ProfileStatusChip variant={item.variant === 'rejected' ? 'rejected' : item.variant === 'approved' ? 'approved' : 'pending'}>
-                  {item.variant === 'rejected' ? 'Action' : 'Pending'}
-                </ProfileStatusChip>
-                <ChevronRight size={14} className="text-slate-400" aria-hidden />
-              </span>
-            </ProfileListRow>
-          </li>
-        ))}
-      </ul>
+      {list}
     </ProfileModuleSection>
   );
 }

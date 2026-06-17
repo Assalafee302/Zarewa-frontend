@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useUserProfile } from '../../context/UserProfileContext';
 import { formatNgn } from '../../lib/hrFormat';
-import { ProfileHealthPanel } from '../../components/profile/ProfileHealthPanel';
+import { ProfileSetupRow } from '../../components/profile/ProfileSetupRow';
 import { ProfileHeroCard } from '../../components/profile/ProfileHeroCard';
 import { ProfileActionGrid } from '../../components/profile/ProfileActionGrid';
 import {
@@ -14,7 +14,6 @@ import { ACCOUNT_PATH, HR_SELF_SERVICE_PATH } from '../../lib/hrSelfServiceRoute
 import { FAMILY_BENEFITS, familyParentLine } from '../../lib/familyBenefitsUi';
 import { DOMESTIC_BENEFITS, domesticEmployerLine } from '../../lib/domesticStaffUi';
 import { apiFetch } from '../../lib/apiBase';
-import { ProfileOnboardingWizard } from '../../components/profile/ProfileOnboardingWizard';
 import { ProfileProbationBanner } from '../../components/profile/ProfileProbationBanner';
 
 function ScholarshipTeaser() {
@@ -156,7 +155,7 @@ export default function ProfileOverview() {
     );
   }
 
-  const showHealth =
+  const showSetupRow =
     hasHrSelfService &&
     cohort !== 'account_only' &&
     (cohort !== 'scholarship' || completeness);
@@ -167,53 +166,48 @@ export default function ProfileOverview() {
 
       {error ? <ProfileInlineAlert variant="error">{error}</ProfileInlineAlert> : null}
 
-      <ProfileOnboardingWizard />
       <ProfileProbationBanner />
 
-      <div className="grid gap-8 lg:grid-cols-3">
-        <div className="space-y-6 lg:col-span-2">
-          <ProfileModuleSection title="Shortcuts" subtitle="Frequently used actions" flush>
-            <ProfileActionGrid compact excludeWorkspace />
-          </ProfileModuleSection>
+      {showSetupRow ? (
+        <ProfileSetupRow
+          completeness={completeness}
+          documentSummary={documentSummary}
+          pendingProfileRequests={pendingProfileRequests}
+          unreadNotifications={unreadNotifications}
+          compact
+        />
+      ) : null}
 
-          {cohort === 'scholarship' ? <ScholarshipTeaser /> : null}
-          {cohort === 'domestic' ? <DomesticTeaser /> : null}
+      <div className="space-y-6">
+        <ProfileModuleSection title="Shortcuts" subtitle="Frequently used actions" flush>
+          <ProfileActionGrid compact excludeWorkspace />
+        </ProfileModuleSection>
 
-          {cohort === 'account_only' ? (
-            <ProfileModuleSection
-              title="Account & security"
-              subtitle="Update sign-in details and password"
-              actionTo={ACCOUNT_PATH.account}
-              actionLabel="Open settings"
-            >
-              <p className="text-sm text-slate-600">
-                Manage display name, email, username, and password under Account settings.
-              </p>
-            </ProfileModuleSection>
-          ) : null}
-        </div>
+        {cohort === 'scholarship' ? <ScholarshipTeaser /> : null}
+        {cohort === 'domestic' ? <DomesticTeaser /> : null}
 
-        <div className="space-y-6">
-          {showHealth ? (
-            <ProfileHealthPanel
-              completeness={completeness}
-              documentSummary={documentSummary}
-              pendingProfileRequests={pendingProfileRequests}
-              unreadNotifications={unreadNotifications}
-              compact
-            />
-          ) : null}
-
-          {hasHrSelfService && cohort !== 'account_only' ? (
-            <p className="text-xs leading-relaxed text-slate-500">
-              Employment records and payslips are in{' '}
-              <Link to={HR_SELF_SERVICE_PATH.overview} className="font-semibold text-[#134e4a] hover:underline">
-                HR services
-              </Link>
-              .
+        {cohort === 'account_only' ? (
+          <ProfileModuleSection
+            title="Account & security"
+            subtitle="Update sign-in details and password"
+            actionTo={ACCOUNT_PATH.account}
+            actionLabel="Open settings"
+          >
+            <p className="text-sm text-slate-600">
+              Manage display name, email, username, and password under Account settings.
             </p>
-          ) : null}
-        </div>
+          </ProfileModuleSection>
+        ) : null}
+
+        {hasHrSelfService && cohort !== 'account_only' ? (
+          <p className="text-xs leading-relaxed text-slate-500">
+            Employment records and payslips are in{' '}
+            <Link to={HR_SELF_SERVICE_PATH.overview} className="font-semibold text-[#134e4a] hover:underline">
+              HR services
+            </Link>
+            .
+          </p>
+        ) : null}
       </div>
     </div>
   );

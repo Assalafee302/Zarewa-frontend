@@ -45,8 +45,8 @@ export function ProfileOnboardingStatus({ profileLocked, profileSubmittedAtIso, 
       <div>
         <p className="font-semibold">Complete your employee profile</p>
         <p className="mt-0.5 text-xs text-slate-600">
-          Fill in your personal details below, then submit for HR review. Your full name is generated from first,
-          middle, and surname — it cannot be edited separately.
+          Open the profile form, fill in your personal details, then submit for HR review. Your full name is generated
+          from first, middle, and surname — it cannot be edited separately.
           {missingCount > 0 ? (
             <span className="mt-1 block font-medium text-slate-700">{missingCount} required field(s) still missing.</span>
           ) : null}

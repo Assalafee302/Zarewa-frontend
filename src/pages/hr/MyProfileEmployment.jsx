@@ -2,7 +2,7 @@ import React from 'react';
 import { useUserProfile } from '../../context/UserProfileContext';
 import { formatNgn } from '../../lib/hrFormat';
 import { HrSensitiveField } from '../../components/hr/HrSensitiveField';
-import ProfileOnboardingForm from '../../components/profile/ProfileOnboardingForm';
+import { ProfileOnboardingFormLauncher } from '../../components/profile/ProfileOnboardingFormLauncher';
 import { ProfileHrUpdateForm } from '../../components/profile/ProfileHrUpdateForm';
 import { ProfileOnboardingWizard } from '../../components/profile/ProfileOnboardingWizard';
 import { ProfileProbationBanner } from '../../components/profile/ProfileProbationBanner';
@@ -108,19 +108,14 @@ export default function MyProfileEmployment() {
         description={
           profileLocked
             ? 'Your profile is on file. View your record below or request HR to update locked fields.'
-            : 'Complete your personal details, save progress, then submit for HR review. Job title, salary, and org structure are maintained by HR.'
+            : 'Review your employment record and complete your personal details in the profile form.'
         }
       />
 
       <ProfileOnboardingWizard />
       <ProfileProbationBanner />
 
-      <ProfileOverviewSection
-        title={profileLocked ? 'Your submitted record' : 'Complete your profile'}
-        subtitle={profileLocked ? 'Read-only view of your HR file' : 'All sections on one scrollable form'}
-      >
-        <ProfileOnboardingForm />
-      </ProfileOverviewSection>
+      <ProfileOnboardingFormLauncher />
 
       {profileLocked ? (
         <ProfileOverviewSection

@@ -22,21 +22,21 @@ function barColor(pct) {
  *   compact?: boolean;
  * }} props
  */
-export function HrProfileCompleteness({ completeness, staffBasePath, userId, onFixSection, compact = false }) {
+export function HrProfileCompleteness({ completeness, staffBasePath, userId, onFixSection, compact = false, embedded = false }) {
   if (!completeness?.sections?.length) return null;
   const pct = completeness.overallPct ?? 0;
   const statusCls = pct >= 90 ? STATUS_CLS.complete : pct >= 60 ? STATUS_CLS.partial : STATUS_CLS.low;
 
-  return (
-    <div className={`rounded-xl border border-slate-200 bg-white shadow-sm ${compact ? 'p-4' : 'p-5'}`}>
+  const body = (
+    <>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="text-xs font-semibold text-slate-500">Profile health</p>
-          <p className={`mt-1 inline-flex rounded-full px-3 py-0.5 text-lg font-black tabular-nums ${statusCls}`}>
+          {!embedded ? <p className="text-xs font-semibold text-slate-500">Profile health</p> : null}
+          <p className={`${embedded ? 'text-2xl' : 'mt-1 text-lg'} inline-flex rounded-full px-3 py-0.5 font-black tabular-nums ${statusCls}`}>
             {pct}%
           </p>
         </div>
-        {!compact && userId && staffBasePath ? (
+        {!compact && !embedded && userId && staffBasePath ? (
           <Link
             to={`${staffBasePath}/${encodeURIComponent(userId)}?tab=documents`}
             className="text-xs font-semibold text-[#134e4a] hover:underline"
@@ -72,6 +72,14 @@ export function HrProfileCompleteness({ completeness, staffBasePath, userId, onF
           </li>
         ))}
       </ul>
+    </>
+  );
+
+  if (embedded) return body;
+
+  return (
+    <div className={`rounded-xl border border-slate-200 bg-white shadow-sm ${compact ? 'p-4' : 'p-5'}`}>
+      {body}
     </div>
   );
 }

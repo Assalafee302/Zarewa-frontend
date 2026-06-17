@@ -10,7 +10,7 @@ import { useHrSensitiveAccess } from '../../hooks/useHrSensitiveAccess';
 import { canViewOrgSensitiveHr } from '../../lib/hrAccess';
 import { formatNgn } from '../../lib/hrFormat';
 import { formatPeriodYyyymm } from '../../lib/hrPayroll';
-import { ProfileHealthPanel } from '../../components/profile/ProfileHealthPanel';
+import { ProfileSetupRow } from '../../components/profile/ProfileSetupRow';
 import {
   ProfileEmptyState,
   ProfileHeroSkeleton,
@@ -21,7 +21,6 @@ import {
 import { ProfileKpiCard, ProfileKpiSkeleton, ProfileStatusChip } from '../../components/profile/profileDesign';
 import { HR_SELF_SERVICE_PATH } from '../../lib/hrSelfServiceRoutes';
 import { myProfileOverviewFetchPlan } from '../../lib/myProfileOverviewFetch';
-import { ProfileOnboardingWizard } from '../../components/profile/ProfileOnboardingWizard';
 import { ProfileProbationBanner } from '../../components/profile/ProfileProbationBanner';
 
 export default function MyProfileOverview() {
@@ -234,10 +233,9 @@ export default function MyProfileOverview() {
     <div className="space-y-6">
       <ProfileIdentityStrip user={user} hr={hr} cohort={cohort} />
 
-      <ProfileOnboardingWizard />
       <ProfileProbationBanner />
 
-      <ProfileHealthPanel
+      <ProfileSetupRow
         completeness={completeness}
         documentSummary={me?.documentSummary}
         pendingProfileRequests={me?.pendingProfileRequests}
