@@ -63,6 +63,7 @@ export default function TeamAccessPanel({ appUsers, currentUserId, onRefresh }) 
   const [zeroAuditConfirmInput, setZeroAuditConfirmInput] = useState('');
   const [zeroAuditBusy, setZeroAuditBusy] = useState(false);
   const [zeroAuditShowList, setZeroAuditShowList] = useState(false);
+  const [zeroAuditLastFailed, setZeroAuditLastFailed] = useState([]);
 
   const [createOpen, setCreateOpen] = useState(false);
   const [createBusy, setCreateBusy] = useState(false);
@@ -429,10 +430,12 @@ export default function TeamAccessPanel({ appUsers, currentUserId, onRefresh }) 
         return;
       }
       const deleted = data.summary?.deleted ?? (Array.isArray(data.deleted) ? data.deleted.length : 0);
-      const failed = data.summary?.failed ?? (Array.isArray(data.failed) ? data.failed.length : 0);
+      const failedRows = Array.isArray(data.failed) ? data.failed : [];
+      const failed = data.summary?.failed ?? failedRows.length;
+      setZeroAuditLastFailed(failedRows);
       showToast(
         failed
-          ? `Removed ${deleted} unused login(s). ${failed} could not be deleted — check links or refresh and retry.`
+          ? `Removed ${deleted} unused login(s). ${failed} could not be deleted — see details below.`
           : `Removed ${deleted} unused login(s).`,
         { variant: failed ? 'info' : 'success' }
       );
@@ -779,6 +782,22 @@ export default function TeamAccessPanel({ appUsers, currentUserId, onRefresh }) 
                     {zeroAuditBusy ? 'Deleting…' : `Delete ${zeroAuditCandidates.length} unused login(s)`}
                   </button>
                 </div>
+
+                {zeroAuditLastFailed.length > 0 ? (
+                  <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50/80 p-3 text-[11px] text-amber-950">
+                    <p className="font-bold mb-1">Could not delete ({zeroAuditLastFailed.length})</p>
+                    <ul className="space-y-1 font-mono max-h-32 overflow-y-auto">
+                      {zeroAuditLastFailed.slice(0, 12).map((f) => (
+                        <li key={f.userId || f.username}>
+                          {f.username}: {f.error}
+                        </li>
+                      ))}
+                    </ul>
+                    {zeroAuditLastFailed.length > 12 ? (
+                      <p className="mt-1 text-amber-800">…and {zeroAuditLastFailed.length - 12} more.</p>
+                    ) : null}
+                  </div>
+                ) : null}
               </>
             ) : (
               <button
