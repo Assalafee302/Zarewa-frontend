@@ -37,11 +37,9 @@ export const HR_DISCIPLINARY_KINDS = [
 ];
 
 export const HR_LEAVE_BANDS = [
-  { value: '', label: 'Auto (from job title)' },
-  { value: 'junior', label: 'Junior band' },
-  { value: 'senior', label: 'Senior band' },
-  { value: 'standard', label: 'Standard (maps to junior)' },
-  { value: 'executive', label: 'Executive (maps to senior)' },
+  { value: '', label: 'Auto (from salary level L1–3 junior, L4+ senior)' },
+  { value: 'junior', label: 'Junior band (L1–L3)' },
+  { value: 'senior', label: 'Senior band (L4–L7)' },
 ];
 
 /** Documented when actual pay exceeds salary matrix — see docs/HR/ZAREWA-COMPENSATION-AND-EXCEPTIONS.md */

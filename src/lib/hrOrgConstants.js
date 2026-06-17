@@ -31,6 +31,7 @@ export const DESIGNATION_APP_ROLE_HINTS = {
   desig_hrrep: 'hr_admin',
   desig_hoa: 'finance_manager',
   desig_acct: 'finance_manager',
+  desig_aud: 'finance_manager',
   desig_aacct: 'finance_manager',
   desig_actacct: 'finance_manager',
   desig_csec: 'hr_admin',

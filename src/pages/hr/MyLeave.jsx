@@ -8,6 +8,7 @@ import { WorkPayHero } from '../../components/profile/WorkPayHero';
 import { WorkPayFormAlert, WorkPayHeroButton } from '../../components/profile/workPayFormUi';
 import { ProfileFormActions, ProfileFormField } from '../../components/profile/profileFormUi';
 import { leaveTypeLabel } from '../../lib/hrLeaveUi';
+import { HR_LEAVE_TYPES } from '../../lib/hrPolicyConstants';
 import { MyLeaveCalendarStrip } from '../../components/hr/MyLeaveCalendarStrip';
 import { ProfilePageBody } from '../../components/profile/profilePageUi';
 import { ProfileInlineAlert, ProfileOverviewSection } from '../../components/profile/profileOverviewUi';
@@ -16,14 +17,7 @@ import { ProfileProbationBanner } from '../../components/profile/ProfileProbatio
 import { useUserProfile } from '../../context/UserProfileContext';
 import { HR_BTN_PRIMARY, HR_BTN_SECONDARY, HR_FIELD_CLASS } from '../../components/hr/hrFormStyles';
 
-const LEAVE_TYPES = [
-  { value: 'annual', label: 'Annual leave' },
-  { value: 'casual', label: 'Casual leave' },
-  { value: 'sick', label: 'Sick leave' },
-  { value: 'compassionate', label: 'Compassionate' },
-  { value: 'unpaid', label: 'Unpaid' },
-  { value: 'other', label: 'Other' },
-];
+const LEAVE_TYPES = HR_LEAVE_TYPES;
 
 const STEPS = ['Type & dates', 'Details', 'Review'];
 

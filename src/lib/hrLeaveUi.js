@@ -1,10 +1,11 @@
 export const LEAVE_TYPE_LABELS = {
   annual: 'Annual leave',
-  casual: 'Casual leave',
   sick: 'Sick leave',
+  maternity: 'Maternity leave',
   compassionate: 'Compassionate leave',
-  unpaid: 'Unpaid leave',
+  unpaid: 'Leave without pay',
   other: 'Other leave',
+  casual: 'Casual leave',
 };
 
 export function leaveTypeLabel(type) {

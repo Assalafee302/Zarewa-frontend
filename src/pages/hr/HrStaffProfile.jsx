@@ -17,6 +17,7 @@ import { HrIdCardApplyFields } from '../../components/hr/HrIdCardApplyFields';
 import { HrStaffDocumentsPanel } from '../../components/hr/HrStaffDocumentsPanel';
 import { HrProfileCompleteness } from '../../components/hr/HrProfileCompleteness';
 import { HrCard } from '../../components/hr/hrPageUi';
+import { HrStaffFileChecklist } from '../../components/hr/HrStaffFileChecklist';
 import { HrSkillsMatrixPanel } from '../../components/hr/HrSkillsMatrixPanel';
 import { CRITICAL_MISSING_LABELS } from '../../lib/hrStaffDocumentKinds';
 import { HR_BTN_PRIMARY, HR_BTN_SECONDARY } from '../../components/hr/hrFormStyles';
@@ -592,6 +593,7 @@ export default function HrStaffProfile() {
           else setTab('employment');
         }}
       />
+      {canManage ? <HrStaffFileChecklist completeness={staff.fileCompleteness} /> : null}
 
       <HrFormModal
         isOpen={editing && !!editForm}

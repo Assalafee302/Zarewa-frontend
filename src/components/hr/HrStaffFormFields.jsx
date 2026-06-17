@@ -15,6 +15,7 @@ import {
 import { fetchHrDepartments, fetchHrDesignations, fetchDesignationTenureEligibility } from '../../lib/hrMasterData';
 import { fetchMatrixCompensationLookup } from '../../lib/hrCompensation';
 import { formatNgn, yearsOfServiceFromIso } from '../../lib/hrFormat';
+import { leaveBandFromSalaryLevel, defaultProbationEndIso, leaveBandLabel } from '../../lib/hrPolicyConstants';
 import { isActingDesignation } from '../../lib/hrOrgConstants';
 import { HrCompensationExtrasPanel } from './HrCompensationExtrasPanel';
 import { HrManagerPicker } from './HrManagerPicker';
@@ -128,6 +129,15 @@ export function HrStaffFormFields({
     }
   }, [erpRestricted, form.roleKey, isRegister, setForm]);
 
+  useEffect(() => {
+    if (!isRegister) return;
+    if (form.employmentType !== 'permanent') return;
+    if (form.probationEndIso) return;
+    if (!form.dateJoinedIso) return;
+    const end = defaultProbationEndIso(form.dateJoinedIso);
+    if (end) setForm((f) => ({ ...f, probationEndIso: end }));
+  }, [isRegister, form.dateJoinedIso, form.employmentType, form.probationEndIso, setForm]);
+
   const filteredDepartments = useMemo(
     () => departments.filter((d) => d.active !== false && branchMatchesScope(d, form.branchId)),
     [departments, form.branchId]
@@ -167,6 +177,7 @@ export function HrStaffFormFields({
       promotionGrade: des?.gradeCategory || des?.seniorityBand || f.promotionGrade,
       salaryLevel: nextLevel,
       salaryStep: nextStep,
+      leaveEntitlementBand: leaveBandFromSalaryLevel(nextLevel) || f.leaveEntitlementBand,
       payAdditionNgn: '',
       applyMatrixPay: true,
       jobDescriptionPreview: des?.jobDescription || '',
@@ -634,7 +645,7 @@ export function HrStaffFormFields({
               placeholder="Optional — name or user reference"
             />
           </Field>
-          <Field label="Leave entitlement band">
+          <Field label="Leave entitlement band" hint={`Auto: ${leaveBandLabel(leaveBandFromSalaryLevel(form.salaryLevel))} from salary level`}>
             <select
               className={fieldCls}
               value={form.leaveEntitlementBand}
