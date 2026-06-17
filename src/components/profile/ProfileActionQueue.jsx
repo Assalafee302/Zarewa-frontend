@@ -86,6 +86,7 @@ export function ProfileActionQueue({
       queue.push({
         id: `req-${r.id}`,
         label: r.title || 'Profile change request',
+        to: HR_SELF_SERVICE_PATH.employment,
         variant: 'pending',
         icon: <AlertCircle size={14} className="shrink-0 text-violet-600" aria-hidden />,
       });
@@ -107,12 +108,8 @@ export function ProfileActionQueue({
   if (!items.length) return null;
 
   return (
-    <ProfileModuleSection
-      title="Action queue"
-      subtitle="Items that need your attention"
-      className={className}
-    >
-      <ul className="space-y-1.5">
+    <ProfileModuleSection title="Action queue" subtitle="Items that need your attention" className={className} flush>
+      <ul>
         {items.map((item) => (
           <li key={item.id}>
             <ProfileListRow to={item.to} onClick={item.onClick}>

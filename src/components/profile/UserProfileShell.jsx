@@ -14,16 +14,16 @@ function AccountSubnav() {
   );
 
   const tabClass = (active) =>
-    `shrink-0 rounded-xl px-4 py-2.5 text-[11px] font-bold uppercase tracking-[0.06em] no-underline transition-all ${
+    `shrink-0 rounded-lg px-4 py-2 text-sm font-semibold no-underline transition-colors ${
       active
-        ? 'bg-[#134e4a] text-white shadow-lg shadow-teal-950/15'
-        : 'text-slate-500 hover:bg-slate-50 hover:text-[#134e4a]'
+        ? 'bg-[#134e4a] text-white shadow-sm'
+        : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
     }`;
 
   return (
     <nav
       aria-label="Account sections"
-      className="inline-flex w-full max-w-full min-w-0 flex-wrap gap-1 overflow-x-auto overscroll-x-contain rounded-2xl border border-white/80 bg-white/88 p-1.5 shadow-[0_16px_32px_-26px_rgba(15,23,42,0.35)] backdrop-blur-xl [-webkit-overflow-scrolling:touch]"
+      className="flex w-full min-w-0 flex-wrap gap-1 border-b border-slate-200/80 pb-3"
     >
       {nav.map((item) => (
         <NavLink key={item.to} to={item.to} end={item.end} className={({ isActive }) => tabClass(isActive)}>
@@ -39,7 +39,7 @@ function UserProfileShellInner() {
 
   const subtitle =
     cohort === 'scholarship' || cohort === 'domestic'
-      ? 'Password, access, and shortcuts to your benefits hub.'
+      ? 'Sign-in, security, and shortcuts to your benefits hub.'
       : cohort === 'account_only'
         ? 'Profile, security, and workspace shortcuts.'
         : 'Sign-in details, security, and shortcuts to HR services.';
@@ -47,7 +47,7 @@ function UserProfileShellInner() {
   return (
     <PageShell className="pb-[max(2.5rem,env(safe-area-inset-bottom))]">
       <PageHeader
-        eyebrow="Profile"
+        eyebrow="Workspace"
         title="Account"
         subtitle={subtitle}
         tabs={
@@ -62,12 +62,11 @@ function UserProfileShellInner() {
         }
       />
 
-      <div className="mb-4">
-        <AccountSubnav />
-      </div>
-
       <MainPanel>
-        <Outlet />
+        <AccountSubnav />
+        <div className="mt-6">
+          <Outlet />
+        </div>
       </MainPanel>
     </PageShell>
   );

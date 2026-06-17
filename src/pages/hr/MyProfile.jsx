@@ -73,34 +73,49 @@ function MyProfileIndexRedirect() {
   return <Navigate to="overview" replace />;
 }
 
+function MyProfileCohortRoute({ cohort: required, redirectTo, children }) {
+  const { cohort } = useMyProfileCohort();
+  if (cohort !== required) return <Navigate to={redirectTo} replace />;
+  return children;
+}
+
+function MyProfileEmployeeRoute({ children }) {
+  const { cohort } = useMyProfileCohort();
+  if (cohort === 'scholarship') return <Navigate to="/my-profile/school" replace />;
+  if (cohort === 'domestic') return <Navigate to="/my-profile/home" replace />;
+  return children;
+}
+
 export default function MyProfile() {
   return (
     <Routes>
         <Route element={<MyProfileLayout />}>
           <Route index element={<MyProfileIndexRedirect />} />
-          <Route path="overview" element={<MyProfileOverview />} />
-          <Route path="home" element={<MyProfileHome />} />
-          <Route path="school" element={<MyProfileSchool />} />
+          <Route path="overview" element={<MyProfileEmployeeRoute><MyProfileOverview /></MyProfileEmployeeRoute>} />
+          <Route path="home" element={<MyProfileCohortRoute cohort="domestic" redirectTo="/my-profile/overview"><MyProfileHome /></MyProfileCohortRoute>} />
+          <Route path="school" element={<MyProfileCohortRoute cohort="scholarship" redirectTo="/my-profile/overview"><MyProfileSchool /></MyProfileCohortRoute>} />
           <Route path="payments" element={<MyProfilePaymentsRoute />} />
-          <Route path="requests" element={<MyProfileScholarshipRequests />} />
-          <Route path="employment" element={<MyProfileEmployment />} />
-          <Route path="leave" element={<MyLeave staffLinkBase="/my-profile" />} />
-          <Route path="loans" element={<MyLoans staffLinkBase="/my-profile" />} />
-          <Route path="attendance" element={<MyAttendance />} />
-          <Route path="payslips" element={<MyPayslips />} />
+          <Route path="requests" element={<MyProfileCohortRoute cohort="scholarship" redirectTo="/my-profile/overview"><MyProfileScholarshipRequests /></MyProfileCohortRoute>} />
+          <Route path="employment" element={<MyProfileEmployeeRoute><MyProfileEmployment /></MyProfileEmployeeRoute>} />
+          <Route path="leave" element={<MyProfileEmployeeRoute><MyLeave staffLinkBase="/my-profile" /></MyProfileEmployeeRoute>} />
+          <Route path="loans" element={<MyProfileEmployeeRoute><MyLoans staffLinkBase="/my-profile" /></MyProfileEmployeeRoute>} />
+          <Route path="attendance" element={<MyProfileEmployeeRoute><MyAttendance /></MyProfileEmployeeRoute>} />
+          <Route path="payslips" element={<MyProfileEmployeeRoute><MyPayslips /></MyProfileEmployeeRoute>} />
           <Route path="documents" element={<MyProfileDocuments />} />
           <Route
             path="id-card"
             element={
-              <Suspense fallback={<ProfileMetricSkeleton count={1} />}>
-                <MyIdCard />
-              </Suspense>
+              <MyProfileEmployeeRoute>
+                <Suspense fallback={<ProfileMetricSkeleton count={1} />}>
+                  <MyIdCard />
+                </Suspense>
+              </MyProfileEmployeeRoute>
             }
           />
-          <Route path="benefits" element={<MyProfileBenefits />} />
+          <Route path="benefits" element={<MyProfileEmployeeRoute><MyProfileBenefits /></MyProfileEmployeeRoute>} />
           <Route path="policies" element={<MyProfilePolicies />} />
-          <Route path="discipline" element={<MyProfileDiscipline />} />
-          <Route path="surveys" element={<MyProfileSurveys />} />
+          <Route path="discipline" element={<MyProfileEmployeeRoute><MyProfileDiscipline /></MyProfileEmployeeRoute>} />
+          <Route path="surveys" element={<MyProfileEmployeeRoute><MyProfileSurveys /></MyProfileEmployeeRoute>} />
           <Route path="grievance" element={<MyProfileGrievance />} />
           <Route path="help" element={<Navigate to="/my-profile/overview" replace />} />
         </Route>

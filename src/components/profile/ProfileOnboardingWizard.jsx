@@ -99,13 +99,22 @@ export function ProfileOnboardingWizard({ className = '' }) {
 }
 
 /** Shown when onboarding checklist is complete. */
-export function ProfileOnboardingCompleteChip() {
+export function ProfileOnboardingCompleteChip({ onDark = false }) {
   const { onboardingChecklist, hasHrSelfService, cohort } = useUserProfile();
   if (!hasHrSelfService || cohort === 'scholarship' || cohort === 'domestic') return null;
   if (!onboardingChecklist?.complete) return null;
 
+  if (onDark) {
+    return (
+      <div className="inline-flex items-center gap-1.5 rounded-full bg-white/20 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-white ring-1 ring-white/30">
+        <CheckCircle2 size={12} aria-hidden />
+        Onboarding complete
+      </div>
+    );
+  }
+
   return (
-    <div className="inline-flex items-center gap-1.5 rounded-md border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-emerald-800">
+    <div className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-emerald-800">
       <CheckCircle2 size={12} aria-hidden />
       Onboarding complete
     </div>

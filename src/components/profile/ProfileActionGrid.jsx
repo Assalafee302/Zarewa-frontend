@@ -28,7 +28,6 @@ import {
   buildUserProfileActions,
   USER_PROFILE_ACTION_CATEGORIES,
 } from '../../lib/userProfileActions';
-import { ProfileAccentBar } from './profileDesign';
 
 const ACTION_ICONS = {
   user: User,
@@ -86,17 +85,17 @@ export function ProfileActionGrid({ categoryFilter = null, compact = false, excl
   })).filter((g) => g.items.length > 0);
 
   if (filtered.length === 0) {
-    return <p className="z-meta-text">No extra actions for your role. You can still update account and password.</p>;
+    return <p className="text-sm text-slate-500">No extra actions for your role.</p>;
   }
 
   if (compact) {
     return (
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+      <div className="flex flex-wrap gap-2">
         {filtered
           .filter((a) => a.category === 'account' || a.category === 'self_service')
           .slice(0, 8)
           .map((action) => (
-            <ActionTile key={action.id} action={action} compact />
+            <ActionChip key={action.id} action={action} />
           ))}
       </div>
     );
@@ -106,8 +105,8 @@ export function ProfileActionGrid({ categoryFilter = null, compact = false, excl
     <div className="space-y-6">
       {byCategory.map((group) => (
         <section key={group.key}>
-          <h3 className="mb-3 text-[10px] font-bold uppercase tracking-widest text-slate-400">{group.label}</h3>
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          <h3 className="mb-2 text-xs font-bold uppercase tracking-wide text-slate-400">{group.label}</h3>
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             {group.items.map((action) => (
               <ActionTile key={action.id} action={action} />
             ))}
@@ -118,42 +117,40 @@ export function ProfileActionGrid({ categoryFilter = null, compact = false, excl
   );
 }
 
+function ActionChip({ action }) {
+  const Icon = action.icon ? ACTION_ICONS[action.icon] : null;
+  return (
+    <Link
+      to={action.to}
+      className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-800 no-underline shadow-sm transition hover:border-[#134e4a]/40 hover:bg-teal-50/50"
+    >
+      {Icon ? <Icon size={14} className="text-[#134e4a]" aria-hidden /> : null}
+      {action.label}
+    </Link>
+  );
+}
+
 /** @param {{ action: import('../../lib/userProfileActions').UserProfileAction; compact?: boolean }} props */
 function ActionTile({ action, compact = false }) {
   const Icon = action.icon ? ACTION_ICONS[action.icon] : null;
-  const isExternal =
-    action.to.startsWith('/manager') ||
-    action.to.startsWith('/hr') ||
-    action.to.startsWith('/settings') ||
-    action.to.startsWith('/team') ||
-    action.to.startsWith('/executive');
 
   return (
     <Link
       to={action.to}
-      className={`group relative flex min-h-[72px] items-start justify-between gap-3 overflow-hidden rounded-xl border border-slate-200/90 bg-white no-underline shadow-sm transition-colors hover:border-[#134e4a]/25 hover:bg-teal-50/20 ${compact ? 'p-3' : 'p-4'}`}
+      className={`group flex items-center gap-3 rounded-xl border border-slate-200/90 bg-white no-underline shadow-sm transition hover:border-[#134e4a]/25 hover:shadow-md ${compact ? 'p-3' : 'p-4'}`}
     >
-      <ProfileAccentBar className="absolute inset-x-0 top-0 rounded-none" />
-      <div className="min-w-0 flex gap-3 pt-1">
-        {Icon ? (
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-teal-50 text-[#134e4a]">
-            <Icon size={compact ? 16 : 18} aria-hidden />
-          </span>
+      {Icon ? (
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-teal-50 text-[#134e4a]">
+          <Icon size={18} aria-hidden />
+        </span>
+      ) : null}
+      <div className="min-w-0 flex-1">
+        <p className={`font-semibold text-slate-900 ${compact ? 'text-xs' : 'text-sm'}`}>{action.label}</p>
+        {action.description && !compact ? (
+          <p className="mt-0.5 line-clamp-2 text-xs text-slate-500">{action.description}</p>
         ) : null}
-        <div className="min-w-0">
-          <p className={`font-semibold text-slate-900 ${compact ? 'text-xs' : 'text-sm'}`}>{action.label}</p>
-          {action.description && !compact ? (
-            <p className="mt-0.5 text-xs leading-relaxed text-slate-500">{action.description}</p>
-          ) : null}
-          {isExternal && !compact ? (
-            <p className="mt-1 text-[10px] font-semibold uppercase tracking-wide text-slate-400">Opens workspace</p>
-          ) : null}
-        </div>
       </div>
-      <ChevronRight
-        size={16}
-        className="mt-1 shrink-0 text-slate-400 transition group-hover:translate-x-0.5 group-hover:text-[#134e4a]"
-      />
+      <ChevronRight size={16} className="shrink-0 text-slate-300 group-hover:text-[#134e4a]" aria-hidden />
     </Link>
   );
 }

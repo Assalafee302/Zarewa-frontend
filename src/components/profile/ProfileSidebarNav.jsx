@@ -9,9 +9,9 @@ import {
 } from '../../lib/profileNavConfig';
 
 const linkClass = ({ isActive }) =>
-  `flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium no-underline transition-colors ${
+  `flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium no-underline transition-colors ${
     isActive
-      ? 'bg-[#134e4a] text-white shadow-sm'
+      ? 'bg-[#134e4a] text-white'
       : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
   }`;
 
@@ -57,17 +57,17 @@ export function ProfileMobileNav({ cohort = 'employee' }) {
   const all = profileNavFlatItems(cohort);
 
   const tabClass = (active) =>
-    `inline-flex shrink-0 items-center gap-1.5 rounded-xl px-3 py-2.5 text-[11px] font-bold uppercase tracking-[0.06em] no-underline transition-all ${
+    `inline-flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold no-underline transition-colors ${
       active
-        ? 'bg-[#134e4a] text-white shadow-lg shadow-teal-950/15'
-        : 'text-slate-500 hover:bg-slate-50 hover:text-[#134e4a]'
+        ? 'bg-[#134e4a] text-white'
+        : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
     }`;
 
   return (
     <div className="relative">
       <nav
         aria-label="HR sections"
-        className="flex gap-1 overflow-x-auto overscroll-x-contain rounded-2xl border border-white/80 bg-white/88 p-1.5 shadow-[0_16px_32px_-26px_rgba(15,23,42,0.35)] backdrop-blur-xl [-webkit-overflow-scrolling:touch]"
+        className="flex gap-1 overflow-x-auto border-b border-slate-200/80 pb-2 [-webkit-overflow-scrolling:touch]"
       >
         {primary.map((item) => {
           const Icon = item.icon;
@@ -100,8 +100,7 @@ export function ProfileMobileNav({ cohort = 'employee' }) {
             aria-label="Close menu"
             onClick={() => setMoreOpen(false)}
           />
-          <div className="absolute left-0 right-0 top-full z-50 mt-2 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl">
-            <div className="h-1 bg-[#134e4a]" aria-hidden />
+          <div className="absolute left-0 right-0 top-full z-50 mt-1 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl">
             <ul className="max-h-[min(60vh,320px)] overflow-y-auto p-2">
               {more.map((item) => {
                 const Icon = item.icon;

@@ -1,21 +1,30 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { ChevronRight } from 'lucide-react';
+import { Building2, ChevronRight, Mail, User } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { useUserProfile } from '../../context/UserProfileContext';
 import { WORKSPACE_DEPARTMENT_LABELS } from '../../lib/departmentWorkspace';
-import { ACCOUNT_PATH } from '../../lib/hrSelfServiceRoutes';
+import { ACCOUNT_PATH, HR_SELF_SERVICE_PATH } from '../../lib/hrSelfServiceRoutes';
 import { FAMILY_BENEFITS } from '../../lib/familyBenefitsUi';
 import { DOMESTIC_BENEFITS } from '../../lib/domesticStaffUi';
-import { ProfileAccentBar } from './profileDesign';
 import { ProfileOnboardingCompleteChip } from './ProfileOnboardingWizard';
 
 const COHORT_BADGE = {
-  scholarship: { label: FAMILY_BENEFITS.badgeLabel, className: 'bg-violet-100 text-violet-800 border-violet-200' },
-  domestic: { label: DOMESTIC_BENEFITS.badgeLabel, className: 'bg-amber-100 text-amber-900 border-amber-200' },
-  special: { label: 'HQ / special', className: 'bg-sky-100 text-sky-800 border-sky-200' },
-  employee: { label: 'Employee', className: 'bg-teal-50 text-teal-900 border-teal-200' },
+  scholarship: 'bg-white/20 text-white ring-1 ring-white/30',
+  domestic: 'bg-white/20 text-white ring-1 ring-white/30',
+  special: 'bg-white/20 text-white ring-1 ring-white/30',
+  employee: 'bg-white/20 text-white ring-1 ring-white/30',
 };
+
+function MetaPill({ icon: Icon, children }) {
+  if (!children) return null;
+  return (
+    <span className="inline-flex max-w-full items-center gap-1.5 rounded-full bg-white/15 px-3 py-1 text-xs font-medium text-white/95 ring-1 ring-white/20">
+      {Icon ? <Icon size={12} className="shrink-0 opacity-80" aria-hidden /> : null}
+      <span className="truncate">{children}</span>
+    </span>
+  );
+}
 
 export function ProfileHeroCard() {
   const ws = useWorkspace();
@@ -45,128 +54,105 @@ export function ProfileHeroCard() {
     hr?.department ||
     WORKSPACE_DEPARTMENT_LABELS?.[sessionUser?.departmentKey] ||
     sessionUser?.departmentKey ||
-    user?.roleLabel ||
-    '—';
+    user?.roleLabel;
 
   const roleLine = hr?.jobTitle || user?.roleLabel || user?.roleKey || 'User';
-  const badge = COHORT_BADGE[cohort];
-  const isFamilyBenefits = cohort === 'scholarship';
-  const isDomesticHub = cohort === 'domestic';
+  const badgeLabel =
+    cohort === 'scholarship'
+      ? FAMILY_BENEFITS.badgeLabel
+      : cohort === 'domestic'
+        ? DOMESTIC_BENEFITS.badgeLabel
+        : cohort === 'special'
+          ? 'HQ / special'
+          : cohort === 'employee'
+            ? 'Employee'
+            : null;
+
+  const hrHubTo =
+    cohort === 'scholarship'
+      ? HR_SELF_SERVICE_PATH.school
+      : cohort === 'domestic'
+        ? HR_SELF_SERVICE_PATH.home
+        : hasHrSelfService
+          ? HR_SELF_SERVICE_PATH.overview
+          : null;
 
   return (
-    <div className="relative overflow-hidden rounded-xl border border-slate-200/90 bg-white shadow-sm">
-      <ProfileAccentBar />
-      <div className="flex flex-col gap-5 p-5 sm:flex-row sm:items-start sm:p-6">
-        {showAvatar ? (
-          <img
-            src={avatarUrl}
-            alt=""
-            className="h-16 w-16 shrink-0 rounded-lg border border-slate-200 object-cover shadow-sm"
-          />
-        ) : (
-          <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-[#134e4a] text-xl font-black text-white shadow-sm">
-            {initials}
-          </div>
-        )}
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            {badge ? (
-              <span className={`rounded-md border px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide ${badge.className}`}>
-                {badge.label}
-              </span>
-            ) : null}
-            <ProfileOnboardingCompleteChip />
-          </div>
-          <h2 className="z-page-title mt-1 truncate">{user?.displayName || '—'}</h2>
-          {isFamilyBenefits ? (
-            <>
-              {fb?.familyParentLine ? <p className="z-meta-text mt-1">{fb.familyParentLine}</p> : null}
-              <p className="text-sm text-slate-600">
-                {fb?.schoolName || 'School not set'}
-                {fb?.classLevel ? ` · ${fb.classLevel}` : ''}
-              </p>
-            </>
-          ) : isDomesticHub ? (
-            <>
-              {db?.executiveEmployerLine ? <p className="z-meta-text mt-1">{db.executiveEmployerLine}</p> : null}
-              <p className="text-sm text-slate-600">
-                {db?.designation || roleLine}
-                {db?.workLocation ? ` · ${db.workLocation}` : ''}
-              </p>
-            </>
+    <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#134e4a] via-[#0d5c56] to-[#134e4a] p-5 text-white shadow-lg shadow-teal-950/15 sm:p-7">
+      <div
+        className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-white/10 blur-2xl"
+        aria-hidden
+      />
+      <div className="relative flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex min-w-0 gap-4">
+          {showAvatar ? (
+            <img
+              src={avatarUrl}
+              alt=""
+              className="h-16 w-16 shrink-0 rounded-2xl border-2 border-white/30 object-cover shadow-md sm:h-[4.5rem] sm:w-[4.5rem]"
+            />
           ) : (
-            <p className="text-sm text-slate-600">{roleLine}</p>
-          )}
-          <dl className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
-            {isFamilyBenefits ? (
-              <>
-                {fb?.linkedExecutiveLabel ? (
-                  <div className="z-list-row-compact">
-                    <dt className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Linked executive</dt>
-                    <dd className="mt-0.5 font-semibold text-slate-900">{fb.linkedExecutiveLabel}</dd>
-                  </div>
-                ) : null}
-                {user?.email ? (
-                  <div className="z-list-row-compact">
-                    <dt className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Email</dt>
-                    <dd className="mt-0.5 truncate font-medium text-slate-900">{user.email}</dd>
-                  </div>
-                ) : null}
-              </>
-            ) : isDomesticHub ? (
-              <>
-                {db?.assignedExecutiveLabel ? (
-                  <div className="z-list-row-compact">
-                    <dt className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Employer</dt>
-                    <dd className="mt-0.5 font-semibold text-slate-900">{db.assignedExecutiveLabel}</dd>
-                  </div>
-                ) : null}
-              </>
-            ) : (
-              <>
-                {hr?.employeeNo ? (
-                  <div className="z-list-row-compact">
-                    <dt className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Employee no.</dt>
-                    <dd className="mt-0.5 font-mono font-semibold text-slate-900">{hr.employeeNo}</dd>
-                  </div>
-                ) : null}
-                {user?.username ? (
-                  <div className="z-list-row-compact">
-                    <dt className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Username</dt>
-                    <dd className="mt-0.5 font-mono font-semibold text-slate-900">@{user.username}</dd>
-                  </div>
-                ) : null}
-                {branchName ? (
-                  <div className="z-list-row-compact">
-                    <dt className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Branch</dt>
-                    <dd className="mt-0.5 font-medium text-slate-900">{branchName}</dd>
-                  </div>
-                ) : null}
-                <div className="z-list-row-compact">
-                  <dt className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Department</dt>
-                  <dd className="mt-0.5 font-medium text-slate-900">{deptLabel}</dd>
-                </div>
-              </>
-            )}
-          </dl>
-          {initialLoading && hasHrSelfService ? (
-            <div className="mt-4 space-y-2" aria-hidden>
-              {Array.from({ length: 3 }).map((_, i) => (
-                <div key={i} className="h-2 animate-pulse rounded bg-slate-200" style={{ width: `${60 + i * 10}%` }} />
-              ))}
+            <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl border-2 border-white/30 bg-white/10 text-xl font-black shadow-md sm:h-[4.5rem] sm:w-[4.5rem]">
+              {initials}
             </div>
-          ) : null}
+          )}
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              {badgeLabel ? (
+                <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${COHORT_BADGE[cohort] || COHORT_BADGE.employee}`}>
+                  {badgeLabel}
+                </span>
+              ) : null}
+              <ProfileOnboardingCompleteChip onDark />
+            </div>
+            <h2 className="mt-1 truncate text-xl font-black tracking-tight sm:text-2xl">
+              {user?.displayName || '—'}
+            </h2>
+            <p className="mt-0.5 text-sm font-medium text-teal-50/90">
+              {cohort === 'scholarship'
+                ? [fb?.schoolName, fb?.classLevel].filter(Boolean).join(' · ') || 'Scholarship beneficiary'
+                : cohort === 'domestic'
+                  ? [db?.designation, db?.workLocation].filter(Boolean).join(' · ') || 'Domestic staff'
+                  : roleLine}
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {hr?.employeeNo ? <MetaPill icon={User}>#{hr.employeeNo}</MetaPill> : null}
+              {branchName ? <MetaPill icon={Building2}>{branchName}</MetaPill> : null}
+              {deptLabel && cohort !== 'scholarship' && cohort !== 'domestic' ? (
+                <MetaPill>{deptLabel}</MetaPill>
+              ) : null}
+              {user?.email ? <MetaPill icon={Mail}>{user.email}</MetaPill> : null}
+            </div>
+          </div>
         </div>
         {!initialLoading ? (
-          <Link
-            to={ACCOUNT_PATH.account}
-            className="z-btn-secondary !px-4 !py-2 !text-[10px] uppercase tracking-wide shrink-0 self-start sm:self-center"
-          >
-            Edit account
-            <ChevronRight size={14} aria-hidden />
-          </Link>
+          <div className="flex shrink-0 flex-wrap gap-2 sm:flex-col sm:items-stretch">
+            <Link
+              to={ACCOUNT_PATH.account}
+              className="inline-flex min-h-10 items-center justify-center gap-1 rounded-xl bg-white px-4 py-2 text-xs font-bold text-[#134e4a] no-underline shadow-sm transition hover:bg-teal-50"
+            >
+              Account settings
+              <ChevronRight size={14} aria-hidden />
+            </Link>
+            {hrHubTo ? (
+              <Link
+                to={hrHubTo}
+                className="inline-flex min-h-10 items-center justify-center gap-1 rounded-xl bg-white/15 px-4 py-2 text-xs font-bold text-white no-underline ring-1 ring-white/25 transition hover:bg-white/25"
+              >
+                HR services
+                <ChevronRight size={14} aria-hidden />
+              </Link>
+            ) : null}
+          </div>
         ) : null}
       </div>
+      {initialLoading && hasHrSelfService ? (
+        <div className="relative mt-4 flex gap-2" aria-hidden>
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="h-7 w-24 animate-pulse rounded-full bg-white/20" />
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 }

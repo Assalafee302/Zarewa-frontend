@@ -124,7 +124,11 @@ export function canAccessModuleWithPermissions(permissions, moduleKey) {
     case 'team_hr':
       return MODULE_ACCESS_POLICY.team_hr.some(has);
     case 'my_profile_hr':
-      return MODULE_ACCESS_POLICY.my_profile_hr.some(has);
+      return (
+        MODULE_ACCESS_POLICY.my_profile_hr.some(has) ||
+        MODULE_ACCESS_POLICY.hr.some(has) ||
+        MODULE_ACCESS_POLICY.team_hr.some(has)
+      );
     case 'executive_hr':
       return MODULE_ACCESS_POLICY.executive_hr.some(has);
     default:

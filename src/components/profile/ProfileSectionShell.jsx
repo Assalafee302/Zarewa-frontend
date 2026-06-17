@@ -3,11 +3,10 @@ import { Outlet } from 'react-router-dom';
 import { PageHeader, PageShell, MainPanel } from '../layout';
 import { ProfileHubTabs } from './ProfileHubTabs';
 import { ProfileSidebarNav, ProfileMobileNav } from './ProfileSidebarNav';
-import { ProfileAccentBar } from './profileDesign';
 import { HrNotificationsPanel } from '../hr/HrNotificationsPanel';
 
 /**
- * HR services layout — Sales / Procurement module pattern.
+ * HR services layout — open work surface (Sales / Procurement), not nested cards.
  */
 export function ProfileSectionShell({
   title,
@@ -21,7 +20,7 @@ export function ProfileSectionShell({
   return (
     <PageShell className="pb-10">
       <PageHeader
-        eyebrow="Profile"
+        eyebrow="Workspace"
         title={title}
         subtitle={subtitle}
         tabs={
@@ -38,24 +37,22 @@ export function ProfileSectionShell({
 
       {beforeNav ? <div className="mb-4">{beforeNav}</div> : null}
 
-      <div className="mb-4 lg:hidden">
-        <ProfileMobileNav cohort={cohort} />
-      </div>
+      <MainPanel className="min-w-0 !min-h-0">
+        <div className="mb-5 lg:hidden">
+          <ProfileMobileNav cohort={cohort} />
+        </div>
 
-      <div className="flex flex-col items-start gap-6 lg:flex-row lg:gap-8 min-w-0">
-        <aside className="hidden w-56 shrink-0 lg:sticky lg:top-24 lg:block">
-          <div className="overflow-hidden rounded-xl border border-slate-200/90 bg-white shadow-sm">
-            <ProfileAccentBar />
-            <div className="p-3">
-              <ProfileSidebarNav cohort={cohort} />
-            </div>
+        <div className="flex min-w-0 flex-col gap-6 lg:flex-row lg:gap-8">
+          <aside className="hidden w-52 shrink-0 lg:block">
+            <p className="mb-2 px-1 text-[10px] font-bold uppercase tracking-wide text-slate-400">Menu</p>
+            <ProfileSidebarNav cohort={cohort} />
+          </aside>
+
+          <div className="min-w-0 flex-1 border-slate-200/80 lg:border-l lg:pl-8">
+            <Outlet context={outletContext} />
           </div>
-        </aside>
-
-        <MainPanel className="min-w-0 flex-1 !min-h-0">
-          <Outlet context={outletContext} />
-        </MainPanel>
-      </div>
+        </div>
+      </MainPanel>
     </PageShell>
   );
 }

@@ -41,6 +41,8 @@ describe('moduleAccess', () => {
     expect(canAccessModuleWithPermissions(['hr.executive.view'], 'executive_hr')).toBe(true);
     expect(canAccessModuleWithPermissions(['hr.team.view'], 'team_hr')).toBe(true);
     expect(canAccessModuleWithPermissions(['hr.self'], 'my_profile_hr')).toBe(true);
+    expect(canAccessModuleWithPermissions(['hr.directory.view'], 'my_profile_hr')).toBe(true);
+    expect(canAccessModuleWithPermissions(['hr.team.view'], 'my_profile_hr')).toBe(true);
   });
 
   it('dashboard.view enables edit approvals visibility', () => {
