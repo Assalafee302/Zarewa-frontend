@@ -9,6 +9,7 @@ import {
 import {
   HR_EMPLOYMENT_STATUSES,
   HR_MARITAL_STATUSES,
+  HR_BLOOD_GROUPS,
   HR_STAFF_FORM_TABS,
 } from '../../lib/hrStaffFormMeta';
 import { fetchHrDepartments, fetchHrDesignations } from '../../lib/hrMasterData';
@@ -363,6 +364,13 @@ export function HrStaffFormFields({
                 <option value="">Select</option>
                 {HR_MARITAL_STATUSES.map((m) => (
                   <option key={m.value} value={m.value}>{m.label}</option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Blood group">
+              <select className={fieldCls} value={form.bloodGroup || ''} onChange={(e) => set('bloodGroup', e.target.value)}>
+                {HR_BLOOD_GROUPS.map((b) => (
+                  <option key={b.value || 'none'} value={b.value}>{b.label}</option>
                 ))}
               </select>
             </Field>

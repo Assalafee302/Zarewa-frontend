@@ -448,7 +448,6 @@ export function HrRequestsPanel({
             <option value="leave">Leave</option>
             <option value="loan">Loan</option>
             <option value="profile_change">Profile change</option>
-            <option value="id_card">ID card</option>
           </select>
         ) : null}
         <input

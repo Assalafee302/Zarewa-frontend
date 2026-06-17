@@ -4,7 +4,7 @@ import { useToast } from '../../context/ToastContext';
 import { useUserProfile } from '../../context/UserProfileContext';
 import { staffToForm, submitMyHrProfile, updateMyHrProfile } from '../../lib/hrStaff';
 import { HR_GENDERS } from '../../lib/hrStaffConstants';
-import { HR_MARITAL_STATUSES } from '../../lib/hrStaffFormMeta';
+import { HR_MARITAL_STATUSES, HR_BLOOD_GROUPS } from '../../lib/hrStaffFormMeta';
 import { composeLegalDisplayName, validateEmployeeProfileSubmit } from '../../lib/hrLegalDisplayName';
 import { HR_BTN_PRIMARY, HR_BTN_SECONDARY } from '../hr/hrFormStyles';
 import {
@@ -291,6 +291,19 @@ export function ProfileOnboardingForm({ variant = 'page', onSubmitted }) {
                 {HR_MARITAL_STATUSES.map((m) => (
                   <option key={m.value} value={m.value}>
                     {m.label}
+                  </option>
+                ))}
+              </select>
+            </ProfileFormField>
+            <ProfileFormField label="Blood group" hint="Shown on your staff ID card if provided">
+              <select
+                className={PROFILE_INPUT_CLASS}
+                value={form.bloodGroup || ''}
+                onChange={(e) => set('bloodGroup', e.target.value)}
+              >
+                {HR_BLOOD_GROUPS.map((b) => (
+                  <option key={b.value || 'none'} value={b.value}>
+                    {b.label}
                   </option>
                 ))}
               </select>
