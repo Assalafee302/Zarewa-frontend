@@ -143,7 +143,8 @@ export function ProfileIdentityStrip({ user, hr, cohort }) {
         <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500">
           {hr?.employeeNo ? (
             <span>
-              Emp <strong className="font-semibold text-slate-800">{hr.employeeNo}</strong>
+              Employee ID{' '}
+              <strong className="font-mono font-semibold tracking-wide text-slate-800">{hr.employeeNo}</strong>
             </span>
           ) : null}
           {hr?.branchName || hr?.branchId ? (

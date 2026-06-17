@@ -1,5 +1,5 @@
 import React, { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
-import { Settings2, Trash2, UserPlus } from 'lucide-react';
+import { AlertTriangle, Settings2, Trash2, UserPlus } from 'lucide-react';
 import { ModalFrame } from '../layout';
 import { apiFetch } from '../../lib/apiBase';
 import { useToast } from '../../context/ToastContext';
@@ -55,6 +55,14 @@ export default function TeamAccessPanel({ appUsers, currentUserId, onRefresh }) 
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleteConfirmInput, setDeleteConfirmInput] = useState('');
   const [deleteBusy, setDeleteBusy] = useState(false);
+
+  const [zeroAuditLoading, setZeroAuditLoading] = useState(true);
+  const [zeroAuditCandidates, setZeroAuditCandidates] = useState([]);
+  const [zeroAuditSummary, setZeroAuditSummary] = useState(null);
+  const [zeroAuditConfirmPhrase, setZeroAuditConfirmPhrase] = useState('');
+  const [zeroAuditConfirmInput, setZeroAuditConfirmInput] = useState('');
+  const [zeroAuditBusy, setZeroAuditBusy] = useState(false);
+  const [zeroAuditShowList, setZeroAuditShowList] = useState(false);
 
   const [createOpen, setCreateOpen] = useState(false);
   const [createBusy, setCreateBusy] = useState(false);
@@ -145,6 +153,27 @@ export default function TeamAccessPanel({ appUsers, currentUserId, onRefresh }) 
       /* ignore */
     }
   };
+
+  const loadZeroAuditCandidates = useCallback(async () => {
+    setZeroAuditLoading(true);
+    try {
+      const { ok, data } = await apiFetch('/api/users/zero-audit-candidates');
+      if (!ok || !data?.ok) {
+        showToast(data?.error || 'Could not scan unused logins.', { variant: 'error' });
+        return;
+      }
+      setZeroAuditCandidates(Array.isArray(data.candidates) ? data.candidates : []);
+      setZeroAuditSummary(data.summary || null);
+      setZeroAuditConfirmPhrase(String(data.confirmPhrase || '').trim());
+    } finally {
+      setZeroAuditLoading(false);
+    }
+  }, [showToast]);
+
+  useEffect(() => {
+    if (metaLoading) return;
+    void loadZeroAuditCandidates();
+  }, [metaLoading, loadZeroAuditCandidates]);
 
   const patchRole = async (user, nextRoleKey) => {
     if (!user?.id || nextRoleKey === user.roleKey) return;
@@ -367,6 +396,51 @@ export default function TeamAccessPanel({ appUsers, currentUserId, onRefresh }) 
       await refresh();
     } finally {
       setDeleteBusy(false);
+    }
+  };
+
+  const submitBulkDeleteZeroAudit = async () => {
+    const expected = String(zeroAuditConfirmPhrase || '').trim();
+    const typed = String(zeroAuditConfirmInput || '').trim();
+    if (!expected || typed !== expected) {
+      showToast(`Type exactly: ${expected || 'DELETE UNUSED LOGINS'}`, { variant: 'error' });
+      return;
+    }
+    const count = zeroAuditCandidates.length;
+    if (!count) {
+      showToast('No unused logins to delete.', { variant: 'info' });
+      return;
+    }
+    if (
+      !window.confirm(
+        `Permanently delete ${count} login(s) that have never appeared in the audit trail?\n\nAdmin and MD accounts are never included. This cannot be undone.`
+      )
+    ) {
+      return;
+    }
+    setZeroAuditBusy(true);
+    try {
+      const { ok, data } = await apiFetch('/api/users/bulk-delete-zero-audit', {
+        method: 'POST',
+        body: JSON.stringify({ confirmPhrase: typed, dryRun: false }),
+      });
+      if (!ok || !data?.ok) {
+        showToast(data?.error || 'Bulk delete failed.', { variant: 'error' });
+        return;
+      }
+      const deleted = data.summary?.deleted ?? (Array.isArray(data.deleted) ? data.deleted.length : 0);
+      const failed = data.summary?.failed ?? (Array.isArray(data.failed) ? data.failed.length : 0);
+      showToast(
+        failed
+          ? `Removed ${deleted} unused login(s). ${failed} could not be deleted — check links or refresh and retry.`
+          : `Removed ${deleted} unused login(s).`,
+        { variant: failed ? 'info' : 'success' }
+      );
+      setZeroAuditConfirmInput('');
+      await refresh();
+      await loadZeroAuditCandidates();
+    } finally {
+      setZeroAuditBusy(false);
     }
   };
 
@@ -613,6 +687,111 @@ export default function TeamAccessPanel({ appUsers, currentUserId, onRefresh }) 
             onNext={userPage.goNext}
           />
         ) : null}
+      </div>
+
+      <div className="rounded-3xl border border-rose-200/90 bg-rose-50/30 p-6 shadow-sm">
+        <h3 className="z-section-title flex items-center gap-2 text-rose-950">
+          <AlertTriangle size={14} /> Remove unused logins
+        </h3>
+        <p className="text-xs text-rose-900/80 mb-4 leading-relaxed">
+          Bulk-delete accounts that have <strong>zero audit trail activity</strong> — they were created but never
+          signed in or performed any tracked action. Checks include main audit log, HR audit events, and approval
+          actions. <strong>Admin</strong> and <strong>MD</strong> accounts are always skipped, as is your own login.
+          HR staff profiles linked to these logins are removed too.
+        </p>
+
+        {zeroAuditLoading ? (
+          <p className="text-sm text-rose-900/70">Scanning for unused logins…</p>
+        ) : (
+          <>
+            <p className="text-sm text-rose-950 mb-3">
+              {zeroAuditCandidates.length ? (
+                <>
+                  <span className="font-bold">{zeroAuditCandidates.length}</span> login
+                  {zeroAuditCandidates.length === 1 ? '' : 's'} can be removed
+                  {zeroAuditSummary?.withHrProfile ? (
+                    <span className="text-rose-900/80">
+                      {' '}
+                      ({zeroAuditSummary.withHrProfile} with HR profile)
+                    </span>
+                  ) : null}
+                  .
+                </>
+              ) : (
+                'No unused logins found — every non-protected account has audit trail activity.'
+              )}
+            </p>
+
+            {zeroAuditCandidates.length > 0 ? (
+              <>
+                <button
+                  type="button"
+                  className="text-[11px] font-semibold text-rose-800 underline underline-offset-2 mb-3"
+                  onClick={() => setZeroAuditShowList((v) => !v)}
+                >
+                  {zeroAuditShowList ? 'Hide list' : `Show all ${zeroAuditCandidates.length} usernames`}
+                </button>
+
+                {zeroAuditShowList ? (
+                  <div className="mb-4 max-h-40 overflow-y-auto rounded-xl border border-rose-200/80 bg-white/80 p-3">
+                    <ul className="space-y-1 text-[11px] font-mono text-rose-950">
+                      {zeroAuditCandidates.map((c) => (
+                        <li key={c.userId}>
+                          {c.username}
+                          {c.hasHrProfile ? ' · HR' : ''}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
+
+                <div className="space-y-2 max-w-md">
+                  <label className="z-field-label text-rose-950">
+                    Type <span className="font-mono">{zeroAuditConfirmPhrase || 'DELETE UNUSED LOGINS'}</span> to
+                    confirm
+                  </label>
+                  <input
+                    className="z-input"
+                    value={zeroAuditConfirmInput}
+                    onChange={(e) => setZeroAuditConfirmInput(e.target.value)}
+                    disabled={zeroAuditBusy}
+                    autoComplete="off"
+                    placeholder={zeroAuditConfirmPhrase || 'DELETE UNUSED LOGINS'}
+                  />
+                </div>
+
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    className="z-btn-secondary !text-[11px]"
+                    disabled={zeroAuditBusy}
+                    onClick={() => void loadZeroAuditCandidates()}
+                  >
+                    Rescan
+                  </button>
+                  <button
+                    type="button"
+                    className="z-btn-primary !text-[11px] !bg-rose-700 hover:!bg-rose-800 gap-2"
+                    disabled={zeroAuditBusy || !zeroAuditCandidates.length}
+                    onClick={() => void submitBulkDeleteZeroAudit()}
+                  >
+                    <Trash2 size={14} />
+                    {zeroAuditBusy ? 'Deleting…' : `Delete ${zeroAuditCandidates.length} unused login(s)`}
+                  </button>
+                </div>
+              </>
+            ) : (
+              <button
+                type="button"
+                className="z-btn-secondary !text-[11px]"
+                disabled={zeroAuditBusy}
+                onClick={() => void loadZeroAuditCandidates()}
+              >
+                Rescan
+              </button>
+            )}
+          </>
+        )}
       </div>
 
       <ModalFrame

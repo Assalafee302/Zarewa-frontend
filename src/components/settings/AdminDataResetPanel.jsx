@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, RotateCcw } from 'lucide-react';
 import { apiFetch } from '../../lib/apiBase';
 import { useToast } from '../../context/ToastContext';
@@ -46,6 +46,11 @@ export default function AdminDataResetPanel() {
     setSelected((s) => ({ ...s, [id]: !s[id] }));
   };
 
+  const selectedPresets = useMemo(
+    () => presets.filter((p) => selected[p.id]),
+    [presets, selected]
+  );
+
   const runReset = async () => {
     if (branchResetBlocked) {
       showToast(
@@ -55,15 +60,16 @@ export default function AdminDataResetPanel() {
       );
       return;
     }
-    const presetIds = presets.filter((p) => selected[p.id]).map((p) => p.id);
+    const presetIds = selectedPresets.map((p) => p.id);
     if (!presetIds.length) {
       showToast('Select at least one category.', { variant: 'error' });
       return;
     }
     const label = branchName || ws?.branchScope || 'this branch';
+    const categoryList = selectedPresets.map((p) => `• ${p.label}`).join('\n');
     if (
       !window.confirm(
-        `Permanently delete the selected data for ${label} only? Other branches (Yola, Maiduguri, Kaduna, etc.) will not be affected. This cannot be undone.`
+        `Only the ${presetIds.length} category(ies) you ticked will be deleted for ${label}.\n\n${categoryList}\n\nOther categories and other branches are NOT affected.\n\nThis cannot be undone. Continue?`
       )
     ) {
       return;
@@ -109,13 +115,11 @@ export default function AdminDataResetPanel() {
             <RotateCcw size={14} /> Admin data reset
           </h3>
           <p className="text-xs text-slate-600 mt-1 max-w-2xl leading-relaxed">
-            Permanently deletes rows for the categories you tick, scoped to{' '}
-            <strong className="text-[#134e4a]">{branchName || 'your current workspace branch'}</strong> only.
-            Other branches are not touched. Users, branches, shared suppliers/transporters, catalog products, and
-            core setup lists are not removed. Clearing sales/production does{' '}
-            <span className="font-semibold text-slate-700">not</span> remove coil book rows unless you also tick{' '}
-            <span className="font-semibold text-slate-700">Coil lots & coil stock</span>. Export anything you need
-            before continuing.
+            Tick only the categories you want to clear. <strong>Unchecked options are never touched.</strong> All deletions
+            are scoped to{' '}
+            <strong className="text-[#134e4a]">{branchName || 'your current workspace branch'}</strong> — other branches
+            stay intact. Users, branches, suppliers, and catalog products are never removed unless you tick a category
+            that includes them.
           </p>
         </div>
       </div>
@@ -127,8 +131,7 @@ export default function AdminDataResetPanel() {
         </p>
       ) : (
         <p className="rounded-xl border border-teal-200/80 bg-teal-50/60 px-4 py-3 text-[11px] text-teal-950 leading-relaxed">
-          Active scope: <strong>{branchName}</strong>. Deletions apply only to this branch&apos;s transactions and
-          records.
+          Active scope: <strong>{branchName}</strong>. Only ticked categories for this branch will be deleted.
         </p>
       )}
 
@@ -136,9 +139,11 @@ export default function AdminDataResetPanel() {
         {presets.map((p) => (
           <label
             key={p.id}
-            className={`flex items-start gap-3 rounded-xl border border-slate-200/80 bg-white p-4 shadow-sm transition-colors ${
-              branchResetBlocked ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer hover:border-teal-200/80'
-            }`}
+            className={`flex items-start gap-3 rounded-xl border p-4 shadow-sm transition-colors ${
+              selected[p.id]
+                ? 'border-amber-300 bg-amber-50/80'
+                : 'border-slate-200/80 bg-white hover:border-teal-200/80'
+            } ${branchResetBlocked ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
           >
             <input
               type="checkbox"
@@ -156,6 +161,26 @@ export default function AdminDataResetPanel() {
           </label>
         ))}
       </div>
+
+      {selectedPresets.length ? (
+        <div className="rounded-xl border border-amber-200 bg-white px-4 py-3 text-xs text-amber-950">
+          <p className="font-bold">Will delete ({selectedPresets.length} selected)</p>
+          <ul className="mt-1 list-disc pl-4 space-y-0.5">
+            {selectedPresets.map((p) => (
+              <li key={p.id}>{p.label}</li>
+            ))}
+          </ul>
+          {selectedPresets.some((p) => p.id === 'hr_staff_payroll') ? (
+            <p className="mt-2 rounded-lg border border-teal-200/80 bg-teal-50/70 px-3 py-2 text-[11px] text-teal-950 leading-relaxed">
+              <strong>Usernames are safe:</strong> Team &amp; access logins (usernames, passwords, roles) are not
+              removed or renamed. Only HR employee data for this branch is cleared — you can re-import staff and link
+              the same usernames again.
+            </p>
+          ) : null}
+        </div>
+      ) : (
+        <p className="text-xs text-slate-500">No categories selected — nothing will be deleted.</p>
+      )}
 
       <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-3">
         <label className="block space-y-1.5">
@@ -175,11 +200,15 @@ export default function AdminDataResetPanel() {
         </label>
         <button
           type="button"
-          disabled={busy || branchResetBlocked}
+          disabled={busy || branchResetBlocked || !selectedPresets.length}
           onClick={() => void runReset()}
           className="z-btn-secondary border-red-200 text-red-800 hover:bg-red-50 disabled:opacity-50"
         >
-          {busy ? 'Working…' : `Delete selected data (${branchName || 'branch'})`}
+          {busy
+            ? 'Working…'
+            : selectedPresets.length
+              ? `Delete ${selectedPresets.length} selected categor${selectedPresets.length === 1 ? 'y' : 'ies'} (${branchName || 'branch'})`
+              : 'Select categories to delete'}
         </button>
       </div>
     </section>

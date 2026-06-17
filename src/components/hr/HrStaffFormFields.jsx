@@ -470,8 +470,13 @@ export function HrStaffFormFields({
               />
             </Field>
           ) : null}
-          <Field label="Staff ID / employee no.">
-            <input className={fieldCls} value={form.employeeNo} onChange={(e) => set('employeeNo', e.target.value)} />
+          <Field label="Employee ID" hint="Branch format e.g. ZAPKD006, ZAPYL002 — leave blank to auto-assign on save">
+            <input
+              className={fieldCls}
+              value={form.employeeNo}
+              onChange={(e) => set('employeeNo', e.target.value)}
+              placeholder="ZAPKD006"
+            />
           </Field>
           <Field label="Department" hint={legacyDepartment ? 'Legacy free-text department — select master data to link.' : undefined}>
             <select

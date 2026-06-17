@@ -617,8 +617,10 @@ export function HrStaffImportGuideSection({ embedded = false }) {
   const body = (
     <>
       <p className="text-sm text-slate-600">
-        Use <strong>HR → Employees → Bulk Register Staff</strong> to upload the Excel template. Optional columns support
-        designation code, payroll group, salary level/step, pay addition, and variance notes.
+        Use <strong>HR → Employees → Bulk Register Staff</strong> to upload the Excel template. Put legacy logins in
+        the <strong>Username (existing login)</strong> column (from Settings → Team &amp; access) to link HR profiles
+        without creating duplicate accounts. Optional columns support designation code, payroll group, salary
+        level/step, pay addition, and variance notes.
       </p>
       <div className="mt-4 flex flex-wrap gap-2">
         <Link to="/hr/employees" className={HR_BTN_PRIMARY}>

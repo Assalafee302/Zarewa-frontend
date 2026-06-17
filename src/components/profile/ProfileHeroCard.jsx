@@ -116,7 +116,11 @@ export function ProfileHeroCard() {
                   : roleLine}
             </p>
             <div className="mt-3 flex flex-wrap gap-2">
-              {hr?.employeeNo ? <MetaPill icon={User}>#{hr.employeeNo}</MetaPill> : null}
+              {hr?.employeeNo ? (
+                <MetaPill icon={User}>
+                  <span className="font-mono tracking-wide">{hr.employeeNo}</span>
+                </MetaPill>
+              ) : null}
               {branchName ? <MetaPill icon={Building2}>{branchName}</MetaPill> : null}
               {deptLabel && cohort !== 'scholarship' && cohort !== 'domestic' ? (
                 <MetaPill>{deptLabel}</MetaPill>

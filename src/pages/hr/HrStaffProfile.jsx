@@ -687,7 +687,7 @@ export default function HrStaffProfile() {
               subtitle="Role, branch, and reporting"
               onEdit={canManage ? () => startEdit('employment') : undefined}
               rows={[
-                { label: 'Employee no.', value: staff.employeeNo || '—' },
+                { label: 'Employee ID', value: staff.employeeNo || '—' },
                 { label: 'Department', value: staff.department || '—' },
                 { label: 'Job title', value: staff.jobTitle || '—' },
                 { label: 'Branch', value: staff.branchId || staff.normalized?.branchId || '—' },

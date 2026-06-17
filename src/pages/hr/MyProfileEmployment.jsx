@@ -47,7 +47,7 @@ export function MyProfileEmploymentSnapshot() {
       <ProfileModuleSection title="Personal record">
         <dl className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <DetailRow label="Full legal name" value={legalName} />
-          <DetailRow label="Employee number" value={hr.employeeNo} />
+          <DetailRow label="Employee ID" value={hr.employeeNo} />
           <DetailRow label="Phone" value={personal.phone} />
           <DetailRow label="Personal email" value={personal.email} />
           <DetailRow label="Gender" value={hr.gender} />
