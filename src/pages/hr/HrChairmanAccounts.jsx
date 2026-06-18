@@ -13,6 +13,7 @@ import {
   AppTableTr,
   AppTableWrap,
 } from '../../components/ui/AppDataTable';
+import { HrStatusBadge } from '../../components/hr/HrStatusBadge';
 import {
   approveExecutivePayment,
   deleteExecutiveSchoolFee,
@@ -45,18 +46,6 @@ const TABS = [
   { id: 'audit', label: 'Audit' },
 ];
 
-const STATUS_PILL = {
-  draft: 'bg-slate-50 text-slate-700 border-slate-200',
-  submitted: 'bg-amber-50 text-amber-800 border-amber-200',
-  approved: 'bg-emerald-50 text-emerald-800 border-emerald-200',
-  paid: 'bg-teal-50 text-teal-800 border-teal-200',
-  rejected: 'bg-rose-50 text-rose-800 border-rose-200',
-  exported: 'bg-sky-50 text-sky-800 border-sky-200',
-  active: 'bg-emerald-50 text-emerald-800 border-emerald-200',
-  paused: 'bg-amber-50 text-amber-800 border-amber-200',
-  ended: 'bg-slate-50 text-slate-600 border-slate-200',
-};
-
 const BENEFICIARY_TYPES = [
   'ceo_child',
   'chairman_child',
@@ -74,20 +63,10 @@ function formatNgn(v) {
   return '₦' + Number(v).toLocaleString('en-NG', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 }
 
-function StatusPill({ status }) {
-  const key = String(status || 'draft').toLowerCase();
-  const cls = STATUS_PILL[key] || STATUS_PILL.draft;
-  return (
-    <span className={`inline-flex rounded-full border px-2.5 py-0.5 text-[11px] font-semibold capitalize ${cls}`}>
-      {key.replace(/_/g, ' ')}
-    </span>
-  );
-}
-
 function KpiCard({ label, value, hint }) {
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-      <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500">{label}</p>
+      <p className="text-xs font-bold uppercase tracking-wide text-slate-500">{label}</p>
       <p className="mt-1 text-2xl font-black text-[#134e4a]">{value}</p>
       {hint ? <p className="mt-1 text-xs text-slate-500">{hint}</p> : null}
     </div>
@@ -319,7 +298,7 @@ export default function HrExecutiveBenefitsHub({ embedded = false } = {}) {
                       <AppTableTd className="capitalize">{String(b.beneficiaryType || '').replace(/_/g, ' ')}</AppTableTd>
                       <AppTableTd>{b.linkedExecutive || '—'}</AppTableTd>
                       <AppTableTd>{b.bankAccountNo || '—'}</AppTableTd>
-                      <AppTableTd><StatusPill status={b.status} /></AppTableTd>
+                      <AppTableTd><HrStatusBadge status={b.status} variant="benefit" /></AppTableTd>
                       <AppTableTd>
                         <button type="button" className="text-xs font-semibold text-[#134e4a]" onClick={() => openModal('beneficiary', b)}>Edit</button>
                       </AppTableTd>
@@ -353,7 +332,7 @@ export default function HrExecutiveBenefitsHub({ embedded = false } = {}) {
                       <AppTableTd>{f.schoolName}</AppTableTd>
                       <AppTableTd>{[f.term, f.academicSession].filter(Boolean).join(' · ') || '—'}</AppTableTd>
                       <AppTableTd align="right">{formatNgn(f.amountApprovedNgn ?? f.amountRequestedNgn)}</AppTableTd>
-                      <AppTableTd><StatusPill status={f.paymentStatus} /></AppTableTd>
+                      <AppTableTd><HrStatusBadge status={f.paymentStatus} variant="benefit" /></AppTableTd>
                       <AppTableTd className="space-x-2">
                         <button type="button" className="text-xs font-semibold text-[#134e4a]" onClick={() => openModal('fee', f)}>Edit</button>
                         {f.paymentStatus === 'draft' ? (
@@ -393,7 +372,7 @@ export default function HrExecutiveBenefitsHub({ embedded = false } = {}) {
                       <AppTableTd>{s.linkedExecutive || '—'}</AppTableTd>
                       <AppTableTd align="right">{formatNgn(s.monthlyAmountNgn)}</AppTableTd>
                       <AppTableTd>{s.bankAccountNo || '—'}</AppTableTd>
-                      <AppTableTd><StatusPill status={s.status} /></AppTableTd>
+                      <AppTableTd><HrStatusBadge status={s.status} variant="benefit" /></AppTableTd>
                       <AppTableTd>
                         <button type="button" className="text-xs font-semibold text-[#134e4a]" onClick={() => openModal('stipend', s)}>Edit</button>
                       </AppTableTd>
@@ -431,7 +410,7 @@ export default function HrExecutiveBenefitsHub({ embedded = false } = {}) {
                       <AppTableTd>{d.designation || '—'}</AppTableTd>
                       <AppTableTd>{d.assignedExecutive || '—'}</AppTableTd>
                       <AppTableTd align="right">{formatNgn(d.salaryAmountNgn)}</AppTableTd>
-                      <AppTableTd><StatusPill status={d.status} /></AppTableTd>
+                      <AppTableTd><HrStatusBadge status={d.status} variant="benefit" /></AppTableTd>
                       <AppTableTd>
                         <button type="button" className="text-xs font-semibold text-[#134e4a]" onClick={() => openModal('domestic', d)}>Edit</button>
                       </AppTableTd>
@@ -474,7 +453,7 @@ export default function HrExecutiveBenefitsHub({ embedded = false } = {}) {
                       <AppTableTd className="capitalize">{String(p.paymentType || '').replace(/_/g, ' ')}</AppTableTd>
                       <AppTableTd align="right">{formatNgn(p.amountNgn)}</AppTableTd>
                       <AppTableTd>{p.periodYyyymm || '—'}</AppTableTd>
-                      <AppTableTd><StatusPill status={p.status} /></AppTableTd>
+                      <AppTableTd><HrStatusBadge status={p.status} variant="benefit" /></AppTableTd>
                       <AppTableTd className="space-x-2">
                         {['submitted', 'finance_review', 'md_review'].includes(p.status) ? (
                           <>
@@ -515,7 +494,7 @@ export default function HrExecutiveBenefitsHub({ embedded = false } = {}) {
                       <AppTableTd>{e.description}</AppTableTd>
                       <AppTableTd>{e.periodYyyymm}</AppTableTd>
                       <AppTableTd align="right">{formatNgn(e.amountNgn)}</AppTableTd>
-                      <AppTableTd><StatusPill status={e.paymentStatus} /></AppTableTd>
+                      <AppTableTd><HrStatusBadge status={e.paymentStatus} variant="benefit" /></AppTableTd>
                     </AppTableTr>
                   ))}
                 </AppTableBody>

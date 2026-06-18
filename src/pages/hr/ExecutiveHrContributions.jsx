@@ -14,6 +14,7 @@ import {
   AppTableTr,
   AppTableWrap,
 } from '../../components/ui/AppDataTable';
+import { HrTableEmptyRow, HrTableLoadingRow } from '../../components/hr/HrTableBodyState';
 
 export default function ExecutiveHrContributions() {
   const ws = useWorkspace();
@@ -71,20 +72,24 @@ export default function ExecutiveHrContributions() {
       {error ? (
         <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-800">{error}</div>
       ) : null}
-      {loading ? <p className="text-sm text-slate-600">Loading…</p> : null}
-      {!loading ? (
-        <AppTableWrap>
-          <AppTable role="numeric">
-            <AppTableThead>
-              <AppTableTh>Branch</AppTableTh>
-              <AppTableTh align="right">Expected</AppTableTh>
-              <AppTableTh align="right">Contributed</AppTableTh>
-              <AppTableTh align="right">Outstanding</AppTableTh>
-              <AppTableTh>Status</AppTableTh>
-              {canEdit ? <AppTableTh>Record</AppTableTh> : null}
-            </AppTableThead>
-            <AppTableBody>
-              {rows.map((r) => (
+      <AppTableWrap>
+        <AppTable role="numeric">
+          <AppTableThead>
+            <AppTableTh>Branch</AppTableTh>
+            <AppTableTh align="right">Expected</AppTableTh>
+            <AppTableTh align="right">Contributed</AppTableTh>
+            <AppTableTh align="right">Outstanding</AppTableTh>
+            <AppTableTh>Status</AppTableTh>
+            {canEdit ? <AppTableTh align="right">Record</AppTableTh> : null}
+          </AppTableThead>
+          <AppTableBody>
+            {loading && !rows.length ? (
+              <HrTableLoadingRow colSpan={canEdit ? 6 : 5} message="Loading contributions…" />
+            ) : null}
+            {!loading && !rows.length ? (
+              <HrTableEmptyRow colSpan={canEdit ? 6 : 5} message="No contribution records for this period." />
+            ) : null}
+            {rows.map((r) => (
                 <AppTableTr key={r.branchId}>
                   <AppTableTd>{r.branchId}</AppTableTd>
                   <AppTableTd align="right">{formatNgn(r.expectedNgn)}</AppTableTd>
@@ -97,7 +102,7 @@ export default function ExecutiveHrContributions() {
                         type="button"
                         disabled={busyBranch === r.branchId}
                         onClick={() => recordContribution(r, r.expectedNgn)}
-                        className="rounded-lg border border-slate-200 px-2 py-1 text-[10px] font-bold uppercase text-[#134e4a]"
+                        className="rounded-lg border border-slate-200 px-2 py-1 text-xs font-bold uppercase text-[#134e4a]"
                       >
                         Mark full
                       </button>
@@ -105,10 +110,9 @@ export default function ExecutiveHrContributions() {
                   ) : null}
                 </AppTableTr>
               ))}
-            </AppTableBody>
-          </AppTable>
-        </AppTableWrap>
-      ) : null}
+          </AppTableBody>
+        </AppTable>
+      </AppTableWrap>
     </div>
   );
 }

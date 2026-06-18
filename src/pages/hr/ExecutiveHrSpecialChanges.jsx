@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useHrListLoad } from '../../hooks/useHrListLoad';
 import { fetchRecentSalaryChanges } from '../../lib/hrExtended';
 import { formatNgn } from '../../lib/hrFormat';
+import { HrTableEmptyRow, HrTableLoadingRow } from '../../components/hr/HrTableBodyState';
 import {
   AppTable,
   AppTableBody,
@@ -31,7 +32,7 @@ export default function ExecutiveHrSpecialChanges() {
       <p className="text-sm text-slate-600">Recent salary increments and compensation changes across the organisation.</p>
       {error ? <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-800">{error}</div> : null}
       <AppTableWrap>
-        <AppTable>
+        <AppTable role="numeric">
           <AppTableThead>
             <AppTableTh>Effective</AppTableTh>
             <AppTableTh>Staff</AppTableTh>
@@ -39,6 +40,12 @@ export default function ExecutiveHrSpecialChanges() {
             <AppTableTh align="right">Base salary</AppTableTh>
           </AppTableThead>
           <AppTableBody>
+            {loading && !changes.length ? (
+              <HrTableLoadingRow colSpan={4} message="Loading salary changes…" />
+            ) : null}
+            {!loading && !changes.length ? (
+              <HrTableEmptyRow colSpan={4} message="No recent salary changes." />
+            ) : null}
             {changes.map((c) => (
               <AppTableTr key={c.id}>
                 <AppTableTd>{c.effectiveFromIso}</AppTableTd>
@@ -54,7 +61,6 @@ export default function ExecutiveHrSpecialChanges() {
           </AppTableBody>
         </AppTable>
       </AppTableWrap>
-      {loading ? <p className="text-sm text-slate-500">Loading…</p> : null}
     </div>
   );
 }

@@ -33,10 +33,40 @@ function pct(n, total) {
 function StatCard({ label, value, sub }) {
   return (
     <div className="rounded-xl border border-slate-100 bg-white px-4 py-3 shadow-sm">
-      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">{label}</p>
+      <p className="text-xs font-black uppercase tracking-widest text-slate-400">{label}</p>
       <p className="mt-1 text-xl font-black tabular-nums">{value}</p>
       {sub ? <p className="mt-0.5 text-xs text-slate-500">{sub}</p> : null}
     </div>
+  );
+}
+
+function AnalyticsPairTable({ columns, rows, emptyMessage = 'No data.' }) {
+  if (!rows?.length) {
+    return <p className="text-sm text-slate-500">{emptyMessage}</p>;
+  }
+  return (
+    <AppTableWrap>
+      <AppTable role="numeric">
+        <AppTableThead>
+          {columns.map((c) => (
+            <AppTableTh key={c.key} align={c.align}>
+              {c.label}
+            </AppTableTh>
+          ))}
+        </AppTableThead>
+        <AppTableBody>
+          {rows.map((row) => (
+            <AppTableTr key={row.key}>
+              {columns.map((c) => (
+                <AppTableTd key={c.key} align={c.align}>
+                  {row[c.key]}
+                </AppTableTd>
+              ))}
+            </AppTableTr>
+          ))}
+        </AppTableBody>
+      </AppTable>
+    </AppTableWrap>
   );
 }
 
@@ -74,37 +104,61 @@ function DashboardTab() {
       </div>
       <div className="grid gap-4 lg:grid-cols-2">
         <HrCard title="Headcount by department">
-          <ul className="space-y-1 text-sm">
-            {(data.headcount?.byDepartment || []).slice(0, 10).map((r) => (
-              <li key={r.label} className="flex justify-between"><span>{r.label}</span><strong>{r.count}</strong></li>
-            ))}
-          </ul>
+          <AnalyticsPairTable
+            columns={[
+              { key: 'label', label: 'Department' },
+              { key: 'count', label: 'Staff', align: 'right' },
+            ]}
+            rows={(data.headcount?.byDepartment || []).slice(0, 10).map((r) => ({
+              key: r.label,
+              label: r.label,
+              count: fmt(r.count),
+            }))}
+            emptyMessage="No department data."
+          />
         </HrCard>
         <HrCard title="Headcount by branch">
-          <ul className="space-y-1 text-sm">
-            {(data.headcount?.byBranch || []).slice(0, 10).map((r) => (
-              <li key={r.label} className="flex justify-between"><span>{r.label}</span><strong>{r.count}</strong></li>
-            ))}
-          </ul>
+          <AnalyticsPairTable
+            columns={[
+              { key: 'label', label: 'Branch' },
+              { key: 'count', label: 'Staff', align: 'right' },
+            ]}
+            rows={(data.headcount?.byBranch || []).slice(0, 10).map((r) => ({
+              key: r.label,
+              label: r.label,
+              count: fmt(r.count),
+            }))}
+            emptyMessage="No branch data."
+          />
         </HrCard>
         <HrCard title="Leave usage by department">
-          <ul className="space-y-1 text-sm">
-            {(data.leaveUsage?.byDepartment || []).slice(0, 10).map((r) => (
-              <li key={r.department} className="flex justify-between"><span>{r.department}</span><strong>{r.count}</strong></li>
-            ))}
-          </ul>
+          <AnalyticsPairTable
+            columns={[
+              { key: 'label', label: 'Department' },
+              { key: 'count', label: 'Requests', align: 'right' },
+            ]}
+            rows={(data.leaveUsage?.byDepartment || []).slice(0, 10).map((r) => ({
+              key: r.department,
+              label: r.department,
+              count: fmt(r.count),
+            }))}
+            emptyMessage="No leave usage data."
+          />
         </HrCard>
       </div>
       {data.payrollTrend?.periods?.length ? (
         <HrCard title="Payroll net pay trend (authorized)">
-          <ul className="space-y-1 text-sm">
-            {data.payrollTrend.periods.map((p, i) => (
-              <li key={p} className="flex justify-between">
-                <span>{p}</span>
-                <strong>{fmtNgn(data.payrollTrend.netTotals[i])}</strong>
-              </li>
-            ))}
-          </ul>
+          <AnalyticsPairTable
+            columns={[
+              { key: 'period', label: 'Period' },
+              { key: 'net', label: 'Net pay', align: 'right' },
+            ]}
+            rows={data.payrollTrend.periods.map((p, i) => ({
+              key: p,
+              period: p,
+              net: fmtNgn(data.payrollTrend.netTotals[i]),
+            }))}
+          />
         </HrCard>
       ) : null}
     </div>

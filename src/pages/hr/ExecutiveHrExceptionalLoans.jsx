@@ -3,6 +3,8 @@ import { HrRequestsPanel } from '../../components/hr/HrRequestsPanel';
 import { useHrListLoad } from '../../hooks/useHrListLoad';
 import { fetchExceptionalLoanQueue } from '../../lib/hrExtended';
 import { formatNgn } from '../../lib/hrFormat';
+import { HrStatusBadge } from '../../components/hr/HrStatusBadge';
+import { HrTableEmptyRow, HrTableLoadingRow } from '../../components/hr/HrTableBodyState';
 import {
   AppTable,
   AppTableBody,
@@ -33,7 +35,7 @@ export default function ExecutiveHrExceptionalLoans() {
       </p>
       {error ? <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-800">{error}</div> : null}
       <AppTableWrap>
-        <AppTable>
+        <AppTable role="numeric">
           <AppTableThead>
             <AppTableTh>Staff</AppTableTh>
             <AppTableTh>Title</AppTableTh>
@@ -41,11 +43,19 @@ export default function ExecutiveHrExceptionalLoans() {
             <AppTableTh align="right">Amount</AppTableTh>
           </AppTableThead>
           <AppTableBody>
+            {loading && !loans.length ? (
+              <HrTableLoadingRow colSpan={4} message="Loading exceptional loan queue…" />
+            ) : null}
+            {!loading && !loans.length ? (
+              <HrTableEmptyRow colSpan={4} message="No exceptional loans in queue." />
+            ) : null}
             {loans.map((l) => (
               <AppTableTr key={l.id}>
-                <AppTableTd>{l.staffDisplayName}</AppTableTd>
+                <AppTableTd className="font-semibold">{l.staffDisplayName}</AppTableTd>
                 <AppTableTd>{l.title}</AppTableTd>
-                <AppTableTd>{l.status}</AppTableTd>
+                <AppTableTd>
+                  <HrStatusBadge status={l.status} variant="request" />
+                </AppTableTd>
                 <AppTableTd align="right">
                   {l.payload?.amountNgn != null ? formatNgn(l.payload.amountNgn) : '—'}
                 </AppTableTd>
@@ -55,7 +65,6 @@ export default function ExecutiveHrExceptionalLoans() {
         </AppTable>
       </AppTableWrap>
       <HrRequestsPanel allowedScopes={['gm_queue']} defaultScope="gm_queue" kindFilter="loan" />
-      {loading ? <p className="text-sm text-slate-500">Loading queue…</p> : null}
     </div>
   );
 }

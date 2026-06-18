@@ -5,6 +5,17 @@ import { apiFetch } from '../../lib/apiBase';
 import { formatNgn } from '../../lib/hrFormat';
 import { formatPeriodYyyymm } from '../../lib/hrPayroll';
 import { HrCard } from '../../components/hr/hrPageUi';
+import { HrStatusBadge } from '../../components/hr/HrStatusBadge';
+import {
+  AppTable,
+  AppTableBody,
+  AppTableTd,
+  AppTableTh,
+  AppTableThead,
+  AppTableTr,
+  AppTableWrap,
+} from '../../components/ui/AppDataTable';
+import { HrTableEmptyRow, HrTableLoadingRow } from '../../components/hr/HrTableBodyState';
 
 const ALERT_LABELS = {
   new_staff: 'New staff',
@@ -52,7 +63,22 @@ export default function ExecutiveHrVariance() {
         Payroll variance monitoring across recent periods. Alerts flag staff with &gt;15% gross change vs the prior run, new joiners, or missing staff.
       </p>
       {error ? <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-800">{error}</div> : null}
-      {loading ? <p className="text-sm text-slate-500">Loading variance data…</p> : null}
+
+      {loading ? (
+        <AppTableWrap>
+          <AppTable>
+            <AppTableThead>
+              <AppTableTh>Staff</AppTableTh>
+              <AppTableTh>Alert</AppTableTh>
+              <AppTableTh>Note</AppTableTh>
+              <AppTableTh align="right">Change</AppTableTh>
+            </AppTableThead>
+            <AppTableBody>
+              <HrTableLoadingRow colSpan={4} message="Loading variance data…" />
+            </AppTableBody>
+          </AppTable>
+        </AppTableWrap>
+      ) : null}
 
       {!loading && !error ? (
         <>
@@ -80,29 +106,52 @@ export default function ExecutiveHrVariance() {
                 subtitle={`Status: ${run.status}${totals && !totals.amountsRedacted ? ` · ${totals.headcount} staff · Net ${formatNgn(totals.netNgn)}` : ''}`}
               >
                 {block.note ? <p className="mb-2 text-xs text-slate-500">{block.note}</p> : null}
-                {!alerts.length ? (
-                  <p className="text-sm font-semibold text-emerald-700">No significant variances detected.</p>
-                ) : (
-                  <ul className="divide-y divide-slate-100 rounded-xl border border-slate-100 bg-white text-sm">
-                    {alerts.slice(0, 12).map((a, i) => (
-                      <li key={i} className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5">
-                        <span>
-                          <span className="font-semibold text-slate-800">{a.displayName || a.userId}</span>
-                          <span className="ml-2 inline-flex rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] font-bold uppercase">
-                            {ALERT_LABELS[a.type || a.alertType] || a.type || a.alertType}
-                          </span>
-                          {a.note ? <span className="ml-2 text-xs text-slate-500">{a.note}</span> : null}
-                        </span>
-                        {a.changePct != null ? (
-                          <span className={`tabular-nums text-xs font-bold ${Math.abs(a.changePct) >= 20 ? 'text-red-700' : 'text-amber-700'}`}>
-                            {a.changePct > 0 ? '+' : ''}{a.changePct}%
-                          </span>
-                        ) : null}
-                      </li>
-                    ))}
-                  </ul>
-                )}
-                {alerts.length > 12 ? <p className="mt-2 text-xs text-slate-500">+{alerts.length - 12} more — open payroll run for full list.</p> : null}
+                <AppTableWrap>
+                  <AppTable>
+                    <AppTableThead>
+                      <AppTableTh>Staff</AppTableTh>
+                      <AppTableTh>Alert type</AppTableTh>
+                      <AppTableTh>Note</AppTableTh>
+                      <AppTableTh align="right">Change</AppTableTh>
+                    </AppTableThead>
+                    <AppTableBody>
+                      {!alerts.length ? (
+                        <HrTableEmptyRow colSpan={4} message="No significant variances detected." />
+                      ) : (
+                        alerts.slice(0, 12).map((a, i) => (
+                          <AppTableTr key={`${a.userId || i}-${a.type || a.alertType}`}>
+                            <AppTableTd className="font-semibold">{a.displayName || a.userId}</AppTableTd>
+                            <AppTableTd>
+                              <HrStatusBadge
+                                status={a.type || a.alertType}
+                                variant="alert"
+                                label={ALERT_LABELS[a.type || a.alertType] || a.type || a.alertType}
+                              />
+                            </AppTableTd>
+                            <AppTableTd>{a.note || '—'}</AppTableTd>
+                            <AppTableTd align="right">
+                              {a.changePct != null ? (
+                                <span
+                                  className={`tabular-nums text-xs font-bold ${
+                                    Math.abs(a.changePct) >= 20 ? 'text-red-700' : 'text-amber-700'
+                                  }`}
+                                >
+                                  {a.changePct > 0 ? '+' : ''}
+                                  {a.changePct}%
+                                </span>
+                              ) : (
+                                '—'
+                              )}
+                            </AppTableTd>
+                          </AppTableTr>
+                        ))
+                      )}
+                    </AppTableBody>
+                  </AppTable>
+                </AppTableWrap>
+                {alerts.length > 12 ? (
+                  <p className="mt-2 text-xs text-slate-500">+{alerts.length - 12} more — open payroll run for full list.</p>
+                ) : null}
               </HrCard>
             );
           })}
@@ -118,7 +167,7 @@ function Stat({ label, value, tone }) {
   const cls = tone === 'amber' ? 'text-amber-800' : tone === 'ok' ? 'text-emerald-700' : 'text-[#134e4a]';
   return (
     <div className="rounded-xl border border-slate-100 bg-white px-4 py-3 shadow-sm">
-      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">{label}</p>
+      <p className="text-xs font-black uppercase tracking-widest text-slate-400">{label}</p>
       <p className={`mt-1 text-lg font-black ${cls}`}>{value}</p>
     </div>
   );

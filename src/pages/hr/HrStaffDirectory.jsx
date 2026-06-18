@@ -21,6 +21,8 @@ import {
   AppTableTr,
   AppTableWrap,
 } from '../../components/ui/AppDataTable';
+import { HrStatusBadge } from '../../components/hr/HrStatusBadge';
+import { HrTableEmptyRow, HrTableLoadingRow } from '../../components/hr/HrTableBodyState';
 
 function contractBadge(staff) {
   if (!staff) return null;
@@ -258,11 +260,11 @@ export default function HrStaffDirectory({
           <button
             type="button"
             onClick={exportRosterCsv}
-            className="inline-flex items-center justify-center rounded-xl border border-slate-200 px-4 py-2.5 text-[11px] font-bold uppercase tracking-wide text-slate-700 hover:bg-slate-50"
+            className="inline-flex items-center justify-center rounded-xl border border-slate-200 px-4 py-2.5 text-xs font-bold uppercase tracking-wide text-slate-700 hover:bg-slate-50"
           >
             Export CSV
           </button>
-          <label className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-[11px] font-bold uppercase text-slate-600">
+          <label className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold uppercase text-slate-600">
             <input type="checkbox" checked={compactTable} onChange={(e) => setCompactTable(e.target.checked)} />
             Compact
           </label>
@@ -270,7 +272,7 @@ export default function HrStaffDirectory({
             <button
               type="button"
               onClick={() => setBulkOpen(true)}
-              className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#134e4a] px-4 py-2.5 text-[11px] font-bold uppercase tracking-wide text-[#134e4a] hover:bg-teal-50"
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#134e4a] px-4 py-2.5 text-xs font-bold uppercase tracking-wide text-[#134e4a] hover:bg-teal-50"
             >
               Bulk Register Staff
             </button>
@@ -279,7 +281,7 @@ export default function HrStaffDirectory({
             <button
               type="button"
               onClick={() => setRegisterOpen(true)}
-              className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#134e4a] px-4 py-2.5 text-[11px] font-bold uppercase tracking-wide text-white shadow-sm hover:bg-[#0f3d39]"
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#134e4a] px-4 py-2.5 text-xs font-bold uppercase tracking-wide text-white shadow-sm hover:bg-[#0f3d39]"
             >
               <UserPlus size={16} aria-hidden />
               Register staff
@@ -364,13 +366,53 @@ export default function HrStaffDirectory({
         </label>
       </div>
 
-      {loading ? <p className="text-sm text-slate-600">Loading staff…</p> : null}
-      {error ? (
-        <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-800">{error}</div>
-      ) : null}
+      {!error ? (
+        <>
+        <div className="space-y-3 md:hidden">
+          {loading && !staff.length ? (
+            <p className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">Loading staff…</p>
+          ) : null}
+          {!loading && filtered.length === 0 ? (
+            <p className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">No staff match these filters.</p>
+          ) : null}
+          {filtered.map((s) => (
+            <article key={s.userId} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+              <div className="flex items-start justify-between gap-3">
+                <Link
+                  to={`${staffBasePath}/${encodeURIComponent(s.userId)}`}
+                  className="text-sm font-bold text-[#134e4a] hover:underline"
+                >
+                  {s.displayName || s.username}
+                </Link>
+                <HrStatusBadge status={s.status} variant="staff" />
+              </div>
+              <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 text-xs">
+                <div>
+                  <dt className="font-bold uppercase tracking-wide text-slate-400">Staff ID</dt>
+                  <dd className="mt-0.5 font-medium text-slate-800">{s.employeeNo || '—'}</dd>
+                </div>
+                <div>
+                  <dt className="font-bold uppercase tracking-wide text-slate-400">Branch</dt>
+                  <dd className="mt-0.5 font-medium text-slate-800">{s.branchId || s.normalized?.branchId || '—'}</dd>
+                </div>
+                <div className="col-span-2">
+                  <dt className="font-bold uppercase tracking-wide text-slate-400">Job</dt>
+                  <dd className="mt-0.5 font-medium text-slate-800">{s.jobTitle || '—'} · {s.department || '—'}</dd>
+                </div>
+                {showSalary ? (
+                  <div className="col-span-2">
+                    <dt className="font-bold uppercase tracking-wide text-slate-400">Base salary</dt>
+                    <dd className="mt-0.5 font-semibold tabular-nums text-slate-800">
+                      {s.compensationRedacted ? '—' : formatNgn(s.baseSalaryNgn)}
+                    </dd>
+                  </div>
+                ) : null}
+              </dl>
+            </article>
+          ))}
+        </div>
 
-      {!loading || staff.length > 0 ? (
-        !error ? (
+        <div className="hidden md:block">
         <AppTableWrap>
           <AppTable role="numeric" className={compactTable ? 'text-xs' : undefined}>
             <AppTableThead>
@@ -391,14 +433,13 @@ export default function HrStaffDirectory({
               <AppTableTh>Status</AppTableTh>
             </AppTableThead>
             <AppTableBody>
-              {filtered.length === 0 ? (
-                <AppTableTr>
-                  <AppTableTd colSpan={showSalary ? 9 : 8} align="center">
-                    <span className="text-slate-500 py-4 block">No staff match these filters.</span>
-                  </AppTableTd>
-                </AppTableTr>
-              ) : (
-                filtered.map((s) => (
+              {loading && !staff.length ? (
+                <HrTableLoadingRow colSpan={showSalary ? 9 : 8} message="Loading staff…" />
+              ) : null}
+              {!loading && filtered.length === 0 ? (
+                <HrTableEmptyRow colSpan={showSalary ? 9 : 8} message="No staff match these filters." />
+              ) : null}
+              {filtered.map((s) => (
                   <AppTableTr key={s.userId}>
                     <AppTableTd>
                       <Link
@@ -419,20 +460,12 @@ export default function HrStaffDirectory({
                       </AppTableTd>
                     ) : null}
                     <AppTableTd>{s.dateJoinedIso || '—'}</AppTableTd>
-                    <AppTableTd>
-                      <span
-                        className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase ${
-                          s.status === 'active'
-                            ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
-                            : 'border-slate-200 bg-slate-100 text-slate-600'
-                        }`}
-                      >
-                        {s.status || '—'}
-                      </span>
+                    <AppTableTd truncate={false}>
+                      <HrStatusBadge status={s.status} variant="staff" />
                       {(() => {
                         const b = contractBadge(s);
                         return b ? (
-                          <span className={`ml-1 inline-flex rounded-full border px-2 py-0.5 text-[9px] font-bold uppercase ${b.cls}`}>
+                          <span className={`ml-1 inline-flex rounded-full border px-2 py-0.5 text-xs font-bold uppercase ${b.cls}`}>
                             {b.label}
                           </span>
                         ) : null;
@@ -440,11 +473,15 @@ export default function HrStaffDirectory({
                     </AppTableTd>
                   </AppTableTr>
                 ))
-              )}
+              }
             </AppTableBody>
           </AppTable>
         </AppTableWrap>
-        ) : null
+        </div>
+        </>
+      ) : null}
+      {error ? (
+        <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-800">{error}</div>
       ) : null}
     </div>
   );
