@@ -285,8 +285,10 @@ export function formToSelfServiceProfilePatch(form) {
   /** @type {Record<string, unknown>} */
   const patch = {};
   for (const key of SELF_SERVICE_PROFILE_KEYS) {
+    if (key.startsWith('nextOfKin')) continue;
     if (full[key] !== undefined) patch[key] = full[key];
   }
+  if (full.nextOfKin !== undefined) patch.nextOfKin = full.nextOfKin;
   return patch;
 }
 

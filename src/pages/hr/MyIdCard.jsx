@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { apiFetch } from '../../lib/apiBase';
+import { useUserProfile } from '../../context/UserProfileContext';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { HrAddFormButton, HrFormModal } from '../../components/hr/HrFormModal';
 import { HrIdCardApplyFields } from '../../components/hr/HrIdCardApplyFields';
@@ -47,7 +47,17 @@ function statusChip(status) {
 
 export default function MyIdCard() {
   const ws = useWorkspace();
-  const userId = ws?.session?.user?.id;
+  const { hr, user, initialLoading: profileLoading } = useUserProfile();
+  const userId = ws?.session?.user?.id || user?.id;
+
+  const staff = useMemo(() => {
+    if (!hr) return null;
+    return {
+      ...hr,
+      displayName: user?.displayName || hr.displayName,
+      avatarUrl: user?.avatarUrl || hr.avatarUrl,
+    };
+  }, [hr, user]);
 
   const [modalOpen, setModalOpen] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -59,8 +69,11 @@ export default function MyIdCard() {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [listError, setListError] = useState('');
-  const [staff, setStaff] = useState(null);
-  const [profileWarnings, setProfileWarnings] = useState([]);
+
+  const profileWarnings = useMemo(
+    () => idCardProfileWarnings(staff, staff?.avatarUrl),
+    [staff]
+  );
 
   const loadRequests = useCallback(async () => {
     if (!userId) {
@@ -79,22 +92,19 @@ export default function MyIdCard() {
     }
   }, [userId]);
 
-  const loadStaff = useCallback(async () => {
-    if (!userId) return;
-    const { ok, data } = await apiFetch(`/api/hr/staff/${encodeURIComponent(userId)}`);
-    if (!ok || !data?.ok) return;
-    const row = data.staff || null;
-    setStaff(row);
-    setProfileWarnings(idCardProfileWarnings(row, row?.avatarUrl || ws?.session?.user?.avatarUrl));
-  }, [userId, ws?.session?.user?.avatarUrl]);
-
   useEffect(() => {
     loadRequests();
   }, [loadRequests]);
 
   useEffect(() => {
-    loadStaff();
-  }, [loadStaff]);
+    if (staff) {
+      setForm((prev) => ({
+        ...prev,
+        bloodGroup: prev.bloodGroup || bloodGroupFromStaff(staff),
+        emergencyContact: prev.emergencyContact || emergencyContactFromStaff(staff),
+      }));
+    }
+  }, [staff]);
 
   const resetForm = () => {
     setForm({
@@ -163,6 +173,24 @@ export default function MyIdCard() {
   const hasOpenRequest = hasOpenIdCardRequest(requests);
   const previewPerson = useMemo(() => buildIdCardPreviewPerson(staff), [staff]);
 
+  if (profileLoading && !staff) {
+    return (
+      <ProfilePageBody>
+        <ProfileMetricSkeleton count={2} />
+      </ProfilePageBody>
+    );
+  }
+
+  if (!staff) {
+    return (
+      <ProfilePageBody>
+        <ProfileInlineAlert variant="warning">
+          Your HR employment file is not open yet. Contact HR, then return here to request your ID card.
+        </ProfileInlineAlert>
+      </ProfilePageBody>
+    );
+  }
+
   return (
     <ProfilePageBody>
       <ProfilePageIntro
@@ -173,7 +201,6 @@ export default function MyIdCard() {
             <button
               type="button"
               onClick={openDraftPreview}
-              disabled={!staff}
               className={HR_BTN_SECONDARY}
             >
               Preview card
@@ -224,7 +251,9 @@ export default function MyIdCard() {
             onClose={() => setPreviewOpen(false)}
             temporary={previewRequest.requestType === 'temporary'}
           />
-        ) : null}
+        ) : (
+          <ProfileMetricSkeleton count={1} />
+        )}
       </HrFormModal>
 
       <ProfileOverviewSection title="My ID card requests" subtitle="Track submitted and approved requests">

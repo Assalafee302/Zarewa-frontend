@@ -16,7 +16,7 @@ export function IdCardPreview({ request, person, onClose, onPrint, temporary = f
     avatarUrl && (avatarUrl.startsWith('https://') || avatarUrl.startsWith('data:image/'));
   const displayIssueDate = request?.issueDateIso?.slice(0, 10) || issueDate || '—';
   const displayExpiryDate = request?.expiryDateIso?.slice(0, 10) || fallbackExpiryDate || '—';
-  const verifyCode = request?.id?.slice(-8).toUpperCase() || 'VERIFY';
+  const verifyCode = String(request?.id ?? '').slice(-8).toUpperCase() || 'VERIFY';
 
   return (
     <div className="space-y-4">

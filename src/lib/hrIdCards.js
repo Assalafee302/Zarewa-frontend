@@ -32,9 +32,14 @@ function normalizeIdCardRequest(row) {
 }
 
 export async function fetchHrIdCards(userId) {
-  const url = userId ? `/api/hr/id-cards?userId=${userId}` : '/api/hr/id-cards';
+  const url = userId
+    ? `/api/hr/id-cards?userId=${encodeURIComponent(String(userId))}`
+    : '/api/hr/id-cards';
   const r = await apiFetch(url);
-  return (r.data?.requests || []).map(normalizeIdCardRequest);
+  if (!r.ok || r.data?.ok === false) return [];
+  const rows = r.data?.requests;
+  if (!Array.isArray(rows)) return [];
+  return rows.map(normalizeIdCardRequest).filter(Boolean);
 }
 
 export async function createHrIdCardRequest(data) {
