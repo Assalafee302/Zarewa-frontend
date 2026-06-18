@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { HrStaffFormFields } from './HrStaffFormFields';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { formToRegisterBody, registerHrStaff } from '../../lib/hrStaff';
+import { emptyStaffForm } from '../../lib/hrStaffConstants';
 import { payrollGroupMayHaveLogin } from '../../shared/hrStaffCohorts';
 import { HR_BTN_PRIMARY, HR_BTN_SECONDARY } from './hrFormStyles';
 
