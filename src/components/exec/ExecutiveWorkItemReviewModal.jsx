@@ -348,6 +348,15 @@ export function ExecutiveWorkItemReviewModal({ item, isOpen, onClose, onComplete
                     void handleQuotationReview(review.quotationId, 'release_payments');
                   }
                 }}
+                onWaiveBalance={() => {
+                  if (
+                    window.confirm(
+                      'Clear as paid? The remaining balance will be waived and removed from accounts receivable.'
+                    )
+                  ) {
+                    void handleQuotationReview(review.quotationId, 'waive_balance');
+                  }
+                }}
                 onProductionOverride={() => void handleQuotationReview(review.quotationId, 'approve_production')}
               />
               <ManagementAuditSections auditData={auditData} loadingAudit={loadingAudit} formatNgn={formatNgn} appearance="light" />

@@ -1,6 +1,7 @@
 import React, { Fragment } from 'react';
-import { RefreshCw, CheckCircle2, RotateCcw, Flag, Unlock, Zap } from 'lucide-react';
+import { RefreshCw, CheckCircle2, RotateCcw, Flag, Unlock, Zap, BadgeCheck } from 'lucide-react';
 import { formatPersonName } from '../../lib/formatPersonName';
+import { accountingReceivableOutstandingNgn, quotationWaivedBalanceNgn } from '../../lib/customerLedgerCore.js';
 import { IntelDetailRow, IntelPanel, IntelStat } from './managementIntelUi';
 import { ManagementQuotationIntelGrid } from './ManagementQuotationIntelGrid';
 
@@ -32,6 +33,7 @@ export function ClearanceManagerApprovalPreview({
   onFlag,
   onReleasePayments,
   onProductionOverride,
+  onWaiveBalance,
   canProductionOverride = true,
   canManagerClearance = true,
   canReleasePaymentHolds = false,
@@ -40,6 +42,9 @@ export function ClearanceManagerApprovalPreview({
   const loading = loadingAudit || (loadingIntel && !paymentIntel);
   const paidNgn = Number(inboxRow?.paid_ngn ?? auditData?.summary?.paidNgn) || 0;
   const totalNgn = Number(inboxRow?.total_ngn ?? auditData?.summary?.orderTotalNgn) || 0;
+  const waivedNgn = quotationWaivedBalanceNgn(inboxRow || auditData?.quotation || {});
+  const rawOutstandingAmountNgn = Math.max(0, Math.round(totalNgn - paidNgn));
+  const receivableNgn = accountingReceivableOutstandingNgn(totalNgn, paidNgn, waivedNgn);
   const pct = percentPaid(paidNgn, totalNgn);
   const refunds = Array.isArray(auditData?.refunds) ? auditData.refunds : [];
 
@@ -109,10 +114,23 @@ export function ClearanceManagerApprovalPreview({
               <IntelStat label="Order total" value={formatNgn(totalNgn)} />
               <IntelStat label="% paid" value={`${pct}%`} />
               <IntelStat
-                label="Outstanding"
-                value={formatNgn(Math.max(0, totalNgn - paidNgn))}
+                label="Receivable"
+                value={formatNgn(receivableNgn)}
               />
             </div>
+
+            {waivedNgn > 0 ? (
+              <p className="mb-2 rounded-lg border border-emerald-200 bg-emerald-50/70 px-2.5 py-2 text-[10px] text-emerald-950">
+                Manager waived {formatNgn(waivedNgn)} round-off — not shown in accounts receivable.
+              </p>
+            ) : null}
+
+            {receivableNgn > 0 && paidNgn > 0 ? (
+              <p className="mb-2 text-[10px] leading-snug text-slate-600">
+                Accounting uses the exact balance ({formatNgn(rawOutstandingAmountNgn)} unpaid). Use{' '}
+                <strong>Clear as paid</strong> to waive a small round-off so it drops from receivables.
+              </p>
+            ) : null}
 
             <IntelDetailRow label="Quote status" value={inboxRow?.status || auditData?.quotation?.status} />
             {reviewContext === 'flagged' ? (
@@ -165,6 +183,20 @@ export function ClearanceManagerApprovalPreview({
               >
                 <Unlock size={16} />
                 <span className="text-[10px] font-black uppercase tracking-widest">Release for payments</span>
+              </button>
+            ) : null}
+
+            {canManagerClearance && receivableNgn > 0 && paidNgn > 0 ? (
+              <button
+                type="button"
+                disabled={decisionBusy}
+                onClick={onWaiveBalance}
+                className="mb-2 flex w-full items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-emerald-700 p-3 text-white transition-colors hover:bg-emerald-600 disabled:opacity-50"
+              >
+                <BadgeCheck size={16} />
+                <span className="text-[10px] font-black uppercase tracking-widest">
+                  Clear as paid ({formatNgn(receivableNgn)})
+                </span>
               </button>
             ) : null}
 

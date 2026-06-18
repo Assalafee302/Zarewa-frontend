@@ -165,6 +165,7 @@ const ManagerDashboard = () => {
         handleDisapproveSelectedQuotation={bm.handleDisapproveSelectedQuotation}
         handleFlagSelectedQuotation={bm.handleFlagSelectedQuotation}
         handleReleasePaymentsSelectedQuotation={bm.handleReleasePaymentsSelectedQuotation}
+        handleWaiveBalanceSelectedQuotation={bm.handleWaiveBalanceSelectedQuotation}
         handleProductionOverrideSelectedQuotation={bm.handleProductionOverrideSelectedQuotation}
         conversionSignoffRemark={bm.conversionSignoffRemark}
         setConversionSignoffRemark={bm.setConversionSignoffRemark}

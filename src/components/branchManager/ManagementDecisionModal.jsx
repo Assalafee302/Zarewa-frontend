@@ -46,6 +46,7 @@ export function ManagementDecisionModal({
   handleDisapproveSelectedQuotation,
   handleFlagSelectedQuotation,
   handleReleasePaymentsSelectedQuotation,
+  handleWaiveBalanceSelectedQuotation,
   handleProductionOverrideSelectedQuotation,
   conversionSignoffRemark,
   setConversionSignoffRemark,
@@ -245,6 +246,7 @@ export function ManagementDecisionModal({
                   onDisapprove={() => void handleDisapproveSelectedQuotation?.()}
                   onFlag={() => void handleFlagSelectedQuotation?.()}
                   onReleasePayments={() => void handleReleasePaymentsSelectedQuotation?.()}
+                  onWaiveBalance={() => void handleWaiveBalanceSelectedQuotation?.()}
                   onProductionOverride={() => void handleProductionOverrideSelectedQuotation?.()}
                 />
                 <ManagementAuditSections

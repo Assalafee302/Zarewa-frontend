@@ -1194,7 +1194,7 @@ export function useBranchManagerWorkstation() {
   const handleReview = useCallback(
     async (quotationId, decision, reason = '') => {
       if (!quotationId) return;
-      if ((decision === 'clear' || decision === 'flag') && !canManagerClearance) {
+      if ((decision === 'clear' || decision === 'flag' || decision === 'waive_balance') && !canManagerClearance) {
         showToast('Quotation clearance requires Branch Manager, MD, or Administrator authority.', {
           variant: 'error',
         });
@@ -1212,6 +1212,15 @@ export function useBranchManagerWorkstation() {
           description:
             'Sales will be able to post receipts again until this quotation is cleared or flagged. Continue?',
           onConfirm: 'release_payments',
+        });
+        if (!confirmed) return;
+      }
+      if (decision === 'waive_balance') {
+        const confirmed = await requestConfirm({
+          title: 'Clear as paid',
+          description:
+            'Waive the remaining receivable on this quotation (round-off / small balance write-off). It will drop from accounts receivable. Continue?',
+          onConfirm: 'waive_balance',
         });
         if (!confirmed) return;
       }
@@ -1276,6 +1285,9 @@ export function useBranchManagerWorkstation() {
         approve_production: 'Production override saved. Cutting list can proceed in Sales.',
         flag: 'Moved to flagged queue for audit.',
         release_payments: 'Payment hold released — sales can post receipts on this quotation again.',
+        waive_balance: data?.waivedAmountNgn
+          ? `Balance cleared — ₦${Number(data.waivedAmountNgn).toLocaleString('en-NG')} waived from receivables.`
+          : 'Balance cleared — no longer shown as receivable.',
       };
       showToast(labels[decision] || 'Updated.', { variant: 'success' });
       await fetchData();
@@ -1514,6 +1526,11 @@ export function useBranchManagerWorkstation() {
   const handleReleasePaymentsSelectedQuotation = useCallback(async () => {
     if (selectedIntel?.kind !== 'quotation') return;
     await handleReview(selectedIntel.quoteId, 'release_payments');
+  }, [handleReview, selectedIntel]);
+
+  const handleWaiveBalanceSelectedQuotation = useCallback(async () => {
+    if (selectedIntel?.kind !== 'quotation') return;
+    await handleReview(selectedIntel.quoteId, 'waive_balance');
   }, [handleReview, selectedIntel]);
 
   const handleProductionOverrideSelectedQuotation = useCallback(async () => {
@@ -1760,6 +1777,7 @@ export function useBranchManagerWorkstation() {
     handleDisapproveSelectedQuotation,
     handleFlagSelectedQuotation,
     handleReleasePaymentsSelectedQuotation,
+    handleWaiveBalanceSelectedQuotation,
     handleProductionOverrideSelectedQuotation,
     closeIntelModal,
     openMaterialIncidentOperations,

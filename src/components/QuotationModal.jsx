@@ -14,6 +14,7 @@ import {
   Landmark,
   Wallet,
 } from 'lucide-react';
+import { StaffPurchaseCreditQuotationPanel } from './sales/StaffPurchaseCreditQuotationPanel';
 import { ModalFrame } from './layout/ModalFrame';
 import { useTrackedUnsavedForm } from '../hooks/useTrackedUnsavedForm';
 import { useCustomers } from '../context/CustomersContext';
@@ -2501,6 +2502,14 @@ const QuotationModal = ({
                 </form>
               )}
             </div>
+          ) : null}
+
+          {editData?.id ? (
+            <StaffPurchaseCreditQuotationPanel
+              quotationRef={editData.id}
+              customerId={selectedCustomerId}
+              readOnly={readOnly}
+            />
           ) : null}
 
           <OrderLinesSection

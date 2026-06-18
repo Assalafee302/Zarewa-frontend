@@ -5,6 +5,11 @@ import { useWorkspace } from '../../context/WorkspaceContext';
 import { HrRequestsPanel } from '../../components/hr/HrRequestsPanel';
 import { createHrLoanRequest } from '../../lib/hrStaff';
 import { fetchStaffLoanSchedule } from '../../lib/hrMasterData';
+import {
+  fetchStaffMoneySummary,
+  obligationDisbursementVoucherPdfUrl,
+  obligationStatementPdfUrl,
+} from '../../lib/hrStaffObligations';
 import { WorkPayFormModal } from '../../components/profile/WorkPayFormModal';
 import { WorkPayHero } from '../../components/profile/WorkPayHero';
 import { WorkPayFormAlert, WorkPayHeroButton } from '../../components/profile/workPayFormUi';
@@ -36,6 +41,7 @@ export default function MyLoans({ staffLinkBase = '/my-profile' }) {
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [schedule, setSchedule] = useState([]);
+  const [moneySummary, setMoneySummary] = useState(null);
   const [hasGuarantorDoc, setHasGuarantorDoc] = useState(false);
 
   const loanPolicy = ctxLoanPolicy;
@@ -53,6 +59,8 @@ export default function MyLoans({ staffLinkBase = '/my-profile' }) {
     (async () => {
       const schedRes = await fetchStaffLoanSchedule(userId);
       if (schedRes.ok && schedRes.data?.ok) setSchedule(schedRes.data.schedule || []);
+      const sumRes = await fetchStaffMoneySummary(userId);
+      if (sumRes.ok && sumRes.data?.ok) setMoneySummary(sumRes.data);
       const docs = me?.documents || [];
       setHasGuarantorDoc(docs.some((d) => d.docKind === 'guarantor_form'));
     })();
@@ -75,7 +83,9 @@ export default function MyLoans({ staffLinkBase = '/my-profile' }) {
     grossSalaryNgn && policy.loanMaxSalaryMonths
       ? Math.round(grossSalaryNgn * Number(policy.loanMaxSalaryMonths))
       : null;
-  const activeLoans = schedule.filter((l) => l.status === 'active' || l.outstandingNgn > 0);
+  const activeLoans = schedule.filter(
+    (l) => l.status === 'active' || l.status === 'pending_disbursement' || l.outstandingNgn > 0
+  );
   const activeOutstanding = activeLoans.reduce((s, l) => s + (l.outstandingNgn || 0), 0);
   const deduction = Number(deductionPerMonthNgn) || minDeduction;
 
@@ -160,8 +170,8 @@ export default function MyLoans({ staffLinkBase = '/my-profile' }) {
     <ProfilePageBody>
       <WorkPayHero
         eyebrow="Work & pay"
-        title="Staff loans"
-        description={`Salary-backed loans — up to ${policy.loanMaxSalaryMonths}× gross salary, ${policy.loanMaxRepaymentMonths} months max repayment, ${policy.loanMinServiceYears}+ years service.`}
+        title="Money with Zarewa"
+        description="Staff loans and purchase credit (roofing/materials) — balances and payroll repayment."
         action={
           <WorkPayHeroButton onClick={() => setModalOpen(true)} disabled={!eligibility.eligible}>
             Apply for loan
@@ -223,6 +233,14 @@ export default function MyLoans({ staffLinkBase = '/my-profile' }) {
         </ProfileInlineAlert>
       ) : null}
 
+      {moneySummary?.totalOutstandingNgn > 0 ? (
+        <ProfileOverviewSection title="Total outstanding" subtitle="All active staff obligations">
+          <ProfileKpiCard label="You owe Zarewa">
+            <p className="text-2xl font-black tabular-nums text-[#134e4a]">{formatNgn(moneySummary.totalOutstandingNgn)}</p>
+          </ProfileKpiCard>
+        </ProfileOverviewSection>
+      ) : null}
+
       {activeLoans.length ? (
         <ProfileInlineAlert variant="warning">
           Active loan outstanding:{' '}
@@ -251,10 +269,79 @@ export default function MyLoans({ staffLinkBase = '/my-profile' }) {
                   </div>
                 </dl>
                 <ProfileStatusChip variant={loan.outstandingNgn > 0 ? 'pending' : 'approved'}>
-                  {loan.status || 'active'}
+                  {loan.status === 'pending_disbursement'
+                    ? 'Awaiting payout'
+                    : loan.status === 'paid_off'
+                      ? 'Paid off'
+                      : loan.status === 'active'
+                        ? 'Repaying'
+                        : loan.status || 'active'}
                 </ProfileStatusChip>
+                {loan.obligationAccountId ? (
+                  <div className="mt-2 flex flex-wrap gap-2 text-[10px] font-semibold">
+                    <a
+                      className="text-[#134e4a] underline"
+                      href={obligationStatementPdfUrl(loan.obligationAccountId)}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      Statement PDF
+                    </a>
+                    {loan.status !== 'pending_disbursement' ? null : (
+                      <a
+                        className="text-[#134e4a] underline"
+                        href={obligationDisbursementVoucherPdfUrl(loan.obligationAccountId)}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        Disbursement voucher
+                      </a>
+                    )}
+                  </div>
+                ) : null}
               </ProfileKpiCard>
             ))}
+          </div>
+        </ProfileOverviewSection>
+      ) : null}
+
+      {(moneySummary?.purchases || []).filter((p) => p.principalOutstandingNgn > 0 || p.status === 'pending_approval').length ? (
+        <ProfileOverviewSection title="Purchase credit" subtitle="Roofing and materials on staff credit">
+          <div className="grid gap-3 sm:grid-cols-2">
+            {moneySummary.purchases
+              .filter((p) => p.principalOutstandingNgn > 0 || p.status === 'pending_approval')
+              .map((p) => (
+                <ProfileKpiCard key={p.id} label={p.title || 'Staff purchase'}>
+                  <dl className="mt-1 grid grid-cols-2 gap-x-3 gap-y-2 text-xs">
+                    <div>
+                      <dt className="text-slate-500">Amount</dt>
+                      <dd className="font-bold tabular-nums">{formatNgn(p.principalOriginalNgn)}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-slate-500">Monthly</dt>
+                      <dd className="font-bold tabular-nums">{formatNgn(p.installmentNgn)}</dd>
+                    </div>
+                    <div className="col-span-2">
+                      <dt className="text-slate-500">Outstanding</dt>
+                      <dd className="text-lg font-black tabular-nums text-[#134e4a]">{formatNgn(p.principalOutstandingNgn)}</dd>
+                    </div>
+                  </dl>
+                  {p.quotationRef ? (
+                    <p className="mt-1 text-[10px] text-slate-500">Quote {p.quotationRef}</p>
+                  ) : null}
+                  <ProfileStatusChip variant={p.status === 'active' ? 'pending' : 'default'}>
+                    {p.status === 'pending_approval' ? 'Awaiting approval' : p.status === 'active' ? 'Repaying' : p.status}
+                  </ProfileStatusChip>
+                  <a
+                    className="mt-2 inline-block text-[10px] font-semibold text-[#134e4a] underline"
+                    href={obligationStatementPdfUrl(p.id)}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Statement PDF
+                  </a>
+                </ProfileKpiCard>
+              ))}
           </div>
         </ProfileOverviewSection>
       ) : null}
