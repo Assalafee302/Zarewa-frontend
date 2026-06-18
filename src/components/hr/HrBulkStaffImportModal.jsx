@@ -74,7 +74,11 @@ export function HrBulkStaffImportModal({ open, onClose, onImported }) {
     });
     setBusy('');
     if (!ok || !data?.ok) {
-      setError(data?.error || 'Preview failed.');
+      const extra =
+        data?.unmatchedHeaders?.length && !data?.matchedColumns?.length
+          ? ` Headers found: ${data.unmatchedHeaders.slice(0, 8).join(', ')}`
+          : '';
+      setError((data?.error || 'Preview failed.') + extra);
       return;
     }
     setPreview(data);
@@ -205,11 +209,11 @@ export function HrBulkStaffImportModal({ open, onClose, onImported }) {
         </div>
 
         <label className="block text-xs font-semibold text-slate-600">
-          Upload completed Excel (.xlsx)
+          Upload completed Excel (.xlsx, .xls, or .csv)
           <input
             ref={fileInputRef}
             type="file"
-            accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            accept=".xlsx,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv"
             className={`${HR_FIELD_CLASS} mt-1`}
             onChange={(e) => {
               setFile(e.target.files?.[0] || null);
@@ -237,6 +241,27 @@ export function HrBulkStaffImportModal({ open, onClose, onImported }) {
             <p className="font-bold text-[#134e4a]">
               Step 1 — Preview ({preview.importMode === 'replace' ? 'clean & replace' : 'update & add'})
             </p>
+
+            {preview.matchedColumns?.length ? (
+              <p className="text-[11px] text-slate-500">
+                Matched {preview.matchedColumns.length} column(s) from your file
+                {preview.sheetName ? ` (sheet: ${preview.sheetName})` : ''}.
+              </p>
+            ) : null}
+
+            {preview.unmatchedHeaders?.length ? (
+              <p className="text-[11px] text-slate-500">
+                Unrecognized headers (ignored): {preview.unmatchedHeaders.slice(0, 12).join(', ')}
+                {preview.unmatchedHeaders.length > 12 ? '…' : ''}
+              </p>
+            ) : null}
+
+            {!previewRows.length ? (
+              <p className="text-xs text-amber-800 rounded-lg border border-amber-100 bg-amber-50 px-3 py-2">
+                No importable rows found. Check that employee names or IDs are filled in below the header row.
+              </p>
+            ) : null}
+
             <div className="grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
               <div>
                 <span className="text-slate-500">Total rows</span>
