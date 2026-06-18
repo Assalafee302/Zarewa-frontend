@@ -46,7 +46,7 @@ const LETTER_GROUPS = [
   },
   {
     label: 'Discipline',
-    types: ['query', 'warning', 'final_warning', 'suspension', 'dismissal', 'termination', 'hearing_invitation', 'investigation_notice'],
+    types: ['query', 'warning', 'final_warning', 'suspension', 'dismissal', 'termination', 'hearing_invitation', 'investigation_notice', 'salary_recovery'],
   },
   {
     label: 'Exit',
@@ -100,6 +100,7 @@ const LETTER_TYPES = [
   { value: 'id_card_approval', label: 'ID Card Approval / Collection' },
   { value: 'hearing_invitation', label: 'Disciplinary hearing invitation' },
   { value: 'investigation_notice', label: 'Investigation notice' },
+  { value: 'salary_recovery', label: 'Salary recovery / deduction letter' },
   { value: 'final_warning', label: 'Final warning letter' },
   { value: 'layoff', label: 'Layoff / retrenchment notice' },
   { value: 'code_of_conduct_receipt', label: 'Code of conduct acknowledgement' },
@@ -481,6 +482,8 @@ For enquiries, contact the Human Resources Department.${footer}`;
   }
 }
 
+const AWAITING_APPROVAL_STATUSES = new Set(['submitted', 'hr_review', 'gm_review', 'md_review']);
+
 export default function HrLetters({ embedded = false } = {}) {
   const ws = useWorkspace();
   const [searchParams] = useSearchParams();
@@ -491,6 +494,7 @@ export default function HrLetters({ embedded = false } = {}) {
   const [staff, setStaff] = useState([]);
   const [letters, setLetters] = useState([]);
   const [search, setSearch] = useState('');
+  const [quickFilter, setQuickFilter] = useState(() => searchParams.get('filter') || '');
   const [actionMsg, setActionMsg] = useState('');
   const [actionErr, setActionErr] = useState('');
 
@@ -522,6 +526,11 @@ export default function HrLetters({ embedded = false } = {}) {
     if (link.letterKind || link.userId) {
       setModalOpen(true);
     }
+  }, [searchParams]);
+
+  useEffect(() => {
+    const f = searchParams.get('filter') || '';
+    setQuickFilter(f);
   }, [searchParams]);
 
   const { loading, error, reload } = useHrListLoad(async () => {
@@ -641,14 +650,19 @@ export default function HrLetters({ embedded = false } = {}) {
     setPrintModal(true);
   };
 
-  const filteredLetters = search
-    ? letters.filter((l) => {
-        const person = staff.find((s) => s.userId === l.userId);
-        const name = (person?.displayName || l.userId || '').toLowerCase();
-        const kind = (l.letterKind || '').toLowerCase();
-        return name.includes(search.toLowerCase()) || kind.includes(search.toLowerCase());
-      })
-    : letters;
+  const filteredLetters = letters.filter((l) => {
+    if (quickFilter === 'awaiting_approval' && !AWAITING_APPROVAL_STATUSES.has(String(l.status || ''))) {
+      return false;
+    }
+    if (quickFilter === 'discipline' && !['query', 'warning', 'final_warning', 'suspension', 'dismissal', 'termination', 'hearing_invitation', 'investigation_notice', 'salary_recovery'].includes(l.letterKind)) {
+      return false;
+    }
+    if (!search) return true;
+    const person = staff.find((s) => s.userId === l.userId);
+    const name = (person?.displayName || l.userId || '').toLowerCase();
+    const kind = (l.letterKind || '').toLowerCase();
+    return name.includes(search.toLowerCase()) || kind.includes(search.toLowerCase());
+  });
 
   return (
     <div className="space-y-6">
@@ -833,13 +847,39 @@ export default function HrLetters({ embedded = false } = {}) {
       {actionMsg ? <div className="rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">{actionMsg}</div> : null}
 
       {/* Search */}
-      <div className="flex items-center gap-3 no-print">
+      <div className="flex flex-wrap items-center gap-3 no-print">
         <input
           className={`${HR_FIELD_CLASS} max-w-xs`}
           placeholder="Search by staff or letter type…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
+        {canApprove ? (
+          <>
+            <button
+              type="button"
+              className={`rounded-lg px-3 py-2 text-xs font-bold uppercase tracking-wide border ${
+                quickFilter === 'awaiting_approval'
+                  ? 'bg-violet-800 text-white border-violet-800'
+                  : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+              }`}
+              onClick={() => setQuickFilter((f) => (f === 'awaiting_approval' ? '' : 'awaiting_approval'))}
+            >
+              Awaiting my approval
+            </button>
+            <button
+              type="button"
+              className={`rounded-lg px-3 py-2 text-xs font-bold uppercase tracking-wide border ${
+                quickFilter === 'discipline'
+                  ? 'bg-teal-800 text-white border-teal-800'
+                  : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+              }`}
+              onClick={() => setQuickFilter((f) => (f === 'discipline' ? '' : 'discipline'))}
+            >
+              Discipline letters
+            </button>
+          </>
+        ) : null}
       </div>
 
       <AppTableWrap className="overflow-x-auto -mx-1 px-1">

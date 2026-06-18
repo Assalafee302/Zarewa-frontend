@@ -3,6 +3,7 @@
  */
 import {
   canEndorseBranchHr,
+  canApproveHrLetters,
   canGenerateHrLetters,
   canGmApproveHrRequests,
   canGmApprovePayroll,
@@ -62,6 +63,7 @@ const HR_NAV_DEFINITION = [
     label: 'Staff cases & exit',
     visible: (p) =>
       canManageHrDiscipline(p) ||
+      canApproveHrLetters(p) ||
       canManageHrTransfers(p) ||
       hrHasPermission(p, 'hr.incidents.view') ||
       hrHasPermission(p, 'hr.incidents.manage'),

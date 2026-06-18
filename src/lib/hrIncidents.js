@@ -114,6 +114,13 @@ export function fetchCaseRecoverySchedules(caseId) {
   return apiFetch(`/api/hr/discipline-cases/${encodeURIComponent(caseId)}/recovery-schedules`);
 }
 
+export function settleRecoverySchedule(scheduleId, body = {}) {
+  return apiFetch(`/api/hr/recovery-schedules/${encodeURIComponent(scheduleId)}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ action: 'settle', ...body }),
+  });
+}
+
 export function recordCustodyEvent(body) {
   return apiFetch('/api/assets/custody-events', { method: 'POST', body: JSON.stringify(body) });
 }

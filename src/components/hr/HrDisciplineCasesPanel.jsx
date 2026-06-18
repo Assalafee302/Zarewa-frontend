@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { useHrListLoad } from '../../hooks/useHrListLoad';
-import { canManageHrDiscipline, canGenerateHrLetters } from '../../lib/hrAccess';
+import { canManageHrDiscipline, canGenerateHrLetters, canApproveHrLetters } from '../../lib/hrAccess';
 import { apiFetch } from '../../lib/apiBase';
 import { navigateToHrLetter } from '../../lib/hrLetterDeepLink';
 import { HR_EMPLOYEES } from '../../lib/hrRoutes';
@@ -43,6 +43,7 @@ import HrCaseAssetLinkPanel from './HrCaseAssetLinkPanel';
 import HrCaseRecoveryPanel from './HrCaseRecoveryPanel';
 import HrCaseAttendancePanel from './HrCaseAttendancePanel';
 import HrCasePartyLettersPanel from './HrCasePartyLettersPanel';
+import HrDisciplineCaseNextSteps from './HrDisciplineCaseNextSteps';
 import { fetchCaseClosureCheck, fetchCaseResponsibility } from '../../lib/hrIncidents';
 import { inferAccountabilityStage } from '../../lib/hrAccountabilityStageProgress';
 
@@ -61,7 +62,7 @@ function StatusPill({ status }) {
   return <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-semibold ${tone}`}>{m.label}</span>;
 }
 
-function CaseDetailModal({ caseId, onClose, onUpdated, canManage, canLetter }) {
+function CaseDetailModal({ caseId, onClose, onUpdated, canManage, canApprove, canLetter }) {
   const navigate = useNavigate();
   const [detail, setDetail] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -71,6 +72,7 @@ function CaseDetailModal({ caseId, onClose, onUpdated, canManage, canLetter }) {
   const [responsibleUserIds, setResponsibleUserIds] = useState([]);
   const [recoveryCount, setRecoveryCount] = useState(0);
   const [closureOk, setClosureOk] = useState(false);
+  const [closureBlockers, setClosureBlockers] = useState([]);
   const [evidenceDesc, setEvidenceDesc] = useState('');
   const [witnessForm, setWitnessForm] = useState({ witnessName: '', witnessRole: '', statement: '' });
   const [workflow, setWorkflow] = useState({
@@ -109,6 +111,7 @@ function CaseDetailModal({ caseId, onClose, onUpdated, canManage, canLetter }) {
     if (close.ok && close.data) {
       nextClosureOk = Boolean(close.data.ok);
       setClosureOk(nextClosureOk);
+      setClosureBlockers(close.data.blockers || []);
     }
     const { ok: rsOk, data: rsData } = await apiFetch(`/api/hr/discipline-cases/${encodeURIComponent(caseId)}/recovery-schedules`);
     if (rsOk && rsData?.ok) {
@@ -280,6 +283,14 @@ function CaseDetailModal({ caseId, onClose, onUpdated, canManage, canLetter }) {
           onStageClick={setActiveStage}
         />
 
+        <HrDisciplineCaseNextSteps
+          detail={detail}
+          blockers={closureBlockers}
+          canManage={canManage}
+          canApprove={canApprove}
+          onGoToClose={() => setActiveStage('close')}
+        />
+
         {activeStage === 'report' ? (
           <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600">
             <p className="font-semibold text-slate-800 mb-1">Case summary</p>
@@ -393,18 +404,29 @@ function CaseDetailModal({ caseId, onClose, onUpdated, canManage, canLetter }) {
           </>
         ) : null}
 
-        {(activeStage === 'decision' || activeStage === 'close') ? (
-          <>
-            <HrCaseRecoveryPanel caseId={caseId} detail={detail} canManage={canManage} onUpdated={load} />
-            <HrCasePartyLettersPanel detail={detail} canManage={canManage} onUpdated={load} />
-            <HrCaseClosureChecklist
-              caseId={caseId}
-              canManage={canManage}
-              detail={detail}
-              recoveryCount={recoveryCount}
-              onUpdated={load}
-            />
-          </>
+        {(activeStage === 'decision' || activeStage === 'close') && canManage ? (
+          <HrCaseRecoveryPanel caseId={caseId} detail={detail} canManage={canManage} onUpdated={load} />
+        ) : null}
+
+        {(activeStage === 'decision' || activeStage === 'close' || activeStage === 'report') &&
+        (canManage || canApprove) &&
+        (detail.relatedLetters?.length || detail.relatedLetterIds?.length) ? (
+          <HrCasePartyLettersPanel
+            detail={detail}
+            canManage={canManage}
+            canApprove={canApprove}
+            onUpdated={load}
+          />
+        ) : null}
+
+        {(activeStage === 'decision' || activeStage === 'close') && canManage ? (
+          <HrCaseClosureChecklist
+            caseId={caseId}
+            canManage={canManage}
+            detail={detail}
+            recoveryCount={recoveryCount}
+            onUpdated={load}
+          />
         ) : null}
 
         {activeStage === 'audit' ? (
@@ -476,6 +498,7 @@ export default function HrDisciplineCasesPanel() {
   const [searchParams, setSearchParams] = useSearchParams();
   const perms = ws?.permissions || [];
   const canManage = canManageHrDiscipline(perms);
+  const canApprove = canApproveHrLetters(perms);
   const canLetter = canGenerateHrLetters(perms);
 
   const [dashboard, setDashboard] = useState(null);
@@ -749,6 +772,7 @@ export default function HrDisciplineCasesPanel() {
           onClose={closeDetail}
           onUpdated={reload}
           canManage={canManage}
+          canApprove={canApprove}
           canLetter={canLetter}
         />
       ) : null}

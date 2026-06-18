@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { useHrUrlTab } from '../../hooks/useHrUrlTab';
-import { canManageHrDiscipline } from '../../lib/hrAccess';
+import { canManageHrDiscipline, canApproveHrLetters } from '../../lib/hrAccess';
 import { HrTabbedPage } from '../../components/hr/HrTabbedPage';
 import { HrSeparationsPanel } from '../../components/hr/HrSeparationsPanel';
 import { HrExitClearancePanel } from '../../components/hr/HrExitClearancePanel';
@@ -16,6 +16,7 @@ import HrIncidentRegistryPanel from '../../components/hr/HrIncidentRegistryPanel
 import HrAccountabilityOverview from '../../components/hr/HrAccountabilityOverview';
 import HrAccountabilityMemoQueue from '../../components/hr/HrAccountabilityMemoQueue';
 import HrDisciplinePlaybookPanel from '../../components/hr/HrDisciplinePlaybookPanel';
+import HrLetterApprovalBanner from '../../components/hr/HrLetterApprovalBanner';
 
 /** Two top-level areas — cases/incidents/grievances vs exit movement. */
 const TABS = [
@@ -81,6 +82,7 @@ function SubViewPills({ views, active, onChange }) {
 export default function HrDisciplineExitHub() {
   const ws = useWorkspace();
   const canManage = canManageHrDiscipline(ws?.permissions || []);
+  const canApproveLetters = canApproveHrLetters(ws?.permissions || []);
   const allTabIds = useMemo(() => [...Object.keys(LEGACY_TAB_ALIASES), ...TABS.map((t) => t.id)], []);
   const { tab: rawTab, setTab } = useHrUrlTab('accountability', allTabIds);
   const [searchParams, setSearchParams] = useSearchParams();
@@ -174,6 +176,7 @@ export default function HrDisciplineExitHub() {
             Team <strong>memos</strong>, formal <strong>cases</strong>, and employee <strong>grievances</strong> live here.
             Escalate memos into cases when needed; use the old log for pre-system history only.
           </p>
+          <HrLetterApprovalBanner canApprove={canApproveLetters} />
           <HrAccountabilityOverview
             canManage={canManage}
             onViewCases={() => setCaseViewAndUrl('cases')}
