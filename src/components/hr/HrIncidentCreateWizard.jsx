@@ -38,18 +38,12 @@ export default function HrIncidentCreateWizard({ open, onClose, staff, onCreated
 
   const flowSteps = useMemo(() => {
     const steps = [
-      { id: 'category', title: 'Category', subtitle: 'What type of incident?' },
-      { id: 'details', title: 'Details', subtitle: 'Who, when, and what happened' },
+      { id: 'category', title: 'What type?', subtitle: 'HR discipline, operational, or performance' },
+      { id: 'details', title: 'What happened?', subtitle: 'Staff, description, parties, asset & loss — all on one screen' },
+      { id: 'review', title: 'Confirm', subtitle: 'Register the incident' },
     ];
-    if (needsInvolvedStep) {
-      steps.push({ id: 'involved', title: 'Involved parties', subtitle: 'Optional shared responsibility (must total 100% if added)' });
-    }
-    if (needsAssetStep) {
-      steps.push({ id: 'asset', title: 'Asset & loss', subtitle: 'Optional financial / asset fields' });
-    }
-    steps.push({ id: 'review', title: 'Review', subtitle: 'Confirm before registering' });
     return steps;
-  }, [needsInvolvedStep, needsAssetStep]);
+  }, []);
 
   const step = flowSteps[stepIndex] || flowSteps[0];
   const isLastStep = stepIndex >= flowSteps.length - 1;
@@ -108,18 +102,10 @@ export default function HrIncidentCreateWizard({ open, onClose, staff, onCreated
         if (!assetId.trim()) return 'Asset ID is required for theft/fraud.';
         if (!location.trim()) return 'Location is required for theft/fraud.';
       }
-      return true;
-    }
-    if (currentStep.id === 'involved') {
-      if (!activeParties.length) return true;
-      if (Math.abs(weightSum - 100) > 0.01) {
+      if (activeParties.length && Math.abs(weightSum - 100) > 0.01) {
         return `Responsibility weights must sum to 100% (current: ${weightSum.toFixed(1)}%).`;
       }
       return true;
-    }
-    if (currentStep.id === 'asset' && category === 'hr' && caseType === 'theft_fraud') {
-      if (!assetId.trim()) return 'Asset ID is required for theft/fraud.';
-      if (!location.trim()) return 'Location is required for theft/fraud.';
     }
     return true;
   };
@@ -284,101 +270,98 @@ export default function HrIncidentCreateWizard({ open, onClose, staff, onCreated
               <input type="number" className={`${HR_FIELD_CLASS} mt-1`} value={outputAboveTargetPct} onChange={(e) => setOutputAboveTargetPct(e.target.value)} placeholder="e.g. 40" />
             </label>
           ) : null}
-        </div>
-      ) : null}
 
-      {step.id === 'involved' ? (
-        <div className="space-y-3">
-          <p className="text-xs text-slate-500">
-            Add staff who share responsibility. Weights must total 100%. Skip this step if you will assign responsibility later on the case.
-          </p>
-          <div className="flex items-center justify-between gap-2">
-            <span className={`text-xs font-medium ${Math.abs(weightSum - 100) < 0.01 || !activeParties.length ? 'text-emerald-700' : 'text-amber-800'}`}>
-              Total: {weightSum.toFixed(1)}% {activeParties.length ? '(must equal 100%)' : '(optional)'}
-            </span>
-          </div>
-          {involvedParties.map((p, idx) => (
-            <div key={idx} className="grid gap-2 sm:grid-cols-4">
-              <select
-                className={HR_FIELD_CLASS}
-                value={p.userId}
-                onChange={(e) => {
-                  const v = e.target.value;
-                  setInvolvedParties((prev) => prev.map((x, i) => (i === idx ? { ...x, userId: v } : x)));
-                }}
-              >
-                <option value="">Select staff…</option>
-                {(staff || []).map((s) => (
-                  <option key={s.userId} value={s.userId}>{s.displayName || s.userId}</option>
-                ))}
-              </select>
-              <select
-                className={HR_FIELD_CLASS}
-                value={p.role}
-                onChange={(e) => {
-                  const v = e.target.value;
-                  setInvolvedParties((prev) => prev.map((x, i) => (i === idx ? { ...x, role: v } : x)));
-                }}
-              >
-                {RESPONSIBILITY_ROLES.map((r) => (
-                  <option key={r.value} value={r.value}>{r.label}</option>
-                ))}
-              </select>
-              <input
-                type="number"
-                min={0}
-                max={100}
-                className={HR_FIELD_CLASS}
-                value={p.responsibilityWeight}
-                onChange={(e) => {
-                  const v = Number(e.target.value);
-                  setInvolvedParties((prev) => prev.map((x, i) => (i === idx ? { ...x, responsibilityWeight: v } : x)));
-                }}
-                placeholder="Weight %"
-              />
-              <select
-                className={HR_FIELD_CLASS}
-                value={p.contributionType}
-                onChange={(e) => {
-                  const v = e.target.value;
-                  setInvolvedParties((prev) => prev.map((x, i) => (i === idx ? { ...x, contributionType: v } : x)));
-                }}
-              >
-                {CONTRIBUTION_TYPES.map((c) => (
-                  <option key={c.value} value={c.value}>{c.label}</option>
-                ))}
-              </select>
+          {needsAssetStep ? (
+            <div className="rounded-xl border border-slate-100 bg-slate-50/80 p-3 space-y-3">
+              <p className="text-xs font-semibold text-slate-700">Asset & financial loss (optional)</p>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label className="block text-sm font-medium text-slate-700">
+                  Asset ID
+                  <input className={`${HR_FIELD_CLASS} mt-1`} value={assetId} onChange={(e) => setAssetId(e.target.value)} placeholder="PUMP-FACT-002" />
+                </label>
+                <label className="block text-sm font-medium text-slate-700">
+                  Loss value (NGN)
+                  <input type="number" className={`${HR_FIELD_CLASS} mt-1`} value={lossValueNgn} onChange={(e) => setLossValueNgn(e.target.value)} placeholder="700000" />
+                </label>
+                <label className="block text-sm font-medium text-slate-700">
+                  Location
+                  <input className={`${HR_FIELD_CLASS} mt-1`} value={location} onChange={(e) => setLocation(e.target.value)} placeholder="factory store" />
+                </label>
+                <label className="block text-sm font-medium text-slate-700">
+                  Shift
+                  <input className={`${HR_FIELD_CLASS} mt-1`} value={shift} onChange={(e) => setShift(e.target.value)} placeholder="night shift" />
+                </label>
+              </div>
             </div>
-          ))}
-          <div className="flex flex-wrap gap-2">
-            <button type="button" className={HR_BTN_SECONDARY} onClick={addParty}>Add party</button>
-            <button type="button" className={HR_BTN_SECONDARY} onClick={splitEvenly} disabled={!activeParties.length}>
-              Split evenly
-            </button>
-          </div>
-        </div>
-      ) : null}
+          ) : null}
 
-      {step.id === 'asset' ? (
-        <div className="space-y-3">
-          <label className="block text-sm font-medium text-slate-700">
-            Asset ID
-            <input className={`${HR_FIELD_CLASS} mt-1`} value={assetId} onChange={(e) => setAssetId(e.target.value)} placeholder="PUMP-FACT-002" />
-          </label>
-          <label className="block text-sm font-medium text-slate-700">
-            Loss value (NGN)
-            <input type="number" className={`${HR_FIELD_CLASS} mt-1`} value={lossValueNgn} onChange={(e) => setLossValueNgn(e.target.value)} placeholder="700000" />
-          </label>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <label className="block text-sm font-medium text-slate-700">
-              Location
-              <input className={`${HR_FIELD_CLASS} mt-1`} value={location} onChange={(e) => setLocation(e.target.value)} placeholder="factory store" />
-            </label>
-            <label className="block text-sm font-medium text-slate-700">
-              Shift
-              <input className={`${HR_FIELD_CLASS} mt-1`} value={shift} onChange={(e) => setShift(e.target.value)} placeholder="night shift" />
-            </label>
-          </div>
+          {needsInvolvedStep ? (
+            <div className="rounded-xl border border-slate-100 bg-slate-50/80 p-3 space-y-3">
+              <p className="text-xs font-semibold text-slate-700">Shared responsibility (optional — or assign later on the case)</p>
+              <span className={`text-xs font-medium ${Math.abs(weightSum - 100) < 0.01 || !activeParties.length ? 'text-emerald-700' : 'text-amber-800'}`}>
+                Total: {weightSum.toFixed(1)}% {activeParties.length ? '(must equal 100%)' : ''}
+              </span>
+              {involvedParties.map((p, idx) => (
+                <div key={idx} className="grid gap-2 sm:grid-cols-4">
+                  <select
+                    className={HR_FIELD_CLASS}
+                    value={p.userId}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      setInvolvedParties((prev) => prev.map((x, i) => (i === idx ? { ...x, userId: v } : x)));
+                    }}
+                  >
+                    <option value="">Select staff…</option>
+                    {(staff || []).map((s) => (
+                      <option key={s.userId} value={s.userId}>{s.displayName || s.userId}</option>
+                    ))}
+                  </select>
+                  <select
+                    className={HR_FIELD_CLASS}
+                    value={p.role}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      setInvolvedParties((prev) => prev.map((x, i) => (i === idx ? { ...x, role: v } : x)));
+                    }}
+                  >
+                    {RESPONSIBILITY_ROLES.map((r) => (
+                      <option key={r.value} value={r.value}>{r.label}</option>
+                    ))}
+                  </select>
+                  <input
+                    type="number"
+                    min={0}
+                    max={100}
+                    className={HR_FIELD_CLASS}
+                    value={p.responsibilityWeight}
+                    onChange={(e) => {
+                      const v = Number(e.target.value);
+                      setInvolvedParties((prev) => prev.map((x, i) => (i === idx ? { ...x, responsibilityWeight: v } : x)));
+                    }}
+                    placeholder="Weight %"
+                  />
+                  <select
+                    className={HR_FIELD_CLASS}
+                    value={p.contributionType}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      setInvolvedParties((prev) => prev.map((x, i) => (i === idx ? { ...x, contributionType: v } : x)));
+                    }}
+                  >
+                    {CONTRIBUTION_TYPES.map((c) => (
+                      <option key={c.value} value={c.value}>{c.label}</option>
+                    ))}
+                  </select>
+                </div>
+              ))}
+              <div className="flex flex-wrap gap-2">
+                <button type="button" className={HR_BTN_SECONDARY} onClick={addParty}>Add party</button>
+                <button type="button" className={HR_BTN_SECONDARY} onClick={splitEvenly} disabled={!activeParties.length}>
+                  Split evenly
+                </button>
+              </div>
+            </div>
+          ) : null}
         </div>
       ) : null}
 

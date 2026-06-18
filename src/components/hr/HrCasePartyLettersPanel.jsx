@@ -10,6 +10,7 @@ import {
   submitHrLetter,
 } from '../../lib/hrExtended';
 import { HrCard } from './hrPageUi';
+import { HR_BTN_SECONDARY } from './hrFormStyles';
 
 function statusTone(status) {
   const s = String(status || '').toLowerCase();
@@ -154,6 +155,26 @@ export default function HrCasePartyLettersPanel({ detail, canManage, canApprove,
 
   if (!letters.length) return null;
 
+  const draftRequired = requiredLetters.filter((l) => ['draft', 'rejected'].includes(String(l.status || '')));
+
+  const submitAllDrafts = async () => {
+    if (!canManage || !draftRequired.length) return;
+    setErr('');
+    setMsg('');
+    setBusyId('batch');
+    for (const letter of draftRequired) {
+      const result = await submitHrLetter(letter.id);
+      if (!result?.ok) {
+        setBusyId('');
+        setErr(result?.error || `Failed to submit ${letter.id}`);
+        return;
+      }
+    }
+    setBusyId('');
+    setMsg(`Submitted ${draftRequired.length} letter(s) for approval.`);
+    onUpdated?.();
+  };
+
   const run = async (letterId, action) => {
     setBusyId(letterId);
     setMsg('');
@@ -203,6 +224,16 @@ export default function HrCasePartyLettersPanel({ detail, canManage, canApprove,
           </Link>
           . Approve each recovery letter, then HR issues it.
         </p>
+      ) : null}
+      {canManage && draftRequired.length > 1 ? (
+        <button
+          type="button"
+          disabled={busyId === 'batch'}
+          className={`mb-3 ${HR_BTN_SECONDARY}`}
+          onClick={submitAllDrafts}
+        >
+          {busyId === 'batch' ? 'Submitting…' : `Submit all ${draftRequired.length} drafts for review`}
+        </button>
       ) : null}
       {requiredLetters.length ? (
         <div className="mb-4">

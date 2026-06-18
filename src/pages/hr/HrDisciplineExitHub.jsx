@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { useHrUrlTab } from '../../hooks/useHrUrlTab';
 import { canManageHrDiscipline, canApproveHrLetters } from '../../lib/hrAccess';
@@ -10,29 +10,24 @@ import HrDiscipline from './HrDiscipline';
 import HrTransfers from './HrTransfers';
 import TeamHrIncidents from './TeamHrIncidents';
 import HrDisciplineCasesPanel from '../../components/hr/HrDisciplineCasesPanel';
-import HrGatePassLogPanel from '../../components/hr/HrGatePassLogPanel';
-import HrPerformanceRecognitionPanel from '../../components/hr/HrPerformanceRecognitionPanel';
 import HrIncidentRegistryPanel from '../../components/hr/HrIncidentRegistryPanel';
 import HrAccountabilityOverview from '../../components/hr/HrAccountabilityOverview';
 import HrAccountabilityMemoQueue from '../../components/hr/HrAccountabilityMemoQueue';
 import HrDisciplinePlaybookPanel from '../../components/hr/HrDisciplinePlaybookPanel';
 import HrLetterApprovalBanner from '../../components/hr/HrLetterApprovalBanner';
+import { HrGrievanceForm, HrGrievanceQueue } from '../../components/hr/HrGrievancePanels';
 
-/** Two top-level areas — cases/incidents/grievances vs exit movement. */
 const TABS = [
   { id: 'accountability', label: 'Cases & incidents' },
   { id: 'exit', label: 'Exit & transfers' },
 ];
 
+/** Primary views only — secondary tools linked below. */
 const CASE_VIEWS = [
   { id: 'cases', label: 'Cases' },
-  { id: 'playbook', label: 'Discipline guide' },
+  { id: 'registry', label: 'Registry' },
   { id: 'memos', label: 'Memos' },
   { id: 'grievances', label: 'Grievances' },
-  { id: 'registry', label: 'Registry' },
-  { id: 'performance', label: 'Performance' },
-  { id: 'gate-pass', label: 'Gate pass' },
-  { id: 'history', label: 'Old log' },
 ];
 
 const EXIT_VIEWS = [
@@ -53,11 +48,15 @@ const LEGACY_TAB_ALIASES = {
 
 const LEGACY_VIEW_FROM_TAB = {
   incidents: 'memos',
-  discipline: 'history',
+  discipline: 'cases',
   grievances: 'grievances',
   transfers: 'transfers',
   separations: 'separations',
   'exit-clearance': 'clearance',
+  playbook: 'cases',
+  performance: 'cases',
+  'gate-pass': 'cases',
+  history: 'cases',
 };
 
 function SubViewPills({ views, active, onChange }) {
@@ -89,6 +88,7 @@ export default function HrDisciplineExitHub() {
   const resolvedTab = LEGACY_TAB_ALIASES[rawTab] || rawTab;
   const [caseView, setCaseView] = useState('cases');
   const [exitView, setExitView] = useState('transfers');
+  const [showPlaybook, setShowPlaybook] = useState(false);
   const memoId = searchParams.get('memoId') || '';
   const registryId = searchParams.get('registryId') || '';
   const viewParam = searchParams.get('view') || '';
@@ -120,8 +120,8 @@ export default function HrDisciplineExitHub() {
         setCaseView('registry');
         return;
       }
-      if (viewParam && CASE_VIEWS.some((v) => v.id === viewParam)) {
-        setCaseView(viewParam);
+      if (viewParam && (CASE_VIEWS.some((v) => v.id === viewParam) || LEGACY_VIEW_FROM_TAB[viewParam])) {
+        setCaseView(LEGACY_VIEW_FROM_TAB[viewParam] || viewParam);
         return;
       }
       if (memoId && canManage) {
@@ -135,6 +135,7 @@ export default function HrDisciplineExitHub() {
 
   const setCaseViewAndUrl = (viewId) => {
     setCaseView(viewId);
+    setShowPlaybook(false);
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
       next.set('tab', 'accountability');
@@ -165,17 +166,13 @@ export default function HrDisciplineExitHub() {
   return (
     <HrTabbedPage
       title="Staff cases & exit"
-      description="Incidents, discipline, grievances, transfers, and leavers — two tabs for a small team."
+      description="Formal discipline cases use a simple 4-step flow: Intake → Investigate → Sanction → Close."
       tabs={TABS}
       tab={resolvedTab}
       onTabChange={(next) => setTab(next)}
     >
       {resolvedTab === 'accountability' ? (
         <div className="space-y-5">
-          <p className="text-sm text-slate-600">
-            Team <strong>memos</strong>, formal <strong>cases</strong>, and employee <strong>grievances</strong> live here.
-            Escalate memos into cases when needed; use the old log for pre-system history only.
-          </p>
           <HrLetterApprovalBanner canApprove={canApproveLetters} />
           <HrAccountabilityOverview
             canManage={canManage}
@@ -197,7 +194,6 @@ export default function HrDisciplineExitHub() {
           ) : null}
           <SubViewPills views={CASE_VIEWS} active={caseView} onChange={setCaseViewAndUrl} />
           {caseView === 'cases' ? <HrDisciplineCasesPanel /> : null}
-          {caseView === 'playbook' ? <HrDisciplinePlaybookPanel /> : null}
           {caseView === 'memos' ? (
             <TeamHrIncidents focusMemoId={memoId} onFocusHandled={() => clearSearchParam('memoId')} />
           ) : null}
@@ -208,25 +204,34 @@ export default function HrDisciplineExitHub() {
               onFocusHandled={() => clearSearchParam('registryId')}
             />
           ) : null}
-          {caseView === 'performance' ? <HrPerformanceRecognitionPanel /> : null}
-          {caseView === 'gate-pass' ? <HrGatePassLogPanel canManage={canManage} /> : null}
-          {caseView === 'history' ? <HrDiscipline embedded /> : null}
           {caseView === 'grievances' ? (
             <div className="space-y-6">
-              <p className="text-sm text-slate-600">
-                Complaints and mediation — not the same as a formal discipline case, but handled on this screen.
-              </p>
+              <p className="text-sm text-slate-600">Employee complaints — separate from formal discipline cases.</p>
               <HrGrievanceQueue />
               <HrGrievanceForm />
             </div>
           ) : null}
+          <div className="flex flex-wrap gap-3 text-xs text-slate-500 pt-2 border-t border-slate-100">
+            <button
+              type="button"
+              className="font-semibold text-teal-800 hover:underline"
+              onClick={() => setShowPlaybook((v) => !v)}
+            >
+              {showPlaybook ? 'Hide discipline guide' : 'Discipline guide'}
+            </button>
+            <Link to="/hr/discipline-exit?tab=accountability&view=history" className="font-semibold text-teal-800 hover:underline">
+              Old discipline log
+            </Link>
+          </div>
+          {showPlaybook ? <HrDisciplinePlaybookPanel /> : null}
+          {viewParam === 'history' ? <HrDiscipline embedded /> : null}
         </div>
       ) : null}
 
       {resolvedTab === 'exit' ? (
         <div className="space-y-5">
           <p className="text-sm text-slate-600">
-            Staff movement and leaving: recommend or approve transfers, record separations, then run exit clearance.
+            Staff movement and leaving: transfers, separations, then exit clearance.
           </p>
           <SubViewPills
             views={EXIT_VIEWS}

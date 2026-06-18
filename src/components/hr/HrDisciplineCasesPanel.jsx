@@ -33,19 +33,14 @@ import {
   AppTableTr,
   AppTableWrap,
 } from '../ui/AppDataTable';
-import HrCaseResponsibilityPanel from './HrCaseResponsibilityPanel';
-import HrCaseClosureChecklist from './HrCaseClosureChecklist';
 import HrIncidentCreateWizard from './HrIncidentCreateWizard';
-import HrIncidentAuditPackPanel from './HrIncidentAuditPackPanel';
-import HrAssetCustodyPanel from './HrAssetCustodyPanel';
-import HrAccountabilityStageBar from './HrAccountabilityStageBar';
-import HrCaseAssetLinkPanel from './HrCaseAssetLinkPanel';
-import HrCaseRecoveryPanel from './HrCaseRecoveryPanel';
-import HrCaseAttendancePanel from './HrCaseAttendancePanel';
-import HrCasePartyLettersPanel from './HrCasePartyLettersPanel';
+import HrAccountabilityPhaseBar from './HrAccountabilityPhaseBar';
+import HrCaseInvestigatePhase from './HrCaseInvestigatePhase';
+import HrCaseSanctionPhase from './HrCaseSanctionPhase';
+import HrCaseClosePhase from './HrCaseClosePhase';
 import HrDisciplineCaseNextSteps from './HrDisciplineCaseNextSteps';
 import { fetchCaseClosureCheck, fetchCaseResponsibility } from '../../lib/hrIncidents';
-import { inferAccountabilityStage } from '../../lib/hrAccountabilityStageProgress';
+import { inferAccountabilityPhase } from '../../lib/hrAccountabilityStageProgress';
 
 function StatusPill({ status }) {
   const m = statusMeta(status);
@@ -67,7 +62,7 @@ function CaseDetailModal({ caseId, onClose, onUpdated, canManage, canApprove, ca
   const [detail, setDetail] = useState(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
-  const [activeStage, setActiveStage] = useState('report');
+  const [activePhase, setActivePhase] = useState('intake');
   const [responsibilityOk, setResponsibilityOk] = useState(false);
   const [responsibleUserIds, setResponsibleUserIds] = useState([]);
   const [recoveryCount, setRecoveryCount] = useState(0);
@@ -120,8 +115,8 @@ function CaseDetailModal({ caseId, onClose, onUpdated, canManage, canApprove, ca
     }
     if (nextDetail && !stageInitRef.current) {
       stageInitRef.current = true;
-      setActiveStage(
-        inferAccountabilityStage(nextDetail, {
+      setActivePhase(
+        inferAccountabilityPhase(nextDetail, {
           responsibilityOk: nextResponsibilityOk,
           recoveryCount: nextRecoveryCount,
           closureOk: nextClosureOk,
@@ -154,7 +149,7 @@ function CaseDetailModal({ caseId, onClose, onUpdated, canManage, canApprove, ca
 
   useEffect(() => {
     stageInitRef.current = false;
-    setActiveStage('report');
+    setActivePhase('intake');
   }, [caseId]);
 
   const runPatch = async (body) => {
@@ -171,30 +166,19 @@ function CaseDetailModal({ caseId, onClose, onUpdated, canManage, canApprove, ca
     return data.case;
   };
 
-  const saveWorkflow = async () => {
+  const saveInvestigation = async () => {
     const body = {};
     if (workflow.employeeResponse.trim()) body.employeeResponse = workflow.employeeResponse.trim();
     if (workflow.investigationFindings.trim()) body.investigationFindings = workflow.investigationFindings.trim();
     if (workflow.hrRecommendation.trim()) body.hrRecommendation = workflow.hrRecommendation.trim();
-    if (workflow.managementDecision.trim()) body.managementDecision = workflow.managementDecision.trim();
-    if (workflow.sanction.trim()) body.sanction = workflow.sanction.trim();
     if (!Object.keys(body).length) {
-      setErr('Enter at least one workflow field to save.');
+      setErr('Enter at least investigation findings or employee response + HR recommendation.');
       return;
     }
     await runPatch(body);
   };
 
-  const recordManagementDecision = async () => {
-    if (!workflow.managementDecision.trim()) {
-      setErr('Enter a management decision before recording.');
-      return;
-    }
-    await runPatch({
-      managementDecision: workflow.managementDecision.trim(),
-      sanction: workflow.sanction.trim(),
-    });
-  };
+  const resolveAppeal = (outcome) => runPatch({ action: 'resolve_appeal', appealOutcome: outcome });
 
   const addEvidence = async () => {
     if (evidenceDesc.trim().length < 3) return;
@@ -274,13 +258,13 @@ function CaseDetailModal({ caseId, onClose, onUpdated, canManage, canApprove, ca
           ) : null}
         </div>
 
-        <HrAccountabilityStageBar
+        <HrAccountabilityPhaseBar
           detail={detail}
           responsibilityOk={responsibilityOk}
           recoveryCount={recoveryCount}
           closureOk={closureOk}
-          activeStage={activeStage}
-          onStageClick={setActiveStage}
+          activePhase={activePhase}
+          onPhaseClick={setActivePhase}
         />
 
         <HrDisciplineCaseNextSteps
@@ -288,180 +272,79 @@ function CaseDetailModal({ caseId, onClose, onUpdated, canManage, canApprove, ca
           blockers={closureBlockers}
           canManage={canManage}
           canApprove={canApprove}
-          onGoToClose={() => setActiveStage('close')}
+          onGoToSanction={() => setActivePhase('sanction')}
+          onGoToClose={() => setActivePhase('close')}
         />
 
-        {activeStage === 'report' ? (
-          <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600">
-            <p className="font-semibold text-slate-800 mb-1">Case summary</p>
+        {activePhase === 'intake' ? (
+          <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600 space-y-2">
+            <p className="font-semibold text-slate-800">What happened</p>
             <p>
-              Use the stage tabs above to work through investigation, evidence, responsibility, asset link, decision,
-              and closure. The case opens on the first incomplete stage.
+              This case follows <strong>4 steps</strong>: Intake → Investigate → Sanction → Close. Work left to right;
+              green ticks show what is done.
             </p>
-            {detail.managementDecision ? (
-              <p className="mt-2 text-xs">
-                <span className="font-semibold">Management decision on file:</span> {detail.managementDecision}
-                {detail.decisionType ? ` · structured type: ${detail.decisionType}` : ''}
-              </p>
+            <ol className="text-xs list-decimal list-inside space-y-1 text-slate-700">
+              <li><strong>Investigate</strong> — notes, evidence, who is responsible, asset/loss</li>
+              <li><strong>Sanction</strong> — one button applies management decision + payroll/letters</li>
+              <li><strong>Close</strong> — issue letters, then close when checklist is green</li>
+            </ol>
+            {canManage ? (
+              <button type="button" className={HR_BTN_PRIMARY} onClick={() => setActivePhase('investigate')}>
+                Start investigation →
+              </button>
             ) : null}
           </div>
         ) : null}
 
-        {activeStage === 'investigate' && canManage ? (
-          <HrCard title="Workflow actions" subtitle="Advance the case through HR process">
-            {(detail.appeals || []).length ? (
-              <div className="mb-4 rounded-lg border border-violet-100 bg-violet-50/50 p-3 text-sm">
-                <p className="text-xs font-bold uppercase text-violet-800 mb-2">Appeals</p>
-                <ul className="space-y-2">
-                  {(detail.appeals || []).map((a) => (
-                    <li key={a.id} className="text-slate-800">
-                      <span className="font-semibold capitalize">{a.status || 'pending'}</span>
-                      {a.filedAtIso ? ` · ${a.filedAtIso.slice(0, 10)}` : ''}
-                      <p className="text-slate-600 whitespace-pre-wrap mt-1">{a.grounds}</p>
-                      {a.outcome ? <p className="text-xs text-violet-900 mt-1">Outcome: {a.outcome}</p> : null}
-                    </li>
-                  ))}
-                </ul>
-                {detail.appealStatus === 'pending' ? (
-                  <div className="flex flex-wrap gap-2 mt-3">
-                    <button
-                      type="button"
-                      disabled={busy}
-                      className={HR_BTN_SECONDARY}
-                      onClick={() => runPatch({ action: 'resolve_appeal', appealOutcome: 'upheld' })}
-                    >
-                      Uphold appeal
-                    </button>
-                    <button
-                      type="button"
-                      disabled={busy}
-                      className={HR_BTN_SECONDARY}
-                      onClick={() => runPatch({ action: 'resolve_appeal', appealOutcome: 'rejected' })}
-                    >
-                      Reject appeal
-                    </button>
-                  </div>
-                ) : null}
-              </div>
-            ) : null}
-            <p className="mb-3 text-xs text-slate-600 rounded-lg bg-slate-50 border border-slate-100 p-2">
-              <strong>Step 1 — narrative:</strong> Save investigation notes here.{' '}
-              <strong>Step 2 — payroll:</strong> After management approves, go to stage <em>6. Decision</em> or{' '}
-              <em>8. Close</em> and use <em>Apply decision</em> to create recovery schedules and letters. Recording
-              management decision here alone does not trigger payroll.
-            </p>
-            <div className="space-y-3">
-              <label className="block text-xs font-semibold text-slate-600">
-                Employee response
-                <textarea className={`${HR_FIELD_CLASS} min-h-[72px] mt-1`} value={workflow.employeeResponse} onChange={(e) => setWorkflow({ ...workflow, employeeResponse: e.target.value })} />
-              </label>
-              <label className="block text-xs font-semibold text-slate-600">
-                Investigation findings
-                <textarea className={`${HR_FIELD_CLASS} min-h-[72px] mt-1`} value={workflow.investigationFindings} onChange={(e) => setWorkflow({ ...workflow, investigationFindings: e.target.value })} />
-              </label>
-              <label className="block text-xs font-semibold text-slate-600">
-                HR recommendation
-                <textarea className={`${HR_FIELD_CLASS} min-h-[72px] mt-1`} value={workflow.hrRecommendation} onChange={(e) => setWorkflow({ ...workflow, hrRecommendation: e.target.value })} />
-              </label>
-              <label className="block text-xs font-semibold text-slate-600">
-                Management decision
-                <textarea className={`${HR_FIELD_CLASS} min-h-[72px] mt-1`} value={workflow.managementDecision} onChange={(e) => setWorkflow({ ...workflow, managementDecision: e.target.value })} placeholder="e.g. Salary deduction per responsibility map" />
-              </label>
-              <label className="block text-xs font-semibold text-slate-600">
-                Sanction
-                <input className={HR_FIELD_CLASS} value={workflow.sanction} onChange={(e) => setWorkflow({ ...workflow, sanction: e.target.value })} placeholder="e.g. Written warning + recovery" />
-              </label>
-              <div className="flex flex-wrap gap-2">
-                <button type="button" disabled={busy} className={HR_BTN_SECONDARY} onClick={() => runPatch({ action: 'request_employee_response' })}>Request response</button>
-                <button type="button" disabled={busy} className={HR_BTN_SECONDARY} onClick={() => runPatch({ action: 'start_investigation' })}>Start investigation</button>
-                <button type="button" disabled={busy} className={HR_BTN_SECONDARY} onClick={saveWorkflow}>Save workflow progress</button>
-                <button type="button" disabled={busy || !workflow.managementDecision.trim()} className={HR_BTN_PRIMARY} onClick={recordManagementDecision}>Record management decision</button>
-              </div>
-            </div>
-          </HrCard>
-        ) : null}
-
-        {activeStage === 'investigate' && detail.branchId && detail.incidentDateIso ? (
-          <HrCaseAttendancePanel
-            branchId={detail.branchId}
-            dayIso={detail.incidentDateIso}
-            userIds={[
-              detail.userId,
-              ...(detail.meta?.involvedStaffIds || []),
-              ...responsibleUserIds,
-            ].filter(Boolean)}
+        {activePhase === 'investigate' ? (
+          <HrCaseInvestigatePhase
+            caseId={caseId}
+            detail={detail}
+            canManage={canManage}
+            busy={busy}
+            workflow={workflow}
+            setWorkflow={setWorkflow}
+            onSaveInvestigation={saveInvestigation}
+            onRequestResponse={() => runPatch({ action: 'request_employee_response' })}
+            onStartInvestigation={() => runPatch({ action: 'start_investigation' })}
+            evidenceDesc={evidenceDesc}
+            setEvidenceDesc={setEvidenceDesc}
+            onAddEvidence={addEvidence}
+            witnessForm={witnessForm}
+            setWitnessForm={setWitnessForm}
+            onAddWitness={addWitness}
+            responsibilityOk={responsibilityOk}
+            responsibleUserIds={responsibleUserIds}
+            onSaved={load}
+            onResolveAppeal={resolveAppeal}
           />
         ) : null}
 
-        {activeStage === 'responsibility' ? (
-          <HrCaseResponsibilityPanel caseId={caseId} canManage={canManage} onSaved={load} />
-        ) : null}
-
-        {activeStage === 'asset' ? (
-          <>
-            <HrCaseAssetLinkPanel caseId={caseId} detail={detail} canManage={canManage} onSaved={load} />
-            <HrAssetCustodyPanel assetId={detail.assetId} machineId={detail.machineId} canManage={canManage} />
-          </>
-        ) : null}
-
-        {(activeStage === 'decision' || activeStage === 'close') && canManage ? (
-          <HrCaseRecoveryPanel caseId={caseId} detail={detail} canManage={canManage} onUpdated={load} />
-        ) : null}
-
-        {(activeStage === 'decision' || activeStage === 'close' || activeStage === 'report') &&
-        (canManage || canApprove) &&
-        (detail.relatedLetters?.length || detail.relatedLetterIds?.length) ? (
-          <HrCasePartyLettersPanel
+        {activePhase === 'sanction' ? (
+          <HrCaseSanctionPhase
+            caseId={caseId}
             detail={detail}
             canManage={canManage}
             canApprove={canApprove}
+            recoveryCount={recoveryCount}
             onUpdated={load}
+            workflow={workflow}
+            setWorkflow={setWorkflow}
           />
         ) : null}
 
-        {(activeStage === 'decision' || activeStage === 'close') && canManage ? (
-          <HrCaseClosureChecklist
+        {activePhase === 'close' ? (
+          <HrCaseClosePhase
             caseId={caseId}
-            canManage={canManage}
             detail={detail}
+            canManage={canManage}
+            canApprove={canApprove}
             recoveryCount={recoveryCount}
             onUpdated={load}
           />
         ) : null}
 
-        {activeStage === 'audit' ? (
-          <HrIncidentAuditPackPanel registryId={detail.registryId} caseId={caseId} />
-        ) : null}
-
-        {(activeStage === 'evidence' || activeStage === 'investigate') && canManage ? (
-          <>
-            <HrCard title="Evidence" subtitle="Document links and descriptions">
-              <ul className="mb-3 space-y-1 text-sm">
-                {(detail.evidence || []).map((e) => (
-                  <li key={e.id} className="text-slate-700">• {e.description}</li>
-                ))}
-              </ul>
-              <div className="flex gap-2">
-                <input className={HR_FIELD_CLASS} placeholder="Evidence description" value={evidenceDesc} onChange={(e) => setEvidenceDesc(e.target.value)} />
-                <button type="button" disabled={busy} className={HR_BTN_SECONDARY} onClick={addEvidence}>Add</button>
-              </div>
-            </HrCard>
-            <HrCard title="Witnesses" subtitle="Witness statements">
-              <ul className="mb-3 space-y-1 text-sm">
-                {(detail.witnesses || []).map((w) => (
-                  <li key={w.id} className="text-slate-700"><strong>{w.witnessName}</strong> — {w.statement || w.witnessRole || '—'}</li>
-                ))}
-              </ul>
-              <div className="grid gap-2 sm:grid-cols-3">
-                <input className={HR_FIELD_CLASS} placeholder="Name" value={witnessForm.witnessName} onChange={(e) => setWitnessForm({ ...witnessForm, witnessName: e.target.value })} />
-                <input className={HR_FIELD_CLASS} placeholder="Role" value={witnessForm.witnessRole} onChange={(e) => setWitnessForm({ ...witnessForm, witnessRole: e.target.value })} />
-                <button type="button" disabled={busy} className={HR_BTN_SECONDARY} onClick={addWitness}>Add witness</button>
-              </div>
-            </HrCard>
-          </>
-        ) : null}
-
-        <HrCard title="Timeline" subtitle="Audit events for this case">
+        <HrCard title="Timeline" subtitle="Audit trail">
           <ul className="space-y-2 text-sm">
             {(detail.events || []).map((ev) => (
               <li key={ev.id} className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-2">
@@ -473,8 +356,8 @@ function CaseDetailModal({ caseId, onClose, onUpdated, canManage, canApprove, ca
           </ul>
         </HrCard>
 
-        {canLetter ? (
-          <HrCard title="Letters" subtitle="Generate linked discipline letters">
+        {canLetter && activePhase === 'sanction' ? (
+          <HrCard title="Extra letters" subtitle="Optional — query, warning, suspension outside recovery letters">
             <div className="flex flex-wrap gap-2">
               <button type="button" className={HR_BTN_SECONDARY} onClick={() => issueLetter('query')}>Query letter</button>
               <button type="button" className={HR_BTN_SECONDARY} onClick={() => issueLetter('warning')}>Warning</button>
@@ -639,10 +522,7 @@ export default function HrDisciplineCasesPanel() {
           </select>
         </label>
         {canManage ? (
-          <>
-            <HrAddFormButton onClick={() => setWizardOpen(true)}>New incident</HrAddFormButton>
-            <HrAddFormButton onClick={() => setCreateOpen(true)}>Open case</HrAddFormButton>
-          </>
+          <HrAddFormButton onClick={() => setWizardOpen(true)}>New incident</HrAddFormButton>
         ) : null}
       </div>
 
