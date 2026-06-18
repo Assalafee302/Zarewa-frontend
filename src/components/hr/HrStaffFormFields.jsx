@@ -21,7 +21,7 @@ import { HrCompensationExtrasPanel } from './HrCompensationExtrasPanel';
 import { HrManagerPicker } from './HrManagerPicker';
 import { FAMILY_BENEFITS } from '../../lib/familyBenefitsUi';
 import { apiFetch } from '../../lib/apiBase';
-import { isBranchEmployee, isErpAccessRestrictedPayrollGroup } from '../../shared/hrStaffCohorts';
+import { isBranchEmployee, isBeneficiaryOnlyPayrollGroup, isErpAccessRestrictedPayrollGroup, payrollGroupMayHaveLogin } from '../../shared/hrStaffCohorts';
 
 const fieldCls =
   'mt-1 block w-full rounded-xl border border-slate-200 px-3 py-2 text-sm shadow-sm focus:border-[#134e4a] focus:outline-none focus:ring-2 focus:ring-[#134e4a]/15';
@@ -124,7 +124,13 @@ export function HrStaffFormFields({
 
   const visibleTabs = HR_STAFF_FORM_TABS.filter((t) => showCompensation || !['payroll', 'bank', 'statutory'].includes(t.id));
   const isRegister = mode === 'register';
+  const beneficiaryOnly = isBeneficiaryOnlyPayrollGroup(form.payrollGroup);
   const erpRestricted = isErpAccessRestrictedPayrollGroup(form.payrollGroup);
+  const payrollGroupOptions = useMemo(
+    () =>
+      isRegister ? HR_PAYROLL_GROUPS.filter((g) => payrollGroupMayHaveLogin(g.value)) : HR_PAYROLL_GROUPS,
+    [isRegister]
+  );
   const registerableRoles = useMemo(
     () =>
       erpRestricted
@@ -345,7 +351,7 @@ export function HrStaffFormFields({
               </select>
               {erpRestricted ? (
                 <p className="mt-1 text-[11px] text-amber-800">
-                  Domestic, scholarship, and mining staff cannot access sales, finance, or operations — HR portal only.
+                  Mining division staff cannot access sales, finance, or operations — HR portal and My Profile only.
                 </p>
               ) : null}
             </Field>
@@ -709,12 +715,21 @@ export function HrStaffFormFields({
                   }));
                 }}
               >
-                {HR_PAYROLL_GROUPS.map((g) => (
+                {payrollGroupOptions.map((g) => (
                   <option key={g.value} value={g.value}>
                     {g.label}
                   </option>
                 ))}
               </select>
+              {isRegister ? (
+                <span className="mt-1 block font-normal text-slate-400">
+                  Executive family and household staff are registered in Chairman Accounts — not here.
+                </span>
+              ) : beneficiaryOnly ? (
+                <span className="mt-1 block font-normal text-amber-800">
+                  This payroll group does not use ERP logins. Manage the person in Chairman Accounts → Executive benefits.
+                </span>
+              ) : null}
             </Field>
             {form.payrollGroup === 'scholarship' ? (
               <div className="sm:col-span-2 rounded-2xl border border-violet-100 bg-violet-50/40 p-4 space-y-3">

@@ -14,6 +14,7 @@ import {
   ProfileFormField,
   ProfileFormSection,
   ProfilePageAnchors,
+  ProfileSubmitRequirements,
 } from './profileFormUi';
 import { ProfileLockedNotice, ProfileOnboardingStatus } from './ProfileOnboardingStatus';
 
@@ -530,25 +531,7 @@ export function ProfileOnboardingForm({ variant = 'page', onSubmitted }) {
 
   const missingBlock =
     validation.missing.length > 0 ? (
-      <div
-        className={`rounded-lg border px-3 py-2.5 text-xs ${
-          variant === 'modal'
-            ? 'border-amber-100 bg-amber-50/80 text-amber-950'
-            : 'border-slate-200 bg-slate-50 text-slate-600'
-        }`}
-      >
-        <p className="font-semibold text-slate-800">Required before submit</p>
-        <ul className="mt-1.5 flex flex-wrap gap-1.5">
-          {validation.missing.map((m) => (
-            <li
-              key={m.id}
-              className="rounded-md bg-white/80 px-2 py-0.5 text-[11px] font-medium text-slate-700 ring-1 ring-slate-200/80"
-            >
-              {m.label}
-            </li>
-          ))}
-        </ul>
-      </div>
+      <ProfileSubmitRequirements missing={validation.missing} variant={variant} />
     ) : null;
 
   const actionFooter = (
@@ -571,16 +554,18 @@ export function ProfileOnboardingForm({ variant = 'page', onSubmitted }) {
           Submit to HR
         </button>
       ) : (
-        <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center">
-          <p className="text-xs text-slate-600 sm:flex-1">
+        <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center">
+          <p className="text-xs leading-relaxed text-slate-600 sm:flex-1">
             After submit you cannot edit directly — only through HR-approved requests.
           </p>
-          <button type="button" onClick={() => setShowConfirmSubmit(false)} className={HR_BTN_SECONDARY}>
-            Cancel
-          </button>
-          <button type="button" disabled={submitBusy} onClick={() => void submit()} className={HR_BTN_PRIMARY}>
-            {submitBusy ? 'Submitting…' : 'Confirm submit'}
-          </button>
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+            <button type="button" onClick={() => setShowConfirmSubmit(false)} className={`${HR_BTN_SECONDARY} min-h-11 w-full sm:w-auto`}>
+              Cancel
+            </button>
+            <button type="button" disabled={submitBusy} onClick={() => void submit()} className={`${HR_BTN_PRIMARY} min-h-11 w-full sm:w-auto`}>
+              {submitBusy ? 'Submitting…' : 'Confirm submit'}
+            </button>
+          </div>
         </div>
       )}
     </ProfileFormActions>
@@ -588,7 +573,7 @@ export function ProfileOnboardingForm({ variant = 'page', onSubmitted }) {
 
   if (variant === 'modal') {
     return (
-      <div className="flex min-h-0 flex-1 flex-col">
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
         <div className="shrink-0 border-b border-slate-100 bg-slate-50/90 px-4 py-3 sm:px-6">
           <div className="flex items-center justify-between gap-3 text-xs">
             <span className="font-semibold text-slate-600">
@@ -606,11 +591,11 @@ export function ProfileOnboardingForm({ variant = 'page', onSubmitted }) {
 
         <ProfilePageAnchors items={ANCHORS} variant="modal" />
 
-        <div className="min-h-0 flex-1 space-y-3 overflow-y-auto custom-scrollbar bg-slate-50/40 px-4 py-4 sm:space-y-4 sm:px-6 sm:py-5">
+        <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain custom-scrollbar bg-slate-50/40 px-4 py-4 pb-6 sm:space-y-4 sm:px-6 sm:py-5">
           {formSections}
         </div>
 
-        <footer className="shrink-0 space-y-3 border-t border-slate-200 bg-white px-4 py-3 shadow-[0_-8px_24px_-12px_rgba(15,23,42,0.12)] sm:px-6 sm:py-4">
+        <footer className="shrink-0 space-y-3 border-t border-slate-200 bg-white px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-6 sm:py-4 sm:shadow-[0_-8px_24px_-12px_rgba(15,23,42,0.12)]">
           {missingBlock}
           {actionFooter}
         </footer>
@@ -619,19 +604,14 @@ export function ProfileOnboardingForm({ variant = 'page', onSubmitted }) {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
       <ProfileOnboardingStatus missingCount={validation.missing.length} />
       <ProfilePageAnchors items={ANCHORS} />
 
-      <div className="max-h-none space-y-4 overflow-visible sm:max-h-[calc(100vh-14rem)] sm:overflow-y-auto sm:pr-1 sm:[scrollbar-gutter:stable] custom-scrollbar">
-        {formSections}
-      </div>
+      <div className="space-y-4">{formSections}</div>
 
       {missingBlock}
-
-      <div className="sticky bottom-0 z-10 -mx-1 border-t border-slate-200 bg-[#F8FAFC]/95 px-1 py-3 backdrop-blur-md sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:px-0 sm:py-0">
-        {actionFooter}
-      </div>
+      {actionFooter}
     </div>
   );
 }

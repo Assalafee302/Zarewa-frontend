@@ -28,6 +28,8 @@ export function ModalFrame({
    * `plain` — transparent shell; child panel supplies border/shadow so there is a single card chrome.
    */
   surface = 'elevated',
+  /** Full viewport on small screens — profile forms, wizards. */
+  edgeToEdgeMobile = false,
 }) {
   const reduceMotion = useReducedMotion();
   const overlayTransition = reduceMotion ? { duration: 0 } : { duration: 0.3 };
@@ -56,7 +58,13 @@ export function ModalFrame({
               />
             </DialogPrimitive.Overlay>
             <DialogPrimitive.Content asChild>
-              <div className="fixed inset-0 z-[1060] flex items-start justify-center overflow-y-auto overscroll-y-contain px-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] pb-[max(2rem,env(safe-area-inset-bottom))] pt-[max(1.25rem,env(safe-area-inset-top))] outline-none sm:items-center sm:px-6 sm:py-12">
+              <div
+                className={
+                  edgeToEdgeMobile
+                    ? 'fixed inset-0 z-[1060] flex items-stretch justify-center overflow-hidden outline-none sm:items-center sm:overflow-y-auto sm:overscroll-y-contain sm:px-6 sm:py-12'
+                    : 'fixed inset-0 z-[1060] flex items-start justify-center overflow-y-auto overscroll-y-contain px-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] pb-[max(2rem,env(safe-area-inset-bottom))] pt-[max(1.25rem,env(safe-area-inset-top))] outline-none sm:items-center sm:px-6 sm:py-12'
+                }
+              >
                 <DialogPrimitive.Title className="sr-only">{title}</DialogPrimitive.Title>
                 <DialogPrimitive.Description className="sr-only">
                   {description ?? 'Modal dialog content.'}
@@ -66,7 +74,13 @@ export function ModalFrame({
                   animate={{ opacity: 1, scale: 1, y: 0 }}
                   exit={reduceMotion ? undefined : { opacity: 0, scale: 0.96, y: 10 }}
                   transition={contentTransition}
-                  className={surface === 'plain' ? PLAIN_SURFACE_CLASS : ELEVATED_SURFACE_CLASS}
+                  className={
+                    edgeToEdgeMobile && surface === 'plain'
+                      ? 'relative z-10 flex h-[100dvh] max-h-[100dvh] w-full max-w-none min-h-0 items-stretch justify-center outline-none sm:h-auto sm:max-h-[min(92dvh,960px)] sm:max-w-[min(1200px,calc(100dvw-1.5rem))]'
+                      : surface === 'plain'
+                        ? PLAIN_SURFACE_CLASS
+                        : ELEVATED_SURFACE_CLASS
+                  }
                 >
                   {showCloseButton ? (
                     <DialogPrimitive.Close asChild>

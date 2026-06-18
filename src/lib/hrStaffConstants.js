@@ -17,7 +17,7 @@ export const HR_EMPLOYMENT_TYPES = [
 
 /** System roles HR may assign when registering staff (excludes admin/md). */
 export const HR_REGISTERABLE_ROLES = [
-  { value: 'hr_portal_only', label: 'HR portal only (domestic / scholarship / mining)' },
+  { value: 'hr_portal_only', label: 'HR portal only (mining division)' },
   { value: 'sales_staff', label: 'Sales officer' },
   { value: 'sales_manager', label: 'Branch manager (sales)' },
   { value: 'cashier', label: 'Cashier' },

@@ -99,7 +99,7 @@ export function ProfilePageAnchors({ items, variant = 'page' }) {
   return (
     <nav
       aria-label="On this page"
-      className="sticky top-[var(--app-header-offset,0px)] z-20 mb-4 flex gap-1.5 overflow-x-auto rounded-xl border border-slate-200/80 bg-white p-1.5 shadow-sm [-webkit-overflow-scrolling:touch] [scrollbar-width:none] sm:flex-wrap sm:overflow-visible [&::-webkit-scrollbar]:hidden"
+      className="mb-4 flex gap-1.5 overflow-x-auto rounded-xl border border-slate-200/80 bg-white p-1.5 shadow-sm [-webkit-overflow-scrolling:touch] [scrollbar-width:none] sm:sticky sm:top-[var(--app-header-offset,0px)] sm:z-20 sm:flex-wrap sm:overflow-visible [&::-webkit-scrollbar]:hidden"
     >
       {items.map((item) => (
         <a
@@ -121,6 +121,39 @@ export function ProfileFormActions({ children, className = '' }) {
   return (
     <div className={`flex flex-col gap-2 border-t border-slate-100 pt-4 sm:flex-row sm:flex-wrap ${className}`}>
       {children}
+    </div>
+  );
+}
+
+/**
+ * Missing-field summary before submit — compact on phone, full chips on larger screens.
+ * @param {{ missing: { id: string; label: string }[]; variant?: 'page' | 'modal' }} props
+ */
+export function ProfileSubmitRequirements({ missing, variant = 'page' }) {
+  if (!missing?.length) return null;
+
+  const chipTone =
+    variant === 'modal'
+      ? 'border-amber-100 bg-amber-50/80 text-amber-950'
+      : 'border-slate-200 bg-slate-50 text-slate-600';
+
+  return (
+    <div className={`rounded-lg border px-3 py-2.5 text-xs ${chipTone}`}>
+      <p className="font-semibold text-slate-800">Required before submit</p>
+      <p className="mt-1 text-[11px] leading-relaxed text-slate-600 sm:hidden">
+        {missing.length} field{missing.length === 1 ? '' : 's'} still needed. Jump to a section above, then return
+        here to submit.
+      </p>
+      <ul className="mt-1.5 hidden max-h-28 flex-wrap gap-1.5 overflow-y-auto sm:flex">
+        {missing.map((m) => (
+          <li
+            key={m.id}
+            className="rounded-md bg-white/80 px-2 py-0.5 text-[11px] font-medium text-slate-700 ring-1 ring-slate-200/80"
+          >
+            {m.label}
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }

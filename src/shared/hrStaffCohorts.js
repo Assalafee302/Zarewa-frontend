@@ -13,11 +13,11 @@ export const HR_PAYROLL_GROUPS = {
 export const EMPLOYEE_DIRECTORY_GROUPS = [HR_PAYROLL_GROUPS.BRANCH_OPS];
 export const SCHOLARSHIP_GROUPS = [HR_PAYROLL_GROUPS.SCHOLARSHIP];
 export const DOMESTIC_GROUPS = [HR_PAYROLL_GROUPS.DOMESTIC];
-export const ERP_ACCESS_RESTRICTED_PAYROLL_GROUPS = [
-  HR_PAYROLL_GROUPS.MINING,
+export const BENEFICIARY_ONLY_PAYROLL_GROUPS = [
   HR_PAYROLL_GROUPS.SCHOLARSHIP,
   HR_PAYROLL_GROUPS.DOMESTIC,
 ];
+export const ERP_ACCESS_RESTRICTED_PAYROLL_GROUPS = [HR_PAYROLL_GROUPS.MINING];
 export const HQ_SPECIAL_GROUPS = [HR_PAYROLL_GROUPS.MINING, HR_PAYROLL_GROUPS.HQ_ADMIN];
 export const NON_BRANCH_PAYROLL_GROUPS = [
   HR_PAYROLL_GROUPS.MINING,
@@ -58,6 +58,14 @@ export function isScholarshipBeneficiary(payrollGroup) {
 
 export function isDomesticStaff(payrollGroup) {
   return normalizePayrollGroup(payrollGroup) === HR_PAYROLL_GROUPS.DOMESTIC;
+}
+
+export function isBeneficiaryOnlyPayrollGroup(payrollGroup) {
+  return BENEFICIARY_ONLY_PAYROLL_GROUPS.includes(normalizePayrollGroup(payrollGroup));
+}
+
+export function payrollGroupMayHaveLogin(payrollGroup) {
+  return !isBeneficiaryOnlyPayrollGroup(payrollGroup);
 }
 
 export function isErpAccessRestrictedPayrollGroup(payrollGroup) {
