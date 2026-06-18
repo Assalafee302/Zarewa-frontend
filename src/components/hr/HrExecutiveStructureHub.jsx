@@ -295,8 +295,7 @@ function RolesTermsManager({ canEdit }) {
         <AppTableWrap>
           <AppTable>
             <AppTableThead>
-              <AppTableTr>
-                <AppTableTh>Title</AppTableTh>
+              <AppTableTh>Title</AppTableTh>
                 <AppTableTh>Department</AppTableTh>
                 <AppTableTh>Grade</AppTableTh>
                 <AppTableTh>L / Step</AppTableTh>
@@ -305,7 +304,6 @@ function RolesTermsManager({ canEdit }) {
                 <AppTableTh align="right">Staff</AppTableTh>
                 <AppTableTh>Status</AppTableTh>
                 <AppTableTh>Actions</AppTableTh>
-              </AppTableTr>
             </AppTableThead>
             <AppTableBody>
               {filtered.map((r) => (
@@ -608,13 +606,11 @@ function DepartmentsManager({ canEdit }) {
         <AppTableWrap>
           <AppTable>
             <AppTableThead>
-              <AppTableTr>
-                <AppTableTh>Code</AppTableTh>
+              <AppTableTh>Code</AppTableTh>
                 <AppTableTh>Name</AppTableTh>
                 <AppTableTh>Scope</AppTableTh>
                 <AppTableTh>Status</AppTableTh>
                 {canEdit ? <AppTableTh>Actions</AppTableTh> : null}
-              </AppTableTr>
             </AppTableThead>
             <AppTableBody>
               {rows.map((r) => (
@@ -799,12 +795,10 @@ function SalaryMatrixManager({ canEdit }) {
           <AppTableWrap className="mb-6">
             <AppTable role="numeric">
               <AppTableThead>
-                <AppTableTr>
-                  <AppTableTh>Level</AppTableTh>
+                <AppTableTh>Level</AppTableTh>
                   {MATRIX_STEPS.map((s) => (
                     <AppTableTh key={s} align="right">Step {s} (total ₦)</AppTableTh>
                   ))}
-                </AppTableTr>
               </AppTableThead>
               <AppTableBody>
                 {levels.map((level) => (
@@ -846,15 +840,13 @@ function SalaryMatrixManager({ canEdit }) {
           <AppTableWrap>
             <AppTable role="numeric">
               <AppTableThead>
-                <AppTableTr>
-                  <AppTableTh>Level</AppTableTh>
+                <AppTableTh>Level</AppTableTh>
                   <AppTableTh>Step</AppTableTh>
                   <AppTableTh align="right">Base</AppTableTh>
                   <AppTableTh align="right">Housing</AppTableTh>
                   <AppTableTh align="right">Transport</AppTableTh>
                   <AppTableTh align="right">Total</AppTableTh>
                   {canEdit ? <AppTableTh /> : null}
-                </AppTableTr>
               </AppTableThead>
               <AppTableBody>
                 {groupRows.length === 0 ? (
@@ -956,12 +948,10 @@ function PayGradeLadderReference() {
       <AppTableWrap>
         <AppTable>
           <AppTableThead>
-            <AppTableTr>
-              <AppTableTh>Salary level</AppTableTh>
+            <AppTableTh>Salary level</AppTableTh>
               <AppTableTh>Grades</AppTableTh>
               <AppTableTh>Typical titles</AppTableTh>
               <AppTableTh>Leave band</AppTableTh>
-            </AppTableTr>
           </AppTableThead>
           <AppTableBody>
             {PAY_LADDER_LEVELS.map((row) => (

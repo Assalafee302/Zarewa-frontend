@@ -121,14 +121,12 @@ export default function HrLearning({ embedded = false } = {}) {
         <AppTableWrap>
           <AppTable>
             <AppTableThead>
-              <AppTableTr>
-                <AppTableTh>Title</AppTableTh>
+              <AppTableTh>Title</AppTableTh>
                 <AppTableTh>Category</AppTableTh>
                 <AppTableTh>Provider</AppTableTh>
                 <AppTableTh>Completed</AppTableTh>
                 <AppTableTh>Expires</AppTableTh>
                 <AppTableTh />
-              </AppTableTr>
             </AppTableThead>
             <AppTableBody>
               {!records.length ? (

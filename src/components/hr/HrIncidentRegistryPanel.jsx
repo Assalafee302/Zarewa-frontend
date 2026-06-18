@@ -111,15 +111,13 @@ export default function HrIncidentRegistryPanel({ onOpenCase, focusRegistryId, o
         <AppTableWrap>
           <AppTable>
             <AppTableThead>
-              <AppTableTr>
-                <AppTableTh>Registry ID</AppTableTh>
+              <AppTableTh>Registry ID</AppTableTh>
                 <AppTableTh>Kind</AppTableTh>
                 <AppTableTh>Summary</AppTableTh>
                 <AppTableTh>Severity</AppTableTh>
                 <AppTableTh>Status</AppTableTh>
                 <AppTableTh>Updated</AppTableTh>
                 <AppTableTh />
-              </AppTableTr>
             </AppTableThead>
             <AppTableBody>
               {rows.map((r) => {

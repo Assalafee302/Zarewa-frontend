@@ -55,13 +55,11 @@ export function HrSeparationsPanel({ onOpenClearance }) {
         <AppTableWrap>
           <AppTable>
             <AppTableThead>
-              <AppTableTr>
-                <AppTableTh>Staff</AppTableTh>
+              <AppTableTh>Staff</AppTableTh>
                 <AppTableTh>Type</AppTableTh>
                 <AppTableTh>Last working day</AppTableTh>
                 <AppTableTh>Status</AppTableTh>
                 <AppTableTh />
-              </AppTableTr>
             </AppTableThead>
             <AppTableBody>
               {clearances.map((c) => (

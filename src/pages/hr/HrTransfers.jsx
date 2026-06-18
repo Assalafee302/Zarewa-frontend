@@ -315,14 +315,12 @@ export default function HrTransfers({ embedded = false } = {}) {
           <AppTableWrap>
             <AppTable>
               <AppTableThead>
-                <AppTableTr>
-                  <AppTableTh>Employee</AppTableTh>
+                <AppTableTh>Employee</AppTableTh>
                   <AppTableTh>Type</AppTableTh>
                   <AppTableTh>Route</AppTableTh>
                   <AppTableTh>Effective</AppTableTh>
                   <AppTableTh>Status</AppTableTh>
                   <AppTableTh />
-                </AppTableTr>
               </AppTableThead>
               <AppTableBody>
                 {transfers.map((t) => (

@@ -212,15 +212,13 @@ export default function TeamHrIncidents({ focusMemoId, onFocusHandled }) {
       <AppTableWrap>
         <AppTable>
           <AppTableThead>
-            <AppTableTr>
-              <AppTableTh>Date</AppTableTh>
+            <AppTableTh>Date</AppTableTh>
               <AppTableTh>Staff</AppTableTh>
               <AppTableTh>Summary</AppTableTh>
               <AppTableTh>Status</AppTableTh>
               <AppTableTh>Case</AppTableTh>
               <AppTableTh>Registry</AppTableTh>
               <AppTableTh />
-            </AppTableTr>
           </AppTableThead>
           <AppTableBody>
             {filtered.map((m) => (

@@ -168,13 +168,11 @@ export default function HrBenefits({ embedded = false } = {}) {
         <AppTableWrap>
           <AppTable>
             <AppTableThead>
-              <AppTableTr>
-                <AppTableTh>Name</AppTableTh>
+              <AppTableTh>Name</AppTableTh>
                 <AppTableTh>Type</AppTableTh>
                 <AppTableTh align="right">Monthly</AppTableTh>
                 <AppTableTh>Status</AppTableTh>
                 {canManage ? <AppTableTh /> : null}
-              </AppTableTr>
             </AppTableThead>
             <AppTableBody>
               {beneficiaries.map((b) => (
@@ -204,11 +202,9 @@ export default function HrBenefits({ embedded = false } = {}) {
           <AppTableWrap>
             <AppTable>
               <AppTableThead>
-                <AppTableTr>
-                  <AppTableTh>Beneficiary</AppTableTh>
+                <AppTableTh>Beneficiary</AppTableTh>
                   <AppTableTh align="right">Amount</AppTableTh>
                   <AppTableTh>Status</AppTableTh>
-                </AppTableTr>
               </AppTableThead>
               <AppTableBody>
                 {payments.map((p) => (

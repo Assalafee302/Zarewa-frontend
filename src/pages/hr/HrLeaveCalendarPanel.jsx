@@ -73,13 +73,11 @@ export default function HrLeaveCalendarPanel() {
       <AppTableWrap>
         <AppTable>
           <AppTableThead>
-            <AppTableTr>
-              <AppTableTh>Staff</AppTableTh>
+            <AppTableTh>Staff</AppTableTh>
               <AppTableTh>Leave type</AppTableTh>
               <AppTableTh>From</AppTableTh>
               <AppTableTh>To</AppTableTh>
               <AppTableTh align="right">Days</AppTableTh>
-            </AppTableTr>
           </AppTableThead>
           <AppTableBody>
             {entries.map((e) => (

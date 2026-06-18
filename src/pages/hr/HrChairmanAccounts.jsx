@@ -305,14 +305,12 @@ export default function HrExecutiveBenefitsHub({ embedded = false } = {}) {
             <AppTableWrap>
               <AppTable>
                 <AppTableThead>
-                  <AppTableTr>
-                    <AppTableTh>Name</AppTableTh>
-                    <AppTableTh>Type</AppTableTh>
-                    <AppTableTh>Executive</AppTableTh>
-                    <AppTableTh>Bank</AppTableTh>
-                    <AppTableTh>Status</AppTableTh>
-                    <AppTableTh />
-                  </AppTableTr>
+                  <AppTableTh>Name</AppTableTh>
+                  <AppTableTh>Type</AppTableTh>
+                  <AppTableTh>Executive</AppTableTh>
+                  <AppTableTh>Bank</AppTableTh>
+                  <AppTableTh>Status</AppTableTh>
+                  <AppTableTh align="right" />
                 </AppTableThead>
                 <AppTableBody>
                   {beneficiaries.map((b) => (
@@ -341,14 +339,12 @@ export default function HrExecutiveBenefitsHub({ embedded = false } = {}) {
             <AppTableWrap>
               <AppTable>
                 <AppTableThead>
-                  <AppTableTr>
-                    <AppTableTh>Beneficiary</AppTableTh>
-                    <AppTableTh>School</AppTableTh>
-                    <AppTableTh>Term / Session</AppTableTh>
-                    <AppTableTh>Amount</AppTableTh>
-                    <AppTableTh>Status</AppTableTh>
-                    <AppTableTh />
-                  </AppTableTr>
+                  <AppTableTh>Beneficiary</AppTableTh>
+                  <AppTableTh>School</AppTableTh>
+                  <AppTableTh>Term / Session</AppTableTh>
+                  <AppTableTh align="right">Amount</AppTableTh>
+                  <AppTableTh>Status</AppTableTh>
+                  <AppTableTh align="right" />
                 </AppTableThead>
                 <AppTableBody>
                   {fees.map((f) => (
@@ -356,7 +352,7 @@ export default function HrExecutiveBenefitsHub({ embedded = false } = {}) {
                       <AppTableTd>{f.beneficiaryName}</AppTableTd>
                       <AppTableTd>{f.schoolName}</AppTableTd>
                       <AppTableTd>{[f.term, f.academicSession].filter(Boolean).join(' · ') || '—'}</AppTableTd>
-                      <AppTableTd>{formatNgn(f.amountApprovedNgn ?? f.amountRequestedNgn)}</AppTableTd>
+                      <AppTableTd align="right">{formatNgn(f.amountApprovedNgn ?? f.amountRequestedNgn)}</AppTableTd>
                       <AppTableTd><StatusPill status={f.paymentStatus} /></AppTableTd>
                       <AppTableTd className="space-x-2">
                         <button type="button" className="text-xs font-semibold text-[#134e4a]" onClick={() => openModal('fee', f)}>Edit</button>
@@ -383,21 +379,19 @@ export default function HrExecutiveBenefitsHub({ embedded = false } = {}) {
             <AppTableWrap>
               <AppTable>
                 <AppTableThead>
-                  <AppTableTr>
-                    <AppTableTh>Beneficiary</AppTableTh>
-                    <AppTableTh>Executive</AppTableTh>
-                    <AppTableTh>Monthly</AppTableTh>
-                    <AppTableTh>Bank</AppTableTh>
-                    <AppTableTh>Status</AppTableTh>
-                    <AppTableTh />
-                  </AppTableTr>
+                  <AppTableTh>Beneficiary</AppTableTh>
+                  <AppTableTh>Executive</AppTableTh>
+                  <AppTableTh align="right">Monthly</AppTableTh>
+                  <AppTableTh>Bank</AppTableTh>
+                  <AppTableTh>Status</AppTableTh>
+                  <AppTableTh align="right" />
                 </AppTableThead>
                 <AppTableBody>
                   {stipends.map((s) => (
                     <AppTableTr key={s.id}>
                       <AppTableTd>{s.beneficiaryName}</AppTableTd>
                       <AppTableTd>{s.linkedExecutive || '—'}</AppTableTd>
-                      <AppTableTd>{formatNgn(s.monthlyAmountNgn)}</AppTableTd>
+                      <AppTableTd align="right">{formatNgn(s.monthlyAmountNgn)}</AppTableTd>
                       <AppTableTd>{s.bankAccountNo || '—'}</AppTableTd>
                       <AppTableTd><StatusPill status={s.status} /></AppTableTd>
                       <AppTableTd>
@@ -423,14 +417,12 @@ export default function HrExecutiveBenefitsHub({ embedded = false } = {}) {
             <AppTableWrap>
               <AppTable>
                 <AppTableThead>
-                  <AppTableTr>
-                    <AppTableTh>Name</AppTableTh>
-                    <AppTableTh>Role</AppTableTh>
-                    <AppTableTh>Executive</AppTableTh>
-                    <AppTableTh>Salary</AppTableTh>
-                    <AppTableTh>Status</AppTableTh>
-                    <AppTableTh />
-                  </AppTableTr>
+                  <AppTableTh>Name</AppTableTh>
+                  <AppTableTh>Role</AppTableTh>
+                  <AppTableTh>Executive</AppTableTh>
+                  <AppTableTh align="right">Salary</AppTableTh>
+                  <AppTableTh>Status</AppTableTh>
+                  <AppTableTh align="right" />
                 </AppTableThead>
                 <AppTableBody>
                   {domestic.map((d) => (
@@ -438,7 +430,7 @@ export default function HrExecutiveBenefitsHub({ embedded = false } = {}) {
                       <AppTableTd>{d.staffName}</AppTableTd>
                       <AppTableTd>{d.designation || '—'}</AppTableTd>
                       <AppTableTd>{d.assignedExecutive || '—'}</AppTableTd>
-                      <AppTableTd>{formatNgn(d.salaryAmountNgn)}</AppTableTd>
+                      <AppTableTd align="right">{formatNgn(d.salaryAmountNgn)}</AppTableTd>
                       <AppTableTd><StatusPill status={d.status} /></AppTableTd>
                       <AppTableTd>
                         <button type="button" className="text-xs font-semibold text-[#134e4a]" onClick={() => openModal('domestic', d)}>Edit</button>
@@ -468,21 +460,19 @@ export default function HrExecutiveBenefitsHub({ embedded = false } = {}) {
             <AppTableWrap>
               <AppTable>
                 <AppTableThead>
-                  <AppTableTr>
-                    <AppTableTh>Payee</AppTableTh>
-                    <AppTableTh>Type</AppTableTh>
-                    <AppTableTh>Amount</AppTableTh>
-                    <AppTableTh>Period</AppTableTh>
-                    <AppTableTh>Status</AppTableTh>
-                    <AppTableTh />
-                  </AppTableTr>
+                  <AppTableTh>Payee</AppTableTh>
+                  <AppTableTh>Type</AppTableTh>
+                  <AppTableTh align="right">Amount</AppTableTh>
+                  <AppTableTh>Period</AppTableTh>
+                  <AppTableTh>Status</AppTableTh>
+                  <AppTableTh align="right" />
                 </AppTableThead>
                 <AppTableBody>
                   {payments.map((p) => (
                     <AppTableTr key={p.id}>
                       <AppTableTd>{p.payeeName}</AppTableTd>
                       <AppTableTd className="capitalize">{String(p.paymentType || '').replace(/_/g, ' ')}</AppTableTd>
-                      <AppTableTd>{formatNgn(p.amountNgn)}</AppTableTd>
+                      <AppTableTd align="right">{formatNgn(p.amountNgn)}</AppTableTd>
                       <AppTableTd>{p.periodYyyymm || '—'}</AppTableTd>
                       <AppTableTd><StatusPill status={p.status} /></AppTableTd>
                       <AppTableTd className="space-x-2">
@@ -512,13 +502,11 @@ export default function HrExecutiveBenefitsHub({ embedded = false } = {}) {
             <AppTableWrap>
               <AppTable>
                 <AppTableThead>
-                  <AppTableTr>
-                    <AppTableTh>Type</AppTableTh>
-                    <AppTableTh>Description</AppTableTh>
-                    <AppTableTh>Period</AppTableTh>
-                    <AppTableTh>Amount</AppTableTh>
-                    <AppTableTh>Status</AppTableTh>
-                  </AppTableTr>
+                  <AppTableTh>Type</AppTableTh>
+                  <AppTableTh>Description</AppTableTh>
+                  <AppTableTh>Period</AppTableTh>
+                  <AppTableTh align="right">Amount</AppTableTh>
+                  <AppTableTh>Status</AppTableTh>
                 </AppTableThead>
                 <AppTableBody>
                   {expenses.map((e) => (
@@ -526,7 +514,7 @@ export default function HrExecutiveBenefitsHub({ embedded = false } = {}) {
                       <AppTableTd>{e.expenseType}</AppTableTd>
                       <AppTableTd>{e.description}</AppTableTd>
                       <AppTableTd>{e.periodYyyymm}</AppTableTd>
-                      <AppTableTd>{formatNgn(e.amountNgn)}</AppTableTd>
+                      <AppTableTd align="right">{formatNgn(e.amountNgn)}</AppTableTd>
                       <AppTableTd><StatusPill status={e.paymentStatus} /></AppTableTd>
                     </AppTableTr>
                   ))}

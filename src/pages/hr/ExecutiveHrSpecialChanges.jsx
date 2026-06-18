@@ -33,12 +33,10 @@ export default function ExecutiveHrSpecialChanges() {
       <AppTableWrap>
         <AppTable>
           <AppTableThead>
-            <AppTableTr>
-              <AppTableTh>Effective</AppTableTh>
-              <AppTableTh>Staff</AppTableTh>
-              <AppTableTh>Reason</AppTableTh>
-              <AppTableTh align="right">Base salary</AppTableTh>
-            </AppTableTr>
+            <AppTableTh>Effective</AppTableTh>
+            <AppTableTh>Staff</AppTableTh>
+            <AppTableTh>Reason</AppTableTh>
+            <AppTableTh align="right">Base salary</AppTableTh>
           </AppTableThead>
           <AppTableBody>
             {changes.map((c) => (

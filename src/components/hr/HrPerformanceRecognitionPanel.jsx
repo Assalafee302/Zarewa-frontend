@@ -53,14 +53,12 @@ export default function HrPerformanceRecognitionPanel() {
         <AppTableWrap>
           <AppTable>
             <AppTableThead>
-              <AppTableTr>
-                <AppTableTh>Date</AppTableTh>
+              <AppTableTh>Date</AppTableTh>
                 <AppTableTh>Staff</AppTableTh>
                 <AppTableTh>Summary</AppTableTh>
                 <AppTableTh>Metric</AppTableTh>
                 <AppTableTh>Bonus</AppTableTh>
                 <AppTableTh>Registry</AppTableTh>
-              </AppTableTr>
             </AppTableThead>
             <AppTableBody>
               {rows.map((r) => (

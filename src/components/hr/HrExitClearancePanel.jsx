@@ -85,12 +85,10 @@ export function HrExitClearancePanel() {
         <AppTableWrap>
           <AppTable>
             <AppTableThead>
-              <AppTableTr>
-                <AppTableTh>Staff</AppTableTh>
+              <AppTableTh>Staff</AppTableTh>
                 <AppTableTh>Last day</AppTableTh>
                 <AppTableTh>Status</AppTableTh>
                 <AppTableTh />
-              </AppTableTr>
             </AppTableThead>
             <AppTableBody>
               {clearances.map((c) => (

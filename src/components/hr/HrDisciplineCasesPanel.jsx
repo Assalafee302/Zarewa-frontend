@@ -395,7 +395,7 @@ function CaseDetailModal({ caseId, onClose, onUpdated, canManage, canLetter }) {
 
         {(activeStage === 'decision' || activeStage === 'close') ? (
           <>
-            <HrCaseRecoveryPanel caseId={caseId} detail={detail} />
+            <HrCaseRecoveryPanel caseId={caseId} detail={detail} canManage={canManage} onUpdated={load} />
             <HrCasePartyLettersPanel detail={detail} canManage={canManage} onUpdated={load} />
             <HrCaseClosureChecklist
               caseId={caseId}
@@ -645,15 +645,13 @@ export default function HrDisciplineCasesPanel() {
       <AppTableWrap className="hidden md:block">
         <AppTable>
           <AppTableThead>
-            <AppTableTr>
-              <AppTableTh>Case No</AppTableTh>
+            <AppTableTh>Case No</AppTableTh>
               <AppTableTh>Employee</AppTableTh>
               <AppTableTh>Type</AppTableTh>
               <AppTableTh>Severity</AppTableTh>
               <AppTableTh>Status</AppTableTh>
               <AppTableTh>Reported</AppTableTh>
               <AppTableTh />
-            </AppTableTr>
           </AppTableThead>
           <AppTableBody>
             {cases.map((c) => (

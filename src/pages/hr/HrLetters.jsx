@@ -845,14 +845,12 @@ export default function HrLetters({ embedded = false } = {}) {
       <AppTableWrap className="overflow-x-auto -mx-1 px-1">
         <AppTable>
           <AppTableThead>
-            <AppTableTr>
-              <AppTableTh>Status</AppTableTh>
+            <AppTableTh>Status</AppTableTh>
               <AppTableTh>Reference</AppTableTh>
               <AppTableTh>Staff</AppTableTh>
               <AppTableTh>Type</AppTableTh>
               <AppTableTh>Issued</AppTableTh>
               <AppTableTh>Actions</AppTableTh>
-            </AppTableTr>
           </AppTableThead>
           <AppTableBody>
             {loading && !letters.length ? (

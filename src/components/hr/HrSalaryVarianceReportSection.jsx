@@ -92,16 +92,14 @@ export function HrSalaryVarianceReportSection({ embedded = false }) {
         <AppTableWrap>
           <AppTable>
             <AppTableThead>
-              <AppTableTr>
-                <AppTableTh>Staff</AppTableTh>
-                <AppTableTh>Level</AppTableTh>
-                <AppTableTh>Matrix (B/H/T)</AppTableTh>
-                <AppTableTh>Matrix total</AppTableTh>
-                <AppTableTh>Addition</AppTableTh>
-                <AppTableTh>Actual</AppTableTh>
-                <AppTableTh>Variance</AppTableTh>
-                <AppTableTh>Documented</AppTableTh>
-              </AppTableTr>
+              <AppTableTh>Staff</AppTableTh>
+              <AppTableTh>Level</AppTableTh>
+              <AppTableTh align="right">Matrix (B/H/T)</AppTableTh>
+              <AppTableTh align="right">Matrix total</AppTableTh>
+              <AppTableTh align="right">Addition</AppTableTh>
+              <AppTableTh align="right">Actual</AppTableTh>
+              <AppTableTh align="right">Variance</AppTableTh>
+              <AppTableTh>Documented</AppTableTh>
             </AppTableThead>
             <AppTableBody>
               {rows.map((r) => (
@@ -121,13 +119,13 @@ export function HrSalaryVarianceReportSection({ embedded = false }) {
                   <AppTableTd>
                     L{r.salaryLevel}/S{r.salaryStep}
                   </AppTableTd>
-                  <AppTableTd className="text-[10px] tabular-nums text-slate-600">
+                  <AppTableTd align="right" className="text-[10px] text-slate-600">
                     {formatNgn(r.matrixBaseNgn)} / {formatNgn(r.matrixHousingNgn)} / {formatNgn(r.matrixTransportNgn)}
                   </AppTableTd>
-                  <AppTableTd className="tabular-nums">{formatNgn(r.matrixTotalNgn)}</AppTableTd>
-                  <AppTableTd className="tabular-nums">{formatNgn(r.payAdditionNgn || 0)}</AppTableTd>
-                  <AppTableTd className="tabular-nums">{formatNgn(r.actualTotalNgn)}</AppTableTd>
-                  <AppTableTd className="tabular-nums font-semibold text-amber-900">
+                  <AppTableTd align="right">{formatNgn(r.matrixTotalNgn)}</AppTableTd>
+                  <AppTableTd align="right">{formatNgn(r.payAdditionNgn || 0)}</AppTableTd>
+                  <AppTableTd align="right">{formatNgn(r.actualTotalNgn)}</AppTableTd>
+                  <AppTableTd align="right" className="font-semibold text-amber-900">
                     +{formatNgn(r.varianceNgn)}
                   </AppTableTd>
                   <AppTableTd>

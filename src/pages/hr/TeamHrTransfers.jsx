@@ -123,12 +123,10 @@ export default function TeamHrTransfers() {
           <AppTableWrap>
             <AppTable>
               <AppTableThead>
-                <AppTableTr>
-                  <AppTableTh>Staff</AppTableTh>
+                <AppTableTh>Staff</AppTableTh>
                   <AppTableTh>Route</AppTableTh>
                   <AppTableTh>Effective</AppTableTh>
                   <AppTableTh />
-                </AppTableTr>
               </AppTableThead>
               <AppTableBody>
                 {transfers.map((t) => (

@@ -52,8 +52,7 @@ export function HrPromotionDuePanel() {
         <AppTableWrap>
           <AppTable>
             <AppTableThead>
-              <AppTableTr>
-                <AppTableTh>Staff</AppTableTh>
+              <AppTableTh>Staff</AppTableTh>
                 <AppTableTh>Branch</AppTableTh>
                 <AppTableTh>Role</AppTableTh>
                 <AppTableTh>Last promotion</AppTableTh>
@@ -61,7 +60,6 @@ export function HrPromotionDuePanel() {
                 <AppTableTh>Queries</AppTableTh>
                 <AppTableTh>Eligibility</AppTableTh>
                 <AppTableTh>Action</AppTableTh>
-              </AppTableTr>
             </AppTableThead>
             <AppTableBody>
               {rows.map((r) => (

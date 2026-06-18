@@ -213,14 +213,12 @@ export default function HrIdCards() {
         <AppTableWrap>
           <AppTable>
             <AppTableThead>
-              <AppTableTr>
-                <AppTableTh>Staff Name</AppTableTh>
+              <AppTableTh>Staff Name</AppTableTh>
                 <AppTableTh>Request Type</AppTableTh>
                 <AppTableTh>Reason</AppTableTh>
                 <AppTableTh>Requested Date</AppTableTh>
                 <AppTableTh>Status</AppTableTh>
                 {isManager && <AppTableTh className="no-print">Actions</AppTableTh>}
-              </AppTableTr>
             </AppTableThead>
             <AppTableBody>
               {!requests.length && (

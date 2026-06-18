@@ -276,14 +276,12 @@ export default function HrDiscipline({ embedded = false } = {}) {
         <AppTableWrap>
           <AppTable>
             <AppTableThead>
-              <AppTableTr>
-                <AppTableTh>Date</AppTableTh>
+              <AppTableTh>Date</AppTableTh>
                 <AppTableTh>Employee</AppTableTh>
                 <AppTableTh>Type</AppTableTh>
                 <AppTableTh>Query count</AppTableTh>
                 <AppTableTh>Summary</AppTableTh>
                 <AppTableTh />
-              </AppTableTr>
             </AppTableThead>
             <AppTableBody>
               {events.map((ev) => {

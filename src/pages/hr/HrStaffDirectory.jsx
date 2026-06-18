@@ -381,7 +381,7 @@ export default function HrStaffDirectory({
               <AppTableTh>Job title</AppTableTh>
               <AppTableTh>Group</AppTableTh>
               {showSalary ? (
-                <AppTableTh>
+                <AppTableTh align="right">
                   <span className="inline-flex items-center gap-1">
                     🔒 Base salary
                   </span>
@@ -414,7 +414,7 @@ export default function HrStaffDirectory({
                     <AppTableTd>{s.jobTitle || '—'}</AppTableTd>
                     <AppTableTd>{payrollGroupLabel(s)}</AppTableTd>
                     {showSalary ? (
-                      <AppTableTd>
+                      <AppTableTd align="right">
                         {s.compensationRedacted ? '—' : formatNgn(s.baseSalaryNgn)}
                       </AppTableTd>
                     ) : null}

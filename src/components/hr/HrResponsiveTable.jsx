@@ -41,7 +41,7 @@ function cellValue(row, col) {
 /**
  * Responsive table: horizontal scroll on mobile; optional card stack.
  * Rows may include `deepLink`, `fixLink`, `actionLabel`, `fixLabel` for report deep-linking.
- * @param {{ columns: {key:string;label:string;render?:Function;linkKey?:string}[]; rows: object[]; emptyMessage?: string; mobileCards?: boolean }} props
+ * @param {{ columns: {key:string;label:string;align?:'left'|'right'|'center';render?:Function;linkKey?:string}[]; rows: object[]; emptyMessage?: string; mobileCards?: boolean }} props
  */
 export function HrResponsiveTable({ columns, rows, emptyMessage = 'No records.', mobileCards = true }) {
   if (!rows?.length) {
@@ -59,22 +59,24 @@ export function HrResponsiveTable({ columns, rows, emptyMessage = 'No records.',
       {mobileCards ? (
         <div className="space-y-2 md:hidden">
           {rows.slice(0, 50).map((row, i) => (
-            <div key={i} className="rounded-xl border border-slate-100 bg-white p-3 text-xs shadow-sm">
+            <div key={i} className="rounded-xl border border-slate-100 bg-white p-3 text-sm shadow-sm">
               {columns.map((c) => (
-                <div key={c.key} className="flex justify-between gap-2 border-b border-slate-50 py-0.5 last:border-0">
-                  <span className="text-[9px] font-bold uppercase text-slate-400">{c.label}</span>
-                  <span className="break-all text-right text-slate-800">{cellValue(row, c)}</span>
+                <div key={c.key} className="flex items-start justify-between gap-3 border-b border-slate-50 py-1.5 last:border-0">
+                  <span className="shrink-0 text-[10px] font-bold uppercase tracking-wide text-slate-400">{c.label}</span>
+                  <span className={`min-w-0 text-slate-800 ${c.align === 'right' ? 'text-right tabular-nums' : 'text-right'}`}>
+                    {cellValue(row, c)}
+                  </span>
                 </div>
               ))}
               {showActionCol ? (
                 <div className="mt-2 flex flex-wrap gap-2 pt-1">
                   {row.deepLink ? (
-                    <Link to={row.deepLink} className="text-[10px] font-bold uppercase text-[#134e4a]">
+                    <Link to={row.deepLink} className="text-xs font-bold text-[#134e4a]">
                       {row.actionLabel || 'View details'}
                     </Link>
                   ) : null}
                   {row.fixLink ? (
-                    <Link to={row.fixLink} className="text-[10px] font-bold uppercase text-amber-800">
+                    <Link to={row.fixLink} className="text-xs font-bold text-amber-800">
                       {row.fixLabel || 'Fix'}
                     </Link>
                   ) : null}
@@ -85,26 +87,28 @@ export function HrResponsiveTable({ columns, rows, emptyMessage = 'No records.',
           {rows.length > 50 ? <p className="text-center text-xs text-slate-500">Showing 50 of {rows.length}. Export for full data.</p> : null}
         </div>
       ) : null}
-      <div className={mobileCards ? '-mx-1 hidden overflow-x-auto md:block' : '-mx-1 overflow-x-auto'}>
+      <div className={mobileCards ? 'hidden md:block' : ''}>
         <AppTableWrap className="min-w-[640px]">
           <AppTable>
             <AppTableThead>
-              <AppTableTr>
-                {columns.map((c) => (
-                  <AppTableTh key={c.key}>{c.label}</AppTableTh>
-                ))}
-                {showActionCol ? <AppTableTh>Action</AppTableTh> : null}
-              </AppTableTr>
+              {columns.map((c) => (
+                <AppTableTh key={c.key} align={c.align}>
+                  {c.label}
+                </AppTableTh>
+              ))}
+              {showActionCol ? <AppTableTh align="right">Action</AppTableTh> : null}
             </AppTableThead>
             <AppTableBody>
               {rows.slice(0, 100).map((row, i) => (
                 <AppTableTr key={i}>
                   {columns.map((c) => (
-                    <AppTableTd key={c.key}>{cellValue(row, c)}</AppTableTd>
+                    <AppTableTd key={c.key} align={c.align} truncate={c.align !== 'right'}>
+                      {cellValue(row, c)}
+                    </AppTableTd>
                   ))}
                   {showActionCol ? (
-                    <AppTableTd>
-                      <div className="flex flex-wrap gap-2">
+                    <AppTableTd align="right" truncate={false}>
+                      <div className="flex flex-wrap justify-end gap-2">
                         {row.deepLink ? (
                           <Link to={row.deepLink} className="text-xs font-bold text-[#134e4a] hover:underline">
                             {row.actionLabel || 'View'}

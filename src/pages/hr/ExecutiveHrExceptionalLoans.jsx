@@ -35,12 +35,10 @@ export default function ExecutiveHrExceptionalLoans() {
       <AppTableWrap>
         <AppTable>
           <AppTableThead>
-            <AppTableTr>
-              <AppTableTh>Staff</AppTableTh>
-              <AppTableTh>Title</AppTableTh>
-              <AppTableTh>Status</AppTableTh>
-              <AppTableTh align="right">Amount</AppTableTh>
-            </AppTableTr>
+            <AppTableTh>Staff</AppTableTh>
+            <AppTableTh>Title</AppTableTh>
+            <AppTableTh>Status</AppTableTh>
+            <AppTableTh align="right">Amount</AppTableTh>
           </AppTableThead>
           <AppTableBody>
             {loans.map((l) => (

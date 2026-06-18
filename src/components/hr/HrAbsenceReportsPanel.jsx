@@ -190,15 +190,13 @@ export function HrAbsenceReportsPanel({ branchScoped = false, canManage = true, 
           <AppTableWrap className="overflow-x-auto">
             <AppTable>
               <AppTableThead>
-                <AppTableTr>
-                  <AppTableTh>Staff</AppTableTh>
+                <AppTableTh>Staff</AppTableTh>
                   <AppTableTh>Branch</AppTableTh>
                   <AppTableTh>Start</AppTableTh>
                   <AppTableTh>Expected return</AppTableTh>
                   <AppTableTh>Type</AppTableTh>
                   <AppTableTh>Status</AppTableTh>
                   <AppTableTh />
-                </AppTableTr>
               </AppTableThead>
               <AppTableBody>
                 {reports.map((r) => (

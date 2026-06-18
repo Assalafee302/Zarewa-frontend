@@ -2,6 +2,15 @@ import React, { useState } from 'react';
 import { AlertTriangle, Trash2 } from 'lucide-react';
 import { apiFetch } from '../../lib/apiBase';
 import { HR_BTN_SECONDARY } from './hrFormStyles';
+import {
+  AppTable,
+  AppTableBody,
+  AppTableTd,
+  AppTableTh,
+  AppTableThead,
+  AppTableTr,
+  AppTableWrap,
+} from '../ui/AppDataTable';
 
 export function HrStaffDuplicateCleanupPanel({ onCleaned }) {
   const [report, setReport] = useState(null);
@@ -115,29 +124,27 @@ export function HrStaffDuplicateCleanupPanel({ onCleaned }) {
       ) : null}
 
       {removals.length > 0 ? (
-        <div className="mt-3 max-h-40 overflow-auto rounded-lg border border-amber-100 bg-white/90">
-          <table className="w-full text-left text-[11px]">
-            <thead className="sticky top-0 bg-amber-50 text-[10px] font-bold uppercase text-amber-900">
-              <tr>
-                <th className="px-2 py-1">Login</th>
-                <th className="px-2 py-1">Name</th>
-                <th className="px-2 py-1">Reason</th>
-              </tr>
-            </thead>
-            <tbody>
+        <AppTableWrap className="mt-3 max-h-40 border-amber-100 bg-white/90">
+          <AppTable>
+            <AppTableThead sticky>
+              <AppTableTh>Login</AppTableTh>
+              <AppTableTh>Name</AppTableTh>
+              <AppTableTh>Reason</AppTableTh>
+            </AppTableThead>
+            <AppTableBody>
               {removals.slice(0, 40).map((r) => (
-                <tr key={r.userId} className="border-t border-amber-50">
-                  <td className="px-2 py-1 font-mono">{r.username}</td>
-                  <td className="px-2 py-1">{r.displayName || '—'}</td>
-                  <td className="px-2 py-1">{String(r.reason || '').replace(/_/g, ' ')}</td>
-                </tr>
+                <AppTableTr key={r.userId}>
+                  <AppTableTd monospace>{r.username}</AppTableTd>
+                  <AppTableTd>{r.displayName || '—'}</AppTableTd>
+                  <AppTableTd>{String(r.reason || '').replace(/_/g, ' ')}</AppTableTd>
+                </AppTableTr>
               ))}
-            </tbody>
-          </table>
+            </AppTableBody>
+          </AppTable>
           {removals.length > 40 ? (
-            <p className="px-2 py-1 text-[10px] text-amber-800">…and {removals.length - 40} more</p>
+            <p className="px-4 py-2 text-[10px] text-amber-800">…and {removals.length - 40} more</p>
           ) : null}
-        </div>
+        </AppTableWrap>
       ) : null}
 
       {result?.removed?.length ? (
