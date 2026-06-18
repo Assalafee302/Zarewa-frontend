@@ -199,7 +199,7 @@ export default function LoginScreen() {
             <form className="mt-8 space-y-5" onSubmit={submitLogin}>
               <div>
                 <label className="z-field-label" htmlFor="login-username">
-                  Username
+                  Username or employee ID
                 </label>
                 <input
                   id="login-username"
@@ -211,7 +211,7 @@ export default function LoginScreen() {
                     if (error) setError('');
                   }}
                   className="z-input"
-                  placeholder="Enter your username"
+                  placeholder="Username or employee ID (e.g. zapkd001)"
                 />
               </div>
               <PasswordField
@@ -278,7 +278,7 @@ export default function LoginScreen() {
           {mode === 'forgot' ? (
             <form className="mt-8 space-y-5" onSubmit={submitForgot}>
               <p className="text-sm leading-relaxed text-slate-600">
-                Enter your username or work email. Reset codes are for new-user accounts only and are delivered
+                Enter your username, employee ID, or work email. Reset codes are for new-user accounts only and are delivered
                 through your administrator.
               </p>
               <div>
@@ -295,7 +295,7 @@ export default function LoginScreen() {
                     if (error) setError('');
                   }}
                   className="z-input"
-                  placeholder="username or email"
+                  placeholder="username, employee ID, or email"
                 />
               </div>
 
@@ -347,7 +347,7 @@ export default function LoginScreen() {
                   value={resetIdentifier}
                   onChange={(e) => setResetIdentifier(e.target.value)}
                   className="z-input"
-                  placeholder="username or email"
+                  placeholder="username, employee ID, or email"
                 />
               </div>
               <div>
