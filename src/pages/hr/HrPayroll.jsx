@@ -28,6 +28,8 @@ import {
   AppTableTr,
   AppTableWrap,
 } from '../../components/ui/AppDataTable';
+import { HrStatusBadge } from '../../components/hr/HrStatusBadge';
+import { HrTableLoadingRow } from '../../components/hr/HrTableBodyState';
 
 /** Touch-friendly payroll action button — 44px min height for mobile. */
 const PAYROLL_BTN =
@@ -172,6 +174,7 @@ export default function HrPayroll({ embedded = false } = {}) {
   const [run, setRun] = useState(null);
   const [totals, setTotals] = useState(null);
   const [lines, setLines] = useState([]);
+  const [linesLoading, setLinesLoading] = useState(false);
   const [message, setMessage] = useState('');
   const [adjustingPaye, setAdjustingPaye] = useState(null);
   const [newPeriod, setNewPeriod] = useState(currentPeriodYyyymm());
@@ -211,8 +214,10 @@ export default function HrPayroll({ embedded = false } = {}) {
       setRun(null);
       setLines([]);
       setTotals(null);
+      setLinesLoading(false);
       return;
     }
+    setLinesLoading(true);
     const [runRes, linesRes, totalsRes] = await Promise.all([
       apiFetch(`/api/hr/payroll-runs/${encodeURIComponent(selectedId)}`),
       fetcher(`/api/hr/payroll-runs/${encodeURIComponent(selectedId)}/lines`),
@@ -224,6 +229,7 @@ export default function HrPayroll({ embedded = false } = {}) {
     else setLines([]);
     if (totalsRes.ok && totalsRes.data?.ok) setTotals(totalsRes.data.totals);
     else setTotals(null);
+    setLinesLoading(false);
   }, [selectedId, fetcher]);
 
   useEffect(() => {
@@ -400,7 +406,34 @@ export default function HrPayroll({ embedded = false } = {}) {
         </p>
       ) : null}
 
-      {lines.length === 0 ? (
+      {linesLoading && !lines.length ? (
+        <>
+          <p className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-6 text-center text-sm text-slate-500 md:hidden">
+            Loading payroll lines…
+          </p>
+          <div className="hidden md:block">
+            <AppTableWrap>
+              <AppTable role="numeric" className="text-xs">
+                <AppTableThead>
+                  <AppTableTh>Employee</AppTableTh>
+                  <AppTableTh align="right">Gross</AppTableTh>
+                  <AppTableTh align="right">Bonus</AppTableTh>
+                  <AppTableTh align="right">Attendance</AppTableTh>
+                  <AppTableTh align="right">PAYE (₦)</AppTableTh>
+                  <AppTableTh align="right">Pension</AppTableTh>
+                  <AppTableTh align="right">Loans</AppTableTh>
+                  <AppTableTh align="right">Recoveries</AppTableTh>
+                  <AppTableTh align="right">Other</AppTableTh>
+                  <AppTableTh align="right">Net</AppTableTh>
+                </AppTableThead>
+                <AppTableBody>
+                  <HrTableLoadingRow colSpan={10} message="Loading payroll lines…" />
+                </AppTableBody>
+              </AppTable>
+            </AppTableWrap>
+          </div>
+        </>
+      ) : lines.length === 0 ? (
         <p className="rounded-xl border border-dashed border-slate-200 bg-slate-50/50 px-4 py-8 text-center text-sm text-slate-500">
           {run?.status === 'draft' ? 'No active staff on payroll. Add staff or click Recompute.' : 'No lines.'}
         </p>
@@ -410,7 +443,7 @@ export default function HrPayroll({ embedded = false } = {}) {
             {lines.map((l) => (
               <article
                 key={`${l.userId}-m`}
-                className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm"
+                className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
               >
                 <div className="flex items-start justify-between gap-3">
                   <p className="text-sm font-bold text-slate-900 leading-snug">{l.displayName || l.userId}</p>
@@ -422,23 +455,37 @@ export default function HrPayroll({ embedded = false } = {}) {
                   <p className="mt-2 text-xs text-slate-500">Amounts restricted</p>
                 ) : (
                   <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 text-xs">
-                    {[
-                      ['Gross', formatNgn(l.grossNgn)],
-                      ['Bonus', formatNgn(l.bonusNgn)],
-                      ['Attendance', formatNgn(l.attendanceDeductionNgn)],
-                      ['Pension', formatNgn(l.pensionNgn)],
-                      ['Loans', formatNgn(loanFor(l))],
-                      ['Recoveries', formatNgn(recoveryFor(l))],
-                      ['Other', formatNgn(l.disciplinaryOtherDeductionNgn ?? 0)],
-                    ].map(([label, value]) => (
-                      <div key={label} className="flex justify-between gap-2 border-b border-slate-50 pb-1">
-                        <dt className="text-[10px] font-bold uppercase text-slate-400">{label}</dt>
-                        <dd className="tabular-nums text-slate-800">{value}</dd>
-                      </div>
-                    ))}
-                    <div className="col-span-2 pt-1">
-                      <dt className="text-[10px] font-bold uppercase text-slate-400 mb-1">PAYE (₦)</dt>
-                      <dd>{payeField(l)}</dd>
+                    <div>
+                      <dt className="font-bold uppercase tracking-wide text-slate-400">Gross</dt>
+                      <dd className="mt-0.5 tabular-nums font-medium text-slate-800">{formatNgn(l.grossNgn)}</dd>
+                    </div>
+                    <div>
+                      <dt className="font-bold uppercase tracking-wide text-slate-400">Bonus</dt>
+                      <dd className="mt-0.5 tabular-nums font-medium text-slate-800">{formatNgn(l.bonusNgn)}</dd>
+                    </div>
+                    <div>
+                      <dt className="font-bold uppercase tracking-wide text-slate-400">Attendance</dt>
+                      <dd className="mt-0.5 tabular-nums font-medium text-slate-800">{formatNgn(l.attendanceDeductionNgn)}</dd>
+                    </div>
+                    <div>
+                      <dt className="font-bold uppercase tracking-wide text-slate-400">Pension</dt>
+                      <dd className="mt-0.5 tabular-nums font-medium text-slate-800">{formatNgn(l.pensionNgn)}</dd>
+                    </div>
+                    <div>
+                      <dt className="font-bold uppercase tracking-wide text-slate-400">Loans</dt>
+                      <dd className="mt-0.5 tabular-nums font-medium text-slate-800">{formatNgn(loanFor(l))}</dd>
+                    </div>
+                    <div>
+                      <dt className="font-bold uppercase tracking-wide text-slate-400">Recoveries</dt>
+                      <dd className="mt-0.5 tabular-nums font-medium text-slate-800">{formatNgn(recoveryFor(l))}</dd>
+                    </div>
+                    <div>
+                      <dt className="font-bold uppercase tracking-wide text-slate-400">Other</dt>
+                      <dd className="mt-0.5 tabular-nums font-medium text-slate-800">{formatNgn(l.disciplinaryOtherDeductionNgn ?? 0)}</dd>
+                    </div>
+                    <div>
+                      <dt className="font-bold uppercase tracking-wide text-slate-400">PAYE</dt>
+                      <dd className="mt-0.5">{payeField(l)}</dd>
                     </div>
                   </dl>
                 )}
@@ -446,7 +493,7 @@ export default function HrPayroll({ embedded = false } = {}) {
             ))}
             {totals && !totals.amountsRedacted ? (
               <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs font-bold tabular-nums">
-                <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2">Run totals</p>
+                <p className="text-xs font-black uppercase tracking-widest text-slate-500 mb-2">Run totals</p>
                 <div className="grid grid-cols-2 gap-2">
                   <span>Gross {formatNgn(totals.grossTotalNgn)}</span>
                   <span>Net {formatNgn(totals.netTotalNgn)}</span>
@@ -473,17 +520,7 @@ export default function HrPayroll({ embedded = false } = {}) {
             <AppTableTh align="right">Net</AppTableTh>
           </AppTableThead>
           <AppTableBody>
-            {lines.length === 0 ? (
-              <AppTableTr>
-                <AppTableTd colSpan={10} align="center">
-                  <span className="text-slate-500 py-4 block">
-                    {run?.status === 'draft' ? 'No active staff on payroll. Add staff or click Recompute.' : 'No lines.'}
-                  </span>
-                </AppTableTd>
-              </AppTableTr>
-            ) : (
-              <>
-                {lines.map((l) => (
+            {lines.map((l) => (
                   <AppTableTr key={l.userId}>
                     <AppTableTd>
                       <span className="font-medium">{l.displayName || l.userId}</span>
@@ -550,8 +587,6 @@ export default function HrPayroll({ embedded = false } = {}) {
                     <AppTableTd align="right">{formatNgn(totals.netTotalNgn)}</AppTableTd>
                   </AppTableTr>
                 ) : null}
-              </>
-            )}
           </AppTableBody>
         </AppTable>
       </AppTableWrap>
@@ -652,7 +687,7 @@ export default function HrPayroll({ embedded = false } = {}) {
                     }`}
                   >
                     <span className="font-semibold">{formatPeriodYyyymm(r.periodYyyymm)}</span>
-                    <span className="ml-2 text-[10px] uppercase text-slate-500">{r.status}</span>
+                    <HrStatusBadge status={r.status} variant="payroll" className="ml-2" />
                   </button>
                 ))}
               </div>

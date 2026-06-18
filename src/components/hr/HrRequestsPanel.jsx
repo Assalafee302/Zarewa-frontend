@@ -8,8 +8,6 @@ import { generateStaffLoanAgreementLetter } from '../../lib/hrExtended';
 import { canGenerateHrLetters } from '../../lib/hrAccess';
 import {
   hrRequestKindLabel,
-  hrRequestStatusClass,
-  hrRequestStatusLabel,
 } from '../../lib/hrFormat';
 import { hrRequestReviewPath } from '../../lib/hrRequests';
 import {
@@ -21,6 +19,8 @@ import {
   AppTableTr,
   AppTableWrap,
 } from '../ui/AppDataTable';
+import { HrStatusBadge } from './HrStatusBadge';
+import { HrTableEmptyRow, HrTableLoadingRow } from './HrTableBodyState';
 import { HrRequestPayloadSummary, hrRequestApprovalChain } from './HrRequestPayloadSummary';
 import HrRequestStageBar from './HrRequestStageBar';
 import { HR_BTN_PILL, HR_BTN_PRIMARY, HR_BTN_SECONDARY, HR_FIELD_CLASS, HR_TEXTAREA_CLASS } from './hrFormStyles';
@@ -467,9 +467,6 @@ export function HrRequestsPanel({
       {error ? (
         <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-800">{error}</div>
       ) : null}
-      {loading && requests.length === 0 ? (
-        <p className="text-sm text-slate-600">Loading requests…</p>
-      ) : null}
 
       {selectedIds.length > 0 ? (
         <div className="flex flex-wrap items-center gap-3 rounded-xl border border-[#134e4a]/20 bg-teal-50/60 px-4 py-2.5 text-sm">
@@ -482,21 +479,21 @@ export function HrRequestsPanel({
               <button
                 type="button"
                 onClick={() => bulkReview(true, '')}
-                className="rounded-lg bg-emerald-700 px-3 py-1.5 text-[10px] font-bold uppercase text-white"
+                className="rounded-lg bg-emerald-700 px-3 py-1.5 text-xs font-bold uppercase text-white"
               >
                 Approve All
               </button>
               <button
                 type="button"
                 onClick={() => setShowBulkRejectPrompt(true)}
-                className="rounded-lg bg-red-700 px-3 py-1.5 text-[10px] font-bold uppercase text-white"
+                className="rounded-lg bg-red-700 px-3 py-1.5 text-xs font-bold uppercase text-white"
               >
                 Reject All
               </button>
               <button
                 type="button"
                 onClick={() => setSelectedIds([])}
-                className="rounded-lg border border-slate-200 px-3 py-1.5 text-[10px] font-bold uppercase text-slate-600"
+                className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-bold uppercase text-slate-600"
               >
                 Clear
               </button>
@@ -534,125 +531,121 @@ export function HrRequestsPanel({
         </div>
       ) : null}
 
-      {!loading || visibleRequests.length > 0 ? (
-        <>
-          <div className="md:hidden space-y-3">
-            {visibleRequests.length === 0 ? (
-              <p className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">
-                No requests in this queue.
-              </p>
-            ) : (
-              visibleRequests.map((r) => (
-                <article key={r.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                  <div className="flex items-start gap-3">
+      <div className="md:hidden space-y-3">
+        {loading && requests.length === 0 ? (
+          <p className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">
+            Loading requests…
+          </p>
+        ) : null}
+        {!loading && visibleRequests.length === 0 ? (
+          <p className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">
+            No requests in this queue.
+          </p>
+        ) : null}
+        {visibleRequests.map((r) => (
+          <article key={r.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+            <div className="flex items-start gap-3">
+              {canReviewRow(r) ? (
+                <input
+                  type="checkbox"
+                  checked={selectedIds.includes(r.id)}
+                  onChange={() => toggleSelect(r.id)}
+                  aria-label={`Select ${r.title || 'request'}`}
+                  className="mt-1 rounded"
+                />
+              ) : null}
+              <div className="min-w-0 flex-1">
+                <div className="flex items-start justify-between gap-3">
+                  <h4 className="text-sm font-bold leading-snug text-slate-900">{r.title || 'Request'}</h4>
+                  <HrStatusBadge status={r.status} variant="request" />
+                </div>
+                <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 text-xs">
+                  <div>
+                    <dt className="font-bold uppercase tracking-wide text-slate-400">Kind</dt>
+                    <dd className="mt-0.5 font-semibold text-slate-800">{hrRequestKindLabel(r.kind)}</dd>
+                  </div>
+                  <div>
+                    <dt className="font-bold uppercase tracking-wide text-slate-400">Submitted</dt>
+                    <dd className="mt-0.5 font-semibold tabular-nums text-slate-800">{r.submittedAtIso?.slice(0, 10) || '—'}</dd>
+                  </div>
+                  {showEmployeeColumn ? (
+                    <div className="col-span-2">
+                      <dt className="font-bold uppercase tracking-wide text-slate-400">Employee</dt>
+                      <dd className="mt-0.5">{renderEmployeeCell(r)}</dd>
+                    </div>
+                  ) : null}
+                </dl>
+                <div className="mt-4">{renderRequestActions(r)}</div>
+              </div>
+            </div>
+          </article>
+        ))}
+      </div>
+
+      <div className="hidden md:block">
+        <AppTableWrap>
+          <AppTable>
+            <AppTableThead>
+              {reviewableRequests.length > 0 ? (
+                <AppTableTh>
+                  <input
+                    type="checkbox"
+                    checked={allReviewableSelected}
+                    onChange={toggleSelectAll}
+                    aria-label="Select all reviewable requests"
+                    className="rounded"
+                  />
+                </AppTableTh>
+              ) : (
+                <AppTableTh />
+              )}
+              <AppTableTh>Title</AppTableTh>
+              <AppTableTh>Kind</AppTableTh>
+              {showEmployeeColumn ? <AppTableTh>Employee</AppTableTh> : null}
+              <AppTableTh>Status</AppTableTh>
+              <AppTableTh>Submitted</AppTableTh>
+              <AppTableTh>Actions</AppTableTh>
+            </AppTableThead>
+            <AppTableBody>
+              {loading && requests.length === 0 ? (
+                <HrTableLoadingRow
+                  colSpan={showEmployeeColumn ? 7 : 6}
+                  message="Loading requests…"
+                />
+              ) : null}
+              {!loading && visibleRequests.length === 0 ? (
+                <HrTableEmptyRow
+                  colSpan={showEmployeeColumn ? 7 : 6}
+                  message="No requests in this queue."
+                />
+              ) : null}
+              {visibleRequests.map((r) => (
+                <AppTableTr key={r.id}>
+                  <AppTableTd truncate={false}>
                     {canReviewRow(r) ? (
                       <input
                         type="checkbox"
                         checked={selectedIds.includes(r.id)}
                         onChange={() => toggleSelect(r.id)}
-                        aria-label={`Select ${r.title || 'request'}`}
-                        className="mt-1 rounded"
-                      />
-                    ) : null}
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-start justify-between gap-3">
-                        <h4 className="text-sm font-bold leading-snug text-slate-900">{r.title || 'Request'}</h4>
-                        <span
-                          className={`shrink-0 inline-flex rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase ${hrRequestStatusClass(r.status)}`}
-                        >
-                          {hrRequestStatusLabel(r.status)}
-                        </span>
-                      </div>
-                      <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 text-xs">
-                        <div>
-                          <dt className="font-bold uppercase tracking-wide text-slate-400">Kind</dt>
-                          <dd className="mt-0.5 font-semibold text-slate-800">{hrRequestKindLabel(r.kind)}</dd>
-                        </div>
-                        <div>
-                          <dt className="font-bold uppercase tracking-wide text-slate-400">Submitted</dt>
-                          <dd className="mt-0.5 font-semibold tabular-nums text-slate-800">{r.submittedAtIso?.slice(0, 10) || '—'}</dd>
-                        </div>
-                        {showEmployeeColumn ? (
-                          <div className="col-span-2">
-                            <dt className="font-bold uppercase tracking-wide text-slate-400">Employee</dt>
-                            <dd className="mt-0.5">{renderEmployeeCell(r)}</dd>
-                          </div>
-                        ) : null}
-                      </dl>
-                      <div className="mt-4">{renderRequestActions(r)}</div>
-                    </div>
-                  </div>
-                </article>
-              ))
-            )}
-          </div>
-
-          <div className="hidden md:block">
-            <AppTableWrap>
-              <AppTable>
-                <AppTableThead>
-                  {reviewableRequests.length > 0 ? (
-                    <AppTableTh>
-                      <input
-                        type="checkbox"
-                        checked={allReviewableSelected}
-                        onChange={toggleSelectAll}
-                        aria-label="Select all reviewable requests"
+                        aria-label={`Select request ${r.title || r.id}`}
                         className="rounded"
                       />
-                    </AppTableTh>
-                  ) : (
-                    <AppTableTh />
-                  )}
-                  <AppTableTh>Title</AppTableTh>
-                  <AppTableTh>Kind</AppTableTh>
-                  {showEmployeeColumn ? <AppTableTh>Employee</AppTableTh> : null}
-                  <AppTableTh>Status</AppTableTh>
-                  <AppTableTh>Submitted</AppTableTh>
-                  <AppTableTh>Actions</AppTableTh>
-                </AppTableThead>
-                <AppTableBody>
-                  {visibleRequests.length === 0 ? (
-                    <AppTableTr>
-                      <AppTableTd colSpan={showEmployeeColumn ? 7 : 6} align="center">
-                        <span className="text-slate-500 py-4 block">No requests in this queue.</span>
-                      </AppTableTd>
-                    </AppTableTr>
-                  ) : (
-                    visibleRequests.map((r) => (
-                      <AppTableTr key={r.id}>
-                        <AppTableTd>
-                          {canReviewRow(r) ? (
-                            <input
-                              type="checkbox"
-                              checked={selectedIds.includes(r.id)}
-                              onChange={() => toggleSelect(r.id)}
-                              aria-label={`Select request ${r.title || r.id}`}
-                              className="rounded"
-                            />
-                          ) : null}
-                        </AppTableTd>
-                        <AppTableTd title={r.title}>{r.title}</AppTableTd>
-                        <AppTableTd>{hrRequestKindLabel(r.kind)}</AppTableTd>
-                        {showEmployeeColumn ? <AppTableTd>{renderEmployeeCell(r)}</AppTableTd> : null}
-                        <AppTableTd>
-                          <span
-                            className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase ${hrRequestStatusClass(r.status)}`}
-                          >
-                            {hrRequestStatusLabel(r.status)}
-                          </span>
-                        </AppTableTd>
-                        <AppTableTd monospace>{r.submittedAtIso?.slice(0, 10) || '—'}</AppTableTd>
-                        <AppTableTd>{renderRequestActions(r)}</AppTableTd>
-                      </AppTableTr>
-                    ))
-                  )}
-                </AppTableBody>
-              </AppTable>
-            </AppTableWrap>
-          </div>
-        </>
-      ) : null}
+                    ) : null}
+                  </AppTableTd>
+                  <AppTableTd title={r.title}>{r.title}</AppTableTd>
+                  <AppTableTd>{hrRequestKindLabel(r.kind)}</AppTableTd>
+                  {showEmployeeColumn ? <AppTableTd>{renderEmployeeCell(r)}</AppTableTd> : null}
+                  <AppTableTd truncate={false}>
+                    <HrStatusBadge status={r.status} variant="request" />
+                  </AppTableTd>
+                  <AppTableTd monospace>{r.submittedAtIso?.slice(0, 10) || '—'}</AppTableTd>
+                  <AppTableTd truncate={false}>{renderRequestActions(r)}</AppTableTd>
+                </AppTableTr>
+              ))}
+            </AppTableBody>
+          </AppTable>
+        </AppTableWrap>
+      </div>
     </div>
   );
 }
