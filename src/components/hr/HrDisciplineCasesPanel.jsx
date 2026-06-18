@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { useHrListLoad } from '../../hooks/useHrListLoad';
@@ -44,6 +44,7 @@ import HrCaseRecoveryPanel from './HrCaseRecoveryPanel';
 import HrCaseAttendancePanel from './HrCaseAttendancePanel';
 import HrCasePartyLettersPanel from './HrCasePartyLettersPanel';
 import { fetchCaseClosureCheck, fetchCaseResponsibility } from '../../lib/hrIncidents';
+import { inferAccountabilityStage } from '../../lib/hrAccountabilityStageProgress';
 
 function StatusPill({ status }) {
   const m = statusMeta(status);
@@ -79,11 +80,20 @@ function CaseDetailModal({ caseId, onClose, onUpdated, canManage, canLetter }) {
     managementDecision: '',
     sanction: '',
   });
+  const stageInitRef = useRef(false);
 
   const load = useCallback(async () => {
     if (!caseId) return;
     const { ok, data } = await fetchDisciplineCase(caseId);
-    if (ok && data?.ok) setDetail(data.case);
+    let nextDetail = null;
+    if (ok && data?.ok) {
+      nextDetail = data.case;
+      setDetail(data.case);
+    }
+    let nextResponsibilityOk = false;
+    let nextResponsibleUserIds = [];
+    let nextClosureOk = false;
+    let nextRecoveryCount = 0;
     const [resp, close] = await Promise.all([
       fetchCaseResponsibility(caseId),
       fetchCaseClosureCheck(caseId),
@@ -91,19 +101,58 @@ function CaseDetailModal({ caseId, onClose, onUpdated, canManage, canLetter }) {
     if (resp.ok && resp.data?.ok) {
       const parties = resp.data.parties || [];
       const sum = parties.reduce((s, p) => s + (Number(p.responsibilityWeight) || 0), 0);
-      setResponsibilityOk(parties.length > 0 && Math.abs(sum - 100) < 0.01);
-      setResponsibleUserIds(parties.map((p) => p.userId).filter(Boolean));
+      nextResponsibilityOk = parties.length > 0 && Math.abs(sum - 100) < 0.01;
+      nextResponsibleUserIds = parties.map((p) => p.userId).filter(Boolean);
+      setResponsibilityOk(nextResponsibilityOk);
+      setResponsibleUserIds(nextResponsibleUserIds);
     }
     if (close.ok && close.data) {
-      setClosureOk(Boolean(close.data.ok));
+      nextClosureOk = Boolean(close.data.ok);
+      setClosureOk(nextClosureOk);
     }
     const { ok: rsOk, data: rsData } = await apiFetch(`/api/hr/discipline-cases/${encodeURIComponent(caseId)}/recovery-schedules`);
-    if (rsOk && rsData?.ok) setRecoveryCount((rsData.schedules || []).length);
+    if (rsOk && rsData?.ok) {
+      nextRecoveryCount = (rsData.schedules || []).length;
+      setRecoveryCount(nextRecoveryCount);
+    }
+    if (nextDetail && !stageInitRef.current) {
+      stageInitRef.current = true;
+      setActiveStage(
+        inferAccountabilityStage(nextDetail, {
+          responsibilityOk: nextResponsibilityOk,
+          recoveryCount: nextRecoveryCount,
+          closureOk: nextClosureOk,
+        })
+      );
+    }
   }, [caseId]);
 
   useEffect(() => {
     load();
   }, [load]);
+
+  useEffect(() => {
+    if (!detail) return;
+    setWorkflow({
+      employeeResponse: detail.employeeResponse || '',
+      investigationFindings: detail.investigationFindings || '',
+      hrRecommendation: detail.hrRecommendation || '',
+      managementDecision: detail.managementDecision || '',
+      sanction: detail.sanction || '',
+    });
+  }, [
+    detail?.id,
+    detail?.employeeResponse,
+    detail?.investigationFindings,
+    detail?.hrRecommendation,
+    detail?.managementDecision,
+    detail?.sanction,
+  ]);
+
+  useEffect(() => {
+    stageInitRef.current = false;
+    setActiveStage('report');
+  }, [caseId]);
 
   const runPatch = async (body) => {
     setBusy(true);
@@ -116,6 +165,32 @@ function CaseDetailModal({ caseId, onClose, onUpdated, canManage, canLetter }) {
     }
     setDetail(data.case);
     onUpdated?.();
+    return data.case;
+  };
+
+  const saveWorkflow = async () => {
+    const body = {};
+    if (workflow.employeeResponse.trim()) body.employeeResponse = workflow.employeeResponse.trim();
+    if (workflow.investigationFindings.trim()) body.investigationFindings = workflow.investigationFindings.trim();
+    if (workflow.hrRecommendation.trim()) body.hrRecommendation = workflow.hrRecommendation.trim();
+    if (workflow.managementDecision.trim()) body.managementDecision = workflow.managementDecision.trim();
+    if (workflow.sanction.trim()) body.sanction = workflow.sanction.trim();
+    if (!Object.keys(body).length) {
+      setErr('Enter at least one workflow field to save.');
+      return;
+    }
+    await runPatch(body);
+  };
+
+  const recordManagementDecision = async () => {
+    if (!workflow.managementDecision.trim()) {
+      setErr('Enter a management decision before recording.');
+      return;
+    }
+    await runPatch({
+      managementDecision: workflow.managementDecision.trim(),
+      sanction: workflow.sanction.trim(),
+    });
   };
 
   const addEvidence = async () => {
@@ -149,6 +224,7 @@ function CaseDetailModal({ caseId, onClose, onUpdated, canManage, canLetter }) {
     const { ok, data } = await generateDisciplineCaseLetter(caseId, letterType, {
       caseNumber: detail?.caseNumber,
       incidentDescription: detail?.description,
+      incidentDate: detail?.incidentDateIso,
     });
     setBusy(false);
     if (!ok || !data?.ok) {
@@ -204,7 +280,23 @@ function CaseDetailModal({ caseId, onClose, onUpdated, canManage, canLetter }) {
           onStageClick={setActiveStage}
         />
 
-        {(activeStage === 'report' || activeStage === 'investigate') && canManage ? (
+        {activeStage === 'report' ? (
+          <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600">
+            <p className="font-semibold text-slate-800 mb-1">Case summary</p>
+            <p>
+              Use the stage tabs above to work through investigation, evidence, responsibility, asset link, decision,
+              and closure. The case opens on the first incomplete stage.
+            </p>
+            {detail.managementDecision ? (
+              <p className="mt-2 text-xs">
+                <span className="font-semibold">Management decision on file:</span> {detail.managementDecision}
+                {detail.decisionType ? ` · structured type: ${detail.decisionType}` : ''}
+              </p>
+            ) : null}
+          </div>
+        ) : null}
+
+        {activeStage === 'investigate' && canManage ? (
           <HrCard title="Workflow actions" subtitle="Advance the case through HR process">
             {(detail.appeals || []).length ? (
               <div className="mb-4 rounded-lg border border-violet-100 bg-violet-50/50 p-3 text-sm">
@@ -241,6 +333,12 @@ function CaseDetailModal({ caseId, onClose, onUpdated, canManage, canLetter }) {
                 ) : null}
               </div>
             ) : null}
+            <p className="mb-3 text-xs text-slate-600 rounded-lg bg-slate-50 border border-slate-100 p-2">
+              <strong>Step 1 — narrative:</strong> Save investigation notes here.{' '}
+              <strong>Step 2 — payroll:</strong> After management approves, go to stage <em>6. Decision</em> or{' '}
+              <em>8. Close</em> and use <em>Apply decision</em> to create recovery schedules and letters. Recording
+              management decision here alone does not trigger payroll.
+            </p>
             <div className="space-y-3">
               <label className="block text-xs font-semibold text-slate-600">
                 Employee response
@@ -256,33 +354,23 @@ function CaseDetailModal({ caseId, onClose, onUpdated, canManage, canLetter }) {
               </label>
               <label className="block text-xs font-semibold text-slate-600">
                 Management decision
-                <textarea className={`${HR_FIELD_CLASS} min-h-[72px] mt-1`} value={workflow.managementDecision} onChange={(e) => setWorkflow({ ...workflow, managementDecision: e.target.value })} />
+                <textarea className={`${HR_FIELD_CLASS} min-h-[72px] mt-1`} value={workflow.managementDecision} onChange={(e) => setWorkflow({ ...workflow, managementDecision: e.target.value })} placeholder="e.g. Salary deduction per responsibility map" />
               </label>
               <label className="block text-xs font-semibold text-slate-600">
                 Sanction
-                <input className={HR_FIELD_CLASS} value={workflow.sanction} onChange={(e) => setWorkflow({ ...workflow, sanction: e.target.value })} />
+                <input className={HR_FIELD_CLASS} value={workflow.sanction} onChange={(e) => setWorkflow({ ...workflow, sanction: e.target.value })} placeholder="e.g. Written warning + recovery" />
               </label>
               <div className="flex flex-wrap gap-2">
                 <button type="button" disabled={busy} className={HR_BTN_SECONDARY} onClick={() => runPatch({ action: 'request_employee_response' })}>Request response</button>
                 <button type="button" disabled={busy} className={HR_BTN_SECONDARY} onClick={() => runPatch({ action: 'start_investigation' })}>Start investigation</button>
-                {workflow.employeeResponse ? (
-                  <button type="button" disabled={busy} className={HR_BTN_SECONDARY} onClick={() => runPatch({ employeeResponse: workflow.employeeResponse })}>Save response</button>
-                ) : null}
-                {workflow.investigationFindings ? (
-                  <button type="button" disabled={busy} className={HR_BTN_SECONDARY} onClick={() => runPatch({ investigationFindings: workflow.investigationFindings })}>Save findings</button>
-                ) : null}
-                {workflow.hrRecommendation ? (
-                  <button type="button" disabled={busy} className={HR_BTN_SECONDARY} onClick={() => runPatch({ hrRecommendation: workflow.hrRecommendation })}>Submit HR rec.</button>
-                ) : null}
-                {workflow.managementDecision ? (
-                  <button type="button" disabled={busy} className={HR_BTN_PRIMARY} onClick={() => runPatch({ managementDecision: workflow.managementDecision, sanction: workflow.sanction })}>Record decision</button>
-                ) : null}
+                <button type="button" disabled={busy} className={HR_BTN_SECONDARY} onClick={saveWorkflow}>Save workflow progress</button>
+                <button type="button" disabled={busy || !workflow.managementDecision.trim()} className={HR_BTN_PRIMARY} onClick={recordManagementDecision}>Record management decision</button>
               </div>
             </div>
           </HrCard>
         ) : null}
 
-        {(activeStage === 'investigate' || activeStage === 'report') && detail.branchId && detail.incidentDateIso ? (
+        {activeStage === 'investigate' && detail.branchId && detail.incidentDateIso ? (
           <HrCaseAttendancePanel
             branchId={detail.branchId}
             dayIso={detail.incidentDateIso}
@@ -294,26 +382,32 @@ function CaseDetailModal({ caseId, onClose, onUpdated, canManage, canLetter }) {
           />
         ) : null}
 
-        {(activeStage === 'responsibility' || activeStage === 'report') ? (
+        {activeStage === 'responsibility' ? (
           <HrCaseResponsibilityPanel caseId={caseId} canManage={canManage} onSaved={load} />
         ) : null}
 
-        {(activeStage === 'asset' || activeStage === 'report') ? (
+        {activeStage === 'asset' ? (
           <>
             <HrCaseAssetLinkPanel caseId={caseId} detail={detail} canManage={canManage} onSaved={load} />
             <HrAssetCustodyPanel assetId={detail.assetId} machineId={detail.machineId} canManage={canManage} />
           </>
         ) : null}
 
-        {(activeStage === 'decision' || activeStage === 'close' || activeStage === 'report') ? (
+        {(activeStage === 'decision' || activeStage === 'close') ? (
           <>
             <HrCaseRecoveryPanel caseId={caseId} detail={detail} />
             <HrCasePartyLettersPanel detail={detail} canManage={canManage} onUpdated={load} />
-            <HrCaseClosureChecklist caseId={caseId} canManage={canManage} detail={detail} onUpdated={load} />
+            <HrCaseClosureChecklist
+              caseId={caseId}
+              canManage={canManage}
+              detail={detail}
+              recoveryCount={recoveryCount}
+              onUpdated={load}
+            />
           </>
         ) : null}
 
-        {activeStage === 'audit' || activeStage === 'report' ? (
+        {activeStage === 'audit' ? (
           <HrIncidentAuditPackPanel registryId={detail.registryId} caseId={caseId} />
         ) : null}
 

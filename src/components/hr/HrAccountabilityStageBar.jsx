@@ -1,5 +1,6 @@
 import React from 'react';
 import { ACCOUNTABILITY_STAGES } from './hrAccountabilityStages';
+import { accountabilityStageCompletion } from '../../lib/hrAccountabilityStageProgress';
 
 /**
  * @param {{
@@ -21,31 +22,12 @@ export default function HrAccountabilityStageBar({
 }) {
   if (!detail) return null;
 
-  const hasInvestigation =
-    ['under_investigation', 'pending_hr_review', 'pending_management_decision', 'action_issued', 'closed'].includes(
-      detail.status
-    ) ||
-    Boolean(detail.investigationFindings || detail.employeeResponse || detail.hrRecommendation);
-  const hasEvidence = (detail.evidence?.length || 0) > 0 || (detail.witnesses?.length || 0) > 0;
-  const hasAsset = Boolean(detail.assetId || detail.machineId);
-  const hasDecision = Boolean(detail.decisionType);
-  const hasRecovery = recoveryCount > 0 || detail.decisionType === 'no_action' || detail.decisionType === 'warning';
-  const isClosed = detail.status === 'closed';
-
-  const done = {
-    report: true,
-    investigate: hasInvestigation,
-    evidence: hasEvidence,
-    responsibility: responsibilityOk,
-    asset: hasAsset,
-    decision: hasDecision && (detail.decisionType !== 'deduction' || hasRecovery),
-    audit: Boolean(detail.registryId),
-    close: isClosed || closureOk,
-  };
+  const done = accountabilityStageCompletion(detail, { responsibilityOk, recoveryCount, closureOk });
 
   return (
     <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-3">
       <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-2">Accountability stages</p>
+      <p className="text-[11px] text-slate-500 mb-2">Select a stage to focus the form. Green ticks require saved content, not status alone.</p>
       <div className="flex gap-1 overflow-x-auto pb-1">
         {ACCOUNTABILITY_STAGES.map((s) => {
           const complete = done[s.id];

@@ -44,8 +44,8 @@ export default function HrCaseRecoveryPanel({ caseId, detail }) {
         <ul className="space-y-2 text-sm">
           {rows.map((s) => (
             <li key={s.id} className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-2 flex flex-wrap justify-between gap-2">
-              <span>{s.userId}</span>
-              <span className="tabular-nums">
+              <span className="font-medium text-slate-800">{s.staffDisplayName || s.userId}</span>
+              <span className="tabular-nums text-slate-600">
                 {formatNgn(s.installmentAmountNgn)}/mo · outstanding {formatNgn(s.principalOutstandingNgn)} · {s.status}
               </span>
             </li>
