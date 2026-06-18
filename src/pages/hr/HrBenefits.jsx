@@ -16,12 +16,18 @@ import { HR_BTN_PRIMARY, HR_FIELD_CLASS } from '../../components/hr/hrFormStyles
 import {
   AppTable,
   AppTableBody,
+  AppTablePager,
   AppTableTd,
   AppTableTh,
   AppTableThead,
   AppTableTr,
   AppTableWrap,
 } from '../../components/ui/AppDataTable';
+import { HrDualView } from '../../components/hr/HrDualView';
+import { HrMobileCard, HrMobileCardList } from '../../components/hr/HrMobileCard';
+import { HrStatusBadge } from '../../components/hr/HrStatusBadge';
+import { HrTableEmptyRow, HrTableLoadingRow } from '../../components/hr/HrTableBodyState';
+import { useAppTablePaging } from '../../lib/appDataTable';
 
 export default function HrBenefits({ embedded = false } = {}) {
   const ws = useWorkspace();
@@ -97,6 +103,9 @@ export default function HrBenefits({ embedded = false } = {}) {
     }
   };
 
+  const beneficiaryPaging = useAppTablePaging(beneficiaries, 20, tab);
+  const paymentPaging = useAppTablePaging(payments, 20, tab, period);
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -165,61 +174,138 @@ export default function HrBenefits({ embedded = false } = {}) {
       </HrFormModal>
 
       {tab === 'beneficiaries' ? (
-        <AppTableWrap>
-          <AppTable>
-            <AppTableThead>
-              <AppTableTh>Name</AppTableTh>
-                <AppTableTh>Type</AppTableTh>
-                <AppTableTh align="right">Monthly</AppTableTh>
-                <AppTableTh>Status</AppTableTh>
-                {canManage ? <AppTableTh /> : null}
-            </AppTableThead>
-            <AppTableBody>
-              {beneficiaries.map((b) => (
-                <AppTableTr key={b.id}>
-                  <AppTableTd className="font-semibold">{b.displayName}</AppTableTd>
-                  <AppTableTd>{b.beneficiaryType}</AppTableTd>
-                  <AppTableTd align="right">{formatNgn(b.monthlyAmountNgn)}</AppTableTd>
-                  <AppTableTd>{b.status}</AppTableTd>
-                  {canManage ? (
-                    <AppTableTd>
-                      <button type="button" className="text-xs font-bold text-[#134e4a]" onClick={() => schedulePayment(b.id, b.monthlyAmountNgn)}>
-                        Schedule {period}
-                      </button>
-                    </AppTableTd>
-                  ) : null}
-                </AppTableTr>
-              ))}
-            </AppTableBody>
-          </AppTable>
-        </AppTableWrap>
+        <>
+          <HrDualView
+            mobile={
+              <HrMobileCardList loading={loading && !beneficiaries.length} loadingMessage="Loading beneficiaries…" emptyMessage="No beneficiaries yet.">
+                {beneficiaryPaging.slice.map((b) => (
+                  <HrMobileCard
+                    key={b.id}
+                    title={b.displayName}
+                    badge={<HrStatusBadge status={b.status} variant="benefit" />}
+                    fields={[
+                      { label: 'Type', value: b.beneficiaryType },
+                      { label: 'Monthly', value: formatNgn(b.monthlyAmountNgn) },
+                    ]}
+                    footer={
+                      canManage ? (
+                        <button type="button" className="text-xs font-bold text-[#134e4a]" onClick={() => schedulePayment(b.id, b.monthlyAmountNgn)}>
+                          Schedule {period}
+                        </button>
+                      ) : null
+                    }
+                  />
+                ))}
+              </HrMobileCardList>
+            }
+            desktop={
+              <AppTableWrap>
+                <AppTable>
+                  <AppTableThead>
+                    <AppTableTh>Name</AppTableTh>
+                    <AppTableTh>Type</AppTableTh>
+                    <AppTableTh align="right">Monthly</AppTableTh>
+                    <AppTableTh>Status</AppTableTh>
+                    {canManage ? <AppTableTh /> : null}
+                  </AppTableThead>
+                  <AppTableBody>
+                    {loading && !beneficiaries.length ? (
+                      <HrTableLoadingRow colSpan={canManage ? 5 : 4} message="Loading beneficiaries…" />
+                    ) : null}
+                    {!loading && !beneficiaries.length ? (
+                      <HrTableEmptyRow colSpan={canManage ? 5 : 4} message="No beneficiaries yet." />
+                    ) : null}
+                    {beneficiaryPaging.slice.map((b) => (
+                      <AppTableTr key={b.id}>
+                        <AppTableTd className="font-semibold">{b.displayName}</AppTableTd>
+                        <AppTableTd>{b.beneficiaryType}</AppTableTd>
+                        <AppTableTd align="right">{formatNgn(b.monthlyAmountNgn)}</AppTableTd>
+                        <AppTableTd truncate={false}><HrStatusBadge status={b.status} variant="benefit" /></AppTableTd>
+                        {canManage ? (
+                          <AppTableTd truncate={false}>
+                            <button type="button" className="text-xs font-bold text-[#134e4a]" onClick={() => schedulePayment(b.id, b.monthlyAmountNgn)}>
+                              Schedule {period}
+                            </button>
+                          </AppTableTd>
+                        ) : null}
+                      </AppTableTr>
+                    ))}
+                  </AppTableBody>
+                </AppTable>
+              </AppTableWrap>
+            }
+          />
+          {beneficiaryPaging.total > beneficiaryPaging.pageSize ? (
+            <AppTablePager
+              showingFrom={beneficiaryPaging.showingFrom}
+              showingTo={beneficiaryPaging.showingTo}
+              total={beneficiaryPaging.total}
+              hasPrev={beneficiaryPaging.hasPrev}
+              hasNext={beneficiaryPaging.hasNext}
+              onPrev={beneficiaryPaging.goPrev}
+              onNext={beneficiaryPaging.goNext}
+            />
+          ) : null}
+        </>
       ) : (
         <div className="space-y-3">
           <label className="text-xs font-semibold text-slate-600">
             Period (YYYYMM)
             <input className={HR_FIELD_CLASS} value={period} onChange={(e) => setPeriod(e.target.value.replace(/\D/g, '').slice(0, 6))} />
           </label>
-          <AppTableWrap>
-            <AppTable>
-              <AppTableThead>
-                <AppTableTh>Beneficiary</AppTableTh>
-                  <AppTableTh align="right">Amount</AppTableTh>
-                  <AppTableTh>Status</AppTableTh>
-              </AppTableThead>
-              <AppTableBody>
-                {payments.map((p) => (
-                  <AppTableTr key={p.id}>
-                    <AppTableTd>{p.displayName}</AppTableTd>
-                    <AppTableTd align="right">{formatNgn(p.amountNgn)}</AppTableTd>
-                    <AppTableTd>{p.status}</AppTableTd>
-                  </AppTableTr>
+          <HrDualView
+            mobile={
+              <HrMobileCardList loading={loading && !payments.length} loadingMessage="Loading payments…" emptyMessage="No payments for this period.">
+                {paymentPaging.slice.map((p) => (
+                  <HrMobileCard
+                    key={p.id}
+                    title={p.displayName}
+                    badge={<HrStatusBadge status={p.status} variant="benefit" />}
+                    fields={[{ label: 'Amount', value: formatNgn(p.amountNgn) }]}
+                  />
                 ))}
-              </AppTableBody>
-            </AppTable>
-          </AppTableWrap>
+              </HrMobileCardList>
+            }
+            desktop={
+              <AppTableWrap>
+                <AppTable>
+                  <AppTableThead>
+                    <AppTableTh>Beneficiary</AppTableTh>
+                    <AppTableTh align="right">Amount</AppTableTh>
+                    <AppTableTh>Status</AppTableTh>
+                  </AppTableThead>
+                  <AppTableBody>
+                    {loading && !payments.length ? (
+                      <HrTableLoadingRow colSpan={3} message="Loading payments…" />
+                    ) : null}
+                    {!loading && !payments.length ? (
+                      <HrTableEmptyRow colSpan={3} message="No payments for this period." />
+                    ) : null}
+                    {paymentPaging.slice.map((p) => (
+                      <AppTableTr key={p.id}>
+                        <AppTableTd>{p.displayName}</AppTableTd>
+                        <AppTableTd align="right">{formatNgn(p.amountNgn)}</AppTableTd>
+                        <AppTableTd truncate={false}><HrStatusBadge status={p.status} variant="benefit" /></AppTableTd>
+                      </AppTableTr>
+                    ))}
+                  </AppTableBody>
+                </AppTable>
+              </AppTableWrap>
+            }
+          />
+          {paymentPaging.total > paymentPaging.pageSize ? (
+            <AppTablePager
+              showingFrom={paymentPaging.showingFrom}
+              showingTo={paymentPaging.showingTo}
+              total={paymentPaging.total}
+              hasPrev={paymentPaging.hasPrev}
+              hasNext={paymentPaging.hasNext}
+              onPrev={paymentPaging.goPrev}
+              onNext={paymentPaging.goNext}
+            />
+          ) : null}
         </div>
       )}
-      {loading ? <p className="text-sm text-slate-500">Loading…</p> : null}
     </div>
   );
 }

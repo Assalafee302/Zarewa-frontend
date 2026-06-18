@@ -15,6 +15,7 @@ import { HR_EMPLOYEES } from '../../lib/hrRoutes';
 import {
   AppTable,
   AppTableBody,
+  AppTablePager,
   AppTableTd,
   AppTableTh,
   AppTableThead,
@@ -23,6 +24,7 @@ import {
 } from '../../components/ui/AppDataTable';
 import { HrStatusBadge } from '../../components/hr/HrStatusBadge';
 import { HrTableEmptyRow, HrTableLoadingRow } from '../../components/hr/HrTableBodyState';
+import { useAppTablePaging } from '../../lib/appDataTable';
 
 function contractBadge(staff) {
   if (!staff) return null;
@@ -141,6 +143,8 @@ export default function HrStaffDirectory({
       return hay.includes(q);
     });
   }, [staff, search, branchId, department, employmentType, status]);
+
+  const staffPaging = useAppTablePaging(filtered, 20, search, branchId, department, employmentType, status);
 
   const exportRosterCsv = () => {
     const esc = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
@@ -375,7 +379,7 @@ export default function HrStaffDirectory({
           {!loading && filtered.length === 0 ? (
             <p className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">No staff match these filters.</p>
           ) : null}
-          {filtered.map((s) => (
+          {staffPaging.slice.map((s) => (
             <article key={s.userId} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
               <div className="flex items-start justify-between gap-3">
                 <Link
@@ -439,7 +443,7 @@ export default function HrStaffDirectory({
               {!loading && filtered.length === 0 ? (
                 <HrTableEmptyRow colSpan={showSalary ? 9 : 8} message="No staff match these filters." />
               ) : null}
-              {filtered.map((s) => (
+              {staffPaging.slice.map((s) => (
                   <AppTableTr key={s.userId}>
                     <AppTableTd>
                       <Link
@@ -478,6 +482,17 @@ export default function HrStaffDirectory({
           </AppTable>
         </AppTableWrap>
         </div>
+        {staffPaging.total > staffPaging.pageSize ? (
+          <AppTablePager
+            showingFrom={staffPaging.showingFrom}
+            showingTo={staffPaging.showingTo}
+            total={staffPaging.total}
+            hasPrev={staffPaging.hasPrev}
+            hasNext={staffPaging.hasNext}
+            onPrev={staffPaging.goPrev}
+            onNext={staffPaging.goNext}
+          />
+        ) : null}
         </>
       ) : null}
       {error ? (

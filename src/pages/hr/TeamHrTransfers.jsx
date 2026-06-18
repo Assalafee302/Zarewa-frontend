@@ -19,6 +19,10 @@ import {
   AppTableTr,
   AppTableWrap,
 } from '../../components/ui/AppDataTable';
+import { HrDualView } from '../../components/hr/HrDualView';
+import { HrMobileCard, HrMobileCardList } from '../../components/hr/HrMobileCard';
+import { HrStatusBadge } from '../../components/hr/HrStatusBadge';
+import { HrTableEmptyRow, HrTableLoadingRow } from '../../components/hr/HrTableBodyState';
 
 export default function TeamHrTransfers() {
   const ws = useWorkspace();
@@ -116,40 +120,70 @@ export default function TeamHrTransfers() {
       {formErr ? <ProfileInlineAlert variant="error">{formErr}</ProfileInlineAlert> : null}
 
       <ProfileOverviewSection title="Branch review queue" subtitle="Endorse to send to HQ HR">
-        {loading && !transfers.length ? <p className="text-sm text-slate-600">Loading…</p> : null}
-        {!loading && !transfers.length ? (
-          <p className="text-sm text-slate-500">No transfers awaiting branch review.</p>
-        ) : (
-          <AppTableWrap>
-            <AppTable>
-              <AppTableThead>
-                <AppTableTh>Staff</AppTableTh>
+        <HrDualView
+          mobile={
+            <HrMobileCardList loading={loading && !transfers.length} loadingMessage="Loading transfers…" emptyMessage="No transfers awaiting branch review.">
+              {transfers.map((t) => (
+                <HrMobileCard
+                  key={t.id}
+                  title={t.staffDisplayName}
+                  badge={<HrStatusBadge status={t.status} variant="transfer" />}
+                  fields={[
+                    { label: 'Route', value: `${branchName(t.fromBranchId)} → ${branchName(t.toBranchId)}`, colSpan: 2 },
+                    { label: 'Effective', value: t.effectiveDateIso || '—' },
+                  ]}
+                  footer={
+                    <div className="flex flex-wrap gap-3">
+                      <button type="button" className="text-xs font-bold uppercase text-[#134e4a]" onClick={() => setDetail(t)}>
+                        Details
+                      </button>
+                      <button type="button" disabled={busy} className="text-xs font-bold uppercase text-emerald-700" onClick={() => endorse(t.id)}>
+                        Endorse
+                      </button>
+                    </div>
+                  }
+                />
+              ))}
+            </HrMobileCardList>
+          }
+          desktop={
+            <AppTableWrap>
+              <AppTable>
+                <AppTableThead>
+                  <AppTableTh>Staff</AppTableTh>
                   <AppTableTh>Route</AppTableTh>
                   <AppTableTh>Effective</AppTableTh>
                   <AppTableTh />
-              </AppTableThead>
-              <AppTableBody>
-                {transfers.map((t) => (
-                  <AppTableTr key={t.id}>
-                    <AppTableTd>{t.staffDisplayName}</AppTableTd>
-                    <AppTableTd>
-                      {branchName(t.fromBranchId)} → {branchName(t.toBranchId)}
-                    </AppTableTd>
-                    <AppTableTd>{t.effectiveDateIso || '—'}</AppTableTd>
-                    <AppTableTd>
-                      <button type="button" className="text-[10px] font-bold uppercase text-[#134e4a] mr-2" onClick={() => setDetail(t)}>
-                        Details
-                      </button>
-                      <button type="button" disabled={busy} className="text-[10px] font-bold uppercase text-emerald-700" onClick={() => endorse(t.id)}>
-                        Endorse
-                      </button>
-                    </AppTableTd>
-                  </AppTableTr>
-                ))}
-              </AppTableBody>
-            </AppTable>
-          </AppTableWrap>
-        )}
+                </AppTableThead>
+                <AppTableBody>
+                  {loading && !transfers.length ? (
+                    <HrTableLoadingRow colSpan={4} message="Loading transfers…" />
+                  ) : null}
+                  {!loading && !transfers.length ? (
+                    <HrTableEmptyRow colSpan={4} message="No transfers awaiting branch review." />
+                  ) : null}
+                  {transfers.map((t) => (
+                    <AppTableTr key={t.id}>
+                      <AppTableTd>{t.staffDisplayName}</AppTableTd>
+                      <AppTableTd>
+                        {branchName(t.fromBranchId)} → {branchName(t.toBranchId)}
+                      </AppTableTd>
+                      <AppTableTd>{t.effectiveDateIso || '—'}</AppTableTd>
+                      <AppTableTd truncate={false}>
+                        <button type="button" className="text-xs font-bold uppercase text-[#134e4a] mr-2" onClick={() => setDetail(t)}>
+                          Details
+                        </button>
+                        <button type="button" disabled={busy} className="text-xs font-bold uppercase text-emerald-700" onClick={() => endorse(t.id)}>
+                          Endorse
+                        </button>
+                      </AppTableTd>
+                    </AppTableTr>
+                  ))}
+                </AppTableBody>
+              </AppTable>
+            </AppTableWrap>
+          }
+        />
       </ProfileOverviewSection>
 
       <HrFormModal isOpen={modalOpen} onClose={() => setModalOpen(false)} title="Recommend branch transfer" size="md">

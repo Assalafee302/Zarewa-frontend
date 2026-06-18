@@ -61,11 +61,11 @@ export default function TeamHrStaff() {
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <HrCard className="!p-3">
-          <p className="text-[10px] font-black uppercase text-slate-500">Team size</p>
+          <p className="text-xs font-black uppercase text-slate-500">Team size</p>
           <p className="text-xl font-black tabular-nums">{summary?.count ?? '—'}</p>
         </HrCard>
         <HrCard className="!p-3">
-          <p className="text-[10px] font-black uppercase text-slate-500">Pending leave</p>
+          <p className="text-xs font-black uppercase text-slate-500">Pending leave</p>
           <p className="text-xl font-black tabular-nums text-amber-900">{summary?.pendingLeave ?? 0}</p>
         </HrCard>
       </div>

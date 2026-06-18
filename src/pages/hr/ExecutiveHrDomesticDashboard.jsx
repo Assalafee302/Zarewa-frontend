@@ -15,7 +15,7 @@ const HEALTH_BORDER = {
 function KpiCard({ label, value, hint }) {
   return (
     <div className="rounded-2xl border border-amber-100 bg-white p-4 shadow-sm">
-      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">{label}</p>
+      <p className="text-xs font-black uppercase tracking-widest text-slate-400">{label}</p>
       <p className="mt-1 text-2xl font-black tabular-nums text-slate-900">{value}</p>
       {hint ? <p className="mt-1 text-xs text-slate-500">{hint}</p> : null}
     </div>
@@ -45,7 +45,7 @@ function StaffCard({ member }) {
             <h3 className="text-lg font-black text-slate-900">{member.displayName}</h3>
             {!member.hasLogin ? (
               <span
-                className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-900"
+                className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs font-bold uppercase tracking-wide text-amber-900"
                 title={DOMESTIC_BENEFITS.adminManagedHint}
               >
                 {DOMESTIC_BENEFITS.adminManagedBadge}
@@ -69,7 +69,7 @@ function StaffCard({ member }) {
 
       <dl className="mt-4 grid gap-3 sm:grid-cols-2">
         <div className="rounded-xl border border-amber-100 bg-amber-50/50 px-3 py-2.5">
-          <dt className="text-[10px] font-black uppercase tracking-widest text-amber-800">
+          <dt className="text-xs font-black uppercase tracking-widest text-amber-800">
             {DOMESTIC_BENEFITS.salaryLabel}
           </dt>
           <dd className="mt-1 text-base font-black tabular-nums text-slate-900">
@@ -81,7 +81,7 @@ function StaffCard({ member }) {
           </dd>
         </div>
         <div className="rounded-xl border border-slate-100 bg-slate-50/50 px-3 py-2.5">
-          <dt className="text-[10px] font-black uppercase tracking-widest text-slate-500">In progress</dt>
+          <dt className="text-xs font-black uppercase tracking-widest text-slate-500">In progress</dt>
           {member.pendingPayment ? (
             <>
               <dd className="mt-1 text-sm font-bold text-slate-900">{member.pendingPayment.statusLabel}</dd>
@@ -167,7 +167,7 @@ export default function ExecutiveHrDomesticDashboard() {
   return (
     <div className="space-y-6">
       <div className="rounded-2xl border border-amber-200/80 bg-gradient-to-br from-amber-700 via-amber-800 to-orange-950 p-5 text-white shadow-lg">
-        <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-amber-200/90">
+        <p className="text-xs font-bold uppercase tracking-[0.22em] text-amber-200/90">
           {DOMESTIC_BENEFITS.hubEyebrow}
         </p>
         <h2 className="mt-1 text-2xl font-black tracking-tight">{DOMESTIC_BENEFITS.adminDashboardTitle}</h2>

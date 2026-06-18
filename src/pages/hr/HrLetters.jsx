@@ -24,12 +24,18 @@ import { HR_BTN_PRIMARY, HR_BTN_SECONDARY, HR_FIELD_CLASS } from '../../componen
 import {
   AppTable,
   AppTableBody,
+  AppTablePager,
   AppTableTd,
   AppTableTh,
   AppTableThead,
   AppTableTr,
   AppTableWrap,
 } from '../../components/ui/AppDataTable';
+import { HrDualView } from '../../components/hr/HrDualView';
+import { HrMobileCard, HrMobileCardList } from '../../components/hr/HrMobileCard';
+import { HrStatusBadge } from '../../components/hr/HrStatusBadge';
+import { HrTableEmptyRow, HrTableLoadingRow } from '../../components/hr/HrTableBodyState';
+import { useAppTablePaging } from '../../lib/appDataTable';
 
 const LETTER_GROUPS = [
   {
@@ -112,18 +118,6 @@ const LETTER_TYPES = [
 ];
 
 const LETTER_TYPE_MAP = Object.fromEntries(LETTER_TYPES.map((t) => [t.value, t]));
-
-const LETTER_STATUS_PILL = {
-  draft: 'bg-slate-100 text-slate-700 border-slate-200',
-  submitted: 'bg-sky-50 text-sky-800 border-sky-200',
-  hr_review: 'bg-indigo-50 text-indigo-800 border-indigo-200',
-  gm_review: 'bg-violet-50 text-violet-900 border-violet-200',
-  md_review: 'bg-purple-50 text-purple-900 border-purple-200',
-  approved: 'bg-emerald-50 text-emerald-800 border-emerald-200',
-  issued: 'bg-teal-50 text-[#134e4a] border-teal-200',
-  rejected: 'bg-red-50 text-red-800 border-red-200',
-  cancelled: 'bg-slate-100 text-slate-500 border-slate-200',
-};
 
 const LOCK_MSG = 'This letter must be approved before it can be printed or downloaded.';
 
@@ -664,6 +658,56 @@ export default function HrLetters({ embedded = false } = {}) {
     return name.includes(search.toLowerCase()) || kind.includes(search.toLowerCase());
   });
 
+  const letterPaging = useAppTablePaging(filteredLetters, 20, quickFilter, search);
+
+  const renderLetterActions = (l, status, official) => (
+    <div className="flex flex-wrap gap-2">
+      <button type="button" className="text-xs font-bold text-[#134e4a] hover:underline" onClick={() => openDraftPreview(l.id)}>
+        Preview
+      </button>
+      {canGenerate && ['draft', 'rejected'].includes(status) ? (
+        <button type="button" className="text-xs font-bold text-sky-700 hover:underline" onClick={() => runLetterAction(() => submitHrLetter(l.id))}>
+          Submit
+        </button>
+      ) : null}
+      {canApprove && status === 'submitted' ? (
+        <button type="button" className="text-xs font-bold text-indigo-700 hover:underline" onClick={() => runLetterAction(() => hrReviewHrLetter(l.id, { approve: true }))}>
+          HR approve
+        </button>
+      ) : null}
+      {canApprove && ['hr_review', 'gm_review'].includes(status) ? (
+        <button type="button" className="text-xs font-bold text-violet-700 hover:underline" onClick={() => runLetterAction(() => gmReviewHrLetter(l.id, { approve: true }))}>
+          GM approve
+        </button>
+      ) : null}
+      {canApprove && status === 'md_review' ? (
+        <button type="button" className="text-xs font-bold text-purple-700 hover:underline" onClick={() => runLetterAction(() => mdApproveHrLetter(l.id, { approve: true }))}>
+          MD approve
+        </button>
+      ) : null}
+      {canApprove && ['approved', 'md_review', 'gm_review', 'hr_review'].includes(status) ? (
+        <button type="button" className="text-xs font-bold text-teal-700 hover:underline" onClick={() => runLetterAction(() => issueHrLetter(l.id))}>
+          Issue
+        </button>
+      ) : null}
+      {canApprove && !['issued', 'rejected', 'cancelled'].includes(status) ? (
+        <button type="button" className="text-xs font-bold text-red-600 hover:underline" onClick={() => runLetterAction(() => rejectHrLetter(l.id, 'Rejected from letters hub'))}>
+          Reject
+        </button>
+      ) : null}
+      <button type="button" className={`text-xs font-bold hover:underline ${official ? 'text-slate-600' : 'text-slate-300'}`} onClick={() => tryDownloadPdf(l.id, status)}>
+        PDF
+      </button>
+      <button type="button" className={`text-xs font-bold hover:underline ${official ? 'text-slate-600' : 'text-slate-300'}`} onClick={() => tryDownloadDocx(l.id, status)}>
+        Word
+      </button>
+      <button type="button" className={`text-xs font-bold hover:underline ${official ? 'text-slate-600' : 'text-slate-300'}`} onClick={() => tryPrint(l)}>
+        Print
+      </button>
+      {l.rejectionReason ? <p className="mt-1 w-full text-xs text-red-700">Rejected: {l.rejectionReason}</p> : null}
+    </div>
+  );
+
   return (
     <div className="space-y-6">
       <style>{`
@@ -882,103 +926,89 @@ export default function HrLetters({ embedded = false } = {}) {
         ) : null}
       </div>
 
-      <AppTableWrap className="overflow-x-auto -mx-1 px-1">
-        <AppTable>
-          <AppTableThead>
-            <AppTableTh>Status</AppTableTh>
-              <AppTableTh>Reference</AppTableTh>
-              <AppTableTh>Staff</AppTableTh>
-              <AppTableTh>Type</AppTableTh>
-              <AppTableTh>Issued</AppTableTh>
-              <AppTableTh>Actions</AppTableTh>
-          </AppTableThead>
-          <AppTableBody>
-            {loading && !letters.length ? (
-              <AppTableTr>
-                <AppTableTd colSpan={6}><span className="text-slate-500">Loading…</span></AppTableTd>
-              </AppTableTr>
-            ) : null}
-            {!loading && !filteredLetters.length ? (
-              <AppTableTr>
-                <AppTableTd colSpan={6}><span className="text-slate-500">No letters found.</span></AppTableTd>
-              </AppTableTr>
-            ) : null}
-            {filteredLetters.map((l) => {
+      <HrDualView
+        mobile={
+          <HrMobileCardList loading={loading && !letters.length} loadingMessage="Loading letters…" emptyMessage="No letters found.">
+            {letterPaging.slice.map((l) => {
               const person = staff.find((s) => s.userId === l.userId);
               const typeLabel = LETTER_TYPES.find((t) => t.value === l.letterKind)?.label || l.letterKind;
               const status = l.status || 'issued';
-              const pill = LETTER_STATUS_PILL[status] || LETTER_STATUS_PILL.draft;
               const official = isLetterOfficiallyExportable(status);
               return (
-                <AppTableTr key={l.id}>
-                  <AppTableTd>
-                    <span className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase ${pill}`}>
-                      {status.replace(/_/g, ' ')}
-                    </span>
-                  </AppTableTd>
-                  <AppTableTd className="font-mono text-xs">{l.referenceNumber || '—'}</AppTableTd>
-                  <AppTableTd>
-                    {person ? (
-                      <Link to={`/hr/employees/${l.userId}`} className="font-semibold text-[#134e4a] hover:underline">
-                        {person.displayName || l.userId}
-                      </Link>
-                    ) : l.userId}
-                  </AppTableTd>
-                  <AppTableTd>{typeLabel}</AppTableTd>
-                  <AppTableTd>{l.issuedAtIso?.slice(0, 10) || l.submittedAtIso?.slice(0, 10) || '—'}</AppTableTd>
-                  <AppTableTd>
-                    <div className="flex flex-wrap gap-2">
-                      <button type="button" className="text-xs font-bold text-[#134e4a] hover:underline" onClick={() => openDraftPreview(l.id)}>
-                        Preview
-                      </button>
-                      {canGenerate && ['draft', 'rejected'].includes(status) ? (
-                        <button type="button" className="text-xs font-bold text-sky-700 hover:underline" onClick={() => runLetterAction(() => submitHrLetter(l.id))}>
-                          Submit
-                        </button>
-                      ) : null}
-                      {canApprove && status === 'submitted' ? (
-                        <button type="button" className="text-xs font-bold text-indigo-700 hover:underline" onClick={() => runLetterAction(() => hrReviewHrLetter(l.id, { approve: true }))}>
-                          HR approve
-                        </button>
-                      ) : null}
-                      {canApprove && ['hr_review', 'gm_review'].includes(status) ? (
-                        <button type="button" className="text-xs font-bold text-violet-700 hover:underline" onClick={() => runLetterAction(() => gmReviewHrLetter(l.id, { approve: true }))}>
-                          GM approve
-                        </button>
-                      ) : null}
-                      {canApprove && status === 'md_review' ? (
-                        <button type="button" className="text-xs font-bold text-purple-700 hover:underline" onClick={() => runLetterAction(() => mdApproveHrLetter(l.id, { approve: true }))}>
-                          MD approve
-                        </button>
-                      ) : null}
-                      {canApprove && ['approved', 'md_review', 'gm_review', 'hr_review'].includes(status) ? (
-                        <button type="button" className="text-xs font-bold text-teal-700 hover:underline" onClick={() => runLetterAction(() => issueHrLetter(l.id))}>
-                          Issue
-                        </button>
-                      ) : null}
-                      {canApprove && !['issued', 'rejected', 'cancelled'].includes(status) ? (
-                        <button type="button" className="text-xs font-bold text-red-600 hover:underline" onClick={() => runLetterAction(() => rejectHrLetter(l.id, 'Rejected from letters hub'))}>
-                          Reject
-                        </button>
-                      ) : null}
-                      <button type="button" className={`text-xs font-bold hover:underline ${official ? 'text-slate-600' : 'text-slate-300'}`} onClick={() => tryDownloadPdf(l.id, status)}>
-                        PDF
-                      </button>
-                      <button type="button" className={`text-xs font-bold hover:underline ${official ? 'text-slate-600' : 'text-slate-300'}`} onClick={() => tryDownloadDocx(l.id, status)}>
-                        Word
-                      </button>
-                      <button type="button" className={`text-xs font-bold hover:underline ${official ? 'text-slate-600' : 'text-slate-300'}`} onClick={() => tryPrint(l)}>
-                        Print
-                      </button>
-                    </div>
-                    {l.rejectionReason ? <p className="mt-1 text-[10px] text-red-700">Rejected: {l.rejectionReason}</p> : null}
-                  </AppTableTd>
-                </AppTableTr>
+                <HrMobileCard
+                  key={l.id}
+                  title={person?.displayName || l.userId}
+                  titleLink={person ? `/hr/employees/${l.userId}` : undefined}
+                  badge={<HrStatusBadge status={status} variant="letter" />}
+                  fields={[
+                    { label: 'Reference', value: l.referenceNumber || '—' },
+                    { label: 'Type', value: typeLabel },
+                    { label: 'Issued', value: l.issuedAtIso?.slice(0, 10) || l.submittedAtIso?.slice(0, 10) || '—', colSpan: 2 },
+                  ]}
+                  footer={renderLetterActions(l, status, official)}
+                />
               );
             })}
-          </AppTableBody>
-        </AppTable>
-      </AppTableWrap>
+          </HrMobileCardList>
+        }
+        desktop={
+          <AppTableWrap className="overflow-x-auto -mx-1 px-1">
+            <AppTable>
+              <AppTableThead>
+                <AppTableTh>Status</AppTableTh>
+                <AppTableTh>Reference</AppTableTh>
+                <AppTableTh>Staff</AppTableTh>
+                <AppTableTh>Type</AppTableTh>
+                <AppTableTh>Issued</AppTableTh>
+                <AppTableTh>Actions</AppTableTh>
+              </AppTableThead>
+              <AppTableBody>
+                {loading && !letters.length ? (
+                  <HrTableLoadingRow colSpan={6} message="Loading letters…" />
+                ) : null}
+                {!loading && !filteredLetters.length ? (
+                  <HrTableEmptyRow colSpan={6} message="No letters found." />
+                ) : null}
+                {letterPaging.slice.map((l) => {
+                  const person = staff.find((s) => s.userId === l.userId);
+                  const typeLabel = LETTER_TYPES.find((t) => t.value === l.letterKind)?.label || l.letterKind;
+                  const status = l.status || 'issued';
+                  const official = isLetterOfficiallyExportable(status);
+                  return (
+                    <AppTableTr key={l.id}>
+                      <AppTableTd truncate={false}>
+                        <HrStatusBadge status={status} variant="letter" />
+                      </AppTableTd>
+                      <AppTableTd className="font-mono text-xs">{l.referenceNumber || '—'}</AppTableTd>
+                      <AppTableTd>
+                        {person ? (
+                          <Link to={`/hr/employees/${l.userId}`} className="font-semibold text-[#134e4a] hover:underline">
+                            {person.displayName || l.userId}
+                          </Link>
+                        ) : l.userId}
+                      </AppTableTd>
+                      <AppTableTd>{typeLabel}</AppTableTd>
+                      <AppTableTd>{l.issuedAtIso?.slice(0, 10) || l.submittedAtIso?.slice(0, 10) || '—'}</AppTableTd>
+                      <AppTableTd truncate={false}>{renderLetterActions(l, status, official)}</AppTableTd>
+                    </AppTableTr>
+                  );
+                })}
+              </AppTableBody>
+            </AppTable>
+          </AppTableWrap>
+        }
+      />
+      {letterPaging.total > letterPaging.pageSize ? (
+        <AppTablePager
+          showingFrom={letterPaging.showingFrom}
+          showingTo={letterPaging.showingTo}
+          total={letterPaging.total}
+          hasPrev={letterPaging.hasPrev}
+          hasNext={letterPaging.hasNext}
+          onPrev={letterPaging.goPrev}
+          onNext={letterPaging.goNext}
+        />
+      ) : null}
     </div>
   );
 }

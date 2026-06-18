@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { apiFetch } from '../../lib/apiBase';
 import { fetchHrAnalyticsDashboard } from '../../lib/hrMasterData';
 import { HrCard, HrPageIntro } from '../../components/hr/hrPageUi';
+import { HrStatusBadge } from '../../components/hr/HrStatusBadge';
 import {
   AppTable,
   AppTableBody,
@@ -212,7 +213,7 @@ function AttendanceTab() {
                     <div style={{ width: `${latePct}%` }} className="bg-amber-400" title={`Late: ${m.late}`} />
                     <div style={{ width: `${absentPct}%` }} className="bg-red-400" title={`Absent: ${m.absent}`} />
                   </div>
-                  <div className="flex gap-3 text-[10px] text-slate-500">
+                  <div className="flex gap-3 text-xs text-slate-500">
                     <span><span className="inline-block w-2 h-2 rounded-full bg-teal-500 mr-1" />Present: {fmt(m.present)}</span>
                     <span><span className="inline-block w-2 h-2 rounded-full bg-amber-400 mr-1" />Late: {fmt(m.late)}</span>
                     <span><span className="inline-block w-2 h-2 rounded-full bg-red-400 mr-1" />Absent: {fmt(m.absent)}</span>
@@ -245,7 +246,7 @@ function AttendanceTab() {
                     <AppTableTd><span className="font-semibold">{a.displayName || a.userId}</span></AppTableTd>
                     <AppTableTd>{a.branch || '—'}</AppTableTd>
                     <AppTableTd align="right">
-                      <span className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold ${
+                      <span className={`inline-flex rounded-full border px-2 py-0.5 text-xs font-bold tabular-nums ${
                         a.absentDays > 10
                           ? 'bg-red-50 text-red-800 border-red-200'
                           : 'bg-amber-50 text-amber-900 border-amber-200'
@@ -461,9 +462,7 @@ function LoanPortfolioTab() {
                     <AppTableTd align="right">{fmtNgn(l.amountNgn)}</AppTableTd>
                     <AppTableTd align="right">{fmtNgn(l.monthlyDeductionNgn)}</AppTableTd>
                     <AppTableTd>
-                      <span className="inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold bg-sky-50 text-sky-800 border-sky-200">
-                        {l.status || 'active'}
-                      </span>
+                      <HrStatusBadge status={l.status || 'active'} variant="benefit" />
                     </AppTableTd>
                   </AppTableTr>
                 ))
@@ -537,18 +536,18 @@ function TurnoverTab() {
                   </div>
                   <div className="space-y-0.5">
                     <div className="flex items-center gap-1.5">
-                      <span className="w-14 text-right text-[10px] text-slate-500">Joiners</span>
+                      <span className="w-14 text-right text-xs text-slate-500">Joiners</span>
                       <div className="flex-1 h-3 bg-slate-100 rounded-full overflow-hidden">
                         <div style={{ width: `${joinerPct}%` }} className="h-full bg-emerald-500 rounded-full" />
                       </div>
-                      <span className="w-5 text-[10px] font-bold text-emerald-700">{m.joiners || 0}</span>
+                      <span className="w-5 text-xs font-bold text-emerald-700">{m.joiners || 0}</span>
                     </div>
                     <div className="flex items-center gap-1.5">
-                      <span className="w-14 text-right text-[10px] text-slate-500">Leavers</span>
+                      <span className="w-14 text-right text-xs text-slate-500">Leavers</span>
                       <div className="flex-1 h-3 bg-slate-100 rounded-full overflow-hidden">
                         <div style={{ width: `${leaverPct}%` }} className="h-full bg-red-400 rounded-full" />
                       </div>
-                      <span className="w-5 text-[10px] font-bold text-red-700">{m.leavers || 0}</span>
+                      <span className="w-5 text-xs font-bold text-red-700">{m.leavers || 0}</span>
                     </div>
                   </div>
                 </div>

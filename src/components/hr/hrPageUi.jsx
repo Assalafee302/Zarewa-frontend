@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { HrStatusBadge } from './HrStatusBadge';
 
 export {
   HR_BTN_PRIMARY,
@@ -53,26 +54,8 @@ export function HrCard({ title, subtitle, actions, children, className = '' }) {
   );
 }
 
-const STATUS_TONES = {
-  applied: 'bg-slate-100 text-slate-700 border-slate-200',
-  screening: 'bg-sky-50 text-sky-800 border-sky-100',
-  interview: 'bg-amber-50 text-amber-900 border-amber-100',
-  offer: 'bg-violet-50 text-violet-800 border-violet-100',
-  hired: 'bg-emerald-50 text-emerald-800 border-emerald-100',
-  rejected: 'bg-red-50 text-red-800 border-red-100',
-  open: 'bg-emerald-50 text-emerald-800 border-emerald-100',
-  draft: 'bg-slate-50 text-slate-600 border-slate-200',
-  closed: 'bg-slate-100 text-slate-500 border-slate-200',
-};
-
 export function HrStatusPill({ status, label }) {
-  const key = String(status || '').toLowerCase();
-  const tone = STATUS_TONES[key] || STATUS_TONES.applied;
-  return (
-    <span className={`inline-flex rounded-full border px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${tone}`}>
-      {label || status}
-    </span>
-  );
+  return <HrStatusBadge status={status} variant="workflow" label={label || status} />;
 }
 
 export function HrEmptyState({ title, description, action }) {

@@ -22,6 +22,7 @@ import { currentPeriodYyyymm } from '../../lib/hrRequests';
 import {
   AppTable,
   AppTableBody,
+  AppTablePager,
   AppTableTd,
   AppTableTh,
   AppTableThead,
@@ -30,6 +31,7 @@ import {
 } from '../../components/ui/AppDataTable';
 import { HrStatusBadge } from '../../components/hr/HrStatusBadge';
 import { HrTableLoadingRow } from '../../components/hr/HrTableBodyState';
+import { useAppTablePaging } from '../../lib/appDataTable';
 
 /** Touch-friendly payroll action button — 44px min height for mobile. */
 const PAYROLL_BTN =
@@ -130,10 +132,10 @@ function VarianceModal({ runId, onClose }) {
                   <div>
                     <span className="text-sm font-semibold text-slate-800">{a.displayName || a.userId}</span>
                     {a.alertType === 'missing' && (
-                      <span className="ml-2 inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold bg-red-50 text-red-800 border-red-200">Missing</span>
+                      <HrStatusBadge status="missing_staff" variant="alert" label="Missing" />
                     )}
                     {a.alertType === 'new' && (
-                      <span className="ml-2 inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold bg-sky-50 text-sky-800 border-sky-200">New Staff</span>
+                      <HrStatusBadge status="new_staff" variant="alert" />
                     )}
                     {a.note && <p className="text-xs text-slate-500 mt-0.5">{a.note}</p>}
                   </div>
@@ -395,6 +397,8 @@ export default function HrPayroll({ embedded = false } = {}) {
     return formatNgn(l.taxNgn);
   };
 
+  const linesPaging = useAppTablePaging(lines, 20, selectedId);
+
   const linesBody = (
     <div className="space-y-3">
       {totals && !totals.amountsRedacted ? (
@@ -440,7 +444,7 @@ export default function HrPayroll({ embedded = false } = {}) {
       ) : (
         <>
           <div className="space-y-3 md:hidden">
-            {lines.map((l) => (
+            {linesPaging.slice.map((l) => (
               <article
                 key={`${l.userId}-m`}
                 className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
@@ -520,7 +524,7 @@ export default function HrPayroll({ embedded = false } = {}) {
             <AppTableTh align="right">Net</AppTableTh>
           </AppTableThead>
           <AppTableBody>
-            {lines.map((l) => (
+            {linesPaging.slice.map((l) => (
                   <AppTableTr key={l.userId}>
                     <AppTableTd>
                       <span className="font-medium">{l.displayName || l.userId}</span>
@@ -591,6 +595,17 @@ export default function HrPayroll({ embedded = false } = {}) {
         </AppTable>
       </AppTableWrap>
           </div>
+          {linesPaging.total > linesPaging.pageSize ? (
+            <AppTablePager
+              showingFrom={linesPaging.showingFrom}
+              showingTo={linesPaging.showingTo}
+              total={linesPaging.total}
+              hasPrev={linesPaging.hasPrev}
+              hasNext={linesPaging.hasNext}
+              onPrev={linesPaging.goPrev}
+              onNext={linesPaging.goNext}
+            />
+          ) : null}
         </>
       )}
     </div>

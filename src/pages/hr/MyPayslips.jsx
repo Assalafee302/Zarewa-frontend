@@ -19,7 +19,8 @@ import {
   ProfileMetricSkeleton,
   ProfileOverviewSection,
 } from '../../components/profile/profileOverviewUi';
-import { ProfileKpiCard, ProfileListRow, ProfileStatusChip } from '../../components/profile/profileDesign';
+import { ProfileKpiCard, ProfileListRow } from '../../components/profile/profileDesign';
+import { HrStatusBadge } from '../../components/hr/HrStatusBadge';
 import {
   AppTable,
   AppTableBody,
@@ -40,7 +41,7 @@ function PayslipRowActions({ payslip, onView }) {
     <button
       type="button"
       onClick={() => onView(payslip)}
-      className="z-btn-secondary min-h-10 w-full !px-3 !py-2 !text-[10px] uppercase tracking-wide sm:w-auto"
+      className="z-btn-secondary min-h-10 w-full !px-3 !py-2 !text-xs uppercase tracking-wide sm:w-auto"
     >
       View / PDF
     </button>
@@ -124,7 +125,7 @@ export default function MyPayslips() {
               <p className="text-2xl font-black tabular-nums tracking-tight text-[#134e4a]">
                 {maskAmount(unlocked, lastPayslip.netNgn, lastPayslip.amountsRedacted)}
               </p>
-              <p className="mt-1 text-[10px] font-bold uppercase tracking-wide text-slate-400">
+              <p className="mt-1 text-xs font-bold uppercase tracking-wide text-slate-400">
                 {formatPeriodYyyymm(lastPayslip.periodYyyymm)}
               </p>
             </ProfileKpiCard>
@@ -169,9 +170,9 @@ export default function MyPayslips() {
                 <ProfileListRow key={`${p.runId}-${p.periodYyyymm}-m`}>
                   <span className="min-w-0">
                     <span className="block text-sm font-semibold text-slate-900">{formatPeriodYyyymm(p.periodYyyymm)}</span>
-                    <span className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{p.runStatus}</span>
+                    <span className="mt-1 block"><HrStatusBadge status={p.runStatus} variant="payroll" /></span>
                     {p.attendanceDeductionNgn > 0 ? (
-                      <span className="mt-0.5 block text-[10px] text-amber-800">
+                      <span className="mt-0.5 block text-xs text-amber-800">
                         Attendance deduction: {maskAmount(unlocked, p.attendanceDeductionNgn, p.amountsRedacted)}
                       </span>
                     ) : null}
@@ -200,10 +201,8 @@ export default function MyPayslips() {
                     {filtered.map((p) => (
                       <AppTableTr key={`${p.runId}-${p.periodYyyymm}`}>
                         <AppTableTd>{formatPeriodYyyymm(p.periodYyyymm)}</AppTableTd>
-                        <AppTableTd>
-                          <ProfileStatusChip variant={p.runStatus === 'paid' ? 'approved' : 'pending'}>
-                            {p.runStatus}
-                          </ProfileStatusChip>
+                        <AppTableTd truncate={false}>
+                          <HrStatusBadge status={p.runStatus} variant="payroll" />
                         </AppTableTd>
                         <AppTableTd align="right">{maskAmount(unlocked, p.grossNgn, p.amountsRedacted)}</AppTableTd>
                         <AppTableTd align="right">{maskAmount(unlocked, p.netNgn, p.amountsRedacted)}</AppTableTd>

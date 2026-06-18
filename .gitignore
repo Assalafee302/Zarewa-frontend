@@ -13,4 +13,5 @@ scripts/dist-boot-check.mjs
 scripts/preview-boot-probe.mjs
 scripts/scan-*.mjs
 
-/node_modules
+eslint-report.txt
+hr-eslint.txt

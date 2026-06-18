@@ -16,7 +16,7 @@ const HEALTH_BORDER = {
 function KpiCard({ label, value, hint }) {
   return (
     <div className="rounded-2xl border border-violet-100 bg-white p-4 shadow-sm">
-      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">{label}</p>
+      <p className="text-xs font-black uppercase tracking-widest text-slate-400">{label}</p>
       <p className="mt-1 text-2xl font-black tabular-nums text-slate-900">{value}</p>
       {hint ? <p className="mt-1 text-xs text-slate-500">{hint}</p> : null}
     </div>
@@ -50,7 +50,7 @@ function ChildCard({ child }) {
 
       <dl className="mt-4 grid gap-3 sm:grid-cols-2">
         <div className="rounded-xl border border-sky-100 bg-sky-50/50 px-3 py-2.5">
-          <dt className="text-[10px] font-black uppercase tracking-widest text-sky-700">
+          <dt className="text-xs font-black uppercase tracking-widest text-sky-700">
             {FAMILY_BENEFITS.stipendLabel}
           </dt>
           <dd className="mt-1 text-base font-black tabular-nums text-slate-900">
@@ -62,7 +62,7 @@ function ChildCard({ child }) {
           </dd>
         </div>
         <div className="rounded-xl border border-violet-100 bg-violet-50/50 px-3 py-2.5">
-          <dt className="text-[10px] font-black uppercase tracking-widest text-violet-700">
+          <dt className="text-xs font-black uppercase tracking-widest text-violet-700">
             {FAMILY_BENEFITS.schoolFeesLabel}
           </dt>
           {child.schoolFees?.pending ? (
@@ -174,7 +174,7 @@ export default function ExecutiveHrFamilyDashboard() {
   return (
     <div className="space-y-6">
       <div className="rounded-2xl border border-violet-200/80 bg-gradient-to-br from-violet-700 via-violet-800 to-indigo-950 p-5 text-white shadow-lg">
-        <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-violet-200/90">
+        <p className="text-xs font-bold uppercase tracking-[0.22em] text-violet-200/90">
           {FAMILY_BENEFITS.hubEyebrow}
         </p>
         <h2 className="mt-1 text-2xl font-black tracking-tight">{FAMILY_BENEFITS.familyDashboardTitle}</h2>

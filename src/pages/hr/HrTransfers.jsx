@@ -18,10 +18,15 @@ import { HR_EMPLOYEES } from '../../lib/hrRoutes';
 import { HrAddFormButton, HrFormModal } from '../../components/hr/HrFormModal';
 import HrTransferStageBar from '../../components/hr/HrTransferStageBar';
 import HrTransfersOverview from '../../components/hr/HrTransfersOverview';
-import { HrCard, HrEmptyState, HrStatusPill } from '../../components/hr/hrPageUi';
+import { HrCard, HrEmptyState } from '../../components/hr/hrPageUi';
+import { HrDualView } from '../../components/hr/HrDualView';
+import { HrMobileCard, HrMobileCardList } from '../../components/hr/HrMobileCard';
+import { HrStatusBadge } from '../../components/hr/HrStatusBadge';
+import { HrTableEmptyRow, HrTableLoadingRow } from '../../components/hr/HrTableBodyState';
 import { HrResponsiveTable } from '../../components/hr/HrResponsiveTable';
+import { useAppTablePaging } from '../../lib/appDataTable';
 import {
-  AppTable, AppTableBody, AppTableTd, AppTableTh, AppTableThead, AppTableTr, AppTableWrap,
+  AppTable, AppTableBody, AppTablePager, AppTableTd, AppTableTh, AppTableThead, AppTableTr, AppTableWrap,
 } from '../../components/ui/AppDataTable';
 import { HR_BTN_PRIMARY, HR_BTN_SECONDARY, HR_FIELD_CLASS } from '../../components/hr/hrFormStyles';
 import { navigateToHrLetter, transferLetterKind } from '../../lib/hrLetterDeepLink';
@@ -241,6 +246,7 @@ export default function HrTransfers({ embedded = false } = {}) {
   };
 
   const pendingCount = transfers.filter((t) => ['submitted', 'branch_review', 'hr_review', 'gm_approval', 'approved'].includes(t.status)).length;
+  const transferPaging = useAppTablePaging(transfers, 20, statusFilter, transferView);
 
   return (
     <div className="space-y-6">
@@ -284,11 +290,11 @@ export default function HrTransfers({ embedded = false } = {}) {
         <>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <HrCard className="!p-3">
-          <p className="text-[10px] font-black uppercase text-slate-500">Pending</p>
+          <p className="text-xs font-black uppercase text-slate-500">Pending</p>
           <p className="text-xl font-black tabular-nums text-amber-900">{pendingCount}</p>
         </HrCard>
         <HrCard className="!p-3">
-          <p className="text-[10px] font-black uppercase text-slate-500">Completed</p>
+          <p className="text-xs font-black uppercase text-slate-500">Completed</p>
           <p className="text-xl font-black tabular-nums">{transfers.filter((t) => t.status === 'completed').length}</p>
         </HrCard>
       </div>
@@ -308,41 +314,80 @@ export default function HrTransfers({ embedded = false } = {}) {
             <button type="button" className="ml-2 underline" onClick={reload}>Retry</button>
           </div>
         ) : null}
-        {loading && !transfers.length ? <p className="text-sm text-slate-600">Loading transfers…</p> : null}
         {!loading && !transfers.length ? (
           <HrEmptyState title="No transfer requests" description="Initiate a transfer to move staff between branches or departments." />
         ) : (
-          <AppTableWrap>
-            <AppTable>
-              <AppTableThead>
-                <AppTableTh>Employee</AppTableTh>
-                  <AppTableTh>Type</AppTableTh>
-                  <AppTableTh>Route</AppTableTh>
-                  <AppTableTh>Effective</AppTableTh>
-                  <AppTableTh>Status</AppTableTh>
-                  <AppTableTh />
-              </AppTableThead>
-              <AppTableBody>
-                {transfers.map((t) => (
-                  <AppTableTr key={t.id}>
-                    <AppTableTd>
-                      <Link to={`${HR_EMPLOYEES}/${encodeURIComponent(t.userId)}`} className="font-semibold text-[#134e4a] hover:underline">
-                        {t.staffDisplayName}
-                      </Link>
-                    </AppTableTd>
-                    <AppTableTd>{String(t.transferType || '').replace(/_/g, ' ')}</AppTableTd>
-                    <AppTableTd>{`${branchName[t.fromBranchId] || t.fromBranchId || '—'} → ${branchName[t.toBranchId] || t.toDepartment || '—'}`}</AppTableTd>
-                    <AppTableTd>{t.effectiveDateIso || '—'}</AppTableTd>
-                    <AppTableTd><HrStatusPill status={t.status} /></AppTableTd>
-                    <AppTableTd>
-                      <button type="button" className="text-[10px] font-bold uppercase text-[#134e4a]" onClick={() => setDetailTransfer(t)}>Details</button>
-                    </AppTableTd>
-                  </AppTableTr>
+          <HrDualView
+            mobile={
+              <HrMobileCardList loading={loading && !transfers.length} loadingMessage="Loading transfers…" emptyMessage="No transfer requests.">
+                {transferPaging.slice.map((t) => (
+                  <HrMobileCard
+                    key={t.id}
+                    title={t.staffDisplayName}
+                    titleLink={`${HR_EMPLOYEES}/${encodeURIComponent(t.userId)}`}
+                    badge={<HrStatusBadge status={t.status} variant="transfer" />}
+                    fields={[
+                      { label: 'Type', value: String(t.transferType || '').replace(/_/g, ' ') },
+                      { label: 'Route', value: `${branchName[t.fromBranchId] || t.fromBranchId || '—'} → ${branchName[t.toBranchId] || t.toDepartment || '—'}`, colSpan: 2 },
+                      { label: 'Effective', value: t.effectiveDateIso || '—' },
+                    ]}
+                    footer={
+                      <button type="button" className="text-xs font-bold uppercase text-[#134e4a]" onClick={() => setDetailTransfer(t)}>
+                        Details
+                      </button>
+                    }
+                  />
                 ))}
-              </AppTableBody>
-            </AppTable>
-          </AppTableWrap>
+              </HrMobileCardList>
+            }
+            desktop={
+              <AppTableWrap>
+                <AppTable>
+                  <AppTableThead>
+                    <AppTableTh>Employee</AppTableTh>
+                    <AppTableTh>Type</AppTableTh>
+                    <AppTableTh>Route</AppTableTh>
+                    <AppTableTh>Effective</AppTableTh>
+                    <AppTableTh>Status</AppTableTh>
+                    <AppTableTh align="right">Action</AppTableTh>
+                  </AppTableThead>
+                  <AppTableBody>
+                    {loading && !transfers.length ? (
+                      <HrTableLoadingRow colSpan={6} message="Loading transfers…" />
+                    ) : null}
+                    {transferPaging.slice.map((t) => (
+                      <AppTableTr key={t.id}>
+                        <AppTableTd>
+                          <Link to={`${HR_EMPLOYEES}/${encodeURIComponent(t.userId)}`} className="font-semibold text-[#134e4a] hover:underline">
+                            {t.staffDisplayName}
+                          </Link>
+                        </AppTableTd>
+                        <AppTableTd>{String(t.transferType || '').replace(/_/g, ' ')}</AppTableTd>
+                        <AppTableTd>{`${branchName[t.fromBranchId] || t.fromBranchId || '—'} → ${branchName[t.toBranchId] || t.toDepartment || '—'}`}</AppTableTd>
+                        <AppTableTd>{t.effectiveDateIso || '—'}</AppTableTd>
+                        <AppTableTd><HrStatusBadge status={t.status} variant="transfer" /></AppTableTd>
+                        <AppTableTd align="right" truncate={false}>
+                          <button type="button" className="text-xs font-bold uppercase text-[#134e4a]" onClick={() => setDetailTransfer(t)}>Details</button>
+                        </AppTableTd>
+                      </AppTableTr>
+                    ))}
+                  </AppTableBody>
+                </AppTable>
+              </AppTableWrap>
+            }
+          />
         )}
+        {transferPaging.total > transferPaging.pageSize ? (
+          <AppTablePager
+            showingFrom={transferPaging.showingFrom}
+            showingTo={transferPaging.showingTo}
+            total={transferPaging.total}
+            hasPrev={transferPaging.hasPrev}
+            hasNext={transferPaging.hasNext}
+            onPrev={transferPaging.goPrev}
+            onNext={transferPaging.goNext}
+          />
+        ) : null}
       </HrCard>
         </>
       ) : null}
@@ -480,7 +525,7 @@ export default function HrTransfers({ embedded = false } = {}) {
             <div className="grid gap-2 sm:grid-cols-2">
               <p><span className="text-slate-500">Employee:</span> <strong>{detailTransfer.staffDisplayName}</strong></p>
               <p><span className="text-slate-500">Type:</span> {String(detailTransfer.transferType || '').replace(/_/g, ' ')}</p>
-              <p><span className="text-slate-500">Status:</span> <HrStatusPill status={detailTransfer.status} /></p>
+              <p><span className="text-slate-500">Status:</span> <HrStatusBadge status={detailTransfer.status} variant="transfer" /></p>
               <p><span className="text-slate-500">Effective:</span> {detailTransfer.effectiveDateIso || '—'}</p>
               <p className="sm:col-span-2"><span className="text-slate-500">Route:</span> {branchName[detailTransfer.fromBranchId] || detailTransfer.fromBranchId} → {branchName[detailTransfer.toBranchId] || detailTransfer.toDepartment || '—'}</p>
               <p className="sm:col-span-2"><span className="text-slate-500">Reason:</span> {detailTransfer.reason || '—'}</p>

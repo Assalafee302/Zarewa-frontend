@@ -13,6 +13,9 @@ import {
   AppTableTr,
   AppTableWrap,
 } from '../../components/ui/AppDataTable';
+import { HrDualView } from '../../components/hr/HrDualView';
+import { HrMobileCard, HrMobileCardList } from '../../components/hr/HrMobileCard';
+import { HrTableEmptyRow, HrTableLoadingRow } from '../../components/hr/HrTableBodyState';
 
 /**
  * @param {{ embedded?: boolean; activeTab?: 'deductions'; hideInternalTabs?: boolean; showExceptionsOnly?: boolean }} [props]
@@ -107,7 +110,7 @@ export default function HrAttendance({
             <button
               type="button"
               onClick={() => setNoShowExpanded((v) => !v)}
-              className="shrink-0 rounded-lg border border-red-300 px-2 py-1 text-[10px] font-bold uppercase text-red-800 hover:bg-red-100"
+              className="shrink-0 rounded-lg border border-red-300 px-2 py-1 text-xs font-bold uppercase text-red-800 hover:bg-red-100"
             >
               {noShowExpanded ? 'Hide' : 'View Details'}
             </button>
@@ -150,39 +153,60 @@ export default function HrAttendance({
               className="mt-1 block w-28 rounded-xl border border-slate-200 px-3 py-2 font-mono text-sm"
             />
           </label>
-          {loadingPreview ? <p className="text-sm text-slate-600">Loading preview…</p> : null}
-          {!loadingPreview ? (
-            <AppTableWrap>
-              <AppTable role="numeric">
-                <AppTableThead>
-                  <AppTableTh>Staff</AppTableTh>
-                  <AppTableTh align="right">Absent days</AppTableTh>
-                  <AppTableTh align="right">Late days</AppTableTh>
-                  <AppTableTh align="right">Projected deduction</AppTableTh>
-                  <AppTableTh>Pending exceptions</AppTableTh>
-                </AppTableThead>
-                <AppTableBody>
-                  {preview.length === 0 ? (
-                    <AppTableTr>
-                      <AppTableTd colSpan={5} align="center">
-                        <span className="text-slate-500 py-4 block">No deduction flags for this period.</span>
-                      </AppTableTd>
-                    </AppTableTr>
-                  ) : (
-                    preview.map((row) => (
-                      <AppTableTr key={row.userId}>
-                        <AppTableTd>{row.displayName || row.userId}</AppTableTd>
-                        <AppTableTd align="right">{row.absentDays}</AppTableTd>
-                        <AppTableTd align="right">{row.lateDays}</AppTableTd>
-                        <AppTableTd align="right">{formatNgn(row.deductionNgn)}</AppTableTd>
-                        <AppTableTd>{row.pendingExceptionRequests || 0}</AppTableTd>
-                      </AppTableTr>
-                    ))
-                  )}
-                </AppTableBody>
-              </AppTable>
-            </AppTableWrap>
-          ) : null}
+          <HrDualView
+            mobile={
+              <HrMobileCardList
+                loading={loadingPreview}
+                loadingMessage="Loading preview…"
+                emptyMessage="No deduction flags for this period."
+              >
+                {preview.map((row) => (
+                  <HrMobileCard
+                    key={row.userId}
+                    title={row.displayName || row.userId}
+                    fields={[
+                      { label: 'Absent days', value: row.absentDays },
+                      { label: 'Late days', value: row.lateDays },
+                      { label: 'Deduction', value: formatNgn(row.deductionNgn) },
+                      { label: 'Exceptions', value: row.pendingExceptionRequests || 0 },
+                    ]}
+                  />
+                ))}
+              </HrMobileCardList>
+            }
+            desktop={
+              <AppTableWrap>
+                <AppTable role="numeric">
+                  <AppTableThead>
+                    <AppTableTh>Staff</AppTableTh>
+                    <AppTableTh align="right">Absent days</AppTableTh>
+                    <AppTableTh align="right">Late days</AppTableTh>
+                    <AppTableTh align="right">Projected deduction</AppTableTh>
+                    <AppTableTh>Pending exceptions</AppTableTh>
+                  </AppTableThead>
+                  <AppTableBody>
+                    {loadingPreview ? (
+                      <HrTableLoadingRow colSpan={5} message="Loading preview…" />
+                    ) : null}
+                    {!loadingPreview && preview.length === 0 ? (
+                      <HrTableEmptyRow colSpan={5} message="No deduction flags for this period." />
+                    ) : null}
+                    {!loadingPreview
+                      ? preview.map((row) => (
+                          <AppTableTr key={row.userId}>
+                            <AppTableTd>{row.displayName || row.userId}</AppTableTd>
+                            <AppTableTd align="right">{row.absentDays}</AppTableTd>
+                            <AppTableTd align="right">{row.lateDays}</AppTableTd>
+                            <AppTableTd align="right">{formatNgn(row.deductionNgn)}</AppTableTd>
+                            <AppTableTd>{row.pendingExceptionRequests || 0}</AppTableTd>
+                          </AppTableTr>
+                        ))
+                      : null}
+                  </AppTableBody>
+                </AppTable>
+              </AppTableWrap>
+            }
+          />
         </div>
       ) : null}
     </div>

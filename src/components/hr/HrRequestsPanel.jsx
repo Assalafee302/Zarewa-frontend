@@ -13,6 +13,7 @@ import { hrRequestReviewPath } from '../../lib/hrRequests';
 import {
   AppTable,
   AppTableBody,
+  AppTablePager,
   AppTableTd,
   AppTableTh,
   AppTableThead,
@@ -21,6 +22,7 @@ import {
 } from '../ui/AppDataTable';
 import { HrStatusBadge } from './HrStatusBadge';
 import { HrTableEmptyRow, HrTableLoadingRow } from './HrTableBodyState';
+import { useAppTablePaging } from '../../lib/appDataTable';
 import { HrRequestPayloadSummary, hrRequestApprovalChain } from './HrRequestPayloadSummary';
 import HrRequestStageBar from './HrRequestStageBar';
 import { HR_BTN_PILL, HR_BTN_PRIMARY, HR_BTN_SECONDARY, HR_FIELD_CLASS, HR_TEXTAREA_CLASS } from './hrFormStyles';
@@ -175,6 +177,8 @@ export function HrRequestsPanel({
       return hay.includes(q);
     });
   }, [requests, kindFilter, filterKindLocal, filterSearch, kindsInclude]);
+
+  const requestPaging = useAppTablePaging(visibleRequests, 20, scope, kindFilter, filterKindLocal, filterSearch);
 
   const exportQueueCsv = () => {
     const esc = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
@@ -542,7 +546,7 @@ export function HrRequestsPanel({
             No requests in this queue.
           </p>
         ) : null}
-        {visibleRequests.map((r) => (
+        {requestPaging.slice.map((r) => (
           <article key={r.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
             <div className="flex items-start gap-3">
               {canReviewRow(r) ? (
@@ -619,7 +623,7 @@ export function HrRequestsPanel({
                   message="No requests in this queue."
                 />
               ) : null}
-              {visibleRequests.map((r) => (
+              {requestPaging.slice.map((r) => (
                 <AppTableTr key={r.id}>
                   <AppTableTd truncate={false}>
                     {canReviewRow(r) ? (
@@ -646,6 +650,17 @@ export function HrRequestsPanel({
           </AppTable>
         </AppTableWrap>
       </div>
+      {requestPaging.total > requestPaging.pageSize ? (
+        <AppTablePager
+          showingFrom={requestPaging.showingFrom}
+          showingTo={requestPaging.showingTo}
+          total={requestPaging.total}
+          hasPrev={requestPaging.hasPrev}
+          hasNext={requestPaging.hasNext}
+          onPrev={requestPaging.goPrev}
+          onNext={requestPaging.goNext}
+        />
+      ) : null}
     </div>
   );
 }
