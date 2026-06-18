@@ -303,8 +303,12 @@ export async function submitMyHrProfile() {
 
 /** @param {object} form */
 export function formToRegisterBody(form) {
+  const employeeLogin = String(form.employeeNo || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]/g, '');
   const body = {
-    username: String(form.username || '').trim().toLowerCase(),
+    username: employeeLogin || String(form.username || '').trim().toLowerCase(),
     displayName: String(form.displayName || '').trim(),
     password: form.password,
     roleKey: form.roleKey,

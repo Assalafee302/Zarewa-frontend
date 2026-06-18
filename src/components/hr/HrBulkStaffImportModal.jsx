@@ -150,9 +150,10 @@ export function HrBulkStaffImportModal({ open, onClose, onImported }) {
       <div className="space-y-4">
         <p className="text-sm text-slate-600">
           Upload your staff list — fill only the columns you have. <strong>Blank cells are skipped</strong> and leave
-          that field empty on the employee record. Each new person gets login <strong>surname.employee-id</strong> with
-          password <strong>Zarewa@123</strong>. Link existing logins via the <strong>Username (existing login)</strong>{' '}
-          column. Preview runs automatically before you can import.
+          that field empty on the employee record. Each new person gets login <strong>same as employee ID</strong> (e.g.{' '}
+          <strong>zapkd001</strong>) with password <strong>Zarewa@123</strong>. Use the{' '}
+          <strong>Username (existing login)</strong> column only to link someone who already has a login. Preview runs
+          automatically before you can import.
         </p>
 
         <fieldset className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-3 space-y-2">

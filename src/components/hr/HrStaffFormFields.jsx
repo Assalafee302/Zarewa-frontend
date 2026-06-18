@@ -58,7 +58,18 @@ export function HrStaffFormFields({
   editUserId = '',
   initialTab = 'personal',
 }) {
-  const set = (key, value) => setForm((f) => ({ ...f, [key]: value }));
+  const set = (key, value) =>
+    setForm((f) => {
+      const next = { ...f, [key]: value };
+      if (mode === 'register' && key === 'employeeNo') {
+        const login = String(value || '')
+          .trim()
+          .toLowerCase()
+          .replace(/[^a-z0-9._-]/g, '');
+        if (login) next.username = login;
+      }
+      return next;
+    });
   const [activeTab, setActiveTab] = useState(initialTab);
   const [staffRoster, setStaffRoster] = useState([]);
   const branchChanged =
@@ -290,12 +301,13 @@ export function HrStaffFormFields({
         <section className="space-y-4">
           <h3 className="text-sm font-black uppercase tracking-wide text-[#134e4a]">Login account</h3>
           <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Username">
+            <Field label="Login username" hint="Same as employee ID — used to sign in. Auto-filled when you enter employee ID.">
               <input
                 className={fieldCls}
                 value={form.username}
                 onChange={(e) => set('username', e.target.value)}
                 autoComplete="off"
+                readOnly={Boolean(String(form.employeeNo || '').trim())}
                 required
               />
             </Field>
