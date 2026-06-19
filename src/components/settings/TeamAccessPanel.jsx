@@ -1,5 +1,5 @@
 import React, { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, Settings2, Trash2, UserPlus } from 'lucide-react';
+import { AlertTriangle, LockOpen, Settings2, Trash2, UserPlus } from 'lucide-react';
 import { ModalFrame } from '../layout';
 import { apiFetch } from '../../lib/apiBase';
 import { useToast } from '../../context/ToastContext';
@@ -76,6 +76,7 @@ export default function TeamAccessPanel({ appUsers, currentUserId, onRefresh }) 
   });
   const roleKey = String(ws?.session?.user?.roleKey || '').toLowerCase();
   const canManagePasswords = ['admin', 'md', 'hr_admin'].includes(roleKey);
+  const canManageSettings = Boolean(ws?.hasPermission?.('settings.manage'));
 
   const [passwordModalUser, setPasswordModalUser] = useState(null);
   const [passwordModalValue, setPasswordModalValue] = useState('');
@@ -257,6 +258,26 @@ export default function TeamAccessPanel({ appUsers, currentUserId, onRefresh }) 
     if (passwordModalBusy) return;
     setPasswordModalUser(null);
     setPasswordModalValue('');
+  };
+
+  const unlockAccount = async (user) => {
+    if (!canManageSettings || !user?.id) return;
+    if (!window.confirm(`Unlock sign-in for ${user.username}? They can try again immediately.`)) return;
+    setRowBusyId(user.id);
+    try {
+      const { ok, data } = await apiFetch(`/api/users/${encodeURIComponent(user.id)}/unlock-account`, {
+        method: 'POST',
+        body: JSON.stringify({}),
+      });
+      if (!ok || !data?.ok) {
+        showToast(data?.error || 'Could not unlock account.', { variant: 'error' });
+        return;
+      }
+      showToast(`Sign-in unlocked for ${user.username}.`);
+      await refresh();
+    } finally {
+      setRowBusyId('');
+    }
   };
 
   const submitSetPassword = async (e) => {
@@ -565,6 +586,11 @@ export default function TeamAccessPanel({ appUsers, currentUserId, onRefresh }) 
                             Custom
                           </span>
                         ) : null}
+                        {user.isAccountLocked ? (
+                          <span className="ml-1 rounded bg-rose-100 px-1.5 py-0.5 text-[10px] font-bold text-rose-900">
+                            Locked
+                          </span>
+                        ) : null}
                       </td>
                       <td className="px-3 py-3 align-middle">
                         {branches.length === 0 ? (
@@ -639,6 +665,17 @@ export default function TeamAccessPanel({ appUsers, currentUserId, onRefresh }) 
                               title="Set a new password (user must change it on next sign-in)"
                             >
                               Set password
+                            </button>
+                          ) : null}
+                          {canManageSettings && user.isAccountLocked ? (
+                            <button
+                              type="button"
+                              disabled={busy}
+                              onClick={() => void unlockAccount(user)}
+                              className="z-btn-secondary !px-3 !py-1.5 !text-[10px] gap-1"
+                              title="Clear failed sign-in lock"
+                            >
+                              <LockOpen size={14} /> Unlock
                             </button>
                           ) : null}
                           <button

@@ -1,14 +1,20 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { RefreshCw, Shield } from 'lucide-react';
+import { LockOpen, RefreshCw, Shield } from 'lucide-react';
 import { apiFetch } from '../../lib/apiBase';
+import { useToast } from '../../context/ToastContext';
+import { useWorkspace } from '../../context/WorkspaceContext';
 
 /**
- * Admin panel: failed login summary and active sessions (Phase 12).
+ * Admin panel: failed login summary, locked accounts, and active sessions (Phase 12).
  */
 export default function LoginSecurityPanel() {
+  const { show: showToast } = useToast();
+  const ws = useWorkspace();
+  const canManage = Boolean(ws?.hasPermission?.('settings.manage'));
   const [summary, setSummary] = useState(null);
   const [sessions, setSessions] = useState([]);
   const [busy, setBusy] = useState(false);
+  const [unlockBusyId, setUnlockBusyId] = useState('');
   const [error, setError] = useState('');
 
   const load = useCallback(async () => {
@@ -38,6 +44,28 @@ export default function LoginSecurityPanel() {
     void load();
   }, [load]);
 
+  const unlockAccount = async (userId, username) => {
+    if (!canManage || !userId) return;
+    if (!window.confirm(`Unlock sign-in for ${username}? They can try again immediately.`)) return;
+    setUnlockBusyId(userId);
+    try {
+      const { ok, data } = await apiFetch(`/api/users/${encodeURIComponent(userId)}/unlock-account`, {
+        method: 'POST',
+        body: JSON.stringify({}),
+      });
+      if (!ok || !data?.ok) {
+        showToast(data?.error || 'Could not unlock account.', { variant: 'error' });
+        return;
+      }
+      showToast(`Sign-in unlocked for ${username}.`);
+      await load();
+    } finally {
+      setUnlockBusyId('');
+    }
+  };
+
+  const lockedAccounts = Array.isArray(summary?.lockedAccounts) ? summary.lockedAccounts : [];
+
   return (
     <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -61,10 +89,11 @@ export default function LoginSecurityPanel() {
       ) : null}
 
       {summary ? (
-        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
           {[
             ['Failed logins (24h)', summary.failedLoginAttempts],
             ['Account locks (24h)', summary.accountLockEvents],
+            ['Locked now', summary.currentlyLockedAccounts],
             ['Session timeouts (24h)', summary.sessionTimeouts],
             ['Active sessions', summary.activeSessionCount],
           ].map(([label, value]) => (
@@ -75,6 +104,63 @@ export default function LoginSecurityPanel() {
           ))}
         </div>
       ) : null}
+
+      <div className="mt-6">
+        <h4 className="text-xs font-bold uppercase tracking-wide text-slate-500">Locked accounts</h4>
+        <p className="mt-1 text-[11px] text-slate-500 leading-relaxed">
+          Accounts locked after 5 failed sign-in attempts (30-minute lock).{' '}
+          {canManage
+            ? 'Use Unlock to let the user sign in immediately.'
+            : 'Ask a settings administrator to unlock if needed before the timer expires.'}
+        </p>
+        <div className="mt-2 overflow-x-auto rounded-xl border border-slate-200">
+          <table className="min-w-full text-left text-xs">
+            <thead className="bg-slate-50 text-[10px] font-bold uppercase text-slate-500">
+              <tr>
+                <th className="px-3 py-2">User</th>
+                <th className="px-3 py-2">Failed attempts</th>
+                <th className="px-3 py-2">Locked until</th>
+                {canManage ? <th className="px-3 py-2">Action</th> : null}
+              </tr>
+            </thead>
+            <tbody>
+              {lockedAccounts.length === 0 ? (
+                <tr>
+                  <td colSpan={canManage ? 4 : 3} className="px-3 py-4 text-slate-500">
+                    No accounts are locked right now.
+                  </td>
+                </tr>
+              ) : (
+                lockedAccounts.map((a) => (
+                  <tr key={a.userId} className="border-t border-slate-100">
+                    <td className="px-3 py-2 font-medium text-slate-800">
+                      {a.displayName || a.username}
+                      <span className="block text-[10px] text-slate-500">@{a.username}</span>
+                    </td>
+                    <td className="px-3 py-2 text-slate-600">{a.failedLoginCount ?? '—'}</td>
+                    <td className="px-3 py-2 text-slate-600">
+                      {a.lockedUntilIso ? new Date(a.lockedUntilIso).toLocaleString() : '—'}
+                    </td>
+                    {canManage ? (
+                      <td className="px-3 py-2">
+                        <button
+                          type="button"
+                          disabled={unlockBusyId === a.userId}
+                          onClick={() => void unlockAccount(a.userId, a.username)}
+                          className="z-btn-secondary !py-1 !px-2 !text-[10px] gap-1"
+                        >
+                          <LockOpen size={12} />
+                          {unlockBusyId === a.userId ? 'Unlocking…' : 'Unlock'}
+                        </button>
+                      </td>
+                    ) : null}
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
 
       <div className="mt-6">
         <h4 className="text-xs font-bold uppercase tracking-wide text-slate-500">Active sessions</h4>
