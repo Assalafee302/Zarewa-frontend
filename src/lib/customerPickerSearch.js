@@ -99,3 +99,16 @@ export function customerPickerSubline(customer) {
 
   return parts.join(' · ');
 }
+
+/** True when customer is linked for staff purchase credit (HR link or Staff tier/tags). */
+export function isStaffLinkedCustomer(customer) {
+  if (!customer) return false;
+  if (String(customer.staffUserId || '').trim()) return true;
+  if (String(customer.tier || '').trim().toLowerCase() === 'staff') return true;
+  if (String(customer.paymentTerms || '').trim().toLowerCase() === 'staff credit') return true;
+  const tags = Array.isArray(customer.crmTags) ? customer.crmTags : [];
+  if (tags.map((t) => String(t).toLowerCase()).includes('staff-purchase')) return true;
+  if (/\(Staff\)/i.test(String(customer.name || ''))) return true;
+  if (staffEmployeeNoFromCustomer(customer)) return true;
+  return false;
+}

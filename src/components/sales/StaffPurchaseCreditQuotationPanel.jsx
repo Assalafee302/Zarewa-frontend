@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { HardHat } from 'lucide-react';
 import { formatNgn } from '../../lib/hrFormat';
+import { isStaffLinkedCustomer, customerPickerPrimaryLabel } from '../../lib/customerPickerSearch';
 import { fetchQuotationStaffPurchaseStatus } from '../../lib/hrStaffPurchaseCredit';
 import { StaffPurchaseCreditRequestModal } from './StaffPurchaseCreditRequestModal';
 
@@ -13,37 +14,73 @@ const STATUS_LABELS = {
 };
 
 /**
- * Quotation sidebar panel for staff purchase credit (staff-linked customer).
+ * Quotation panel for staff purchase credit (staff-linked customer).
+ * @param {{ quotationRef?: string; customerId?: string; customer?: object | null; readOnly?: boolean }} props
  */
-export function StaffPurchaseCreditQuotationPanel({ quotationRef, customerId, readOnly = false }) {
+export function StaffPurchaseCreditQuotationPanel({
+  quotationRef = '',
+  customerId = '',
+  customer = null,
+  readOnly = false,
+}) {
   const [status, setStatus] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
 
+  const clientStaff = isStaffLinkedCustomer(customer);
+
   const reload = useCallback(async () => {
-    if (!quotationRef) return;
+    if (!quotationRef) {
+      setStatus(null);
+      setLoadError('');
+      return;
+    }
     setLoading(true);
+    setLoadError('');
     const r = await fetchQuotationStaffPurchaseStatus(quotationRef);
     setLoading(false);
     const data = r.data || r;
-    if (r.ok && data?.ok) setStatus(data);
-    else setStatus(null);
+    if (r.ok && data?.ok) {
+      setStatus(data);
+      return;
+    }
+    setStatus(null);
+    setLoadError(data?.error || 'Could not load staff purchase credit status.');
   }, [quotationRef]);
 
   useEffect(() => {
     reload();
   }, [reload, customerId]);
 
-  if (!quotationRef) return null;
+  if (!customerId && !clientStaff) return null;
 
-  const isStaffCustomer = Boolean(status?.isStaffCustomer);
-  if (!loading && !isStaffCustomer && !status?.account && !status?.activeCredit) {
+  const isStaffCustomer = Boolean(status?.isStaffCustomer) || clientStaff;
+
+  if (!isStaffCustomer && !loading && !status?.account && !status?.activeCredit) {
     return null;
+  }
+
+  if (!quotationRef) {
+    return (
+      <div className="rounded-xl border border-amber-200 bg-amber-50/90 p-4 mb-5">
+        <p className="text-[9px] font-semibold text-amber-900 uppercase tracking-widest mb-2 flex items-center gap-2">
+          <HardHat size={14} />
+          Staff purchase credit
+        </p>
+        <p className="text-[10px] text-amber-950 leading-relaxed">
+          Staff customer selected
+          {customer ? `: ${customerPickerPrimaryLabel(customer)}` : ''}. Save the quotation first, then return here
+          to request purchase credit.
+        </p>
+      </div>
+    );
   }
 
   const account = status?.account;
   const balance = status?.balanceNgn ?? 0;
-  const canRequest = !readOnly && balance > 0 && !account;
+  const canRequest = !readOnly && balance > 0 && !account && isStaffCustomer;
+  const hrLinkMissing = clientStaff && status && !status.isStaffCustomer;
 
   return (
     <>
@@ -54,7 +91,19 @@ export function StaffPurchaseCreditQuotationPanel({ quotationRef, customerId, re
         </p>
         {loading ? (
           <p className="text-[10px] text-slate-500">Checking staff credit status…</p>
-        ) : account ? (
+        ) : null}
+        {loadError ? (
+          <p className="text-[10px] font-semibold text-rose-800 bg-rose-50 border border-rose-100 rounded-lg px-2 py-1.5 mb-2">
+            {loadError}
+          </p>
+        ) : null}
+        {hrLinkMissing ? (
+          <p className="text-[10px] font-semibold text-amber-900 bg-amber-50 border border-amber-100 rounded-lg px-2 py-1.5 mb-2">
+            Customer looks like staff, but HR link is missing. Open the customer profile → Edit → Link to staff, then
+            refresh and reopen this quotation.
+          </p>
+        ) : null}
+        {account ? (
           <div className="space-y-2 text-sm">
             <p className="font-bold text-slate-900">
               {STATUS_LABELS[account.status] || account.status} · {formatNgn(account.principalOriginalNgn)}
@@ -80,6 +129,8 @@ export function StaffPurchaseCreditQuotationPanel({ quotationRef, customerId, re
                 {' '}
                 Balance due: <strong>{formatNgn(balance)}</strong>
               </>
+            ) : balance === 0 && !loading ? (
+              <> Quotation is fully paid — purchase credit is not needed.</>
             ) : null}
           </p>
         )}

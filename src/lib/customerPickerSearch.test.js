@@ -4,6 +4,7 @@ import {
   customerPickerSearchBlob,
   customerPickerSubline,
   filterCustomersForPicker,
+  isStaffLinkedCustomer,
   staffEmployeeNoFromCustomer,
 } from './customerPickerSearch.js';
 
@@ -52,5 +53,11 @@ describe('customerPickerSearch', () => {
     const blob = customerPickerSearchBlob(staffCustomer);
     expect(blob).toContain('zapkd004');
     expect(blob).toContain('ahmed musa');
+  });
+
+  it('detects staff-linked customers from HR fields or tier', () => {
+    expect(isStaffLinkedCustomer(staffCustomer)).toBe(true);
+    expect(isStaffLinkedCustomer({ tier: 'Staff', name: 'Someone' })).toBe(true);
+    expect(isStaffLinkedCustomer(regularCustomer)).toBe(false);
   });
 });

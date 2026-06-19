@@ -71,6 +71,7 @@ import {
   customerPickerPrimaryLabel,
   customerPickerSubline,
   filterCustomersForPicker,
+  isStaffLinkedCustomer,
 } from '../lib/customerPickerSearch';
 
 /** Master material types used on roofing quotes: coil stock + stone meter stock (not finished-good SKUs / consumables). */
@@ -2248,6 +2249,17 @@ const QuotationModal = ({
             ) : null}
               </div>
 
+              {(selectedCustomerId && (editData?.id || isStaffLinkedCustomer(selectedCustomer))) ? (
+                <div className="sm:col-span-2">
+                  <StaffPurchaseCreditQuotationPanel
+                    quotationRef={editData?.id || ''}
+                    customerId={selectedCustomerId}
+                    customer={selectedCustomer}
+                    readOnly={readOnly}
+                  />
+                </div>
+              ) : null}
+
               <div>
             <label className="text-[9px] font-semibold text-slate-500 uppercase tracking-widest mb-2 block">
               Project / site <span className="text-rose-600 normal-case font-bold">(required)</span>
@@ -2500,14 +2512,6 @@ const QuotationModal = ({
                 </form>
               )}
             </div>
-          ) : null}
-
-          {editData?.id ? (
-            <StaffPurchaseCreditQuotationPanel
-              quotationRef={editData.id}
-              customerId={selectedCustomerId}
-              readOnly={readOnly}
-            />
           ) : null}
 
           <OrderLinesSection
