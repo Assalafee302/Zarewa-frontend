@@ -559,7 +559,7 @@ const RefundModal = ({
     setApprovalEditMode(false);
 
     if (mode === 'create') {
-      void loadEligibleQuotes();
+      void fetchEligibleQuotes();
     }
   }, [isOpen, record, mode, fetchEligibleQuotes]);
 
@@ -1006,7 +1006,7 @@ const RefundModal = ({
         showToast(`Refund block removed on ${ref}.`);
       }
       void ws?.refresh?.();
-      void loadEligibleQuotes();
+      void fetchEligibleQuotes();
     } finally {
       setRefundsBlockBusy(false);
     }
@@ -1018,7 +1018,7 @@ const RefundModal = ({
     refundsBlockReasonInput,
     showToast,
     ws,
-    loadEligibleQuotes,
+    fetchEligibleQuotes,
   ]);
 
   const generatePreviewRef = useRef(generatePreview);
@@ -2044,6 +2044,70 @@ const RefundModal = ({
                       <p className="mt-1 text-[10px] text-rose-700 font-medium leading-snug" role="alert">
                         {manualQuotationVerifyError}
                       </p>
+                    ) : null}
+                    {form.quotationRef && selectedQuotationRefundsBlocked.blocked ? (
+                      <div
+                        className="mt-3 rounded-lg border border-rose-300 bg-rose-50 px-3 py-2.5 space-y-1"
+                        role="alert"
+                      >
+                        <p className="text-[10px] font-bold uppercase tracking-wide text-rose-900">
+                          Refunds permanently blocked
+                        </p>
+                        <p className="text-[11px] text-rose-900 leading-snug">
+                          {selectedQuotationRefundsBlocked.reason || 'No refund requests may be submitted on this quotation.'}
+                        </p>
+                        {selectedQuotationRefundsBlocked.byName || selectedQuotationRefundsBlocked.atISO ? (
+                          <p className="text-[10px] text-rose-800/80">
+                            {selectedQuotationRefundsBlocked.byName ? `By ${selectedQuotationRefundsBlocked.byName}` : ''}
+                            {selectedQuotationRefundsBlocked.atISO
+                              ? `${selectedQuotationRefundsBlocked.byName ? ' · ' : ''}${selectedQuotationRefundsBlocked.atISO.slice(0, 16).replace('T', ' ')}`
+                              : ''}
+                          </p>
+                        ) : null}
+                      </div>
+                    ) : null}
+                    {canBlockQuotationRefunds && form.quotationRef ? (
+                      <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50/80 px-3 py-2.5 space-y-2">
+                        <p className="text-[10px] font-bold uppercase tracking-wide text-slate-600">
+                          MD / admin — refund control
+                        </p>
+                        {selectedQuotationRefundsBlocked.blocked ? (
+                          <p className="text-[11px] text-slate-700 leading-snug">
+                            This quotation is blocked from all new refund requests and payout.
+                          </p>
+                        ) : (
+                          <p className="text-[11px] text-slate-700 leading-snug">
+                            Block mistaken or settled quotations so they never appear in Potential refunds again.
+                          </p>
+                        )}
+                        <textarea
+                          value={refundsBlockReasonInput}
+                          onChange={(e) => setRefundsBlockReasonInput(e.target.value)}
+                          rows={2}
+                          placeholder={
+                            selectedQuotationRefundsBlocked.blocked
+                              ? 'Optional note when unblocking…'
+                              : 'Reason (required, min 10 characters) — e.g. mistaken overpayment, not a customer refund'
+                          }
+                          className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-[11px] text-slate-800 outline-none focus:ring-2 focus:ring-rose-200"
+                        />
+                        <button
+                          type="button"
+                          disabled={refundsBlockBusy || ws?.canMutate === false}
+                          onClick={() => void toggleQuotationRefundsBlocked()}
+                          className={`rounded-lg px-3 py-2 text-[10px] font-bold uppercase tracking-wide disabled:opacity-50 ${
+                            selectedQuotationRefundsBlocked.blocked
+                              ? 'border border-slate-300 bg-white text-slate-800 hover:bg-slate-100'
+                              : 'border border-rose-300 bg-rose-600 text-white hover:bg-rose-700'
+                          }`}
+                        >
+                          {refundsBlockBusy
+                            ? 'Saving…'
+                            : selectedQuotationRefundsBlocked.blocked
+                              ? 'Unblock refunds'
+                              : 'Block refunds on this quotation'}
+                        </button>
+                      </div>
                     ) : null}
                     {!loadingQuotes && quotationPickList.length === 0 && mode === 'create' ? (
                       <div className="mt-2 space-y-2 rounded-lg border border-amber-200/80 bg-amber-50/50 p-3">
