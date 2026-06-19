@@ -143,14 +143,18 @@ function findStoneFlatsheetIntelRow(line, stoneLines) {
 }
 
 /** Align intelligence accessory summary to a flattened quotation line (by id or name). */
+/** ISO date from pick row or full workspace quotation (for display / sorting). */
+function quotationDateIsoForPickRow(q, quotationsArr) {
+  const iso = String(q?.dateISO || '').trim();
+  if (iso) return iso;
+  const full = (quotationsArr || []).find((x) => String(x.id) === String(q?.id));
+  return String(full?.dateISO || full?.date_iso || '').trim();
+}
+
 /** First 10 chars YYYY-MM-DD from pick row or full workspace quotation. */
 function quotationYmdForPickRow(q, quotationsArr) {
-  const iso = String(q?.dateISO || '').trim();
-  if (iso.length >= 10) return iso.slice(0, 10);
-  const full = (quotationsArr || []).find((x) => String(x.id) === String(q?.id));
-  const fiso = String(full?.dateISO || full?.date_iso || '').trim();
-  if (fiso.length >= 10) return fiso.slice(0, 10);
-  return '';
+  const iso = quotationDateIsoForPickRow(q, quotationsArr);
+  return iso.length >= 10 ? iso.slice(0, 10) : '';
 }
 
 /** Align refund table rows to intelligence accessory lines when labels differ trivially (nail vs nails). */
@@ -584,9 +588,13 @@ const RefundModal = ({
       );
       if (forced) byId.set(forced.id, forced);
     }
-    return Array.from(byId.values()).sort(
-      (a, b) => (b.remaining_ngn ?? b.paid_ngn) - (a.remaining_ngn ?? a.paid_ngn)
-    );
+    return Array.from(byId.values()).sort((a, b) => {
+      const dateCmp = quotationDateIsoForPickRow(b, quotations).localeCompare(
+        quotationDateIsoForPickRow(a, quotations)
+      );
+      if (dateCmp !== 0) return dateCmp;
+      return String(b.id || '').localeCompare(String(a.id || ''));
+    });
   }, [eligibleQuotes, quotations, form.quotationRef]);
 
   const quotationPickList = quotationPickMerged;
@@ -1363,6 +1371,10 @@ const RefundModal = ({
 
   const submitRequest = async () => {
     if (!form.quotationRef || !form.amountNgn) return;
+    if (selectedQuotationRefundsBlocked.blocked) {
+      setPreviewError('Refunds are permanently blocked on this quotation.');
+      return;
+    }
     const amountNgn = Number(form.amountNgn);
     if (Number.isNaN(amountNgn) || amountNgn <= 0) return;
     const reasonCategory = deriveReasonCategoriesFromLines(form.calculationLines);
@@ -3351,7 +3363,8 @@ const RefundModal = ({
                   saving ||
                   alignmentBlocksAction ||
                   (mode === 'create' && !form.quotationRef) ||
-                  (mode === 'create' && exceedsRefundableHeadroom)
+                  (mode === 'create' && exceedsRefundableHeadroom) ||
+                  (mode === 'create' && selectedQuotationRefundsBlocked.blocked)
                 }
                 onClick={handleFormSubmit}
                 className="group bg-rose-600 text-white px-8 py-2.5 rounded-xl text-[11px] font-bold uppercase tracking-widest shadow-xl shadow-rose-200 hover:brightness-105 active:scale-95 transition-all flex items-center gap-2 disabled:opacity-50 disabled:grayscale disabled:scale-100"
