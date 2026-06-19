@@ -42,6 +42,8 @@ export function PriceListPanel({ embedded = false }) {
   const [busy, setBusy] = useState(true);
   const [form, setForm] = useState(emptyForm);
   const [listTab, setListTab] = useState(/** @type {'coil' | 'stone'} */ ('coil'));
+  const [viewAsAtIso, setViewAsAtIso] = useState('');
+  const [loadedAsAtIso, setLoadedAsAtIso] = useState('');
 
   const canManage = ws?.hasPermission?.('pricing.manage');
   const canView = ws?.hasPermission?.('pricing.manage') || ws?.hasPermission?.('md.price_exception.approve');
@@ -79,11 +81,15 @@ export function PriceListPanel({ embedded = false }) {
 
   const load = useCallback(async () => {
     setBusy(true);
-    const { ok, data } = await apiFetch('/api/pricing/price-list');
+    const asAt = String(viewAsAtIso || '').trim();
+    const qs = asAt && isValidYyyyMmDd(asAt) ? `?asAtIso=${encodeURIComponent(asAt)}` : '';
+    const { ok, data } = await apiFetch(`/api/pricing/price-list${qs}`);
     setBusy(false);
-    if (ok && data?.ok) setItems(data.items || []);
-    else setItems([]);
-  }, []);
+    if (ok && data?.ok) {
+      setItems(data.items || []);
+      setLoadedAsAtIso(data.pricingAsAtIso || (asAt && isValidYyyyMmDd(asAt) ? asAt : ''));
+    } else setItems([]);
+  }, [viewAsAtIso]);
 
   useEffect(() => {
     if (!canView) return;
@@ -193,13 +199,15 @@ export function PriceListPanel({ embedded = false }) {
 
   const exportCsv = async () => {
     try {
-      const r = await fetch(apiUrl('/api/pricing/price-list/export.csv'), { credentials: 'include' });
+      const asAt = String(viewAsAtIso || '').trim();
+      const qs = asAt && isValidYyyyMmDd(asAt) ? `?asAtIso=${encodeURIComponent(asAt)}` : '';
+      const r = await fetch(apiUrl(`/api/pricing/price-list/export.csv${qs}`), { credentials: 'include' });
       if (!r.ok) throw new Error('Could not download CSV.');
       const blob = await r.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `price-list-items-${new Date().toISOString().slice(0, 10)}.csv`;
+      a.download = `price-list-items-${asAt && isValidYyyyMmDd(asAt) ? asAt : new Date().toISOString().slice(0, 10)}.csv`;
       a.rel = 'noopener';
       document.body.appendChild(a);
       a.click();
@@ -235,6 +243,24 @@ export function PriceListPanel({ embedded = false }) {
           </button>
         </div>
       ) : null}
+      <div className={`flex flex-wrap items-end justify-between gap-2 ${embedded ? 'mb-2' : 'mb-3'}`}>
+        <label className={labelCls}>
+          View / export as at (optional)
+          <input
+            type="date"
+            className={inp}
+            value={viewAsAtIso}
+            onChange={(e) => setViewAsAtIso(e.target.value)}
+            aria-label="Price list as at date"
+          />
+        </label>
+        {loadedAsAtIso ? (
+          <p className="text-[10px] text-slate-500 mb-1">
+            Showing prices effective on <strong className="text-slate-700">{loadedAsAtIso}</strong>
+            {!viewAsAtIso ? ' (current period)' : ''}.
+          </p>
+        ) : null}
+      </div>
       <div className={`flex flex-wrap justify-end gap-2 ${embedded ? '' : 'mb-2'}`}>
         <button
           type="button"
@@ -271,8 +297,9 @@ export function PriceListPanel({ embedded = false }) {
         }
       >
         Each row must be unique on gauge, design, branch, effective date, and optional material / colour / profile keys.
-        Leave <strong className="text-slate-700">Effective from</strong> blank to use today&apos;s date. Invalid dates and
-        duplicates are rejected by the server.
+        Leave <strong className="text-slate-700">Effective from</strong> blank to use today&apos;s date. Use{' '}
+        <strong className="text-slate-700">View as at</strong> to print or export a historical price period; refunds and
+        substitution use the quotation date to pick the matching period.
       </p>
 
       {canManage ? (

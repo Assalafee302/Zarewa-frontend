@@ -14,6 +14,8 @@ import { guidanceForLedgerPostFailure, isVoucherDateInLockedPeriod } from '../li
 import { treasuryAccountDisplayName, treasuryAccountsForWorkspace } from '../lib/treasuryAccountsStore';
 import { compareSelectLabels } from '../lib/selectOptionSort';
 import { AdvancePaymentPrintView } from './receipt/ReceiptPrintViews';
+import { BankDepositPicker } from './sales/BankDepositPicker';
+import { bankDepositRemainingNgn } from '../lib/bankDeposits';
 
 /**
  * Standalone advance / deposit — no quotation. Liability until applied or refunded.
@@ -23,6 +25,8 @@ const AdvancePaymentModal = ({
   onClose,
   onPosted,
   defaultCustomerID = '',
+  defaultBankDepositId = '',
+  workspaceSnapshot,
   useLedgerApi = false,
   handledByLabel = 'Sales',
 }) => {
@@ -37,6 +41,18 @@ const AdvancePaymentModal = ({
   const [purpose, setPurpose] = useState('');
   const [showPrint, setShowPrint] = useState(false);
   const [postingHint, setPostingHint] = useState(null);
+  const [bankDepositId, setBankDepositId] = useState('');
+
+  const depositSnapshot = workspaceSnapshot ?? ws?.snapshot;
+  const linkedDeposit = useMemo(() => {
+    const rows = Array.isArray(depositSnapshot?.bankDeposits) ? depositSnapshot.bankDeposits : [];
+    return rows.find((d) => String(d.id) === String(bankDepositId)) || null;
+  }, [depositSnapshot?.bankDeposits, bankDepositId]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    if (defaultBankDepositId) setBankDepositId(String(defaultBankDepositId));
+  }, [isOpen, defaultBankDepositId]);
 
   const treasuryList = useMemo(() => {
     const raw =
@@ -120,37 +136,51 @@ const AdvancePaymentModal = ({
       showToast('Select a customer.', { variant: 'error' });
       return;
     }
-    if (!selectedAccount) {
-      showToast('Add a treasury account in Finance first.', { variant: 'error' });
-      return;
-    }
     const n = Number(String(amount).replace(/,/g, ''));
     if (Number.isNaN(n) || n <= 0) {
       showToast('Enter a valid amount.', { variant: 'error' });
       return;
     }
-    const paymentMethod = `${selectedAccount.type} — ${selectedAccount.name}`;
+    const depositCover = bankDepositId && linkedDeposit ? Math.min(n, bankDepositRemainingNgn(linkedDeposit)) : 0;
+    const cashNeeded = Math.max(0, n - depositCover);
+    if (!bankDepositId && !selectedAccount) {
+      showToast('Add a treasury account in Finance first.', { variant: 'error' });
+      return;
+    }
+    if (cashNeeded > 0 && !selectedAccount) {
+      showToast('Select treasury account for the portion not covered by the linked deposit.', { variant: 'error' });
+      return;
+    }
+    const paymentMethod = selectedAccount
+      ? `${selectedAccount.type} — ${selectedAccount.name}`
+      : bankDepositId
+        ? 'Linked bank deposit'
+        : '—';
     if (useLedgerApi) {
+      const body = {
+        customerID,
+        customerName,
+        amountNgn: n,
+        paymentMethod,
+        bankReference: [reference.trim(), accountLabelForPrint].filter(Boolean).join(' | '),
+        purpose: purpose.trim(),
+        dateISO,
+      };
+      if (bankDepositId) body.bankDepositId = bankDepositId;
+      if (cashNeeded > 0 && treasuryAccountId) {
+        body.treasuryAccountId = Number(treasuryAccountId);
+        body.paymentLines = [
+          {
+            treasuryAccountId: Number(treasuryAccountId),
+            amountNgn: cashNeeded,
+            reference: reference.trim(),
+            dateISO,
+          },
+        ];
+      }
       const { ok, data } = await apiFetch('/api/ledger/advance', {
         method: 'POST',
-        body: JSON.stringify({
-          customerID,
-          customerName,
-          amountNgn: n,
-          paymentMethod,
-          bankReference: [reference.trim(), accountLabelForPrint].filter(Boolean).join(' | '),
-          purpose: purpose.trim(),
-          dateISO,
-          treasuryAccountId: Number(treasuryAccountId),
-          paymentLines: [
-            {
-              treasuryAccountId: Number(treasuryAccountId),
-              amountNgn: n,
-              reference: reference.trim(),
-              dateISO,
-            },
-          ],
-        }),
+        body: JSON.stringify(body),
       });
       if (!ok || !data?.ok) {
         setPostingHint(guidanceForLedgerPostFailure(data) || null);
@@ -158,6 +188,12 @@ const AdvancePaymentModal = ({
         return;
       }
       setPostingHint(null);
+      if (Array.isArray(data?.similarUnlinkedDeposits) && data.similarUnlinkedDeposits.length > 0 && !bankDepositId) {
+        showToast(
+          `Tip: ${data.similarUnlinkedDeposits.length} unlinked bank deposit(s) match — link next time to avoid duplicate treasury.`,
+          { variant: 'info' }
+        );
+      }
     } else {
       const res = recordAdvancePayment({
         customerID,
@@ -269,6 +305,14 @@ const AdvancePaymentModal = ({
               ))}
             </select>
           </div>
+          <BankDepositPicker
+            value={bankDepositId}
+            onChange={setBankDepositId}
+            amountNgn={Number(String(amount).replace(/,/g, '')) || 0}
+            bankDateISO={dateISO}
+            bankReference={reference}
+            snapshot={depositSnapshot}
+          />
           <div>
             <label className="text-[9px] font-semibold text-slate-400 uppercase ml-0.5 mb-1 block">
               Amount paid (₦)

@@ -116,6 +116,24 @@ function cuttingListIsDraft(cl) {
   return String(cl?.status ?? '').trim() === 'Draft';
 }
 
+function cuttingListSavedLinesFingerprint(lines) {
+  if (!Array.isArray(lines)) return '';
+  return lines
+    .map((line) => {
+      const type = LINE_TYPE_SET.has(line.lineType) ? line.lineType : 'Roof';
+      return `${type}:${Number(line.sheets) || 0}:${Number(line.lengthM) || 0}`;
+    })
+    .sort()
+    .join('|');
+}
+
+function cuttingListFormLinesFingerprint(flatLines) {
+  return flatLines
+    .map((line) => `${line.type}:${line.sheets}:${line.lengthM}`)
+    .sort()
+    .join('|');
+}
+
 function linesForDraftPayload(linesByCat, categories) {
   const out = [];
   for (const { type } of categories) {
@@ -560,19 +578,50 @@ const CuttingListModal = ({
     [flatLinesWithType]
   );
 
+  const hasUnsavedCuttingListChanges = useMemo(() => {
+    if (!editData?.id || readOnly || isDraftRecord) return false;
+    if (normQuoteKey(quotationRef) !== normQuoteKey(editData.quotationRef)) return true;
+    if (String(dateISO ?? '').trim() !== String(editData.dateISO ?? '').trim()) return true;
+    if (String(machineName ?? '').trim() !== String(editData.machineName ?? '').trim()) return true;
+    return (
+      cuttingListFormLinesFingerprint(flatLinesWithType) !==
+      cuttingListSavedLinesFingerprint(editData.lines)
+    );
+  }, [
+    editData,
+    readOnly,
+    isDraftRecord,
+    quotationRef,
+    dateISO,
+    machineName,
+    flatLinesWithType,
+  ]);
+
+  const canPrintCuttingList =
+    Boolean(editData?.id) &&
+    !isDraftRecord &&
+    !hasUnsavedCuttingListChanges &&
+    !autosaving &&
+    Boolean(ws?.canMutate);
+
+  const printLinesByCat = useMemo(
+    () => linesByCatFromEditData(editData || {}),
+    [editData]
+  );
+
   const printPayload = useMemo(
     () => ({
       cuttingListId: savedCuttingListId,
-      quotationRef,
+      quotationRef: editData?.quotationRef ?? quotationRef,
       selectedQuotation,
       materialSpec,
       materialTypeLabel,
-      dateISO,
-      machineName,
+      dateISO: editData?.dateISO ?? dateISO,
+      machineName: editData?.machineName ?? machineName,
       operatorName: editData?.operatorName ?? '',
-      totalMeters,
-      sheetsToCut: editData?.sheetsToCut ?? computedSheets,
-      linesByCat,
+      totalMeters: Number(editData?.totalMeters) || 0,
+      sheetsToCut: Number(editData?.sheetsToCut) || 0,
+      linesByCat: printLinesByCat,
       receiptsForQuotation: quoteReceipts,
       productionFooterName: editData?.handledBy || activeDisplayName || handledByLabel,
       treasuryMovements: Array.isArray(ws?.snapshot?.treasuryMovements) ? ws.snapshot.treasuryMovements : [],
@@ -584,17 +633,15 @@ const CuttingListModal = ({
     }),
     [
       savedCuttingListId,
+      editData,
       quotationRef,
       selectedQuotation,
       materialSpec,
       materialTypeLabel,
       dateISO,
       machineName,
-      editData,
       handledByLabel,
-      totalMeters,
-      computedSheets,
-      linesByCat,
+      printLinesByCat,
       quoteReceipts,
       activeDisplayName,
       ws?.snapshot?.treasuryMovements,
@@ -611,7 +658,19 @@ const CuttingListModal = ({
     setLastPrintedByForSheet(String(editData?.lastPrintedBy ?? '').trim());
   }, [showPrintPreview, editData?.printCount, editData?.lastPrintedAtISO, editData?.lastPrintedBy]);
 
+  useEffect(() => {
+    if (showPrintPreview && (isDraftRecord || hasUnsavedCuttingListChanges)) setShowPrintPreview(false);
+  }, [showPrintPreview, isDraftRecord, hasUnsavedCuttingListChanges]);
+
   const runCuttingListPrint = useCallback(async () => {
+    if (cuttingListIsDraft(editData)) {
+      showToast('Save the cutting list before printing — draft lists cannot be printed.', { variant: 'error' });
+      return;
+    }
+    if (hasUnsavedCuttingListChanges) {
+      showToast('Save your changes before printing so the sheet matches the system.', { variant: 'error' });
+      return;
+    }
     const id = String(editData?.id ?? '').trim();
     if (id && wsCanMutate) {
       setRecordingPrint(true);
@@ -632,11 +691,16 @@ const CuttingListModal = ({
         if (data.cuttingList) onCuttingListUpdated?.(data.cuttingList);
         await wsRefresh?.();
       } else {
-        showToast(data?.error || 'Print count could not be saved — printing anyway.', { variant: 'warning' });
+        const err = String(data?.error || '').trim();
+        if (/draft/i.test(err)) {
+          showToast(err, { variant: 'error' });
+          return;
+        }
+        showToast(err || 'Print count could not be saved — printing anyway.', { variant: 'warning' });
       }
     }
     window.print();
-  }, [editData?.id, wsCanMutate, wsRefresh, printCountForSheet, onCuttingListUpdated, showToast]);
+  }, [editData, hasUnsavedCuttingListChanges, wsCanMutate, wsRefresh, printCountForSheet, onCuttingListUpdated, showToast]);
 
    
   useEffect(() => {
@@ -1086,9 +1150,30 @@ const CuttingListModal = ({
                   showToast('Save cutting list successfully before printing.', { variant: 'error' });
                   return;
                 }
+                if (isDraftRecord) {
+                  showToast('Save the cutting list before printing — draft lists cannot be printed.', { variant: 'error' });
+                  return;
+                }
+                if (hasUnsavedCuttingListChanges) {
+                  showToast('Save your changes before printing so the sheet matches the system.', { variant: 'error' });
+                  return;
+                }
+                if (autosaving) {
+                  showToast('Wait for the draft to finish saving before printing.', { variant: 'error' });
+                  return;
+                }
                 setShowPrintPreview(true);
               }}
-              disabled={!ws?.canMutate || !editData?.id}
+              disabled={!canPrintCuttingList}
+              title={
+                isDraftRecord
+                  ? 'Save the list to move it out of draft before printing'
+                  : hasUnsavedCuttingListChanges
+                    ? 'Save your changes first so printed metres match the system'
+                    : autosaving
+                      ? 'Draft is still saving'
+                      : undefined
+              }
               className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-[9px] font-semibold uppercase tracking-wide text-[#134e4a] hover:bg-slate-50 disabled:opacity-40"
             >
               <Printer size={14} /> Print
@@ -1116,6 +1201,11 @@ const CuttingListModal = ({
         {productionOnQueue && !productionJobRunningLock ? (
           <div className="no-print px-5 py-2 bg-teal-50 border-b border-teal-200 text-[10px] font-medium text-teal-900">
             On the production queue — you can still update lengths and quantities until the run is completed.
+          </div>
+        ) : null}
+        {hasUnsavedCuttingListChanges && editData?.id && !isDraftRecord ? (
+          <div className="no-print px-5 py-2 bg-amber-50 border-b border-amber-200 text-[10px] font-medium text-amber-900">
+            Unsaved changes — save the list before printing so metres on the sheet match the system.
           </div>
         ) : null}
         {editData?.id && editData?.productionReleasePending && !productionCompletedLock ? (
@@ -1598,7 +1688,7 @@ const CuttingListModal = ({
                     <button
                       type="button"
                       onClick={() => void runCuttingListPrint()}
-                      disabled={recordingPrint}
+                      disabled={recordingPrint || isDraftRecord || hasUnsavedCuttingListChanges}
                       title="The layout uses A4 landscape (@page). Most browsers open the print dialog with A4 and landscape pre-selected; if not, choose them manually. Use Scale → Fit to page only if content still clips."
                       className="rounded-lg bg-[#134e4a] px-5 py-2.5 text-[10px] font-semibold uppercase tracking-wide text-white shadow-lg disabled:opacity-60"
                     >

@@ -27,6 +27,7 @@ import { SalesRowMenu } from '../components/sales/SalesRowMenu';
 import {
   ReceiptsTransactionsPanel,
   ReceiptsAdvancesPanel,
+  ReceiptsUnlinkedDepositsPanel,
 } from '../components/sales/SalesReceiptsSidebar';
 import {
   mergeReceiptRowsForSales,
@@ -213,6 +214,7 @@ const Sales = () => {
   const [customerCreateFromQuotation, setCustomerCreateFromQuotation] = useState(false);
   const [quotationCustomerPick, setQuotationCustomerPick] = useState(null);
   const [showAdvanceModal, setShowAdvanceModal] = useState(false);
+  const [preselectedBankDepositId, setPreselectedBankDepositId] = useState('');
   const [linkAdvanceEntry, setLinkAdvanceEntry] = useState(null);
   const [advanceViewEntry, setAdvanceViewEntry] = useState(null);
   const [advancePrintEntry, setAdvancePrintEntry] = useState(null);
@@ -1550,12 +1552,24 @@ const Sales = () => {
                 </section>
               </>
             ) : salesTab === 'receipts' ? (
-              <ReceiptsAdvancesPanel 
-                className="!h-auto !min-h-0 shadow-sm"
-                ledgerNonce={ledgerNonce}
-                onSelectAdvance={setAdvanceViewEntry}
-                onLinkAdvance={setLinkAdvanceEntry}
-              />
+              <div className="space-y-3">
+                <ReceiptsUnlinkedDepositsPanel
+                  className="!h-auto !min-h-0 shadow-sm"
+                  snapshot={ws?.snapshot}
+                  onUseDeposit={(d) => {
+                    setPreselectedBankDepositId(String(d?.id || ''));
+                    setShowReceiptModal(true);
+                    setReceiptAccessMode('add');
+                    setSelectedItem(null);
+                  }}
+                />
+                <ReceiptsAdvancesPanel
+                  className="!h-auto !min-h-0 shadow-sm"
+                  ledgerNonce={ledgerNonce}
+                  onSelectAdvance={setAdvanceViewEntry}
+                  onLinkAdvance={setLinkAdvanceEntry}
+                />
+              </div>
             ) : salesTab === 'cuttinglist' ? (
               <SalesCuttingListMaterialPanel
                 ready={cuttingListMaterialReadiness.ready}
@@ -2188,7 +2202,12 @@ const Sales = () => {
         isOpen={showReceiptModal}
         editData={selectedItem}
         accessMode={receiptAccessMode}
-        onClose={() => setShowReceiptModal(false)}
+        onClose={() => {
+          setShowReceiptModal(false);
+          setPreselectedBankDepositId('');
+        }}
+        defaultBankDepositId={preselectedBankDepositId}
+        workspaceSnapshot={ws?.snapshot}
         quotations={quotations}
         importedReceiptsForHistory={importedReceipts}
         ledgerNonce={ledgerSyncKey}
@@ -2203,7 +2222,12 @@ const Sales = () => {
       />
       <AdvancePaymentModal
         isOpen={showAdvanceModal}
-        onClose={() => setShowAdvanceModal(false)}
+        onClose={() => {
+          setShowAdvanceModal(false);
+          setPreselectedBankDepositId('');
+        }}
+        defaultBankDepositId={preselectedBankDepositId}
+        workspaceSnapshot={ws?.snapshot}
         onPosted={onLedgerSynced}
         useLedgerApi={Boolean(ws?.canMutate)}
         handledByLabel={salesRoleLabel}

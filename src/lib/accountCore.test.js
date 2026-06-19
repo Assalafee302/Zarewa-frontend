@@ -17,7 +17,7 @@ import {
 
 describe('accountCore', () => {
   it('provides stable account tab labels', () => {
-    expect(ACCOUNT_TAB_LABELS.disbursements).toBe('Payments');
+    expect(ACCOUNT_TAB_LABELS.disbursements).toBe('Payment register');
   });
 
   it('lists refund payout treasury lines for a refund id', () => {

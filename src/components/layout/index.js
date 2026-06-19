@@ -1,3 +1,4 @@
+export { ModalScrollShell, ModalScrollHeader, ModalScrollBody, ModalScrollFooter } from './ModalScrollShell';
 export { PageHeader } from './PageHeader';
 export { PageTabs } from './PageTabs';
 export { MainPanel } from './MainPanel';

@@ -206,7 +206,7 @@ const CORE_HELP_ARTICLES = [
     steps: [
       'Open Finance & accounts from the sidebar.',
       'Use Treasury for account balances; Receipts & recon for matching customer receipts to bank.',
-      'Payments tab covers disbursements and refund payouts.',
+      'Payment register tab lists posted outflows; Desk is the cashier payout home for receipts, requests, refunds, and haulage.',
       'Audit tab lists checklist items finance should clear.',
     ],
     links: [
@@ -903,12 +903,12 @@ const CORE_HELP_ARTICLES = [
     answer:
       'Finance can **correct pay-from** on supplier, AP, and transport payouts when the wrong treasury account was used — use Finance workflows, not ad-hoc ledger edits.',
     steps: [
-      'Open Finance → Payments and locate the disbursement.',
+      'Open Finance → Payment register and locate the disbursement.',
       'Use pay-from correction if your role has access (Finance manager).',
       'Re-post from the correct branch treasury account.',
       'Verify treasury balance and AP status after correction.',
     ],
-    links: [{ label: 'Finance — Payments', to: '/accounts', state: { tab: 'payments' } }],
+    links: [{ label: 'Finance — Payment register', to: '/accounts?tab=disbursements' }],
   },
   {
     id: 'manager-payment-hold-clearance',

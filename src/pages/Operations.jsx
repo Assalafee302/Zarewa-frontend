@@ -21,7 +21,7 @@ import {
 
 import { metreVarianceExceedsThreshold } from '../lib/productionMetreVariance';
 import { WORKSPACE_EMPTY_LIST_CLASS } from '../lib/workspaceListStyle';
-import { MainPanel, PageHeader, PageShell, PageTabs, ModalFrame } from '../components/layout';
+import { MainPanel, PageHeader, PageShell, PageTabs, ModalFrame, ModalScrollShell, ModalScrollHeader, ModalScrollBody, ModalScrollFooter } from '../components/layout';
 import { WorkspacePanelToolbar } from '../components/workspace';
 import { AiAskButton } from '../components/AiAskButton';
 import { ProductionRegisterEditModal } from '../components/operations/ProductionRegisterEditModal';
@@ -2647,7 +2647,7 @@ const Operations = () => {
                                   onClick={() =>
                                     openTraceWithHint(
                                       item,
-                                      'Production register: allocate coils, Save while running, then Complete.'
+                                      'Production register: enter closing kg & metres, Save while running, then Complete.'
                                     )
                                   }
                                   className="text-[8px] font-semibold uppercase tracking-wide px-2 py-1 rounded-md border border-sky-300 bg-white text-sky-900 hover:bg-sky-50"
@@ -3254,24 +3254,26 @@ const Operations = () => {
         isOpen={completeChecklistModal != null}
         onClose={() => setCompleteChecklistModal(null)}
       >
-        <div className="z-modal-panel max-w-lg p-8">
-          <div className="flex items-start justify-between gap-3 mb-4">
-            <div>
-              <h3 className="text-xl font-bold text-[#134e4a]">Complete job checklist</h3>
-              <p className="text-[11px] text-slate-500 mt-1">
-                Confirm all production postings before completion.
-              </p>
+        <ModalScrollShell size="md">
+          <ModalScrollHeader>
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h3 className="text-xl font-bold text-[#134e4a]">Complete job checklist</h3>
+                <p className="text-[11px] text-slate-500 mt-1">
+                  Confirm all production postings before completion.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setCompleteChecklistModal(null)}
+                className="p-2 min-h-11 min-w-11 text-gray-400 hover:text-red-500 rounded-xl"
+                aria-label="Close"
+              >
+                <X size={22} />
+              </button>
             </div>
-            <button
-              type="button"
-              onClick={() => setCompleteChecklistModal(null)}
-              className="p-2 text-gray-400 hover:text-red-500 rounded-xl"
-              aria-label="Close"
-            >
-              <X size={22} />
-            </button>
-          </div>
-          <div className="space-y-3">
+          </ModalScrollHeader>
+          <ModalScrollBody className="space-y-3">
             {[
               { key: 'transferPosted', label: 'Material transfer to production is posted' },
               { key: 'runLogPosted', label: 'Run log / output meters are recorded' },
@@ -3279,11 +3281,11 @@ const Operations = () => {
             ].map((item) => (
               <label
                 key={item.key}
-                className="flex items-start gap-3 rounded-xl border border-slate-200 bg-slate-50/50 p-3 text-sm text-slate-700"
+                className="flex items-start gap-3 rounded-xl border border-slate-200 bg-slate-50/50 p-3 text-sm text-slate-700 min-h-11"
               >
                 <input
                   type="checkbox"
-                  className="mt-0.5 h-4 w-4 rounded border-slate-300 text-[#134e4a] focus:ring-[#134e4a]/20"
+                  className="mt-0.5 h-5 w-5 rounded border-slate-300 text-[#134e4a] focus:ring-[#134e4a]/20"
                   checked={completeChecklist[item.key]}
                   onChange={(e) =>
                     setCompleteChecklist((s) => ({ ...s, [item.key]: e.target.checked }))
@@ -3292,24 +3294,24 @@ const Operations = () => {
                 <span>{item.label}</span>
               </label>
             ))}
-          </div>
-          <div className="mt-5 flex gap-3">
+          </ModalScrollBody>
+          <ModalScrollFooter className="flex flex-col gap-3 sm:flex-row">
             <button
               type="button"
               onClick={confirmMarkCompleteChecklist}
-              className="z-btn-primary flex-1 justify-center"
+              className="z-btn-primary flex-1 justify-center min-h-11"
             >
               Continue to mark complete
             </button>
             <button
               type="button"
               onClick={() => setCompleteChecklistModal(null)}
-              className="z-btn-secondary flex-1 justify-center"
+              className="z-btn-secondary flex-1 justify-center min-h-11"
             >
               Cancel
             </button>
-          </div>
-        </div>
+          </ModalScrollFooter>
+        </ModalScrollShell>
       </ModalFrame>
 
       <StockRegisterMonthEndModal

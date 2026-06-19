@@ -90,6 +90,8 @@ import {
 import { isBranchScopedCreateBlocked, branchScopedCreateBlockedMessage } from '../lib/workspaceBranchCreate';
 import { compareSelectLabels } from '../lib/selectOptionSort';
 import { AccountBankReconciliationPanel } from '../components/account/AccountBankReconciliationPanel.jsx';
+import { RegisterBankDepositPanel } from '../components/finance/RegisterBankDepositPanel.jsx';
+import { BankDepositExceptionPanel } from '../components/finance/BankDepositExceptionPanel.jsx';
 import { AccountGlManualJournalCard } from '../components/account/AccountGlManualJournalCard.jsx';
 import { ReportPrintModal } from '../components/reports/ReportPrintModal';
 import { unreconciledReceiptsPrintPayload } from '../lib/reconciliationPrint';
@@ -114,7 +116,7 @@ const Account = () => {
 
   const [activeTab, setActiveTab] = useState('treasury');
   const [searchQuery, setSearchQuery] = useState('');
-  /** In-tab filter for Payments tab (also falls back to header search). */
+  /** In-tab filter for Payment register tab (also falls back to header search). */
   const [disbursementsSearch, setDisbursementsSearch] = useState('');
   /** In-tab filter for Receipts reconciliation list (also falls back to header search). */
   const [receiptsTableSearch, setReceiptsTableSearch] = useState('');
@@ -1131,7 +1133,7 @@ const Account = () => {
       { id: 'treasury', icon: <Landmark size={16} />, label: 'Treasury' },
       { id: 'receipts', icon: <Banknote size={16} />, label: 'Receipts & recon' },
       { id: 'movements', icon: <ArrowRightLeft size={16} />, label: 'Movements' },
-      { id: 'disbursements', icon: <ClipboardList size={16} />, label: 'Payments' },
+      { id: 'disbursements', icon: <ClipboardList size={16} />, label: TAB_LABELS.disbursements },
       { id: 'audit', icon: <ShieldCheck size={16} />, label: 'Audit' },
     ];
     const rk = ws?.session?.user?.roleKey;
@@ -1154,15 +1156,6 @@ const Account = () => {
     [setSearchParams, ws?.session?.user?.roleKey]
   );
 
-  const handleDeskConfirmReceipt = useCallback(
-    (receipt) => {
-      const rid = String(receipt?.id || '').trim();
-      handleAccountTabChange('receipts');
-      if (rid) setReceiptsTableSearch(rid);
-    },
-    [handleAccountTabChange]
-  );
-
   const handleDeskPayRequest = useCallback(
     (requestId) => {
       const id = String(requestId || '').trim();
@@ -1172,7 +1165,7 @@ const Account = () => {
         return;
       }
       handleAccountTabChange('disbursements');
-      showToast(id ? `Payment request ${id} — open from Payments tab.` : 'Open Payments tab to record payout.', {
+      showToast(id ? `Payment request ${id} — open from Payment register tab.` : 'Open Payment register tab to record payout.', {
         variant: 'info',
       });
     },
@@ -1188,11 +1181,36 @@ const Account = () => {
         return;
       }
       handleAccountTabChange('disbursements');
-      showToast(id ? `Refund ${id} — open from Payments or Treasury.` : 'Open Payments tab to record refund payout.', {
+      showToast(id ? `Refund ${id} — open from Payment register or Treasury.` : 'Open Payment register tab to record refund payout.', {
         variant: 'info',
       });
     },
     [customerRefunds, handleAccountTabChange, showToast, openRefundPay]
+  );
+
+  const handleDeskViewPaymentRequest = useCallback(
+    (requestId) => {
+      const id = String(requestId || '').trim();
+      handleAccountTabChange('disbursements');
+      if (id) setDisbursementsSearch(id);
+    },
+    [handleAccountTabChange]
+  );
+
+  const handleDeskPayPoTransport = useCallback(
+    (row) => {
+      if (row) openPoTransportTreasuryPayout(row);
+    },
+    [openPoTransportTreasuryPayout]
+  );
+
+  const handleDeskViewPoTransport = useCallback(
+    (row) => {
+      const poId = String(row?.poID || '').trim();
+      handleAccountTabChange('treasury');
+      if (poId) setSearchQuery(poId);
+    },
+    [handleAccountTabChange]
   );
 
   useEffect(() => {
@@ -1582,6 +1600,23 @@ const Account = () => {
       );
     },
     [liveTreasuryMovements, todayIso]
+  );
+
+  const handleDeskConfirmReceipt = useCallback(
+    (receipt) => {
+      if (!receipt) return;
+      openReceiptFinance(receipt);
+    },
+    [openReceiptFinance]
+  );
+
+  const handleDeskViewReceipt = useCallback(
+    (receipt) => {
+      const rid = String(receipt?.id || '').trim();
+      handleAccountTabChange('receipts');
+      if (rid) setReceiptsTableSearch(rid);
+    },
+    [handleAccountTabChange]
   );
 
   const reverseReceiptFinanceRow = useCallback(async () => {
@@ -2793,12 +2828,24 @@ const Account = () => {
     [needsPaymentsMutateSecondApproval, paymentsMutateApprovalId, showToast, ws]
   );
 
+  const isCashierRole = String(ws?.session?.user?.roleKey || '').trim().toLowerCase() === 'cashier';
+  const financePageTitle =
+    isCashierRole && activeTab === 'desk' ? 'Cashier desk' : 'Finance & accounts';
+  const financePageSubtitle =
+    activeTab === 'desk'
+      ? isCashierRole
+        ? 'Your payout home — confirm receipts and post approved expense, refund, and haulage payouts here.'
+        : 'Daily work queues — receipts, expense payouts, refunds, haulage, and treasury flags.'
+      : activeTab === 'disbursements'
+        ? 'Posted treasury outflows and corrections — pay new items from Desk or Treasury.'
+        : 'Treasury, customer receipt settlement, and approvals';
+
   return (
     <PageShell blurred={isAnyModalOpen}>
       <FinancePilotHeader
-        eyebrow="Finance"
-        title="Finance & accounts"
-        subtitle="Treasury, customer receipt settlement, and approvals"
+        eyebrow={isCashierRole && activeTab === 'desk' ? 'Finance · Cashier' : 'Finance'}
+        title={financePageTitle}
+        subtitle={financePageSubtitle}
         tabs={<PageTabs tabs={accountTabs} value={activeTab} onChange={handleAccountTabChange} />}
         search={
           <div className="relative w-full min-w-0">
@@ -2911,11 +2958,11 @@ const Account = () => {
           >
             <h3 className="z-section-title flex items-center gap-2">
               <Truck size={14} />
-              Payments
+              Supplier payments
             </h3>
             <p className="text-[10px] text-gray-600 mt-2 leading-relaxed">
-              Record supplier payments against purchase orders on Procurement →{' '}
-              <span className="font-bold text-[#134e4a]">Payments</span>.
+              Pay suppliers against purchase orders on Procurement →{' '}
+              <span className="font-bold text-[#134e4a]">Payments</span> (not the finance payment register).
             </p>
           </Link>
 
@@ -2952,8 +2999,12 @@ const Account = () => {
             {activeTab === 'desk' && (
               <FinanceDeskWorkQueues
                 onConfirmReceipt={handleDeskConfirmReceipt}
+                onViewReceipt={handleDeskViewReceipt}
                 onPayRequest={handleDeskPayRequest}
+                onViewPaymentRequest={handleDeskViewPaymentRequest}
                 onPayRefund={handleDeskPayRefund}
+                onPayPoTransport={handleDeskPayPoTransport}
+                onViewPoTransport={handleDeskViewPoTransport}
                 onGoToTab={handleAccountTabChange}
               />
             )}
@@ -3271,6 +3322,25 @@ const Account = () => {
 
                       {ws?.hasPermission?.('finance.view') ? (
                         <section className="space-y-3 border-t border-slate-200/80 pt-6">
+                          <RegisterBankDepositPanel
+                            snapshot={ws?.snapshot}
+                            session={ws?.session}
+                            branchScope={ws?.branchScope}
+                            viewAllBranches={ws?.viewAllBranches}
+                            canPost={Boolean(ws?.hasPermission?.('finance.post') && ws?.canMutate)}
+                            showToast={showToast}
+                            onRegistered={() => ws?.refresh?.()}
+                          />
+                          <BankDepositExceptionPanel
+                            canPost={Boolean(ws?.hasPermission?.('finance.post') && ws?.canMutate)}
+                            showToast={showToast}
+                            onChanged={() => ws?.refresh?.()}
+                          />
+                        </section>
+                      ) : null}
+
+                      {ws?.hasPermission?.('finance.view') ? (
+                        <section className="space-y-3 border-t border-slate-200/80 pt-6">
                           <div>
                             <h3 className="text-xs font-bold uppercase tracking-widest text-[#134e4a]">
                               Daily bank line queue
@@ -3447,8 +3517,8 @@ const Account = () => {
                       </span>
                     </div>
                     <p className="text-[10px] text-teal-950/80 leading-relaxed">
-                      Same flow as customer refunds: approve elsewhere, then record the bank or cash payout here so
-                      balances stay accurate.
+                      Same flow as Desk and refunds: approve elsewhere, then record bank or cash payout here (Desk is
+                      the recommended daily surface for cashiers).
                     </p>
                     <ul className="space-y-1.5">
                       {payRequestsAwaitingTreasuryPayout.map((req) => {
@@ -3543,8 +3613,8 @@ const Account = () => {
                       </span>
                     </div>
                     <p className="text-[10px] text-sky-950/85 leading-relaxed">
-                      Procurement links the transporter and quoted fee on the PO. Record bank or cash payout here so
-                      balances and in-transit status stay aligned (same pattern as refunds and expense requests).
+                      Procurement links the transporter and quoted fee on the PO. Record payout from Desk or here so
+                      balances and in-transit status stay aligned.
                     </p>
                     <ul className="space-y-1.5">
                       {filteredPoTransportAwaitingTreasury.map((row) => {
@@ -3803,7 +3873,7 @@ const Account = () => {
               <div className="space-y-6 animate-in slide-in-from-right-5">
                 <div className="rounded-lg border border-slate-200/80 bg-slate-50/80 px-3 py-2 space-y-2">
                   <label className="text-[9px] font-bold uppercase tracking-wide text-slate-500 block mb-1">
-                    Search payments (this tab)
+                    Search payment register (this tab)
                   </label>
                   <div className="relative">
                     <Search
@@ -3821,12 +3891,13 @@ const Account = () => {
                     />
                   </div>
                   <p className="text-[9px] text-slate-500 leading-snug">
-                    Also uses the page header search. The table lists posted treasury <strong>debits</strong> (refunds,
-                    supplier/AP payments, expense requests, transport, direct expenses, receipt reversals). Use{' '}
-                    <strong>Edit</strong> on a row to correct which bank or cash account was debited (no approval code
-                    needed). <strong>Delete</strong> and <strong>Reverse payout</strong> require the right finance
-                    permissions; officers need a manager <strong>KPI approval code</strong> (below) before those
-                    actions succeed. Administrators and MD are exempt.
+                    Also uses the page header search. This tab is the <strong>audit register</strong> of posted
+                    treasury debits (refunds, supplier/AP lines, expense requests, transport, direct expenses,
+                    receipt reversals). To <strong>pay</strong> approved expense requests, refunds, or haulage, use{' '}
+                    <strong>Desk</strong> (recommended) or <strong>Treasury</strong>. Use <strong>Edit</strong> on a row
+                    to correct which bank or cash account was debited. <strong>Delete</strong> and{' '}
+                    <strong>Reverse payout</strong> need the right finance permissions; officers need a manager{' '}
+                    <strong>KPI approval code</strong> before those actions succeed. Administrators and MD are exempt.
                   </p>
                 </div>
 
@@ -3908,7 +3979,37 @@ const Account = () => {
                       </button>
                     </div>
                   </div>
-                  <div className="overflow-x-auto rounded-xl border border-slate-200/80 bg-white shadow-sm">
+                  <ul className="lg:hidden space-y-2">
+                    {paymentsListWindow.slice.map((row, idx) => {
+                      const typeLabel = TREASURY_STATEMENT_TYPE_LABEL[row.type] || row.type;
+                      const rowOrdinal =
+                        paymentsListWindow.total === 0 ? idx + 1 : paymentsListWindow.from + idx;
+                      return (
+                        <li
+                          key={row.movementId || `m-${idx}`}
+                          className="rounded-xl border border-slate-200/90 bg-white p-3 shadow-sm"
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0">
+                              <p className="text-[10px] font-bold text-slate-400 tabular-nums">#{rowOrdinal}</p>
+                              <p className="text-[11px] font-semibold text-slate-800 line-clamp-2">{row.description}</p>
+                              <p className="mt-1 text-[10px] text-slate-500">
+                                {String(row.postedAtISO || '').slice(0, 10) || '—'} · {typeLabel}
+                              </p>
+                              <p className="text-[10px] text-slate-500 truncate">{row.accountName || '—'}</p>
+                            </div>
+                            <p className="shrink-0 text-sm font-black tabular-nums text-[#134e4a]">
+                              {formatNgn(row.amountAbs)}
+                            </p>
+                          </div>
+                          {row.sourceId ? (
+                            <p className="mt-2 text-[9px] font-mono text-slate-500 break-all">{row.sourceId}</p>
+                          ) : null}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                  <div className="hidden lg:block overflow-x-auto rounded-xl border border-slate-200/80 bg-white shadow-sm z-scroll-x">
                     <table className="min-w-[920px] w-full text-left text-[10px]">
                       <thead className="bg-slate-50 text-[9px] font-bold uppercase text-slate-500 tracking-wide border-b border-slate-200">
                         <tr>
@@ -4160,10 +4261,10 @@ const Account = () => {
                       1) Expenses (posted records)
                     </h3>
                     <p className="text-[11px] text-gray-500 mt-1">
-                      Record completed spending entries. New expense requests and direct expenses open from the
-                      workspace; payment request <span className="font-semibold text-slate-700">approval</span> is in
-                      Management or workspace Needs action. After approval, treasury payout is on the{' '}
-                      <span className="font-semibold text-slate-700">Treasury</span> tab.
+                      Record completed spending entries. New expense requests open from the workspace; approval is in
+                      Management or workspace Needs action. After approval, post treasury payout from{' '}
+                      <span className="font-semibold text-slate-700">Desk</span> or{' '}
+                      <span className="font-semibold text-slate-700">Treasury</span>.
                     </p>
                   </div>
                 <ul className="space-y-1.5">
@@ -4235,8 +4336,8 @@ const Account = () => {
                       2) Expense payment requests (pipeline)
                     </h3>
                     <p className="text-[11px] text-slate-500 mt-1">
-                      Pending, submitted, approved (awaiting treasury), and cancelled — same rows as workspace; use
-                      Treasury tab to record payout when approved.
+                      Pending, submitted, approved (awaiting treasury), and cancelled — same rows as workspace. Approved
+                      items with balance due can be paid from here or from Desk / Treasury.
                     </p>
                   </div>
                   {disbursementsActivePayRequests.length === 0 ? (
@@ -4302,6 +4403,19 @@ const Account = () => {
                                   {formatNgn(Number(req.amountRequestedNgn) || 0)}
                                 </span>
                                 <div className="flex flex-wrap justify-end gap-1">
+                                  {req.approvalStatus === 'Approved' &&
+                                  effectiveOutstandingNgn(Number(req.amountRequestedNgn) || 0, paid) > 0 &&
+                                  canPayRequests &&
+                                  ws?.canMutate ? (
+                                    <button
+                                      type="button"
+                                      onClick={() => openRequestPayment(req)}
+                                      className="text-[8px] font-semibold uppercase tracking-wide text-sky-800 bg-sky-100 hover:bg-sky-200 px-2 py-1 rounded-md"
+                                      title="Record treasury payout"
+                                    >
+                                      Pay
+                                    </button>
+                                  ) : null}
                                   {canFinanceReceiptSettlement && ws?.canMutate && prTreasuryOut.length > 0 ? (
                                     <button
                                       type="button"
@@ -4614,7 +4728,7 @@ const Account = () => {
       </div>
 
       <ModalFrame isOpen={showTransferModal} onClose={closeTransferModal}>
-        <div className="z-modal-panel max-w-md p-8 overflow-y-auto">
+        <div className="z-modal-panel z-modal-scroll-y max-w-md p-4 sm:p-8">
           <div className="flex justify-between items-center mb-6">
             <h3 className="text-xl font-bold text-[#134e4a] flex items-center gap-2">
               <ArrowRightLeft size={22} />
@@ -4642,7 +4756,7 @@ const Account = () => {
                 onChange={(e) =>
                   setTransferForm((f) => ({ ...f, fromId: e.target.value }))
                 }
-                className="w-full bg-gray-50 border border-gray-100 rounded-xl py-3 px-4 text-sm font-bold outline-none"
+                className="w-full z-finance-field rounded-xl font-bold outline-none"
               >
                 <option value="">Select account…</option>
                 {bankAccountsSelectOrder.map((a) => (
@@ -4662,7 +4776,7 @@ const Account = () => {
                 onChange={(e) =>
                   setTransferForm((f) => ({ ...f, toId: e.target.value }))
                 }
-                className="w-full bg-gray-50 border border-gray-100 rounded-xl py-3 px-4 text-sm font-bold outline-none"
+                className="w-full z-finance-field rounded-xl font-bold outline-none"
               >
                 <option value="">Select account…</option>
                 {bankAccountsSelectOrder.map((a) => (
@@ -4684,7 +4798,7 @@ const Account = () => {
                 onChange={(e) =>
                   setTransferForm((f) => ({ ...f, amountNgn: e.target.value }))
                 }
-                className="w-full bg-gray-50 border border-gray-100 rounded-xl py-3 px-4 text-sm font-bold outline-none"
+                className="w-full z-finance-field rounded-xl font-bold outline-none"
               />
             </div>
             <div>
@@ -4698,7 +4812,7 @@ const Account = () => {
                 onChange={(e) =>
                   setTransferForm((f) => ({ ...f, dateISO: e.target.value }))
                 }
-                className="w-full bg-gray-50 border border-gray-100 rounded-xl py-3 px-4 text-sm font-bold outline-none"
+                className="w-full z-finance-field rounded-xl font-bold outline-none"
               />
             </div>
             <div>
@@ -4711,7 +4825,7 @@ const Account = () => {
                   setTransferForm((f) => ({ ...f, reference: e.target.value }))
                 }
                 placeholder="e.g. Cash deposit — 28 Mar"
-                className="w-full bg-gray-50 border border-gray-100 rounded-xl py-3 px-4 text-sm font-bold outline-none"
+                className="w-full z-finance-field rounded-xl font-bold outline-none"
               />
             </div>
             <button type="submit" className="z-btn-primary w-full justify-center py-3">
@@ -4722,7 +4836,7 @@ const Account = () => {
       </ModalFrame>
 
       <ModalFrame isOpen={statementAccount != null} onClose={closeStatementModal}>
-        <div className="z-modal-panel max-w-lg w-full max-h-[min(85vh,640px)] p-6 sm:p-8 overflow-hidden flex flex-col">
+        <div className="z-modal-panel max-w-lg w-full max-h-[min(100dvh,640px)] sm:max-h-[min(85vh,640px)] p-4 sm:p-8 overflow-hidden flex flex-col">
           <div className="flex justify-between items-start gap-3 mb-4 shrink-0">
             <div className="min-w-0">
               <h3 className="text-lg sm:text-xl font-bold text-[#134e4a]">Account statement</h3>
@@ -4909,7 +5023,7 @@ const Account = () => {
       />
 
       <ModalFrame isOpen={showStatementPrintModal} onClose={() => setShowStatementPrintModal(false)}>
-        <div className="z-modal-panel max-w-md w-full p-6 sm:p-8">
+        <div className="z-modal-panel z-modal-scroll-y max-w-md w-full p-4 sm:p-8">
           <div className="flex justify-between items-center gap-3 mb-4">
             <h3 className="text-lg font-bold text-[#134e4a]">Print statement</h3>
             <button
@@ -4930,7 +5044,7 @@ const Account = () => {
                 min={statementDateBounds.minDate || undefined}
                 max={statementDateBounds.maxDate || undefined}
                 onChange={(e) => setStatementPrintFromDate(e.target.value)}
-                className="w-full bg-gray-50 border border-gray-100 rounded-xl py-3 px-4 text-sm font-bold outline-none"
+                className="w-full z-finance-field rounded-xl font-bold outline-none"
               />
             </div>
             <div>
@@ -4941,7 +5055,7 @@ const Account = () => {
                 min={statementDateBounds.minDate || undefined}
                 max={statementDateBounds.maxDate || undefined}
                 onChange={(e) => setStatementPrintToDate(e.target.value)}
-                className="w-full bg-gray-50 border border-gray-100 rounded-xl py-3 px-4 text-sm font-bold outline-none"
+                className="w-full z-finance-field rounded-xl font-bold outline-none"
               />
             </div>
             <button
@@ -4974,7 +5088,7 @@ const Account = () => {
           setRefundPaymentNote('');
         }}
       >
-        <div className="z-modal-panel max-w-lg p-8 overflow-y-auto">
+        <div className="z-modal-panel z-modal-scroll-y max-w-lg p-4 sm:p-8">
           <div className="flex justify-between items-center mb-6">
             <h3 className="text-xl font-bold text-[#134e4a] flex items-center gap-2">
               <RotateCcw size={22} className="text-rose-600" />
@@ -5048,7 +5162,7 @@ const Account = () => {
                   value={refundPaidBy}
                   onChange={(e) => setRefundPaidBy(e.target.value)}
                   placeholder="e.g. Hauwa — GTBank transfer"
-                  className="w-full bg-gray-50 border border-gray-100 rounded-xl py-3 px-4 text-sm font-bold outline-none"
+                  className="w-full z-finance-field rounded-xl font-bold outline-none"
                 />
               </div>
               <div className="flex items-center justify-between">
@@ -5084,7 +5198,7 @@ const Account = () => {
                       type="date"
                       value={line.dateISO}
                       onChange={(e) => updateRefundPayLine(line.id, { dateISO: e.target.value })}
-                      className="sm:col-span-3 rounded-lg border border-slate-200 bg-white py-2 px-2 text-[11px] font-semibold"
+                      className="w-full z-finance-field rounded-lg font-semibold"
                       title="Payment date"
                     />
                     <input
@@ -5093,14 +5207,14 @@ const Account = () => {
                       step="1"
                       value={line.amount}
                       onChange={(e) => updateRefundPayLine(line.id, { amount: e.target.value })}
-                      className="sm:col-span-3 rounded-lg border border-slate-200 bg-white py-2 px-2 text-[11px] font-bold text-[#134e4a]"
+                      className="sm:col-span-3 z-finance-field rounded-lg font-bold text-[#134e4a]"
                       placeholder="Amount ₦"
                     />
                     <input
                       type="text"
                       value={line.reference}
                       onChange={(e) => updateRefundPayLine(line.id, { reference: e.target.value })}
-                      className="sm:col-span-4 rounded-lg border border-slate-200 bg-white py-2 px-2 text-[11px]"
+                      className="sm:col-span-4 z-finance-field rounded-lg"
                       placeholder="Reference"
                     />
                     <button
@@ -5123,7 +5237,7 @@ const Account = () => {
                   value={refundPaymentNote}
                   onChange={(e) => setRefundPaymentNote(e.target.value)}
                   placeholder="Example: Cash 300,000 and GT transfer 200,000"
-                  className="w-full bg-gray-50 border border-gray-100 rounded-xl py-3 px-4 text-sm outline-none"
+                  className="w-full z-finance-field rounded-xl outline-none"
                 />
               </div>
               <div className="rounded-lg border border-slate-200/60 bg-white/40 backdrop-blur-md px-3 py-3 shadow-sm">
@@ -5164,7 +5278,7 @@ const Account = () => {
           setTransportPayEditApprovalId('');
         }}
       >
-        <div className="z-modal-panel max-w-lg p-8 sm:p-10 overflow-y-auto">
+        <div className="z-modal-panel z-modal-scroll-y max-w-lg p-4 sm:p-10">
           <div className="flex justify-between items-center mb-8">
             <h3 className="text-2xl font-bold text-[#134e4a]">
               {selectedPayment?.type === 'po_transport' ? 'Post transport payment' : 'Process payment'}
@@ -5243,7 +5357,7 @@ const Account = () => {
                       type="date"
                       value={line.dateISO}
                       onChange={(e) => updateRequestPayLine(line.id, { dateISO: e.target.value })}
-                      className="sm:col-span-3 rounded-lg border border-slate-200 bg-white py-2 px-2 text-[11px] font-semibold"
+                      className="w-full z-finance-field rounded-lg font-semibold"
                       title="Payment date"
                     />
                     <input
@@ -5252,14 +5366,14 @@ const Account = () => {
                       step="1"
                       value={line.amount}
                       onChange={(e) => updateRequestPayLine(line.id, { amount: e.target.value })}
-                      className="sm:col-span-3 rounded-lg border border-slate-200 bg-white py-2 px-2 text-[11px] font-bold text-[#134e4a]"
+                      className="sm:col-span-3 z-finance-field rounded-lg font-bold text-[#134e4a]"
                       placeholder="Amount ₦"
                     />
                     <input
                       type="text"
                       value={line.reference}
                       onChange={(e) => updateRequestPayLine(line.id, { reference: e.target.value })}
-                      className="sm:col-span-4 rounded-lg border border-slate-200 bg-white py-2 px-2 text-[11px]"
+                      className="sm:col-span-4 z-finance-field rounded-lg"
                       placeholder="Reference"
                     />
                     <button
@@ -5332,7 +5446,7 @@ const Account = () => {
           setNewBank(emptyBankForm());
         }}
       >
-        <div className="z-modal-panel max-w-lg w-full min-h-0 max-h-[min(90dvh,720px)] flex flex-col overflow-hidden p-0">
+        <div className="z-modal-panel max-w-lg w-full min-h-0 max-h-[min(100dvh,720px)] sm:max-h-[min(90dvh,720px)] flex flex-col overflow-hidden p-0">
           <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-8 pt-8 pb-10">
             <div className="flex justify-between items-center mb-6">
               <h3 className="text-xl font-bold text-[#134e4a]">
@@ -5359,7 +5473,7 @@ const Account = () => {
                     required
                     value={newBank.branchId || workspaceBranchId}
                     onChange={(e) => setNewBank((b) => ({ ...b, branchId: e.target.value }))}
-                    className="w-full bg-gray-50 border border-gray-100 rounded-xl py-3 px-4 text-sm font-bold outline-none"
+                    className="w-full z-finance-field rounded-xl font-bold outline-none"
                   >
                     {branchOptionsSorted.map((b) => (
                       <option key={b.id} value={b.id}>
@@ -5385,7 +5499,7 @@ const Account = () => {
                   required
                   value={newBank.name}
                   onChange={(e) => setNewBank((b) => ({ ...b, name: e.target.value }))}
-                  className="w-full bg-gray-50 border border-gray-100 rounded-xl py-3 px-4 text-sm font-bold outline-none"
+                  className="w-full z-finance-field rounded-xl font-bold outline-none"
                 />
               </div>
               {newBank.type === 'Bank' ? (
@@ -5397,7 +5511,7 @@ const Account = () => {
                     value={newBank.bankName}
                     onChange={(e) => setNewBank((b) => ({ ...b, bankName: e.target.value }))}
                     placeholder="e.g. Zenith Bank"
-                    className="w-full bg-gray-50 border border-gray-100 rounded-xl py-3 px-4 text-sm font-bold outline-none"
+                    className="w-full z-finance-field rounded-xl font-bold outline-none"
                   />
                 </div>
               ) : null}
@@ -5409,7 +5523,7 @@ const Account = () => {
                   <select
                     value={newBank.type}
                     onChange={(e) => setNewBank((b) => ({ ...b, type: e.target.value }))}
-                    className="w-full bg-gray-50 border border-gray-100 rounded-xl py-3 px-4 text-sm font-bold outline-none"
+                    className="w-full z-finance-field rounded-xl font-bold outline-none"
                   >
                     <option value="Bank">Bank</option>
                     <option value="Cash">Cash</option>
@@ -5429,7 +5543,7 @@ const Account = () => {
                         step="any"
                         value={newBank.openingBalanceNgn}
                         onChange={(e) => setNewBank((b) => ({ ...b, openingBalanceNgn: e.target.value }))}
-                        className="w-full bg-gray-50 border border-gray-100 rounded-xl py-3 px-4 text-sm font-bold outline-none"
+                        className="w-full z-finance-field rounded-xl font-bold outline-none"
                       />
                       <p className="text-[9px] text-gray-500 mt-1 leading-snug">
                         Book balance below updates automatically: opening plus all posted movements on this account.
@@ -5442,7 +5556,7 @@ const Account = () => {
                       step="any"
                       value={newBank.balance}
                       onChange={(e) => setNewBank((b) => ({ ...b, balance: e.target.value }))}
-                      className="w-full bg-gray-50 border border-gray-100 rounded-xl py-3 px-4 text-sm font-bold outline-none"
+                      className="w-full z-finance-field rounded-xl font-bold outline-none"
                     />
                   )}
                 </div>
@@ -5472,7 +5586,7 @@ const Account = () => {
                 <input
                   value={newBank.accNo}
                   onChange={(e) => setNewBank((b) => ({ ...b, accNo: e.target.value }))}
-                  className="w-full bg-gray-50 border border-gray-100 rounded-xl py-3 px-4 text-sm font-bold outline-none"
+                  className="w-full z-finance-field rounded-xl font-bold outline-none"
                 />
               </div>
               <div>
@@ -5483,7 +5597,7 @@ const Account = () => {
                   value={newBank.bankBranch}
                   onChange={(e) => setNewBank((b) => ({ ...b, bankBranch: e.target.value }))}
                   placeholder="e.g. Ahmadu Bello Way, Kaduna"
-                  className="w-full bg-gray-50 border border-gray-100 rounded-xl py-3 px-4 text-sm font-bold outline-none"
+                  className="w-full z-finance-field rounded-xl font-bold outline-none"
                 />
               </div>
               <div>
@@ -5494,7 +5608,7 @@ const Account = () => {
                   value={newBank.sortCodeOrSwift}
                   onChange={(e) => setNewBank((b) => ({ ...b, sortCodeOrSwift: e.target.value }))}
                   placeholder="e.g. 057 / ZEIBNGLA"
-                  className="w-full bg-gray-50 border border-gray-100 rounded-xl py-3 px-4 text-sm font-bold outline-none"
+                  className="w-full z-finance-field rounded-xl font-bold outline-none"
                 />
               </div>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -5506,7 +5620,7 @@ const Account = () => {
                     value={newBank.accountOfficerName}
                     onChange={(e) => setNewBank((b) => ({ ...b, accountOfficerName: e.target.value }))}
                     placeholder="Relationship manager"
-                    className="w-full bg-gray-50 border border-gray-100 rounded-xl py-3 px-4 text-sm font-bold outline-none"
+                    className="w-full z-finance-field rounded-xl font-bold outline-none"
                   />
                 </div>
                 <div>
@@ -5517,7 +5631,7 @@ const Account = () => {
                     value={newBank.accountOfficerPhone}
                     onChange={(e) => setNewBank((b) => ({ ...b, accountOfficerPhone: e.target.value }))}
                     placeholder="+234…"
-                    className="w-full bg-gray-50 border border-gray-100 rounded-xl py-3 px-4 text-sm font-bold outline-none"
+                    className="w-full z-finance-field rounded-xl font-bold outline-none"
                   />
                 </div>
               </div>
@@ -5530,7 +5644,7 @@ const Account = () => {
                   value={newBank.notes}
                   onChange={(e) => setNewBank((b) => ({ ...b, notes: e.target.value }))}
                   placeholder="e.g. Primary payroll account; notify MD for transfers above ₦10m"
-                  className="w-full bg-gray-50 border border-gray-100 rounded-xl py-3 px-4 text-sm outline-none resize-y min-h-[3rem]"
+                  className="w-full z-finance-field rounded-xl outline-none resize-y min-h-[3rem]"
                 />
               </div>
               <button type="submit" className="z-btn-primary w-full justify-center py-3">
@@ -5542,7 +5656,7 @@ const Account = () => {
       </ModalFrame>
 
       <ModalFrame isOpen={showExpenseModal} onClose={() => setShowExpenseModal(false)}>
-        <div className="z-modal-panel max-w-lg p-8 overflow-y-auto">
+        <div className="z-modal-panel z-modal-scroll-y max-w-lg p-4 sm:p-8">
             <div className="flex justify-between items-center mb-6 gap-3">
               <h3 className="text-xl font-bold text-[#134e4a]">Expense entry</h3>
               <div className="flex items-center gap-2">
@@ -5575,7 +5689,7 @@ const Account = () => {
                   onChange={(e) =>
                     setExpenseForm((f) => ({ ...f, expenseType: e.target.value }))
                   }
-                  className="w-full bg-gray-50 border border-gray-100 rounded-xl py-3 px-4 text-sm font-bold outline-none"
+                  className="w-full z-finance-field rounded-xl font-bold outline-none"
                 >
                   <option value="COGS — materials & stock">COGS — materials & stock</option>
                   <option value="Employee — payroll & commissions">Employee — payroll & commissions</option>
@@ -5597,7 +5711,7 @@ const Account = () => {
                     onChange={(e) =>
                       setExpenseForm((f) => ({ ...f, amountNgn: e.target.value }))
                     }
-                    className="w-full bg-gray-50 border border-gray-100 rounded-xl py-3 px-4 text-sm font-bold outline-none"
+                    className="w-full z-finance-field rounded-xl font-bold outline-none"
                   />
                 </div>
                 <div>
@@ -5610,7 +5724,7 @@ const Account = () => {
                     onChange={(e) =>
                       setExpenseForm((f) => ({ ...f, date: e.target.value }))
                     }
-                    className="w-full bg-gray-50 border border-gray-100 rounded-xl py-3 px-4 text-sm font-bold outline-none"
+                    className="w-full z-finance-field rounded-xl font-bold outline-none"
                   />
                 </div>
               </div>
@@ -5624,7 +5738,7 @@ const Account = () => {
                   onChange={(e) =>
                     setExpenseForm((f) => ({ ...f, category: e.target.value }))
                   }
-                  className="w-full bg-gray-50 border border-gray-100 rounded-xl py-3 px-4 text-sm font-bold outline-none"
+                  className="w-full z-finance-field rounded-xl font-bold outline-none"
                 >
                   <option value="">Select category…</option>
                   {EXPENSE_CATEGORY_OPTIONS.map((name) => (
@@ -5643,7 +5757,7 @@ const Account = () => {
                   onChange={(e) =>
                     setExpenseForm((f) => ({ ...f, paymentMethod: e.target.value }))
                   }
-                  className="w-full bg-gray-50 border border-gray-100 rounded-xl py-3 px-4 text-sm font-bold outline-none"
+                  className="w-full z-finance-field rounded-xl font-bold outline-none"
                 >
                   <option value="Bank Transfer">Bank Transfer</option>
                   <option value="Cash">Cash</option>
@@ -5660,7 +5774,7 @@ const Account = () => {
                   onChange={(e) =>
                     setExpenseForm((f) => ({ ...f, debitAccountId: e.target.value }))
                   }
-                  className="w-full bg-gray-50 border border-gray-100 rounded-xl py-3 px-4 text-sm font-bold outline-none"
+                  className="w-full z-finance-field rounded-xl font-bold outline-none"
                 >
                   <option value="">Select account…</option>
                   {bankAccountsSelectOrder.map((a) => (
@@ -5679,7 +5793,7 @@ const Account = () => {
                   onChange={(e) =>
                     setExpenseForm((f) => ({ ...f, reference: e.target.value }))
                   }
-                  className="w-full bg-gray-50 border border-gray-100 rounded-xl py-3 px-4 text-sm font-bold outline-none"
+                  className="w-full z-finance-field rounded-xl font-bold outline-none"
                 />
               </div>
               <p className="text-[10px] text-gray-400">
@@ -5702,7 +5816,7 @@ const Account = () => {
           setShowPayRequestModal(false);
         }}
       >
-        <div className="z-modal-panel max-w-2xl p-6 sm:p-8 overflow-y-auto max-h-[90vh]">
+        <div className="z-modal-panel z-modal-scroll-y max-w-2xl p-4 sm:p-8">
           <div className="flex justify-between items-center mb-5">
             <h3 className="text-xl font-bold text-[#134e4a]">Expense request</h3>
             <button
@@ -5732,7 +5846,7 @@ const Account = () => {
           setExpenseOutflowEdit(null);
         }}
       >
-        <div className="z-modal-panel max-w-lg w-full max-h-[90vh] overflow-y-auto p-6 sm:p-8">
+        <div className="z-modal-panel z-modal-scroll-y max-w-lg w-full p-4 sm:p-8">
           <div className="flex justify-between items-start gap-3 mb-4">
             <h3 className="text-lg font-bold text-[#134e4a]">
               {expenseOutflowEdit?.headline || 'Expense payout — pay-from'}
@@ -5847,7 +5961,7 @@ const Account = () => {
           setPaymentCorrectionDrafts({});
         }}
       >
-        <div className="z-modal-panel max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6 sm:p-8">
+        <div className="z-modal-panel z-modal-scroll-y max-w-2xl w-full p-4 sm:p-8">
           <div className="flex justify-between items-start gap-3 mb-4">
             <h3 className="text-lg font-bold text-[#134e4a]">Clear receipt</h3>
             <button
@@ -6069,7 +6183,7 @@ const Account = () => {
                   value={receiptBankAmtInput}
                   disabled={receiptFinanceBusy}
                   onChange={(e) => setReceiptBankAmtInput(e.target.value)}
-                  className="w-full bg-gray-50 border border-gray-100 rounded-xl py-3 px-4 text-sm font-bold outline-none disabled:opacity-60"
+                  className="w-full z-finance-field rounded-xl font-bold outline-none disabled:opacity-60"
                 />
               </div>
               <label className="flex items-start gap-2 text-[11px] text-slate-700 cursor-pointer">

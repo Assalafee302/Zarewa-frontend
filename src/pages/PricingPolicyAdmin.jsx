@@ -18,6 +18,7 @@ export default function PricingPolicyAdmin() {
   const [tiers, setTiers] = useState([]);
   const [ridgeAddOns, setRidgeAddOns] = useState([]);
   const [aliases, setAliases] = useState([]);
+  const [priceBookAsAtIso, setPriceBookAsAtIso] = useState('');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -79,7 +80,10 @@ export default function PricingPolicyAdmin() {
   };
 
   const openCustomerPriceBook = () => {
-    const u = apiUrl('/api/pricing/customer-price-book.html');
+    const asAt = String(priceBookAsAtIso || '').trim();
+    const qs =
+      asAt && /^\d{4}-\d{2}-\d{2}$/.test(asAt) ? `?asAtIso=${encodeURIComponent(asAt)}` : '';
+    const u = apiUrl(`/api/pricing/customer-price-book.html${qs}`);
     window.open(u, '_blank', 'noopener,noreferrer');
   };
 
@@ -93,7 +97,16 @@ export default function PricingPolicyAdmin() {
         title="Pricing policy"
         subtitle="Trading bands (₦/m below recommended without MD), ridge add-ons, and profile aliases. MD and administrators may edit."
       />
-      <div className="mb-4 flex flex-wrap gap-2">
+      <div className="mb-4 flex flex-wrap items-end gap-3">
+        <label className="text-[10px] font-bold uppercase text-slate-500 block">
+          Price book as at (optional)
+          <input
+            type="date"
+            className="mt-1 block rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold"
+            value={priceBookAsAtIso}
+            onChange={(e) => setPriceBookAsAtIso(e.target.value)}
+          />
+        </label>
         <button
           type="button"
           onClick={openCustomerPriceBook}

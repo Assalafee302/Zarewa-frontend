@@ -119,7 +119,9 @@ const Sidebar = ({ mobileOpen = false, onCloseMobile, collapsed = false, onToggl
     },
     {
       icon: <Landmark size={18} />,
-      label: 'Finance',
+      label: String(roleKey || '').trim().toLowerCase() === 'cashier' ? 'Cashier desk' : 'Finance',
+      to:
+        String(roleKey || '').trim().toLowerCase() === 'cashier' ? '/accounts?tab=desk' : '/accounts',
       path: '/accounts',
       active: pathMatches(p, '/accounts') || pathMatches(p, '/cashier'),
       visible: userMaySeeLegacyAccountsNav(roleKey, permissions),

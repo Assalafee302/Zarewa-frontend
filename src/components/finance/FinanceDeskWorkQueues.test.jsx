@@ -36,12 +36,13 @@ describe('FinanceDeskWorkQueues', () => {
           onConfirmReceipt={() => {}}
           onPayRequest={() => {}}
           onPayRefund={() => {}}
+          onPayPoTransport={() => {}}
           onGoToTab={() => {}}
         />
       </MemoryRouter>
     );
-    expect(screen.getByText(/Branch desk for/i)).toBeTruthy();
-    expect(screen.getByText(/Confirm payment received/i)).toBeTruthy();
+    expect(screen.getByText(/cashier desk/i)).toBeTruthy();
+    expect(screen.getByText(/PO transport \/ haulage to pay/i)).toBeTruthy();
     expect(screen.getByText(/Branch treasury balances/i)).toBeTruthy();
   });
 });

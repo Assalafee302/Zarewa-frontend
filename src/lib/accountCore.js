@@ -4,7 +4,7 @@ export const ACCOUNT_TAB_LABELS = {
   receipts: 'Receipts & bank recon',
   cashier: 'Cashier confirmation',
   movements: 'Fund movements',
-  disbursements: 'Payments',
+  disbursements: 'Payment register',
   audit: 'Audit & reconciliation',
 };
 
@@ -156,7 +156,7 @@ export function isPayFromCorrectionTreasuryRow(row) {
   );
 }
 
-/** Treasury movement types shown on Finance → Payments (money leaving the business). */
+/** Treasury movement types shown on Finance → Payment register (money leaving the business). */
 export const TREASURY_PAYMENTS_TABLE_OUTFLOW_TYPES = new Set([
   'EXPENSE',
   'AP_PAYMENT',
@@ -283,6 +283,9 @@ export function treasuryMovementSourceBadge(m) {
   }
   if (sk === 'BANK_RECON_LINE') {
     return { label: 'Bank recon', className: 'bg-sky-100 text-sky-900 ring-1 ring-sky-200/70' };
+  }
+  if (sk === 'BANK_DEPOSIT' || tp === 'BANK_UNIDENTIFIED_IN') {
+    return { label: 'Unlinked bank', className: 'bg-sky-100 text-sky-950 ring-1 ring-sky-300/80' };
   }
   if (sk === 'EXPENSE' || tp === 'EXPENSE') {
     return { label: 'Expense', className: 'bg-rose-50 text-rose-900 ring-1 ring-rose-100' };

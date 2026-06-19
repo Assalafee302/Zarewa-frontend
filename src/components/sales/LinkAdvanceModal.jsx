@@ -150,7 +150,7 @@ export default function LinkAdvanceModal({
         onSubmit={submit}
         onInput={captureEdited}
         onChange={captureEdited}
-        className="z-modal-panel max-w-md w-full flex flex-col bg-white rounded-2xl border border-slate-200 shadow-xl"
+        className="z-modal-panel max-w-md w-full flex flex-col min-h-0 overflow-hidden p-0"
       >
         <div className="px-5 py-4 border-b border-slate-100 flex justify-between items-center">
           <div>
@@ -191,13 +191,13 @@ export default function LinkAdvanceModal({
             ) : null}
           </div>
         ) : null}
-        <div className="p-5 space-y-4">
+        <div className="flex-1 min-h-0 overflow-y-auto overscroll-y-contain custom-scrollbar p-5 space-y-4">
           <div>
             <label className="text-[9px] font-semibold text-slate-400 uppercase mb-1 block">Quotation</label>
             <select
               value={quotationRef}
               onChange={(e) => setQuotationRef(e.target.value)}
-              className="w-full rounded-lg border border-slate-200 py-2.5 px-3 text-xs font-semibold text-[#134e4a]"
+              className="w-full z-finance-select rounded-lg py-2.5 px-3 font-semibold text-[#134e4a]"
             >
               <option value="">Select…</option>
               {quoteOptions.map(({ q, due }) => (
@@ -232,11 +232,11 @@ export default function LinkAdvanceModal({
               max={maxApply || undefined}
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
-              className="w-full rounded-lg border border-slate-200 py-2.5 px-3 text-sm font-bold text-[#134e4a] tabular-nums"
+              className="w-full z-finance-field rounded-lg font-bold text-[#134e4a] tabular-nums"
             />
           </div>
         </div>
-        <div className="px-5 py-4 border-t border-slate-100 flex justify-end gap-2">
+        <div className="shrink-0 px-5 py-4 border-t border-slate-100 flex flex-col gap-2 sm:flex-row sm:justify-end">
           <button
             type="button"
             onClick={handleClose}

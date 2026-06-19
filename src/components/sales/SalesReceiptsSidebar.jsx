@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import {
   Receipt as ReceiptIcon,
   Wallet,
+  Landmark,
   MoreVertical,
   Eye,
   Link2,
@@ -17,6 +18,7 @@ import {
   receiptSalesPaymentStatusLabel,
   receiptSalesPaymentStatusTitle,
 } from '../../lib/receiptClearance.js';
+import { bankDepositStatusLabel, openBankDepositsFromSnapshot } from '../../lib/bankDeposits';
 
 const PANEL_CLASS =
   'flex flex-col h-full min-h-[min(520px,72vh)] rounded-xl border border-slate-200/90 bg-white shadow-sm overflow-hidden';
@@ -257,6 +259,61 @@ export function ReceiptsAdvancesPanel({
                   });
                 }}
               />
+            </li>
+          ))
+        )}
+      </ul>
+    </section>
+  );
+}
+
+/** Column: unlinked bank deposits (Finance registered, Sales can link). */
+export function ReceiptsUnlinkedDepositsPanel({
+  snapshot,
+  onUseDeposit,
+  className = '',
+}) {
+  const rows = useMemo(() => openBankDepositsFromSnapshot(snapshot), [snapshot]);
+
+  return (
+    <section className={`${PANEL_CLASS} border-sky-200/90 bg-sky-50/10 ${className}`}>
+      <div className="h-1 bg-sky-600 shrink-0" aria-hidden />
+      <div className="p-4 border-b border-sky-100/80 shrink-0">
+        <p className="text-[10px] font-semibold uppercase tracking-widest text-sky-900/80 flex items-center gap-1.5">
+          <Landmark size={14} className="shrink-0" />
+          Unlinked bank payments
+        </p>
+        <p className="text-[10px] text-sky-900/70 mt-1 leading-snug">
+          Money Finance/Cashier registered from the bank — not yet linked to a customer. Use when posting a receipt or
+          advance.
+        </p>
+      </div>
+      <ul className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-2 space-y-1.5 max-h-[min(280px,40vh)]">
+        {rows.length === 0 ? (
+          <li className="text-[10px] text-sky-800/60 px-2 py-4 text-center">No unlinked bank payments.</li>
+        ) : (
+          rows.map((d) => (
+            <li
+              key={d.id}
+              className="flex items-center justify-between gap-2 rounded-lg border border-sky-100 bg-white/90 px-2.5 py-2"
+            >
+              <div className="min-w-0">
+                <p className="text-[10px] font-black text-[#134e4a] tabular-nums">{formatNgn(d.remainingNgn)}</p>
+                <p className="text-[9px] font-mono text-slate-600 truncate">{d.id}</p>
+                <p className="text-[8px] text-slate-500 truncate" title={d.description}>
+                  {d.description || d.bankReference || '—'}
+                </p>
+                <p className="text-[8px] text-slate-400">
+                  {d.bankDateISO} · {bankDepositStatusLabel(d.status)}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => onUseDeposit?.(d)}
+                className="shrink-0 rounded-md bg-sky-700 px-2 py-1 text-[8px] font-black uppercase text-white hover:bg-sky-800"
+              >
+                Use
+              </button>
             </li>
           ))
         )}

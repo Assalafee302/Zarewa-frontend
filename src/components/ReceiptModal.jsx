@@ -34,6 +34,8 @@ import {
   treasuryAccountsForWorkspace,
 } from '../lib/treasuryAccountsStore';
 import { compareSelectLabels } from '../lib/selectOptionSort';
+import { BankDepositPicker } from './sales/BankDepositPicker';
+import { bankDepositRemainingNgn } from '../lib/bankDeposits';
 import { bookedPaidNgnForQuotationFromMirrors } from '../lib/liveAnalytics';
 import {
   isExistingSalesPaymentRow,
@@ -132,6 +134,8 @@ const ReceiptModal = ({
   useLedgerApi = false,
   handledByLabel = 'Sales',
   onDeleteReceipt,
+  defaultBankDepositId = '',
+  workspaceSnapshot,
 }) => {
   const { customers } = useCustomers();
   const { show: showToast } = useToast();
@@ -175,6 +179,18 @@ const ReceiptModal = ({
   const postingRef = useRef(false);
   const lastReceiptHydrateSigRef = useRef('');
   const [isPosting, setIsPosting] = useState(false);
+  const [bankDepositId, setBankDepositId] = useState('');
+
+  const depositSnapshot = workspaceSnapshot ?? ws?.snapshot;
+  const linkedDeposit = useMemo(() => {
+    const rows = Array.isArray(depositSnapshot?.bankDeposits) ? depositSnapshot.bankDeposits : [];
+    return rows.find((d) => String(d.id) === String(bankDepositId)) || null;
+  }, [depositSnapshot?.bankDeposits, bankDepositId]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    if (defaultBankDepositId) setBankDepositId(String(defaultBankDepositId));
+  }, [isOpen, defaultBankDepositId]);
 
   const treasuryList = useMemo(() => {
     const raw =
@@ -445,6 +461,13 @@ const ReceiptModal = ({
     [paymentLines]
   );
 
+  const depositCoverNgn = useMemo(() => {
+    if (!linkedDeposit || !bankDepositId) return 0;
+    return Math.min(Math.round(lineTotalNgn), bankDepositRemainingNgn(linkedDeposit));
+  }, [linkedDeposit, bankDepositId, lineTotalNgn]);
+
+  const treasuryCashRequiredNgn = Math.max(0, Math.round(lineTotalNgn) - depositCoverNgn);
+
   /** Ledger / receipt ids for the voucher being edited — excluded from "prior" totals so guards are not self-referential. */
   const editingReceiptEntryIds = useMemo(() => {
     const s = new Set();
@@ -607,7 +630,7 @@ const ReceiptModal = ({
   const saveReceipt = async (e) => {
     e.preventDefault();
     if (readOnly) return;
-    if (treasuryList.length === 0) {
+    if (!bankDepositId && treasuryList.length === 0) {
       showToast('Configure treasury accounts first.', { variant: 'error' });
       return;
     }
@@ -669,6 +692,12 @@ const ReceiptModal = ({
         'The full amount will be recorded on this quotation (paid may exceed the quoted total). Finance can adjust allocation later if needed.'
       );
     }
+    if (bankDepositId && linkedDeposit) {
+      summaryParts.push('', `Linked bank deposit: ${bankDepositId} (₦${depositCoverNgn.toLocaleString('en-NG')} from pool)`);
+      if (treasuryCashRequiredNgn > 0) {
+        summaryParts.push(`Additional treasury cash: ${formatNgn(treasuryCashRequiredNgn)}`);
+      }
+    }
     if (!window.confirm(summaryParts.join('\n'))) return;
 
     const refParts = validLines.map((l) => {
@@ -687,7 +716,17 @@ const ReceiptModal = ({
     setIsPosting(true);
     try {
       if (useLedgerApi) {
-        const paymentLinesPayload = validLines.map((line) => {
+        let linesForTreasury = validLines;
+        const cashNeeded = Math.max(0, total - depositCoverNgn);
+        if (bankDepositId && cashNeeded <= 0) {
+          linesForTreasury = [];
+        } else if (bankDepositId && cashNeeded > 0 && cashNeeded < total) {
+          linesForTreasury = validLines.map((line, idx) => {
+            const raw = Math.round((parseNum(line.amount) * cashNeeded) / total);
+            return { ...line, amount: String(idx === validLines.length - 1 ? cashNeeded - validLines.slice(0, -1).reduce((s, l, i) => s + Math.round((parseNum(l.amount) * cashNeeded) / total), 0) : raw) };
+          });
+        }
+        const paymentLinesPayload = linesForTreasury.map((line) => {
           const acc = treasuryAccountForLine(line, treasuryByIdStr, treasuryList);
           const tid = acc?.id ?? line.treasuryAccountId;
           return {
@@ -703,7 +742,7 @@ const ReceiptModal = ({
             pl.treasuryAccountId == null ||
             (typeof pl.treasuryAccountId === 'number' && !Number.isFinite(pl.treasuryAccountId))
         );
-        if (invalidTreasury) {
+        if (paymentLinesPayload.length > 0 && invalidTreasury) {
           showToast('Select a valid treasury account on each payment line.', { variant: 'error' });
           return;
         }
@@ -722,6 +761,7 @@ const ReceiptModal = ({
         };
         if (branchId) receiptBody.branchId = branchId;
         receiptBody.fullAmountAsReceipt = true;
+        if (bankDepositId) receiptBody.bankDepositId = bankDepositId;
         if (postingHeadroomNgn != null && postingHeadroomNgn <= 0 && total > 0) {
           receiptBody.confirmSettledQuoteOverpay = true;
         }
@@ -819,9 +859,16 @@ const ReceiptModal = ({
           return;
         }
         setPostingHint(null);
+        const linkNote = bankDepositId ? ` Linked to ${bankDepositId}.` : '';
         showToast(
-          `₦${total.toLocaleString('en-NG')} recorded on ${selectedQuotation.id} — awaiting cashier confirmation.`
+          `₦${total.toLocaleString('en-NG')} recorded on ${selectedQuotation.id} — awaiting cashier confirmation.${linkNote}`
         );
+        if (Array.isArray(data?.similarUnlinkedDeposits) && data.similarUnlinkedDeposits.length > 0 && !bankDepositId) {
+          showToast(
+            `Tip: ${data.similarUnlinkedDeposits.length} unlinked bank deposit(s) match this amount — link next time to avoid duplicate treasury cash.`,
+            { variant: 'info' }
+          );
+        }
       } else {
         const res = recordReceiptWithQuotation({
           customerID,
@@ -1137,6 +1184,23 @@ const ReceiptModal = ({
                   </div>
                 ) : null}
               </div>
+            </div>
+
+            <div className="mb-3 px-1">
+              <BankDepositPicker
+                value={bankDepositId}
+                onChange={setBankDepositId}
+                amountNgn={lineTotalNgn}
+                bankDateISO={voucherDate}
+                bankReference={remarks}
+                snapshot={depositSnapshot}
+                disabled={readOnly}
+              />
+              {bankDepositId && treasuryCashRequiredNgn > 0 ? (
+                <p className="text-[9px] text-sky-800 mt-1">
+                  Enter treasury lines for the remaining {formatNgn(treasuryCashRequiredNgn)} only.
+                </p>
+              ) : null}
             </div>
 
             <div className="mb-3 flex items-center justify-between px-1">

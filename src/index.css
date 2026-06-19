@@ -156,8 +156,23 @@ summary {
 
 /* Modal inner panels (sits inside ModalFrame) */
 .z-modal-panel {
-  @apply w-full max-h-[min(90vh,900px)] overflow-hidden flex flex-col rounded-[32px] bg-white/98 shadow-2xl border border-white/80 pb-[max(0.75rem,env(safe-area-inset-bottom))];
+  @apply w-full max-h-[min(100dvh,920px)] sm:max-h-[min(92dvh,900px)] overflow-hidden flex flex-col rounded-2xl sm:rounded-[32px] bg-white/98 shadow-2xl border border-white/80 pb-[max(0.75rem,env(safe-area-inset-bottom))];
   box-shadow: var(--shadow-zarewa-card);
+}
+
+/* Finance / treasury modal fields — 16px on phone avoids iOS input zoom */
+.z-finance-field {
+  @apply w-full rounded-lg border border-slate-200 bg-white py-2.5 px-3 text-base sm:text-[11px] font-semibold text-slate-800 outline-none min-h-11;
+  @apply focus:border-[#134e4a]/35 focus:ring-2 focus:ring-[#134e4a]/10;
+}
+
+.z-finance-select {
+  @apply w-full rounded-lg border border-slate-200 bg-white py-2.5 px-3 text-base sm:text-[11px] font-semibold text-slate-800 outline-none min-h-11;
+  @apply focus:border-[#134e4a]/35 focus:ring-2 focus:ring-[#134e4a]/10;
+}
+
+.z-modal-scroll-y {
+  @apply overflow-y-auto overscroll-y-contain;
 }
 
 .z-modal-panel-lg {
@@ -196,21 +211,25 @@ summary {
   box-shadow: 0 20px 60px -32px rgba(15, 23, 42, 0.1), 0 10px 24px -18px rgba(20, 83, 45, 0.06);
 }
 
-.custom-scrollbar {
+.custom-scrollbar,
+.z-modal-scroll-y {
   scrollbar-width: thin;
   scrollbar-color: rgb(19 78 74 / 0.25) transparent;
 }
 
-.custom-scrollbar::-webkit-scrollbar {
+.custom-scrollbar::-webkit-scrollbar,
+.z-modal-scroll-y::-webkit-scrollbar {
   width: 6px;
 }
 
-.custom-scrollbar::-webkit-scrollbar-thumb {
+.custom-scrollbar::-webkit-scrollbar-thumb,
+.z-modal-scroll-y::-webkit-scrollbar-thumb {
   background: rgb(19 78 74 / 0.22);
   border-radius: 999px;
 }
 
-.custom-scrollbar::-webkit-scrollbar-track {
+.custom-scrollbar::-webkit-scrollbar-track,
+.z-modal-scroll-y::-webkit-scrollbar-track {
   background: transparent;
 }
 

@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Banknote, Landmark, ArrowRightLeft, ClipboardList, RotateCcw } from 'lucide-react';
+import { Banknote, Landmark, ArrowRightLeft, ClipboardList, RotateCcw, Truck } from 'lucide-react';
 import { formatNgn } from '../../Data/mockData';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import {
@@ -24,7 +24,7 @@ import { FinanceEmptyState } from './FinanceEmptyState';
 import { FinanceTabs } from './FinanceTabs';
 import { FinanceActionButton } from './FinanceActionButton';
 import { FinanceQueueRow } from './FinanceQueueRow';
-import { CashierDeskReports } from './CashierDeskReports';
+import { FinanceMobileAlertStrip } from './FinanceMobileAlertStrip';
 
 function todayIso() {
   return new Date().toISOString().slice(0, 10);
@@ -43,12 +43,25 @@ const DESK_SUB_TABS = [
  * Branch cashier daily work queues — embedded in Finance → Desk tab.
  * @param {{
  *   onConfirmReceipt: (receipt: object) => void;
+ *   onViewReceipt?: (receipt: object) => void;
  *   onPayRequest: (requestId: string) => void;
+ *   onViewPaymentRequest?: (requestId: string) => void;
  *   onPayRefund: (refundId: string) => void;
+ *   onPayPoTransport: (row: object) => void;
+ *   onViewPoTransport?: (row: object) => void;
  *   onGoToTab: (tabId: string) => void;
  * }} props
  */
-export function FinanceDeskWorkQueues({ onConfirmReceipt, onPayRequest, onPayRefund, onGoToTab }) {
+export function FinanceDeskWorkQueues({
+  onConfirmReceipt,
+  onViewReceipt,
+  onPayRequest,
+  onViewPaymentRequest,
+  onPayRefund,
+  onPayPoTransport,
+  onViewPoTransport,
+  onGoToTab,
+}) {
   const ws = useWorkspace();
   const wsSnapshotTreasuryAccounts = ws?.snapshot?.treasuryAccounts;
   const wsSession = ws?.session;
@@ -104,6 +117,13 @@ export function FinanceDeskWorkQueues({ onConfirmReceipt, onPayRequest, onPayRef
     [paymentRequests]
   );
   const approvedRefunds = useMemo(() => approvedRefundsAwaitingPayment(refunds).slice(0, 15), [refunds]);
+  const poTransportAwaiting = useMemo(
+    () =>
+      (Array.isArray(ws?.snapshot?.poTransportAwaitingTreasury) ? ws.snapshot.poTransportAwaitingTreasury : [])
+        .filter((row) => Math.max(0, Number(row.outstandingNgn) || 0) > 0)
+        .slice(0, 15),
+    [ws?.snapshot?.poTransportAwaitingTreasury]
+  );
   const liquidity = useMemo(
     () => liquidityClearanceSplit(treasuryAccounts, receipts),
     [treasuryAccounts, receipts]
@@ -142,15 +162,23 @@ export function FinanceDeskWorkQueues({ onConfirmReceipt, onPayRequest, onPayRef
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
       {branchLabel ? (
-        <p className="text-[11px] text-slate-600 leading-relaxed rounded-xl border border-slate-200/80 bg-slate-50/80 px-4 py-3">
-          Branch desk for <strong className="text-[#134e4a]">{branchLabel}</strong> — confirm receipts, pay approved
-          items, and record movements from the tabs above.
+        <p className="text-[11px] text-slate-600 leading-relaxed rounded-xl border border-teal-200/70 bg-teal-50/50 px-4 py-3">
+          <strong className="text-[#134e4a]">{branchLabel}</strong> cashier desk — your payout home. Confirm
+          receipts, pay approved expense requests, refunds, and PO haulage here without switching tabs. Supplier
+          payments stay on Procurement.
         </p>
       ) : null}
 
       <FinanceTrialBanner>
         Exception counts are visible to supervisors — use the work queues below for daily tasks.
       </FinanceTrialBanner>
+
+      <FinanceMobileAlertStrip
+        pendingReceipts={pendingReceipts.length}
+        approvedPayments={approvedPayments.length}
+        approvedRefunds={approvedRefunds.length}
+        poHaulage={poTransportAwaiting.length}
+      />
 
       <FinanceTabs tabs={DESK_SUB_TABS} active={deskSubTab} onChange={setDeskSubTab} />
 
@@ -165,7 +193,7 @@ export function FinanceDeskWorkQueues({ onConfirmReceipt, onPayRequest, onPayRef
 
       {deskSubTab === 'work' ? (
         <>
-          <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+          <section className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3 xl:grid-cols-6">
             <FinanceKpiCard
               label="Pending receipt confirmations"
               value={trialEx?.pendingReceiptClearance ?? pendingReceipts.length}
@@ -184,6 +212,12 @@ export function FinanceDeskWorkQueues({ onConfirmReceipt, onPayRequest, onPayRef
             <FinanceKpiCard
               label="Approved payouts"
               value={trialEx?.approvedUnpaidRefunds ?? approvedRefunds.length}
+            />
+            <FinanceKpiCard
+              label="PO haulage to pay"
+              value={poTransportAwaiting.length}
+              tone={poTransportAwaiting.length > 0 ? 'amber' : 'default'}
+              icon={<Truck size={14} />}
             />
             <FinanceKpiCard
               label="Treasury needs attention"
@@ -246,9 +280,11 @@ export function FinanceDeskWorkQueues({ onConfirmReceipt, onPayRequest, onPayRef
                       </FinanceActionButton>
                     }
                     secondaryLink={
-                      <FinanceActionButton variant="secondary" onClick={() => onConfirmReceipt(r)}>
-                        Open receipt
-                      </FinanceActionButton>
+                      onViewReceipt ? (
+                        <FinanceActionButton variant="secondary" onClick={() => onViewReceipt(r)}>
+                          View in receipts
+                        </FinanceActionButton>
+                      ) : null
                     }
                   />
                 ))}
@@ -275,6 +311,16 @@ export function FinanceDeskWorkQueues({ onConfirmReceipt, onPayRequest, onPayRef
                         >
                           Pay approved request
                         </FinanceActionButton>
+                      }
+                      secondaryLink={
+                        onViewPaymentRequest ? (
+                          <FinanceActionButton
+                            variant="secondary"
+                            onClick={() => onViewPaymentRequest(String(pr.requestID || pr.id || ''))}
+                          >
+                            View in register
+                          </FinanceActionButton>
+                        ) : null
                       }
                     />
                   ))}
@@ -312,6 +358,45 @@ export function FinanceDeskWorkQueues({ onConfirmReceipt, onPayRequest, onPayRef
               )}
             </FinanceSectionCard>
           </div>
+
+          <FinanceSectionCard
+            title="PO transport / haulage to pay"
+            icon={<Truck size={16} className="text-sky-700" />}
+            action={
+              onViewPoTransport ? (
+                <FinanceActionButton variant="link" onClick={() => onGoToTab('treasury')}>
+                  Open treasury list
+                </FinanceActionButton>
+              ) : null
+            }
+          >
+            {poTransportAwaiting.length === 0 ? (
+              <FinanceEmptyState title="No haulage payouts queued" />
+            ) : (
+              <ul className="space-y-2">
+                {poTransportAwaiting.map((row) => (
+                  <FinanceQueueRow
+                    key={row.poID}
+                    title={`${row.poID} · ${row.transportAgentName || 'Transporter'}`}
+                    subtitle={row.supplierName ? `Supplier ${row.supplierName}` : 'PO transport / haulage'}
+                    amount={formatNgn(row.outstandingNgn)}
+                    primaryAction={
+                      <FinanceActionButton variant="primary" onClick={() => onPayPoTransport(row)}>
+                        Record haulage pay
+                      </FinanceActionButton>
+                    }
+                    secondaryLink={
+                      onViewPoTransport ? (
+                        <FinanceActionButton variant="secondary" onClick={() => onViewPoTransport(row)}>
+                          View on treasury
+                        </FinanceActionButton>
+                      ) : null
+                    }
+                  />
+                ))}
+              </ul>
+            )}
+          </FinanceSectionCard>
 
           <FinanceSectionCard title="Treasury movements" icon={<ArrowRightLeft size={16} />}>
             <p className="text-sm font-medium text-slate-600 mb-3">

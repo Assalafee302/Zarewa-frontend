@@ -58,101 +58,34 @@ import {
   findConversionReasonOption,
 } from '../shared/productionConversionReasons';
 import { liveJobMaterialPresentation, resolveLiveJobMaterialKind } from '../lib/productionLiveJobMaterialKind';
+import {
+  clearProdAccessoryDraftStorage,
+  clearProdCoilDraftStorage,
+  clearProdMeterDraftStorage,
+  clearProdSfDraftStorage,
+  readProdAccessoryDraftMap,
+  readProdMeterDraft,
+  readProdSfDraftMap,
+  writeProdAccessoryDraftEntry,
+  writeProdCoilDraftRow,
+  writeProdMeterDraft,
+  writeProdSfDraftEntry,
+} from '../lib/productionRegisterDraftStorage';
+import {
+  coilAllocationDraftStorageKey,
+  completionLineFromDraft,
+  createDraftLine,
+  draftRowConversionPreviewReady,
+  isDraftAllocationRow,
+  seedDraftAllocationsFromServer,
+} from '../lib/productionRegisterCoilDraft';
+import { productionDatesFromJob } from '../lib/productionRegisterJobDates';
+import { ProductionRegisterCorrectionModal } from './operations/ProductionRegisterCorrectionModal';
+import { ProductionRegisterConfirmModal } from './operations/ProductionRegisterConfirmModal';
+import { ProductionRegisterPostStartBanner } from './operations/ProductionRegisterPostStartBanner';
 
 /** Matches server: closing below this (kg) may use “Finish roll” on completion to clear the tail from stock. */
 const COIL_TAIL_FINISH_MAX_KG = 85;
-
-const PROD_ACCESSORY_DRAFT_STORAGE_PREFIX = 'zarewa.prodAccessoryDraft.v1:';
-
-function prodAccessoryDraftStorageKey(jobId) {
-  return PROD_ACCESSORY_DRAFT_STORAGE_PREFIX + encodeURIComponent(String(jobId || ''));
-}
-
-function readProdAccessoryDraftMap(jobId) {
-  if (typeof sessionStorage === 'undefined' || !jobId) return {};
-  try {
-    const raw = sessionStorage.getItem(prodAccessoryDraftStorageKey(jobId));
-    const parsed = raw ? JSON.parse(raw) : null;
-    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
-  } catch {
-    return {};
-  }
-}
-
-function writeProdAccessoryDraftEntry(jobId, stableKey, value) {
-  if (typeof sessionStorage === 'undefined' || !jobId || !stableKey) return;
-  try {
-    const map = readProdAccessoryDraftMap(jobId);
-    map[stableKey] = value;
-    sessionStorage.setItem(prodAccessoryDraftStorageKey(jobId), JSON.stringify(map));
-  } catch {
-    // quota / private mode
-  }
-}
-
-function clearProdAccessoryDraftStorage(jobId) {
-  if (typeof sessionStorage === 'undefined' || !jobId) return;
-  try {
-    sessionStorage.removeItem(prodAccessoryDraftStorageKey(jobId));
-  } catch {
-    // ignore
-  }
-}
-
-const PROD_SF_DRAFT_STORAGE_PREFIX = 'zarewa.prodStoneFlatsheetDraft.v1:';
-
-function prodSfDraftStorageKey(jobId) {
-  return PROD_SF_DRAFT_STORAGE_PREFIX + encodeURIComponent(String(jobId || ''));
-}
-
-function readProdSfDraftMap(jobId) {
-  if (typeof sessionStorage === 'undefined' || !jobId) return {};
-  try {
-    const raw = sessionStorage.getItem(prodSfDraftStorageKey(jobId));
-    const parsed = raw ? JSON.parse(raw) : null;
-    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
-  } catch {
-    return {};
-  }
-}
-
-function writeProdSfDraftEntry(jobId, stableKey, patch) {
-  if (typeof sessionStorage === 'undefined' || !jobId || !stableKey) return;
-  try {
-    const map = readProdSfDraftMap(jobId);
-    const prev = map[stableKey] && typeof map[stableKey] === 'object' ? map[stableKey] : {};
-    map[stableKey] = { ...prev, ...patch };
-    sessionStorage.setItem(prodSfDraftStorageKey(jobId), JSON.stringify(map));
-  } catch {
-    // quota / private mode
-  }
-}
-
-function clearProdSfDraftStorage(jobId) {
-  if (typeof sessionStorage === 'undefined' || !jobId) return;
-  try {
-    sessionStorage.removeItem(prodSfDraftStorageKey(jobId));
-  } catch {
-    // ignore
-  }
-}
-
-function createDraftLine(row = {}) {
-  const hasPersistedId = row.id != null && row.id !== '';
-  return {
-    id: hasPersistedId ? row.id : `draft-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-    coilNo: row.coilNo || '',
-    openingWeightKg:
-      row.openingWeightKg != null && row.openingWeightKg !== 0 ? String(row.openingWeightKg) : '',
-    closingWeightKg:
-      row.closingWeightKg != null && row.closingWeightKg !== 0 ? String(row.closingWeightKg) : '',
-    metersProduced:
-      row.metersProduced != null && row.metersProduced !== 0 ? String(row.metersProduced) : '',
-    note: row.note || '',
-    specMismatch: Boolean(row.specMismatch),
-    finishCoil: Boolean(row.finishCoil),
-  };
-}
 
 function formatKg(value) {
   const next = Number(value);
@@ -296,48 +229,6 @@ function statusTone(status) {
   }
 }
 
-function isDraftAllocationRow(row) {
-  return String(row?.id ?? '').startsWith('draft-');
-}
-
-/** One coil line has enough data to include in live conversion preview (multi-coil jobs can preview per finished roll). */
-function draftRowConversionPreviewReady(row) {
-  const coil = row.coilNo?.trim();
-  const op = Number(row.openingWeightKg);
-  const cl = Number(row.closingWeightKg);
-  const m = Number(row.metersProduced);
-  return (
-    Boolean(coil) &&
-    Number.isFinite(op) &&
-    op > 0 &&
-    Number.isFinite(cl) &&
-    cl >= 0 &&
-    cl <= op &&
-    Number.isFinite(m) &&
-    m > 0
-  );
-}
-
-function completionLineFromDraft(row) {
-  const line = {
-    coilNo: row.coilNo.trim(),
-    closingWeightKg: Math.round(Number(row.closingWeightKg) || 0),
-    metersProduced: Number(row.metersProduced),
-    note: row.note.trim(),
-  };
-  const opening = Number(String(row.openingWeightKg ?? '').replace(/,/g, ''));
-  if (Number.isFinite(opening) && opening > 0) {
-    line.openingWeightKg = Math.round(opening);
-  }
-  if (row.finishCoil) {
-    line.finishCoil = true;
-  }
-  if (!isDraftAllocationRow(row) && row.id != null && row.id !== '') {
-    return { ...line, allocationId: row.id };
-  }
-  return line;
-}
-
 /**
  * @param {{ focusCuttingListId?: string | null; hideJobSidebar?: boolean; inModal?: boolean; viewOnly?: boolean; onModalClose?: () => void; showModalCloseButton?: boolean; operationsRegisterEdit?: boolean; onRegisterHeaderMeta?: (meta: { status?: string; quotationRef?: string; machineName?: string; materialLabel?: string } | null) => void }} [props]
  */
@@ -384,6 +275,13 @@ export function LiveProductionMonitor({
   /** Business date for start / completion (YYYY-MM-DD). */
   const [productionDateIso, setProductionDateIso] = useState(() => new Date().toISOString().slice(0, 10));
   const [completionDateIso, setCompletionDateIso] = useState(() => new Date().toISOString().slice(0, 10));
+  /** Until workspace refresh catches up after Save & start. */
+  const [optimisticJobStatus, setOptimisticJobStatus] = useState(null);
+  const [correctionModalKind, setCorrectionModalKind] = useState(null);
+  const [correctionReason, setCorrectionReason] = useState('');
+  const [correctionSaving, setCorrectionSaving] = useState(false);
+  const [confirmDialog, setConfirmDialog] = useState(null);
+  const confirmDialogResolverRef = useRef(null);
   const [jobIntel, setJobIntel] = useState(null);
   const [jobIntelLoading, setJobIntelLoading] = useState(false);
   const productionJobs = useMemo(
@@ -504,15 +402,100 @@ export function LiveProductionMonitor({
   }, [selectedJob?.offcutSupply, selectedJob?.offcutSupplyJson]);
 
   useEffect(() => {
+    setOptimisticJobStatus(null);
+    setCorrectionModalKind(null);
+    setCorrectionReason('');
+    setConfirmDialog(null);
+    confirmDialogResolverRef.current = null;
     setSignoffEditApprovalId('');
     setPostCompletionEditApprovalId('');
     setCompletionSourceMode('coil');
-    setOffcutMetersProduced('');
-    setOffcutInventoryMetersInput('');
-    const completed = String(selectedJob?.completedAtISO || selectedJob?.endDateISO || '').slice(0, 10);
-    setProductionDateIso(new Date().toISOString().slice(0, 10));
-    setCompletionDateIso(completed || new Date().toISOString().slice(0, 10));
+    setSignoffRemark('');
+    setReturnModalOpen(false);
+    setReturnReason('');
+    setCancelModalOpen(false);
+    setCancelReason('');
+    setFgAdjDelta('');
+    setFgAdjNote('');
+    setStoneAllocAck(false);
+    setStoneFlatsheetCompletionDraft([]);
+
+    const jobId = selectedJob?.jobID;
+    if (!jobId) {
+      setStoneMetersConsumed('');
+      setOffcutMetersProduced('');
+      setOffcutInventoryMetersInput('');
+      return;
+    }
+    const meterDraft = readProdMeterDraft(jobId);
+    setStoneMetersConsumed(String(meterDraft.stoneMetersConsumed ?? ''));
+    setOffcutMetersProduced(String(meterDraft.offcutMetersProduced ?? ''));
+    setOffcutInventoryMetersInput(String(meterDraft.offcutInventoryMetersInput ?? ''));
+  }, [selectedJob?.jobID]);
+
+  useEffect(() => {
+    if (!selectedJob?.jobID) return;
+    if (normalizeJobStatus(selectedJob.status) !== 'Completed') return;
+    const oi = Number(selectedJob?.offcutInventoryMeters);
+    if (Number.isFinite(oi) && oi >= 0) {
+      setOffcutInventoryMetersInput(oi > 0 ? String(oi) : '');
+    }
+  }, [selectedJob?.jobID, selectedJob?.status, selectedJob?.offcutInventoryMeters]);
+
+  useEffect(() => {
+    const dates = productionDatesFromJob(selectedJob);
+    setProductionDateIso(dates.productionDateIso);
+    setCompletionDateIso(dates.completionDateIso);
   }, [selectedJob?.jobID, selectedJob?.startDateISO, selectedJob?.completedAtISO, selectedJob?.endDateISO]);
+
+  useEffect(() => {
+    if (!selectedJob?.jobID || !optimisticJobStatus) return;
+    if (normalizeJobStatus(selectedJob.status) === optimisticJobStatus) {
+      setOptimisticJobStatus(null);
+    }
+  }, [selectedJob?.jobID, selectedJob?.status, optimisticJobStatus]);
+
+  const resolveConfirmDialog = useCallback((accepted) => {
+    const resolve = confirmDialogResolverRef.current;
+    confirmDialogResolverRef.current = null;
+    setConfirmDialog(null);
+    resolve?.(accepted);
+  }, []);
+
+  const askProductionConfirm = useCallback(({ title, message, confirmLabel = 'Continue', cancelLabel = 'Cancel', tone = 'amber' }) => {
+    return new Promise((resolve) => {
+      confirmDialogResolverRef.current = resolve;
+      setConfirmDialog({ title, message, confirmLabel, cancelLabel, tone });
+    });
+  }, []);
+
+  const onStoneMetersConsumedChange = useCallback(
+    (value) => {
+      setStoneMetersConsumed(value);
+      if (selectedJob?.jobID) writeProdMeterDraft(selectedJob.jobID, { stoneMetersConsumed: value });
+    },
+    [selectedJob?.jobID]
+  );
+
+  const onOffcutMetersProducedChange = useCallback(
+    (value) => {
+      setOffcutMetersProduced(value);
+      if (selectedJob?.jobID) writeProdMeterDraft(selectedJob.jobID, { offcutMetersProduced: value });
+    },
+    [selectedJob?.jobID]
+  );
+
+  const onOffcutInventoryMetersChange = useCallback(
+    (value) => {
+      setOffcutInventoryMetersInput(value);
+      if (selectedJob?.jobID) writeProdMeterDraft(selectedJob.jobID, { offcutInventoryMetersInput: value });
+    },
+    [selectedJob?.jobID]
+  );
+
+  const markProductionStarted = useCallback(() => {
+    setOptimisticJobStatus('Running');
+  }, []);
 
   const selectedJobAllocations = useMemo(
     () =>
@@ -642,7 +625,10 @@ export function LiveProductionMonitor({
   const completionUsesOffcutMode =
     isStoneAccessoriesOnlyQuote ||
     (!isStoneMeterQuote && (completionSourceMode === 'offcut' || isAccessoriesOnlyQuote));
-  const jobSt = normalizeJobStatus(selectedJob?.status);
+  const jobSt = optimisticJobStatus ?? normalizeJobStatus(selectedJob?.status);
+  const displayJobStatus = jobSt;
+  const shopFloorUi = Boolean(inModal && operationsRegisterEdit);
+  const statusChipText = shopFloorUi ? 'text-[11px]' : 'text-[10px]';
   /** Same gate as post-completion FG metre adjustments — not plain production.manage. */
   const canEditCompletedCoilCorrections =
     jobSt === 'Completed' &&
@@ -665,6 +651,7 @@ export function LiveProductionMonitor({
     canAddSupplementalCoil ||
     (canEditCompletedCoilCorrections && !isStoneMeterQuote);
   const canCaptureRun = jobSt === 'Running' && !readOnly;
+  const showPostStartBanner = displayJobStatus === 'Running' && !readOnly;
 
   const quotationMaterialSpec = useMemo(
     () => buildExpectedCoilSpecFromQuotation(linkedQuotation, jobProductAttrs),
@@ -835,8 +822,10 @@ export function LiveProductionMonitor({
   useEffect(() => {
     if (!offcutSupplySelections.length) return;
     const sum = offcutSupplySelections.reduce((s, x) => s + (Number(x.meters) || 0), 0);
-    setOffcutInventoryMetersInput(sum > 0 ? String(sum) : '');
-  }, [offcutSupplySelections]);
+    const val = sum > 0 ? String(sum) : '';
+    setOffcutInventoryMetersInput(val);
+    if (selectedJob?.jobID) writeProdMeterDraft(selectedJob.jobID, { offcutInventoryMetersInput: val });
+  }, [offcutSupplySelections, selectedJob?.jobID]);
 
   const offcutSupplyMetersTotal = useMemo(
     () => offcutSupplySelections.reduce((s, x) => s + (Number(x.meters) || 0), 0),
@@ -1001,6 +990,9 @@ export function LiveProductionMonitor({
   /** When job/quote identity changes, accessory draft resets merge-from-prev; null = not yet tracked in this mount. */
   const accessoryDraftJobRef = useRef(null);
   const sfDraftJobRef = useRef(null);
+  const coilDraftJobRef = useRef(null);
+  const selectedJobAllocationsRef = useRef(selectedJobAllocations);
+  selectedJobAllocationsRef.current = selectedJobAllocations;
   const [accessoryCompletionDraft, setAccessoryCompletionDraft] = useState([]);
   const [stoneFlatsheetCompletionDraft, setStoneFlatsheetCompletionDraft] = useState([]);
   const [conversionPreview, setConversionPreview] = useState(null);
@@ -1027,38 +1019,17 @@ export function LiveProductionMonitor({
   }, [selectedJobId, sortedJobs, focusClTrim, productionJobs, cuttingLists]);
 
   useEffect(() => {
-    if (!selectedJob?.jobID) {
+    const jobId = selectedJob?.jobID;
+    if (!jobId) {
+      coilDraftJobRef.current = null;
       setDraftAllocations([createDraftLine()]);
       return;
     }
-    setDraftAllocations(
-      selectedJobAllocations.length
-        ? selectedJobAllocations.map((row) => createDraftLine(row))
-        : [createDraftLine()]
-    );
-  }, [selectedJob?.jobID, selectedJobAllocationsSyncKey, selectedJobAllocations]);
-
-  useEffect(() => {
-    setSignoffRemark('');
-    setReturnModalOpen(false);
-    setReturnReason('');
-    setCancelModalOpen(false);
-    setCancelReason('');
-    setFgAdjDelta('');
-    setFgAdjNote('');
-    setStoneMetersConsumed('');
-    setStoneAllocAck(false);
-    setStoneFlatsheetCompletionDraft([]);
-  }, [selectedJob?.jobID]);
-
-  useEffect(() => {
-    if (!selectedJob?.jobID) return;
-    if (normalizeJobStatus(selectedJob.status) !== 'Completed') return;
-    const oi = Number(selectedJob?.offcutInventoryMeters);
-    if (Number.isFinite(oi) && oi >= 0) {
-      setOffcutInventoryMetersInput(oi > 0 ? String(oi) : '');
-    }
-  }, [selectedJob?.jobID, selectedJob?.status, selectedJob?.offcutInventoryMeters]);
+    const jobSwitch = coilDraftJobRef.current != null && coilDraftJobRef.current !== jobId;
+    coilDraftJobRef.current = jobId;
+    const serverRows = selectedJobAllocationsRef.current;
+    setDraftAllocations((prev) => seedDraftAllocationsFromServer(jobId, serverRows, prev, jobSwitch));
+  }, [selectedJob?.jobID, selectedJobAllocationsSyncKey]);
 
   const quotedAccessoryLines = useMemo(() => {
     const ref = String(selectedJob?.quotationRef ?? '').trim();
@@ -1392,15 +1363,22 @@ export function LiveProductionMonitor({
     stoneMetersConsumed,
   ]);
 
+  const conversionPreviewDebounceMs = useMemo(() => {
+    const readyRows = draftAllocations.filter((row) => draftRowConversionPreviewReady(row)).length;
+    return readyRows > 1 ? 1000 : 750;
+  }, [draftAllocations]);
+
   useEffect(() => {
     if (conversionPreviewTimerRef.current) {
       clearTimeout(conversionPreviewTimerRef.current);
       conversionPreviewTimerRef.current = null;
     }
-    if (!conversionPreviewKey || !selectedJob?.jobID) {
+    if (!conversionPreviewKey || !selectedJob?.jobID || savingAction) {
       conversionPreviewSeqRef.current += 1;
-      setConversionPreview(null);
-      setConversionPreviewError('');
+      if (!conversionPreviewKey || !selectedJob?.jobID) {
+        setConversionPreview(null);
+        setConversionPreviewError('');
+      }
       setConversionPreviewLoading(false);
       return;
     }
@@ -1448,14 +1426,14 @@ export function LiveProductionMonitor({
         setConversionPreview(data);
         setConversionPreviewError('');
       })();
-    }, 700);
+    }, conversionPreviewDebounceMs);
     return () => {
       if (conversionPreviewTimerRef.current) {
         clearTimeout(conversionPreviewTimerRef.current);
         conversionPreviewTimerRef.current = null;
       }
     };
-  }, [conversionPreviewKey, selectedJob?.jobID]);
+  }, [conversionPreviewKey, selectedJob?.jobID, savingAction, conversionPreviewDebounceMs]);
 
   const conversionReasonBand = useMemo(() => {
     const preview = conversionPreview?.aggregatedAlertState;
@@ -1816,9 +1794,12 @@ export function LiveProductionMonitor({
       );
       return;
     }
-    const okConfirm = window.confirm(
-      `Post output-product stock correction of ${delta >= 0 ? '+' : ''}${delta.toFixed(2)} m to ${selectedJob.productID || 'SKU'}? This is logged and updates warehouse stock — it does not change the original completion record.`
-    );
+    const okConfirm = await askProductionConfirm({
+      title: 'Post stock correction',
+      message: `Post output-product stock correction of ${delta >= 0 ? '+' : ''}${delta.toFixed(2)} m to ${selectedJob.productID || 'SKU'}? This is logged and updates warehouse stock — it does not change the original completion record.`,
+      confirmLabel: 'Post correction',
+      tone: 'sky',
+    });
     if (!okConfirm) return;
     const path = `/api/production-jobs/${encodeURIComponent(selectedJob.jobID)}/completion-adjustments`;
     setFgAdjSaving(true);
@@ -1858,6 +1839,7 @@ export function LiveProductionMonitor({
           return prev;
         }
       }
+      const jobId = selectedJob?.jobID;
       return prev.map((row) => {
         if (row.id !== id) return row;
         const next = { ...row, ...patch };
@@ -1893,10 +1875,23 @@ export function LiveProductionMonitor({
             }
           }
         }
+        if (jobId) {
+          const storageKey = coilAllocationDraftStorageKey(next);
+          if (storageKey) {
+            writeProdCoilDraftRow(jobId, storageKey, {
+              coilNo: next.coilNo,
+              openingWeightKg: next.openingWeightKg,
+              closingWeightKg: next.closingWeightKg,
+              metersProduced: next.metersProduced,
+              note: next.note,
+              finishCoil: next.finishCoil,
+            });
+          }
+        }
         return next;
       });
     });
-  }, [coilByNo, savedOpeningKgByCoil, showToast]);
+  }, [coilByNo, savedOpeningKgByCoil, showToast, selectedJob?.jobID]);
 
   const addDraftRow = () => {
     if (!canAppendCoilRow) return;
@@ -1970,53 +1965,47 @@ export function LiveProductionMonitor({
     };
   };
 
-  const persist = async (type) => {
-    if (!selectedJob?.jobID) return;
-    if (!ws?.canMutate) {
+  const beginCorrectionModal = (kind) => {
+    const rk = ws?.session?.user?.roleKey;
+    if (kind === 'coil' && !completedCoilCorrectionSaveReady) {
       showToast(
-        ws?.usingCachedData
-          ? 'Read-only workspace — reconnect to save production changes.'
-          : 'Start the API server to use live production traceability.',
+        'Complete every coil row (opening, closing, metres), remove empty “add coil” rows, and keep all original lines before saving a correction.',
+        { variant: 'info' }
+      );
+      return;
+    }
+    if (kind === 'accessory' && !accessoryCompletionDraft.length) {
+      showToast('No accessory lines found on the quotation for correction.', { variant: 'info' });
+      return;
+    }
+    if (kind === 'stoneSf' && !stoneFlatsheetCompletionDraft.length) {
+      showToast('No stone flatsheet lines found on the quotation for correction.', { variant: 'info' });
+      return;
+    }
+    if (editMutationNeedsSecondApprovalRole(rk) && !postCompletionEditApprovalId.trim()) {
+      showToast(
+        'After completion, register corrections need an Edit OKs code — request approval, enter the 6-digit code, then save again.',
         { variant: 'error' }
       );
       return;
     }
-    const jobApi = `/api/production-jobs/${encodeURIComponent(selectedJob.jobID)}`;
-    const listLabel = selectedJob.cuttingListId || selectedJob.jobID;
-    setSavingAction(type);
-    let path = '';
-    let body = {};
-    const alsoStartAfterAlloc = type === 'allocationsAndStart';
+    setCorrectionReason('');
+    setCorrectionModalKind(kind);
+  };
 
-    if (type === 'completedCoilCorrection') {
-      if (!completedCoilCorrectionSaveReady) {
-        setSavingAction('');
-        showToast(
-          'Complete every coil row (opening, closing, metres), remove empty “add coil” rows, and keep all original lines before saving a correction.',
-          { variant: 'info' }
-        );
-        return;
-      }
-      const reason = window.prompt(
-        'Reason for correcting this completed job (at least 12 characters — audited like other completion fixes):'
-      );
-      if (!reason || reason.trim().length < 12) {
-        setSavingAction('');
-        showToast('Correction requires a reason of at least 12 characters.', { variant: 'error' });
-        return;
-      }
-      const rk = ws?.session?.user?.roleKey;
-      if (editMutationNeedsSecondApprovalRole(rk) && !postCompletionEditApprovalId.trim()) {
-        setSavingAction('');
-        showToast(
-          'After completion, coil-line corrections need an Edit OKs code — request approval, enter the 6-digit code, then save again.',
-          { variant: 'error' }
-        );
-        return;
-      }
-      try {
+  const submitCorrectionFromModal = async () => {
+    if (!selectedJob?.jobID || !correctionModalKind) return;
+    const reason = correctionReason.trim();
+    if (reason.length < 12) {
+      showToast('Correction requires a reason of at least 12 characters.', { variant: 'error' });
+      return;
+    }
+    const jobApi = `/api/production-jobs/${encodeURIComponent(selectedJob.jobID)}`;
+    setCorrectionSaving(true);
+    try {
+      if (correctionModalKind === 'coil') {
         const buildBody = (withAck) => ({
-          reason: reason.trim(),
+          reason,
           readings: draftAllocations
             .filter((r) => draftRowConversionPreviewReady(r))
             .map((row) => ({
@@ -2039,9 +2028,12 @@ export function LiveProductionMonitor({
           const detail = (res.data.mismatches || [])
             .map((m) => `${m.coilNo}: ${m.detail}`)
             .join('\n');
-          const go = window.confirm(
-            `These coils do not match the quotation material specification (gauge / colour / material):\n\n${detail}\n\nSave anyway and flag the branch manager for review?`
-          );
+          const go = await askProductionConfirm({
+            title: 'Coil spec mismatch',
+            message: `These coils do not match the quotation material specification (gauge / colour / material):\n\n${detail}\n\nSave anyway and flag the branch manager for review?`,
+            confirmLabel: 'Save anyway',
+            tone: 'amber',
+          });
           if (go) {
             res = await apiFetch(`${jobApi}/completion-coil-corrections`, {
               method: 'POST',
@@ -2050,119 +2042,103 @@ export function LiveProductionMonitor({
           }
         }
         if (!res.ok || !res.data?.ok) {
-          setSavingAction('');
           showToast(res.data?.error || 'Could not apply correction.', { variant: 'error' });
           await refreshProductionWorkspace();
           return;
         }
         await refreshProductionWorkspace();
-        setSavingAction('');
         setPostCompletionEditApprovalId('');
+        setCorrectionModalKind(null);
+        setCorrectionReason('');
         showToast('Completed job coil correction saved.');
-      } catch (e) {
-        setSavingAction('');
-        showToast(e?.message || 'Save failed.', { variant: 'error' });
-      }
-      return;
-    }
-
-    if (type === 'completedAccessoryCorrection') {
-      if (!accessoryCompletionDraft.length) {
-        setSavingAction('');
-        showToast('No accessory lines found on the quotation for correction.', { variant: 'info' });
         return;
       }
-      const reason = window.prompt(
-        'Reason for correcting accessories on this completed job (at least 12 characters — audited like other completion fixes):'
-      );
-      if (!reason || reason.trim().length < 12) {
-        setSavingAction('');
-        showToast('Correction requires a reason of at least 12 characters.', { variant: 'error' });
-        return;
-      }
-      const rk = ws?.session?.user?.roleKey;
-      if (editMutationNeedsSecondApprovalRole(rk) && !postCompletionEditApprovalId.trim()) {
-        setSavingAction('');
-        showToast(
-          'After completion, accessory corrections need an Edit OKs code — request approval, enter the 6-digit code, then save again.',
-          { variant: 'error' }
-        );
-        return;
-      }
-      try {
+      if (correctionModalKind === 'accessory') {
         const res = await apiFetch(`${jobApi}/completion-accessory-corrections`, {
           method: 'POST',
           body: JSON.stringify({
-            reason: reason.trim(),
+            reason,
             accessoriesSupplied: accessoriesSuppliedForApi,
             ...(postCompletionEditApprovalId.trim() ? { editApprovalId: postCompletionEditApprovalId.trim() } : {}),
           }),
         });
         if (!res.ok || !res.data?.ok) {
-          setSavingAction('');
           showToast(res.data?.error || 'Could not apply accessory correction.', { variant: 'error' });
           await refreshProductionWorkspace();
           return;
         }
         await refreshProductionWorkspace();
-        setSavingAction('');
         setPostCompletionEditApprovalId('');
+        setCorrectionModalKind(null);
+        setCorrectionReason('');
         showToast('Completed job accessory correction saved.');
-      } catch (e) {
-        setSavingAction('');
-        showToast(e?.message || 'Save failed.', { variant: 'error' });
-      }
-      return;
-    }
-
-    if (type === 'completedStoneFlatsheetCorrection') {
-      if (!stoneFlatsheetCompletionDraft.length) {
-        setSavingAction('');
-        showToast('No stone flatsheet lines found on the quotation for correction.', { variant: 'info' });
         return;
       }
-      const reason = window.prompt(
-        'Reason for correcting stone flatsheet m² on this completed job (at least 12 characters — audited like other completion fixes):'
-      );
-      if (!reason || reason.trim().length < 12) {
-        setSavingAction('');
-        showToast('Correction requires a reason of at least 12 characters.', { variant: 'error' });
-        return;
-      }
-      const rk = ws?.session?.user?.roleKey;
-      if (editMutationNeedsSecondApprovalRole(rk) && !postCompletionEditApprovalId.trim()) {
-        setSavingAction('');
-        showToast(
-          'After completion, stone flatsheet corrections need an Edit OKs code — request approval, enter the 6-digit code, then save again.',
-          { variant: 'error' }
-        );
-        return;
-      }
-      try {
+      if (correctionModalKind === 'stoneSf') {
         const res = await apiFetch(`${jobApi}/completion-stone-flatsheet-corrections`, {
           method: 'POST',
           body: JSON.stringify({
-            reason: reason.trim(),
+            reason,
             stoneFlatsheetSupplied: stoneFlatsheetSuppliedForApi,
             ...(postCompletionEditApprovalId.trim() ? { editApprovalId: postCompletionEditApprovalId.trim() } : {}),
           }),
         });
         if (!res.ok || !res.data?.ok) {
-          setSavingAction('');
           showToast(res.data?.error || 'Could not apply stone flatsheet correction.', { variant: 'error' });
           await refreshProductionWorkspace();
           return;
         }
         await refreshProductionWorkspace();
-        setSavingAction('');
         setPostCompletionEditApprovalId('');
+        setCorrectionModalKind(null);
+        setCorrectionReason('');
         showToast('Stone flatsheet correction saved.');
-      } catch (e) {
-        setSavingAction('');
-        showToast(e?.message || 'Save failed.', { variant: 'error' });
       }
+    } catch (e) {
+      showToast(e?.message || 'Save failed.', { variant: 'error' });
+    } finally {
+      setCorrectionSaving(false);
+    }
+  };
+
+  const persist = async (type) => {
+    if (!selectedJob?.jobID) return;
+    if (!ws?.canMutate) {
+      showToast(
+        ws?.usingCachedData
+          ? 'Read-only workspace — reconnect to save production changes.'
+          : 'Start the API server to use live production traceability.',
+        { variant: 'error' }
+      );
       return;
     }
+    const jobApi = `/api/production-jobs/${encodeURIComponent(selectedJob.jobID)}`;
+    const listLabel = selectedJob.cuttingListId || selectedJob.jobID;
+    setSavingAction(type);
+    let path = '';
+    let body = {};
+    const alsoStartAfterAlloc = type === 'allocationsAndStart';
+
+    if (type === 'completedCoilCorrection') {
+      setSavingAction('');
+      beginCorrectionModal('coil');
+      return;
+    }
+
+    if (type === 'completedAccessoryCorrection') {
+      setSavingAction('');
+      beginCorrectionModal('accessory');
+      return;
+    }
+
+    if (type === 'completedStoneFlatsheetCorrection') {
+      setSavingAction('');
+      beginCorrectionModal('stoneSf');
+      return;
+    }
+
+    const isRunningForSave = jobSt === 'Running';
+    const isPlannedForSave = jobSt === 'Planned';
 
     if (type === 'runningCheckpoint') {
       if (!runningCheckpointSaveReady) {
@@ -2193,9 +2169,11 @@ export function LiveProductionMonitor({
             const detail = (resRl.data.mismatches || [])
               .map((m) => `${m.coilNo}: ${m.detail}`)
               .join('\n');
-            const go = window.confirm(
-              `These coils do not match the quotation material specification (gauge / colour / material):\n\n${detail}\n\nSave anyway and flag the branch manager for review?`
-            );
+            const go = await askProductionConfirm({
+              title: 'Coil spec mismatch',
+              message: `These coils do not match the quotation material specification (gauge / colour / material):\n\n${detail}\n\nSave anyway and flag the branch manager for review?`,
+              confirmLabel: 'Save anyway',
+            });
             if (go) {
               resRl = await apiFetch(`${jobApi}/coil-run-log`, {
                 method: 'POST',
@@ -2210,7 +2188,7 @@ export function LiveProductionMonitor({
             return;
           }
         }
-        if (appendSaveReady && !isStoneMeterQuote && selectedJob.status === 'Running') {
+        if (appendSaveReady && !isStoneMeterQuote && isRunningForSave) {
           const pathAlloc = `${jobApi}/allocations`;
           const buildRunAppend = (withAck) => {
             const toAppend = draftAllocations.filter(
@@ -2234,9 +2212,11 @@ export function LiveProductionMonitor({
               const detail = (resA.data.mismatches || [])
                 .map((m) => `${m.coilNo}: ${m.detail}`)
                 .join('\n');
-              const go = window.confirm(
-                `These coils do not match the quotation material specification (gauge / colour / material):\n\n${detail}\n\nSave anyway and flag the branch manager for review?`
-              );
+              const go = await askProductionConfirm({
+                title: 'Coil spec mismatch',
+                message: `These coils do not match the quotation material specification (gauge / colour / material):\n\n${detail}\n\nSave anyway and flag the branch manager for review?`,
+                confirmLabel: 'Save anyway',
+              });
               if (go) {
                 const second = buildRunAppend(true);
                 if (second) resA = await apiFetch(pathAlloc, { method: 'POST', body: JSON.stringify(second) });
@@ -2251,6 +2231,7 @@ export function LiveProductionMonitor({
           }
         }
         await refreshProductionWorkspace();
+        clearProdCoilDraftStorage(selectedJob.jobID);
         setSavingAction('');
         showToast('Saved.');
       } catch (e) {
@@ -2262,7 +2243,7 @@ export function LiveProductionMonitor({
 
     if (type === 'allocations' || type === 'allocationsAndStart') {
       path = `${jobApi}/allocations`;
-      if (isStoneMeterQuote && selectedJob.status === 'Planned') {
+      if (isStoneMeterQuote && isPlannedForSave) {
         const res = await apiFetch(path, { method: 'POST', body: JSON.stringify({ allocations: [] }) });
         if (!res.ok || !res.data?.ok) {
           setSavingAction('');
@@ -2287,11 +2268,12 @@ export function LiveProductionMonitor({
           return;
         }
         setStoneAllocAck(true);
+        markProductionStarted();
         await refreshProductionWorkspace();
         showToast(`Stone-coated job saved and production started for ${listLabel}.`);
         return;
       }
-      if (resolvesToOffcutCompletion && selectedJob.status === 'Planned') {
+      if (resolvesToOffcutCompletion && isPlannedForSave) {
         const startRes = await apiFetch(`${jobApi}/start`, {
           method: 'POST',
           body: JSON.stringify({ startedAtISO: productionDateIso, startMode: 'offcut' }),
@@ -2309,12 +2291,13 @@ export function LiveProductionMonitor({
           await refreshProductionWorkspace();
           return;
         }
+        markProductionStarted();
         await refreshProductionWorkspace();
         showToast(`Offcut/accessories run started for ${listLabel}.`);
         return;
       }
       const buildAllocBody = (withAck) => {
-        if (selectedJob.status === 'Running') {
+        if (isRunningForSave) {
           const toAppend = draftAllocations.filter(
             (row) => isDraftAllocationRow(row) && row.coilNo?.trim() && Number(row.openingWeightKg) > 0
           );
@@ -2343,7 +2326,7 @@ export function LiveProductionMonitor({
       const firstBody = buildAllocBody(false);
       if (!firstBody) {
         showToast(
-          selectedJob.status === 'Running'
+          isRunningForSave
             ? 'Add a new coil row with opening kg, then save to attach it to this run.'
             : 'Add at least one coil with opening kg before saving.',
           { variant: 'info' }
@@ -2356,11 +2339,13 @@ export function LiveProductionMonitor({
         const detail = (res.data.mismatches || [])
           .map((m) => `${m.coilNo}: ${m.detail}`)
           .join('\n');
-        const go = window.confirm(
-          `These coils do not match the quotation material specification (gauge / colour / material):\n\n${detail}\n\nSave anyway and flag the branch manager for review${
+        const go = await askProductionConfirm({
+          title: 'Coil spec mismatch',
+          message: `These coils do not match the quotation material specification (gauge / colour / material):\n\n${detail}\n\nSave anyway and flag the branch manager for review${
             alsoStartAfterAlloc ? ', then start production' : ''
-          }?`
-        );
+          }?`,
+          confirmLabel: alsoStartAfterAlloc ? 'Save & start anyway' : 'Save anyway',
+        });
         if (go) {
           const second = buildAllocBody(true);
           if (second) res = await apiFetch(path, { method: 'POST', body: JSON.stringify(second) });
@@ -2371,7 +2356,7 @@ export function LiveProductionMonitor({
         showToast(res.data?.error || 'Could not update production.', { variant: 'error' });
         return;
       }
-      const willStartAfterAlloc = alsoStartAfterAlloc && selectedJob.status === 'Planned';
+      const willStartAfterAlloc = alsoStartAfterAlloc && isPlannedForSave;
       if (!willStartAfterAlloc) {
         await refreshProductionWorkspace();
       }
@@ -2393,13 +2378,14 @@ export function LiveProductionMonitor({
           await refreshProductionWorkspace();
           return;
         }
+        markProductionStarted();
         await refreshProductionWorkspace();
         showToast(`Coils saved and production started for ${listLabel}.`);
         return;
       }
       setSavingAction('');
       showToast(
-        selectedJob.status === 'Running'
+        isRunningForSave
           ? `Supplemental coil(s) saved on ${listLabel}.`
           : `Coil allocation saved for ${listLabel}.`
       );
@@ -2437,9 +2423,12 @@ export function LiveProductionMonitor({
           setSavingAction('');
           return;
         }
-        const proceedOverrun = window.confirm(
-          `Metres recorded exceed plan by ${overProducedMeters.toFixed(2)}m. Continue as manager-approved overrun?`
-        );
+        const proceedOverrun = await askProductionConfirm({
+          title: 'Meter overrun',
+          message: `Metres recorded exceed plan by ${overProducedMeters.toFixed(2)}m. Continue as manager-approved overrun?`,
+          confirmLabel: 'Complete with overrun',
+          tone: 'amber',
+        });
         if (!proceedOverrun) {
           setSavingAction('');
           return;
@@ -2470,9 +2459,13 @@ export function LiveProductionMonitor({
         body: JSON.stringify(completeBody),
       });
       if (prev.ok && prev.data?.ok && prev.data.managerReviewRequired) {
-        const proceed = window.confirm(
-          'This completion will flag manager review (conversion outside expected bands versus multiple references). Post anyway?'
-        );
+        const proceed = await askProductionConfirm({
+          title: 'Manager review required',
+          message:
+            'This completion will flag manager review (conversion outside expected bands versus multiple references). Post anyway?',
+          confirmLabel: 'Complete anyway',
+          tone: 'amber',
+        });
         if (!proceed) {
           setSavingAction('');
           setConversionPreview(prev.data);
@@ -2486,9 +2479,12 @@ export function LiveProductionMonitor({
         prev.data.accessoryStockWarnings.length
       ) {
         const w = prev.data.accessoryStockWarnings.join('\n');
-        const proceedAcc = window.confirm(
-          `On-hand accessory stock is less than the quantities entered. Balances can go negative.\n\n${w}\n\nComplete production anyway?`
-        );
+        const proceedAcc = await askProductionConfirm({
+          title: 'Accessory stock warning',
+          message: `On-hand accessory stock is less than the quantities entered. Balances can go negative.\n\n${w}\n\nComplete production anyway?`,
+          confirmLabel: 'Complete anyway',
+          tone: 'amber',
+        });
         if (!proceedAcc) {
           setSavingAction('');
           setConversionPreview(prev.data);
@@ -2511,7 +2507,12 @@ export function LiveProductionMonitor({
       return;
     }
     await refreshProductionWorkspace();
+    if (type === 'complete') {
+      clearProdCoilDraftStorage(selectedJob.jobID);
+      clearProdMeterDraftStorage(selectedJob.jobID);
+    }
     if (type === 'start') {
+      markProductionStarted();
       showToast(`Production started for ${listLabel}.`);
     } else {
       setConversionPreview(null);
@@ -2760,7 +2761,7 @@ export function LiveProductionMonitor({
                       {savingAction === 'allocationsAndStart' ? 'Saving & starting…' : 'Save & start'}
                     </button>
                   ) : null}
-                  {selectedJob.status === 'Running' && !isStoneMeterQuote && !completionUsesOffcutMode ? (
+                  {jobSt === 'Running' && !isStoneMeterQuote && !completionUsesOffcutMode ? (
                     <button
                       type="button"
                       onClick={() => void persist('runningCheckpoint')}
@@ -2773,7 +2774,7 @@ export function LiveProductionMonitor({
                       }`}
                     >
                       <Save size={15} />
-                      {savingAction === 'runningCheckpoint' ? 'Saving…' : 'Save'}
+                      {savingAction === 'runningCheckpoint' ? 'Saving…' : 'Save while running'}
                     </button>
                   ) : null}
                   {selectedJob.status === 'Completed' && canEditCompletedCoilCorrections ? (
@@ -2895,8 +2896,8 @@ export function LiveProductionMonitor({
       selectedJob?.status !== 'Completed' &&
       selectedJob?.status !== 'Cancelled' ? (
         <div className="mb-2 flex flex-wrap items-end gap-3 border-b border-slate-100 px-2 pb-2 pt-1 sm:px-2.5">
-          {(selectedJob.status === 'Planned' || selectedJob.status === 'Running') && !selectedJob.startDateISO ? (
-            <label className="text-[10px] font-semibold text-slate-600">
+          {(jobSt === 'Planned' || jobSt === 'Running') && !selectedJob.startDateISO ? (
+            <label className={`${shopFloorUi ? 'text-xs' : 'text-[10px]'} font-semibold text-slate-600`}>
               Production date
               <input
                 type="date"
@@ -2910,9 +2911,9 @@ export function LiveProductionMonitor({
               Started: <strong>{String(selectedJob.startDateISO).slice(0, 10)}</strong>
             </p>
           ) : null}
-          {selectedJob.status === 'Running' ? (
+          {jobSt === 'Running' ? (
             <>
-              <label className="text-[10px] font-semibold text-slate-600">
+              <label className={`${shopFloorUi ? 'text-xs' : 'text-[10px]'} font-semibold text-slate-600`}>
                 Production business date
                 <input
                   type="date"
@@ -2932,6 +2933,15 @@ export function LiveProductionMonitor({
               </label>
             </>
           ) : null}
+        </div>
+      ) : null}
+      {shopFloorUi && showPostStartBanner ? (
+        <div className="px-2 pb-2 sm:px-2.5">
+          <ProductionRegisterPostStartBanner
+            compact
+            isStoneMeterQuote={isStoneMeterQuote}
+            isOffcutMode={completionUsesOffcutMode}
+          />
         </div>
       ) : null}
       {inModal && !readOnly ? null : (
@@ -4066,7 +4076,7 @@ export function LiveProductionMonitor({
                       type="text"
                       inputMode="decimal"
                       value={offcutInventoryMetersInput}
-                      onChange={(e) => setOffcutInventoryMetersInput(e.target.value)}
+                      onChange={(e) => onOffcutInventoryMetersChange(e.target.value)}
                       placeholder="0"
                       className="mt-1 w-full max-w-[12rem] rounded-md border border-slate-200 bg-white px-2 py-1.5 font-mono text-sm font-bold text-[#134e4a]"
                     />
@@ -4105,7 +4115,7 @@ export function LiveProductionMonitor({
                         type="text"
                         inputMode="decimal"
                         value={stoneMetersConsumed}
-                        onChange={(e) => setStoneMetersConsumed(e.target.value)}
+                        onChange={(e) => onStoneMetersConsumedChange(e.target.value)}
                         placeholder="e.g. 120.5"
                         className="mt-1 w-full max-w-[12rem] rounded-md border border-slate-200 bg-white px-2 py-1.5 font-mono text-sm font-bold text-[#134e4a]"
                       />
@@ -4151,7 +4161,7 @@ export function LiveProductionMonitor({
                       type="text"
                       inputMode="decimal"
                       value={offcutMetersProduced}
-                      onChange={(e) => setOffcutMetersProduced(e.target.value)}
+                      onChange={(e) => onOffcutMetersProducedChange(e.target.value)}
                       placeholder={
                         offcutSupplyMetersTotal > 0
                           ? `Defaults to ${offcutSupplyMetersTotal.toFixed(2)} m from incidents`
@@ -4548,7 +4558,7 @@ export function LiveProductionMonitor({
                   {savingAction === 'allocationsAndStart' ? 'Saving…' : 'Save & start'}
                 </button>
               ) : null}
-              {selectedJob.status === 'Running' && !isStoneMeterQuote && !completionUsesOffcutMode ? (
+              {jobSt === 'Running' && !isStoneMeterQuote && !completionUsesOffcutMode ? (
                 <button
                   type="button"
                   onClick={() => void persist('runningCheckpoint')}
@@ -4561,7 +4571,7 @@ export function LiveProductionMonitor({
                   }`}
                 >
                   <Save size={12} />
-                  {savingAction === 'runningCheckpoint' ? 'Saving…' : 'Save'}
+                  {savingAction === 'runningCheckpoint' ? 'Saving…' : 'Save while running'}
                 </button>
               ) : null}
               {selectedJob.status === 'Completed' && canEditCompletedCoilCorrections ? (
@@ -4776,6 +4786,33 @@ export function LiveProductionMonitor({
             </div>
           </div>
         </div>
+      ) : null}
+
+      {correctionModalKind ? (
+        <ProductionRegisterCorrectionModal
+          kind={correctionModalKind}
+          reason={correctionReason}
+          saving={correctionSaving}
+          onReasonChange={setCorrectionReason}
+          onCancel={() => {
+            if (correctionSaving) return;
+            setCorrectionModalKind(null);
+            setCorrectionReason('');
+          }}
+          onConfirm={() => void submitCorrectionFromModal()}
+        />
+      ) : null}
+
+      {confirmDialog ? (
+        <ProductionRegisterConfirmModal
+          title={confirmDialog.title}
+          message={confirmDialog.message}
+          confirmLabel={confirmDialog.confirmLabel}
+          cancelLabel={confirmDialog.cancelLabel}
+          tone={confirmDialog.tone}
+          onCancel={() => resolveConfirmDialog(false)}
+          onConfirm={() => resolveConfirmDialog(true)}
+        />
       ) : null}
     </div>
   );

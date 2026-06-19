@@ -1,13 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ModalFrame } from '../layout/ModalFrame';
+import { ModalFrame, ModalScrollShell, ModalScrollBody, ModalScrollFooter } from '../layout';
 import { ProcurementFormSection } from '../procurement/ProcurementFormSection';
 import { formatNgn } from '../../Data/mockData';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { useRegisterSettlementMutations } from '../../hooks/useAccountingRegisterSettlements';
 import { treasuryAccountDisplayName, treasuryAccountsForWorkspace } from '../../lib/treasuryAccountsStore';
-
-const INPUT =
-  'mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-[11px] font-semibold text-slate-800 outline-none focus:border-[#134e4a]/35 focus:ring-2 focus:ring-[#134e4a]/10';
 
 /**
  * @param {{ settlement: object | null; open: boolean; onClose: () => void; onPaid: () => void }} props
@@ -68,19 +65,21 @@ export function AccountingRegisterSettlementPayModal({ settlement, open, onClose
 
   return (
     <ModalFrame isOpen={open} onClose={onClose} title="Pay settlement" surface="plain">
-      <div className="w-full max-w-lg rounded-2xl border border-slate-200/90 bg-white shadow-xl overflow-hidden">
-        <div className="h-1 bg-[#134e4a]" />
-        <div className="p-5 sm:p-6">
-          <h2 className="text-lg font-bold text-[#134e4a]">Pay approved withdrawal</h2>
-          <p className="mt-1 text-[10px] text-slate-500">
-            {settlement.partyName} · {settlement.settlementId} · Outstanding {formatNgn(outstanding)}
-          </p>
-          <form className="mt-4 space-y-4" onSubmit={handleSubmit}>
+      <ModalScrollShell size="md">
+        <div className="h-1 shrink-0 bg-[#134e4a]" />
+        <form className="flex min-h-0 flex-1 flex-col" onSubmit={handleSubmit}>
+          <ModalScrollBody className="space-y-4">
+            <div>
+              <h2 className="text-lg font-bold text-[#134e4a]">Pay approved withdrawal</h2>
+              <p className="mt-1 text-[10px] text-slate-500 sm:text-[11px]">
+                {settlement.partyName} · {settlement.settlementId} · Outstanding {formatNgn(outstanding)}
+              </p>
+            </div>
             <ProcurementFormSection letter="P" title="Treasury payout" compact>
               <label className="block text-[10px] font-bold uppercase tracking-wide text-slate-500">
                 Pay from account *
                 <select
-                  className={INPUT}
+                  className="z-finance-select"
                   value={treasuryAccountId}
                   onChange={(e) => setTreasuryAccountId(e.target.value)}
                   required
@@ -98,7 +97,7 @@ export function AccountingRegisterSettlementPayModal({ settlement, open, onClose
                   type="number"
                   min="1"
                   max={outstanding}
-                  className={INPUT}
+                  className="z-finance-field"
                   value={amountNgn}
                   onChange={(e) => setAmountNgn(e.target.value)}
                   required
@@ -106,25 +105,34 @@ export function AccountingRegisterSettlementPayModal({ settlement, open, onClose
               </label>
               <label className="block text-[10px] font-bold uppercase tracking-wide text-slate-500 mt-3">
                 Reference
-                <input className={INPUT} value={reference} onChange={(e) => setReference(e.target.value)} />
+                <input className="z-finance-field" value={reference} onChange={(e) => setReference(e.target.value)} />
               </label>
               <label className="block text-[10px] font-bold uppercase tracking-wide text-slate-500 mt-3">
                 Payment note
-                <input className={INPUT} value={note} onChange={(e) => setNote(e.target.value)} />
+                <input className="z-finance-field" value={note} onChange={(e) => setNote(e.target.value)} />
               </label>
             </ProcurementFormSection>
             {error ? <p className="text-[10px] font-medium text-rose-700">{error}</p> : null}
-            <div className="flex flex-wrap justify-end gap-2 pt-2 border-t border-slate-100">
-              <button type="button" onClick={onClose} disabled={busy} className="rounded-lg border border-slate-200 px-3 py-1.5 text-[9px] font-semibold uppercase text-slate-700">
-                Cancel
-              </button>
-              <button type="submit" disabled={busy || !bankAccounts.length} className="rounded-lg bg-[#134e4a] text-white px-3 py-1.5 text-[9px] font-semibold uppercase disabled:opacity-50">
-                {busy ? 'Paying…' : 'Post payment'}
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
+          </ModalScrollBody>
+          <ModalScrollFooter className="flex flex-wrap justify-end gap-2">
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={busy}
+              className="min-h-11 rounded-lg border border-slate-200 px-4 py-2 text-[10px] font-semibold uppercase text-slate-700 sm:min-h-0 sm:py-1.5 sm:text-[9px]"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={busy || !bankAccounts.length}
+              className="min-h-11 rounded-lg bg-[#134e4a] text-white px-4 py-2 text-[10px] font-semibold uppercase disabled:opacity-50 sm:min-h-0 sm:py-1.5 sm:text-[9px]"
+            >
+              {busy ? 'Paying…' : 'Post payment'}
+            </button>
+          </ModalScrollFooter>
+        </form>
+      </ModalScrollShell>
     </ModalFrame>
   );
 }

@@ -419,6 +419,7 @@ const RefundModal = ({
   const [previewError, setPreviewError] = useState('');
   const [warnings, setWarnings] = useState([]);
   const [substitutionPerMeterBreakdown, setSubstitutionPerMeterBreakdown] = useState([]);
+  const [pricingAsAtIso, setPricingAsAtIso] = useState('');
   const [blockedRefundCategories, setBlockedRefundCategories] = useState([]);
   const [intelligence, setIntelligence] = useState({
     receipts: [],
@@ -890,6 +891,7 @@ const RefundModal = ({
       setSubstitutionPerMeterBreakdown(
         Array.isArray(preview.substitutionPerMeterBreakdown) ? preview.substitutionPerMeterBreakdown : []
       );
+      setPricingAsAtIso(String(preview.pricingAsAtIso || '').trim());
       const blocked = Array.isArray(preview.blockedRefundCategories) ? preview.blockedRefundCategories : [];
       setBlockedRefundCategories(blocked);
 
@@ -2890,6 +2892,12 @@ const RefundModal = ({
                       <div className="p-3 rounded-xl bg-sky-500/10 border border-sky-500/25 space-y-2">
                         <p className="text-[9px] font-bold text-sky-300 uppercase tracking-wide">
                           Substitution — per-metre delta
+                          {pricingAsAtIso ? (
+                            <span className="normal-case font-semibold text-sky-200/80">
+                              {' '}
+                              (workbook/list as at quote {pricingAsAtIso})
+                            </span>
+                          ) : null}
                         </p>
                         <ul className="space-y-2">
                           {substitutionPerMeterBreakdown.map((row) => (

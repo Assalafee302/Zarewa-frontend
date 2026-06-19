@@ -89,7 +89,7 @@ describe('finance desk components', () => {
         <Ap2cAccountingSections enabled={false} />
       </MemoryRouter>
     );
-    expect(screen.getByRole('button', { name: /Load AP2c reports/i })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /Load AP2c/i })).toBeTruthy();
     expect(screen.getByText(/Supplier advances & inventory/i)).toBeTruthy();
   });
 

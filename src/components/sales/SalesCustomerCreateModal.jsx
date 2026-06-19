@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { X } from 'lucide-react';
-import { ModalFrame } from '../layout';
+import { ModalFrame, ModalScrollShell, ModalScrollHeader, ModalScrollBody } from '../layout';
 import { useCustomers } from '../../context/CustomersContext';
 import { useToast } from '../../context/ToastContext';
 import { useWorkspace } from '../../context/WorkspaceContext';
@@ -71,65 +71,68 @@ export default function SalesCustomerCreateModal({
 
   return (
     <ModalFrame isOpen={isOpen} onClose={handleClose}>
-      <div className="z-modal-panel max-w-lg p-8">
-        <div className="flex justify-between items-center mb-6">
-          <h3 className="text-xl font-bold text-[#134e4a]">New Customer</h3>
-          <button type="button" onClick={handleClose} className="p-2 text-slate-400 hover:text-rose-500 rounded-xl hover:bg-rose-50">
-            <X size={22} />
-          </button>
-        </div>
-        {!ws?.canMutate ? (
-          <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] font-semibold text-amber-900">
-            System offline (read-only). Reconnect and refresh before registering customers.
+      <ModalScrollShell size="md">
+        <ModalScrollHeader>
+          <div className="flex justify-between items-center">
+            <h3 className="text-xl font-bold text-[#134e4a]">New Customer</h3>
+            <button type="button" onClick={handleClose} className="p-2 min-h-11 min-w-11 text-slate-400 hover:text-rose-500 rounded-xl hover:bg-rose-50">
+              <X size={22} />
+            </button>
           </div>
-        ) : null}
-        <form onSubmit={submitNew} className="space-y-4" onInput={captureEdited} onChange={captureEdited}>
-          <fieldset disabled={!ws?.canMutate} className="space-y-4 disabled:opacity-60">
-            <div className="space-y-1">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Full Name *</label>
-              <input
-                required
-                value={form.name}
-                onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-                className="w-full bg-slate-50 border border-slate-100 rounded-xl py-3 px-4 text-sm font-bold text-[#134e4a] outline-none focus:ring-2 focus:ring-teal-500/10"
-              />
+        </ModalScrollHeader>
+        <ModalScrollBody>
+          {!ws?.canMutate ? (
+            <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] font-semibold text-amber-900">
+              System offline (read-only). Reconnect and refresh before registering customers.
             </div>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          ) : null}
+          <form id="sales-new-customer-form" onSubmit={submitNew} className="space-y-4" onInput={captureEdited} onChange={captureEdited}>
+            <fieldset disabled={!ws?.canMutate} className="space-y-4 disabled:opacity-60">
               <div className="space-y-1">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Phone *</label>
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Full Name *</label>
                 <input
                   required
-                  value={form.phoneNumber}
-                  onChange={(e) => setForm((f) => ({ ...f, phoneNumber: e.target.value }))}
-                  className="w-full bg-slate-50 border border-slate-100 rounded-xl py-3 px-4 text-sm font-bold text-[#134e4a] outline-none focus:ring-2 focus:ring-teal-500/10"
+                  value={form.name}
+                  onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+                  className="z-finance-field rounded-xl font-bold text-[#134e4a]"
                 />
               </div>
-              <div className="space-y-1">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Email</label>
-                <input
-                  type="email"
-                  value={form.email}
-                  onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
-                  className="w-full bg-slate-50 border border-slate-100 rounded-xl py-3 px-4 text-sm font-bold text-[#134e4a] outline-none focus:ring-2 focus:ring-teal-500/10"
-                />
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Phone *</label>
+                  <input
+                    required
+                    value={form.phoneNumber}
+                    onChange={(e) => setForm((f) => ({ ...f, phoneNumber: e.target.value }))}
+                    className="z-finance-field rounded-xl font-bold text-[#134e4a]"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Email</label>
+                  <input
+                    type="email"
+                    value={form.email}
+                    onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
+                    className="z-finance-field rounded-xl font-bold text-[#134e4a]"
+                  />
+                </div>
               </div>
-            </div>
             <div className="space-y-1">
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Shipping Address</label>
               <textarea
                 rows={2}
                 value={form.addressShipping}
                 onChange={(e) => setForm((f) => ({ ...f, addressShipping: e.target.value }))}
-                className="w-full bg-slate-50 border border-slate-100 rounded-xl py-3 px-4 text-sm font-medium text-[#134e4a] outline-none focus:ring-2 focus:ring-teal-500/10 resize-none"
+                className="z-finance-field rounded-xl font-medium text-[#134e4a] resize-none"
               />
             </div>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <div className="space-y-1">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Tier</label>
                 <select
                   value={form.tier}
                   onChange={(e) => setForm((f) => ({ ...f, tier: e.target.value }))}
-                  className="w-full bg-slate-50 border border-slate-100 rounded-xl py-3 px-4 text-xs font-bold text-[#134e4a] outline-none"
+                  className="z-finance-select rounded-xl font-bold text-[#134e4a]"
                 >
                   <option value="Regular">Regular</option>
                   <option value="VIP">VIP</option>
@@ -141,7 +144,7 @@ export default function SalesCustomerCreateModal({
                 <select
                   value={form.paymentTerms}
                   onChange={(e) => setForm((f) => ({ ...f, paymentTerms: e.target.value }))}
-                  className="w-full bg-slate-50 border border-slate-100 rounded-xl py-3 px-4 text-xs font-bold text-[#134e4a] outline-none"
+                  className="z-finance-select rounded-xl font-bold text-[#134e4a]"
                 >
                   <option value="Due on receipt">Due on receipt</option>
                   <option value="Net 30">Net 30</option>
@@ -152,7 +155,7 @@ export default function SalesCustomerCreateModal({
                 <select
                   value={form.status}
                   onChange={(e) => setForm((f) => ({ ...f, status: e.target.value }))}
-                  className="w-full bg-slate-50 border border-slate-100 rounded-xl py-3 px-4 text-xs font-bold text-[#134e4a] outline-none"
+                  className="z-finance-select rounded-xl font-bold text-[#134e4a]"
                 >
                   <option value="Active">Active</option>
                   <option value="Inactive">Inactive</option>
@@ -161,13 +164,14 @@ export default function SalesCustomerCreateModal({
             </div>
             <button
               type="submit"
-              className="w-full bg-[#134e4a] text-white rounded-xl py-4 text-xs font-black uppercase tracking-widest shadow-lg shadow-teal-900/20 hover:brightness-110 active:scale-[0.98] transition-all"
+              className="w-full min-h-11 bg-[#134e4a] text-white rounded-xl py-4 text-xs font-black uppercase tracking-widest shadow-lg shadow-teal-900/20 hover:brightness-110 active:scale-[0.98] transition-all"
             >
               Save Customer
             </button>
           </fieldset>
         </form>
-      </div>
+        </ModalScrollBody>
+      </ModalScrollShell>
     </ModalFrame>
   );
 }

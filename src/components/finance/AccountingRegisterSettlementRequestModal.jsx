@@ -1,11 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { ModalFrame } from '../layout/ModalFrame';
+import { ModalFrame, ModalScrollShell, ModalScrollBody, ModalScrollFooter } from '../layout';
 import { ProcurementFormSection } from '../procurement/ProcurementFormSection';
 import { formatNgn } from '../../Data/mockData';
 import { useRegisterSettlementMutations } from '../../hooks/useAccountingRegisterSettlements';
-
-const INPUT =
-  'mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-[11px] font-semibold text-slate-800 outline-none focus:border-[#134e4a]/35 focus:ring-2 focus:ring-[#134e4a]/10';
 
 /**
  * @param {{ item: object; open: boolean; onClose: () => void; onSaved: () => void }} props
@@ -45,15 +42,17 @@ export function AccountingRegisterSettlementRequestModal({ item, open, onClose, 
 
   return (
     <ModalFrame isOpen={open} onClose={onClose} title="Request withdrawal" surface="plain">
-      <div className="w-full max-w-lg rounded-2xl border border-slate-200/90 bg-white shadow-xl overflow-hidden">
-        <div className="h-1 bg-[#134e4a]" />
-        <div className="p-5 sm:p-6">
-          <h2 className="text-lg font-bold text-[#134e4a]">Request register withdrawal</h2>
-          <p className="mt-1 text-[10px] text-slate-500 leading-relaxed">
-            {item.partyName} · Open balance {formatNgn(item.amountNgn)} · Available to request{' '}
-            {formatNgn(availableNgn)} (after other pending settlements).
-          </p>
-          <form className="mt-4 space-y-4" onSubmit={handleSubmit}>
+      <ModalScrollShell size="md">
+        <div className="h-1 shrink-0 bg-[#134e4a]" />
+        <form className="flex min-h-0 flex-1 flex-col" onSubmit={handleSubmit}>
+          <ModalScrollBody className="space-y-4">
+            <div>
+              <h2 className="text-lg font-bold text-[#134e4a]">Request register withdrawal</h2>
+              <p className="mt-1 text-[10px] text-slate-500 leading-relaxed sm:text-[11px]">
+                {item.partyName} · Open balance {formatNgn(item.amountNgn)} · Available to request{' '}
+                {formatNgn(availableNgn)} (after other pending settlements).
+              </p>
+            </div>
             <ProcurementFormSection letter="1" title="Withdrawal" compact>
               <label className="block text-[10px] font-bold uppercase tracking-wide text-slate-500">
                 Amount (₦) *
@@ -61,7 +60,7 @@ export function AccountingRegisterSettlementRequestModal({ item, open, onClose, 
                   type="number"
                   min="1"
                   max={availableNgn}
-                  className={INPUT}
+                  className="z-finance-field"
                   value={amountNgn}
                   onChange={(e) => setAmountNgn(e.target.value)}
                   required
@@ -69,18 +68,24 @@ export function AccountingRegisterSettlementRequestModal({ item, open, onClose, 
               </label>
               <label className="block text-[10px] font-bold uppercase tracking-wide text-slate-500 mt-3">
                 Reason *
-                <textarea className={INPUT} rows={2} value={reason} onChange={(e) => setReason(e.target.value)} required />
+                <textarea
+                  className="z-finance-field font-medium"
+                  rows={2}
+                  value={reason}
+                  onChange={(e) => setReason(e.target.value)}
+                  required
+                />
               </label>
             </ProcurementFormSection>
             <ProcurementFormSection letter="2" title="Payee" compact>
               <label className="block text-[10px] font-bold uppercase tracking-wide text-slate-500">
                 Payee name *
-                <input className={INPUT} value={payeeName} onChange={(e) => setPayeeName(e.target.value)} required />
+                <input className="z-finance-field" value={payeeName} onChange={(e) => setPayeeName(e.target.value)} required />
               </label>
               <label className="block text-[10px] font-bold uppercase tracking-wide text-slate-500 mt-3">
                 Bank details
                 <textarea
-                  className={INPUT}
+                  className="z-finance-field font-medium"
                   rows={2}
                   value={payeeBankDetails}
                   onChange={(e) => setPayeeBankDetails(e.target.value)}
@@ -92,17 +97,26 @@ export function AccountingRegisterSettlementRequestModal({ item, open, onClose, 
             <p className="text-[10px] text-slate-500">
               After submit: MD or finance approves → Cashier pays from treasury → Debtors line reduces automatically.
             </p>
-            <div className="flex flex-wrap justify-end gap-2 pt-2 border-t border-slate-100">
-              <button type="button" onClick={onClose} disabled={busy} className="rounded-lg border border-slate-200 px-3 py-1.5 text-[9px] font-semibold uppercase text-slate-700">
-                Cancel
-              </button>
-              <button type="submit" disabled={busy} className="rounded-lg bg-[#134e4a] text-white px-3 py-1.5 text-[9px] font-semibold uppercase disabled:opacity-50">
-                {busy ? 'Submitting…' : 'Submit for approval'}
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
+          </ModalScrollBody>
+          <ModalScrollFooter className="flex flex-wrap justify-end gap-2">
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={busy}
+              className="min-h-11 rounded-lg border border-slate-200 px-4 py-2 text-[10px] font-semibold uppercase text-slate-700 sm:min-h-0 sm:py-1.5 sm:text-[9px]"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={busy}
+              className="min-h-11 rounded-lg bg-[#134e4a] text-white px-4 py-2 text-[10px] font-semibold uppercase disabled:opacity-50 sm:min-h-0 sm:py-1.5 sm:text-[9px]"
+            >
+              {busy ? 'Submitting…' : 'Submit for approval'}
+            </button>
+          </ModalScrollFooter>
+        </form>
+      </ModalScrollShell>
     </ModalFrame>
   );
 }

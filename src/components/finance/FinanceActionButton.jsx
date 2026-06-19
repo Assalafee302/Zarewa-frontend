@@ -26,7 +26,7 @@ export function FinanceActionButton({
   disabled,
   type = 'button',
 }) {
-  const cls = `inline-flex items-center justify-center rounded-lg px-3 py-1.5 text-xs font-bold transition-colors disabled:opacity-50 ${STYLES[variant] || STYLES.secondary}`;
+  const cls = `inline-flex items-center justify-center rounded-lg px-3 py-2.5 sm:py-1.5 min-h-11 sm:min-h-0 text-xs font-bold transition-colors disabled:opacity-50 ${STYLES[variant] || STYLES.secondary}`;
   if (to) {
     return (
       <Link to={to} className={cls}>

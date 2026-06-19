@@ -4,11 +4,10 @@ import { apiFetch } from '../../../lib/apiBase';
 import { interBranchStatusClass, interBranchStatusMeta } from '../../../lib/interBranchLoanUi';
 import { treasuryAccountDisplayName } from '../../../lib/treasuryAccountsStore';
 import { compareSelectLabels } from '../../../lib/selectOptionSort';
-import { ModalFrame } from '../../layout/ModalFrame';
+import { ModalFrame, ModalScrollShell, ModalScrollBody, ModalScrollFooter } from '../../layout';
 import { ProcurementFormSection } from '../../procurement/ProcurementFormSection';
 
-const INPUT =
-  'mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-[11px] font-semibold text-slate-800 outline-none transition-all focus:border-[#134e4a]/35 focus:ring-2 focus:ring-[#134e4a]/10 shadow-sm';
+const INPUT = 'z-finance-field';
 
 /**
  * @param {{
@@ -92,112 +91,114 @@ export function InterBranchRepayModal({ loan, branchNameById, treasuryAccounts, 
 
   return (
     <ModalFrame isOpen onClose={onClose} title="Record repayment" surface="plain">
-      <div className="w-full max-w-lg rounded-2xl border border-slate-200/90 bg-white shadow-xl overflow-hidden">
-        <div className="h-1 bg-[#134e4a]" />
-        <form className="p-5 sm:p-6 space-y-4" onSubmit={handleSubmit}>
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">Loan</p>
-            <p className="font-mono text-sm font-bold text-[#134e4a]">{loan.loanId}</p>
-            <p className="text-[11px] text-slate-600 mt-1">
-              {branchNameById[borrowerBranchId] || borrowerBranchId} repays{' '}
-              {branchNameById[lenderBranchId] || lenderBranchId}
-            </p>
-            <p className="text-[11px] text-slate-500 mt-1 tabular-nums">
-              Outstanding: {formatNgn(loan.outstandingNgn)}
-            </p>
-          </div>
+      <ModalScrollShell size="md">
+        <div className="h-1 shrink-0 bg-[#134e4a]" />
+        <form className="flex min-h-0 flex-1 flex-col" onSubmit={handleSubmit}>
+          <ModalScrollBody className="space-y-4">
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">Loan</p>
+              <p className="font-mono text-sm font-bold text-[#134e4a]">{loan.loanId}</p>
+              <p className="text-[11px] text-slate-600 mt-1">
+                {branchNameById[borrowerBranchId] || borrowerBranchId} repays{' '}
+                {branchNameById[lenderBranchId] || lenderBranchId}
+              </p>
+              <p className="text-[11px] text-slate-500 mt-1 tabular-nums">
+                Outstanding: {formatNgn(loan.outstandingNgn)}
+              </p>
+            </div>
 
-          <ProcurementFormSection letter="1" title="Treasury movement" compact>
-            <div className="grid grid-cols-1 gap-3">
-              <label className="block text-[10px] font-bold uppercase tracking-wide text-slate-500">
-                From account (borrower branch) *
-                <select
-                  className={INPUT}
-                  value={form.fromTreasuryAccountId}
-                  onChange={(e) => setForm((f) => ({ ...f, fromTreasuryAccountId: e.target.value }))}
-                  required
-                >
-                  <option value="">Select…</option>
-                  {fromAccounts.map((a) => (
-                    <option key={a.id} value={String(a.id)}>
-                      {treasuryAccountDisplayName(a)} · {formatNgn(a.balance)}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="block text-[10px] font-bold uppercase tracking-wide text-slate-500">
-                To account (lender branch) *
-                <select
-                  className={INPUT}
-                  value={form.toTreasuryAccountId}
-                  onChange={(e) => setForm((f) => ({ ...f, toTreasuryAccountId: e.target.value }))}
-                  required
-                >
-                  <option value="">Select…</option>
-                  {toAccounts.map((a) => (
-                    <option key={a.id} value={String(a.id)}>
-                      {treasuryAccountDisplayName(a)}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <div className="grid grid-cols-2 gap-3">
+            <ProcurementFormSection letter="1" title="Treasury movement" compact>
+              <div className="grid grid-cols-1 gap-3">
                 <label className="block text-[10px] font-bold uppercase tracking-wide text-slate-500">
-                  Amount (₦) *
-                  <input
-                    type="number"
-                    min="1"
-                    max={loan.outstandingNgn}
+                  From account (borrower branch) *
+                  <select
                     className={INPUT}
-                    value={form.amountNgn}
-                    onChange={(e) => setForm((f) => ({ ...f, amountNgn: e.target.value }))}
+                    value={form.fromTreasuryAccountId}
+                    onChange={(e) => setForm((f) => ({ ...f, fromTreasuryAccountId: e.target.value }))}
                     required
-                  />
+                  >
+                    <option value="">Select…</option>
+                    {fromAccounts.map((a) => (
+                      <option key={a.id} value={String(a.id)}>
+                        {treasuryAccountDisplayName(a)} · {formatNgn(a.balance)}
+                      </option>
+                    ))}
+                  </select>
                 </label>
                 <label className="block text-[10px] font-bold uppercase tracking-wide text-slate-500">
-                  Payment date *
-                  <input
-                    type="date"
+                  To account (lender branch) *
+                  <select
                     className={INPUT}
-                    value={form.dateISO}
-                    onChange={(e) => setForm((f) => ({ ...f, dateISO: e.target.value }))}
+                    value={form.toTreasuryAccountId}
+                    onChange={(e) => setForm((f) => ({ ...f, toTreasuryAccountId: e.target.value }))}
                     required
+                  >
+                    <option value="">Select…</option>
+                    {toAccounts.map((a) => (
+                      <option key={a.id} value={String(a.id)}>
+                        {treasuryAccountDisplayName(a)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <label className="block text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                    Amount (₦) *
+                    <input
+                      type="number"
+                      min="1"
+                      max={loan.outstandingNgn}
+                      className={INPUT}
+                      value={form.amountNgn}
+                      onChange={(e) => setForm((f) => ({ ...f, amountNgn: e.target.value }))}
+                      required
+                    />
+                  </label>
+                  <label className="block text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                    Payment date *
+                    <input
+                      type="date"
+                      className={INPUT}
+                      value={form.dateISO}
+                      onChange={(e) => setForm((f) => ({ ...f, dateISO: e.target.value }))}
+                      required
+                    />
+                  </label>
+                </div>
+                <label className="block text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                  Note
+                  <input
+                    className={INPUT}
+                    value={form.note}
+                    onChange={(e) => setForm((f) => ({ ...f, note: e.target.value }))}
+                    placeholder="Repayment reference or bank narration"
                   />
                 </label>
               </div>
-              <label className="block text-[10px] font-bold uppercase tracking-wide text-slate-500">
-                Note
-                <input
-                  className={INPUT}
-                  value={form.note}
-                  onChange={(e) => setForm((f) => ({ ...f, note: e.target.value }))}
-                  placeholder="Repayment reference or bank narration"
-                />
-              </label>
-            </div>
-          </ProcurementFormSection>
+            </ProcurementFormSection>
 
-          {error ? <p className="text-[10px] font-medium text-rose-700">{error}</p> : null}
+            {error ? <p className="text-[10px] font-medium text-rose-700">{error}</p> : null}
+          </ModalScrollBody>
 
-          <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+          <ModalScrollFooter className="flex justify-end gap-2">
             <button
               type="button"
               onClick={onClose}
               disabled={busy}
-              className="rounded-lg border border-slate-200 px-3 py-1.5 text-[9px] font-semibold uppercase text-slate-700"
+              className="min-h-11 rounded-lg border border-slate-200 px-4 py-2 text-[10px] font-semibold uppercase text-slate-700 sm:min-h-0 sm:py-1.5 sm:text-[9px]"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={busy}
-              className="rounded-lg bg-[#134e4a] text-white px-3 py-1.5 text-[9px] font-semibold uppercase disabled:opacity-50"
+              className="min-h-11 rounded-lg bg-[#134e4a] text-white px-4 py-2 text-[10px] font-semibold uppercase disabled:opacity-50 sm:min-h-0 sm:py-1.5 sm:text-[9px]"
             >
               {busy ? 'Posting…' : 'Post repayment'}
             </button>
-          </div>
+          </ModalScrollFooter>
         </form>
-      </div>
+      </ModalScrollShell>
     </ModalFrame>
   );
 }

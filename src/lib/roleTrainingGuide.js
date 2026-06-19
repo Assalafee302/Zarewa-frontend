@@ -112,7 +112,7 @@ const ROLE_TRAINING = {
       },
       {
         heading: 'Refunds & payments',
-        body: 'You can **request** refunds from Finance workflows but **cannot approve** them. After manager approval, pay refunds from **Finance → Payments** or the Desk queue.',
+        body: 'You can **request** refunds from Finance workflows but **cannot approve** them. After manager approval, pay refunds from **Finance → Desk** (recommended) or **Payment register**.',
       },
       {
         heading: 'End of day',

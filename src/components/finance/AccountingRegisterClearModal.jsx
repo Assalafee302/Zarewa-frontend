@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { AlertTriangle } from 'lucide-react';
 import { formatNgn } from '../../Data/mockData';
-import { ModalFrame } from '../layout/ModalFrame';
+import { ModalFrame, ModalScrollShell, ModalScrollBody, ModalScrollFooter } from '../layout';
 
 /**
  * @param {{
@@ -31,9 +31,9 @@ export function AccountingRegisterClearModal({ item, open, busy, onClose, onConf
       title="Clear legacy register line"
       surface="plain"
     >
-      <div className="w-full max-w-md rounded-2xl border border-slate-200/90 bg-white shadow-xl overflow-hidden">
-        <div className="h-1 bg-amber-600" />
-        <div className="p-5 sm:p-6">
+      <ModalScrollShell size="sm">
+        <div className="h-1 shrink-0 bg-amber-600" />
+        <ModalScrollBody>
           <div className="flex gap-3">
             <AlertTriangle className="shrink-0 text-amber-700" size={22} />
             <div>
@@ -48,39 +48,39 @@ export function AccountingRegisterClearModal({ item, open, busy, onClose, onConf
           <label className="mt-4 flex items-start gap-2 rounded-lg border border-slate-200 bg-slate-50/80 px-3 py-2.5 cursor-pointer">
             <input
               type="checkbox"
-              className="mt-0.5"
+              className="mt-0.5 min-h-5 min-w-5"
               checked={ack}
               onChange={(e) => setAck(e.target.checked)}
               disabled={busy}
             />
-            <span className="text-[10px] font-medium text-slate-700 leading-snug">
+            <span className="text-[11px] font-medium text-slate-700 leading-snug">
               I confirm this balance has been settled or written off in the live system.
             </span>
           </label>
+        </ModalScrollBody>
 
-          <div className="flex flex-wrap justify-end gap-2 mt-5 pt-3 border-t border-slate-100">
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => {
-                setAck(false);
-                onClose();
-              }}
-              className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[9px] font-semibold uppercase tracking-wider text-slate-700 disabled:opacity-50"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              disabled={busy || !ack}
-              onClick={() => void onConfirm()}
-              className="rounded-lg bg-[#134e4a] text-white px-3 py-1.5 text-[9px] font-semibold uppercase tracking-wider disabled:opacity-50"
-            >
-              {busy ? 'Clearing…' : 'Clear line'}
-            </button>
-          </div>
-        </div>
-      </div>
+        <ModalScrollFooter className="flex flex-wrap justify-end gap-2">
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => {
+              setAck(false);
+              onClose();
+            }}
+            className="min-h-11 rounded-lg border border-slate-200 bg-white px-4 py-2 text-[10px] font-semibold uppercase tracking-wider text-slate-700 disabled:opacity-50 sm:min-h-0 sm:py-1.5 sm:text-[9px]"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            disabled={busy || !ack}
+            onClick={() => void onConfirm()}
+            className="min-h-11 rounded-lg bg-[#134e4a] text-white px-4 py-2 text-[10px] font-semibold uppercase tracking-wider disabled:opacity-50 sm:min-h-0 sm:py-1.5 sm:text-[9px]"
+          >
+            {busy ? 'Clearing…' : 'Clear line'}
+          </button>
+        </ModalScrollFooter>
+      </ModalScrollShell>
     </ModalFrame>
   );
 }
