@@ -78,6 +78,7 @@ import {
   fetchEligibleRefundQuotationsCached,
   invalidateEligibleRefundQuotationsCache,
 } from '../lib/refundEligibleQuotationsCache';
+import { quotationMeetsRefundPickerFloor } from '../shared/refundConstants.js';
 import { computeCuttingListMaterialReadiness } from '../lib/salesCuttingListMaterialReadiness';
 import {
   SALES_TABLE_SORT_FIELD_OPTIONS,
@@ -582,7 +583,7 @@ const Sales = () => {
         const remainingNgn = Number(eq.remaining_ngn ?? eq.remainingNgn) || 0;
         return full ? { ...full, remainingNgn } : { ...eq, id, remainingNgn };
       })
-      .filter((row) => String(row.id ?? '').trim())
+      .filter((row) => String(row.id ?? '').trim() && quotationMeetsRefundPickerFloor(row))
       .sort((a, b) => {
         const ra = Number(a.remainingNgn ?? a.remaining_ngn ?? a.paidNgn ?? a.paid_ngn) || 0;
         const rb = Number(b.remainingNgn ?? b.remaining_ngn ?? b.paidNgn ?? b.paid_ngn) || 0;

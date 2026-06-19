@@ -34,6 +34,7 @@ import {
   REFUND_REASON_CATEGORY_VALUES as REFUND_REASON_CATEGORIES,
   REFUND_PREVIEW_VERSION,
   MIN_REFUND_QUOTATION_REMAINING_NGN,
+  quotationMeetsRefundPickerFloor,
 } from '../shared/refundConstants.js';
 import { userMayOverrideProductionAlignment, userMayBlockQuotationRefunds } from '../lib/workspaceGovernanceClient';
 import { quotationRefundsBlocked } from '../lib/refundEligibility';
@@ -346,7 +347,7 @@ function quotationPreparedByLabel(q) {
 }
 
 /** API rows use snake_case; workspace snapshot uses camelCase — unify for the quotation dropdown. */
-function normalizeQuoteForRefundSelect(q) {
+function normalizeQuoteForRefundSelect(q, { skipPickerFloor = false } = {}) {
   if (!q?.id) return null;
   const paid = Number(q.paid_ngn ?? q.paidNgn ?? 0);
   if (paid <= 0) return null;
@@ -367,7 +368,7 @@ function normalizeQuoteForRefundSelect(q) {
     Number.isFinite(remainingFromApi) && remainingFromApi >= 0
       ? remainingFromApi
       : Math.max(0, cashIn - totalRefundedRounded);
-  return {
+  const normalized = {
     id: String(q.id),
     customer_name: q.customer_name ?? q.customer ?? '—',
     handled_by: quotationPreparedByLabel(q),
@@ -381,6 +382,8 @@ function normalizeQuoteForRefundSelect(q) {
     dateISO: String(q.dateISO ?? q.date_iso ?? '').trim(),
     status: String(q.status ?? '').trim(),
   };
+  if (!skipPickerFloor && !quotationMeetsRefundPickerFloor(normalized)) return null;
+  return normalized;
 }
 
 /**
@@ -603,7 +606,8 @@ const RefundModal = ({
     const activeRef = String(form.quotationRef || '').trim();
     if (activeRef && !byId.has(activeRef)) {
       const forced = normalizeQuoteForRefundSelect(
-        quotations.find((x) => String(x.id).trim() === activeRef)
+        quotations.find((x) => String(x.id).trim() === activeRef),
+        { skipPickerFloor: true }
       );
       if (forced) byId.set(forced.id, forced);
     }
@@ -2166,13 +2170,10 @@ const RefundModal = ({
                                   const ymd = quotationYmdForPickRow(q, quotations);
                                   const dateBit = ymd ? ` · ${ymd}` : '';
                                   const preparedBy = String(q.handled_by || '').trim();
-                                  const remNgn = Math.max(
-                                    0,
-                                    Math.round(q.paid_ngn) - Math.round(q.total_refunded_ngn || 0)
-                                  );
+                                  const remNgn = Math.max(0, Math.round(q.remaining_ngn ?? 0));
                                   const previewHint =
                                     Number(q.suggested_preview_amount_ngn) >= MIN_REFUND_QUOTATION_REMAINING_NGN
-                                      ? ` · overpay ₦${q.suggested_preview_amount_ngn.toLocaleString('en-NG')}`
+                                      ? ` · preview ₦${q.suggested_preview_amount_ngn.toLocaleString('en-NG')}`
                                       : '';
                                   return (
                                     <button
