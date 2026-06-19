@@ -22,6 +22,7 @@ import { useUserProfile } from '../../context/UserProfileContext';
 import { formatNgn } from '../../lib/hrFormat';
 import { HR_BTN_PRIMARY, HR_BTN_SECONDARY, HR_FIELD_CLASS } from '../../components/hr/hrFormStyles';
 import { GUARANTOR_FORM_TEMPLATE_URL } from '../../lib/hrStaffDocumentKinds';
+import { StaffRecoveryPayGuide } from '../../components/hr/StaffRecoveryPayGuide';
 
 export default function MyLoans({ staffLinkBase = '/my-profile' }) {
   const ws = useWorkspace();
@@ -108,6 +109,12 @@ export default function MyLoans({ staffLinkBase = '/my-profile' }) {
   );
   const activeOutstanding = activeLoans.reduce((s, l) => s + (l.outstandingNgn || 0), 0);
   const deduction = Number(deductionPerMonthNgn) || minDeduction;
+
+  const activeRecoveries = useMemo(
+    () =>
+      (moneySummary?.recoveries || []).filter((r) => Math.max(0, Number(r.principalOutstandingNgn) || 0) > 0),
+    [moneySummary?.recoveries]
+  );
 
   const eligibility = useMemo(
     () =>
@@ -416,20 +423,18 @@ export default function MyLoans({ staffLinkBase = '/my-profile' }) {
         </ProfileOverviewSection>
       ) : null}
 
-      {(moneySummary?.recoveries || []).filter((r) => r.principalOutstandingNgn > 0).length ? (
+      {activeRecoveries.length ? (
         <ProfileOverviewSection
           title="Discipline recovery"
-          subtitle="Payroll deduction applies each month — or pay in full at your branch cashier"
+          subtitle="Pay in full at your branch cashier — or via monthly payroll deduction"
         >
-          <WorkPayFormAlert variant="info" className="mb-3">
-            To clear this balance in one payment, take your{' '}
-            <strong>salary recovery letter</strong> to the <strong>branch cashier</strong> (Finance → Desk). After
-            they receive your cash or transfer, your balance here updates and you can download a receipt PDF.
-          </WorkPayFormAlert>
+          <StaffRecoveryPayGuide
+            recoveries={activeRecoveries}
+            staffEmployeeNo={moneySummary?.staffEmployeeNo}
+            staffBranchId={hr?.branchId || ws?.session?.currentBranchId}
+          />
           <div className="grid gap-3 sm:grid-cols-2">
-            {moneySummary.recoveries
-              .filter((r) => r.principalOutstandingNgn > 0)
-              .map((r) => (
+            {activeRecoveries.map((r) => (
                 <ProfileKpiCard key={r.id} label={r.title || 'Recovery'}>
                   <dl className="mt-1 grid grid-cols-2 gap-x-3 gap-y-2 text-xs">
                     <div>

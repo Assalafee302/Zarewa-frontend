@@ -79,8 +79,9 @@ export default function HrLoans({ embedded = false } = {}) {
       <section className="space-y-3">
         <h3 className="text-sm font-black uppercase tracking-wide text-[#134e4a]">Obligation ledger & repayments</h3>
         <p className="text-xs text-slate-600 max-w-2xl">
-          View staff loan and purchase credit accounts, download PDFs, and post bulk bank repayments.
-          Branch managers see accounts for their workspace branch only; HQ HR sees all branches.
+          View staff loan and purchase credit accounts and download PDFs. For loans and purchase credit, HR can post
+          bulk bank repayments here. <strong>Discipline recoveries</strong> are paid at the branch cashier (Finance →
+          Desk) — not through this ledger.
         </p>
         <HrObligationAccountsPanel />
         <HrRecoveryObligationBackfillPanel />

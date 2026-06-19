@@ -145,10 +145,10 @@ export default function HrCaseRecoveryPanel({ caseId, detail, canManage, onUpdat
           Open payroll →
         </Link>
       </div>
-      <p className="text-xs text-slate-500">
-        Monthly payroll deducts installments automatically. Staff may pay cash or transfer at the{' '}
-        <strong>branch cashier</strong> (Finance → Desk → Staff recoveries due) — or HR can record a direct payment
-        here to reduce or clear the balance and stop further deductions.
+      <p className="text-xs text-slate-600 leading-relaxed rounded-lg border border-violet-100 bg-violet-50/50 px-3 py-2">
+        <strong className="text-violet-950">Staff should pay at the branch cashier</strong> (Finance → Desk → Staff
+        recoveries). The cashier searches by name or employee ID, records the bank/cash account, and the balance
+        updates here automatically. Payroll still deducts the monthly installment until the balance is cleared.
       </p>
       {msg ? <p className="text-sm text-emerald-800">{msg}</p> : null}
       {err ? <p className="text-sm text-red-700">{err}</p> : null}
@@ -183,26 +183,31 @@ export default function HrCaseRecoveryPanel({ caseId, detail, canManage, onUpdat
                   </ul>
                 ) : null}
                 {canSettle ? (
-                  settleId === s.id ? (
-                    <RecoverySettleForm
-                      schedule={s}
-                      busy={busy}
-                      onCancel={() => setSettleId('')}
-                      onSubmit={(body) => submitSettlement(s.id, body)}
-                    />
-                  ) : (
-                    <button
-                      type="button"
-                      className="mt-2 text-xs font-semibold text-teal-800 hover:underline"
-                      onClick={() => {
-                        setSettleId(s.id);
-                        setErr('');
-                        setMsg('');
-                      }}
-                    >
-                      Record lump-sum / direct payment
-                    </button>
-                  )
+                  <details className="mt-2 group">
+                    <summary className="cursor-pointer text-xs font-semibold text-slate-500 hover:text-slate-700 list-none [&::-webkit-details-marker]:hidden">
+                      HR-only: record payment without cashier (exception)
+                    </summary>
+                    {settleId === s.id ? (
+                      <RecoverySettleForm
+                        schedule={s}
+                        busy={busy}
+                        onCancel={() => setSettleId('')}
+                        onSubmit={(body) => submitSettlement(s.id, body)}
+                      />
+                    ) : (
+                      <button
+                        type="button"
+                        className="mt-2 text-xs font-semibold text-slate-600 hover:underline"
+                        onClick={() => {
+                          setSettleId(s.id);
+                          setErr('');
+                          setMsg('');
+                        }}
+                      >
+                        Open manual payment form
+                      </button>
+                    )}
+                  </details>
                 ) : null}
               </li>
             );

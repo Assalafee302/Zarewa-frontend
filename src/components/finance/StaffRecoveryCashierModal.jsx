@@ -1,22 +1,16 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { CheckCircle2, Printer, Wallet } from 'lucide-react';
 import { formatNgn } from '../../Data/mockData';
 import { receiveStaffRecoveryPayment } from '../../lib/hrStaffRecoveries';
 import { obligationRepaymentReceiptPdfUrl } from '../../lib/hrStaffObligations';
 import { treasuryAccountDisplayName } from '../../lib/treasuryAccountsStore';
 import { compareSelectLabels } from '../../lib/selectOptionSort';
 import { ModalFrame, ModalScrollShell, ModalScrollBody, ModalScrollFooter } from '../layout';
-import { ProcurementFormSection } from '../procurement/ProcurementFormSection';
 
 const INPUT = 'z-finance-field';
 
 /**
  * Branch cashier — receive staff discipline recovery (money in + treasury credit).
- * @param {{
- *   recovery: object | null;
- *   treasuryAccounts: object[];
- *   onClose: () => void;
- *   onSaved: (result?: object) => void;
- * }} props
  */
 export function StaffRecoveryCashierModal({ recovery, treasuryAccounts, onClose, onSaved }) {
   const outstanding = Math.max(0, Number(recovery?.principalOutstandingNgn) || 0);
@@ -59,6 +53,9 @@ export function StaffRecoveryCashierModal({ recovery, treasuryAccounts, onClose,
     }
   }, [form.payInFull, outstanding]);
 
+  const amountToCollect = form.payInFull ? outstanding : Math.round(Number(form.amountNgn) || 0);
+  const lookupLine = [recovery?.staffEmployeeNo, recovery?.caseNumber].filter(Boolean).join(' · ');
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
@@ -100,115 +97,165 @@ export function StaffRecoveryCashierModal({ recovery, treasuryAccounts, onClose,
   if (!recovery) return null;
 
   return (
-    <ModalFrame isOpen={Boolean(recovery)} onClose={onClose} title="Receive staff recovery payment" surface="plain">
+    <ModalFrame isOpen={Boolean(recovery)} onClose={onClose} title="Receive staff recovery" surface="plain">
       <ModalScrollShell>
         <form onSubmit={handleSubmit}>
-          <ModalScrollBody className="space-y-4">
-            <ProcurementFormSection title="Employee & case">
-              <p className="text-sm font-bold text-slate-900">{recovery.staffDisplayName || recovery.userId}</p>
-              <p className="text-xs text-slate-600 mt-1">
-                {recovery.caseNumber ? `Case ${recovery.caseNumber}` : recovery.title || recovery.scheduleId}
-                {recovery.branchId ? ` · Branch ${recovery.branchId}` : ''}
-              </p>
-              <p className="text-lg font-black tabular-nums text-[#134e4a] mt-2">
-                Outstanding {formatNgn(outstanding)}
-              </p>
-              {recovery.installmentAmountNgn ? (
-                <p className="text-xs text-slate-500 mt-1">
-                  Payroll deduction: {formatNgn(recovery.installmentAmountNgn)}/month (stops when cleared)
-                </p>
+          <ModalScrollBody className="space-y-5">
+            <div className="rounded-2xl border border-violet-200 bg-violet-50/50 p-4">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-violet-700">Staff member</p>
+              <p className="mt-1 text-lg font-bold text-slate-900">{recovery.staffDisplayName || recovery.userId}</p>
+              {lookupLine ? (
+                <p className="mt-1 text-sm font-semibold text-violet-900">ID / case: {lookupLine}</p>
               ) : null}
-            </ProcurementFormSection>
+              {recovery.branchId ? (
+                <p className="mt-1 text-xs text-slate-600">Branch {recovery.branchId}</p>
+              ) : null}
+            </div>
 
             {receipt?.ok ? (
-              <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-950">
-                <p className="font-bold">Payment recorded</p>
-                <p className="mt-1 text-xs">
-                  {formatNgn(receipt.settlement?.amountNgn ?? 0)} received
-                  {receipt.treasuryAccountName ? ` into ${receipt.treasuryAccountName}` : ''}.
-                  {receipt.paidInFull ? ' Balance cleared — payroll deductions stopped.' : ''}
+              <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-5 text-center space-y-3">
+                <CheckCircle2 className="mx-auto text-emerald-600" size={40} aria-hidden />
+                <p className="text-lg font-bold text-emerald-950">Payment recorded</p>
+                <p className="text-sm text-emerald-900">
+                  {formatNgn(receipt.settlement?.amountNgn ?? amountToCollect)} credited to{' '}
+                  <strong>{receipt.treasuryAccountName || 'treasury'}</strong>.
                 </p>
+                {receipt.paidInFull ? (
+                  <p className="text-xs text-emerald-800">Balance cleared — payroll deductions stopped for this case.</p>
+                ) : (
+                  <p className="text-xs text-emerald-800">
+                    Remaining: {formatNgn(receipt.principalOutstandingNgn ?? 0)}
+                  </p>
+                )}
                 {receipt.obligationAccountId && receipt.obligationTransactionId ? (
                   <a
-                    className="mt-2 inline-block text-xs font-bold text-[#134e4a] underline"
+                    className="inline-flex items-center gap-2 rounded-lg bg-white border border-emerald-200 px-4 py-2 text-sm font-bold text-[#134e4a] shadow-sm hover:bg-emerald-50"
                     href={obligationRepaymentReceiptPdfUrl(receipt.obligationAccountId, receipt.obligationTransactionId)}
                     target="_blank"
                     rel="noreferrer"
                   >
-                    Download receipt PDF
+                    <Printer size={16} aria-hidden />
+                    Print receipt for staff
                   </a>
                 ) : null}
               </div>
             ) : (
               <>
-                {error ? <p className="text-xs font-bold text-rose-700">{error}</p> : null}
-                <label className="flex items-center gap-2 text-sm text-slate-800">
-                  <input
-                    type="checkbox"
-                    checked={form.payInFull}
-                    onChange={(e) => setForm({ ...form, payInFull: e.target.checked })}
-                  />
-                  Pay full outstanding ({formatNgn(outstanding)})
-                </label>
-                {!form.payInFull ? (
-                  <label className="block text-xs font-semibold text-slate-600">
-                    Amount received (₦)
-                    <input
-                      type="number"
-                      min={1}
-                      max={outstanding}
-                      className={`mt-1 ${INPUT}`}
-                      value={form.amountNgn}
-                      onChange={(e) => setForm({ ...form, amountNgn: e.target.value })}
-                      required
-                    />
-                  </label>
+                <div className="rounded-2xl border-2 border-[#134e4a]/20 bg-teal-50/40 px-4 py-5 text-center">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-[#134e4a]">Amount to collect</p>
+                  <p className="mt-2 text-4xl font-black tabular-nums text-[#134e4a]">{formatNgn(amountToCollect || outstanding)}</p>
+                  {!form.payInFull && amountToCollect < outstanding ? (
+                    <p className="mt-1 text-xs text-slate-600">
+                      Partial payment — {formatNgn(outstanding - amountToCollect)} will remain
+                    </p>
+                  ) : recovery.installmentAmountNgn ? (
+                    <p className="mt-1 text-xs text-slate-600">
+                      Full payment stops {formatNgn(recovery.installmentAmountNgn)}/month payroll deduction
+                    </p>
+                  ) : null}
+                </div>
+
+                {error ? (
+                  <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-800">
+                    {error}
+                  </p>
                 ) : null}
-                <label className="block text-xs font-semibold text-slate-600">
-                  Received into (bank / cash)
-                  <select
-                    className={`mt-1 ${INPUT}`}
-                    value={form.treasuryAccountId}
-                    onChange={(e) => setForm({ ...form, treasuryAccountId: e.target.value })}
-                    required
-                  >
-                    {!branchAccounts.length ? <option value="">No accounts for this branch</option> : null}
-                    {branchAccounts.map((a) => (
-                      <option key={a.id} value={String(a.id)}>
-                        {treasuryAccountDisplayName(a)}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="block text-xs font-semibold text-slate-600">
-                  Payment date
-                  <input
-                    type="date"
-                    className={`mt-1 ${INPUT}`}
-                    value={form.paymentDateIso}
-                    onChange={(e) => setForm({ ...form, paymentDateIso: e.target.value })}
-                    required
-                  />
-                </label>
-                <label className="block text-xs font-semibold text-slate-600">
-                  Note (optional)
-                  <input
-                    className={`mt-1 ${INPUT}`}
-                    value={form.note}
-                    onChange={(e) => setForm({ ...form, note: e.target.value })}
-                    placeholder="e.g. Cash at KD office"
-                  />
-                </label>
+
+                <div className="space-y-3">
+                  <p className="text-xs font-bold uppercase tracking-wide text-slate-500 flex items-center gap-2">
+                    <Wallet size={14} aria-hidden />
+                    Payment details
+                  </p>
+
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      className={`rounded-lg px-3 py-2 text-xs font-bold border ${
+                        form.payInFull
+                          ? 'border-[#134e4a] bg-[#134e4a] text-white'
+                          : 'border-slate-200 bg-white text-slate-700'
+                      }`}
+                      onClick={() => setForm({ ...form, payInFull: true })}
+                    >
+                      Full amount ({formatNgn(outstanding)})
+                    </button>
+                    <button
+                      type="button"
+                      className={`rounded-lg px-3 py-2 text-xs font-bold border ${
+                        !form.payInFull
+                          ? 'border-[#134e4a] bg-[#134e4a] text-white'
+                          : 'border-slate-200 bg-white text-slate-700'
+                      }`}
+                      onClick={() => setForm({ ...form, payInFull: false })}
+                    >
+                      Partial amount
+                    </button>
+                  </div>
+
+                  {!form.payInFull ? (
+                    <label className="block text-xs font-semibold text-slate-600">
+                      Amount received (₦)
+                      <input
+                        type="number"
+                        min={1}
+                        max={outstanding}
+                        className={`mt-1 ${INPUT}`}
+                        value={form.amountNgn}
+                        onChange={(e) => setForm({ ...form, amountNgn: e.target.value })}
+                        required
+                      />
+                    </label>
+                  ) : null}
+
+                  <label className="block text-xs font-semibold text-slate-600">
+                    Received into (bank / cash account)
+                    <select
+                      className={`mt-1 ${INPUT}`}
+                      value={form.treasuryAccountId}
+                      onChange={(e) => setForm({ ...form, treasuryAccountId: e.target.value })}
+                      required
+                    >
+                      {!branchAccounts.length ? <option value="">No accounts for this branch</option> : null}
+                      {branchAccounts.map((a) => (
+                        <option key={a.id} value={String(a.id)}>
+                          {treasuryAccountDisplayName(a)}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <label className="block text-xs font-semibold text-slate-600">
+                      Payment date
+                      <input
+                        type="date"
+                        className={`mt-1 ${INPUT}`}
+                        value={form.paymentDateIso}
+                        onChange={(e) => setForm({ ...form, paymentDateIso: e.target.value })}
+                        required
+                      />
+                    </label>
+                    <label className="block text-xs font-semibold text-slate-600">
+                      Note (optional)
+                      <input
+                        className={`mt-1 ${INPUT}`}
+                        value={form.note}
+                        onChange={(e) => setForm({ ...form, note: e.target.value })}
+                        placeholder="Cash / transfer ref"
+                      />
+                    </label>
+                  </div>
+                </div>
               </>
             )}
           </ModalScrollBody>
           <ModalScrollFooter className="flex flex-wrap gap-2 justify-end">
             <button type="button" className="z-btn-secondary" onClick={onClose} disabled={busy}>
-              {receipt?.ok ? 'Close' : 'Cancel'}
+              {receipt?.ok ? 'Done' : 'Cancel'}
             </button>
             {!receipt?.ok ? (
               <button type="submit" className="z-btn-primary" disabled={busy || !branchAccounts.length}>
-                {busy ? 'Posting…' : 'Receive payment'}
+                {busy ? 'Posting…' : `Confirm ${formatNgn(amountToCollect || outstanding)} received`}
               </button>
             ) : null}
           </ModalScrollFooter>

@@ -25,6 +25,7 @@ import { FinanceTabs } from './FinanceTabs';
 import { FinanceActionButton } from './FinanceActionButton';
 import { FinanceQueueRow } from './FinanceQueueRow';
 import { FinanceMobileAlertStrip } from './FinanceMobileAlertStrip';
+import { StaffRecoveryCashierPanel } from './StaffRecoveryCashierPanel';
 
 function todayIso() {
   return new Date().toISOString().slice(0, 10);
@@ -129,9 +130,12 @@ export function FinanceDeskWorkQueues({
   const staffRecoveriesDue = useMemo(
     () =>
       (Array.isArray(ws?.snapshot?.staffRecoveriesDue) ? ws.snapshot.staffRecoveriesDue : [])
-        .filter((row) => Math.max(0, Number(row.principalOutstandingNgn) || 0) > 0)
-        .slice(0, 20),
+        .filter((row) => Math.max(0, Number(row.principalOutstandingNgn) || 0) > 0),
     [ws?.snapshot?.staffRecoveriesDue]
+  );
+  const staffRecoveriesTotalNgn = useMemo(
+    () => staffRecoveriesDue.reduce((s, r) => s + Math.max(0, Number(r.principalOutstandingNgn) || 0), 0),
+    [staffRecoveriesDue]
   );
   const liquidity = useMemo(
     () => liquidityClearanceSplit(treasuryAccounts, receipts),
@@ -165,8 +169,11 @@ export function FinanceDeskWorkQueues({
     if ((creditTrial?.deliveriesWarningNoCreditCount ?? 0) > 0) {
       w.push({ label: 'Deliveries waiting on payment or credit', tone: 'warn' });
     }
+    if (staffRecoveriesDue.length > 0) {
+      w.push({ label: `${staffRecoveriesDue.length} staff recoveries to collect`, tone: 'warn' });
+    }
     return w;
-  }, [trialEx, pendingReceipts.length, creditTrial]);
+  }, [trialEx, pendingReceipts.length, creditTrial, staffRecoveriesDue.length]);
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
@@ -228,6 +235,13 @@ export function FinanceDeskWorkQueues({
               value={poTransportAwaiting.length}
               tone={poTransportAwaiting.length > 0 ? 'amber' : 'default'}
               icon={<Truck size={14} />}
+            />
+            <FinanceKpiCard
+              label="Staff recoveries to collect"
+              value={staffRecoveriesDue.length}
+              hint={staffRecoveriesDue.length ? formatNgn(staffRecoveriesTotalNgn) : 'None due'}
+              tone={staffRecoveriesDue.length > 0 ? 'amber' : 'default'}
+              icon={<UserRound size={14} />}
             />
             <FinanceKpiCard
               label="Treasury needs attention"
@@ -302,6 +316,11 @@ export function FinanceDeskWorkQueues({
             )}
           </FinanceSectionCard>
 
+          <StaffRecoveryCashierPanel
+            recoveries={staffRecoveriesDue}
+            onReceive={onReceiveStaffRecovery}
+          />
+
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
             <FinanceSectionCard title="Approved payments to pay" icon={<ClipboardList size={16} />}>
               {approvedPayments.length === 0 ? (
@@ -368,37 +387,6 @@ export function FinanceDeskWorkQueues({
               )}
             </FinanceSectionCard>
           </div>
-
-          <FinanceSectionCard
-            title="Staff recoveries due"
-            icon={<UserRound size={16} className="text-violet-700" />}
-          >
-            {staffRecoveriesDue.length === 0 ? (
-              <FinanceEmptyState title="No staff recoveries awaiting payment" />
-            ) : (
-              <ul className="space-y-2">
-                {staffRecoveriesDue.map((row) => (
-                  <FinanceQueueRow
-                    key={row.scheduleId}
-                    title={row.staffDisplayName || row.userId}
-                    subtitle={
-                      row.caseNumber
-                        ? `Case ${row.caseNumber} · ${formatNgn(row.installmentAmountNgn || 0)}/mo payroll`
-                        : row.title || 'Discipline recovery'
-                    }
-                    amount={formatNgn(row.principalOutstandingNgn)}
-                    primaryAction={
-                      onReceiveStaffRecovery ? (
-                        <FinanceActionButton variant="primary" onClick={() => onReceiveStaffRecovery(row)}>
-                          Receive payment
-                        </FinanceActionButton>
-                      ) : null
-                    }
-                  />
-                ))}
-              </ul>
-            )}
-          </FinanceSectionCard>
 
           <FinanceSectionCard
             title="PO transport / haulage to pay"
