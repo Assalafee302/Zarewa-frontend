@@ -150,8 +150,6 @@ const Account = () => {
   const [showRefundPayModal, setShowRefundPayModal] = useState(false);
   const [statementAccount, setStatementAccount] = useState(null);
   const [showStatementPrintModal, setShowStatementPrintModal] = useState(false);
-  const [reconReceiptPrintOpen, setReconReceiptPrintOpen] = useState(false);
-  const [reconReceiptPrintPayload, setReconReceiptPrintPayload] = useState(null);
   const [statementPrintFromDate, setStatementPrintFromDate] = useState('');
   const [statementPrintToDate, setStatementPrintToDate] = useState('');
   const [selectedPayment, setSelectedPayment] = useState(null);
@@ -1544,8 +1542,9 @@ const Account = () => {
       showToast('No unreconciled receipts to print.', { variant: 'info' });
       return;
     }
-    setReconReceiptPrintPayload(payload);
-    setReconReceiptPrintOpen(true);
+    if (!openReconciliationListPrint(payload)) {
+      showToast('Could not open print preview.', { type: 'warning' });
+    }
   }, [
     waitingConfirmationReceipts,
     liveTreasuryMovements,
@@ -5095,22 +5094,6 @@ const Account = () => {
           )}
         </div>
       </ModalFrame>
-
-      <ReportPrintModal
-        isOpen={reconReceiptPrintOpen && !!reconReceiptPrintPayload}
-        onClose={() => {
-          setReconReceiptPrintOpen(false);
-          setReconReceiptPrintPayload(null);
-        }}
-        title={reconReceiptPrintPayload?.title ?? 'Unreconciled receipts'}
-        periodLabel={reconReceiptPrintPayload?.periodLabel ?? ''}
-        columns={reconReceiptPrintPayload?.columns ?? []}
-        rows={reconReceiptPrintPayload?.rows ?? []}
-        summaryLines={reconReceiptPrintPayload?.summaryLines ?? []}
-        documentTypeLabel={reconReceiptPrintPayload?.documentTypeLabel ?? 'Finance reconciliation'}
-        layout={reconReceiptPrintPayload?.layout ?? 'landscape'}
-        denseSingleLine={Boolean(reconReceiptPrintPayload?.denseSingleLine)}
-      />
 
       <ModalFrame isOpen={showStatementPrintModal} onClose={() => setShowStatementPrintModal(false)}>
         <div className="z-modal-panel z-modal-scroll-y max-w-md w-full p-4 sm:p-8">
