@@ -1,6 +1,7 @@
 import { hasPermissionInList } from './moduleAccess.js';
 import { userCanApproveEditMutationsClient } from './editApprovalUi.js';
 import { isManagerInboxWorkItemDocType } from './managerInboxWorkItemTypes.js';
+import { canApproveStaffPurchaseCredit, canRejectStaffPurchaseCredit } from './hrAccess.js';
 
 /**
  * Mirrors server `canSeeManagementApprovalQueues` (workItems.js) for client-side inbox filtering.
@@ -68,6 +69,13 @@ export function workItemShowsOnWorkspaceUnifiedInbox(item, { userId, roleKey, pe
   }
 
   if (dt === 'refund_request' && userMaySeeRefundApprovalQueue(permissions)) {
+    return true;
+  }
+
+  if (
+    dt === 'staff_purchase_credit' &&
+    (canApproveStaffPurchaseCredit(roleKey, permissions) || canRejectStaffPurchaseCredit(roleKey, permissions))
+  ) {
     return true;
   }
 

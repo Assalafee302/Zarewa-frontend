@@ -31,6 +31,7 @@ export function fileTrayCategoryLabel(item) {
     return 'Correspondence & memos';
   }
   if (dt.startsWith('hr_')) return 'Internal';
+  if (dt === 'staff_purchase_credit') return 'Internal';
   if (
     dt === 'payment_request' ||
     dt === 'refund_request' ||

@@ -2,6 +2,7 @@
  * Plain-language approval blocker explanations for Zare UI hints.
  */
 import { hasPermissionInList } from './moduleAccess.js';
+import { canApproveStaffPurchaseCredit } from './hrAccess.js';
 
 /**
  * @param {object} ctx
@@ -44,6 +45,9 @@ export function userCanApproveWorkItem(item, ctx = {}) {
       hasPermissionInList(permissions, 'material_incidents.approve') ||
       ['admin', 'ceo', 'md', 'branch_manager', 'operations_manager', 'sales_manager'].includes(roleKey)
     );
+  }
+  if (dt === 'staff_purchase_credit') {
+    return canApproveStaffPurchaseCredit(roleKey, permissions);
   }
 
   return ['admin', 'ceo', 'md', 'branch_manager', 'finance_manager', 'sales_manager'].includes(roleKey);
@@ -117,6 +121,8 @@ export function explainApprovalBlock(ctx = {}) {
       reasons.push('Purchase order management permission (purchase_orders.manage) is required.');
     } else if (documentType === 'edit_approval') {
       reasons.push('A designated manager must approve this edit using the edit-approval workflow.');
+    } else if (documentType === 'staff_purchase_credit') {
+      reasons.push('Only the Managing Director can approve staff purchase credit.');
     } else {
       reasons.push('Your role does not include approval authority for this item type.');
     }

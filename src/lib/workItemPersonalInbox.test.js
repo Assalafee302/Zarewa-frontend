@@ -79,4 +79,29 @@ describe('workItemPersonalInbox', () => {
       })
     ).toBe(true);
   });
+
+  it('shows staff_purchase_credit for MD and HR loan managers', () => {
+    const item = { documentType: 'staff_purchase_credit', requiresApproval: true };
+    expect(
+      workItemShowsOnWorkspaceUnifiedInbox(item, {
+        userId: 'x',
+        roleKey: 'sales_staff',
+        permissions: [],
+      })
+    ).toBe(false);
+    expect(
+      workItemShowsOnWorkspaceUnifiedInbox(item, {
+        userId: 'x',
+        roleKey: 'md',
+        permissions: [],
+      })
+    ).toBe(true);
+    expect(
+      workItemShowsOnWorkspaceUnifiedInbox(item, {
+        userId: 'x',
+        roleKey: 'hr_manager',
+        permissions: ['hr.loans.manage'],
+      })
+    ).toBe(true);
+  });
 });

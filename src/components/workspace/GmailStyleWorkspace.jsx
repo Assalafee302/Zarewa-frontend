@@ -30,6 +30,7 @@ import { OfficeThreadConversationDrawer } from '../office/OfficeThreadConversati
 import { ThreadDrawerTransactionIntel } from '../office/ThreadDrawerTransactionIntel';
 import WorkspaceCoilMaterialPanel from './WorkspaceCoilMaterialPanel';
 import WorkspaceEditApprovalPanel from './WorkspaceEditApprovalPanel';
+import WorkspaceStaffPurchaseCreditPanel from './WorkspaceStaffPurchaseCreditPanel';
 import WorkspaceWorkItemPreview from './WorkspaceWorkItemPreview';
 import WorkItemRow from './WorkItemRow';
 import { WorkspaceInboxEmptyState, WorkspaceInboxSkeleton } from './WorkspaceInboxEmptyState';
@@ -370,6 +371,9 @@ export default function GmailStyleWorkspace({
       const onDone = () => void ws.refresh?.();
       if (dt === 'edit_approval') {
         return <WorkspaceEditApprovalPanel item={selectedWorkItem} onDone={onDone} />;
+      }
+      if (dt === 'staff_purchase_credit') {
+        return <WorkspaceStaffPurchaseCreditPanel item={selectedWorkItem} onDone={onDone} />;
       }
       if (dt === 'material_request') {
         return <WorkspaceCoilMaterialPanel item={selectedWorkItem} onDone={onDone} />;
