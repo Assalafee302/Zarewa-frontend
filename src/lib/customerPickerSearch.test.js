@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  customerPickerPrimaryLabel,
   customerPickerSearchBlob,
   customerPickerSubline,
   filterCustomersForPicker,
@@ -9,10 +10,12 @@ import {
 describe('customerPickerSearch', () => {
   const staffCustomer = {
     customerID: 'CUS-KD-001',
-    name: 'Ahmed Musa · ZAPKD004 (Staff)',
+    name: 'Legacy Name (Staff)',
     phoneNumber: '',
     tier: 'Staff',
     paymentTerms: 'Staff credit',
+    staffDisplayName: 'Ahmed Musa',
+    staffEmployeeNo: 'ZAPKD004',
     crmProfileNotes: 'Linked staff user usr-1 · ZAPKD004',
     crmTags: ['staff-purchase'],
   };
@@ -24,25 +27,30 @@ describe('customerPickerSearch', () => {
     tier: 'Regular',
   };
 
-  it('matches staff employee number in picker search', () => {
+  it('matches staff employee number from HR-linked fields', () => {
     const hits = filterCustomersForPicker([staffCustomer, regularCustomer], 'ZAPKD004');
     expect(hits).toHaveLength(1);
     expect(hits[0].customerID).toBe('CUS-KD-001');
   });
 
-  it('matches employee number from CRM notes when name is legacy', () => {
-    const legacy = { ...staffCustomer, name: 'Ahmed Musa (Staff)' };
-    expect(filterCustomersForPicker([legacy], 'zapkd004')).toHaveLength(1);
+  it('matches staff display name from HR link', () => {
+    const hits = filterCustomersForPicker([staffCustomer, regularCustomer], 'ahmed musa');
+    expect(hits).toHaveLength(2);
   });
 
-  it('builds subline with tier and employee no', () => {
-    expect(customerPickerSubline(staffCustomer)).toBe('Staff · ZAPKD004');
+  it('shows staff name and employee no in primary label', () => {
+    expect(customerPickerPrimaryLabel(staffCustomer)).toBe('Ahmed Musa · ZAPKD004 (Staff)');
     expect(staffEmployeeNoFromCustomer(staffCustomer)).toBe('ZAPKD004');
   });
 
-  it('search blob includes tier and notes', () => {
+  it('builds staff subline without duplicating employee no', () => {
+    expect(customerPickerSubline(staffCustomer)).toContain('Staff purchase credit');
+    expect(customerPickerSubline(staffCustomer)).toContain('CUS-KD-001');
+  });
+
+  it('search blob includes HR staff fields', () => {
     const blob = customerPickerSearchBlob(staffCustomer);
     expect(blob).toContain('zapkd004');
-    expect(blob).toContain('staff');
+    expect(blob).toContain('ahmed musa');
   });
 });

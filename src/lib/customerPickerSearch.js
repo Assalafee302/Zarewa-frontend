@@ -10,6 +10,8 @@ export function customerPickerSearchBlob(customer) {
   return [
     customer.customerID,
     customer.name,
+    customer.staffDisplayName,
+    customer.staffEmployeeNo,
     customer.phoneNumber,
     customer.email,
     customer.tier,
@@ -48,8 +50,11 @@ export function filterCustomersForPicker(customers, query, limit = 40) {
     .slice(0, limit);
 }
 
-/** Extract staff employee no from linked customer name or CRM notes. */
+/** Extract staff employee no from HR link, customer name, or CRM notes. */
 export function staffEmployeeNoFromCustomer(customer) {
+  const linked = String(customer?.staffEmployeeNo || '').trim();
+  if (linked) return linked.toUpperCase();
+
   const name = String(customer?.name || '');
   const fromName = name.match(/·\s*([A-Z]{2,}\d+)\s*\(Staff\)/i);
   if (fromName) return fromName[1].toUpperCase();
@@ -59,18 +64,38 @@ export function staffEmployeeNoFromCustomer(customer) {
   return fromNotes ? fromNotes[1].toUpperCase() : '';
 }
 
+/** Primary label — prefer HR staff name when linked. */
+export function customerPickerPrimaryLabel(customer) {
+  const staffName = String(customer?.staffDisplayName || '').trim();
+  const employeeNo = staffEmployeeNoFromCustomer(customer);
+  const tier = String(customer?.tier || '').trim().toLowerCase();
+  const isStaff = tier === 'staff' || Boolean(staffName) || Boolean(employeeNo);
+
+  if (isStaff) {
+    if (staffName && employeeNo) return `${staffName} · ${employeeNo} (Staff)`;
+    if (staffName) return `${staffName} (Staff)`;
+    if (employeeNo) return `${employeeNo} (Staff)`;
+  }
+
+  const name = String(customer?.name || '').trim();
+  return name || String(customer?.customerID || '');
+}
+
 /** Secondary line under customer name in quotation picker. */
 export function customerPickerSubline(customer) {
   const parts = [];
   const tier = String(customer?.tier || '').trim();
-  if (tier) parts.push(tier);
-
   const employeeNo = staffEmployeeNoFromCustomer(customer);
-  if (employeeNo) parts.push(employeeNo);
+  const isStaff = tier.toLowerCase() === 'staff' || Boolean(employeeNo) || Boolean(customer?.staffDisplayName);
+
+  if (isStaff) parts.push('Staff purchase credit');
+  else if (tier) parts.push(tier);
 
   const phone = String(customer?.phoneNumber || '').trim();
   if (phone) parts.push(phone);
 
-  if (!parts.length) return String(customer?.customerID || '');
+  const cid = String(customer?.customerID || '').trim();
+  if (cid) parts.push(cid);
+
   return parts.join(' · ');
 }

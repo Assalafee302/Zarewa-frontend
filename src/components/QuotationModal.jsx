@@ -68,6 +68,7 @@ import { quotationEditNeedsSecondApprovalClient } from '../lib/editApprovalUi';
 import QuotationPrintView from './QuotationPrintView';
 import OffcutAvailabilityPanel from './material/OffcutAvailabilityPanel';
 import {
+  customerPickerPrimaryLabel,
   customerPickerSubline,
   filterCustomersForPicker,
 } from '../lib/customerPickerSearch';
@@ -1696,12 +1697,13 @@ const QuotationModal = ({
   };
 
   const pickCustomer = useCallback((c) => {
+    const label = customerPickerPrimaryLabel(c);
     setSelectedCustomerId(c.customerID);
-    setCustomerQuery(`${c.name} · ${c.phoneNumber}`);
+    setCustomerQuery(label);
     setCustomerListOpen(false);
     setPickedCustomerInline({
       customerID: c.customerID,
-      name: c.name,
+      name: label,
       phoneNumber: c.phoneNumber || '',
     });
   }, []);
@@ -2213,7 +2215,7 @@ const QuotationModal = ({
                         className="flex w-full flex-col items-start gap-0.5 px-3 py-2 text-left text-xs hover:bg-teal-50"
                         onClick={() => pickCustomer(c)}
                       >
-                        <span className="font-semibold text-[#134e4a]">{c.name}</span>
+                        <span className="font-semibold text-[#134e4a]">{customerPickerPrimaryLabel(c)}</span>
                         <span className="text-[10px] text-slate-500">{customerPickerSubline(c)}</span>
                       </button>
                     </li>
