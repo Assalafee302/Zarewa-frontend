@@ -1,3 +1,5 @@
+import { isEffectivelyFullyPaid } from './paymentOutstandingTolerance.js';
+
 /**
  * Refund quotation picklist / “potential refunds” gate: production must be closed out
  * (completed or explicitly cancelled) or the quote voided with payment on file.
@@ -16,12 +18,12 @@ export function quotationVoidPaidRefundEligible(q) {
 }
 
 /**
- * Refund create picker: only list orders with nothing left for the customer to pay (paid ≥ total).
- * If order total is missing or zero, do not exclude (legacy / header not set).
+ * Refund create picker: only list orders with nothing left for the customer to pay.
+ * Uses the system-wide 99.5% “effectively fully paid” rule when order total is set.
  */
 export function quotationOrderFullySettledForRefundPicker(paidNgn, totalNgn) {
   const total = Math.round(Number(totalNgn) || 0);
   const paid = Math.round(Number(paidNgn) || 0);
   if (total <= 0) return true;
-  return paid >= total;
+  return isEffectivelyFullyPaid(paid, total);
 }

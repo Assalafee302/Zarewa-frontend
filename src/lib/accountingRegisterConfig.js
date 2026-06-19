@@ -34,7 +34,7 @@ export const ACCOUNTING_REGISTER_CONFIG = {
     description: 'Amounts the company owes — supplier AP, customer deposits, refundable overpayments, and opening balances.',
     helpPoints: [
       'Record pre-system overpayments (e.g. April project ~₦8M) via Add legacy line → Project overpayment.',
-      'Significant overpayments should be reviewed for refund or re-application to the correct quotation.',
+      'Overpayment credits show economic excess (cash in minus quote total), capped by the ledger pool — matches refund preview.',
       'Unallocated receipts and unlinked bank deposits are suspense until matched — not trade payables.',
       'Receipts pending finance clearance appear in the notice above; they are not part of this register total.',
     ],
@@ -50,7 +50,7 @@ export const ACCOUNTING_REGISTER_CONFIG = {
     emptySectionHints: {
       supplier_payables: 'No open supplier AP in scope — check Procurement payables for settled items.',
       customer_deposits: 'No voluntary customer deposits on ledger.',
-      overpayment_credits: 'No customer overpayment credits — balances are applied or refunded.',
+      overpayment_credits: 'No refundable overpayment credit — economic excess is zero or already applied/refunded.',
       unallocated_receipts: 'All sales receipts are linked to quotations.',
       bank_deposit_suspense: 'No open unlinked bank deposits — Finance pool is fully allocated.',
       inter_branch_payable: 'No inter-branch payables for this branch scope.',

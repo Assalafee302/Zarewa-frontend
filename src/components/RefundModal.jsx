@@ -27,11 +27,6 @@ import {
 } from '../lib/refundsStore';
 import { flattenQuotationLineItems } from '../lib/managerDashboardCore';
 import {
-  productionJobStatusClosesRefundEligibility,
-  quotationOrderFullySettledForRefundPicker,
-  quotationVoidPaidRefundEligible,
-} from '../lib/refundEligibility';
-import {
   quotationLinesJsonShapeForGauge,
   quotedGaugeLabelForSubstitutionComparison,
 } from '../lib/quotedGaugeForSubstitution';
@@ -353,13 +348,22 @@ function normalizeQuoteForRefundSelect(q) {
   const suggestedPreviewNgn = Math.round(
     Number(q.suggested_preview_amount_ngn ?? q.suggestedPreviewAmountNgn) || 0
   );
+  const cashIn = Math.round(Number(q.cash_in_ngn ?? q.cashInNgn ?? paid) || 0);
+  const remainingFromApi = Math.round(Number(q.remaining_ngn ?? q.remainingNgn));
+  const totalRefundedRounded = Number.isFinite(totalRefunded) ? Math.round(totalRefunded) : 0;
+  const remaining_ngn =
+    Number.isFinite(remainingFromApi) && remainingFromApi >= 0
+      ? remainingFromApi
+      : Math.max(0, cashIn - totalRefundedRounded);
   return {
     id: String(q.id),
     customer_name: q.customer_name ?? q.customer ?? '—',
     handled_by: quotationPreparedByLabel(q),
     paid_ngn: paid,
+    cash_in_ngn: cashIn,
     total_ngn: total,
-    total_refunded_ngn: Number.isFinite(totalRefunded) ? totalRefunded : 0,
+    total_refunded_ngn: totalRefundedRounded,
+    remaining_ngn,
     eligible_refund_categories: eligibleRefundCategories,
     suggested_preview_amount_ngn: suggestedPreviewNgn,
     dateISO: String(q.dateISO ?? q.date_iso ?? '').trim(),
@@ -553,17 +557,6 @@ const RefundModal = ({
     }
   }, [isOpen, record, mode, fetchEligibleQuotes]);
 
-  /** Quotation refs that already have a refund still “on file” (rejected / cancel-before-pay excluded). */
-  const quotationRefsWithBlockingRefund = useMemo(() => {
-    const s = new Set();
-    for (const r of refunds) {
-      const ref = String(r.quotationRef || '').trim();
-      if (!ref || refundStatusIsWithdrawn(r.status)) continue;
-      s.add(ref);
-    }
-    return s;
-  }, [refunds]);
-
   const isRefundCreateOpen = isOpen && mode === 'create';
   const payeeSuggestions = useMemo(
     () =>
@@ -571,22 +564,7 @@ const RefundModal = ({
     [isRefundCreateOpen, form.customerID, refunds]
   );
 
-  /**
-   * When snapshot includes jobs, quotes need a Completed or Cancelled production job for the gate,
-   * unless they are paid Void (sales cancellation) — matched server-side in `getEligibleRefundQuotations`.
-   */
-  const quotationRefsProduced = useMemo(() => {
-    if (!Array.isArray(productionJobs) || productionJobs.length === 0) return null;
-    const s = new Set();
-    for (const j of productionJobs) {
-      if (!productionJobStatusClosesRefundEligibility(j.status)) continue;
-      const ref = String(j.quotationRef || '').trim();
-      if (ref) s.add(ref);
-    }
-    return s;
-  }, [productionJobs]);
-
-  /** Server-eligible quotes only; keep an explicitly-selected quote visible as an exception. */
+  /** Server-eligible quotes; keep a manually verified quote visible when not in the API list. */
   const quotationPickMerged = useMemo(() => {
     const byId = new Map();
     for (const q of eligibleQuotes) {
@@ -600,38 +578,10 @@ const RefundModal = ({
       );
       if (forced) byId.set(forced.id, forced);
     }
-    const merged = Array.from(byId.values()).sort((a, b) => b.paid_ngn - a.paid_ngn);
-    return merged.filter((q) => {
-      const id = String(q.id).trim();
-      if (String(form.quotationRef || '').trim() === id) return true;
-      const remainingNgn = Math.max(
-        0,
-        Math.round(Number(q.paid_ngn) || 0) - Math.round(Number(q.total_refunded_ngn) || 0)
-      );
-      if (remainingNgn <= MIN_REFUND_QUOTATION_REMAINING_NGN) return false;
-      if (!quotationOrderFullySettledForRefundPicker(q.paid_ngn, q.total_ngn)) return false;
-      if (!Array.isArray(q.eligible_refund_categories) || q.eligible_refund_categories.length === 0) {
-        return false;
-      }
-      const suggestedPreviewNgn =
-        Math.round(Number(q.suggested_preview_amount_ngn ?? q.suggestedPreviewAmountNgn) || 0);
-      if (suggestedPreviewNgn < MIN_REFUND_QUOTATION_REMAINING_NGN) return false;
-      if (quotationRefsWithBlockingRefund.has(id)) return false;
-      if (quotationRefsProduced != null && !quotationRefsProduced.has(id)) {
-        const full = quotations.find((x) => String(x.id).trim() === id);
-        const voidPaid =
-          quotationVoidPaidRefundEligible(q) || quotationVoidPaidRefundEligible(full);
-        if (!voidPaid) return false;
-      }
-      return true;
-    });
-  }, [
-    eligibleQuotes,
-    quotations,
-    quotationRefsWithBlockingRefund,
-    quotationRefsProduced,
-    form.quotationRef,
-  ]);
+    return Array.from(byId.values()).sort(
+      (a, b) => (b.remaining_ngn ?? b.paid_ngn) - (a.remaining_ngn ?? a.paid_ngn)
+    );
+  }, [eligibleQuotes, quotations, form.quotationRef]);
 
   const quotationPickList = quotationPickMerged;
 
@@ -1734,9 +1684,9 @@ const RefundModal = ({
                 <div className="border-t border-teal-200/60 pt-3 space-y-1.5">
                   <p className="text-xs font-bold text-teal-900">Which quotations appear in the list?</p>
                   <p className="text-[11px] leading-relaxed text-teal-800/85 font-medium">
-                    Listed quotes are <strong className="text-teal-950">fully paid</strong> (booked paid ≥ order total when
-                    a total exists), have more than <strong className="text-teal-950">₦{MIN_REFUND_QUOTATION_REMAINING_NGN.toLocaleString('en-NG')} refundable</strong> headroom, production <strong className="text-teal-950">completed</strong> or{' '}
-                    <strong className="text-teal-950">cancelled</strong> (or <strong className="text-teal-950">void</strong> with payment), and the server must produce an <strong className="text-teal-950">automatic preview total of at least ₦{MIN_REFUND_QUOTATION_REMAINING_NGN.toLocaleString('en-NG')}</strong> (overpayment, unproduced metres, service lines, etc.). The dropdown shows{' '}
+                    Listed quotes are <strong className="text-teal-950">fully paid</strong> (≥99.5% of order total when
+                    a total exists), have more than <strong className="text-teal-950">₦{MIN_REFUND_QUOTATION_REMAINING_NGN.toLocaleString('en-NG')} refundable</strong> headroom (cash received minus refunds on file), production <strong className="text-teal-950">completed</strong> or{' '}
+                    <strong className="text-teal-950">cancelled</strong> (or <strong className="text-teal-950">void</strong> with payment), and the server must produce an <strong className="text-teal-950">automatic preview total of at least ₦{MIN_REFUND_QUOTATION_REMAINING_NGN.toLocaleString('en-NG')}</strong>. Additional refunds on the same quotation are allowed for a <strong className="text-teal-950">different category</strong> when headroom remains. The dropdown shows{' '}
                     <strong className="text-teal-950">all</strong> such matches (scroll). If a sale qualifies but the preview is below that floor (including ₦0), use <strong className="text-teal-950">Use quotation id</strong> — the server confirms eligibility; then enter amounts manually.
                   </p>
                 </div>
@@ -2016,11 +1966,10 @@ const RefundModal = ({
                     {!loadingQuotes && quotationPickList.length === 0 && mode === 'create' ? (
                       <div className="mt-2 space-y-2 rounded-lg border border-amber-200/80 bg-amber-50/50 p-3">
                         <p className="text-[10px] text-amber-900 font-medium leading-snug">
-                          Refunds only list quotations that are <strong>fully paid</strong> (paid ≥ total when total is set), have{' '}
-                          <strong>more than ₦{MIN_REFUND_QUOTATION_REMAINING_NGN.toLocaleString('en-NG')} refundable</strong>, production{' '}
-                          <strong>completed or cancelled</strong> (or <strong>void with payment</strong>), where the refund{' '}
-                          <strong>automatic preview total at least ₦{MIN_REFUND_QUOTATION_REMAINING_NGN.toLocaleString('en-NG')}</strong>, and{' '}
-                          <strong>no blocking refund on file</strong>. If you already posted a receipt but the quote is missing here, the payment may have been
+                          Refunds only list quotations that are <strong>fully paid</strong> (≥99.5% of total when total is set), have{' '}
+                          <strong>more than ₦{MIN_REFUND_QUOTATION_REMAINING_NGN.toLocaleString('en-NG')} refundable</strong> headroom, production{' '}
+                          <strong>completed or cancelled</strong> (or <strong>void with payment</strong>), and an{' '}
+                          <strong>automatic preview total at least ₦{MIN_REFUND_QUOTATION_REMAINING_NGN.toLocaleString('en-NG')}</strong>. A second refund on the same quote is allowed for a <strong>different category</strong> when headroom remains. If you already posted a receipt but the quote is missing here, the payment may have been
                           recorded under a different branch than the quotation — use sync to recalculate from the ledger.
                           If the sale is eligible but excluded because the automatic preview is below that amount, use{' '}
                           <strong>Use quotation id</strong> after entering the full quotation reference.
