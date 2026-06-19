@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { X } from 'lucide-react';
-import { formatNgn } from '../../Data/mockData';
+import { formatNgn } from '../../lib/hrFormat';
 import { createStaffPurchaseCredit, fetchQuotationStaffPurchaseStatus } from '../../lib/hrStaffPurchaseCredit';
 
 /**

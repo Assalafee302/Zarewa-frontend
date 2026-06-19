@@ -42,6 +42,9 @@ export default function MyLoans({ staffLinkBase = '/my-profile' }) {
   const [message, setMessage] = useState('');
   const [schedule, setSchedule] = useState([]);
   const [moneySummary, setMoneySummary] = useState(null);
+  const [scheduleLoading, setScheduleLoading] = useState(true);
+  const [summaryLoading, setSummaryLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [hasGuarantorDoc, setHasGuarantorDoc] = useState(false);
 
   const loanPolicy = ctxLoanPolicy;
@@ -56,14 +59,31 @@ export default function MyLoans({ staffLinkBase = '/my-profile' }) {
 
   useEffect(() => {
     if (!userId) return;
+    let cancelled = false;
     (async () => {
+      setScheduleLoading(true);
+      setSummaryLoading(true);
+      setLoadError('');
       const schedRes = await fetchStaffLoanSchedule(userId);
-      if (schedRes.ok && schedRes.data?.ok) setSchedule(schedRes.data.schedule || []);
       const sumRes = await fetchStaffMoneySummary(userId);
+      if (cancelled) return;
+      setScheduleLoading(false);
+      setSummaryLoading(false);
+      if (schedRes.ok && schedRes.data?.ok) setSchedule(schedRes.data.schedule || []);
+      else setSchedule([]);
       if (sumRes.ok && sumRes.data?.ok) setMoneySummary(sumRes.data);
+      else setMoneySummary(null);
+      const err =
+        (!schedRes.ok && (schedRes.data?.error || 'Could not load loan schedule.')) ||
+        (!sumRes.ok && (sumRes.data?.error || 'Could not load money summary.')) ||
+        '';
+      setLoadError(err);
       const docs = me?.documents || [];
       setHasGuarantorDoc(docs.some((d) => d.docKind === 'guarantor_form'));
     })();
+    return () => {
+      cancelled = true;
+    };
   }, [userId, message, me?.documents]);
 
   const policy = useMemo(
@@ -190,6 +210,12 @@ export default function MyLoans({ staffLinkBase = '/my-profile' }) {
         }
       />
 
+      {loadError ? <ProfileInlineAlert variant="warning">{loadError}</ProfileInlineAlert> : null}
+
+      {(scheduleLoading || summaryLoading) && !schedule.length && !moneySummary ? (
+        <p className="text-sm text-slate-500">Loading your balances…</p>
+      ) : null}
+
       <ProfileOverviewSection title="Eligibility" subtitle="Requirements before you apply">
         <div
           className={`rounded-xl border px-4 py-3 text-sm ${
@@ -216,6 +242,47 @@ export default function MyLoans({ staffLinkBase = '/my-profile' }) {
           ))}
         </div>
       </ProfileOverviewSection>
+
+      {moneySummary?.purchaseEligibility ? (
+        <ProfileOverviewSection title="Purchase credit eligibility" subtitle="Roofing and materials on staff credit via Sales">
+          <div
+            className={`rounded-xl border px-4 py-3 text-sm ${
+              moneySummary.purchaseEligibility.eligible
+                ? 'border-emerald-100 bg-emerald-50/80 text-emerald-950'
+                : 'border-amber-100 bg-amber-50/80 text-amber-950'
+            }`}
+          >
+            <p className="font-semibold">
+              {moneySummary.purchaseEligibility.eligible ? 'Eligible for purchase credit' : 'Not yet eligible'}
+            </p>
+            <p className="mt-1 text-xs">
+              Service: ~{Number(moneySummary.purchaseEligibility.serviceYears || 0).toFixed(1)} years
+              {moneySummary.purchaseEligibility.policy?.maxSinglePurchaseNgn
+                ? ` · Max single purchase ${formatNgn(moneySummary.purchaseEligibility.policy.maxSinglePurchaseNgn)}`
+                : ''}
+              {moneySummary.purchaseEligibility.activeOutstandingNgn > 0
+                ? ` · Outstanding ${formatNgn(moneySummary.purchaseEligibility.activeOutstandingNgn)}`
+                : ''}
+            </p>
+            {moneySummary.purchaseEligibility.issues?.length ? (
+              <ul className="mt-2 space-y-1 text-xs">
+                {moneySummary.purchaseEligibility.issues.map((line) => (
+                  <li key={line}>• {line}</li>
+                ))}
+              </ul>
+            ) : (
+              <p className="mt-1 text-xs">
+                Ask Sales to raise a quotation on your linked staff customer account when you are ready to buy on credit.
+              </p>
+            )}
+            {!moneySummary.purchaseEligibility.salesCustomerId ? (
+              <p className="mt-2 text-xs text-slate-600">
+                Your sales customer link is not set up yet — contact HR to enable purchase credit quotations.
+              </p>
+            ) : null}
+          </div>
+        </ProfileOverviewSection>
+      ) : null}
 
       {message ? <ProfileInlineAlert variant="success">{message}</ProfileInlineAlert> : null}
 
@@ -335,6 +402,42 @@ export default function MyLoans({ staffLinkBase = '/my-profile' }) {
                   <a
                     className="mt-2 inline-block text-[10px] font-semibold text-[#134e4a] underline"
                     href={obligationStatementPdfUrl(p.id)}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Statement PDF
+                  </a>
+                </ProfileKpiCard>
+              ))}
+          </div>
+        </ProfileOverviewSection>
+      ) : null}
+
+      {(moneySummary?.recoveries || []).filter((r) => r.principalOutstandingNgn > 0).length ? (
+        <ProfileOverviewSection title="Discipline recovery" subtitle="Amounts being recovered via payroll">
+          <div className="grid gap-3 sm:grid-cols-2">
+            {moneySummary.recoveries
+              .filter((r) => r.principalOutstandingNgn > 0)
+              .map((r) => (
+                <ProfileKpiCard key={r.id} label={r.title || 'Recovery'}>
+                  <dl className="mt-1 grid grid-cols-2 gap-x-3 gap-y-2 text-xs">
+                    <div>
+                      <dt className="text-slate-500">Original</dt>
+                      <dd className="font-bold tabular-nums">{formatNgn(r.principalOriginalNgn)}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-slate-500">Monthly</dt>
+                      <dd className="font-bold tabular-nums">{formatNgn(r.installmentNgn)}</dd>
+                    </div>
+                    <div className="col-span-2">
+                      <dt className="text-slate-500">Outstanding</dt>
+                      <dd className="text-lg font-black tabular-nums text-[#134e4a]">{formatNgn(r.principalOutstandingNgn)}</dd>
+                    </div>
+                  </dl>
+                  <ProfileStatusChip variant="pending">Recovering</ProfileStatusChip>
+                  <a
+                    className="mt-2 inline-block text-[10px] font-semibold text-[#134e4a] underline"
+                    href={obligationStatementPdfUrl(r.id)}
                     target="_blank"
                     rel="noreferrer"
                   >

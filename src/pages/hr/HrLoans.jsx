@@ -4,6 +4,7 @@ import { HrLoanApplicationForm } from '../../components/hr/HrLoanApplicationForm
 import { HrLegacyLoanMigrateForm } from '../../components/hr/HrLegacyLoanMigrateForm';
 import { HrStaffPurchaseCreditQueue } from '../../components/hr/HrStaffPurchaseCreditQueue';
 import { HrObligationAccountsPanel } from '../../components/hr/HrObligationAccountsPanel';
+import { HrRecoveryObligationBackfillPanel } from '../../components/hr/HrRecoveryObligationBackfillPanel';
 import { HrRequestsPanel } from '../../components/hr/HrRequestsPanel';
 import { HrAddFormButton, HrFormModal } from '../../components/hr/HrFormModal';
 import { useWorkspace } from '../../context/WorkspaceContext';
@@ -65,7 +66,6 @@ export default function HrLoans({ embedded = false } = {}) {
         size="lg"
       >
         <HrLegacyLoanMigrateForm
-          staffOptions={[]}
           onSuccess={() => setLegacyModalOpen(false)}
           onCancel={() => setLegacyModalOpen(false)}
         />
@@ -82,6 +82,7 @@ export default function HrLoans({ embedded = false } = {}) {
           View staff loan and purchase credit accounts, download PDFs, and post bulk bank repayments.
         </p>
         <HrObligationAccountsPanel />
+        <HrRecoveryObligationBackfillPanel />
       </section>
 
       <section className="space-y-3">

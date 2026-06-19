@@ -15,6 +15,7 @@ import { HrPromotionFromMatrix } from '../../components/hr/HrPromotionFromMatrix
 import { HrFormModal } from '../../components/hr/HrFormModal';
 import { HrIdCardApplyFields } from '../../components/hr/HrIdCardApplyFields';
 import { HrStaffDocumentsPanel } from '../../components/hr/HrStaffDocumentsPanel';
+import { HrStaffSalesCustomerPanel } from '../../components/hr/HrStaffSalesCustomerPanel';
 import { HrProfileCompleteness } from '../../components/hr/HrProfileCompleteness';
 import { HrCard } from '../../components/hr/hrPageUi';
 import { HrStaffFileChecklist } from '../../components/hr/HrStaffFileChecklist';
@@ -31,6 +32,7 @@ import {
   validateIdCardApplyForm,
 } from '../../lib/hrIdCardForm';
 import { fetchStaffLoanSchedule } from '../../lib/hrMasterData';
+import { fetchStaffMoneySummary, obligationStatementPdfUrl } from '../../lib/hrStaffObligations';
 import {
   AppTable,
   AppTableBody,
@@ -336,6 +338,8 @@ export default function HrStaffProfile() {
   const [leaveBalances, setLeaveBalances] = useState(null);
   const [auditEvents, setAuditEvents] = useState(null);
   const [loanSchedule, setLoanSchedule] = useState([]);
+  const [moneySummary, setMoneySummary] = useState(null);
+  const [loansLoading, setLoansLoading] = useState(false);
   const [severance, setSeverance] = useState(null);
   const [editing, setEditing] = useState(false);
   const [editForm, setEditForm] = useState(null);
@@ -508,14 +512,26 @@ export default function HrStaffProfile() {
   }, [tab, userId]);
 
   const yrs = useMemo(() => yearsOfServiceFromIso(staff?.dateJoinedIso), [staff?.dateJoinedIso]);
-  const loanNotes = staff?.profileExtra?.activeLoansSummary;
 
   useEffect(() => {
     if (tab !== 'loans' || !userId) return;
+    let cancelled = false;
     (async () => {
-      const { ok, data } = await fetchStaffLoanSchedule(userId);
-      if (ok && data?.ok) setLoanSchedule(data.schedule || []);
+      setLoansLoading(true);
+      const [schedRes, sumRes] = await Promise.all([
+        fetchStaffLoanSchedule(userId),
+        fetchStaffMoneySummary(userId),
+      ]);
+      if (cancelled) return;
+      setLoansLoading(false);
+      if (schedRes.ok && schedRes.data?.ok) setLoanSchedule(schedRes.data.schedule || []);
+      else setLoanSchedule([]);
+      if (sumRes.ok && sumRes.data?.ok) setMoneySummary(sumRes.data);
+      else setMoneySummary(null);
     })();
+    return () => {
+      cancelled = true;
+    };
   }, [tab, userId]);
   const disciplinary = staff?.profileExtra?.disciplinaryEvents;
 
@@ -666,6 +682,13 @@ export default function HrStaffProfile() {
               if (canManage) startEdit(fixTab === 'compensation' ? 'payroll' : fixTab === 'documents' ? 'personal' : fixTab);
             }}
           />
+          {canManage ? (
+            <HrStaffSalesCustomerPanel
+              userId={userId}
+              salesCustomerId={staff.salesCustomerId}
+              displayName={staff.displayName}
+            />
+          ) : null}
           <div className="grid gap-4 lg:grid-cols-2">
             <ProfileSectionCard
               title="Personal data"
@@ -849,6 +872,20 @@ export default function HrStaffProfile() {
 
       {tab === 'loans' ? (
         <div className="space-y-4 text-sm text-slate-700">
+          {canManage ? (
+            <HrStaffSalesCustomerPanel
+              userId={userId}
+              salesCustomerId={staff.salesCustomerId}
+              displayName={staff.displayName}
+            />
+          ) : null}
+          {loansLoading ? <p className="text-slate-500">Loading obligation balances…</p> : null}
+          {moneySummary?.totalOutstandingNgn > 0 ? (
+            <HrCard className="!p-4">
+              <p className="text-xs font-bold uppercase text-slate-500">Total outstanding</p>
+              <p className="text-2xl font-black tabular-nums text-[#134e4a]">{formatNgn(moneySummary.totalOutstandingNgn)}</p>
+            </HrCard>
+          ) : null}
           {loanSchedule.length ? (
             <div className="grid gap-3 sm:grid-cols-2">
               {loanSchedule.map((loan) => (
@@ -860,14 +897,55 @@ export default function HrStaffProfile() {
                     <dt className="text-slate-500">Monthly</dt><dd>{formatNgn(loan.monthlyDeductionNgn)}</dd>
                     <dt className="text-slate-500">Status</dt><dd className="capitalize">{loan.status?.replace(/_/g, ' ')}</dd>
                   </dl>
+                  {loan.obligationAccountId ? (
+                    <a
+                      className="mt-2 inline-block text-[10px] font-semibold text-[#134e4a] underline"
+                      href={obligationStatementPdfUrl(loan.obligationAccountId)}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      Statement PDF
+                    </a>
+                  ) : null}
                 </HrCard>
               ))}
             </div>
-          ) : loanNotes ? (
-            <pre className="rounded-xl border border-slate-100 bg-slate-50 p-4 text-xs overflow-auto">{JSON.stringify(loanNotes, null, 2)}</pre>
-          ) : (
+          ) : !loansLoading ? (
             <p>No active loan schedule. Staff loan requests appear in HR Requests once submitted.</p>
-          )}
+          ) : null}
+          {(moneySummary?.purchases || []).filter((p) => p.principalOutstandingNgn > 0 || p.status === 'pending_approval').length ? (
+            <div className="space-y-2">
+              <h4 className="text-xs font-black uppercase text-[#134e4a]">Purchase credit</h4>
+              <div className="grid gap-3 sm:grid-cols-2">
+                {moneySummary.purchases
+                  .filter((p) => p.principalOutstandingNgn > 0 || p.status === 'pending_approval')
+                  .map((p) => (
+                    <HrCard key={p.id} className="!p-4">
+                      <p className="font-bold text-slate-900">{p.title || 'Staff purchase'}</p>
+                      <p className="text-xs text-slate-600 mt-1">
+                        Outstanding {formatNgn(p.principalOutstandingNgn)} · {formatNgn(p.installmentNgn)}/mo
+                      </p>
+                      {p.quotationRef ? <p className="text-[10px] text-slate-500">Quote {p.quotationRef}</p> : null}
+                    </HrCard>
+                  ))}
+              </div>
+            </div>
+          ) : null}
+          {(moneySummary?.recoveries || []).filter((r) => r.principalOutstandingNgn > 0).length ? (
+            <div className="space-y-2">
+              <h4 className="text-xs font-black uppercase text-[#134e4a]">Discipline recovery</h4>
+              <div className="grid gap-3 sm:grid-cols-2">
+                {moneySummary.recoveries
+                  .filter((r) => r.principalOutstandingNgn > 0)
+                  .map((r) => (
+                    <HrCard key={r.id} className="!p-4">
+                      <p className="font-bold text-slate-900">{r.title || 'Recovery'}</p>
+                      <p className="text-xs text-slate-600 mt-1">Outstanding {formatNgn(r.principalOutstandingNgn)}</p>
+                    </HrCard>
+                  ))}
+              </div>
+            </div>
+          ) : null}
         </div>
       ) : null}
 

@@ -43,3 +43,11 @@ export function obligationDisbursementVoucherPdfUrl(accountId) {
 export function obligationRepaymentReceiptPdfUrl(accountId, transactionId) {
   return `/api/hr/obligation-accounts/${encodeURIComponent(accountId)}/transactions/${encodeURIComponent(transactionId)}/receipt.pdf`;
 }
+
+export function backfillRecoveryObligations() {
+  return apiFetch('/api/hr/obligation-accounts/backfill-recoveries', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({}),
+  });
+}

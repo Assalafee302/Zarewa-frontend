@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Navigate, useSearchParams } from 'react-router-dom';
 import { HrTabbedPage } from '../../components/hr/HrTabbedPage';
 import { HrLeavePolicySection } from '../../components/hr/HrLeavePolicySection';
+import { HrStaffPurchaseCreditPolicySection } from '../../components/hr/HrStaffPurchaseCreditPolicySection';
 import {
   HrLegacyPayBackfillSection,
   HrMatrixRevisionSection,
@@ -175,6 +176,7 @@ export default function HrSettingsHub() {
         <div className="space-y-6">
           <HrSettingsTabIntro tabId="policies" />
           <HrLeavePolicySection />
+          <HrStaffPurchaseCreditPolicySection />
           {canManage ? <HrSettingsScopePanel /> : null}
           {canManage ? <HrSettingsModuleLinks /> : null}
         </div>

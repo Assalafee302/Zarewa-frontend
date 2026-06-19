@@ -10,7 +10,7 @@ import {
 } from '../../lib/hrStaffObligations';
 import { HR_BTN_PRIMARY, HR_BTN_SECONDARY, HR_FIELD_CLASS } from './hrFormStyles';
 
-const KIND_LABEL = { loan: 'Loan', purchase: 'Purchase credit' };
+const KIND_LABEL = { loan: 'Loan', purchase: 'Purchase credit', recovery: 'Discipline recovery' };
 
 /**
  * HR / finance view of staff obligation accounts with cash repayment and PDF downloads.
@@ -18,8 +18,11 @@ const KIND_LABEL = { loan: 'Loan', purchase: 'Purchase credit' };
 export function HrObligationAccountsPanel() {
   const [accounts, setAccounts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [ledgerReady, setLedgerReady] = useState(true);
+  const [listError, setListError] = useState('');
   const [selectedId, setSelectedId] = useState('');
   const [detail, setDetail] = useState(null);
+  const [detailError, setDetailError] = useState('');
   const [repayAmount, setRepayAmount] = useState('');
   const [repayRef, setRepayRef] = useState('');
   const [repayNote, setRepayNote] = useState('');
@@ -29,14 +32,24 @@ export function HrObligationAccountsPanel() {
 
   const loadAccounts = useCallback(async () => {
     setLoading(true);
-    const [loansRes, purchasesRes] = await Promise.all([
+    setListError('');
+    const [loansRes, purchasesRes, recoveriesRes] = await Promise.all([
       fetchObligationAccounts({ kind: 'loan' }),
       fetchObligationAccounts({ kind: 'purchase' }),
+      fetchObligationAccounts({ kind: 'recovery' }),
     ]);
     setLoading(false);
-    const loans = loansRes.ok && loansRes.data?.ok ? loansRes.data.accounts || [] : [];
+    const ready = loansRes.data?.ledgerReady !== false;
+    setLedgerReady(ready);
+    if (!loansRes.ok || !loansRes.data?.ok) {
+      setListError(loansRes.data?.error || 'Could not load obligation accounts.');
+      setAccounts([]);
+      return;
+    }
+    const loans = loansRes.data.accounts || [];
     const purchases = purchasesRes.ok && purchasesRes.data?.ok ? purchasesRes.data.accounts || [] : [];
-    const merged = [...loans, ...purchases].sort(
+    const recoveries = recoveriesRes.ok && recoveriesRes.data?.ok ? recoveriesRes.data.accounts || [] : [];
+    const merged = [...loans, ...purchases, ...recoveries].sort(
       (a, b) => String(b.updatedAtIso || '').localeCompare(String(a.updatedAtIso || ''))
     );
     setAccounts(merged);
@@ -45,11 +58,16 @@ export function HrObligationAccountsPanel() {
   const loadDetail = useCallback(async (id) => {
     if (!id) {
       setDetail(null);
+      setDetailError('');
       return;
     }
+    setDetailError('');
     const r = await fetchObligationAccountDetail(id);
     if (r.ok && r.data?.ok) setDetail(r.data.account);
-    else setDetail(null);
+    else {
+      setDetail(null);
+      setDetailError(r.data?.error || 'Could not load account detail.');
+    }
   }, []);
 
   useEffect(() => {
@@ -86,6 +104,16 @@ export function HrObligationAccountsPanel() {
   };
 
   if (loading) return <p className="text-sm text-slate-500">Loading obligation accounts…</p>;
+  if (!ledgerReady) {
+    return (
+      <p className="text-sm text-amber-800 rounded-xl border border-amber-100 bg-amber-50 px-4 py-3">
+        Staff obligation ledger is not migrated on this server yet. Run database migrations first.
+      </p>
+    );
+  }
+  if (listError) {
+    return <p className="text-sm text-red-600">{listError}</p>;
+  }
   if (!accounts.length) return <p className="text-sm text-slate-500">No active staff obligation accounts.</p>;
 
   return (
@@ -146,11 +174,14 @@ export function HrObligationAccountsPanel() {
               <p className="text-[10px] font-bold uppercase text-slate-500 mb-2">Transactions</p>
               <ul className="space-y-1.5 max-h-40 overflow-y-auto text-xs">
                 {detail.transactions.map((tx) => (
-                  <li key={tx.id} className="flex justify-between gap-2 border-b border-slate-50 pb-1">
-                    <span>
+                  <li
+                    key={tx.id}
+                    className="grid grid-cols-[1fr_auto_auto] items-center gap-2 border-b border-slate-50 pb-1"
+                  >
+                    <span className="truncate">
                       {tx.type} · {String(tx.effectiveAtIso || '').slice(0, 10)}
                     </span>
-                    <span className="font-semibold tabular-nums">{formatNgn(tx.amountNgn)}</span>
+                    <span className="font-semibold tabular-nums text-right">{formatNgn(tx.amountNgn)}</span>
                     {tx.type === 'cash_repayment' || tx.type === 'payroll_deduction' ? (
                       <a
                         className="text-[#134e4a] underline shrink-0"
@@ -204,7 +235,9 @@ export function HrObligationAccountsPanel() {
           ) : null}
         </div>
       ) : (
-        <p className="text-sm text-slate-500 self-center">Select an account to view detail and record repayments.</p>
+        <p className="text-sm text-slate-500 self-center">
+          {detailError || 'Select an account to view detail and record repayments.'}
+        </p>
       )}
     </div>
   );

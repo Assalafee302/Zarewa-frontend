@@ -37,28 +37,22 @@ export function HrLegacyLoanMigrateForm({ staffOptions: staffOptionsProp = [], d
     e.preventDefault();
     setError('');
     setBusy(true);
-    try {
-      const res = await migrateLegacyStaffLoan({
-        userId,
-        principalOriginalNgn: Math.round(Number(principalOriginalNgn) || 0),
-        amountRepaidNgn: Math.round(Number(amountRepaidNgn) || 0),
-        installmentNgn: Math.round(Number(installmentNgn) || 0),
-        termMonths: Math.round(Number(termMonths) || 0),
-        title: title.trim(),
-        disbursedAtIso: disbursedAtIso || undefined,
-        note: note.trim(),
-      });
-      const data = await res.json();
-      if (!res.ok || !data.ok) {
-        setError(data.error || 'Could not register legacy loan.');
-        return;
-      }
-      onSuccess?.(data.account);
-    } catch {
-      setError('Network error.');
-    } finally {
-      setBusy(false);
+    const { ok, data } = await migrateLegacyStaffLoan({
+      userId,
+      principalOriginalNgn: Math.round(Number(principalOriginalNgn) || 0),
+      amountRepaidNgn: Math.round(Number(amountRepaidNgn) || 0),
+      installmentNgn: Math.round(Number(installmentNgn) || 0),
+      termMonths: Math.round(Number(termMonths) || 0),
+      title: title.trim(),
+      disbursedAtIso: disbursedAtIso || undefined,
+      note: note.trim(),
+    });
+    setBusy(false);
+    if (!ok || !data?.ok) {
+      setError(data?.error || 'Could not register legacy loan.');
+      return;
     }
+    onSuccess?.(data.account);
   };
 
   return (

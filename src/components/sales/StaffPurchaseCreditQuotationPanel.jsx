@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { HardHat } from 'lucide-react';
-import { formatNgn } from '../../Data/mockData';
+import { formatNgn } from '../../lib/hrFormat';
 import { fetchQuotationStaffPurchaseStatus } from '../../lib/hrStaffPurchaseCredit';
 import { StaffPurchaseCreditRequestModal } from './StaffPurchaseCreditRequestModal';
 
