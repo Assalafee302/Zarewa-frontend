@@ -100,6 +100,8 @@ export function BranchManagerCommandInbox(props) {
         </div>
       );
     }
+    const kindLabel =
+      it.kind === 'staff_purchase_credit' ? 'staff credit' : String(it.kind || 'item').replace(/_/g, ' ');
     return (
       <button
         key={it.id}
@@ -111,10 +113,12 @@ export function BranchManagerCommandInbox(props) {
           className={`shrink-0 rounded-md px-1.5 py-0.5 text-[8px] font-black uppercase ${
             it.kind === 'flagged' || it.kind === 'governance'
               ? 'bg-rose-100 text-rose-900'
-              : 'bg-violet-100 text-violet-900'
+              : it.kind === 'staff_purchase_credit'
+                ? 'bg-teal-100 text-teal-900'
+                : 'bg-violet-100 text-violet-900'
           }`}
         >
-          {it.kind}
+          {kindLabel}
         </span>
         <span className="min-w-0 flex-1 truncate text-[11px] font-semibold text-slate-800">
           <span className="font-mono font-bold text-[#134e4a]">{it.title}</span>

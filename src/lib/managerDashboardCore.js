@@ -61,6 +61,7 @@ export const MANAGER_ATTENTION_FILTERS = [
   { key: 'material', label: 'Material', kinds: ['material'] },
   { key: 'flagged', label: 'Flagged', kinds: ['flagged'] },
   { key: 'governance', label: 'Governance', kinds: ['governance'] },
+  { key: 'staff_credit', label: 'Staff credit', kinds: ['staff_purchase_credit'] },
   { key: 'edits', label: 'Edits', kinds: ['edit_approvals'] },
 ];
 

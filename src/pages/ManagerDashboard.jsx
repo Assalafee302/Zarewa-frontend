@@ -186,6 +186,9 @@ const ManagerDashboard = () => {
         onGovernanceOpenQuotation={bm.openGovernanceLinkedQuotation}
         onGovernanceOpenProductionQc={bm.openGovernanceLinkedProductionQc}
         onGovernanceOpenProcurement={bm.openProcurementDesk}
+        canApproveStaffPurchaseCredit={bm.canApproveStaffPurchaseCreditMd}
+        canRejectStaffPurchaseCredit={bm.canRejectStaffPurchaseCreditMd}
+        handleStaffPurchaseCreditDecision={bm.handleStaffPurchaseCreditDecision}
       />
 
       <EditApprovalDetailModal

@@ -83,6 +83,7 @@ describe('managerDashboardCore', () => {
     ];
     expect(filterAttentionItems(items, 'cash')).toHaveLength(1);
     expect(filterAttentionItems(items, 'orders')).toHaveLength(2);
+    expect(filterAttentionItems([{ kind: 'staff_purchase_credit' }], 'staff_credit')).toHaveLength(1);
   });
 
   it('formats local ymd date', () => {

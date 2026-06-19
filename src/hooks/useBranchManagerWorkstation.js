@@ -10,9 +10,10 @@ import { effectiveManagerTargetsPerMonth, mergeDashboardPrefs } from '../lib/das
 import { userCanApproveEditMutationsClient } from '../lib/editApprovalUi';
 import { buildPaymentRequestBodyFromForm, initialExpenseRequestFormState } from '../lib/expenseRequestFormCore.js';
 import {
-  canSeeExecutiveInventoryEditShortcut,
-  canSeeExecutiveProductionEditShortcut,
-} from '../lib/executiveStoreToolsAccess';
+  canApproveStaffPurchaseCredit,
+  canRejectStaffPurchaseCredit,
+} from '../lib/hrAccess';
+import { decideStaffPurchaseCredit } from '../lib/hrStaffPurchaseCredit';
 import {
   buildManagementQueuesFromSnapshot,
   buildManagerSnapshotsFromWorkspace,
@@ -176,6 +177,8 @@ export function useBranchManagerWorkstation() {
   const canManagerClearance = userMayPerformManagerQuotationClearance(ws?.session?.user);
   const canReleasePaymentHolds = userMayReleaseQuotationPaymentHold(ws?.session?.user);
   const canApproveRefunds = userMayApproveRefundRequests(ws);
+  const canApproveStaffPurchaseCreditMd = canApproveStaffPurchaseCredit(managerRoleKey, ws?.permissions);
+  const canRejectStaffPurchaseCreditMd = canRejectStaffPurchaseCredit(managerRoleKey, ws?.permissions);
   const canApproveMaterialIncidents =
     Boolean(ws?.hasPermission?.('material_incidents.approve')) || canManagerClearance;
 
@@ -306,7 +309,8 @@ export function useBranchManagerWorkstation() {
     selectedIntel?.kind === 'payment' ||
     selectedIntel?.kind === 'conversion' ||
     selectedIntel?.kind === 'material' ||
-    selectedIntel?.kind === 'governance';
+    selectedIntel?.kind === 'governance' ||
+    selectedIntel?.kind === 'staff_purchase_credit';
   const intelModalTitle =
     selectedIntel?.kind === 'refund'
       ? 'Refund approval review'
@@ -326,7 +330,9 @@ export function useBranchManagerWorkstation() {
                 ? 'Material incident review'
                 : selectedIntel?.kind === 'governance'
                   ? 'Governance & risk review'
-                  : 'Transaction intel';
+                  : selectedIntel?.kind === 'staff_purchase_credit'
+                    ? 'Staff purchase credit approval'
+                    : 'Transaction intel';
 
   const displayItems = useMemo(() => {
     if (ws?.hasWorkspaceData && ws.snapshot) {
@@ -1183,6 +1189,18 @@ export function useBranchManagerWorkstation() {
         openGovernanceIntel(item);
         return;
       }
+      if (kind === 'staff_purchase_credit') {
+        setAuditData(null);
+        setRefundIntelExtras(null);
+        setSelectedIntel({
+          kind: 'staff_purchase_credit',
+          accountId: item.accountId || row.id,
+          quotationRef: item.quotationRef || row.quotationRef,
+          row: { ...row },
+        });
+        setActiveTab('attention');
+        return;
+      }
       if (item.poId) {
         const po = item.poId;
         openPurchaseOrderIntel({ po_id: po, ...row });
@@ -1438,6 +1456,48 @@ export function useBranchManagerWorkstation() {
       setRefundIntelExtras(null);
     },
     [fetchData, requestRemark, selectedIntel, showToast, ws]
+  );
+
+  const handleStaffPurchaseCreditDecision = useCallback(
+    async (decision) => {
+      if (selectedIntel?.kind !== 'staff_purchase_credit') return;
+      const accountId = String(selectedIntel.accountId || selectedIntel.row?.id || '').trim();
+      if (!accountId) return;
+      if (decision === 'approve' && !canApproveStaffPurchaseCreditMd) {
+        showToast('Only the Managing Director can approve staff purchase credit.', { variant: 'error' });
+        return;
+      }
+      if (decision === 'reject' && !canRejectStaffPurchaseCreditMd) {
+        showToast('You cannot reject this purchase credit request.', { variant: 'error' });
+        return;
+      }
+      setDecisionBusy(true);
+      try {
+        const { ok, data } = await decideStaffPurchaseCredit(accountId, decision, {
+          note: decision === 'approve' ? 'Approved by MD (command center)' : 'Rejected (command center)',
+        });
+        if (!ok || !data?.ok) {
+          showToast(data?.error || 'Action failed.', { variant: 'error' });
+          return;
+        }
+        showToast(decision === 'approve' ? 'Staff purchase credit approved.' : 'Staff purchase credit rejected.', {
+          variant: 'success',
+        });
+        await fetchData({ background: true });
+        await (ws.refresh?.() ?? Promise.resolve());
+        setSelectedIntel(null);
+      } finally {
+        setDecisionBusy(false);
+      }
+    },
+    [
+      canApproveStaffPurchaseCreditMd,
+      canRejectStaffPurchaseCreditMd,
+      fetchData,
+      selectedIntel,
+      showToast,
+      ws,
+    ]
   );
 
   const handlePaymentDecision = useCallback(
@@ -1721,6 +1781,8 @@ export function useBranchManagerWorkstation() {
     canManagerClearance,
     canReleasePaymentHolds,
     canApproveRefunds,
+    canApproveStaffPurchaseCreditMd,
+    canRejectStaffPurchaseCreditMd,
     canApproveMaterialIncidents,
     creditExceptionItems,
     pendingCreditCount,
@@ -1772,6 +1834,7 @@ export function useBranchManagerWorkstation() {
     handleReview,
     handleClearAllClearance,
     handleRefundDecision,
+    handleStaffPurchaseCreditDecision,
     handlePaymentDecision,
     handleConversionSignoff,
     handleDisapproveSelectedQuotation,

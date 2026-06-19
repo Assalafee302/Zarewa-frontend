@@ -16,6 +16,7 @@ import { ZareApprovalHint } from '../ZareApprovalHint';
 import { EditSecondApprovalInline } from '../EditSecondApprovalInline';
 import MaterialIncidentDetailModal from '../material/MaterialIncidentDetailModal';
 import { GovernanceDetailPanel } from './GovernanceDetailPanel';
+import { StaffPurchaseCreditManagerPreview } from '../management/StaffPurchaseCreditManagerPreview';
 
 export function ManagementDecisionModal({
   selectedIntel,
@@ -63,6 +64,9 @@ export function ManagementDecisionModal({
   onGovernanceOpenQuotation,
   onGovernanceOpenProductionQc,
   onGovernanceOpenProcurement,
+  canApproveStaffPurchaseCredit,
+  canRejectStaffPurchaseCredit,
+  handleStaffPurchaseCreditDecision,
 }) {
   const { show: showToast } = useToast();
   const [materialDecisionRemark, setMaterialDecisionRemark] = useState('');
@@ -429,6 +433,16 @@ export function ManagementDecisionModal({
                   </div>
                 </div>
               </div>
+            ) : selectedIntel?.kind === 'staff_purchase_credit' ? (
+              <StaffPurchaseCreditManagerPreview
+                row={selectedIntel.row}
+                formatNgn={asMoney}
+                canApprove={canApproveStaffPurchaseCredit}
+                canReject={canRejectStaffPurchaseCredit}
+                busy={decisionBusy}
+                onApprove={() => void handleStaffPurchaseCreditDecision?.('approve')}
+                onReject={() => void handleStaffPurchaseCreditDecision?.('reject')}
+              />
             ) : selectedIntel?.kind === 'conversion' ? (
               <div className="space-y-5 animate-in fade-in duration-200 text-slate-700">
                 <div>
