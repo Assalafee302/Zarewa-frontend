@@ -78,6 +78,49 @@ const pendingApproveRecord = {
   requestedAtISO: '2026-03-29T10:00:00.000Z',
 };
 
+function mockApproveModeApis() {
+  vi.mocked(apiFetch).mockImplementation(async (url) => {
+    const u = String(url);
+    if (u.includes('quotation-audit')) {
+      return {
+        ok: true,
+        data: {
+          quotation: { id: 'QT-1', quotationLines: { products: [] } },
+          summary: { paidNgn: 10_000, totalNgn: 10_000 },
+          ledgerEntries: [],
+          refunds: [],
+          totals: {},
+          cuttingLists: [],
+          productionLogs: [],
+          conversionChecks: [],
+          salesReceipts: [],
+        },
+      };
+    }
+    if (u.includes('refunds/intelligence')) {
+      return {
+        ok: true,
+        data: {
+          ok: true,
+          summary: { bookedOnQuotationNgn: 10_000 },
+          dataQualityIssues: [],
+          productionSuggestedCategories: [],
+        },
+      };
+    }
+    if (u.includes('production-alignment-check')) {
+      return { ok: true, data: { ok: true, issues: [] } };
+    }
+    return { ok: false, data: { ok: false } };
+  });
+}
+
+async function clickApproveWhenReady(user) {
+  const approveBtn = await screen.findByRole('button', { name: /^Approve$/i });
+  await waitFor(() => expect(approveBtn).not.toBeDisabled(), { timeout: 10_000 });
+  await user.click(approveBtn);
+}
+
 describe('RefundModal', () => {
   afterEach(() => {
     cleanup();
@@ -91,6 +134,7 @@ describe('RefundModal', () => {
       const user = userEvent.setup();
       const onClose = vi.fn();
       const onPersist = vi.fn().mockResolvedValue({ ok: false });
+      mockApproveModeApis();
 
       renderWithToast(
         <RefundModal
@@ -104,9 +148,9 @@ describe('RefundModal', () => {
         />
       );
 
-      const comments = await screen.findByPlaceholderText(/Why was this decided/i, {}, { timeout: 10_000 });
+      const comments = await screen.findByLabelText(/^Note$/i, {}, { timeout: 10_000 });
       await user.type(comments, 'Approval failed on purpose.');
-      await user.click(screen.getByRole('button', { name: /save decision/i }));
+      await clickApproveWhenReady(user);
 
       await waitFor(() => expect(onPersist).toHaveBeenCalled());
       expect(onClose).not.toHaveBeenCalled();
@@ -120,6 +164,7 @@ describe('RefundModal', () => {
       const user = userEvent.setup();
       const onClose = vi.fn();
       const onPersist = vi.fn().mockResolvedValue({ ok: true });
+      mockApproveModeApis();
 
       renderWithToast(
         <RefundModal
@@ -133,16 +178,17 @@ describe('RefundModal', () => {
         />
       );
 
-      const comments = await screen.findByPlaceholderText(/Why was this decided/i, {}, { timeout: 10_000 });
+      const comments = await screen.findByLabelText(/^Note$/i, {}, { timeout: 10_000 });
       await user.type(comments, 'Approved after review.');
-      await user.click(screen.getByRole('button', { name: /save decision/i }));
+      await clickApproveWhenReady(user);
 
       await waitFor(() => expect(onPersist).toHaveBeenCalled());
       await waitFor(() => expect(onClose).toHaveBeenCalled());
     }
   );
 
-  it('shows approver verification checklist in approve mode', async () => {
+  it('shows manager approval preview in approve mode', async () => {
+    mockApproveModeApis();
     renderWithToast(
       <RefundModal
         {...baseProps}
@@ -153,9 +199,9 @@ describe('RefundModal', () => {
       />
     );
 
-    expect(await screen.findByRole('region', { name: /approver verification checklist/i })).toBeInTheDocument();
-    expect(screen.getByText(/Before you approve/i)).toBeInTheDocument();
-    expect(screen.getByText(/bundled transport\/install may need a manual line split/i)).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: /^Approve$/i })).toBeInTheDocument();
+    expect(screen.getByText('Overpayment - test')).toBeInTheDocument();
+    expect(screen.getByLabelText(/Approved/i)).toBeInTheDocument();
   });
 
   it('shows preview warnings after quotation and category selection', async () => {
