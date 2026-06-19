@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
+  buildReconciliationListPrintHtml,
+  openReconciliationListPrint,
   unreconciledBankLinesPrintPayload,
   unreconciledBankReconciliationLines,
   unreconciledReceiptRows,
@@ -61,5 +63,23 @@ describe('reconciliationPrint', () => {
     expect(payload.rows).toHaveLength(1);
     expect(payload.rows[0].lineId).toBe('BR-9');
     expect(payload.title).toMatch(/bank statement/i);
+  });
+
+  it('builds plain HTML without branding colours', () => {
+    const payload = unreconciledReceiptsPrintPayload(
+      [{ id: 'RC-1', customer: 'Acme', dateISO: '2026-06-10', cashReceivedNgn: 1000 }],
+      [],
+      { branchLabel: 'Kaduna' }
+    );
+    const html = buildReconciliationListPrintHtml(payload);
+    expect(html).toContain('Unreconciled customer receipts');
+    expect(html).toContain('Acme');
+    expect(html).not.toContain('quotation-print');
+    expect(html).not.toContain('background');
+    expect(html).toContain('A4 landscape');
+  });
+
+  it('openReconciliationListPrint returns false for empty rows', () => {
+    expect(openReconciliationListPrint({ title: 'Test', rows: [], columns: [] })).toBe(false);
   });
 });

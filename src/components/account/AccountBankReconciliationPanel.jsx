@@ -2,8 +2,7 @@ import React, { useCallback, useMemo, useState } from 'react';
 import { Download, Plus, Printer, RefreshCw } from 'lucide-react';
 import { apiFetch } from '../../lib/apiBase';
 import { formatNgn } from '../../Data/mockData';
-import { ReportPrintModal } from '../reports/ReportPrintModal';
-import { unreconciledBankLinesPrintPayload } from '../../lib/reconciliationPrint';
+import { openReconciliationListPrint, unreconciledBankLinesPrintPayload } from '../../lib/reconciliationPrint';
 
 /**
  * Daily bank line queue: list, detail, manual POST, PATCH match (CSV import out of v1 scope).
@@ -24,8 +23,6 @@ export function AccountBankReconciliationPanel({
   const [savingManual, setSavingManual] = useState(false);
   const [manual, setManual] = useState({ bankDateISO: '', description: '', amountNgn: '' });
   const [patchForm, setPatchForm] = useState({ systemMatch: '', settledAmountNgn: '', status: 'Review' });
-  const [printOpen, setPrintOpen] = useState(false);
-  const [printPayload, setPrintPayload] = useState(null);
 
   const filtered = useMemo(() => {
     const arr = Array.isArray(lines) ? lines : [];
@@ -68,8 +65,9 @@ export function AccountBankReconciliationPanel({
       showToast?.('No unreconciled bank lines to print.', { variant: 'info' });
       return;
     }
-    setPrintPayload(payload);
-    setPrintOpen(true);
+    if (!openReconciliationListPrint(payload)) {
+      showToast?.('Could not open print preview.', { variant: 'error' });
+    }
   }, [branchLabel, lines, showToast]);
 
   const exportCsv = useCallback(() => {
@@ -388,21 +386,6 @@ export function AccountBankReconciliationPanel({
           )}
         </div>
       </div>
-      <ReportPrintModal
-        isOpen={printOpen && !!printPayload}
-        onClose={() => {
-          setPrintOpen(false);
-          setPrintPayload(null);
-        }}
-        title={printPayload?.title ?? 'Unreconciled bank lines'}
-        periodLabel={printPayload?.periodLabel ?? ''}
-        columns={printPayload?.columns ?? []}
-        rows={printPayload?.rows ?? []}
-        summaryLines={printPayload?.summaryLines ?? []}
-        documentTypeLabel={printPayload?.documentTypeLabel ?? 'Bank reconciliation'}
-        layout={printPayload?.layout ?? 'landscape'}
-        denseSingleLine={Boolean(printPayload?.denseSingleLine)}
-      />
     </div>
   );
 }
