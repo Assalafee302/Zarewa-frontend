@@ -17,9 +17,9 @@ export function StaffRecoveryPayGuide({ recoveries = [], staffEmployeeNo, staffB
   return (
     <div className="mb-4 overflow-hidden rounded-2xl border border-violet-200 bg-gradient-to-br from-violet-50 via-white to-teal-50/40 shadow-sm">
       <div className="border-b border-violet-100/80 bg-violet-900 px-4 py-3 text-white">
-        <p className="text-[10px] font-bold uppercase tracking-widest text-violet-200">Pay at branch cashier</p>
+        <p className="text-[10px] font-bold uppercase tracking-widest text-violet-200">HR set your recovery amount</p>
         <p className="mt-1 text-2xl font-black tabular-nums">{formatNgn(totalDue)}</p>
-        <p className="text-xs text-violet-100 mt-0.5">Total outstanding — you can pay this in full today</p>
+        <p className="text-xs text-violet-100 mt-0.5">Pay this at the branch cashier — they record date and account</p>
       </div>
 
       <div className="p-4 space-y-4">
@@ -92,8 +92,8 @@ export function StaffRecoveryPayGuide({ recoveries = [], staffEmployeeNo, staffB
         </div>
 
         <p className="text-xs text-slate-500">
-          After the cashier posts your payment, refresh this page — your balance drops and you can download an official
-          receipt PDF.
+          The cashier will record the payment date and which bank or cash account received your money. Refresh this page
+          after they post — your balance drops and you can download an official receipt PDF.
         </p>
       </div>
     </div>

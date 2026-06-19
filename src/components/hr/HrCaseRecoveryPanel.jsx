@@ -1,103 +1,21 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { fetchCaseRecoverySchedules, settleRecoverySchedule } from '../../lib/hrIncidents';
+import { Building2, FileText } from 'lucide-react';
+import { fetchCaseRecoverySchedules } from '../../lib/hrIncidents';
 import { formatNgn } from '../../lib/hrFormat';
-import { HR_BTN_PRIMARY, HR_BTN_SECONDARY, HR_FIELD_CLASS } from './hrFormStyles';
+import { HR_BTN_SECONDARY } from './hrFormStyles';
 
-const EMPTY_SETTLE = {
-  amountNgn: '',
-  payInFull: true,
-  paymentReference: '',
-  paymentDateIso: new Date().toISOString().slice(0, 10),
-  note: '',
-};
-
-function RecoverySettleForm({ schedule, busy, onSubmit, onCancel }) {
-  const [form, setForm] = useState({
-    ...EMPTY_SETTLE,
-    amountNgn: String(schedule.principalOutstandingNgn || ''),
-    payInFull: true,
-  });
-
-  useEffect(() => {
-    if (form.payInFull) {
-      setForm((prev) => ({ ...prev, amountNgn: String(schedule.principalOutstandingNgn || '') }));
-    }
-  }, [form.payInFull, schedule.principalOutstandingNgn]);
-
-  return (
-    <form
-      className="mt-3 rounded-lg border border-teal-100 bg-white p-3 space-y-2"
-      onSubmit={(e) => {
-        e.preventDefault();
-        onSubmit({
-          payInFull: form.payInFull,
-          amountNgn: form.payInFull ? undefined : Number(form.amountNgn) || 0,
-          paymentReference: form.paymentReference.trim() || undefined,
-          paymentDateIso: form.paymentDateIso || undefined,
-          note: form.note.trim() || undefined,
-        });
-      }}
-    >
-      <p className="text-xs font-semibold text-slate-700">Record direct payment (cash / transfer)</p>
-      <label className="flex items-center gap-2 text-xs text-slate-700">
-        <input
-          type="checkbox"
-          checked={form.payInFull}
-          onChange={(e) => setForm({ ...form, payInFull: e.target.checked })}
-        />
-        Pay full outstanding ({formatNgn(schedule.principalOutstandingNgn)})
-      </label>
-      {!form.payInFull ? (
-        <input
-          type="number"
-          min={1}
-          max={schedule.principalOutstandingNgn}
-          className={HR_FIELD_CLASS}
-          placeholder="Partial amount (NGN)"
-          value={form.amountNgn}
-          onChange={(e) => setForm({ ...form, amountNgn: e.target.value })}
-          required
-        />
-      ) : null}
-      <div className="grid gap-2 sm:grid-cols-2">
-        <input
-          type="date"
-          className={HR_FIELD_CLASS}
-          value={form.paymentDateIso}
-          onChange={(e) => setForm({ ...form, paymentDateIso: e.target.value })}
-        />
-        <input
-          className={HR_FIELD_CLASS}
-          placeholder="Payment reference / receipt no."
-          value={form.paymentReference}
-          onChange={(e) => setForm({ ...form, paymentReference: e.target.value })}
-        />
-      </div>
-      <input
-        className={HR_FIELD_CLASS}
-        placeholder="Note (optional)"
-        value={form.note}
-        onChange={(e) => setForm({ ...form, note: e.target.value })}
-      />
-      <div className="flex flex-wrap gap-2">
-        <button type="submit" disabled={busy} className={HR_BTN_PRIMARY}>
-          {busy ? 'Saving…' : 'Record payment'}
-        </button>
-        <button type="button" disabled={busy} className={HR_BTN_SECONDARY} onClick={onCancel}>
-          Cancel
-        </button>
-      </div>
-    </form>
-  );
+function settlementLabel(p) {
+  if (p.collectionChannel === 'cashier') {
+    const account = p.treasuryAccountName ? ` → ${p.treasuryAccountName}` : '';
+    return `Cashier collected ${formatNgn(p.amountNgn)} on ${p.paymentDateIso || p.createdAtIso?.slice(0, 10)}${account}`;
+  }
+  return `Paid ${formatNgn(p.amountNgn)} on ${p.paymentDateIso || p.createdAtIso?.slice(0, 10)}`;
 }
 
-export default function HrCaseRecoveryPanel({ caseId, detail, canManage, onUpdated }) {
+export default function HrCaseRecoveryPanel({ caseId, detail, onUpdated }) {
   const [rows, setRows] = useState([]);
   const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState('');
-  const [msg, setMsg] = useState('');
-  const [settleId, setSettleId] = useState('');
 
   const load = useCallback(async () => {
     if (!caseId) return;
@@ -112,27 +30,14 @@ export default function HrCaseRecoveryPanel({ caseId, detail, canManage, onUpdat
     load();
   }, [load, detail?.decisionType]);
 
-  const submitSettlement = async (scheduleId, body) => {
-    setErr('');
-    setMsg('');
-    setBusy(true);
-    const { ok, data } = await settleRecoverySchedule(scheduleId, body);
-    setBusy(false);
-    if (!ok || !data?.ok) {
-      setErr(data?.error || 'Could not record payment.');
-      return;
-    }
-    setSettleId('');
-    setMsg('Payment recorded. Payroll deductions stop automatically when balance is cleared.');
-    await load();
-    onUpdated?.();
-  };
-
   if (!detail?.decisionType && !rows.length) {
     return (
       <div className="space-y-2 border-t border-slate-200 pt-4 mt-4">
-        <h4 className="text-sm font-semibold text-slate-800">Payroll recovery</h4>
-        <p className="text-xs text-slate-500">Apply a salary deduction decision to generate recovery schedules.</p>
+        <h4 className="text-sm font-semibold text-slate-800">Recovery amount (HR initiates)</h4>
+        <p className="text-xs text-slate-500">
+          Apply a salary deduction decision to set what the staff member must repay. The branch cashier records
+          actual payments.
+        </p>
       </div>
     );
   }
@@ -140,82 +45,80 @@ export default function HrCaseRecoveryPanel({ caseId, detail, canManage, onUpdat
   return (
     <div className="space-y-3 border-t border-slate-200 pt-4 mt-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h4 className="text-sm font-semibold text-slate-800">Payroll recovery schedules</h4>
+        <h4 className="text-sm font-semibold text-slate-800">Recovery amount (HR initiates)</h4>
         <Link to="/hr/payroll" className="text-xs font-bold text-[#134e4a] hover:underline">
           Open payroll →
         </Link>
       </div>
-      <p className="text-xs text-slate-600 leading-relaxed rounded-lg border border-violet-100 bg-violet-50/50 px-3 py-2">
-        <strong className="text-violet-950">Staff should pay at the branch cashier</strong> (Finance → Desk → Staff
-        recoveries). The cashier searches by name or employee ID, records the bank/cash account, and the balance
-        updates here automatically. Payroll still deducts the monthly installment until the balance is cleared.
-      </p>
-      {msg ? <p className="text-sm text-emerald-800">{msg}</p> : null}
-      {err ? <p className="text-sm text-red-700">{err}</p> : null}
+
+      <div className="rounded-xl border border-violet-200 bg-violet-50/40 px-4 py-3 space-y-2">
+        <p className="text-xs text-violet-950 leading-relaxed">
+          <strong>HR sets the amount owed</strong> when you apply the sanction. Issue the salary recovery letter, then
+          send the staff member to the branch cashier. The cashier records the payment date and which bank or cash
+          account was credited — you do not post payments here.
+        </p>
+        <p className="text-xs text-violet-900/80 flex items-center gap-1.5">
+          <Building2 size={14} aria-hidden />
+          Cashier desk: Finance → Desk → Staff recoveries
+        </p>
+      </div>
+
       {rows.length === 0 ? (
-        <p className="text-xs text-slate-500">{busy ? 'Loading…' : 'No schedules yet — apply a deduction decision first.'}</p>
+        <p className="text-xs text-slate-500">{busy ? 'Loading…' : 'No recovery schedules yet — apply a deduction decision first.'}</p>
       ) : (
-        <ul className="space-y-2 text-sm">
+        <ul className="space-y-3 text-sm">
           {rows.map((s) => {
-            const canSettle =
-              canManage &&
-              s.status === 'active' &&
-              Number(s.principalOutstandingNgn) > 0 &&
-              s.deductionsActive !== false;
+            const onCashierDesk = s.status === 'active' && Number(s.principalOutstandingNgn) > 0;
             return (
-              <li key={s.id} className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-2">
-                <div className="flex flex-wrap justify-between gap-2">
-                  <span className="font-medium text-slate-800">{s.staffDisplayName || s.userId}</span>
-                  <span className="tabular-nums text-slate-600">
-                    {formatNgn(s.installmentAmountNgn)}/mo · outstanding {formatNgn(s.principalOutstandingNgn)} ·{' '}
-                    {s.status}
-                  </span>
+              <li key={s.id} className="rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
+                <div className="flex flex-wrap justify-between gap-3">
+                  <div>
+                    <p className="font-semibold text-slate-900">{s.staffDisplayName || s.userId}</p>
+                    <p className="mt-0.5 text-xs text-slate-500">
+                      HR initiated {formatNgn(s.totalAmountNgn)}
+                      {s.initiatedByName ? ` · by ${s.initiatedByName}` : ''}
+                      {s.activatedAtIso ? ` · ${s.activatedAtIso.slice(0, 10)}` : ''}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">Still due</p>
+                    <p className="text-xl font-black tabular-nums text-[#134e4a]">
+                      {formatNgn(s.principalOutstandingNgn)}
+                    </p>
+                    <p className="text-xs text-slate-500">
+                      {formatNgn(s.installmentAmountNgn)}/mo payroll · {s.status}
+                    </p>
+                  </div>
                 </div>
+
+                {onCashierDesk ? (
+                  <p className="mt-2 inline-flex items-center gap-1 rounded-full bg-amber-50 border border-amber-200 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-amber-900">
+                    <FileText size={12} aria-hidden />
+                    On branch cashier desk — awaiting payment
+                  </p>
+                ) : null}
+
                 {(s.settlements || []).length ? (
-                  <ul className="mt-2 text-xs text-slate-600 space-y-1">
+                  <ul className="mt-3 border-t border-slate-100 pt-2 text-xs text-slate-600 space-y-1.5">
+                    <li className="font-semibold text-slate-500 uppercase tracking-wide text-[10px]">Payments recorded</li>
                     {(s.settlements || []).map((p) => (
-                      <li key={p.id}>
-                        Paid {formatNgn(p.amountNgn)} on {p.paymentDateIso || p.createdAtIso?.slice(0, 10)}
-                        {p.paymentReference ? ` · ${p.paymentReference}` : ''}
-                        {p.note ? ` — ${p.note}` : ''}
+                      <li key={p.id} className="flex flex-wrap gap-x-2">
+                        <span>{settlementLabel(p)}</span>
+                        {p.note ? <span className="text-slate-400">— {p.note}</span> : null}
                       </li>
                     ))}
                   </ul>
-                ) : null}
-                {canSettle ? (
-                  <details className="mt-2 group">
-                    <summary className="cursor-pointer text-xs font-semibold text-slate-500 hover:text-slate-700 list-none [&::-webkit-details-marker]:hidden">
-                      HR-only: record payment without cashier (exception)
-                    </summary>
-                    {settleId === s.id ? (
-                      <RecoverySettleForm
-                        schedule={s}
-                        busy={busy}
-                        onCancel={() => setSettleId('')}
-                        onSubmit={(body) => submitSettlement(s.id, body)}
-                      />
-                    ) : (
-                      <button
-                        type="button"
-                        className="mt-2 text-xs font-semibold text-slate-600 hover:underline"
-                        onClick={() => {
-                          setSettleId(s.id);
-                          setErr('');
-                          setMsg('');
-                        }}
-                      >
-                        Open manual payment form
-                      </button>
-                    )}
-                  </details>
+                ) : onCashierDesk ? (
+                  <p className="mt-2 text-xs text-slate-500">No cashier payment recorded yet.</p>
                 ) : null}
               </li>
             );
           })}
         </ul>
       )}
+
       <button type="button" className={HR_BTN_SECONDARY} onClick={load} disabled={busy}>
-        Refresh schedules
+        Refresh
       </button>
     </div>
   );

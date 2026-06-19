@@ -97,18 +97,29 @@ export function StaffRecoveryCashierModal({ recovery, treasuryAccounts, onClose,
   if (!recovery) return null;
 
   return (
-    <ModalFrame isOpen={Boolean(recovery)} onClose={onClose} title="Receive staff recovery" surface="plain">
+    <ModalFrame isOpen={Boolean(recovery)} onClose={onClose} title="Record staff recovery payment" surface="plain">
       <ModalScrollShell>
         <form onSubmit={handleSubmit}>
           <ModalScrollBody className="space-y-5">
-            <div className="rounded-2xl border border-violet-200 bg-violet-50/50 p-4">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-violet-700">Staff member</p>
-              <p className="mt-1 text-lg font-bold text-slate-900">{recovery.staffDisplayName || recovery.userId}</p>
+            <div className="rounded-2xl border border-violet-200 bg-violet-50/50 p-4 space-y-2">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-violet-700">HR initiated — amount due</p>
+              <p className="text-lg font-bold text-slate-900">{recovery.staffDisplayName || recovery.userId}</p>
               {lookupLine ? (
-                <p className="mt-1 text-sm font-semibold text-violet-900">ID / case: {lookupLine}</p>
+                <p className="text-sm font-semibold text-violet-900">Employee ID / case: {lookupLine}</p>
+              ) : null}
+              <p className="text-3xl font-black tabular-nums text-[#134e4a]">{formatNgn(outstanding)}</p>
+              {recovery.hrInitiatedAmountNgn && recovery.hrInitiatedAmountNgn !== outstanding ? (
+                <p className="text-xs text-slate-600">
+                  HR original amount {formatNgn(recovery.hrInitiatedAmountNgn)} — partial payments already recorded
+                </p>
+              ) : recovery.initiatedByName || recovery.initiatedAtIso ? (
+                <p className="text-xs text-slate-600">
+                  Set by HR{recovery.initiatedByName ? ` (${recovery.initiatedByName})` : ''}
+                  {recovery.initiatedAtIso ? ` on ${String(recovery.initiatedAtIso).slice(0, 10)}` : ''}
+                </p>
               ) : null}
               {recovery.branchId ? (
-                <p className="mt-1 text-xs text-slate-600">Branch {recovery.branchId}</p>
+                <p className="text-xs text-slate-500">Branch {recovery.branchId}</p>
               ) : null}
             </div>
 
@@ -117,7 +128,8 @@ export function StaffRecoveryCashierModal({ recovery, treasuryAccounts, onClose,
                 <CheckCircle2 className="mx-auto text-emerald-600" size={40} aria-hidden />
                 <p className="text-lg font-bold text-emerald-950">Payment recorded</p>
                 <p className="text-sm text-emerald-900">
-                  {formatNgn(receipt.settlement?.amountNgn ?? amountToCollect)} credited to{' '}
+                  {formatNgn(receipt.settlement?.amountNgn ?? amountToCollect)} on{' '}
+                  <strong>{receipt.paymentDateIso || form.paymentDateIso}</strong> credited to{' '}
                   <strong>{receipt.treasuryAccountName || 'treasury'}</strong>.
                 </p>
                 {receipt.paidInFull ? (
@@ -141,12 +153,12 @@ export function StaffRecoveryCashierModal({ recovery, treasuryAccounts, onClose,
               </div>
             ) : (
               <>
-                <div className="rounded-2xl border-2 border-[#134e4a]/20 bg-teal-50/40 px-4 py-5 text-center">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-[#134e4a]">Amount to collect</p>
-                  <p className="mt-2 text-4xl font-black tabular-nums text-[#134e4a]">{formatNgn(amountToCollect || outstanding)}</p>
+                <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+                  <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Collecting today</p>
+                  <p className="mt-1 text-2xl font-black tabular-nums text-[#134e4a]">{formatNgn(amountToCollect || outstanding)}</p>
                   {!form.payInFull && amountToCollect < outstanding ? (
                     <p className="mt-1 text-xs text-slate-600">
-                      Partial payment — {formatNgn(outstanding - amountToCollect)} will remain
+                      Partial — {formatNgn(outstanding - amountToCollect)} will remain on HR schedule
                     </p>
                   ) : recovery.installmentAmountNgn ? (
                     <p className="mt-1 text-xs text-slate-600">
@@ -161,10 +173,10 @@ export function StaffRecoveryCashierModal({ recovery, treasuryAccounts, onClose,
                   </p>
                 ) : null}
 
-                <div className="space-y-3">
-                  <p className="text-xs font-bold uppercase tracking-wide text-slate-500 flex items-center gap-2">
+                <div className="space-y-3 rounded-2xl border border-teal-100 bg-teal-50/30 p-4">
+                  <p className="text-xs font-bold uppercase tracking-wide text-[#134e4a] flex items-center gap-2">
                     <Wallet size={14} aria-hidden />
-                    Payment details
+                    Cashier — record what was received
                   </p>
 
                   <div className="flex flex-wrap gap-2">
