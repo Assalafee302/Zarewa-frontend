@@ -282,7 +282,7 @@ describe('RefundModal', () => {
     expect((await screen.findAllByText(/Test audit flag: verify receipts/i)).length).toBeGreaterThanOrEqual(1);
   });
 
-  it('flags when requested refund amount does not match line total', async () => {
+  it('auto-syncs requested refund amount from included line totals', async () => {
     const user = userEvent.setup();
     vi.mocked(apiFetch).mockImplementation(async (url) => {
       const u = String(url);
@@ -351,11 +351,10 @@ describe('RefundModal', () => {
     await screen.findByDisplayValue(/Line A/i);
 
     const requested = screen.getByLabelText(/Requested refund amount/i);
-    await user.clear(requested);
-    await user.type(requested, '999');
-
+    await waitFor(() => expect(requested).toHaveValue(100));
+    expect(requested).toHaveAttribute('readonly');
     expect(
-      await screen.findByText(/Line items total does not match the requested refund amount/i)
-    ).toBeInTheDocument();
+      screen.queryByText(/Line items total does not match the requested refund amount/i)
+    ).not.toBeInTheDocument();
   });
 });

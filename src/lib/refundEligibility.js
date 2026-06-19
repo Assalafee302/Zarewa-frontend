@@ -22,6 +22,16 @@ export function quotationRefundsBlocked(q) {
   return Boolean(String(q?.refundsBlockedAtISO ?? q?.refunds_blocked_at_iso ?? '').trim());
 }
 
+/** Refund row carries quotation-level permanent block (from workspace snapshot). */
+export function refundQuotationRefundsBlocked(refundRow) {
+  return quotationRefundsBlocked({
+    refundsBlockedAtISO:
+      refundRow?.quotationRefundsBlockedAtISO ?? refundRow?.quotation_refunds_blocked_at_iso,
+    refunds_blocked_at_iso:
+      refundRow?.quotationRefundsBlockedAtISO ?? refundRow?.quotation_refunds_blocked_at_iso,
+  });
+}
+
 /**
  * Refund create picker: only list orders with nothing left for the customer to pay.
  * Uses the system-wide 99.5% “effectively fully paid” rule when order total is set.

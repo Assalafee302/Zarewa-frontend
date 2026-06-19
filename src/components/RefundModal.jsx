@@ -51,6 +51,10 @@ import {
 import { receiptCashReceivedNgn } from '../lib/salesReceiptsList';
 import { RefundManagerApprovalPreview } from './management/RefundManagerApprovalPreview';
 import { deliveryPaymentGateMode } from '../lib/accountingPolicyFlags';
+import { refundEmptyPickerHintText } from '../lib/refundEligibilityCopy';
+import { RefundEligibilitySummary } from './refund/RefundEligibilitySummary';
+import { RefundGlImpactPreview } from './refund/RefundGlImpactPreview';
+import { RefundCreatePolicyWarnings } from './refund/RefundCreatePolicyWarnings';
 
 const REFUND_CATEGORY_HINTS = {
   'Unproduced meterage':
@@ -470,6 +474,8 @@ const RefundModal = ({
   const [refundsBlockReasonInput, setRefundsBlockReasonInput] = useState('');
   const [refundsBlockBusy, setRefundsBlockBusy] = useState(false);
   const [refundsBlockLocal, setRefundsBlockLocal] = useState(null);
+  /** `quick` — overpayment-only path; `full` — standard breakdown wizard. */
+  const [createPath, setCreatePath] = useState('full');
 
   const canBlockQuotationRefunds = userMayBlockQuotationRefunds(ws?.session?.user);
 
@@ -477,8 +483,13 @@ const RefundModal = ({
   const previewLoadedForQuoteRef = useRef('');
   /** Monotonic counter so out-of-order `/api/refunds/preview` responses cannot overwrite newer results (e.g. after production accessory correction). */
   const refundsPreviewSeqRef = useRef(0);
+  const createPathRef = useRef('full');
   /** Line key from last preview that carried substitution credit — breakdown stays visible if category is renamed. */
   const [substitutionBreakdownLineKey, setSubstitutionBreakdownLineKey] = useState('');
+
+  useEffect(() => {
+    createPathRef.current = createPath;
+  }, [createPath]);
 
   useEffect(() => {
     if (!isOpen) setRefundGuideOpen(false);
@@ -561,6 +572,7 @@ const RefundModal = ({
     setProductionAlignmentAck({});
     setProductionAlignmentOverrideNote('');
     setApprovalEditMode(false);
+    setCreatePath('full');
 
     if (mode === 'create') {
       void fetchEligibleQuotes();
@@ -876,7 +888,7 @@ const RefundModal = ({
       setBlockedRefundCategories(blocked);
 
       const positiveSuggested = (preview.suggestedLines || []).filter((s) => roundMoneyLocal(s.amountNgn) > 0);
-      const breakdownRows = positiveSuggested.map((s, idx) => ({
+      let breakdownRows = positiveSuggested.map((s, idx) => ({
         lineKey: `p-${idx}-${String(s.category || 'line')}`,
         include: true,
         label: s.label ?? '',
@@ -884,6 +896,26 @@ const RefundModal = ({
         category: s.category ?? '',
         appliesToCategories: s.appliesToCategories,
       }));
+
+      if (createPathRef.current === 'quick') {
+        const overpayRows = breakdownRows.filter((r) => String(r.category || '').trim() === 'Overpayment');
+        const overpayAmt = Math.round(Number(preview.overpaymentExcessNgn) || 0);
+        if (overpayRows.length > 0) {
+          breakdownRows = overpayRows;
+        } else if (overpayAmt > 0) {
+          breakdownRows = [
+            {
+              lineKey: `p-quick-overpay-${Date.now()}`,
+              include: true,
+              label: 'Overpayment — cash received above quote total on this quotation',
+              amountNgn: String(overpayAmt),
+              category: 'Overpayment',
+            },
+          ];
+        } else {
+          breakdownRows = [];
+        }
+      }
 
       let substitutionAnchorLineKey = '';
       for (let i = 0; i < positiveSuggested.length; i++) {
@@ -1156,6 +1188,12 @@ const RefundModal = ({
   }, [approvalQuoteRef, quotations]);
   const refundBlockedByMdPricing =
     Boolean(approvalQuoteRow) && quotationRefundBlockedPendingMdPriceConfirm(approvalQuoteRow);
+  const createBlockedByMdPricing =
+    mode === 'create' &&
+    Boolean(selectedQuotationSnapshot) &&
+    quotationRefundBlockedPendingMdPriceConfirm(selectedQuotationSnapshot);
+  const refundExecutiveThresholdNgn =
+    Number(ws?.snapshot?.orgGovernanceLimits?.refundExecutiveThresholdNgn) || 1_000_000;
   const identityLocked = mode !== 'create';
 
   const refundHydrateKey = useMemo(
@@ -1172,6 +1210,22 @@ const RefundModal = ({
     hydrateKey: refundHydrateKey,
   });
   const handleClose = wrapClose(() => onClose());
+
+  /** Keep requested amount aligned with included line totals in create mode. */
+  useEffect(() => {
+    if (mode !== 'create' || readOnly) return;
+    const sum = sumLines(form.calculationLines);
+    if (sum <= 0) return;
+    setForm((f) => (String(f.amountNgn) === String(sum) ? f : { ...f, amountNgn: String(sum) }));
+  }, [form.calculationLines, mode, readOnly]);
+
+  const refundHasCompletedProduction = useMemo(() => {
+    const ref = String(form.quotationRef || '').trim();
+    if (!ref) return false;
+    return (productionJobs || []).some(
+      (j) => String(j.quotationRef || '').trim() === ref && String(j.status || '').trim() === 'Completed'
+    );
+  }, [form.quotationRef, productionJobs]);
 
   const approvalMoneyContext = useMemo(() => {
     if (!showApproval) return null;
@@ -1344,11 +1398,11 @@ const RefundModal = ({
     };
   }, [derivedReasonCategories, priorRefundsOnQuote]);
 
-  const label = 'text-[9px] font-semibold text-slate-400 uppercase tracking-wide ml-0.5 mb-1 block';
+  const label = 'text-[11px] font-semibold text-slate-500 uppercase tracking-wide ml-0.5 mb-1 block';
   const input =
-    'w-full bg-white border border-slate-200 rounded-lg py-2 px-3 text-xs font-semibold text-[#134e4a] outline-none focus:ring-2 focus:ring-red-500/15 disabled:opacity-60';
+    'w-full bg-white border border-slate-200 rounded-lg py-2.5 px-3 text-sm font-semibold text-[#134e4a] outline-none focus:ring-2 focus:ring-red-500/15 disabled:opacity-60';
   const inputIntelDark =
-    'w-full bg-slate-800/90 border border-slate-600 rounded-lg py-2 px-3 text-xs font-semibold text-white placeholder:text-slate-500 outline-none focus:ring-2 focus:ring-rose-500/35 disabled:opacity-50';
+    'w-full bg-slate-800/90 border border-slate-600 rounded-lg py-2.5 px-3 text-sm font-semibold text-white placeholder:text-slate-500 outline-none focus:ring-2 focus:ring-rose-500/35 disabled:opacity-50';
 
   const setLine = (idx, patch) => {
     setForm((f) => ({
@@ -1664,9 +1718,13 @@ const RefundModal = ({
     (exceedsHardCap || exceedsOverpayLine || categoryCapViolation != null || lineArithmeticIssues.length > 0);
   const sumMismatch =
     mode === 'create' &&
+    createPath === 'full' &&
     lineSum > 0 &&
     Number(form.amountNgn) > 0 &&
     Math.round(lineSum) !== Math.round(Number(form.amountNgn));
+  const quickOverpayAvailable =
+    mode === 'create' && (refundMoneyBreakdown.overpay > 0 || overpayMaxNgn > 0);
+  const createAmountDerivedFromLines = mode === 'create' && lineSum > 0;
 
   const requestedRefundTotal = Math.round(Number(record?.amountNgn) || 0);
   const approvalWillScaleLines =
@@ -1686,8 +1744,8 @@ const RefundModal = ({
     Math.abs(lineSum - (Number(approvedAmountNgn) || 0)) > AMOUNT_LINE_TOL;
 
   return (
-    <ModalFrame isOpen={isOpen} onClose={handleClose}>
-      <div className="z-modal-panel max-w-[min(100%,72rem)] w-full min-w-0 max-h-[min(94vh,920px)] flex flex-col mx-auto bg-slate-50 rounded-2xl shadow-2xl transition-all duration-300">
+    <ModalFrame isOpen={isOpen} onClose={handleClose} edgeToEdgeMobile surface="plain" title="Refund">
+      <div className="z-modal-panel flex w-full max-w-[min(100%,72rem)] min-w-0 max-h-[min(94dvh,920px)] flex-col mx-auto bg-slate-50 rounded-none shadow-2xl transition-all duration-300 sm:rounded-2xl">
         {/* Header */}
         <div className="px-6 py-5 border-b border-slate-200/60 flex justify-between items-center bg-white/80 backdrop-blur-md rounded-t-2xl shrink-0">
           <div className="flex items-center gap-4">
@@ -1777,14 +1835,71 @@ const RefundModal = ({
                 </ul>
                 <div className="border-t border-teal-200/60 pt-3 space-y-1.5">
                   <p className="text-xs font-bold text-teal-900">Which quotations appear in the list?</p>
-                  <p className="text-[11px] leading-relaxed text-teal-800/85 font-medium">
-                    Listed quotes are <strong className="text-teal-950">fully paid</strong> (≥99.5% of order total when
-                    a total exists), have more than <strong className="text-teal-950">₦{MIN_REFUND_QUOTATION_REMAINING_NGN.toLocaleString('en-NG')} refundable</strong> headroom (cash received minus refunds on file), production <strong className="text-teal-950">completed</strong> or{' '}
-                    <strong className="text-teal-950">cancelled</strong> (or <strong className="text-teal-950">void</strong> with payment), and the server must produce an <strong className="text-teal-950">automatic preview total of at least ₦{MIN_REFUND_QUOTATION_REMAINING_NGN.toLocaleString('en-NG')}</strong>. Additional refunds on the same quotation are allowed for a <strong className="text-teal-950">different category</strong> when headroom remains. The dropdown shows{' '}
-                    <strong className="text-teal-950">all</strong> such matches (scroll). If a sale qualifies but the preview is below that floor (including ₦0), use <strong className="text-teal-950">Use quotation id</strong> — the server confirms eligibility; then enter amounts manually.
-                  </p>
+                  <RefundEligibilitySummary />
                 </div>
               </div>
+            </div>
+          ) : null}
+
+          {mode === 'create' && !showApprovalReview ? (
+            <div className="space-y-3">
+              <div
+                className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between rounded-xl border border-slate-200 bg-white p-3 shadow-sm"
+                role="group"
+                aria-label="Refund type"
+              >
+                <p className="text-xs font-bold text-slate-700">Refund type</p>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCreatePath('quick');
+                      const r = String(form.quotationRef || '').trim();
+                      if (r) void generatePreview(r, false);
+                    }}
+                    disabled={!quickOverpayAvailable && !form.quotationRef}
+                    title={
+                      quickOverpayAvailable
+                        ? 'Cash received above quote total only'
+                        : 'Select a quotation with overpayment first'
+                    }
+                    className={`rounded-lg px-3 py-2 text-xs font-bold uppercase tracking-wide transition-all ${
+                      createPath === 'quick'
+                        ? 'bg-rose-600 text-white shadow-md shadow-rose-200'
+                        : 'border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100 disabled:opacity-40'
+                    }`}
+                  >
+                    Quick overpayment
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCreatePath('full');
+                      const r = String(form.quotationRef || '').trim();
+                      if (r) void generatePreview(r, includeCommissionInPreview);
+                    }}
+                    className={`rounded-lg px-3 py-2 text-xs font-bold uppercase tracking-wide transition-all ${
+                      createPath === 'full'
+                        ? 'bg-[#134e4a] text-white shadow-md shadow-teal-200'
+                        : 'border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100'
+                    }`}
+                  >
+                    Full refund
+                  </button>
+                </div>
+              </div>
+              {createPath === 'quick' && form.quotationRef && !quickOverpayAvailable ? (
+                <p className="text-xs font-medium text-amber-800 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2" role="status">
+                  No overpayment detected on this quotation — switch to <strong>Full refund</strong> for production or
+                  service credits.
+                </p>
+              ) : null}
+              <RefundCreatePolicyWarnings
+                amountNgn={form.amountNgn}
+                executiveThresholdNgn={refundExecutiveThresholdNgn}
+                mdPricingBlocked={createBlockedByMdPricing}
+                quotationRef={form.quotationRef}
+              />
             </div>
           ) : null}
 
@@ -2123,14 +2238,8 @@ const RefundModal = ({
                     ) : null}
                     {!loadingQuotes && quotationPickList.length === 0 && mode === 'create' ? (
                       <div className="mt-2 space-y-2 rounded-lg border border-amber-200/80 bg-amber-50/50 p-3">
-                        <p className="text-[10px] text-amber-900 font-medium leading-snug">
-                          Refunds only list quotations that are <strong>fully paid</strong> (≥99.5% of total when total is set), have{' '}
-                          <strong>more than ₦{MIN_REFUND_QUOTATION_REMAINING_NGN.toLocaleString('en-NG')} refundable</strong> headroom, production{' '}
-                          <strong>completed or cancelled</strong> (or <strong>void with payment</strong>), and an{' '}
-                          <strong>automatic preview total at least ₦{MIN_REFUND_QUOTATION_REMAINING_NGN.toLocaleString('en-NG')}</strong>. A second refund on the same quote is allowed for a <strong>different category</strong> when headroom remains. If you already posted a receipt but the quote is missing here, the payment may have been
-                          recorded under a different branch than the quotation — use sync to recalculate from the ledger.
-                          If the sale is eligible but excluded because the automatic preview is below that amount, use{' '}
-                          <strong>Use quotation id</strong> after entering the full quotation reference.
+                        <p className="text-xs text-amber-900 font-medium leading-snug">
+                          {refundEmptyPickerHintText()}
                         </p>
                         <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
                           <input
@@ -2172,7 +2281,7 @@ const RefundModal = ({
                       Refund breakdown
                     </h3>
                   </div>
-                  {!readOnly && mode === 'create' ? (
+                  {!readOnly && mode === 'create' && createPath === 'full' ? (
                     <div className="flex flex-wrap gap-2 shrink-0">
                       {!includeCommissionInPreview ? (
                         <button
@@ -2240,11 +2349,11 @@ const RefundModal = ({
                       <div className="h-4 w-1.5 rounded-full bg-rose-500/80" />
                       <h4 className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Lines</h4>
                     </div>
-                    {!readOnly ? (
+                    {!readOnly && createPath === 'full' ? (
                       <button
                         type="button"
                         onClick={addLine}
-                        className="text-[10px] font-bold uppercase text-rose-600 hover:text-rose-700 underline-offset-4 hover:underline"
+                        className="text-xs font-bold uppercase text-rose-600 hover:text-rose-700 underline-offset-4 hover:underline"
                       >
                         + Add manual line
                       </button>
@@ -2422,27 +2531,17 @@ const RefundModal = ({
                               : `Included lines exceed cash received on this quotation (max ₦${(refundHardCapNgn ?? 0).toLocaleString('en-NG')} after prior refunds).`}
                           </p>
                         ) : null}
+                        {createAmountDerivedFromLines ? (
+                          <p className="text-[11px] font-medium text-slate-500 mt-1">
+                            Requested amount follows included lines
+                          </p>
+                        ) : null}
                       </div>
-                      {!readOnly ? (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const sum = sumLines(form.calculationLines);
-                            setForm((f) => ({
-                              ...f,
-                              amountNgn: String(sum > 0 ? sum : 0),
-                            }));
-                          }}
-                          className="rounded-xl bg-slate-900 px-4 py-2 text-[10px] font-bold uppercase tracking-wide text-white shadow-lg shadow-slate-200 transition-all hover:bg-slate-800 active:scale-95"
-                        >
-                          Apply total
-                        </button>
-                      ) : null}
                     </div>
 
                     <div className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2.5">
                       <label
-                        className="text-[9px] font-bold uppercase tracking-wide text-rose-800/80"
+                        className="text-xs font-bold uppercase tracking-wide text-rose-800/80"
                         htmlFor="refund-requested-amount"
                       >
                         Requested refund amount
@@ -2453,10 +2552,11 @@ const RefundModal = ({
                           id="refund-requested-amount"
                           required
                           type="number"
-                          disabled={readOnly || identityLocked}
+                          disabled={readOnly || identityLocked || createAmountDerivedFromLines}
+                          readOnly={createAmountDerivedFromLines}
                           value={form.amountNgn}
                           onChange={(e) => setForm((f) => ({ ...f, amountNgn: e.target.value }))}
-                          className="flex-1 rounded-lg border border-rose-200/80 bg-white py-1.5 px-2 text-lg font-black text-rose-950 outline-none focus:ring-2 focus:ring-rose-500/15 tabular-nums"
+                          className="flex-1 rounded-lg border border-rose-200/80 bg-white py-2 px-2 text-lg font-black text-rose-950 outline-none focus:ring-2 focus:ring-rose-500/15 tabular-nums disabled:bg-rose-50/50"
                           placeholder="0"
                         />
                       </div>
@@ -2490,9 +2590,16 @@ const RefundModal = ({
                         value={form.reasonNotes}
                         onChange={(e) => setForm((f) => ({ ...f, reasonNotes: e.target.value }))}
                         placeholder="Provide specific details about the situation..."
-                        className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 text-xs font-medium text-slate-700 outline-none focus:ring-2 focus:ring-rose-500/20 resize-none transition-all"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 px-4 text-sm font-medium text-slate-700 outline-none focus:ring-2 focus:ring-rose-500/20 resize-none transition-all"
                       />
                     </div>
+
+                    {mode === 'create' && form.quotationRef && lineSum > 0 ? (
+                      <RefundGlImpactPreview
+                        calculationLines={form.calculationLines}
+                        hasCompletedProduction={refundHasCompletedProduction}
+                      />
+                    ) : null}
                   </div>
                 </div>
               </div>
@@ -2810,7 +2917,7 @@ const RefundModal = ({
                       ) : null}
                     </div>
 
-                    {mode === 'create' && form.quotationRef ? (
+                    {mode === 'create' && form.quotationRef && createPath === 'full' ? (
                       <div className="flex flex-col gap-2">
                         {!refundIntelExpanded ? (
                           <button
@@ -3364,7 +3471,8 @@ const RefundModal = ({
                   alignmentBlocksAction ||
                   (mode === 'create' && !form.quotationRef) ||
                   (mode === 'create' && exceedsRefundableHeadroom) ||
-                  (mode === 'create' && selectedQuotationRefundsBlocked.blocked)
+                  (mode === 'create' && selectedQuotationRefundsBlocked.blocked) ||
+                  (mode === 'create' && createPath === 'quick' && lineSum <= 0 && Boolean(form.quotationRef))
                 }
                 onClick={handleFormSubmit}
                 className="group bg-rose-600 text-white px-8 py-2.5 rounded-xl text-[11px] font-bold uppercase tracking-widest shadow-xl shadow-rose-200 hover:brightness-105 active:scale-95 transition-all flex items-center gap-2 disabled:opacity-50 disabled:grayscale disabled:scale-100"

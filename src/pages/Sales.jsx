@@ -105,6 +105,7 @@ import {
   normalizeRefund,
   refundApprovedAmount,
   refundOutstandingAmount,
+  approvedRefundsAwaitingPayment,
   userMayApproveRefundRequests,
 } from '../lib/refundsStore';
 import { pickProductionJobForCuttingList } from '../lib/productionJobPick';
@@ -755,7 +756,7 @@ const Sales = () => {
       refund: {
         shown: filteredRefunds.length,
         pending: filteredRefunds.filter((x) => x.status === 'Pending').length,
-        awaitingPay: filteredRefunds.filter((x) => x.status === 'Approved' && refundOutstandingAmount(x) > 0).length,
+        awaitingPay: approvedRefundsAwaitingPayment(filteredRefunds).length,
       },
       customers: {
         shown: filteredCustomersCount,

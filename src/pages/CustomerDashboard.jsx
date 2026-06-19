@@ -39,6 +39,7 @@ import {
   Tooltip,
 } from 'recharts';
 import { PageHeader, PageShell, MainPanel, ModalFrame } from '../components/layout';
+import { RefundAdvanceModal } from '../components/refund/RefundAdvanceModal';
 import { ReportPrintModal } from '../components/reports/ReportPrintModal';
 import { EditSecondApprovalInline } from '../components/EditSecondApprovalInline';
 import { useCustomers } from '../context/CustomersContext';
@@ -342,6 +343,7 @@ const CustomerDashboard = () => {
   const [staffNotes, setStaffNotes] = useState([]);
   const [refundAdvanceOpen, setRefundAdvanceOpen] = useState(false);
   const [refundAdvanceAmt, setRefundAdvanceAmt] = useState('');
+  const [refundAdvanceBusy, setRefundAdvanceBusy] = useState(false);
   const [collectionsNote, setCollectionsNote] = useState('');
   const [collectionsBusy, setCollectionsBusy] = useState(false);
 
@@ -451,46 +453,51 @@ const CustomerDashboard = () => {
 
   const submitRefundAdvance = async (e) => {
     e.preventDefault();
-    if (!customer) return;
+    if (!customer || refundAdvanceBusy) return;
     const n = Number(String(refundAdvanceAmt).replace(/,/g, ''));
     if (Number.isNaN(n) || n <= 0) {
       showToast('Enter refund amount.', { variant: 'error' });
       return;
     }
-    if (ws?.canMutate) {
-      const { ok, data } = await apiFetch('/api/ledger/refund-advance', {
-        method: 'POST',
-        body: JSON.stringify({
+    setRefundAdvanceBusy(true);
+    try {
+      if (ws?.canMutate) {
+        const { ok, data } = await apiFetch('/api/ledger/refund-advance', {
+          method: 'POST',
+          body: JSON.stringify({
+            customerID: customer.customerID,
+            customerName: customer.name,
+            amountNgn: n,
+            note: 'Advance refunded to customer',
+          }),
+        });
+        if (!ok || !data?.ok) {
+          showToast(data?.error || 'Refund failed on server.', { variant: 'error' });
+          return;
+        }
+        await ws.refresh();
+      } else if (!ws?.hasWorkspaceData) {
+        const res = recordRefundAdvance({
           customerID: customer.customerID,
           customerName: customer.name,
           amountNgn: n,
           note: 'Advance refunded to customer',
-        }),
-      });
-      if (!ok || !data?.ok) {
-        showToast(data?.error || 'Refund failed on server.', { variant: 'error' });
+        });
+        if (!res.ok) {
+          showToast(res.error, { variant: 'error' });
+          return;
+        }
+      } else {
+        showToast('Reconnect to post advance refunds — read-only workspace.', { variant: 'info' });
         return;
       }
-      await ws.refresh();
-    } else if (!ws?.hasWorkspaceData) {
-      const res = recordRefundAdvance({
-        customerID: customer.customerID,
-        customerName: customer.name,
-        amountNgn: n,
-        note: 'Advance refunded to customer',
-      });
-      if (!res.ok) {
-        showToast(res.error, { variant: 'error' });
-        return;
-      }
-    } else {
-      showToast('Reconnect to post advance refunds — read-only workspace.', { variant: 'info' });
-      return;
+      showToast(`Advance refund ${formatNgn(n)} recorded.`);
+      setRefundAdvanceOpen(false);
+      setRefundAdvanceAmt('');
+      setLedgerViewNonce((x) => x + 1);
+    } finally {
+      setRefundAdvanceBusy(false);
     }
-    showToast(`Advance refund ${formatNgn(n)} recorded.`);
-    setRefundAdvanceOpen(false);
-    setRefundAdvanceAmt('');
-    setLedgerViewNonce((x) => x + 1);
   };
 
   const quotationTableRows = useMemo(() => {
@@ -2524,37 +2531,18 @@ const CustomerDashboard = () => {
         summaryLines={reportPreview?.summaryLines || []}
       />
 
-      <ModalFrame isOpen={refundAdvanceOpen} onClose={() => setRefundAdvanceOpen(false)}>
-        <form onSubmit={submitRefundAdvance} className="z-modal-panel max-w-sm p-6">
-          <h3 className="text-base font-bold text-[#134e4a] mb-1">Refund advance</h3>
-          <p className="text-[10px] text-slate-500 mb-4 leading-relaxed">
-            Current advance balance {formatNgn(advanceBalNgn)}. Reduces cash or bank when you post the refund.
-          </p>
-          <label className="text-[9px] font-semibold text-slate-400 uppercase block mb-1">Amount (₦)</label>
-          <input
-            type="number"
-            min="1"
-            value={refundAdvanceAmt}
-            onChange={(e) => setRefundAdvanceAmt(e.target.value)}
-            className="w-full border border-slate-200 rounded-lg py-2 px-3 text-sm font-bold tabular-nums mb-4"
-          />
-          <div className="flex gap-2 justify-end">
-            <button
-              type="button"
-              onClick={() => setRefundAdvanceOpen(false)}
-              className="px-3 py-2 text-[10px] font-semibold uppercase text-slate-600"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="rounded-lg bg-amber-700 text-white px-4 py-2 text-[10px] font-semibold uppercase"
-            >
-              Post refund
-            </button>
-          </div>
-        </form>
-      </ModalFrame>
+      <RefundAdvanceModal
+        isOpen={refundAdvanceOpen}
+        onClose={() => {
+          if (!refundAdvanceBusy) setRefundAdvanceOpen(false);
+        }}
+        advanceBalanceNgn={advanceBalNgn}
+        amount={refundAdvanceAmt}
+        onAmountChange={setRefundAdvanceAmt}
+        onSubmit={submitRefundAdvance}
+        busy={refundAdvanceBusy}
+        formatNgn={formatNgn}
+      />
     </PageShell>
   );
 };
