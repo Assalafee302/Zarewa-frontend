@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { X } from 'lucide-react';
 import { ModalFrame, ModalScrollShell, ModalScrollHeader, ModalScrollBody } from '../layout';
-import { useCustomers } from '../../context/CustomersContext';
 import { useToast } from '../../context/ToastContext';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { useTrackedUnsavedForm } from '../../hooks/useTrackedUnsavedForm';
+import { CustomerStaffLinkField } from './CustomerStaffLinkField';
+import { apiFetch } from '../../lib/apiBase';
 
 const emptyForm = {
   name: '',
@@ -15,6 +16,7 @@ const emptyForm = {
   status: 'Active',
   tier: 'Regular',
   paymentTerms: 'Net 30',
+  linkedStaffUserId: '',
 };
 
 /**
@@ -27,7 +29,6 @@ export default function SalesCustomerCreateModal({
   createdByLabel = 'Sales',
   onCreated,
 }) {
-  const { addCustomer } = useCustomers();
   const { show: showToast } = useToast();
   const ws = useWorkspace();
   const [form, setForm] = useState(emptyForm);
@@ -43,27 +44,53 @@ export default function SalesCustomerCreateModal({
 
   const submitNew = async (e) => {
     e.preventDefault();
-    if (!form.name.trim() || !form.phoneNumber.trim()) {
-      showToast('Name and phone required.', { variant: 'error' });
+    const staffLinked = Boolean(String(form.linkedStaffUserId || '').trim());
+    if (!form.name.trim()) {
+      showToast('Name is required.', { variant: 'error' });
+      return;
+    }
+    if (!staffLinked && !form.phoneNumber.trim()) {
+      showToast('Phone is required unless this is a staff purchase credit account.', { variant: 'error' });
       return;
     }
     const iso = new Date().toISOString().slice(0, 10);
     try {
-      const newId = await addCustomer({
-        ...form,
+      const { linkedStaffUserId, ...rest } = form;
+      const payload = {
+        ...rest,
+        name: rest.name.trim(),
+        tier: staffLinked ? 'Staff' : rest.tier,
+        paymentTerms: staffLinked ? 'Staff credit' : rest.paymentTerms,
+        phoneNumber: rest.phoneNumber.trim() || (staffLinked ? 'STAFF' : ''),
         createdAtISO: iso,
         lastActivityISO: iso,
         createdBy: createdByLabel,
+        ...(staffLinked ? { linkedStaffUserId: linkedStaffUserId.trim() } : {}),
+      };
+
+      const { ok, data } = await apiFetch('/api/customers', {
+        method: 'POST',
+        body: JSON.stringify(payload),
       });
-      const customerID = String(newId || '').trim();
+      if (!ok || !data?.ok) throw new Error(data?.error || 'Create customer API failed');
+
+      await ws?.refresh?.();
+      const customerID = String(data.customerID || '').trim();
+      const displayName = data.staffLink?.customerName || form.name.trim();
       onCreated?.({
         customerID,
-        name: form.name.trim(),
-        phoneNumber: form.phoneNumber.trim(),
+        name: displayName,
+        phoneNumber: form.phoneNumber.trim() || 'STAFF',
       });
       setForm(emptyForm);
       onClose();
-      showToast(customerID ? `Customer ${customerID} saved.` : 'Customer saved.');
+      showToast(
+        customerID
+          ? staffLinked
+            ? `Staff customer ${customerID} linked for purchase credit.`
+            : `Customer ${customerID} saved.`
+          : 'Customer saved.'
+      );
     } catch (err) {
       showToast(err?.message || 'Could not save customer.', { variant: 'error' });
     }
@@ -97,14 +124,35 @@ export default function SalesCustomerCreateModal({
                   className="z-finance-field rounded-xl font-bold text-[#134e4a]"
                 />
               </div>
+              <CustomerStaffLinkField
+                value={form.linkedStaffUserId}
+                onChange={(staffUserId) =>
+                  setForm((f) => ({
+                    ...f,
+                    linkedStaffUserId: staffUserId,
+                    tier: staffUserId ? 'Staff' : f.tier === 'Staff' ? 'Regular' : f.tier,
+                    paymentTerms: staffUserId ? 'Staff credit' : f.paymentTerms,
+                  }))
+                }
+                onStaffPick={(staff) => {
+                  if (!staff) return;
+                  setForm((f) => ({
+                    ...f,
+                    name: f.name.trim() ? f.name : staff.label || staff.displayName || f.name,
+                  }));
+                }}
+              />
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div className="space-y-1">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Phone *</label>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                    Phone {form.linkedStaffUserId ? '' : '*'}
+                  </label>
                   <input
-                    required
+                    required={!form.linkedStaffUserId}
                     value={form.phoneNumber}
                     onChange={(e) => setForm((f) => ({ ...f, phoneNumber: e.target.value }))}
                     className="z-finance-field rounded-xl font-bold text-[#134e4a]"
+                    placeholder={form.linkedStaffUserId ? 'Optional for staff accounts' : ''}
                   />
                 </div>
                 <div className="space-y-1">
@@ -137,6 +185,7 @@ export default function SalesCustomerCreateModal({
                   <option value="Regular">Regular</option>
                   <option value="VIP">VIP</option>
                   <option value="Wholesale">Wholesale</option>
+                  <option value="Staff">Staff (purchase credit)</option>
                 </select>
               </div>
               <div className="space-y-1">

@@ -42,10 +42,13 @@ import { PageHeader, PageShell, MainPanel, ModalFrame } from '../components/layo
 import { RefundAdvanceModal } from '../components/refund/RefundAdvanceModal';
 import { ReportPrintModal } from '../components/reports/ReportPrintModal';
 import { EditSecondApprovalInline } from '../components/EditSecondApprovalInline';
+import { CustomerStaffLinkField } from '../components/sales/CustomerStaffLinkField';
 import { useCustomers } from '../context/CustomersContext';
 import { useToast } from '../context/ToastContext';
 import { useWorkspace } from '../context/WorkspaceContext';
 import { apiFetch } from '../lib/apiBase';
+import { setCustomerStaffLink } from '../lib/customerStaffLink';
+import { customerPickerPrimaryLabel } from '../lib/customerPickerSearch';
 import { formatNgn } from '../Data/mockData';
 import { refundApprovedAmount, refundOutstandingAmount } from '../lib/refundsStore';
 import {
@@ -200,6 +203,7 @@ const emptyEdit = (c) => ({
   followUpISO: c?.followUpISO ?? '',
   crmTagsStr: Array.isArray(c?.crmTags) ? c.crmTags.join(', ') : '',
   crmProfileNotes: c?.crmProfileNotes ?? '',
+  linkedStaffUserId: c?.staffUserId ?? '',
 });
 
 const CustomerDashboard = () => {
@@ -774,10 +778,15 @@ const CustomerDashboard = () => {
 
   const saveProfile = async (e) => {
     e.preventDefault();
-    if (!editForm.name.trim() || !editForm.phoneNumber.trim()) {
-      showToast('Name and phone are required.', { variant: 'error' });
+    const staffLinked = Boolean(String(editForm.linkedStaffUserId || '').trim());
+    if (!editForm.name.trim() || (!staffLinked && !editForm.phoneNumber.trim())) {
+      showToast('Name and phone are required (phone optional for staff-linked accounts).', { variant: 'error' });
       return;
     }
+    const priorStaffUserId = String(customer?.staffUserId || '').trim();
+    const nextStaffUserId = String(editForm.linkedStaffUserId || '').trim();
+    const staffLinkChanged = priorStaffUserId !== nextStaffUserId;
+
     if (ws?.canMutate) {
       const { ok, data } = await apiFetch(`/api/customers/${encodeURIComponent(customerKey)}`, {
         method: 'PATCH',
@@ -789,8 +798,8 @@ const CustomerDashboard = () => {
           addressShipping: editForm.addressShipping.trim(),
           addressBilling: editForm.addressBilling.trim() || editForm.addressShipping.trim(),
           status: editForm.status,
-          tier: editForm.tier,
-          paymentTerms: editForm.paymentTerms,
+          tier: nextStaffUserId ? 'Staff' : editForm.tier,
+          paymentTerms: nextStaffUserId ? 'Staff credit' : editForm.paymentTerms,
           companyName: editForm.companyName.trim(),
           leadSource: editForm.leadSource.trim(),
           preferredContact: editForm.preferredContact,
@@ -806,10 +815,19 @@ const CustomerDashboard = () => {
         showToast(data?.error || 'Could not update customer profile.', { variant: 'error' });
         return;
       }
+      if (staffLinkChanged) {
+        const linkRes = await setCustomerStaffLink(customerKey, nextStaffUserId || null);
+        const linkData = linkRes.data || linkRes;
+        if (!linkRes.ok || !linkData?.ok) {
+          showToast(linkData?.error || 'Profile saved but staff link failed.', { variant: 'error' });
+          await ws.refresh();
+          return;
+        }
+      }
       await ws.refresh();
       setCustomerEditApprovalId('');
       setShowEdit(false);
-      showToast('Customer profile updated.');
+      showToast(staffLinkChanged ? 'Customer profile and staff link updated.' : 'Customer profile updated.');
       return;
     }
     setCustomers((prev) =>
@@ -1126,6 +1144,12 @@ const CustomerDashboard = () => {
                   {customer.email}
                 </span>
               </p>
+              {customer.staffUserId || customer.staffDisplayName || customer.staffEmployeeNo ? (
+                <p className="text-xs font-semibold text-[#134e4a] mt-2 rounded-lg border border-teal-100 bg-teal-50/80 px-3 py-2">
+                  Staff purchase credit:{' '}
+                  <span className="font-bold">{customerPickerPrimaryLabel(customer)}</span>
+                </p>
+              ) : null}
               <p className="text-[10px] text-gray-500 mt-3 leading-relaxed">
                 <span className="font-bold text-gray-400 uppercase tracking-wide">Account officer</span>{' '}
                 <span className="font-bold text-[#134e4a]">{customer.createdBy || '—'}</span>
@@ -2085,6 +2109,28 @@ const CustomerDashboard = () => {
               />
             </div>
             <p className="text-[10px] font-bold text-[#134e4a] uppercase tracking-widest pt-2 border-t border-gray-100">
+              Staff purchase credit
+            </p>
+            <CustomerStaffLinkField
+              value={editForm.linkedStaffUserId}
+              customerId={customerKey}
+              onChange={(staffUserId) =>
+                setEditForm((f) => ({
+                  ...f,
+                  linkedStaffUserId: staffUserId,
+                  tier: staffUserId ? 'Staff' : f.tier === 'Staff' ? 'Regular' : f.tier,
+                  paymentTerms: staffUserId ? 'Staff credit' : f.paymentTerms,
+                }))
+              }
+              onStaffPick={(staff) => {
+                if (!staff) return;
+                setEditForm((f) => ({
+                  ...f,
+                  name: staff.label || staff.displayName || f.name,
+                }));
+              }}
+            />
+            <p className="text-[10px] font-bold text-[#134e4a] uppercase tracking-widest pt-2 border-t border-gray-100">
               CRM profiling (shared sales workspace)
             </p>
             <div>
@@ -2173,6 +2219,7 @@ const CustomerDashboard = () => {
                   <option value="VIP">VIP</option>
                   <option value="Wholesale">Wholesale</option>
                   <option value="Trade">Trade</option>
+                  <option value="Staff">Staff (purchase credit)</option>
                 </select>
               </div>
               <div>
