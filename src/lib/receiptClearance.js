@@ -29,6 +29,38 @@ export function isReceiptCleared(row) {
   return normStatus(row?.status) === 'cleared';
 }
 
+export function isReceiptFinanceReconciled(row) {
+  if (!row || isReceiptReversed(row)) return false;
+  const saved = row.financeReconciliationSavedAtISO ?? row.finance_reconciliation_saved_at_iso;
+  return saved != null && String(saved).trim() !== '';
+}
+
+export function receiptBankReceivedAmountNgn(row) {
+  const bank = row?.bankReceivedAmountNgn ?? row?.bank_received_amount_ngn;
+  if (bank == null) return null;
+  const n = Math.round(Number(bank) || 0);
+  return n > 0 ? n : null;
+}
+
+export function receiptReconciledCashNgn(row) {
+  if (!isReceiptFinanceReconciled(row)) return null;
+  return receiptBankReceivedAmountNgn(row);
+}
+
+/**
+ * Cash tied to a receipt for refunds, analytics, and treasury tie-out.
+ * Reconciled receipts use bank-received (what was actually paid); otherwise posted allocation + companion overpay.
+ */
+export function receiptEffectiveCashNgn(row, opts = {}) {
+  if (!row) return 0;
+  if (row.cashReceivedNgn != null) return Math.round(Number(row.cashReceivedNgn) || 0);
+  const reconciled = receiptReconciledCashNgn(row);
+  if (reconciled != null) return reconciled;
+  const alloc = Math.round(Number(row.amountNgn ?? row.amount_ngn) || 0);
+  const extra = Math.max(0, Math.round(Number(opts.companionOverpayNgn) || 0));
+  return Math.round(alloc + extra);
+}
+
 export function isReceiptPendingClearance(row) {
   if (!row || isReceiptReversed(row)) return false;
   return !isReceiptCleared(row);
@@ -103,11 +135,7 @@ export function receiptMatchesSalesPaymentFilter(row, filter = 'all') {
 export function pendingClearanceTotalNgn(receipts = []) {
   return (Array.isArray(receipts) ? receipts : []).reduce((sum, r) => {
     if (!isReceiptPendingClearance(r)) return sum;
-    const cash =
-      r.cashReceivedNgn != null
-        ? Math.round(Number(r.cashReceivedNgn) || 0)
-        : Math.round(Number(r.amountNgn ?? r.amount_ngn) || 0);
-    return sum + cash;
+    return sum + receiptEffectiveCashNgn(r);
   }, 0);
 }
 

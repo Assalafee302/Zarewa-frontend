@@ -52,6 +52,7 @@ import {
   expectedAmountFromRefundLineLabel,
   scaleRefundCalculationLinesToApprovedAmount,
 } from '../lib/refundLineArithmetic';
+import { receiptCashReceivedNgn } from '../lib/salesReceiptsList';
 import { RefundManagerApprovalPreview } from './management/RefundManagerApprovalPreview';
 import { deliveryPaymentGateMode } from '../lib/accountingPolicyFlags';
 
@@ -678,7 +679,7 @@ const RefundModal = ({
 
   /** Sum of cash from sales receipts linked to this quotation (intelligence payload). */
   const refundIntelReceiptsTotalNgn = useMemo(
-    () => (intelligence.receipts || []).reduce((s, r) => s + (Number(r.amountNgn) || 0), 0),
+    () => (intelligence.receipts || []).reduce((s, r) => s + receiptCashReceivedNgn(r), 0),
     [intelligence.receipts]
   );
 

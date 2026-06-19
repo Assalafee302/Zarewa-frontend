@@ -1,5 +1,5 @@
 import { formatNgn } from '../Data/mockData';
-import { isReceiptPendingClearance, pendingClearanceTotalNgn } from './receiptClearance';
+import { isReceiptPendingClearance, pendingClearanceTotalNgn, receiptEffectiveCashNgn } from './receiptClearance';
 import { receiptLedgerReceiptTreasurySplits } from './salesReceiptsList';
 
 const UNRECONCILED_BANK_STATUSES = new Set(['Review', 'PendingManager']);
@@ -33,8 +33,7 @@ export function unreconciledReceiptsPrintPayload(receipts, treasuryMovements = [
     })
     .map((r) => {
       const allocated = Math.round(Number(r.amountNgn) || 0);
-      const cash =
-        r.cashReceivedNgn != null ? Math.round(Number(r.cashReceivedNgn) || 0) : allocated;
+      const cash = receiptEffectiveCashNgn(r);
       const splits = receiptLedgerReceiptTreasurySplits(r, treasuryMovements);
       const accounts =
         splits.length > 0

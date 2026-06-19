@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { FileSpreadsheet, Plus, Printer, RefreshCw, Lightbulb } from 'lucide-react';
 import { formatNgn } from '../../Data/mockData';
 import { downloadFinanceCsv } from '../../lib/exportFinanceCsv';
@@ -228,6 +229,17 @@ export function AccountingRegisterPanel({
         <AccountingDeskNotice tone="warn">
           {data.summary.significantOverpaymentCount} significant overpayment(s) —{' '}
           {formatNgn(data.summary.significantOverpaymentNgn)}. Review in Overpayment credits or add a legacy line.
+        </AccountingDeskNotice>
+      ) : null}
+
+      {registerSide === 'debtor' && (data?.summary?.pendingFinanceClearanceCount ?? 0) > 0 ? (
+        <AccountingDeskNotice tone="info">
+          {data.summary.pendingFinanceClearanceCount} receipt(s) ({formatNgn(data.summary.pendingFinanceClearanceNgn)}{' '}
+          total) are linked to quotations but awaiting finance clearance. These are control exceptions — not payables and
+          not included in the register total.{' '}
+          <Link to="/accounts?tab=receipts" className="font-semibold text-[#134e4a] hover:underline">
+            Open Finance → Receipts
+          </Link>
         </AccountingDeskNotice>
       ) : null}
 

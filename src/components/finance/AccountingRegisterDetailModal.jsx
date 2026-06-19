@@ -41,9 +41,13 @@ const SECTION_ACTIONS = {
     { label: 'Customer record', icon: User, resolve: (s, i) => accountingRegisterPartyLink(s, i) },
     { label: 'Finance refunds', to: '/accounts?tab=refunds' },
   ],
-  unlinked_payments: [
+  unallocated_receipts: [
     { label: 'Open receipt in Sales', icon: FileText, resolve: (s, i) => accountingRegisterReferenceLink(s, i) },
     { label: 'Finance receipts queue', to: '/accounts?tab=receipts' },
+  ],
+  bank_deposit_suspense: [
+    { label: 'Finance bank deposit pool', to: '/accounts?tab=receipts' },
+    { label: 'Link from Sales', to: '/sales' },
   ],
   inter_branch_receivable: [{ label: 'Treasury movements', to: '/accounts?tab=movements' }],
   inter_branch_payable: [{ label: 'Treasury movements', to: '/accounts?tab=movements' }],

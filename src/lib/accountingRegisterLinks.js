@@ -36,8 +36,10 @@ export function accountingRegisterPartyLink(sectionId, item) {
     case 'supplier_payables':
     case 'supplier_prepayments':
       return entityId ? { to: `/procurement/suppliers/${encodeURIComponent(entityId)}` } : null;
-    case 'unlinked_payments':
+    case 'unallocated_receipts':
       return entityId ? { to: `/customers/${encodeURIComponent(entityId)}#cd-financial` } : null;
+    case 'bank_deposit_suspense':
+      return { to: '/accounts?tab=receipts' };
     case 'inter_branch_receivable':
     case 'inter_branch_payable':
       return { to: '/accounts?tab=movements' };
@@ -90,8 +92,11 @@ export function accountingRegisterReferenceLink(sectionId, item) {
   }
 
   if (!ref || ref === '—') {
-    if (sectionId === 'unlinked_payments' && item?.id) {
+    if (sectionId === 'unallocated_receipts' && item?.id) {
       return { to: '/sales', state: { openSalesRecord: { type: 'receipt', id: String(item.id) } } };
+    }
+    if (sectionId === 'bank_deposit_suspense' && item?.bankDepositId) {
+      return { to: '/accounts?tab=receipts' };
     }
     return null;
   }
@@ -101,8 +106,12 @@ export function accountingRegisterReferenceLink(sectionId, item) {
     return staffLink;
   }
 
-  if (sectionId === 'unlinked_payments') {
+  if (sectionId === 'unallocated_receipts') {
     return { to: '/sales', state: { openSalesRecord: { type: 'receipt', id: String(item.id || ref) } } };
+  }
+
+  if (sectionId === 'bank_deposit_suspense') {
+    return { to: '/accounts?tab=receipts' };
   }
 
   if (sectionId === 'inter_branch_receivable' || sectionId === 'inter_branch_payable') {
