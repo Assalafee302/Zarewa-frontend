@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Banknote, Landmark, ArrowRightLeft, ClipboardList, RotateCcw, Truck } from 'lucide-react';
+import { Banknote, Landmark, ArrowRightLeft, ClipboardList, RotateCcw, Truck, UserRound } from 'lucide-react';
 import { formatNgn } from '../../Data/mockData';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import {
@@ -49,6 +49,7 @@ const DESK_SUB_TABS = [
  *   onPayRefund: (refundId: string) => void;
  *   onPayPoTransport: (row: object) => void;
  *   onViewPoTransport?: (row: object) => void;
+ *   onReceiveStaffRecovery?: (row: object) => void;
  *   onGoToTab: (tabId: string) => void;
  * }} props
  */
@@ -60,6 +61,7 @@ export function FinanceDeskWorkQueues({
   onPayRefund,
   onPayPoTransport,
   onViewPoTransport,
+  onReceiveStaffRecovery,
   onGoToTab,
 }) {
   const ws = useWorkspace();
@@ -124,6 +126,13 @@ export function FinanceDeskWorkQueues({
         .slice(0, 15),
     [ws?.snapshot?.poTransportAwaitingTreasury]
   );
+  const staffRecoveriesDue = useMemo(
+    () =>
+      (Array.isArray(ws?.snapshot?.staffRecoveriesDue) ? ws.snapshot.staffRecoveriesDue : [])
+        .filter((row) => Math.max(0, Number(row.principalOutstandingNgn) || 0) > 0)
+        .slice(0, 20),
+    [ws?.snapshot?.staffRecoveriesDue]
+  );
   const liquidity = useMemo(
     () => liquidityClearanceSplit(treasuryAccounts, receipts),
     [treasuryAccounts, receipts]
@@ -164,8 +173,8 @@ export function FinanceDeskWorkQueues({
       {branchLabel ? (
         <p className="text-[11px] text-slate-600 leading-relaxed rounded-xl border border-teal-200/70 bg-teal-50/50 px-4 py-3">
           <strong className="text-[#134e4a]">{branchLabel}</strong> cashier desk — your payout home. Confirm
-          receipts, pay approved expense requests, refunds, and PO haulage here without switching tabs. Supplier
-          payments stay on Procurement.
+          receipts, receive staff discipline recoveries, pay approved expense requests, refunds, and PO haulage here
+          without switching tabs. Supplier payments stay on Procurement.
         </p>
       ) : null}
 
@@ -178,6 +187,7 @@ export function FinanceDeskWorkQueues({
         approvedPayments={approvedPayments.length}
         approvedRefunds={approvedRefunds.length}
         poHaulage={poTransportAwaiting.length}
+        staffRecoveries={staffRecoveriesDue.length}
       />
 
       <FinanceTabs tabs={DESK_SUB_TABS} active={deskSubTab} onChange={setDeskSubTab} />
@@ -358,6 +368,37 @@ export function FinanceDeskWorkQueues({
               )}
             </FinanceSectionCard>
           </div>
+
+          <FinanceSectionCard
+            title="Staff recoveries due"
+            icon={<UserRound size={16} className="text-violet-700" />}
+          >
+            {staffRecoveriesDue.length === 0 ? (
+              <FinanceEmptyState title="No staff recoveries awaiting payment" />
+            ) : (
+              <ul className="space-y-2">
+                {staffRecoveriesDue.map((row) => (
+                  <FinanceQueueRow
+                    key={row.scheduleId}
+                    title={row.staffDisplayName || row.userId}
+                    subtitle={
+                      row.caseNumber
+                        ? `Case ${row.caseNumber} · ${formatNgn(row.installmentAmountNgn || 0)}/mo payroll`
+                        : row.title || 'Discipline recovery'
+                    }
+                    amount={formatNgn(row.principalOutstandingNgn)}
+                    primaryAction={
+                      onReceiveStaffRecovery ? (
+                        <FinanceActionButton variant="primary" onClick={() => onReceiveStaffRecovery(row)}>
+                          Receive payment
+                        </FinanceActionButton>
+                      ) : null
+                    }
+                  />
+                ))}
+              </ul>
+            )}
+          </FinanceSectionCard>
 
           <FinanceSectionCard
             title="PO transport / haulage to pay"

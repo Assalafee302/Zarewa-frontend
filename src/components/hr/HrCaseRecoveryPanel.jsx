@@ -146,8 +146,9 @@ export default function HrCaseRecoveryPanel({ caseId, detail, canManage, onUpdat
         </Link>
       </div>
       <p className="text-xs text-slate-500">
-        Monthly payroll deducts installments automatically. Staff may also pay cash or transfer — record that here to
-        reduce or clear the balance and stop further deductions.
+        Monthly payroll deducts installments automatically. Staff may pay cash or transfer at the{' '}
+        <strong>branch cashier</strong> (Finance → Desk → Staff recoveries due) — or HR can record a direct payment
+        here to reduce or clear the balance and stop further deductions.
       </p>
       {msg ? <p className="text-sm text-emerald-800">{msg}</p> : null}
       {err ? <p className="text-sm text-red-700">{err}</p> : null}

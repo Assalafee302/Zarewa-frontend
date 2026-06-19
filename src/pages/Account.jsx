@@ -81,6 +81,7 @@ import {
 } from '../lib/accountCore';
 import { getAllowedLegacyAccountTabs, getDefaultLegacyAccountTab } from '../lib/legacyAccountsAccess';
 import { FinanceDeskWorkQueues } from '../components/finance/FinanceDeskWorkQueues.jsx';
+import { StaffRecoveryCashierModal } from '../components/finance/StaffRecoveryCashierModal.jsx';
 import {
   treasuryAccountBranchLabel,
   treasuryAccountDisplayName,
@@ -102,6 +103,10 @@ import {
   RECEIPT_CLEARANCE_RESET_CONFIRM_PHRASE,
   receiptClearanceBadgeLabel,
 } from '../lib/receiptClearance.js';
+
+function parseNgnInput(raw) {
+  return Math.round(Number(String(raw ?? '').replace(/,/g, '')) || 0);
+}
 
 const Account = () => {
   const location = useLocation();
@@ -131,6 +136,7 @@ const Account = () => {
   const [paymentsMutateApprovalId, setPaymentsMutateApprovalId] = useState('');
   const [paymentsApprovalEntity, setPaymentsApprovalEntity] = useState(null);
   const [showPaymentEntry, setShowPaymentEntry] = useState(false);
+  const [staffRecoveryTarget, setStaffRecoveryTarget] = useState(null);
   const [showAddBank, setShowAddBank] = useState(false);
   const [showExpenseModal, setShowExpenseModal] = useState(false);
   const [showPayRequestModal, setShowPayRequestModal] = useState(false);
@@ -193,7 +199,8 @@ const Account = () => {
   const [receiptFinanceRow, setReceiptFinanceRow] = useState(null);
   const [receiptReverseBusy, setReceiptReverseBusy] = useState(false);
   const [receiptBankAmtInput, setReceiptBankAmtInput] = useState('');
-  const [receiptClearDelivery, setReceiptClearDelivery] = useState(false);
+  /** When true, confirm payment but do not set finance delivery clearance. */
+  const [receiptHoldDelivery, setReceiptHoldDelivery] = useState(false);
   const [receiptFinanceBusy, setReceiptFinanceBusy] = useState(false);
   /** Correct bank/cash account for expense or payment-request treasury outflows (same idea as receipt splits). */
   const [expenseOutflowEdit, setExpenseOutflowEdit] = useState(null);
@@ -1216,6 +1223,24 @@ const Account = () => {
     [handleAccountTabChange]
   );
 
+  const handleDeskReceiveStaffRecovery = useCallback(
+    (row) => {
+      if (!row?.scheduleId) return;
+      if (!canPayRequests && !ws?.hasPermission?.('finance.post')) {
+        showToast('You do not have permission to receive staff recovery payments.', { variant: 'error' });
+        return;
+      }
+      if (!ws?.viewAllBranches && row?.branchId && ws?.branchScope && row.branchId !== ws.branchScope) {
+        showToast(`This employee belongs to branch ${row.branchId}. Switch branch before receiving payment.`, {
+          variant: 'error',
+        });
+        return;
+      }
+      setStaffRecoveryTarget(row);
+    },
+    [canPayRequests, ws, showToast]
+  );
+
   useEffect(() => {
     const t = searchParams.get('tab');
     const rk = ws?.session?.user?.roleKey;
@@ -1622,7 +1647,7 @@ const Account = () => {
       const br =
         r.bankReceivedAmountNgn != null ? Number(r.bankReceivedAmountNgn) : cash;
       setReceiptBankAmtInput(String(br));
-      setReceiptClearDelivery(Boolean(r.financeDeliveryClearedAtISO));
+      setReceiptHoldDelivery(Boolean(r.financeReconciliationSavedAtISO && !r.financeDeliveryClearedAtISO));
       const splits = receiptLedgerReceiptTreasurySplits(r, liveTreasuryMovements);
       setPaymentCorrectionDrafts(
         Object.fromEntries(
@@ -1742,6 +1767,15 @@ const Account = () => {
         paymentLineCorrections.push(line);
       }
 
+      const bankReceivedAmountNgn =
+        settleSplits.length > 0
+          ? paymentLineCorrections.reduce((sum, line) => sum + line.amountNgn, 0)
+          : parseNgnInput(receiptBankAmtInput);
+      if (bankReceivedAmountNgn <= 0) {
+        showToast('Enter the amount actually received before confirming.', { variant: 'error' });
+        return;
+      }
+
       setReceiptFinanceBusy(true);
       try {
         const { ok, status, data } = await apiFetch(
@@ -1750,10 +1784,8 @@ const Account = () => {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              bankReceivedAmountNgn: Math.round(
-                Number(String(receiptBankAmtInput).replace(/,/g, '')) || 0
-              ),
-              clearForDelivery: receiptClearDelivery,
+              bankReceivedAmountNgn,
+              clearForDelivery: !receiptHoldDelivery,
               paymentLineCorrections,
             }),
           }
@@ -1763,7 +1795,11 @@ const Account = () => {
           showToast((data?.error || `Could not save settlement (${status}).`) + hint, { variant: 'error' });
           return;
         }
-        showToast('Receipt cleared — treasury updated and reconciliation finalized.');
+        showToast(
+          receiptHoldDelivery
+            ? 'Payment confirmed — books updated (delivery held).'
+            : 'Payment confirmed — books updated and cleared for delivery.'
+        );
         setReceiptFinanceRow(null);
         setPaymentCorrectionDrafts({});
         await wsRefresh?.();
@@ -1774,7 +1810,7 @@ const Account = () => {
     [
       receiptFinanceRow,
       receiptBankAmtInput,
-      receiptClearDelivery,
+      receiptHoldDelivery,
       paymentCorrectionDrafts,
       liveTreasuryMovements,
       todayIso,
@@ -3044,6 +3080,7 @@ const Account = () => {
                 onPayRefund={handleDeskPayRefund}
                 onPayPoTransport={handleDeskPayPoTransport}
                 onViewPoTransport={handleDeskViewPoTransport}
+                onReceiveStaffRecovery={handleDeskReceiveStaffRecovery}
                 onGoToTab={handleAccountTabChange}
               />
             )}
@@ -3237,7 +3274,7 @@ const Account = () => {
                                       onClick={() => openReceiptFinance(r)}
                                       className="text-[9px] font-bold uppercase px-3 py-1.5 rounded-lg bg-[#134e4a] text-white hover:bg-[#0f3d3a]"
                                     >
-                                      Clear receipt
+                                      Confirm payment
                                     </button>
                                   ) : null}
                                 </div>
@@ -6014,7 +6051,7 @@ const Account = () => {
       >
         <div className="z-modal-panel z-modal-scroll-y max-w-2xl w-full p-4 sm:p-8">
           <div className="flex justify-between items-start gap-3 mb-4">
-            <h3 className="text-lg font-bold text-[#134e4a]">Clear receipt</h3>
+            <h3 className="text-lg font-bold text-[#134e4a]">Confirm payment received</h3>
             <button
               type="button"
               onClick={() => {
@@ -6040,18 +6077,29 @@ const Account = () => {
                     ? Number(receiptFinanceRow.cashReceivedNgn) || 0
                     : Number(receiptFinanceRow.amountNgn) || 0;
                 const formDisabled = receiptFinanceBusy;
+                const confirmedTotalNgn =
+                  settleSplits.length > 0
+                    ? settleSplits.reduce((sum, s) => {
+                        const d = paymentCorrectionDrafts[s.movementId];
+                        const raw = d?.amountNgn ?? String(s.amountNgn);
+                        return sum + parseNgnInput(raw);
+                      }, 0)
+                    : parseNgnInput(receiptBankAmtInput);
+                const salesDeltaNgn = confirmedTotalNgn - Math.round(cashTotal);
 
-                if (settleSplits.length > 0) {
-                  return (
+                return (
+                  <>
+                    <div className="rounded-xl border border-teal-200/90 bg-teal-50/50 px-3 py-2.5 text-[10px] text-teal-950 leading-snug">
+                      <span className="font-bold">One confirm step</span> — enter what was actually received. Saving
+                      updates treasury, receipt, ledger, and quote paid amount, and clears for delivery unless you hold
+                      it below. Revisions after the first save may need manager approval.
+                    </div>
+
+                {settleSplits.length > 0 ? (
                     <div className="space-y-3">
-                      <div className="rounded-xl border border-teal-200/90 bg-teal-50/50 px-3 py-2.5 text-[10px] text-teal-950 leading-snug">
-                        <span className="font-bold">Payment breakdown</span> — set amount, bank or cash, and date for
-                        each line.{' '}
-                        <span className="font-semibold">
-                          One save below updates treasury balances, records the bank total, and finalizes this receipt.
-                          You can revise reconciled payments here without a separate approval code.
-                        </span>
-                      </div>
+                      <p className="text-[10px] font-bold text-slate-600 uppercase tracking-wide">
+                        Payment breakdown
+                      </p>
                       {settleSplits.map((s) => {
                         const d = paymentCorrectionDrafts[s.movementId] || {
                           amountNgn: String(s.amountNgn),
@@ -6076,7 +6124,7 @@ const Account = () => {
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                               <div>
                                 <label className="text-[9px] font-bold text-slate-500 uppercase">
-                                  Amount (₦) — verify vs recorded
+                                  Amount received (₦)
                                 </label>
                                 <input
                                   type="text"
@@ -6095,7 +6143,7 @@ const Account = () => {
                                   className="w-full mt-0.5 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm font-bold tabular-nums outline-none focus:ring-2 focus:ring-[#134e4a]/15 disabled:opacity-60"
                                 />
                                 <p className="text-[9px] text-slate-500 mt-0.5">
-                                  Recorded {formatNgn(rec)}
+                                  Sales recorded {formatNgn(rec)}
                                   {varN !== 0 ? (
                                     <span
                                       className={
@@ -6181,31 +6229,15 @@ const Account = () => {
                           </div>
                         );
                       })}
-                      <p className="text-[10px] text-slate-600 pt-1 border-t border-slate-200/90">
-                        Receipt total (Sales){' '}
-                        <span className="font-bold tabular-nums text-slate-900">{formatNgn(cashTotal)}</span>
-                        {receiptFinanceRow.cashReceivedNgn != null &&
-                        Math.round(Number(receiptFinanceRow.cashReceivedNgn) || 0) !==
-                          Math.round(Number(receiptFinanceRow.amountNgn) || 0) ? (
-                          <span className="text-slate-500 font-normal">
-                            {' '}
-                            · Quote allocation {formatNgn(Number(receiptFinanceRow.amountNgn) || 0)}
-                          </span>
-                        ) : null}
-                      </p>
                     </div>
-                  );
-                }
-
-                return (
+                ) : (
                   <div className="space-y-2">
                     <p className="text-[10px] text-amber-900 bg-amber-50/90 border border-amber-200/80 rounded-lg px-3 py-2 leading-snug">
-                      No treasury payment lines on file for this receipt — split amounts are not edited here. Use the
-                      bank total below; saving still finalizes reconciliation and updates books if amounts changed
-                      elsewhere.
+                      No treasury payment lines on file — enter the amount actually received below. Saving still
+                      updates receipt, ledger, and quote paid amount.
                     </p>
                     <p className="text-xs text-slate-700">
-                      Customer paid:{' '}
+                      Sales recorded:{' '}
                       <span className="font-bold tabular-nums">{formatNgn(cashTotal)}</span>
                       {receiptFinanceRow.cashReceivedNgn != null &&
                       Math.round(Number(receiptFinanceRow.cashReceivedNgn) || 0) !==
@@ -6217,36 +6249,64 @@ const Account = () => {
                       ) : null}
                     </p>
                   </div>
+                )}
+
+                    <div className="rounded-xl border border-[#134e4a]/20 bg-teal-50/40 px-3 py-3 space-y-1.5">
+                      <label className="text-[10px] font-bold text-[#134e4a] uppercase block">
+                        Amount actually received (₦)
+                      </label>
+                      {settleSplits.length > 0 ? (
+                        <>
+                          <p className="text-2xl font-black tabular-nums text-[#134e4a]">
+                            {formatNgn(confirmedTotalNgn)}
+                          </p>
+                          <p className="text-[9px] text-slate-600 leading-snug">
+                            Sum of payment lines — saved to receipt, ledger, treasury, and quote paid.
+                          </p>
+                        </>
+                      ) : (
+                        <input
+                          required
+                          type="text"
+                          inputMode="numeric"
+                          value={receiptBankAmtInput}
+                          disabled={receiptFinanceBusy}
+                          onChange={(e) => setReceiptBankAmtInput(e.target.value)}
+                          className="w-full z-finance-field rounded-xl font-bold outline-none disabled:opacity-60"
+                        />
+                      )}
+                      <p className="text-[9px] text-slate-600">
+                        Sales recorded{' '}
+                        <span className="font-bold tabular-nums text-slate-900">{formatNgn(cashTotal)}</span>
+                        {salesDeltaNgn !== 0 ? (
+                          <span
+                            className={
+                              salesDeltaNgn > 0 ? 'text-amber-900 font-semibold' : 'text-rose-800 font-semibold'
+                            }
+                          >
+                            {' '}
+                            · Δ {salesDeltaNgn > 0 ? '+' : ''}
+                            {formatNgn(salesDeltaNgn)} vs Sales
+                          </span>
+                        ) : (
+                          <span className="text-emerald-800 font-semibold"> · Matches Sales recorded</span>
+                        )}
+                      </p>
+                    </div>
+                  </>
                 );
               })()}
-              <div>
-                <label className="text-[10px] font-bold text-gray-400 uppercase ml-1 block mb-1">
-                  Total for delivery sign-off — bank / aggregate (₦)
-                </label>
-                <p className="text-[9px] text-slate-500 mb-1.5 leading-snug ml-1">
-                  Saved together with payment lines above (when present). First clearance does not need manager approval;
-                  revising after that does (unless you have finance approval access).
-                </p>
-                <input
-                  required
-                  type="text"
-                  inputMode="numeric"
-                  value={receiptBankAmtInput}
-                  disabled={receiptFinanceBusy}
-                  onChange={(e) => setReceiptBankAmtInput(e.target.value)}
-                  className="w-full z-finance-field rounded-xl font-bold outline-none disabled:opacity-60"
-                />
-              </div>
               <label className="flex items-start gap-2 text-[11px] text-slate-700 cursor-pointer">
                 <input
                   type="checkbox"
                   className="mt-0.5 h-4 w-4 rounded border-slate-300"
-                  checked={receiptClearDelivery}
+                  checked={receiptHoldDelivery}
                   disabled={receiptFinanceBusy}
-                  onChange={(e) => setReceiptClearDelivery(e.target.checked)}
+                  onChange={(e) => setReceiptHoldDelivery(e.target.checked)}
                 />
                 <span>
-                  Cleared for delivery — finance confirms this receipt is good to release downstream.
+                  Hold delivery — confirm payment and update books, but do not release downstream until cleared
+                  separately.
                 </span>
               </label>
               {!receiptFinanceRow?.financeReconciliationSavedAtISO &&
@@ -6269,12 +6329,26 @@ const Account = () => {
                   ? 'Saving…'
                   : receiptFinanceRow?.financeReconciliationSavedAtISO
                     ? 'Save revision'
-                    : 'Confirm & clear receipt'}
+                    : receiptHoldDelivery
+                      ? 'Confirm payment (hold delivery)'
+                      : 'Confirm payment & clear for delivery'}
               </button>
             </form>
           ) : null}
         </div>
       </ModalFrame>
+
+      <StaffRecoveryCashierModal
+        recovery={staffRecoveryTarget}
+        treasuryAccounts={bankAccounts}
+        onClose={() => setStaffRecoveryTarget(null)}
+        onSaved={async () => {
+          await ws.refresh();
+          showToast('Staff recovery payment recorded — treasury, obligation, and case balances updated.', {
+            variant: 'success',
+          });
+        }}
+      />
     </PageShell>
   );
 };

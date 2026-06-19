@@ -9,6 +9,7 @@ export function FinanceMobileAlertStrip({
   approvedPayments = 0,
   approvedRefunds = 0,
   poHaulage = 0,
+  staffRecoveries = 0,
 }) {
   const items = [];
   if (pendingReceipts > 0) {
@@ -35,6 +36,12 @@ export function FinanceMobileAlertStrip({
       tone: 'sky',
     });
   }
+  if (staffRecoveries > 0) {
+    items.push({
+      label: `${staffRecoveries} staff recover${staffRecoveries !== 1 ? 'ies' : 'y'} due`,
+      tone: 'violet',
+    });
+  }
 
   if (items.length === 0) return null;
 
@@ -43,6 +50,7 @@ export function FinanceMobileAlertStrip({
     teal: 'border-teal-200 bg-teal-50/90 text-teal-950',
     rose: 'border-rose-200 bg-rose-50/90 text-rose-950',
     sky: 'border-sky-200 bg-sky-50/90 text-sky-950',
+    violet: 'border-violet-200 bg-violet-50/90 text-violet-950',
   };
 
   return (

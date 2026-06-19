@@ -417,7 +417,15 @@ export default function MyLoans({ staffLinkBase = '/my-profile' }) {
       ) : null}
 
       {(moneySummary?.recoveries || []).filter((r) => r.principalOutstandingNgn > 0).length ? (
-        <ProfileOverviewSection title="Discipline recovery" subtitle="Amounts being recovered via payroll">
+        <ProfileOverviewSection
+          title="Discipline recovery"
+          subtitle="Payroll deduction applies each month — or pay in full at your branch cashier"
+        >
+          <WorkPayFormAlert variant="info" className="mb-3">
+            To clear this balance in one payment, take your{' '}
+            <strong>salary recovery letter</strong> to the <strong>branch cashier</strong> (Finance → Desk). After
+            they receive your cash or transfer, your balance here updates and you can download a receipt PDF.
+          </WorkPayFormAlert>
           <div className="grid gap-3 sm:grid-cols-2">
             {moneySummary.recoveries
               .filter((r) => r.principalOutstandingNgn > 0)
