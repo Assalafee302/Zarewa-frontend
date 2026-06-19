@@ -34,6 +34,8 @@ export const ACCOUNTING_REGISTER_CONFIG = {
     description: 'Amounts the company owes — supplier AP, customer deposits, refundable overpayments, and opening balances.',
     helpPoints: [
       'Record pre-system overpayments (e.g. April project ~₦8M) via Add legacy line → Project overpayment.',
+      'Pre-production deposits are cleared quote payments before production completes — customer deposit liability (Policy v1).',
+      'Refund commitments list pending/approved refunds on closed jobs; treasury “Record pay” is only for approved, unblocked payouts.',
       'Overpayment credits show economic excess (cash in minus quote total), capped by the ledger pool — matches refund preview.',
       'Unallocated receipts and unlinked bank deposits are suspense until matched — not trade payables.',
       'Receipts pending finance clearance appear in the notice above; they are not part of this register total.',
@@ -41,6 +43,8 @@ export const ACCOUNTING_REGISTER_CONFIG = {
     kpis: [
       { key: 'supplierPayablesNgn', sectionId: 'supplier_payables', label: 'Supplier payables', tone: 'default' },
       { key: 'customerDepositsNgn', sectionId: 'customer_deposits', label: 'Customer deposits', tone: 'teal' },
+      { key: 'preProductionDepositsNgn', sectionId: 'pre_production_deposits', label: 'Pre-production deposits', tone: 'teal' },
+      { key: 'customerRefundCommitmentsNgn', sectionId: 'customer_refund_commitments', label: 'Refund commitments', tone: 'rose' },
       { key: 'overpaymentCreditsNgn', sectionId: 'overpayment_credits', label: 'Overpayment credits', tone: 'amber' },
       { key: 'unallocatedReceiptsNgn', sectionId: 'unallocated_receipts', label: 'Unallocated receipts', tone: 'default' },
       { key: 'bankDepositSuspenseNgn', sectionId: 'bank_deposit_suspense', label: 'Bank suspense (2150)', tone: 'teal' },
@@ -50,6 +54,8 @@ export const ACCOUNTING_REGISTER_CONFIG = {
     emptySectionHints: {
       supplier_payables: 'No open supplier AP in scope — check Procurement payables for settled items.',
       customer_deposits: 'No voluntary customer deposits on ledger.',
+      pre_production_deposits: 'No cleared pre-production quote deposits in scope.',
+      customer_refund_commitments: 'No open refund commitments on closed production.',
       overpayment_credits: 'No refundable overpayment credit — economic excess is zero or already applied/refunded.',
       unallocated_receipts: 'All sales receipts are linked to quotations.',
       bank_deposit_suspense: 'No open unlinked bank deposits — Finance pool is fully allocated.',

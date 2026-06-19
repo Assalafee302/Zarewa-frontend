@@ -35,7 +35,7 @@ const TAB_LABELS = {
 /** One-line context under the active tab title — no trial/draft labels. */
 const TAB_HINTS = {
   creditors: 'Amounts owed to the company — receivables, prepayments, and opening balances.',
-  debtors: 'Amounts owed by the company — supplier AP, deposits, suspense items, and credits to refund.',
+  debtors: 'Amounts owed by the company — supplier AP, pre-production deposits, refund commitments, overpayments, and suspense.',
   assets: 'Plant, property, and equipment register.',
   interBranch: 'Cross-branch treasury funding — propose, approve, repay, and track balances.',
   credit: 'Approve delivery before full payment is received.',

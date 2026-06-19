@@ -74,6 +74,10 @@ import { useWorkspace } from '../context/WorkspaceContext';
 import { useWorkspaceDomain } from '../hooks/useWorkspaceDomain';
 import { spotPricesForSalesSidebar } from '../lib/spotPricesFromMasterData';
 import { apiFetch } from '../lib/apiBase';
+import {
+  fetchEligibleRefundQuotationsCached,
+  invalidateEligibleRefundQuotationsCache,
+} from '../lib/refundEligibleQuotationsCache';
 import { computeCuttingListMaterialReadiness } from '../lib/salesCuttingListMaterialReadiness';
 import {
   SALES_TABLE_SORT_FIELD_OPTIONS,
@@ -548,24 +552,25 @@ const Sales = () => {
     [quotationsSearchFiltered]
   );
 
-  const fetchEligibleRefundQuotations = useCallback(async () => {
-    const mayLoad =
-      wsHasPermission?.('refunds.request') ||
-      wsHasPermission?.('refunds.approve') ||
-      wsHasPermission?.('finance.approve');
-    if (!mayLoad) {
-      setEligibleRefundQuotations([]);
-      return;
-    }
-    const { ok, data } = await apiFetch('/api/refunds/eligible-quotations');
-    if (ok && data?.ok) {
-      setEligibleRefundQuotations(data.quotations || []);
-    }
-  }, [wsHasPermission]);
+  const fetchEligibleRefundQuotations = useCallback(
+    async (opts = {}) => {
+      const mayLoad =
+        wsHasPermission?.('refunds.request') ||
+        wsHasPermission?.('refunds.approve') ||
+        wsHasPermission?.('finance.approve');
+      if (!mayLoad) {
+        setEligibleRefundQuotations([]);
+        return;
+      }
+      const rows = await fetchEligibleRefundQuotationsCached(apiFetch, opts);
+      setEligibleRefundQuotations(rows);
+    },
+    [wsHasPermission]
+  );
 
   useEffect(() => {
     void fetchEligibleRefundQuotations();
-  }, [fetchEligibleRefundQuotations, refunds.length]);
+  }, [fetchEligibleRefundQuotations]);
 
   /** Same source as the refund form quotation picker (`GET /api/refunds/eligible-quotations`). */
   const quotationsRefundPotentialRows = useMemo(() => {
@@ -1033,7 +1038,8 @@ const Sales = () => {
         return { ok: false };
       }
       await ws.refresh();
-      void fetchEligibleRefundQuotations();
+      invalidateEligibleRefundQuotationsCache();
+      void fetchEligibleRefundQuotations({ force: true });
       showToast(
         isCreate
           ? `Refund request ${data.refundID || normalized.refundID} submitted for approval.`

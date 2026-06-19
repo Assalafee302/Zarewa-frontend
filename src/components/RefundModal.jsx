@@ -52,6 +52,10 @@ import { receiptCashReceivedNgn } from '../lib/salesReceiptsList';
 import { RefundManagerApprovalPreview } from './management/RefundManagerApprovalPreview';
 import { deliveryPaymentGateMode } from '../lib/accountingPolicyFlags';
 import { refundEmptyPickerHintText } from '../lib/refundEligibilityCopy';
+import {
+  fetchEligibleRefundQuotationsCached,
+  invalidateEligibleRefundQuotationsCache,
+} from '../lib/refundEligibleQuotationsCache';
 import { RefundEligibilitySummary } from './refund/RefundEligibilitySummary';
 import { RefundGlImpactPreview } from './refund/RefundGlImpactPreview';
 import { RefundCreatePolicyWarnings } from './refund/RefundCreatePolicyWarnings';
@@ -500,15 +504,11 @@ const RefundModal = ({
     setRefundIntelExpanded(mode === 'view');
   }, [isOpen, mode]);
 
-  const fetchEligibleQuotes = useCallback(async () => {
+  const fetchEligibleQuotes = useCallback(async (opts = {}) => {
     setLoadingQuotes(true);
-    const { ok, data } = await apiFetch('/api/refunds/eligible-quotations');
+    const rows = await fetchEligibleRefundQuotationsCached(apiFetch, opts);
     setLoadingQuotes(false);
-    if (ok && data?.ok) {
-      setEligibleQuotes(data.quotations || []);
-    } else {
-      setEligibleQuotes([]);
-    }
+    setEligibleQuotes(rows);
   }, []);
 
   const syncPaidFromLedger = useCallback(async () => {
@@ -536,8 +536,14 @@ const RefundModal = ({
         : `Updated ${id}: ledger shows ₦0 paid toward this quote (check receipt is linked to this id).`,
       { variant: n > 0 ? 'success' : 'info' }
     );
-    void fetchEligibleQuotes();
+    invalidateEligibleRefundQuotationsCache();
+    void fetchEligibleQuotes({ force: true });
   }, [syncPaidId, fetchEligibleQuotes, showToast]);
+
+  const refreshEligibleQuotes = useCallback(() => {
+    invalidateEligibleRefundQuotationsCache();
+    return fetchEligibleQuotes({ force: true });
+  }, [fetchEligibleQuotes]);
 
   /* Sync form state when the modal opens or the record/mode changes (intentional reset). */
    
@@ -1046,7 +1052,7 @@ const RefundModal = ({
         showToast(`Refund block removed on ${ref}.`);
       }
       void ws?.refresh?.();
-      void fetchEligibleQuotes();
+      void refreshEligibleQuotes();
     } finally {
       setRefundsBlockBusy(false);
     }
@@ -1058,7 +1064,7 @@ const RefundModal = ({
     refundsBlockReasonInput,
     showToast,
     ws,
-    fetchEligibleQuotes,
+    refreshEligibleQuotes,
   ]);
 
   const generatePreviewRef = useRef(generatePreview);
@@ -2126,7 +2132,7 @@ const RefundModal = ({
                                   );
                                   const previewHint =
                                     Number(q.suggested_preview_amount_ngn) >= MIN_REFUND_QUOTATION_REMAINING_NGN
-                                      ? ` · preview ₦${q.suggested_preview_amount_ngn.toLocaleString('en-NG')} auto`
+                                      ? ` · overpay ₦${q.suggested_preview_amount_ngn.toLocaleString('en-NG')}`
                                       : '';
                                   return (
                                     <button
