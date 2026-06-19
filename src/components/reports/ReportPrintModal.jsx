@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { Printer, X } from 'lucide-react';
-import { ModalFrame } from '../layout';
 import { StandardReportPrintShell } from './StandardReportPrintShell';
 
 const TH_BASE =
@@ -215,6 +215,10 @@ export function ManagementReportSheet({
   );
 }
 
+/**
+ * Body-portaled print preview — matches StockRegisterPrintModal / PurchaseReportPrintModal
+ * so @media print renders the same content as on-screen preview (A4 landscape included).
+ */
 export function ReportPrintModal({
   isOpen,
   onClose,
@@ -227,38 +231,60 @@ export function ReportPrintModal({
   layout = 'portrait',
   denseSingleLine = false,
   grouping = null,
+  autoPrint = false,
 }) {
+  const printedRef = useRef(false);
   const isLandscape = layout === 'landscape';
-  const outerScrollClass = ['flex-1 min-h-0 overflow-y-auto custom-scrollbar bg-slate-100/80 p-4 sm:p-6', isLandscape ? 'print-portal-scroll' : '']
-    .filter(Boolean)
-    .join(' ');
+  const shellMaxClass = isLandscape ? 'max-w-[297mm]' : 'max-w-5xl';
+
+  useEffect(() => {
+    if (!isOpen || !autoPrint || printedRef.current) return;
+    printedRef.current = true;
+    const t = window.setTimeout(() => window.print(), 350);
+    return () => window.clearTimeout(t);
+  }, [isOpen, autoPrint]);
+
+  useEffect(() => {
+    if (!isOpen) printedRef.current = false;
+  }, [isOpen]);
+
+  if (!isOpen || typeof document === 'undefined') return null;
 
   const innerRootClass = [
-    'report-print-root quotation-print-preview-mode mx-auto rounded-lg border border-slate-200 bg-white shadow-xl overflow-hidden print:shadow-none print:rounded-none print:border-0',
+    'report-print-root quotation-print-preview-mode rounded-lg border border-slate-200 bg-white shadow-2xl print:rounded-none print:border-0 print:shadow-none',
     isLandscape ? 'report-print-a4-landscape' : '',
   ]
     .filter(Boolean)
     .join(' ');
 
-  return (
-    <ModalFrame isOpen={isOpen} onClose={onClose} showCloseButton={false}>
-      <div className="z-modal-panel-lg max-h-[92vh] flex flex-col p-0 overflow-hidden">
-        <div className="no-print flex items-center justify-between gap-3 border-b border-slate-100 px-5 py-4 shrink-0 bg-white">
-          <div className="min-w-0">
-            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Print preview</p>
-            <p className="text-sm font-bold text-[#134e4a] truncate">{title}</p>
+  return createPortal(
+    <>
+      <button
+        type="button"
+        aria-label="Close print preview"
+        className="no-print fixed inset-0 z-[11060] bg-black/50"
+        onClick={onClose}
+      />
+      <div
+        className="print-portal-scroll fixed inset-0 z-[11070] overflow-y-auto overscroll-y-contain p-4 sm:p-8"
+        onClick={onClose}
+      >
+        <div className={`mx-auto ${shellMaxClass} pb-16`} onClick={(e) => e.stopPropagation()}>
+          <div className="no-print mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white px-4 py-3 shadow-sm">
+            <div className="min-w-0">
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Print preview</p>
+              <p className="text-sm font-bold text-[#134e4a] truncate">{title}</p>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <button type="button" onClick={() => window.print()} className="z-btn-primary py-2.5 px-4">
+                <Printer size={16} />
+                Print
+              </button>
+              <button type="button" onClick={onClose} className="z-btn-secondary py-2.5 px-3" aria-label="Close">
+                <X size={18} />
+              </button>
+            </div>
           </div>
-          <div className="flex items-center gap-2 shrink-0">
-            <button type="button" onClick={() => window.print()} className="z-btn-primary py-2.5 px-4">
-              <Printer size={16} />
-              Print
-            </button>
-            <button type="button" onClick={onClose} className="z-btn-secondary py-2.5 px-3" aria-label="Close">
-              <X size={18} />
-            </button>
-          </div>
-        </div>
-        <div className={outerScrollClass}>
           <div className={innerRootClass}>
             <ManagementReportSheet
               title={title}
@@ -274,6 +300,7 @@ export function ReportPrintModal({
           </div>
         </div>
       </div>
-    </ModalFrame>
+    </>,
+    document.body
   );
 }

@@ -95,8 +95,10 @@ import { AccountBankReconciliationPanel } from '../components/account/AccountBan
 import { RegisterBankDepositPanel } from '../components/finance/RegisterBankDepositPanel.jsx';
 import { BankDepositExceptionPanel } from '../components/finance/BankDepositExceptionPanel.jsx';
 import { AccountGlManualJournalCard } from '../components/account/AccountGlManualJournalCard.jsx';
-import { ReportPrintModal } from '../components/reports/ReportPrintModal';
-import { unreconciledReceiptsPrintPayload } from '../lib/reconciliationPrint';
+import {
+  openReconciliationListPrint,
+  unreconciledReceiptsPrintPayload,
+} from '../lib/reconciliationPrint';
 import {
   isReceiptPendingClearance,
   isReceiptReversed,

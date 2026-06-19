@@ -1,6 +1,87 @@
 import { formatNgn } from '../Data/mockData';
+import { escapeHtml, openPrintHtmlDocument } from './officeDeskPrint';
 import { isReceiptPendingClearance, pendingClearanceTotalNgn, receiptEffectiveCashNgn } from './receiptClearance';
 import { receiptLedgerReceiptTreasurySplits } from './salesReceiptsList';
+
+/** Plain table print — matches treasury account statement (lines + data only). */
+export function buildReconciliationListPrintHtml(payload) {
+  const title = String(payload?.title || 'Reconciliation list');
+  const periodLabel = String(payload?.periodLabel || '').trim();
+  const columns = Array.isArray(payload?.columns) ? payload.columns : [];
+  const rows = Array.isArray(payload?.rows) ? payload.rows : [];
+  const summaryLines = Array.isArray(payload?.summaryLines) ? payload.summaryLines : [];
+  const isLandscape = payload?.layout !== 'portrait';
+
+  const headerCells = columns
+    .map(
+      (c) =>
+        `<th${c.align === 'right' ? ' class="num"' : ''}>${escapeHtml(c.label)}</th>`
+    )
+    .join('');
+
+  const bodyRows = rows
+    .map((row) => {
+      const cells = columns
+        .map((c) => {
+          const raw = row[c.key];
+          const text = raw != null && raw !== '' ? String(raw) : '—';
+          const cls = c.align === 'right' ? ' class="num"' : '';
+          return `<td${cls}>${escapeHtml(text)}</td>`;
+        })
+        .join('');
+      return `<tr>${cells}</tr>`;
+    })
+    .join('');
+
+  const summaryHtml = summaryLines
+    .map(
+      (line) =>
+        `<p class="meta"><strong>${escapeHtml(line.label)}:</strong> ${escapeHtml(line.value)}</p>`
+    )
+    .join('');
+
+  const pageRule = isLandscape
+    ? '@page { size: A4 landscape; margin: 12mm; }'
+    : '@page { size: A4 portrait; margin: 12mm; }';
+
+  return `<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>${escapeHtml(title)}</title>
+  <style>
+    ${pageRule}
+    body { font-family: Arial, sans-serif; margin: 24px; color: #000; }
+    h1 { margin: 0 0 8px; font-size: 20px; font-weight: bold; }
+    p.meta { margin: 0 0 4px; font-size: 12px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 16px; font-size: 11px; }
+    th, td { border: 1px solid #000; padding: 4px 6px; vertical-align: top; line-height: 1.25; }
+    th { text-align: left; font-weight: bold; }
+    td.num, th.num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+    @media print { body { margin: 0; } }
+  </style>
+</head>
+<body>
+  <h1>${escapeHtml(title)}</h1>
+  ${periodLabel ? `<p class="meta">${escapeHtml(periodLabel)}</p>` : ''}
+  ${summaryHtml}
+  <table>
+    <thead><tr>${headerCells}</tr></thead>
+    <tbody>${
+      bodyRows ||
+      `<tr><td colspan="${Math.max(1, columns.length)}">No rows.</td></tr>`
+    }</tbody>
+  </table>
+</body>
+</html>`;
+}
+
+/** @param {ReturnType<typeof unreconciledReceiptsPrintPayload>} payload */
+export function openReconciliationListPrint(payload) {
+  if (!payload?.rows?.length) return false;
+  const html = buildReconciliationListPrintHtml(payload);
+  return openPrintHtmlDocument(html, payload.title || 'Reconciliation list');
+}
 
 const UNRECONCILED_BANK_STATUSES = new Set(['Review', 'PendingManager']);
 

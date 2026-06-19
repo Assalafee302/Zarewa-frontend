@@ -284,6 +284,7 @@ summary {
 
 @media screen {
   .print-portal-scroll:has(.quotation-print-root),
+  .print-portal-scroll:has(.report-print-root),
   .print-portal-scroll:has(#workbook-print-root) {
     overflow-x: auto;
   }
@@ -300,6 +301,22 @@ summary {
 /* Management reports — A4 landscape preview width */
 .report-print-root.report-print-a4-landscape .quotation-print-a4 {
   max-width: 297mm;
+  min-width: 297mm;
+}
+
+@media screen {
+  .report-print-table.report-print-table--single-line {
+    table-layout: fixed;
+    width: 100%;
+  }
+
+  .report-print-table.report-print-table--single-line td,
+  .report-print-table.report-print-table--single-line th {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 0;
+  }
 }
 
 /* Unified data lists — same rhythm as Sales / Operations tables */
@@ -2578,6 +2595,9 @@ summary {
   }
 
   .report-print-root.report-print-a4-landscape {
+    position: relative !important;
+    left: auto !important;
+    top: auto !important;
     width: 297mm !important;
     max-width: 297mm !important;
     page: report-a4-landscape;
