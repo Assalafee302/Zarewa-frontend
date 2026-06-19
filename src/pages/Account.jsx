@@ -19,6 +19,7 @@ import {
   BookOpen,
   AlertCircle,
   RotateCcw,
+  RefreshCw,
   Printer,
   Banknote,
   Pencil,
@@ -207,6 +208,7 @@ const Account = () => {
   const [receiptsSortDir, setReceiptsSortDir] = useState('desc');
   const [waitingReceiptsPage, setWaitingReceiptsPage] = useState(0);
   const [confirmedReceiptsPage, setConfirmedReceiptsPage] = useState(0);
+  const [adminFinanceReapplyBusy, setAdminFinanceReapplyBusy] = useState(false);
 
   useEffect(() => {
     if (!expenseOutflowEdit?.rows?.length) {
@@ -325,6 +327,7 @@ const Account = () => {
     return branchNameById[workspaceBranchId] || workspaceBranchId;
   }, [workspaceBranchId, ws?.viewAllBranches, branchNameById]);
   const roleKey = String(ws?.session?.user?.roleKey || '').trim().toLowerCase();
+  const isAdminRole = roleKey === 'admin';
   const canAssignTreasuryBranch = roleKey === 'admin' || roleKey === 'md' || roleKey === 'ceo';
   const showAllTreasuryInTab = Boolean(ws?.viewAllBranches && canAssignTreasuryBranch);
   const branchOptionsSorted = useMemo(
@@ -1524,6 +1527,42 @@ const Account = () => {
     ws?.workspaceBranchId,
     showToast,
   ]);
+
+  const runAdminReapplyFinanceReconciledReceipts = useCallback(async () => {
+    if (!isAdminRole) return;
+    if (!wsCanMutate) {
+      showToast('System offline (read-only). Reconnect and refresh, then try again.', { variant: 'error' });
+      return;
+    }
+    const proceed = window.confirm(
+      'Administrator maintenance: re-apply finance-confirmed bank amounts on every cleared receipt in the current branch scope.\n\n' +
+        'This replaces stale sales-posted totals with the reconciled bank figure, fixes RECEIPT / OVERPAY ledger splits, and refreshes quotation paid amounts (including refund eligibility).\n\n' +
+        'Use after correcting mistaken till entries that still show phantom overpayments.\n\nContinue?'
+    );
+    if (!proceed) return;
+    setAdminFinanceReapplyBusy(true);
+    try {
+      const { ok, data } = await apiFetch('/api/admin/reapply-finance-reconciled-receipts', {
+        method: 'POST',
+        body: JSON.stringify({ confirm: true }),
+      });
+      if (!ok || !data?.ok) {
+        showToast(data?.error || 'Reapply job failed.', { variant: 'error' });
+        return;
+      }
+      const failN = data.failures?.length ?? 0;
+      showToast(
+        `Reapplied ${data.receiptCount ?? 0} cleared receipt(s): ${data.changed ?? 0} updated, ${data.unchanged ?? 0} already aligned.${
+          failN > 0 ? ` ${failN} receipt(s) reported errors — check server audit log.` : ''
+        }`,
+        { variant: failN > 0 ? 'warning' : 'success' }
+      );
+      await wsRefresh?.();
+    } finally {
+      setAdminFinanceReapplyBusy(false);
+    }
+  }, [isAdminRole, wsCanMutate, showToast, wsRefresh]);
+
   const confirmedReceipts = useMemo(
     () =>
       sortedFilteredSalesReceipts.filter(
@@ -3073,6 +3112,18 @@ const Account = () => {
                             <Printer size={12} />
                             Print unreconciled
                           </button>
+                          {isAdminRole ? (
+                            <button
+                              type="button"
+                              disabled={adminFinanceReapplyBusy}
+                              onClick={() => void runAdminReapplyFinanceReconciledReceipts()}
+                              className="inline-flex items-center gap-1 rounded-lg border border-violet-200 bg-violet-50 px-2 py-1 text-[9px] font-black uppercase tracking-wide text-violet-950 hover:bg-violet-100 disabled:opacity-50"
+                              title="Admin only: make reconciled bank amounts the real receipt total and fix quotation paid / refund overpayment"
+                            >
+                              <RefreshCw size={12} className={adminFinanceReapplyBusy ? 'animate-spin' : ''} />
+                              {adminFinanceReapplyBusy ? 'Recalculating…' : 'Fix reconciled amounts'}
+                            </button>
+                          ) : null}
                         </div>
                         <div className="text-[10px] text-slate-600 tabular-nums">
                           {sortedFilteredSalesReceipts.length} receipt
