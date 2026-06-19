@@ -2146,7 +2146,10 @@ const RefundModal = ({
                                         {preparedBy ? ` · ${preparedBy}` : ''}
                                       </span>
                                       <span className="block text-[10px] font-medium text-slate-500 truncate">
-                                        ₦{q.paid_ngn.toLocaleString()} paid
+                                        ₦{(q.cash_in_ngn ?? q.paid_ngn).toLocaleString()} received
+                                        {q.cash_in_ngn != null && q.cash_in_ngn !== q.paid_ngn
+                                          ? ` (booked ₦${q.paid_ngn.toLocaleString()})`
+                                          : ''}
                                         {q.total_ngn > 0 ? ` / ₦${q.total_ngn.toLocaleString()} total` : ''}
                                         {` · ₦${remNgn.toLocaleString()} refundable`}
                                         {previewHint}
