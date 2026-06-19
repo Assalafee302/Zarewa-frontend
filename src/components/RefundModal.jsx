@@ -51,7 +51,6 @@ import {
 import { receiptCashReceivedNgn } from '../lib/salesReceiptsList';
 import { RefundManagerApprovalPreview } from './management/RefundManagerApprovalPreview';
 import { deliveryPaymentGateMode } from '../lib/accountingPolicyFlags';
-import { refundEmptyPickerHintText } from '../lib/refundEligibilityCopy';
 import {
   fetchEligibleRefundQuotationsCached,
   invalidateEligibleRefundQuotationsCache,
@@ -2245,7 +2244,16 @@ const RefundModal = ({
                     {!loadingQuotes && quotationPickList.length === 0 && mode === 'create' ? (
                       <div className="mt-2 space-y-2 rounded-lg border border-amber-200/80 bg-amber-50/50 p-3">
                         <p className="text-xs text-amber-900 font-medium leading-snug">
-                          {refundEmptyPickerHintText()}
+                          No eligible quotations yet for this branch. If a receipt is already posted, sync paid below —
+                          or open{' '}
+                          <button
+                            type="button"
+                            className="font-bold underline underline-offset-2 hover:text-amber-950"
+                            onClick={() => setRefundGuideOpen(true)}
+                          >
+                            how refunds work
+                          </button>{' '}
+                          for listing rules.
                         </p>
                         <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
                           <input
@@ -2516,9 +2524,39 @@ const RefundModal = ({
                   </div>
 
                   <div className="space-y-4 border-t border-slate-100 pt-4">
+                    {mode === 'create' && createAmountDerivedFromLines ? (
+                      <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3">
+                        <p className="text-xs font-bold uppercase tracking-wide text-rose-800/80">
+                          Refund request total
+                        </p>
+                        <p
+                          className={`mt-1 text-2xl font-black tabular-nums tracking-tighter ${
+                            exceedsRefundableHeadroom ? 'text-rose-700' : 'text-rose-950'
+                          }`}
+                        >
+                          ₦{lineSum.toLocaleString('en-NG')}
+                        </p>
+                        <p className="mt-1 text-[11px] font-medium text-rose-900/70">
+                          From included breakdown lines — adjust lines above to change this total.
+                        </p>
+                        {exceedsRefundableHeadroom ? (
+                          <p className="text-[11px] font-semibold text-rose-700 mt-2 leading-snug">
+                            {categoryCapViolation
+                              ? `${categoryCapViolation.cat} cannot exceed system-calculated ₦${categoryCapViolation.cap.toLocaleString('en-NG')} (entered ₦${categoryCapViolation.sum.toLocaleString('en-NG')}).`
+                              : lineArithmeticIssues[0]
+                                ? `Line description does not match amount — implied ₦${lineArithmeticIssues[0].expectedAmountNgn.toLocaleString('en-NG')}.`
+                                : exceedsOverpayLine
+                                  ? `Overpayment line cannot exceed ₦${overpayMaxNgn.toLocaleString('en-NG')} (payment minus quote total on this quotation).`
+                                  : `Included lines exceed cash received on this quotation (max ₦${(refundHardCapNgn ?? 0).toLocaleString('en-NG')} after prior refunds).`}
+                          </p>
+                        ) : null}
+                        <input type="hidden" name="amountNgn" value={form.amountNgn} readOnly />
+                      </div>
+                    ) : (
+                      <>
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Included lines total</p>
+                        <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Included lines total</p>
                         <p
                           className={`text-2xl font-black tabular-nums tracking-tighter ${
                             exceedsRefundableHeadroom ? 'text-rose-700' : 'text-slate-900'
@@ -2527,7 +2565,7 @@ const RefundModal = ({
                           ₦{lineSum.toLocaleString()}
                         </p>
                         {exceedsRefundableHeadroom ? (
-                          <p className="text-[10px] font-semibold text-rose-700 mt-1 leading-snug">
+                          <p className="text-[11px] font-semibold text-rose-700 mt-1 leading-snug">
                             {categoryCapViolation
                               ? `${categoryCapViolation.cat} cannot exceed system-calculated ₦${categoryCapViolation.cap.toLocaleString('en-NG')} (entered ₦${categoryCapViolation.sum.toLocaleString('en-NG')}).`
                               : lineArithmeticIssues[0]
@@ -2535,11 +2573,6 @@ const RefundModal = ({
                                 : exceedsOverpayLine
                               ? `Overpayment line cannot exceed ₦${overpayMaxNgn.toLocaleString('en-NG')} (payment minus quote total on this quotation).`
                               : `Included lines exceed cash received on this quotation (max ₦${(refundHardCapNgn ?? 0).toLocaleString('en-NG')} after prior refunds).`}
-                          </p>
-                        ) : null}
-                        {createAmountDerivedFromLines ? (
-                          <p className="text-[11px] font-medium text-slate-500 mt-1">
-                            Requested amount follows included lines
                           </p>
                         ) : null}
                       </div>
@@ -2558,35 +2591,26 @@ const RefundModal = ({
                           id="refund-requested-amount"
                           required
                           type="number"
-                          disabled={readOnly || identityLocked || createAmountDerivedFromLines}
-                          readOnly={createAmountDerivedFromLines}
+                          disabled={readOnly || identityLocked}
                           value={form.amountNgn}
                           onChange={(e) => setForm((f) => ({ ...f, amountNgn: e.target.value }))}
-                          className="flex-1 rounded-lg border border-rose-200/80 bg-white py-2 px-2 text-lg font-black text-rose-950 outline-none focus:ring-2 focus:ring-rose-500/15 tabular-nums disabled:bg-rose-50/50"
+                          className="flex-1 rounded-lg border border-rose-200/80 bg-white py-2 px-2 text-lg font-black text-rose-950 outline-none focus:ring-2 focus:ring-rose-500/15 tabular-nums"
                           placeholder="0"
                         />
                       </div>
                       {sumMismatch ? (
-                        <p className="mt-1.5 text-[10px] font-semibold text-amber-800">
+                        <p className="mt-1.5 text-[11px] font-semibold text-amber-800">
                           Line items total does not match the requested refund amount.
                         </p>
                       ) : null}
-                      {previewRemainingNgn != null && mode === 'create' ? (
-                        <p
-                          className={`mt-1.5 text-[9px] font-semibold ${
-                            exceedsRefundableHeadroom ? 'text-amber-800' : 'text-rose-800/80'
-                          }`}
-                        >
-                          Remaining refundable: ₦{previewRemainingNgn.toLocaleString('en-NG')}
-                          {exceedsRefundableHeadroom ? ' — lower lines or amount to continue' : ''}
-                        </p>
-                      ) : null}
                       {mode !== 'create' && recordOutstandingAmount > 0 ? (
-                        <p className="mt-1.5 text-[9px] font-bold uppercase tracking-wide text-rose-800/70">
+                        <p className="mt-1.5 text-[11px] font-bold uppercase tracking-wide text-rose-800/70">
                           Outstanding after approvals: ₦{recordOutstandingAmount.toLocaleString()}
                         </p>
                       ) : null}
                     </div>
+                      </>
+                    )}
 
                     <div>
                       <label className={label}>Situation context (reason notes)</label>
@@ -2867,8 +2891,8 @@ const RefundModal = ({
                             ₦{previewRemainingNgn.toLocaleString('en-NG')}
                           </p>
                           <p className="text-[8px] text-slate-500 leading-snug mt-0.5">
-                            Cash received on this quote minus quote total (when paid above total), minus refund
-                            requests already on file. Your request cannot exceed this.
+                            Cash received on this quote minus refunds already on file.
+                            {exceedsRefundableHeadroom ? ' Lower breakdown lines to continue.' : ''}
                           </p>
                         </div>
                       ) : null}

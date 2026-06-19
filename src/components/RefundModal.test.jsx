@@ -350,9 +350,10 @@ describe('RefundModal', () => {
 
     await screen.findByDisplayValue(/Line A/i);
 
-    const requested = screen.getByLabelText(/Requested refund amount/i);
-    await waitFor(() => expect(requested).toHaveValue(100));
-    expect(requested).toHaveAttribute('readonly');
+    await waitFor(() => {
+      expect(screen.getByText(/Refund request total/i)).toBeInTheDocument();
+      expect(screen.getByText(/₦100/)).toBeInTheDocument();
+    });
     expect(
       screen.queryByText(/Line items total does not match the requested refund amount/i)
     ).not.toBeInTheDocument();
