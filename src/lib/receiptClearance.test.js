@@ -9,6 +9,7 @@ import {
   receiptSalesPaymentStatusDetail,
   receiptSalesPaymentStatusLabel,
   receiptMatchesSalesPaymentFilter,
+  receiptEffectiveCashNgn,
   SALES_RECEIPT_PAYMENT_STATUS_AWAITING_CASHIER,
   SALES_RECEIPT_PAYMENT_STATUS_CASHIER_CONFIRMED,
 } from './receiptClearance.js';
@@ -68,5 +69,15 @@ describe('receiptClearance', () => {
     expect(receiptMatchesSalesPaymentFilter(pending, 'awaiting')).toBe(true);
     expect(receiptMatchesSalesPaymentFilter(cleared, 'awaiting')).toBe(false);
     expect(receiptMatchesSalesPaymentFilter(cleared, 'confirmed')).toBe(true);
+  });
+
+  it('uses finance bank-received as effective cash when reconciled', () => {
+    expect(
+      receiptEffectiveCashNgn({
+        amountNgn: 415_350,
+        financeReconciliationSavedAtISO: '2026-05-21T10:00:00.000Z',
+        bankReceivedAmountNgn: 620_000,
+      })
+    ).toBe(620_000);
   });
 });
