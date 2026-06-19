@@ -422,6 +422,7 @@ const RefundModal = ({
   const [loadingQuotes, setLoadingQuotes] = useState(false);
   const [syncPaidId, setSyncPaidId] = useState('');
   const [syncPaidBusy, setSyncPaidBusy] = useState(false);
+  const [fixReceiptAmountsBusy, setFixReceiptAmountsBusy] = useState(false);
   const [syncPaidError, setSyncPaidError] = useState('');
   const [approvalStatus, setApprovalStatus] = useState(() =>
     record?.status === 'Rejected' ? 'Rejected' : 'Approved'
@@ -481,6 +482,7 @@ const RefundModal = ({
   const [createPath, setCreatePath] = useState('full');
 
   const canBlockQuotationRefunds = userMayBlockQuotationRefunds(ws?.session?.user);
+  const isAdminRole = String(ws?.session?.user?.roleKey || '').trim().toLowerCase() === 'admin';
 
   const productionFingerprintRef = useRef('');
   const previewLoadedForQuoteRef = useRef('');
@@ -1075,6 +1077,45 @@ const RefundModal = ({
   useEffect(() => {
     includeCommissionInPreviewRef.current = includeCommissionInPreview;
   }, [includeCommissionInPreview]);
+
+  const fixReceiptAmountsForQuote = useCallback(async () => {
+    const ref = String(form.quotationRef || '').trim();
+    if (!ref || !isAdminRole) return;
+    if (ws?.canMutate === false) {
+      showToast('System offline (read-only). Reconnect and refresh, then try again.', { variant: 'error' });
+      return;
+    }
+    const proceed = window.confirm(
+      `Re-apply finance-confirmed bank amounts for ${ref} only?\n\nThis updates receipt rows, ledger splits, and paid totals from bank received figures. Use when refunds still show stale sales-posted cash (e.g. ₦1,500,000 instead of reconciled ₦1,150,000).\n\nContinue?`
+    );
+    if (!proceed) return;
+    setFixReceiptAmountsBusy(true);
+    try {
+      const { ok, data } = await apiFetch('/api/admin/reapply-finance-reconciled-receipts', {
+        method: 'POST',
+        body: JSON.stringify({ confirm: true, quotationRef: ref }),
+      });
+      if (!ok || !data?.ok) {
+        showToast(data?.error || 'Could not fix receipt amounts.', { variant: 'error' });
+        return;
+      }
+      showToast(
+        `Receipt amounts refreshed for ${ref}: ${data.changed ?? 0} updated, ${data.unchanged ?? 0} already aligned.${
+          (data.receiptCount ?? 0) === 0
+            ? ' No cleared receipt with bank received was found — confirm the receipt in Finance with the correct bank amount first.'
+            : ''
+        }`,
+        { variant: (data.receiptCount ?? 0) === 0 ? 'warning' : 'success' }
+      );
+      invalidateEligibleRefundQuotationsCache();
+      await fetchEligibleQuotes({ force: true });
+      await ws?.refresh?.();
+      await generatePreviewRef.current(ref, includeCommissionInPreviewRef.current);
+      await fetchIntelligence(ref, refundsPreviewSeqRef.current);
+    } finally {
+      setFixReceiptAmountsBusy(false);
+    }
+  }, [form.quotationRef, isAdminRole, ws?.canMutate, ws?.refresh, showToast, fetchEligibleQuotes]);
 
   /** When workspace `productionJobs` updates (e.g. job completed, metres posted), re-fetch preview so substitution / metres stay in sync. */
   useEffect(() => {
@@ -2242,6 +2283,25 @@ const RefundModal = ({
                               ? 'Unblock refunds'
                               : 'Block refunds on this quotation'}
                         </button>
+                        {isAdminRole ? (
+                          <button
+                            type="button"
+                            disabled={fixReceiptAmountsBusy || ws?.canMutate === false}
+                            onClick={() => void fixReceiptAmountsForQuote()}
+                            className="w-full rounded-lg border border-violet-300 bg-violet-50 px-3 py-2 text-[10px] font-bold uppercase tracking-wide text-violet-950 hover:bg-violet-100 disabled:opacity-50"
+                          >
+                            {fixReceiptAmountsBusy
+                              ? 'Fixing receipt amounts…'
+                              : 'Fix receipt amounts for this quote'}
+                          </button>
+                        ) : null}
+                        {refundMoneyBreakdown.overpay > 0 ? (
+                          <p className="text-[10px] text-slate-600 leading-snug">
+                            If this is a mistaken till entry, confirm the receipt in Finance with the real bank amount
+                            (₦1,150,000), then use <strong>Fix receipt amounts</strong> above — or block refunds if no
+                            customer refund is due.
+                          </p>
+                        ) : null}
                       </div>
                     ) : null}
                     {!loadingQuotes && quotationPickList.length === 0 && mode === 'create' ? (

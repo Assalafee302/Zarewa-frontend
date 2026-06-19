@@ -42,20 +42,30 @@ export function receiptBankReceivedAmountNgn(row) {
   return n > 0 ? n : null;
 }
 
+export function receiptAuthoritativeBankCashNgn(row) {
+  if (!row || isReceiptReversed(row)) return null;
+  const bank = receiptBankReceivedAmountNgn(row);
+  if (bank == null) return null;
+  if (isReceiptFinanceReconciled(row)) return bank;
+  if (isReceiptCleared(row)) return bank;
+  const alloc = Math.round(Number(row.amountNgn ?? row.amount_ngn) || 0);
+  if (Math.abs(bank - alloc) > 1) return bank;
+  return null;
+}
+
 export function receiptReconciledCashNgn(row) {
-  if (!isReceiptFinanceReconciled(row)) return null;
-  return receiptBankReceivedAmountNgn(row);
+  return receiptAuthoritativeBankCashNgn(row);
 }
 
 /**
  * Cash tied to a receipt for refunds, analytics, and treasury tie-out.
- * Reconciled receipts use bank-received (what was actually paid); otherwise posted allocation + companion overpay.
+ * Authoritative bank-received replaces sales-posted allocation + companion overpay.
  */
 export function receiptEffectiveCashNgn(row, opts = {}) {
   if (!row) return 0;
   if (row.cashReceivedNgn != null) return Math.round(Number(row.cashReceivedNgn) || 0);
-  const reconciled = receiptReconciledCashNgn(row);
-  if (reconciled != null) return reconciled;
+  const authoritative = receiptAuthoritativeBankCashNgn(row);
+  if (authoritative != null) return authoritative;
   const alloc = Math.round(Number(row.amountNgn ?? row.amount_ngn) || 0);
   const extra = Math.max(0, Math.round(Number(opts.companionOverpayNgn) || 0));
   return Math.round(alloc + extra);
