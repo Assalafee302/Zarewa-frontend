@@ -30,8 +30,8 @@ export function StaffPurchaseCreditRequestModal({ open, onClose, quotationRef, o
       }
       setStatus(data);
       setAmountNgn(String(data.balanceNgn || ''));
-      const maxMo = data.policy?.maxRepaymentMonths || 6;
-      setTermMonths(String(Math.min(maxMo, 3)));
+      const maxMo = data.policy?.maxRepaymentMonths || 12;
+      setTermMonths(String(Math.min(maxMo, 6)));
     });
   }, [open, quotationRef]);
 
@@ -58,7 +58,7 @@ export function StaffPurchaseCreditRequestModal({ open, onClose, quotationRef, o
   }
 
   const maxSingle = status?.policy?.maxSinglePurchaseNgn;
-  const maxMonths = status?.policy?.maxRepaymentMonths || 6;
+  const maxMonths = status?.policy?.maxRepaymentMonths || 12;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
@@ -102,6 +102,9 @@ export function StaffPurchaseCreditRequestModal({ open, onClose, quotationRef, o
           </label>
           <label className="block text-xs font-bold text-slate-600">
             Repayment months
+            <span className="mt-0.5 block font-normal text-slate-400">
+              Payroll deduction over 1–{maxMonths} months (max {maxMonths} = 1 year)
+            </span>
             <input
               type="number"
               className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
@@ -109,6 +112,7 @@ export function StaffPurchaseCreditRequestModal({ open, onClose, quotationRef, o
               onChange={(e) => setTermMonths(e.target.value)}
               min={1}
               max={maxMonths}
+              required
             />
           </label>
           <label className="block text-xs font-bold text-slate-600">

@@ -14,7 +14,7 @@ export function HrStaffPurchaseCreditPolicySection() {
   const [minServiceYears, setMinServiceYears] = useState('1');
   const [maxOutstandingNgn, setMaxOutstandingNgn] = useState('5000000');
   const [maxSinglePurchaseNgn, setMaxSinglePurchaseNgn] = useState('2000000');
-  const [maxRepaymentMonths, setMaxRepaymentMonths] = useState('6');
+  const [maxRepaymentMonths, setMaxRepaymentMonths] = useState('12');
   const [maxConcurrentActive, setMaxConcurrentActive] = useState('1');
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
@@ -31,7 +31,7 @@ export function HrStaffPurchaseCreditPolicySection() {
     setMinServiceYears(String(p.minServiceYears ?? 1));
     setMaxOutstandingNgn(String(p.maxOutstandingNgn ?? 5_000_000));
     setMaxSinglePurchaseNgn(String(p.maxSinglePurchaseNgn ?? 2_000_000));
-    setMaxRepaymentMonths(String(p.maxRepaymentMonths ?? 6));
+    setMaxRepaymentMonths(String(p.maxRepaymentMonths ?? 12));
     setMaxConcurrentActive(String(p.maxConcurrentActive ?? 1));
     return { hasData: true };
   }, []);
@@ -117,10 +117,11 @@ export function HrStaffPurchaseCreditPolicySection() {
         </label>
         <label className="text-xs font-semibold text-slate-600">
           Max repayment months
+          <span className="mt-0.5 block font-normal text-slate-400">Staff materials on credit — up to 12 months (1 year)</span>
           <input
             type="number"
             min={1}
-            max={24}
+            max={12}
             className={`mt-1 ${HR_FIELD_CLASS}`}
             value={maxRepaymentMonths}
             onChange={(e) => setMaxRepaymentMonths(e.target.value)}
