@@ -1,26 +1,10 @@
 import React, { memo, useCallback, useMemo } from 'react';
 import { AlertTriangle, CircleHelp, Trash2 } from 'lucide-react';
+import { draftRowConversionPreviewReady } from '../../lib/productionRegisterCoilDraft';
 
 function formatKg(value) {
   const next = Number(value);
   return Number.isFinite(next) ? `${next.toFixed(2)} kg` : '—';
-}
-
-function draftRowConversionPreviewReady(row) {
-  const coil = row.coilNo?.trim();
-  const op = Number(row.openingWeightKg);
-  const cl = Number(row.closingWeightKg);
-  const m = Number(row.metersProduced);
-  return (
-    Boolean(coil) &&
-    Number.isFinite(op) &&
-    op > 0 &&
-    Number.isFinite(cl) &&
-    cl >= 0 &&
-    cl <= op &&
-    Number.isFinite(m) &&
-    m > 0
-  );
 }
 
 /**
