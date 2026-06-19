@@ -1,4 +1,5 @@
 import { canWorkspaceSearchProducts, canWorkspaceSearchRefunds } from './workspaceSearchClientGates.js';
+import { customerPickerSearchBlob } from './customerPickerSearch.js';
 
 /**
  * Search cached workspace snapshot (offline / degraded) with permission checks.
@@ -20,7 +21,7 @@ export function searchWorkspaceSnapshot(snapshot, rawQuery, hasPermission, limit
   if (perm('sales.view') || perm('customers.manage')) {
     for (const c of snapshot.customers || []) {
       if (results.length >= limit) break;
-      const blob = `${c.customerID} ${c.name} ${c.phoneNumber || ''} ${c.email || ''} ${c.companyName || ''}`.toLowerCase();
+      const blob = customerPickerSearchBlob(c);
       if (blob.includes(q)) {
         push({
           kind: 'customer',

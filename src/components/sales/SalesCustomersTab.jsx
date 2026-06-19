@@ -10,6 +10,7 @@ import { useCustomers } from '../../context/CustomersContext';
 import { useToast } from '../../context/ToastContext';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { formatNgn } from '../../Data/mockData';
+import { customerPickerSearchBlob } from '../../lib/customerPickerSearch';
 
 const TODAY_ISO = '2026-03-28';
 const INSIGHT_DAYS = 90;
@@ -125,20 +126,7 @@ export default function SalesCustomersTab({
   const sortedAndFiltered = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
     let list = q
-      ? customers.filter((c) => {
-          const blob = [
-            c.customerID,
-            c.name,
-            c.phoneNumber,
-            c.email,
-            c.tier,
-            c.paymentTerms,
-            c.addressShipping,
-          ]
-            .join(' ')
-            .toLowerCase();
-          return blob.includes(q);
-        })
+      ? customers.filter((c) => customerPickerSearchBlob(c).includes(q))
       : [...customers];
 
     list.sort((a, b) => {
@@ -281,7 +269,7 @@ export default function SalesCustomersTab({
                 <SalesListSearchInput
                   value={searchQuery}
                   onChange={onSearchChange}
-                  placeholder="Search name, phone, ID, tier, address…"
+                  placeholder="Search name, phone, staff ID, tier, notes…"
                 />
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <SalesListSortBar

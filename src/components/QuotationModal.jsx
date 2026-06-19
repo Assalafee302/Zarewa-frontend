@@ -67,6 +67,10 @@ import { EditSecondApprovalInline } from './EditSecondApprovalInline';
 import { quotationEditNeedsSecondApprovalClient } from '../lib/editApprovalUi';
 import QuotationPrintView from './QuotationPrintView';
 import OffcutAvailabilityPanel from './material/OffcutAvailabilityPanel';
+import {
+  customerPickerSubline,
+  filterCustomersForPicker,
+} from '../lib/customerPickerSearch';
 
 /** Master material types used on roofing quotes: coil stock + stone meter stock (not finished-good SKUs / consumables). */
 const QUOTATION_MATERIAL_INVENTORY_MODELS = new Set(['coil_kg', 'stone_meter']);
@@ -1588,18 +1592,10 @@ const QuotationModal = ({
     };
   }, [selectedPayTreasuryAccount]);
 
-  const filteredCustomers = useMemo(() => {
-    const raw = customerQuery.trim().toLowerCase();
-    if (!raw) return customers.slice(0, 40);
-    const digits = raw.replace(/\D/g, '');
-    return customers.filter((c) => {
-      const name = (c.name || '').toLowerCase();
-      const phone = String(c.phoneNumber || '').toLowerCase().replace(/\s/g, '');
-      if (name.includes(raw)) return true;
-      if (digits.length >= 3 && phone.replace(/\D/g, '').includes(digits)) return true;
-      return phone.includes(raw.replace(/\s/g, ''));
-    });
-  }, [customers, customerQuery]);
+  const filteredCustomers = useMemo(
+    () => filterCustomersForPicker(customers, customerQuery, 40),
+    [customers, customerQuery]
+  );
 
   const grandTotalNgn = useMemo(
     () => sumRowsNgn(productRows) + sumRowsNgn(accessoryRows) + sumRowsNgn(serviceRows),
@@ -2171,7 +2167,7 @@ const QuotationModal = ({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-5">
               <div>
             <label className="text-[9px] font-semibold text-slate-500 uppercase tracking-widest mb-2 block">
-              Customer — search by name or phone
+              Customer — search by name, phone, staff ID (e.g. ZAPKD004), or tier
             </label>
             <div className="relative">
               <Search
@@ -2197,7 +2193,7 @@ const QuotationModal = ({
                   scheduleCustomerMenuClose();
                 }}
                 readOnly={readOnly}
-                placeholder="Type name or phone — list updates as you type…"
+                placeholder="Type name, phone, staff ID (ZAPKD004), or Staff tier…"
                 autoComplete="off"
                 aria-expanded={customerListOpen}
                 aria-controls="quotation-customer-suggestions"
@@ -2218,7 +2214,7 @@ const QuotationModal = ({
                         onClick={() => pickCustomer(c)}
                       >
                         <span className="font-semibold text-[#134e4a]">{c.name}</span>
-                        <span className="text-[10px] text-slate-500">{c.phoneNumber}</span>
+                        <span className="text-[10px] text-slate-500">{customerPickerSubline(c)}</span>
                       </button>
                     </li>
                   ))}
