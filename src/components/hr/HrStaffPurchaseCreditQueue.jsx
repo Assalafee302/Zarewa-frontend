@@ -1,9 +1,17 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { decideStaffPurchaseCredit, fetchStaffPurchaseCredits } from '../../lib/hrStaffPurchaseCredit';
+import { useWorkspace } from '../../context/WorkspaceContext';
+import { canApproveStaffPurchaseCredit, canRejectStaffPurchaseCredit } from '../../lib/hrAccess';
 import { formatNgn } from '../../lib/hrFormat';
 import { HR_BTN_PRIMARY, HR_BTN_SECONDARY } from './hrFormStyles';
 
 export function HrStaffPurchaseCreditQueue() {
+  const ws = useWorkspace();
+  const roleKey = ws?.session?.user?.roleKey;
+  const permissions = ws?.permissions || [];
+  const mayApprove = canApproveStaffPurchaseCredit(roleKey, permissions);
+  const mayReject = canRejectStaffPurchaseCredit(roleKey, permissions);
+
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -30,7 +38,7 @@ export function HrStaffPurchaseCreditQueue() {
     setBusyId(id);
     setError('');
     const { ok, data } = await decideStaffPurchaseCredit(id, decision, {
-      note: decision === 'approve' ? 'Approved' : 'Rejected',
+      note: decision === 'approve' ? 'Approved by MD' : 'Rejected',
     });
     setBusyId('');
     if (!ok || !data?.ok) {
@@ -54,9 +62,14 @@ export function HrStaffPurchaseCreditQueue() {
     <div className="space-y-3">
       {error ? <p className="text-sm text-red-600">{error}</p> : null}
       <p className="text-xs text-slate-500">
-        Staff roofing / materials on credit — approved balances are collected via payroll. Delivery is allowed when credit
-        covers the quotation balance.
+        Staff roofing / materials on credit — requests require <strong>Managing Director approval</strong>. Approved
+        balances are collected via payroll. Delivery is allowed when credit covers the quotation balance.
       </p>
+      {!mayApprove && pending.length ? (
+        <p className="text-xs font-semibold text-amber-800 rounded-lg border border-amber-100 bg-amber-50 px-3 py-2">
+          {pending.length} request(s) awaiting MD approval. You can view the queue; only the MD can approve.
+        </p>
+      ) : null}
       <div className="space-y-2">
         {pending.map((item) => (
           <div key={item.id} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -70,25 +83,32 @@ export function HrStaffPurchaseCreditQueue() {
                   {formatNgn(item.principalOriginalNgn)} · {formatNgn(item.installmentNgn)}/mo
                   {item.branchId ? ` · Branch ${item.branchId}` : ''}
                 </p>
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-[#134e4a] mt-1">Awaiting MD approval</p>
               </div>
-              <div className="flex shrink-0 gap-2">
-                <button
-                  type="button"
-                  className={HR_BTN_SECONDARY}
-                  disabled={busyId === item.id}
-                  onClick={() => act(item.id, 'reject')}
-                >
-                  Reject
-                </button>
-                <button
-                  type="button"
-                  className={HR_BTN_PRIMARY}
-                  disabled={busyId === item.id}
-                  onClick={() => act(item.id, 'approve')}
-                >
-                  Approve
-                </button>
-              </div>
+              {mayApprove || mayReject ? (
+                <div className="flex shrink-0 gap-2">
+                  {mayReject ? (
+                    <button
+                      type="button"
+                      className={HR_BTN_SECONDARY}
+                      disabled={busyId === item.id}
+                      onClick={() => act(item.id, 'reject')}
+                    >
+                      Reject
+                    </button>
+                  ) : null}
+                  {mayApprove ? (
+                    <button
+                      type="button"
+                      className={HR_BTN_PRIMARY}
+                      disabled={busyId === item.id}
+                      onClick={() => act(item.id, 'approve')}
+                    >
+                      Approve
+                    </button>
+                  ) : null}
+                </div>
+              ) : null}
             </div>
           </div>
         ))}

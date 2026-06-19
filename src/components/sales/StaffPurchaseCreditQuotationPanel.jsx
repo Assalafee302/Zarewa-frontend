@@ -5,7 +5,7 @@ import { fetchQuotationStaffPurchaseStatus } from '../../lib/hrStaffPurchaseCred
 import { StaffPurchaseCreditRequestModal } from './StaffPurchaseCreditRequestModal';
 
 const STATUS_LABELS = {
-  pending_approval: 'Awaiting BM approval',
+  pending_approval: 'Awaiting MD approval',
   active: 'Active — payroll collection',
   rejected: 'Rejected',
   paid_off: 'Paid off',
@@ -73,7 +73,7 @@ export function StaffPurchaseCreditQuotationPanel({ quotationRef, customerId, re
           </div>
         ) : (
           <p className="text-[10px] text-slate-700 leading-relaxed mb-2">
-            This quotation is on a staff customer account. Request purchase credit for branch manager approval;
+            This quotation is on a staff customer account. Request purchase credit for Managing Director approval;
             repayment is collected via payroll.
             {balance > 0 ? (
               <>

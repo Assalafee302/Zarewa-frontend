@@ -260,6 +260,22 @@ export function canMdApprovePayroll(permissions) {
   return hrHasPermission(permissions, 'hr.payroll.md_approve');
 }
 
+/** Managing Director approval for staff purchase credit (roofing / materials on credit). */
+export function canApproveStaffPurchaseCredit(roleKey, permissions) {
+  const rk = String(roleKey || '').toLowerCase();
+  if (rk === 'md') return true;
+  return hrHasPermission(permissions, 'hr.payroll.md_approve') || hrHasPermission(permissions, '*');
+}
+
+/** HR may reject pending purchase credit; only MD may approve. */
+export function canRejectStaffPurchaseCredit(roleKey, permissions) {
+  return (
+    canApproveStaffPurchaseCredit(roleKey, permissions) ||
+    hrHasPermission(permissions, 'hr.loans.manage') ||
+    hrHasPermission(permissions, 'hr.staff.manage')
+  );
+}
+
 /** @param {string[] | undefined} permissions */
 export function canApproveSalaryReduction(permissions) {
   return (
