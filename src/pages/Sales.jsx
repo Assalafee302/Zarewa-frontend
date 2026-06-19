@@ -105,13 +105,8 @@ import {
   normalizeRefund,
   refundApprovedAmount,
   refundOutstandingAmount,
-  refundStatusIsWithdrawn,
   userMayApproveRefundRequests,
 } from '../lib/refundsStore';
-import {
-  productionJobStatusClosesRefundEligibility,
-  quotationVoidPaidRefundEligible,
-} from '../lib/refundEligibility';
 import { pickProductionJobForCuttingList } from '../lib/productionJobPick';
 import { productionQueueLineStatusPresentation } from '../lib/productionQueueLineStatus';
 import {
@@ -227,6 +222,7 @@ const Sales = () => {
   const [stockMatType, setStockMatType] = useState('');
   const [stockGaugeFilter, setStockGaugeFilter] = useState('');
   const [stockColourFilter, setStockColourFilter] = useState('');
+  const [eligibleRefundQuotations, setEligibleRefundQuotations] = useState([]);
   const salesRole = loadSalesWorkspaceRole(ws?.session?.user?.roleKey);
   const roleKey = String(ws?.session?.user?.roleKey || '').toLowerCase();
   const isAdminRole = roleKey === 'admin';
@@ -551,49 +547,42 @@ const Sales = () => {
     [quotationsSearchFiltered]
   );
 
-  /** Quotation refs that already have a refund on file (rejected / cancel-before-pay do not count). */
-  const quotationRefsWithRefundApplied = useMemo(() => {
-    const s = new Set();
-    for (const r of refunds) {
-      const ref = String(r.quotationRef || '').trim();
-      if (!ref || refundStatusIsWithdrawn(r.status)) continue;
-      s.add(ref);
+  const fetchEligibleRefundQuotations = useCallback(async () => {
+    const mayLoad =
+      wsHasPermission?.('refunds.request') ||
+      wsHasPermission?.('refunds.approve') ||
+      wsHasPermission?.('finance.approve');
+    if (!mayLoad) {
+      setEligibleRefundQuotations([]);
+      return;
     }
-    return s;
-  }, [refunds]);
-
-  /** Quotation refs with production closed for refunds: Completed or Cancelled job (snapshot when available). */
-  const quotationRefsWithCompletedProduction = useMemo(() => {
-    const jobs = ws?.snapshot?.productionJobs;
-    if (!Array.isArray(jobs) || jobs.length === 0) return null;
-    const s = new Set();
-    for (const j of jobs) {
-      if (!productionJobStatusClosesRefundEligibility(j.status)) continue;
-      const ref = String(j.quotationRef || '').trim();
-      if (ref) s.add(ref);
+    const { ok, data } = await apiFetch('/api/refunds/eligible-quotations');
+    if (ok && data?.ok) {
+      setEligibleRefundQuotations(data.quotations || []);
     }
-    return s;
-  }, [ws?.snapshot?.productionJobs]);
+  }, [wsHasPermission]);
 
-  /** Paid, eligible for refund pick (void+cancelled quotes included), no blocking refund on file. */
-  const quotationsRefundPotentialRows = useMemo(
-    () =>
-      quotations
-        .filter((row) => {
-          if (!isQuotationArchivedRow(row)) return true;
-          return quotationVoidPaidRefundEligible(row);
-        })
-        .filter((row) => (Number(row.paidNgn) || 0) > 0)
-        .filter((row) => !quotationRefsWithRefundApplied.has(String(row.id).trim()))
-        .filter(
-          (row) =>
-            quotationRefsWithCompletedProduction == null ||
-            quotationRefsWithCompletedProduction.has(String(row.id).trim()) ||
-            quotationVoidPaidRefundEligible(row)
-        )
-        .sort((a, b) => (Number(b.paidNgn) || 0) - (Number(a.paidNgn) || 0)),
-    [quotations, quotationRefsWithRefundApplied, quotationRefsWithCompletedProduction]
-  );
+  useEffect(() => {
+    void fetchEligibleRefundQuotations();
+  }, [fetchEligibleRefundQuotations, refunds.length]);
+
+  /** Same source as the refund form quotation picker (`GET /api/refunds/eligible-quotations`). */
+  const quotationsRefundPotentialRows = useMemo(() => {
+    const byId = new Map(quotations.map((q) => [String(q.id).trim(), q]));
+    return eligibleRefundQuotations
+      .map((eq) => {
+        const id = String(eq.id ?? '').trim();
+        const full = byId.get(id);
+        const remainingNgn = Number(eq.remaining_ngn ?? eq.remainingNgn) || 0;
+        return full ? { ...full, remainingNgn } : { ...eq, id, remainingNgn };
+      })
+      .filter((row) => String(row.id ?? '').trim())
+      .sort((a, b) => {
+        const ra = Number(a.remainingNgn ?? a.remaining_ngn ?? a.paidNgn ?? a.paid_ngn) || 0;
+        const rb = Number(b.remainingNgn ?? b.remaining_ngn ?? b.paidNgn ?? b.paid_ngn) || 0;
+        return rb - ra;
+      });
+  }, [eligibleRefundQuotations, quotations]);
 
   const filteredQuotations = useMemo(() => {
     const visible = quotationsSearchFiltered.filter(
@@ -1043,6 +1032,7 @@ const Sales = () => {
         return { ok: false };
       }
       await ws.refresh();
+      void fetchEligibleRefundQuotations();
       showToast(
         isCreate
           ? `Refund request ${data.refundID || normalized.refundID} submitted for approval.`
@@ -1582,15 +1572,14 @@ const Sales = () => {
                   Potential refunds ({quotationsRefundPotentialRows.length})
                 </p>
                 <p className="text-[9px] text-slate-500 leading-snug mb-3">
-                  Paid quotations with at least one <span className="font-semibold text-slate-600">completed production job</span>,{' '}
-                  and <span className="font-semibold text-slate-600">no blocking refund on file</span>. Quotes with{' '}
-                  <strong>only rejected</strong> refunds stay listed. <strong>Click a row</strong> to start{' '}
-                  <strong>New refund</strong>.
+                  Matches the refund form picker: fully paid (≥99.5% of total), production{' '}
+                  <span className="font-semibold text-slate-600">completed or cancelled</span> (or{' '}
+                  <span className="font-semibold text-slate-600">void with payment</span>), refundable headroom and automatic preview above ₦1,000.{' '}
+                  <strong>Click a row</strong> to start <strong>New refund</strong>.
                 </p>
                 {quotationsRefundPotentialRows.length === 0 ? (
                   <p className="text-[10px] text-slate-400 italic">
-                    None right now — no paid + produced + eligible quote, or production jobs are not in the current workspace
-                    snapshot.
+                    None right now — no quotation meets the server eligibility rules, or you lack refund permissions.
                   </p>
                 ) : (
                   <>
@@ -2370,7 +2359,10 @@ const Sales = () => {
         mode={refundModalMode}
         record={selectedItem}
         onPersist={persistRefund}
-        onClose={() => setShowRefundModal(false)}
+        onClose={() => {
+          setShowRefundModal(false);
+          void fetchEligibleRefundQuotations();
+        }}
         requesterLabel={salesRoleLabel}
         approverLabel={salesRoleLabel}
         quotations={quotations}

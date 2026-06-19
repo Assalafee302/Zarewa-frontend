@@ -38,3 +38,8 @@ export function userMayReleaseQuotationPaymentHold(actor) {
   const rk = String(actor.roleKey || '').trim().toLowerCase();
   return rk === 'admin' || isExecutiveRoleKey(rk);
 }
+
+/** @param {{ roleKey?: string; permissions?: string[] } | null | undefined} actor */
+export function userMayBlockQuotationRefunds(actor) {
+  return userMayReleaseQuotationPaymentHold(actor);
+}

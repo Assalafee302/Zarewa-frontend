@@ -35,7 +35,8 @@ import {
   REFUND_PREVIEW_VERSION,
   MIN_REFUND_QUOTATION_REMAINING_NGN,
 } from '../shared/refundConstants.js';
-import { userMayOverrideProductionAlignment } from '../lib/workspaceGovernanceClient';
+import { userMayOverrideProductionAlignment, userMayBlockQuotationRefunds } from '../lib/workspaceGovernanceClient';
+import { quotationRefundsBlocked } from '../lib/refundEligibility';
 import {
   normQuoteItemKey,
   productLineKey,
@@ -462,6 +463,11 @@ const RefundModal = ({
   const [loadingApprovalAudit, setLoadingApprovalAudit] = useState(false);
   const [approvalRefundIntel, setApprovalRefundIntel] = useState(null);
   const [loadingApprovalIntel, setLoadingApprovalIntel] = useState(false);
+  const [refundsBlockReasonInput, setRefundsBlockReasonInput] = useState('');
+  const [refundsBlockBusy, setRefundsBlockBusy] = useState(false);
+  const [refundsBlockLocal, setRefundsBlockLocal] = useState(null);
+
+  const canBlockQuotationRefunds = userMayBlockQuotationRefunds(ws?.session?.user);
 
   const productionFingerprintRef = useRef('');
   const previewLoadedForQuoteRef = useRef('');
@@ -553,7 +559,7 @@ const RefundModal = ({
     setApprovalEditMode(false);
 
     if (mode === 'create') {
-      void fetchEligibleQuotes();
+      void loadEligibleQuotes();
     }
   }, [isOpen, record, mode, fetchEligibleQuotes]);
 
@@ -638,6 +644,21 @@ const RefundModal = ({
     if (!ref) return null;
     return quotations.find((x) => String(x.id) === ref) ?? null;
   }, [form.quotationRef, quotations]);
+
+  const selectedQuotationRefundsBlocked = useMemo(() => {
+    const ref = String(form.quotationRef || '').trim();
+    if (!ref) return { blocked: false, reason: '', byName: '', atISO: '' };
+    if (refundsBlockLocal && String(refundsBlockLocal.quotationRef) === ref) {
+      return refundsBlockLocal;
+    }
+    const q = selectedQuotationSnapshot;
+    return {
+      blocked: quotationRefundsBlocked(q),
+      reason: String(q?.refundsBlockedReason ?? q?.refunds_blocked_reason ?? '').trim(),
+      byName: String(q?.refundsBlockedByName ?? q?.refunds_blocked_by_name ?? '').trim(),
+      atISO: String(q?.refundsBlockedAtISO ?? q?.refunds_blocked_at_iso ?? '').trim(),
+    };
+  }, [form.quotationRef, selectedQuotationSnapshot, refundsBlockLocal]);
 
   const selectedQuotationPreparedBy = useMemo(() => {
     const fromPick = quotationPreparedByLabel(selectedQuoteMoneyRow);
@@ -897,6 +918,8 @@ const RefundModal = ({
     setIncludeCommissionInPreview(false);
     setSubstitutionWorkbookPpmOverride('');
     setSubstitutionBreakdownLineKey('');
+    setRefundsBlockLocal(null);
+    setRefundsBlockReasonInput('');
   }, []);
 
   const applyVerifiedQuotationRef = useCallback(
@@ -938,6 +961,65 @@ const RefundModal = ({
     }
     applyVerifiedQuotationRef(ref);
   }, [quotationSearchText, applyVerifiedQuotationRef]);
+
+  const toggleQuotationRefundsBlocked = useCallback(async () => {
+    const ref = String(form.quotationRef || '').trim();
+    if (!ref || refundsBlockBusy || !canBlockQuotationRefunds) return;
+    const currentlyBlocked = selectedQuotationRefundsBlocked.blocked;
+    if (!currentlyBlocked) {
+      const reason = String(refundsBlockReasonInput || '').trim();
+      if (reason.length < 10) {
+        showToast('Enter a reason of at least 10 characters before blocking refunds.', { variant: 'error' });
+        return;
+      }
+      if (!window.confirm(`Permanently block all refund requests on ${ref}?`)) return;
+    } else if (!window.confirm(`Remove the refund block on ${ref}?`)) {
+      return;
+    }
+    setRefundsBlockBusy(true);
+    try {
+      const { ok, data } = await apiFetch(`/api/quotations/${encodeURIComponent(ref)}/refunds-blocked`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(
+          currentlyBlocked
+            ? { blocked: false, reason: String(refundsBlockReasonInput || '').trim() || 'Refunds unblocked' }
+            : { blocked: true, reason: String(refundsBlockReasonInput || '').trim() }
+        ),
+      });
+      if (!ok || !data?.ok) {
+        showToast(data?.error || 'Could not update refund block.', { variant: 'error' });
+        return;
+      }
+      if (data.blocked) {
+        setRefundsBlockLocal({
+          quotationRef: ref,
+          blocked: true,
+          reason: data.refundsBlockedReason || refundsBlockReasonInput,
+          byName: ws?.session?.user?.displayName || ws?.session?.user?.username || '',
+          atISO: data.refundsBlockedAtISO || new Date().toISOString(),
+        });
+        showToast(`Refunds blocked on ${ref}.`);
+      } else {
+        setRefundsBlockLocal({ quotationRef: ref, blocked: false, reason: '', byName: '', atISO: '' });
+        setRefundsBlockReasonInput('');
+        showToast(`Refund block removed on ${ref}.`);
+      }
+      void ws?.refresh?.();
+      void loadEligibleQuotes();
+    } finally {
+      setRefundsBlockBusy(false);
+    }
+  }, [
+    form.quotationRef,
+    refundsBlockBusy,
+    canBlockQuotationRefunds,
+    selectedQuotationRefundsBlocked.blocked,
+    refundsBlockReasonInput,
+    showToast,
+    ws,
+    loadEligibleQuotes,
+  ]);
 
   const generatePreviewRef = useRef(generatePreview);
   useEffect(() => {

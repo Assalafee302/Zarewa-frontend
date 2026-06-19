@@ -17,6 +17,11 @@ export function quotationVoidPaidRefundEligible(q) {
   return (Number(q.paidNgn ?? q.paid_ngn) || 0) > 0;
 }
 
+/** Permanent MD/admin block — quotation must not appear in refund pickers or accept new requests. */
+export function quotationRefundsBlocked(q) {
+  return Boolean(String(q?.refundsBlockedAtISO ?? q?.refunds_blocked_at_iso ?? '').trim());
+}
+
 /**
  * Refund create picker: only list orders with nothing left for the customer to pay.
  * Uses the system-wide 99.5% “effectively fully paid” rule when order total is set.
