@@ -65,8 +65,10 @@ export function HrStaffPurchaseCreditQueue() {
                 <p className="font-bold text-slate-900">{item.staffDisplayName || item.userId}</p>
                 <p className="text-sm text-slate-600">{item.title}</p>
                 <p className="text-xs text-slate-500 mt-1">
-                  {item.quotationRef ? `Quote ${item.quotationRef}` : null} · {formatNgn(item.principalOriginalNgn)} ·{' '}
-                  {formatNgn(item.installmentNgn)}/mo
+                  {item.quotationRef ? `Quote ${item.quotationRef}` : null}
+                  {item.quotationRef ? ' · ' : ''}
+                  {formatNgn(item.principalOriginalNgn)} · {formatNgn(item.installmentNgn)}/mo
+                  {item.branchId ? ` · Branch ${item.branchId}` : ''}
                 </p>
               </div>
               <div className="flex shrink-0 gap-2">

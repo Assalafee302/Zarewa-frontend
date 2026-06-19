@@ -129,8 +129,9 @@ export function HrObligationAccountsPanel() {
             }`}
           >
             <p className="font-bold text-slate-900">{a.title || a.id}</p>
-            <p className="text-xs text-slate-600">
+            <p className="text-xs text-slate-600 mt-1">
               {KIND_LABEL[a.kind] || a.kind} · {a.staffDisplayName || a.userId}
+              {a.branchId ? <span className="text-slate-400"> · Branch {a.branchId}</span> : null}
             </p>
             <p className="text-xs font-semibold text-[#134e4a] tabular-nums">
               {formatNgn(a.principalOutstandingNgn)} outstanding
@@ -145,6 +146,7 @@ export function HrObligationAccountsPanel() {
             <h4 className="font-black text-[#134e4a]">{detail.title}</h4>
             <p className="text-xs text-slate-600 mt-1">
               {detail.staffDisplayName} · {KIND_LABEL[detail.kind] || detail.kind} · {detail.status}
+              {detail.branchId ? <span className="text-slate-400"> · Branch {detail.branchId}</span> : null}
             </p>
             <p className="text-lg font-black tabular-nums text-slate-900 mt-2">
               {formatNgn(detail.principalOutstandingNgn)} / {formatNgn(detail.principalOriginalNgn)}

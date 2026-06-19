@@ -883,6 +883,9 @@ export default function HrStaffProfile() {
           {moneySummary?.totalOutstandingNgn > 0 ? (
             <HrCard className="!p-4">
               <p className="text-xs font-bold uppercase text-slate-500">Total outstanding</p>
+              {moneySummary.staffBranchId ? (
+                <p className="text-[10px] text-slate-500 mt-1">Home branch: {moneySummary.staffBranchId}</p>
+              ) : null}
               <p className="text-2xl font-black tabular-nums text-[#134e4a]">{formatNgn(moneySummary.totalOutstandingNgn)}</p>
             </HrCard>
           ) : null}

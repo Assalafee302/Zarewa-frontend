@@ -432,6 +432,8 @@ export async function createHrLoanRequest(userId, payload) {
         repaymentMonths,
         deductionPerMonthNgn,
         purpose: payload.purpose || null,
+        expectedStartPeriod: payload.expectedStartPeriod || null,
+        guarantorNote: payload.guarantorNote || null,
         exceptionalLoan: Boolean(payload.exceptionalLoan),
       },
     }),

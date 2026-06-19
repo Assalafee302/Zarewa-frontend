@@ -80,6 +80,7 @@ export default function HrLoans({ embedded = false } = {}) {
         <h3 className="text-sm font-black uppercase tracking-wide text-[#134e4a]">Obligation ledger & repayments</h3>
         <p className="text-xs text-slate-600 max-w-2xl">
           View staff loan and purchase credit accounts, download PDFs, and post bulk bank repayments.
+          Branch managers see accounts for their workspace branch only; HQ HR sees all branches.
         </p>
         <HrObligationAccountsPanel />
         <HrRecoveryObligationBackfillPanel />

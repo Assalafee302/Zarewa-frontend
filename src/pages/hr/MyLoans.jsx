@@ -302,6 +302,9 @@ export default function MyLoans({ staffLinkBase = '/my-profile' }) {
 
       {moneySummary?.totalOutstandingNgn > 0 ? (
         <ProfileOverviewSection title="Total outstanding" subtitle="All active staff obligations">
+          {moneySummary.staffBranchId ? (
+            <p className="mb-2 text-xs text-slate-500">Home branch: {moneySummary.staffBranchId}</p>
+          ) : null}
           <ProfileKpiCard label="You owe Zarewa">
             <p className="text-2xl font-black tabular-nums text-[#134e4a]">{formatNgn(moneySummary.totalOutstandingNgn)}</p>
           </ProfileKpiCard>

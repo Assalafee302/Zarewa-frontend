@@ -1,4 +1,4 @@
-import { apiFetch } from './apiBase';
+import { apiFetch, apiUrl } from './apiBase';
 
 export function fetchObligationAccounts(params = {}) {
   const q = new URLSearchParams();
@@ -33,15 +33,17 @@ export function fetchStaffMoneySummary(userId) {
 }
 
 export function obligationStatementPdfUrl(accountId) {
-  return `/api/hr/obligation-accounts/${encodeURIComponent(accountId)}/statement.pdf`;
+  return apiUrl(`/api/hr/obligation-accounts/${encodeURIComponent(accountId)}/statement.pdf`);
 }
 
 export function obligationDisbursementVoucherPdfUrl(accountId) {
-  return `/api/hr/obligation-accounts/${encodeURIComponent(accountId)}/disbursement-voucher.pdf`;
+  return apiUrl(`/api/hr/obligation-accounts/${encodeURIComponent(accountId)}/disbursement-voucher.pdf`);
 }
 
 export function obligationRepaymentReceiptPdfUrl(accountId, transactionId) {
-  return `/api/hr/obligation-accounts/${encodeURIComponent(accountId)}/transactions/${encodeURIComponent(transactionId)}/receipt.pdf`;
+  return apiUrl(
+    `/api/hr/obligation-accounts/${encodeURIComponent(accountId)}/transactions/${encodeURIComponent(transactionId)}/receipt.pdf`
+  );
 }
 
 export function backfillRecoveryObligations() {
