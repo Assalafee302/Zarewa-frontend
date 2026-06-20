@@ -1,5 +1,4 @@
 import React, { useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
 import { HrLoanApplicationForm } from '../../components/hr/HrLoanApplicationForm';
 import { HrLegacyLoanMigrateForm } from '../../components/hr/HrLegacyLoanMigrateForm';
 import { HrStaffPurchaseCreditQueue } from '../../components/hr/HrStaffPurchaseCreditQueue';
@@ -8,6 +7,7 @@ import { HrObligationAccountsPanel } from '../../components/hr/HrObligationAccou
 import { HrRecoveryObligationBackfillPanel } from '../../components/hr/HrRecoveryObligationBackfillPanel';
 import { HrRequestsPanel } from '../../components/hr/HrRequestsPanel';
 import { HrAddFormButton, HrFormModal } from '../../components/hr/HrFormModal';
+import { HrLoansHubIntro, HrLoansHubTabs } from '../../components/hr/HrLoansHubTabs';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import {
   canGmApproveHrRequests,
@@ -30,19 +30,9 @@ export default function HrLoans({ embedded = false } = {}) {
   }, [ws?.permissions]);
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        {!embedded ? (
-          <p className="text-sm text-slate-600 max-w-2xl">
-            Staff apply for loans from{' '}
-            <Link to="/my-profile/loans" className="font-semibold text-[#134e4a] hover:underline">
-              HR services → Loans
-            </Link>{' '}
-            (when self-service is enabled). HR can originate applications here and track approvals below.
-          </p>
-        ) : (
-          <p className="text-sm text-slate-600">Staff loan requests, approvals, and finance disbursement tracking.</p>
-        )}
+        <HrLoansHubIntro embedded={embedded} />
         {canManageHrStaff(ws?.permissions) ? (
           <div className="flex flex-wrap gap-2">
             <HrAddFormButton onClick={() => setLoanModalOpen(true)}>New staff loan</HrAddFormButton>
@@ -72,32 +62,43 @@ export default function HrLoans({ embedded = false } = {}) {
         />
       </HrFormModal>
 
-      <section className="space-y-3">
-        <h3 className="text-sm font-black uppercase tracking-wide text-[#134e4a]">Staff purchase credit (roof / materials)</h3>
-        {canManageHrStaff(ws?.permissions) ? <HrStaffBulkSalesCustomerLink /> : null}
-        <HrStaffPurchaseCreditQueue />
-      </section>
+      <HrLoansHubTabs>
+        {(section) => (
+          <>
+            {section === 'requests' ? (
+              <section className="space-y-3">
+                <p className="text-xs text-slate-600">Approval queue for staff loan applications.</p>
+                <HrRequestsPanel
+                  allowedScopes={allowedScopes}
+                  defaultScope={allowedScopes[0] || 'all'}
+                  kindFilter="loan"
+                  staffLinkBase={HR_EMPLOYEES}
+                  showStageBar
+                />
+              </section>
+            ) : null}
 
-      <section className="space-y-3">
-        <h3 className="text-sm font-black uppercase tracking-wide text-[#134e4a]">Obligation ledger & repayments</h3>
-        <p className="text-xs text-slate-600 max-w-2xl">
-          View staff loan and purchase credit accounts and download PDFs. For loans and purchase credit, HR can post
-          bulk bank repayments here. <strong>Discipline recoveries</strong> are paid at the branch cashier (Finance →
-          Desk) — not through this ledger.
-        </p>
-        <HrObligationAccountsPanel />
-        <HrRecoveryObligationBackfillPanel />
-      </section>
+            {section === 'obligations' ? (
+              <section className="space-y-3">
+                <p className="text-xs text-slate-600 max-w-2xl">
+                  Active loan accounts, statements, and bulk bank repayments. Discipline recoveries are paid at the branch
+                  cashier — not through this ledger.
+                </p>
+                <HrObligationAccountsPanel />
+                <HrRecoveryObligationBackfillPanel />
+              </section>
+            ) : null}
 
-      <section className="space-y-3">
-        <h3 className="text-sm font-black uppercase tracking-wide text-[#134e4a]">Loan requests</h3>
-        <HrRequestsPanel
-          allowedScopes={allowedScopes}
-          defaultScope={allowedScopes[0] || 'all'}
-          kindFilter="loan"
-          staffLinkBase={HR_EMPLOYEES}
-        />
-      </section>
+            {section === 'purchase-credit' ? (
+              <section className="space-y-3">
+                <p className="text-xs text-slate-600">Roofing and materials sold on staff credit via Sales quotations.</p>
+                {canManageHrStaff(ws?.permissions) ? <HrStaffBulkSalesCustomerLink /> : null}
+                <HrStaffPurchaseCreditQueue />
+              </section>
+            ) : null}
+          </>
+        )}
+      </HrLoansHubTabs>
     </div>
   );
 }

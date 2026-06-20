@@ -26,6 +26,9 @@ import { currentPeriodYyyymm } from '../../lib/hrRequests';
 import { computeLoanEligibility } from '../../lib/hrLoanEligibility';
 import { fetchStaffLoanSchedule } from '../../lib/hrMasterData';
 import { ProfileProbationBanner } from '../../components/profile/ProfileProbationBanner';
+import { HrLoanPayrollDeductionBanner } from '../../components/hr/HrLoanPayrollDeductionBanner';
+import { loansWithPayrollDeduction } from '../../lib/hrLoanDeductionUi';
+import { HrPayslipTimeline } from '../../components/hr/HrPayslipTimeline';
 
 export default function MyProfileOverview() {
   const { cohort: layoutCohort } = useMyProfileCohort();
@@ -41,6 +44,7 @@ export default function MyProfileOverview() {
   const [requests, setRequests] = useState([]);
   const [attendance, setAttendance] = useState(null);
   const [loanOutstandingNgn, setLoanOutstandingNgn] = useState(0);
+  const [loanSchedule, setLoanSchedule] = useState([]);
   const hasDashboardDataRef = useRef(false);
   const userId = ws?.session?.user?.id || user?.id;
 
@@ -88,11 +92,13 @@ export default function MyProfileOverview() {
       else setAttendance(null);
       if (loanSchedRes.ok && loanSchedRes.data?.ok) {
         const schedule = loanSchedRes.data.schedule || [];
+        setLoanSchedule(schedule);
         const outstanding = schedule
           .filter((l) => l.status === 'active' || Number(l.outstandingNgn) > 0)
           .reduce((sum, l) => sum + (Number(l.outstandingNgn) || 0), 0);
         setLoanOutstandingNgn(outstanding);
       } else {
+        setLoanSchedule([]);
         setLoanOutstandingNgn(0);
       }
 
@@ -137,6 +143,7 @@ export default function MyProfileOverview() {
   }
 
   const lastPayslip = payslips[0] || null;
+  const payrollDeductionLoans = loansWithPayrollDeduction(loanSchedule);
   const pendingRequests = requests.filter(
     (r) => !['approved', 'rejected', 'cancelled', 'draft'].includes(String(r.status || '').toLowerCase())
   );
@@ -242,6 +249,7 @@ export default function MyProfileOverview() {
               <p className="text-xs font-semibold text-slate-500">
                 {formatPeriodYyyymm(lastPayslip.periodYyyymm)} · {lastPayslip.runStatus}
               </p>
+              <HrPayslipTimeline runStatus={lastPayslip.runStatus} compact className="mt-2" />
             {lastPayslip.amountsRedacted || (!showSensitiveInline && !sensitive.isUnlocked) ? (
               <p className="mt-2 text-sm italic text-slate-500">Unlock payslips to view amount</p>
             ) : (
@@ -349,6 +357,8 @@ export default function MyProfileOverview() {
         unreadNotifications={me?.unreadNotifications}
         compact
       />
+
+      {payrollDeductionLoans.length ? <HrLoanPayrollDeductionBanner loans={payrollDeductionLoans} /> : null}
 
       <ProfileOverviewSection title="At a glance" subtitle="Leave, pay, and requests">
         {summarySection}

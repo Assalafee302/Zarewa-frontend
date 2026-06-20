@@ -21,6 +21,8 @@ import {
 } from '../../components/profile/profileOverviewUi';
 import { ProfileKpiCard, ProfileListRow } from '../../components/profile/profileDesign';
 import { HrStatusBadge } from '../../components/hr/HrStatusBadge';
+import { HrPayslipTimeline } from '../../components/hr/HrPayslipTimeline';
+import { payslipEmptyStateMessage } from '../../lib/hrPayslipUi';
 import {
   AppTable,
   AppTableBody,
@@ -41,7 +43,7 @@ function PayslipRowActions({ payslip, onView }) {
     <button
       type="button"
       onClick={() => onView(payslip)}
-      className="z-btn-secondary min-h-10 w-full !px-3 !py-2 !text-xs uppercase tracking-wide sm:w-auto"
+      className="z-btn-secondary min-h-10 w-full !px-3 !py-2 !text-xs sm:w-auto"
     >
       View / PDF
     </button>
@@ -57,6 +59,7 @@ export default function MyPayslips() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [payslips, setPayslips] = useState([]);
+  const [periodHint, setPeriodHint] = useState(null);
   const [printPayslip, setPrintPayslip] = useState(null);
   const [yearFilter, setYearFilter] = useState('');
   const hasLoadedRef = useRef(false);
@@ -71,8 +74,10 @@ export default function MyPayslips() {
       if (!ok || !data?.ok) {
         setError(data?.error || 'Could not load payslips.');
         setPayslips([]);
+        setPeriodHint(null);
       } else {
         setPayslips(data.payslips || []);
+        setPeriodHint(data.periodHint || null);
         setError('');
         hasLoadedRef.current = true;
       }
@@ -91,6 +96,8 @@ export default function MyPayslips() {
   const filtered = yearFilter
     ? payslips.filter((p) => String(p.periodYyyymm || '').startsWith(yearFilter))
     : payslips;
+  const emptyDescription = payslipEmptyStateMessage(periodHint);
+  const timelineStatus = lastPayslip?.runStatus || periodHint?.runStatus;
 
   return (
     <ProfilePageBody>
@@ -99,6 +106,11 @@ export default function MyPayslips() {
         title="Payslips"
         description="View and download payslips after payroll is locked and paid. Unlock with your password to see amounts."
       />
+
+      <ProfileInlineAlert variant="info">
+        Payslips appear after HQ <strong>locks</strong> the monthly run and finance <strong>marks it paid</strong>.
+        Amounts stay hidden until you unlock with your password (unless your role already has payroll access).
+      </ProfileInlineAlert>
 
       <ProfileInlineAlert variant="info">
         Your employer also contributes <strong>ITF (1%)</strong> and <strong>NSITF (1%)</strong> on your behalf.
@@ -113,10 +125,10 @@ export default function MyPayslips() {
         {loading && payslips.length === 0 ? <ProfileMetricSkeleton count={2} /> : null}
 
         {!loading && payslips.length === 0 ? (
-          <ProfileEmptyState
-            title="No payslips yet"
-            description="Payslips appear after HQ locks payroll and finance marks the run paid."
-          />
+          <>
+            {timelineStatus ? <HrPayslipTimeline runStatus={timelineStatus} className="mb-4" /> : null}
+            <ProfileEmptyState title="No payslips yet" description={emptyDescription} />
+          </>
         ) : null}
 
         {lastPayslip && !loading ? (
@@ -125,9 +137,11 @@ export default function MyPayslips() {
               <p className="text-2xl font-black tabular-nums tracking-tight text-[#134e4a]">
                 {maskAmount(unlocked, lastPayslip.netNgn, lastPayslip.amountsRedacted)}
               </p>
-              <p className="mt-1 text-xs font-bold uppercase tracking-wide text-slate-400">
+              <p className="mt-1 text-xs font-semibold text-slate-400">
                 {formatPeriodYyyymm(lastPayslip.periodYyyymm)}
               </p>
+              <p className="mt-0.5 text-xs capitalize text-slate-500">{String(lastPayslip.runStatus || '').replace(/_/g, ' ')}</p>
+              <HrPayslipTimeline runStatus={lastPayslip.runStatus} compact className="mt-2" />
             </ProfileKpiCard>
             <ProfileKpiCard label="Periods on file">
               <p className="text-2xl font-black tabular-nums text-slate-900">{payslips.length}</p>

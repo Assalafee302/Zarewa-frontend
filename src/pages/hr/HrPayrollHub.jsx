@@ -14,7 +14,7 @@ const TABS = [
   { id: 'payroll-runs', label: 'Monthly payroll' },
   { id: 'loans', label: 'Loans' },
   { id: 'benefits', label: 'Benefits' },
-  { id: 'salary-matrix', label: 'Salary Matrix' },
+  { id: 'salary-matrix', label: 'Salary matrix' },
   { id: 'tax-pension', label: 'Tax & pension' },
 ];
 

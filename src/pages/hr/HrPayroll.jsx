@@ -44,7 +44,7 @@ import {
 } from '../../components/ui/AppDataTable';
 import { HrStatusBadge } from '../../components/hr/HrStatusBadge';
 import { HrTableLoadingRow } from '../../components/hr/HrTableBodyState';
-import { useAppTablePaging } from '../../lib/appDataTable';
+import { HrPayrollNextStepBanner } from '../../components/hr/HrPayrollNextStepBanner';
 
 /** Touch-friendly payroll action button — 44px min height for mobile. */
 const PAYROLL_BTN =
@@ -203,6 +203,7 @@ export default function HrPayroll({ embedded = false } = {}) {
   const [payeAlerts, setPayeAlerts] = useState([]);
   const [holdLine, setHoldLine] = useState(null);
   const [holdBusy, setHoldBusy] = useState(false);
+  const [missingBankCount, setMissingBankCount] = useState(null);
   const [searchParams] = useSearchParams();
 
   const sortedRuns = useMemo(() => sortPayrollRunsByPeriod(runs), [runs]);
@@ -450,14 +451,22 @@ export default function HrPayroll({ embedded = false } = {}) {
     if (!r.ok) setError(r.error);
   };
 
-  const exportActions = [
-    { kind: 'bank-upload', label: 'Bank payment file' },
-    { kind: 'treasury', label: 'Treasury pack' },
-    { kind: 'statutory', label: 'Statutory pack' },
-    { kind: 'payslips', label: 'Payslips CSV' },
-    { kind: 'payslips-pdf', label: 'Payslips PDF' },
-    { kind: 'hr-approval', label: 'HR approval CSV' },
-    { kind: 'gl', label: 'GL journal' },
+  const exportGroups = [
+    {
+      heading: 'Pay staff',
+      actions: [{ kind: 'bank-upload', label: 'Bank payment file' }],
+    },
+    {
+      heading: 'Compliance & records',
+      actions: [
+        { kind: 'treasury', label: 'Treasury pack' },
+        { kind: 'statutory', label: 'Statutory pack' },
+        { kind: 'payslips', label: 'Payslips CSV' },
+        { kind: 'payslips-pdf', label: 'Payslips PDF' },
+        { kind: 'hr-approval', label: 'HR approval CSV' },
+        { kind: 'gl', label: 'GL journal' },
+      ],
+    },
   ];
 
   const tone = payrollStatusTone(run?.status);
@@ -476,6 +485,15 @@ export default function HrPayroll({ embedded = false } = {}) {
 
   const recoveryFor = (l) => Number(l.incidentRecoveryNgn) || 0;
 
+  const deductionTotals = useMemo(() => {
+    if (!lines.length || totals?.amountsRedacted) return null;
+    return {
+      loanTotalNgn: lines.reduce((s, l) => s + (l.amountsRedacted ? 0 : loanFor(l)), 0),
+      recoveryTotalNgn: lines.reduce((s, l) => s + (l.amountsRedacted ? 0 : recoveryFor(l)), 0),
+      payeTotalNgn: totals?.taxTotalNgn ?? lines.reduce((s, l) => s + (l.amountsRedacted ? 0 : Number(l.taxNgn) || 0), 0),
+    };
+  }, [lines, totals]);
+
   const payeField = (l) => {
     if (l.amountsRedacted) return '—';
     if (run?.status === 'draft' && canPrepare) {
@@ -493,16 +511,6 @@ export default function HrPayroll({ embedded = false } = {}) {
     return formatNgn(l.taxNgn);
   };
 
-  const workflowStep = run
-    ? run.status === 'paid'
-      ? 4
-      : run.status === 'locked'
-        ? 3
-        : run.gmApprovedAtIso || run.mdApprovedAtIso
-          ? 2
-          : 1
-    : 0;
-
   const linesPaging = useAppTablePaging(lines, 20, selectedId);
 
   const lineActions = (l) => (
@@ -511,7 +519,7 @@ export default function HrPayroll({ embedded = false } = {}) {
         <button
           type="button"
           onClick={() => setHoldLine(l)}
-          className="rounded-lg border border-slate-200 px-2 py-1 text-[10px] font-bold uppercase text-slate-700 hover:bg-slate-50"
+          className="rounded-lg border border-slate-200 px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50"
         >
           {l.payHold || l.held ? 'Release' : 'Hold pay'}
         </button>
@@ -520,7 +528,7 @@ export default function HrPayroll({ embedded = false } = {}) {
         <button
           type="button"
           onClick={() => downloadPayslip(l.userId)}
-          className="rounded-lg border border-teal-200 px-2 py-1 text-[10px] font-bold uppercase text-[#134e4a] hover:bg-teal-50/50"
+          className="rounded-lg border border-teal-200 px-2 py-1 text-xs font-semibold text-[#134e4a] hover:bg-teal-50/50"
         >
           Payslip
         </button>
@@ -802,6 +810,17 @@ export default function HrPayroll({ embedded = false } = {}) {
 
             {run ? (
               <div className="space-y-4">
+                <HrPayrollNextStepBanner
+                  run={run}
+                  canPrepare={canPrepare}
+                  canGm={canGm}
+                  canMd={canMd}
+                  canPay={canPay}
+                  heldLineCount={heldLineCount}
+                  payeAlertCount={payeAlerts.length}
+                  missingBankCount={missingBankCount}
+                />
+
                 <div className={`rounded-xl border px-4 py-3 ${toneCls}`}>
                   <p className="text-sm font-bold">
                     {formatPayrollPeriodLabel(run.periodYyyymm)} · {run.status}
@@ -814,47 +833,42 @@ export default function HrPayroll({ embedded = false } = {}) {
                       ? ` · December bonus (${Math.round((policyRates?.halfMonthBonusRate ?? 0.5) * 100)}% of base)`
                       : ''}
                   </p>
-                  <ol className="mt-3 flex flex-wrap gap-2 text-[10px] font-bold uppercase tracking-wide">
-                    {['Prepare', 'Approve', 'Lock', 'Pay'].map((label, i) => {
-                      const step = i + 1;
-                      const active = workflowStep === step;
-                      const done = workflowStep > step;
-                      return (
-                        <li
-                          key={label}
-                          className={`rounded-full px-2.5 py-1 ${
-                            done
-                              ? 'bg-emerald-100 text-emerald-800'
-                              : active
-                                ? 'bg-white/80 text-slate-900 ring-1 ring-slate-300'
-                                : 'bg-black/5 text-slate-600'
-                          }`}
-                        >
-                          {label}
-                        </li>
-                      );
-                    })}
-                  </ol>
                 </div>
 
                 {totals && !totals.amountsRedacted ? (
-                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
                     <div className="rounded-xl border border-slate-100 bg-white px-3 py-2">
-                      <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Staff</p>
+                      <p className="text-xs font-semibold text-slate-500">Staff</p>
                       <p className="mt-1 text-lg font-black tabular-nums text-[#134e4a]">{totals.headcount}</p>
                     </div>
                     <div className="rounded-xl border border-slate-100 bg-white px-3 py-2">
-                      <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Gross</p>
+                      <p className="text-xs font-semibold text-slate-500">Gross</p>
                       <p className="mt-1 text-lg font-black tabular-nums text-slate-900">{formatNgn(totals.grossTotalNgn)}</p>
                     </div>
                     <div className="rounded-xl border border-slate-100 bg-white px-3 py-2">
-                      <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Net payable</p>
+                      <p className="text-xs font-semibold text-slate-500">Net payable</p>
                       <p className="mt-1 text-lg font-black tabular-nums text-teal-800">{formatNgn(totals.netTotalNgn)}</p>
                     </div>
                     <div className="rounded-xl border border-slate-100 bg-white px-3 py-2">
-                      <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">On hold</p>
+                      <p className="text-xs font-semibold text-slate-500">On hold</p>
                       <p className="mt-1 text-lg font-black tabular-nums text-amber-800">{heldLineCount}</p>
                     </div>
+                    {deductionTotals ? (
+                      <>
+                        <div className="rounded-xl border border-slate-100 bg-white px-3 py-2">
+                          <p className="text-xs font-semibold text-slate-500">Loan deductions</p>
+                          <p className="mt-1 text-lg font-black tabular-nums text-slate-900">{formatNgn(deductionTotals.loanTotalNgn)}</p>
+                        </div>
+                        <div className="rounded-xl border border-slate-100 bg-white px-3 py-2">
+                          <p className="text-xs font-semibold text-slate-500">Recoveries</p>
+                          <p className="mt-1 text-lg font-black tabular-nums text-slate-900">{formatNgn(deductionTotals.recoveryTotalNgn)}</p>
+                        </div>
+                        <div className="rounded-xl border border-slate-100 bg-white px-3 py-2">
+                          <p className="text-xs font-semibold text-slate-500">PAYE</p>
+                          <p className="mt-1 text-lg font-black tabular-nums text-slate-900">{formatNgn(deductionTotals.payeTotalNgn)}</p>
+                        </div>
+                      </>
+                    ) : null}
                   </div>
                 ) : null}
 
@@ -1022,32 +1036,46 @@ export default function HrPayroll({ embedded = false } = {}) {
                   {(run.status === 'locked' || run.status === 'paid') && (canExport || canPay) ? (
                     <>
                       <details className="rounded-xl border border-slate-200 bg-white sm:hidden">
-                        <summary className="min-h-[44px] cursor-pointer list-none px-4 py-3 text-xs font-bold uppercase text-[#134e4a] touch-manipulation">
+                        <summary className="min-h-[44px] cursor-pointer list-none px-4 py-3 text-xs font-bold text-[#134e4a] touch-manipulation">
                           Downloads & exports
                         </summary>
-                        <div className="flex flex-col gap-2 border-t border-slate-100 p-3">
-                          {exportActions.map((ex) => (
-                            <button
-                              key={ex.kind}
-                              type="button"
-                              onClick={() => downloadExport(ex.kind)}
-                              className={`${PAYROLL_BTN_SECONDARY} w-full`}
-                            >
-                              {ex.label}
-                            </button>
+                        <div className="space-y-4 border-t border-slate-100 p-3">
+                          {exportGroups.map((group) => (
+                            <div key={group.heading} className="space-y-2">
+                              <p className="text-xs font-semibold text-slate-500">{group.heading}</p>
+                              <div className="flex flex-col gap-2">
+                                {group.actions.map((ex) => (
+                                  <button
+                                    key={ex.kind}
+                                    type="button"
+                                    onClick={() => downloadExport(ex.kind)}
+                                    className={`${PAYROLL_BTN_SECONDARY} w-full`}
+                                  >
+                                    {ex.label}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
                           ))}
                         </div>
                       </details>
-                      <div className="hidden sm:flex sm:flex-wrap gap-2">
-                        {exportActions.map((ex) => (
-                          <button
-                            key={ex.kind}
-                            type="button"
-                            onClick={() => downloadExport(ex.kind)}
-                            className={PAYROLL_BTN_SECONDARY}
-                          >
-                            {ex.label}
-                          </button>
+                      <div className="hidden space-y-3 sm:block">
+                        {exportGroups.map((group) => (
+                          <div key={group.heading} className="space-y-2">
+                            <p className="text-xs font-semibold text-slate-500">{group.heading}</p>
+                            <div className="flex flex-wrap gap-2">
+                              {group.actions.map((ex) => (
+                                <button
+                                  key={ex.kind}
+                                  type="button"
+                                  onClick={() => downloadExport(ex.kind)}
+                                  className={PAYROLL_BTN_SECONDARY}
+                                >
+                                  {ex.label}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
                         ))}
                       </div>
                     </>
