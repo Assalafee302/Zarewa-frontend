@@ -38,6 +38,9 @@ export function ExecutiveWorkItemReviewModal({ item, isOpen, onClose, onComplete
   const [quotationRow, setQuotationRow] = useState(null);
   const [conversionRemark, setConversionRemark] = useState('');
   const [conversionEditApprovalId, setConversionEditApprovalId] = useState('');
+  const [settlementDetail, setSettlementDetail] = useState(null);
+  const [loadingSettlement, setLoadingSettlement] = useState(false);
+  const [settlementNote, setSettlementNote] = useState('');
 
   const review = useMemo(() => resolveExecReviewView(item), [item]);
   const ctx = useMemo(() => execWorkItemReviewContext(item), [item]);
@@ -69,7 +72,20 @@ export function ExecutiveWorkItemReviewModal({ item, isOpen, onClose, onComplete
     setAuditData(null);
     setRefundIntelExtras(null);
     setQuotationRow(null);
+    setSettlementDetail(null);
+    setSettlementNote('');
 
+    if (review.view === 'register_settlement' && review.settlementId) {
+      setLoadingSettlement(true);
+      void (async () => {
+        const { ok, data } = await apiFetch(
+          `/api/accounting/settlements/${encodeURIComponent(review.settlementId)}`
+        );
+        setLoadingSettlement(false);
+        if (ok && data?.settlement) setSettlementDetail(data.settlement);
+        else if (review.row?.settlementId) setSettlementDetail(review.row);
+      })();
+    }
     if (review.view === 'price_exception' && review.quotationId) {
       void fetchQuotation(review.quotationId);
       void fetchAudit(review.quotationId);
@@ -175,6 +191,35 @@ export function ExecutiveWorkItemReviewModal({ item, isOpen, onClose, onComplete
       return;
     }
     showToast(status === 'Approved' ? 'Refund approved.' : 'Refund rejected.', { variant: 'success' });
+    await ws?.refresh?.();
+    await finish();
+  };
+
+  const handleSettlementDecision = async (status) => {
+    const settlementId = review.settlementId;
+    if (!settlementId || readOnly) return;
+    const note = settlementNote.trim();
+    if (status === 'Rejected' && note.length < 3) {
+      showToast('Enter a rejection reason (at least 3 characters).', { variant: 'error' });
+      return;
+    }
+    setBusy(true);
+    const settlement = settlementDetail || review.row || {};
+    const amount = Math.round(Number(settlement.amountNgn) || 0);
+    const { ok, data } = await apiFetch(`/api/accounting/settlements/${encodeURIComponent(settlementId)}/decision`, {
+      method: 'POST',
+      body: JSON.stringify({
+        status,
+        note: note || (status === 'Approved' ? 'Executive approval' : 'Rejected'),
+        ...(status === 'Approved' && amount > 0 ? { approvedAmountNgn: amount } : {}),
+      }),
+    });
+    setBusy(false);
+    if (!ok || data?.ok === false) {
+      showToast(data?.error || 'Could not update withdrawal request.', { variant: 'error' });
+      return;
+    }
+    showToast(status === 'Approved' ? 'Withdrawal approved.' : 'Withdrawal rejected.', { variant: 'success' });
     await ws?.refresh?.();
     await finish();
   };
@@ -455,6 +500,69 @@ export function ExecutiveWorkItemReviewModal({ item, isOpen, onClose, onComplete
                 onReject={(decisionExtras) => void handleRefundDecision('Rejected', decisionExtras)}
               />
             </>
+          ) : null}
+
+          {review.view === 'register_settlement' ? (
+            <div className="space-y-4 rounded-xl border border-teal-200 bg-teal-50/40 p-4">
+              <p className="text-[10px] font-black uppercase text-teal-900">Register withdrawal</p>
+              {loadingSettlement ? (
+                <p className="text-[11px] text-slate-500">Loading withdrawal details…</p>
+              ) : (
+                <>
+                  <p className="font-mono text-sm font-bold">{review.settlementId}</p>
+                  <p className="text-[11px] text-slate-700">
+                    {(settlementDetail || review.row)?.partyName || '—'}
+                    {(settlementDetail || review.row)?.registerLineId
+                      ? ` · ${(settlementDetail || review.row).registerLineId}`
+                      : ''}
+                  </p>
+                  <p className="text-2xl font-black text-[#134e4a] tabular-nums">
+                    {formatNgn((settlementDetail || review.row)?.amountNgn)}
+                  </p>
+                  {(settlementDetail || review.row)?.reason ? (
+                    <p className="text-[11px] text-slate-600 rounded-lg bg-white border border-slate-100 px-3 py-2">
+                      {(settlementDetail || review.row).reason}
+                    </p>
+                  ) : null}
+                  {(settlementDetail || review.row)?.requestedByName ? (
+                    <p className="text-[10px] text-slate-500">
+                      Requested by {formatPersonName((settlementDetail || review.row).requestedByName)}
+                    </p>
+                  ) : null}
+                </>
+              )}
+              {!readOnly && item.canAct !== false ? (
+                <div className="space-y-3 border-t border-teal-200/80 pt-4">
+                  <textarea
+                    value={settlementNote}
+                    onChange={(e) => setSettlementNote(e.target.value)}
+                    rows={2}
+                    placeholder="Approval or rejection note (required for rejection)"
+                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-[11px] outline-none focus:ring-2 focus:ring-teal-300/50"
+                  />
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      disabled={busy || loadingSettlement}
+                      onClick={() => void handleSettlementDecision('Approved')}
+                      className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-2.5 text-[10px] font-black uppercase text-white hover:bg-emerald-500 disabled:opacity-40"
+                    >
+                      <CheckCircle2 size={14} />
+                      Approve
+                    </button>
+                    <button
+                      type="button"
+                      disabled={busy || loadingSettlement}
+                      onClick={() => void handleSettlementDecision('Rejected')}
+                      className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-rose-600 px-3 py-2.5 text-[10px] font-black uppercase text-white hover:bg-rose-500 disabled:opacity-40"
+                    >
+                      <Flag size={14} />
+                      Reject
+                    </button>
+                  </div>
+                </div>
+              ) : null}
+            </div>
           ) : null}
 
           {review.view === 'payment' ? (

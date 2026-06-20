@@ -5,8 +5,9 @@ import { formatNgn } from '../../Data/mockData';
 import { AccountingDeskPageIntro } from './accounting/AccountingDeskUi';
 import { AccountingRegisterHeader } from './accounting/AccountingRegisterLayout';
 import { useWorkspace } from '../../context/WorkspaceContext';
+import { ACCOUNTING_OPENING_DATE_ISO, ACCOUNTING_OPENING_DATE_LABEL } from '../../shared/accountingCutover';
 
-const DEFAULT_DATE = '2026-07-01';
+const DEFAULT_DATE = ACCOUNTING_OPENING_DATE_ISO;
 
 const QUICK_LINES = [
   { accountCode: '1001', label: 'Cash — bank 1', side: 'debit' },
@@ -122,7 +123,7 @@ export function AccountingOpeningBalancePanel({ showToast, deskLayout = false })
         <AccountingRegisterHeader compact actions={statusAction} />
       ) : (
         <AccountingDeskPageIntro
-          title="Opening balance — 1 July cutover"
+          title={`Opening balance — ${ACCOUNTING_OPENING_DATE_LABEL} cutover`}
           description="Enter last closing balances once. Posts a single balanced journal to the general ledger. Use average stock cost and confirmed bank cash per account."
           action={statusAction}
         />

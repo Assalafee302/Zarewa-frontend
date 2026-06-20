@@ -8,6 +8,7 @@ import {
   ACCOUNTING_CARD_ROW,
 } from './accounting/AccountingDeskUi';
 import { AccountingRegisterHeader } from './accounting/AccountingRegisterLayout';
+import { ACCOUNTING_OPENING_DATE_LABEL } from '../../shared/accountingCutover';
 
 /**
  * @param {{ branchScopeLabel?: string; showToast?: (msg: string, opts?: object) => void; deskLayout?: boolean }} props
@@ -95,7 +96,7 @@ export function AccountingOverviewPanel({ branchScopeLabel = '', deskLayout = fa
           icon={<Wallet size={12} />}
           label="Opening balance"
           value={opening?.posted ? 'Posted' : 'Pending'}
-          hint="1 Jul 2026 cutover journal"
+          hint={`${ACCOUNTING_OPENING_DATE_LABEL} cutover journal`}
           tone={opening?.posted ? 'teal' : 'amber'}
         />
         <AccountingDeskKpiCard

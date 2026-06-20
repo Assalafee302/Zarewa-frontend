@@ -3,6 +3,7 @@ const EXEC_IN_MODAL_KINDS = new Set([
   'price_exception',
   'conversions',
   'refunds',
+  'register_settlement',
   'payments',
   'clearance',
   'flagged',
@@ -31,6 +32,7 @@ export function execWorkItemReviewContext(item) {
     quotationRef: String(item?.quotationRef || ctx.quotationRef || row.id || row.quotation_ref || '').trim(),
     jobId: String(ctx.jobId || row.job_id || '').trim(),
     refundId: String(ctx.refundId || row.refund_id || row.refundId || '').trim(),
+    settlementId: String(ctx.settlementId || row.settlementId || row.settlement_id || '').trim(),
     requestId: String(ctx.requestId || row.request_id || '').trim(),
     cuttingListId: String(ctx.cuttingListId || row.id || '').trim(),
     materialIncidentId: String(ctx.materialIncidentId || row.id || '').trim(),
@@ -57,6 +59,9 @@ export function resolveExecReviewView(item) {
   }
   if (kind === 'refunds') {
     return { view: 'refund', refundId: ctx.refundId, row: ctx.row };
+  }
+  if (kind === 'register_settlement') {
+    return { view: 'register_settlement', settlementId: ctx.settlementId, row: ctx.row };
   }
   if (kind === 'payments') {
     return { view: 'payment', requestId: ctx.requestId, row: ctx.row };

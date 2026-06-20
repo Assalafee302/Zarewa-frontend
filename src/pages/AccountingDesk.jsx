@@ -35,6 +35,7 @@ import { AccountingOpeningBalancePanel } from '../components/finance/AccountingO
 import { AccountingClosePanel } from '../components/finance/AccountingClosePanel';
 import { AccountingPolicyPanel } from '../components/finance/AccountingPolicyPanel';
 import { Ap3CostingReadinessPanel } from '../components/finance/Ap3CostingReadinessPanel';
+import { ACCOUNTING_OPENING_DATE_LABEL } from '../shared/accountingCutover';
 
 function defaultPeriodRange() {
   const now = new Date();
@@ -65,7 +66,7 @@ const TAB_HINTS = {
   overview: 'Exceptions, cutover readiness, and quick paths to close.',
   statements: 'Profit & Loss and Statement of Financial Position from GL.',
   gl: 'Trial balance and journal activity for the period.',
-  opening: 'One-time 1 July opening journal from last closing balances.',
+  opening: `One-time ${ACCOUNTING_OPENING_DATE_LABEL} opening journal from last closing balances.`,
   close: 'Checklist before locking the period — receipts, payroll, depreciation, statements.',
   policy: 'AP1c dry-run and cutover to deposit-until-produced GL posting.',
   costing: 'Material cost per metre, expense buckets, and data readiness for branch P&L.',
