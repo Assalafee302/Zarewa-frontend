@@ -8,6 +8,7 @@ export function FinanceMobileAlertStrip({
   pendingReceipts = 0,
   approvedPayments = 0,
   approvedRefunds = 0,
+  registerWithdrawals = 0,
   poHaulage = 0,
   staffRecoveries = 0,
 }) {
@@ -28,6 +29,12 @@ export function FinanceMobileAlertStrip({
     items.push({
       label: `${approvedRefunds} refund payout${approvedRefunds !== 1 ? 's' : ''}`,
       tone: 'rose',
+    });
+  }
+  if (registerWithdrawals > 0) {
+    items.push({
+      label: `${registerWithdrawals} register withdrawal${registerWithdrawals !== 1 ? 's' : ''}`,
+      tone: 'teal',
     });
   }
   if (poHaulage > 0) {

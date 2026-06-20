@@ -346,6 +346,26 @@ export function buildWorkspaceNotifications({
     });
   }
 
+  const registerWithdrawalsDue = Array.isArray(snapshot?.registerSettlementsAwaitingPayment)
+    ? snapshot.registerSettlementsAwaitingPayment
+    : [];
+  if (
+    canAccessModule('finance') &&
+    (can('finance.pay') || can('cashier.desk.view')) &&
+    registerWithdrawalsDue.length > 0
+  ) {
+    items.push({
+      id: 'register-withdrawal-payouts',
+      category: 'finance',
+      title: 'Register withdrawals',
+      detail: `${registerWithdrawalsDue.length} approved register withdrawal(s) awaiting treasury payout.`,
+      severity: 'warning',
+      priority: 77,
+      path: '/accounts',
+      state: { accountsTab: 'desk' },
+    });
+  }
+
   const transportTreasuryDue = Array.isArray(snapshot?.poTransportAwaitingTreasury)
     ? snapshot.poTransportAwaitingTreasury
     : [];

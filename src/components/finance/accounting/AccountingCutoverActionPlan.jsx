@@ -11,26 +11,33 @@ const STATUS_ICON = {
 };
 
 /**
- * @param {{ onFocusTab?: (tabId: string) => void; deskRefresh?: number }} props
+ * @param {{
+ *   onFocusTab?: (tabId: string) => void;
+ *   deskRefresh?: number;
+ *   plan?: object | null;
+ * }} props
  */
-export function AccountingCutoverActionPlan({ onFocusTab, deskRefresh = 0 }) {
-  const [data, setData] = useState(null);
+export function AccountingCutoverActionPlan({ onFocusTab, deskRefresh = 0, plan = null }) {
+  const [localPlan, setLocalPlan] = useState(null);
   const [loading, setLoading] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
       const res = await apiFetch('/api/finance/cutover-plan');
-      if (res.ok && res.data?.ok) setData(res.data);
-      else setData(null);
+      if (res.ok && res.data?.ok) setLocalPlan(res.data);
+      else setLocalPlan(null);
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
+    if (plan) return;
     load();
-  }, [load, deskRefresh]);
+  }, [load, deskRefresh, plan]);
+
+  const data = plan || localPlan;
 
   if (loading && !data) {
     return <div className="h-24 animate-pulse rounded-xl bg-slate-100" />;
@@ -49,15 +56,17 @@ export function AccountingCutoverActionPlan({ onFocusTab, deskRefresh = 0 }) {
         </div>
         <div className="flex items-center gap-2 shrink-0">
           <span className="text-sm font-black tabular-nums text-[#134e4a]">{data.progressPct}%</span>
-          <button
-            type="button"
-            onClick={load}
-            disabled={loading}
-            className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-1 text-[9px] font-bold uppercase text-[#134e4a]"
-          >
-            <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />
-            Refresh
-          </button>
+          {!plan ? (
+            <button
+              type="button"
+              onClick={load}
+              disabled={loading}
+              className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-1 text-[9px] font-bold uppercase text-[#134e4a]"
+            >
+              <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />
+              Refresh
+            </button>
+          ) : null}
         </div>
       </div>
 

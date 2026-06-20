@@ -1,7 +1,6 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React from 'react';
 import { Link } from 'react-router-dom';
 import { AlertTriangle, RefreshCw, Scale, Wallet, FileBarChart, Flag, CheckCircle2, Lock, BookOpen } from 'lucide-react';
-import { apiFetch } from '../../lib/apiBase';
 import { formatNgn } from '../../Data/mockData';
 import {
   AccountingDeskKpiCard,
@@ -16,19 +15,6 @@ import { AccountingCutoverActionPlan } from './accounting/AccountingCutoverActio
 import { AccountingManagementDisclaimer } from './accounting/AccountingManagementDisclaimer';
 import { useAccountingDesk } from './accounting/AccountingDeskContext';
 import { ACCOUNTING_OPENING_DATE_LABEL } from '../../shared/accountingCutover';
-import { useWorkspace } from '../../context/WorkspaceContext';
-
-function packQueryString(ws) {
-  const params = new URLSearchParams();
-  if (ws?.viewAllBranches) {
-    params.set('branchId', 'ALL');
-  } else {
-    const bid = ws?.branchScope || ws?.session?.currentBranchId;
-    if (bid) params.set('branchId', bid);
-  }
-  const q = params.toString();
-  return q ? `?${q}` : '';
-}
 
 /**
  * @param {{
@@ -43,62 +29,16 @@ export function AccountingOverviewPanel({
   branchScopeLabel = '',
   deskLayout = false,
   onFocusTab,
-  deskRefresh = 0,
 }) {
-  const ws = useWorkspace();
-  const { periodKey } = useAccountingDesk();
-  const [data, setData] = useState(null);
-  const [opening, setOpening] = useState(null);
-  const [pack, setPack] = useState(null);
-  const [statements, setStatements] = useState(null);
-  const [closePack, setClosePack] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const {
+    periodKey,
+    overview,
+    overviewLoading,
+    overviewError,
+    reloadOverview,
+  } = useAccountingDesk();
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError('');
-    try {
-      const branchParams = new URLSearchParams();
-      if (ws?.viewAllBranches) branchParams.set('branchId', 'ALL');
-      else {
-        const bid = ws?.branchScope || ws?.session?.currentBranchId;
-        if (bid) branchParams.set('branchId', bid);
-      }
-      const branchSuffix = branchParams.toString() ? `&${branchParams.toString()}` : '';
-      const periodSuffix = periodKey ? `period=${encodeURIComponent(periodKey)}${branchSuffix}` : '';
-
-      const [exRes, obRes, packRes, stmtRes, closeRes] = await Promise.all([
-        apiFetch('/api/finance/trial-exceptions'),
-        apiFetch('/api/finance/opening-balance/status'),
-        apiFetch(`/api/finance/opening-pack${packQueryString(ws)}`),
-        periodKey ? apiFetch(`/api/finance/statements-pack?${periodSuffix}`) : Promise.resolve(null),
-        periodKey ? apiFetch(`/api/finance/month-end-close?${periodSuffix}`) : Promise.resolve(null),
-      ]);
-      if (!exRes.ok || !exRes.data?.ok) {
-        setError(exRes.data?.error || 'Could not load exception summary.');
-        setData(null);
-      } else {
-        setData(exRes.data);
-      }
-      if (obRes.ok && obRes.data?.ok) setOpening(obRes.data);
-      else setOpening(null);
-      if (packRes.ok && packRes.data?.ok) setPack(packRes.data);
-      else setPack(null);
-      if (stmtRes?.ok && stmtRes.data?.ok) setStatements(stmtRes.data);
-      else setStatements(null);
-      if (closeRes?.ok && closeRes.data?.ok) setClosePack(closeRes.data);
-      else setClosePack(null);
-    } finally {
-      setLoading(false);
-    }
-  }, [ws, periodKey]);
-
-  useEffect(() => {
-    load();
-  }, [load, deskRefresh]);
-
-  const ex = data?.exceptions || data || {};
+  const ex = overview?.exceptions?.exceptions || overview?.exceptions || {};
   const blockers = [
     {
       key: 'pendingReceiptClearance',
@@ -130,7 +70,7 @@ export function AccountingOverviewPanel({
     },
   ].filter((b) => Number(b.count) > 0);
 
-  const exceptionTotal = blockers.reduce((sum, b) => sum + Number(b.count), 0);
+  const exceptionTotal = Number(overview?.exceptionTotal) || blockers.reduce((sum, b) => sum + Number(b.count), 0);
 
   const quickLinks = [
     { id: 'opening', label: 'Opening Pack', hint: 'June cutover', icon: Flag },
@@ -139,9 +79,12 @@ export function AccountingOverviewPanel({
     { id: 'creditors', label: 'Registers', hint: 'Receivables & payables', icon: BookOpen },
   ];
 
+  const pack = overview?.pack;
+  const statements = overview?.statements;
+  const closePack = overview?.close;
   const cutoverSources = (pack?.sources || []).filter((s) => s.status === 'warn' || s.status === 'fail');
-  const openingPosted = Boolean(opening?.posted || pack?.alreadyPosted);
-  const glFlags = data?.flags || {};
+  const openingPosted = Boolean(overview?.opening?.posted || pack?.alreadyPosted);
+  const glFlags = overview?.flags || {};
   const ap1cLive =
     glFlags.accountingPolicyV1ReceiptGl || glFlags.accountingPolicyV1ProductionRelease;
   const glAutoPostLabel = ap1cLive ? 'AP1c on' : 'Core hooks';
@@ -153,13 +96,26 @@ export function AccountingOverviewPanel({
     <button
       type="button"
       className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide text-[#134e4a] hover:bg-slate-50"
-      onClick={load}
-      disabled={loading}
+      onClick={reloadOverview}
+      disabled={overviewLoading}
     >
-      <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+      <RefreshCw size={14} className={overviewLoading ? 'animate-spin' : ''} />
       Refresh
     </button>
   );
+
+  if (overviewLoading && !overview) {
+    return (
+      <div className="space-y-4">
+        <div className="h-10 animate-pulse rounded-lg bg-slate-100" />
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {[1, 2, 3, 4].map((n) => (
+            <div key={n} className="h-24 animate-pulse rounded-xl bg-slate-100" />
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-5">
@@ -212,7 +168,7 @@ export function AccountingOverviewPanel({
         </div>
       ) : null}
 
-      {error ? <p className="text-[11px] font-medium text-rose-700">{error}</p> : null}
+      {overviewError ? <p className="text-[11px] font-medium text-rose-700">{overviewError}</p> : null}
 
       <AccountingManagementDisclaimer />
 
@@ -232,7 +188,7 @@ export function AccountingOverviewPanel({
       />
 
       {!openingPosted ? (
-        <AccountingCutoverActionPlan onFocusTab={onFocusTab} deskRefresh={deskRefresh} />
+        <AccountingCutoverActionPlan onFocusTab={onFocusTab} plan={overview?.cutoverPlan} />
       ) : null}
 
       <AccountingExecutiveSummary

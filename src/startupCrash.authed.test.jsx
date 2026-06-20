@@ -223,6 +223,38 @@ function installFetchMock(overrides = {}) {
     if (path.includes('/api/finance/trial-exceptions')) {
       return jsonFetchResponse({ ok: true, exceptions: [] });
     }
+    if (path.includes('/api/finance/desk-overview')) {
+      return jsonFetchResponse({
+        ok: true,
+        exceptionTotal: 0,
+        exceptions: { ok: true, exceptions: {} },
+        opening: { posted: false },
+        pack: { alreadyPosted: false, sources: [] },
+        cutoverPlan: {
+          summary: 'Cutover in progress',
+          progressPct: 40,
+          disclaimer: 'Test plan',
+          phases: [],
+        },
+        statements: null,
+        close: { steps: [] },
+      });
+    }
+    if (path.includes('/api/finance/cutover-plan')) {
+      return jsonFetchResponse({
+        ok: true,
+        summary: 'Cutover in progress',
+        progressPct: 40,
+        disclaimer: 'Test plan',
+        phases: [],
+      });
+    }
+    if (path.includes('/api/finance/opening-balance/status') || path.includes('/api/finance/opening-pack')) {
+      return jsonFetchResponse({ ok: true, posted: false, alreadyPosted: false, sources: [] });
+    }
+    if (path.includes('/api/finance/month-end-close') || path.includes('/api/finance/statements-pack')) {
+      return jsonFetchResponse({ ok: true, steps: [] });
+    }
     if (path.includes('/api/exec/reserve-policy')) {
       return jsonFetchResponse({ ok: true, policy: {} });
     }
@@ -290,6 +322,43 @@ describe('authenticated startup TDZ', () => {
     await waitFor(
       () => {
         expect(screen.queryByText(/Zarewa could not load/i)).toBeNull();
+      },
+      { timeout: 15000 }
+    );
+  });
+
+  it('renders finance manager accounting desk without error boundary crash', async () => {
+    vi.stubGlobal(
+      'fetch',
+      installFetchMock({
+        bootstrap: bootstrapPayload(
+          {
+            id: 'u-fm',
+            username: 'finance.user',
+            displayName: 'Finance User',
+            roleKey: 'finance_manager',
+            branchId: 'BR1',
+          },
+          ['finance.view', 'finance.post', 'period.manage']
+        ),
+      })
+    );
+    window.history.pushState({}, '', '/accounting');
+    const { default: App } = await import('./App.jsx');
+    render(
+      <StrictMode>
+        <App />
+      </StrictMode>
+    );
+    await waitFor(
+      () => {
+        expect(screen.queryByText(/Zarewa could not load/i)).toBeNull();
+      },
+      { timeout: 15000 }
+    );
+    await waitFor(
+      () => {
+        expect(screen.getByRole('tab', { name: /Home/i })).toBeInTheDocument();
       },
       { timeout: 15000 }
     );

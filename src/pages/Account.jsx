@@ -81,7 +81,9 @@ import {
 } from '../lib/accountCore';
 import { getAllowedLegacyAccountTabs, getDefaultLegacyAccountTab } from '../lib/legacyAccountsAccess';
 import { FinanceDeskWorkQueues } from '../components/finance/FinanceDeskWorkQueues.jsx';
+import { AccountingRegisterSettlementPayModal } from '../components/finance/AccountingRegisterSettlementPayModal.jsx';
 import { StaffRecoveryCashierModal } from '../components/finance/StaffRecoveryCashierModal.jsx';
+import { registerSettlementsAwaitingPayment } from '../lib/registerSettlementPay';
 import {
   treasuryAccountBranchLabel,
   treasuryAccountDisplayName,
@@ -148,6 +150,8 @@ const Account = () => {
   const [editingTransferBatchId, setEditingTransferBatchId] = useState('');
   const [deletingTransferBatchId, setDeletingTransferBatchId] = useState('');
   const [showRefundPayModal, setShowRefundPayModal] = useState(false);
+  const [showRegisterSettlementPayModal, setShowRegisterSettlementPayModal] = useState(false);
+  const [registerSettlementPayTarget, setRegisterSettlementPayTarget] = useState(null);
   const [statementAccount, setStatementAccount] = useState(null);
   const [showStatementPrintModal, setShowStatementPrintModal] = useState(false);
   const [statementPrintFromDate, setStatementPrintFromDate] = useState('');
@@ -1197,6 +1201,41 @@ const Account = () => {
     },
     [customerRefunds, handleAccountTabChange, showToast, openRefundPay]
   );
+
+  const registerSettlementsAwaitingPay = useMemo(
+    () =>
+      ws?.hasWorkspaceData && Array.isArray(ws?.snapshot?.registerSettlementsAwaitingPayment)
+        ? registerSettlementsAwaitingPayment(ws.snapshot.registerSettlementsAwaitingPayment)
+        : [],
+    [ws?.hasWorkspaceData, ws?.snapshot?.registerSettlementsAwaitingPayment]
+  );
+
+  const openRegisterSettlementPay = useCallback((row) => {
+    setRegisterSettlementPayTarget(row);
+    setShowRegisterSettlementPayModal(true);
+  }, []);
+
+  const handleDeskPayRegisterSettlement = useCallback(
+    (settlementId) => {
+      const id = String(settlementId || '').trim();
+      const row = registerSettlementsAwaitingPay.find((s) => String(s.settlementId || '').trim() === id);
+      if (row) {
+        openRegisterSettlementPay(row);
+        return;
+      }
+      showToast(id ? `Withdrawal ${id} — refresh workspace and try again.` : 'No register withdrawal queued for payout.', {
+        variant: 'info',
+      });
+    },
+    [registerSettlementsAwaitingPay, openRegisterSettlementPay, showToast]
+  );
+
+  const handleRegisterSettlementPaid = useCallback(async () => {
+    setShowRegisterSettlementPayModal(false);
+    setRegisterSettlementPayTarget(null);
+    showToast('Register withdrawal paid and treasury updated.');
+    await ws.refresh();
+  }, [showToast, ws]);
 
   const handleDeskViewPaymentRequest = useCallback(
     (requestId) => {
@@ -3079,6 +3118,7 @@ const Account = () => {
                 onPayRequest={handleDeskPayRequest}
                 onViewPaymentRequest={handleDeskViewPaymentRequest}
                 onPayRefund={handleDeskPayRefund}
+                onPayRegisterSettlement={handleDeskPayRegisterSettlement}
                 onPayPoTransport={handleDeskPayPoTransport}
                 onViewPoTransport={handleDeskViewPoTransport}
                 onReceiveStaffRecovery={handleDeskReceiveStaffRecovery}
@@ -5149,6 +5189,16 @@ const Account = () => {
           </div>
         </div>
       </ModalFrame>
+
+      <AccountingRegisterSettlementPayModal
+        settlement={registerSettlementPayTarget}
+        open={showRegisterSettlementPayModal}
+        onClose={() => {
+          setShowRegisterSettlementPayModal(false);
+          setRegisterSettlementPayTarget(null);
+        }}
+        onPaid={() => void handleRegisterSettlementPaid()}
+      />
 
       <ModalFrame
         isOpen={showRefundPayModal}

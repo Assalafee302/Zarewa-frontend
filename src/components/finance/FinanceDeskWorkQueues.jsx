@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Banknote, Landmark, ArrowRightLeft, ClipboardList, RotateCcw, Truck, UserRound } from 'lucide-react';
+import { Banknote, Landmark, ArrowRightLeft, ClipboardList, RotateCcw, Truck, UserRound, Wallet } from 'lucide-react';
 import { formatNgn } from '../../Data/mockData';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import {
@@ -11,6 +11,7 @@ import {
   receiptClearanceBadgeLabel,
 } from '../../lib/receiptClearance';
 import { approvedRefundsAwaitingPayment } from '../../lib/refundsStore';
+import { registerSettlementsAwaitingPayment, registerSettlementOutstandingNgn } from '../../lib/registerSettlementPay';
 import { effectiveOutstandingNgn } from '../../lib/paymentOutstandingTolerance.js';
 import { treasuryAccountsForWorkspace } from '../../lib/treasuryAccountsStore';
 import { useFinanceTrialExceptions } from '../../hooks/useFinanceTrialExceptions';
@@ -48,6 +49,7 @@ const DESK_SUB_TABS = [
  *   onPayRequest: (requestId: string) => void;
  *   onViewPaymentRequest?: (requestId: string) => void;
  *   onPayRefund: (refundId: string) => void;
+ *   onPayRegisterSettlement?: (settlementId: string) => void;
  *   onPayPoTransport: (row: object) => void;
  *   onViewPoTransport?: (row: object) => void;
  *   onReceiveStaffRecovery?: (row: object) => void;
@@ -60,6 +62,7 @@ export function FinanceDeskWorkQueues({
   onPayRequest,
   onViewPaymentRequest,
   onPayRefund,
+  onPayRegisterSettlement,
   onPayPoTransport,
   onViewPoTransport,
   onReceiveStaffRecovery,
@@ -97,6 +100,13 @@ export function FinanceDeskWorkQueues({
     () => (Array.isArray(ws?.snapshot?.refunds) ? ws.snapshot.refunds : []),
     [ws?.snapshot?.refunds]
   );
+  const registerSettlements = useMemo(
+    () =>
+      Array.isArray(ws?.snapshot?.registerSettlementsAwaitingPayment)
+        ? ws.snapshot.registerSettlementsAwaitingPayment
+        : [],
+    [ws?.snapshot?.registerSettlementsAwaitingPayment]
+  );
 
   const pendingReceipts = useMemo(
     () => receipts.filter((r) => isReceiptPendingClearance(r)).slice(0, 25),
@@ -120,6 +130,10 @@ export function FinanceDeskWorkQueues({
     [paymentRequests]
   );
   const approvedRefunds = useMemo(() => approvedRefundsAwaitingPayment(refunds).slice(0, 15), [refunds]);
+  const approvedRegisterSettlements = useMemo(
+    () => registerSettlementsAwaitingPayment(registerSettlements).slice(0, 15),
+    [registerSettlements]
+  );
   const poTransportAwaiting = useMemo(
     () =>
       (Array.isArray(ws?.snapshot?.poTransportAwaitingTreasury) ? ws.snapshot.poTransportAwaitingTreasury : [])
@@ -180,8 +194,8 @@ export function FinanceDeskWorkQueues({
       {branchLabel ? (
         <p className="text-[11px] text-slate-600 leading-relaxed rounded-xl border border-teal-200/70 bg-teal-50/50 px-4 py-3">
           <strong className="text-[#134e4a]">{branchLabel}</strong> cashier desk — your payout home. Confirm
-          receipts, receive staff discipline recoveries, pay approved expense requests, refunds, and PO haulage here
-          without switching tabs. Supplier payments stay on Procurement.
+          receipts, receive staff discipline recoveries, pay approved expense requests, refunds, register
+          withdrawals, and PO haulage here without switching tabs. Supplier payments stay on Procurement.
         </p>
       ) : null}
 
@@ -193,6 +207,7 @@ export function FinanceDeskWorkQueues({
         pendingReceipts={pendingReceipts.length}
         approvedPayments={approvedPayments.length}
         approvedRefunds={approvedRefunds.length}
+        registerWithdrawals={approvedRegisterSettlements.length}
         poHaulage={poTransportAwaiting.length}
         staffRecoveries={staffRecoveriesDue.length}
       />
@@ -229,6 +244,12 @@ export function FinanceDeskWorkQueues({
             <FinanceKpiCard
               label="Approved payouts"
               value={trialEx?.approvedUnpaidRefunds ?? approvedRefunds.length}
+            />
+            <FinanceKpiCard
+              label="Register withdrawals to pay"
+              value={approvedRegisterSettlements.length}
+              tone={approvedRegisterSettlements.length > 0 ? 'amber' : 'default'}
+              icon={<Wallet size={14} />}
             />
             <FinanceKpiCard
               label="PO haulage to pay"
@@ -387,6 +408,38 @@ export function FinanceDeskWorkQueues({
               )}
             </FinanceSectionCard>
           </div>
+
+          <FinanceSectionCard title="Register withdrawals to pay" icon={<Wallet size={16} className="text-teal-800" />}>
+            {approvedRegisterSettlements.length === 0 ? (
+              <FinanceEmptyState title="No register withdrawals queued" />
+            ) : (
+              <ul className="space-y-2">
+                {approvedRegisterSettlements.map((s) => (
+                  <FinanceQueueRow
+                    key={s.settlementId}
+                    title={s.settlementId}
+                    subtitle={`${s.partyName || 'Register line'} · ${s.reason || 'Withdrawal'}`}
+                    amount={formatNgn(registerSettlementOutstandingNgn(s))}
+                    primaryAction={
+                      onPayRegisterSettlement ? (
+                        <FinanceActionButton
+                          variant="primary"
+                          onClick={() => onPayRegisterSettlement(String(s.settlementId || ''))}
+                        >
+                          Pay withdrawal
+                        </FinanceActionButton>
+                      ) : null
+                    }
+                    secondaryLink={
+                      <FinanceActionButton variant="secondary" to="/accounting?tab=debtors">
+                        Accounting desk
+                      </FinanceActionButton>
+                    }
+                  />
+                ))}
+              </ul>
+            )}
+          </FinanceSectionCard>
 
           <FinanceSectionCard
             title="PO transport / haulage to pay"

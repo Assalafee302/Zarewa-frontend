@@ -8,6 +8,10 @@ export function humanizeReactError(error) {
       ? `Missing or outdated app file after deploy (${file}). IT must upload the entire dist/ folder in one step — all assets/* plus index.html from the same build.`
       : 'Missing or outdated app file after deploy. IT must upload the entire dist/ folder in one step — all assets/* plus index.html from the same build.';
   }
+  if (/\bis not a function\b/i.test(raw)) {
+    return `${raw} — often a stale app-shell JavaScript file after deploy (browser cached an older assets/* bundle). Hard refresh (Ctrl+Shift+R). IT must replace the entire dist/ folder atomically and set Cache-Control: no-cache on index.html.`;
+  }
+
   const m = raw.match(/Minified React error #(\d+)/i);
   if (!m) return raw;
 

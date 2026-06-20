@@ -10,8 +10,6 @@ import { useWorkspace } from '../context/WorkspaceContext';
 
 import { DOCUMENT_TITLE_BASE } from '../lib/documentTitle';
 
-import { apiFetch } from '../lib/apiBase';
-
 import { ReportsFinanceReconciliationPackSection } from '../components/reports/ReportsFinanceReconciliationPackSection.jsx';
 
 import { userMayViewAp1cDryRunClient } from '../lib/financeTrialExceptionsAccess';
@@ -57,6 +55,8 @@ import { AccountingDeskContextBar } from '../components/finance/accounting/Accou
 import { AccountingDeskProvider } from '../components/finance/accounting/AccountingDeskContext';
 
 import { AccountingDeskExecutiveNotice } from '../components/finance/accounting/AccountingDeskExecutiveNotice';
+
+import { useAccountingDeskOverview } from '../hooks/useAccountingDeskOverview';
 
 import {
 
@@ -107,6 +107,13 @@ export default function AccountingDesk() {
   const [deskRefresh, setDeskRefresh] = useState(0);
 
   const [openingPosted, setOpeningPosted] = useState(false);
+
+  const {
+    overview,
+    loading: overviewLoading,
+    error: overviewError,
+    reload: reloadOverview,
+  } = useAccountingDeskOverview({ periodKey, deskRefresh });
 
 
 
@@ -159,20 +166,8 @@ export default function AccountingDesk() {
 
 
   const loadOpeningStatus = useCallback(async () => {
-
-    try {
-
-      const res = await apiFetch('/api/finance/opening-pack/status');
-
-      if (res.ok && res.data?.ok) setOpeningPosted(Boolean(res.data.posted));
-
-    } catch {
-
-      /* non-fatal */
-
-    }
-
-  }, []);
+    reloadOverview();
+  }, [reloadOverview]);
 
 
 
@@ -203,10 +198,10 @@ export default function AccountingDesk() {
 
 
   useEffect(() => {
-
-    loadOpeningStatus();
-
-  }, [loadOpeningStatus, deskRefresh]);
+    if (overview?.opening?.posted || overview?.pack?.alreadyPosted) {
+      setOpeningPosted(true);
+    }
+  }, [overview]);
 
 
 
@@ -250,10 +245,29 @@ export default function AccountingDesk() {
 
       readOnlyExecutive,
 
+      overview,
+
+      overviewLoading,
+
+      overviewError,
+
+      reloadOverview,
+
     }),
 
-    [periodKey, deskRefresh, requestDeskRefresh, openingPosted, branchScopeLabel, cutoverMode, readOnlyExecutive]
-
+    [
+      periodKey,
+      deskRefresh,
+      requestDeskRefresh,
+      openingPosted,
+      branchScopeLabel,
+      cutoverMode,
+      readOnlyExecutive,
+      overview,
+      overviewLoading,
+      overviewError,
+      reloadOverview,
+    ]
   );
 
 
@@ -397,8 +411,6 @@ export default function AccountingDesk() {
                 deskLayout
 
                 onFocusTab={setTab}
-
-                deskRefresh={deskRefresh}
 
               />
 

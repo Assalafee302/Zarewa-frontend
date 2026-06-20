@@ -36,6 +36,7 @@ describe('FinanceDeskWorkQueues', () => {
           onConfirmReceipt={() => {}}
           onPayRequest={() => {}}
           onPayRefund={() => {}}
+          onPayRegisterSettlement={() => {}}
           onPayPoTransport={() => {}}
           onGoToTab={() => {}}
         />

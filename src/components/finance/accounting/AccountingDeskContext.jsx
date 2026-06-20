@@ -1,7 +1,21 @@
 import React, { createContext, useContext, useMemo } from 'react';
 import { currentAccountingPeriodKey } from '../../../lib/accountingDeskNav';
 
-/** @typedef {{ periodKey: string; setPeriodKey: (v: string) => void; deskRefresh: number; requestDeskRefresh: () => void; openingPosted: boolean; setOpeningPosted: (v: boolean) => void; branchScopeLabel: string; cutoverMode: 'pre' | 'live'; readOnlyExecutive: boolean }} AccountingDeskContextValue */
+/** @typedef {{
+ *   periodKey: string;
+ *   setPeriodKey: (v: string) => void;
+ *   deskRefresh: number;
+ *   requestDeskRefresh: () => void;
+ *   openingPosted: boolean;
+ *   setOpeningPosted: (v: boolean) => void;
+ *   branchScopeLabel: string;
+ *   cutoverMode: 'pre' | 'live';
+ *   readOnlyExecutive: boolean;
+ *   overview: object | null;
+ *   overviewLoading: boolean;
+ *   overviewError: string;
+ *   reloadOverview: () => void;
+ * }} AccountingDeskContextValue */
 
 const AccountingDeskContext = createContext(
   /** @type {AccountingDeskContextValue | null} */ (null)
@@ -28,6 +42,10 @@ export function useAccountingDesk() {
       branchScopeLabel: '',
       cutoverMode: 'pre',
       readOnlyExecutive: false,
+      overview: null,
+      overviewLoading: false,
+      overviewError: '',
+      reloadOverview: () => {},
     }
   );
 }
