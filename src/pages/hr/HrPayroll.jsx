@@ -42,6 +42,7 @@ import {
   AppTableTr,
   AppTableWrap,
 } from '../../components/ui/AppDataTable';
+import { useAppTablePaging } from '../../lib/appDataTable';
 import { HrStatusBadge } from '../../components/hr/HrStatusBadge';
 import { HrTableLoadingRow } from '../../components/hr/HrTableBodyState';
 import { HrPayrollNextStepBanner } from '../../components/hr/HrPayrollNextStepBanner';
