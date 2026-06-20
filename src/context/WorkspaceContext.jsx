@@ -8,6 +8,7 @@ import {
   userMayAccessSalesModule,
 } from '../lib/moduleAccess';
 import { userCanApproveEditMutationsClient } from '../lib/editApprovalUi';
+import { canApproveStaffPurchaseCredit, canRejectStaffPurchaseCredit } from '../lib/hrAccess';
 import { userMayViewManagementReportsClient } from '../lib/reportsAccess';
 import { normalizeWorkspacePersonNames } from '../lib/normalizeWorkspacePersonNames';
 import { formatPersonName } from '../lib/formatPersonName';
@@ -160,6 +161,8 @@ export function WorkspaceProvider({ children }) {
   const [lastError, setLastError] = useState(null);
   const [refreshEpoch, setRefreshEpoch] = useState(0);
   const [editApprovalsPendingCount, setEditApprovalsPendingCount] = useState(0);
+  const [staffPurchaseCreditPendingCount, setStaffPurchaseCreditPendingCount] = useState(0);
+  const [staffPurchaseCreditCrossBranch, setStaffPurchaseCreditCrossBranch] = useState(null);
   const [roleTrainingReplayOpen, setRoleTrainingReplayOpen] = useState(false);
   const [sessionMessage, setSessionMessage] = useState('');
   const sessionNoticeShownRef = useRef(false);
@@ -191,6 +194,12 @@ export function WorkspaceProvider({ children }) {
     }
     if (mode === 'ok' && merged) {
       writeBootstrapCache(merged);
+    }
+    if (typeof merged?.staffPurchaseCreditPendingCount === 'number') {
+      setStaffPurchaseCreditPendingCount(merged.staffPurchaseCreditPendingCount);
+    }
+    if (merged?.staffPurchaseCreditCrossBranch && typeof merged.staffPurchaseCreditCrossBranch === 'object') {
+      setStaffPurchaseCreditCrossBranch(merged.staffPurchaseCreditCrossBranch);
     }
     setRefreshEpoch((n) => n + 1);
     return merged;
@@ -804,6 +813,34 @@ export function WorkspaceProvider({ children }) {
     return () => clearInterval(t);
   }, [status, refreshEditApprovalsPending, refreshEpoch]);
 
+  const refreshStaffPurchaseCreditPending = useCallback(async () => {
+    const roleKey = session?.user?.roleKey;
+    const perms = permissions;
+    const canSee =
+      canApproveStaffPurchaseCredit(roleKey, perms) || canRejectStaffPurchaseCredit(roleKey, perms);
+    if (!canSee) {
+      setStaffPurchaseCreditPendingCount(0);
+      setStaffPurchaseCreditCrossBranch(null);
+      return;
+    }
+    const { ok, data } = await apiFetch('/api/staff-purchase-credits/pending-count');
+    if (ok && data?.ok) {
+      setStaffPurchaseCreditPendingCount(Number(data.count) || 0);
+      setStaffPurchaseCreditCrossBranch(data.crossBranch || null);
+    }
+  }, [permissions, session?.user?.roleKey]);
+
+  useEffect(() => {
+    if (status === 'checking' || status === 'auth_required') {
+      setStaffPurchaseCreditPendingCount(0);
+      setStaffPurchaseCreditCrossBranch(null);
+      return;
+    }
+    void refreshStaffPurchaseCreditPending();
+    const t = setInterval(() => void refreshStaffPurchaseCreditPending(), 45000);
+    return () => clearInterval(t);
+  }, [status, refreshStaffPurchaseCreditPending, refreshEpoch]);
+
   const canMutate = status === 'ok';
   const usingCachedData = status === 'degraded';
   const hasWorkspaceData = (status === 'ok' || status === 'degraded') && snapshot != null;
@@ -840,6 +877,9 @@ export function WorkspaceProvider({ children }) {
       canAccessModule,
       editApprovalsPendingCount,
       refreshEditApprovalsPending,
+      staffPurchaseCreditPendingCount,
+      staffPurchaseCreditCrossBranch,
+      refreshStaffPurchaseCreditPending,
       mergeQuotationIntoSnapshot,
       login,
       sessionMessage,
@@ -882,6 +922,9 @@ export function WorkspaceProvider({ children }) {
       canAccessModule,
       editApprovalsPendingCount,
       refreshEditApprovalsPending,
+      staffPurchaseCreditPendingCount,
+      staffPurchaseCreditCrossBranch,
+      refreshStaffPurchaseCreditPending,
       mergeQuotationIntoSnapshot,
       login,
       sessionMessage,

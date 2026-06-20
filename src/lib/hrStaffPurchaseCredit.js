@@ -34,3 +34,19 @@ export function ensureStaffSalesCustomer(userId) {
     body: JSON.stringify({}),
   });
 }
+
+export function fetchStaffPurchaseCreditPendingCount() {
+  return apiFetch('/api/staff-purchase-credits/pending-count');
+}
+
+export function fetchMyQuotationsForPurchaseCredit() {
+  return apiFetch('/api/staff-purchase-credits/my-quotations');
+}
+
+export function bulkEnsureStaffSalesCustomers(body = {}) {
+  return apiFetch('/api/hr/staff/bulk-ensure-sales-customers', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+}

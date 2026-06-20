@@ -51,7 +51,12 @@ export default function HrEmployees() {
       }
     >
       {tab === 'directory' ? (
-        <HrStaffDirectory staffBasePath={HR_EMPLOYEES} cohort="employees" initialRegisterOpen={initialRegisterOpen} />
+        <HrStaffDirectory
+          staffBasePath={HR_EMPLOYEES}
+          cohort="employees"
+          initialRegisterOpen={initialRegisterOpen}
+          initialQuickFilter={extra.quick || ''}
+        />
       ) : null}
       {tab === 'org-chart' ? <HrOrgChart staffBasePath={HR_EMPLOYEES} /> : null}
     </HrTabbedPage>

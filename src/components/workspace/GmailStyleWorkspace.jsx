@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
   AlertTriangle,
   Archive,
@@ -13,6 +14,7 @@ import {
 import { apiFetch } from '../../lib/apiBase';
 import { useToast } from '../../context/ToastContext';
 import { useWorkspace } from '../../context/WorkspaceContext';
+import { canApproveStaffPurchaseCredit } from '../../lib/hrAccess';
 import { officeThreadIdFromWorkItem } from '../../lib/officeThreadFromWorkItem';
 import { workItemShowsOnWorkspaceUnifiedInbox } from '../../lib/workItemPersonalInbox';
 import {

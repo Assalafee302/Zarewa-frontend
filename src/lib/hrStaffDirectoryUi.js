@@ -9,6 +9,21 @@ export const QUICK_FILTERS = [
   { id: 'no-manager', label: 'No line manager' },
 ];
 
+/** Dashboard alert keys → directory quick filter ids */
+export const DIRECTORY_QUICK_FROM_ALERT = {
+  probationEnding: 'probation-ending',
+  contractsExpiring: 'contract',
+  temporaryEmployees: 'contract',
+  missingPolicyAck: 'incomplete',
+  incompleteProfiles: 'incomplete',
+};
+
+export function employeesDirectoryLink(quickFilter = '', extra = {}) {
+  const params = new URLSearchParams({ tab: 'directory', ...extra });
+  if (quickFilter) params.set('quick', quickFilter);
+  return `/hr/employees?${params.toString()}`;
+}
+
 export const SORT_OPTIONS = [
   { id: 'name', label: 'Name' },
   { id: 'branch', label: 'Branch' },

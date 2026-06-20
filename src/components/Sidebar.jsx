@@ -68,6 +68,7 @@ const Sidebar = ({ mobileOpen = false, onCloseMobile, collapsed = false, onToggl
 
   const roleKey = ws?.session?.user?.roleKey;
   const permissions = ws?.permissions;
+  const staffCreditPending = ws?.staffPurchaseCreditPendingCount ?? 0;
   const mayViewBi = userMayViewManagementReportsClient(roleKey, permissions);
   const hasExecNav = Boolean(ws?.hasPermission?.('exec.dashboard.view'));
 
@@ -77,6 +78,7 @@ const Sidebar = ({ mobileOpen = false, onCloseMobile, collapsed = false, onToggl
       label: 'Management',
       path: '/manager',
       visible: ['sales_manager', 'branch_manager', 'admin', 'md'].includes(ws?.session?.user?.roleKey),
+      badgeCount: staffCreditPending,
     },
     {
       icon: <LayoutDashboard size={18} />,
@@ -88,7 +90,7 @@ const Sidebar = ({ mobileOpen = false, onCloseMobile, collapsed = false, onToggl
         roleKey !== 'ceo' &&
         ['md', 'admin'].includes(roleKey),
     },
-    { icon: <Home size={18} />, label: 'Workspace', path: '/' },
+    { icon: <Home size={18} />, label: 'Workspace', path: '/', badgeCount: staffCreditPending },
     {
       icon: <Truck size={18} />,
       label: 'Purchase',

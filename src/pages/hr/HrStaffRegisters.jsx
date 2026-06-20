@@ -1,7 +1,8 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { ArrowLeft } from 'lucide-react';
 import { useHrUrlTab } from '../../hooks/useHrUrlTab';
-import { HR_EMPLOYEES } from '../../lib/hrRoutes';
+import { HR_EMPLOYEES, HR_EMPLOYEE_REGISTERS } from '../../lib/hrRoutes';
 import { FAMILY_BENEFITS } from '../../lib/familyBenefitsUi';
 import { DOMESTIC_BENEFITS } from '../../lib/domesticStaffUi';
 import { HrTabbedPage } from '../../components/hr/HrTabbedPage';
@@ -23,6 +24,15 @@ export default function HrStaffRegisters() {
       tabs={TABS}
       tab={tab}
       onTabChange={setTab}
+      actions={
+        <Link
+          to={HR_EMPLOYEES}
+          className="inline-flex items-center gap-1 rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold uppercase tracking-wide text-slate-700 hover:bg-slate-50"
+        >
+          <ArrowLeft size={14} aria-hidden />
+          Branch employees
+        </Link>
+      }
     >
       {tab === 'scholarship' ? (
         <div className="space-y-3">
