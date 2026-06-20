@@ -1,9 +1,16 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { apiFetch } from '../../lib/apiBase';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { HrSensitiveGate } from '../../components/hr/HrSensitiveGate';
 import { HrSalaryMatrixPanel } from '../../components/hr/HrSalaryMatrixPanel';
 import { HrPayrollControlPanel } from '../../components/hr/HrPayrollControlPanel';
+import { HrAddFormButton } from '../../components/hr/HrFormModal';
+import {
+  HrPayrollConfirmModal,
+  HrPayrollMarkPaidModal,
+  HrPayrollPayeAdjustModal,
+  HrPayrollStartRunModal,
+} from '../../components/hr/HrPayrollRunModals';
 import { useHrSensitiveAccess } from '../../hooks/useHrSensitiveAccess';
 import { useHrListLoad } from '../../hooks/useHrListLoad';
 import {
@@ -17,8 +24,12 @@ import {
 import { mdApprovePayrollRun } from '../../lib/hrExtended';
 import { formatNgn } from '../../lib/hrFormat';
 import { getHrPayrollIntro } from '../../lib/hrDashboardUi';
-import { downloadHrPayrollExport, formatPeriodYyyymm, payrollStatusTone } from '../../lib/hrPayroll';
-import { currentPeriodYyyymm } from '../../lib/hrRequests';
+import {
+  downloadHrPayrollExport,
+  formatPayrollPeriodLabel,
+  payrollStatusTone,
+  sortPayrollRunsByPeriod,
+} from '../../lib/hrPayroll';
 import {
   AppTable,
   AppTableBody,
@@ -179,9 +190,17 @@ export default function HrPayroll({ embedded = false } = {}) {
   const [linesLoading, setLinesLoading] = useState(false);
   const [message, setMessage] = useState('');
   const [adjustingPaye, setAdjustingPaye] = useState(null);
-  const [newPeriod, setNewPeriod] = useState(currentPeriodYyyymm());
+  const [payeLine, setPayeLine] = useState(null);
   const [policyRates, setPolicyRates] = useState(null);
   const [payTreasuryAccountId, setPayTreasuryAccountId] = useState('');
+  const [startRunOpen, setStartRunOpen] = useState(false);
+  const [createBusy, setCreateBusy] = useState(false);
+  const [confirmAction, setConfirmAction] = useState(null);
+  const [confirmBusy, setConfirmBusy] = useState(false);
+  const [markPaidOpen, setMarkPaidOpen] = useState(false);
+  const [markPaidBusy, setMarkPaidBusy] = useState(false);
+
+  const sortedRuns = useMemo(() => sortPayrollRunsByPeriod(runs), [runs]);
 
   const bankTreasuryAccounts = React.useMemo(
     () =>
@@ -206,8 +225,9 @@ export default function HrPayroll({ embedded = false } = {}) {
       setRuns([]);
       return { error: data?.error || 'Could not load payroll runs.', hasData: false };
     }
-    setRuns(data.runs || []);
-    setSelectedId((prev) => prev || data.runs?.[0]?.id || '');
+    const list = sortPayrollRunsByPeriod(data.runs || []);
+    setRuns(list);
+    setSelectedId((prev) => prev || list[0]?.id || '');
     return { hasData: true };
   }, []);
 
@@ -265,19 +285,22 @@ export default function HrPayroll({ embedded = false } = {}) {
     return true;
   };
 
-  const createRun = async () => {
+  const createRun = async ({ periodYyyymm, notes }) => {
     if (!canPrepare) return;
     setMessage('');
+    setCreateBusy(true);
     const { ok, data } = await apiFetch('/api/hr/payroll-runs', {
       method: 'POST',
-      body: JSON.stringify({ periodYyyymm: newPeriod }),
+      body: JSON.stringify({ periodYyyymm, notes }),
     });
+    setCreateBusy(false);
     if (!ok || !data?.ok) {
       setError(data?.error || 'Could not create payroll run.');
       return;
     }
     setError('');
-    const parts = [`Payroll run created with ${data.headcount ?? 0} staff.`];
+    setStartRunOpen(false);
+    const parts = [`${formatPayrollPeriodLabel(periodYyyymm)} payroll started with ${data.headcount ?? 0} staff.`];
     if (data.yearEndBonusApplied) parts.push('December year-end bonus applied.');
     setMessage(parts.join(' '));
     if (data.id) setSelectedId(data.id);
@@ -286,45 +309,49 @@ export default function HrPayroll({ embedded = false } = {}) {
   };
 
   const recompute = async () => {
-    if (!selectedId || !canPrepare) return;
+    if (!selectedId || !canPrepare) return false;
     const ok = await act(`/api/hr/payroll-runs/${encodeURIComponent(selectedId)}/recompute`, 'POST');
     if (ok) {
       setMessage('Payroll recomputed.');
       await loadRunDetail();
     }
+    return ok;
   };
 
   const gmApprove = async () => {
-    if (!selectedId || !canGm) return;
+    if (!selectedId || !canGm) return false;
     const ok = await act(`/api/hr/payroll-runs/${encodeURIComponent(selectedId)}/gm-approve`, 'POST');
     if (ok) {
       setMessage('GM HR approval recorded.');
       await loadRuns();
       await loadRunDetail();
     }
+    return ok;
   };
 
   const mdApprove = async () => {
-    if (!selectedId || !canMd) return;
+    if (!selectedId || !canMd) return false;
     const { ok, data } = await mdApprovePayrollRun(selectedId);
     if (!ok || !data?.ok) {
       setError(data?.error || 'MD approval failed.');
-      return;
+      return false;
     }
     setError('');
     setMessage('MD payroll approval recorded.');
     await loadRuns();
     await loadRunDetail();
+    return true;
   };
 
   const patchStatus = async (status, extra = {}) => {
-    if (!selectedId) return;
+    if (!selectedId) return false;
     const ok = await act(`/api/hr/payroll-runs/${encodeURIComponent(selectedId)}`, 'PATCH', { status, ...extra });
     if (ok) {
       setMessage(`Run marked ${status}.`);
       await loadRuns();
       await loadRunDetail();
     }
+    return ok;
   };
 
   const savePayeAdjustment = async (userId, taxNgn) => {
@@ -339,7 +366,31 @@ export default function HrPayroll({ embedded = false } = {}) {
       setError(data?.error || 'Could not save PAYE adjustment.');
       return;
     }
+    setPayeLine(null);
     await loadRunDetail();
+  };
+
+  const runConfirmAction = async () => {
+    if (!confirmAction) return;
+    setConfirmBusy(true);
+    let ok = false;
+    if (confirmAction.type === 'recompute') ok = await recompute();
+    else if (confirmAction.type === 'gm') ok = await gmApprove();
+    else if (confirmAction.type === 'md') ok = await mdApprove();
+    else if (confirmAction.type === 'lock') ok = await patchStatus('locked');
+    else if (confirmAction.type === 'unlock') ok = await patchStatus('draft');
+    setConfirmBusy(false);
+    if (ok) setConfirmAction(null);
+  };
+
+  const confirmPayroll = async () => {
+    if (!selectedId) return;
+    setMarkPaidBusy(true);
+    const ok = await patchStatus('paid', {
+      treasuryAccountId: payTreasuryAccountId ? Number(payTreasuryAccountId) : undefined,
+    });
+    setMarkPaidBusy(false);
+    if (ok) setMarkPaidOpen(false);
   };
 
   const downloadExport = async (kind) => {
@@ -378,24 +429,28 @@ export default function HrPayroll({ embedded = false } = {}) {
     if (l.amountsRedacted) return '—';
     if (run?.status === 'draft' && canPrepare) {
       return (
-        <input
-          type="number"
-          min={0}
-          step={1}
-          defaultValue={Math.round(Number(l.taxNgn) || 0)}
+        <button
+          type="button"
+          onClick={() => setPayeLine(l)}
           disabled={adjustingPaye === l.userId}
-          onBlur={(e) => {
-            const v = Math.round(Number(e.target.value) || 0);
-            if (v !== Math.round(Number(l.taxNgn) || 0)) savePayeAdjustment(l.userId, v);
-          }}
-          className="w-full min-h-[44px] rounded-xl border border-slate-200 px-3 py-2 text-right text-sm tabular-nums"
-          inputMode="numeric"
-          aria-label={`PAYE for ${l.displayName || l.userId}`}
-        />
+          className="min-h-[36px] rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-right text-xs font-semibold tabular-nums text-[#134e4a] hover:bg-teal-50/50"
+        >
+          {formatNgn(l.taxNgn)}
+        </button>
       );
     }
     return formatNgn(l.taxNgn);
   };
+
+  const workflowStep = run
+    ? run.status === 'paid'
+      ? 4
+      : run.status === 'locked'
+        ? 3
+        : run.gmApprovedAtIso || run.mdApprovedAtIso
+          ? 2
+          : 1
+    : 0;
 
   const linesPaging = useAppTablePaging(lines, 20, selectedId);
 
@@ -538,19 +593,14 @@ export default function HrPayroll({ embedded = false } = {}) {
                       {l.amountsRedacted ? (
                         '—'
                       ) : run?.status === 'draft' && canPrepare ? (
-                        <input
-                          type="number"
-                          min={0}
-                          step={1}
-                          defaultValue={Math.round(Number(l.taxNgn) || 0)}
+                        <button
+                          type="button"
+                          onClick={() => setPayeLine(l)}
                           disabled={adjustingPaye === l.userId}
-                          onBlur={(e) => {
-                            const v = Math.round(Number(e.target.value) || 0);
-                            if (v !== Math.round(Number(l.taxNgn) || 0)) savePayeAdjustment(l.userId, v);
-                          }}
-                          className="w-24 min-h-[36px] rounded border border-slate-200 px-2 py-1 text-right text-xs"
-                          inputMode="numeric"
-                        />
+                          className="min-h-[36px] rounded border border-slate-200 bg-white px-2 py-1 text-right text-xs font-semibold tabular-nums text-[#134e4a] hover:bg-teal-50/50"
+                        >
+                          {formatNgn(l.taxNgn)}
+                        </button>
                       ) : (
                         formatNgn(l.taxNgn)
                       )}
@@ -624,7 +674,7 @@ export default function HrPayroll({ embedded = false } = {}) {
             onClick={() => setTab('runs')}
             className={`rounded-t-lg px-3 py-2 text-xs font-bold uppercase ${tab === 'runs' ? 'border border-b-white bg-white text-[#134e4a]' : 'text-slate-500'}`}
           >
-            Payroll runs
+            Monthly payroll
           </button>
           <button
             type="button"
@@ -650,29 +700,17 @@ export default function HrPayroll({ embedded = false } = {}) {
           ) : null}
 
           {canPrepare ? (
-            <div className="flex flex-col gap-3 rounded-2xl border border-slate-100 bg-slate-50/80 p-4 sm:flex-row sm:flex-wrap sm:items-end">
-              <label className="text-xs font-semibold text-slate-600 w-full sm:w-auto">
-                New period
-                <input
-                  value={newPeriod}
-                  onChange={(e) => setNewPeriod(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                  className="mt-1 block w-full sm:w-32 rounded-xl border border-slate-200 px-3 py-3 font-mono text-sm"
-                  inputMode="numeric"
-                  aria-label="Payroll period YYYYMM"
-                />
-              </label>
-              <button type="button" onClick={createRun} className={`${PAYROLL_BTN_PRIMARY} w-full sm:w-auto`}>
-                Create payroll run
-              </button>
-              <p className="w-full text-xs text-slate-500 leading-relaxed">
-                Branch, HQ admin, and mining staff · PAYE manual per profile · pension from policy · December bonus.
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <p className="text-xs text-slate-500 leading-relaxed max-w-xl">
+                One run per calendar month · branch, HQ admin, and mining staff · PAYE per profile · December bonus.
               </p>
+              <HrAddFormButton onClick={() => setStartRunOpen(true)}>Start monthly payroll</HrAddFormButton>
             </div>
           ) : null}
 
           <div className="space-y-4 lg:grid lg:grid-cols-[minmax(0,240px)_1fr] lg:gap-6 lg:space-y-0">
             <div className="space-y-2">
-              <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Runs</p>
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Monthly runs</p>
               {loading ? <p className="text-xs text-slate-500">Loading…</p> : null}
 
               <label className="md:hidden block text-xs font-semibold text-slate-600">
@@ -682,17 +720,17 @@ export default function HrPayroll({ embedded = false } = {}) {
                   onChange={(e) => setSelectedId(e.target.value)}
                   className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm font-medium"
                 >
-                  {runs.length === 0 ? <option value="">No runs yet</option> : null}
-                  {runs.map((r) => (
+                  {sortedRuns.length === 0 ? <option value="">No runs yet</option> : null}
+                  {sortedRuns.map((r) => (
                     <option key={r.id} value={r.id}>
-                      {formatPeriodYyyymm(r.periodYyyymm)} — {r.status}
+                      {formatPayrollPeriodLabel(r.periodYyyymm)} — {r.status}
                     </option>
                   ))}
                 </select>
               </label>
 
               <div className="hidden md:block space-y-2 max-h-[420px] overflow-y-auto pr-1">
-                {runs.map((r) => (
+                {sortedRuns.map((r) => (
                   <button
                     key={r.id}
                     type="button"
@@ -701,7 +739,7 @@ export default function HrPayroll({ embedded = false } = {}) {
                       selectedId === r.id ? 'border-[#134e4a] bg-teal-50/50' : 'border-slate-100 bg-white'
                     }`}
                   >
-                    <span className="font-semibold">{formatPeriodYyyymm(r.periodYyyymm)}</span>
+                    <span className="font-semibold">{formatPayrollPeriodLabel(r.periodYyyymm)}</span>
                     <HrStatusBadge status={r.status} variant="payroll" className="ml-2" />
                   </button>
                 ))}
@@ -712,7 +750,7 @@ export default function HrPayroll({ embedded = false } = {}) {
               <div className="space-y-4">
                 <div className={`rounded-xl border px-4 py-3 ${toneCls}`}>
                   <p className="text-sm font-bold">
-                    {formatPeriodYyyymm(run.periodYyyymm)} · {run.status}
+                    {formatPayrollPeriodLabel(run.periodYyyymm)} · {run.status}
                   </p>
                   <p className="mt-1 text-xs">
                     GM HR: {run.gmApprovedAtIso ? 'Approved' : 'Pending'}
@@ -722,82 +760,161 @@ export default function HrPayroll({ embedded = false } = {}) {
                       ? ` · December bonus (${Math.round((policyRates?.halfMonthBonusRate ?? 0.5) * 100)}% of base)`
                       : ''}
                   </p>
+                  <ol className="mt-3 flex flex-wrap gap-2 text-[10px] font-bold uppercase tracking-wide">
+                    {['Prepare', 'Approve', 'Lock', 'Pay'].map((label, i) => {
+                      const step = i + 1;
+                      const active = workflowStep === step;
+                      const done = workflowStep > step;
+                      return (
+                        <li
+                          key={label}
+                          className={`rounded-full px-2.5 py-1 ${
+                            done
+                              ? 'bg-emerald-100 text-emerald-800'
+                              : active
+                                ? 'bg-white/80 text-slate-900 ring-1 ring-slate-300'
+                                : 'bg-black/5 text-slate-600'
+                          }`}
+                        >
+                          {label}
+                        </li>
+                      );
+                    })}
+                  </ol>
                 </div>
 
                 <div className="space-y-3">
+                  {run.status === 'draft' && canPrepare ? (
+                    <div className="space-y-2">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Prepare</p>
+                      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setConfirmAction({
+                              type: 'recompute',
+                              title: 'Recompute payroll',
+                              description:
+                                'Recalculate all lines from current staff profiles, attendance, loans, and policy rates?',
+                              confirmLabel: 'Recompute',
+                            })
+                          }
+                          className={`${PAYROLL_BTN_PRIMARY} w-full sm:w-auto`}
+                        >
+                          Recompute
+                        </button>
+                        {(canPrepare || canExport) ? (
+                          <button
+                            type="button"
+                            onClick={() => downloadExport('approval-report')}
+                            className={`${PAYROLL_BTN_SECONDARY} w-full sm:w-auto`}
+                          >
+                            GM approval PDF
+                          </button>
+                        ) : null}
+                      </div>
+                    </div>
+                  ) : null}
+
                   <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-                    {run.status === 'draft' && canPrepare ? (
-                      <button type="button" onClick={recompute} className={`${PAYROLL_BTN_PRIMARY} w-full sm:w-auto`}>
-                        Recompute
-                      </button>
-                    ) : null}
-                    {(canPrepare || canExport) && run.status === 'draft' ? (
-                      <button
-                        type="button"
-                        onClick={() => downloadExport('approval-report')}
-                        className={`${PAYROLL_BTN_SECONDARY} w-full sm:w-auto`}
-                      >
-                        GM approval PDF
-                      </button>
-                    ) : null}
                     <button type="button" onClick={() => setVarianceModalOpen(true)} className={`${PAYROLL_BTN_INFO} w-full sm:w-auto`}>
                       Variance check
                     </button>
                     <button type="button" onClick={() => setMissingBankOpen(true)} className={`${PAYROLL_BTN_DANGER} w-full sm:w-auto`}>
                       Missing banks
                     </button>
-                    {canGm && run.status === 'draft' && !run.gmApprovedAtIso ? (
-                      <button type="button" onClick={gmApprove} className={`${PAYROLL_BTN_PRIMARY} w-full sm:w-auto`}>
-                        GM HR approve
-                      </button>
-                    ) : null}
-                    {canMd && run.status === 'draft' && !run.mdApprovedAtIso ? (
-                      <button type="button" onClick={mdApprove} className={`${PAYROLL_BTN_MD} w-full sm:w-auto`}>
-                        MD approve
-                      </button>
-                    ) : null}
-                    {canPrepare && run.status === 'draft' && (run.gmApprovedAtIso || run.mdApprovedAtIso) ? (
-                      <button type="button" onClick={() => patchStatus('locked')} className={`${PAYROLL_BTN_LOCK} w-full sm:w-auto`}>
-                        Lock run
-                      </button>
-                    ) : null}
-                    {canPrepare && run.status === 'locked' ? (
-                      <button type="button" onClick={() => patchStatus('draft')} className={`${PAYROLL_BTN_SECONDARY} w-full sm:w-auto`}>
-                        Unlock to draft
-                      </button>
-                    ) : null}
                   </div>
 
-                  {canPay && run.status === 'locked' ? (
-                    <div className="flex flex-col gap-2 rounded-xl border border-emerald-100 bg-emerald-50/40 p-3 sm:flex-row sm:flex-wrap sm:items-center">
-                      {bankTreasuryAccounts.length ? (
-                        <label className="text-xs font-semibold text-slate-600 w-full sm:max-w-xs">
-                          Pay from account
-                          <select
-                            value={payTreasuryAccountId}
-                            onChange={(e) => setPayTreasuryAccountId(e.target.value)}
-                            className="mt-1 block w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm"
-                            aria-label="Treasury account for payroll payout"
+                  {run.status === 'draft' && (canGm || canMd) ? (
+                    <div className="space-y-2">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Approve</p>
+                      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+                        {canGm && !run.gmApprovedAtIso ? (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setConfirmAction({
+                                type: 'gm',
+                                title: 'GM HR approve payroll',
+                                description: `Confirm GM HR approval for ${formatPayrollPeriodLabel(run.periodYyyymm)}?`,
+                                confirmLabel: 'GM HR approve',
+                              })
+                            }
+                            className={`${PAYROLL_BTN_PRIMARY} w-full sm:w-auto`}
                           >
-                            {bankTreasuryAccounts.map((a) => (
-                              <option key={a.id} value={String(a.id)}>
-                                {a.name || a.bankName || `Account ${a.id}`}
-                              </option>
-                            ))}
-                          </select>
-                        </label>
-                      ) : (
-                        <p className="text-xs text-amber-900">Add a treasury bank account in Finance, or set a default under Payroll → Statutory.</p>
-                      )}
+                            GM HR approve
+                          </button>
+                        ) : null}
+                        {canMd && !run.mdApprovedAtIso ? (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setConfirmAction({
+                                type: 'md',
+                                title: 'MD approve payroll',
+                                description: `Confirm Managing Director approval for ${formatPayrollPeriodLabel(run.periodYyyymm)}?`,
+                                confirmLabel: 'MD approve',
+                                confirmTone: 'purple',
+                              })
+                            }
+                            className={`${PAYROLL_BTN_MD} w-full sm:w-auto`}
+                          >
+                            MD approve
+                          </button>
+                        ) : null}
+                      </div>
+                    </div>
+                  ) : null}
+
+                  {canPrepare && run.status === 'draft' && (run.gmApprovedAtIso || run.mdApprovedAtIso) ? (
+                    <div className="space-y-2">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Lock</p>
                       <button
                         type="button"
                         onClick={() =>
-                          patchStatus('paid', {
-                            treasuryAccountId: payTreasuryAccountId ? Number(payTreasuryAccountId) : undefined,
+                          setConfirmAction({
+                            type: 'lock',
+                            title: 'Lock payroll run',
+                            description:
+                              'Lock this run for bank export and treasury posting. Draft edits will no longer be allowed.',
+                            confirmLabel: 'Lock run',
                           })
                         }
-                        disabled={!payTreasuryAccountId}
-                        className={`${PAYROLL_BTN_PAID} disabled:opacity-50`}
+                        className={`${PAYROLL_BTN_LOCK} w-full sm:w-auto`}
+                      >
+                        Lock run
+                      </button>
+                    </div>
+                  ) : null}
+
+                  {canPrepare && run.status === 'locked' ? (
+                    <div className="space-y-2">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Lock</p>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setConfirmAction({
+                            type: 'unlock',
+                            title: 'Unlock to draft',
+                            description: 'Return this run to draft? GM and MD approvals will be cleared and lines can be edited again.',
+                            confirmLabel: 'Unlock',
+                            confirmTone: 'danger',
+                          })
+                        }
+                        className={`${PAYROLL_BTN_SECONDARY} w-full sm:w-auto`}
+                      >
+                        Unlock to draft
+                      </button>
+                    </div>
+                  ) : null}
+
+                  {canPay && run.status === 'locked' ? (
+                    <div className="space-y-2">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Pay</p>
+                      <button
+                        type="button"
+                        onClick={() => setMarkPaidOpen(true)}
+                        className={`${PAYROLL_BTN_PAID}`}
                       >
                         Mark paid & post treasury
                       </button>
@@ -866,6 +983,45 @@ export default function HrPayroll({ embedded = false } = {}) {
       {missingBankOpen && selectedId && (
         <MissingBankModal runId={selectedId} onClose={() => setMissingBankOpen(false)} />
       )}
+
+      <HrPayrollStartRunModal
+        isOpen={startRunOpen}
+        onClose={() => setStartRunOpen(false)}
+        runs={sortedRuns}
+        busy={createBusy}
+        onSubmit={createRun}
+      />
+
+      <HrPayrollConfirmModal
+        isOpen={Boolean(confirmAction)}
+        onClose={() => setConfirmAction(null)}
+        title={confirmAction?.title || ''}
+        description={confirmAction?.description || ''}
+        confirmLabel={confirmAction?.confirmLabel || 'Confirm'}
+        confirmTone={confirmAction?.confirmTone || 'primary'}
+        busy={confirmBusy}
+        onConfirm={runConfirmAction}
+      />
+
+      <HrPayrollPayeAdjustModal
+        isOpen={Boolean(payeLine)}
+        onClose={() => setPayeLine(null)}
+        line={payeLine}
+        busy={Boolean(payeLine && adjustingPaye === payeLine.userId)}
+        onSave={savePayeAdjustment}
+      />
+
+      <HrPayrollMarkPaidModal
+        isOpen={markPaidOpen}
+        onClose={() => setMarkPaidOpen(false)}
+        run={run}
+        totals={totals}
+        bankTreasuryAccounts={bankTreasuryAccounts}
+        treasuryAccountId={payTreasuryAccountId}
+        onTreasuryAccountChange={setPayTreasuryAccountId}
+        busy={markPaidBusy}
+        onConfirm={confirmPayroll}
+      />
     </div>
   );
 }

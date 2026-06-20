@@ -106,7 +106,7 @@ const ALERT_CONFIGS = [
         <span className="flex items-center gap-2">
           <span className="font-mono text-amber-700">{item.probationEndIso}</span>
           {item.userId ? (
-            <Link to={`${HR_EMPLOYEES}/${encodeURIComponent(item.userId)}?tab=lifecycle`} className="font-bold text-[#134e4a] hover:underline">
+            <Link to={`${HR_EMPLOYEES}/${encodeURIComponent(item.userId)}?tab=employment`} className="font-bold text-[#134e4a] hover:underline">
               Review →
             </Link>
           ) : null}

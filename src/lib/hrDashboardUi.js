@@ -156,7 +156,7 @@ export function getHrDashboardQuickActions(permissions = []) {
     });
   }
   if (canPreparePayroll(permissions)) {
-    actions.push({ label: 'Create payroll run', href: HR_PAYROLL });
+    actions.push({ label: 'Start monthly payroll', href: HR_PAYROLL });
   } else if (canGmApprovePayroll(permissions)) {
     actions.push({ label: 'Review payroll runs', href: hrPayrollRunsPath() });
   }
@@ -216,10 +216,10 @@ export function getHrDashboardPendingKpi(counts, summary, permissions = []) {
  */
 export function getHrPayrollIntro(canPrepare, canGm) {
   if (canGm && !canPrepare) {
-    return 'Review draft runs prepared by HR Admin, GM-approve, then lock for finance export.';
+    return 'Review draft monthly payroll prepared by HR Admin, GM-approve, then lock for finance export.';
   }
   if (canPrepare) {
-    return 'Prepare monthly branch payroll runs, then route to GM HR for approval before lock and bank export.';
+    return 'Prepare one monthly payroll run per calendar month, then route to GM HR for approval before lock and bank export.';
   }
   return 'Branch staff monthly payroll. PAYE is a fixed ₦ amount per staff (profile or adjust on draft lines).';
 }

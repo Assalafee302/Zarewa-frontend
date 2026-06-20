@@ -1,8 +1,9 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { apiFetch } from '../../lib/apiBase';
 import { recordPayrollBankExportTotal } from '../../lib/hrExtended';
+import { HrAddFormButton, HrFormModal } from './HrFormModal';
 import { HrCard } from './hrPageUi';
-import { HR_BTN_PRIMARY, HR_FIELD_CLASS } from './hrFormStyles';
+import { HR_BTN_PRIMARY, HR_BTN_SECONDARY, HR_FIELD_CLASS } from './hrFormStyles';
 
 /**
  * Payroll reconciliation, bonus approval, and hold summary for a run.
@@ -16,6 +17,9 @@ export function HrPayrollControlPanel({ runId, canManage = false, netPayableNgn 
   const [message, setMessage] = useState('');
   const [bankExportTotal, setBankExportTotal] = useState('');
   const [recordBusy, setRecordBusy] = useState(false);
+  const [bankExportOpen, setBankExportOpen] = useState(false);
+  const [bonusOpen, setBonusOpen] = useState(false);
+  const [bonusBusy, setBonusBusy] = useState(false);
 
   const load = useCallback(async () => {
     if (!runId) return;
@@ -39,15 +43,19 @@ export function HrPayrollControlPanel({ runId, canManage = false, netPayableNgn 
   }, [load]);
 
   const requestBonus = async () => {
+    setBonusBusy(true);
+    setError('');
     const { ok, data } = await apiFetch(`/api/hr/payroll-runs/${encodeURIComponent(runId)}/bonus-requests`, {
       method: 'POST',
       body: JSON.stringify({ bonusType: 'half_month', notes: 'End-of-year bonus request' }),
     });
+    setBonusBusy(false);
     if (!ok || !data?.ok) {
       setError(data?.error || 'Could not request bonus.');
       return;
     }
     setMessage('Bonus request submitted for GMHR approval.');
+    setBonusOpen(false);
     await load();
   };
 
@@ -61,7 +69,8 @@ export function HrPayrollControlPanel({ runId, canManage = false, netPayableNgn 
     await load();
   };
 
-  const recordBankExport = async () => {
+  const recordBankExport = async (e) => {
+    e.preventDefault();
     const total = Math.round(Number(bankExportTotal) || 0);
     if (total <= 0) {
       setError('Enter the bank file total (net salaries paid).');
@@ -76,6 +85,7 @@ export function HrPayrollControlPanel({ runId, canManage = false, netPayableNgn 
       return;
     }
     setMessage('Bank export total recorded for reconciliation.');
+    setBankExportOpen(false);
     await load();
   };
 
@@ -106,36 +116,8 @@ export function HrPayrollControlPanel({ runId, canManage = false, netPayableNgn 
           <p className="mt-3 text-xs text-emerald-700 font-semibold">No reconciliation anomalies detected.</p>
         )}
         {canManage ? (
-          <div className="mt-4 flex flex-col gap-3 border-t border-slate-100 pt-4 sm:flex-row sm:flex-wrap sm:items-end">
-            <label className="text-xs font-semibold text-slate-600 w-full sm:w-auto">
-              Bank file total (₦)
-              <input
-                type="number"
-                min={0}
-                inputMode="numeric"
-                className={`${HR_FIELD_CLASS} mt-1 w-full sm:w-40 min-h-[44px]`}
-                value={bankExportTotal}
-                onChange={(e) => setBankExportTotal(e.target.value)}
-                placeholder={netPayableNgn != null ? String(netPayableNgn) : ''}
-              />
-            </label>
-            <button
-              type="button"
-              onClick={recordBankExport}
-              disabled={recordBusy}
-              className={`${HR_BTN_PRIMARY} w-full sm:w-auto min-h-[44px]`}
-            >
-              Record bank export
-            </button>
-            {netPayableNgn != null ? (
-              <button
-                type="button"
-                className="text-xs font-bold text-[#134e4a] hover:underline min-h-[44px] self-center"
-                onClick={() => setBankExportTotal(String(netPayableNgn))}
-              >
-                Use payroll net (₦{netPayableNgn.toLocaleString()})
-              </button>
-            ) : null}
+          <div className="mt-4 border-t border-slate-100 pt-4">
+            <HrAddFormButton onClick={() => setBankExportOpen(true)}>Record bank export total</HrAddFormButton>
           </div>
         ) : null}
       </HrCard>
@@ -165,13 +147,73 @@ export function HrPayrollControlPanel({ runId, canManage = false, netPayableNgn 
               ))}
             </ul>
           ) : (
-            <button type="button" onClick={requestBonus} className={`${HR_BTN_PRIMARY} w-full sm:w-auto min-h-[44px]`}>
-              Request bonus (50% base)
-            </button>
+            <HrAddFormButton onClick={() => setBonusOpen(true)}>Request bonus (50% base)</HrAddFormButton>
           )}
         </HrCard>
       ) : null}
+
+      <HrFormModal
+        isOpen={bankExportOpen}
+        onClose={() => setBankExportOpen(false)}
+        title="Record bank export total"
+        description="Enter the total net salaries from the bank payment file for reconciliation."
+        size="md"
+      >
+        <form className="space-y-4" onSubmit={recordBankExport}>
+          <label className="text-xs font-semibold text-slate-600">
+            Bank file total (₦)
+            <input
+              type="number"
+              min={0}
+              inputMode="numeric"
+              className={`${HR_FIELD_CLASS} min-h-[44px]`}
+              value={bankExportTotal}
+              onChange={(e) => setBankExportTotal(e.target.value)}
+              placeholder={netPayableNgn != null ? String(netPayableNgn) : ''}
+              required
+            />
+          </label>
+          {netPayableNgn != null ? (
+            <button
+              type="button"
+              className="text-xs font-bold text-[#134e4a] hover:underline"
+              onClick={() => setBankExportTotal(String(netPayableNgn))}
+            >
+              Use payroll net (₦{netPayableNgn.toLocaleString()})
+            </button>
+          ) : null}
+          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+            <button type="button" onClick={() => setBankExportOpen(false)} className={HR_BTN_SECONDARY}>
+              Cancel
+            </button>
+            <button type="submit" disabled={recordBusy} className={`${HR_BTN_PRIMARY} min-h-[44px]`}>
+              {recordBusy ? 'Saving…' : 'Record total'}
+            </button>
+          </div>
+        </form>
+      </HrFormModal>
+
+      <HrPayrollConfirmBonusModal isOpen={bonusOpen} onClose={() => setBonusOpen(false)} busy={bonusBusy} onConfirm={requestBonus} />
     </div>
+  );
+}
+
+function HrPayrollConfirmBonusModal({ isOpen, onClose, busy, onConfirm }) {
+  if (!isOpen) return null;
+  return (
+    <HrFormModal isOpen={isOpen} onClose={busy ? undefined : onClose} title="Request end-of-year bonus" size="sm">
+      <p className="text-sm text-slate-600">
+        Submit a 50% base-salary bonus request for GM HR approval. Applies to December payroll lines after approval.
+      </p>
+      <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+        <button type="button" onClick={onClose} disabled={busy} className={HR_BTN_SECONDARY}>
+          Cancel
+        </button>
+        <button type="button" onClick={onConfirm} disabled={busy} className={`${HR_BTN_PRIMARY} min-h-[44px]`}>
+          {busy ? 'Submitting…' : 'Submit request'}
+        </button>
+      </div>
+    </HrFormModal>
   );
 }
 

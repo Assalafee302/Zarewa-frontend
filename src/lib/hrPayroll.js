@@ -11,6 +11,77 @@ const EXPORT_KINDS = {
   gl: 'gl',
 };
 
+/** Full month names for payroll period pickers and labels. */
+export const PAYROLL_MONTH_NAMES = [
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
+];
+
+/** @param {string | number | null | undefined} yyyymm */
+export function parsePayrollPeriod(yyyymm) {
+  const p = String(yyyymm || '').replace(/\D/g, '').slice(0, 6);
+  if (p.length !== 6) return null;
+  const year = Number(p.slice(0, 4));
+  const month = Number(p.slice(4, 6));
+  if (!Number.isFinite(year) || month < 1 || month > 12) return null;
+  return { year, month, yyyymm: p };
+}
+
+/** @param {number | string} year @param {number | string} month 1–12 */
+export function periodYyyymmFromParts(year, month) {
+  const y = Math.round(Number(year) || 0);
+  const m = Math.round(Number(month) || 0);
+  if (y < 2000 || y > 2100 || m < 1 || m > 12) return '';
+  return `${y}${String(m).padStart(2, '0')}`;
+}
+
+/** User-facing label: "June 2025". */
+export function formatPayrollPeriodLabel(yyyymm) {
+  const parsed = parsePayrollPeriod(yyyymm);
+  if (!parsed) return String(yyyymm || '').trim() || '—';
+  return `${PAYROLL_MONTH_NAMES[parsed.month - 1]} ${parsed.year}`;
+}
+
+/** Compact label for charts: "Jun 2025". */
+export function formatPayrollPeriodShort(yyyymm) {
+  const parsed = parsePayrollPeriod(yyyymm);
+  if (!parsed) return String(yyyymm || '').trim() || '—';
+  return `${PAYROLL_MONTH_NAMES[parsed.month - 1].slice(0, 3)} ${parsed.year}`;
+}
+
+/** @deprecated Use formatPayrollPeriodLabel — kept for existing imports. */
+export function formatPeriodYyyymm(yyyymm) {
+  return formatPayrollPeriodLabel(yyyymm);
+}
+
+/** Sort payroll runs newest calendar month first. */
+export function sortPayrollRunsByPeriod(runs = []) {
+  return [...runs].sort((a, b) => {
+    const pa = parsePayrollPeriod(a?.periodYyyymm)?.yyyymm || '';
+    const pb = parsePayrollPeriod(b?.periodYyyymm)?.yyyymm || '';
+    return pb.localeCompare(pa);
+  });
+}
+
+/** Set of periodYyyymm strings already used by runs. */
+export function payrollPeriodsInUse(runs = []) {
+  return new Set(
+    runs
+      .map((r) => parsePayrollPeriod(r?.periodYyyymm)?.yyyymm)
+      .filter(Boolean)
+  );
+}
+
 /** Download payroll CSV export (locked or paid runs). */
 export async function downloadHrPayrollExport(runId, kind = 'treasury') {
   const segment = EXPORT_KINDS[kind] || kind;
@@ -76,10 +147,4 @@ export function payrollStatusTone(status) {
   if (s === 'paid') return 'emerald';
   if (s === 'locked') return 'blue';
   return 'amber';
-}
-
-export function formatPeriodYyyymm(yyyymm) {
-  const p = String(yyyymm || '');
-  if (p.length !== 6) return p || '—';
-  return `${p.slice(0, 4)}-${p.slice(4, 6)}`;
 }

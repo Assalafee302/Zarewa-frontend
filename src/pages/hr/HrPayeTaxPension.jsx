@@ -4,7 +4,7 @@ import { useWorkspace } from '../../context/WorkspaceContext';
 import { useHrSensitiveAccess } from '../../hooks/useHrSensitiveAccess';
 import { canViewOrgSensitiveHr } from '../../lib/hrAccess';
 import { formatNgn } from '../../lib/hrFormat';
-import { formatPeriodYyyymm } from '../../lib/hrPayroll';
+import { formatPayrollPeriodLabel, formatPayrollPeriodShort } from '../../lib/hrPayroll';
 import {
   AppTable,
   AppTableBody,
@@ -99,7 +99,7 @@ function PayeTab({ runs, lines, latestRun, loading }) {
     return runs
       .slice(-6)
       .map((r) => ({
-        label: formatPeriodYyyymm(r.periodYyyymm).slice(2),
+        label: formatPayrollPeriodShort(r.periodYyyymm),
         value: Number(r.payeTotalNgn) || 0,
       }));
   }, [runs]);
@@ -112,7 +112,7 @@ function PayeTab({ runs, lines, latestRun, loading }) {
         .slice(-12)
         .reverse()
         .map((r) => ({
-          period: formatPeriodYyyymm(r.periodYyyymm),
+          period: formatPayrollPeriodLabel(r.periodYyyymm),
           amount: formatNgn(r.payeTotalNgn ?? totalPaye),
           status: r.payeFiled ? 'Filed' : 'Pending',
           runStatus: r.status,
@@ -136,7 +136,7 @@ function PayeTab({ runs, lines, latestRun, loading }) {
         gross_monthly: Math.round(s.gross),
         paye_monthly_ngn: Math.round(s.payeAmount),
       }));
-    const period = latestRun ? formatPeriodYyyymm(latestRun.periodYyyymm) : 'current';
+    const period = latestRun ? formatPayrollPeriodLabel(latestRun.periodYyyymm) : 'current';
     downloadCsv(`FIRS-PAYE-Schedule-${period}.csv`, rows, headers);
   };
 
@@ -148,7 +148,7 @@ function PayeTab({ runs, lines, latestRun, loading }) {
         <StatCard
           label="This month PAYE"
           value={loading ? '…' : formatNgn(totalPaye)}
-          sub={latestRun ? formatPeriodYyyymm(latestRun.periodYyyymm) : ''}
+          sub={latestRun ? formatPayrollPeriodLabel(latestRun.periodYyyymm) : ''}
         />
         <StatCard label="YTD remitted" value={loading ? '…' : formatNgn(ytd)} sub={`${new Date().getFullYear()}`} />
         <StatCard
@@ -355,7 +355,7 @@ function PensionTab({ runs, lines, latestRun, loading, policy }) {
         .slice(-12)
         .reverse()
         .map((r) => ({
-          period: formatPeriodYyyymm(r.periodYyyymm),
+          period: formatPayrollPeriodLabel(r.periodYyyymm),
           total: formatNgn(r.pensionTotalNgn ?? totalMonth),
           status: r.pensionRemitted ? 'Remitted' : 'Pending',
           runStatus: r.status,
@@ -374,7 +374,7 @@ function PensionTab({ runs, lines, latestRun, loading, policy }) {
         employee_contribution: Math.round(s.empContrib),
         employer_contribution: Math.round(s.errContrib),
       }));
-    const period = latestRun ? formatPeriodYyyymm(latestRun.periodYyyymm) : 'current';
+    const period = latestRun ? formatPayrollPeriodLabel(latestRun.periodYyyymm) : 'current';
     downloadCsv(`PFA-Pension-Schedule-${period}.csv`, rows, headers);
   };
 
@@ -684,7 +684,7 @@ export default function HrPayeTaxPension() {
           >
             {runs.map((r) => (
               <option key={r.id} value={r.id}>
-                {formatPeriodYyyymm(r.periodYyyymm)} · {r.status}
+                {formatPayrollPeriodLabel(r.periodYyyymm)} · {r.status}
               </option>
             ))}
           </select>

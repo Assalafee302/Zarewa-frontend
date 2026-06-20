@@ -12,7 +12,7 @@ import HrBenefits from './HrBenefits';
 const HrPayeTaxPension = lazyWithRetry(() => import('./HrPayeTaxPension'), { id: 'HrPayeTaxPension' });
 
 const TABS = [
-  { id: 'payroll-runs', label: 'Payroll Runs' },
+  { id: 'payroll-runs', label: 'Monthly payroll' },
   { id: 'loans', label: 'Loans' },
   { id: 'benefits', label: 'Benefits' },
   { id: 'salary-matrix', label: 'Salary Matrix' },
@@ -25,8 +25,8 @@ export default function HrPayrollHub() {
 
   return (
     <HrTabbedPage
-      title="Payroll, Loans & Benefits"
-      description="HQ payroll runs (branch, HQ admin, mining), loans, beneficiaries, salary matrix, and statutory pension rates."
+      title="Payroll & benefits"
+      description="Monthly HQ payroll for branch, HQ admin, and mining staff — plus loans, beneficiaries, salary matrix, and statutory rates."
       tabs={TABS}
       tab={tab}
       onTabChange={setTab}
