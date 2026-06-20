@@ -21,7 +21,6 @@ export default function ExecutiveHrCompensationHub() {
   return (
     <HrTabbedPage
       title="Compensation"
-      description="Executive payroll summary, branch contributions, salary structure, variance review, and special pay changes."
       tabs={TABS}
       tab={tab}
       onTabChange={setTab}

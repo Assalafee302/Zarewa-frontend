@@ -23,7 +23,6 @@ export default function ExecutiveHrFamilyHub() {
   return (
     <HrTabbedPage
       title="Family & household"
-      description="Executive family overview, household staff, school fees, allowances, and benefit requests."
       tabs={TABS}
       tab={tab}
       onTabChange={setTab}

@@ -50,8 +50,6 @@ export default function HumanResources() {
       <Route
         element={
           <HrSectionShell
-            title="Human Resources"
-            subtitle="HQ payroll, staff records, time & absence, and people operations for Zarewa."
             navItems={navItems}
             moreNavItems={moreNavItems}
             stickySubnav

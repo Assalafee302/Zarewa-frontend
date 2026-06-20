@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { apiFetch } from '../../lib/apiBase';
 import { useHrListLoad } from '../../hooks/useHrListLoad';
-import { HrCard, HrPageIntro } from '../../components/hr/hrPageUi';
+import { HrCard } from '../../components/hr/hrPageUi';
 import {
   AppTable,
   AppTableBody,
@@ -324,13 +324,6 @@ export default function HrAppraisal({ embedded = false } = {}) {
 
   return (
     <div className="space-y-6">
-      {!embedded ? (
-        <HrPageIntro
-          title="Performance Appraisals"
-          description="Manage appraisal cycles, score staff performance, and track feedback notes."
-        />
-      ) : null}
-
       {/* Tabs */}
       <div className="flex flex-wrap gap-1 border-b border-slate-200 pb-px">
         {['cycles', 'feedback'].map(t => (

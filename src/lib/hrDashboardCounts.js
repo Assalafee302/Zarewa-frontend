@@ -12,6 +12,8 @@ export function parseHrDashboardCounts(data) {
     incompleteProfiles: Number(inbox.incompleteProfiles ?? summary.incompleteProfiles) || 0,
     draftPayrollRuns: Number(inbox.draftPayrollRuns) || 0,
     draftPayrollAwaitingGm: Number(inbox.draftPayrollAwaitingGm) || 0,
+    primaryDraftPayrollRunId: inbox.primaryDraftPayrollRunId || null,
+    primaryDraftPayrollAwaitingGmRunId: inbox.primaryDraftPayrollAwaitingGmRunId || null,
   };
 }
 

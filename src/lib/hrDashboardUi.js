@@ -14,8 +14,16 @@ export function hrRequestQueuePath(scope) {
   return hrTimeAbsenceQueuePath(scope);
 }
 
-export function hrPayrollRunsPath() {
+export function hrPayrollRunsPath(runId) {
+  if (runId) return hrTabPath(HR_PAYROLL, 'payroll-runs', { runId: String(runId) });
   return `${HR_PAYROLL}?tab=payroll-runs`;
+}
+
+/** Finance desk — bulk bank file and treasury posting for a locked run. */
+export function hrFinancePayrollPath(runId) {
+  const params = new URLSearchParams({ tab: 'payroll' });
+  if (runId) params.set('runId', String(runId));
+  return `/accounting?${params.toString()}`;
 }
 
 /**
@@ -91,13 +99,13 @@ export function getHrDashboardQueueLines(counts, summary, permissions = []) {
     lines.push({
       label: 'Payroll awaiting GM sign-off',
       count: Number(c.draftPayrollAwaitingGm ?? 0),
-      href: hrPayrollRunsPath(),
+      href: hrPayrollRunsPath(c.primaryDraftPayrollAwaitingGmRunId || c.primaryDraftPayrollRunId),
     });
   } else if (canPreparePayroll(permissions)) {
     lines.push({
       label: 'Draft payroll runs',
       count: Number(c.draftPayrollRuns ?? 0),
-      href: HR_PAYROLL,
+      href: hrPayrollRunsPath(c.primaryDraftPayrollRunId),
     });
   }
   if (canManageHrTransfers(permissions)) {
@@ -158,7 +166,7 @@ export function getHrDashboardQuickActions(permissions = []) {
   if (canPreparePayroll(permissions)) {
     actions.push({ label: 'Start monthly payroll', href: HR_PAYROLL });
   } else if (canGmApprovePayroll(permissions)) {
-    actions.push({ label: 'Review payroll runs', href: hrPayrollRunsPath() });
+    actions.push({ label: 'Review payroll runs', href: hrPayrollRunsPath(c.primaryDraftPayrollAwaitingGmRunId || c.primaryDraftPayrollRunId) });
   }
   if (canViewHrReports(permissions)) {
     actions.push({ label: 'Open reports', href: hrTabPath(HR_DOCUMENTS, 'reports') });
@@ -288,7 +296,7 @@ export function getHrDashboardOverviewKpis(data = {}) {
       {
         label: 'Payroll awaiting GM',
         value: gmPayrollCount,
-        href: hrPayrollRunsPath(),
+        href: hrPayrollRunsPath(c.primaryDraftPayrollAwaitingGmRunId || c.primaryDraftPayrollRunId),
         tone: gmPayrollCount > 0 ? 'amber' : 'default',
       },
       incidentsKpi,
@@ -314,7 +322,7 @@ export function getHrDashboardOverviewKpis(data = {}) {
         kpis[2] = {
           label: 'Payroll awaiting GM',
           value: gmPayroll,
-          href: hrPayrollRunsPath(),
+          href: hrPayrollRunsPath(c.primaryDraftPayrollAwaitingGmRunId || c.primaryDraftPayrollRunId),
           tone: 'amber',
         };
       }

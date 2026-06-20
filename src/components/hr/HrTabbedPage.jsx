@@ -5,10 +5,9 @@ import { HrPageBody } from './hrPageUi';
 import { HrHubToolbar } from './HrHubToolbar';
 
 /**
- * Standard tabbed HR hub layout — PageHeader + tabs + content.
+ * Standard tabbed HR hub layout — single page header with tabs + toolbar.
  */
 export function HrTabbedPage({
-  eyebrow = 'Human Resources',
   title,
   description,
   actions,
@@ -31,9 +30,8 @@ export function HrTabbedPage({
   return (
     <HrPageBody compact={compact}>
       <PageHeader
-        eyebrow={eyebrow}
         title={title}
-        subtitle={description}
+        subtitle={description || undefined}
         tabs={tabs?.length ? <PageTabs tabs={tabs} value={tab} onChange={onTabChange} /> : null}
         toolbar={toolbar}
       />

@@ -166,31 +166,15 @@ export default function ExecutiveHrDomesticDashboard() {
 
   return (
     <div className="space-y-6">
-      <div className="rounded-2xl border border-amber-200/80 bg-gradient-to-br from-amber-700 via-amber-800 to-orange-950 p-5 text-white shadow-lg">
-        <p className="text-xs font-bold uppercase tracking-[0.22em] text-amber-200/90">
-          {DOMESTIC_BENEFITS.hubEyebrow}
-        </p>
-        <h2 className="mt-1 text-2xl font-black tracking-tight">{DOMESTIC_BENEFITS.adminDashboardTitle}</h2>
-        <p className="mt-2 max-w-2xl text-sm text-amber-100">{DOMESTIC_BENEFITS.adminDashboardSubtitle}</p>
-        {data?.periodYyyymm ? (
-          <p className="mt-2 text-xs text-amber-200/80">Current period · {data.periodYyyymm}</p>
-        ) : null}
-        <Link
-          to="/executive-hr/benefits?tab=domestic"
-          className="mt-4 inline-flex rounded-lg border border-amber-400/50 bg-white/10 px-4 py-2 text-sm font-semibold text-white no-underline hover:bg-white/20"
-        >
-          Add household staff →
-        </Link>
-      </div>
-
-      <div className="rounded-2xl border border-amber-100 bg-amber-50/60 p-4">
-        <h3 className="text-sm font-black text-amber-950">{DOMESTIC_BENEFITS.adminWorkflowTitle}</h3>
-        <ol className="mt-2 list-decimal space-y-1.5 pl-5 text-sm text-amber-900/90">
-          {DOMESTIC_BENEFITS.adminWorkflowSteps.map((step) => (
-            <li key={step}>{step}</li>
-          ))}
-        </ol>
-      </div>
+      {data?.periodYyyymm ? (
+        <p className="text-xs text-slate-500">Current period · {data.periodYyyymm}</p>
+      ) : null}
+      <Link
+        to="/executive-hr/benefits?tab=domestic"
+        className="inline-flex rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-[#134e4a] no-underline hover:bg-slate-50"
+      >
+        Add household staff →
+      </Link>
 
       {executives.length > 1 ? (
         <div className="flex flex-wrap gap-2" role="tablist" aria-label="Filter by executive">

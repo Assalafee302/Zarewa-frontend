@@ -82,11 +82,7 @@ export default function HrEngagement({ embedded = false } = {}) {
   return (
     <HrPageBody>
       {!embedded ? (
-        <HrPageIntro
-          title="Staff engagement"
-          description="Pulse surveys for staff engagement. Open a survey for employees to respond in My Profile."
-          actions={canManage ? <HrAddFormButton onClick={() => setModalOpen(true)}>New survey</HrAddFormButton> : null}
-        />
+        <HrPageIntro actions={canManage ? <HrAddFormButton onClick={() => setModalOpen(true)}>New survey</HrAddFormButton> : null} />
       ) : (
         canManage ? (
           <div className="flex justify-end pb-2">
@@ -96,7 +92,7 @@ export default function HrEngagement({ embedded = false } = {}) {
       )}
       <HrSplitWorkspace
         sidebar={
-          <HrCard title="Surveys" subtitle={`${surveys.length} total`}>
+          <HrCard title="Surveys">
             <div className="max-h-[min(52vh,480px)] space-y-2 overflow-y-auto">
               {surveys.length === 0 ? (
                 <HrEmptyState title="No surveys yet" />

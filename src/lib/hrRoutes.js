@@ -44,6 +44,12 @@ export function hrTabPath(base, tab, extra = {}) {
   return `${base}?${params.toString()}`;
 }
 
+/** Deep link to a specific monthly payroll run. */
+export function hrPayrollRunPath(runId) {
+  if (!runId) return hrTabPath(HR_PAYROLL, 'payroll-runs');
+  return hrTabPath(HR_PAYROLL, 'payroll-runs', { runId: String(runId) });
+}
+
 /** Deep-link state for HR dashboard (React Router `location.state`). */
 export function hrDashboardDeepLink({ openRequestId, focusHrAlertFilter } = {}) {
   /** @type {Record<string, string>} */

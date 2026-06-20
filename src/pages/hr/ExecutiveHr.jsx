@@ -24,8 +24,6 @@ const NAV = [
 function ExecutiveShell() {
   return (
     <HrSectionShell
-      title="Executive HR"
-      subtitle="CEO and Chairman view — family overview, household staff, compensation, and executive approvals."
       navItems={NAV}
       stickySubnav
       compact

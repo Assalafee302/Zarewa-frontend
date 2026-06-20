@@ -24,17 +24,33 @@ export function HrPageBody({ children, className = '', compact = false }) {
   );
 }
 
+/** Optional page actions row — omit title/description when subnav already names the page. */
 export function HrPageIntro({ title, description, actions, children }) {
+  const hasCopy = Boolean(title || description || children);
+  if (!hasCopy && !actions) return null;
+
   return (
-    <div className="flex flex-col gap-4 border-b border-slate-100 pb-5 sm:flex-row sm:items-start sm:justify-between">
-      <div className="min-w-0 flex-1">
-        {title ? <h2 className="text-lg font-bold text-[#134e4a]">{title}</h2> : null}
-        {description ? <p className="mt-1 max-w-2xl text-sm leading-relaxed text-slate-600">{description}</p> : null}
-        {children}
-      </div>
-      {actions ? <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div> : null}
+    <div
+      className={`flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between ${
+        hasCopy ? 'border-b border-slate-100 pb-4' : ''
+      }`}
+    >
+      {hasCopy ? (
+        <div className="min-w-0 flex-1">
+          {title ? <h2 className="z-page-title text-[#134e4a]">{title}</h2> : null}
+          {description ? <p className="z-page-subtitle">{description}</p> : null}
+          {children}
+        </div>
+      ) : null}
+      {actions ? <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">{actions}</div> : null}
     </div>
   );
+}
+
+/** Actions-only toolbar row for pages without a secondary header. */
+export function HrPageToolbar({ children, className = '' }) {
+  if (!children) return null;
+  return <div className={`mb-4 flex flex-wrap items-center justify-end gap-2 ${className}`}>{children}</div>;
 }
 
 export function HrCard({ title, subtitle, actions, children, className = '' }) {

@@ -28,7 +28,6 @@ import { hrRequestKindLabel, hrRequestStatusClass } from '../../lib/hrFormat';
 import { canManageHrSettings, canViewHrReports } from '../../lib/hrAccess';
 import {
   getHrDashboardAttentionCount,
-  getHrDashboardIntro,
   getHrDashboardOverviewKpis,
   getHrDashboardQuickActions,
   getHrDashboardQueueLines,
@@ -48,7 +47,7 @@ import {
 } from '../../lib/hrDashboardRequestsList';
 import { HrOperationalReadinessPanel } from '../../components/hr/HrOperationalReadinessPanel';
 import { HrProductionReadinessPanel } from '../../components/hr/HrProductionReadinessPanel';
-import { HrPageBody } from '../../components/hr/hrPageUi';
+import { HrPageBody, HrPageToolbar } from '../../components/hr/hrPageUi';
 import { HrProfileWorkPanel } from '../../components/hr/HrProfileWorkPanel';
 import {
   ProfileInlineAlert,
@@ -573,7 +572,6 @@ export default function HrDashboard() {
   const location = useLocation();
   const navigate = useNavigate();
   const permissions = ws?.permissions || [];
-  const roleKey = ws?.session?.user?.roleKey;
   const [obs, setObs] = useState(null);
   const [inbox, setInbox] = useState(null);
   const [staffCounts, setStaffCounts] = useState(null);
@@ -632,36 +630,10 @@ export default function HrDashboard() {
     }
   }, [location.state, location.pathname, navigate, recentRequests]);
 
-  if (loading && !obs) {
-    return (
-      <HrPageBody>
-        <ProfileMetricSkeleton count={4} />
-      </HrPageBody>
-    );
-  }
-
-  if (error) {
-    return (
-      <HrPageBody>
-        <ProfileInlineAlert variant="error">
-          {error}{' '}
-          <button type="button" className="font-bold underline" onClick={() => reload({ forceSpinner: true })}>
-            Retry
-          </button>
-        </ProfileInlineAlert>
-      </HrPageBody>
-    );
-  }
-
   const summary = obs?.summary || {};
   const counts = inbox?.counts || {};
   const staff = staffCounts || {};
-  const intro = getHrDashboardIntro(roleKey, permissions);
-  const overviewKpis = getHrDashboardOverviewKpis({ counts, summary, staff, alerts, permissions });
   const queueLines = getHrDashboardQueueLines(counts, summary, permissions);
-  const quickActions = getHrDashboardQuickActions(permissions);
-  const showAdminPanels = canManageHrSettings(permissions) || canViewHrReports(permissions);
-  const attentionCount = getHrDashboardAttentionCount(alerts, ACTION_ALERT_KEYS, CALENDAR_ALERT_KEYS);
   const actionAlertCount = getHrDashboardAttentionCount(alerts, ACTION_ALERT_KEYS, []);
   const calendarAlertCount = getHrDashboardAttentionCount(alerts, [], CALENDAR_ALERT_KEYS);
 
@@ -691,25 +663,43 @@ export default function HrDashboard() {
     return sortHrDashboardRequests(filtered, requestSortField, requestSortDir);
   }, [recentRequests, requestSearch, requestSortField, requestSortDir]);
 
+  if (loading && !obs) {
+    return (
+      <HrPageBody>
+        <ProfileMetricSkeleton count={4} />
+      </HrPageBody>
+    );
+  }
+
+  if (error) {
+    return (
+      <HrPageBody>
+        <ProfileInlineAlert variant="error">
+          {error}{' '}
+          <button type="button" className="font-bold underline" onClick={() => reload({ forceSpinner: true })}>
+            Retry
+          </button>
+        </ProfileInlineAlert>
+      </HrPageBody>
+    );
+  }
+
+  const overviewKpis = getHrDashboardOverviewKpis({ counts, summary, staff, alerts, permissions });
+  const quickActions = getHrDashboardQuickActions(permissions);
+  const showAdminPanels = canManageHrSettings(permissions) || canViewHrReports(permissions);
+  const attentionCount = getHrDashboardAttentionCount(alerts, ACTION_ALERT_KEYS, CALENDAR_ALERT_KEYS);
   const showActionAlerts = alertFilter === 'all' || alertFilter === 'action';
   const showCalendarAlerts = alertFilter === 'all' || alertFilter === 'calendar';
 
   return (
     <HrPageBody>
-      <header className="border-b border-slate-100 pb-5">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-teal-600/90">Human Resources</p>
-            <h1 className="mt-1 text-2xl font-black tracking-tight text-[#134e4a] sm:text-3xl">{intro.title}</h1>
-            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-slate-600">{intro.description}</p>
-          </div>
-          <HrHubToolbar
-            hub="dashboard"
-            prompt="Summarize HR queues, compliance alerts, and what I should handle first today."
-            pageContext={{ attentionCount, actionAlertCount, calendarAlertCount }}
-          />
-        </div>
-      </header>
+      <HrPageToolbar>
+        <HrHubToolbar
+          hub="dashboard"
+          prompt="Summarize HR queues, compliance alerts, and what I should handle first today."
+          pageContext={{ attentionCount, actionAlertCount, calendarAlertCount }}
+        />
+      </HrPageToolbar>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {overviewKpis.map((kpi) => (
@@ -741,7 +731,7 @@ export default function HrDashboard() {
         </div>
       ) : null}
 
-      <ProfileOverviewSection title="Today's HR actions" subtitle={`${staff.total ?? '—'} total staff · ${staff.inactive ?? 0} inactive`}>
+      <ProfileOverviewSection title="Today's HR actions">
         <div className="text-sm text-slate-700">
           {queueLines.length ? (
             <ul className="space-y-2">
@@ -779,15 +769,12 @@ export default function HrDashboard() {
 
       <HrProfileWorkPanel queue={profileWorkQueue} />
 
-      <ProfileOverviewSection title="Workforce trends" subtitle="Headcount movement and leave utilisation — from HR analytics">
+      <ProfileOverviewSection title="Workforce trends">
         <HrDashboardAnalyticsStrip />
       </ProfileOverviewSection>
 
       {alerts !== null ? (
-        <ProfileOverviewSection
-          title="Alerts"
-          subtitle="Workflow actions and calendar reminders — filter to triage faster"
-        >
+        <ProfileOverviewSection title="Alerts">
           <AlertFilterBar
             value={alertFilter}
             onChange={setAlertFilter}
@@ -799,7 +786,7 @@ export default function HrDashboard() {
       ) : null}
 
       {alerts !== null && showActionAlerts ? (
-        <ProfileOverviewSection title="Action required" subtitle="Workflow items needing HR attention" id="hr-alerts-action">
+        <ProfileOverviewSection title="Action required" id="hr-alerts-action">
           <div className="space-y-2">
             {ACTION_ALERT_CONFIGS.every((cfg) => !((alerts[cfg.key] || []).length)) ? (
               <ProfileInlineAlert variant="success">No pending workflow actions</ProfileInlineAlert>
@@ -811,7 +798,7 @@ export default function HrDashboard() {
       ) : null}
 
       {alerts !== null && showCalendarAlerts ? (
-        <ProfileOverviewSection title="Alerts & reminders" subtitle="Probation, contracts, birthdays, and document expiry" id="hr-alerts-calendar">
+        <ProfileOverviewSection title="Reminders" id="hr-alerts-calendar">
           <div className="space-y-2">
             {ALERT_CONFIGS.every((cfg) => !((alerts[cfg.key] || []).length)) ? (
               <ProfileInlineAlert variant="success">No calendar alerts today</ProfileInlineAlert>
@@ -822,7 +809,7 @@ export default function HrDashboard() {
         </ProfileOverviewSection>
       ) : null}
 
-      <ProfileOverviewSection title="Recent requests" subtitle="Latest employee requests — click a row to preview and act">
+      <ProfileOverviewSection title="Recent requests">
         {filteredRecentRequests.length > 0 ? (
           <HrListTableFrame
             toolbar={

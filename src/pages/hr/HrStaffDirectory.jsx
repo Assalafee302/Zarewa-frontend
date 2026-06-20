@@ -740,6 +740,7 @@ export default function HrStaffDirectory({
 
       {!error ? (
         <>
+          {viewMode === 'table' ? (
           <div className="space-y-3 md:hidden">
             {loading && !staff.length ? (
               <p className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">
@@ -828,6 +829,7 @@ export default function HrStaffDirectory({
               </article>
             ))}
           </div>
+          ) : null}
 
           <div className={viewMode === 'cards' ? 'space-y-2' : 'hidden md:block'}>
             {viewMode === 'cards' ? (

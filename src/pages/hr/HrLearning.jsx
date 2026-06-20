@@ -96,8 +96,6 @@ export default function HrLearning({ embedded = false } = {}) {
     <HrPageBody>
       {!embedded ? (
         <HrPageIntro
-          title="Learning & development"
-          description="Track courses, certifications, and mandatory training with expiry alerts."
           actions={
             <>
               {person ? <Link to={`${HR_EMPLOYEES}/${userId}`} className={HR_BTN_SECONDARY}>Open profile</Link> : null}

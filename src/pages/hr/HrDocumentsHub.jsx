@@ -30,7 +30,6 @@ export default function HrDocumentsHub() {
   return (
     <HrTabbedPage
       title="Documents, letters & reports"
-      description="Employment letters, ID cards, document compliance, policy acknowledgements, and HR report exports."
       tabs={TABS}
       tab={tab}
       onTabChange={setTab}
@@ -45,18 +44,10 @@ export default function HrDocumentsHub() {
         </Suspense>
       ) : null}
       {tab === 'documents' ? (
-        <HrReportEmbedPanel
-          reportId="document-expiry"
-          title="Document expiry & compliance"
-          description="Staff with expired or soon-to-expire HR documents. Fix records from the employee profile or staff directory."
-        />
+        <HrReportEmbedPanel reportId="document-expiry" />
       ) : null}
       {tab === 'policies' ? (
-        <HrReportEmbedPanel
-          reportId="policy-acknowledgement"
-          title="Policy acknowledgements"
-          description="Handbook, confidentiality pledge, and policy acknowledgement status across the organisation."
-        />
+        <HrReportEmbedPanel reportId="policy-acknowledgement" />
       ) : null}
       {tab === 'reports' ? <HrReports embedded /> : null}
     </HrTabbedPage>

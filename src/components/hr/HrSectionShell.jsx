@@ -1,14 +1,13 @@
 import React from 'react';
 import { Outlet } from 'react-router-dom';
-import { PageHeader, PageShell, MainPanel } from '../layout';
+import { PageShell, MainPanel } from '../layout';
 import { HrSubnav } from './HrSubnav';
 
 /**
- * Shared chrome for Human Resources, My Profile, Team HR, and Executive HR routes.
+ * Shared chrome for Human Resources, Team HR, and Executive HR routes.
+ * Module context lives in the app sidebar; subnav is the only top-level header.
  */
 export function HrSectionShell({
-  title,
-  subtitle,
   navItems = [],
   moreNavItems = [],
   stickySubnav = false,
@@ -20,10 +19,9 @@ export function HrSectionShell({
 }) {
   return (
     <PageShell className="pb-10">
-      <PageHeader title={title} subtitle={subtitle} />
       {beforeNav ? <div className="mb-4">{beforeNav}</div> : null}
       {navItems.length > 0 ? (
-        <div className="mb-6">
+        <div className="mb-4">
           <HrSubnav items={navItems} moreItems={moreNavItems} sticky={stickySubnav} />
         </div>
       ) : null}

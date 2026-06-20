@@ -27,8 +27,6 @@ export default function TeamHr() {
       <Route
         element={
           <HrSectionShell
-            title="Team HR"
-            subtitle="Branch manager tools — endorsements, team coverage, and absence. Salary and payroll values are not shown here."
             navItems={NAV}
             stickySubnav
             compact

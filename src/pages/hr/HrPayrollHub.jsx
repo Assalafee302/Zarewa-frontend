@@ -1,8 +1,7 @@
-import React, { Suspense } from 'react';
+import React, { Suspense, useEffect } from 'react';
 import { lazyWithRetry } from '../../lib/lazyWithRetry';
 import { useHrUrlTab } from '../../hooks/useHrUrlTab';
 import { HrTabbedPage } from '../../components/hr/HrTabbedPage';
-import { HrPolicyConfigSection } from '../../components/hr/HrSettingsSections';
 import { HrSalaryMatrixPanel } from '../../components/hr/HrSalaryMatrixPanel';
 import { HrSalaryVarianceReportSection } from '../../components/hr/HrSalaryVarianceReportSection';
 import HrPayroll from './HrPayroll';
@@ -16,17 +15,24 @@ const TABS = [
   { id: 'loans', label: 'Loans' },
   { id: 'benefits', label: 'Benefits' },
   { id: 'salary-matrix', label: 'Salary Matrix' },
-  { id: 'tax-pension', label: 'PAYE & Pension' },
-  { id: 'statutory', label: 'Pension & Statutory' },
+  { id: 'tax-pension', label: 'PAYE, pension & policy' },
 ];
 
+/** Legacy tab id — redirects to tax-pension with policy section. */
+const LEGACY_TAB_IDS = ['statutory'];
+
 export default function HrPayrollHub() {
-  const { tab, setTab } = useHrUrlTab('payroll-runs', TABS.map((t) => t.id));
+  const validTabs = [...TABS.map((t) => t.id), ...LEGACY_TAB_IDS];
+  const { tab: rawTab, setTab } = useHrUrlTab('payroll-runs', validTabs);
+  const tab = rawTab === 'statutory' ? 'tax-pension' : rawTab;
+
+  useEffect(() => {
+    if (rawTab === 'statutory') setTab('tax-pension', { section: 'policy' });
+  }, [rawTab, setTab]);
 
   return (
     <HrTabbedPage
       title="Payroll & benefits"
-      description="Monthly HQ payroll for branch, HQ admin, and mining staff — plus loans, beneficiaries, salary matrix, and statutory rates."
       tabs={TABS}
       tab={tab}
       onTabChange={setTab}
@@ -36,7 +42,9 @@ export default function HrPayrollHub() {
           ? 'Explain payroll run status and what HR should prepare or approve next.'
           : tab === 'loans'
             ? 'Summarize pending loan requests and endorsement steps.'
-            : 'Summarize salary matrix variances and payroll compliance issues.'
+            : tab === 'tax-pension'
+              ? 'Summarize PAYE schedules, pension contributions, and statutory policy settings.'
+              : 'Summarize salary matrix variances and payroll compliance issues.'
       }
       hubPageContext={{ payrollTab: tab }}
     >
@@ -55,7 +63,6 @@ export default function HrPayrollHub() {
           <HrPayeTaxPension embedded />
         </Suspense>
       ) : null}
-      {tab === 'statutory' ? <HrPolicyConfigSection /> : null}
     </HrTabbedPage>
   );
 }

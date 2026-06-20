@@ -21,6 +21,7 @@ import { HR_EMPLOYEES, HR_PAYROLL, hrTabPath } from '../../lib/hrRoutes';
 import HrAttendance from './HrAttendance';
 import HrLeave from './HrLeave';
 import HrLeaveCalendarPanel from './HrLeaveCalendarPanel';
+import { HrSubViewTabs } from '../../components/hr/HrSubViewTabs';
 
 const TAB_DEFINITIONS = [
   {
@@ -70,28 +71,6 @@ const ATTENDANCE_SECTIONS = [
 ];
 
 const TIME_ABSENCE_REQUEST_KINDS = ['leave', 'profile_change', 'attendance_exception'];
-
-const QUEUE_INTRO =
-  'Workflow: employee submits → HR review → branch manager endorsement → GM HR final approval. Loan requests are handled under Payroll.';
-
-function SubViewPills({ views, active, onChange }) {
-  return (
-    <div className="flex flex-wrap gap-2 border-b border-slate-100 pb-2">
-      {views.map((v) => (
-        <button
-          key={v.id}
-          type="button"
-          onClick={() => onChange(v.id)}
-          className={`rounded-lg px-3 py-1.5 text-xs font-bold uppercase tracking-wide ${
-            active === v.id ? 'bg-teal-800 text-white' : 'border border-slate-200 text-slate-600 hover:bg-slate-50'
-          }`}
-        >
-          {v.label}
-        </button>
-      ))}
-    </div>
-  );
-}
 
 export default function HrTimeAbsenceHub() {
   const ws = useWorkspace();
@@ -158,8 +137,7 @@ export default function HrTimeAbsenceHub() {
 
   return (
     <HrTabbedPage
-      title="Time & Absence"
-      description="Leave balances, approval queues, attendance records, and absence policy — one workspace for who is in, who is out, and what is approved."
+      title="Time & absence"
       tabs={tabs}
       tab={tab}
       onTabChange={(nextTab) => setTab(nextTab, { section: nextTab === 'attendance' ? attendanceSection : null, kind: null })}
@@ -175,7 +153,7 @@ export default function HrTimeAbsenceHub() {
     >
       {tab === 'overview' ? (
         <div className="space-y-6">
-          <ProfileOverviewSection title="Pending approvals" subtitle="Click a tile to open that queue">
+          <ProfileOverviewSection title="Pending approvals">
             <HrRequestsOverview canReview={canReview} canEndorse={canEndorse} canGm={canGm} />
           </ProfileOverviewSection>
           <div className="rounded-2xl border border-slate-100 bg-slate-50/60 p-4 text-sm text-slate-600">
@@ -189,7 +167,7 @@ export default function HrTimeAbsenceHub() {
       ) : null}
 
       {tab === 'approvals' ? (
-        <ProfileOverviewSection title="Approval queue" subtitle={QUEUE_INTRO}>
+        <ProfileOverviewSection title="Approval queue">
           <HrRequestsPanel
             allowedScopes={allowedScopes}
             defaultScope={defaultScope}
@@ -208,7 +186,7 @@ export default function HrTimeAbsenceHub() {
 
       {tab === 'attendance' ? (
         <div className="space-y-6">
-          <SubViewPills views={ATTENDANCE_SECTIONS} active={attendanceSection} onChange={setAttendanceSection} />
+          <HrSubViewTabs tabs={ATTENDANCE_SECTIONS} value={attendanceSection} onChange={setAttendanceSection} ariaLabel="Attendance sections" />
           {attendanceSection === 'uploads' ? <HrAttendanceUploadsPanel /> : null}
           {attendanceSection === 'exceptions' ? (
             <div className="space-y-6">

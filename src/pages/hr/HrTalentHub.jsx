@@ -4,6 +4,7 @@ import { useHrUrlTab } from '../../hooks/useHrUrlTab';
 import { HrTabbedPage } from '../../components/hr/HrTabbedPage';
 import { HrOnboardingQueue } from '../../components/hr/HrOnboardingQueue';
 import { HrPromotionDuePanel } from '../../components/hr/HrPromotionDuePanel';
+import { HrSubViewTabs } from '../../components/hr/HrSubViewTabs';
 
 const HrRecruiting = lazyWithRetry(() => import('./HrRecruiting'), { id: 'HrRecruiting' });
 const HrAppraisal = lazyWithRetry(() => import('./HrAppraisal'), { id: 'HrAppraisal' });
@@ -28,25 +29,6 @@ const DEVELOP_SECTIONS = [
   { id: 'promotions', label: 'Promotions' },
 ];
 
-function SubViewPills({ views, active, onChange }) {
-  return (
-    <div className="flex flex-wrap gap-2 border-b border-slate-100 pb-2">
-      {views.map((v) => (
-        <button
-          key={v.id}
-          type="button"
-          onClick={() => onChange(v.id)}
-          className={`rounded-lg px-3 py-1.5 text-xs font-bold uppercase tracking-wide ${
-            active === v.id ? 'bg-teal-800 text-white' : 'border border-slate-200 text-slate-600 hover:bg-slate-50'
-          }`}
-        >
-          {v.label}
-        </button>
-      ))}
-    </div>
-  );
-}
-
 export default function HrTalentHub() {
   const validPrimary = PRIMARY_TABS.map((t) => t.id);
   const { tab, setTab, searchParams, setSearchParams } = useHrUrlTab('recruit', validPrimary);
@@ -66,7 +48,6 @@ export default function HrTalentHub() {
   return (
     <HrTabbedPage
       title="Talent & development"
-      description="Recruit and onboard new hires, then run appraisals, training, engagement, and promotion tracking."
       tabs={PRIMARY_TABS}
       tab={tab}
       onTabChange={(next) =>
@@ -82,7 +63,7 @@ export default function HrTalentHub() {
     >
       {tab === 'recruit' ? (
         <div className="space-y-6">
-          <SubViewPills views={RECRUIT_SECTIONS} active={recruitSection} onChange={setSection} />
+          <HrSubViewTabs tabs={RECRUIT_SECTIONS} value={recruitSection} onChange={setSection} ariaLabel="Recruit sections" />
           {recruitSection === 'jobs' || recruitSection === 'applicants' ? (
             <Suspense fallback={<p className="text-sm text-slate-600">Loading recruiting…</p>}>
               <HrRecruiting embedded />
@@ -94,7 +75,7 @@ export default function HrTalentHub() {
 
       {tab === 'develop' ? (
         <div className="space-y-6">
-          <SubViewPills views={DEVELOP_SECTIONS} active={developSection} onChange={setSection} />
+          <HrSubViewTabs tabs={DEVELOP_SECTIONS} value={developSection} onChange={setSection} ariaLabel="Develop sections" />
           {developSection === 'appraisals' ? (
             <Suspense fallback={<p className="text-sm text-slate-600">Loading appraisals…</p>}>
               <HrAppraisal embedded />

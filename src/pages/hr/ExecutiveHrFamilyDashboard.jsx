@@ -173,16 +173,9 @@ export default function ExecutiveHrFamilyDashboard() {
 
   return (
     <div className="space-y-6">
-      <div className="rounded-2xl border border-violet-200/80 bg-gradient-to-br from-violet-700 via-violet-800 to-indigo-950 p-5 text-white shadow-lg">
-        <p className="text-xs font-bold uppercase tracking-[0.22em] text-violet-200/90">
-          {FAMILY_BENEFITS.hubEyebrow}
-        </p>
-        <h2 className="mt-1 text-2xl font-black tracking-tight">{FAMILY_BENEFITS.familyDashboardTitle}</h2>
-        <p className="mt-2 max-w-2xl text-sm text-violet-100">{FAMILY_BENEFITS.familyDashboardSubtitle}</p>
-        {data?.periodYyyymm ? (
-          <p className="mt-2 text-xs text-violet-200/80">Current period · {data.periodYyyymm}</p>
-        ) : null}
-      </div>
+      {data?.periodYyyymm ? (
+        <p className="text-xs text-slate-500">Current period · {data.periodYyyymm}</p>
+      ) : null}
 
       {executives.length > 1 ? (
         <div className="flex flex-wrap gap-2" role="tablist" aria-label="Filter by executive">

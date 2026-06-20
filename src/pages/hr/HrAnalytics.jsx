@@ -577,8 +577,7 @@ export default function HrAnalytics() {
 
   return (
     <HrTabbedPage
-      title="HR Analytics"
-      description="Workforce insights — attendance trends, headcount breakdown, loan portfolio, and turnover."
+      title="HR analytics"
       tabs={TABS}
       tab={tab}
       onTabChange={setTab}

@@ -15,7 +15,6 @@ export default function ExecutiveHrApprovalsHub() {
   return (
     <HrTabbedPage
       title="Executive approvals"
-      description="Sensitive HR decisions and exceptional loan cases requiring executive sign-off."
       tabs={TABS}
       tab={tab}
       onTabChange={setTab}

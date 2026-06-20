@@ -12,7 +12,6 @@ import { hrRequestReviewPath } from '../../lib/hrRequests';
 import { filterHrRequestsList, HR_REQUEST_SORT_FIELDS, sortHrRequestsList } from '../../lib/hrRequestsList';
 import { useAppTablePaging } from '../../lib/appDataTable';
 import { AppTablePager } from '../ui/AppDataTable';
-import { HrStatusBadge } from './HrStatusBadge';
 import { HrRequestPayloadSummary, hrRequestApprovalChain } from './HrRequestPayloadSummary';
 import HrRequestStageBar from './HrRequestStageBar';
 import { HrListTableFrame, HrListSearchInput, HrListSortBar } from './HrListTableFrame';
@@ -150,10 +149,6 @@ export function HrRequestsPanel({
     await load();
   };
 
-  const reviewableRequests = requests.filter((r) => canReviewRow(r));
-  const allReviewableSelected =
-    reviewableRequests.length > 0 && reviewableRequests.every((r) => selectedIds.includes(r.id));
-
   const visibleRequests = useMemo(() => {
     let rows = requests;
     if (kindsInclude?.length) {
@@ -162,12 +157,7 @@ export function HrRequestsPanel({
     }
     const kind = kindFilter || filterKindLocal;
     if (kind) rows = rows.filter((r) => r.kind === kind);
-    const q = filterSearch.trim().toLowerCase();
-    if (!q) return rows;
-    return rows.filter((r) => {
-      const hay = [r.title, r.kind, r.status, r.staffDisplayName, r.userId, r.id].join(' ').toLowerCase();
-      return hay.includes(q);
-    });
+    return filterHrRequestsList(rows, filterSearch);
   }, [requests, kindFilter, filterKindLocal, filterSearch, kindsInclude]);
 
   const visibleSortedRequests = useMemo(
@@ -190,14 +180,6 @@ export function HrRequestsPanel({
     a.download = `hr-requests-${scope}-${new Date().toISOString().slice(0, 10)}.csv`;
     a.click();
     URL.revokeObjectURL(url);
-  };
-
-  const toggleSelectAll = () => {
-    if (allReviewableSelected) {
-      setSelectedIds([]);
-    } else {
-      setSelectedIds(reviewableRequests.map((r) => r.id));
-    }
   };
 
   const toggleSelect = (id) => {

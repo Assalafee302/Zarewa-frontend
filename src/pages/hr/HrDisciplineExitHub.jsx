@@ -16,6 +16,7 @@ import HrAccountabilityMemoQueue from '../../components/hr/HrAccountabilityMemoQ
 import HrDisciplinePlaybookPanel from '../../components/hr/HrDisciplinePlaybookPanel';
 import HrLetterApprovalBanner from '../../components/hr/HrLetterApprovalBanner';
 import { HrGrievanceForm, HrGrievanceQueue } from '../../components/hr/HrGrievancePanels';
+import { HrSubViewTabs } from '../../components/hr/HrSubViewTabs';
 
 const TABS = [
   { id: 'accountability', label: 'Cases & incidents' },
@@ -58,25 +59,6 @@ const LEGACY_VIEW_FROM_TAB = {
   'gate-pass': 'cases',
   history: 'cases',
 };
-
-function SubViewPills({ views, active, onChange }) {
-  return (
-    <div className="flex flex-wrap gap-2 border-b border-slate-100 pb-2">
-      {views.map((v) => (
-        <button
-          key={v.id}
-          type="button"
-          onClick={() => onChange(v.id)}
-          className={`rounded-lg px-3 py-1.5 text-xs font-bold uppercase tracking-wide ${
-            active === v.id ? 'bg-teal-800 text-white' : 'border border-slate-200 text-slate-600 hover:bg-slate-50'
-          }`}
-        >
-          {v.label}
-        </button>
-      ))}
-    </div>
-  );
-}
 
 export default function HrDisciplineExitHub() {
   const ws = useWorkspace();
@@ -166,7 +148,6 @@ export default function HrDisciplineExitHub() {
   return (
     <HrTabbedPage
       title="Staff cases & exit"
-      description="Formal discipline cases use a simple 4-step flow: Intake → Investigate → Sanction → Close."
       tabs={TABS}
       tab={resolvedTab}
       onTabChange={(next) => setTab(next)}
@@ -199,7 +180,7 @@ export default function HrDisciplineExitHub() {
               }}
             />
           ) : null}
-          <SubViewPills views={CASE_VIEWS} active={caseView} onChange={setCaseViewAndUrl} />
+          <HrSubViewTabs tabs={CASE_VIEWS} value={caseView} onChange={setCaseViewAndUrl} ariaLabel="Case views" />
           {caseView === 'cases' ? <HrDisciplineCasesPanel /> : null}
           {caseView === 'memos' ? (
             <TeamHrIncidents focusMemoId={memoId} onFocusHandled={() => clearSearchParam('memoId')} embedded />
@@ -240,13 +221,14 @@ export default function HrDisciplineExitHub() {
           <p className="text-sm text-slate-600">
             Staff movement and leaving: transfers, separations, then exit clearance.
           </p>
-          <SubViewPills
-            views={EXIT_VIEWS}
-            active={exitView}
+          <HrSubViewTabs
+            tabs={EXIT_VIEWS}
+            value={exitView}
             onChange={(viewId) => {
               setExitView(viewId);
               setTab('exit', { view: viewId });
             }}
+            ariaLabel="Exit views"
           />
           {exitView === 'transfers' ? <HrTransfers embedded /> : null}
           {exitView === 'separations' ? <HrSeparationsPanel onOpenClearance={openClearance} /> : null}

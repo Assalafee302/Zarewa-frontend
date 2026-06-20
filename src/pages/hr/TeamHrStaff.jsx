@@ -4,7 +4,7 @@ import { useHrListLoad } from '../../hooks/useHrListLoad';
 import { fetchHrTeamSummary } from '../../lib/hrMasterData';
 import { HR_EMPLOYEES } from '../../lib/hrRoutes';
 import { HR_FIELD_CLASS } from '../../components/hr/hrFormStyles';
-import { HrCard, HrPageBody, HrPageIntro } from '../../components/hr/hrPageUi';
+import { HrCard, HrPageBody } from '../../components/hr/hrPageUi';
 import { HrResponsiveTable } from '../../components/hr/HrResponsiveTable';
 import { ProfileFormField } from '../../components/profile/profileFormUi';
 import {
@@ -48,48 +48,40 @@ export default function TeamHrStaff() {
 
   return (
     <HrPageBody>
-      <HrPageIntro
-        title="Team roster"
-        description="Scoped team roster for supervisors and department heads — salary and bank details are never shown here."
-      >
-        {summary?.scopeMode ? (
-          <span className="inline-flex rounded-full bg-teal-50 px-2.5 py-1 text-[10px] font-bold uppercase text-[#134e4a]">
-            {summary.scopeMode} view
-          </span>
-        ) : null}
-      </HrPageIntro>
+      {summary?.scopeMode ? (
+        <span className="mb-4 inline-flex rounded-full bg-teal-50 px-2.5 py-1 text-[10px] font-bold uppercase text-[#134e4a]">
+          {summary.scopeMode} view
+        </span>
+      ) : null}
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
         <HrCard className="!p-3">
-          <p className="text-xs font-black uppercase text-slate-500">Team size</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Team size</p>
           <p className="text-xl font-black tabular-nums">{summary?.count ?? '—'}</p>
         </HrCard>
         <HrCard className="!p-3">
-          <p className="text-xs font-black uppercase text-slate-500">Pending leave</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Pending leave</p>
           <p className="text-xl font-black tabular-nums text-amber-900">{summary?.pendingLeave ?? 0}</p>
         </HrCard>
       </div>
 
       {error ? <ProfileInlineAlert variant="error">{error}</ProfileInlineAlert> : null}
 
-      <ProfileOverviewSection title="Search team" subtitle="Filter by name, job title, department, or employee number">
-        <ProfileFormField label="Search" htmlFor="team-staff-search">
+      <div className="mb-4">
+        <ProfileFormField label="Search team" htmlFor="team-staff-search">
           <input
             id="team-staff-search"
             className={HR_FIELD_CLASS}
-            placeholder="Search team…"
+            placeholder="Search by name, job title, department, or employee number…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
         </ProfileFormField>
-      </ProfileOverviewSection>
+      </div>
 
-      <ProfileOverviewSection title="Team members" subtitle={`${filtered.length} shown`}>
+      <ProfileOverviewSection title="Team members" flush>
         {!loading && !filtered.length ? (
-          <ProfileEmptyState
-            title="No team members"
-            description="Your scoped team roster will appear here when staff report to you or belong to your department."
-          />
+          <ProfileEmptyState title="No team members" />
         ) : (
           <>
             <div className="grid gap-3 md:hidden">

@@ -1,6 +1,5 @@
 import React, { useEffect } from 'react';
 import { Link, Navigate } from 'react-router-dom';
-import { lazyWithRetry } from '../../lib/lazyWithRetry';
 import { useHrUrlTab } from '../../hooks/useHrUrlTab';
 import { HR_EMPLOYEES } from '../../lib/hrRoutes';
 import { HrTabbedPage } from '../../components/hr/HrTabbedPage';
@@ -37,18 +36,6 @@ export default function HrEmployees() {
   return (
     <HrTabbedPage
       title="Employees"
-      description={
-        <>
-          <Link to="/hr" className="font-semibold text-[#134e4a] hover:underline">
-            Human Resources
-          </Link>
-          {' / '}
-          <span>Employees</span>
-          <span className="mt-1 block text-slate-500">
-            Find staff, register new hires, and open employee files. Executive family and household registers live under Staff registers.
-          </span>
-        </>
-      }
       tabs={TABS}
       tab={tab}
       onTabChange={setTab}

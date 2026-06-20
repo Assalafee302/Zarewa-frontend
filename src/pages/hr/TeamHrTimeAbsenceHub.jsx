@@ -4,7 +4,7 @@ import { useHrUrlTab } from '../../hooks/useHrUrlTab';
 import { HrAbsenceReportsPanel } from '../../components/hr/HrAbsenceReportsPanel';
 import { HrRequestsPanel } from '../../components/hr/HrRequestsPanel';
 import { HrTabbedPage } from '../../components/hr/HrTabbedPage';
-import { ProfileInlineAlert, ProfileOverviewSection } from '../../components/profile/profileOverviewUi';
+import { ProfileInlineAlert } from '../../components/profile/profileOverviewUi';
 import TeamHrLeaveCalendar from './TeamHrLeaveCalendar';
 
 const TABS = [
@@ -36,7 +36,6 @@ export default function TeamHrTimeAbsenceHub() {
   return (
     <HrTabbedPage
       title="Team time & absence"
-      description="Endorse leave and loans, plan coverage from the leave calendar, and review absence reports for your branch."
       tabs={TABS}
       tab={tab}
       onTabChange={setSubTab}
@@ -46,21 +45,19 @@ export default function TeamHrTimeAbsenceHub() {
     >
       {tab === 'overview' ? (
         <div className="space-y-6">
-          <ProfileOverviewSection title="Quick links" subtitle="Open the workspace you need">
-            <div className="grid gap-3 sm:grid-cols-3">
-              {overviewTiles.map((t) => (
-                <button
-                  key={t.tab}
-                  type="button"
-                  onClick={() => setSubTab(t.tab)}
-                  className="rounded-xl border border-teal-100 bg-teal-50/40 px-4 py-3 text-left transition hover:shadow-sm"
-                >
-                  <div className="text-sm font-bold text-slate-900">{t.label}</div>
-                  <div className="mt-1 text-xs text-slate-600">{t.hint}</div>
-                </button>
-              ))}
-            </div>
-          </ProfileOverviewSection>
+          <div className="grid gap-3 sm:grid-cols-3">
+            {overviewTiles.map((t) => (
+              <button
+                key={t.tab}
+                type="button"
+                onClick={() => setSubTab(t.tab)}
+                className="rounded-xl border border-teal-100 bg-teal-50/40 px-4 py-3 text-left transition hover:shadow-sm"
+              >
+                <div className="text-sm font-bold text-slate-900">{t.label}</div>
+                <div className="mt-1 text-xs text-slate-600">{t.hint}</div>
+              </button>
+            ))}
+          </div>
           <ProfileInlineAlert variant="info">
             Mark daily present, late, or absent from{' '}
             <Link to="/manager?inbox=attendance" className="font-bold text-[#134e4a] hover:underline">
@@ -72,12 +69,7 @@ export default function TeamHrTimeAbsenceHub() {
       ) : null}
 
       {tab === 'endorsements' ? (
-        <ProfileOverviewSection
-          title="Endorsement queue"
-          subtitle="Endorse leave and loan requests after HQ HR review — then GM HR gives final approval."
-        >
-          <HrRequestsPanel allowedScopes={['endorse_queue']} defaultScope="endorse_queue" staffLinkBase="/hr/employees" />
-        </ProfileOverviewSection>
+        <HrRequestsPanel allowedScopes={['endorse_queue']} defaultScope="endorse_queue" staffLinkBase="/hr/employees" />
       ) : null}
 
       {tab === 'calendar' ? <TeamHrLeaveCalendar embedded /> : null}
@@ -90,9 +82,7 @@ export default function TeamHrTimeAbsenceHub() {
             </Link>
             . This tab shows formal absence reports submitted for HR review.
           </ProfileInlineAlert>
-          <ProfileOverviewSection title="Absence reports" subtitle="Branch-scoped absence submissions">
-            <HrAbsenceReportsPanel branchScoped canReview={false} />
-          </ProfileOverviewSection>
+          <HrAbsenceReportsPanel branchScoped canReview={false} />
         </div>
       ) : null}
     </HrTabbedPage>

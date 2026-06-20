@@ -109,17 +109,13 @@ export default function TeamHrTransfers() {
 
   return (
     <HrPageBody>
-      <HrPageIntro
-        title="Transfer endorsements"
-        description="Recommend inter-branch moves or endorse transfers awaiting branch review. HQ HR and GM complete approval after your endorsement."
-        actions={<HrAddFormButton onClick={() => setModalOpen(true)}>Recommend transfer</HrAddFormButton>}
-      />
+      <HrPageIntro actions={<HrAddFormButton onClick={() => setModalOpen(true)}>Recommend transfer</HrAddFormButton>} />
 
       {message ? <ProfileInlineAlert variant="success">{message}</ProfileInlineAlert> : null}
       {error ? <ProfileInlineAlert variant="error">{error}</ProfileInlineAlert> : null}
       {formErr ? <ProfileInlineAlert variant="error">{formErr}</ProfileInlineAlert> : null}
 
-      <ProfileOverviewSection title="Branch review queue" subtitle="Endorse to send to HQ HR">
+      <ProfileOverviewSection title="Branch review queue" flush>
         <HrDualView
           mobile={
             <HrMobileCardList loading={loading && !transfers.length} loadingMessage="Loading transfers…" emptyMessage="No transfers awaiting branch review.">

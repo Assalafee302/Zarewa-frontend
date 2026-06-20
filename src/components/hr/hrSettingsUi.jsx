@@ -198,14 +198,9 @@ export function HrReferencesSummary() {
   );
 }
 
-export function HrSettingsTabIntro({ tabId }) {  const copy = HR_SETTINGS_TAB_COPY[tabId];
-  if (!copy) return null;
-  return (
-    <div className="rounded-2xl border border-teal-100/80 bg-gradient-to-br from-teal-50/40 to-white px-4 py-4 sm:px-5">
-      <h3 className="text-sm font-bold text-[#134e4a]">{copy.title}</h3>
-      <p className="mt-1 max-w-3xl text-sm leading-relaxed text-slate-600">{copy.description}</p>
-    </div>
-  );
+/** @deprecated Tab intros removed — settings tabs are self-explanatory. */
+export function HrSettingsTabIntro() {
+  return null;
 }
 
 export function HrSettingsScopePanel() {

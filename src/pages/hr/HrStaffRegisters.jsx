@@ -20,7 +20,6 @@ export default function HrStaffRegisters() {
   return (
     <HrTabbedPage
       title="Staff registers"
-      description="Executive family, household staff, and HQ administrative registers. These people are not branch payroll employees."
       tabs={TABS}
       tab={tab}
       onTabChange={setTab}

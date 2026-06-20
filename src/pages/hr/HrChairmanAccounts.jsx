@@ -255,13 +255,6 @@ export default function HrExecutiveBenefitsHub({ embedded = false } = {}) {
 
   return (
     <div className={embedded ? '' : 'mx-auto max-w-7xl px-4 py-6'}>
-      {!embedded ? (
-        <header className="mb-6">
-          <h1 className="text-2xl font-black text-[#134e4a]">Executive Benefits</h1>
-          <p className="mt-1 text-sm text-slate-600">{FAMILY_BENEFITS.adminExecutiveSubtitle}</p>
-        </header>
-      ) : null}
-
       {dashError ? (
         <p className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">{dashError}</p>
       ) : dashboard ? (

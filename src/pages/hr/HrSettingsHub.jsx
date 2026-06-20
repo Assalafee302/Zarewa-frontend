@@ -19,7 +19,6 @@ import {
   HrReferencesSummary,
   HrSettingsModuleLinks,
   HrSettingsScopePanel,
-  HrSettingsTabIntro,
 } from '../../components/hr/hrSettingsUi';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import {
@@ -135,7 +134,6 @@ export default function HrSettingsHub() {
   return (
     <HrTabbedPage
       title={HR_SETTINGS_PAGE.title}
-      description={canManage ? HR_SETTINGS_PAGE.description : HR_SETTINGS_PAGE.policyOnlyDescription}
       tabs={tabs.length > 1 ? tabs : undefined}
       tab={tab}
       onTabChange={setTab}
@@ -145,14 +143,12 @@ export default function HrSettingsHub() {
     >
       {tab === 'structure' && canViewOrg ? (
         <div className="space-y-6">
-          <HrSettingsTabIntro tabId="structure" />
           <HrExecutiveStructureHub defaultSection="roles" embedded />
         </div>
       ) : null}
 
       {tab === 'organization' && canViewOrg ? (
         <div className="space-y-6">
-          <HrSettingsTabIntro tabId="organization" />
           <HrOrgStructureSummary refreshKey={orgRefreshKey} />
           <HrDepartmentsPanel refreshKey={orgRefreshKey} />
           <HrDesignationsPanel refreshKey={orgRefreshKey} />
@@ -177,7 +173,6 @@ export default function HrSettingsHub() {
 
       {tab === 'policies' && canEditPolicy ? (
         <div className="space-y-6">
-          <HrSettingsTabIntro tabId="policies" />
           <HrLeavePolicySection />
           <HrStaffPurchaseCreditPolicySection />
           {canManage ? <HrSettingsScopePanel /> : null}
@@ -187,7 +182,6 @@ export default function HrSettingsHub() {
 
       {tab === 'documents' && canManage ? (
         <div className="space-y-6">
-          <HrSettingsTabIntro tabId="documents" />
           <HrReferencesSummary />
           <HrLetterReferencePanel />
           <HrStaffNumberingPanel />

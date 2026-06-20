@@ -23,7 +23,6 @@ import {
 } from '../../lib/hrAccess';
 import { mdApprovePayrollRun } from '../../lib/hrExtended';
 import { formatNgn } from '../../lib/hrFormat';
-import { getHrPayrollIntro } from '../../lib/hrDashboardUi';
 import {
   downloadHrPayrollExport,
   formatPayrollPeriodLabel,
@@ -663,10 +662,6 @@ export default function HrPayroll({ embedded = false } = {}) {
 
   return (
     <div className="space-y-6">
-      {!embedded ? (
-        <p className="text-sm text-slate-600">{getHrPayrollIntro(canPrepare, canGm)}</p>
-      ) : null}
-
       {!embedded && canPrepare ? (
         <div className="flex flex-wrap gap-1 border-b border-slate-200 pb-px">
           <button

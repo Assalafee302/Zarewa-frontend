@@ -128,11 +128,7 @@ export default function TeamHrIncidents({ focusMemoId, onFocusHandled, embedded 
   const body = (
     <>
       {!embedded ? (
-        <HrPageIntro
-          title="Incident memos"
-          description="Raise factual incident memos for your branch. HR reviews and escalates into formal accountability cases — you do not need to visit the main HR workspace."
-          actions={<HrAddFormButton onClick={() => setModalOpen(true)}>New incident memo</HrAddFormButton>}
-        />
+        <HrPageIntro actions={<HrAddFormButton onClick={() => setModalOpen(true)}>New incident memo</HrAddFormButton>} />
       ) : (
         <div className="flex justify-end">
           <HrAddFormButton onClick={() => setModalOpen(true)}>New incident memo</HrAddFormButton>
@@ -155,8 +151,7 @@ export default function TeamHrIncidents({ focusMemoId, onFocusHandled, embedded 
         </ProfileInlineAlert>
       ) : null}
 
-      <ProfileOverviewSection title="Filters" subtitle="Search and export incident memos">
-      <div className="flex flex-wrap gap-2">
+      <div className="mb-4 flex flex-wrap gap-2">
         <ProfileFormField label="Search" htmlFor="incident-search" className="min-w-[200px] flex-1">
           <input
             id="incident-search"
@@ -181,7 +176,6 @@ export default function TeamHrIncidents({ focusMemoId, onFocusHandled, embedded 
           </button>
         </div>
       </div>
-      </ProfileOverviewSection>
 
       <HrFormModal isOpen={modalOpen} onClose={() => setModalOpen(false)} title="Record incident memo" size="md">
         <form onSubmit={submit} className="space-y-3">
@@ -217,7 +211,7 @@ export default function TeamHrIncidents({ focusMemoId, onFocusHandled, embedded 
         onEscalated={onEscalated}
       />
 
-      <ProfileOverviewSection title="Incident memos" subtitle={`${filtered.length} shown`}>
+      <ProfileOverviewSection title="Incident memos" flush>
       {loading && !filtered.length ? <ProfileMetricSkeleton count={1} /> : null}
       {!loading && !filtered.length ? (
         <ProfileEmptyState title="No incident memos" description="No incident memos match your filters." />

@@ -82,6 +82,14 @@ export function payrollPeriodsInUse(runs = []) {
   );
 }
 
+/** Year options for period pickers (default: prior, current, next). */
+export function payrollYearOptions(offsetBack = 1, offsetForward = 1) {
+  const y = new Date().getFullYear();
+  const out = [];
+  for (let i = -offsetBack; i <= offsetForward; i += 1) out.push(y + i);
+  return out;
+}
+
 /** Download payroll CSV export (locked or paid runs). */
 export async function downloadHrPayrollExport(runId, kind = 'treasury') {
   const segment = EXPORT_KINDS[kind] || kind;

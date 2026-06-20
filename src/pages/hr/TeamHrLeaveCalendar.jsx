@@ -1,8 +1,8 @@
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import { useHrListLoad } from '../../hooks/useHrListLoad';
 import { fetchHrLeaveCalendar } from '../../lib/hrExtended';
 import { HR_FIELD_CLASS } from '../../components/hr/hrFormStyles';
-import { HrPageBody, HrPageIntro } from '../../components/hr/hrPageUi';
+import { HrPageBody } from '../../components/hr/hrPageUi';
 import { ProfileFormField } from '../../components/profile/profileFormUi';
 import {
   ProfileEmptyState,
@@ -44,46 +44,32 @@ export default function TeamHrLeaveCalendar({ embedded = false }) {
     return { hasData: true };
   }, [from, to]);
 
-  const byStaff = useMemo(() => {
-    const map = {};
-    for (const e of entries) {
-      map[e.userId] = map[e.userId] || { name: e.displayName, items: [] };
-      map[e.userId].items.push(e);
-    }
-    return Object.values(map);
-  }, [entries]);
-
   const body = (
     <>
       {error ? <ProfileInlineAlert variant="error">{error}</ProfileInlineAlert> : null}
 
-      <ProfileOverviewSection title="Date range" subtitle="Filter approved leave entries">
-        <div className="flex flex-wrap gap-4">
-          <ProfileFormField label="From" htmlFor="leave-from">
-            <input
-              id="leave-from"
-              type="date"
-              className={HR_FIELD_CLASS}
-              value={from}
-              onChange={(e) => setRange((r) => ({ ...r, from: e.target.value }))}
-            />
-          </ProfileFormField>
-          <ProfileFormField label="To" htmlFor="leave-to">
-            <input
-              id="leave-to"
-              type="date"
-              className={HR_FIELD_CLASS}
-              value={to}
-              onChange={(e) => setRange((r) => ({ ...r, to: e.target.value }))}
-            />
-          </ProfileFormField>
-        </div>
-      </ProfileOverviewSection>
+      <div className="mb-4 flex flex-wrap gap-4">
+        <ProfileFormField label="From" htmlFor="leave-from">
+          <input
+            id="leave-from"
+            type="date"
+            className={HR_FIELD_CLASS}
+            value={from}
+            onChange={(e) => setRange((r) => ({ ...r, from: e.target.value }))}
+          />
+        </ProfileFormField>
+        <ProfileFormField label="To" htmlFor="leave-to">
+          <input
+            id="leave-to"
+            type="date"
+            className={HR_FIELD_CLASS}
+            value={to}
+            onChange={(e) => setRange((r) => ({ ...r, to: e.target.value }))}
+          />
+        </ProfileFormField>
+      </div>
 
-      <ProfileOverviewSection
-        title="Approved leave"
-        subtitle={byStaff.length > 0 ? `${byStaff.length} staff with leave in range` : 'No leave in selected range'}
-      >
+      <ProfileOverviewSection title="Approved leave" flush>
         {loading && !entries.length ? <ProfileMetricSkeleton count={1} /> : null}
         {!loading && !entries.length ? (
           <ProfileEmptyState title="No approved leave" description="No approved leave falls within the selected date range." />
@@ -118,12 +104,6 @@ export default function TeamHrLeaveCalendar({ embedded = false }) {
   if (embedded) return <div className="space-y-6">{body}</div>;
 
   return (
-    <HrPageBody>
-      <HrPageIntro
-        title="Leave calendar"
-        description="Approved leave for your branch — plan team coverage."
-      />
-      {body}
-    </HrPageBody>
+    <HrPageBody>{body}</HrPageBody>
   );
 }

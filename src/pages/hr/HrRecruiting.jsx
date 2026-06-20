@@ -218,8 +218,6 @@ export default function HrRecruiting({ embedded = false } = {}) {
     <>
       {!embedded ? (
         <HrPageIntro
-          title="Recruiting"
-          description="Manage job postings, track applicants through the pipeline, run interview scorecards, and generate offer letters."
           actions={
             <>
               <a

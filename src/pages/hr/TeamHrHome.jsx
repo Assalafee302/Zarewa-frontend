@@ -6,7 +6,7 @@ import { teamHrTimeAbsencePath } from '../../lib/teamHrRoutes';
 import { HrKpiCard } from '../../components/hr/HrKpiCard';
 import { HrHubToolbar } from '../../components/hr/HrHubToolbar';
 import HrMobileAlertStrip from '../../components/hr/HrMobileAlertStrip';
-import { HrPageBody, HrPageIntro } from '../../components/hr/hrPageUi';
+import { HrPageBody, HrPageToolbar } from '../../components/hr/hrPageUi';
 import {
   ProfileInlineAlert,
   ProfileMetricSkeleton,
@@ -58,17 +58,13 @@ export default function TeamHrHome() {
 
   return (
     <HrPageBody>
-      <div className="flex flex-col gap-4 border-b border-slate-100 pb-5 sm:flex-row sm:items-start sm:justify-between">
-        <HrPageIntro
-          title="Team dashboard"
-          description="Branch-scoped overview — endorsements and coverage only. Salary and bank data are not shown here."
-        />
+      <HrPageToolbar>
         <HrHubToolbar
           hub="team-hr-dashboard"
           prompt="Summarize my branch team HR queues and what needs endorsement today."
           pageContext={{ branchStaff: s.count }}
         />
-      </div>
+      </HrPageToolbar>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
         <HrKpiCard label="Branch staff" value={s.count ?? 0} hint="Active team members" tone="teal" to="/team-hr/staff" />
@@ -119,7 +115,7 @@ export default function TeamHrHome() {
 
       <HrMobileAlertStrip items={mobileItems} />
 
-      <ProfileOverviewSection title="Quick actions" subtitle="Common manager tasks for your branch">
+      <ProfileOverviewSection title="Quick actions">
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
           <ProfileQuickAction to="/team-hr/staff" icon="👥">
             Team roster
