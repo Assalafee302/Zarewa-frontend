@@ -374,7 +374,7 @@ export default function HrStaffProfile() {
     return list.map((b) => ({ id: b.id, name: b.name || b.id }));
   }, [ws?.snapshot?.workspaceBranches, ws?.session?.branches]);
 
-  const { tab, setTab } = useHrUrlTab('overview', PROFILE_TABS.map((t) => t.id));
+  const { tab, setTab } = useHrUrlTab('overview', PROFILE_GROUPS.flatMap((g) => g.tabs));
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [saveError, setSaveError] = useState('');
