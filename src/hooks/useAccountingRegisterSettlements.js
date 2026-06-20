@@ -86,6 +86,21 @@ export function useRegisterSettlementMutations() {
     return { ok: true, settlement: data.settlement };
   }, []);
 
+  const withdrawSettlement = useCallback(async (settlementId) => {
+    setBusy(true);
+    setError('');
+    const { ok, data } = await apiFetch(
+      `/api/accounting/settlements/${encodeURIComponent(settlementId)}/withdraw`,
+      { method: 'POST', body: JSON.stringify({}) }
+    );
+    setBusy(false);
+    if (!ok || !data?.ok) {
+      setError(data?.error || 'Could not withdraw request.');
+      return { ok: false };
+    }
+    return { ok: true, settlement: data.settlement };
+  }, []);
+
   const paySettlement = useCallback(async (settlementId, body) => {
     setBusy(true);
     setError('');
@@ -101,5 +116,5 @@ export function useRegisterSettlementMutations() {
     return { ok: true, settlement: data.settlement };
   }, []);
 
-  return { busy, error, fetchAvailable, createSettlement, decideSettlement, paySettlement };
+  return { busy, error, fetchAvailable, createSettlement, decideSettlement, withdrawSettlement, paySettlement };
 }

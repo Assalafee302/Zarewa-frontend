@@ -26,16 +26,26 @@ export function AccountingRegisterSettlementRequestModal({ item, open, onClose, 
   const [payeeName, setPayeeName] = useState(item?.partyName || '');
   const [payeeBankDetails, setPayeeBankDetails] = useState('');
   const [validationError, setValidationError] = useState('');
+  const [capacityError, setCapacityError] = useState('');
 
   useEffect(() => {
     if (!open || !item?.id) return;
     setValidationError('');
+    setCapacityError('');
     setPayeeName(item.partyName || '');
     setReason(item.description || item.detail || '');
     void fetchAvailable(item.id).then((r) => {
-      const avail = r.availableNgn ?? item.amountNgn ?? 0;
+      if (!r.ok) {
+        setAvailableNgn(0);
+        setReservedNgn(0);
+        setBlockingItems([]);
+        setAmountNgn('');
+        setCapacityError(r.error || 'Could not load settlement capacity for this line.');
+        return;
+      }
+      const avail = r.availableNgn ?? 0;
       setAvailableNgn(avail);
-      setReservedNgn(r.reservedNgn ?? Math.max(0, (item.amountNgn ?? 0) - avail));
+      setReservedNgn(r.reservedNgn ?? Math.max(0, (r.openNgn ?? item.amountNgn ?? 0) - avail));
       setBlockingItems(r.blockingItems || []);
       setAmountNgn(avail > 0 ? String(avail) : '');
     });
@@ -104,17 +114,21 @@ export function AccountingRegisterSettlementRequestModal({ item, open, onClose, 
                       ))}
                     </ul>
                     <p className="text-[10px] text-amber-900/90 mt-2">
-                      Close this form — the same requests appear under <span className="font-bold">Withdrawal requests</span> on
-                      the register line, and at the top of the Debtors tab for approve/pay actions.
+                      Close this form, open the register line detail, and use <span className="font-bold">Withdraw</span>{' '}
+                      on your own pending request, or ask MD/finance to approve/reject. Approved requests must be paid or
+                      rejected from the Debtors tab.
                     </p>
                   </div>
                 ) : (
                   <p className="text-[10px] font-medium text-amber-900">
-                    No active requests were returned for this line. Refresh the register line detail or contact support if
-                    available balance still shows zero.
+                    Reserved balance is {formatNgn(reservedNgn)} but no active requests were returned. Refresh the page
+                    after backend deploy, or ask support to check settlement records for this line.
                   </p>
                 )}
               </div>
+            ) : null}
+            {capacityError ? (
+              <p className="text-[10px] font-medium text-rose-700">{capacityError}</p>
             ) : null}
             <ProcurementFormSection letter="1" title="Withdrawal" compact>
               <label className="block text-[10px] font-bold uppercase tracking-wide text-slate-500">

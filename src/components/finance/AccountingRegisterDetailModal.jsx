@@ -103,12 +103,13 @@ export function AccountingRegisterDetailModal({
     registerLineId: legacyLine ? item?.id : undefined,
     enabled: legacyLine && Boolean(item?.id),
   });
-  const { busy: settleBusy } = useRegisterSettlementMutations();
+  const { busy: settleBusy, withdrawSettlement } = useRegisterSettlementMutations();
   const canApprove =
     ws?.hasPermission?.('finance.approve') ||
     ws?.hasPermission?.('refunds.approve') ||
     ws?.hasPermission?.('*');
   const canPay = ws?.hasPermission?.('finance.pay');
+  const currentUserId = String(ws?.session?.user?.id || '').trim();
 
   if (!item) return null;
 
@@ -124,6 +125,16 @@ export function AccountingRegisterDetailModal({
   }).filter(Boolean);
 
   const sideLabel = registerSide === 'creditor' ? 'Receivable' : 'Payable / credit';
+  const activeSettlements = settlements.filter((s) => s.status === 'Pending' || s.status === 'Approved');
+  const historySettlements = settlements.filter((s) => s.status !== 'Pending' && s.status !== 'Approved');
+
+  const handleWithdraw = async (settlement) => {
+    const result = await withdrawSettlement(settlement.settlementId);
+    if (result.ok) {
+      void reloadSettlements();
+      onSettlementChanged?.();
+    }
+  };
 
   return (
     <ModalFrame isOpen onClose={onClose} title="Register line detail" surface="plain">
@@ -228,10 +239,14 @@ export function AccountingRegisterDetailModal({
             <ProcurementFormSection letter="S" title="Withdrawal requests" compact>
               {settlementsLoading ? (
                 <p className="text-[10px] text-slate-500">Loading withdrawal requests…</p>
-              ) : settlements.length ? (
+              ) : activeSettlements.length ? (
               <ul className="space-y-1.5">
-                {settlements.map((s) => {
+                {activeSettlements.map((s) => {
                   const out = Math.max(0, (s.approvedAmountNgn || s.amountNgn) - (s.paidAmountNgn || 0));
+                  const isOwnPending =
+                    s.status === 'Pending' &&
+                    currentUserId &&
+                    String(s.requestedByUserId || '') === currentUserId;
                   return (
                     <li
                       key={s.settlementId}
@@ -244,6 +259,7 @@ export function AccountingRegisterDetailModal({
                       <p className="mt-0.5 text-slate-600">
                         {formatNgn(s.amountNgn)}
                         {s.status === 'Approved' ? ` · pay ${formatNgn(out)}` : ''}
+                        {s.status === 'Pending' ? ' · holds balance until approved, rejected, or withdrawn' : ''}
                       </p>
                       <div className="mt-1.5 flex flex-wrap gap-1">
                         {s.status === 'Pending' && canApprove ? (
@@ -272,6 +288,21 @@ export function AccountingRegisterDetailModal({
                             </button>
                           </>
                         ) : null}
+                        {isOwnPending || (s.status === 'Pending' && canManage) ? (
+                          <button
+                            type="button"
+                            disabled={settleBusy}
+                            onClick={() => void handleWithdraw(s)}
+                            className="rounded border border-slate-300 bg-slate-50 px-2 py-0.5 text-[8px] font-bold uppercase text-slate-800"
+                          >
+                            Withdraw
+                          </button>
+                        ) : null}
+                        {s.status === 'Pending' && !canApprove && !isOwnPending ? (
+                          <span className="text-[9px] font-medium text-amber-800 self-center">
+                            Awaiting MD/finance approval
+                          </span>
+                        ) : null}
                         {s.status === 'Approved' && canPay && out > 0 ? (
                           <button
                             type="button"
@@ -287,8 +318,13 @@ export function AccountingRegisterDetailModal({
                 })}
               </ul>
               ) : (
-                <p className="text-[10px] text-slate-500">No withdrawal requests on this line yet.</p>
+                <p className="text-[10px] text-slate-500">No active withdrawal requests on this line.</p>
               )}
+              {historySettlements.length ? (
+                <p className="mt-2 text-[9px] text-slate-500">
+                  {historySettlements.length} earlier request(s) — paid, rejected, or withdrawn.
+                </p>
+              ) : null}
             </ProcurementFormSection>
           ) : null}
 
