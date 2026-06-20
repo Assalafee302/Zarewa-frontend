@@ -100,6 +100,8 @@ export default function GmailStyleWorkspace({
   const canMonitor = Boolean(
     roleKey === 'admin' || roleKey === 'ceo' || roleKey === 'md' || roleKey === 'sales_manager'
   );
+  const mayApproveStaffCredit = canApproveStaffPurchaseCredit(roleKey, permissionsFromCtx ?? []);
+  const staffCreditCrossBranch = ws?.staffPurchaseCreditCrossBranch;
 
   const branchNames = useMemo(() => {
     const branches = ws?.snapshot?.workspaceBranches ?? ws?.session?.branches ?? [];
@@ -234,6 +236,7 @@ export default function GmailStyleWorkspace({
     setRefreshing(true);
     try {
       await ws.refresh?.();
+      await ws.refreshStaffPurchaseCreditPending?.();
       if (listMode === 'memos') await loadThreads();
     } finally {
       setRefreshing(false);
@@ -670,6 +673,23 @@ export default function GmailStyleWorkspace({
                 lastUpdatedLabel={lastUpdatedLabel}
                 degraded={Boolean(ws?.usingCachedData)}
               />
+              {mayApproveStaffCredit && Number(staffCreditCrossBranch?.otherBranchCount) > 0 ? (
+                <div className="border-b border-amber-200 bg-amber-50 px-3 py-2.5 text-xs text-amber-950">
+                  <strong>{staffCreditCrossBranch.otherBranchCount}</strong> staff purchase credit request
+                  {staffCreditCrossBranch.otherBranchCount === 1 ? '' : 's'} pending in other branches.{' '}
+                  <Link to="/manager?inbox=attention&attentionFilter=staff_credit" className="font-bold underline">
+                    Open Manager → Staff credit
+                  </Link>
+                  {!ws?.viewAllBranches ? (
+                    <>
+                      {' '}
+                      or switch workspace to <strong>All branches</strong>.
+                    </>
+                  ) : (
+                    '.'
+                  )}
+                </div>
+              ) : null}
             </>
           ) : null}
 

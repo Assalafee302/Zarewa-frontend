@@ -1,8 +1,10 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { HardHat } from 'lucide-react';
 import { formatNgn } from '../../lib/hrFormat';
 import { isStaffLinkedCustomer, customerPickerPrimaryLabel } from '../../lib/customerPickerSearch';
 import { fetchQuotationStaffPurchaseStatus } from '../../lib/hrStaffPurchaseCredit';
+import { salesQuotationDeepLink } from '../../lib/staffPurchaseCreditLinks';
 import { StaffPurchaseCreditRequestModal } from './StaffPurchaseCreditRequestModal';
 
 const STATUS_LABELS = {
@@ -12,6 +14,22 @@ const STATUS_LABELS = {
   paid_off: 'Paid off',
   cancelled: 'Cancelled',
 };
+
+const TIMELINE_LABELS = {
+  'hr.purchase_credit.requested': 'Credit requested',
+  'hr.purchase_credit.approved': 'Approved by MD',
+  'hr.purchase_credit.rejected': 'Rejected',
+};
+
+function formatTimelineAt(iso) {
+  const s = String(iso || '').trim();
+  if (!s) return '';
+  try {
+    return new Date(s).toLocaleString();
+  } catch {
+    return s;
+  }
+}
 
 /**
  * Quotation panel for staff purchase credit (staff-linked customer).
@@ -81,6 +99,8 @@ export function StaffPurchaseCreditQuotationPanel({
   const balance = status?.balanceNgn ?? 0;
   const canRequest = !readOnly && balance > 0 && !account && isStaffCustomer;
   const hrLinkMissing = clientStaff && status && !status.isStaffCustomer;
+  const quoteLink = salesQuotationDeepLink(quotationRef);
+  const timeline = Array.isArray(status?.timeline) ? status.timeline : [];
 
   return (
     <>
@@ -114,6 +134,11 @@ export function StaffPurchaseCreditQuotationPanel({
                 {account.installmentNgn ? ` · ${formatNgn(account.installmentNgn)}/mo payroll` : null}
               </p>
             ) : null}
+            {status?.rejectionNote ? (
+              <p className="text-[10px] font-semibold text-rose-800 bg-rose-50 border border-rose-100 rounded-lg px-2 py-1.5">
+                Rejection reason: {status.rejectionNote}
+              </p>
+            ) : null}
             {status?.activeCredit?.coversBalance ? (
               <p className="text-[10px] font-semibold text-emerald-800 bg-emerald-50 border border-emerald-100 rounded-lg px-2 py-1.5">
                 Delivery may proceed — active staff credit covers quotation balance.
@@ -134,6 +159,22 @@ export function StaffPurchaseCreditQuotationPanel({
             ) : null}
           </p>
         )}
+        {timeline.length ? (
+          <div className="mt-3 rounded-lg border border-slate-200 bg-white/80 px-3 py-2">
+            <p className="text-[9px] font-bold uppercase tracking-wide text-slate-500 mb-1.5">Status timeline</p>
+            <ul className="space-y-1.5">
+              {timeline.map((ev, idx) => (
+                <li key={`${ev.atIso}-${ev.action}-${idx}`} className="text-[10px] text-slate-700">
+                  <span className="font-semibold text-slate-900">
+                    {TIMELINE_LABELS[ev.action] || ev.action}
+                  </span>
+                  {ev.actorDisplayName ? ` · ${ev.actorDisplayName}` : ''}
+                  <span className="block text-slate-500">{formatTimelineAt(ev.atIso)}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
         {canRequest ? (
           <button
             type="button"
@@ -142,6 +183,15 @@ export function StaffPurchaseCreditQuotationPanel({
           >
             Request staff purchase credit
           </button>
+        ) : null}
+        {quoteLink && readOnly ? (
+          <Link
+            to={quoteLink.to}
+            state={quoteLink.state}
+            className="mt-2 inline-block text-[10px] font-bold text-[#134e4a] underline"
+          >
+            Open quotation in Sales
+          </Link>
         ) : null}
       </div>
       <StaffPurchaseCreditRequestModal

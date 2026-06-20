@@ -21,7 +21,7 @@ function OrgNode({ node, depth = 0, linkPrefix = '/hr/employees', collapseAll = 
             onClick={() => setOpen((o) => !o)}
             aria-label={open ? 'Collapse' : 'Expand'}
           >
-            {open && !forceCollapsed ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+            {showChildren ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
           </button>
         ) : (
           <span className="w-5" aria-hidden />
@@ -38,17 +38,10 @@ function OrgNode({ node, depth = 0, linkPrefix = '/hr/employees', collapseAll = 
           {node.department ? <span className="text-[10px] text-slate-400 truncate">{node.department}</span> : null}
         </div>
       </div>
-      {hasChildren && open && !forceCollapsed ? (
+      {showChildren ? (
         <ul className="mt-3 ml-6 space-y-3 border-l-2 border-slate-200 pl-4">
           {node.children.map((child) => (
-            <OrgNode
-              key={child.userId}
-              node={child}
-              depth={depth + 1}
-              linkPrefix={linkPrefix}
-              defaultCollapsed={defaultCollapsed}
-              forceCollapsed={forceCollapsed}
-            />
+            <OrgNode key={child.userId} node={child} depth={depth + 1} linkPrefix={linkPrefix} collapseAll={collapseAll} />
           ))}
         </ul>
       ) : null}
@@ -72,7 +65,7 @@ export function HrOrgChartTree({ chart, linkPrefix = '/hr/employees', collapseAl
       {roots.length > 0 ? (
         <ul className="space-y-6">
           {roots.map((root) => (
-            <OrgNode key={root.userId} node={root} linkPrefix={linkPrefix} forceCollapsed={collapseAll} />
+            <OrgNode key={root.userId} node={root} linkPrefix={linkPrefix} collapseAll={collapseAll} />
           ))}
         </ul>
       ) : null}

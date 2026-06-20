@@ -34,6 +34,7 @@ import {
   getHrDashboardQueueLines,
 } from '../../lib/hrDashboardUi';
 import { HR_TIME_ABSENCE, HR_DEVELOPMENT, HR_DISCIPLINE_EXIT, HR_DOCUMENTS, HR_EMPLOYEES, HR_PAYROLL, hrTabPath } from '../../lib/hrRoutes';
+import { employeesDirectoryLink, DIRECTORY_QUICK_FROM_ALERT } from '../../lib/hrStaffDirectoryUi';
 import { HrKpiCard } from '../../components/hr/HrKpiCard';
 import { HrOperationalReadinessPanel } from '../../components/hr/HrOperationalReadinessPanel';
 import { HrProductionReadinessPanel } from '../../components/hr/HrProductionReadinessPanel';
@@ -84,6 +85,7 @@ const ALERT_CONFIGS = [
     title: 'Probation ending soon',
     borderCls: 'border-amber-400',
     badgeCls: 'bg-amber-100 text-amber-900',
+    listLink: employeesDirectoryLink(DIRECTORY_QUICK_FROM_ALERT.probationEnding),
     countLabel: (n) => `${n} staff member${n !== 1 ? 's' : ''} with probation ending within 30 days`,
     renderItem: (item, i) => (
       <li key={i} className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 py-1 text-xs text-slate-700 last:border-0">
@@ -109,11 +111,19 @@ const ALERT_CONFIGS = [
     title: 'Contracts expiring',
     borderCls: 'border-orange-400',
     badgeCls: 'bg-orange-100 text-orange-900',
+    listLink: employeesDirectoryLink(DIRECTORY_QUICK_FROM_ALERT.contractsExpiring),
     countLabel: (n) => `${n} contract${n !== 1 ? 's' : ''} expiring within 60 days`,
     renderItem: (item, i) => (
       <li key={i} className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 py-1 text-xs text-slate-700 last:border-0">
         <strong>{item.displayName}</strong>
-        <span className="font-mono text-orange-700">{item.contractEndIso}</span>
+        <span className="flex items-center gap-2">
+          <span className="font-mono text-orange-700">{item.contractEndIso}</span>
+          {item.userId ? (
+            <Link to={`${HR_EMPLOYEES}/${encodeURIComponent(item.userId)}`} className="font-bold text-[#134e4a] hover:underline">
+              Open →
+            </Link>
+          ) : null}
+        </span>
       </li>
     ),
   },
@@ -188,6 +198,7 @@ const ALERT_CONFIGS = [
     title: 'Temporary / contract staff',
     borderCls: 'border-teal-500',
     badgeCls: 'bg-teal-50 text-teal-900',
+    listLink: employeesDirectoryLink(DIRECTORY_QUICK_FROM_ALERT.temporaryEmployees),
     countLabel: (n) => `${n} temporary staff alert${n !== 1 ? 's' : ''}`,
     renderItem: (item, i) => (
       <li key={i} className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 py-1 text-xs text-slate-700 last:border-0">
@@ -273,6 +284,7 @@ const ACTION_ALERT_CONFIGS = [
     borderCls: 'border-slate-400',
     badgeCls: 'bg-slate-100 text-slate-900',
     linkTo: hrTabPath(HR_DOCUMENTS, 'policies'),
+    listLink: employeesDirectoryLink(DIRECTORY_QUICK_FROM_ALERT.missingPolicyAck),
     countLabel: (n) => `${n} staff missing handbook or confidentiality acknowledgement`,
     renderItem: (item, i) => (
       <li key={i} className="border-b border-slate-100 py-1 text-xs text-slate-700 last:border-0">
@@ -438,6 +450,11 @@ function AlertCard({ cfg, items }) {
         <div className="border-t border-slate-100 px-4 py-3">
           <p className="mb-2 text-[11px] text-slate-500">{cfg.countLabel(count)}</p>
           <ul className="space-y-0.5">{items.map((item, i) => cfg.renderItem(item, i))}</ul>
+          {cfg.listLink ? (
+            <Link to={cfg.listLink} className="mt-3 inline-block text-xs font-bold text-[#134e4a] hover:underline">
+              View all in directory →
+            </Link>
+          ) : null}
         </div>
       ) : null}
     </div>
