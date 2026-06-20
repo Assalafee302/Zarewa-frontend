@@ -17,8 +17,8 @@ const STEPS = [
   },
   {
     icon: LayoutDashboard,
-    title: 'Post approved payouts here',
-    body: 'Expense requests, refunds, register withdrawals, and PO haulage all pay from this Desk tab.',
+    title: 'Post approved payouts',
+    body: 'Refunds, expenses, register withdrawals, haulage, and staff loan/recovery payments — all from this tab.',
   },
   {
     icon: ArrowRightLeft,

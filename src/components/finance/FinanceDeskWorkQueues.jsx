@@ -67,9 +67,7 @@ import { FinanceMobileAlertStrip } from "./FinanceMobileAlertStrip";
 
 import { CashierDeskReports } from "./CashierDeskReports";
 
-import { StaffRecoveryCashierPanel } from "./StaffRecoveryCashierPanel";
-
-import { StaffObligationRepaymentCashierPanel } from "./StaffObligationRepaymentCashierPanel";
+import { StaffPaymentsCashierPanel } from "./StaffPaymentsCashierPanel";
 
 import { FinanceDeskLiquidityHeader } from "./FinanceDeskLiquidityHeader";
 
@@ -442,8 +440,7 @@ export function FinanceDeskWorkQueues({
         approvedRefunds={approvedRefunds.length}
         registerWithdrawals={approvedRegisterSettlements.length}
         poHaulage={poTransportAwaiting.length}
-        staffRecoveries={staffRecoveriesDue.length}
-        staffObligations={staffObligationsDue.length}
+        staffRecoveries={staffRecoveriesDue.length + staffObligationsDue.length}
         bookTotalNgn={liquidity.bookTotalNgn}
       />
 
@@ -677,22 +674,13 @@ export function FinanceDeskWorkQueues({
             </FinanceDeskColoredQueuePanel>
           ) : null}
 
-          {staffRecoveriesDue.length > 0 ? (
-            <div id="desk-queue-staff-recovery" className="scroll-mt-20">
-              <StaffRecoveryCashierPanel
-                recoveries={staffRecoveriesDue}
-                onReceive={onReceiveStaffRecovery}
-              />
-            </div>
-          ) : null}
-
-          {staffObligationsDue.length > 0 ? (
-            <div id="desk-queue-staff-obligations" className="scroll-mt-20">
-              <StaffObligationRepaymentCashierPanel
-                obligations={staffObligationsDue}
-                onReceive={onReceiveStaffObligation}
-              />
-            </div>
+          {(staffRecoveriesDue.length > 0 || staffObligationsDue.length > 0) ? (
+            <StaffPaymentsCashierPanel
+              recoveries={staffRecoveriesDue}
+              obligations={staffObligationsDue}
+              onReceiveRecovery={onReceiveStaffRecovery}
+              onReceiveObligation={onReceiveStaffObligation}
+            />
           ) : null}
 
           <FinanceTreasuryAwaitingPayoutQueues
@@ -761,15 +749,13 @@ export function FinanceDeskWorkQueues({
             )}
           />
 
-          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <h2 className="flex items-center gap-2 text-sm font-black text-slate-800 mb-2">
-              <ArrowRightLeft size={16} />
+          <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+            <h2 className="flex items-center gap-2 text-xs font-black uppercase tracking-wide text-slate-800 mb-1">
+              <ArrowRightLeft size={14} />
               Treasury movements
             </h2>
-
-            <p className="text-sm font-medium text-slate-600 mb-3">
-              Lodgements and internal transfers are recorded on the Movements
-              tab.
+            <p className="text-[10px] text-slate-600 mb-2 leading-relaxed">
+              Lodgements and internal transfers — use the Movements tab.
             </p>
 
             <FinanceActionButton

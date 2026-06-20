@@ -16,8 +16,7 @@ export function FinanceMobileAlertStrip({
   approvedRefunds = 0,
   registerWithdrawals = 0,
   poHaulage = 0,
-  staffRecoveries = 0,
-  staffObligations = 0,
+  staffPayments = 0,
   bookTotalNgn = null,
 }) {
   const items = [];
@@ -61,20 +60,12 @@ export function FinanceMobileAlertStrip({
       scrollTo: 'desk-queue-haulage',
     });
   }
-  if (staffRecoveries > 0) {
+  if (staffPayments > 0) {
     items.push({
-      key: 'recoveries',
-      label: `${staffRecoveries} staff recover${staffRecoveries !== 1 ? 'ies' : 'y'} due`,
+      key: 'staff-payments',
+      label: `${staffPayments} staff payment${staffPayments !== 1 ? 's' : ''} due`,
       tone: 'violet',
-      scrollTo: 'desk-queue-staff-recovery',
-    });
-  }
-  if (staffObligations > 0) {
-    items.push({
-      key: 'obligations',
-      label: `${staffObligations} staff loan/credit due`,
-      tone: 'teal',
-      scrollTo: 'desk-queue-staff-obligations',
+      scrollTo: 'desk-queue-staff-payments',
     });
   }
 

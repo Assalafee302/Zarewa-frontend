@@ -68,7 +68,7 @@ export function FinanceDeskColoredQueuePanel({
   return (
     <div
       id={sectionId}
-      className={`rounded-2xl border p-5 space-y-3 scroll-mt-20 ${t.panel}`}
+      className={`rounded-xl border p-4 space-y-2 scroll-mt-20 ${t.panel}`}
       data-testid={testId}
     >
       <div className="flex flex-wrap items-center justify-between gap-3">

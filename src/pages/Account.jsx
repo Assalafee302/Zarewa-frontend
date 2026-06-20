@@ -89,6 +89,7 @@ import {
   isCashierRole as userIsCashierRole,
 } from '../lib/legacyAccountsAccess';
 import { FinanceDeskWorkQueues } from '../components/finance/FinanceDeskWorkQueues.jsx';
+import { FinanceTabContextBanner } from '../components/finance/FinanceTabContextBanner.jsx';
 import { FinanceDeskTreasuryAccountGrid } from '../components/finance/FinanceDeskTreasuryAccountGrid.jsx';
 import { FinanceTreasuryAwaitingPayoutQueues } from '../components/finance/FinanceTreasuryAwaitingPayoutQueues.jsx';
 import { FinanceDeskQueueActionButton } from '../components/finance/FinanceDeskColoredQueuePanel.jsx';
@@ -1283,7 +1284,7 @@ const Account = () => {
   const handleDeskReceiveStaffRecovery = useCallback(
     (row) => {
       if (!row?.scheduleId) return;
-      if (!canPayRequests && !ws?.hasPermission?.('finance.post')) {
+      if (!canPayRequests && !ws?.hasPermission?.('finance.post') && !ws?.hasPermission?.('cashier.desk.view')) {
         showToast('You do not have permission to receive staff recovery payments.', { variant: 'error' });
         return;
       }
@@ -3159,30 +3160,28 @@ const Account = () => {
             </p>
           </Link>
 
-          <div className="rounded-zarewa border border-slate-200/70 bg-slate-50/70 p-5 shadow-[0_12px_40px_-32px_rgba(15,23,42,0.1)]">
-            <h3 className="z-section-title flex items-center gap-2">
-              <Activity size={14} className="shrink-0" />
-                Control note
+          {!isCashierRole ? (
+          <div className="rounded-zarewa border border-slate-200/70 bg-slate-50/70 p-4 shadow-[0_12px_40px_-32px_rgba(15,23,42,0.1)]">
+            <h3 className="z-section-title flex items-center gap-2 text-[10px]">
+              <Activity size={12} className="shrink-0" />
+              GL phase note
             </h3>
-            <p className="text-[9px] text-slate-500 leading-relaxed mb-3">
-                Customer receipts, refunds, supplier payments, expenses, and treasury transfers now post
-                live cash movements. Full general-ledger journals remain the next accounting phase.
+            <p className="text-[9px] text-slate-500 leading-relaxed">
+              Operational tabs post live treasury movements today. Full double-entry GL is on{' '}
+              <strong className="text-slate-700">Accounting Desk</strong>.
             </p>
-              <div className="rounded-xl border border-slate-200/80 bg-white px-4 py-3 text-[10px] text-slate-600 leading-relaxed shadow-sm">
-                Use the tabs here to post the operational side safely:
-                expenses debit treasury, payables reduce supplier balances, and transfers create paired
-                movements.
-              </div>
           </div>
+          ) : null}
 
-          <div className="rounded-zarewa border border-slate-200/70 bg-white p-4 text-[9px] text-slate-500 leading-relaxed shadow-[0_10px_36px_-30px_rgba(15,23,42,0.08)]">
-            <p className="font-black uppercase tracking-wider text-[#134e4a] mb-1.5 flex items-center gap-1">
-              <BookOpen size={12} />
+          {!isCashierRole ? (
+          <div className="rounded-zarewa border border-slate-200/70 bg-white p-3 text-[9px] text-slate-500 leading-relaxed shadow-[0_10px_36px_-30px_rgba(15,23,42,0.08)]">
+            <p className="font-black uppercase tracking-wider text-[#134e4a] mb-1 flex items-center gap-1">
+              <BookOpen size={11} />
               Principles
             </p>
-            Accrual view, revenue recognition on delivery / billing, and expense matching are enforced in
-            reporting once the ledger is live.
+            Accrual reporting and expense matching follow Accounting Desk once the ledger is live.
           </div>
+          ) : null}
         </div>
         ) : null}
 
@@ -3206,7 +3205,24 @@ const Account = () => {
             )}
 
             {activeTab === 'receipts' && (
-              <div className="space-y-10 animate-in fade-in duration-300">
+              <div className="space-y-6 animate-in fade-in duration-300">
+                {isCashierRole ? (
+                  <FinanceTabContextBanner
+                    testId="cashier-receipts-desk-banner"
+                    tone="amber"
+                    title="Receipts & clearance"
+                    body="Confirm bank/cash here or jump to My desk for the same queue. Cleared receipts unlock refunds and accurate balances."
+                    action={
+                      <button
+                        type="button"
+                        onClick={() => handleAccountTabChange('desk')}
+                        className="text-[10px] font-bold uppercase tracking-wide text-white bg-[#134e4a] hover:bg-[#0f3d3a] px-3 py-1.5 rounded-lg"
+                      >
+                        My desk
+                      </button>
+                    }
+                  />
+                ) : null}
                 <section className="space-y-3">
                   <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
                     <div>
@@ -3344,7 +3360,7 @@ const Account = () => {
                             return (
                               <li
                                 key={r.id}
-                                className="rounded-xl border border-slate-200/75 bg-white py-2.5 px-3 shadow-[0_8px_28px_-22px_rgba(15,23,42,0.07)] flex flex-wrap items-center justify-between gap-2 transition-colors hover:border-slate-300/90"
+                                className="rounded-lg border border-slate-200/75 bg-white py-1.5 px-2.5 shadow-sm flex flex-wrap items-center justify-between gap-2 transition-colors hover:border-slate-300/90"
                               >
                                 <div className="min-w-0 flex-1">
                                   <p className="text-[11px] font-bold text-[#134e4a] font-mono">{r.id}</p>
@@ -3459,7 +3475,7 @@ const Account = () => {
                         return (
                           <li
                             key={r.id}
-                            className="rounded-xl border border-slate-200/75 bg-white py-2.5 px-3 shadow-[0_8px_28px_-22px_rgba(15,23,42,0.07)] flex flex-wrap items-center justify-between gap-2 transition-colors hover:border-slate-300/90"
+                            className="rounded-lg border border-slate-200/75 bg-white py-1.5 px-2.5 shadow-sm flex flex-wrap items-center justify-between gap-2 transition-colors hover:border-slate-300/90"
                           >
                             <div className="min-w-0 flex-1">
                               <p className="text-[11px] font-bold text-[#134e4a] font-mono">{r.id}</p>
@@ -3822,22 +3838,38 @@ const Account = () => {
             )}
 
             {activeTab === 'movements' && (
-              <div className="space-y-6 animate-in fade-in duration-300">
-                <p className="text-xs text-gray-500 max-w-2xl">
-                  Move cash to bank, sweep POS settlements, or transfer between bank accounts. Each
-                  movement updates both source and destination balances.
-                </p>
+              <div className="space-y-4 animate-in fade-in duration-300">
+                <FinanceTabContextBanner
+                  tone="sky"
+                  title="Treasury movements"
+                  body={
+                    isCashierRole
+                      ? 'Same-branch transfers only — each movement debits one till/bank and credits another. Customer receipts and payouts stay on My desk.'
+                      : 'Internal transfers update both accounts immediately. Cross-branch funding is on Accounting Desk → Inter-branch.'
+                  }
+                  action={
+                    isCashierRole ? (
+                      <button
+                        type="button"
+                        onClick={() => handleAccountTabChange('desk')}
+                        className="text-[10px] font-bold uppercase tracking-wide text-[#134e4a] underline-offset-2 hover:underline"
+                      >
+                        Back to desk
+                      </button>
+                    ) : null
+                  }
+                />
 
-                {ws?.hasPermission?.('finance.view') ? (
-                  <div className="rounded-xl border border-slate-200 bg-slate-50/80 px-4 py-3 text-[11px] text-slate-600 leading-relaxed">
-                    Cross-branch treasury funding (propose, MD approval, repayments) is managed on{' '}
+                {ws?.hasPermission?.('finance.view') && !isCashierRole ? (
+                  <div className="rounded-lg border border-slate-200 bg-slate-50/80 px-3 py-2 text-[10px] text-slate-600 leading-relaxed">
+                    Cross-branch treasury funding on{' '}
                     <Link
                       to="/accounting?tab=interBranch"
                       className="font-semibold text-[#134e4a] hover:underline"
                     >
                       Accounting Desk → Inter-branch
                     </Link>
-                    . Use the button below for same-branch internal transfers only.
+                    .
                   </div>
                 ) : null}
 
@@ -3924,7 +3956,12 @@ const Account = () => {
             )}
 
             {activeTab === 'disbursements' && (
-              <div className="space-y-6 animate-in slide-in-from-right-5">
+              <div className="space-y-4 animate-in slide-in-from-right-5">
+                <FinanceTabContextBanner
+                  tone="slate"
+                  title="Payment register — posted outflows"
+                  body="Read-only audit trail of money that already left treasury. To pay new approved items, use Treasury payout queues or Desk (cashiers). Edit rows here only to correct the debited account."
+                />
                 <div className="rounded-lg border border-slate-200/80 bg-slate-50/80 px-3 py-2 space-y-2">
                   <label className="text-[9px] font-bold uppercase tracking-wide text-slate-500 block mb-1">
                     Search payment register (this tab)
@@ -3945,13 +3982,8 @@ const Account = () => {
                     />
                   </div>
                   <p className="text-[9px] text-slate-500 leading-snug">
-                    Also uses the page header search. This tab is the <strong>audit register</strong> of posted
-                    treasury debits (refunds, supplier/AP lines, expense requests, transport, direct expenses,
-                    receipt reversals). To <strong>pay</strong> approved expense requests, refunds, or haulage, use{' '}
-                    <strong>Desk</strong> (recommended) or <strong>Treasury</strong>. Use <strong>Edit</strong> on a row
-                    to correct which bank or cash account was debited. <strong>Delete</strong> and{' '}
-                    <strong>Reverse payout</strong> need the right finance permissions; officers need a manager{' '}
-                    <strong>KPI approval code</strong> before those actions succeed. Administrators and MD are exempt.
+                    Search posted debits (refunds, expenses, transport, AP). Officers need KPI approval to reverse or
+                    delete. Payout execution is on <strong>Desk</strong> or <strong>Treasury</strong>.
                   </p>
                 </div>
 
@@ -4640,7 +4672,22 @@ const Account = () => {
             )}
 
             {activeTab === 'audit' && (
-              <div className="space-y-8 animate-in slide-in-from-left-5">
+              <div className="space-y-5 animate-in slide-in-from-left-5">
+                <FinanceTabContextBanner
+                  testId="finance-audit-intro"
+                  tone="slate"
+                  title="Audit & period close — accountant surface"
+                  body="Cashiers do not see this tab. Use it before month-end: reconcile receipts, match bank lines, clear exceptions, and post manual GL journals when needed. Daily payout work stays on Desk/Treasury."
+                  action={
+                    <button
+                      type="button"
+                      onClick={() => handleAccountTabChange('receipts')}
+                      className="text-[10px] font-bold uppercase tracking-wide text-[#134e4a] underline-offset-2 hover:underline"
+                    >
+                      Receipts & recon
+                    </button>
+                  }
+                />
                 {reconciliationFlags > 0 ? (
                   <div className="flex items-start gap-3 rounded-lg border border-red-200/80 bg-red-50/80 px-3 py-2.5 text-sm text-red-900">
                     <AlertCircle className="shrink-0 mt-0.5" size={18} />
