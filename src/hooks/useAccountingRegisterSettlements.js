@@ -53,6 +53,7 @@ export function useRegisterSettlementMutations() {
       reservedNgn: data.reservedNgn ?? 0,
       openNgn: data.openNgn ?? 0,
       blockingItems: data.blockingItems || [],
+      blockedReason: data.blockedReason || '',
     };
   }, []);
 

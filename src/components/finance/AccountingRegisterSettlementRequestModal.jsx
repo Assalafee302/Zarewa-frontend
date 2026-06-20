@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { ModalFrame, ModalScrollShell, ModalScrollBody, ModalScrollFooter } from '../layout';
 import { ProcurementFormSection } from '../procurement/ProcurementFormSection';
 import { formatNgn } from '../../Data/mockData';
@@ -18,8 +18,11 @@ function blockingLabel(item) {
  */
 export function AccountingRegisterSettlementRequestModal({ item, open, onClose, onSaved }) {
   const { busy, error, fetchAvailable, createSettlement } = useRegisterSettlementMutations();
+  const [capacityState, setCapacityState] = useState('loading');
+  const [openNgn, setOpenNgn] = useState(0);
   const [availableNgn, setAvailableNgn] = useState(0);
   const [reservedNgn, setReservedNgn] = useState(0);
+  const [blockedReason, setBlockedReason] = useState('');
   const [blockingItems, setBlockingItems] = useState([]);
   const [amountNgn, setAmountNgn] = useState('');
   const [reason, setReason] = useState('');
@@ -28,39 +31,58 @@ export function AccountingRegisterSettlementRequestModal({ item, open, onClose, 
   const [validationError, setValidationError] = useState('');
   const [capacityError, setCapacityError] = useState('');
 
-  useEffect(() => {
-    if (!open || !item?.id) return;
+  const loadCapacity = useCallback(async () => {
+    if (!item?.id) return;
+    setCapacityState('loading');
     setValidationError('');
     setCapacityError('');
+    const r = await fetchAvailable(item.id);
+    if (!r.ok) {
+      setCapacityState('error');
+      setOpenNgn(item.amountNgn ?? 0);
+      setAvailableNgn(0);
+      setReservedNgn(0);
+      setBlockingItems([]);
+      setBlockedReason('');
+      setAmountNgn('');
+      setCapacityError(r.error || 'Could not load settlement capacity for this line.');
+      return;
+    }
+    setCapacityState('ok');
+    const open = r.openNgn ?? item.amountNgn ?? 0;
+    const avail = r.availableNgn ?? 0;
+    setOpenNgn(open);
+    setAvailableNgn(avail);
+    setReservedNgn(r.reservedNgn ?? Math.max(0, open - avail));
+    setBlockingItems(r.blockingItems || []);
+    setBlockedReason(r.blockedReason || '');
+    setAmountNgn(avail > 0 ? String(avail) : '');
+  }, [item, fetchAvailable]);
+
+  useEffect(() => {
+    if (!open || !item?.id) return;
     setPayeeName(item.partyName || '');
     setReason(item.description || item.detail || '');
-    void fetchAvailable(item.id).then((r) => {
-      if (!r.ok) {
-        setAvailableNgn(0);
-        setReservedNgn(0);
-        setBlockingItems([]);
-        setAmountNgn('');
-        setCapacityError(r.error || 'Could not load settlement capacity for this line.');
-        return;
-      }
-      const avail = r.availableNgn ?? 0;
-      setAvailableNgn(avail);
-      setReservedNgn(r.reservedNgn ?? Math.max(0, (r.openNgn ?? item.amountNgn ?? 0) - avail));
-      setBlockingItems(r.blockingItems || []);
-      setAmountNgn(avail > 0 ? String(avail) : '');
-    });
-  }, [open, item, fetchAvailable]);
+    void loadCapacity();
+  }, [open, item, loadCapacity]);
 
   if (!open || !item) return null;
 
-  const canRequest = availableNgn > 0;
+  const canRequest = capacityState === 'ok' && availableNgn > 0;
+  const showReservedNotice = capacityState === 'ok' && !canRequest && (reservedNgn > 0 || blockingItems.length > 0);
+  const displayOpen = capacityState === 'ok' ? openNgn : item.amountNgn ?? 0;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setValidationError('');
+    if (capacityState === 'error') {
+      setValidationError(capacityError || 'Could not verify available balance. Retry loading capacity first.');
+      return;
+    }
     if (!canRequest) {
       setValidationError(
-        'Nothing is available to request — pending or approved unpaid withdrawals already hold the full open balance on this line.'
+        blockedReason ||
+          'Nothing is available to request on this line right now. Clear any pending or approved unpaid withdrawals first.'
       );
       return;
     }
@@ -92,44 +114,73 @@ export function AccountingRegisterSettlementRequestModal({ item, open, onClose, 
             <div>
               <h2 className="text-lg font-bold text-[#134e4a]">Request register withdrawal</h2>
               <p className="mt-1 text-[10px] text-slate-500 leading-relaxed sm:text-[11px]">
-                {item.partyName} · Open balance {formatNgn(item.amountNgn)} · Reserved {formatNgn(reservedNgn)} ·
-                Available to request {formatNgn(availableNgn)}.
+                {item.partyName} · Open balance {formatNgn(displayOpen)}
+                {capacityState === 'ok' ? (
+                  <>
+                    {' '}
+                    · Reserved {formatNgn(reservedNgn)} · Available to request {formatNgn(availableNgn)}
+                  </>
+                ) : capacityState === 'loading' ? (
+                  <> · Checking available balance…</>
+                ) : null}
               </p>
             </div>
-            {!canRequest ? (
+
+            {capacityState === 'error' ? (
+              <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-[11px] text-rose-950 leading-relaxed space-y-2">
+                <p className="font-semibold">Could not load withdrawal capacity</p>
+                <p>{capacityError}</p>
+                <p className="text-[10px] text-rose-900/90">
+                  This is a system/read error — not proof that balance is reserved. After backend restart, retry below.
+                  If you use <span className="font-bold">All branches</span> view, ensure that mode is enabled for your role.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => void loadCapacity()}
+                  className="rounded-lg border border-rose-300 bg-white px-3 py-1.5 text-[9px] font-semibold uppercase tracking-wider text-rose-900"
+                >
+                  Retry
+                </button>
+              </div>
+            ) : null}
+
+            {showReservedNotice ? (
               <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-[11px] text-amber-950 leading-relaxed space-y-2">
                 <p>
-                  The full open balance is already reserved. Reject a duplicate pending request, or pay an approved
-                  one, before submitting a new withdrawal.
+                  {formatNgn(reservedNgn)} is reserved by pending or approved unpaid withdrawals on this line. Clear
+                  them before submitting a new request.
                 </p>
                 {blockingItems.length ? (
                   <div>
                     <p className="text-[10px] font-bold uppercase tracking-wide text-amber-900">Blocking requests</p>
                     <ul className="mt-1.5 space-y-1">
                       {blockingItems.map((s) => (
-                        <li key={s.settlementId} className="rounded-md border border-amber-200/80 bg-white/70 px-2.5 py-1.5 text-[10px] font-medium text-amber-950">
+                        <li
+                          key={s.settlementId}
+                          className="rounded-md border border-amber-200/80 bg-white/70 px-2.5 py-1.5 text-[10px] font-medium text-amber-950"
+                        >
                           {blockingLabel(s)}
-                          {s.reason ? <span className="block text-[9px] font-normal text-amber-900/80 mt-0.5">{s.reason}</span> : null}
+                          {s.reason ? (
+                            <span className="block text-[9px] font-normal text-amber-900/80 mt-0.5">{s.reason}</span>
+                          ) : null}
                         </li>
                       ))}
                     </ul>
                     <p className="text-[10px] text-amber-900/90 mt-2">
-                      Close this form, open the register line detail, and use <span className="font-bold">Withdraw</span>{' '}
-                      on your own pending request, or ask MD/finance to approve/reject. Approved requests must be paid or
-                      rejected from the Debtors tab.
+                      On the register line detail, use <span className="font-bold">Withdraw</span> on your pending
+                      request, or ask MD/finance to approve/reject. Approved requests must be paid from treasury.
                     </p>
                   </div>
-                ) : (
-                  <p className="text-[10px] font-medium text-amber-900">
-                    Reserved balance is {formatNgn(reservedNgn)} but no active requests were returned. Refresh the page
-                    after backend deploy, or ask support to check settlement records for this line.
-                  </p>
-                )}
+                ) : null}
               </div>
             ) : null}
-            {capacityError ? (
-              <p className="text-[10px] font-medium text-rose-700">{capacityError}</p>
+
+            {capacityState === 'ok' && !canRequest && !showReservedNotice && blockedReason ? (
+              <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-[11px] text-amber-950">
+                {blockedReason}
+              </div>
             ) : null}
+
             <ProcurementFormSection letter="1" title="Withdrawal" compact>
               <label className="block text-[10px] font-bold uppercase tracking-wide text-slate-500">
                 Amount (₦) *
@@ -150,7 +201,7 @@ export function AccountingRegisterSettlementRequestModal({ item, open, onClose, 
                   rows={2}
                   value={reason}
                   onChange={(e) => setReason(e.target.value)}
-                  required
+                  required={canRequest || capacityState !== 'error'}
                 />
               </label>
             </ProcurementFormSection>
