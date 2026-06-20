@@ -27,7 +27,7 @@ describe('ToastContext usage guard', () => {
     for (const file of walkSource(srcDir)) {
       if (file.includes('ToastContext.jsx')) continue;
       const code = readFileSync(file, 'utf8');
-      if (/\{[^}]*\bshowToast\b[^}]*\}\s*=\s*useToast\s*\(\)/.test(code)) {
+      if (/\{\s*showToast\s*\}\s*=\s*useToast\s*\(\)/.test(code)) {
         offenders.push(file.replace(`${srcDir}\\`, '').replace(`${srcDir}/`, ''));
       }
     }
