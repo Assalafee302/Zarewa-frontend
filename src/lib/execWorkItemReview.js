@@ -30,14 +30,22 @@ export function resolveExecSettlementId(item) {
   const row = ctx.row && typeof ctx.row === 'object' ? ctx.row : {};
   const fromId = String(item?.id || '').trim();
   const idMatch = fromId.match(/^register_settlement:(.+)$/i);
+  const title = String(item?.title || '').trim();
+  let fromTitle = '';
+  if (/^SET-/i.test(title)) {
+    fromTitle = title;
+  } else {
+    const m = title.match(/register\s+withdrawal\s+(.+)/i);
+    if (m) fromTitle = String(m[1] || '').trim();
+  }
   return String(
     ctx.settlementId ||
       row.settlementId ||
       row.settlement_id ||
       item?.settlementId ||
       item?.sourceId ||
-      item?.title ||
-      (idMatch ? idMatch[1] : '')
+      (idMatch ? idMatch[1] : '') ||
+      fromTitle
   ).trim();
 }
 

@@ -81,8 +81,9 @@ export function useRegisterSettlementMutations() {
     );
     setBusy(false);
     if (!ok || !data?.ok) {
-      setError(data?.error || 'Could not record decision.');
-      return { ok: false };
+      const err = data?.error || 'Could not record decision.';
+      setError(err);
+      return { ok: false, error: err };
     }
     return { ok: true, settlement: data.settlement };
   }, []);

@@ -2,6 +2,9 @@ import React, { useEffect, useState } from 'react';
 import { ModalFrame, ModalScrollShell, ModalScrollBody, ModalScrollFooter } from '../layout';
 import { formatNgn } from '../../Data/mockData';
 import { useRegisterSettlementMutations } from '../../hooks/useAccountingRegisterSettlements';
+import { useToast } from '../../context/ToastContext';
+import { useWorkspace } from '../../context/WorkspaceContext';
+import { isExecutiveRoleKey } from '../../lib/workspaceGovernanceClient';
 
 /**
  * @param {{
@@ -14,6 +17,8 @@ import { useRegisterSettlementMutations } from '../../hooks/useAccountingRegiste
  */
 export function AccountingRegisterSettlementDecisionModal({ settlement, open, mode, onClose, onDone }) {
   const { busy, error, decideSettlement } = useRegisterSettlementMutations();
+  const { show: showToast } = useToast();
+  const ws = useWorkspace();
   const [note, setNote] = useState('');
 
   useEffect(() => {
@@ -27,14 +32,29 @@ export function AccountingRegisterSettlementDecisionModal({ settlement, open, mo
   const handleSubmit = async (e) => {
     e.preventDefault();
     const amount = Math.round(Number(settlement.amountNgn) || 0);
+    const refundHi =
+      Number(ws?.snapshot?.orgGovernanceLimits?.refundExecutiveThresholdNgn) || 1_000_000;
+    const roleKey = String(ws?.session?.user?.roleKey || '').trim().toLowerCase();
+    const isExec = isExecutiveRoleKey(roleKey) || ws?.hasPermission?.('*');
+    if (mode === 'Approved' && amount > refundHi && !isExec) {
+      showToast(`Withdrawals above ${formatNgn(refundHi)} require Managing Director approval.`, {
+        variant: 'error',
+      });
+      return;
+    }
     const result = await decideSettlement(settlement.settlementId, {
       status: mode,
-      note: note.trim(),
+      note: note.trim() || (mode === 'Approved' ? 'Approved' : 'Rejected'),
       ...(mode === 'Approved' && amount > 0 ? { approvedAmountNgn: amount } : {}),
     });
     if (result.ok) {
+      showToast(mode === 'Approved' ? 'Withdrawal approved.' : 'Withdrawal rejected.', {
+        variant: 'success',
+      });
       onDone?.();
       onClose();
+    } else {
+      showToast(result.error || error || 'Could not record decision.', { variant: 'error' });
     }
   };
 

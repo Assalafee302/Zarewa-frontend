@@ -14,6 +14,7 @@ import { ZareApprovalHint } from '../ZareApprovalHint';
 import { execWorkItemReviewContext, resolveExecReviewView, resolveExecSettlementId } from '../../lib/execWorkItemReview';
 import { canApproveProductionGate, productionGateOverrideNoteValid } from '../../lib/productionGateAccess';
 import { userMayApproveRefundRequests } from '../../lib/refundsStore';
+import { isExecutiveRoleKey } from '../../lib/workspaceGovernanceClient';
 import { formatPersonName } from '../../lib/formatPersonName';
 
 /**
@@ -41,6 +42,7 @@ export function ExecutiveWorkItemReviewModal({ item, isOpen, onClose, onComplete
   const [settlementDetail, setSettlementDetail] = useState(null);
   const [loadingSettlement, setLoadingSettlement] = useState(false);
   const [settlementNote, setSettlementNote] = useState('');
+  const [settlementActionError, setSettlementActionError] = useState('');
 
   const review = useMemo(() => resolveExecReviewView(item), [item]);
   const ctx = useMemo(() => execWorkItemReviewContext(item), [item]);
@@ -79,6 +81,7 @@ export function ExecutiveWorkItemReviewModal({ item, isOpen, onClose, onComplete
     setQuotationRow(null);
     setSettlementDetail(null);
     setSettlementNote('');
+    setSettlementActionError('');
 
     if (review.view === 'register_settlement' && settlementId) {
       if (review.row?.settlementId || review.row?.amountNgn != null) {
@@ -208,26 +211,45 @@ export function ExecutiveWorkItemReviewModal({ item, isOpen, onClose, onComplete
 
   const handleSettlementDecision = async (status) => {
     const sid = settlementId || review.settlementId;
+    setSettlementActionError('');
     if (!sid) {
-      showToast('Could not identify this withdrawal request.', { variant: 'error' });
+      const msg = 'Could not identify this withdrawal request.';
+      setSettlementActionError(msg);
+      showToast(msg, { variant: 'error' });
       return;
     }
     if (readOnly) {
-      showToast('Executive view is read-only for your role.', { variant: 'error' });
+      const msg = 'Executive view is read-only for your role.';
+      setSettlementActionError(msg);
+      showToast(msg, { variant: 'error' });
       return;
     }
-    if (item?.canAct === false || !canApproveSettlements) {
-      showToast('You do not have permission to approve register withdrawals.', { variant: 'error' });
+    if (!canApproveSettlements) {
+      const msg = 'You do not have permission to approve register withdrawals.';
+      setSettlementActionError(msg);
+      showToast(msg, { variant: 'error' });
+      return;
+    }
+    const settlement = settlementDetail || review.row || {};
+    const amount = Math.round(Number(settlement.amountNgn) || Number(item?.amountNgn) || 0);
+    const refundHi =
+      Number(ws?.snapshot?.orgGovernanceLimits?.refundExecutiveThresholdNgn) || 1_000_000;
+    const roleKey = String(ws?.session?.user?.roleKey || '').trim().toLowerCase();
+    const isExec = isExecutiveRoleKey(roleKey) || ws?.hasPermission?.('*');
+    if (status === 'Approved' && amount > refundHi && !isExec) {
+      const msg = `Withdrawals above ${formatNgn(refundHi)} require Managing Director approval.`;
+      setSettlementActionError(msg);
+      showToast(msg, { variant: 'error' });
       return;
     }
     const note = settlementNote.trim();
     if (status === 'Rejected' && note.length < 3) {
-      showToast('Enter a rejection reason (at least 3 characters).', { variant: 'error' });
+      const msg = 'Enter a rejection reason (at least 3 characters).';
+      setSettlementActionError(msg);
+      showToast(msg, { variant: 'error' });
       return;
     }
     setBusy(true);
-    const settlement = settlementDetail || review.row || {};
-    const amount = Math.round(Number(settlement.amountNgn) || Number(item?.amountNgn) || 0);
     try {
       const { ok, data } = await apiFetch(`/api/accounting/settlements/${encodeURIComponent(sid)}/decision`, {
         method: 'POST',
@@ -238,12 +260,18 @@ export function ExecutiveWorkItemReviewModal({ item, isOpen, onClose, onComplete
         }),
       });
       if (!ok || data?.ok === false) {
-        showToast(data?.error || 'Could not update withdrawal request.', { variant: 'error' });
+        const msg = data?.error || 'Could not update withdrawal request.';
+        setSettlementActionError(msg);
+        showToast(msg, { variant: 'error' });
         return;
       }
       showToast(status === 'Approved' ? 'Withdrawal approved.' : 'Withdrawal rejected.', { variant: 'success' });
       await ws?.refresh?.();
       await finish();
+    } catch (err) {
+      const msg = String(err?.message || err || 'Could not update withdrawal request.');
+      setSettlementActionError(msg);
+      showToast(msg, { variant: 'error' });
     } finally {
       setBusy(false);
     }
@@ -567,8 +595,13 @@ export function ExecutiveWorkItemReviewModal({ item, isOpen, onClose, onComplete
                   ) : null}
                 </>
               )}
-              {!readOnly && item.canAct !== false && canApproveSettlements ? (
+              {!readOnly && canApproveSettlements ? (
                 <div className="space-y-3 border-t border-teal-200/80 pt-4">
+                  {settlementActionError ? (
+                    <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-[11px] font-semibold text-rose-800">
+                      {settlementActionError}
+                    </p>
+                  ) : null}
                   <textarea
                     value={settlementNote}
                     onChange={(e) => setSettlementNote(e.target.value)}
