@@ -8,6 +8,10 @@ import { useInventory } from '../context/InventoryContext';
 import { useToast } from '../context/ToastContext';
 import { effectiveManagerTargetsPerMonth, mergeDashboardPrefs } from '../lib/dashboardPrefs';
 import { userCanApproveEditMutationsClient } from '../lib/editApprovalUi';
+import {
+  canSeeExecutiveInventoryEditShortcut,
+  canSeeExecutiveProductionEditShortcut,
+} from '../lib/executiveStoreToolsAccess';
 import { buildPaymentRequestBodyFromForm, initialExpenseRequestFormState } from '../lib/expenseRequestFormCore.js';
 import {
   canApproveStaffPurchaseCredit,
