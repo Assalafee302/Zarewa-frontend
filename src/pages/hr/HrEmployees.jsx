@@ -8,7 +8,7 @@ import HrOrgChart from './HrOrgChart';
 
 const TABS = [
   { id: 'directory', label: 'Directory' },
-  { id: 'org-chart', label: 'Org chart' },
+  { id: 'org-chart', label: 'Organogram' },
 ];
 
 /** Legacy tab URLs → new locations */
