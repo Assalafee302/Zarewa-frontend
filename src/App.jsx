@@ -903,22 +903,8 @@ function AppShell() {
                           }}
                         >
                           <User size={16} className="shrink-0 text-gray-400" aria-hidden />
-                          Account
+                          {canAccessMyProfileHr(ws?.permissions) ? 'Account & HR' : 'Account'}
                         </button>
-                        {canAccessMyProfileHr(ws?.permissions) ? (
-                          <button
-                            type="button"
-                            role="menuitem"
-                            className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-[13px] font-semibold text-slate-800 transition hover:bg-teal-50/80"
-                            onClick={() => {
-                              setUserMenuOpen(false);
-                              guardedNavigate('/my-profile');
-                            }}
-                          >
-                            <User size={16} className="shrink-0 text-gray-400" aria-hidden />
-                            My HR
-                          </button>
-                        ) : null}
                         <button
                           type="button"
                           role="menuitem"

@@ -27,7 +27,7 @@ export function ProfileHubTabs() {
       ? FAMILY_BENEFITS.hubSwitcherLabel
       : cohort === 'domestic'
         ? DOMESTIC_BENEFITS.hubSwitcherLabel
-        : 'HR services';
+        : 'My HR';
 
   const onAccountHub = location.pathname === '/me' || location.pathname.startsWith('/me/');
 

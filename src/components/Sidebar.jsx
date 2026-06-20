@@ -164,16 +164,11 @@ const Sidebar = ({ mobileOpen = false, onCloseMobile, collapsed = false, onToggl
     },
     {
       icon: <UserCircle size={18} />,
-      label: 'My HR',
-      path: '/my-profile',
-      active: pathMatches(p, '/my-profile'),
-      visible: canAccessMyProfileHr(permissions),
-    },
-    {
-      icon: <UserCircle size={18} />,
-      label: 'Account',
+      label: canAccessMyProfileHr(permissions) ? 'Account & HR' : 'Account',
       path: '/me',
-      active: pathMatches(p, '/me'),
+      active:
+        pathMatches(p, '/me') ||
+        (canAccessMyProfileHr(permissions) && pathMatches(p, '/my-profile')),
       visible: true,
     },
     {
