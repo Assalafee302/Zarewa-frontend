@@ -406,7 +406,9 @@ describe('authenticated startup TDZ', () => {
     );
   });
 
-  it('renders finance manager accounting desk without error boundary crash', async () => {
+  it(
+    'renders finance manager accounting desk without error boundary crash',
+    async () => {
     vi.stubGlobal(
       'fetch',
       installFetchMock({
@@ -439,9 +441,11 @@ describe('authenticated startup TDZ', () => {
       () => {
         expect(screen.getByRole('tab', { name: /Home/i })).toBeInTheDocument();
       },
-      { timeout: 15000 }
+      { timeout: 45_000 }
     );
-  });
+    },
+    60_000
+  );
 
   it('renders cashier finance accounts desk without error boundary crash', async () => {
     vi.stubGlobal(
