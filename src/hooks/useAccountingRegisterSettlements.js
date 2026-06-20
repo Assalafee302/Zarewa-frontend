@@ -16,7 +16,7 @@ export function useRegisterSettlements(opts = {}) {
     setError('');
     const qs = new URLSearchParams();
     if (registerLineId) qs.set('registerLineId', registerLineId);
-    if (branchId && branchId !== 'ALL') qs.set('branchId', branchId);
+    else if (branchId && branchId !== 'ALL') qs.set('branchId', branchId);
     if (status) qs.set('status', status);
     const path = qs.toString() ? `/api/accounting/settlements?${qs}` : '/api/accounting/settlements';
     const { ok, data } = await apiFetch(path);
@@ -44,8 +44,16 @@ export function useRegisterSettlementMutations() {
     const { ok, data } = await apiFetch(
       `/api/accounting/register-lines/${encodeURIComponent(lineId)}/settlement-capacity`
     );
-    if (!ok || !data?.ok) return { ok: false, availableNgn: 0, error: data?.error };
-    return { ok: true, availableNgn: data.availableNgn ?? 0 };
+    if (!ok || !data?.ok) {
+      return { ok: false, availableNgn: 0, reservedNgn: 0, openNgn: 0, blockingItems: [], error: data?.error };
+    }
+    return {
+      ok: true,
+      availableNgn: data.availableNgn ?? 0,
+      reservedNgn: data.reservedNgn ?? 0,
+      openNgn: data.openNgn ?? 0,
+      blockingItems: data.blockingItems || [],
+    };
   }, []);
 
   const createSettlement = useCallback(async (lineId, body) => {

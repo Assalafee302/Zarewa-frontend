@@ -99,7 +99,7 @@ export function AccountingRegisterDetailModal({
   const [decisionMode, setDecisionMode] = useState('Approved');
   const legacyLine = Boolean(item?.isLegacy && sectionId === 'legacy_inherited');
   const canWithdraw = legacyLine && registerSide === 'debtor' && canManage;
-  const { items: settlements, reload: reloadSettlements } = useRegisterSettlements({
+  const { items: settlements, loading: settlementsLoading, reload: reloadSettlements } = useRegisterSettlements({
     registerLineId: legacyLine ? item?.id : undefined,
     enabled: legacyLine && Boolean(item?.id),
   });
@@ -224,8 +224,11 @@ export function AccountingRegisterDetailModal({
             </ProcurementFormSection>
           ) : null}
 
-          {legacyLine && settlements.length ? (
+          {legacyLine ? (
             <ProcurementFormSection letter="S" title="Withdrawal requests" compact>
+              {settlementsLoading ? (
+                <p className="text-[10px] text-slate-500">Loading withdrawal requests…</p>
+              ) : settlements.length ? (
               <ul className="space-y-1.5">
                 {settlements.map((s) => {
                   const out = Math.max(0, (s.approvedAmountNgn || s.amountNgn) - (s.paidAmountNgn || 0));
@@ -283,6 +286,9 @@ export function AccountingRegisterDetailModal({
                   );
                 })}
               </ul>
+              ) : (
+                <p className="text-[10px] text-slate-500">No withdrawal requests on this line yet.</p>
+              )}
             </ProcurementFormSection>
           ) : null}
 

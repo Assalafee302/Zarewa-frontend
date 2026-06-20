@@ -4,12 +4,23 @@ import { ProcurementFormSection } from '../procurement/ProcurementFormSection';
 import { formatNgn } from '../../Data/mockData';
 import { useRegisterSettlementMutations } from '../../hooks/useAccountingRegisterSettlements';
 
+function blockingLabel(item) {
+  const reserved = item.reservedNgn ?? item.amountNgn ?? 0;
+  if (item.status === 'Approved') {
+    const out = Math.max(0, (item.approvedAmountNgn || item.amountNgn || 0) - (item.paidAmountNgn || 0));
+    return `${item.settlementId} · Approved · ${formatNgn(out)} unpaid`;
+  }
+  return `${item.settlementId} · Pending · ${formatNgn(reserved)} reserved`;
+}
+
 /**
  * @param {{ item: object; open: boolean; onClose: () => void; onSaved: () => void }} props
  */
 export function AccountingRegisterSettlementRequestModal({ item, open, onClose, onSaved }) {
   const { busy, error, fetchAvailable, createSettlement } = useRegisterSettlementMutations();
   const [availableNgn, setAvailableNgn] = useState(0);
+  const [reservedNgn, setReservedNgn] = useState(0);
+  const [blockingItems, setBlockingItems] = useState([]);
   const [amountNgn, setAmountNgn] = useState('');
   const [reason, setReason] = useState('');
   const [payeeName, setPayeeName] = useState(item?.partyName || '');
@@ -24,6 +35,8 @@ export function AccountingRegisterSettlementRequestModal({ item, open, onClose, 
     void fetchAvailable(item.id).then((r) => {
       const avail = r.availableNgn ?? item.amountNgn ?? 0;
       setAvailableNgn(avail);
+      setReservedNgn(r.reservedNgn ?? Math.max(0, (item.amountNgn ?? 0) - avail));
+      setBlockingItems(r.blockingItems || []);
       setAmountNgn(avail > 0 ? String(avail) : '');
     });
   }, [open, item, fetchAvailable]);
@@ -69,15 +82,38 @@ export function AccountingRegisterSettlementRequestModal({ item, open, onClose, 
             <div>
               <h2 className="text-lg font-bold text-[#134e4a]">Request register withdrawal</h2>
               <p className="mt-1 text-[10px] text-slate-500 leading-relaxed sm:text-[11px]">
-                {item.partyName} · Open balance {formatNgn(item.amountNgn)} · Available to request{' '}
-                {formatNgn(availableNgn)} (after other pending settlements).
+                {item.partyName} · Open balance {formatNgn(item.amountNgn)} · Reserved {formatNgn(reservedNgn)} ·
+                Available to request {formatNgn(availableNgn)}.
               </p>
             </div>
             {!canRequest ? (
-              <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-[11px] text-amber-950 leading-relaxed">
-                The full open balance is already reserved by other pending or approved unpaid withdrawals on this
-                line. Close this form, review existing withdrawal requests on the register line, and reject or pay
-                them before submitting a new request.
+              <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-[11px] text-amber-950 leading-relaxed space-y-2">
+                <p>
+                  The full open balance is already reserved. Reject a duplicate pending request, or pay an approved
+                  one, before submitting a new withdrawal.
+                </p>
+                {blockingItems.length ? (
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-amber-900">Blocking requests</p>
+                    <ul className="mt-1.5 space-y-1">
+                      {blockingItems.map((s) => (
+                        <li key={s.settlementId} className="rounded-md border border-amber-200/80 bg-white/70 px-2.5 py-1.5 text-[10px] font-medium text-amber-950">
+                          {blockingLabel(s)}
+                          {s.reason ? <span className="block text-[9px] font-normal text-amber-900/80 mt-0.5">{s.reason}</span> : null}
+                        </li>
+                      ))}
+                    </ul>
+                    <p className="text-[10px] text-amber-900/90 mt-2">
+                      Close this form — the same requests appear under <span className="font-bold">Withdrawal requests</span> on
+                      the register line, and at the top of the Debtors tab for approve/pay actions.
+                    </p>
+                  </div>
+                ) : (
+                  <p className="text-[10px] font-medium text-amber-900">
+                    No active requests were returned for this line. Refresh the register line detail or contact support if
+                    available balance still shows zero.
+                  </p>
+                )}
               </div>
             ) : null}
             <ProcurementFormSection letter="1" title="Withdrawal" compact>
