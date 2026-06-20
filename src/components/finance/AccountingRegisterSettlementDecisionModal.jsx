@@ -26,7 +26,12 @@ export function AccountingRegisterSettlementDecisionModal({ settlement, open, mo
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const result = await decideSettlement(settlement.settlementId, { status: mode, note: note.trim() });
+    const amount = Math.round(Number(settlement.amountNgn) || 0);
+    const result = await decideSettlement(settlement.settlementId, {
+      status: mode,
+      note: note.trim(),
+      ...(mode === 'Approved' && amount > 0 ? { approvedAmountNgn: amount } : {}),
+    });
     if (result.ok) {
       onDone?.();
       onClose();

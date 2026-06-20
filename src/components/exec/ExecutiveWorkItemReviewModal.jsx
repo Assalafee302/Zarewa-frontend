@@ -11,7 +11,7 @@ import { RefundManagerApprovalPreview } from '../management/RefundManagerApprova
 import { ManagementAuditSections } from '../management/ManagementAuditSections';
 import { EditSecondApprovalInline } from '../EditSecondApprovalInline';
 import { ZareApprovalHint } from '../ZareApprovalHint';
-import { execWorkItemReviewContext, resolveExecReviewView } from '../../lib/execWorkItemReview';
+import { execWorkItemReviewContext, resolveExecReviewView, resolveExecSettlementId } from '../../lib/execWorkItemReview';
 import { canApproveProductionGate, productionGateOverrideNoteValid } from '../../lib/productionGateAccess';
 import { userMayApproveRefundRequests } from '../../lib/refundsStore';
 import { formatPersonName } from '../../lib/formatPersonName';
@@ -44,6 +44,11 @@ export function ExecutiveWorkItemReviewModal({ item, isOpen, onClose, onComplete
 
   const review = useMemo(() => resolveExecReviewView(item), [item]);
   const ctx = useMemo(() => execWorkItemReviewContext(item), [item]);
+  const settlementId = useMemo(() => resolveExecSettlementId(item), [item]);
+  const canApproveSettlements =
+    ws?.hasPermission?.('finance.approve') ||
+    ws?.hasPermission?.('refunds.approve') ||
+    ws?.hasPermission?.('*');
   const canApproveProductionGateOverride = canApproveProductionGate(ws?.session?.user?.roleKey);
   const canApproveRefunds = userMayApproveRefundRequests(ws);
 
@@ -75,15 +80,21 @@ export function ExecutiveWorkItemReviewModal({ item, isOpen, onClose, onComplete
     setSettlementDetail(null);
     setSettlementNote('');
 
-    if (review.view === 'register_settlement' && review.settlementId) {
+    if (review.view === 'register_settlement' && settlementId) {
+      if (review.row?.settlementId || review.row?.amountNgn != null) {
+        setSettlementDetail(review.row);
+      }
       setLoadingSettlement(true);
       void (async () => {
-        const { ok, data } = await apiFetch(
-          `/api/accounting/settlements/${encodeURIComponent(review.settlementId)}`
-        );
-        setLoadingSettlement(false);
-        if (ok && data?.settlement) setSettlementDetail(data.settlement);
-        else if (review.row?.settlementId) setSettlementDetail(review.row);
+        try {
+          const { ok, data } = await apiFetch(
+            `/api/accounting/settlements/${encodeURIComponent(settlementId)}`
+          );
+          if (ok && data?.settlement) setSettlementDetail(data.settlement);
+          else if (review.row?.settlementId) setSettlementDetail(review.row);
+        } finally {
+          setLoadingSettlement(false);
+        }
       })();
     }
     if (review.view === 'price_exception' && review.quotationId) {
@@ -110,7 +121,7 @@ export function ExecutiveWorkItemReviewModal({ item, isOpen, onClose, onComplete
         })();
       }
     }
-  }, [isOpen, item, review, fetchAudit, fetchQuotation]);
+  }, [isOpen, item, review, settlementId, fetchAudit, fetchQuotation]);
 
   const finish = useCallback(async () => {
     if (typeof onCompleted === 'function') await onCompleted();
@@ -196,8 +207,19 @@ export function ExecutiveWorkItemReviewModal({ item, isOpen, onClose, onComplete
   };
 
   const handleSettlementDecision = async (status) => {
-    const settlementId = review.settlementId;
-    if (!settlementId || readOnly) return;
+    const sid = settlementId || review.settlementId;
+    if (!sid) {
+      showToast('Could not identify this withdrawal request.', { variant: 'error' });
+      return;
+    }
+    if (readOnly) {
+      showToast('Executive view is read-only for your role.', { variant: 'error' });
+      return;
+    }
+    if (item?.canAct === false || !canApproveSettlements) {
+      showToast('You do not have permission to approve register withdrawals.', { variant: 'error' });
+      return;
+    }
     const note = settlementNote.trim();
     if (status === 'Rejected' && note.length < 3) {
       showToast('Enter a rejection reason (at least 3 characters).', { variant: 'error' });
@@ -205,23 +227,26 @@ export function ExecutiveWorkItemReviewModal({ item, isOpen, onClose, onComplete
     }
     setBusy(true);
     const settlement = settlementDetail || review.row || {};
-    const amount = Math.round(Number(settlement.amountNgn) || 0);
-    const { ok, data } = await apiFetch(`/api/accounting/settlements/${encodeURIComponent(settlementId)}/decision`, {
-      method: 'POST',
-      body: JSON.stringify({
-        status,
-        note: note || (status === 'Approved' ? 'Executive approval' : 'Rejected'),
-        ...(status === 'Approved' && amount > 0 ? { approvedAmountNgn: amount } : {}),
-      }),
-    });
-    setBusy(false);
-    if (!ok || data?.ok === false) {
-      showToast(data?.error || 'Could not update withdrawal request.', { variant: 'error' });
-      return;
+    const amount = Math.round(Number(settlement.amountNgn) || Number(item?.amountNgn) || 0);
+    try {
+      const { ok, data } = await apiFetch(`/api/accounting/settlements/${encodeURIComponent(sid)}/decision`, {
+        method: 'POST',
+        body: JSON.stringify({
+          status,
+          note: note || (status === 'Approved' ? 'Executive approval' : 'Rejected'),
+          ...(status === 'Approved' && amount > 0 ? { approvedAmountNgn: amount } : {}),
+        }),
+      });
+      if (!ok || data?.ok === false) {
+        showToast(data?.error || 'Could not update withdrawal request.', { variant: 'error' });
+        return;
+      }
+      showToast(status === 'Approved' ? 'Withdrawal approved.' : 'Withdrawal rejected.', { variant: 'success' });
+      await ws?.refresh?.();
+      await finish();
+    } finally {
+      setBusy(false);
     }
-    showToast(status === 'Approved' ? 'Withdrawal approved.' : 'Withdrawal rejected.', { variant: 'success' });
-    await ws?.refresh?.();
-    await finish();
   };
 
   const handlePaymentDecision = async (status) => {
@@ -505,19 +530,30 @@ export function ExecutiveWorkItemReviewModal({ item, isOpen, onClose, onComplete
           {review.view === 'register_settlement' ? (
             <div className="space-y-4 rounded-xl border border-teal-200 bg-teal-50/40 p-4">
               <p className="text-[10px] font-black uppercase text-teal-900">Register withdrawal</p>
-              {loadingSettlement ? (
+              {!canApproveSettlements ? (
+                <ZareApprovalHint
+                  context={{
+                    referenceNo: settlementId || review.settlementId,
+                    documentType: 'register_settlement',
+                    status: (settlementDetail || review.row)?.status || 'Pending',
+                    canApprove: false,
+                    missingPermission: 'Register withdrawal approval requires finance.approve or refunds.approve.',
+                  }}
+                />
+              ) : null}
+              {loadingSettlement && !settlementDetail && !review.row?.settlementId ? (
                 <p className="text-[11px] text-slate-500">Loading withdrawal details…</p>
               ) : (
                 <>
-                  <p className="font-mono text-sm font-bold">{review.settlementId}</p>
+                  <p className="font-mono text-sm font-bold">{settlementId || review.settlementId || '—'}</p>
                   <p className="text-[11px] text-slate-700">
-                    {(settlementDetail || review.row)?.partyName || '—'}
+                    {(settlementDetail || review.row)?.partyName || item?.reviewContext?.subtitle || '—'}
                     {(settlementDetail || review.row)?.registerLineId
                       ? ` · ${(settlementDetail || review.row).registerLineId}`
                       : ''}
                   </p>
                   <p className="text-2xl font-black text-[#134e4a] tabular-nums">
-                    {formatNgn((settlementDetail || review.row)?.amountNgn)}
+                    {formatNgn((settlementDetail || review.row)?.amountNgn ?? item?.amountNgn)}
                   </p>
                   {(settlementDetail || review.row)?.reason ? (
                     <p className="text-[11px] text-slate-600 rounded-lg bg-white border border-slate-100 px-3 py-2">
@@ -531,7 +567,7 @@ export function ExecutiveWorkItemReviewModal({ item, isOpen, onClose, onComplete
                   ) : null}
                 </>
               )}
-              {!readOnly && item.canAct !== false ? (
+              {!readOnly && item.canAct !== false && canApproveSettlements ? (
                 <div className="space-y-3 border-t border-teal-200/80 pt-4">
                   <textarea
                     value={settlementNote}
@@ -543,21 +579,21 @@ export function ExecutiveWorkItemReviewModal({ item, isOpen, onClose, onComplete
                   <div className="grid grid-cols-2 gap-2">
                     <button
                       type="button"
-                      disabled={busy || loadingSettlement}
+                      disabled={busy || (!settlementId && !review.settlementId)}
                       onClick={() => void handleSettlementDecision('Approved')}
                       className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-2.5 text-[10px] font-black uppercase text-white hover:bg-emerald-500 disabled:opacity-40"
                     >
                       <CheckCircle2 size={14} />
-                      Approve
+                      {busy ? 'Saving…' : 'Approve'}
                     </button>
                     <button
                       type="button"
-                      disabled={busy || loadingSettlement}
+                      disabled={busy || (!settlementId && !review.settlementId)}
                       onClick={() => void handleSettlementDecision('Rejected')}
                       className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-rose-600 px-3 py-2.5 text-[10px] font-black uppercase text-white hover:bg-rose-500 disabled:opacity-40"
                     >
                       <Flag size={14} />
-                      Reject
+                      {busy ? 'Saving…' : 'Reject'}
                     </button>
                   </div>
                 </div>

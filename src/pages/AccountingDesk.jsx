@@ -35,6 +35,7 @@ import { AccountingOpeningBalancePanel } from '../components/finance/AccountingO
 import { AccountingClosePanel } from '../components/finance/AccountingClosePanel';
 import { AccountingPolicyPanel } from '../components/finance/AccountingPolicyPanel';
 import { Ap3CostingReadinessPanel } from '../components/finance/Ap3CostingReadinessPanel';
+import { Ap3BranchPlPanel } from '../components/finance/Ap3BranchPlPanel';
 import { ACCOUNTING_OPENING_DATE_LABEL } from '../shared/accountingCutover';
 
 function defaultPeriodRange() {
@@ -66,10 +67,10 @@ const TAB_HINTS = {
   overview: 'Exceptions, cutover readiness, and quick paths to close.',
   statements: 'Profit & Loss and Statement of Financial Position from GL.',
   gl: 'Trial balance and journal activity for the period.',
-  opening: `One-time ${ACCOUNTING_OPENING_DATE_LABEL} opening journal from last closing balances.`,
+  opening: `Register-first Opening Pack for ${ACCOUNTING_OPENING_DATE_LABEL} — roll up from modules, enter capital, post one journal.`,
   close: 'Checklist before locking the period — receipts, payroll, depreciation, statements.',
   policy: 'AP1c dry-run and cutover to deposit-until-produced GL posting.',
-  costing: 'Material cost per metre, expense buckets, and data readiness for branch P&L.',
+  costing: 'Material cost per metre, branch contribution P&L, and data readiness.',
   creditors: 'Amounts owed to the company — receivables, prepayments, and opening balances.',
   debtors: 'Amounts owed by the company — supplier AP, deposits, refunds, and suspense.',
   assets: 'Plant, property, and equipment register.',
@@ -194,7 +195,12 @@ export default function AccountingDesk() {
           ) : null}
 
           {!accessDenied && tab === 'overview' ? (
-            <AccountingOverviewPanel branchScopeLabel={branchScopeLabel} showToast={showToast} deskLayout />
+            <AccountingOverviewPanel
+              branchScopeLabel={branchScopeLabel}
+              showToast={showToast}
+              deskLayout
+              onFocusTab={setTab}
+            />
           ) : null}
 
           {!accessDenied && tab === 'statements' && hasFinanceView ? (
@@ -206,7 +212,12 @@ export default function AccountingDesk() {
           ) : null}
 
           {!accessDenied && tab === 'opening' && hasFinanceView ? (
-            <AccountingOpeningBalancePanel showToast={showToast} deskLayout />
+            <AccountingOpeningBalancePanel
+              showToast={showToast}
+              deskLayout
+              branchScopeLabel={branchScopeLabel}
+              onFocusTab={setTab}
+            />
           ) : null}
 
           {!accessDenied && tab === 'close' && hasFinanceView ? (
@@ -223,12 +234,15 @@ export default function AccountingDesk() {
           ) : null}
 
           {!accessDenied && tab === 'costing' && mayRegisters ? (
-            <Ap3CostingReadinessPanel
-              initialBranchId={branchId || 'ALL'}
-              autoLoad
-              enabled
-              deskLayout
-            />
+            <div className="space-y-8">
+              <Ap3CostingReadinessPanel
+                initialBranchId={branchId || 'ALL'}
+                autoLoad
+                enabled
+                deskLayout
+              />
+              <Ap3BranchPlPanel initialBranchId={branchId || 'ALL'} autoLoad enabled deskLayout />
+            </div>
           ) : null}
 
           {!accessDenied && tab === 'creditors' && mayRegisters ? (

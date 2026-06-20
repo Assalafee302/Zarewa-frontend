@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { CheckCircle2, AlertTriangle, XCircle, RefreshCw, Lock } from 'lucide-react';
 import { apiFetch } from '../../lib/apiBase';
+import { formatNgn } from '../../Data/mockData';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import {
   AccountingDeskKpiCard,
@@ -216,6 +217,50 @@ export function AccountingClosePanel({ branchScopeLabel = '', showToast, onFocus
               </div>
             ))}
           </div>
+
+          {data.controlTieOut?.checks?.length ? (
+            <section className="rounded-xl border border-slate-200/90 overflow-hidden">
+              <div className="border-b border-slate-100 bg-slate-50/80 px-4 py-2.5">
+                <h3 className="text-[10px] font-black uppercase tracking-wide text-slate-700">
+                  Register ↔ GL tie-out detail
+                </h3>
+                <p className="mt-0.5 text-[10px] text-slate-500">{data.controlTieOut.disclaimer}</p>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-[11px]">
+                  <thead>
+                    <tr className="border-b border-slate-100 text-[9px] font-bold uppercase text-slate-500">
+                      <th className="px-4 py-2">Control</th>
+                      <th className="px-4 py-2 text-right">Register</th>
+                      <th className="px-4 py-2 text-right">GL</th>
+                      <th className="px-4 py-2 text-right">Variance</th>
+                      <th className="px-4 py-2">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.controlTieOut.checks.map((c) => (
+                      <tr key={c.id} className="border-b border-slate-50">
+                        <td className="px-4 py-2">
+                          <span className="font-semibold text-slate-800">{c.label}</span>
+                          <span className="ml-1 font-mono text-[10px] text-slate-400">{c.glAccountCode}</span>
+                        </td>
+                        <td className="px-4 py-2 text-right tabular-nums">{formatNgn(c.registerNgn)}</td>
+                        <td className="px-4 py-2 text-right tabular-nums">{formatNgn(c.glNgn)}</td>
+                        <td className="px-4 py-2 text-right tabular-nums">{formatNgn(c.varianceNgn)}</td>
+                        <td className="px-4 py-2">
+                          {c.status === 'ok' ? (
+                            <span className="text-[10px] font-bold uppercase text-emerald-700">OK</span>
+                          ) : (
+                            <span className="text-[10px] font-bold uppercase text-amber-700">Review</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          ) : null}
         </>
       ) : null}
 

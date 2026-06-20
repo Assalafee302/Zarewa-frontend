@@ -9,6 +9,7 @@ import {
 } from './accounting/AccountingDeskUi';
 import { AccountingRegisterHeader } from './accounting/AccountingRegisterLayout';
 import { AccountingDeskTableSection } from './accounting/AccountingDeskTableSection';
+import { useWorkspace } from '../../context/WorkspaceContext';
 
 function currentPeriod() {
   return new Date().toISOString().slice(0, 7);
@@ -18,14 +19,24 @@ function currentPeriod() {
  * @param {{ branchScopeLabel?: string; showToast?: (msg: string, opts?: object) => void; deskLayout?: boolean }} props
  */
 export function AccountingStatementsPanel({ branchScopeLabel = '', showToast, deskLayout = false }) {
+  const ws = useWorkspace();
   const [period, setPeriod] = useState(currentPeriod);
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
 
+  const branchQuery = useMemo(() => {
+    if (ws?.viewAllBranches) return 'ALL';
+    return ws?.branchScope || ws?.session?.currentBranchId || '';
+  }, [ws]);
+
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await apiFetch(`/api/finance/statements-pack?period=${encodeURIComponent(period)}`);
+      const branchQ =
+        branchQuery && branchQuery !== 'ALL' ? `&branchId=${encodeURIComponent(branchQuery)}` : '';
+      const res = await apiFetch(
+        `/api/finance/statements-pack?period=${encodeURIComponent(period)}${branchQ}`
+      );
       if (!res.ok || !res.data?.ok) {
         showToast?.(res.data?.error || 'Could not load statements.', { variant: 'error' });
         setData(null);
@@ -35,7 +46,7 @@ export function AccountingStatementsPanel({ branchScopeLabel = '', showToast, de
     } finally {
       setLoading(false);
     }
-  }, [period, showToast]);
+  }, [period, branchQuery, showToast]);
 
   useEffect(() => {
     load();
