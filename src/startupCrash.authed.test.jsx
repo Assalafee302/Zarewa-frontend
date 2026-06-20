@@ -255,6 +255,19 @@ function installFetchMock(overrides = {}) {
     if (path.includes('/api/finance/month-end-close') || path.includes('/api/finance/statements-pack')) {
       return jsonFetchResponse({ ok: true, steps: [] });
     }
+    if (path.includes('/api/workspace/finance-snapshot')) {
+      return jsonFetchResponse({
+        ok: true,
+        domain: 'finance',
+        treasuryAccounts: [{ id: 1, name: 'Main till', type: 'cash', balance: 1000, bankName: 'Cash' }],
+        paymentRequests: [],
+        refunds: [],
+        registerSettlementsAwaitingPayment: [],
+        poTransportAwaitingTreasury: [],
+        staffRecoveriesDue: [],
+        receipts: [],
+      });
+    }
     if (path.includes('/api/exec/reserve-policy')) {
       return jsonFetchResponse({ ok: true, policy: {} });
     }
@@ -263,6 +276,28 @@ function installFetchMock(overrides = {}) {
     }
     return jsonFetchResponse({ ok: false, error: 'Not found' }, 404);
   });
+}
+
+function cashierBootstrap() {
+  return {
+    ...bootstrapPayload(
+      {
+        id: 'u-cashier',
+        username: 'cashier.user',
+        displayName: 'Cashier User',
+        roleKey: 'cashier',
+        branchId: 'BR1',
+      },
+      ['cashier.desk.view', 'finance.pay', 'treasury.manage', 'receipts.post']
+    ),
+    treasuryAccounts: [{ id: 1, name: 'Main till', type: 'cash', balance: 1000, bankName: 'Cash' }],
+    paymentRequests: [],
+    refunds: [],
+    registerSettlementsAwaitingPayment: [],
+    poTransportAwaitingTreasury: [],
+    staffRecoveriesDue: [],
+    receipts: [],
+  };
 }
 
 describe('authenticated startup TDZ', () => {
@@ -359,6 +394,34 @@ describe('authenticated startup TDZ', () => {
     await waitFor(
       () => {
         expect(screen.getByRole('tab', { name: /Home/i })).toBeInTheDocument();
+      },
+      { timeout: 15000 }
+    );
+  });
+
+  it('renders cashier finance accounts desk without error boundary crash', async () => {
+    vi.stubGlobal(
+      'fetch',
+      installFetchMock({
+        bootstrap: cashierBootstrap(),
+      })
+    );
+    window.history.pushState({}, '', '/accounts?tab=desk');
+    const { default: App } = await import('./App.jsx');
+    render(
+      <StrictMode>
+        <App />
+      </StrictMode>
+    );
+    await waitFor(
+      () => {
+        expect(screen.queryByText(/Zarewa could not load/i)).toBeNull();
+      },
+      { timeout: 15000 }
+    );
+    await waitFor(
+      () => {
+        expect(screen.getByRole('tab', { name: /^Desk$/i })).toBeInTheDocument();
       },
       { timeout: 15000 }
     );
