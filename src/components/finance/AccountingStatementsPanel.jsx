@@ -9,6 +9,7 @@ import {
   AccountingDeskPageIntro,
 } from './accounting/AccountingDeskUi';
 import { AccountingRegisterHeader } from './accounting/AccountingRegisterLayout';
+import { AccountingManagementDisclaimer } from './accounting/AccountingManagementDisclaimer';
 import { AccountingDeskTableSection } from './accounting/AccountingDeskTableSection';
 import { useWorkspace } from '../../context/WorkspaceContext';
 
@@ -176,6 +177,8 @@ export function AccountingStatementsPanel({
           Scope: <span className="font-bold">{branchScopeLabel}</span>
         </p>
       ) : null}
+
+      <AccountingManagementDisclaimer compact />
 
       {data ? (
         <>

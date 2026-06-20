@@ -28,7 +28,7 @@ export function QuotationPriceExceptionPanel({
   const ws = useWorkspace();
   const wsHasPermission = ws?.hasPermission;
   const wsRoleKey = ws?.session?.user?.roleKey;
-  const { showToast } = useToast();
+  const { show: showToast } = useToast();
   const qid = String(quotationId || '').trim();
   const [violations, setViolations] = useState([]);
   const [hasFloorRows, setHasFloorRows] = useState(false);

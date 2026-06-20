@@ -17,11 +17,14 @@ export function AccountingDeskNav({ tab, onTabChange, readOnlyExecutive = false 
   const zoneId = zoneForTabWithMode(tab, navOpts);
   const secondary = secondaryTabsForZoneWithMode(zoneId, navOpts);
 
-  const zoneTabs = zones.map((z) => ({
-    id: z.id,
-    label: z.label,
-    icon: z.icon ? <z.icon size={16} /> : null,
-  }));
+  const zoneTabs = zones.map((z) => {
+    const ZoneIcon = z.icon;
+    return {
+      id: z.id,
+      label: z.label,
+      icon: ZoneIcon ? <ZoneIcon size={16} /> : null,
+    };
+  });
 
   const onZoneChange = (nextZoneId) => {
     const zone = zones.find((z) => z.id === nextZoneId);

@@ -49,6 +49,8 @@ export function AccountingClosePanel({
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [locking, setLocking] = useState(false);
+  const [forceReason, setForceReason] = useState('');
+  const [showForceLock, setShowForceLock] = useState(false);
   const [error, setError] = useState('');
 
   const load = useCallback(async () => {
@@ -71,19 +73,29 @@ export function AccountingClosePanel({
     load();
   }, [load, deskRefresh]);
 
-  const lockPeriod = async () => {
+  const lockPeriod = async (force = false) => {
     if (!canLockPeriod) return;
+    if (force && forceReason.trim().length < 12) {
+      showToast?.('Override reason must be at least 12 characters.', { variant: 'error' });
+      return;
+    }
     setLocking(true);
     try {
       const res = await apiFetch('/api/controls/period-locks', {
         method: 'POST',
-        body: JSON.stringify({ periodKey: period, reason: 'Month-end close completed' }),
+        body: JSON.stringify({
+          periodKey: period,
+          reason: force ? forceReason.trim() : 'Month-end close completed',
+          force,
+        }),
       });
       if (!res.ok || !res.data?.ok) {
         showToast?.(res.data?.error || 'Could not lock period.', { variant: 'error' });
         return;
       }
-      showToast?.(`Period ${period} locked.`);
+      showToast?.(`Period ${period} locked.${force ? ' (MD/HoA override)' : ''}`);
+      setShowForceLock(false);
+      setForceReason('');
       await load();
     } finally {
       setLocking(false);
@@ -240,7 +252,7 @@ export function AccountingClosePanel({
                   <li key={label}>{label}</li>
                 ))}
               </ul>
-              <div className="mt-3">
+              <div className="mt-3 flex flex-wrap items-center gap-2">
                 <button
                   type="button"
                   disabled
@@ -250,7 +262,51 @@ export function AccountingClosePanel({
                   <Lock size={14} />
                   Lock period
                 </button>
+                {!showForceLock ? (
+                  <button
+                    type="button"
+                    onClick={() => setShowForceLock(true)}
+                    className="text-[10px] font-bold text-violet-800 hover:underline"
+                  >
+                    MD / HoA override…
+                  </button>
+                ) : null}
               </div>
+              {showForceLock ? (
+                <div className="mt-3 space-y-2 border-t border-amber-200/80 pt-3">
+                  <p className="text-[10px] font-semibold text-violet-950">
+                    Override requires written reason (min 12 characters). Server will reject lock if checklist is not
+                    clear unless override is used.
+                  </p>
+                  <textarea
+                    className="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-[11px] min-h-[72px]"
+                    placeholder="e.g. MD memo 2026-06-15 — immaterial tie-out variance documented in board pack"
+                    value={forceReason}
+                    onChange={(e) => setForceReason(e.target.value)}
+                  />
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => void lockPeriod(true)}
+                      disabled={locking || forceReason.trim().length < 12}
+                      className="inline-flex items-center gap-1.5 rounded-lg bg-violet-900 text-white px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide hover:brightness-105 disabled:opacity-50"
+                    >
+                      <Lock size={14} />
+                      Force lock
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowForceLock(false);
+                        setForceReason('');
+                      }}
+                      className="text-[10px] font-bold text-slate-600 hover:underline"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ) : null}
             </AccountingDeskNotice>
           ) : null}
 

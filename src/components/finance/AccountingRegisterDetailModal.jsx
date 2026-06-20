@@ -215,7 +215,9 @@ export function AccountingRegisterDetailModal({
           {actions.length ? (
             <ProcurementFormSection letter="A" title="Quick actions" compact>
               <ul className="space-y-1.5">
-                {actions.map((a) => (
+                {actions.map((a) => {
+                  const ActionIcon = a.icon;
+                  return (
                   <li key={a.label}>
                     <Link
                       to={a.to}
@@ -224,13 +226,14 @@ export function AccountingRegisterDetailModal({
                       className={`${registerSide === 'creditor' ? '' : ''} flex items-center justify-between gap-2 rounded-lg border border-slate-200/80 bg-slate-50/50 px-3 py-2 text-[10px] font-bold text-[#134e4a] hover:bg-white hover:border-[#134e4a]/20 transition-colors`}
                     >
                       <span className="inline-flex items-center gap-1.5">
-                        {a.icon ? <a.icon size={12} /> : <ExternalLink size={12} />}
+                        {ActionIcon ? <ActionIcon size={12} /> : <ExternalLink size={12} />}
                         {a.label}
                       </span>
                       <ArrowRight size={12} className="opacity-50" />
                     </Link>
                   </li>
-                ))}
+                  );
+                })}
               </ul>
             </ProcurementFormSection>
           ) : null}

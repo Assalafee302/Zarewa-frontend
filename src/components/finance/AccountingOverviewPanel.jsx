@@ -12,6 +12,8 @@ import {
 import { AccountingRegisterHeader } from './accounting/AccountingRegisterLayout';
 import { AccountingExecutiveSummary } from './accounting/AccountingExecutiveSummary';
 import { AccountingDeskMobileStrip } from './accounting/AccountingDeskMobileStrip';
+import { AccountingCutoverActionPlan } from './accounting/AccountingCutoverActionPlan';
+import { AccountingManagementDisclaimer } from './accounting/AccountingManagementDisclaimer';
 import { useAccountingDesk } from './accounting/AccountingDeskContext';
 import { ACCOUNTING_OPENING_DATE_LABEL } from '../../shared/accountingCutover';
 import { useWorkspace } from '../../context/WorkspaceContext';
@@ -212,6 +214,8 @@ export function AccountingOverviewPanel({
 
       {error ? <p className="text-[11px] font-medium text-rose-700">{error}</p> : null}
 
+      <AccountingManagementDisclaimer />
+
       <AccountingDeskMobileStrip
         count={exceptionTotal}
         label={
@@ -226,6 +230,10 @@ export function AccountingOverviewPanel({
         }
         actionLabel="Review"
       />
+
+      {!openingPosted ? (
+        <AccountingCutoverActionPlan onFocusTab={onFocusTab} deskRefresh={deskRefresh} />
+      ) : null}
 
       <AccountingExecutiveSummary
         periodKey={periodKey}

@@ -30,7 +30,7 @@ import { formatPersonName } from '../../lib/formatPersonName';
  */
 export function ExecutiveWorkItemReviewModal({ item, isOpen, onClose, onCompleted, readOnly = false }) {
   const ws = useWorkspace();
-  const { showToast } = useToast();
+  const { show: showToast } = useToast();
   const [busy, setBusy] = useState(false);
   const [auditData, setAuditData] = useState(null);
   const [loadingAudit, setLoadingAudit] = useState(false);
