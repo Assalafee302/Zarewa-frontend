@@ -5,6 +5,7 @@ import { useWorkspace } from '../../context/WorkspaceContext';
 import { useHrListLoad } from '../../hooks/useHrListLoad';
 import { canManageHrLeave } from '../../lib/hrAccess';
 import { HrPayrollPeriodFields } from '../../components/hr/HrPayrollPeriodFields';
+import { formatPayrollPeriodLabel } from '../../lib/hrPayroll';
 import { currentPeriodYyyymm } from '../../lib/hrRequests';
 import { HR_EMPLOYEES } from '../../lib/hrRoutes';
 import {
@@ -245,7 +246,7 @@ export default function HrLeave({ embedded = false, showYearEndOnly = false } = 
                       </Link>
                     </AppTableTd>
                     <AppTableTd>{b.leaveType}</AppTableTd>
-                    <AppTableTd>{b.periodYyyymm}</AppTableTd>
+                    <AppTableTd>{formatPayrollPeriodLabel(b.periodYyyymm)}</AppTableTd>
                     <AppTableTd align="right">{b.closingDays}</AppTableTd>
                     <AppTableTd align="right">{b.usedDays}</AppTableTd>
                   </AppTableTr>

@@ -4,6 +4,7 @@ import { useWorkspace } from '../../context/WorkspaceContext';
 import { useHrListLoad } from '../../hooks/useHrListLoad';
 import { canMarkBranchContribution } from '../../lib/hrAccess';
 import { formatNgn } from '../../lib/hrFormat';
+import { HrPayrollPeriodFields } from '../../components/hr/HrPayrollPeriodFields';
 import { currentPeriodYyyymm } from '../../lib/hrRequests';
 import {
   AppTable,
@@ -61,14 +62,7 @@ export default function ExecutiveHrContributions() {
         Branch salary fund contributions to HQ for each payroll month. Outstanding amounts do not block payroll
         payment.
       </p>
-      <label className="text-xs font-semibold text-slate-600">
-        Period (YYYYMM)
-        <input
-          value={periodYyyymm}
-          onChange={(e) => setPeriodYyyymm(e.target.value.replace(/\D/g, '').slice(0, 6))}
-          className="mt-1 block w-28 rounded-xl border border-slate-200 px-3 py-2 font-mono text-sm"
-        />
-      </label>
+      <HrPayrollPeriodFields value={periodYyyymm} onChange={setPeriodYyyymm} labelMonth="Contribution month" />
       {error ? (
         <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-800">{error}</div>
       ) : null}
