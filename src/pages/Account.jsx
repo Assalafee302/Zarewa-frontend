@@ -24,7 +24,7 @@ import {
   Banknote,
   Pencil,
   Trash2,
-  LayoutDashboard,
+  Wallet,
 } from 'lucide-react';
 
 import {
@@ -83,7 +83,7 @@ import { getAllowedLegacyAccountTabs, getDefaultLegacyAccountTab } from '../lib/
 import { FinanceDeskWorkQueues } from '../components/finance/FinanceDeskWorkQueues.jsx';
 import { AccountingRegisterSettlementPayModal } from '../components/finance/AccountingRegisterSettlementPayModal.jsx';
 import { StaffRecoveryCashierModal } from '../components/finance/StaffRecoveryCashierModal.jsx';
-import { registerSettlementsAwaitingPayment } from '../lib/registerSettlementPay';
+import { registerSettlementsAwaitingPayment, registerSettlementOutstandingNgn } from '../lib/registerSettlementPay';
 import {
   treasuryAccountBranchLabel,
   treasuryAccountDisplayName,
@@ -3718,6 +3718,74 @@ const Account = () => {
                                     {cancelPayRequestBusyId === req.requestID ? 'Cancelling...' : 'Cancel'}
                                   </button>
                                 </div>
+                              </div>
+                            </div>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
+                ) : null}
+
+                {registerSettlementsAwaitingPay.length > 0 ? (
+                  <div
+                    className="rounded-2xl border border-teal-200/90 bg-teal-50/50 p-5 space-y-3"
+                    data-testid="finance-register-withdrawals-awaiting-payout"
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <p className="text-xs font-black text-teal-950 uppercase tracking-widest flex items-center gap-2">
+                        <Wallet size={16} strokeWidth={2} />
+                        Register withdrawals — approved, awaiting payout
+                      </p>
+                      <span className="text-[10px] font-bold text-teal-900 tabular-nums">
+                        {registerSettlementsAwaitingPay.length} open
+                      </span>
+                    </div>
+                    <p className="text-[10px] text-teal-950/85 leading-relaxed">
+                      Accounting requests a debtor-register withdrawal; MD/finance approves. Record bank or cash payout
+                      here — same flow as refunds and expense requests on Desk.
+                    </p>
+                    <ul className="space-y-1.5">
+                      {registerSettlementsAwaitingPay.map((s) => {
+                        const outstandingNgn = registerSettlementOutstandingNgn(s);
+                        const meta2 = [
+                          s.partyName || 'Party',
+                          s.reason || null,
+                          s.branchId ? branchNameById[s.branchId] || s.branchId : null,
+                        ]
+                          .filter(Boolean)
+                          .join(' · ');
+                        return (
+                          <li
+                            key={s.settlementId}
+                            data-testid={`finance-register-withdrawal-awaiting-row-${s.settlementId}`}
+                            className="rounded-lg border border-teal-200/55 bg-white/50 backdrop-blur-md py-1.5 px-2.5 shadow-sm"
+                          >
+                            <div className="flex flex-wrap items-start justify-between gap-2 min-w-0">
+                              <div className="min-w-0 leading-tight flex-1">
+                                <p className="text-[11px] font-bold text-[#134e4a] truncate">
+                                  <span className="font-mono">{s.settlementId}</span>
+                                  <span className="font-medium text-slate-600"> · {s.partyName || 'Withdrawal'}</span>
+                                </p>
+                                <p
+                                  className="text-[8px] text-slate-500 mt-0.5 leading-snug line-clamp-2"
+                                  title={meta2}
+                                >
+                                  {meta2}
+                                </p>
+                              </div>
+                              <div className="flex flex-col items-end gap-1 shrink-0">
+                                <span className="text-[11px] font-black text-[#134e4a] tabular-nums">
+                                  {formatNgn(outstandingNgn)}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => openRegisterSettlementPay(s)}
+                                  className="text-[8px] font-semibold uppercase tracking-wide text-teal-900 bg-teal-100 hover:bg-teal-200 px-2 py-1 rounded-md"
+                                  title="Record treasury payout"
+                                >
+                                  Payout
+                                </button>
                               </div>
                             </div>
                           </li>

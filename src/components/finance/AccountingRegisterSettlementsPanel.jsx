@@ -139,6 +139,7 @@ export function AccountingRegisterSettlementsPanel({ branchId, onChanged }) {
         onClose={() => setDecisionTarget(null)}
         onDone={() => {
           void reload();
+          void ws?.refresh?.();
           onChanged?.();
         }}
       />
@@ -149,6 +150,7 @@ export function AccountingRegisterSettlementsPanel({ branchId, onChanged }) {
         onPaid={() => {
           setPayTarget(null);
           void reload();
+          void ws?.refresh?.();
           onChanged?.();
         }}
       />
