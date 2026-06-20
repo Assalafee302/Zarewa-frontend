@@ -7,7 +7,6 @@ import {
   userMayAccessLegacyAccountsRoute,
   userMaySeeLegacyAccountsNav,
   treasuryTabShowsPayoutQueues,
-  legacyAccountTabLabelForRole,
 } from './legacyAccountsAccess.js';
 
 describe('legacyAccountsAccess (client)', () => {
@@ -31,10 +30,14 @@ describe('legacyAccountsAccess (client)', () => {
     );
   });
 
-  it('cashier treasury is balances-only for payout queue visibility', () => {
+  it('cashier treasury tab resolves to desk and is not in allowed tabs', () => {
     expect(treasuryTabShowsPayoutQueues('cashier')).toBe(false);
     expect(treasuryTabShowsPayoutQueues('finance_manager')).toBe(true);
-    expect(legacyAccountTabLabelForRole('treasury', 'cashier')).toBe('Accounts & balances');
+    expect(getAllowedLegacyAccountTabs('cashier', ['cashier.desk.view'])).not.toContain('treasury');
+    expect(resolveAccountsNavigationTab('treasury', 'cashier', ['cashier.desk.view'])).toBe('desk');
+    expect(resolveLegacyAccountsRedirect('cashier', ['cashier.desk.view'], 'treasury')?.to).toBe(
+      '/accounts?tab=desk'
+    );
   });
 
   it('resolveAccountsNavigationTab maps forbidden tabs to role default', () => {

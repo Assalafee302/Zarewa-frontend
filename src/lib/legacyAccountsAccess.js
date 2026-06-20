@@ -11,8 +11,8 @@ const ROLE_CASHIER = 'cashier';
 const ROLE_ACCOUNTANT = 'finance_manager';
 const OVERSIGHT_ROLES = new Set(['admin', 'md']);
 
-/** Cashier: Desk + receipts + movements + treasury (balances). No disbursements register or audit. */
-const CASHIER_LEGACY_TABS = new Set(['desk', 'treasury', 'receipts', 'movements']);
+/** Cashier: Desk (includes accounts & statements) + receipts + movements. No separate treasury tab. */
+const CASHIER_LEGACY_TABS = new Set(['desk', 'receipts', 'movements']);
 const ACCOUNTANT_LEGACY_TABS = new Set(['treasury', 'receipts', 'movements', 'disbursements', 'audit']);
 
 /**
@@ -143,6 +143,7 @@ export function resolveAccountsNavigationTab(tabOrAlias, roleKey, permissions) {
   let tab = String(tabOrAlias || '').trim().toLowerCase();
   if (!tab) return null;
   if (tab === 'requests' || tab === 'payments') tab = 'disbursements';
+  if (isCashierRole(roleKey) && tab === 'treasury') return 'desk';
   if (!LEGACY_ACCOUNT_TAB_IDS.includes(tab)) return null;
   const allowed = getAllowedLegacyAccountTabs(roleKey, permissions);
   if (!allowed.length) return tab;
@@ -155,7 +156,6 @@ export function legacyAccountTabLabelForRole(tabId, roleKey) {
   if (!isCashierRole(roleKey)) return null;
   const labels = {
     desk: 'My desk',
-    treasury: 'Accounts & balances',
     receipts: 'Receipts',
     movements: 'Movements',
   };

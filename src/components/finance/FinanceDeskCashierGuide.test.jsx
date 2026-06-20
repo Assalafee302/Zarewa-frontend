@@ -14,13 +14,13 @@ describe('FinanceDeskCashierGuide', () => {
   });
 
   it('renders start-here guide when not dismissed', () => {
-    render(<FinanceDeskCashierGuide onGoToTab={() => {}} />);
+    render(<FinanceDeskCashierGuide />);
     expect(screen.getByTestId('cashier-desk-guide')).toBeTruthy();
     expect(screen.getByText(/Your daily cashier workflow/i)).toBeTruthy();
   });
 
   it('dismisses guide and persists to localStorage', () => {
-    render(<FinanceDeskCashierGuide onGoToTab={() => {}} />);
+    render(<FinanceDeskCashierGuide />);
     const guide = screen.getByTestId('cashier-desk-guide');
     fireEvent.click(within(guide).getByRole('button', { name: /Got it — hide this guide/i }));
     expect(screen.queryByTestId('cashier-desk-guide')).toBeNull();

@@ -73,6 +73,8 @@ import { FinanceDeskLiquidityHeader } from "./FinanceDeskLiquidityHeader";
 
 import { FinanceDeskTreasuryAccountGrid } from "./FinanceDeskTreasuryAccountGrid";
 
+import { FinanceDeskTreasurySummary } from "./FinanceDeskTreasurySummary";
+
 import {
   FinanceDeskColoredQueuePanel,
   FinanceDeskColoredQueueRow,
@@ -131,6 +133,10 @@ export function FinanceDeskWorkQueues({
   onReceiveStaffObligation,
 
   onGoToTab,
+
+  onAccountClick,
+
+  treasurySummary,
 }) {
   const ws = useWorkspace();
 
@@ -417,15 +423,15 @@ export function FinanceDeskWorkQueues({
       {branchLabel ? (
         <p className="text-[11px] text-slate-600 leading-relaxed rounded-xl border border-teal-200/70 bg-teal-50/50 px-4 py-3">
           <strong className="text-[#134e4a]">{branchLabel}</strong> cashier desk
-          — your payout home. Confirm receipts and post approved expense, refund,
-          and haulage payouts here. Staff loan and recovery payments use the
-          private section below when an employee pays at the desk. Supplier
-          payments stay on Procurement.
+          — your payout home. Confirm receipts, post approved payouts, and view till/bank
+          balances and statements on this page. Staff loan and recovery payments use the
+          private section below when an employee pays at the desk. Supplier payments stay
+          on Procurement.
         </p>
       ) : null}
 
       {isCashier && deskSubTab === "work" ? (
-        <FinanceDeskCashierGuide onGoToTab={onGoToTab} />
+        <FinanceDeskCashierGuide />
       ) : null}
 
       <FinanceTrialBanner>
@@ -468,10 +474,21 @@ export function FinanceDeskWorkQueues({
             nextActionSummary={nextActionSummary}
           />
 
+          {treasurySummary ? (
+            <FinanceDeskTreasurySummary
+              inflowsNgn={treasurySummary.inflowsNgn}
+              outflowsNgn={treasurySummary.outflowsNgn}
+              reconciliationCount={treasurySummary.reconciliationCount}
+              onGoToReceipts={treasurySummary.onGoToReceipts}
+            />
+          ) : null}
+
           <FinanceDeskTreasuryAccountGrid
             accounts={treasuryAccounts}
             bookById={bookById}
-            onGoToTab={onGoToTab}
+            onGoToTab={onAccountClick ? undefined : onGoToTab}
+            onAccountClick={onAccountClick}
+            cardActionLabel={onAccountClick ? 'View statement' : undefined}
           />
 
           <section className="space-y-3">

@@ -1335,8 +1335,11 @@ const Account = () => {
     };
 
     if (t && TAB_LABELS[t]) {
-      if (!allowed.length || allowed.includes(t)) {
-        setActiveTab(t);
+      const rkLower = String(rk || '').trim().toLowerCase();
+      const cashierTreasuryMerge = rkLower === 'cashier' && t === 'treasury';
+      const tabId = cashierTreasuryMerge ? 'desk' : t;
+      if (!allowed.length || allowed.includes(t) || cashierTreasuryMerge) {
+        applyTab(tabId);
       } else {
         applyTab(defaultTab);
       }
@@ -3014,8 +3017,7 @@ const Account = () => {
 
   const isCashierRole = userIsCashierRole(ws?.session?.user?.roleKey);
   const financePageTitle = (() => {
-    if (isCashierRole && activeTab === 'desk') return 'Cashier desk';
-    if (isCashierRole && activeTab === 'treasury') return 'Branch accounts & balances';
+    if (isCashierRole && activeTab === 'desk') return 'My desk';
     return 'Finance & accounts';
   })();
   const financePageSubtitle = (() => {
@@ -3029,10 +3031,7 @@ const Account = () => {
       return 'Treasury, customer receipt settlement, and approvals';
     }
     if (activeTab === 'desk') {
-      return 'Your payout home — confirm receipts and post approved expense, refund, and haulage payouts here.';
-    }
-    if (activeTab === 'treasury') {
-      return 'View till and bank balances and statements. Post all payouts from My desk — not here.';
+      return 'Your finance home — balances, statements, receipts, and payout queues in one place.';
     }
     if (activeTab === 'receipts') {
       return 'Confirm customer payments and reconcile bank/cash received.';
@@ -3216,6 +3215,21 @@ const Account = () => {
                 onReceiveStaffRecovery={handleDeskReceiveStaffRecovery}
                 onReceiveStaffObligation={handleDeskReceiveStaffObligation}
                 onGoToTab={handleAccountTabChange}
+                onAccountClick={isCashierRole ? setStatementAccount : undefined}
+                treasurySummary={
+                  isCashierRole
+                    ? {
+                        inflowsNgn: ws?.hasWorkspaceData
+                          ? treasuryInflowsNgn
+                          : liveReceipts.reduce((s, r) => s + receiptCashReceivedNgn(r), 0),
+                        outflowsNgn: ws?.hasWorkspaceData
+                          ? treasuryOutflowsNgn
+                          : expenses.reduce((s, e) => s + e.amountNgn, 0),
+                        reconciliationCount: reconciliationFlags,
+                        onGoToReceipts: () => handleAccountTabChange('receipts'),
+                      }
+                    : null
+                }
               />
             )}
 

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { LayoutDashboard, Banknote, Landmark, ArrowRightLeft, UserRound, X, ChevronDown, ChevronUp } from 'lucide-react';
+import { LayoutDashboard, Banknote, Landmark, UserRound, X, ChevronDown, ChevronUp } from 'lucide-react';
 import { FinanceActionButton } from './FinanceActionButton';
 
 const STORAGE_KEY = 'zarewa.cashierDeskGuide.dismissed';
@@ -26,16 +26,16 @@ const STEPS = [
     body: 'Loans and HR recoveries sit in a collapsed section at the bottom — expand only when the employee is at your desk.',
   },
   {
-    icon: ArrowRightLeft,
-    title: 'Treasury tab = balances only',
-    body: 'Use Accounts & balances to view statements and account details. Do not pay from Treasury — use Desk.',
+    icon: Landmark,
+    title: 'View account statements',
+    body: 'Tap any till or bank card below to open movements and balances — all on this page.',
   },
 ];
 
 /**
  * One-time collapsible orientation for branch cashiers on Finance → Desk.
  */
-export function FinanceDeskCashierGuide({ onGoToTab }) {
+export function FinanceDeskCashierGuide() {
   const [dismissed, setDismissed] = useState(true);
   const [expanded, setExpanded] = useState(true);
 
@@ -113,11 +113,12 @@ export function FinanceDeskCashierGuide({ onGoToTab }) {
         </ol>
       ) : null}
       <div className="mt-4 flex flex-wrap gap-2">
-        {onGoToTab ? (
-          <FinanceActionButton variant="secondary" onClick={() => onGoToTab('treasury')}>
-            View accounts &amp; balances
-          </FinanceActionButton>
-        ) : null}
+        <FinanceActionButton
+          variant="link"
+          onClick={() => document.getElementById('desk-accounts')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+        >
+          Jump to accounts
+        </FinanceActionButton>
         <FinanceActionButton variant="link" onClick={dismiss}>
           Got it — hide this guide
         </FinanceActionButton>

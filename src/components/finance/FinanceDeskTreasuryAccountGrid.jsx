@@ -40,13 +40,13 @@ export function FinanceDeskTreasuryAccountGrid({
   }
 
   return (
-    <section className="space-y-3">
+    <section id="desk-accounts" className="space-y-3 scroll-mt-20">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="flex items-center gap-2 text-sm font-black text-slate-800">
           <Landmark size={16} className="text-teal-700" />
           Branch treasury accounts
         </h2>
-        {onGoToTab ? (
+        {onGoToTab && !onAccountClick ? (
           <FinanceActionButton variant="link" onClick={() => onGoToTab('treasury')}>
             Manage on treasury
           </FinanceActionButton>

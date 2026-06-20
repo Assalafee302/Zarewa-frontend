@@ -475,7 +475,7 @@ describe('authenticated startup TDZ', () => {
     );
   });
 
-  it('renders cashier treasury tab with desk banner and no payout queues', async () => {
+  it('redirects cashier treasury deep link to merged My desk', async () => {
     vi.stubGlobal(
       'fetch',
       installFetchMock({
@@ -497,10 +497,13 @@ describe('authenticated startup TDZ', () => {
     );
     await waitFor(
       () => {
-        expect(screen.getByTestId('cashier-treasury-desk-banner')).toBeInTheDocument();
+        expect(screen.getByRole('tab', { name: /^My desk$/i })).toBeInTheDocument();
+        expect(screen.getByTestId('desk-treasury-summary')).toBeInTheDocument();
       },
       { timeout: 15000 }
     );
+    expect(screen.queryByRole('tab', { name: /Accounts & balances/i })).toBeNull();
+    expect(screen.queryByTestId('cashier-treasury-desk-banner')).toBeNull();
     expect(screen.queryByTestId('finance-refunds-awaiting-payout')).toBeNull();
   });
 
