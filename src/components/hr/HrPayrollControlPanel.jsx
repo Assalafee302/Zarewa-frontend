@@ -20,6 +20,7 @@ export function HrPayrollControlPanel({ runId, canManage = false, netPayableNgn 
   const [bankExportOpen, setBankExportOpen] = useState(false);
   const [bonusOpen, setBonusOpen] = useState(false);
   const [bonusBusy, setBonusBusy] = useState(false);
+  const [approveBonusId, setApproveBonusId] = useState('');
 
   const load = useCallback(async () => {
     if (!runId) return;
@@ -60,6 +61,7 @@ export function HrPayrollControlPanel({ runId, canManage = false, netPayableNgn 
   };
 
   const approveBonus = async (id) => {
+    setApproveBonusId('');
     const { ok, data } = await apiFetch(`/api/hr/bonus-requests/${encodeURIComponent(id)}/approve`, { method: 'POST' });
     if (!ok || !data?.ok) {
       setError(data?.error || 'Could not approve bonus.');
@@ -137,7 +139,7 @@ export function HrPayrollControlPanel({ runId, canManage = false, netPayableNgn 
                   {b.status === 'pending' ? (
                     <button
                       type="button"
-                      onClick={() => approveBonus(b.id)}
+                      onClick={() => setApproveBonusId(b.id)}
                       className={`${HR_BTN_PRIMARY} w-full sm:w-auto min-h-[44px]`}
                     >
                       Approve & apply
@@ -194,6 +196,18 @@ export function HrPayrollControlPanel({ runId, canManage = false, netPayableNgn 
       </HrFormModal>
 
       <HrPayrollConfirmBonusModal isOpen={bonusOpen} onClose={() => setBonusOpen(false)} busy={bonusBusy} onConfirm={requestBonus} />
+
+      <HrFormModal isOpen={Boolean(approveBonusId)} onClose={() => setApproveBonusId('')} title="Approve bonus" size="sm">
+        <p className="text-sm text-slate-600">Apply this end-of-year bonus to payroll lines after GM HR approval?</p>
+        <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+          <button type="button" onClick={() => setApproveBonusId('')} className={HR_BTN_SECONDARY}>
+            Cancel
+          </button>
+          <button type="button" onClick={() => approveBonus(approveBonusId)} className={HR_BTN_PRIMARY}>
+            Approve & apply
+          </button>
+        </div>
+      </HrFormModal>
     </div>
   );
 }

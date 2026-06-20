@@ -10,6 +10,7 @@ import { HrSensitiveGate } from '../../components/hr/HrSensitiveGate';
 import { useHrSensitiveAccess } from '../../hooks/useHrSensitiveAccess';
 import { canManageHrStaff, canViewOrgSensitiveHr, hrHasPermission } from '../../lib/hrAccess';
 import { formatNgn, payrollGroupLabel, yearsOfServiceFromIso } from '../../lib/hrFormat';
+import { formatPayrollPeriodLabel } from '../../lib/hrPayroll';
 import { HrStaffLifecyclePanel } from '../../components/hr/HrStaffLifecyclePanel';
 import { HrStaffFeedbackPanel } from '../../components/hr/HrStaffFeedbackPanel';
 import { HrStaffSalaryHistoryPanel } from '../../components/hr/HrStaffSalaryHistoryPanel';
@@ -755,7 +756,7 @@ export default function HrStaffProfile() {
                 <div key={`${b.leaveType}-${b.periodYyyymm}`} className="rounded-xl border border-slate-100 bg-white px-4 py-3">
                   <p className="text-[10px] font-bold uppercase text-slate-400">{b.leaveType} leave</p>
                   <p className="mt-1 text-2xl font-black tabular-nums text-[#134e4a]">{b.closingDays ?? '—'}</p>
-                  <p className="text-xs text-slate-500">days remaining · {b.periodYyyymm}</p>
+                  <p className="text-xs text-slate-500">days remaining · {formatPayrollPeriodLabel(b.periodYyyymm)}</p>
                 </div>
               ))}
             </div>
@@ -966,7 +967,7 @@ export default function HrStaffProfile() {
                   {leaveBalances.map((b) => (
                     <AppTableTr key={`${b.leaveType}-${b.periodYyyymm}`}>
                       <AppTableTd>{b.leaveType}</AppTableTd>
-                      <AppTableTd>{b.periodYyyymm}</AppTableTd>
+                      <AppTableTd>{formatPayrollPeriodLabel(b.periodYyyymm)}</AppTableTd>
                       <AppTableTd align="right">{b.openingDays}</AppTableTd>
                       <AppTableTd align="right">{b.accruedDays}</AppTableTd>
                       <AppTableTd align="right">{b.usedDays}</AppTableTd>

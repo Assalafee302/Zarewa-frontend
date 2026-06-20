@@ -1,12 +1,13 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import { apiFetch } from '../../lib/apiBase';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { HrSensitiveGate } from '../../components/hr/HrSensitiveGate';
-import { HrSalaryMatrixPanel } from '../../components/hr/HrSalaryMatrixPanel';
 import { HrPayrollControlPanel } from '../../components/hr/HrPayrollControlPanel';
 import { HrAddFormButton } from '../../components/hr/HrFormModal';
 import {
   HrPayrollConfirmModal,
+  HrPayrollLineHoldModal,
   HrPayrollMarkPaidModal,
   HrPayrollPayeAdjustModal,
   HrPayrollStartRunModal,
@@ -21,10 +22,12 @@ import {
   canPreparePayroll,
   canViewOrgSensitiveHr,
 } from '../../lib/hrAccess';
-import { mdApprovePayrollRun } from '../../lib/hrExtended';
+import { fetchPayrollPayeAlerts, mdApprovePayrollRun, patchPayrollLineHold } from '../../lib/hrExtended';
 import { formatNgn } from '../../lib/hrFormat';
+import { hrFinancePayrollPath } from '../../lib/hrRoutes';
 import {
   downloadHrPayrollExport,
+  downloadSinglePayslipPdf,
   formatPayrollPeriodLabel,
   payrollStatusTone,
   sortPayrollRunsByPeriod,
@@ -178,7 +181,6 @@ export default function HrPayroll({ embedded = false } = {}) {
   const canPay = canPayPayroll(perms);
   const canExport = canExportPayroll(perms);
 
-  const [tab, setTab] = useState('runs');
   const [varianceModalOpen, setVarianceModalOpen] = useState(false);
   const [missingBankOpen, setMissingBankOpen] = useState(false);
   const [runs, setRuns] = useState([]);
@@ -198,8 +200,16 @@ export default function HrPayroll({ embedded = false } = {}) {
   const [confirmBusy, setConfirmBusy] = useState(false);
   const [markPaidOpen, setMarkPaidOpen] = useState(false);
   const [markPaidBusy, setMarkPaidBusy] = useState(false);
+  const [payeAlerts, setPayeAlerts] = useState([]);
+  const [holdLine, setHoldLine] = useState(null);
+  const [holdBusy, setHoldBusy] = useState(false);
+  const [searchParams] = useSearchParams();
 
   const sortedRuns = useMemo(() => sortPayrollRunsByPeriod(runs), [runs]);
+  const heldLineCount = useMemo(
+    () => lines.filter((l) => l.payHold || l.held).length,
+    [lines]
+  );
 
   const bankTreasuryAccounts = React.useMemo(
     () =>
@@ -256,6 +266,28 @@ export default function HrPayroll({ embedded = false } = {}) {
   useEffect(() => {
     loadRunDetail();
   }, [loadRunDetail, sensitive.isUnlocked, showSensitiveInline]);
+
+  useEffect(() => {
+    const runId = searchParams.get('runId');
+    if (!runId || !runs.length) return;
+    if (runs.some((r) => r.id === runId)) setSelectedId(runId);
+  }, [searchParams, runs]);
+
+  useEffect(() => {
+    if (!selectedId || run?.status !== 'draft') {
+      setPayeAlerts([]);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const { ok, data } = await fetchPayrollPayeAlerts(selectedId);
+      if (cancelled) return;
+      setPayeAlerts(ok && data?.ok ? data.missing || [] : []);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedId, run?.status]);
 
   useEffect(() => {
     (async () => {
@@ -392,6 +424,26 @@ export default function HrPayroll({ embedded = false } = {}) {
     if (ok) setMarkPaidOpen(false);
   };
 
+  const saveLineHold = async ({ hold, reason }) => {
+    if (!selectedId || !holdLine) return;
+    setHoldBusy(true);
+    const { ok, data } = await patchPayrollLineHold(selectedId, holdLine.userId, { hold, reason });
+    setHoldBusy(false);
+    if (!ok || !data?.ok) {
+      setError(data?.error || 'Could not update payroll hold.');
+      return;
+    }
+    setHoldLine(null);
+    setMessage(hold ? 'Salary held for this run.' : 'Hold released — recompute if net pay needs refreshing.');
+    await loadRunDetail();
+  };
+
+  const downloadPayslip = async (userId) => {
+    if (!selectedId) return;
+    const r = await downloadSinglePayslipPdf(selectedId, userId);
+    if (!r.ok) setError(r.error);
+  };
+
   const downloadExport = async (kind) => {
     if (!selectedId) return;
     const r = await downloadHrPayrollExport(selectedId, kind);
@@ -453,6 +505,29 @@ export default function HrPayroll({ embedded = false } = {}) {
 
   const linesPaging = useAppTablePaging(lines, 20, selectedId);
 
+  const lineActions = (l) => (
+    <div className="flex flex-wrap justify-end gap-1">
+      {run?.status === 'draft' && canPrepare ? (
+        <button
+          type="button"
+          onClick={() => setHoldLine(l)}
+          className="rounded-lg border border-slate-200 px-2 py-1 text-[10px] font-bold uppercase text-slate-700 hover:bg-slate-50"
+        >
+          {l.payHold || l.held ? 'Release' : 'Hold pay'}
+        </button>
+      ) : null}
+      {(run?.status === 'locked' || run?.status === 'paid') && !l.amountsRedacted ? (
+        <button
+          type="button"
+          onClick={() => downloadPayslip(l.userId)}
+          className="rounded-lg border border-teal-200 px-2 py-1 text-[10px] font-bold uppercase text-[#134e4a] hover:bg-teal-50/50"
+        >
+          Payslip
+        </button>
+      ) : null}
+    </div>
+  );
+
   const linesBody = (
     <div className="space-y-3">
       {totals && !totals.amountsRedacted ? (
@@ -483,6 +558,7 @@ export default function HrPayroll({ embedded = false } = {}) {
                   <AppTableTh align="right">Recoveries</AppTableTh>
                   <AppTableTh align="right">Other</AppTableTh>
                   <AppTableTh align="right">Net</AppTableTh>
+                  <AppTableTh align="right">Actions</AppTableTh>
                 </AppTableThead>
                 <AppTableBody>
                   <HrTableLoadingRow colSpan={10} message="Loading payroll lines…" />
@@ -512,6 +588,7 @@ export default function HrPayroll({ embedded = false } = {}) {
                 {l.amountsRedacted ? (
                   <p className="mt-2 text-xs text-slate-500">Amounts restricted</p>
                 ) : (
+                  <>
                   <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 text-xs">
                     <div>
                       <dt className="font-bold uppercase tracking-wide text-slate-400">Gross</dt>
@@ -546,6 +623,8 @@ export default function HrPayroll({ embedded = false } = {}) {
                       <dd className="mt-0.5">{payeField(l)}</dd>
                     </div>
                   </dl>
+                  <div className="mt-3">{lineActions(l)}</div>
+                  </>
                 )}
               </article>
             ))}
@@ -576,6 +655,7 @@ export default function HrPayroll({ embedded = false } = {}) {
             <AppTableTh align="right">Recoveries</AppTableTh>
             <AppTableTh align="right">Other</AppTableTh>
             <AppTableTh align="right">Net</AppTableTh>
+            <AppTableTh align="right">Actions</AppTableTh>
           </AppTableThead>
           <AppTableBody>
             {linesPaging.slice.map((l) => (
@@ -613,6 +693,7 @@ export default function HrPayroll({ embedded = false } = {}) {
                     <AppTableTd align="right" className="font-semibold">
                       {l.amountsRedacted ? '—' : formatNgn(l.netNgn)}
                     </AppTableTd>
+                    <AppTableTd align="right" truncate={false}>{lineActions(l)}</AppTableTd>
                   </AppTableTr>
                 ))}
                 {totals && !totals.amountsRedacted ? (
@@ -662,29 +743,7 @@ export default function HrPayroll({ embedded = false } = {}) {
 
   return (
     <div className="space-y-6">
-      {!embedded && canPrepare ? (
-        <div className="flex flex-wrap gap-1 border-b border-slate-200 pb-px">
-          <button
-            type="button"
-            onClick={() => setTab('runs')}
-            className={`rounded-t-lg px-3 py-2 text-xs font-bold uppercase ${tab === 'runs' ? 'border border-b-white bg-white text-[#134e4a]' : 'text-slate-500'}`}
-          >
-            Monthly payroll
-          </button>
-          <button
-            type="button"
-            onClick={() => setTab('matrix')}
-            className={`rounded-t-lg px-3 py-2 text-xs font-bold uppercase ${tab === 'matrix' ? 'border border-b-white bg-white text-[#134e4a]' : 'text-slate-500'}`}
-          >
-            Salary matrix
-          </button>
-        </div>
-      ) : null}
-
-      {tab === 'matrix' && !embedded ? <HrSalaryMatrixPanel /> : null}
-
-      {tab === 'runs' || embedded ? (
-        <>
+      <>
           {error ? (
             <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-800">{error}</div>
           ) : null}
@@ -777,6 +836,50 @@ export default function HrPayroll({ embedded = false } = {}) {
                     })}
                   </ol>
                 </div>
+
+                {totals && !totals.amountsRedacted ? (
+                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                    <div className="rounded-xl border border-slate-100 bg-white px-3 py-2">
+                      <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Staff</p>
+                      <p className="mt-1 text-lg font-black tabular-nums text-[#134e4a]">{totals.headcount}</p>
+                    </div>
+                    <div className="rounded-xl border border-slate-100 bg-white px-3 py-2">
+                      <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Gross</p>
+                      <p className="mt-1 text-lg font-black tabular-nums text-slate-900">{formatNgn(totals.grossTotalNgn)}</p>
+                    </div>
+                    <div className="rounded-xl border border-slate-100 bg-white px-3 py-2">
+                      <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Net payable</p>
+                      <p className="mt-1 text-lg font-black tabular-nums text-teal-800">{formatNgn(totals.netTotalNgn)}</p>
+                    </div>
+                    <div className="rounded-xl border border-slate-100 bg-white px-3 py-2">
+                      <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">On hold</p>
+                      <p className="mt-1 text-lg font-black tabular-nums text-amber-800">{heldLineCount}</p>
+                    </div>
+                  </div>
+                ) : null}
+
+                {run.status === 'draft' && payeAlerts.length > 0 ? (
+                  <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+                    <p className="font-semibold">{payeAlerts.length} staff missing monthly PAYE on profile</p>
+                    <ul className="mt-2 space-y-1 text-xs">
+                      {payeAlerts.slice(0, 8).map((s) => (
+                        <li key={s.userId}>{s.displayName || s.userId}</li>
+                      ))}
+                    </ul>
+                    {payeAlerts.length > 8 ? (
+                      <p className="mt-1 text-xs text-amber-800">+ {payeAlerts.length - 8} more</p>
+                    ) : null}
+                  </div>
+                ) : null}
+
+                {run.status === 'locked' ? (
+                  <p className="text-xs text-slate-600">
+                    Ready for finance:{' '}
+                    <Link to={hrFinancePayrollPath(selectedId)} className="font-semibold text-[#134e4a] hover:underline">
+                      Open payroll bank payments in Accounting
+                    </Link>
+                  </p>
+                ) : null}
 
                 <div className="space-y-3">
                   {run.status === 'draft' && canPrepare ? (
@@ -970,7 +1073,6 @@ export default function HrPayroll({ embedded = false } = {}) {
             )}
           </div>
         </>
-      ) : null}
 
       {varianceModalOpen && selectedId && (
         <VarianceModal runId={selectedId} onClose={() => setVarianceModalOpen(false)} />
@@ -1016,6 +1118,14 @@ export default function HrPayroll({ embedded = false } = {}) {
         onTreasuryAccountChange={setPayTreasuryAccountId}
         busy={markPaidBusy}
         onConfirm={confirmPayroll}
+      />
+
+      <HrPayrollLineHoldModal
+        isOpen={Boolean(holdLine)}
+        onClose={() => setHoldLine(null)}
+        line={holdLine}
+        busy={holdBusy}
+        onConfirm={saveLineHold}
       />
     </div>
   );

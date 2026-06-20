@@ -287,3 +287,54 @@ export function HrPayrollMarkPaidModal({
     </ModalFrame>
   );
 }
+
+/** Hold or release one staff member's pay on a draft run. */
+export function HrPayrollLineHoldModal({ isOpen, onClose, line, busy = false, onConfirm }) {
+  const [reason, setReason] = useState('');
+  const isHeld = Boolean(line?.payHold || line?.held);
+
+  useEffect(() => {
+    if (isOpen && line) setReason(line.holdReason || '');
+  }, [isOpen, line]);
+
+  if (!isOpen || !line) return null;
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    onConfirm({ hold: !isHeld, reason: reason.trim() });
+  };
+
+  return (
+    <ModalFrame
+      isOpen={isOpen}
+      onClose={busy ? undefined : onClose}
+      title={isHeld ? 'Release payroll hold' : 'Hold payroll payment'}
+      description={line.displayName || line.userId}
+      surface="plain"
+    >
+      <form className={MODAL_PANEL} onSubmit={handleSubmit}>
+        {!isHeld ? (
+          <label className="text-xs font-semibold text-slate-600">
+            Reason
+            <input
+              className={HR_FIELD_CLASS}
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              placeholder="e.g. pending discipline review"
+            />
+          </label>
+        ) : (
+          <p className="text-sm text-slate-600">Release this hold and allow net pay on the run? Recompute afterward if amounts need refreshing.</p>
+        )}
+        <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+          <button type="button" onClick={onClose} disabled={busy} className={HR_BTN_SECONDARY}>
+            Cancel
+          </button>
+          <button type="submit" disabled={busy} className={`${HR_BTN_PRIMARY} ${isHeld ? '' : 'bg-amber-800 hover:bg-amber-900'}`}>
+            {busy ? 'Saving…' : isHeld ? 'Release hold' : 'Hold pay'}
+          </button>
+        </div>
+      </form>
+    </ModalFrame>
+  );
+}

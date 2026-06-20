@@ -1,8 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Landmark, RefreshCw } from 'lucide-react';
 import { apiFetch } from '../../lib/apiBase';
 import { useWorkspace } from '../../context/WorkspaceContext';
-import { downloadHrPayrollExport, formatPeriodYyyymm } from '../../lib/hrPayroll';
+import { HrPayrollMarkPaidModal } from '../hr/HrPayrollRunModals';
+import { downloadHrPayrollExport, formatPayrollPeriodLabel, sortPayrollRunsByPeriod } from '../../lib/hrPayroll';
 import { markPayrollRunPaid } from '../../lib/hrExtended';
 import { formatNgn } from '../../lib/hrFormat';
 import { ProcurementFormSection } from '../procurement/ProcurementFormSection';
@@ -16,6 +18,7 @@ import { AccountingRegisterHeader } from './accounting/AccountingRegisterLayout'
 /** Approved / locked payroll runs — bank bulk payment file and treasury posting. */
 export function FinancePayrollPaymentsPanel() {
   const ws = useWorkspace();
+  const [searchParams] = useSearchParams();
   const treasuryAccounts = useMemo(
     () => (Array.isArray(ws?.snapshot?.treasuryAccounts) ? ws.snapshot.treasuryAccounts : []).filter(Boolean),
     [ws?.snapshot?.treasuryAccounts]
@@ -31,12 +34,16 @@ export function FinancePayrollPaymentsPanel() {
 
   const [runs, setRuns] = useState([]);
   const [selectedId, setSelectedId] = useState('');
+  const [run, setRun] = useState(null);
   const [totals, setTotals] = useState(null);
   const [treasuryAccountId, setTreasuryAccountId] = useState('');
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [markPaidOpen, setMarkPaidOpen] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
+
+  const sortedRuns = useMemo(() => sortPayrollRunsByPeriod(runs), [runs]);
 
   useEffect(() => {
     if (!treasuryAccountId && bankAccounts.length) {
@@ -53,11 +60,15 @@ export function FinancePayrollPaymentsPanel() {
       setRuns([]);
       return;
     }
-    const list = data.runs || [];
+    const list = sortPayrollRunsByPeriod(data.runs || []);
     setRuns(list);
-    setSelectedId((prev) => prev || list[0]?.id || '');
+    setSelectedId((prev) => {
+      const fromUrl = searchParams.get('runId');
+      if (fromUrl && list.some((r) => r.id === fromUrl)) return fromUrl;
+      return prev || list[0]?.id || '';
+    });
     setError('');
-  }, []);
+  }, [searchParams]);
 
   useEffect(() => {
     loadRuns();
@@ -66,12 +77,16 @@ export function FinancePayrollPaymentsPanel() {
   useEffect(() => {
     if (!selectedId) {
       setTotals(null);
+      setRun(null);
       return;
     }
     (async () => {
-      const { ok, data } = await apiFetch(`/api/hr/payroll-runs/${encodeURIComponent(selectedId)}/totals`);
-      if (ok && data?.ok) setTotals(data.totals);
-      else setTotals(null);
+      const [runRes, totalsRes] = await Promise.all([
+        apiFetch(`/api/hr/payroll-runs/${encodeURIComponent(selectedId)}`),
+        apiFetch(`/api/hr/payroll-runs/${encodeURIComponent(selectedId)}/totals`),
+      ]);
+      setRun(runRes.ok && runRes.data?.ok ? runRes.data.run : null);
+      setTotals(totalsRes.ok && totalsRes.data?.ok ? totalsRes.data.totals : null);
     })();
   }, [selectedId]);
 
@@ -86,15 +101,11 @@ export function FinancePayrollPaymentsPanel() {
 
   const downloadBankFile = async () => {
     if (!selectedId) return;
-    await downloadHrPayrollExport(selectedId);
+    await downloadHrPayrollExport(selectedId, 'bank-upload');
   };
 
-  const markPaid = async () => {
-    if (!selectedId) return;
-    if (!treasuryAccountId) {
-      setError('Select the treasury bank account salaries were paid from.');
-      return;
-    }
+  const confirmMarkPaid = async () => {
+    if (!selectedId || !treasuryAccountId) return;
     setBusy(true);
     setError('');
     setMessage('');
@@ -113,6 +124,7 @@ export function FinancePayrollPaymentsPanel() {
           ? ' Treasury was already posted for this run.'
           : '';
     setMessage(`Payroll marked paid.${treasuryNote}`);
+    setMarkPaidOpen(false);
     await loadRuns();
   };
 
@@ -178,9 +190,9 @@ export function FinancePayrollPaymentsPanel() {
                   onChange={(e) => setSelectedId(e.target.value)}
                   className={ACCOUNTING_INPUT}
                 >
-                  {runs.map((r) => (
+                  {sortedRuns.map((r) => (
                     <option key={r.id} value={r.id}>
-                      {formatPeriodYyyymm(r.periodYyyymm)} — {r.status}
+                      {formatPayrollPeriodLabel(r.periodYyyymm)} — {r.status}
                       {r.gmApprovedAtIso ? ' · GM approved' : ''}
                       {r.mdApprovedAtIso ? ' · MD approved' : ''}
                     </option>
@@ -223,7 +235,7 @@ export function FinancePayrollPaymentsPanel() {
             {selected?.status === 'locked' ? (
               <button
                 type="button"
-                onClick={markPaid}
+                onClick={() => setMarkPaidOpen(true)}
                 disabled={busy || !treasuryAccountId}
                 className="inline-flex min-h-[44px] items-center justify-center rounded-lg bg-emerald-700 px-4 py-2.5 text-[9px] font-semibold uppercase tracking-wider text-white disabled:opacity-50"
               >
@@ -238,6 +250,18 @@ export function FinancePayrollPaymentsPanel() {
           </div>
         </>
       ) : null}
+
+      <HrPayrollMarkPaidModal
+        isOpen={markPaidOpen}
+        onClose={() => setMarkPaidOpen(false)}
+        run={run || selected}
+        totals={totals}
+        bankTreasuryAccounts={bankAccounts}
+        treasuryAccountId={treasuryAccountId}
+        onTreasuryAccountChange={setTreasuryAccountId}
+        busy={busy}
+        onConfirm={confirmMarkPaid}
+      />
     </div>
   );
 }

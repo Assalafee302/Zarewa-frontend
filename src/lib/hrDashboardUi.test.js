@@ -38,6 +38,22 @@ describe('hrDashboardUi', () => {
     expect(actions.some((a) => a.label === 'HR review queue')).toBe(false);
   });
 
+  it('builds payroll run deep links with optional runId', () => {
+    expect(hrPayrollRunsPath()).toContain('tab=payroll-runs');
+    expect(hrPayrollRunsPath('run-abc')).toContain('runId=run-abc');
+  });
+
+  it('uses primary draft run id in GM payroll KPI href when present', () => {
+    const kpis = getHrDashboardOverviewKpis({
+      counts: { draftPayrollAwaitingGm: 1, primaryDraftPayrollAwaitingGmRunId: 'run-gm-1' },
+      summary: {},
+      staff: { active: 10 },
+      permissions: ['hr.payroll.gm_approve'],
+    });
+    const payrollKpi = kpis.find((k) => k.label === 'Payroll awaiting GM');
+    expect(payrollKpi?.href).toBe(hrPayrollRunsPath('run-gm-1'));
+  });
+
   it('shows GM payroll KPI row for gmhr', () => {
     const kpis = getHrDashboardOverviewKpis({
       counts: { pendingGmHrReview: 1, draftPayrollAwaitingGm: 2 },
