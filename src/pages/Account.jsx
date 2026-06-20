@@ -24,6 +24,7 @@ import {
   Banknote,
   Pencil,
   Trash2,
+  LayoutDashboard,
   Wallet,
 } from 'lucide-react';
 
