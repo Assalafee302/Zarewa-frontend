@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { HrLoanApplicationForm } from '../../components/hr/HrLoanApplicationForm';
 import { HrLegacyLoanMigrateForm } from '../../components/hr/HrLegacyLoanMigrateForm';
 import { HrStaffPurchaseCreditQueue } from '../../components/hr/HrStaffPurchaseCreditQueue';
+import { HrStaffBulkSalesCustomerLink } from '../../components/hr/HrStaffBulkSalesCustomerLink';
 import { HrObligationAccountsPanel } from '../../components/hr/HrObligationAccountsPanel';
 import { HrRecoveryObligationBackfillPanel } from '../../components/hr/HrRecoveryObligationBackfillPanel';
 import { HrRequestsPanel } from '../../components/hr/HrRequestsPanel';
@@ -73,6 +74,7 @@ export default function HrLoans({ embedded = false } = {}) {
 
       <section className="space-y-3">
         <h3 className="text-sm font-black uppercase tracking-wide text-[#134e4a]">Staff purchase credit (roof / materials)</h3>
+        {canManageHrStaff(ws?.permissions) ? <HrStaffBulkSalesCustomerLink /> : null}
         <HrStaffPurchaseCreditQueue />
       </section>
 

@@ -6,12 +6,10 @@ import HrTabRedirect from '../../components/hr/HrTabRedirect';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { buildHrMainNav } from '../../lib/hrMainNav';
 import {
-  HR_DEVELOPMENT,
   HR_DISCIPLINE_EXIT,
   HR_DOCUMENTS,
   HR_EMPLOYEES,
   HR_PAYROLL,
-  HR_RECRUITMENT,
   HR_SETTINGS,
   HR_TIME_ABSENCE,
 } from '../../lib/hrRoutes';
@@ -22,8 +20,8 @@ import HrStaffProfile from './HrStaffProfile';
 import { HrAttendanceLegacyRedirect, HrLeaveLegacyRedirect, HrRequestsLegacyRedirect } from './HrLegacyHrRedirects';
 import HrTimeAbsenceHub from './HrTimeAbsenceHub';
 import HrPayrollHub from './HrPayrollHub';
-import HrRecruitmentHub from './HrRecruitmentHub';
-import HrDevelopmentHub from './HrDevelopmentHub';
+import HrTalentHub from './HrTalentHub';
+import { HrDevelopmentLegacyRedirect, HrRecruitmentLegacyRedirect } from './HrTalentLegacyRedirects';
 import HrDisciplineExitHub from './HrDisciplineExitHub';
 import HrDocumentsHub from './HrDocumentsHub';
 import HrSettingsHub from './HrSettingsHub';
@@ -73,8 +71,9 @@ export default function HumanResources() {
         <Route path="leave" element={<HrLeaveLegacyRedirect />} />
         <Route path="requests" element={<HrRequestsLegacyRedirect />} />
         <Route path="payroll" element={<HrPayrollHub />} />
-        <Route path="recruitment" element={<HrRecruitmentHub />} />
-        <Route path="development" element={<HrDevelopmentHub />} />
+        <Route path="talent" element={<HrTalentHub />} />
+        <Route path="recruitment" element={<HrRecruitmentLegacyRedirect />} />
+        <Route path="development" element={<HrDevelopmentLegacyRedirect />} />
         <Route path="discipline-exit" element={<HrDisciplineExitHub />} />
         <Route path="documents" element={<HrDocumentsHub />} />
         <Route path="settings" element={<HrSettingsHub />} />
@@ -90,7 +89,7 @@ export default function HumanResources() {
         <Route path="discipline" element={<Navigate to={HR_DISCIPLINE_EXIT} replace />} />
         <Route path="letters" element={<HrTabRedirect base={HR_DOCUMENTS} tab="letters" />} />
         <Route path="reports" element={<HrTabRedirect base={HR_DOCUMENTS} tab="reports" />} />
-        <Route path="appraisal" element={<HrTabRedirect base={HR_DEVELOPMENT} tab="appraisals" />} />
+        <Route path="appraisal" element={<Navigate to="/hr/talent?tab=develop&section=appraisals" replace />} />
         <Route path="analytics" element={<Suspense fallback={<p className="text-sm text-slate-600">Loading analytics…</p>}><HrAnalytics /></Suspense>} />
         <Route path="id-cards" element={<HrTabRedirect base={HR_DOCUMENTS} tab="id-cards" />} />
         <Route path="chairman" element={<Navigate to="/executive-hr/benefits" replace />} />

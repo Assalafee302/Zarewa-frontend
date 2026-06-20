@@ -15,7 +15,7 @@ describe('buildUserProfileActions', () => {
       hasHrSelfService: true,
     });
     const paths = actions.filter((a) => a.category === 'self_service').map((a) => a.to);
-    expect(paths).toContain(HR_SELF_SERVICE_PATH.leave);
+    expect(paths).toContain(HR_SELF_SERVICE_PATH.timeOff);
     expect(paths).toContain(HR_SELF_SERVICE_PATH.loans);
     expect(paths).toContain(HR_SELF_SERVICE_PATH.documents);
     expect(paths).toContain(HR_SELF_SERVICE_PATH.payslips);

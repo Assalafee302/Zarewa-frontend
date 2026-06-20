@@ -27,8 +27,7 @@ const MyProfileDomesticPayments = lazyWithRetry(() => import('./MyProfileDomesti
 const MyProfileScholarshipRequests = lazyWithRetry(() => import('./MyProfileScholarshipRequests'), {
   id: 'MyProfileScholarshipRequests',
 });
-const MyLeave = lazyWithRetry(() => import('./MyLeave'), { id: 'MyLeave' });
-const MyAttendance = lazyWithRetry(() => import('./MyAttendance'), { id: 'MyAttendance' });
+const MyTimeOff = lazyWithRetry(() => import('./MyTimeOff'), { id: 'MyTimeOff' });
 const MyPayslips = lazyWithRetry(() => import('./MyPayslips'), { id: 'MyPayslips' });
 const MyLoans = lazyWithRetry(() => import('./MyLoans'), { id: 'MyLoans' });
 const MyIdCard = lazyWithRetry(() => import('./MyIdCard'), { id: 'MyIdCard' });
@@ -164,31 +163,23 @@ export default function MyProfile() {
           }
         />
         <Route
-          path="leave"
+          path="time-off"
           element={
             <MyProfileEmployeeRoute>
               <ProfileTab>
-                <MyLeave staffLinkBase="/my-profile" />
+                <MyTimeOff />
               </ProfileTab>
             </MyProfileEmployeeRoute>
           }
         />
+        <Route path="leave" element={<Navigate to="/my-profile/time-off?tab=leave" replace />} />
+        <Route path="attendance" element={<Navigate to="/my-profile/time-off?tab=attendance" replace />} />
         <Route
           path="loans"
           element={
             <MyProfileEmployeeRoute>
               <ProfileTab>
                 <MyLoans staffLinkBase="/my-profile" />
-              </ProfileTab>
-            </MyProfileEmployeeRoute>
-          }
-        />
-        <Route
-          path="attendance"
-          element={
-            <MyProfileEmployeeRoute>
-              <ProfileTab>
-                <MyAttendance />
               </ProfileTab>
             </MyProfileEmployeeRoute>
           }

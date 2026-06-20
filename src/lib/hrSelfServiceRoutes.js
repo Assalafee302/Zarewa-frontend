@@ -9,9 +9,12 @@ export const HR_SELF_SERVICE_PATH = {
   payments: `${HR_SELF_SERVICE_BASE}/payments`,
   requests: `${HR_SELF_SERVICE_BASE}/requests`,
   employment: `${HR_SELF_SERVICE_BASE}/employment`,
-  leave: `${HR_SELF_SERVICE_BASE}/leave`,
+  timeOff: `${HR_SELF_SERVICE_BASE}/time-off`,
+  /** @deprecated */
+  leave: `${HR_SELF_SERVICE_BASE}/time-off?tab=leave`,
+  /** @deprecated */
+  attendance: `${HR_SELF_SERVICE_BASE}/time-off?tab=attendance`,
   loans: `${HR_SELF_SERVICE_BASE}/loans`,
-  attendance: `${HR_SELF_SERVICE_BASE}/attendance`,
   payslips: `${HR_SELF_SERVICE_BASE}/payslips`,
   documents: `${HR_SELF_SERVICE_BASE}/documents`,
   policies: `${HR_SELF_SERVICE_BASE}/policies`,
@@ -30,7 +33,7 @@ export const ACCOUNT_PATH = {
 
 /** Legacy /me HR paths that redirect to HR_SELF_SERVICE_PATH equivalents. */
 export const LEGACY_ME_HR_REDIRECTS = {
-  '/me/leave': HR_SELF_SERVICE_PATH.leave,
+  '/me/leave': HR_SELF_SERVICE_PATH.timeOff + '?tab=leave',
   '/me/loans': HR_SELF_SERVICE_PATH.loans,
   '/me/documents': HR_SELF_SERVICE_PATH.documents,
   '/me/payslips': HR_SELF_SERVICE_PATH.payslips,
@@ -38,7 +41,7 @@ export const LEGACY_ME_HR_REDIRECTS = {
   '/me/policies': HR_SELF_SERVICE_PATH.policies,
   '/me/grievance': HR_SELF_SERVICE_PATH.grievance,
   '/me/id-card': HR_SELF_SERVICE_PATH.idCard,
-  '/me/attendance': HR_SELF_SERVICE_PATH.attendance,
+  '/me/attendance': HR_SELF_SERVICE_PATH.timeOff + '?tab=attendance',
   '/me/benefits': HR_SELF_SERVICE_PATH.benefits,
   '/me/discipline': HR_SELF_SERVICE_PATH.discipline,
   '/me/school': HR_SELF_SERVICE_PATH.school,

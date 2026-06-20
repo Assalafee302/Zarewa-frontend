@@ -441,7 +441,7 @@ export function ManagementDecisionModal({
                 canReject={canRejectStaffPurchaseCredit}
                 busy={decisionBusy}
                 onApprove={() => void handleStaffPurchaseCreditDecision?.('approve')}
-                onReject={() => void handleStaffPurchaseCreditDecision?.('reject')}
+                onReject={(note) => void handleStaffPurchaseCreditDecision?.('reject', note)}
               />
             ) : selectedIntel?.kind === 'conversion' ? (
               <div className="space-y-5 animate-in fade-in duration-200 text-slate-700">

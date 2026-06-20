@@ -38,7 +38,13 @@ function fallbackRoute(item) {
   if (item.linkedThreadId) return { to: '/', state: { selectedThreadId: String(item.linkedThreadId) } };
   if (item.documentType === 'payment_request') return { to: '/accounts', state: { accountsTab: 'requests' } };
   if (item.documentType === 'material_request') return { to: '/operations', state: { focusOpsTab: 'inventory' } };
-  if (item.documentType === 'staff_purchase_credit') return { to: '/hr/payroll?tab=loans' };
+  if (item.documentType === 'staff_purchase_credit') {
+    const quote = String(item?.data?.quotationRef || item?.referenceNo || '').trim();
+    if (quote) {
+      return { to: '/sales', state: { openSalesRecord: { type: 'quotation', id: quote } } };
+    }
+    return { to: '/hr/payroll?tab=loans' };
+  }
   if (item.documentType === 'material_incident') {
     return { to: managerWorkItemPath(item) };
   }

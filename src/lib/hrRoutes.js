@@ -10,7 +10,10 @@ export const HR_ATTENDANCE = '/hr/attendance';
 /** @deprecated Use HR_TIME_ABSENCE — kept for legacy redirects and bookmarks. */
 export const HR_LEAVE = '/hr/leave';
 export const HR_PAYROLL = '/hr/payroll';
+export const HR_TALENT = '/hr/talent';
+/** @deprecated Use HR_TALENT */
 export const HR_RECRUITMENT = '/hr/recruitment';
+/** @deprecated Use HR_TALENT */
 export const HR_DEVELOPMENT = '/hr/development';
 export const HR_DISCIPLINE_EXIT = '/hr/discipline-exit';
 export const HR_DOCUMENTS = '/hr/documents';

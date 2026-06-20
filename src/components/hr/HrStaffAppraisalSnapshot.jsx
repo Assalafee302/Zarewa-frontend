@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { fetchStaffAppraisalSummary } from '../../lib/hrStaffExtras';
-import { HR_DEVELOPMENT } from '../../lib/hrRoutes';
+import { HR_TALENT } from '../../lib/hrRoutes';
 import { HrCard } from './hrPageUi';
 
 function scoreLabel(scores) {
@@ -40,7 +40,7 @@ export function HrStaffAppraisalSnapshot({ userId, compact = false }) {
     return (
       <HrCard title="Performance appraisal" subtitle="Latest cycle snapshot">
         <p className="text-sm text-slate-600">No appraisal form on file yet.</p>
-        <Link to={`${HR_DEVELOPMENT}?tab=appraisals`} className="mt-2 inline-block text-xs font-bold text-[#134e4a] hover:underline">
+        <Link to={`${HR_TALENT}?tab=develop&section=appraisals`} className="mt-2 inline-block text-xs font-bold text-[#134e4a] hover:underline">
           Open appraisals hub →
         </Link>
       </HrCard>
@@ -66,7 +66,7 @@ export function HrStaffAppraisalSnapshot({ userId, compact = false }) {
       title="Performance appraisal"
       subtitle={latest.cycleLabel || `Cycle ${latest.cycleYear}`}
       actions={
-        <Link to={`${HR_DEVELOPMENT}?tab=appraisals`} className="text-xs font-bold text-[#134e4a] hover:underline">
+        <Link to={`${HR_TALENT}?tab=develop&section=appraisals`} className="text-xs font-bold text-[#134e4a] hover:underline">
           All appraisals →
         </Link>
       }

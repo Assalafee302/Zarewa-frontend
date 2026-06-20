@@ -6,7 +6,7 @@ import { HrAbsenceReportsPanel } from '../../components/hr/HrAbsenceReportsPanel
 import { HrRequestsPanel } from '../../components/hr/HrRequestsPanel';
 import HrRequestsOverview from '../../components/hr/HrRequestsOverview';
 import { HrTabbedPage } from '../../components/hr/HrTabbedPage';
-import HrPhase2Placeholder from '../../components/hr/HrPhase2Placeholder';
+import { HrAttendanceUploadsPanel } from '../../components/hr/HrAttendanceUploadsPanel';
 import { HrPublicHolidaysSection } from '../../components/hr/HrSettingsSections';
 import { ProfileOverviewSection } from '../../components/profile/profileOverviewUi';
 import {
@@ -191,12 +191,7 @@ export default function HrTimeAbsenceHub() {
       {tab === 'attendance' ? (
         <div className="space-y-6">
           <SubViewPills views={ATTENDANCE_SECTIONS} active={attendanceSection} onChange={setAttendanceSection} />
-          {attendanceSection === 'uploads' ? (
-            <HrPhase2Placeholder
-              title="Attendance sheet uploads"
-              purpose="Upload branch attendance spreadsheets for bulk import and reconciliation."
-            />
-          ) : null}
+          {attendanceSection === 'uploads' ? <HrAttendanceUploadsPanel /> : null}
           {attendanceSection === 'exceptions' ? (
             <div className="space-y-6">
               <HrAttendance embedded activeTab="exceptions" hideInternalTabs showExceptionsOnly />

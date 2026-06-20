@@ -8,6 +8,8 @@ describe('buildHrMainNav', () => {
     expect(navItems.some((i) => i.to === '/hr/time-absence')).toBe(true);
     expect(navItems.some((i) => i.to === '/hr/requests')).toBe(false);
     expect(navItems.some((i) => i.to === '/hr/analytics')).toBe(false);
+    expect(navItems.some((i) => i.to === '/hr/talent')).toBe(false);
+    expect(moreNavItems.some((i) => i.to === '/hr/talent')).toBe(true);
     expect(moreNavItems.some((i) => i.to === '/hr/analytics')).toBe(true);
   });
 

@@ -5,6 +5,7 @@ import { useWorkspace } from '../../context/WorkspaceContext';
 import { decideStaffPurchaseCredit } from '../../lib/hrStaffPurchaseCredit';
 import { canApproveStaffPurchaseCredit, canRejectStaffPurchaseCredit } from '../../lib/hrAccess';
 import { formatNgn } from '../../lib/hrFormat';
+import { salesQuotationDeepLink } from '../../lib/staffPurchaseCreditLinks';
 import { ZareApprovalHint } from '../ZareApprovalHint';
 import { HR_BTN_PRIMARY, HR_BTN_SECONDARY } from '../hr/hrFormStyles';
 
@@ -15,6 +16,8 @@ export default function WorkspaceStaffPurchaseCreditPanel({ item, onDone }) {
   const ws = useWorkspace();
   const { show: showToast } = useToast();
   const [busy, setBusy] = useState(false);
+  const [rejectOpen, setRejectOpen] = useState(false);
+  const [rejectNote, setRejectNote] = useState('');
 
   const permissions = ws?.permissions ?? [];
   const roleKey = ws?.session?.user?.roleKey;
@@ -23,30 +26,47 @@ export default function WorkspaceStaffPurchaseCreditPanel({ item, onDone }) {
   const id = String(item?.sourceId || item?.referenceNo || item?.data?.accountId || '').trim();
   const data = item?.data && typeof item.data === 'object' ? item.data : {};
 
+  const afterDecision = useCallback(async () => {
+    await ws.refresh?.();
+    await ws.refreshStaffPurchaseCreditPending?.();
+    onDone?.();
+  }, [onDone, ws]);
+
   const act = useCallback(
-    async (decision) => {
+    async (decision, note = '') => {
       if (!id) return;
       if (!ws?.canMutate) {
         showToast('Reconnect to decide — workspace is read-only.', { variant: 'info' });
         return;
       }
+      if (decision === 'reject') {
+        const trimmed = String(note || '').trim();
+        if (trimmed.length < 3) {
+          showToast('Rejection reason is required (at least 3 characters).', { variant: 'error' });
+          return;
+        }
+      }
       setBusy(true);
       try {
         const { ok, data: resp } = await decideStaffPurchaseCredit(id, decision, {
-          note: decision === 'approve' ? 'Approved by MD (command center)' : 'Rejected (command center)',
+          note:
+            decision === 'approve'
+              ? String(note || '').trim() || 'Approved by MD (command center)'
+              : String(note || '').trim(),
         });
         if (!ok || !resp?.ok) {
           showToast(resp?.error || 'Action failed.', { variant: 'error' });
           return;
         }
         showToast(decision === 'approve' ? 'Staff purchase credit approved.' : 'Staff purchase credit rejected.');
-        await ws.refresh?.();
-        onDone?.();
+        setRejectOpen(false);
+        setRejectNote('');
+        await afterDecision();
       } finally {
         setBusy(false);
       }
     },
-    [id, onDone, showToast, ws]
+    [afterDecision, id, showToast, ws]
   );
 
   if (!id) {
@@ -57,6 +77,7 @@ export default function WorkspaceStaffPurchaseCreditPanel({ item, onDone }) {
   const installmentNgn = Number(data.installmentNgn) || 0;
   const termMonths = Number(data.termMonths) || 0;
   const quoteRef = String(data.quotationRef || '').trim();
+  const quoteLink = salesQuotationDeepLink(quoteRef);
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-y-auto bg-white px-4 py-5">
@@ -74,6 +95,11 @@ export default function WorkspaceStaffPurchaseCreditPanel({ item, onDone }) {
           <p>
             <span className="text-[11px] font-semibold uppercase text-slate-500">Quotation</span>
             <span className="mt-0.5 block font-mono">{quoteRef}</span>
+            {quoteLink ? (
+              <Link to={quoteLink.to} state={quoteLink.state} className="mt-1 inline-block text-xs font-bold text-[#134e4a] underline">
+                Open quotation in Sales
+              </Link>
+            ) : null}
           </p>
         ) : null}
         {amountNgn > 0 ? (
@@ -120,21 +146,50 @@ export default function WorkspaceStaffPurchaseCreditPanel({ item, onDone }) {
           Awaiting Managing Director approval. You can reject if the request should not proceed.
         </p>
       ) : null}
-      <div className="mt-6 flex flex-wrap gap-2">
-        {mayReject ? (
-          <button type="button" className={HR_BTN_SECONDARY} disabled={busy} onClick={() => void act('reject')}>
-            {busy ? 'Working…' : 'Reject'}
-          </button>
-        ) : null}
-        {mayApprove ? (
-          <button type="button" className={HR_BTN_PRIMARY} disabled={busy} onClick={() => void act('approve')}>
-            {busy ? 'Working…' : 'Approve'}
-          </button>
-        ) : null}
-        <Link to="/hr/payroll?tab=loans" className={HR_BTN_SECONDARY}>
-          Open HR loans queue
-        </Link>
-      </div>
+      {rejectOpen ? (
+        <div className="mt-4 space-y-2 rounded-xl border border-rose-100 bg-rose-50/60 p-3">
+          <label className="block text-xs font-bold text-slate-700">
+            Rejection reason (required)
+            <textarea
+              className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+              rows={3}
+              value={rejectNote}
+              onChange={(e) => setRejectNote(e.target.value)}
+              minLength={3}
+              placeholder="Explain why this purchase credit should not proceed"
+            />
+          </label>
+          <div className="flex flex-wrap gap-2">
+            <button type="button" className={HR_BTN_SECONDARY} disabled={busy} onClick={() => setRejectOpen(false)}>
+              Cancel
+            </button>
+            <button
+              type="button"
+              className={HR_BTN_SECONDARY}
+              disabled={busy}
+              onClick={() => void act('reject', rejectNote)}
+            >
+              {busy ? 'Working…' : 'Confirm reject'}
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="mt-6 flex flex-wrap gap-2">
+          {mayReject ? (
+            <button type="button" className={HR_BTN_SECONDARY} disabled={busy} onClick={() => setRejectOpen(true)}>
+              Reject
+            </button>
+          ) : null}
+          {mayApprove ? (
+            <button type="button" className={HR_BTN_PRIMARY} disabled={busy} onClick={() => void act('approve')}>
+              {busy ? 'Working…' : 'Approve'}
+            </button>
+          ) : null}
+          <Link to="/hr/payroll?tab=loans" className={HR_BTN_SECONDARY}>
+            Open HR loans queue
+          </Link>
+        </div>
+      )}
     </div>
   );
 }

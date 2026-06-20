@@ -140,6 +140,10 @@ export function getHrDashboardQuickActions(permissions = []) {
   }
   if (canReviewHrRequests(permissions)) {
     actions.push({
+      label: 'Time & absence',
+      href: HR_TIME_ABSENCE,
+    });
+    actions.push({
       label: 'HR review queue',
       href: hrRequestQueuePath('hr_queue'),
     });

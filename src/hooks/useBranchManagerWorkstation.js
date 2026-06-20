@@ -1459,7 +1459,7 @@ export function useBranchManagerWorkstation() {
   );
 
   const handleStaffPurchaseCreditDecision = useCallback(
-    async (decision) => {
+    async (decision, rejectNote = '') => {
       if (selectedIntel?.kind !== 'staff_purchase_credit') return;
       const accountId = String(selectedIntel.accountId || selectedIntel.row?.id || '').trim();
       if (!accountId) return;
@@ -1471,10 +1471,28 @@ export function useBranchManagerWorkstation() {
         showToast('You cannot reject this purchase credit request.', { variant: 'error' });
         return;
       }
+      let note = String(rejectNote || '').trim();
+      if (decision === 'reject' && note.length < 3) {
+        const asked = await requestRemark({
+          title: 'Rejection reason (required)',
+          description: 'Staff purchase credit rejections require a brief reason for Sales and the staff member.',
+          confirmLabel: 'Reject purchase credit',
+          minLength: 3,
+          optional: false,
+          variant: 'warning',
+          onSubmit: 'staff_purchase_credit_reject',
+        });
+        if (!asked?.ok) return;
+        note = String(asked.value || '').trim();
+        if (note.length < 3) {
+          showToast('Rejection reason is required (at least 3 characters).', { variant: 'error' });
+          return;
+        }
+      }
       setDecisionBusy(true);
       try {
         const { ok, data } = await decideStaffPurchaseCredit(accountId, decision, {
-          note: decision === 'approve' ? 'Approved by MD (command center)' : 'Rejected (command center)',
+          note: decision === 'approve' ? 'Approved by MD (command center)' : note,
         });
         if (!ok || !data?.ok) {
           showToast(data?.error || 'Action failed.', { variant: 'error' });
@@ -1485,6 +1503,7 @@ export function useBranchManagerWorkstation() {
         });
         await fetchData({ background: true });
         await (ws.refresh?.() ?? Promise.resolve());
+        await (ws.refreshStaffPurchaseCreditPending?.() ?? Promise.resolve());
         setSelectedIntel(null);
       } finally {
         setDecisionBusy(false);
@@ -1494,6 +1513,7 @@ export function useBranchManagerWorkstation() {
       canApproveStaffPurchaseCreditMd,
       canRejectStaffPurchaseCreditMd,
       fetchData,
+      requestRemark,
       selectedIntel,
       showToast,
       ws,

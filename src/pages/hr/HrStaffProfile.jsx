@@ -13,7 +13,10 @@ import { formatNgn, payrollGroupLabel, yearsOfServiceFromIso } from '../../lib/h
 import { HrStaffLifecyclePanel } from '../../components/hr/HrStaffLifecyclePanel';
 import { HrStaffFeedbackPanel } from '../../components/hr/HrStaffFeedbackPanel';
 import { HrStaffSalaryHistoryPanel } from '../../components/hr/HrStaffSalaryHistoryPanel';
-import { HR_DEVELOPMENT, HR_EMPLOYEES } from '../../lib/hrRoutes';
+import { HrStaffDisciplinePanel } from '../../components/hr/HrStaffDisciplinePanel';
+import { HrStaffAppraisalSnapshot } from '../../components/hr/HrStaffAppraisalSnapshot';
+import { HrStaffActivityStrip } from '../../components/hr/HrStaffActivityStrip';
+import { HR_TALENT, HR_EMPLOYEES } from '../../lib/hrRoutes';
 import { HrSalaryIncrementPanel } from '../../components/hr/HrSalaryIncrementPanel';
 import { HrPromotionFromMatrix } from '../../components/hr/HrPromotionFromMatrix';
 import { HrFormModal } from '../../components/hr/HrFormModal';
@@ -55,6 +58,7 @@ const PROFILE_TABS = [
   { id: 'leave', label: 'Leave' },
   { id: 'loans', label: 'Loans' },
   { id: 'documents', label: 'Documents' },
+  { id: 'cases', label: 'Cases' },
   { id: 'transfers', label: 'Transfers' },
   { id: 'notes', label: 'Notes' },
   { id: 'audit', label: 'Audit' },
@@ -583,6 +587,9 @@ export default function HrStaffProfile() {
             {staff.employeeNo ? `${staff.employeeNo} · ` : ''}
             {staff.jobTitle || 'No job title'} · {staff.branchId || staff.normalized?.branchId || '—'}
           </p>
+          <div className="mt-3">
+            <HrStaffActivityStrip userId={userId} onOpenTab={setTab} />
+          </div>
         </div>
         <div className="flex flex-wrap items-center gap-2 self-start">
           <span
@@ -697,6 +704,7 @@ export default function HrStaffProfile() {
               displayName={staff.displayName}
             />
           ) : null}
+          <HrStaffAppraisalSnapshot userId={userId} compact />
           <div className="grid gap-4 lg:grid-cols-2">
             <ProfileSectionCard
               title="Personal data"
@@ -797,10 +805,11 @@ export default function HrStaffProfile() {
             ]}
           />
           <HrSkillsMatrixPanel userId={userId} canEdit={canManage} />
+          <HrStaffAppraisalSnapshot userId={userId} />
           <div className="rounded-xl border border-slate-100 bg-slate-50/60 px-4 py-3 text-sm text-slate-700">
             <p>
               Performance appraisals are managed in{' '}
-              <Link to={`${HR_DEVELOPMENT}?tab=appraisals`} className="font-bold text-[#134e4a] underline">
+              <Link to={`${HR_TALENT}?tab=develop&section=appraisals`} className="font-bold text-[#134e4a] underline">
                 HR Development → Appraisals
               </Link>
               .
@@ -987,6 +996,10 @@ export default function HrStaffProfile() {
           onboardingChecklist={staff.onboardingChecklist}
           onUpdated={reloadProfile}
         />
+      ) : null}
+
+      {tab === 'cases' ? (
+        <HrStaffDisciplinePanel userId={userId} profileEvents={disciplinary} />
       ) : null}
 
       {tab === 'transfers' ? (

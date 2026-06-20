@@ -126,7 +126,7 @@ export function buildUserProfileActions(ctx = {}) {
         cohort === 'employee'
           ? 'Apply for leave and view attendance guidance'
           : 'Submit and track leave requests',
-      to: HR_SELF_SERVICE_PATH.leave,
+      to: HR_SELF_SERVICE_PATH.timeOff,
       category: 'self_service',
       tone: 'teal',
       icon: 'calendarDays',

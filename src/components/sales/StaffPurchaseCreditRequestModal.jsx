@@ -1,13 +1,19 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { X } from 'lucide-react';
 import { formatNgn } from '../../lib/hrFormat';
 import { createStaffPurchaseCredit, fetchQuotationStaffPurchaseStatus } from '../../lib/hrStaffPurchaseCredit';
 
 /**
  * Request staff purchase credit against a quotation (staff-as-customer).
- * @param {{ open: boolean; onClose: () => void; quotationRef: string; onSubmitted?: () => void }} props
+ * @param {{ open: boolean; onClose: () => void; quotationRef: string; onSubmitted?: () => void; selfInitiated?: boolean }} props
  */
-export function StaffPurchaseCreditRequestModal({ open, onClose, quotationRef, onSubmitted }) {
+export function StaffPurchaseCreditRequestModal({
+  open,
+  onClose,
+  quotationRef,
+  onSubmitted,
+  selfInitiated = false,
+}) {
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState(null);
   const [amountNgn, setAmountNgn] = useState('');
@@ -29,16 +35,53 @@ export function StaffPurchaseCreditRequestModal({ open, onClose, quotationRef, o
         return;
       }
       setStatus(data);
-      setAmountNgn(String(data.balanceNgn || ''));
+      const bounds = data.amountBounds || {};
+      const defaultAmt = bounds.maxCreditNgn > 0 ? bounds.maxCreditNgn : data.balanceNgn || '';
+      setAmountNgn(String(defaultAmt || ''));
       const maxMo = data.policy?.maxRepaymentMonths || 12;
-      setTermMonths(String(Math.min(maxMo, 6)));
+      setTermMonths(String(Math.min(maxMo, 3)));
     });
   }, [open, quotationRef]);
+
+  const bounds = status?.amountBounds || {};
+  const maxSingle = status?.policy?.maxSinglePurchaseNgn;
+  const maxMonths = status?.policy?.maxRepaymentMonths || 12;
+  const maxCredit = bounds.maxCreditNgn ?? status?.balanceNgn;
+  const depositRequired = Number(bounds.depositRequiredNgn) || 0;
+  const depositPct = Number(bounds.depositPct) || 0;
+
+  const policyErrors = useMemo(() => {
+    const errs = [];
+    const amt = Math.round(Number(amountNgn) || 0);
+    const elig = status?.eligibility;
+    if (elig && !elig.eligible && elig.issues?.length) {
+      errs.push(...elig.issues);
+    }
+    if (amt > 0 && maxCredit > 0 && amt > maxCredit) {
+      errs.push(
+        depositRequired > 0
+          ? `Maximum credit after ${depositPct}% deposit is ${formatNgn(maxCredit)}.`
+          : `Amount cannot exceed quotation balance (${formatNgn(maxCredit)}).`
+      );
+    }
+    if (amt > 0 && maxSingle && amt > maxSingle) {
+      errs.push(`Exceeds single purchase limit (${formatNgn(maxSingle)}).`);
+    }
+    const mo = Math.round(Number(termMonths) || 0);
+    if (mo > maxMonths) {
+      errs.push(`Repayment cannot exceed ${maxMonths} months.`);
+    }
+    return errs;
+  }, [amountNgn, depositPct, depositRequired, maxCredit, maxMonths, maxSingle, status?.eligibility, termMonths]);
 
   if (!open) return null;
 
   async function submit(e) {
     e.preventDefault();
+    if (policyErrors.length) {
+      setError(policyErrors[0]);
+      return;
+    }
     setSubmitting(true);
     setError('');
     const r = await createStaffPurchaseCredit({
@@ -46,6 +89,7 @@ export function StaffPurchaseCreditRequestModal({ open, onClose, quotationRef, o
       amountNgn: Number(amountNgn),
       termMonths: Number(termMonths) || undefined,
       reason: reason.trim(),
+      selfInitiated,
     });
     setSubmitting(false);
     const data = r.data || r;
@@ -56,9 +100,6 @@ export function StaffPurchaseCreditRequestModal({ open, onClose, quotationRef, o
     onSubmitted?.();
     onClose();
   }
-
-  const maxSingle = status?.policy?.maxSinglePurchaseNgn;
-  const maxMonths = status?.policy?.maxRepaymentMonths || 12;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
@@ -78,9 +119,25 @@ export function StaffPurchaseCreditRequestModal({ open, onClose, quotationRef, o
           ) : status ? (
             <div className="rounded-xl border border-teal-100 bg-teal-50/80 px-4 py-3 text-sm">
               <p className="font-bold text-teal-900">Outstanding: {formatNgn(status.balanceNgn)}</p>
+              {depositRequired > 0 ? (
+                <p className="mt-1 text-xs font-semibold text-amber-900">
+                  Policy requires {depositPct}% deposit ({formatNgn(depositRequired)}) before credit. Max credit on this
+                  quote: {formatNgn(maxCredit)}.
+                </p>
+              ) : null}
               <p className="mt-1 text-xs text-teal-800/90">
-                Credit is recovered via payroll. Branch manager approval required before delivery release.
+                Credit is recovered via payroll. Managing Director approval required before delivery release.
               </p>
+            </div>
+          ) : null}
+          {status?.eligibility && !status.eligibility.eligible ? (
+            <div className="rounded-xl border border-amber-100 bg-amber-50 px-4 py-3 text-xs text-amber-950">
+              <p className="font-bold">Staff not eligible</p>
+              <ul className="mt-1 space-y-0.5">
+                {(status.eligibility.issues || []).map((line) => (
+                  <li key={line}>• {line}</li>
+                ))}
+              </ul>
             </div>
           ) : null}
           {status?.account ? (
@@ -97,7 +154,7 @@ export function StaffPurchaseCreditRequestModal({ open, onClose, quotationRef, o
               onChange={(e) => setAmountNgn(e.target.value)}
               required
               min={1}
-              max={maxSingle || undefined}
+              max={Math.min(maxCredit || Infinity, maxSingle || Infinity) || undefined}
             />
           </label>
           <label className="block text-xs font-bold text-slate-600">
@@ -126,6 +183,13 @@ export function StaffPurchaseCreditRequestModal({ open, onClose, quotationRef, o
               placeholder="e.g. Personal roofing — staff residence"
             />
           </label>
+          {policyErrors.length ? (
+            <ul className="text-xs font-semibold text-amber-800 space-y-0.5">
+              {policyErrors.map((pe) => (
+                <li key={pe}>• {pe}</li>
+              ))}
+            </ul>
+          ) : null}
           {error ? <p className="text-sm font-bold text-rose-700">{error}</p> : null}
           <div className="flex justify-end gap-2 pt-2">
             <button type="button" onClick={onClose} className="rounded-lg px-4 py-2 text-sm font-bold text-slate-600">
@@ -133,7 +197,13 @@ export function StaffPurchaseCreditRequestModal({ open, onClose, quotationRef, o
             </button>
             <button
               type="submit"
-              disabled={submitting || loading || Boolean(status?.account)}
+              disabled={
+                submitting ||
+                loading ||
+                Boolean(status?.account) ||
+                (status?.eligibility && !status.eligibility.eligible) ||
+                policyErrors.length > 0
+              }
               className="rounded-lg bg-[#134e4a] px-4 py-2 text-sm font-bold text-white disabled:opacity-50"
             >
               Submit request

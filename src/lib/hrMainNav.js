@@ -76,8 +76,7 @@ const HR_NAV_DEFINITION = [
     label: 'Administration',
     visible: (p) => canViewHrSettings(p),
   },
-  { to: '/hr/recruitment', label: 'Recruitment', section: 'more', visible: (p) => canManageHrStaff(p) },
-  { to: '/hr/development', label: 'Development', section: 'more', visible: (p) => canManageHrStaff(p) },
+  { to: '/hr/talent', label: 'Talent & development', section: 'more', visible: (p) => canManageHrStaff(p) },
   { to: '/hr/analytics', label: 'Analytics', section: 'more', visible: (p) => canViewHrReports(p) },
 ];
 

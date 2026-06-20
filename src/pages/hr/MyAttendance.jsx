@@ -30,7 +30,7 @@ function periodFromInput(val) {
   return String(val || '').replace('-', '');
 }
 
-export default function MyAttendance() {
+export default function MyAttendance({ embedded = false }) {
   const [period, setPeriod] = useState(currentPeriodYyyymm());
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -60,16 +60,18 @@ export default function MyAttendance() {
   );
   const effLate = Math.max(0, (summary?.lateDays || 0) - (summary?.lateExceptions || 0));
 
-  return (
-    <ProfilePageBody>
-      <WorkPayHero
-        eyebrow="Work & pay"
-        title="Attendance"
-        description="See how your branch manager marked you this month, estimated payroll impact, and request an exception before payroll locks."
-        action={<MyAttendanceExceptionModal onSubmitted={() => { setMessage('Exception submitted for manager review.'); void load(); }} />}
-      />
+  const content = (
+    <>
+      {!embedded ? (
+        <WorkPayHero
+          eyebrow="Work & pay"
+          title="Attendance"
+          description="See how your branch manager marked you this month, estimated payroll impact, and request an exception before payroll locks."
+          action={<MyAttendanceExceptionModal onSubmitted={() => { setMessage('Exception submitted for manager review.'); void load(); }} />}
+        />
+      ) : null}
 
-      <ProfileProbationBanner />
+      {!embedded ? <ProfileProbationBanner /> : null}
       {message ? <ProfileInlineAlert variant="success">{message}</ProfileInlineAlert> : null}
       {error ? <ProfileInlineAlert variant="error">{error}</ProfileInlineAlert> : null}
 
@@ -172,6 +174,20 @@ export default function MyAttendance() {
       <ProfileOverviewSection title="Exception requests" subtitle="Track submissions awaiting branch endorsement">
         <HrRequestsPanel allowedScopes={['mine']} defaultScope="mine" kindFilter="attendance_exception" staffLinkBase="/my-profile" showStageBar />
       </ProfileOverviewSection>
-    </ProfilePageBody>
+    </>
   );
+
+  if (embedded) {
+    return (
+      <div className="space-y-6">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="text-sm text-slate-600">Monthly roll marks and payroll impact for your branch.</p>
+          <MyAttendanceExceptionModal onSubmitted={() => { setMessage('Exception submitted for manager review.'); void load(); }} />
+        </div>
+        {content}
+      </div>
+    );
+  }
+
+  return <ProfilePageBody>{content}</ProfilePageBody>;
 }

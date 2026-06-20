@@ -41,6 +41,30 @@ import { useAppTablePaging } from '../../lib/appDataTable';
 import { HrKpiCard } from '../../components/hr/HrKpiCard';
 import { HrEmptyState } from '../../components/hr/hrPageUi';
 import { HR_BTN_PRIMARY } from '../../components/hr/hrFormStyles';
+import { HrStaffAvatar } from '../../components/hr/HrStaffAvatar';
+import { HrStaffDirectoryBulkBar } from '../../components/hr/HrStaffDirectoryBulkBar';
+import {
+  deleteDirectoryView,
+  loadSavedDirectoryViews,
+  saveDirectoryView,
+} from '../../lib/hrStaffDirectorySavedViews';
+
+function SortableTh({ label, sortId, sortKey, sortDir, onSort, align }) {
+  const active = sortKey === sortId;
+  const arrow = active ? (sortDir === 'asc' ? ' ↑' : ' ↓') : '';
+  return (
+    <AppTableTh align={align}>
+      <button
+        type="button"
+        className={`font-bold uppercase tracking-wide ${active ? 'text-[#134e4a]' : 'text-slate-500 hover:text-slate-800'}`}
+        onClick={() => onSort(sortId)}
+      >
+        {label}
+        {arrow}
+      </button>
+    </AppTableTh>
+  );
+}
 
 function uniqueSorted(values) {
   return [...new Set(values.filter(Boolean))].sort((a, b) => String(a).localeCompare(String(b)));
@@ -77,6 +101,7 @@ export default function HrStaffDirectory({
   cohort = 'employees',
   listTitle = 'Staff directory',
   initialRegisterOpen = false,
+  initialQuickFilter = '',
 } = {}) {
   const navigate = useNavigate();
   const ws = useWorkspace();
@@ -84,8 +109,13 @@ export default function HrStaffDirectory({
   const showSalary = canViewOrgSensitiveHr(perms);
   const canRegister = canManageHrStaff(perms);
   const canBulkImport = canBulkImportStaff(perms);
+  const canBulkManage = canManageHrStaff(perms);
   const [bulkOpen, setBulkOpen] = useState(false);
   const [importNotice, setImportNotice] = useState(null);
+  const [bulkNotice, setBulkNotice] = useState(null);
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [savedViews, setSavedViews] = useState(() => loadSavedDirectoryViews());
+  const [viewName, setViewName] = useState('');
   const branches = useMemo(() => {
     const list = ws?.snapshot?.workspaceBranches ?? ws?.session?.branches ?? [];
     return list.map((b) => ({ id: b.id, name: b.name || b.id }));
@@ -98,14 +128,19 @@ export default function HrStaffDirectory({
   const [department, setDepartment] = useState('');
   const [employmentType, setEmploymentType] = useState('');
   const [status, setStatus] = useState('active');
-  const [quickFilter, setQuickFilter] = useState('');
+  const [quickFilter, setQuickFilter] = useState(initialQuickFilter || '');
   const [sortKey, setSortKey] = useState('name');
+  const [sortDir, setSortDir] = useState('asc');
   const [registerOpen, setRegisterOpen] = useState(initialRegisterOpen);
   const [compactTable, setCompactTable] = useState(false);
 
   useEffect(() => {
     if (initialRegisterOpen) setRegisterOpen(true);
   }, [initialRegisterOpen]);
+
+  useEffect(() => {
+    if (initialQuickFilter) setQuickFilter(initialQuickFilter);
+  }, [initialQuickFilter]);
 
   const [masterDepartments, setMasterDepartments] = useState([]);
   const isSpecialList = cohort !== 'employees';
@@ -154,10 +189,59 @@ export default function HrStaffDirectory({
       status: status === 'all' ? '' : status,
       quickFilter,
     });
-    return sortStaffList(rows, sortKey, branchNames);
-  }, [staff, search, branchId, department, employmentType, status, quickFilter, sortKey, branchNames]);
+    return sortStaffList(rows, sortKey, branchNames, sortDir);
+  }, [staff, search, branchId, department, employmentType, status, quickFilter, sortKey, sortDir, branchNames]);
 
-  const staffPaging = useAppTablePaging(filtered, 20, search, branchId, department, employmentType, status, quickFilter, sortKey);
+  const staffPaging = useAppTablePaging(filtered, 20, search, branchId, department, employmentType, status, quickFilter, sortKey, sortDir);
+
+  const toggleSort = (key) => {
+    if (sortKey === key) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+    else {
+      setSortKey(key);
+      setSortDir('asc');
+    }
+  };
+
+  const toggleSelected = (userId) => {
+    setSelectedIds((prev) => (prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId]));
+  };
+
+  const togglePageSelected = () => {
+    const pageIds = staffPaging.slice.map((s) => s.userId);
+    const allOnPage = pageIds.every((id) => selectedIds.includes(id));
+    if (allOnPage) setSelectedIds((prev) => prev.filter((id) => !pageIds.includes(id)));
+    else setSelectedIds((prev) => [...new Set([...prev, ...pageIds])]);
+  };
+
+  const applySavedView = (view) => {
+    const s = view.snapshot || {};
+    setSearch(s.search || '');
+    setBranchId(s.branchId || '');
+    setDepartment(s.department || '');
+    setEmploymentType(s.employmentType || '');
+    setStatus(s.status || 'active');
+    setQuickFilter(s.quickFilter || '');
+    setSortKey(s.sortKey || 'name');
+    setSortDir('asc');
+  };
+
+  const persistCurrentView = () => {
+    const r = saveDirectoryView(viewName, {
+      search,
+      branchId,
+      department,
+      employmentType,
+      status,
+      quickFilter,
+      sortKey,
+    });
+    if (r.ok) {
+      setSavedViews(r.views);
+      setViewName('');
+    }
+  };
+
+  const colSpan = (showSalary ? 12 : 11) + (canBulkManage ? 1 : 0);
 
   const exportRosterCsv = () => {
     const esc = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
@@ -194,6 +278,7 @@ export default function HrStaffDirectory({
     setEmploymentType('');
     setStatus('active');
     setQuickFilter('');
+    setSelectedIds([]);
   };
 
   return (
@@ -270,6 +355,79 @@ export default function HrStaffDirectory({
             These people are not branch employees — they do not appear in the main employee directory and are excluded from
             daily attendance.
           </p>
+        </div>
+      ) : null}
+
+      {bulkNotice ? (
+        <div className="rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
+          <p>
+            Bulk update: {bulkNotice.updated} updated, {bulkNotice.failed} failed.
+          </p>
+          <button type="button" className="mt-1 text-xs font-bold uppercase text-[#134e4a] hover:underline" onClick={() => setBulkNotice(null)}>
+            Dismiss
+          </button>
+        </div>
+      ) : null}
+
+      {canBulkManage && !isSpecialList ? (
+        <HrStaffDirectoryBulkBar
+          selectedIds={selectedIds}
+          staff={staff}
+          onClear={() => setSelectedIds([])}
+          onDone={async (data) => {
+            setBulkNotice(data);
+            setSelectedIds([]);
+            await reload({ forceSpinner: true });
+          }}
+        />
+      ) : null}
+
+      {!isSpecialList && savedViews.length ? (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs font-bold uppercase text-slate-400">Saved views</span>
+          {savedViews.map((v) => (
+            <button
+              key={v.name}
+              type="button"
+              onClick={() => applySavedView(v)}
+              className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700 hover:border-[#134e4a]/30"
+            >
+              {v.name}
+            </button>
+          ))}
+        </div>
+      ) : null}
+
+      {!isSpecialList ? (
+        <div className="flex flex-wrap items-end gap-2">
+          <input
+            type="text"
+            value={viewName}
+            onChange={(e) => setViewName(e.target.value)}
+            placeholder="Save current filters as…"
+            className="rounded-xl border border-slate-200 px-3 py-2 text-xs min-w-[180px]"
+          />
+          <button
+            type="button"
+            onClick={persistCurrentView}
+            className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold uppercase text-slate-600 hover:bg-slate-50"
+          >
+            Save view
+          </button>
+          {savedViews.length ? (
+            <button
+              type="button"
+              onClick={() => {
+                const last = savedViews[0]?.name;
+                if (last && window.confirm(`Delete saved view "${last}"?`)) {
+                  setSavedViews(deleteDirectoryView(last));
+                }
+              }}
+              className="text-xs font-bold uppercase text-slate-400 hover:underline"
+            >
+              Delete latest
+            </button>
+          ) : null}
         </div>
       ) : null}
 
@@ -464,6 +622,9 @@ export default function HrStaffDirectory({
             ) : null}
             {staffPaging.slice.map((s) => (
               <article key={s.userId} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                <div className="flex items-start gap-3">
+                  <HrStaffAvatar staff={s} />
+                  <div className="min-w-0 flex-1">
                 <div className="flex items-start justify-between gap-3">
                   <Link
                     to={`${staffBasePath}/${encodeURIComponent(s.userId)}`}
@@ -474,6 +635,8 @@ export default function HrStaffDirectory({
                   <HrStatusBadge status={s.status} variant="staff" />
                 </div>
                 <StaffBadges staff={s} />
+                  </div>
+                </div>
                 <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 text-xs">
                   <div>
                     <dt className="font-bold uppercase tracking-wide text-slate-400">Staff ID</dt>
@@ -512,13 +675,23 @@ export default function HrStaffDirectory({
             <AppTableWrap>
               <AppTable role="numeric" className={compactTable ? 'text-xs' : undefined}>
                 <AppTableThead>
-                  <AppTableTh>Name</AppTableTh>
+                  {canBulkManage ? (
+                    <AppTableTh>
+                      <input
+                        type="checkbox"
+                        aria-label="Select page"
+                        checked={staffPaging.slice.length > 0 && staffPaging.slice.every((s) => selectedIds.includes(s.userId))}
+                        onChange={togglePageSelected}
+                      />
+                    </AppTableTh>
+                  ) : null}
+                  <SortableTh label="Name" sortId="name" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
                   <AppTableTh>Staff ID</AppTableTh>
-                  <AppTableTh>Branch</AppTableTh>
-                  <AppTableTh>Department</AppTableTh>
+                  <SortableTh label="Branch" sortId="branch" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+                  <SortableTh label="Department" sortId="department" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
                   <AppTableTh>Job title</AppTableTh>
                   <AppTableTh>Manager</AppTableTh>
-                  <AppTableTh>Profile</AppTableTh>
+                  <SortableTh label="Profile" sortId="profile" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
                   <AppTableTh>Group</AppTableTh>
                   {showSalary ? (
                     <AppTableTh align="right">
@@ -528,15 +701,15 @@ export default function HrStaffDirectory({
                       </span>
                     </AppTableTh>
                   ) : null}
-                  <AppTableTh>Joined</AppTableTh>
+                  <SortableTh label="Joined" sortId="joined" sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
                   <AppTableTh>Status</AppTableTh>
                 </AppTableThead>
                 <AppTableBody>
                   {loading && !staff.length ? (
-                    <HrTableLoadingRow colSpan={showSalary ? 11 : 10} message="Loading staff…" />
+                    <HrTableLoadingRow colSpan={colSpan} message="Loading staff…" />
                   ) : null}
                   {!loading && filtered.length === 0 ? (
-                    <HrTableEmptyRow colSpan={showSalary ? 11 : 10} message="No staff match these filters." />
+                    <HrTableEmptyRow colSpan={colSpan} message="No staff match these filters." />
                   ) : null}
                   {staffPaging.slice.map((s) => {
                     const pct = profilePct(s);
@@ -545,13 +718,26 @@ export default function HrStaffDirectory({
                     const probation = probationBadge(s);
                     return (
                       <AppTableTr key={s.userId}>
+                        {canBulkManage ? (
+                          <AppTableTd>
+                            <input
+                              type="checkbox"
+                              checked={selectedIds.includes(s.userId)}
+                              onChange={() => toggleSelected(s.userId)}
+                              aria-label={`Select ${s.displayName || s.username}`}
+                            />
+                          </AppTableTd>
+                        ) : null}
                         <AppTableTd>
-                          <Link
-                            to={`${staffBasePath}/${encodeURIComponent(s.userId)}`}
-                            className="font-semibold text-[#134e4a] hover:underline"
-                          >
-                            {s.displayName || s.username}
-                          </Link>
+                          <div className="flex items-center gap-2">
+                            <HrStaffAvatar staff={s} />
+                            <Link
+                              to={`${staffBasePath}/${encodeURIComponent(s.userId)}`}
+                              className="font-semibold text-[#134e4a] hover:underline"
+                            >
+                              {s.displayName || s.username}
+                            </Link>
+                          </div>
                         </AppTableTd>
                         <AppTableTd>{s.employeeNo || '—'}</AppTableTd>
                         <AppTableTd>{resolveBranchLabel(s, branchNames)}</AppTableTd>

@@ -2,6 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { apiFetch } from '../../lib/apiBase';
 import { useHrListLoad } from '../../hooks/useHrListLoad';
+import { teamHrTimeAbsencePath } from '../../lib/teamHrRoutes';
 import { HrKpiCard } from '../../components/hr/HrKpiCard';
 import { HrPageBody, HrPageIntro } from '../../components/hr/hrPageUi';
 import {
@@ -58,14 +59,14 @@ export default function TeamHrHome() {
           value={s.pendingLeave ?? 0}
           hint="Awaiting your endorsement"
           tone={s.pendingLeave > 0 ? 'amber' : 'default'}
-          to="/team-hr/requests"
+          to={teamHrTimeAbsencePath('endorsements')}
         />
         <HrKpiCard
           label="Loan endorsements"
           value={s.pendingLoan ?? 0}
           hint="Submitted loan requests"
           tone={s.pendingLoan > 0 ? 'amber' : 'default'}
-          to="/team-hr/requests"
+          to={teamHrTimeAbsencePath('endorsements')}
         />
         <HrKpiCard
           label="Transfer endorsements"
@@ -95,7 +96,7 @@ export default function TeamHrHome() {
           tone={s.documentsExpiring > 0 ? 'red' : 'default'}
           to="/team-hr/staff"
         />
-        <HrKpiCard label="Leave calendar" value="→" hint="Upcoming leave" tone="emerald" to="/team-hr/leave-calendar" />
+        <HrKpiCard label="Leave calendar" value="→" hint="Upcoming leave" tone="emerald" to={teamHrTimeAbsencePath('calendar')} />
       </div>
 
       <ProfileOverviewSection title="Quick actions" subtitle="Common manager tasks for your branch">
@@ -106,7 +107,7 @@ export default function TeamHrHome() {
           <ProfileQuickAction to="/manager?inbox=attendance" icon="✓">
             Attendance
           </ProfileQuickAction>
-          <ProfileQuickAction to="/team-hr/requests" icon="📋">
+          <ProfileQuickAction to={teamHrTimeAbsencePath('endorsements')} icon="📋">
             Endorsements
           </ProfileQuickAction>
           <ProfileQuickAction to="/team-hr/incidents" icon="⚠️">
@@ -118,8 +119,8 @@ export default function TeamHrHome() {
         </div>
         <div className="mt-3 flex flex-wrap gap-2">
           {[
-            { to: '/team-hr/leave-calendar', label: 'Leave calendar' },
-            { to: '/team-hr/attendance', label: 'Absence reports' },
+            { to: teamHrTimeAbsencePath('calendar'), label: 'Leave calendar' },
+            { to: teamHrTimeAbsencePath('absence'), label: 'Absence reports' },
           ].map((a) => (
             <Link
               key={a.to}

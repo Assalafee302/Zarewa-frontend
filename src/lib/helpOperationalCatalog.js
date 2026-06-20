@@ -1009,13 +1009,13 @@ const OPERATIONAL_TOPICS = [
     title: 'Leave request',
     answer: 'Staff use **My Profile**; branch managers endorse in **Team HR**.',
     steps: [
-      'Staff: **My Profile** → Leave → new request.',
-      'Branch manager: **Team HR** → Requests → endorse.',
+      'Staff: **My Profile** → Time off → Leave tab → new request.',
+      'Branch manager: **Team HR** → Time & absence → Endorsements.',
       'HR admin / GM HR complete review and final approval in HR — not in Zare chat.',
     ],
     links: [
-      { label: 'My Profile — Leave', to: '/my-profile/leave' },
-      { label: 'Team HR — Requests', to: '/team-hr/requests' },
+      { label: 'My Profile — Time off', to: '/my-profile/time-off' },
+      { label: 'Team HR — Time & absence', to: '/team-hr/time-absence' },
       { label: 'HR — Time & Absence', to: '/hr/time-absence' },
     ],
     extraKeywords: ['leave', 'annual leave', 'time off'],
@@ -1106,6 +1106,31 @@ const OPERATIONAL_TOPICS = [
       { label: 'HR — Documents', to: '/hr/documents' },
     ],
     extraKeywords: ['loan agreement', 'staff loan pdf', 'agreement letter', 'approved loan'],
+  },
+  {
+    module: 'hr',
+    action: 'request staff purchase credit on a quotation',
+    title: 'Staff purchase credit (roofing / materials)',
+    answer:
+      'Staff buy on credit via a Sales quotation on their linked staff customer account. MD must approve before delivery; repayment is payroll deduction.',
+    steps: [
+      'HR links staff to a Sales customer (Employees or bulk link under **HR → Payroll → Loans**).',
+      'Sales creates/saves a quotation on that staff customer and clicks **Request staff purchase credit**.',
+      'Managing Director approves in **Workspace Action Inbox**, **Manager → Staff credit**, or **HR → Payroll → Loans**.',
+      'After approval, quotation balance is covered and delivery may proceed; payroll collects repayment.',
+    ],
+    links: [
+      { label: 'HR — Payroll / Loans', to: '/hr/payroll', state: { tab: 'loans' } },
+      { label: 'Sales — Quotations', to: '/sales', state: { focusSalesTab: 'quotations' } },
+      { label: 'Workspace', to: '/' },
+    ],
+    extraKeywords: [
+      'staff purchase credit',
+      'purchase credit',
+      'staff roofing',
+      'materials on credit',
+      'MD approve staff credit',
+    ],
   },
   {
     module: 'hr',

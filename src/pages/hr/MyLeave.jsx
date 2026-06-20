@@ -158,8 +158,11 @@ export default function MyLeave({ staffLinkBase = '/my-profile', embedded = fals
         ? handoverTo.trim().length >= 2
         : true;
 
+  const pageShell = embedded ? 'div' : ProfilePageBody;
+  const Shell = pageShell;
+
   return (
-    <ProfilePageBody className={embedded ? '!space-y-4' : ''}>
+    <Shell className={embedded ? 'space-y-4' : undefined}>
       {!embedded ? (
         <>
           <WorkPayHero
@@ -371,6 +374,6 @@ export default function MyLeave({ staffLinkBase = '/my-profile', embedded = fals
       >
         <HrRequestsPanel allowedScopes={['mine']} defaultScope="mine" kindFilter="leave" staffLinkBase={staffLinkBase} showStageBar />
       </ProfileOverviewSection>
-    </ProfilePageBody>
+    </Shell>
   );
 }

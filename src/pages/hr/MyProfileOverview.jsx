@@ -147,12 +147,12 @@ export default function MyProfileOverview() {
   ) : (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
       {cohort === 'employee' || cohort === 'special' ? (
-        <ProfileKpiCard label="Leave balances" to={HR_SELF_SERVICE_PATH.leave} actionLabel="Apply for leave">
+        <ProfileKpiCard label="Leave balances" to={HR_SELF_SERVICE_PATH.timeOff + '?tab=leave'} actionLabel="Apply for leave">
           {balances.length === 0 ? (
             <ProfileEmptyState
               title="No leave balances"
               description="HR may still be setting up your leave record."
-              actionTo={HR_SELF_SERVICE_PATH.leave}
+              actionTo={HR_SELF_SERVICE_PATH.timeOff + '?tab=leave'}
               actionLabel="Apply for leave"
             />
           ) : (
@@ -169,12 +169,12 @@ export default function MyProfileOverview() {
       ) : null}
 
       {cohort === 'employee' || cohort === 'special' ? (
-        <ProfileKpiCard label="Attendance" to={HR_SELF_SERVICE_PATH.attendance} actionLabel="View details">
+        <ProfileKpiCard label="Attendance" to={HR_SELF_SERVICE_PATH.timeOff + '?tab=attendance'} actionLabel="View details">
           {!attendance ? (
             <ProfileEmptyState
               title="No roll data"
               description="Daily attendance for this month is not recorded yet."
-              actionTo={HR_SELF_SERVICE_PATH.attendance}
+              actionTo={HR_SELF_SERVICE_PATH.timeOff + '?tab=attendance'}
               actionLabel="Attendance"
             />
           ) : (
@@ -269,7 +269,7 @@ export default function MyProfileOverview() {
           <ProfileEmptyState
             title="No requests yet"
             description="Leave, loan, and profile requests appear here."
-            actionTo={HR_SELF_SERVICE_PATH.leave}
+            actionTo={HR_SELF_SERVICE_PATH.timeOff + '?tab=leave'}
             actionLabel="Apply for leave"
           />
         ) : (

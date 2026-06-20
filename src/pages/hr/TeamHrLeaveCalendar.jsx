@@ -30,7 +30,7 @@ function monthRange() {
   };
 }
 
-export default function TeamHrLeaveCalendar() {
+export default function TeamHrLeaveCalendar({ embedded = false }) {
   const [{ from, to }, setRange] = useState(monthRange);
   const [entries, setEntries] = useState([]);
 
@@ -53,13 +53,8 @@ export default function TeamHrLeaveCalendar() {
     return Object.values(map);
   }, [entries]);
 
-  return (
-    <HrPageBody>
-      <HrPageIntro
-        title="Leave calendar"
-        description="Approved leave for your branch — plan team coverage."
-      />
-
+  const body = (
+    <>
       {error ? <ProfileInlineAlert variant="error">{error}</ProfileInlineAlert> : null}
 
       <ProfileOverviewSection title="Date range" subtitle="Filter approved leave entries">
@@ -117,6 +112,18 @@ export default function TeamHrLeaveCalendar() {
           </AppTableWrap>
         )}
       </ProfileOverviewSection>
+    </>
+  );
+
+  if (embedded) return <div className="space-y-6">{body}</div>;
+
+  return (
+    <HrPageBody>
+      <HrPageIntro
+        title="Leave calendar"
+        description="Approved leave for your branch — plan team coverage."
+      />
+      {body}
     </HrPageBody>
   );
 }

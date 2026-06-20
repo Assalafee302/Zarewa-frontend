@@ -22,7 +22,9 @@ import { useUserProfile } from '../../context/UserProfileContext';
 import { formatNgn } from '../../lib/hrFormat';
 import { HR_BTN_PRIMARY, HR_BTN_SECONDARY, HR_FIELD_CLASS } from '../../components/hr/hrFormStyles';
 import { GUARANTOR_FORM_TEMPLATE_URL } from '../../lib/hrStaffDocumentKinds';
-import { StaffRecoveryPayGuide } from '../../components/hr/StaffRecoveryPayGuide';
+import { fetchMyQuotationsForPurchaseCredit } from '../../lib/hrStaffPurchaseCredit';
+import { StaffPurchaseCreditRequestModal } from '../../components/sales/StaffPurchaseCreditRequestModal';
+import { salesQuotationDeepLink } from '../../lib/staffPurchaseCreditLinks';
 
 export default function MyLoans({ staffLinkBase = '/my-profile' }) {
   const ws = useWorkspace();
@@ -47,6 +49,9 @@ export default function MyLoans({ staffLinkBase = '/my-profile' }) {
   const [summaryLoading, setSummaryLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
   const [hasGuarantorDoc, setHasGuarantorDoc] = useState(false);
+  const [myQuotations, setMyQuotations] = useState([]);
+  const [myQuotesLoading, setMyQuotesLoading] = useState(true);
+  const [purchaseModalRef, setPurchaseModalRef] = useState('');
 
   const loanPolicy = ctxLoanPolicy;
   const grossSalaryNgn = useMemo(() => {
@@ -86,6 +91,22 @@ export default function MyLoans({ staffLinkBase = '/my-profile' }) {
       cancelled = true;
     };
   }, [userId, message, me?.documents]);
+
+  useEffect(() => {
+    if (!userId) return;
+    let cancelled = false;
+    (async () => {
+      setMyQuotesLoading(true);
+      const qRes = await fetchMyQuotationsForPurchaseCredit();
+      if (cancelled) return;
+      setMyQuotesLoading(false);
+      if (qRes.ok && qRes.data?.ok) setMyQuotations(qRes.data.items || []);
+      else setMyQuotations([]);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [userId, message]);
 
   const policy = useMemo(
     () =>
@@ -382,6 +403,52 @@ export default function MyLoans({ staffLinkBase = '/my-profile' }) {
         </ProfileOverviewSection>
       ) : null}
 
+      {(myQuotesLoading || myQuotations.length > 0) ? (
+        <ProfileOverviewSection
+          title="Quotations ready for purchase credit"
+          subtitle="Open balances on your linked staff customer account"
+        >
+          {myQuotesLoading ? (
+            <p className="text-sm text-slate-500">Loading your quotations…</p>
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-2">
+              {myQuotations.map((q) => {
+                const quoteLink = salesQuotationDeepLink(q.quotationRef);
+                return (
+                  <ProfileKpiCard key={q.quotationRef} label={q.projectName || q.quotationRef}>
+                    <p className="text-xs text-slate-600">
+                      Balance due: <strong>{formatNgn(q.balanceNgn)}</strong>
+                    </p>
+                    {q.hasPendingCredit ? (
+                      <ProfileStatusChip variant="pending">
+                        {q.creditStatus === 'pending_approval' ? 'Awaiting MD approval' : q.creditStatus || 'Credit linked'}
+                      </ProfileStatusChip>
+                    ) : (
+                      <button
+                        type="button"
+                        className={`${HR_BTN_PRIMARY} mt-2 text-[10px]`}
+                        onClick={() => setPurchaseModalRef(q.quotationRef)}
+                      >
+                        Request purchase credit
+                      </button>
+                    )}
+                    {quoteLink ? (
+                      <Link
+                        to={quoteLink.to}
+                        state={quoteLink.state}
+                        className="mt-2 inline-block text-[10px] font-semibold text-[#134e4a] underline"
+                      >
+                        View quotation
+                      </Link>
+                    ) : null}
+                  </ProfileKpiCard>
+                );
+              })}
+            </div>
+          )}
+        </ProfileOverviewSection>
+      ) : null}
+
       {(moneySummary?.purchases || []).filter((p) => p.principalOutstandingNgn > 0 || p.status === 'pending_approval').length ? (
         <ProfileOverviewSection title="Purchase credit" subtitle="Roofing and materials on staff credit">
           <div className="grid gap-3 sm:grid-cols-2">
@@ -576,6 +643,17 @@ export default function MyLoans({ staffLinkBase = '/my-profile' }) {
       <ProfileOverviewSection title="My loan requests" subtitle="Drafts and applications awaiting HR review">
         <HrRequestsPanel allowedScopes={['mine']} defaultScope="mine" kindFilter="loan" staffLinkBase={staffLinkBase} showStageBar />
       </ProfileOverviewSection>
+
+      <StaffPurchaseCreditRequestModal
+        open={Boolean(purchaseModalRef)}
+        onClose={() => setPurchaseModalRef('')}
+        quotationRef={purchaseModalRef}
+        selfInitiated
+        onSubmitted={() => {
+          setPurchaseModalRef('');
+          setMessage('Purchase credit request submitted — awaiting MD approval.');
+        }}
+      />
     </ProfilePageBody>
   );
 }

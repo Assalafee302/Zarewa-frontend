@@ -51,9 +51,9 @@ export function documentTitleForPath(pathname) {
       overview: 'Overview',
       school: 'My school',
       employment: 'Employment',
-      leave: 'Leave',
-      loans: 'Loans',
-      attendance: 'Attendance',
+      'time-off': 'Time off',
+      leave: 'Time off',
+      attendance: 'Time off',
       payslips: 'Payslips',
       documents: 'Documents',
       benefits: 'Benefits',
@@ -65,6 +65,10 @@ export function documentTitleForPath(pathname) {
       help: 'HR help',
     };
     return `HR services – ${labels[sec] || 'Overview'} | ${DOCUMENT_TITLE_BASE}`;
+  }
+
+  if (p === '/executive-hr' || p.startsWith('/executive-hr/')) {
+    return `Executive HR | ${DOCUMENT_TITLE_BASE}`;
   }
 
   if (p === '/team-hr' || p.startsWith('/team-hr/')) {
@@ -84,9 +88,11 @@ export function documentTitleForPath(pathname) {
     const labels = {
       dashboard: 'Dashboard',
       staff: 'Staff',
+      'time-absence': 'Time & absence',
+      talent: 'Talent & development',
       requests: 'Requests',
-      leave: 'Leave',
-      attendance: 'Attendance',
+      leave: 'Time & absence',
+      attendance: 'Time & absence',
       payroll: 'Payroll',
       loans: 'Loans',
       benefits: 'Benefits',

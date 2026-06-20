@@ -11,7 +11,7 @@ describe('hrSelfServiceRoutes', () => {
   });
 
   it('defines legacy /me HR redirects to /my-profile', () => {
-    expect(LEGACY_ME_HR_REDIRECTS['/me/leave']).toBe(HR_SELF_SERVICE_PATH.leave);
+    expect(LEGACY_ME_HR_REDIRECTS['/me/leave']).toContain('/my-profile/time-off');
     expect(LEGACY_ME_HR_REDIRECTS['/me/school']).toBe(HR_SELF_SERVICE_PATH.school);
     expect(LEGACY_ME_HR_REDIRECTS['/me/payslips']).toBe(HR_SELF_SERVICE_PATH.payslips);
   });

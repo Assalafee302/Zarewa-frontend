@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ZareApprovalHint } from '../ZareApprovalHint';
 import { HR_BTN_PRIMARY, HR_BTN_SECONDARY } from '../hr/hrFormStyles';
+import { salesQuotationDeepLink } from '../../lib/staffPurchaseCreditLinks';
 
 /**
  * MD / manager review panel for pending staff purchase credit (materials on credit).
@@ -22,6 +23,17 @@ export function StaffPurchaseCreditManagerPreview({
   const quoteRef = String(account.quotationRef || '').trim();
   const staffName = String(account.staffDisplayName || account.userId || 'Staff').trim();
   const asMoney = typeof formatNgn === 'function' ? formatNgn : (n) => `NGN ${Number(n || 0).toLocaleString()}`;
+  const quoteLink = salesQuotationDeepLink(quoteRef);
+  const [rejectOpen, setRejectOpen] = useState(false);
+  const [rejectNote, setRejectNote] = useState('');
+
+  const confirmReject = () => {
+    const note = String(rejectNote || '').trim();
+    if (note.length < 3) return;
+    onReject?.(note);
+    setRejectOpen(false);
+    setRejectNote('');
+  };
 
   return (
     <div className="space-y-4">
@@ -31,9 +43,18 @@ export function StaffPurchaseCreditManagerPreview({
         <p className="text-sm text-slate-600 mt-1">{account.title || 'Roofing / materials on credit'}</p>
         <dl className="mt-4 grid gap-2 text-sm text-slate-800 sm:grid-cols-2">
           {quoteRef ? (
-            <div>
+            <div className="sm:col-span-2">
               <dt className="text-[10px] font-bold uppercase text-slate-500">Quotation</dt>
               <dd className="font-mono font-semibold">{quoteRef}</dd>
+              {quoteLink ? (
+                <Link
+                  to={quoteLink.to}
+                  state={quoteLink.state}
+                  className="mt-1 inline-block text-xs font-bold text-[#134e4a] underline"
+                >
+                  Open quotation in Sales
+                </Link>
+              ) : null}
             </div>
           ) : null}
           {amountNgn > 0 ? (
@@ -83,21 +104,50 @@ export function StaffPurchaseCreditManagerPreview({
         </p>
       ) : null}
 
-      <div className="flex flex-wrap gap-2 pt-2">
-        {canReject ? (
-          <button type="button" className={HR_BTN_SECONDARY} disabled={busy} onClick={() => onReject?.()}>
-            {busy ? 'Working…' : 'Reject'}
-          </button>
-        ) : null}
-        {canApprove ? (
-          <button type="button" className={HR_BTN_PRIMARY} disabled={busy} onClick={() => onApprove?.()}>
-            {busy ? 'Working…' : 'Approve'}
-          </button>
-        ) : null}
-        <Link to="/hr/payroll?tab=loans" className={HR_BTN_SECONDARY}>
-          HR loans queue
-        </Link>
-      </div>
+      {rejectOpen ? (
+        <div className="space-y-2 rounded-xl border border-rose-100 bg-rose-50/60 p-3">
+          <label className="block text-xs font-bold text-slate-700">
+            Rejection reason (required)
+            <textarea
+              className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+              rows={3}
+              value={rejectNote}
+              onChange={(e) => setRejectNote(e.target.value)}
+              minLength={3}
+              placeholder="Explain why this purchase credit should not proceed"
+            />
+          </label>
+          <div className="flex flex-wrap gap-2">
+            <button type="button" className={HR_BTN_SECONDARY} disabled={busy} onClick={() => setRejectOpen(false)}>
+              Cancel
+            </button>
+            <button
+              type="button"
+              className={HR_BTN_SECONDARY}
+              disabled={busy || rejectNote.trim().length < 3}
+              onClick={confirmReject}
+            >
+              {busy ? 'Working…' : 'Confirm reject'}
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="flex flex-wrap gap-2 pt-2">
+          {canReject ? (
+            <button type="button" className={HR_BTN_SECONDARY} disabled={busy} onClick={() => setRejectOpen(true)}>
+              Reject
+            </button>
+          ) : null}
+          {canApprove ? (
+            <button type="button" className={HR_BTN_PRIMARY} disabled={busy} onClick={() => onApprove?.()}>
+              {busy ? 'Working…' : 'Approve'}
+            </button>
+          ) : null}
+          <Link to="/hr/payroll?tab=loans" className={HR_BTN_SECONDARY}>
+            HR loans queue
+          </Link>
+        </div>
+      )}
     </div>
   );
 }

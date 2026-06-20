@@ -174,25 +174,25 @@ export function computeDirectoryKpis(staff = []) {
   return { total: staff.length, active, incomplete, onProbation, probationEnding, contractsExpiring, noManager };
 }
 
-export function sortStaffList(list, sortKey = 'name', branchNames = new Map()) {
-  const dir = 1;
+export function sortStaffList(list, sortKey = 'name', branchNames = new Map(), sortDir = 'asc') {
+  const dir = sortDir === 'desc' ? -1 : 1;
   const copy = [...list];
   copy.sort((a, b) => {
+    let cmp = 0;
     if (sortKey === 'branch') {
       const av = resolveBranchLabel(a, branchNames);
       const bv = resolveBranchLabel(b, branchNames);
-      return dir * String(av).localeCompare(String(bv));
+      cmp = String(av).localeCompare(String(bv));
+    } else if (sortKey === 'department') {
+      cmp = String(a.department || '').localeCompare(String(b.department || ''));
+    } else if (sortKey === 'joined') {
+      cmp = String(a.dateJoinedIso || '').localeCompare(String(b.dateJoinedIso || ''));
+    } else if (sortKey === 'profile') {
+      cmp = profilePct(a) - profilePct(b);
+    } else {
+      cmp = String(a.displayName || a.username || '').localeCompare(String(b.displayName || b.username || ''));
     }
-    if (sortKey === 'department') {
-      return dir * String(a.department || '').localeCompare(String(b.department || ''));
-    }
-    if (sortKey === 'joined') {
-      return dir * String(b.dateJoinedIso || '').localeCompare(String(a.dateJoinedIso || ''));
-    }
-    if (sortKey === 'profile') {
-      return dir * (profilePct(b) - profilePct(a));
-    }
-    return dir * String(a.displayName || a.username || '').localeCompare(String(b.displayName || b.username || ''));
+    return dir * cmp;
   });
   return copy;
 }

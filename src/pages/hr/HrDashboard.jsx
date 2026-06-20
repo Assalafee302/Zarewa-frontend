@@ -33,7 +33,7 @@ import {
   getHrDashboardQuickActions,
   getHrDashboardQueueLines,
 } from '../../lib/hrDashboardUi';
-import { HR_TIME_ABSENCE, HR_DEVELOPMENT, HR_DISCIPLINE_EXIT, HR_DOCUMENTS, HR_EMPLOYEES, HR_PAYROLL, hrTabPath } from '../../lib/hrRoutes';
+import { HR_TIME_ABSENCE, HR_TALENT, HR_DISCIPLINE_EXIT, HR_DOCUMENTS, HR_EMPLOYEES, HR_PAYROLL, hrTabPath } from '../../lib/hrRoutes';
 import { employeesDirectoryLink, DIRECTORY_QUICK_FROM_ALERT } from '../../lib/hrStaffDirectoryUi';
 import { HrKpiCard } from '../../components/hr/HrKpiCard';
 import { HrOperationalReadinessPanel } from '../../components/hr/HrOperationalReadinessPanel';
@@ -265,7 +265,7 @@ const ACTION_ALERT_CONFIGS = [
     title: 'Staff due for promotion',
     borderCls: 'border-emerald-400',
     badgeCls: 'bg-emerald-100 text-emerald-900',
-    linkTo: hrTabPath(HR_DEVELOPMENT, 'promotions'),
+    linkTo: `${HR_TALENT}?tab=develop&section=promotions`,
     countLabel: (n) => `${n} staff due for promotion review`,
     renderItem: (item, i) => (
       <li key={i} className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 py-1 text-xs text-slate-700 last:border-0">
@@ -494,6 +494,11 @@ function ActionAlertCard({ cfg, items }) {
               }}
             >
               Review in module →
+            </Link>
+          ) : null}
+          {cfg.listLink ? (
+            <Link to={cfg.listLink} className="mt-2 ml-0 inline-block text-xs font-bold text-[#134e4a] hover:underline">
+              View all in directory →
             </Link>
           ) : null}
         </div>
