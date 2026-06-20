@@ -1,9 +1,8 @@
 import React, { Suspense } from 'react';
-import { Link } from 'react-router-dom';
 import { lazyWithRetry } from '../../lib/lazyWithRetry';
-import { hrTabPath, HR_DOCUMENTS } from '../../lib/hrRoutes';
 import { useHrUrlTab } from '../../hooks/useHrUrlTab';
 import { HrTabbedPage } from '../../components/hr/HrTabbedPage';
+import { HrReportEmbedPanel } from '../../components/hr/HrReportEmbedPanel';
 import HrLetters from './HrLetters';
 import HrReports from './HrReports';
 
@@ -17,6 +16,14 @@ const TABS = [
   { id: 'reports', label: 'Reports hub' },
 ];
 
+const HUB_PROMPTS = {
+  letters: 'Explain how to issue employment letters and what approvals are required.',
+  'id-cards': 'Summarize ID card requests and what HR should verify before printing.',
+  documents: 'Summarize document expiry and compliance gaps across staff.',
+  policies: 'Explain policy acknowledgement status and who still needs to sign.',
+  reports: 'Which HR reports should I run first for compliance this month?',
+};
+
 export default function HrDocumentsHub() {
   const { tab, setTab } = useHrUrlTab('letters', TABS.map((t) => t.id));
 
@@ -27,6 +34,9 @@ export default function HrDocumentsHub() {
       tabs={TABS}
       tab={tab}
       onTabChange={setTab}
+      hub="documents"
+      hubPrompt={HUB_PROMPTS[tab] || HUB_PROMPTS.reports}
+      hubPageContext={{ documentsTab: tab }}
     >
       {tab === 'letters' ? <HrLetters embedded /> : null}
       {tab === 'id-cards' ? (
@@ -35,36 +45,18 @@ export default function HrDocumentsHub() {
         </Suspense>
       ) : null}
       {tab === 'documents' ? (
-        <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm space-y-3">
-          <p className="text-sm text-slate-600">
-            Organisation-wide document compliance is available via the Document Expiry report.
-          </p>
-          <Link
-            to={hrTabPath(HR_DOCUMENTS, 'reports')}
-            className="inline-flex rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold uppercase text-[#134e4a] hover:bg-slate-50"
-            onClick={() => {
-              sessionStorage.setItem('hrReportPreselect', 'document-expiry');
-            }}
-          >
-            Open document expiry report →
-          </Link>
-        </div>
+        <HrReportEmbedPanel
+          reportId="document-expiry"
+          title="Document expiry & compliance"
+          description="Staff with expired or soon-to-expire HR documents. Fix records from the employee profile or staff directory."
+        />
       ) : null}
       {tab === 'policies' ? (
-        <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm space-y-3">
-          <p className="text-sm text-slate-600">
-            Handbook, confidentiality pledge, and policy acknowledgement status across staff.
-          </p>
-          <Link
-            to={hrTabPath(HR_DOCUMENTS, 'reports')}
-            className="inline-flex rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold uppercase text-[#134e4a] hover:bg-slate-50"
-            onClick={() => {
-              sessionStorage.setItem('hrReportPreselect', 'policy-acknowledgement');
-            }}
-          >
-            Open policy acknowledgement report →
-          </Link>
-        </div>
+        <HrReportEmbedPanel
+          reportId="policy-acknowledgement"
+          title="Policy acknowledgements"
+          description="Handbook, confidentiality pledge, and policy acknowledgement status across the organisation."
+        />
       ) : null}
       {tab === 'reports' ? <HrReports embedded /> : null}
     </HrTabbedPage>

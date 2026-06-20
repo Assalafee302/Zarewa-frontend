@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   AlertCircle,
   AlertTriangle,
@@ -24,7 +24,7 @@ import {
 import { apiFetch } from '../../lib/apiBase';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { useHrListLoad } from '../../hooks/useHrListLoad';
-import { hrRequestStatusClass } from '../../lib/hrFormat';
+import { hrRequestKindLabel, hrRequestStatusClass } from '../../lib/hrFormat';
 import { canManageHrSettings, canViewHrReports } from '../../lib/hrAccess';
 import {
   getHrDashboardAttentionCount,
@@ -36,6 +36,15 @@ import {
 import { HR_TIME_ABSENCE, HR_TALENT, HR_DISCIPLINE_EXIT, HR_DOCUMENTS, HR_EMPLOYEES, HR_PAYROLL, hrTabPath } from '../../lib/hrRoutes';
 import { employeesDirectoryLink, DIRECTORY_QUICK_FROM_ALERT } from '../../lib/hrStaffDirectoryUi';
 import { HrKpiCard } from '../../components/hr/HrKpiCard';
+import { HrHubToolbar } from '../../components/hr/HrHubToolbar';
+import HrMobileAlertStrip from '../../components/hr/HrMobileAlertStrip';
+import { HrListTableFrame, HrListSearchInput, HrListSortBar } from '../../components/hr/HrListTableFrame';
+import { HrRequestPreviewSlideOver } from '../../components/hr/HrRequestPreviewSlideOver';
+import {
+  filterHrDashboardRequests,
+  HR_DASHBOARD_REQUEST_SORT_FIELDS,
+  sortHrDashboardRequests,
+} from '../../lib/hrDashboardRequestsList';
 import { HrOperationalReadinessPanel } from '../../components/hr/HrOperationalReadinessPanel';
 import { HrProductionReadinessPanel } from '../../components/hr/HrProductionReadinessPanel';
 import { HrPageBody } from '../../components/hr/hrPageUi';
@@ -45,15 +54,15 @@ import {
   ProfileMetricSkeleton,
   ProfileOverviewSection,
 } from '../../components/profile/profileOverviewUi';
-import {
-  AppTable,
-  AppTableBody,
-  AppTableTd,
-  AppTableTh,
-  AppTableThead,
-  AppTableTr,
-  AppTableWrap,
-} from '../../components/ui/AppDataTable';
+
+const CARD_ROW =
+  'group relative flex min-w-0 cursor-pointer items-center gap-3 rounded-xl border border-slate-200/90 bg-white/80 px-3 py-3 backdrop-blur-md transition-all hover:-translate-y-0.5 hover:border-[#134e4a]/25 hover:shadow-md sm:px-4';
+
+const ALERT_FILTER_OPTIONS = [
+  { id: 'all', label: 'All alerts' },
+  { id: 'action', label: 'Action required' },
+  { id: 'calendar', label: 'Calendar' },
+];
 
 const ACTION_ALERT_KEYS = [
   'absenceAwaitingReview',
@@ -97,8 +106,8 @@ const ALERT_CONFIGS = [
         <span className="flex items-center gap-2">
           <span className="font-mono text-amber-700">{item.probationEndIso}</span>
           {item.userId ? (
-            <Link to={`${HR_EMPLOYEES}/${encodeURIComponent(item.userId)}`} className="font-bold text-[#134e4a] hover:underline">
-              Confirm →
+            <Link to={`${HR_EMPLOYEES}/${encodeURIComponent(item.userId)}?tab=lifecycle`} className="font-bold text-[#134e4a] hover:underline">
+              Review →
             </Link>
           ) : null}
         </span>
@@ -135,8 +144,13 @@ const ALERT_CONFIGS = [
     badgeCls: 'bg-rose-100 text-rose-900',
     countLabel: (n) => `${n} birthday${n !== 1 ? 's' : ''} this week`,
     renderItem: (item, i) => (
-      <li key={i} className="border-b border-slate-100 py-1 text-xs text-slate-700 last:border-0">
+      <li key={i} className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 py-1 text-xs text-slate-700 last:border-0">
         <strong>{item.displayName}</strong>
+        {item.userId ? (
+          <Link to={`${HR_EMPLOYEES}/${encodeURIComponent(item.userId)}`} className="font-bold text-[#134e4a] hover:underline">
+            Open →
+          </Link>
+        ) : null}
       </li>
     ),
   },
@@ -150,11 +164,18 @@ const ALERT_CONFIGS = [
     renderItem: (item, i) => (
       <li key={i} className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 py-1 text-xs text-slate-700 last:border-0">
         <strong>{item.displayName}</strong>
-        {item.yearsCompleted != null ? (
-          <span className="font-semibold text-violet-700">
-            {item.yearsCompleted} yr{item.yearsCompleted !== 1 ? 's' : ''}
-          </span>
-        ) : null}
+        <span className="flex items-center gap-2">
+          {item.yearsCompleted != null ? (
+            <span className="font-semibold text-violet-700">
+              {item.yearsCompleted} yr{item.yearsCompleted !== 1 ? 's' : ''}
+            </span>
+          ) : null}
+          {item.userId ? (
+            <Link to={`${HR_EMPLOYEES}/${encodeURIComponent(item.userId)}`} className="font-bold text-[#134e4a] hover:underline">
+              Open →
+            </Link>
+          ) : null}
+        </span>
       </li>
     ),
   },
@@ -164,6 +185,7 @@ const ALERT_CONFIGS = [
     title: 'Documents expiring',
     borderCls: 'border-red-400',
     badgeCls: 'bg-red-100 text-red-900',
+    listLink: employeesDirectoryLink(DIRECTORY_QUICK_FROM_ALERT.documentsExpiring),
     countLabel: (n) => `${n} document${n !== 1 ? 's' : ''} expiring within 60 days`,
     renderItem: (item, i) => (
       <li key={i} className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 py-1 text-xs text-slate-700 last:border-0">
@@ -171,7 +193,14 @@ const ALERT_CONFIGS = [
           <strong>{item.displayName}</strong>
           {item.docType ? ` — ${item.docType}` : ''}
         </span>
-        <span className="font-mono text-red-700">{item.expiryIso}</span>
+        <span className="flex items-center gap-2">
+          <span className="font-mono text-red-700">{item.expiryIso}</span>
+          {item.userId ? (
+            <Link to={`${HR_EMPLOYEES}/${encodeURIComponent(item.userId)}?tab=documents`} className="font-bold text-[#134e4a] hover:underline">
+              Open →
+            </Link>
+          ) : null}
+        </span>
       </li>
     ),
   },
@@ -426,6 +455,37 @@ const ACTION_ALERT_CONFIGS = [
   },
 ];
 
+function AlertFilterBar({ value, onChange, actionCount, calendarCount, totalCount }) {
+  const counts = { all: totalCount, action: actionCount, calendar: calendarCount };
+  return (
+    <div className="flex flex-wrap gap-1.5" role="group" aria-label="Filter alerts">
+      {ALERT_FILTER_OPTIONS.map((opt) => (
+        <button
+          key={opt.id}
+          type="button"
+          onClick={() => onChange(opt.id)}
+          className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wide transition-colors ${
+            value === opt.id
+              ? 'border-[#134e4a]/30 bg-[#134e4a] text-white'
+              : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+          }`}
+        >
+          {opt.label}
+          {counts[opt.id] > 0 ? (
+            <span
+              className={`rounded-full px-1.5 py-0.5 text-[9px] tabular-nums ${
+                value === opt.id ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-700'
+              }`}
+            >
+              {counts[opt.id]}
+            </span>
+          ) : null}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 function AlertCard({ cfg, items }) {
   const [open, setOpen] = useState(false);
   const count = items.length;
@@ -509,6 +569,8 @@ function ActionAlertCard({ cfg, items }) {
 
 export default function HrDashboard() {
   const ws = useWorkspace();
+  const location = useLocation();
+  const navigate = useNavigate();
   const permissions = ws?.permissions || [];
   const roleKey = ws?.session?.user?.roleKey;
   const [obs, setObs] = useState(null);
@@ -518,8 +580,13 @@ export default function HrDashboard() {
   const [alerts, setAlerts] = useState(null);
   const [profileWorkQueue, setProfileWorkQueue] = useState(null);
   const [readiness, setReadiness] = useState(null);
+  const [alertFilter, setAlertFilter] = useState('all');
+  const [requestSearch, setRequestSearch] = useState('');
+  const [requestSortField, setRequestSortField] = useState('updated');
+  const [requestSortDir, setRequestSortDir] = useState('desc');
+  const [previewRequest, setPreviewRequest] = useState(null);
 
-  const { loading, error } = useHrListLoad(async () => {
+  const loadDashboard = async () => {
     const [dashRes, alertsRes] = await Promise.all([
       apiFetch('/api/hr/dashboard'),
       apiFetch('/api/hr/dashboard/alerts'),
@@ -546,7 +613,23 @@ export default function HrDashboard() {
       setAlerts({});
     }
     return { hasData: true };
-  }, []);
+  };
+
+  const { loading, error, reload } = useHrListLoad(async () => loadDashboard(), []);
+
+  useEffect(() => {
+    const state = location.state || {};
+    if (state.focusHrAlertFilter && ALERT_FILTER_OPTIONS.some((o) => o.id === state.focusHrAlertFilter)) {
+      setAlertFilter(state.focusHrAlertFilter);
+    }
+    if (state.openRequestId && recentRequests.length) {
+      const match = recentRequests.find((r) => r.id === state.openRequestId);
+      if (match) setPreviewRequest(match);
+    }
+    if (state.focusHrAlertFilter || state.openRequestId) {
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, [location.state, location.pathname, navigate, recentRequests]);
 
   if (loading && !obs) {
     return (
@@ -576,13 +659,61 @@ export default function HrDashboard() {
   const actionAlertCount = getHrDashboardAttentionCount(alerts, ACTION_ALERT_KEYS, []);
   const calendarAlertCount = getHrDashboardAttentionCount(alerts, [], CALENDAR_ALERT_KEYS);
 
+  const mobileAlertItems = useMemo(() => {
+    const c = counts;
+    const items = [];
+    if (actionAlertCount > 0) {
+      items.push({ key: 'action', label: 'workflow actions', count: actionAlertCount, tone: 'amber', href: '#hr-alerts-action' });
+    }
+    if (calendarAlertCount > 0) {
+      items.push({ key: 'calendar', label: 'calendar reminders', count: calendarAlertCount, tone: 'teal', href: '#hr-alerts-calendar' });
+    }
+    for (const line of queueLines) {
+      if (line.count > 0) {
+        items.push({ key: line.label, label: line.label.toLowerCase(), count: line.count, tone: 'amber', href: line.href });
+      }
+    }
+    const overdue = Number(c.overdueRequests ?? summary.overdueRequests ?? 0);
+    if (overdue > 0) {
+      items.push({ key: 'overdue', label: 'overdue SLA', count: overdue, tone: 'red', href: hrTabPath(HR_TIME_ABSENCE, 'approvals') });
+    }
+    return items;
+  }, [actionAlertCount, calendarAlertCount, queueLines, counts, summary]);
+
+  const filteredRecentRequests = useMemo(() => {
+    const filtered = filterHrDashboardRequests(recentRequests, requestSearch);
+    return sortHrDashboardRequests(filtered, requestSortField, requestSortDir);
+  }, [recentRequests, requestSearch, requestSortField, requestSortDir]);
+
+  const showActionAlerts = alertFilter === 'all' || alertFilter === 'action';
+  const showCalendarAlerts = alertFilter === 'all' || alertFilter === 'calendar';
+
   return (
     <HrPageBody>
       <header className="border-b border-slate-100 pb-5">
-        <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-teal-600/90">Human Resources</p>
-        <h1 className="mt-1 text-2xl font-black tracking-tight text-[#134e4a] sm:text-3xl">{intro.title}</h1>
-        <p className="mt-2 max-w-2xl text-sm leading-relaxed text-slate-600">{intro.description}</p>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-teal-600/90">Human Resources</p>
+            <h1 className="mt-1 text-2xl font-black tracking-tight text-[#134e4a] sm:text-3xl">{intro.title}</h1>
+            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-slate-600">{intro.description}</p>
+          </div>
+          <HrHubToolbar
+            hub="dashboard"
+            prompt="Summarize HR queues, compliance alerts, and what I should handle first today."
+            pageContext={{ attentionCount, actionAlertCount, calendarAlertCount }}
+          />
+        </div>
       </header>
+
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        {overviewKpis.map((kpi) => (
+          <Link key={kpi.label} to={kpi.href} className="block no-underline">
+            <HrKpiCard label={kpi.label} value={kpi.value} hint={kpi.hint} tone={kpi.tone} />
+          </Link>
+        ))}
+      </div>
+
+      <HrMobileAlertStrip items={mobileAlertItems} />
 
       {attentionCount > 0 ? (
         <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-4">
@@ -604,17 +735,7 @@ export default function HrDashboard() {
         </div>
       ) : null}
 
-      <ProfileOverviewSection title="Overview" subtitle={`${staff.total ?? '—'} total staff · ${staff.inactive ?? 0} inactive`}>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {overviewKpis.map((kpi) => (
-            <Link key={kpi.label} to={kpi.href} className="block no-underline">
-              <HrKpiCard label={kpi.label} value={kpi.value} hint={kpi.hint} tone={kpi.tone} />
-            </Link>
-          ))}
-        </div>
-      </ProfileOverviewSection>
-
-      <ProfileOverviewSection title="Today's HR actions" subtitle="Queues and quick links for your role">
+      <ProfileOverviewSection title="Today's HR actions" subtitle={`${staff.total ?? '—'} total staff · ${staff.inactive ?? 0} inactive`}>
         <div className="text-sm text-slate-700">
           {queueLines.length ? (
             <ul className="space-y-2">
@@ -653,7 +774,22 @@ export default function HrDashboard() {
       <HrProfileWorkPanel queue={profileWorkQueue} />
 
       {alerts !== null ? (
-        <ProfileOverviewSection title="Action required" subtitle="Workflow items needing HR attention">
+        <ProfileOverviewSection
+          title="Alerts"
+          subtitle="Workflow actions and calendar reminders — filter to triage faster"
+        >
+          <AlertFilterBar
+            value={alertFilter}
+            onChange={setAlertFilter}
+            actionCount={actionAlertCount}
+            calendarCount={calendarAlertCount}
+            totalCount={attentionCount}
+          />
+        </ProfileOverviewSection>
+      ) : null}
+
+      {alerts !== null && showActionAlerts ? (
+        <ProfileOverviewSection title="Action required" subtitle="Workflow items needing HR attention" id="hr-alerts-action">
           <div className="space-y-2">
             {ACTION_ALERT_CONFIGS.every((cfg) => !((alerts[cfg.key] || []).length)) ? (
               <ProfileInlineAlert variant="success">No pending workflow actions</ProfileInlineAlert>
@@ -664,8 +800,8 @@ export default function HrDashboard() {
         </ProfileOverviewSection>
       ) : null}
 
-      {alerts !== null ? (
-        <ProfileOverviewSection title="Alerts & reminders" subtitle="Probation, contracts, birthdays, and document expiry">
+      {alerts !== null && showCalendarAlerts ? (
+        <ProfileOverviewSection title="Alerts & reminders" subtitle="Probation, contracts, birthdays, and document expiry" id="hr-alerts-calendar">
           <div className="space-y-2">
             {ALERT_CONFIGS.every((cfg) => !((alerts[cfg.key] || []).length)) ? (
               <ProfileInlineAlert variant="success">No calendar alerts today</ProfileInlineAlert>
@@ -676,51 +812,58 @@ export default function HrDashboard() {
         </ProfileOverviewSection>
       ) : null}
 
-      <ProfileOverviewSection title="Recent requests" subtitle="Latest employee requests across the org">
-        {recentRequests.length > 0 ? (
-          <div className="overflow-x-auto">
-            <AppTableWrap>
-              <AppTable>
-                <AppTableThead>
-                  <AppTableTh>Kind</AppTableTh>
-                  <AppTableTh>Employee</AppTableTh>
-                  <AppTableTh>Status</AppTableTh>
-                  <AppTableTh>Updated</AppTableTh>
-                </AppTableThead>
-                <AppTableBody>
-                  {recentRequests.map((r) => (
-                    <AppTableTr key={r.id}>
-                      <AppTableTd>{r.kind}</AppTableTd>
-                      <AppTableTd>
-                        {r.staffDisplayName ? (
-                          <Link
-                            to={`${HR_EMPLOYEES}/${encodeURIComponent(r.userId)}`}
-                            className="font-semibold text-[#134e4a] hover:underline"
-                          >
-                            {r.staffDisplayName}
-                          </Link>
-                        ) : (
-                          r.userId
-                        )}
-                      </AppTableTd>
-                      <AppTableTd>
-                        <span
-                          className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase ${hrRequestStatusClass(r.status)}`}
-                        >
-                          {r.status}
-                        </span>
-                      </AppTableTd>
-                      <AppTableTd monospace>{r.updatedAtIso?.slice(0, 10) || '—'}</AppTableTd>
-                    </AppTableTr>
-                  ))}
-                </AppTableBody>
-              </AppTable>
-            </AppTableWrap>
-          </div>
+      <ProfileOverviewSection title="Recent requests" subtitle="Latest employee requests — click a row to preview and act">
+        {filteredRecentRequests.length > 0 ? (
+          <HrListTableFrame
+            toolbar={
+              <>
+                <HrListSearchInput value={requestSearch} onChange={setRequestSearch} placeholder="Search requests…" />
+                <HrListSortBar
+                  fields={HR_DASHBOARD_REQUEST_SORT_FIELDS}
+                  field={requestSortField}
+                  dir={requestSortDir}
+                  onFieldChange={setRequestSortField}
+                  onDirToggle={() => setRequestSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))}
+                />
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                  {filteredRecentRequests.length} showing
+                </p>
+              </>
+            }
+          >
+            <div className="space-y-2">
+              {filteredRecentRequests.map((r) => (
+                <button
+                  key={r.id}
+                  type="button"
+                  className={`${CARD_ROW} w-full text-left`}
+                  onClick={() => setPreviewRequest(r)}
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400">{hrRequestKindLabel(r.kind)}</p>
+                    <p className="truncate text-sm font-bold text-slate-900">{r.staffDisplayName || r.userId || 'Employee'}</p>
+                    <p className="font-mono text-[10px] text-slate-500">{r.updatedAtIso?.slice(0, 10) || '—'}</p>
+                  </div>
+                  <span
+                    className={`shrink-0 inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase ${hrRequestStatusClass(r.status)}`}
+                  >
+                    {r.status?.replace(/_/g, ' ')}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </HrListTableFrame>
         ) : (
           <ProfileInlineAlert variant="success">No recent employee requests.</ProfileInlineAlert>
         )}
       </ProfileOverviewSection>
+
+      <HrRequestPreviewSlideOver
+        request={previewRequest}
+        isOpen={Boolean(previewRequest)}
+        onClose={() => setPreviewRequest(null)}
+        onReviewed={() => void reload()}
+      />
     </HrPageBody>
   );
 }

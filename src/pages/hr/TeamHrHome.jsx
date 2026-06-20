@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { apiFetch } from '../../lib/apiBase';
 import { useHrListLoad } from '../../hooks/useHrListLoad';
@@ -13,16 +13,19 @@ import {
 } from '../../components/profile/profileOverviewUi';
 
 export default function TeamHrHome() {
-  const { data, loading, error, reload } = useHrListLoad(
-    async () => {
-      const { ok, data: body } = await apiFetch('/api/hr/team/summary?scope=team');
-      if (!ok || !body?.ok) throw new Error(body?.error || 'Could not load team summary.');
-      return body;
-    },
-    []
-  );
+  const [summary, setSummary] = useState(null);
 
-  if (loading) {
+  const { loading, error, reload } = useHrListLoad(async () => {
+    const { ok, data: body } = await apiFetch('/api/hr/team/summary?scope=team');
+    if (!ok || !body?.ok) {
+      setSummary(null);
+      return { error: body?.error || 'Could not load team summary.', hasData: false };
+    }
+    setSummary(body);
+    return { hasData: true };
+  }, []);
+
+  if (loading && !summary) {
     return (
       <HrPageBody>
         <ProfileMetricSkeleton count={4} />
@@ -34,7 +37,7 @@ export default function TeamHrHome() {
     return (
       <HrPageBody>
         <ProfileInlineAlert variant="error">
-          {error.message || 'Could not load team dashboard.'}{' '}
+          {error}{' '}
           <button type="button" className="font-bold underline" onClick={() => void reload()}>
             Retry
           </button>
@@ -43,7 +46,7 @@ export default function TeamHrHome() {
     );
   }
 
-  const s = data || {};
+  const s = summary || {};
 
   return (
     <HrPageBody>

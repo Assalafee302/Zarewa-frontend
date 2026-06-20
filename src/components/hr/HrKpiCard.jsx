@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 
 const TONES = {
   default: 'border-slate-100 bg-white text-slate-900',
@@ -20,9 +21,9 @@ export function HrKpiCard({ label, value, hint, tone = 'default', to, onClick })
   );
   if (to) {
     return (
-      <a href={to} className={cls} onClick={(e) => { e.preventDefault(); window.location.assign(to); }}>
+      <Link to={to} className={cls}>
         {inner}
-      </a>
+      </Link>
     );
   }
   if (onClick) {

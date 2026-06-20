@@ -8,13 +8,16 @@ import { HR_BTN_PRIMARY, HR_BTN_SECONDARY, HR_FIELD_CLASS } from './hrFormStyles
  * @param {{
  *   selectedIds: string[];
  *   staff: object[];
+ *   branches?: { id: string; name: string }[];
  *   onClear: () => void;
  *   onDone: (result: object) => void;
  * }} props
  */
-export function HrStaffDirectoryBulkBar({ selectedIds, staff, onClear, onDone }) {
+export function HrStaffDirectoryBulkBar({ selectedIds, staff, branches = [], onClear, onDone }) {
   const [managerOpen, setManagerOpen] = useState(false);
+  const [branchOpen, setBranchOpen] = useState(false);
   const [managerId, setManagerId] = useState('');
+  const [branchId, setBranchId] = useState('');
   const [busy, setBusy] = useState('');
   const [err, setErr] = useState('');
 
@@ -58,6 +61,19 @@ export function HrStaffDirectoryBulkBar({ selectedIds, staff, onClear, onDone })
         </p>
         <button type="button" className={HR_BTN_SECONDARY} onClick={() => setManagerOpen(true)} disabled={!!busy}>
           Assign manager
+        </button>
+        {branches.length ? (
+          <button type="button" className={HR_BTN_SECONDARY} onClick={() => setBranchOpen(true)} disabled={!!busy}>
+            Assign branch
+          </button>
+        ) : null}
+        <button
+          type="button"
+          className={HR_BTN_SECONDARY}
+          disabled={!!busy}
+          onClick={() => runBulk({ flagForReview: true, action: 'review' })}
+        >
+          Flag for review
         </button>
         <button
           type="button"
@@ -103,6 +119,35 @@ export function HrStaffDirectoryBulkBar({ selectedIds, staff, onClear, onDone })
               {busy ? 'Saving…' : 'Apply to selected'}
             </button>
             <button type="button" className={HR_BTN_SECONDARY} onClick={() => setManagerOpen(false)}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      </HrFormModal>
+
+      <HrFormModal isOpen={branchOpen} onClose={() => setBranchOpen(false)} title="Assign branch" size="md">
+        <div className="space-y-4">
+          <label className="block text-xs font-semibold text-slate-600">
+            Branch for {selectedIds.length} staff
+            <select value={branchId} onChange={(e) => setBranchId(e.target.value)} className={`${HR_FIELD_CLASS} mt-1`}>
+              <option value="">Select branch…</option>
+              {branches.map((b) => (
+                <option key={b.id} value={b.id}>
+                  {b.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              className={HR_BTN_PRIMARY}
+              disabled={!!busy || !branchId}
+              onClick={() => runBulk({ branchId, action: 'branch' })}
+            >
+              {busy ? 'Saving…' : 'Apply to selected'}
+            </button>
+            <button type="button" className={HR_BTN_SECONDARY} onClick={() => setBranchOpen(false)}>
               Cancel
             </button>
           </div>

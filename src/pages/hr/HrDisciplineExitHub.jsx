@@ -170,6 +170,13 @@ export default function HrDisciplineExitHub() {
       tabs={TABS}
       tab={resolvedTab}
       onTabChange={(next) => setTab(next)}
+      hub="discipline-exit"
+      hubPrompt={
+        resolvedTab === 'exit'
+          ? 'Summarize transfer requests, separations, and exit clearances needing action.'
+          : 'Summarize open discipline cases, incidents, and grievances requiring HR attention.'
+      }
+      hubPageContext={{ disciplineTab: resolvedTab, caseView, exitView }}
     >
       {resolvedTab === 'accountability' ? (
         <div className="space-y-5">

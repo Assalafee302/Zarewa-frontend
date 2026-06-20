@@ -154,6 +154,15 @@ export default function HrTimeAbsenceHub() {
       tabs={tabs}
       tab={tab}
       onTabChange={(nextTab) => setTab(nextTab, { section: nextTab === 'attendance' ? attendanceSection : null, kind: null })}
+      hub="time-absence"
+      hubPrompt={
+        tab === 'approvals'
+          ? 'Summarize pending leave and profile-change requests in my approval queues.'
+          : tab === 'attendance'
+            ? 'Explain attendance exceptions and absence reports needing HR review.'
+            : 'Summarize leave balances, calendar coverage, and time-off risks for this period.'
+      }
+      hubPageContext={{ timeAbsenceTab: tab }}
     >
       {tab === 'overview' ? (
         <div className="space-y-6">

@@ -139,6 +139,9 @@ export default function HrSettingsHub() {
       tabs={tabs.length > 1 ? tabs : undefined}
       tab={tab}
       onTabChange={setTab}
+      hub="settings"
+      hubPrompt="Explain HR organisation settings, departments, and policy configuration visible to me."
+      hubPageContext={{ settingsTab: tab }}
     >
       {tab === 'structure' && canViewOrg ? (
         <div className="space-y-6">

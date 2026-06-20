@@ -27,9 +27,9 @@ export function fetchDisciplineCasesForUser(userId) {
   return apiFetch(`/api/hr/discipline-cases?userId=${encodeURIComponent(userId)}`);
 }
 
-export function bulkUpdateHrStaff({ userIds, lineManagerUserId, accountStatus }) {
+export function bulkUpdateHrStaff({ userIds, lineManagerUserId, accountStatus, branchId, flagForReview }) {
   return apiFetch('/api/hr/staff/bulk-update', {
     method: 'POST',
-    body: JSON.stringify({ userIds, lineManagerUserId, accountStatus }),
+    body: JSON.stringify({ userIds, lineManagerUserId, accountStatus, branchId, flagForReview }),
   });
 }

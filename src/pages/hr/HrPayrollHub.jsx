@@ -30,6 +30,15 @@ export default function HrPayrollHub() {
       tabs={TABS}
       tab={tab}
       onTabChange={setTab}
+      hub="payroll"
+      hubPrompt={
+        tab === 'payroll-runs'
+          ? 'Explain payroll run status and what HR should prepare or approve next.'
+          : tab === 'loans'
+            ? 'Summarize pending loan requests and endorsement steps.'
+            : 'Summarize salary matrix variances and payroll compliance issues.'
+      }
+      hubPageContext={{ payrollTab: tab }}
     >
       {tab === 'payroll-runs' ? <HrPayroll embedded /> : null}
       {tab === 'loans' ? <HrLoans embedded /> : null}

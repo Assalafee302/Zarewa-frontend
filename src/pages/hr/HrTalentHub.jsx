@@ -72,6 +72,13 @@ export default function HrTalentHub() {
       onTabChange={(next) =>
         setTab(next, { section: next === 'recruit' ? recruitSection : developSection })
       }
+      hub="talent"
+      hubPrompt={
+        tab === 'recruit'
+          ? 'Summarize open roles, applicants, and onboarding tasks for new hires.'
+          : 'Summarize appraisals, training due, and promotion reviews across staff.'
+      }
+      hubPageContext={{ talentTab: tab, recruitSection, developSection }}
     >
       {tab === 'recruit' ? (
         <div className="space-y-6">

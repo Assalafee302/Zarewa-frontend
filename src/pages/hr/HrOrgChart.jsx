@@ -1,11 +1,22 @@
-import React, { useMemo, useState } from 'react';
-import { ChevronDown, ChevronRight, Search } from 'lucide-react';
+import React, { useMemo, useState, useEffect } from 'react';
+import { ChevronDown, ChevronRight, Download, Search } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { useHrListLoad } from '../../hooks/useHrListLoad';
 import { HrOrgChartTree } from '../../components/hr/HrOrgChartTree';
 import { fetchHrOrgChart } from '../../lib/hrOrgChart';
+import { orgChartExportCsvUrl } from '../../lib/hrStaffDirectoryApi';
 import { HR_FIELD_CLASS } from '../../components/hr/hrFormStyles';
 import { HR_EMPLOYEES } from '../../lib/hrRoutes';
+
+const COLLAPSE_KEY = 'zarewa-hr-org-chart-collapse';
+
+function loadCollapsePref() {
+  try {
+    return localStorage.getItem(COLLAPSE_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
 
 function nodeMatchesSearch(node, q) {
   if (!q) return true;
@@ -35,7 +46,15 @@ export default function HrOrgChart({ staffBasePath = HR_EMPLOYEES } = {}) {
   const [chart, setChart] = useState({ roots: [], orphans: [], total: 0 });
   const [branchFilter, setBranchFilter] = useState('');
   const [search, setSearch] = useState('');
-  const [collapseAll, setCollapseAll] = useState(false);
+  const [collapseAll, setCollapseAll] = useState(loadCollapsePref);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(COLLAPSE_KEY, collapseAll ? '1' : '0');
+    } catch {
+      /* ignore */
+    }
+  }, [collapseAll]);
 
   const { loading, error } = useHrListLoad(async () => {
     const { ok, data } = await fetchHrOrgChart();
@@ -117,6 +136,13 @@ export default function HrOrgChart({ staffBasePath = HR_EMPLOYEES } = {}) {
         >
           {collapseAll ? 'Expand all' : 'Collapse all'}
         </button>
+        <a
+          href={orgChartExportCsvUrl()}
+          className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold uppercase text-slate-600 hover:bg-slate-50"
+        >
+          <Download size={14} aria-hidden />
+          Export CSV
+        </a>
         <p className="text-xs text-slate-500 tabular-nums">{chart.total ?? 0} active staff in scope</p>
       </div>
       {loading && !chart.total ? <p className="text-sm text-slate-600">Loading org chart…</p> : null}

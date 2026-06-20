@@ -6,6 +6,7 @@ export const QUICK_FILTERS = [
   { id: 'probation', label: 'On probation' },
   { id: 'probation-ending', label: 'Probation ending' },
   { id: 'contract', label: 'Contract expiring' },
+  { id: 'doc-expiry', label: 'Documents expiring' },
   { id: 'no-manager', label: 'No line manager' },
 ];
 
@@ -16,6 +17,8 @@ export const DIRECTORY_QUICK_FROM_ALERT = {
   temporaryEmployees: 'contract',
   missingPolicyAck: 'incomplete',
   incompleteProfiles: 'incomplete',
+  documentsExpiring: 'doc-expiry',
+  expiredDocuments: 'doc-expiry',
 };
 
 export function employeesDirectoryLink(quickFilter = '', extra = {}) {
@@ -121,6 +124,19 @@ export function profilePctBadge(pct) {
   return { label: `${pct}%`, cls: 'border-red-200 bg-red-50 text-red-900' };
 }
 
+export function docExpiryBadge(staff) {
+  const summary = staff?.docExpirySummary;
+  if (!summary?.nextExpiryIso) return null;
+  const today = todayIso();
+  if (summary.nextExpiryIso < today) {
+    return { label: 'Doc expired', cls: 'border-red-200 bg-red-50 text-red-900' };
+  }
+  return {
+    label: summary.expiringCount > 1 ? `${summary.expiringCount} docs expiring` : 'Doc expiring',
+    cls: 'border-red-200 bg-red-50 text-red-900',
+  };
+}
+
 export function matchesQuickFilter(staff, quickFilter) {
   if (!quickFilter) return true;
   if (quickFilter === 'incomplete') return isIncompleteProfile(staff);
@@ -128,6 +144,7 @@ export function matchesQuickFilter(staff, quickFilter) {
   if (quickFilter === 'probation-ending') return isProbationEndingSoon(staff);
   if (quickFilter === 'contract') return isContractExpiringSoon(staff);
   if (quickFilter === 'no-manager') return !String(staff?.lineManagerUserId || '').trim();
+  if (quickFilter === 'doc-expiry') return Boolean(staff?.docExpirySummary?.nextExpiryIso);
   return true;
 }
 
@@ -164,14 +181,16 @@ export function filterStaffList(staff, filters = {}) {
   });
 }
 
-export function computeDirectoryKpis(staff = []) {
+export function computeDirectoryKpis(staff = [], serverKpis = null) {
+  if (serverKpis) return { ...serverKpis };
   const active = staff.filter((s) => String(s.status) === 'active').length;
   const incomplete = staff.filter((s) => isIncompleteProfile(s)).length;
   const onProbation = staff.filter((s) => isOnProbation(s)).length;
   const probationEnding = staff.filter((s) => isProbationEndingSoon(s)).length;
   const contractsExpiring = staff.filter((s) => isContractExpiringSoon(s)).length;
   const noManager = staff.filter((s) => !String(s?.lineManagerUserId || '').trim()).length;
-  return { total: staff.length, active, incomplete, onProbation, probationEnding, contractsExpiring, noManager };
+  const docExpiring = staff.filter((s) => Boolean(s?.docExpirySummary?.nextExpiryIso)).length;
+  return { total: staff.length, active, incomplete, onProbation, probationEnding, contractsExpiring, noManager, docExpiring };
 }
 
 export function sortStaffList(list, sortKey = 'name', branchNames = new Map(), sortDir = 'asc') {

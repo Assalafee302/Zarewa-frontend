@@ -16,7 +16,10 @@ import { HrStaffSalaryHistoryPanel } from '../../components/hr/HrStaffSalaryHist
 import { HrStaffDisciplinePanel } from '../../components/hr/HrStaffDisciplinePanel';
 import { HrStaffAppraisalSnapshot } from '../../components/hr/HrStaffAppraisalSnapshot';
 import { HrStaffActivityStrip } from '../../components/hr/HrStaffActivityStrip';
-import { HR_TALENT, HR_EMPLOYEES } from '../../lib/hrRoutes';
+import { HrStaffProbationPanel } from '../../components/hr/HrStaffProbationPanel';
+import { PageHeader } from '../../components/layout/PageHeader';
+import { PageTabs } from '../../components/layout/PageTabs';
+import { HR_TALENT, HR_EMPLOYEES, HR_REQUESTS } from '../../lib/hrRoutes';
 import { HrSalaryIncrementPanel } from '../../components/hr/HrSalaryIncrementPanel';
 import { HrPromotionFromMatrix } from '../../components/hr/HrPromotionFromMatrix';
 import { HrFormModal } from '../../components/hr/HrFormModal';
@@ -50,37 +53,64 @@ import {
   AppTableWrap,
 } from '../../components/ui/AppDataTable';
 
-const PROFILE_TABS = [
-  { id: 'overview', label: 'Overview' },
-  { id: 'employment', label: 'Employment' },
-  { id: 'lifecycle', label: 'Lifecycle' },
-  { id: 'compensation', label: 'Compensation' },
-  { id: 'leave', label: 'Leave' },
-  { id: 'loans', label: 'Loans' },
-  { id: 'documents', label: 'Documents' },
-  { id: 'cases', label: 'Cases' },
-  { id: 'transfers', label: 'Transfers' },
-  { id: 'notes', label: 'Notes' },
-  { id: 'audit', label: 'Audit' },
+const PROFILE_GROUPS = [
+  { id: 'overview', label: 'Overview', tabs: ['overview'] },
+  { id: 'employment', label: 'Employment', tabs: ['employment', 'lifecycle'] },
+  { id: 'pay', label: 'Pay & benefits', tabs: ['compensation', 'leave', 'loans'] },
+  { id: 'compliance', label: 'Compliance', tabs: ['documents', 'cases'] },
+  { id: 'history', label: 'History', tabs: ['transfers', 'notes', 'audit'] },
 ];
 
-function TabBar({ active, onChange }) {
+const PROFILE_TAB_LABELS = {
+  overview: 'Overview',
+  employment: 'Job details',
+  lifecycle: 'Lifecycle',
+  compensation: 'Compensation',
+  leave: 'Leave',
+  loans: 'Loans',
+  documents: 'Documents',
+  cases: 'Cases',
+  transfers: 'Transfers',
+  notes: 'Notes',
+  audit: 'Audit',
+};
+
+function groupForTab(tabId) {
+  return PROFILE_GROUPS.find((g) => g.tabs.includes(tabId))?.id || 'overview';
+}
+
+function GroupedTabBar({ activeTab, onChange }) {
+  const activeGroup = groupForTab(activeTab);
+  const group = PROFILE_GROUPS.find((g) => g.id === activeGroup) || PROFILE_GROUPS[0];
+
   return (
-    <div className="flex flex-wrap gap-1 border-b border-slate-200 pb-px">
-      {PROFILE_TABS.map((t) => (
-        <button
-          key={t.id}
-          type="button"
-          onClick={() => onChange(t.id)}
-          className={`rounded-t-lg px-3 py-2 text-xs font-bold uppercase tracking-wide transition-colors ${
-            active === t.id
-              ? 'border border-b-white border-slate-200 bg-white text-[#134e4a] -mb-px'
-              : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'
-          }`}
-        >
-          {t.label}
-        </button>
-      ))}
+    <div className="space-y-2">
+      <PageTabs
+        tabs={PROFILE_GROUPS.map((g) => ({ id: g.id, label: g.label }))}
+        value={activeGroup}
+        onChange={(groupId) => {
+          const g = PROFILE_GROUPS.find((x) => x.id === groupId);
+          if (g?.tabs?.length) onChange(g.tabs[0]);
+        }}
+      />
+      {group.tabs.length > 1 ? (
+        <div className="flex flex-wrap gap-1 border-b border-slate-200 pb-px">
+          {group.tabs.map((t) => (
+            <button
+              key={t}
+              type="button"
+              onClick={() => onChange(t)}
+              className={`rounded-t-lg px-3 py-2 text-xs font-bold uppercase tracking-wide transition-colors ${
+                activeTab === t
+                  ? 'border border-b-white border-slate-200 bg-white text-[#134e4a] -mb-px'
+                  : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'
+              }`}
+            >
+              {PROFILE_TAB_LABELS[t] || t}
+            </button>
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -479,7 +509,7 @@ export default function HrStaffProfile() {
   };
 
   useEffect(() => {
-    if (tab !== 'leave' || !userId || !canManageLeave) return;
+    if ((!['leave', 'overview'].includes(tab)) || !userId || !canManageLeave) return;
     let cancelled = false;
     (async () => {
       const { ok, data } = await apiFetch(`/api/hr/leave/balances?userId=${encodeURIComponent(userId)}`);
@@ -564,71 +594,68 @@ export default function HrStaffProfile() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <Link to={HR_EMPLOYEES} className="inline-flex items-center gap-1 text-xs font-bold uppercase tracking-wide text-[#134e4a] hover:underline">
-            <ArrowLeft size={14} aria-hidden /> Staff directory
+      <PageHeader
+        eyebrow={
+          <Link to={HR_EMPLOYEES} className="inline-flex items-center gap-1 hover:underline">
+            <ArrowLeft size={14} aria-hidden /> Employees
           </Link>
-          <div className="mt-2 flex items-center gap-3">
-            {staff.avatarUrl && (staff.avatarUrl.startsWith('https://') || staff.avatarUrl.startsWith('data:image/')) ? (
-              <img
-                src={staff.avatarUrl}
-                alt=""
-                className="h-12 w-12 rounded-xl border border-slate-200 object-cover bg-slate-100"
-              />
-            ) : (
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50 text-[9px] text-slate-400">
-                Photo
-              </div>
-            )}
-            <h2 className="text-xl font-black text-slate-900">{staff.displayName || staff.username}</h2>
-          </div>
-          <p className="text-sm text-slate-600">
+        }
+        title={staff.displayName || staff.username}
+        subtitle={
+          <>
             {staff.employeeNo ? `${staff.employeeNo} · ` : ''}
             {staff.jobTitle || 'No job title'} · {staff.branchId || staff.normalized?.branchId || '—'}
-          </p>
-          <div className="mt-3">
-            <HrStaffActivityStrip userId={userId} onOpenTab={setTab} />
+            {staff.docExpirySummary?.nextExpiryIso ? (
+              <span className="mt-1 block text-red-700">
+                Document expiring {staff.docExpirySummary.nextExpiryIso} —{' '}
+                <button type="button" className="font-bold underline" onClick={() => setTab('documents')}>
+                  review documents
+                </button>
+              </span>
+            ) : null}
+          </>
+        }
+        toolbar={
+          <div className="flex flex-wrap items-center gap-2">
+            <span
+              className={`inline-flex rounded-full border px-3 py-1 text-[10px] font-bold uppercase ${
+                staff.status === 'active'
+                  ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
+                  : 'border-slate-200 bg-slate-100 text-slate-600'
+              }`}
+            >
+              {staff.status || 'unknown'}
+            </span>
+            {canManage && !editing ? (
+              <>
+                <button
+                  type="button"
+                  onClick={downloadRegistrationForm}
+                  disabled={formPdfBusy}
+                  className="rounded-xl border border-slate-200 bg-white px-3 py-1 text-[10px] font-bold uppercase tracking-wide text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                >
+                  {formPdfBusy ? 'Preparing…' : 'Staff form PDF'}
+                </button>
+                <button
+                  type="button"
+                  onClick={openIdCardModal}
+                  className="rounded-xl border border-slate-200 bg-white px-3 py-1 text-[10px] font-bold uppercase tracking-wide text-slate-700 hover:bg-slate-50"
+                >
+                  Request ID card
+                </button>
+                <button
+                  type="button"
+                  onClick={startEdit}
+                  className="rounded-xl border border-[#134e4a]/30 bg-[#134e4a]/5 px-3 py-1 text-[10px] font-bold uppercase tracking-wide text-[#134e4a] hover:bg-[#134e4a]/10"
+                >
+                  Edit profile
+                </button>
+              </>
+            ) : null}
           </div>
-        </div>
-        <div className="flex flex-wrap items-center gap-2 self-start">
-          <span
-            className={`inline-flex rounded-full border px-3 py-1 text-[10px] font-bold uppercase ${
-              staff.status === 'active'
-                ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
-                : 'border-slate-200 bg-slate-100 text-slate-600'
-            }`}
-          >
-            {staff.status || 'unknown'}
-          </span>
-          {canManage && !editing ? (
-            <>
-              <button
-                type="button"
-                onClick={downloadRegistrationForm}
-                disabled={formPdfBusy}
-                className="rounded-xl border border-slate-200 bg-white px-3 py-1 text-[10px] font-bold uppercase tracking-wide text-slate-700 hover:bg-slate-50 disabled:opacity-50"
-              >
-                {formPdfBusy ? 'Preparing…' : 'Staff form PDF'}
-              </button>
-              <button
-                type="button"
-                onClick={openIdCardModal}
-                className="rounded-xl border border-slate-200 bg-white px-3 py-1 text-[10px] font-bold uppercase tracking-wide text-slate-700 hover:bg-slate-50"
-              >
-                Request ID card
-              </button>
-              <button
-                type="button"
-                onClick={startEdit}
-                className="rounded-xl border border-[#134e4a]/30 bg-[#134e4a]/5 px-3 py-1 text-[10px] font-bold uppercase tracking-wide text-[#134e4a] hover:bg-[#134e4a]/10"
-              >
-                Edit profile
-              </button>
-            </>
-          ) : null}
-        </div>
-      </div>
+        }
+      />
+      <HrStaffActivityStrip userId={userId} onOpenTab={setTab} />
 
       <MissingBanner items={staff.criticalMissing} />
       <ProfileWarningsBanner
@@ -681,10 +708,21 @@ export default function HrStaffProfile() {
         ) : null}
       </HrFormModal>
 
-      <TabBar active={tab} onChange={setTab} />
+      <GroupedTabBar activeTab={tab} onChange={setTab} />
 
       {tab === 'overview' ? (
         <div className="space-y-4">
+          {leaveBalances?.length ? (
+            <div className="grid gap-3 sm:grid-cols-3">
+              {leaveBalances.slice(0, 3).map((b) => (
+                <div key={`${b.leaveType}-${b.periodYyyymm}`} className="rounded-xl border border-slate-100 bg-white px-4 py-3">
+                  <p className="text-[10px] font-bold uppercase text-slate-400">{b.leaveType} leave</p>
+                  <p className="mt-1 text-2xl font-black tabular-nums text-[#134e4a]">{b.closingDays ?? '—'}</p>
+                  <p className="text-xs text-slate-500">days remaining · {b.periodYyyymm}</p>
+                </div>
+              ))}
+            </div>
+          ) : null}
           <HrProfileCompleteness
             completeness={staff.profileCompleteness}
             staffBasePath={HR_EMPLOYEES}
@@ -787,6 +825,7 @@ export default function HrStaffProfile() {
 
       {tab === 'employment' ? (
         <div className="space-y-6">
+          <HrStaffProbationPanel staff={staff} canManage={canManage} onUpdated={reloadProfile} />
           <HrDetailGrid
             rows={[
               { label: 'Department', value: staff.department },
@@ -900,7 +939,12 @@ export default function HrStaffProfile() {
               </AppTable>
             </AppTableWrap>
           )}
-          <p className="text-xs text-slate-500">Leave applications and approvals are managed in HR Requests (Phase 4).</p>
+          <p className="text-xs text-slate-500">
+            <Link to={`${HR_REQUESTS}?kind=leave`} className="font-bold text-[#134e4a] hover:underline">
+              Open leave requests hub →
+            </Link>
+            {' '}to apply or approve leave for this employee.
+          </p>
         </div>
       ) : null}
 
@@ -1007,14 +1051,15 @@ export default function HrStaffProfile() {
           {canManage ? (
             <div className="rounded-xl border border-slate-100 bg-slate-50/60 px-4 py-3 text-sm text-slate-700 space-y-2">
               <p>
-                To transfer branch: use <strong>Edit profile</strong> and change branch (add a reason).
+                Quick branch change: use <strong>Edit profile</strong> and change branch (add a reason).
               </p>
               <p>
-                Formal transfer requests:{' '}
-                <Link to="/hr/discipline-exit?tab=transfers" className="font-semibold text-[#134e4a] hover:underline">
-                  HR → Staff cases & exit → Transfers
+                <Link
+                  to={`/hr/discipline-exit?tab=transfers&staff=${encodeURIComponent(userId)}`}
+                  className="inline-flex rounded-xl border border-[#134e4a]/30 bg-[#134e4a]/5 px-3 py-1.5 text-xs font-bold uppercase text-[#134e4a] hover:bg-[#134e4a]/10"
+                >
+                  Start transfer request →
                 </Link>
-                .
               </p>
             </div>
           ) : null}

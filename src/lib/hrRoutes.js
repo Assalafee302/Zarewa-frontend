@@ -43,3 +43,12 @@ export function hrTabPath(base, tab, extra = {}) {
   const params = new URLSearchParams({ tab, ...extra });
   return `${base}?${params.toString()}`;
 }
+
+/** Deep-link state for HR dashboard (React Router `location.state`). */
+export function hrDashboardDeepLink({ openRequestId, focusHrAlertFilter } = {}) {
+  /** @type {Record<string, string>} */
+  const state = {};
+  if (openRequestId) state.openRequestId = openRequestId;
+  if (focusHrAlertFilter) state.focusHrAlertFilter = focusHrAlertFilter;
+  return { pathname: HR_DASHBOARD, state };
+}
