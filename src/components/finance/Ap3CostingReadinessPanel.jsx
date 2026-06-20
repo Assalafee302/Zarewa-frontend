@@ -15,6 +15,7 @@ import {
   ACCOUNTING_FIELD_LABEL,
   ACCOUNTING_INPUT,
 } from './accounting/AccountingDeskUi';
+import { AccountingRegisterHeader } from './accounting/AccountingRegisterLayout';
 import { AccountingDeskTableSection } from './accounting/AccountingDeskTableSection';
 
 const BRANCH_OPTIONS = [
@@ -45,6 +46,7 @@ function buildCostingReadinessFilters({ branchId, period, materialFamily, gauge,
  *   compact?: boolean;
  *   autoLoad?: boolean;
  *   enabled?: boolean;
+ *   deskLayout?: boolean;
  * }} props
  */
 export function Ap3CostingReadinessPanel({
@@ -52,6 +54,7 @@ export function Ap3CostingReadinessPanel({
   compact = false,
   autoLoad = false,
   enabled = true,
+  deskLayout = false,
 }) {
   const [period, setPeriod] = useState(defaultPeriodKey);
   const [branchId, setBranchId] = useState(initialBranchId || 'ALL');
@@ -85,45 +88,49 @@ export function Ap3CostingReadinessPanel({
     downloadFinanceCsv('costing-readiness-summary', rows);
   };
 
+  const headerActions = !compact ? (
+    <>
+      <button
+        type="button"
+        onClick={() => load(filters)}
+        disabled={loading || !enabled}
+        className="inline-flex items-center gap-1 rounded-lg bg-[#134e4a] text-white px-3 py-1.5 text-[9px] font-semibold uppercase tracking-wider shadow-sm hover:brightness-105 disabled:opacity-50"
+      >
+        <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />
+        Load readiness
+      </button>
+      <button
+        type="button"
+        onClick={exportCsv}
+        disabled={!data}
+        className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[9px] font-semibold uppercase tracking-wider text-[#134e4a] hover:bg-slate-50 disabled:opacity-50"
+      >
+        Export
+      </button>
+    </>
+  ) : (
+    <button
+      type="button"
+      onClick={() => load(filters)}
+      disabled={loading || !enabled}
+      className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[9px] font-semibold uppercase tracking-wider text-[#134e4a] hover:bg-slate-50 disabled:opacity-50"
+    >
+      <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />
+      Refresh
+    </button>
+  );
+
   return (
     <div className="grid grid-cols-1 gap-4 lg:gap-6 min-w-0">
-      <AccountingDeskPageIntro
-        title="Costing readiness"
-        description="Material cost, labour, diesel, and overhead readiness before full cost per metre. Draft values — Head of Accounts review."
-        action={
-          !compact ? (
-            <>
-              <button
-                type="button"
-                onClick={() => load(filters)}
-                disabled={loading || !enabled}
-                className="inline-flex items-center gap-1 rounded-lg bg-[#134e4a] text-white px-3 py-1.5 text-[9px] font-semibold uppercase tracking-wider shadow-sm hover:brightness-105 disabled:opacity-50"
-              >
-                <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />
-                Load readiness
-              </button>
-              <button
-                type="button"
-                onClick={exportCsv}
-                disabled={!data}
-                className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[9px] font-semibold uppercase tracking-wider text-[#134e4a] hover:bg-slate-50 disabled:opacity-50"
-              >
-                Export
-              </button>
-            </>
-          ) : (
-            <button
-              type="button"
-              onClick={() => load(filters)}
-              disabled={loading || !enabled}
-              className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[9px] font-semibold uppercase tracking-wider text-[#134e4a] hover:bg-slate-50 disabled:opacity-50"
-            >
-              <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />
-              Refresh
-            </button>
-          )
-        }
-      />
+      {deskLayout ? (
+        <AccountingRegisterHeader compact actions={headerActions} />
+      ) : (
+        <AccountingDeskPageIntro
+          title="Costing readiness"
+          description="Material cost, labour, diesel, and overhead readiness before full cost per metre. Draft values — Head of Accounts review."
+          action={headerActions}
+        />
+      )}
 
       <AccountingDeskNotice tone="warn">
         Readiness only — not final cost per metre. AP3a does not post GL or change costing.
@@ -287,6 +294,61 @@ export function Ap3CostingReadinessPanel({
                   emptyMessage="No branch rows in period."
                 />
               </AccountingDeskTableSection>
+
+              {data.branchContributionDraft?.rows?.length ? (
+                <AccountingDeskTableSection
+                  title="Branch contribution (AP3c draft)"
+                  description={
+                    data.branchContributionDraft.disclaimer ||
+                    'Labour, diesel, and factory overhead allocated by branch metres share.'
+                  }
+                >
+                  <FinanceDataTable
+                    columns={[
+                      { key: 'branchId', label: 'Branch' },
+                      { key: 'producedMetres', label: 'Metres' },
+                      {
+                        key: 'metreShare',
+                        label: 'Share',
+                        render: (r) =>
+                          r.metreShare != null ? `${(Number(r.metreShare) * 100).toFixed(1)}%` : '—',
+                      },
+                      {
+                        key: 'materialCostNgn',
+                        label: 'Material',
+                        render: (r) => formatNgn(r.materialCostNgn),
+                      },
+                      {
+                        key: 'labourAllocatedNgn',
+                        label: 'Labour',
+                        render: (r) => formatNgn(r.labourAllocatedNgn),
+                      },
+                      {
+                        key: 'dieselAllocatedNgn',
+                        label: 'Diesel',
+                        render: (r) => formatNgn(r.dieselAllocatedNgn),
+                      },
+                      {
+                        key: 'overheadAllocatedNgn',
+                        label: 'Overhead',
+                        render: (r) => formatNgn(r.overheadAllocatedNgn),
+                      },
+                      {
+                        key: 'totalProductionCostNgn',
+                        label: 'Total cost',
+                        render: (r) => formatNgn(r.totalProductionCostNgn),
+                      },
+                      {
+                        key: 'draftCostPerMetreNgn',
+                        label: 'Draft ₦/m',
+                        render: (r) => (r.draftCostPerMetreNgn != null ? formatNgn(r.draftCostPerMetreNgn) : '—'),
+                      },
+                    ]}
+                    rows={data.branchContributionDraft.rows}
+                    emptyMessage="No branch allocation rows."
+                  />
+                </AccountingDeskTableSection>
+              ) : null}
 
               <AccountingDeskTableSection title="Product family — material cost / m" description="Draft estimates by family">
                 <FinanceDataTable

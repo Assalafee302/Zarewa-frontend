@@ -14,18 +14,20 @@ function monthRange() {
 }
 
 /**
- * @param {{ hasFinanceView?: boolean; showToast?: (msg: string, opts?: object) => void }} props
+ * @param {{ hasFinanceView?: boolean; showToast?: (msg: string, opts?: object) => void; deskLayout?: boolean }} props
  */
-export function AccountingGlPanel({ hasFinanceView = false, showToast }) {
+export function AccountingGlPanel({ hasFinanceView = false, showToast, deskLayout = false }) {
   const [{ startDate, endDate }] = useState(monthRange);
   const range = useMemo(() => ({ startDate, endDate }), [startDate, endDate]);
 
   return (
     <div className="space-y-5">
-      <AccountingDeskPageIntro
-        title="General ledger"
-        description="Trial balance and journal activity for the period. Cash accounts use per-bank codes (1001, 1002, …)."
-      />
+      {deskLayout ? null : (
+        <AccountingDeskPageIntro
+          title="General ledger"
+          description="Trial balance and journal activity for the period. Cash accounts use per-bank codes (1001, 1002, …)."
+        />
+      )}
       <ReportsGlPilotSection
         startDate={range.startDate}
         endDate={range.endDate}

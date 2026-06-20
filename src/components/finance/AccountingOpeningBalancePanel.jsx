@@ -3,6 +3,7 @@ import { Plus, RefreshCw, Trash2 } from 'lucide-react';
 import { apiFetch } from '../../lib/apiBase';
 import { formatNgn } from '../../Data/mockData';
 import { AccountingDeskPageIntro } from './accounting/AccountingDeskUi';
+import { AccountingRegisterHeader } from './accounting/AccountingRegisterLayout';
 import { useWorkspace } from '../../context/WorkspaceContext';
 
 const DEFAULT_DATE = '2026-07-01';
@@ -24,9 +25,9 @@ function emptyLine() {
 }
 
 /**
- * @param {{ showToast?: (msg: string, opts?: object) => void }} props
+ * @param {{ showToast?: (msg: string, opts?: object) => void; deskLayout?: boolean }} props
  */
-export function AccountingOpeningBalancePanel({ showToast }) {
+export function AccountingOpeningBalancePanel({ showToast, deskLayout = false }) {
   const ws = useWorkspace();
   const [entryDate, setEntryDate] = useState(DEFAULT_DATE);
   const [lines, setLines] = useState([emptyLine(), emptyLine()]);
@@ -104,22 +105,28 @@ export function AccountingOpeningBalancePanel({ showToast }) {
     }
   };
 
+  const statusAction = (
+    <button
+      type="button"
+      className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[10px] font-bold uppercase text-[#134e4a]"
+      onClick={loadStatus}
+    >
+      <RefreshCw size={14} />
+      Status
+    </button>
+  );
+
   return (
     <div className="space-y-5">
-      <AccountingDeskPageIntro
-        title="Opening balance — 1 July cutover"
-        description="Enter last closing balances once. Posts a single balanced journal to the general ledger. Use average stock cost and confirmed bank cash per account."
-        action={
-          <button
-            type="button"
-            className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[10px] font-bold uppercase text-[#134e4a]"
-            onClick={loadStatus}
-          >
-            <RefreshCw size={14} />
-            Status
-          </button>
-        }
-      />
+      {deskLayout ? (
+        <AccountingRegisterHeader compact actions={statusAction} />
+      ) : (
+        <AccountingDeskPageIntro
+          title="Opening balance — 1 July cutover"
+          description="Enter last closing balances once. Posts a single balanced journal to the general ledger. Use average stock cost and confirmed bank cash per account."
+          action={statusAction}
+        />
+      )}
 
       {status?.posted ? (
         <p className="rounded-lg border border-teal-200 bg-teal-50/50 px-3 py-2 text-[11px] font-semibold text-teal-900">

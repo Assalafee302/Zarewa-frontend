@@ -7,11 +7,12 @@ import {
   AccountingDeskPageIntro,
   ACCOUNTING_CARD_ROW,
 } from './accounting/AccountingDeskUi';
+import { AccountingRegisterHeader } from './accounting/AccountingRegisterLayout';
 
 /**
- * @param {{ branchScopeLabel?: string; showToast?: (msg: string, opts?: object) => void }} props
+ * @param {{ branchScopeLabel?: string; showToast?: (msg: string, opts?: object) => void; deskLayout?: boolean }} props
  */
-export function AccountingOverviewPanel({ branchScopeLabel = '' }) {
+export function AccountingOverviewPanel({ branchScopeLabel = '', deskLayout = false }) {
   const [data, setData] = useState(null);
   const [opening, setOpening] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -50,23 +51,29 @@ export function AccountingOverviewPanel({ branchScopeLabel = '' }) {
     { key: 'openDeliveriesWouldBlockOnPayment', label: 'Unpaid deliveries (gate)', to: '/accounting', count: ex.openDeliveriesWouldBlockOnPayment },
   ].filter((b) => Number(b.count) > 0);
 
+  const refreshAction = (
+    <button
+      type="button"
+      className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide text-[#134e4a] hover:bg-slate-50"
+      onClick={load}
+      disabled={loading}
+    >
+      <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+      Refresh
+    </button>
+  );
+
   return (
     <div className="space-y-5">
-      <AccountingDeskPageIntro
-        title="Accounting overview"
-        description="Exception counts and cutover readiness. Resolve blockers before month-end statements."
-        action={
-          <button
-            type="button"
-            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide text-[#134e4a] hover:bg-slate-50"
-            onClick={load}
-            disabled={loading}
-          >
-            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
-            Refresh
-          </button>
-        }
-      />
+      {deskLayout ? (
+        <AccountingRegisterHeader compact actions={refreshAction} />
+      ) : (
+        <AccountingDeskPageIntro
+          title="Accounting overview"
+          description="Exception counts and cutover readiness. Resolve blockers before month-end statements."
+          action={refreshAction}
+        />
+      )}
 
       {branchScopeLabel ? (
         <p className="text-[11px] font-medium text-slate-600">

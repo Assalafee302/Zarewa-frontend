@@ -13,6 +13,8 @@ import {
   BookOpen,
   Flag,
   Lock,
+  ShieldCheck,
+  Factory,
 } from 'lucide-react';
 import { PageShell, MainPanel, PageHeader, PageTabs } from '../components/layout';
 import { useToast } from '../context/ToastContext';
@@ -31,6 +33,8 @@ import { AccountingStatementsPanel } from '../components/finance/AccountingState
 import { AccountingGlPanel } from '../components/finance/AccountingGlPanel';
 import { AccountingOpeningBalancePanel } from '../components/finance/AccountingOpeningBalancePanel';
 import { AccountingClosePanel } from '../components/finance/AccountingClosePanel';
+import { AccountingPolicyPanel } from '../components/finance/AccountingPolicyPanel';
+import { Ap3CostingReadinessPanel } from '../components/finance/Ap3CostingReadinessPanel';
 
 function defaultPeriodRange() {
   const now = new Date();
@@ -46,6 +50,8 @@ const TAB_LABELS = {
   gl: 'General ledger',
   opening: 'Opening balance',
   close: 'Month-end close',
+  policy: 'Deposit policy',
+  costing: 'Production costing',
   creditors: 'Creditors',
   debtors: 'Debtors',
   assets: 'Fixed assets',
@@ -61,6 +67,8 @@ const TAB_HINTS = {
   gl: 'Trial balance and journal activity for the period.',
   opening: 'One-time 1 July opening journal from last closing balances.',
   close: 'Checklist before locking the period — receipts, payroll, depreciation, statements.',
+  policy: 'AP1c dry-run and cutover to deposit-until-produced GL posting.',
+  costing: 'Material cost per metre, expense buckets, and data readiness for branch P&L.',
   creditors: 'Amounts owed to the company — receivables, prepayments, and opening balances.',
   debtors: 'Amounts owed by the company — supplier AP, deposits, refunds, and suspense.',
   assets: 'Plant, property, and equipment register.',
@@ -77,6 +85,8 @@ const ACCOUNTING_TABS = [
   { id: 'gl', label: 'GL', icon: <BookOpen size={16} /> },
   { id: 'opening', label: 'Opening', icon: <Flag size={16} /> },
   { id: 'close', label: 'Close', icon: <Lock size={16} /> },
+  { id: 'policy', label: 'Deposits', icon: <ShieldCheck size={16} /> },
+  { id: 'costing', label: 'Costing', icon: <Factory size={16} /> },
   { id: 'creditors', label: 'Creditors', icon: <Users size={16} /> },
   { id: 'debtors', label: 'Debtors', icon: <Wallet size={16} /> },
   { id: 'assets', label: 'Fixed assets', icon: <Building2 size={16} /> },
@@ -118,13 +128,15 @@ export default function AccountingDesk() {
     const queryTab = new URLSearchParams(location.search).get('tab');
     if (queryTab && TAB_LABELS[queryTab]) setTab(queryTab);
     else if (focus && TAB_LABELS[focus]) setTab(focus);
-    else if (focus === 'supplier-ap' || focus === 'costing') setTab('debtors');
+    else if (focus === 'supplier-ap') setTab('debtors');
+    else if (focus === 'costing' || focus === 'production-cost') setTab('costing');
+    else if (focus === 'policy' || focus === 'ap1c') setTab('policy');
     else if (focus === 'inter-branch' || focus === 'interBranch') setTab('interBranch');
     else if (focus) setTab('overview');
   }, [location.state?.focusTab, location.search]);
 
   useEffect(() => {
-    document.title = `${TAB_LABELS[tab] || 'Accounting Desk'} | ${DOCUMENT_TITLE_BASE}`;
+    document.title = `${TAB_LABELS[tab] ? `${TAB_LABELS[tab]} · ` : ''}Accounting Desk | ${DOCUMENT_TITLE_BASE}`;
   }, [tab]);
 
   let accessDenied = null;
@@ -135,6 +147,8 @@ export default function AccountingDesk() {
     !hasFinanceView
   ) {
     accessDenied = 'GL and statements require finance view access.';
+  } else if ((tab === 'policy' || tab === 'costing') && !mayRegisters) {
+    accessDenied = 'Policy and costing reports require Head of Accounts or accounting desk access.';
   } else if (tab === 'interBranch' && !mayInterBranch) {
     accessDenied = 'Inter-branch transfers require finance or accounting desk access.';
   }
@@ -142,8 +156,8 @@ export default function AccountingDesk() {
   return (
     <PageShell>
       <PageHeader
-        eyebrow="Finance · Accounting Desk"
-        title={TAB_LABELS[tab] || 'Accounting Desk'}
+        eyebrow="Finance"
+        title="Accounting Desk"
         subtitle={TAB_HINTS[tab] || ''}
         tabs={<PageTabs tabs={ACCOUNTING_TABS} value={tab} onChange={setTab} />}
         toolbar={
@@ -179,19 +193,19 @@ export default function AccountingDesk() {
           ) : null}
 
           {!accessDenied && tab === 'overview' ? (
-            <AccountingOverviewPanel branchScopeLabel={branchScopeLabel} showToast={showToast} />
+            <AccountingOverviewPanel branchScopeLabel={branchScopeLabel} showToast={showToast} deskLayout />
           ) : null}
 
           {!accessDenied && tab === 'statements' && hasFinanceView ? (
-            <AccountingStatementsPanel branchScopeLabel={branchScopeLabel} showToast={showToast} />
+            <AccountingStatementsPanel branchScopeLabel={branchScopeLabel} showToast={showToast} deskLayout />
           ) : null}
 
           {!accessDenied && tab === 'gl' && hasFinanceView ? (
-            <AccountingGlPanel hasFinanceView={hasFinanceView} showToast={showToast} />
+            <AccountingGlPanel hasFinanceView={hasFinanceView} showToast={showToast} deskLayout />
           ) : null}
 
           {!accessDenied && tab === 'opening' && hasFinanceView ? (
-            <AccountingOpeningBalancePanel showToast={showToast} />
+            <AccountingOpeningBalancePanel showToast={showToast} deskLayout />
           ) : null}
 
           {!accessDenied && tab === 'close' && hasFinanceView ? (
@@ -199,6 +213,20 @@ export default function AccountingDesk() {
               branchScopeLabel={branchScopeLabel}
               showToast={showToast}
               onFocusTab={setTab}
+              deskLayout
+            />
+          ) : null}
+
+          {!accessDenied && tab === 'policy' && mayRegisters ? (
+            <AccountingPolicyPanel branchId={branchId} enabled deskLayout />
+          ) : null}
+
+          {!accessDenied && tab === 'costing' && mayRegisters ? (
+            <Ap3CostingReadinessPanel
+              initialBranchId={branchId || 'ALL'}
+              autoLoad
+              enabled
+              deskLayout
             />
           ) : null}
 

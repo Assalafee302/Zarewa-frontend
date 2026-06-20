@@ -6,6 +6,7 @@ import {
   AccountingDeskPageIntro,
   ACCOUNTING_CARD_ROW,
 } from './accounting/AccountingDeskUi';
+import { AccountingRegisterHeader } from './accounting/AccountingRegisterLayout';
 
 function currentPeriod() {
   return new Date().toISOString().slice(0, 7);
@@ -22,9 +23,10 @@ const STATUS_ICON = {
  *   branchScopeLabel?: string;
  *   showToast?: (msg: string, opts?: object) => void;
  *   onFocusTab?: (tabId: string) => void;
+ *   deskLayout?: boolean;
  * }} props
  */
-export function AccountingClosePanel({ branchScopeLabel = '', onFocusTab }) {
+export function AccountingClosePanel({ branchScopeLabel = '', onFocusTab, deskLayout = false }) {
   const [period, setPeriod] = useState(currentPeriod);
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -52,34 +54,40 @@ export function AccountingClosePanel({ branchScopeLabel = '', onFocusTab }) {
 
   const steps = data?.steps || [];
 
+  const headerActions = (
+    <div className="flex flex-wrap items-center gap-2">
+      <label className="inline-flex items-center gap-2 text-[10px] font-bold text-slate-600">
+        Period
+        <input
+          type="month"
+          value={period}
+          onChange={(e) => setPeriod(e.target.value)}
+          className="rounded-lg border border-slate-200 px-2 py-1 text-[11px] font-semibold text-slate-800"
+        />
+      </label>
+      <button
+        type="button"
+        onClick={load}
+        disabled={loading}
+        className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide text-[#134e4a] hover:bg-slate-50"
+      >
+        <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+        Refresh
+      </button>
+    </div>
+  );
+
   return (
     <div className="space-y-5">
-      <AccountingDeskPageIntro
-        title="Month-end close"
-        description="Resolve warnings and blockers before treating statements as final for the period."
-        action={
-          <div className="flex flex-wrap items-center gap-2">
-            <label className="inline-flex items-center gap-2 text-[10px] font-bold text-slate-600">
-              Period
-              <input
-                type="month"
-                value={period}
-                onChange={(e) => setPeriod(e.target.value)}
-                className="rounded-lg border border-slate-200 px-2 py-1 text-[11px] font-semibold text-slate-800"
-              />
-            </label>
-            <button
-              type="button"
-              onClick={load}
-              disabled={loading}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide text-[#134e4a] hover:bg-slate-50"
-            >
-              <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
-              Refresh
-            </button>
-          </div>
-        }
-      />
+      {deskLayout ? (
+        <AccountingRegisterHeader compact actions={headerActions} />
+      ) : (
+        <AccountingDeskPageIntro
+          title="Month-end close"
+          description="Resolve warnings and blockers before treating statements as final for the period."
+          action={headerActions}
+        />
+      )}
 
       {branchScopeLabel ? (
         <p className="text-[11px] font-medium text-slate-600">

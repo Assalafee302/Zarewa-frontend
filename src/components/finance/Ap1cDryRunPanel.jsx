@@ -14,36 +14,41 @@ import {
  *   loading?: boolean,
  *   error?: string,
  *   onReload?: () => void,
+ *   embedded?: boolean,
  * }} props
  */
-export function Ap1cDryRunPanel({ data, loading, error, onReload }) {
+export function Ap1cDryRunPanel({ data, loading, error, onReload, embedded = false }) {
   const s = data?.summary || {};
   const notes = data?.notes || [];
   const [showTechnical, setShowTechnical] = useState(false);
 
   return (
     <div className="grid grid-cols-1 gap-4 lg:gap-6 min-w-0">
-      <AccountingDeskPageIntro
-        title="Receipt & production readiness"
-        description="Read-only checks before turning on Policy v1 GL posting. No journals have been changed."
-        action={
-          onReload ? (
-            <button
-              type="button"
-              onClick={() => onReload()}
-              disabled={loading}
-              className="inline-flex items-center gap-1 rounded-lg bg-[#134e4a] text-white px-3 py-1.5 text-[9px] font-semibold uppercase tracking-wider shadow-sm hover:brightness-105 disabled:opacity-50"
-            >
-              <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />
-              Load report
-            </button>
-          ) : null
-        }
-      />
+      {!embedded ? (
+        <>
+          <AccountingDeskPageIntro
+            title="Receipt & production readiness"
+            description="Read-only checks before turning on Policy v1 GL posting. No journals have been changed."
+            action={
+              onReload ? (
+                <button
+                  type="button"
+                  onClick={() => onReload()}
+                  disabled={loading}
+                  className="inline-flex items-center gap-1 rounded-lg bg-[#134e4a] text-white px-3 py-1.5 text-[9px] font-semibold uppercase tracking-wider shadow-sm hover:brightness-105 disabled:opacity-50"
+                >
+                  <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />
+                  Load report
+                </button>
+              ) : null
+            }
+          />
 
-      <AccountingDeskNotice tone="warn">
-        Policy v1 dry-run only — Head of Accounts must sign off before enabling live GL posting flags.
-      </AccountingDeskNotice>
+          <AccountingDeskNotice tone="warn">
+            Policy v1 dry-run only — Head of Accounts must sign off before enabling live GL posting flags.
+          </AccountingDeskNotice>
+        </>
+      ) : null}
 
       {error ? (
         <p className="text-[11px] font-medium text-rose-800 flex items-center gap-2">

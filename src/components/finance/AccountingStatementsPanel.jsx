@@ -7,6 +7,7 @@ import {
   AccountingDeskKpiCard,
   AccountingDeskPageIntro,
 } from './accounting/AccountingDeskUi';
+import { AccountingRegisterHeader } from './accounting/AccountingRegisterLayout';
 import { AccountingDeskTableSection } from './accounting/AccountingDeskTableSection';
 
 function currentPeriod() {
@@ -14,9 +15,9 @@ function currentPeriod() {
 }
 
 /**
- * @param {{ branchScopeLabel?: string; showToast?: (msg: string, opts?: object) => void }} props
+ * @param {{ branchScopeLabel?: string; showToast?: (msg: string, opts?: object) => void; deskLayout?: boolean }} props
  */
-export function AccountingStatementsPanel({ branchScopeLabel = '', showToast }) {
+export function AccountingStatementsPanel({ branchScopeLabel = '', showToast, deskLayout = false }) {
   const [period, setPeriod] = useState(currentPeriod);
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -70,43 +71,49 @@ export function AccountingStatementsPanel({ branchScopeLabel = '', showToast }) 
   const plRows = useMemo(() => pl?.lines || [], [pl?.lines]);
   const bsRows = useMemo(() => bs?.lines || [], [bs?.lines]);
 
+  const headerActions = (
+    <div className="flex flex-wrap gap-2">
+      <label className="inline-flex items-center gap-2 text-[10px] font-bold text-slate-600">
+        Period
+        <input
+          type="month"
+          className="rounded-lg border border-slate-200 px-2 py-1 text-[11px] font-semibold"
+          value={period}
+          onChange={(e) => setPeriod(e.target.value)}
+        />
+      </label>
+      <button
+        type="button"
+        className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[10px] font-bold uppercase text-[#134e4a]"
+        onClick={load}
+        disabled={loading}
+      >
+        <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+        Load
+      </button>
+      <button
+        type="button"
+        className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[10px] font-bold uppercase text-[#134e4a]"
+        onClick={exportCsv}
+        disabled={!data}
+      >
+        <Download size={14} />
+        CSV
+      </button>
+    </div>
+  );
+
   return (
     <div className="space-y-5">
-      <AccountingDeskPageIntro
-        title="Financial statements"
-        description="Profit & Loss and Statement of Financial Position from the general ledger. Management draft — review with registers before board use."
-        action={
-          <div className="flex flex-wrap gap-2">
-            <label className="inline-flex items-center gap-2 text-[10px] font-bold text-slate-600">
-              Period
-              <input
-                type="month"
-                className="rounded-lg border border-slate-200 px-2 py-1 text-[11px] font-semibold"
-                value={period}
-                onChange={(e) => setPeriod(e.target.value)}
-              />
-            </label>
-            <button
-              type="button"
-              className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[10px] font-bold uppercase text-[#134e4a]"
-              onClick={load}
-              disabled={loading}
-            >
-              <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
-              Load
-            </button>
-            <button
-              type="button"
-              className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[10px] font-bold uppercase text-[#134e4a]"
-              onClick={exportCsv}
-              disabled={!data}
-            >
-              <Download size={14} />
-              CSV
-            </button>
-          </div>
-        }
-      />
+      {deskLayout ? (
+        <AccountingRegisterHeader compact actions={headerActions} />
+      ) : (
+        <AccountingDeskPageIntro
+          title="Financial statements"
+          description="Profit & Loss and Statement of Financial Position from the general ledger. Management draft — review with registers before board use."
+          action={headerActions}
+        />
+      )}
 
       {branchScopeLabel ? (
         <p className="text-[11px] text-slate-600">
