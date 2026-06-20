@@ -17,6 +17,8 @@ import { HrStatusBadge } from '../../components/hr/HrStatusBadge';
 import { formatPayrollPeriodLabel } from '../../lib/hrPayroll';
 import { HrPayrollPeriodFields } from '../../components/hr/HrPayrollPeriodFields';
 import { currentPeriodYyyymm } from '../../lib/hrRequests';
+import {
+  approveExecutivePayment,
   deleteExecutiveSchoolFee,
   downloadExecutivePaymentExport,
   fetchChairmanExpenses,
