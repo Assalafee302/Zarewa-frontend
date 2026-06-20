@@ -1,12 +1,15 @@
-import React, { useMemo, useState, useEffect } from 'react';
-import { Download, Minus, Plus, Search } from 'lucide-react';
+import React, { useMemo, useState, useEffect, useCallback } from 'react';
+import { Download, Link2, Minus, Plus, Search } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
+import { useToast } from '../../context/ToastContext';
 import { useHrListLoad } from '../../hooks/useHrListLoad';
 import { HrOrgChartTree } from '../../components/hr/HrOrgChartTree';
-import { fetchHrOrgChart } from '../../lib/hrOrgChart';
+import { HrOrgRelationshipModal } from '../../components/hr/HrOrgRelationshipModal';
+import { applyOrgLineManager, fetchHrOrgChart } from '../../lib/hrOrgChart';
 import { orgChartExportCsvUrl } from '../../lib/hrStaffDirectoryApi';
-import { HR_FIELD_CLASS } from '../../components/hr/hrFormStyles';
+import { HR_FIELD_CLASS, HR_BTN_SECONDARY } from '../../components/hr/hrFormStyles';
 import { HR_EMPLOYEES } from '../../lib/hrRoutes';
+import { canManageHrStaff } from '../../lib/hrAccess';
 import { ORG_CHART_VIEWS, branchLabel, orgUnitLabel, roleFamilyLabel } from '../../lib/hrOrgChartUi';
 
 const COLLAPSE_KEY = 'zarewa-hr-org-chart-collapse';
@@ -72,6 +75,9 @@ function StatTile({ label, value, hint }) {
 
 export default function HrOrgChart({ staffBasePath = HR_EMPLOYEES } = {}) {
   const ws = useWorkspace();
+  const { show: toast } = useToast();
+  const perms = ws?.permissions || [];
+  const canEditRelationships = canManageHrStaff(perms);
   const branches = useMemo(() => {
     const list = ws?.snapshot?.workspaceBranches ?? ws?.session?.branches ?? [];
     return list.map((b) => ({ id: b.id, name: b.name || b.id }));
@@ -84,6 +90,13 @@ export default function HrOrgChart({ staffBasePath = HR_EMPLOYEES } = {}) {
   const [collapseAll, setCollapseAll] = useState(loadCollapsePref);
   const [view, setView] = useState(loadViewPref);
   const [zoom, setZoom] = useState(loadZoomPref);
+  const [editMode, setEditMode] = useState(false);
+  const [linkSource, setLinkSource] = useState(null);
+  const [linkTarget, setLinkTarget] = useState(null);
+  const [relModalOpen, setRelModalOpen] = useState(false);
+  const [relModalType, setRelModalType] = useState('reports_to');
+  const [saveBusy, setSaveBusy] = useState(false);
+  const [saveError, setSaveError] = useState('');
 
   useEffect(() => {
     try {
@@ -109,7 +122,7 @@ export default function HrOrgChart({ staffBasePath = HR_EMPLOYEES } = {}) {
     }
   }, [zoom]);
 
-  const { loading, error } = useHrListLoad(async () => {
+  const { loading, error, reload } = useHrListLoad(async () => {
     const { ok, data } = await fetchHrOrgChart();
     if (!ok || !data?.ok) {
       setChart({ roots: [], orphans: [], total: 0, summary: null });
@@ -118,6 +131,67 @@ export default function HrOrgChart({ staffBasePath = HR_EMPLOYEES } = {}) {
     setChart(data.chart || { roots: [], orphans: [], total: 0, summary: null });
     return { hasData: true };
   }, []);
+
+  const clearLinkState = useCallback(() => {
+    setLinkSource(null);
+    setLinkTarget(null);
+    setRelModalOpen(false);
+    setSaveError('');
+  }, []);
+
+  const handleNodeClick = useCallback(
+    (node) => {
+      if (!editMode || saveBusy) return;
+      if (!linkSource) {
+        setLinkSource(node);
+        return;
+      }
+      if (linkSource.userId === node.userId) {
+        setLinkSource(null);
+        return;
+      }
+      setLinkTarget(node);
+      setRelModalType('reports_to');
+      setRelModalOpen(true);
+      setSaveError('');
+    },
+    [editMode, saveBusy, linkSource]
+  );
+
+  const openRemoveManager = () => {
+    setLinkTarget(null);
+    setRelModalType('remove');
+    setRelModalOpen(true);
+    setSaveError('');
+  };
+
+  const handleConfirmRelationship = async (type) => {
+    if (!linkSource?.userId) return;
+    setSaveBusy(true);
+    setSaveError('');
+    const managerId = type === 'remove' ? null : linkTarget?.userId || null;
+    if (type === 'reports_to' && !managerId) {
+      setSaveBusy(false);
+      setSaveError('Select a manager to link.');
+      return;
+    }
+    const { ok, data } = await applyOrgLineManager(linkSource.userId, managerId);
+    setSaveBusy(false);
+    if (!ok || !data?.ok) {
+      setSaveError(data?.error || 'Could not save relationship.');
+      return;
+    }
+    toast(type === 'remove' ? 'Line manager removed.' : 'Reporting line saved.');
+    clearLinkState();
+    await reload();
+  };
+
+  const toggleEditMode = () => {
+    setEditMode((v) => {
+      if (v) clearLinkState();
+      return !v;
+    });
+  };
 
   const filteredChart = useMemo(() => {
     let working = chart;
@@ -217,6 +291,30 @@ export default function HrOrgChart({ staffBasePath = HR_EMPLOYEES } = {}) {
 
       <p className="text-xs text-slate-500">{activeView.hint}</p>
 
+      {editMode ? (
+        <div className="rounded-xl border border-[#134e4a]/25 bg-teal-50/70 px-4 py-3">
+          {linkSource ? (
+            <div className="flex flex-wrap items-center gap-3">
+              <p className="text-sm text-slate-800">
+                <span className="font-bold text-[#134e4a]">{linkSource.displayName || linkSource.userId}</span>
+                <span className="text-slate-600"> selected — click another person to set as line manager, or:</span>
+              </p>
+              <button type="button" className={HR_BTN_SECONDARY} onClick={openRemoveManager}>
+                Remove manager
+              </button>
+              <button type="button" className="text-xs font-bold uppercase text-slate-500 hover:underline" onClick={() => setLinkSource(null)}>
+                Cancel selection
+              </button>
+            </div>
+          ) : (
+            <p className="text-sm text-slate-700">
+              <span className="font-bold text-[#134e4a]">Link mode.</span> Click a team member, then click their line manager.
+              Cards are highlighted when selectable.
+            </p>
+          )}
+        </div>
+      ) : null}
+
       <div className="flex flex-wrap items-end gap-3">
         <label className="text-xs font-semibold text-slate-600">
           Branch
@@ -286,6 +384,20 @@ export default function HrOrgChart({ staffBasePath = HR_EMPLOYEES } = {}) {
         >
           {collapseAll ? 'Expand all' : 'Collapse all'}
         </button>
+        {canEditRelationships ? (
+          <button
+            type="button"
+            onClick={toggleEditMode}
+            className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-bold uppercase tracking-wide transition ${
+              editMode
+                ? 'border-[#134e4a] bg-[#134e4a] text-white shadow-sm'
+                : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+            }`}
+          >
+            <Link2 size={14} aria-hidden />
+            {editMode ? 'Done editing' : 'Edit relationships'}
+          </button>
+        ) : null}
         <a
           href={orgChartExportCsvUrl()}
           className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold uppercase text-slate-600 hover:bg-slate-50"
@@ -334,9 +446,26 @@ export default function HrOrgChart({ staffBasePath = HR_EMPLOYEES } = {}) {
             collapseAll={collapseAll}
             view={view}
             branches={branches}
+            editMode={editMode}
+            linkSourceId={linkSource?.userId || ''}
+            onNodeClick={handleNodeClick}
           />
         </div>
       </div>
+
+      <HrOrgRelationshipModal
+        open={relModalOpen}
+        source={linkSource}
+        target={linkTarget}
+        initialType={relModalType}
+        busy={saveBusy}
+        error={saveError}
+        onClose={() => {
+          setRelModalOpen(false);
+          setSaveError('');
+        }}
+        onConfirm={handleConfirmRelationship}
+      />
 
       {(filteredChart.orphans || []).length ? (
         <p className="text-xs text-amber-800 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2">

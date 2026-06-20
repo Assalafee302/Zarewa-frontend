@@ -11,26 +11,43 @@ import {
   seniorityLabel,
 } from '../../lib/hrOrgChartUi';
 
-function OrgPersonCard({ node, linkPrefix, compact = false, highlight = false }) {
+function OrgPersonCard({
+  node,
+  linkPrefix,
+  compact = false,
+  highlight = false,
+  editMode = false,
+  selected = false,
+  linkTarget = false,
+  onNodeClick,
+}) {
   const reports = node.directReportCount || 0;
   const seniority = seniorityLabel(node.seniority);
 
-  return (
-    <div
-      className={`group relative flex min-w-[168px] max-w-[220px] flex-col rounded-2xl border bg-white shadow-sm transition hover:shadow-md ${
-        highlight ? 'border-[#134e4a]/40 ring-2 ring-[#134e4a]/10' : 'border-slate-200'
-      } ${node.orphanReason ? 'border-amber-200 bg-amber-50/40' : ''}`}
-    >
+  const cardClass = `group relative flex min-w-[168px] max-w-[220px] flex-col rounded-2xl border bg-white shadow-sm transition hover:shadow-md ${
+    selected ? 'border-[#134e4a] ring-2 ring-[#134e4a]/40' : highlight ? 'border-[#134e4a]/40 ring-2 ring-[#134e4a]/10' : 'border-slate-200'
+  } ${linkTarget ? 'ring-2 ring-amber-300/80' : ''} ${node.orphanReason ? 'border-amber-200 bg-amber-50/40' : ''} ${
+    editMode ? 'cursor-pointer hover:border-[#134e4a]/50' : ''
+  }`;
+
+  const inner = (
+    <>
       <div className={`flex items-start gap-2.5 p-3 ${compact ? 'p-2.5' : ''}`}>
         <HrStaffAvatar staff={node} size={compact ? 'sm' : 'md'} />
         <div className="min-w-0 flex-1">
-          <Link
-            to={`${linkPrefix}/${node.userId}`}
-            className="block truncate text-sm font-bold text-[#134e4a] hover:underline"
-            title={node.displayName || node.userId}
-          >
-            {node.displayName || node.userId}
-          </Link>
+          {editMode ? (
+            <span className="block truncate text-sm font-bold text-[#134e4a]" title={node.displayName || node.userId}>
+              {node.displayName || node.userId}
+            </span>
+          ) : (
+            <Link
+              to={`${linkPrefix}/${node.userId}`}
+              className="block truncate text-sm font-bold text-[#134e4a] hover:underline"
+              title={node.displayName || node.userId}
+            >
+              {node.displayName || node.userId}
+            </Link>
+          )}
           {node.jobTitle ? (
             <p className="mt-0.5 truncate text-[11px] font-medium text-slate-600" title={node.jobTitle}>
               {node.jobTitle}
@@ -59,11 +76,29 @@ function OrgPersonCard({ node, linkPrefix, compact = false, highlight = false })
           <span className="truncate text-[9px] font-medium uppercase tracking-wide text-slate-400">{node.branchId}</span>
         ) : null}
       </div>
-    </div>
+    </>
   );
+
+  if (editMode) {
+    return (
+      <button type="button" className={`text-left ${cardClass}`} onClick={() => onNodeClick?.(node)}>
+        {inner}
+      </button>
+    );
+  }
+
+  return <div className={cardClass}>{inner}</div>;
 }
 
-function HierarchyNode({ node, linkPrefix, collapseAll, depth = 0 }) {
+function HierarchyNode({
+  node,
+  linkPrefix,
+  collapseAll,
+  depth = 0,
+  editMode = false,
+  linkSourceId = '',
+  onNodeClick,
+}) {
   const [open, setOpen] = useState(depth < 2);
   const hasChildren = Array.isArray(node.children) && node.children.length > 0;
   const showChildren = hasChildren && !collapseAll && open;
@@ -86,7 +121,15 @@ function HierarchyNode({ node, linkPrefix, collapseAll, depth = 0 }) {
             {showChildren ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
           </button>
         ) : null}
-        <OrgPersonCard node={node} linkPrefix={linkPrefix} highlight={depth === 0} />
+        <OrgPersonCard
+          node={node}
+          linkPrefix={linkPrefix}
+          highlight={depth === 0}
+          editMode={editMode}
+          selected={editMode && linkSourceId === node.userId}
+          linkTarget={editMode && linkSourceId && linkSourceId !== node.userId}
+          onNodeClick={onNodeClick}
+        />
       </div>
       {showChildren ? (
         <>
@@ -103,7 +146,15 @@ function HierarchyNode({ node, linkPrefix, collapseAll, depth = 0 }) {
                   />
                 ) : null}
                 <span className="absolute top-0 h-6 w-px bg-slate-300" aria-hidden />
-                <HierarchyNode node={child} linkPrefix={linkPrefix} collapseAll={collapseAll} depth={depth + 1} />
+                <HierarchyNode
+                  node={child}
+                  linkPrefix={linkPrefix}
+                  collapseAll={collapseAll}
+                  depth={depth + 1}
+                  editMode={editMode}
+                  linkSourceId={linkSourceId}
+                  onNodeClick={onNodeClick}
+                />
               </li>
             ))}
           </ul>
@@ -113,7 +164,7 @@ function HierarchyNode({ node, linkPrefix, collapseAll, depth = 0 }) {
   );
 }
 
-function GroupedSection({ section, view, linkPrefix, collapseAll, branches }) {
+function GroupedSection({ section, view, linkPrefix, collapseAll, branches, editMode, linkSourceId, onNodeClick }) {
   const title = sectionTitle(view, section.key, branches);
   const familyHint = view === 'department' && section.roots[0]?.roleFamily ? roleFamilyLabel(section.roots[0].roleFamily) : null;
 
@@ -131,7 +182,16 @@ function GroupedSection({ section, view, linkPrefix, collapseAll, branches }) {
       <div className="overflow-x-auto p-4 sm:p-6">
         <ul className="flex flex-wrap justify-center gap-8">
           {section.roots.map((root) => (
-            <HierarchyNode key={root.userId} node={root} linkPrefix={linkPrefix} collapseAll={collapseAll} depth={0} />
+            <HierarchyNode
+              key={root.userId}
+              node={root}
+              linkPrefix={linkPrefix}
+              collapseAll={collapseAll}
+              depth={0}
+              editMode={editMode}
+              linkSourceId={linkSourceId}
+              onNodeClick={onNodeClick}
+            />
           ))}
         </ul>
       </div>
@@ -139,7 +199,7 @@ function GroupedSection({ section, view, linkPrefix, collapseAll, branches }) {
   );
 }
 
-function OrphansPanel({ orphans, linkPrefix }) {
+function OrphansPanel({ orphans, linkPrefix, editMode, linkSourceId, onNodeClick }) {
   if (!orphans.length) return null;
   return (
     <section className="rounded-2xl border border-amber-200 bg-amber-50/50 p-4 sm:p-5">
@@ -154,7 +214,15 @@ function OrphansPanel({ orphans, linkPrefix }) {
       <ul className="flex flex-wrap justify-center gap-3">
         {orphans.map((o) => (
           <li key={o.userId}>
-            <OrgPersonCard node={o} linkPrefix={linkPrefix} compact />
+            <OrgPersonCard
+              node={o}
+              linkPrefix={linkPrefix}
+              compact
+              editMode={editMode}
+              selected={editMode && linkSourceId === o.userId}
+              linkTarget={editMode && linkSourceId && linkSourceId !== o.userId}
+              onNodeClick={onNodeClick}
+            />
           </li>
         ))}
       </ul>
@@ -169,6 +237,9 @@ function OrphansPanel({ orphans, linkPrefix }) {
  *   collapseAll?: boolean;
  *   view?: 'hierarchy' | 'department' | 'branch' | 'unit';
  *   branches?: { id: string; name?: string }[];
+ *   editMode?: boolean;
+ *   linkSourceId?: string;
+ *   onNodeClick?: (node: object) => void;
  * }} props
  */
 export function HrOrgChartTree({
@@ -177,6 +248,9 @@ export function HrOrgChartTree({
   collapseAll = false,
   view = 'hierarchy',
   branches = [],
+  editMode = false,
+  linkSourceId = '',
+  onNodeClick,
 }) {
   const roots = chart?.roots || [];
   const orphans = chart?.orphans || [];
@@ -198,9 +272,18 @@ export function HrOrgChartTree({
             linkPrefix={linkPrefix}
             collapseAll={collapseAll}
             branches={branches}
+            editMode={editMode}
+            linkSourceId={linkSourceId}
+            onNodeClick={onNodeClick}
           />
         ))}
-        <OrphansPanel orphans={orphans} linkPrefix={linkPrefix} />
+        <OrphansPanel
+          orphans={orphans}
+          linkPrefix={linkPrefix}
+          editMode={editMode}
+          linkSourceId={linkSourceId}
+          onNodeClick={onNodeClick}
+        />
       </div>
     );
   }
@@ -210,11 +293,26 @@ export function HrOrgChartTree({
       <div className="overflow-x-auto pb-4">
         <ul className="flex min-w-max flex-wrap justify-center gap-10 px-2">
           {roots.map((root) => (
-            <HierarchyNode key={root.userId} node={root} linkPrefix={linkPrefix} collapseAll={collapseAll} depth={0} />
+            <HierarchyNode
+              key={root.userId}
+              node={root}
+              linkPrefix={linkPrefix}
+              collapseAll={collapseAll}
+              depth={0}
+              editMode={editMode}
+              linkSourceId={linkSourceId}
+              onNodeClick={onNodeClick}
+            />
           ))}
         </ul>
       </div>
-      <OrphansPanel orphans={orphans} linkPrefix={linkPrefix} />
+      <OrphansPanel
+        orphans={orphans}
+        linkPrefix={linkPrefix}
+        editMode={editMode}
+        linkSourceId={linkSourceId}
+        onNodeClick={onNodeClick}
+      />
     </div>
   );
 }

@@ -8,6 +8,12 @@ export const ORG_CHART_VIEWS = [
   { id: 'unit', label: 'Company units', hint: 'HQ, mining, household, and branch cohorts' },
 ];
 
+/** Relationship types available in organogram link editor. */
+export const ORG_RELATIONSHIP_TYPES = [
+  { id: 'reports_to', label: 'Reports to (line manager)', hint: 'Moves this person under the manager in the organogram.' },
+  { id: 'remove', label: 'Remove line manager', hint: 'Clears the reporting line; person becomes top-level or unlinked.' },
+];
+
 export const ROLE_FAMILY_LABELS = {
   finance: 'Finance & Accounts',
   hr: 'Human Resources',
