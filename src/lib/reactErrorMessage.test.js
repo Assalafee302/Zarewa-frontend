@@ -9,4 +9,10 @@ describe('humanizeReactError', () => {
     expect(msg).toContain('AccountingDesk-DZMIFbBN.js');
     expect(msg).toContain('dist/');
   });
+
+  it('explains minified is-not-a-function as likely stale app-shell', () => {
+    const msg = humanizeReactError(new Error('s is not a function'));
+    expect(msg).toContain('stale app-shell');
+    expect(msg).toContain('Hard refresh');
+  });
 });
