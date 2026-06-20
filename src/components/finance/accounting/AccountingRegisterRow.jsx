@@ -46,7 +46,7 @@ export function AccountingRegisterRow({ sectionId, item, canManage, onSelect, on
           onSelect?.(item);
         }
       }}
-      className={`${ACCOUNTING_CARD_ROW} group flex flex-wrap items-start justify-between gap-2 min-w-0 cursor-pointer hover:border-[#134e4a]/25 hover:bg-white/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#134e4a]/20`}
+      className={`${ACCOUNTING_CARD_ROW} group flex flex-col sm:flex-row sm:flex-wrap sm:items-start sm:justify-between gap-3 min-w-0 cursor-pointer hover:border-[#134e4a]/25 hover:bg-white/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#134e4a]/20 py-3 sm:py-2 min-h-[44px] max-sm:shadow-sm max-sm:border-slate-200/90 max-sm:bg-white`}
     >
       <div className="min-w-0 leading-tight flex-1">
         <p className="text-[11px] font-bold text-[#134e4a] truncate">
@@ -86,8 +86,8 @@ export function AccountingRegisterRow({ sectionId, item, canManage, onSelect, on
           />
         </p>
       </div>
-      <div className="flex items-center gap-2 shrink-0">
-        <span className="text-[11px] font-black text-[#134e4a] tabular-nums text-right">
+      <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0 w-full sm:w-auto">
+        <span className="text-sm sm:text-[11px] font-black text-[#134e4a] tabular-nums text-right">
           <span className="block text-[8px] font-semibold text-slate-500 uppercase tracking-wide">Balance</span>
           {formatNgn(item.amountNgn)}
         </span>
@@ -99,14 +99,14 @@ export function AccountingRegisterRow({ sectionId, item, canManage, onSelect, on
               e.stopPropagation();
               onClear(item);
             }}
-            className="text-[8px] font-semibold uppercase tracking-wide text-slate-700 bg-slate-100 hover:bg-slate-200 px-2 py-1 rounded-md disabled:opacity-40"
+            className="text-[9px] font-semibold uppercase tracking-wide text-slate-700 bg-slate-100 hover:bg-slate-200 px-3 py-2 rounded-md disabled:opacity-40 min-h-11 min-w-[44px]"
           >
             {clearing ? '…' : 'Clear'}
           </button>
         ) : (
           <ChevronRight
-            size={14}
-            className="text-slate-400 group-hover:text-[#134e4a] transition-colors"
+            size={18}
+            className="text-slate-400 group-hover:text-[#134e4a] transition-colors shrink-0 min-h-11 min-w-[44px] p-2"
             aria-hidden
           />
         )}

@@ -3,6 +3,8 @@ import { ShieldCheck, RefreshCw } from 'lucide-react';
 import { apiFetch } from '../../lib/apiBase';
 import { useAp1cDryRun } from '../../hooks/useAp1cDryRun';
 import { Ap1cDryRunPanel } from './Ap1cDryRunPanel';
+import { useAp1cReclass } from '../../hooks/useAp1cReclass';
+import { formatNgn } from '../../Data/mockData';
 import {
   AccountingDeskKpiCard,
   AccountingDeskNotice,
@@ -40,6 +42,13 @@ const FLAG_STEPS = [
     detail: 'Reduce AR overstatement for receipts posted to 1200 before production under old rules.',
     requires: ['production_release'],
   },
+  {
+    id: 'reclass',
+    env: 'RECLASS_PRE_PRODUCTION_RECEIPTS',
+    label: 'One-off reclass (AP1c-5)',
+    detail: 'Optional Dr 1200 / Cr 2500 journals for legacy pre-production receipts — post from preview below.',
+    requires: ['legacy_bridge'],
+  },
 ];
 
 function flagOn(flags, key) {
@@ -47,11 +56,13 @@ function flagOn(flags, key) {
 }
 
 /**
- * @param {{ branchId?: string | null; enabled?: boolean; deskLayout?: boolean }} props
+ * @param {{ branchId?: string | null; enabled?: boolean; deskLayout?: boolean; showToast?: (msg: string, opts?: object) => void }} props
  */
-export function AccountingPolicyPanel({ branchId = null, enabled = true, deskLayout = false }) {
+export function AccountingPolicyPanel({ branchId = null, enabled = true, deskLayout = false, showToast }) {
   const { data, loading, error, reload } = useAp1cDryRun({ branchId, enabled });
+  const reclass = useAp1cReclass({ enabled });
   const [opening, setOpening] = useState(null);
+  const [postingReclass, setPostingReclass] = useState(false);
 
   const loadOpening = useCallback(async () => {
     const res = await apiFetch('/api/finance/opening-balance/status');
@@ -61,6 +72,10 @@ export function AccountingPolicyPanel({ branchId = null, enabled = true, deskLay
   useEffect(() => {
     if (enabled) loadOpening();
   }, [enabled, loadOpening]);
+
+  useEffect(() => {
+    if (enabled) void reclass.load(branchId);
+  }, [enabled, branchId, reclass.load]);
 
   const flags = data?.flags || {};
   const s = data?.summary || {};
@@ -76,6 +91,7 @@ export function AccountingPolicyPanel({ branchId = null, enabled = true, deskLay
         receipt_gl: 'accountingPolicyV1ReceiptGl',
         production_release: 'accountingPolicyV1ProductionRelease',
         legacy_bridge: 'accountingPolicyV1LegacyBridge',
+        reclass: 'reclassPreProductionReceipts',
       };
       const flagKey = keyMap[step.id];
       const on = flagOn(flags, flagKey);
@@ -97,6 +113,7 @@ export function AccountingPolicyPanel({ branchId = null, enabled = true, deskLay
       onClick={() => {
         reload();
         loadOpening();
+        reclass.load(branchId);
       }}
       disabled={loading}
       className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide text-[#134e4a] hover:bg-slate-50"
@@ -181,6 +198,44 @@ export function AccountingPolicyPanel({ branchId = null, enabled = true, deskLay
           ))}
         </ul>
       </ProcurementFormSection>
+
+      {reclass.data ? (
+        <ProcurementFormSection letter="2" title="AP1c-5 reclass preview" compact>
+          <p className="text-[10px] text-slate-600 mb-2">{reclass.data.disclaimer}</p>
+          <p className="text-[11px] font-semibold text-slate-800 mb-2">
+            Pending: {reclass.data.summary?.pendingCount ?? 0} receipt(s) ·{' '}
+            {formatNgn(reclass.data.summary?.totalPendingNgn ?? 0)}
+          </p>
+          {reclass.data.canPost ? (
+            <button
+              type="button"
+              disabled={postingReclass || !(reclass.data.summary?.pendingCount > 0)}
+              className="rounded-lg bg-[#134e4a] px-4 py-2 text-[10px] font-bold uppercase text-white disabled:opacity-50"
+              onClick={async () => {
+                setPostingReclass(true);
+                try {
+                  const res = await reclass.post(branchId);
+                  if (!res.ok || !res.data?.ok) {
+                    showToast?.(res.data?.error || 'Reclass failed.', { variant: 'error' });
+                    return;
+                  }
+                  showToast?.(res.data.message || 'Reclass posted.');
+                  reclass.load(branchId);
+                  reload();
+                } finally {
+                  setPostingReclass(false);
+                }
+              }}
+            >
+              {postingReclass ? 'Posting…' : 'Post all pending reclass'}
+            </button>
+          ) : (
+            <p className="text-[10px] text-amber-800">
+              Set <code className="font-mono">RECLASS_PRE_PRODUCTION_RECEIPTS=1</code> on server to enable posting.
+            </p>
+          )}
+        </ProcurementFormSection>
+      ) : null}
 
       <Ap1cDryRunPanel data={data} loading={loading} error={error} onReload={reload} embedded />
     </div>

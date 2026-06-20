@@ -22,6 +22,7 @@ import { apiFetch } from '../lib/apiBase';
 import { useToast } from '../context/ToastContext';
 import { useFinanceTrialExceptions } from '../hooks/useFinanceTrialExceptions';
 import { FinanceTrialExceptionPanel } from '../components/finance/FinanceTrialExceptionPanel';
+import { AccountingExecutiveBrief } from '../components/finance/accounting/AccountingExecutiveBrief';
 import { userMayViewFinanceTrialOversightClient } from '../lib/financeTrialExceptionsAccess';
 import { userMayViewManagementReportsClient } from '../lib/reportsAccess';
 import CommandCentreIntelligenceTab from '../components/exec/CommandCentreIntelligenceTab';
@@ -937,6 +938,14 @@ export default function ExecutiveCommandCentre() {
 
       {activeTab === 'finance' ? (
         <div className="space-y-8 pb-12">
+          <AccountingExecutiveBrief
+            branchId={canPickBranch ? branchId : ws?.branchScope || ws?.session?.currentBranchId}
+            branchScopeLabel={
+              branchId === 'ALL' || !branchId
+                ? 'Company-wide'
+                : BRANCH_OPTIONS.find((b) => b.id === branchId)?.label || branchId
+            }
+          />
           {!mayFinanceOversight ? (
             <p className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
               Accounting trial oversight panel is limited to finance oversight roles. Cash, working capital,

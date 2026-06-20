@@ -23,6 +23,9 @@ import {
   sortRegisterItems,
 } from './accounting/AccountingDeskUi';
 import { AccountingFilterSelect, AccountingRegisterHeader } from './accounting/AccountingRegisterLayout';
+import { AccountingRegisterTieOutStrip } from './accounting/AccountingRegisterTieOutStrip';
+import { useAccountingDesk } from './accounting/AccountingDeskContext';
+import { useAccountingRegisterTieOut } from '../../hooks/useAccountingRegisterTieOut';
 import { AccountingAssetRow } from './accounting/AccountingAssetRow';
 import { AccountingAssetDetailModal } from './AccountingAssetDetailModal';
 
@@ -57,15 +60,25 @@ const INPUT =
   'mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-[11px] font-semibold text-slate-800 outline-none focus:border-[#134e4a]/35 focus:ring-2 focus:ring-[#134e4a]/10';
 
 /**
- * @param {{ branchId?: string | null; enabled?: boolean; canManage?: boolean; branchScopeLabel?: string }} props
+ * @param {{ branchId?: string | null; enabled?: boolean; canManage?: boolean; branchScopeLabel?: string; deskRefresh?: number; onFocusTab?: (tabId: string) => void }} props
  */
 export function AccountingAssetsPanel({
   branchId,
   enabled = true,
   canManage = false,
   branchScopeLabel = '',
+  deskRefresh = 0,
+  onFocusTab,
 }) {
   const ws = useWorkspace();
+  const { periodKey } = useAccountingDesk();
+  const tieOut = useAccountingRegisterTieOut({
+    registerKind: 'assets',
+    periodKey,
+    branchId,
+    enabled: Boolean(periodKey),
+    deskRefresh,
+  });
   const { show: showToast } = useToast();
   const branches = ws?.snapshot?.workspaceBranches ?? ws?.session?.branches ?? [];
   const treasuryAccounts = useMemo(
@@ -195,6 +208,10 @@ export function AccountingAssetsPanel({
     if (enabled) loadDepPreview();
   }, [enabled, loadDepPreview]);
 
+  useEffect(() => {
+    if (deskRefresh > 0) reload();
+  }, [deskRefresh, reload]);
+
   const postDepreciation = async () => {
     setDepBusy(true);
     const res = await apiFetch('/api/finance/depreciation/post', {
@@ -281,6 +298,13 @@ export function AccountingAssetsPanel({
           </button>
         ) : null}
       </div>
+
+      <AccountingRegisterTieOutStrip
+        checks={tieOut.checks}
+        loading={tieOut.loading}
+        thresholdPct={tieOut.thresholdPct}
+        onFocusTab={onFocusTab}
+      />
 
       <AccountingRegisterHeader
         title="Fixed assets register"

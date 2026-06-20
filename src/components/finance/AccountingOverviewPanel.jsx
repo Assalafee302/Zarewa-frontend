@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { AlertTriangle, RefreshCw, Scale, Wallet, FileBarChart, Flag, CheckCircle2 } from 'lucide-react';
+import { AlertTriangle, RefreshCw, Scale, Wallet, FileBarChart, Flag, CheckCircle2, Lock, BookOpen } from 'lucide-react';
 import { apiFetch } from '../../lib/apiBase';
 import { formatNgn } from '../../Data/mockData';
 import {
@@ -10,6 +10,9 @@ import {
   ACCOUNTING_CARD_ROW,
 } from './accounting/AccountingDeskUi';
 import { AccountingRegisterHeader } from './accounting/AccountingRegisterLayout';
+import { AccountingExecutiveSummary } from './accounting/AccountingExecutiveSummary';
+import { AccountingDeskMobileStrip } from './accounting/AccountingDeskMobileStrip';
+import { useAccountingDesk } from './accounting/AccountingDeskContext';
 import { ACCOUNTING_OPENING_DATE_LABEL } from '../../shared/accountingCutover';
 import { useWorkspace } from '../../context/WorkspaceContext';
 
@@ -31,13 +34,22 @@ function packQueryString(ws) {
  *   showToast?: (msg: string, opts?: object) => void;
  *   deskLayout?: boolean;
  *   onFocusTab?: (tabId: string) => void;
+ *   deskRefresh?: number;
  * }} props
  */
-export function AccountingOverviewPanel({ branchScopeLabel = '', deskLayout = false, onFocusTab }) {
+export function AccountingOverviewPanel({
+  branchScopeLabel = '',
+  deskLayout = false,
+  onFocusTab,
+  deskRefresh = 0,
+}) {
   const ws = useWorkspace();
+  const { periodKey } = useAccountingDesk();
   const [data, setData] = useState(null);
   const [opening, setOpening] = useState(null);
   const [pack, setPack] = useState(null);
+  const [statements, setStatements] = useState(null);
+  const [closePack, setClosePack] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -45,10 +57,21 @@ export function AccountingOverviewPanel({ branchScopeLabel = '', deskLayout = fa
     setLoading(true);
     setError('');
     try {
-      const [exRes, obRes, packRes] = await Promise.all([
+      const branchParams = new URLSearchParams();
+      if (ws?.viewAllBranches) branchParams.set('branchId', 'ALL');
+      else {
+        const bid = ws?.branchScope || ws?.session?.currentBranchId;
+        if (bid) branchParams.set('branchId', bid);
+      }
+      const branchSuffix = branchParams.toString() ? `&${branchParams.toString()}` : '';
+      const periodSuffix = periodKey ? `period=${encodeURIComponent(periodKey)}${branchSuffix}` : '';
+
+      const [exRes, obRes, packRes, stmtRes, closeRes] = await Promise.all([
         apiFetch('/api/finance/trial-exceptions'),
         apiFetch('/api/finance/opening-balance/status'),
         apiFetch(`/api/finance/opening-pack${packQueryString(ws)}`),
+        periodKey ? apiFetch(`/api/finance/statements-pack?${periodSuffix}`) : Promise.resolve(null),
+        periodKey ? apiFetch(`/api/finance/month-end-close?${periodSuffix}`) : Promise.resolve(null),
       ]);
       if (!exRes.ok || !exRes.data?.ok) {
         setError(exRes.data?.error || 'Could not load exception summary.');
@@ -60,22 +83,59 @@ export function AccountingOverviewPanel({ branchScopeLabel = '', deskLayout = fa
       else setOpening(null);
       if (packRes.ok && packRes.data?.ok) setPack(packRes.data);
       else setPack(null);
+      if (stmtRes?.ok && stmtRes.data?.ok) setStatements(stmtRes.data);
+      else setStatements(null);
+      if (closeRes?.ok && closeRes.data?.ok) setClosePack(closeRes.data);
+      else setClosePack(null);
     } finally {
       setLoading(false);
     }
-  }, [ws]);
+  }, [ws, periodKey]);
 
   useEffect(() => {
     load();
-  }, [load]);
+  }, [load, deskRefresh]);
 
   const ex = data?.exceptions || data || {};
   const blockers = [
-    { key: 'pendingReceiptClearance', label: 'Receipts pending confirmation', to: '/cashier', count: ex.pendingReceiptClearance },
-    { key: 'receiptBankAmountMismatch', label: 'Receipt bank mismatch', to: '/cashier', count: ex.receiptBankAmountMismatch },
-    { key: 'treasuryMovementWithoutFinanceSettlement', label: 'Treasury not settled', to: '/accounts?tab=desk', count: ex.treasuryMovementWithoutFinanceSettlement },
-    { key: 'openDeliveriesWouldBlockOnPayment', label: 'Unpaid deliveries (gate)', to: '/accounting', count: ex.openDeliveriesWouldBlockOnPayment },
+    {
+      key: 'pendingReceiptClearance',
+      label: 'Receipts pending confirmation',
+      action: 'Confirm receipts',
+      to: '/cashier',
+      count: ex.pendingReceiptClearance,
+    },
+    {
+      key: 'receiptBankAmountMismatch',
+      label: 'Receipt bank mismatch',
+      action: 'Review cashier',
+      to: '/cashier',
+      count: ex.receiptBankAmountMismatch,
+    },
+    {
+      key: 'treasuryMovementWithoutFinanceSettlement',
+      label: 'Treasury not settled',
+      action: 'Settle movements',
+      to: '/accounts?tab=desk',
+      count: ex.treasuryMovementWithoutFinanceSettlement,
+    },
+    {
+      key: 'openDeliveriesWouldBlockOnPayment',
+      label: 'Unpaid deliveries (gate)',
+      action: 'Review deliveries',
+      to: '/accounting',
+      count: ex.openDeliveriesWouldBlockOnPayment,
+    },
   ].filter((b) => Number(b.count) > 0);
+
+  const exceptionTotal = blockers.reduce((sum, b) => sum + Number(b.count), 0);
+
+  const quickLinks = [
+    { id: 'opening', label: 'Opening Pack', hint: 'June cutover', icon: Flag },
+    { id: 'close', label: 'Month-end close', hint: 'Checklist & lock', icon: Lock },
+    { id: 'statements', label: 'Statements', hint: 'P&L & balance sheet', icon: FileBarChart },
+    { id: 'creditors', label: 'Registers', hint: 'Receivables & payables', icon: BookOpen },
+  ];
 
   const cutoverSources = (pack?.sources || []).filter((s) => s.status === 'warn' || s.status === 'fail');
   const openingPosted = Boolean(opening?.posted || pack?.alreadyPosted);
@@ -114,10 +174,68 @@ export function AccountingOverviewPanel({ branchScopeLabel = '', deskLayout = fa
       {branchScopeLabel ? (
         <p className="text-[11px] font-medium text-slate-600">
           Scope: <span className="font-bold text-slate-800">{branchScopeLabel}</span>
+          {!openingPosted ? (
+            <span className="ml-2 rounded-md border border-amber-200 bg-amber-50 px-2 py-0.5 text-[9px] font-bold uppercase text-amber-900">
+              Pre-cutover
+            </span>
+          ) : (
+            <span className="ml-2 rounded-md border border-teal-200 bg-teal-50 px-2 py-0.5 text-[9px] font-bold uppercase text-teal-900">
+              Live GL
+            </span>
+          )}
         </p>
       ) : null}
 
+      {onFocusTab ? (
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {quickLinks.map((q) => {
+            const Icon = q.icon;
+            return (
+              <button
+                key={q.id}
+                type="button"
+                onClick={() => onFocusTab(q.id)}
+                className={`${ACCOUNTING_CARD_ROW} text-left w-full hover:border-teal-200/80`}
+              >
+                <div className="flex items-start gap-2">
+                  <Icon size={16} className="text-[#134e4a] shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-[11px] font-bold text-[#134e4a]">{q.label}</p>
+                    <p className="text-[10px] text-slate-500">{q.hint}</p>
+                  </div>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      ) : null}
+
       {error ? <p className="text-[11px] font-medium text-rose-700">{error}</p> : null}
+
+      <AccountingDeskMobileStrip
+        count={exceptionTotal}
+        label={
+          exceptionTotal
+            ? `${exceptionTotal} exception${exceptionTotal === 1 ? '' : 's'} need follow-up`
+            : undefined
+        }
+        onAction={
+          exceptionTotal
+            ? () => document.getElementById('accounting-action-required')?.scrollIntoView({ behavior: 'smooth' })
+            : undefined
+        }
+        actionLabel="Review"
+      />
+
+      <AccountingExecutiveSummary
+        periodKey={periodKey}
+        branchScopeLabel={branchScopeLabel}
+        openingPosted={openingPosted}
+        statements={statements}
+        close={closePack}
+        exceptionCount={exceptionTotal}
+        onFocusTab={onFocusTab}
+      />
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <AccountingDeskKpiCard
@@ -144,8 +262,13 @@ export function AccountingOverviewPanel({ branchScopeLabel = '', deskLayout = fa
         <AccountingDeskKpiCard
           icon={<FileBarChart size={12} />}
           label="Statements"
-          value="Draft"
-          hint="Use Statements tab for P&L and balance sheet"
+          value={statements?.profitAndLoss ? formatNgn(statements.profitAndLoss.netIncomeNgn) : 'Draft'}
+          hint={
+            statements?.balanceSheet?.balanced
+              ? 'P&L and balance sheet balanced'
+              : 'Use Reports → Statements for detail'
+          }
+          tone={statements?.balanceSheet?.balanced ? 'teal' : 'default'}
         />
       </div>
 
@@ -211,8 +334,8 @@ export function AccountingOverviewPanel({ branchScopeLabel = '', deskLayout = fa
       ) : null}
 
       {blockers.length > 0 ? (
-        <section className="rounded-xl border border-amber-200/80 bg-amber-50/40 p-4">
-          <h3 className="text-[11px] font-black uppercase tracking-wide text-amber-900">Resolve before close</h3>
+        <section id="accounting-action-required" className="rounded-xl border border-amber-200/80 bg-amber-50/40 p-4">
+          <h3 className="text-[11px] font-black uppercase tracking-wide text-amber-900">Action required</h3>
           <ul className="mt-3 space-y-2">
             {blockers.map((b) => (
               <li key={b.key} className={ACCOUNTING_CARD_ROW}>
@@ -220,9 +343,14 @@ export function AccountingOverviewPanel({ branchScopeLabel = '', deskLayout = fa
                   <span className="text-[11px] font-semibold text-slate-800">{b.label}</span>
                   <span className="text-sm font-black tabular-nums text-amber-900">{Number(b.count)}</span>
                 </div>
-                <Link to={b.to} className="mt-1 inline-block text-[10px] font-bold text-teal-800 hover:underline">
-                  Open workflow →
-                </Link>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <Link
+                    to={b.to}
+                    className="inline-flex rounded-lg bg-[#134e4a] px-3 py-1 text-[10px] font-bold uppercase tracking-wide text-white hover:brightness-105"
+                  >
+                    {b.action}
+                  </Link>
+                </div>
               </li>
             ))}
           </ul>

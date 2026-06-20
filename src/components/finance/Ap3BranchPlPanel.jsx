@@ -24,15 +24,19 @@ function defaultPeriodKey() {
 }
 
 /**
- * @param {{ initialBranchId?: string; autoLoad?: boolean; enabled?: boolean; deskLayout?: boolean }} props
+ * @param {{ initialBranchId?: string; autoLoad?: boolean; enabled?: boolean; deskLayout?: boolean; periodKey?: string; deskRefresh?: number }} props
  */
 export function Ap3BranchPlPanel({
   initialBranchId = 'ALL',
   autoLoad = false,
   enabled = true,
   deskLayout = false,
+  periodKey: periodKeyProp,
+  deskRefresh = 0,
 }) {
-  const [period, setPeriod] = useState(defaultPeriodKey);
+  const [periodLocal, setPeriodLocal] = useState(defaultPeriodKey);
+  const period = periodKeyProp ?? periodLocal;
+  const setPeriod = periodKeyProp ? () => {} : setPeriodLocal;
   const [branchId, setBranchId] = useState(initialBranchId || 'ALL');
   const { data, loading, error, load } = useAp3BranchPl({ enabled });
   const filters = useMemo(
@@ -42,7 +46,7 @@ export function Ap3BranchPlPanel({
 
   useEffect(() => {
     if (autoLoad && enabled) void load(filters);
-  }, [autoLoad, enabled, filters, load]);
+  }, [autoLoad, enabled, filters, load, deskRefresh]);
 
   const exportCsv = () => {
     if (!data?.rows) return;
@@ -68,7 +72,11 @@ export function Ap3BranchPlPanel({
     <div className="flex flex-wrap items-center gap-2">
       <label className={ACCOUNTING_FIELD_LABEL}>
         Period
-        <input type="month" className={ACCOUNTING_INPUT} value={period} onChange={(e) => setPeriod(e.target.value)} />
+        {!periodKeyProp ? (
+          <input type="month" className={ACCOUNTING_INPUT} value={period} onChange={(e) => setPeriod(e.target.value)} />
+        ) : (
+          <span className={`${ACCOUNTING_INPUT} inline-block bg-slate-50 text-slate-700`}>{period}</span>
+        )}
       </label>
       <label className={ACCOUNTING_FIELD_LABEL}>
         Branch

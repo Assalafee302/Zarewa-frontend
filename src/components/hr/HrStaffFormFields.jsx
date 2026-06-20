@@ -689,6 +689,14 @@ export function HrStaffFormFields({
             />
             Self-service eligible (HR services — leave & payslips)
           </label>
+          <label className="flex items-center gap-2 text-xs font-semibold text-slate-600 sm:col-span-2">
+            <input
+              type="checkbox"
+              checked={Boolean(form.isProductionStaff)}
+              onChange={(e) => set('isProductionStaff', e.target.checked)}
+            />
+            Production staff (include payroll in AP3c branch labour allocation)
+          </label>
         </div>
       </section>
       ) : null}

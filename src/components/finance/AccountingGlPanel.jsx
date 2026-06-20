@@ -26,15 +26,24 @@ function currentPeriodKey() {
 }
 
 /**
- * @param {{ hasFinanceView?: boolean; showToast?: (msg: string, opts?: object) => void; deskLayout?: boolean }} props
+ * @param {{ hasFinanceView?: boolean; showToast?: (msg: string, opts?: object) => void; deskLayout?: boolean; periodKey?: string; onPeriodKeyChange?: (v: string) => void; deskRefresh?: number }} props
  */
-export function AccountingGlPanel({ hasFinanceView = false, showToast, deskLayout = false }) {
-  const [period, setPeriod] = useState(currentPeriodKey);
+export function AccountingGlPanel({
+  hasFinanceView = false,
+  showToast,
+  deskLayout = false,
+  periodKey: periodKeyProp,
+  onPeriodKeyChange,
+  deskRefresh = 0,
+}) {
+  const [periodLocal, setPeriodLocal] = useState(currentPeriodKey);
+  const period = periodKeyProp ?? periodLocal;
+  const setPeriod = onPeriodKeyChange ?? setPeriodLocal;
   const range = useMemo(() => monthRangeFromKey(period), [period]);
 
   return (
     <div className="space-y-5">
-      {deskLayout ? (
+      {deskLayout && !periodKeyProp ? (
         <label className="inline-flex items-center gap-2 text-[10px] font-bold text-slate-600">
           Period
           <input
@@ -44,7 +53,8 @@ export function AccountingGlPanel({ hasFinanceView = false, showToast, deskLayou
             onChange={(e) => setPeriod(e.target.value)}
           />
         </label>
-      ) : (
+      ) : null}
+      {!deskLayout ? (
         <AccountingDeskPageIntro
           title="General ledger"
           description="Trial balance and journal activity for the period. Cash accounts use per-bank codes (1001, 1002, …)."
@@ -60,8 +70,9 @@ export function AccountingGlPanel({ hasFinanceView = false, showToast, deskLayou
             </label>
           }
         />
-      )}
+      ) : null}
       <ReportsGlPilotSection
+        key={`${range.startDate}-${deskRefresh}`}
         startDate={range.startDate}
         endDate={range.endDate}
         hasFinanceView={hasFinanceView}

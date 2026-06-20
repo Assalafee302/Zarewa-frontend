@@ -15,9 +15,7 @@ export const FINANCE_DESK_PERMISSIONS = {
 const ACCOUNTING_DESK_ROLE_KEYS = new Set(['admin', 'md', 'finance_manager']);
 const CASHIER_DESK_ROLE_KEYS = new Set(['cashier']);
 
-/**
- * Head of Accounts / company accounting desk (reconciliation, GL, month-end).
- */
+/** Head of Accounts / company accounting desk (reconciliation, GL, month-end). */
 export function userMayViewAccountingDeskClient(roleKey, permissions) {
   if (hasPermissionInList(permissions, '*')) return true;
   const rk = String(roleKey || '').trim().toLowerCase();
@@ -57,6 +55,15 @@ export function userMayViewAccountingSectionsOnReportsClient(roleKey, permission
   if (hasPermissionInList(permissions, FINANCE_DESK_PERMISSIONS.accountingReconciliationView)) return true;
   if (hasPermissionInList(permissions, FINANCE_DESK_PERMISSIONS.accountingGlView)) return true;
   return userMayViewAccountingDeskClient(roleKey, permissions);
+}
+
+/**
+ * MD / executive oversight — may open Accounting Desk but must not post journals, lock periods, or edit registers.
+ */
+export function userIsAccountingExecutiveReadOnlyClient(roleKey, permissions) {
+  if (hasPermissionInList(permissions, '*')) return false;
+  if (!userMayViewAccountingDeskClient(roleKey, permissions)) return false;
+  return !hasPermissionInList(permissions, 'finance.post');
 }
 
 /** Phase 10: legacy full-finance hat — MD/admin/accountant only; cashier and BM use desks. */

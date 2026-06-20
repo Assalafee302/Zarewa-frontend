@@ -13,6 +13,8 @@ export function AccountingDebtorsPanel({
   enabled = true,
   canManage = false,
   branchScopeLabel = '',
+  deskRefresh = 0,
+  onFocusTab,
 }) {
   const [subTab, setSubTab] = useState('register');
   const { data, loading, error, reload } = useAccountingDebtors({ branchId, enabled });
@@ -22,7 +24,7 @@ export function AccountingDebtorsPanel({
     <div className="space-y-4 min-w-0">
       <div className="flex flex-wrap gap-2">
         {[
-          { id: 'register', label: 'Debtors register' },
+          { id: 'register', label: 'Payables register' },
           { id: 'supplierAp', label: 'Supplier AP (AP2)' },
         ].map((t) => (
           <button
@@ -59,6 +61,8 @@ export function AccountingDebtorsPanel({
             canManage={canManage}
             legacyQuickAdd={legacyQuickAdd}
             branchScopeLabel={branchScopeLabel}
+            deskRefresh={deskRefresh}
+            onFocusTab={onFocusTab}
           />
         </>
       )}

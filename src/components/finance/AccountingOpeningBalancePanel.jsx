@@ -9,6 +9,7 @@ import {
   ACCOUNTING_CARD_ROW,
 } from './accounting/AccountingDeskUi';
 import { AccountingRegisterHeader } from './accounting/AccountingRegisterLayout';
+import { AccountingDeskWizardSteps } from './accounting/AccountingDeskWizardSteps';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { ACCOUNTING_OPENING_DATE_ISO, ACCOUNTING_OPENING_DATE_LABEL } from '../../shared/accountingCutover';
 import { glSourceMappingForCode } from '../../shared/lib/accountingSourceOfTruth';
@@ -42,12 +43,20 @@ function packQueryString(ws, capitalRaw) {
   return q ? `?${q}` : '';
 }
 
+const WIZARD_STEPS = [
+  { id: 1, label: 'Registers ready' },
+  { id: 2, label: "Owner's capital" },
+  { id: 3, label: 'Review & post' },
+];
+
 /**
  * @param {{
  *   showToast?: (msg: string, opts?: object) => void;
  *   deskLayout?: boolean;
  *   branchScopeLabel?: string;
  *   onFocusTab?: (tabId: string) => void;
+ *   deskRefresh?: number;
+ *   onOpeningPosted?: (posted: boolean) => void;
  * }} props
  */
 export function AccountingOpeningBalancePanel({
@@ -55,6 +64,8 @@ export function AccountingOpeningBalancePanel({
   deskLayout = false,
   branchScopeLabel = '',
   onFocusTab,
+  deskRefresh = 0,
+  onOpeningPosted,
 }) {
   const ws = useWorkspace();
   const [pack, setPack] = useState(null);
@@ -63,6 +74,8 @@ export function AccountingOpeningBalancePanel({
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [wizardStep, setWizardStep] = useState(1);
+  const [confirmPost, setConfirmPost] = useState(false);
   const [entryDate, setEntryDate] = useState(DEFAULT_DATE);
   const [lines, setLines] = useState([emptyLine(), emptyLine()]);
 
@@ -89,6 +102,14 @@ export function AccountingOpeningBalancePanel({
   useEffect(() => {
     loadPack();
   }, [loadPack]);
+
+  useEffect(() => {
+    if (deskRefresh > 0) void refreshAll();
+  }, [deskRefresh]);
+
+  useEffect(() => {
+    if (status?.posted || pack?.alreadyPosted) onOpeningPosted?.(true);
+  }, [status?.posted, pack?.alreadyPosted, onOpeningPosted]);
 
   const manualTotals = lines.reduce(
     (acc, l) => {
@@ -121,6 +142,7 @@ export function AccountingOpeningBalancePanel({
       showToast?.('finance.post permission required.', { variant: 'error' });
       return;
     }
+    setConfirmPost(false);
     setBusy(true);
     try {
       const cap = Math.round(Number(String(capitalNgn).replace(/,/g, '')) || 0);
@@ -137,6 +159,7 @@ export function AccountingOpeningBalancePanel({
         return;
       }
       showToast?.(res.data.duplicate ? 'Opening balance already posted.' : 'Opening pack posted to GL.');
+      onOpeningPosted?.(true);
       await refreshAll();
     } finally {
       setBusy(false);
@@ -216,6 +239,7 @@ export function AccountingOpeningBalancePanel({
   );
 
   const sourceRows = useMemo(() => pack?.sources || [], [pack]);
+  const registersReady = !pack?.blockers?.length && sourceRows.every((s) => s.status !== 'fail');
 
   return (
     <div className="space-y-5">
@@ -243,6 +267,12 @@ export function AccountingOpeningBalancePanel({
 
       {!pack?.alreadyPosted && !status?.posted ? (
         <>
+          <AccountingDeskWizardSteps
+            steps={WIZARD_STEPS}
+            currentStep={wizardStep}
+            onStepChange={(id) => setWizardStep(Number(id))}
+          />
+
           <div className="grid gap-3 sm:grid-cols-3">
             <AccountingDeskKpiCard
               label="Readiness"
@@ -277,108 +307,196 @@ export function AccountingOpeningBalancePanel({
             <AccountingDeskNotice tone="warn">{pack.blockers.join(' ')}</AccountingDeskNotice>
           ) : null}
           {pack?.warnings?.length ? (
-            <AccountingDeskNotice tone="amber">{pack.warnings.join(' ')}</AccountingDeskNotice>
+            <AccountingDeskNotice tone="warn">{pack.warnings.join(' ')}</AccountingDeskNotice>
           ) : null}
 
-          <div className="flex flex-wrap items-end gap-3">
-            <label className="text-[10px] font-bold uppercase text-slate-500">
-              Owner&apos;s capital (3100)
-              <input
-                type="text"
-                inputMode="numeric"
-                className="mt-1 block w-40 rounded-lg border border-slate-200 px-3 py-2 text-[11px] font-semibold"
-                placeholder="From audited accounts"
-                value={capitalNgn}
-                onChange={(e) => setCapitalNgn(e.target.value)}
-                onBlur={loadPack}
-              />
-            </label>
-            <button
-              type="button"
-              className="rounded-lg bg-[#134e4a] px-4 py-2 text-[10px] font-bold uppercase tracking-wide text-white disabled:opacity-50"
-              onClick={postPack}
-              disabled={busy || !canPostPack}
-            >
-              {busy ? 'Posting…' : 'Post opening pack'}
-            </button>
-          </div>
-
-          <section className="rounded-xl border border-slate-200/90 overflow-hidden">
-            <h3 className="border-b border-slate-100 bg-slate-50/80 px-4 py-2.5 text-[10px] font-black uppercase tracking-wide text-slate-700">
-              Register sources
-            </h3>
-            <ul className="divide-y divide-slate-100">
-              {sourceRows.map((s) => (
-                <li key={s.id} className={ACCOUNTING_CARD_ROW}>
-                  <div className="flex flex-wrap items-start justify-between gap-2">
-                    <div className="flex items-start gap-2 min-w-0">
-                      {STATUS_ICON[s.status] || STATUS_ICON.empty}
-                      <div>
-                        <p className="text-[11px] font-semibold text-slate-800">{s.label}</p>
-                        <p className="text-[10px] text-slate-500">
-                          GL {s.glAccountCode} · {s.side} · {s.rowCount} row{s.rowCount === 1 ? '' : 's'}
-                          {s.detail ? ` — ${s.detail}` : ''}
-                        </p>
+          {wizardStep === 1 ? (
+            <>
+              <section className="rounded-xl border border-slate-200/90 overflow-hidden">
+                <h3 className="border-b border-slate-100 bg-slate-50/80 px-4 py-2.5 text-[10px] font-black uppercase tracking-wide text-slate-700">
+                  Step 1 — Register sources
+                </h3>
+                <ul className="divide-y divide-slate-100">
+                  {sourceRows.map((s) => (
+                    <li key={s.id} className={ACCOUNTING_CARD_ROW}>
+                      <div className="flex flex-wrap items-start justify-between gap-2">
+                        <div className="flex items-start gap-2 min-w-0">
+                          {STATUS_ICON[s.status] || STATUS_ICON.empty}
+                          <div className="min-w-0">
+                            <p className="text-[11px] font-semibold text-slate-800">{s.label}</p>
+                            <p className="text-[10px] text-slate-500 mt-0.5">
+                              GL {s.glAccountCode} · {s.detail || 'Rollup from register'}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3 shrink-0">
+                          <span className="text-sm font-black tabular-nums text-slate-900">{formatNgn(s.amountNgn)}</span>
+                          {s.drillDownTab && onFocusTab ? (
+                            <button
+                              type="button"
+                              className="text-[10px] font-bold text-teal-800 hover:underline"
+                              onClick={() => onFocusTab(s.drillDownTab)}
+                            >
+                              Fix →
+                            </button>
+                          ) : null}
+                        </div>
                       </div>
-                    </div>
-                    <div className="text-right shrink-0">
-                      <p className="text-sm font-black tabular-nums text-slate-900">{formatNgn(s.amountNgn)}</p>
-                      {s.drillDownTab && onFocusTab ? (
-                        <button
-                          type="button"
-                          className="mt-0.5 text-[10px] font-bold text-teal-800 hover:underline"
-                          onClick={() => onFocusTab(s.drillDownTab)}
-                        >
-                          Open tab →
-                        </button>
-                      ) : null}
-                    </div>
-                  </div>
-                </li>
-              ))}
-              {!sourceRows.length && !loading ? (
-                <li className="px-4 py-6 text-center text-[11px] text-slate-500">No sources loaded.</li>
-              ) : null}
-            </ul>
-          </section>
-
-          {proposed?.lines?.length ? (
-            <section className="rounded-xl border border-slate-200/90 overflow-hidden">
-              <h3 className="border-b border-slate-100 bg-slate-50/80 px-4 py-2.5 text-[10px] font-black uppercase tracking-wide text-slate-700">
-                Proposed journal preview
-              </h3>
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-[11px]">
-                  <thead>
-                    <tr className="border-b border-slate-100 text-[9px] font-bold uppercase text-slate-500">
-                      <th className="px-4 py-2">Code</th>
-                      <th className="px-4 py-2">Memo</th>
-                      <th className="px-4 py-2 text-right">Debit</th>
-                      <th className="px-4 py-2 text-right">Credit</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {proposed.lines.map((l, i) => (
-                      <tr key={i} className="border-b border-slate-50">
-                        <td className="px-4 py-2 font-mono font-semibold">{l.accountCode}</td>
-                        <td className="px-4 py-2 text-slate-600">{l.memo}</td>
-                        <td className="px-4 py-2 text-right tabular-nums">{l.debitNgn ? formatNgn(l.debitNgn) : '—'}</td>
-                        <td className="px-4 py-2 text-right tabular-nums">{l.creditNgn ? formatNgn(l.creditNgn) : '—'}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                  <tfoot>
-                    <tr className="bg-slate-50/80 font-bold">
-                      <td className="px-4 py-2" colSpan={2}>
-                        Totals
-                      </td>
-                      <td className="px-4 py-2 text-right tabular-nums">{formatNgn(proposed.totalDebitsNgn)}</td>
-                      <td className="px-4 py-2 text-right tabular-nums">{formatNgn(proposed.totalCreditsNgn)}</td>
-                    </tr>
-                  </tfoot>
-                </table>
+                    </li>
+                  ))}
+                  {!sourceRows.length && !loading ? (
+                    <li className="px-4 py-6 text-center text-[11px] text-slate-500">No sources loaded.</li>
+                  ) : null}
+                </ul>
+              </section>
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  disabled={!registersReady}
+                  onClick={() => setWizardStep(2)}
+                  className="rounded-lg bg-[#134e4a] px-4 py-2 text-[10px] font-bold uppercase tracking-wide text-white disabled:opacity-50"
+                >
+                  Continue to capital →
+                </button>
               </div>
-            </section>
+            </>
+          ) : null}
+
+          {wizardStep === 2 ? (
+            <>
+              <section className="rounded-xl border border-slate-200/90 p-4 space-y-3">
+                <h3 className="text-[10px] font-black uppercase tracking-wide text-slate-700">
+                  Step 2 — Owner&apos;s capital only
+                </h3>
+                <p className="text-[11px] text-slate-600">
+                  Register totals roll up automatically. Enter audited owner&apos;s capital (3100). Account 3900 balances any
+                  difference.
+                </p>
+                <label className="text-[10px] font-bold uppercase text-slate-500">
+                  Owner&apos;s capital (3100)
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    className="mt-1 block w-full max-w-xs rounded-lg border border-slate-200 px-3 py-2 text-[11px] font-semibold"
+                    placeholder="From audited accounts"
+                    value={capitalNgn}
+                    onChange={(e) => setCapitalNgn(e.target.value)}
+                    onBlur={loadPack}
+                  />
+                </label>
+              </section>
+              <div className="flex flex-wrap justify-between gap-2">
+                <button
+                  type="button"
+                  onClick={() => setWizardStep(1)}
+                  className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-[10px] font-bold uppercase tracking-wide text-slate-700"
+                >
+                  ← Back
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    loadPack();
+                    setWizardStep(3);
+                  }}
+                  className="rounded-lg bg-[#134e4a] px-4 py-2 text-[10px] font-bold uppercase tracking-wide text-white"
+                >
+                  Preview journal →
+                </button>
+              </div>
+            </>
+          ) : null}
+
+          {wizardStep === 3 ? (
+            <>
+              <section className="rounded-xl border border-slate-200/90 overflow-hidden">
+                <h3 className="border-b border-slate-100 bg-slate-50/80 px-4 py-2.5 text-[10px] font-black uppercase tracking-wide text-slate-700">
+                  Step 3 — Proposed opening journal
+                </h3>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-[11px]">
+                    <thead>
+                      <tr className="border-b border-slate-100 text-[9px] font-bold uppercase text-slate-500">
+                        <th className="px-4 py-2">Code</th>
+                        <th className="px-4 py-2">Memo</th>
+                        <th className="px-4 py-2 text-right">Debit</th>
+                        <th className="px-4 py-2 text-right">Credit</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(proposed?.lines || []).map((l, i) => (
+                        <tr key={i} className="border-b border-slate-50">
+                          <td className="px-4 py-2 font-mono font-semibold">{l.accountCode}</td>
+                          <td className="px-4 py-2 text-slate-600">{l.memo}</td>
+                          <td className="px-4 py-2 text-right tabular-nums">{l.debitNgn ? formatNgn(l.debitNgn) : '—'}</td>
+                          <td className="px-4 py-2 text-right tabular-nums">{l.creditNgn ? formatNgn(l.creditNgn) : '—'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    {proposed?.totalDebitsNgn ? (
+                      <tfoot>
+                        <tr className="bg-slate-50/80 font-bold">
+                          <td className="px-4 py-2" colSpan={2}>
+                            Totals
+                          </td>
+                          <td className="px-4 py-2 text-right tabular-nums">{formatNgn(proposed.totalDebitsNgn)}</td>
+                          <td className="px-4 py-2 text-right tabular-nums">{formatNgn(proposed.totalCreditsNgn)}</td>
+                        </tr>
+                      </tfoot>
+                    ) : null}
+                  </table>
+                </div>
+              </section>
+              <div className="flex flex-wrap justify-between gap-2">
+                <button
+                  type="button"
+                  onClick={() => setWizardStep(2)}
+                  className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-[10px] font-bold uppercase tracking-wide text-slate-700"
+                >
+                  ← Back
+                </button>
+                <button
+                  type="button"
+                  className="rounded-lg bg-[#134e4a] px-4 py-2 text-[10px] font-bold uppercase tracking-wide text-white disabled:opacity-50"
+                  onClick={() => setConfirmPost(true)}
+                  disabled={busy || !canPostPack}
+                >
+                  Post opening journal
+                </button>
+              </div>
+            </>
+          ) : null}
+
+          {confirmPost ? (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
+              <div className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-5 shadow-xl">
+                <h3 className="text-sm font-bold text-[#134e4a]">Post opening journal?</h3>
+                <p className="mt-2 text-[11px] text-slate-600 leading-relaxed">
+                  This posts one balanced journal on {ACCOUNTING_OPENING_DATE_LABEL} from register rollups plus owner&apos;s
+                  capital. Register account lines should not be re-entered manually afterward.
+                </p>
+                <p className="mt-2 text-[11px] font-semibold text-slate-800 tabular-nums">
+                  Total: {formatNgn(proposed?.totalDebitsNgn || 0)}
+                </p>
+                <div className="mt-4 flex justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setConfirmPost(false)}
+                    className="rounded-lg border border-slate-200 px-3 py-1.5 text-[10px] font-bold uppercase text-slate-700"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void postPack()}
+                    disabled={busy}
+                    className="rounded-lg bg-[#134e4a] px-3 py-1.5 text-[10px] font-bold uppercase text-white disabled:opacity-50"
+                  >
+                    {busy ? 'Posting…' : 'Confirm post'}
+                  </button>
+                </div>
+              </div>
+            </div>
           ) : null}
         </>
       ) : null}

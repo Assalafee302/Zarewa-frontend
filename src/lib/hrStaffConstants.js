@@ -89,6 +89,7 @@ export function emptyStaffForm(defaultBranchId = '') {
     contractEndIso: '',
     lineManagerUserId: '',
     selfServiceEligible: true,
+    isProductionStaff: false,
     payrollGroup: 'branch_ops',
     salaryLevel: '',
     salaryStep: '1',

@@ -5,8 +5,8 @@
  */
 export const ACCOUNTING_REGISTER_CONFIG = {
   creditor: {
-    title: 'Creditors register',
-    eyebrow: 'Receivables & prepayments',
+    title: 'Money owed to us',
+    eyebrow: 'Creditors register · receivables & prepayments',
     description: 'Amounts owed to the company — staff loans, trade receivables, supplier prepayments, and opening balances.',
     helpPoints: [
       'Customer receivables include quotations with completed production only; balances below ₦1,000 are omitted.',
@@ -29,8 +29,8 @@ export const ACCOUNTING_REGISTER_CONFIG = {
     },
   },
   debtor: {
-    title: 'Debtors register',
-    eyebrow: 'Payables & credits',
+    title: 'Money we owe',
+    eyebrow: 'Debtors register · payables & credits',
     description: 'Amounts the company owes — supplier AP, customer deposits, refundable overpayments, and opening balances.',
     helpPoints: [
       'Record pre-system overpayments (e.g. April project ~₦8M) via Add legacy line → Project overpayment.',

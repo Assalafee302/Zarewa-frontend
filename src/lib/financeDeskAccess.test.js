@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   userMayViewAccountingDeskClient,
+  userIsAccountingExecutiveReadOnlyClient,
   userMayViewAccountingSectionsOnReportsClient,
   userMayViewCashierDeskClient,
   userHasLegacyFullFinanceDeskClient,
@@ -19,6 +20,11 @@ describe('financeDeskAccess', () => {
 
   it('md can view Accounting Desk (read-only UI)', () => {
     expect(userMayViewAccountingDeskClient('md', ['accounting.desk.view'])).toBe(true);
+    expect(userIsAccountingExecutiveReadOnlyClient('md', ['finance.view', 'accounting.desk.view'])).toBe(true);
+  });
+
+  it('finance_manager is not executive read-only', () => {
+    expect(userIsAccountingExecutiveReadOnlyClient('finance_manager', ['finance.post', 'finance.view'])).toBe(false);
   });
 
   it('cashier does not see accounting sections on Reports by default', () => {

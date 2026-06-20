@@ -47,6 +47,8 @@ function buildCostingReadinessFilters({ branchId, period, materialFamily, gauge,
  *   autoLoad?: boolean;
  *   enabled?: boolean;
  *   deskLayout?: boolean;
+ *   periodKey?: string;
+ *   deskRefresh?: number;
  * }} props
  */
 export function Ap3CostingReadinessPanel({
@@ -55,8 +57,12 @@ export function Ap3CostingReadinessPanel({
   autoLoad = false,
   enabled = true,
   deskLayout = false,
+  periodKey: periodKeyProp,
+  deskRefresh = 0,
 }) {
-  const [period, setPeriod] = useState(defaultPeriodKey);
+  const [periodLocal, setPeriodLocal] = useState(defaultPeriodKey);
+  const period = periodKeyProp ?? periodLocal;
+  const setPeriod = periodKeyProp ? () => {} : setPeriodLocal;
   const [branchId, setBranchId] = useState(initialBranchId || 'ALL');
   const [materialFamily, setMaterialFamily] = useState('');
   const [gauge, setGauge] = useState('');
@@ -70,7 +76,7 @@ export function Ap3CostingReadinessPanel({
 
   useEffect(() => {
     if (autoLoad && enabled) void load(filters);
-  }, [autoLoad, enabled, filters, load]);
+  }, [autoLoad, enabled, filters, load, deskRefresh]);
 
   const s = data?.summary;
   const dq = data?.dataQuality;
@@ -153,15 +159,17 @@ export function Ap3CostingReadinessPanel({
                 ))}
               </select>
             </label>
-            <label className={ACCOUNTING_FIELD_LABEL}>
-              Period
-              <input
-                type="month"
-                className={`${ACCOUNTING_INPUT} mt-1`}
-                value={period}
-                onChange={(e) => setPeriod(e.target.value)}
-              />
-            </label>
+            {!periodKeyProp ? (
+              <label className={ACCOUNTING_FIELD_LABEL}>
+                Period
+                <input
+                  type="month"
+                  className={`${ACCOUNTING_INPUT} mt-1`}
+                  value={period}
+                  onChange={(e) => setPeriod(e.target.value)}
+                />
+              </label>
+            ) : null}
             <label className={ACCOUNTING_FIELD_LABEL}>
               Material family
               <input
@@ -233,7 +241,11 @@ export function Ap3CostingReadinessPanel({
             <AccountingDeskKpiCard
               label="Labour data"
               value={s?.payrollMappable ? 'Mappable' : 'Not ready'}
-              hint={`${formatNgn(s?.labourExpenseNgn ?? 0)} expenses`}
+              hint={
+                s?.payrollMappable
+                  ? `${formatNgn(s?.labourExpenseNgn ?? 0)} expenses`
+                  : 'Mark production staff in HR'
+              }
               tone={s?.payrollMappable ? 'teal' : 'amber'}
             />
             <AccountingDeskKpiCard
@@ -246,7 +258,11 @@ export function Ap3CostingReadinessPanel({
               <AccountingDeskKpiCard
                 label="AP3c cost pool"
                 value={formatNgn(data.branchContributionDraft.poolNgn.total)}
-                hint={`Labour ${formatNgn(data.branchContributionDraft.poolNgn.labour)} · OH ${formatNgn(data.branchContributionDraft.poolNgn.overhead)}`}
+                hint={
+                  data.branchContributionDraft.labourSource === 'payroll'
+                    ? `Labour from payroll · OH ${formatNgn(data.branchContributionDraft.poolNgn.overhead)}`
+                    : `Labour ${formatNgn(data.branchContributionDraft.poolNgn.labour)} · OH ${formatNgn(data.branchContributionDraft.poolNgn.overhead)}`
+                }
                 tone="teal"
               />
             ) : null}
@@ -256,6 +272,16 @@ export function Ap3CostingReadinessPanel({
               tone={(s?.unclassifiedExpenseNgn || 0) > 0 ? 'amber' : 'default'}
             />
           </div>
+
+          {!s?.payrollMappable && !compact ? (
+            <AccountingDeskNotice tone="warn">
+              AP3c branch labour allocation uses payroll when production staff are flagged in HR.{' '}
+              <Link to="/hr/employees?tab=directory" className="font-bold text-teal-800 hover:underline">
+                Open HR staff directory
+              </Link>
+              {' '}→ edit profile → Employment → check &quot;Production staff&quot;.
+            </AccountingDeskNotice>
+          ) : null}
 
           {(dq?.highRisk?.length || dq?.warnings?.length) && !compact ? (
             <div className="grid gap-3 md:grid-cols-2">

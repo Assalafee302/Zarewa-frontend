@@ -1,8 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { RefreshCw, Download } from 'lucide-react';
+import { RefreshCw, Download, Printer } from 'lucide-react';
 import { apiFetch } from '../../lib/apiBase';
 import { formatNgn } from '../../Data/mockData';
 import { downloadFinanceCsv } from '../../lib/exportFinanceCsv';
+import { printAccountingStatements } from '../../lib/printAccountingStatements';
 import {
   AccountingDeskKpiCard,
   AccountingDeskPageIntro,
@@ -16,11 +17,27 @@ function currentPeriod() {
 }
 
 /**
- * @param {{ branchScopeLabel?: string; showToast?: (msg: string, opts?: object) => void; deskLayout?: boolean }} props
+ * @param {{
+ *   branchScopeLabel?: string;
+ *   showToast?: (msg: string, opts?: object) => void;
+ *   deskLayout?: boolean;
+ *   periodKey?: string;
+ *   onPeriodKeyChange?: (v: string) => void;
+ *   deskRefresh?: number;
+ * }} props
  */
-export function AccountingStatementsPanel({ branchScopeLabel = '', showToast, deskLayout = false }) {
+export function AccountingStatementsPanel({
+  branchScopeLabel = '',
+  showToast,
+  deskLayout = false,
+  periodKey: periodKeyProp,
+  onPeriodKeyChange,
+  deskRefresh = 0,
+}) {
   const ws = useWorkspace();
-  const [period, setPeriod] = useState(currentPeriod);
+  const [periodLocal, setPeriodLocal] = useState(currentPeriod);
+  const period = periodKeyProp ?? periodLocal;
+  const setPeriod = onPeriodKeyChange ?? setPeriodLocal;
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
 
@@ -50,13 +67,17 @@ export function AccountingStatementsPanel({ branchScopeLabel = '', showToast, de
 
   useEffect(() => {
     load();
-  }, [load]);
+  }, [load, deskRefresh]);
 
   const pl = data?.profitAndLoss;
   const bs = data?.balanceSheet;
 
   const exportCsv = () => {
     if (!data) return;
+    const branchSlug = (branchScopeLabel || branchQuery || 'all')
+      .replace(/[^\w-]+/g, '-')
+      .replace(/^-|-$/g, '')
+      .toLowerCase();
     const rows = [
       ['Period', data.periodKey],
       ['Label', data.label || 'Management draft'],
@@ -76,7 +97,20 @@ export function AccountingStatementsPanel({ branchScopeLabel = '', showToast, de
       [],
       ...(bs?.lines || []).map((l) => [`BS ${l.accountCode}`, l.accountName, l.balanceNgn]),
     ];
-    downloadFinanceCsv(`statements-${period}`, rows);
+    downloadFinanceCsv(`statements-${period}-${branchSlug}`, rows);
+    showToast?.(`Downloaded statements for ${period}${branchScopeLabel ? ` · ${branchScopeLabel}` : ''}`, {
+      variant: 'success',
+    });
+  };
+
+  const printPack = () => {
+    if (!data) return;
+    const ok = printAccountingStatements({ data, branchScopeLabel });
+    if (ok) {
+      showToast?.('Print dialog opened — use Save as PDF if needed.', { variant: 'success' });
+    } else {
+      showToast?.('Could not open print view.', { variant: 'error' });
+    }
   };
 
   const plRows = useMemo(() => pl?.lines || [], [pl?.lines]);
@@ -84,32 +118,43 @@ export function AccountingStatementsPanel({ branchScopeLabel = '', showToast, de
 
   const headerActions = (
     <div className="flex flex-wrap gap-2">
-      <label className="inline-flex items-center gap-2 text-[10px] font-bold text-slate-600">
-        Period
-        <input
-          type="month"
-          className="rounded-lg border border-slate-200 px-2 py-1 text-[11px] font-semibold"
-          value={period}
-          onChange={(e) => setPeriod(e.target.value)}
-        />
-      </label>
+      {!periodKeyProp ? (
+        <label className="inline-flex items-center gap-2 text-[10px] font-bold text-slate-600">
+          Period
+          <input
+            type="month"
+            className="rounded-lg border border-slate-200 px-2 py-1 text-[11px] font-semibold"
+            value={period}
+            onChange={(e) => setPeriod(e.target.value)}
+          />
+        </label>
+      ) : null}
       <button
         type="button"
-        className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[10px] font-bold uppercase text-[#134e4a]"
-        onClick={load}
-        disabled={loading}
+        className="inline-flex items-center gap-1.5 rounded-lg border border-[#134e4a]/30 bg-white px-3 py-2 text-[10px] font-bold uppercase tracking-wide text-[#134e4a] hover:bg-teal-50/80 disabled:opacity-40 min-h-11"
+        onClick={printPack}
+        disabled={!data}
       >
-        <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
-        Load
+        <Printer size={14} />
+        Print / PDF
       </button>
       <button
         type="button"
-        className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[10px] font-bold uppercase text-[#134e4a]"
+        className="inline-flex items-center gap-1.5 rounded-lg bg-[#134e4a] px-4 py-2 text-[10px] font-bold uppercase tracking-wide text-white hover:brightness-105 disabled:opacity-40 min-h-11"
         onClick={exportCsv}
         disabled={!data}
       >
         <Download size={14} />
-        CSV
+        Download CSV
+      </button>
+      <button
+        type="button"
+        className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[10px] font-bold uppercase text-[#134e4a] min-h-11"
+        onClick={load}
+        disabled={loading}
+      >
+        <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+        Refresh
       </button>
     </div>
   );

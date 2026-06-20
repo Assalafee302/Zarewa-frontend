@@ -28,6 +28,9 @@ import {
   filterRegisterItems,
   sortRegisterItems,
 } from './accounting/AccountingDeskUi';
+import { AccountingRegisterTieOutStrip } from './accounting/AccountingRegisterTieOutStrip';
+import { useAccountingDesk } from './accounting/AccountingDeskContext';
+import { useAccountingRegisterTieOut } from '../../hooks/useAccountingRegisterTieOut';
 
 const REGISTER_PAGE_SIZE = 15;
 
@@ -42,6 +45,8 @@ const REGISTER_PAGE_SIZE = 15;
  *   canManage?: boolean;
  *   legacyQuickAdd?: object | null;
  *   branchScopeLabel?: string;
+ *   deskRefresh?: number;
+ *   onFocusTab?: (tabId: string) => void;
  * }} props
  */
 export function AccountingRegisterPanel({
@@ -54,9 +59,23 @@ export function AccountingRegisterPanel({
   canManage = false,
   legacyQuickAdd = null,
   branchScopeLabel = '',
+  deskRefresh = 0,
+  onFocusTab,
 }) {
   const config = registerConfigFor(registerSide);
   const { show: showToast } = useToast();
+  const { periodKey } = useAccountingDesk();
+  const tieOut = useAccountingRegisterTieOut({
+    registerKind: registerSide,
+    periodKey,
+    branchId,
+    enabled: Boolean(periodKey),
+    deskRefresh,
+  });
+
+  useEffect(() => {
+    if (deskRefresh > 0) onReload();
+  }, [deskRefresh, onReload]);
 
   const [modalOpen, setModalOpen] = useState(false);
   const [modalInitial, setModalInitial] = useState(null);
@@ -225,6 +244,13 @@ export function AccountingRegisterPanel({
         compact
       />
 
+      <AccountingRegisterTieOutStrip
+        checks={tieOut.checks}
+        loading={tieOut.loading}
+        thresholdPct={tieOut.thresholdPct}
+        onFocusTab={onFocusTab}
+      />
+
       {registerSide === 'debtor' && (data?.summary?.significantOverpaymentCount ?? 0) > 0 ? (
         <AccountingDeskNotice tone="warn">
           {data.summary.significantOverpaymentCount} significant overpayment(s) —{' '}
@@ -259,14 +285,15 @@ export function AccountingRegisterPanel({
 
       <AccountingSectionNav sections={sections} value={activeSection} onChange={setActiveSection} />
 
+      <div className="max-sm:[&_.z-scroll-x]:border-0 max-sm:[&_.z-scroll-x]:shadow-none max-sm:[&_.z-scroll-x]:bg-transparent max-sm:[&_.z-scroll-x>div:last-child]:p-0 max-sm:[&_.z-scroll-x>div:first-child]:border-0 max-sm:[&_.z-scroll-x>div:first-child]:bg-transparent max-sm:[&_.z-scroll-x>div:first-child]:px-0">
       <SalesListTableFrame
         toolbar={
           <div className="space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <p className="text-[11px] text-slate-600 max-w-xl leading-snug">
+              <p className="text-[11px] text-slate-600 max-w-xl leading-snug max-sm:text-[10px]">
                 {currentSection?.description || 'Select a line to view detail, links, and clearance actions.'}
               </p>
-              <div className="flex items-center gap-2 shrink-0">
+              <div className="flex items-center gap-2 shrink-0 max-sm:w-full max-sm:justify-between">
                 <span className="text-sm font-black text-[#134e4a] tabular-nums">
                   {formatNgn(currentSection?.subtotalNgn ?? 0)}
                 </span>
@@ -274,7 +301,7 @@ export function AccountingRegisterPanel({
                   type="button"
                   onClick={exportSection}
                   disabled={!currentSection?.items?.length}
-                  className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[9px] font-semibold uppercase tracking-wider text-[#134e4a] hover:bg-slate-50 disabled:opacity-40"
+                  className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[9px] font-semibold uppercase tracking-wider text-[#134e4a] hover:bg-slate-50 disabled:opacity-40 min-h-11"
                 >
                   <FileSpreadsheet size={12} /> Export
                 </button>
@@ -285,13 +312,15 @@ export function AccountingRegisterPanel({
               onChange={setSearchQuery}
               placeholder="Search party, reference, amount…"
             />
-            <SalesListSortBar
-              fields={ACCOUNTING_REGISTER_SORT_FIELDS}
-              field={sort.field}
-              dir={sort.dir}
-              onFieldChange={(field) => setSort((s) => ({ ...s, field }))}
-              onDirToggle={() => setSort((s) => ({ ...s, dir: s.dir === 'asc' ? 'desc' : 'asc' }))}
-            />
+            <div className="hidden sm:block">
+              <SalesListSortBar
+                fields={ACCOUNTING_REGISTER_SORT_FIELDS}
+                field={sort.field}
+                dir={sort.dir}
+                onFieldChange={(field) => setSort((s) => ({ ...s, field }))}
+                onDirToggle={() => setSort((s) => ({ ...s, dir: s.dir === 'asc' ? 'desc' : 'asc' }))}
+              />
+            </div>
           </div>
         }
       >
@@ -305,7 +334,7 @@ export function AccountingRegisterPanel({
           </div>
         ) : (
           <>
-            <ul className="space-y-1.5">
+            <ul className="space-y-1.5 max-sm:space-y-3">
               {paging.slice.map((item) => (
                 <AccountingRegisterRow
                   key={item.id}
@@ -333,6 +362,7 @@ export function AccountingRegisterPanel({
           </>
         )}
       </SalesListTableFrame>
+      </div>
 
       {data?.notes?.[0] ? (
         <p className="text-[10px] text-slate-500 leading-relaxed border-t border-slate-100 pt-3">{data.notes[0]}</p>
