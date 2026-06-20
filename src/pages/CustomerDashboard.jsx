@@ -3,8 +3,6 @@ import { useNavigate, useParams, Link, useLocation } from 'react-router-dom';
 import {
   ArrowLeft,
   User,
-  Phone,
-  Mail,
   MapPin,
   Building2,
   BadgeCheck,
@@ -27,7 +25,6 @@ import {
   Scissors,
   RotateCcw,
   Trash2,
-  Info,
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -38,17 +35,18 @@ import {
   CartesianGrid,
   Tooltip,
 } from 'recharts';
-import { PageHeader, PageShell, MainPanel, ModalFrame } from '../components/layout';
+import { PageHeader, PageShell, MainPanel, ModalFrame, ModalScrollShell, ModalScrollHeader, ModalScrollBody } from '../components/layout';
 import { RefundAdvanceModal } from '../components/refund/RefundAdvanceModal';
 import { ReportPrintModal } from '../components/reports/ReportPrintModal';
 import { EditSecondApprovalInline } from '../components/EditSecondApprovalInline';
-import { CustomerStaffLinkField } from '../components/sales/CustomerStaffLinkField';
+import { CustomerFormFields } from '../components/customers/CustomerFormFields';
+import { CustomerProfileHero } from '../components/customers/CustomerProfileHero';
+import { CustomerKpiStrip } from '../components/customers/CustomerKpiStrip';
 import { useCustomers } from '../context/CustomersContext';
 import { useToast } from '../context/ToastContext';
 import { useWorkspace } from '../context/WorkspaceContext';
 import { apiFetch } from '../lib/apiBase';
 import { setCustomerStaffLink } from '../lib/customerStaffLink';
-import { customerPickerPrimaryLabel } from '../lib/customerPickerSearch';
 import { formatNgn } from '../Data/mockData';
 import { refundApprovedAmount, refundOutstandingAmount } from '../lib/refundsStore';
 import {
@@ -1005,12 +1003,15 @@ const CustomerDashboard = () => {
   if (!customer) {
     return (
       <PageShell>
-        <PageHeader title="Customer" subtitle="Dashboard" />
+        <PageHeader title="Customer" subtitle="Not found" />
         <MainPanel>
-          <div className="z-empty-state max-w-md mx-auto">
-            <p className="text-sm font-bold text-[#134e4a] mb-2">Customer not found</p>
-            <p className="text-xs text-gray-500 mb-4">
-              No profile matches <span className="font-mono">{routeCustomerId}</span>.
+          <div className="z-empty-state max-w-md mx-auto rounded-2xl border border-slate-200 bg-white p-8 shadow-sm text-center">
+            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 text-slate-400">
+              <User size={28} />
+            </div>
+            <p className="text-base font-bold text-[#134e4a] mb-2">Customer not found</p>
+            <p className="text-sm text-slate-500 mb-6">
+              No profile matches <span className="font-mono font-semibold">{routeCustomerId}</span>.
             </p>
             <Link
               to="/sales"
@@ -1063,10 +1064,12 @@ const CustomerDashboard = () => {
       />
 
       <div className="flex flex-col lg:flex-row gap-6 lg:gap-8 items-start min-w-0">
-        <aside className="w-full lg:w-56 shrink-0 lg:sticky lg:top-24 space-y-1">
-          <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 px-3 mb-2">
-            On this page
-          </p>
+        <aside className="w-full lg:w-60 shrink-0 lg:sticky lg:top-24">
+          <div className="rounded-2xl border border-slate-200/80 bg-white p-2 shadow-sm">
+            <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 px-3 py-2">
+              Sections
+            </p>
+            <nav className="flex lg:flex-col gap-1 overflow-x-auto lg:overflow-visible pb-1 lg:pb-0 custom-scrollbar">
           {NAV.map((item) => {
             const NavIcon = item.icon;
             const hash = `#cd-${item.id}`;
@@ -1082,10 +1085,10 @@ const CustomerDashboard = () => {
                 )
               }
               aria-current={isActive ? 'location' : undefined}
-              className={`w-full flex items-center gap-2 rounded-xl px-3 py-2.5 text-left text-xs font-bold border transition-all ${
+              className={`shrink-0 lg:w-full flex items-center gap-2 rounded-xl px-3 py-2.5 text-left text-xs font-bold transition-all ${
                 isActive
-                  ? 'text-[#134e4a] bg-white shadow-sm border-gray-100'
-                  : 'text-[#134e4a] hover:bg-white hover:shadow-sm border-transparent hover:border-gray-100'
+                  ? 'text-white bg-[#134e4a] shadow-md shadow-teal-900/15'
+                  : 'text-[#134e4a] hover:bg-teal-50 border border-transparent hover:border-teal-100'
               }`}
             >
               <NavIcon size={14} />
@@ -1093,78 +1096,12 @@ const CustomerDashboard = () => {
             </button>
             );
           })}
+            </nav>
+          </div>
         </aside>
 
         <MainPanel className="flex-1 min-w-0 !pt-0">
-          <header
-            id="cd-overview"
-            className="flex flex-col sm:flex-row sm:items-center gap-4 pb-6 border-b border-gray-100 mb-8"
-          >
-            <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-[#134e4a] text-xl font-black text-[#2dd4bf] shadow-inner">
-              {customer.name
-                .split(/\s+/)
-                .map((w) => w[0])
-                .join('')
-                .slice(0, 2)
-                .toUpperCase()}
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex flex-wrap items-center gap-2 mb-1">
-                <span
-                  className={`text-[9px] font-bold uppercase px-2 py-0.5 rounded-full ${
-                    customer.status === 'Active'
-                      ? 'bg-emerald-100 text-emerald-700'
-                      : 'bg-gray-200 text-gray-600'
-                  }`}
-                >
-                  {customer.status}
-                </span>
-                <span className="text-[9px] font-bold uppercase px-2 py-0.5 rounded-full bg-[#134e4a]/10 text-[#134e4a]">
-                  {customer.tier}
-                </span>
-                <span
-                  className={`text-[9px] font-bold uppercase px-2 py-0.5 rounded-full ${
-                    paymentRelationship.tone === 'ok'
-                      ? 'bg-emerald-50 text-emerald-800'
-                      : paymentRelationship.tone === 'warn'
-                        ? 'bg-amber-50 text-amber-800'
-                        : 'bg-red-50 text-red-800'
-                  }`}
-                >
-                  {paymentRelationship.label}
-                </span>
-              </div>
-              <p className="text-sm text-gray-600 flex flex-wrap gap-x-4 gap-y-1">
-                <span className="inline-flex items-center gap-1.5">
-                  <Phone size={14} className="text-gray-400" />
-                  {customer.phoneNumber}
-                </span>
-                <span className="inline-flex items-center gap-1.5">
-                  <Mail size={14} className="text-gray-400" />
-                  {customer.email}
-                </span>
-              </p>
-              {customer.staffUserId || customer.staffDisplayName || customer.staffEmployeeNo ? (
-                <p className="text-xs font-semibold text-[#134e4a] mt-2 rounded-lg border border-teal-100 bg-teal-50/80 px-3 py-2">
-                  Staff purchase credit:{' '}
-                  <span className="font-bold">{customerPickerPrimaryLabel(customer)}</span>
-                </p>
-              ) : null}
-              <p className="text-[10px] text-gray-500 mt-3 leading-relaxed">
-                <span className="font-bold text-gray-400 uppercase tracking-wide">Account officer</span>{' '}
-                <span className="font-bold text-[#134e4a]">{customer.createdBy || '—'}</span>
-                {customer.createdAtISO ? (
-                  <span className="text-gray-400"> · On file since {customer.createdAtISO}</span>
-                ) : null}
-                {customer.lastActivityISO ? (
-                  <span className="block sm:inline sm:ml-0">
-                    <span className="hidden sm:inline"> · </span>
-                    Last activity {customer.lastActivityISO}
-                  </span>
-                ) : null}
-              </p>
-            </div>
-          </header>
+          <CustomerProfileHero customer={customer} paymentRelationship={paymentRelationship} />
 
           {(customer.companyName ||
             customer.leadSource ||
@@ -1173,11 +1110,12 @@ const CustomerDashboard = () => {
             (customer.crmTags && customer.crmTags.length) ||
             customer.crmProfileNotes) ? (
             <section
-              className="rounded-zarewa border border-[#134e4a]/15 bg-[#134e4a]/[0.03] p-5 mb-8"
+              className="rounded-2xl border border-slate-200/80 bg-white p-5 mb-8 shadow-sm"
               aria-label="CRM profile"
             >
-              <p className="text-[10px] font-black text-[#134e4a] uppercase tracking-widest mb-3">
-                CRM — customer profiling
+              <p className="text-[10px] font-black text-[#134e4a] uppercase tracking-widest mb-4 flex items-center gap-2">
+                <User size={14} className="text-teal-600" />
+                CRM profile
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-xs">
                 {customer.companyName ? (
@@ -1210,7 +1148,7 @@ const CustomerDashboard = () => {
                   {customer.crmTags.map((tag) => (
                     <span
                       key={tag}
-                      className="text-[10px] font-bold uppercase px-2.5 py-1 rounded-full bg-white border border-gray-200 text-[#134e4a]"
+                      className="text-[10px] font-bold uppercase px-2.5 py-1 rounded-full bg-teal-50 border border-teal-100 text-[#134e4a]"
                     >
                       {tag}
                     </span>
@@ -1289,127 +1227,23 @@ const CustomerDashboard = () => {
             </div>
           ) : null}
 
-          <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-6 gap-2.5 sm:gap-3 mb-8">
-            <div className="rounded-zarewa border border-gray-100 bg-white p-3 sm:p-3.5 shadow-sm">
-              <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-1">
-                Outstanding balance
-              </p>
-              <p className="text-xl font-black text-[#134e4a] tabular-nums leading-tight">
-                {formatNgn(outstandingNgn)}
-              </p>
-              <p className="text-[8px] text-gray-500 mt-1.5 leading-snug">
-                Receivable after completed production only (quote-only balances excluded).
-              </p>
-            </div>
-            <div className="rounded-zarewa border border-amber-100 bg-amber-50/60 p-3 sm:p-3.5 shadow-sm">
-              <div className="flex items-start justify-between gap-1 mb-1">
-                <p className="text-[9px] font-bold text-amber-800 uppercase tracking-widest">
-                  Advance (deposit)
-                </p>
-                <details className="relative shrink-0">
-                  <summary
-                    className="list-none cursor-pointer rounded-full p-0.5 text-amber-800/55 transition-colors hover:bg-amber-200/40 hover:text-amber-950 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/40 [&::-webkit-details-marker]:hidden"
-                    aria-label="About advance balance and using customer credit"
-                  >
-                    <Info className="size-3.5" strokeWidth={2.25} aria-hidden />
-                  </summary>
-                  <div
-                    className="absolute right-0 top-full z-40 mt-1.5 w-[min(calc(100vw-2rem),17.5rem)] rounded-lg border border-amber-200/90 bg-white p-2.5 text-[9px] leading-snug text-amber-950 shadow-lg ring-1 ring-black/5"
-                    role="note"
-                  >
-                    <p className="text-amber-900/90">
-                      Voluntary deposits only — liability until applied to a quotation or refunded with{' '}
-                      <strong>Refund advance</strong>. Paying an approved <strong>sales refund</strong> reduces deposit
-                      advance first, then any separate <strong>overpayment credit</strong> (see ledger timeline).
-                    </p>
-                    <p className="mt-2 border-t border-amber-200/70 pt-2 text-amber-900/85">
-                      <strong>Use credit on another job:</strong> in <strong>Sales → Quotations</strong>, open the new
-                      quote and use <strong>Apply customer advance</strong>. Unlinked deposits are listed under{' '}
-                      <strong>Sales → Receipts → Advance deposits</strong> (Link to attach to a quotation first if needed).
-                    </p>
-                  </div>
-                </details>
-              </div>
-              <p className="text-xl font-black text-amber-950 tabular-nums leading-tight">
-                {formatNgn(advanceBalNgn)}
-              </p>
-              {advanceBalNgn > 0 ? (
-                <button
-                  type="button"
-                  onClick={() => {
+          <CustomerKpiStrip
+            outstandingNgn={outstandingNgn}
+            advanceBalNgn={advanceBalNgn}
+            overpayCreditBalNgn={overpayCreditBalNgn}
+            totalPaidReceiptsNgn={totalPaidReceiptsNgn}
+            quotationsCount={quotations.length}
+            pendingQuotationsCount={pendingQuotationsCount}
+            paymentProgressPct={paymentProgressPct}
+            onRefundAdvance={
+              advanceBalNgn > 0
+                ? () => {
                     setRefundAdvanceAmt('');
                     setRefundAdvanceOpen(true);
-                  }}
-                  className="mt-2 text-[8px] font-bold uppercase text-amber-900 hover:underline"
-                >
-                  Refund advance (cash out)
-                </button>
-              ) : null}
-            </div>
-            <div className="rounded-zarewa border border-violet-100 bg-violet-50/60 p-3 sm:p-3.5 shadow-sm">
-              <div className="flex items-start justify-between gap-1 mb-1">
-                <p className="text-[9px] font-bold text-violet-900 uppercase tracking-widest">
-                  Overpayment credit
-                </p>
-                <details className="relative shrink-0">
-                  <summary
-                    className="list-none cursor-pointer rounded-full p-0.5 text-violet-800/55 transition-colors hover:bg-violet-200/40 hover:text-violet-950 focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/40 [&::-webkit-details-marker]:hidden"
-                    aria-label="About overpayment credit"
-                  >
-                    <Info className="size-3.5" strokeWidth={2.25} aria-hidden />
-                  </summary>
-                  <div
-                    className="absolute right-0 top-full z-40 mt-1.5 w-[min(calc(100vw-2rem),17.5rem)] rounded-lg border border-violet-200/90 bg-white p-2.5 text-[9px] leading-snug text-violet-950 shadow-lg ring-1 ring-black/5"
-                    role="note"
-                  >
-                    <p className="text-violet-900/90">
-                      Arises when a receipt exceeds the balance due on a quotation. This is{' '}
-                      <strong>not</strong> a deposit advance — use <strong>Sales → Refunds</strong> (or treasury payout
-                      on approved refunds) to return it. It is tracked separately from <strong>Advance (deposit)</strong>.
-                    </p>
-                  </div>
-                </details>
-              </div>
-              <p className="text-xl font-black text-violet-950 tabular-nums leading-tight">
-                {formatNgn(overpayCreditBalNgn)}
-              </p>
-            </div>
-            <div className="rounded-zarewa border border-gray-100 bg-white p-3 sm:p-3.5 shadow-sm">
-              <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-1">
-                Total paid (receipts)
-              </p>
-              <p className="text-xl font-black text-[#134e4a] tabular-nums leading-tight">
-                {formatNgn(totalPaidReceiptsNgn)}
-              </p>
-              <p className="text-[8px] text-gray-500 mt-1.5 leading-snug">
-                Sales receipts and ledger posts, deduplicated (same basis as the Sales receipts list).
-              </p>
-            </div>
-            <div className="rounded-zarewa border border-gray-100 bg-white p-3 sm:p-3.5 shadow-sm">
-              <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-1">
-                Quotations
-              </p>
-              <p className="text-xl font-black text-[#134e4a] leading-tight">{quotations.length}</p>
-              <p className="text-[9px] font-bold text-gray-500 mt-1.5">
-                {pendingQuotationsCount} pending / unpaid
-              </p>
-            </div>
-            <div className="rounded-zarewa border border-gray-100 bg-white p-3 sm:p-3.5 shadow-sm">
-              <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-1">
-                Payment coverage
-              </p>
-              <p className="text-xl font-black text-[#134e4a] leading-tight">{paymentProgressPct}%</p>
-              <div className="mt-2 h-1.5 rounded-full bg-gray-100 overflow-hidden">
-                <div
-                  className="h-full rounded-full bg-gradient-to-r from-[#134e4a] to-teal-400 transition-all"
-                  style={{ width: `${paymentProgressPct}%` }}
-                />
-              </div>
-              <p className="text-[8px] text-gray-500 mt-1">
-                Share of invoice totals covered by payment received
-              </p>
-            </div>
-          </section>
+                  }
+                : undefined
+            }
+          />
 
           <section className="mb-10 rounded-zarewa border border-gray-100 bg-white p-5 shadow-sm">
             <h2 className="text-xs font-bold text-[#134e4a] uppercase tracking-widest mb-1 flex items-center gap-2">
@@ -2042,216 +1876,54 @@ const CustomerDashboard = () => {
           setCustomerEditApprovalId('');
         }}
       >
-        <div className="z-modal-panel max-w-lg p-0 max-h-[min(90vh,900px)] flex flex-col min-h-0 overflow-hidden">
-          <div className="shrink-0 flex justify-between items-center gap-3 px-8 pt-8 pb-4 border-b border-gray-100">
-            <h3 className="text-xl font-bold text-[#134e4a] flex items-center gap-2 min-w-0">
-              <User size={22} className="shrink-0" />
-              Edit customer
-            </h3>
-            <button
-              type="button"
-              onClick={() => {
-                setShowEdit(false);
-                setCustomerEditApprovalId('');
-              }}
-              className="p-2 text-gray-400 hover:text-red-500 rounded-xl hover:bg-red-50 shrink-0"
-            >
-              <X size={22} />
-            </button>
-          </div>
-          <div className="flex-1 min-h-0 min-w-0 overflow-y-auto overscroll-contain px-4 pb-8 pt-5 custom-scrollbar sm:px-8">
-            <form onSubmit={saveProfile} className="space-y-4">
-            <div>
-              <label className="z-field-label">Full name *</label>
-              <input
-                required
-                value={editForm.name}
-                onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))}
-                className="w-full bg-gray-50 border border-gray-100 rounded-xl py-3 px-4 text-sm font-bold text-[#134e4a] outline-none focus:ring-2 focus:ring-[#134e4a]/15"
-              />
+        <ModalScrollShell size="md">
+          <ModalScrollHeader>
+            <div className="flex justify-between items-start gap-3">
+              <div className="min-w-0">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-teal-600 mb-1">
+                  {customerKey}
+                </p>
+                <h3 className="text-xl font-black text-[#134e4a] flex items-center gap-2">
+                  <Pencil size={20} className="text-teal-600 shrink-0" />
+                  Edit customer
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowEdit(false);
+                  setCustomerEditApprovalId('');
+                }}
+                className="p-2 text-slate-400 hover:text-rose-500 rounded-xl hover:bg-rose-50 shrink-0"
+              >
+                <X size={22} />
+              </button>
             </div>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <div>
-                <label className="z-field-label">Phone *</label>
-                <input
-                  required
-                  value={editForm.phoneNumber}
-                  onChange={(e) => setEditForm((f) => ({ ...f, phoneNumber: e.target.value }))}
-                  className="w-full bg-gray-50 border border-gray-100 rounded-xl py-3 px-4 text-sm font-bold outline-none focus:ring-2 focus:ring-[#134e4a]/15"
+          </ModalScrollHeader>
+          <ModalScrollBody>
+            <form onSubmit={saveProfile} className="space-y-5">
+              <CustomerFormFields
+                form={editForm}
+                setForm={setEditForm}
+                customerId={customerKey}
+                showBilling
+                showCrm
+                tierOptions={['Regular', 'VIP', 'Wholesale', 'Trade', 'Staff']}
+                paymentTermsOptions={['Due on receipt', 'Net 14', 'Net 30', 'Net 60', 'Staff credit']}
+              >
+                <EditSecondApprovalInline
+                  entityKind="customer"
+                  entityId={customerKey}
+                  value={customerEditApprovalId}
+                  onChange={setCustomerEditApprovalId}
                 />
-              </div>
-              <div>
-                <label className="z-field-label">Email</label>
-                <input
-                  type="email"
-                  value={editForm.email}
-                  onChange={(e) => setEditForm((f) => ({ ...f, email: e.target.value }))}
-                  className="w-full bg-gray-50 border border-gray-100 rounded-xl py-3 px-4 text-sm font-bold outline-none focus:ring-2 focus:ring-[#134e4a]/15"
-                />
-              </div>
-            </div>
-            <div>
-              <label className="z-field-label">Shipping address</label>
-              <textarea
-                rows={2}
-                value={editForm.addressShipping}
-                onChange={(e) => setEditForm((f) => ({ ...f, addressShipping: e.target.value }))}
-                className="w-full bg-gray-50 border border-gray-100 rounded-xl py-3 px-4 text-sm font-medium outline-none focus:ring-2 focus:ring-[#134e4a]/15 resize-none"
-              />
-            </div>
-            <div>
-              <label className="z-field-label">Billing address</label>
-              <textarea
-                rows={2}
-                value={editForm.addressBilling}
-                onChange={(e) => setEditForm((f) => ({ ...f, addressBilling: e.target.value }))}
-                className="w-full bg-gray-50 border border-gray-100 rounded-xl py-3 px-4 text-sm font-medium outline-none focus:ring-2 focus:ring-[#134e4a]/15 resize-none"
-              />
-            </div>
-            <p className="text-[10px] font-bold text-[#134e4a] uppercase tracking-widest pt-2 border-t border-gray-100">
-              Staff purchase credit
-            </p>
-            <CustomerStaffLinkField
-              value={editForm.linkedStaffUserId}
-              customerId={customerKey}
-              onChange={(staffUserId) =>
-                setEditForm((f) => ({
-                  ...f,
-                  linkedStaffUserId: staffUserId,
-                  tier: staffUserId ? 'Staff' : f.tier === 'Staff' ? 'Regular' : f.tier,
-                  paymentTerms: staffUserId
-                    ? 'Staff credit'
-                    : f.paymentTerms === 'Staff credit'
-                      ? 'Net 30'
-                      : f.paymentTerms,
-                }))
-              }
-              onStaffPick={(staff) => {
-                if (!staff) return;
-                setEditForm((f) => ({
-                  ...f,
-                  name: staff.label || staff.displayName || f.name,
-                }));
-              }}
-            />
-            <p className="text-[10px] font-bold text-[#134e4a] uppercase tracking-widest pt-2 border-t border-gray-100">
-              CRM profiling (shared sales workspace)
-            </p>
-            <div>
-              <label className="z-field-label">Company / trading name</label>
-              <input
-                value={editForm.companyName}
-                onChange={(e) => setEditForm((f) => ({ ...f, companyName: e.target.value }))}
-                className="w-full bg-gray-50 border border-gray-100 rounded-xl py-3 px-4 text-sm font-bold outline-none focus:ring-2 focus:ring-[#134e4a]/15"
-                placeholder="Optional legal or trading name"
-              />
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="z-field-label">Lead source</label>
-                <input
-                  value={editForm.leadSource}
-                  onChange={(e) => setEditForm((f) => ({ ...f, leadSource: e.target.value }))}
-                  className="w-full bg-gray-50 border border-gray-100 rounded-xl py-3 px-4 text-sm outline-none focus:ring-2 focus:ring-[#134e4a]/15"
-                  placeholder="e.g. Referral, Walk-in, WhatsApp ad"
-                />
-              </div>
-              <div>
-                <label className="z-field-label">Preferred contact</label>
-                <select
-                  value={editForm.preferredContact}
-                  onChange={(e) => setEditForm((f) => ({ ...f, preferredContact: e.target.value }))}
-                  className="w-full bg-gray-50 border border-gray-100 rounded-xl py-3 px-3 text-xs font-bold outline-none"
-                >
-                  <option value="Phone">Phone</option>
-                  <option value="WhatsApp">WhatsApp</option>
-                  <option value="Email">Email</option>
-                  <option value="Site visit">Site visit</option>
-                </select>
-              </div>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="z-field-label">Next follow-up date</label>
-                <input
-                  type="date"
-                  value={editForm.followUpISO}
-                  onChange={(e) => setEditForm((f) => ({ ...f, followUpISO: e.target.value }))}
-                  className="w-full bg-gray-50 border border-gray-100 rounded-xl py-3 px-4 text-sm outline-none focus:ring-2 focus:ring-[#134e4a]/15"
-                />
-              </div>
-              <div>
-                <label className="z-field-label">Tags (comma-separated)</label>
-                <input
-                  value={editForm.crmTagsStr}
-                  onChange={(e) => setEditForm((f) => ({ ...f, crmTagsStr: e.target.value }))}
-                  className="w-full bg-gray-50 border border-gray-100 rounded-xl py-3 px-4 text-sm outline-none focus:ring-2 focus:ring-[#134e4a]/15"
-                  placeholder="VIP, price sensitive, Kano"
-                />
-              </div>
-            </div>
-            <div>
-              <label className="z-field-label">Profile notes (preferences, risks, history)</label>
-              <textarea
-                rows={3}
-                value={editForm.crmProfileNotes}
-                onChange={(e) => setEditForm((f) => ({ ...f, crmProfileNotes: e.target.value }))}
-                className="w-full bg-gray-50 border border-gray-100 rounded-xl py-3 px-4 text-sm outline-none focus:ring-2 focus:ring-[#134e4a]/15 resize-none"
-                placeholder="Long-form context for anyone serving this account…"
-              />
-            </div>
-            <div className="grid grid-cols-3 gap-3">
-              <div>
-                <label className="z-field-label">Status</label>
-                <select
-                  value={editForm.status}
-                  onChange={(e) => setEditForm((f) => ({ ...f, status: e.target.value }))}
-                  className="w-full bg-gray-50 border border-gray-100 rounded-xl py-3 px-3 text-xs font-bold outline-none"
-                >
-                  <option value="Active">Active</option>
-                  <option value="Inactive">Inactive</option>
-                </select>
-              </div>
-              <div>
-                <label className="z-field-label">Tier</label>
-                <select
-                  value={editForm.tier}
-                  onChange={(e) => setEditForm((f) => ({ ...f, tier: e.target.value }))}
-                  className="w-full bg-gray-50 border border-gray-100 rounded-xl py-3 px-3 text-xs font-bold outline-none"
-                >
-                  <option value="Regular">Regular</option>
-                  <option value="VIP">VIP</option>
-                  <option value="Wholesale">Wholesale</option>
-                  <option value="Trade">Trade</option>
-                  <option value="Staff">Staff (purchase credit)</option>
-                </select>
-              </div>
-              <div>
-                <label className="z-field-label">Terms</label>
-                <select
-                  value={editForm.paymentTerms}
-                  onChange={(e) => setEditForm((f) => ({ ...f, paymentTerms: e.target.value }))}
-                  className="w-full bg-gray-50 border border-gray-100 rounded-xl py-3 px-3 text-xs font-bold outline-none"
-                >
-                  <option value="Due on receipt">Due on receipt</option>
-                  <option value="Net 14">Net 14</option>
-                  <option value="Net 30">Net 30</option>
-                  <option value="Net 60">Net 60</option>
-                </select>
-              </div>
-            </div>
-            <EditSecondApprovalInline
-              entityKind="customer"
-              entityId={customerKey}
-              value={customerEditApprovalId}
-              onChange={setCustomerEditApprovalId}
-            />
-            <button type="submit" className="z-btn-primary w-full justify-center py-3 mt-2">
-              Save changes
-            </button>
-          </form>
-          </div>
-        </div>
+              </CustomerFormFields>
+              <button type="submit" className="z-btn-primary w-full justify-center py-3.5 mt-2">
+                Save changes
+              </button>
+            </form>
+          </ModalScrollBody>
+        </ModalScrollShell>
       </ModalFrame>
 
       <ModalFrame isOpen={!!detail} onClose={() => setDetail(null)}>

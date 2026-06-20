@@ -11,29 +11,28 @@ import { useToast } from '../../context/ToastContext';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { formatNgn } from '../../Data/mockData';
 import { customerPickerSearchBlob } from '../../lib/customerPickerSearch';
+import {
+  customerInitials,
+  customerStatusTone,
+  customerTierTone,
+} from '../customers/customerUi';
 
 const TODAY_ISO = '2026-03-28';
 const INSIGHT_DAYS = 90;
 
 /** Match quotation row chrome; padding lives on the link / actions so the whole row is clickable */
 const CARD_ROW =
-  'rounded-lg border border-slate-200/60 bg-white/40 backdrop-blur-md shadow-sm transition-colors hover:bg-white/70';
+  'rounded-xl border border-slate-200/70 bg-white shadow-sm transition-all hover:border-teal-200/80 hover:shadow-md';
 
 const CHIP =
   'inline-flex items-center text-[8px] font-semibold uppercase tracking-wide px-2 py-1 rounded-md border shrink-0';
 
 function customerStatusChipBorder(status) {
-  if (String(status).toLowerCase() === 'active') {
-    return 'border-emerald-200 bg-emerald-50 text-emerald-800';
-  }
-  return 'border-slate-200 bg-slate-50 text-slate-600';
+  return customerStatusTone(status);
 }
 
 function customerTierChipBorder(tier) {
-  const t = String(tier || '').toLowerCase();
-  if (t === 'vip') return 'border-amber-200 bg-amber-50 text-amber-800';
-  if (t === 'wholesale') return 'border-sky-200 bg-sky-50 text-sky-800';
-  return 'border-slate-200 bg-slate-50 text-slate-600';
+  return customerTierTone(tier);
 }
 
 function parseMeters(totalStr) {
@@ -298,32 +297,32 @@ export default function SalesCustomersTab({
                 const meta2 = [c.phoneNumber || 'No phone', c.email || 'No email'].join(' · ');
                 const profileTo = `/customers/${encodeURIComponent(c.customerID)}`;
                 return (
-                  <li key={c.customerID} className={`${CARD_ROW} flex flex-nowrap items-stretch min-w-0`}>
+                  <li key={c.customerID} className={`${CARD_ROW} flex flex-nowrap items-stretch min-w-0 overflow-hidden`}>
                     <Link
                       to={profileTo}
-                      className="min-w-0 flex-1 px-2.5 py-1.5 text-inherit no-underline outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#134e4a]/25 rounded-lg"
+                      className="min-w-0 flex-1 flex items-center gap-3 px-3 py-3 text-inherit no-underline outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#134e4a]/25"
                     >
-                      <div className="flex flex-wrap items-start justify-between gap-2 min-w-0">
-                        <div className="min-w-0 flex-1 leading-tight">
-                          <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 min-w-0">
-                            <p className="text-[11px] font-bold text-[#134e4a] truncate min-w-0">
-                              <span className="tabular-nums font-mono">{c.customerID}</span>
-                              <span className="font-medium text-slate-600"> · {c.name}</span>
-                            </p>
-                            <div className="flex flex-wrap items-center gap-1.5 shrink-0">
-                              <span className="text-[11px] font-black text-[#134e4a] tabular-nums">
-                                {formatNgn(rev)}
-                              </span>
-                              <span className={`${CHIP} ${customerStatusChipBorder(c.status)}`}>{c.status}</span>
-                              <span className={`${CHIP} ${customerTierChipBorder(c.tier)}`}>{c.tier}</span>
-                            </div>
-                          </div>
-                          <p
-                            className="text-[8px] text-slate-500 mt-0.5 leading-snug line-clamp-2 tabular-nums"
-                            title={meta2}
-                          >
-                            {meta2}
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#134e4a] to-teal-700 text-[11px] font-black text-teal-100">
+                        {customerInitials(c.name)}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 min-w-0">
+                          <p className="text-sm font-bold text-[#134e4a] truncate min-w-0">
+                            {c.name}
                           </p>
+                          <span className="text-sm font-black text-[#134e4a] tabular-nums shrink-0">
+                            {formatNgn(rev)}
+                          </span>
+                        </div>
+                        <p className="text-[10px] text-slate-500 mt-0.5 truncate tabular-nums font-mono">
+                          {c.customerID}
+                        </p>
+                        <p className="text-[10px] text-slate-500 mt-1 leading-snug line-clamp-1" title={meta2}>
+                          {meta2}
+                        </p>
+                        <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                          <span className={`${CHIP} ${customerStatusChipBorder(c.status)}`}>{c.status}</span>
+                          <span className={`${CHIP} ${customerTierChipBorder(c.tier)}`}>{c.tier}</span>
                         </div>
                       </div>
                     </Link>

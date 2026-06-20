@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { fetchStaffLinkOptions } from '../../lib/customerStaffLink';
+import { CUSTOMER_FIELD, CUSTOMER_LABEL } from '../customers/customerUi';
 
 /**
  * Pick an HR staff member to link to a sales customer (staff purchase credit).
@@ -65,13 +66,10 @@ export function CustomerStaffLinkField({ value = '', onChange, disabled = false,
   };
 
   return (
-    <div className="space-y-2">
-      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
-        Link to staff (optional)
-      </label>
+    <div className="space-y-2 rounded-xl border border-dashed border-teal-200/80 bg-teal-50/30 p-3">
+      <label className={CUSTOMER_LABEL}>Link to staff (optional)</label>
       <p className="text-[10px] text-slate-500 leading-relaxed">
-        Optional — only link when this customer is an employee buying on staff purchase credit. Search by name or
-        employee ID (e.g. ZAPKD004). Regular customers can be saved without a staff link.
+        Only for employees buying on purchase credit. Regular customers do not need this.
       </p>
       <div className="relative">
         <input
@@ -87,7 +85,7 @@ export function CustomerStaffLinkField({ value = '', onChange, disabled = false,
           disabled={disabled}
           placeholder="Search staff name or ID…"
           autoComplete="off"
-          className="z-finance-field w-full rounded-xl font-semibold text-[#134e4a]"
+          className={CUSTOMER_FIELD}
         />
         {!disabled && value ? (
           <button
