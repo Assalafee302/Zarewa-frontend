@@ -49,6 +49,8 @@ import { HrOperationalReadinessPanel } from '../../components/hr/HrOperationalRe
 import { HrProductionReadinessPanel } from '../../components/hr/HrProductionReadinessPanel';
 import { HrPageBody, HrPageToolbar } from '../../components/hr/hrPageUi';
 import { HrProfileWorkPanel } from '../../components/hr/HrProfileWorkPanel';
+import { HrUnifiedInboxPanel } from '../../components/hr/HrUnifiedInboxPanel';
+import { HrProbationEndingQueue } from '../../components/hr/HrProbationEndingQueue';
 import {
   ProfileInlineAlert,
   ProfileMetricSkeleton,
@@ -730,6 +732,15 @@ export default function HrDashboard() {
           <HrOperationalReadinessPanel />
         </div>
       ) : null}
+
+      <HrUnifiedInboxPanel
+        recentRequests={recentRequests}
+        queueLines={queueLines}
+        counts={counts}
+        onPreview={setPreviewRequest}
+      />
+
+      <HrProbationEndingQueue />
 
       <ProfileOverviewSection title="Today's HR actions">
         <div className="text-sm text-slate-700">

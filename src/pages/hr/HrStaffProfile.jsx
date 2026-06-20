@@ -17,6 +17,8 @@ import { HrStaffDisciplinePanel } from '../../components/hr/HrStaffDisciplinePan
 import { HrStaffAppraisalSnapshot } from '../../components/hr/HrStaffAppraisalSnapshot';
 import { HrStaffActivityStrip } from '../../components/hr/HrStaffActivityStrip';
 import { HrStaffProbationPanel } from '../../components/hr/HrStaffProbationPanel';
+import { HrStaffLeaveActionsPanel } from '../../components/hr/HrStaffLeaveActionsPanel';
+import { HrStaffTransferQuickStart } from '../../components/hr/HrStaffTransferQuickStart';
 import { PageHeader } from '../../components/layout/PageHeader';
 import { PageTabs } from '../../components/layout/PageTabs';
 import { HR_TALENT, HR_EMPLOYEES, HR_TIME_ABSENCE, HR_DISCIPLINE_EXIT, hrTabPath } from '../../lib/hrRoutes';
@@ -942,6 +944,7 @@ export default function HrStaffProfile() {
 
       {tab === 'leave' ? (
         <div className="space-y-4">
+          <HrStaffLeaveActionsPanel userId={userId} />
           {!canManageLeave ? (
             <p className="text-sm text-slate-600">Leave balances for other staff require HR leave permissions.</p>
           ) : leaveBalances == null ? (
@@ -1109,12 +1112,14 @@ export default function HrStaffProfile() {
               <p>
                 Quick branch change: use <strong>Edit profile</strong> and change branch (add a reason).
               </p>
-              <Link
-                to={hrTabPath(HR_DISCIPLINE_EXIT, 'exit', { view: 'transfers', staff: userId })}
-                className="inline-flex rounded-xl border border-[#134e4a]/30 bg-[#134e4a]/5 px-3 py-1.5 text-xs font-bold uppercase text-[#134e4a] hover:bg-[#134e4a]/10 no-underline"
-              >
-                Start transfer request →
-              </Link>
+              <HrStaffTransferQuickStart
+                userId={userId}
+                staff={staff}
+                onCreated={async () => {
+                  const { ok, data } = await fetchHrTransferRequests({ userId });
+                  setStaffTransfers(ok && data?.ok ? data.transfers || data.items || [] : []);
+                }}
+              />
             </div>
           ) : null}
           {staffTransfers == null ? (

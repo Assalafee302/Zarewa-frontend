@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { fetchDisciplineCasesForUser } from '../../lib/hrStaffExtras';
 import { HR_DISCIPLINE_EXIT } from '../../lib/hrRoutes';
 import { HrCard } from './hrPageUi';
+import { HrStaffDisciplineCaseDrawer } from './HrStaffDisciplineCaseDrawer';
 import {
   AppTable,
   AppTableBody,
@@ -17,6 +18,7 @@ export function HrStaffDisciplinePanel({ userId, profileEvents = [] }) {
   const [cases, setCases] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [previewCase, setPreviewCase] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -69,12 +71,13 @@ export function HrStaffDisciplinePanel({ userId, profileEvents = [] }) {
                 {openCases.map((c) => (
                   <AppTableTr key={c.id}>
                     <AppTableTd>
-                      <Link
-                        to={`${HR_DISCIPLINE_EXIT}?tab=accountability&case=${encodeURIComponent(c.id)}`}
+                      <button
+                        type="button"
+                        onClick={() => setPreviewCase(c)}
                         className="font-semibold text-[#134e4a] hover:underline"
                       >
                         {c.caseNumber || c.id}
-                      </Link>
+                      </button>
                     </AppTableTd>
                     <AppTableTd>{c.caseType?.replace(/_/g, ' ') || '—'}</AppTableTd>
                     <AppTableTd>{c.status?.replace(/_/g, ' ') || '—'}</AppTableTd>
@@ -86,6 +89,12 @@ export function HrStaffDisciplinePanel({ userId, profileEvents = [] }) {
           </AppTableWrap>
         )}
       </HrCard>
+
+      <HrStaffDisciplineCaseDrawer
+        caseItem={previewCase}
+        isOpen={Boolean(previewCase)}
+        onClose={() => setPreviewCase(null)}
+      />
 
       {profileEvents?.length ? (
         <HrCard title="Profile disciplinary notes" subtitle="Recorded on employee file">

@@ -5,6 +5,7 @@ import { useHrListLoad } from '../../hooks/useHrListLoad';
 import { canManageHrBenefits } from '../../lib/hrAccess';
 import { formatNgn } from '../../lib/hrFormat';
 import { HrPayrollPeriodFields } from '../../components/hr/HrPayrollPeriodFields';
+import { currentPeriodYyyymm } from '../../lib/hrRequests';
 import {
   fetchHrBeneficiaries,
   fetchHrBenefitPayments,
@@ -249,10 +250,7 @@ export default function HrBenefits({ embedded = false } = {}) {
         </>
       ) : (
         <div className="space-y-3">
-          <label className="text-xs font-semibold text-slate-600">
-            Period (YYYYMM)
-            <input className={HR_FIELD_CLASS} value={period} onChange={(e) => setPeriod(e.target.value.replace(/\D/g, '').slice(0, 6))} />
-          </label>
+          <HrPayrollPeriodFields value={period} onChange={setPeriod} labelMonth="Payment month" />
           <HrDualView
             mobile={
               <HrMobileCardList loading={loading && !payments.length} loadingMessage="Loading payments…" emptyMessage="No payments for this period.">

@@ -4,7 +4,8 @@ import { apiFetch } from '../../lib/apiBase';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { useHrListLoad } from '../../hooks/useHrListLoad';
 import { canManageHrLeave } from '../../lib/hrAccess';
-import { currentPeriodYyyymm } from '../../lib/hrRequests';
+import { HrPayrollPeriodFields } from '../../components/hr/HrPayrollPeriodFields';
+import { formatPayrollPeriodLabel } from '../../lib/hrPayroll';
 import { HR_EMPLOYEES } from '../../lib/hrRoutes';
 import {
   AppTable,
