@@ -9,7 +9,7 @@ export const ACCOUNTING_REGISTER_CONFIG = {
     eyebrow: 'Receivables & prepayments',
     description: 'Amounts owed to the company — staff loans, trade receivables, supplier prepayments, and opening balances.',
     helpPoints: [
-      'Customer receivables include quotations with completed production only.',
+      'Customer receivables include quotations with completed production only; balances below ₦1,000 are omitted.',
       'Supplier prepayments are payments before GRN — verify in Procurement before clearing.',
       'Use Add legacy line for pre-system balances not captured in live transactions.',
     ],
