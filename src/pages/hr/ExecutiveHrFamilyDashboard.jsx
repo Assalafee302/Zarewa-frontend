@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { formatPayrollPeriodLabel } from '../../lib/hrPayroll';
 import { fetchExecutiveFamilyDashboard } from '../../lib/hrExecutiveBenefits';
 import { formatNgn } from '../../lib/hrFormat';
 import { FAMILY_BENEFITS } from '../../lib/familyBenefitsUi';
@@ -174,7 +175,7 @@ export default function ExecutiveHrFamilyDashboard() {
   return (
     <div className="space-y-6">
       {data?.periodYyyymm ? (
-        <p className="text-xs text-slate-500">Current period · {data.periodYyyymm}</p>
+        <p className="text-xs text-slate-500">Current period · {formatPayrollPeriodLabel(data.periodYyyymm)}</p>
       ) : null}
 
       {executives.length > 1 ? (
