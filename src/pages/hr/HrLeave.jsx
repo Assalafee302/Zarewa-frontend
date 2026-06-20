@@ -5,7 +5,7 @@ import { useWorkspace } from '../../context/WorkspaceContext';
 import { useHrListLoad } from '../../hooks/useHrListLoad';
 import { canManageHrLeave } from '../../lib/hrAccess';
 import { HrPayrollPeriodFields } from '../../components/hr/HrPayrollPeriodFields';
-import { formatPayrollPeriodLabel } from '../../lib/hrPayroll';
+import { currentPeriodYyyymm } from '../../lib/hrRequests';
 import { HR_EMPLOYEES } from '../../lib/hrRoutes';
 import {
   AppTable,
@@ -166,14 +166,7 @@ export default function HrLeave({ embedded = false, showYearEndOnly = false } = 
       ) : null}
 
       <div className="flex flex-wrap gap-2 items-end">
-        <label className="text-xs font-semibold text-slate-600">
-          Period (YYYYMM)
-          <input
-            value={periodYyyymm}
-            onChange={(e) => setPeriodYyyymm(e.target.value.replace(/\D/g, '').slice(0, 6))}
-            className="mt-1 block w-28 rounded-xl border border-slate-200 px-3 py-2 text-sm font-mono"
-          />
-        </label>
+        <HrPayrollPeriodFields value={periodYyyymm} onChange={setPeriodYyyymm} labelMonth="Balance period" />
         {canManage ? (
           <>
             <button
