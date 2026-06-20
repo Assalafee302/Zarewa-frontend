@@ -1250,6 +1250,8 @@ const CORE_HELP_ARTICLES = [
       'cashier',
       'cashier desk',
       '/cashier',
+      '/accounts?tab=desk',
+      'my desk',
       'confirm receipt',
       'confirm payment received',
       'refund payout',
