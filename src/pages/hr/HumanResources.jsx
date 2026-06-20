@@ -92,8 +92,12 @@ export default function HumanResources() {
         <Route path="appraisal" element={<Navigate to="/hr/talent?tab=develop&section=appraisals" replace />} />
         <Route path="analytics" element={<Suspense fallback={<p className="text-sm text-slate-600">Loading analytics…</p>}><HrAnalytics /></Suspense>} />
         <Route path="id-cards" element={<HrTabRedirect base={HR_DOCUMENTS} tab="id-cards" />} />
-        <Route path="chairman" element={<Navigate to="/executive-hr/benefits" replace />} />
+        <Route path="chairman" element={<Navigate to="/executive-hr/family?tab=benefits" replace />} />
+        <Route path="engagement" element={<Navigate to="/hr/talent?tab=develop&section=engagement" replace />} />
+        <Route path="learning" element={<Navigate to="/hr/talent?tab=develop&section=training" replace />} />
+        <Route path="recruiting" element={<Navigate to="/hr/talent?tab=recruit" replace />} />
         <Route path="executive/*" element={<Navigate to="/executive-hr" replace />} />
+        <Route path="*" element={<Navigate to="/hr/dashboard" replace />} />
 
         {/* Legacy standalone routes → hub equivalents */}
         <Route path="leave-legacy" element={<Navigate to={HR_TIME_ABSENCE} replace />} />

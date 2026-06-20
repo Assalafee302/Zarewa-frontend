@@ -40,6 +40,9 @@ export default function TeamHrTimeAbsenceHub() {
       tabs={TABS}
       tab={tab}
       onTabChange={setSubTab}
+      hub="team-hr-time-absence"
+      hubPrompt="Summarize leave endorsements and absence coverage for my branch team."
+      hubPageContext={{ teamHrTab: tab }}
     >
       {tab === 'overview' ? (
         <div className="space-y-6">

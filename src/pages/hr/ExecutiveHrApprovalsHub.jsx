@@ -19,6 +19,9 @@ export default function ExecutiveHrApprovalsHub() {
       tabs={TABS}
       tab={tab}
       onTabChange={setTab}
+      hub="executive-hr-approvals"
+      hubPrompt="Summarize sensitive HR approvals and exceptional loan cases awaiting executive sign-off."
+      hubPageContext={{ approvalsTab: tab }}
     >
       {tab === 'sensitive' ? <ExecutiveHrApprovals /> : null}
       {tab === 'exceptional-loans' ? <ExecutiveHrExceptionalLoans /> : null}

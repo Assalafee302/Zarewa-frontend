@@ -1,8 +1,7 @@
-import { useCallback, useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { apiFetch } from '../../lib/apiBase';
+import { useHrDashboardCounts } from '../../hooks/useHrDashboardCounts';
 import { hrRequestQueuePath } from '../../lib/hrDashboardUi';
 import { hrTimeAbsencePath } from '../../lib/hrRoutes';
+import { Link } from 'react-router-dom';
 
 /**
  * HQ requests workflow overview tiles — pending counts per queue stage.
@@ -13,55 +12,30 @@ import { hrTimeAbsencePath } from '../../lib/hrRoutes';
  * }} props
  */
 export default function HrRequestsOverview({ canReview, canEndorse, canGm }) {
-  const [stats, setStats] = useState({
-    pendingHrReview: 0,
-    pendingBranchEndorse: 0,
-    pendingGmHrReview: 0,
-    overdueRequests: 0,
-  });
-  const [busy, setBusy] = useState(false);
-
-  const load = useCallback(async () => {
-    setBusy(true);
-    const { ok, data } = await apiFetch('/api/hr/dashboard');
-    setBusy(false);
-    if (!ok || !data?.ok) return;
-    const summary = data.observability?.summary || {};
-    const counts = data.inbox?.counts || {};
-    setStats({
-      pendingHrReview: Number(counts.pendingHrReview ?? summary.pendingHrReview) || 0,
-      pendingBranchEndorse: Number(counts.pendingBranchEndorse ?? summary.pendingBranchEndorse) || 0,
-      pendingGmHrReview: Number(counts.pendingGmHrReview ?? summary.pendingGmHrReview) || 0,
-      overdueRequests: Number(counts.overdueRequests ?? summary.overdueRequests) || 0,
-    });
-  }, []);
-
-  useEffect(() => {
-    load();
-  }, [load]);
+  const { counts, loading: busy } = useHrDashboardCounts();
 
   const tiles = [
     canReview && {
       label: 'HR review',
-      value: stats.pendingHrReview,
+      value: counts.pendingHrReview,
       href: hrRequestQueuePath('hr_queue'),
       tone: 'border-amber-200 bg-amber-50 text-amber-950',
     },
     canEndorse && {
       label: 'Branch endorsements',
-      value: stats.pendingBranchEndorse,
+      value: counts.pendingBranchEndorse,
       href: hrRequestQueuePath('endorse_queue'),
       tone: 'border-teal-200 bg-teal-50/50 text-teal-950',
     },
     canGm && {
       label: 'GM HR final',
-      value: stats.pendingGmHrReview,
+      value: counts.pendingGmHrReview,
       href: hrRequestQueuePath('gm_queue'),
       tone: 'border-indigo-200 bg-indigo-50 text-indigo-950',
     },
     {
       label: 'Overdue (SLA)',
-      value: stats.overdueRequests,
+      value: counts.overdueRequests,
       href: hrTimeAbsencePath('approvals', { scope: 'all' }),
       tone: 'border-red-200 bg-red-50 text-red-900',
     },

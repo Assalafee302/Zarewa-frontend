@@ -35,7 +35,7 @@ function countByStatus(applicants) {
   return counts;
 }
 
-export default function HrRecruiting() {
+export default function HrRecruiting({ embedded = false } = {}) {
   const ws = useWorkspace();
   const navigate = useNavigate();
   const canManage = hrHasPermission(ws?.permissions, 'hr.staff.manage');
@@ -214,39 +214,67 @@ export default function HrRecruiting() {
   const selectedJob = jobs.find((j) => j.id === selectedJobId);
   const branchName = branches.find((b) => b.id === selectedJob?.branchId)?.name || selectedJob?.branchId || 'HQ';
 
-  return (
-    <HrPageBody>
-      <HrPageIntro
-        title="Recruiting"
-        description="Manage job postings, track applicants through the pipeline, run interview scorecards, and generate offer letters."
-        actions={
-          <>
-            <a
-              href="/careers"
-              target="_blank"
-              rel="noreferrer"
-              className={`${HR_BTN_SECONDARY} inline-flex items-center gap-1.5`}
-            >
-              <ExternalLink className="h-3.5 w-3.5" />
-              Public careers
-            </a>
-            {canManage ? (
-              <>
-                <HrAddFormButton onClick={() => setJobModal(true)}>New job</HrAddFormButton>
-                <button
-                  type="button"
-                  disabled={!selectedJobId}
-                  onClick={() => setAppModal(true)}
-                  className={`${HR_BTN_SECONDARY} inline-flex items-center gap-1.5 disabled:opacity-50`}
-                >
-                  <UserPlus className="h-3.5 w-3.5" />
-                  Add applicant
-                </button>
-              </>
-            ) : null}
-          </>
-        }
-      />
+  const inner = (
+    <>
+      {!embedded ? (
+        <HrPageIntro
+          title="Recruiting"
+          description="Manage job postings, track applicants through the pipeline, run interview scorecards, and generate offer letters."
+          actions={
+            <>
+              <a
+                href="/careers"
+                target="_blank"
+                rel="noreferrer"
+                className={`${HR_BTN_SECONDARY} inline-flex items-center gap-1.5`}
+              >
+                <ExternalLink className="h-3.5 w-3.5" />
+                Public careers
+              </a>
+              {canManage ? (
+                <>
+                  <HrAddFormButton onClick={() => setJobModal(true)}>New job</HrAddFormButton>
+                  <button
+                    type="button"
+                    disabled={!selectedJobId}
+                    onClick={() => setAppModal(true)}
+                    className={`${HR_BTN_SECONDARY} inline-flex items-center gap-1.5 disabled:opacity-50`}
+                  >
+                    <UserPlus className="h-3.5 w-3.5" />
+                    Add applicant
+                  </button>
+                </>
+              ) : null}
+            </>
+          }
+        />
+      ) : (
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <a
+            href="/careers"
+            target="_blank"
+            rel="noreferrer"
+            className={`${HR_BTN_SECONDARY} inline-flex items-center gap-1.5`}
+          >
+            <ExternalLink className="h-3.5 w-3.5" />
+            Public careers
+          </a>
+          {canManage ? (
+            <>
+              <HrAddFormButton onClick={() => setJobModal(true)}>New job</HrAddFormButton>
+              <button
+                type="button"
+                disabled={!selectedJobId}
+                onClick={() => setAppModal(true)}
+                className={`${HR_BTN_SECONDARY} inline-flex items-center gap-1.5 disabled:opacity-50`}
+              >
+                <UserPlus className="h-3.5 w-3.5" />
+                Add applicant
+              </button>
+            </>
+          ) : null}
+        </div>
+      )}
 
       {err ? <HrAlert>{err}</HrAlert> : null}
 
@@ -522,6 +550,8 @@ export default function HrRecruiting() {
           </button>
         </form>
       </HrFormModal>
-    </HrPageBody>
+    </>
   );
+
+  return embedded ? inner : <HrPageBody>{inner}</HrPageBody>;
 }

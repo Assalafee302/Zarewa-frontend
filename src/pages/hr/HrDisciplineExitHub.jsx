@@ -202,7 +202,7 @@ export default function HrDisciplineExitHub() {
           <SubViewPills views={CASE_VIEWS} active={caseView} onChange={setCaseViewAndUrl} />
           {caseView === 'cases' ? <HrDisciplineCasesPanel /> : null}
           {caseView === 'memos' ? (
-            <TeamHrIncidents focusMemoId={memoId} onFocusHandled={() => clearSearchParam('memoId')} />
+            <TeamHrIncidents focusMemoId={memoId} onFocusHandled={() => clearSearchParam('memoId')} embedded />
           ) : null}
           {caseView === 'registry' ? (
             <HrIncidentRegistryPanel

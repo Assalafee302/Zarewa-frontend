@@ -40,6 +40,7 @@ import { HrEmptyState } from '../../components/hr/hrPageUi';
 import { HR_BTN_PRIMARY } from '../../components/hr/hrFormStyles';
 import { HrStaffAvatar } from '../../components/hr/HrStaffAvatar';
 import { HrStaffDirectoryBulkBar } from '../../components/hr/HrStaffDirectoryBulkBar';
+import { HrStaffQuickPreviewSlideOver } from '../../components/hr/HrStaffQuickPreviewSlideOver';
 import {
   HrStaffDirectoryColumnPicker,
   loadVisibleColumns,
@@ -154,6 +155,8 @@ export default function HrStaffDirectory({
   const [sortDir, setSortDir] = useState('asc');
   const [registerOpen, setRegisterOpen] = useState(initialRegisterOpen);
   const [compactTable, setCompactTable] = useState(false);
+  const [viewMode, setViewMode] = useState('table');
+  const [previewStaff, setPreviewStaff] = useState(null);
   const [masterDepartments, setMasterDepartments] = useState([]);
   const isSpecialList = cohort !== 'employees';
   const includeInactive = status === 'all' || status === 'inactive';
@@ -512,7 +515,8 @@ export default function HrStaffDirectory({
       ) : null}
 
       {!isSpecialList ? (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+        <div className="sticky top-14 z-10 -mx-1 rounded-xl border border-slate-100/80 bg-white/95 px-1 py-3 backdrop-blur-sm">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
           <HrKpiCard label="Active staff" value={kpis.active} hint={`${kpis.total} total in scope`} />
           <HrKpiCard
             label="Incomplete profiles"
@@ -545,6 +549,7 @@ export default function HrStaffDirectory({
             onClick={() => setQuickFilter('doc-expiry')}
           />
         </div>
+        </div>
       ) : null}
 
       <div className="flex flex-col gap-3 border-b border-slate-100 pb-4">
@@ -576,6 +581,23 @@ export default function HrStaffDirectory({
               <input type="checkbox" checked={compactTable} onChange={(e) => setCompactTable(e.target.checked)} />
               Compact
             </label>
+            <div className="inline-flex rounded-xl border border-slate-200 p-0.5">
+              {[
+                { id: 'table', label: 'Table' },
+                { id: 'cards', label: 'Cards' },
+              ].map((m) => (
+                <button
+                  key={m.id}
+                  type="button"
+                  onClick={() => setViewMode(m.id)}
+                  className={`rounded-lg px-3 py-2 text-[10px] font-bold uppercase tracking-wide ${
+                    viewMode === m.id ? 'bg-[#134e4a] text-white' : 'text-slate-600 hover:bg-slate-50'
+                  }`}
+                >
+                  {m.label}
+                </button>
+              ))}
+            </div>
             {canBulkImport ? (
               <button
                 type="button"
@@ -759,6 +781,12 @@ export default function HrStaffDirectory({
                   <Link
                     to={`${staffBasePath}/${encodeURIComponent(s.userId)}${s.docExpirySummary?.nextExpiryIso ? '?tab=documents' : ''}`}
                     className="text-sm font-bold text-[#134e4a] hover:underline"
+                    onClick={(e) => {
+                      if (!e.metaKey && !e.ctrlKey) {
+                        e.preventDefault();
+                        setPreviewStaff(s);
+                      }
+                    }}
                   >
                     {s.displayName || s.username}
                   </Link>
@@ -801,9 +829,30 @@ export default function HrStaffDirectory({
             ))}
           </div>
 
-          <div className="hidden md:block">
-            <AppTableWrap>
-              <AppTable role="numeric" className={compactTable ? 'text-xs' : undefined}>
+          <div className={viewMode === 'cards' ? 'space-y-2' : 'hidden md:block'}>
+            {viewMode === 'cards' ? (
+              pageSlice.map((s) => (
+                <button
+                  key={s.userId}
+                  type="button"
+                  className="flex w-full items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 text-left shadow-sm transition hover:border-[#134e4a]/25 hover:shadow-md"
+                  onClick={() => setPreviewStaff(s)}
+                >
+                  <HrStaffAvatar staff={s} />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-bold text-slate-900">{s.displayName || s.username}</p>
+                    <p className="truncate text-xs text-slate-600">
+                      {resolveBranchLabel(s, branchNames)} · {s.jobTitle || '—'}
+                    </p>
+                    <StaffBadges staff={s} />
+                  </div>
+                  <HrStatusBadge status={s.status} variant="staff" />
+                </button>
+              ))
+            ) : (
+              <>
+                <AppTableWrap>
+                  <AppTable role="numeric" className={compactTable ? 'text-xs' : undefined}>
                 <AppTableThead>
                   {canBulkManage ? (
                     <AppTableTh>
@@ -871,12 +920,13 @@ export default function HrStaffDirectory({
                         <AppTableTd>
                           <div className="flex items-center gap-2">
                             <HrStaffAvatar staff={s} />
-                            <Link
-                              to={`${staffBasePath}/${encodeURIComponent(s.userId)}`}
-                              className="font-semibold text-[#134e4a] hover:underline"
+                            <button
+                              type="button"
+                              onClick={() => setPreviewStaff(s)}
+                              className="font-semibold text-[#134e4a] hover:underline text-left"
                             >
                               {s.displayName || s.username}
-                            </Link>
+                            </button>
                           </div>
                         </AppTableTd>
                         {visibleColumns.has('employeeNo') ? <AppTableTd>{s.employeeNo || '—'}</AppTableTd> : null}
@@ -940,23 +990,33 @@ export default function HrStaffDirectory({
                 </AppTableBody>
               </AppTable>
             </AppTableWrap>
+                {total > pageSize ? (
+                  <AppTablePager
+                    showingFrom={showingFrom}
+                    showingTo={showingTo}
+                    total={total}
+                    hasPrev={page > 1}
+                    hasNext={page < pageCount}
+                    onPrev={() => setPage((p) => Math.max(1, p - 1))}
+                    onNext={() => setPage((p) => Math.min(pageCount, p + 1))}
+                  />
+                ) : null}
+              </>
+            )}
           </div>
-          {total > pageSize ? (
-            <AppTablePager
-              showingFrom={showingFrom}
-              showingTo={showingTo}
-              total={total}
-              hasPrev={page > 1}
-              hasNext={page < pageCount}
-              onPrev={() => setPage((p) => Math.max(1, p - 1))}
-              onNext={() => setPage((p) => Math.min(pageCount, p + 1))}
-            />
-          ) : null}
         </>
       ) : null}
       {error ? (
         <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-800">{error}</div>
       ) : null}
+
+      <HrStaffQuickPreviewSlideOver
+        staff={previewStaff}
+        staffBasePath={staffBasePath}
+        branchNames={branchNames}
+        isOpen={Boolean(previewStaff)}
+        onClose={() => setPreviewStaff(null)}
+      />
     </div>
   );
 }

@@ -33,7 +33,7 @@ function memoStatusTone(status) {
   return 'bg-amber-100 text-amber-900';
 }
 
-export default function TeamHrIncidents({ focusMemoId, onFocusHandled }) {
+export default function TeamHrIncidents({ focusMemoId, onFocusHandled, embedded = false } = {}) {
   const ws = useWorkspace();
   const canEscalate = canManageHrDiscipline(ws?.permissions || []);
   const [modalOpen, setModalOpen] = useState(false);
@@ -125,13 +125,19 @@ export default function TeamHrIncidents({ focusMemoId, onFocusHandled }) {
     reload();
   };
 
-  return (
-    <HrPageBody>
-      <HrPageIntro
-        title="Incident memos"
-        description="Raise factual incident memos for your branch. HR reviews and escalates into formal accountability cases — you do not need to visit the main HR workspace."
-        actions={<HrAddFormButton onClick={() => setModalOpen(true)}>New incident memo</HrAddFormButton>}
-      />
+  const body = (
+    <>
+      {!embedded ? (
+        <HrPageIntro
+          title="Incident memos"
+          description="Raise factual incident memos for your branch. HR reviews and escalates into formal accountability cases — you do not need to visit the main HR workspace."
+          actions={<HrAddFormButton onClick={() => setModalOpen(true)}>New incident memo</HrAddFormButton>}
+        />
+      ) : (
+        <div className="flex justify-end">
+          <HrAddFormButton onClick={() => setModalOpen(true)}>New incident memo</HrAddFormButton>
+        </div>
+      )}
 
       {!canEscalate ? (
         <ProfileInlineAlert variant="info">
@@ -140,7 +146,14 @@ export default function TeamHrIncidents({ focusMemoId, onFocusHandled }) {
       ) : null}
 
       {message ? <ProfileInlineAlert variant="success">{message}</ProfileInlineAlert> : null}
-      {error ? <ProfileInlineAlert variant="error">{error}</ProfileInlineAlert> : null}
+      {error ? (
+        <ProfileInlineAlert variant="error">
+          {error}{' '}
+          <button type="button" className="font-bold underline" onClick={() => reload({ forceSpinner: true })}>
+            Retry
+          </button>
+        </ProfileInlineAlert>
+      ) : null}
 
       <ProfileOverviewSection title="Filters" subtitle="Search and export incident memos">
       <div className="flex flex-wrap gap-2">
@@ -261,6 +274,8 @@ export default function TeamHrIncidents({ focusMemoId, onFocusHandled }) {
       </AppTableWrap>
       )}
       </ProfileOverviewSection>
-    </HrPageBody>
+    </>
   );
+
+  return embedded ? body : <HrPageBody>{body}</HrPageBody>;
 }

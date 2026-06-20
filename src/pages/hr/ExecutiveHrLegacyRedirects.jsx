@@ -1,5 +1,5 @@
 import React from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useSearchParams } from 'react-router-dom';
 
 const FAMILY_TAB_MAP = {
   'family-dashboard': 'family',
@@ -8,6 +8,17 @@ const FAMILY_TAB_MAP = {
   chairman: 'benefits',
   'scholarship-requests': 'requests',
 };
+
+const BENEFITS_INNER_TABS = new Set([
+  'beneficiaries',
+  'school-fees',
+  'stipends',
+  'domestic',
+  'payments',
+  'export',
+  'expenses',
+  'audit',
+]);
 
 const COMPENSATION_TAB_MAP = {
   payroll: 'payroll',
@@ -22,19 +33,32 @@ const APPROVALS_TAB_MAP = {
   'exceptional-loans': 'exceptional-loans',
 };
 
-function hubRedirect(base, tabMap, segment, defaultTab) {
-  const tab = tabMap[segment] || defaultTab;
-  return `/executive-hr/${base}?tab=${encodeURIComponent(tab)}`;
+function hubRedirect(base, tabMap, segment, defaultTab, searchParams) {
+  const hubTab = tabMap[segment] || defaultTab;
+  const params = new URLSearchParams();
+  params.set('tab', hubTab);
+  const legacyInner = searchParams.get('tab');
+  if (hubTab === 'benefits' && legacyInner && BENEFITS_INNER_TABS.has(legacyInner)) {
+    params.set('benefitsTab', legacyInner);
+  }
+  for (const key of ['benefitsTab', 'staff', 'beneficiary']) {
+    const v = searchParams.get(key);
+    if (v) params.set(key, v);
+  }
+  return `/executive-hr/${base}?${params.toString()}`;
 }
 
 export function ExecutiveHrFamilyLegacyRedirect({ segment }) {
-  return <Navigate to={hubRedirect('family', FAMILY_TAB_MAP, segment, 'family')} replace />;
+  const [searchParams] = useSearchParams();
+  return <Navigate to={hubRedirect('family', FAMILY_TAB_MAP, segment, 'family', searchParams)} replace />;
 }
 
 export function ExecutiveHrCompensationLegacyRedirect({ segment }) {
-  return <Navigate to={hubRedirect('compensation', COMPENSATION_TAB_MAP, segment, 'payroll')} replace />;
+  const [searchParams] = useSearchParams();
+  return <Navigate to={hubRedirect('compensation', COMPENSATION_TAB_MAP, segment, 'payroll', searchParams)} replace />;
 }
 
 export function ExecutiveHrApprovalsLegacyRedirect({ segment }) {
-  return <Navigate to={hubRedirect('approvals', APPROVALS_TAB_MAP, segment, 'sensitive')} replace />;
+  const [searchParams] = useSearchParams();
+  return <Navigate to={hubRedirect('approvals', APPROVALS_TAB_MAP, segment, 'sensitive', searchParams)} replace />;
 }

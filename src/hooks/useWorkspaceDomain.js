@@ -3,6 +3,7 @@ import { useWorkspace } from '../context/WorkspaceContext';
 
 /**
  * Lazy-load a workspace domain snapshot when a heavy module route mounts.
+ * HR uses `useHrDashboardCounts` / `useHrTeamSummary` instead (no hr-snapshot domain yet).
  * @param {'sales' | 'operations' | 'finance' | 'procurement'} domain
  */
 export function useWorkspaceDomain(domain) {

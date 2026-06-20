@@ -3,37 +3,25 @@ import { useWorkspace } from '../../context/WorkspaceContext';
 import { Link } from 'react-router-dom';
 import { apiFetch } from '../../lib/apiBase';
 import { useHrListLoad } from '../../hooks/useHrListLoad';
+import { useHrDashboardCounts } from '../../hooks/useHrDashboardCounts';
 import { generateLeaveDecisionLetter } from '../../lib/hrPhase2';
 import { generateStaffLoanAgreementLetter } from '../../lib/hrExtended';
 import { canGenerateHrLetters } from '../../lib/hrAccess';
-import {
-  hrRequestKindLabel,
-} from '../../lib/hrFormat';
+import { hrRequestKindLabel, hrRequestStatusClass } from '../../lib/hrFormat';
 import { hrRequestReviewPath } from '../../lib/hrRequests';
-import {
-  AppTable,
-  AppTableBody,
-  AppTablePager,
-  AppTableTd,
-  AppTableTh,
-  AppTableThead,
-  AppTableTr,
-  AppTableWrap,
-} from '../ui/AppDataTable';
-import { HrStatusBadge } from './HrStatusBadge';
-import { HrTableEmptyRow, HrTableLoadingRow } from './HrTableBodyState';
+import { filterHrRequestsList, HR_REQUEST_SORT_FIELDS, sortHrRequestsList } from '../../lib/hrRequestsList';
 import { useAppTablePaging } from '../../lib/appDataTable';
+import { AppTablePager } from '../ui/AppDataTable';
+import { HrStatusBadge } from './HrStatusBadge';
 import { HrRequestPayloadSummary, hrRequestApprovalChain } from './HrRequestPayloadSummary';
 import HrRequestStageBar from './HrRequestStageBar';
+import { HrListTableFrame, HrListSearchInput, HrListSortBar } from './HrListTableFrame';
+import { HrRequestScopeFilter } from './HrRequestScopeFilter';
+import { HrRequestPreviewSlideOver } from './HrRequestPreviewSlideOver';
 import { HR_BTN_PILL, HR_BTN_PRIMARY, HR_BTN_SECONDARY, HR_FIELD_CLASS, HR_TEXTAREA_CLASS } from './hrFormStyles';
 
-const SCOPE_LABELS = {
-  mine: 'My requests',
-  hr_queue: 'HR review',
-  endorse_queue: 'Branch endorsements',
-  gm_queue: 'GM HR final',
-  all: 'All requests',
-};
+const CARD_ROW =
+  'group relative flex min-w-0 items-center gap-3 rounded-xl border border-slate-200/90 bg-white/80 px-3 py-3 backdrop-blur-md transition-all hover:-translate-y-0.5 hover:border-[#134e4a]/25 hover:shadow-md sm:px-4';
 
 /**
  * Shared HR requests list with optional approval actions.
@@ -64,6 +52,10 @@ export function HrRequestsPanel({
   const [showBulkRejectPrompt, setShowBulkRejectPrompt] = useState(false);
   const [filterSearch, setFilterSearch] = useState('');
   const [filterKindLocal, setFilterKindLocal] = useState('');
+  const [sortField, setSortField] = useState('updated');
+  const [sortDir, setSortDir] = useState('desc');
+  const [previewRequest, setPreviewRequest] = useState(null);
+  const { counts: queueCounts, loading: countsLoading } = useHrDashboardCounts();
 
   const REASON_CODES = [
     { value: 'policy', label: 'Policy' },
@@ -104,7 +96,7 @@ export function HrRequestsPanel({
     if (!focusRequestId || loading) return;
     const match = requests.find((r) => r.id === focusRequestId);
     if (!match) return;
-    setExpandedId(focusRequestId);
+    setPreviewRequest(match);
     if (canReviewRow(match)) setReviewId(focusRequestId);
   }, [focusRequestId, requests, loading, canReviewRow]);
 
@@ -178,12 +170,17 @@ export function HrRequestsPanel({
     });
   }, [requests, kindFilter, filterKindLocal, filterSearch, kindsInclude]);
 
-  const requestPaging = useAppTablePaging(visibleRequests, 20, scope, kindFilter, filterKindLocal, filterSearch);
+  const visibleSortedRequests = useMemo(
+    () => sortHrRequestsList(visibleRequests, sortField, sortDir),
+    [visibleRequests, sortField, sortDir]
+  );
+
+  const requestPaging = useAppTablePaging(visibleSortedRequests, 20, scope, kindFilter, filterKindLocal, filterSearch, sortField, sortDir);
 
   const exportQueueCsv = () => {
     const esc = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
     const header = ['ID', 'Title', 'Kind', 'Status', 'Employee', 'Submitted'];
-    const lines = visibleRequests.map((r) =>
+    const lines = visibleSortedRequests.map((r) =>
       [r.id, r.title, r.kind, r.status, r.staffDisplayName || r.userId, r.submittedAtIso?.slice(0, 10)].map(esc).join(',')
     );
     const blob = new Blob([[header.join(','), ...lines].join('\n')], { type: 'text/csv;charset=utf-8' });
@@ -423,233 +420,151 @@ export function HrRequestsPanel({
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap gap-2">
-        {allowedScopes.map((s) => (
-          <button
-            key={s}
-            type="button"
-            onClick={() => { setScope(s); setSelectedIds([]); }}
-            className={`${HR_BTN_PILL} ${
-              scope === s
-                ? 'bg-[#134e4a] text-white shadow-sm'
-                : 'border border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
-            }`}
-          >
-            {SCOPE_LABELS[s] || s}
-          </button>
-        ))}
-      </div>
+      <HrRequestScopeFilter
+        allowedScopes={allowedScopes}
+        scope={scope}
+        onChange={(s) => {
+          setScope(s);
+          setSelectedIds([]);
+        }}
+        counts={queueCounts}
+        loading={countsLoading}
+      />
 
-      <div className="flex flex-wrap items-center gap-2">
-        {!kindFilter && !hideKindFilter && !kindsInclude?.length ? (
-          <select
-            value={filterKindLocal}
-            onChange={(e) => setFilterKindLocal(e.target.value)}
-            className={`${HR_FIELD_CLASS} max-w-[160px] text-xs`}
-            aria-label="Filter by request kind"
-          >
-            <option value="">All kinds</option>
-            <option value="leave">Leave</option>
-            <option value="loan">Loan</option>
-            <option value="profile_change">Profile change</option>
-          </select>
-        ) : null}
-        <input
-          type="search"
-          value={filterSearch}
-          onChange={(e) => setFilterSearch(e.target.value)}
-          placeholder="Search title, employee…"
-          className={`${HR_FIELD_CLASS} min-w-[180px] flex-1 text-sm`}
-        />
-        {scope !== 'mine' ? (
-          <button type="button" onClick={exportQueueCsv} className={HR_BTN_SECONDARY}>
-            Export CSV
-          </button>
-        ) : null}
-      </div>
-
-      {error ? (
-        <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-800">{error}</div>
-      ) : null}
-
-      {selectedIds.length > 0 ? (
-        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-[#134e4a]/20 bg-teal-50/60 px-4 py-2.5 text-sm">
-          <span className="font-semibold text-[#134e4a]">{selectedIds.length} request{selectedIds.length !== 1 ? 's' : ''} selected</span>
-          <span className="text-slate-400">→</span>
-          {bulkProgress ? (
-            <span className="text-sm text-slate-600">{bulkProgress}</span>
-          ) : (
-            <>
-              <button
-                type="button"
-                onClick={() => bulkReview(true, '')}
-                className="rounded-lg bg-emerald-700 px-3 py-1.5 text-xs font-bold uppercase text-white"
-              >
-                Approve All
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowBulkRejectPrompt(true)}
-                className="rounded-lg bg-red-700 px-3 py-1.5 text-xs font-bold uppercase text-white"
-              >
-                Reject All
-              </button>
-              <button
-                type="button"
-                onClick={() => setSelectedIds([])}
-                className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-bold uppercase text-slate-600"
-              >
-                Clear
-              </button>
-            </>
-          )}
-        </div>
-      ) : null}
-
-      {showBulkRejectPrompt ? (
-        <div className="rounded-xl border border-red-100 bg-red-50 p-4 space-y-3">
-          <p className="text-sm font-semibold text-red-900">Rejection reason (applies to all {selectedIds.length} selected)</p>
-          <textarea
-            value={bulkRejectReason}
-            onChange={(e) => setBulkRejectReason(e.target.value)}
-            rows={2}
-            placeholder="Enter rejection reason…"
-            className="w-full rounded-lg border border-red-200 px-3 py-2 text-sm"
-          />
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={() => bulkReview(false, bulkRejectReason)}
-              className="rounded-lg bg-red-700 px-3 py-1.5 text-[10px] font-bold uppercase text-white"
-            >
-              Confirm Reject All
-            </button>
-            <button
-              type="button"
-              onClick={() => { setShowBulkRejectPrompt(false); setBulkRejectReason(''); }}
-              className="rounded-lg border border-slate-200 px-3 py-1.5 text-[10px] font-bold uppercase text-slate-600"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      ) : null}
-
-      <div className="md:hidden space-y-3">
-        {loading && requests.length === 0 ? (
-          <p className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">
-            Loading requests…
-          </p>
-        ) : null}
-        {!loading && visibleRequests.length === 0 ? (
-          <p className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">
-            No requests in this queue.
-          </p>
-        ) : null}
-        {requestPaging.slice.map((r) => (
-          <article key={r.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-            <div className="flex items-start gap-3">
-              {canReviewRow(r) ? (
-                <input
-                  type="checkbox"
-                  checked={selectedIds.includes(r.id)}
-                  onChange={() => toggleSelect(r.id)}
-                  aria-label={`Select ${r.title || 'request'}`}
-                  className="mt-1 rounded"
-                />
+      <HrListTableFrame
+        toolbar={
+          <>
+            <HrListSearchInput value={filterSearch} onChange={setFilterSearch} placeholder="Search title, employee, kind…" />
+            <HrListSortBar
+              fields={HR_REQUEST_SORT_FIELDS}
+              field={sortField}
+              dir={sortDir}
+              onFieldChange={setSortField}
+              onDirToggle={() => setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))}
+            />
+            <div className="flex flex-wrap items-center gap-2">
+              {!kindFilter && !hideKindFilter && !kindsInclude?.length ? (
+                <select
+                  value={filterKindLocal}
+                  onChange={(e) => setFilterKindLocal(e.target.value)}
+                  className={`${HR_FIELD_CLASS} max-w-[160px] text-xs`}
+                  aria-label="Filter by request kind"
+                >
+                  <option value="">All kinds</option>
+                  <option value="leave">Leave</option>
+                  <option value="loan">Loan</option>
+                  <option value="profile_change">Profile change</option>
+                </select>
               ) : null}
-              <div className="min-w-0 flex-1">
-                <div className="flex items-start justify-between gap-3">
-                  <h4 className="text-sm font-bold leading-snug text-slate-900">{r.title || 'Request'}</h4>
-                  <HrStatusBadge status={r.status} variant="request" />
-                </div>
-                <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 text-xs">
-                  <div>
-                    <dt className="font-bold uppercase tracking-wide text-slate-400">Kind</dt>
-                    <dd className="mt-0.5 font-semibold text-slate-800">{hrRequestKindLabel(r.kind)}</dd>
-                  </div>
-                  <div>
-                    <dt className="font-bold uppercase tracking-wide text-slate-400">Submitted</dt>
-                    <dd className="mt-0.5 font-semibold tabular-nums text-slate-800">{r.submittedAtIso?.slice(0, 10) || '—'}</dd>
-                  </div>
-                  {showEmployeeColumn ? (
-                    <div className="col-span-2">
-                      <dt className="font-bold uppercase tracking-wide text-slate-400">Employee</dt>
-                      <dd className="mt-0.5">{renderEmployeeCell(r)}</dd>
-                    </div>
-                  ) : null}
-                </dl>
-                <div className="mt-4">{renderRequestActions(r)}</div>
-              </div>
+              {scope !== 'mine' ? (
+                <button type="button" onClick={exportQueueCsv} className={HR_BTN_SECONDARY}>
+                  Export CSV
+                </button>
+              ) : null}
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                {loading ? 'Loading…' : `${visibleSortedRequests.length} in queue`}
+              </p>
             </div>
-          </article>
-        ))}
-      </div>
+          </>
+        }
+      >
+        {error ? (
+          <div className="mb-3 rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-800">{error}</div>
+        ) : null}
 
-      <div className="hidden md:block">
-        <AppTableWrap>
-          <AppTable>
-            <AppTableThead>
-              {reviewableRequests.length > 0 ? (
-                <AppTableTh>
+        {selectedIds.length > 0 ? (
+          <div className="mb-3 flex flex-wrap items-center gap-3 rounded-xl border border-[#134e4a]/20 bg-teal-50/60 px-4 py-2.5 text-sm">
+            <span className="font-semibold text-[#134e4a]">{selectedIds.length} request{selectedIds.length !== 1 ? 's' : ''} selected</span>
+            {bulkProgress ? (
+              <span className="text-sm text-slate-600">{bulkProgress}</span>
+            ) : (
+              <>
+                <button type="button" onClick={() => bulkReview(true, '')} className="rounded-lg bg-emerald-700 px-3 py-1.5 text-xs font-bold uppercase text-white">
+                  Approve All
+                </button>
+                <button type="button" onClick={() => setShowBulkRejectPrompt(true)} className="rounded-lg bg-red-700 px-3 py-1.5 text-xs font-bold uppercase text-white">
+                  Reject All
+                </button>
+                <button type="button" onClick={() => setSelectedIds([])} className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-bold uppercase text-slate-600">
+                  Clear
+                </button>
+              </>
+            )}
+          </div>
+        ) : null}
+
+        {showBulkRejectPrompt ? (
+          <div className="mb-3 rounded-xl border border-red-100 bg-red-50 p-4 space-y-3">
+            <p className="text-sm font-semibold text-red-900">Rejection reason (applies to all {selectedIds.length} selected)</p>
+            <textarea
+              value={bulkRejectReason}
+              onChange={(e) => setBulkRejectReason(e.target.value)}
+              rows={2}
+              placeholder="Enter rejection reason…"
+              className="w-full rounded-lg border border-red-200 px-3 py-2 text-sm"
+            />
+            <div className="flex gap-2">
+              <button type="button" onClick={() => bulkReview(false, bulkRejectReason)} className="rounded-lg bg-red-700 px-3 py-1.5 text-[10px] font-bold uppercase text-white">
+                Confirm Reject All
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowBulkRejectPrompt(false);
+                  setBulkRejectReason('');
+                }}
+                className="rounded-lg border border-slate-200 px-3 py-1.5 text-[10px] font-bold uppercase text-slate-600"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        ) : null}
+
+        {loading && requests.length === 0 ? (
+          <p className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">Loading requests…</p>
+        ) : null}
+        {!loading && visibleSortedRequests.length === 0 ? (
+          <p className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">No requests in this queue.</p>
+        ) : null}
+
+        <div className="space-y-2">
+          {requestPaging.slice.map((r) => (
+            <div key={r.id} className={`${CARD_ROW} flex-col sm:flex-row sm:items-center`}>
+              <div className="flex w-full min-w-0 items-start gap-3">
+                {canReviewRow(r) ? (
                   <input
                     type="checkbox"
-                    checked={allReviewableSelected}
-                    onChange={toggleSelectAll}
-                    aria-label="Select all reviewable requests"
-                    className="rounded"
+                    checked={selectedIds.includes(r.id)}
+                    onChange={() => toggleSelect(r.id)}
+                    onClick={(e) => e.stopPropagation()}
+                    aria-label={`Select ${r.title || 'request'}`}
+                    className="mt-1 rounded"
                   />
-                </AppTableTh>
-              ) : (
-                <AppTableTh />
-              )}
-              <AppTableTh>Title</AppTableTh>
-              <AppTableTh>Kind</AppTableTh>
-              {showEmployeeColumn ? <AppTableTh>Employee</AppTableTh> : null}
-              <AppTableTh>Status</AppTableTh>
-              <AppTableTh>Submitted</AppTableTh>
-              <AppTableTh>Actions</AppTableTh>
-            </AppTableThead>
-            <AppTableBody>
-              {loading && requests.length === 0 ? (
-                <HrTableLoadingRow
-                  colSpan={showEmployeeColumn ? 7 : 6}
-                  message="Loading requests…"
-                />
-              ) : null}
-              {!loading && visibleRequests.length === 0 ? (
-                <HrTableEmptyRow
-                  colSpan={showEmployeeColumn ? 7 : 6}
-                  message="No requests in this queue."
-                />
-              ) : null}
-              {requestPaging.slice.map((r) => (
-                <AppTableTr key={r.id}>
-                  <AppTableTd truncate={false}>
-                    {canReviewRow(r) ? (
-                      <input
-                        type="checkbox"
-                        checked={selectedIds.includes(r.id)}
-                        onChange={() => toggleSelect(r.id)}
-                        aria-label={`Select request ${r.title || r.id}`}
-                        className="rounded"
-                      />
-                    ) : null}
-                  </AppTableTd>
-                  <AppTableTd title={r.title}>{r.title}</AppTableTd>
-                  <AppTableTd>{hrRequestKindLabel(r.kind)}</AppTableTd>
-                  {showEmployeeColumn ? <AppTableTd>{renderEmployeeCell(r)}</AppTableTd> : null}
-                  <AppTableTd truncate={false}>
-                    <HrStatusBadge status={r.status} variant="request" />
-                  </AppTableTd>
-                  <AppTableTd monospace>{r.submittedAtIso?.slice(0, 10) || '—'}</AppTableTd>
-                  <AppTableTd truncate={false}>{renderRequestActions(r)}</AppTableTd>
-                </AppTableTr>
-              ))}
-            </AppTableBody>
-          </AppTable>
-        </AppTableWrap>
-      </div>
+                ) : (
+                  <span className="w-4 shrink-0" />
+                )}
+                <button type="button" className="min-w-0 flex-1 text-left" onClick={() => setPreviewRequest(r)}>
+                  <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400">{hrRequestKindLabel(r.kind)}</p>
+                  <p className="truncate text-sm font-bold text-slate-900">{r.title || 'Request'}</p>
+                  <p className="mt-0.5 text-xs text-slate-600">
+                    {showEmployeeColumn ? renderEmployeeCell(r) : r.staffDisplayName || 'You'}
+                    <span className="mx-1 text-slate-300">·</span>
+                    <span className="font-mono text-[10px] text-slate-500">{r.submittedAtIso?.slice(0, 10) || r.updatedAtIso?.slice(0, 10) || '—'}</span>
+                  </p>
+                </button>
+                <span
+                  className={`shrink-0 inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase ${hrRequestStatusClass(r.status)}`}
+                >
+                  {r.status?.replace(/_/g, ' ')}
+                </span>
+              </div>
+              <div className="w-full sm:w-auto sm:shrink-0 pl-7 sm:pl-0">{renderRequestActions(r)}</div>
+            </div>
+          ))}
+        </div>
+      </HrListTableFrame>
+
       {requestPaging.total > requestPaging.pageSize ? (
         <AppTablePager
           showingFrom={requestPaging.showingFrom}
@@ -661,6 +576,13 @@ export function HrRequestsPanel({
           onNext={requestPaging.goNext}
         />
       ) : null}
+
+      <HrRequestPreviewSlideOver
+        request={previewRequest}
+        isOpen={Boolean(previewRequest)}
+        onClose={() => setPreviewRequest(null)}
+        onReviewed={() => void load()}
+      />
     </div>
   );
 }

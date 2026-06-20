@@ -73,10 +73,32 @@ function KpiCard({ label, value, hint }) {
   );
 }
 
+const INNER_TAB_IDS = new Set(TABS.map((t) => t.id));
+
 export default function HrExecutiveBenefitsHub({ embedded = false } = {}) {
   const [searchParams, setSearchParams] = useSearchParams();
-  const tab = searchParams.get('tab') || 'school-fees';
-  const setTab = (id) => setSearchParams({ tab: id }, { replace: true });
+  const innerParam = embedded ? 'benefitsTab' : 'tab';
+  const legacyInner = searchParams.get('tab');
+  const tab =
+    searchParams.get(innerParam) ||
+    (embedded && legacyInner && INNER_TAB_IDS.has(legacyInner) ? legacyInner : null) ||
+    'school-fees';
+  const setTab = (id) => {
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        if (embedded) {
+          next.set('tab', 'benefits');
+          next.set('benefitsTab', id);
+        } else {
+          next.set('tab', id);
+          next.delete('benefitsTab');
+        }
+        return next;
+      },
+      { replace: true }
+    );
+  };
 
   const [dashboard, setDashboard] = useState(null);
   const [dashError, setDashError] = useState('');

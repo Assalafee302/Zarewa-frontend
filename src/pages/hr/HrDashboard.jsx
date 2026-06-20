@@ -38,6 +38,7 @@ import { employeesDirectoryLink, DIRECTORY_QUICK_FROM_ALERT } from '../../lib/hr
 import { HrKpiCard } from '../../components/hr/HrKpiCard';
 import { HrHubToolbar } from '../../components/hr/HrHubToolbar';
 import HrMobileAlertStrip from '../../components/hr/HrMobileAlertStrip';
+import HrDashboardAnalyticsStrip from '../../components/hr/HrDashboardAnalyticsStrip';
 import { HrListTableFrame, HrListSearchInput, HrListSortBar } from '../../components/hr/HrListTableFrame';
 import { HrRequestPreviewSlideOver } from '../../components/hr/HrRequestPreviewSlideOver';
 import {
@@ -642,7 +643,12 @@ export default function HrDashboard() {
   if (error) {
     return (
       <HrPageBody>
-        <ProfileInlineAlert variant="error">{error}</ProfileInlineAlert>
+        <ProfileInlineAlert variant="error">
+          {error}{' '}
+          <button type="button" className="font-bold underline" onClick={() => reload({ forceSpinner: true })}>
+            Retry
+          </button>
+        </ProfileInlineAlert>
       </HrPageBody>
     );
   }
@@ -772,6 +778,10 @@ export default function HrDashboard() {
       </ProfileOverviewSection>
 
       <HrProfileWorkPanel queue={profileWorkQueue} />
+
+      <ProfileOverviewSection title="Workforce trends" subtitle="Headcount movement and leave utilisation — from HR analytics">
+        <HrDashboardAnalyticsStrip />
+      </ProfileOverviewSection>
 
       {alerts !== null ? (
         <ProfileOverviewSection

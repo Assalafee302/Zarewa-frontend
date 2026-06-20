@@ -147,6 +147,15 @@ export default function HrTimeAbsenceHub() {
 
   const approvalKindFilter = kindParam === 'leave' ? 'leave' : '';
 
+  if (!tabs.length) {
+    return (
+      <div className="rounded-xl border border-amber-100 bg-amber-50 px-4 py-6 text-sm text-amber-950">
+        <p className="font-semibold">Time & absence access not granted</p>
+        <p className="mt-1 text-xs">Your role does not include leave, attendance, or approval permissions. Contact HR admin if you need access.</p>
+      </div>
+    );
+  }
+
   return (
     <HrTabbedPage
       title="Time & Absence"

@@ -25,6 +25,9 @@ export default function ExecutiveHrCompensationHub() {
       tabs={TABS}
       tab={tab}
       onTabChange={setTab}
+      hub="executive-hr-compensation"
+      hubPrompt="Summarize executive compensation, payroll variance, and branch contribution status."
+      hubPageContext={{ compensationTab: tab }}
     >
       {tab === 'payroll' ? <ExecutiveHrPayrollSummary /> : null}
       {tab === 'contributions' ? <ExecutiveHrContributions /> : null}

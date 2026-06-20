@@ -19,7 +19,9 @@ import { HrStaffActivityStrip } from '../../components/hr/HrStaffActivityStrip';
 import { HrStaffProbationPanel } from '../../components/hr/HrStaffProbationPanel';
 import { PageHeader } from '../../components/layout/PageHeader';
 import { PageTabs } from '../../components/layout/PageTabs';
-import { HR_TALENT, HR_EMPLOYEES, HR_REQUESTS } from '../../lib/hrRoutes';
+import { HR_TALENT, HR_EMPLOYEES, HR_TIME_ABSENCE, HR_DISCIPLINE_EXIT, hrTabPath } from '../../lib/hrRoutes';
+import { hrRequestKindLabel, hrRequestStatusClass } from '../../lib/hrFormat';
+import { fetchHrTransferRequests } from '../../lib/hrTransfers';
 import { HrSalaryIncrementPanel } from '../../components/hr/HrSalaryIncrementPanel';
 import { HrPromotionFromMatrix } from '../../components/hr/HrPromotionFromMatrix';
 import { HrFormModal } from '../../components/hr/HrFormModal';
@@ -376,6 +378,8 @@ export default function HrStaffProfile() {
   const [staff, setStaff] = useState(null);
   const [branchHistory, setBranchHistory] = useState([]);
   const [leaveBalances, setLeaveBalances] = useState(null);
+  const [leaveRequests, setLeaveRequests] = useState(null);
+  const [staffTransfers, setStaffTransfers] = useState(null);
   const [auditEvents, setAuditEvents] = useState(null);
   const [loanSchedule, setLoanSchedule] = useState([]);
   const [moneySummary, setMoneySummary] = useState(null);
@@ -522,7 +526,33 @@ export default function HrStaffProfile() {
   }, [tab, userId, canManageLeave]);
 
   useEffect(() => {
-    if (tab !== 'employment' || !userId || !canManage) return;
+    if (tab !== 'leave' || !userId || !canManageLeave) return;
+    let cancelled = false;
+    (async () => {
+      const { ok, data } = await apiFetch('/api/hr/requests?scope=all');
+      if (cancelled) return;
+      const rows = ok && data?.ok ? (data.requests || []).filter((r) => r.userId === userId && r.kind === 'leave') : [];
+      setLeaveRequests(rows.slice(0, 8));
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [tab, userId, canManageLeave]);
+
+  useEffect(() => {
+    if (tab !== 'transfers' || !userId) return;
+    let cancelled = false;
+    (async () => {
+      const { ok, data } = await fetchHrTransferRequests({ userId });
+      if (cancelled) return;
+      setStaffTransfers(ok && data?.ok ? data.transfers || data.items || [] : []);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [tab, userId]);
+
+  useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
@@ -582,7 +612,12 @@ export default function HrStaffProfile() {
         <Link to={HR_EMPLOYEES} className="inline-flex items-center gap-1 text-sm font-semibold text-[#134e4a] hover:underline">
           <ArrowLeft size={16} aria-hidden /> Back to staff directory
         </Link>
-        <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-800">{error}</div>
+        <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-800">
+          {error}{' '}
+          <button type="button" className="font-bold underline" onClick={() => { setLoading(true); void reloadProfile().finally(() => setLoading(false)); }}>
+            Retry
+          </button>
+        </div>
       </div>
     );
   }
@@ -939,11 +974,32 @@ export default function HrStaffProfile() {
               </AppTable>
             </AppTableWrap>
           )}
+          {leaveRequests?.length ? (
+            <HrCard className="!p-4">
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Recent leave requests</p>
+              <ul className="mt-2 space-y-2">
+                {leaveRequests.map((r) => (
+                  <li key={r.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-100 bg-slate-50/80 px-3 py-2 text-xs">
+                    <span className="font-semibold text-slate-800">{r.title || hrRequestKindLabel(r.kind)}</span>
+                    <span className={`rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase ${hrRequestStatusClass(r.status)}`}>
+                      {r.status?.replace(/_/g, ' ')}
+                    </span>
+                    <Link
+                      to={hrTabPath(HR_TIME_ABSENCE, 'approvals', { requestId: r.id })}
+                      className="w-full font-bold text-[#134e4a] hover:underline sm:w-auto"
+                    >
+                      Open in queue →
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </HrCard>
+          ) : null}
           <p className="text-xs text-slate-500">
-            <Link to={`${HR_REQUESTS}?kind=leave`} className="font-bold text-[#134e4a] hover:underline">
-              Open leave requests hub →
+            <Link to={hrTabPath(HR_TIME_ABSENCE, 'approvals', { kind: 'leave' })} className="font-bold text-[#134e4a] hover:underline">
+              Open leave approvals →
             </Link>
-            {' '}to apply or approve leave for this employee.
+            {' '}to review or action leave for this employee.
           </p>
         </div>
       ) : null}
@@ -1053,15 +1109,41 @@ export default function HrStaffProfile() {
               <p>
                 Quick branch change: use <strong>Edit profile</strong> and change branch (add a reason).
               </p>
-              <p>
-                <Link
-                  to={`/hr/discipline-exit?tab=transfers&staff=${encodeURIComponent(userId)}`}
-                  className="inline-flex rounded-xl border border-[#134e4a]/30 bg-[#134e4a]/5 px-3 py-1.5 text-xs font-bold uppercase text-[#134e4a] hover:bg-[#134e4a]/10"
-                >
-                  Start transfer request →
-                </Link>
-              </p>
+              <Link
+                to={hrTabPath(HR_DISCIPLINE_EXIT, 'exit', { view: 'transfers', staff: userId })}
+                className="inline-flex rounded-xl border border-[#134e4a]/30 bg-[#134e4a]/5 px-3 py-1.5 text-xs font-bold uppercase text-[#134e4a] hover:bg-[#134e4a]/10 no-underline"
+              >
+                Start transfer request →
+              </Link>
             </div>
+          ) : null}
+          {staffTransfers == null ? (
+            <p className="text-sm text-slate-600">Loading transfer records…</p>
+          ) : staffTransfers.filter((t) => !['completed', 'cancelled', 'rejected'].includes(String(t.status || '').toLowerCase())).length ? (
+            <HrCard className="!p-4">
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Active transfer requests</p>
+              <ul className="mt-2 space-y-2">
+                {staffTransfers
+                  .filter((t) => !['completed', 'cancelled', 'rejected'].includes(String(t.status || '').toLowerCase()))
+                  .map((t) => (
+                    <li key={t.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-100 bg-slate-50/80 px-3 py-2 text-xs">
+                      <span className="font-semibold text-slate-800">
+                        {String(t.transferType || 'transfer').replace(/_/g, ' ')}
+                        {t.toBranchId ? ` → ${t.toBranchId}` : ''}
+                      </span>
+                      <span className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[10px] font-bold uppercase text-slate-700">
+                        {String(t.status || '—').replace(/_/g, ' ')}
+                      </span>
+                      <Link
+                        to={hrTabPath(HR_DISCIPLINE_EXIT, 'exit', { view: 'transfers', transferId: t.id })}
+                        className="w-full font-bold text-[#134e4a] hover:underline sm:w-auto"
+                      >
+                        Open transfer queue →
+                      </Link>
+                    </li>
+                  ))}
+              </ul>
+            </HrCard>
           ) : null}
         {branchHistory.length === 0 ? (
           <p className="text-sm text-slate-600">No branch transfer history recorded for this employee.</p>

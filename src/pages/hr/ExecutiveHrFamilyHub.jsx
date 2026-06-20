@@ -27,6 +27,9 @@ export default function ExecutiveHrFamilyHub() {
       tabs={TABS}
       tab={tab}
       onTabChange={setTab}
+      hub="executive-hr-family"
+      hubPrompt="Summarize executive family benefits, household staff, and pending benefit requests."
+      hubPageContext={{ executiveTab: tab }}
       actions={
         <div className="flex flex-wrap gap-2">
           <Link

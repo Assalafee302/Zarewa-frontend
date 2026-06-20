@@ -85,7 +85,7 @@ export default function HrTalentHub() {
           <SubViewPills views={RECRUIT_SECTIONS} active={recruitSection} onChange={setSection} />
           {recruitSection === 'jobs' || recruitSection === 'applicants' ? (
             <Suspense fallback={<p className="text-sm text-slate-600">Loading recruiting…</p>}>
-              <HrRecruiting />
+              <HrRecruiting embedded />
             </Suspense>
           ) : null}
           {recruitSection === 'onboarding' ? <HrOnboardingQueue /> : null}

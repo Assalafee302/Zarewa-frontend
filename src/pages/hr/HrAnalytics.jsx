@@ -2,7 +2,9 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { apiFetch } from '../../lib/apiBase';
 import { fetchHrAnalyticsDashboard } from '../../lib/hrMasterData';
-import { HrCard, HrPageIntro } from '../../components/hr/hrPageUi';
+import { useHrUrlTab } from '../../hooks/useHrUrlTab';
+import { HrTabbedPage } from '../../components/hr/HrTabbedPage';
+import { HrCard } from '../../components/hr/hrPageUi';
 import { HrStatusBadge } from '../../components/hr/HrStatusBadge';
 import {
   AppTable,
@@ -563,49 +565,37 @@ function TurnoverTab() {
 /* ─── main page ────────────────────────────────────────────── */
 
 const TABS = [
-  { key: 'dashboard', label: 'Overview' },
-  { key: 'attendance', label: 'Attendance' },
-  { key: 'headcount', label: 'Headcount' },
-  { key: 'loans', label: 'Loans' },
-  { key: 'turnover', label: 'Turnover' },
+  { id: 'dashboard', label: 'Overview' },
+  { id: 'attendance', label: 'Attendance' },
+  { id: 'headcount', label: 'Headcount' },
+  { id: 'loans', label: 'Loans' },
+  { id: 'turnover', label: 'Turnover' },
 ];
 
 export default function HrAnalytics() {
-  const [tab, setTab] = useState('dashboard');
+  const { tab, setTab } = useHrUrlTab('dashboard', TABS.map((t) => t.id));
 
   return (
-    <div className="space-y-6">
-      <HrPageIntro
-        title="HR Analytics"
-        description="Workforce insights — attendance trends, headcount breakdown, loan portfolio, and turnover."
-        actions={
-          <Link
-            to="/hr/documents?tab=reports"
-            className="rounded-xl border border-[#134e4a]/30 px-4 py-2 text-[11px] font-bold uppercase tracking-wide text-[#134e4a] hover:bg-teal-50 no-underline"
-          >
-            Full reports &amp; export →
-          </Link>
-        }
-      />
-
-      <div className="flex flex-wrap gap-1 border-b border-slate-200 pb-px">
-        {TABS.map(t => (
-          <button
-            key={t.key}
-            type="button"
-            onClick={() => setTab(t.key)}
-            className={`rounded-t-lg px-3 py-2 text-xs font-bold uppercase ${tab === t.key ? 'border border-b-white bg-white text-[#134e4a]' : 'text-slate-500'}`}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
-
-      {tab === 'dashboard' && <DashboardTab />}
-      {tab === 'attendance' && <AttendanceTab />}
-      {tab === 'headcount' && <HeadcountTab />}
-      {tab === 'loans' && <LoanPortfolioTab />}
-      {tab === 'turnover' && <TurnoverTab />}
-    </div>
+    <HrTabbedPage
+      title="HR Analytics"
+      description="Workforce insights — attendance trends, headcount breakdown, loan portfolio, and turnover."
+      tabs={TABS}
+      tab={tab}
+      onTabChange={setTab}
+      actions={
+        <Link
+          to="/hr/documents?tab=reports"
+          className="inline-flex rounded-xl border border-[#134e4a]/30 px-4 py-2 text-[11px] font-bold uppercase tracking-wide text-[#134e4a] hover:bg-teal-50 no-underline"
+        >
+          Full reports &amp; export →
+        </Link>
+      }
+    >
+      {tab === 'dashboard' ? <DashboardTab /> : null}
+      {tab === 'attendance' ? <AttendanceTab /> : null}
+      {tab === 'headcount' ? <HeadcountTab /> : null}
+      {tab === 'loans' ? <LoanPortfolioTab /> : null}
+      {tab === 'turnover' ? <TurnoverTab /> : null}
+    </HrTabbedPage>
   );
 }
