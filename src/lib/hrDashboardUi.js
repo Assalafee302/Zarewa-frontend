@@ -19,13 +19,6 @@ export function hrPayrollRunsPath(runId) {
   return `${HR_PAYROLL}?tab=payroll-runs`;
 }
 
-/** Finance desk — bulk bank file and treasury posting for a locked run. */
-export function hrFinancePayrollPath(runId) {
-  const params = new URLSearchParams({ tab: 'payroll' });
-  if (runId) params.set('runId', String(runId));
-  return `/accounting?${params.toString()}`;
-}
-
 /**
  * @param {string | undefined} roleKey
  * @param {string[] | undefined} permissions

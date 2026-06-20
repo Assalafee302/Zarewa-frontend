@@ -50,6 +50,13 @@ export function hrPayrollRunPath(runId) {
   return hrTabPath(HR_PAYROLL, 'payroll-runs', { runId: String(runId) });
 }
 
+/** Finance accounting desk — payroll bank payments tab. */
+export function hrFinancePayrollPath(runId) {
+  const params = new URLSearchParams({ tab: 'payroll' });
+  if (runId) params.set('runId', String(runId));
+  return `/accounting?${params.toString()}`;
+}
+
 /** Deep-link state for HR dashboard (React Router `location.state`). */
 export function hrDashboardDeepLink({ openRequestId, focusHrAlertFilter } = {}) {
   /** @type {Record<string, string>} */

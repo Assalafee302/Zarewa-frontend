@@ -65,13 +65,13 @@ export const HR_SETTINGS_MODULE_LINK_GROUPS = [
         to: hrTabPath(HR_SETTINGS, 'structure'),
       },
       {
-        label: 'Pension & statutory',
+        label: 'Payroll settings',
         hint: 'Pension rates, ITF/NSITF reference',
-        to: hrTabPath(HR_PAYROLL, 'statutory'),
+        to: hrTabPath(HR_PAYROLL, 'tax-pension', { section: 'policy' }),
       },
       {
-        label: 'PAYE & pension profiles',
-        hint: 'Per-staff tax and pension setup',
+        label: 'Tax & pension reports',
+        hint: 'PAYE and pension analytics',
         to: hrTabPath(HR_PAYROLL, 'tax-pension'),
       },
     ],

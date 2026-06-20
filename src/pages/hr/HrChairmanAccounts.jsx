@@ -14,8 +14,9 @@ import {
   AppTableWrap,
 } from '../../components/ui/AppDataTable';
 import { HrStatusBadge } from '../../components/hr/HrStatusBadge';
-import {
-  approveExecutivePayment,
+import { formatPayrollPeriodLabel } from '../../lib/hrPayroll';
+import { HrPayrollPeriodFields } from '../../components/hr/HrPayrollPeriodFields';
+import { currentPeriodYyyymm } from '../../lib/hrRequests';
   deleteExecutiveSchoolFee,
   downloadExecutivePaymentExport,
   fetchChairmanExpenses,
@@ -441,10 +442,7 @@ export default function HrExecutiveBenefitsHub({ embedded = false } = {}) {
           <>
             {tab === 'export' ? (
               <div className="mb-4 flex flex-wrap items-end gap-3 rounded-xl border border-slate-100 bg-slate-50/80 p-4">
-                <div>
-                  <label className="mb-1 block text-xs font-semibold text-slate-600">Period (YYYYMM)</label>
-                  <input className={HR_FIELD_CLASS} value={exportPeriod} onChange={(e) => setExportPeriod(e.target.value)} placeholder="202606" />
-                </div>
+                <HrPayrollPeriodFields value={exportPeriod} onChange={setExportPeriod} labelMonth="Export month" compact />
                 <button type="button" className={HR_BTN_PRIMARY} disabled={exportBusy} onClick={() => void handleExport()}>
                   {exportBusy ? 'Exporting…' : FAMILY_BENEFITS.adminAllowanceExport}
                 </button>
@@ -467,7 +465,7 @@ export default function HrExecutiveBenefitsHub({ embedded = false } = {}) {
                       <AppTableTd>{p.payeeName}</AppTableTd>
                       <AppTableTd className="capitalize">{String(p.paymentType || '').replace(/_/g, ' ')}</AppTableTd>
                       <AppTableTd align="right">{formatNgn(p.amountNgn)}</AppTableTd>
-                      <AppTableTd>{p.periodYyyymm || '—'}</AppTableTd>
+                      <AppTableTd>{p.periodYyyymm ? formatPayrollPeriodLabel(p.periodYyyymm) : '—'}</AppTableTd>
                       <AppTableTd><HrStatusBadge status={p.status} variant="benefit" /></AppTableTd>
                       <AppTableTd className="space-x-2">
                         {['submitted', 'finance_review', 'md_review'].includes(p.status) ? (
@@ -507,7 +505,7 @@ export default function HrExecutiveBenefitsHub({ embedded = false } = {}) {
                     <AppTableTr key={e.id}>
                       <AppTableTd>{e.expenseType}</AppTableTd>
                       <AppTableTd>{e.description}</AppTableTd>
-                      <AppTableTd>{e.periodYyyymm}</AppTableTd>
+                      <AppTableTd>{e.periodYyyymm ? formatPayrollPeriodLabel(e.periodYyyymm) : '—'}</AppTableTd>
                       <AppTableTd align="right">{formatNgn(e.amountNgn)}</AppTableTd>
                       <AppTableTd><HrStatusBadge status={e.paymentStatus} variant="benefit" /></AppTableTd>
                     </AppTableTr>
@@ -575,7 +573,14 @@ export default function HrExecutiveBenefitsHub({ embedded = false } = {}) {
         {modal === 'expense' ? (
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="block"><span className="text-xs font-semibold text-slate-600">Type</span><input className={HR_FIELD_CLASS} value={form.expenseType || form.type || ''} onChange={(e) => setForm({ ...form, expenseType: e.target.value, type: e.target.value })} /></label>
-            <label className="block"><span className="text-xs font-semibold text-slate-600">Period (YYYYMM)</span><input className={HR_FIELD_CLASS} value={form.periodYyyymm || form.period || ''} onChange={(e) => setForm({ ...form, periodYyyymm: e.target.value, period: e.target.value })} /></label>
+            <div className="sm:col-span-2">
+              <HrPayrollPeriodFields
+                value={form.periodYyyymm || form.period || currentPeriodYyyymm()}
+                onChange={(periodYyyymm) => setForm({ ...form, periodYyyymm, period: periodYyyymm })}
+                labelMonth="Expense month"
+                compact
+              />
+            </div>
             <label className="block sm:col-span-2"><span className="text-xs font-semibold text-slate-600">Description</span><input className={HR_FIELD_CLASS} value={form.description || ''} onChange={(e) => setForm({ ...form, description: e.target.value })} /></label>
             <label className="block"><span className="text-xs font-semibold text-slate-600">Amount</span><input type="number" className={HR_FIELD_CLASS} value={form.amountNgn || ''} onChange={(e) => setForm({ ...form, amountNgn: e.target.value })} /></label>
           </div>

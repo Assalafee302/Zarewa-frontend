@@ -15,7 +15,7 @@ const TABS = [
   { id: 'loans', label: 'Loans' },
   { id: 'benefits', label: 'Benefits' },
   { id: 'salary-matrix', label: 'Salary Matrix' },
-  { id: 'tax-pension', label: 'PAYE, pension & policy' },
+  { id: 'tax-pension', label: 'Tax & pension' },
 ];
 
 /** Legacy tab id — redirects to tax-pension with policy section. */

@@ -3,6 +3,7 @@ import { apiFetch } from '../../lib/apiBase';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { useHrListLoad } from '../../hooks/useHrListLoad';
 import { currentPeriodYyyymm } from '../../lib/hrRequests';
+import { formatPayrollPeriodLabel } from '../../lib/hrPayroll';
 import { HR_BTN_PRIMARY, HR_BTN_SECONDARY, HR_FIELD_CLASS, HR_TEXTAREA_CLASS } from './hrFormStyles';
 import { ProfileFormField } from '../profile/profileFormUi';
 import { ProfileInlineAlert, ProfileOverviewSection } from '../profile/profileOverviewUi';
@@ -164,7 +165,7 @@ export function HrAttendanceUploadsPanel() {
                   <AppTableTr key={u.id}>
                     <AppTableTd className="font-mono text-xs">{u.id}</AppTableTd>
                     <AppTableTd>{u.branchId}</AppTableTd>
-                    <AppTableTd>{u.periodYyyymm}</AppTableTd>
+                    <AppTableTd>{formatPayrollPeriodLabel(u.periodYyyymm)}</AppTableTd>
                     <AppTableTd align="right">{Array.isArray(u.rows) ? u.rows.length : 0}</AppTableTd>
                     <AppTableTd>{u.createdAtIso?.slice(0, 16).replace('T', ' ') || '—'}</AppTableTd>
                   </AppTableTr>
