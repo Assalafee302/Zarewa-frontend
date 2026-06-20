@@ -33,6 +33,7 @@ import { HrStaffDocumentsPanel } from '../../components/hr/HrStaffDocumentsPanel
 import { HrStaffSalesCustomerPanel } from '../../components/hr/HrStaffSalesCustomerPanel';
 import { HrProfileCompleteness } from '../../components/hr/HrProfileCompleteness';
 import { HrCard } from '../../components/hr/hrPageUi';
+import { HrContextBreadcrumb } from '../../components/hr/HrContextBreadcrumb';
 import { HrStaffFileChecklist } from '../../components/hr/HrStaffFileChecklist';
 import { HrStaffReportingBlock } from '../../components/hr/HrStaffReportingBlock';
 import { CRITICAL_MISSING_LABELS } from '../../lib/hrStaffDocumentKinds';
@@ -105,7 +106,7 @@ function GroupedTabBar({ activeTab, onChange }) {
               key={t}
               type="button"
               onClick={() => onChange(t)}
-              className={`rounded-t-lg px-3 py-2 text-xs font-bold uppercase tracking-wide transition-colors ${
+              className={`rounded-t-lg px-3 py-2 text-xs font-semibold transition-colors ${
                 activeTab === t
                   ? 'border border-b-white border-slate-200 bg-white text-[#134e4a] -mb-px'
                   : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'
@@ -170,7 +171,7 @@ function ProfileSectionCard({ title, subtitle, rows, onEdit, editLabel = 'Edit s
           <button
             type="button"
             onClick={onEdit}
-            className="rounded-lg border border-[#134e4a]/20 bg-[#134e4a]/5 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-[#134e4a] hover:bg-[#134e4a]/10"
+            className="rounded-lg border border-[#134e4a]/20 bg-[#134e4a]/5 px-2.5 py-1 text-xs font-semibold text-[#134e4a] hover:bg-[#134e4a]/10"
           >
             {editLabel}
           </button>
@@ -397,6 +398,7 @@ export default function HrStaffProfile() {
   const [idCardForm, setIdCardForm] = useState(blankIdCardApplyForm);
   const [idCardErr, setIdCardErr] = useState('');
   const [idCardBusy, setIdCardBusy] = useState(false);
+  const [overviewExpanded, setOverviewExpanded] = useState(false);
   const [idCardMsg, setIdCardMsg] = useState('');
   const [formPdfBusy, setFormPdfBusy] = useState(false);
 
@@ -629,15 +631,20 @@ export default function HrStaffProfile() {
   const personal = staff.profileExtra?.personal || {};
   const empMeta = staff.profileExtra?.employmentMeta || {};
   const fullName = [personal.firstName, personal.middleName, personal.surname].filter(Boolean).join(' ') || staff.displayName;
+  const activeTabLabel = PROFILE_TAB_LABELS[tab] || tab;
+  const breadcrumbItems = [
+    { label: 'HR operations', to: '/hr/dashboard' },
+    { label: 'Employees', to: HR_EMPLOYEES },
+    { label: staff.displayName || staff.username },
+  ];
+  if (tab !== 'overview') {
+    breadcrumbItems.push({ label: activeTabLabel });
+  }
 
   return (
     <div className="space-y-6">
+      <HrContextBreadcrumb items={breadcrumbItems} />
       <PageHeader
-        eyebrow={
-          <Link to={HR_EMPLOYEES} className="inline-flex items-center gap-1 hover:underline">
-            <ArrowLeft size={14} aria-hidden /> Employees
-          </Link>
-        }
         title={staff.displayName || staff.username}
         subtitle={
           <>
@@ -656,7 +663,7 @@ export default function HrStaffProfile() {
         toolbar={
           <div className="flex flex-wrap items-center gap-2">
             <span
-              className={`inline-flex rounded-full border px-3 py-1 text-[10px] font-bold uppercase ${
+              className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${
                 staff.status === 'active'
                   ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
                   : 'border-slate-200 bg-slate-100 text-slate-600'
@@ -754,7 +761,7 @@ export default function HrStaffProfile() {
             <div className="grid gap-3 sm:grid-cols-3">
               {leaveBalances.slice(0, 3).map((b) => (
                 <div key={`${b.leaveType}-${b.periodYyyymm}`} className="rounded-xl border border-slate-100 bg-white px-4 py-3">
-                  <p className="text-[10px] font-bold uppercase text-slate-400">{b.leaveType} leave</p>
+                  <p className="z-meta-text font-semibold text-slate-500">{b.leaveType} leave</p>
                   <p className="mt-1 text-2xl font-black tabular-nums text-[#134e4a]">{b.closingDays ?? '—'}</p>
                   <p className="text-xs text-slate-500">days remaining · {formatPayrollPeriodLabel(b.periodYyyymm)}</p>
                 </div>
@@ -773,35 +780,7 @@ export default function HrStaffProfile() {
               if (canManage) startEdit(fixTab === 'compensation' ? 'payroll' : fixTab === 'documents' ? 'personal' : fixTab);
             }}
           />
-          {canManage ? (
-            <HrStaffSalesCustomerPanel
-              userId={userId}
-              salesCustomerId={staff.salesCustomerId}
-              displayName={staff.displayName}
-            />
-          ) : null}
-          <HrStaffAppraisalSnapshot userId={userId} compact />
-          <HrStaffReportingBlock
-            staff={staff}
-            staffBasePath={HR_EMPLOYEES}
-            organogramPath={hrTabPath(HR_EMPLOYEES, 'org-chart', { focus: userId })}
-          />
           <div className="grid gap-4 lg:grid-cols-2">
-            <ProfileSectionCard
-              title="Personal data"
-              subtitle="Contact and identity"
-              onEdit={canManage ? () => startEdit('personal') : undefined}
-              rows={[
-                { label: 'Full name', value: fullName },
-                { label: 'Gender', value: staff.gender || '—' },
-                { label: 'Date of birth', value: staff.dateOfBirthIso?.slice(0, 10) || '—' },
-                { label: 'Phone', value: personal.phone || '—' },
-                { label: 'Email', value: staff.email || personal.email || '—' },
-                { label: 'NIN', value: staff.ninNumber || '—' },
-                { label: 'BVN', value: staff.bvnNumber || '—' },
-                { label: 'Address', value: personal.residentialAddress || '—' },
-              ]}
-            />
             <ProfileSectionCard
               title="Employment summary"
               subtitle="Role, branch, and reporting"
@@ -823,41 +802,89 @@ export default function HrStaffProfile() {
                         ? `${yrs} yrs`
                         : '—',
                 },
-                {
-                  label: 'Pay rank',
-                  value:
-                    staff.salaryLevel != null
-                      ? `L${staff.salaryLevel} / Step ${staff.salaryStep ?? 1} · ${staff.promotionGrade || '—'}`
-                      : '—',
-                },
               ]}
             />
             <ProfileSectionCard
-              title="Next of kin"
-              subtitle="Emergency contact"
-              onEdit={canManage ? () => startEdit('nok') : undefined}
+              title="Personal data"
+              subtitle="Contact and identity"
+              onEdit={canManage ? () => startEdit('personal') : undefined}
               rows={[
-                {
-                  label: 'Contact',
-                  value: staff.nextOfKin
-                    ? [staff.nextOfKin.name, staff.nextOfKin.relationship, staff.nextOfKin.phone].filter(Boolean).join(' · ')
-                    : '—',
-                },
-                { label: 'Address', value: staff.nextOfKin?.address || '—' },
-              ]}
-            />
-            <ProfileSectionCard
-              title="Account & compliance"
-              subtitle="System access and policy status"
-              rows={[
-                { label: 'Username', value: staff.username },
-                { label: 'System role', value: staff.roleKey },
-                { label: 'Self-service', value: staff.selfServiceEligible ? 'Yes' : 'No' },
-                { label: 'Handbook', value: staff.complianceBadges?.handbookAcknowledged ? 'Acknowledged' : 'Pending' },
-                { label: 'Years of service', value: yrs != null ? `${yrs} years` : '—' },
+                { label: 'Full name', value: fullName },
+                { label: 'Phone', value: personal.phone || '—' },
+                { label: 'Email', value: staff.email || personal.email || '—' },
+                { label: 'Address', value: personal.residentialAddress || '—' },
               ]}
             />
           </div>
+          {!overviewExpanded ? (
+            <button
+              type="button"
+              onClick={() => setOverviewExpanded(true)}
+              className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs font-semibold text-[#134e4a] hover:bg-slate-50"
+            >
+              Show all profile details
+            </button>
+          ) : (
+            <>
+              <HrStaffReportingBlock
+                staff={staff}
+                staffBasePath={HR_EMPLOYEES}
+                organogramPath={hrTabPath(HR_EMPLOYEES, 'org-chart', { focus: userId })}
+              />
+              {canManage ? (
+                <HrStaffSalesCustomerPanel
+                  userId={userId}
+                  salesCustomerId={staff.salesCustomerId}
+                  displayName={staff.displayName}
+                />
+              ) : null}
+              <HrStaffAppraisalSnapshot userId={userId} compact />
+              <div className="grid gap-4 lg:grid-cols-2">
+                <ProfileSectionCard
+                  title="Personal data (full)"
+                  subtitle="Identity and verification"
+                  onEdit={canManage ? () => startEdit('personal') : undefined}
+                  rows={[
+                    { label: 'Gender', value: staff.gender || '—' },
+                    { label: 'Date of birth', value: staff.dateOfBirthIso?.slice(0, 10) || '—' },
+                    { label: 'NIN', value: staff.ninNumber || '—' },
+                    { label: 'BVN', value: staff.bvnNumber || '—' },
+                  ]}
+                />
+                <ProfileSectionCard
+                  title="Next of kin"
+                  subtitle="Emergency contact"
+                  onEdit={canManage ? () => startEdit('nok') : undefined}
+                  rows={[
+                    {
+                      label: 'Contact',
+                      value: staff.nextOfKin
+                        ? [staff.nextOfKin.name, staff.nextOfKin.relationship, staff.nextOfKin.phone].filter(Boolean).join(' · ')
+                        : '—',
+                    },
+                    { label: 'Address', value: staff.nextOfKin?.address || '—' },
+                  ]}
+                />
+                <ProfileSectionCard
+                  title="Account & compliance"
+                  subtitle="System access and policy status"
+                  rows={[
+                    { label: 'Username', value: staff.username },
+                    { label: 'System role', value: staff.roleKey },
+                    { label: 'Self-service', value: staff.selfServiceEligible ? 'Yes' : 'No' },
+                    { label: 'Handbook', value: staff.complianceBadges?.handbookAcknowledged ? 'Acknowledged' : 'Pending' },
+                  ]}
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => setOverviewExpanded(false)}
+                className="text-xs font-semibold text-slate-500 hover:text-slate-800"
+              >
+                Show less
+              </button>
+            </>
+          )}
         </div>
       ) : null}
 

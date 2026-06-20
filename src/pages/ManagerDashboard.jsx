@@ -154,6 +154,7 @@ const ManagerDashboard = () => {
         canApprovePaymentRequests={bm.canApprovePaymentRequests}
         canManagerClearance={bm.canManagerClearance}
         canReleasePaymentHolds={bm.canReleasePaymentHolds}
+        canWriteOffBadDebt={bm.canWriteOffBadDebt}
         canApproveMaterialIncidents={bm.canApproveMaterialIncidents}
         deliveryGateMode={bm.deliveryGateMode}
         ws={bm.ws}
@@ -166,6 +167,7 @@ const ManagerDashboard = () => {
         handleFlagSelectedQuotation={bm.handleFlagSelectedQuotation}
         handleReleasePaymentsSelectedQuotation={bm.handleReleasePaymentsSelectedQuotation}
         handleWaiveBalanceSelectedQuotation={bm.handleWaiveBalanceSelectedQuotation}
+        handleWriteOffReceivableSelectedQuotation={bm.handleWriteOffReceivableSelectedQuotation}
         handleProductionOverrideSelectedQuotation={bm.handleProductionOverrideSelectedQuotation}
         conversionSignoffRemark={bm.conversionSignoffRemark}
         setConversionSignoffRemark={bm.setConversionSignoffRemark}

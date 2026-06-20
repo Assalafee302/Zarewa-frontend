@@ -16,10 +16,10 @@ import TeamHrOrgChart from './TeamHrOrgChart';
 
 const NAV = [
   { to: '/team-hr', label: 'Dashboard', end: true },
-  { to: '/team-hr/staff', label: 'Team staff' },
-  { to: '/team-hr/org-chart', label: 'Organogram' },
+  { to: '/team-hr/staff', label: 'Team directory' },
+  { to: '/team-hr/org-chart', label: 'Org chart' },
   { to: TEAM_HR_TIME_ABSENCE, label: 'Time & absence' },
-  { to: '/team-hr/incidents', label: 'Incident memos' },
+  { to: '/team-hr/incidents', label: 'Incidents' },
   { to: '/team-hr/transfers', label: 'Transfers' },
 ];
 
@@ -30,6 +30,8 @@ export default function TeamHr() {
         element={
           <HrSectionShell
             navItems={NAV}
+            moduleTitle="My team"
+            moduleSubtitle="For people you manage — approvals, attendance, and team records."
             stickySubnav
             compact
           />

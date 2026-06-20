@@ -52,6 +52,8 @@ export default function HumanResources() {
           <HrSectionShell
             navItems={navItems}
             moreNavItems={moreNavItems}
+            moduleTitle="Human Resources"
+            moduleSubtitle="Company-wide HR operations — staff records, payroll, compliance, and approvals."
             stickySubnav
             compact
           />

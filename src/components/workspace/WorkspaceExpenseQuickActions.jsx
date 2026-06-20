@@ -275,9 +275,9 @@ export function WorkspaceExpenseQuickActions() {
           {canAccessMyProfileHr(ws?.permissions) ? (
             <Link
               to="/my-profile"
-              className="text-center text-[9px] font-bold uppercase tracking-wide text-[#134e4a] hover:underline"
+              className="text-center text-xs font-semibold text-[#134e4a] hover:underline"
             >
-              My Profile — leave, loans, payslips
+              My HR — leave, loans, payslips
             </Link>
           ) : null}
         </div>

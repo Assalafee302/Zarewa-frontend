@@ -14,7 +14,8 @@ import { ZareApprovalHint } from '../ZareApprovalHint';
 import { execWorkItemReviewContext, resolveExecReviewView, resolveExecSettlementId } from '../../lib/execWorkItemReview';
 import { canApproveProductionGate, productionGateOverrideNoteValid } from '../../lib/productionGateAccess';
 import { userMayApproveRefundRequests } from '../../lib/refundsStore';
-import { isExecutiveRoleKey } from '../../lib/workspaceGovernanceClient';
+import { isExecutiveRoleKey, userMayWriteOffReceivableBadDebt } from '../../lib/workspaceGovernanceClient';
+import { RECEIVABLE_WRITEOFF_NOTE_MIN_LEN } from '../../lib/receivableWriteOffPolicy';
 import { formatPersonName } from '../../lib/formatPersonName';
 
 /**
@@ -52,6 +53,7 @@ export function ExecutiveWorkItemReviewModal({ item, isOpen, onClose, onComplete
     ws?.hasPermission?.('refunds.approve') ||
     ws?.hasPermission?.('*');
   const canApproveProductionGateOverride = canApproveProductionGate(ws?.session?.user?.roleKey);
+  const canWriteOffBadDebt = userMayWriteOffReceivableBadDebt(ws?.session?.user);
   const canApproveRefunds = userMayApproveRefundRequests(ws);
 
   const fetchAudit = useCallback(async (quoteId) => {
@@ -151,6 +153,27 @@ export function ExecutiveWorkItemReviewModal({ item, isOpen, onClose, onComplete
         return;
       }
       reason = overrideReason;
+    }
+    if (decision === 'write_off_receivable') {
+      if (!canWriteOffBadDebt) {
+        showToast('Material receivable write-off requires MD or Administrator authority.', { variant: 'error' });
+        return;
+      }
+      let writeOffReason = String(reason || '').trim();
+      if (writeOffReason.length < RECEIVABLE_WRITEOFF_NOTE_MIN_LEN) {
+        const prompted =
+          window.prompt(
+            `Document why this receivable is written off (required, at least ${RECEIVABLE_WRITEOFF_NOTE_MIN_LEN} characters):`
+          ) ?? '';
+        writeOffReason = prompted.trim();
+      }
+      if (writeOffReason.length < RECEIVABLE_WRITEOFF_NOTE_MIN_LEN) {
+        showToast(`Write-off reason must be at least ${RECEIVABLE_WRITEOFF_NOTE_MIN_LEN} characters.`, {
+          variant: 'error',
+        });
+        return;
+      }
+      reason = writeOffReason;
     }
     setBusy(true);
     const { ok, data } = await apiFetch('/api/management/review', {
@@ -431,6 +454,7 @@ export function ExecutiveWorkItemReviewModal({ item, isOpen, onClose, onComplete
                 fromProductionGate={Boolean(review.fromProductionGate)}
                 cuttingListId={review.cuttingListId || ''}
                 canProductionOverride={canApproveProductionGateOverride}
+                canWriteOffBadDebt={canWriteOffBadDebt}
                 showReleasePayments={false}
                 onApprove={() => void handleQuotationReview(review.quotationId, 'clear')}
                 onDisapprove={() => {
@@ -449,11 +473,14 @@ export function ExecutiveWorkItemReviewModal({ item, isOpen, onClose, onComplete
                 onWaiveBalance={() => {
                   if (
                     window.confirm(
-                      'Clear as paid? The remaining balance will be waived and removed from accounts receivable.'
+                      'Waive the small round-off within payment tolerance (max ₦5,000)? It will be removed from Creditors receivables.'
                     )
                   ) {
                     void handleQuotationReview(review.quotationId, 'waive_balance');
                   }
+                }}
+                onWriteOffReceivable={() => {
+                  void handleQuotationReview(review.quotationId, 'write_off_receivable');
                 }}
                 onProductionOverride={() => void handleQuotationReview(review.quotationId, 'approve_production')}
               />

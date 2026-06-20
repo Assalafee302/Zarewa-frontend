@@ -13,6 +13,7 @@ import { computeWorkspaceIntelligence } from '../lib/workspaceIntelligence';
 import TodayWorkCards, { useTodayWorkCounts } from '../components/workspace/TodayWorkCards';
 import OfficeDeskShell from '../components/workspace/OfficeDeskShell';
 import CreateOfficeRecordWizard from '../components/workspace/CreateOfficeRecordWizard';
+import MyHrWorkspaceCard from '../components/hr/MyHrWorkspaceCard';
 import { WorkspaceExpenseQuickActions } from '../components/workspace/WorkspaceExpenseQuickActions';
 import { suggestForumOfficeRecord } from '../lib/suggestForumOfficeRecord';
 
@@ -179,7 +180,10 @@ export default function WorkspaceDesk() {
         </header>
 
         {(sectionId === 'desk' || sectionId === 'today') && !selectedItem ? (
-          <TodayWorkCards counts={taskCounts} onNavigate={handleNavigateToday} />
+          <>
+            <MyHrWorkspaceCard />
+            <TodayWorkCards counts={taskCounts} onNavigate={handleNavigateToday} />
+          </>
         ) : null}
 
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-[220px_minmax(0,1fr)]">

@@ -20,7 +20,7 @@ export function ProfileSectionShell({
   return (
     <PageShell className="pb-10">
       <PageHeader
-        eyebrow="Workspace"
+        eyebrow="My HR"
         title={title}
         subtitle={subtitle}
         tabs={
@@ -44,7 +44,7 @@ export function ProfileSectionShell({
 
         <div className="flex min-w-0 flex-col gap-6 lg:flex-row lg:gap-8">
           <aside className="hidden w-52 shrink-0 lg:block">
-            <p className="mb-2 px-1 text-[10px] font-bold uppercase tracking-wide text-slate-400">Menu</p>
+            <p className="mb-2 px-1 text-xs font-semibold text-slate-400">Menu</p>
             <ProfileSidebarNav cohort={cohort} />
           </aside>
 

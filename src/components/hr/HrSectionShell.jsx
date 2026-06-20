@@ -10,6 +10,9 @@ import { HrSubnav } from './HrSubnav';
 export function HrSectionShell({
   navItems = [],
   moreNavItems = [],
+  moreNavLabel = 'Programs',
+  moduleTitle = null,
+  moduleSubtitle = null,
   stickySubnav = false,
   compact = false,
   beforeNav = null,
@@ -20,9 +23,20 @@ export function HrSectionShell({
   return (
     <PageShell className="pb-10">
       {beforeNav ? <div className="mb-4">{beforeNav}</div> : null}
+      {moduleTitle || moduleSubtitle ? (
+        <div className="mb-3">
+          {moduleTitle ? <h1 className="z-page-title text-[#134e4a]">{moduleTitle}</h1> : null}
+          {moduleSubtitle ? <p className="z-page-subtitle mt-0.5">{moduleSubtitle}</p> : null}
+        </div>
+      ) : null}
       {navItems.length > 0 ? (
         <div className="mb-4">
-          <HrSubnav items={navItems} moreItems={moreNavItems} sticky={stickySubnav} />
+          <HrSubnav
+            items={navItems}
+            moreItems={moreNavItems}
+            moreLabel={moreNavLabel}
+            sticky={stickySubnav}
+          />
         </div>
       ) : null}
       <MainPanel className={compact ? '!p-3 sm:!p-5 !min-h-0' : ''}>

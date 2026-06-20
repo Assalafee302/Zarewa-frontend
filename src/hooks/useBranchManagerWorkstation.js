@@ -51,7 +51,9 @@ import {
 import {
   userMayPerformManagerQuotationClearance,
   userMayReleaseQuotationPaymentHold,
+  userMayWriteOffReceivableBadDebt,
 } from '../lib/workspaceGovernanceClient';
+import { RECEIVABLE_WRITEOFF_NOTE_MIN_LEN } from '../lib/receivableWriteOffPolicy';
 import { canMarkHrAttendance } from '../lib/hrAccess';
 import { useCreditExceptions } from './useCreditExceptions';
 import {
@@ -180,6 +182,7 @@ export function useBranchManagerWorkstation() {
     Boolean(ws?.hasPermission?.('finance.approve')) || Boolean(ws?.hasPermission?.('*'));
   const canManagerClearance = userMayPerformManagerQuotationClearance(ws?.session?.user);
   const canReleasePaymentHolds = userMayReleaseQuotationPaymentHold(ws?.session?.user);
+  const canWriteOffBadDebt = userMayWriteOffReceivableBadDebt(ws?.session?.user);
   const canApproveRefunds = userMayApproveRefundRequests(ws);
   const canApproveStaffPurchaseCreditMd = canApproveStaffPurchaseCredit(managerRoleKey, ws?.permissions);
   const canRejectStaffPurchaseCreditMd = canRejectStaffPurchaseCredit(managerRoleKey, ws?.permissions);
@@ -1239,12 +1242,32 @@ export function useBranchManagerWorkstation() {
       }
       if (decision === 'waive_balance') {
         const confirmed = await requestConfirm({
-          title: 'Clear as paid',
+          title: 'Waive round-off',
           description:
-            'Waive the remaining receivable on this quotation (round-off / small balance write-off). It will drop from accounts receivable. Continue?',
+            'Waive only the small balance within the 99.5% payment tolerance (max ₦5,000). This removes it from Creditors receivables and posts a GL write-off. Continue?',
           onConfirm: 'waive_balance',
         });
         if (!confirmed) return;
+      }
+      if (decision === 'write_off_receivable') {
+        if (!canWriteOffBadDebt) {
+          showToast('Material receivable write-off requires Managing Director or Administrator authority.', {
+            variant: 'error',
+          });
+          return;
+        }
+        const prompted = await requestRemark({
+          title: 'Write off receivable',
+          description:
+            'Document why this balance is uncollectible or settled. Customer underpayment cannot use round-off — this is an audited MD write-off.',
+          confirmLabel: 'Write off',
+          minLength: RECEIVABLE_WRITEOFF_NOTE_MIN_LEN,
+          optional: false,
+          variant: 'warning',
+          onSubmit: 'write_off_receivable_reason',
+        });
+        if (!prompted?.ok) return;
+        reason = String(prompted.value || '').trim();
       }
       if (decision === 'flag' && !String(reason || '').trim()) {
         const flagged = await requestRemark({
@@ -1308,8 +1331,11 @@ export function useBranchManagerWorkstation() {
         flag: 'Moved to flagged queue for audit.',
         release_payments: 'Payment hold released — sales can post receipts on this quotation again.',
         waive_balance: data?.waivedAmountNgn
-          ? `Balance cleared — ₦${Number(data.waivedAmountNgn).toLocaleString('en-NG')} waived from receivables.`
-          : 'Balance cleared — no longer shown as receivable.',
+          ? `Round-off waived — ₦${Number(data.waivedAmountNgn).toLocaleString('en-NG')} removed from receivables.`
+          : 'Round-off waived.',
+        write_off_receivable: data?.waivedAmountNgn
+          ? `Receivable written off — ₦${Number(data.waivedAmountNgn).toLocaleString('en-NG')} (${data?.writeOffCategory || 'bad_debt'}).`
+          : 'Receivable written off.',
       };
       showToast(labels[decision] || 'Updated.', { variant: 'success' });
       await fetchData();
@@ -1322,6 +1348,7 @@ export function useBranchManagerWorkstation() {
     [
       canManagerClearance,
       canReleasePaymentHolds,
+      canWriteOffBadDebt,
       fetchData,
       items.pendingClearance,
       items.productionOverrides,
@@ -1617,6 +1644,11 @@ export function useBranchManagerWorkstation() {
     await handleReview(selectedIntel.quoteId, 'waive_balance');
   }, [handleReview, selectedIntel]);
 
+  const handleWriteOffReceivableSelectedQuotation = useCallback(async () => {
+    if (selectedIntel?.kind !== 'quotation') return;
+    await handleReview(selectedIntel.quoteId, 'write_off_receivable');
+  }, [handleReview, selectedIntel]);
+
   const handleProductionOverrideSelectedQuotation = useCallback(async () => {
     if (selectedIntel?.kind !== 'quotation') return;
     await handleReview(selectedIntel.quoteId, 'approve_production');
@@ -1804,6 +1836,7 @@ export function useBranchManagerWorkstation() {
     canApprovePaymentRequests,
     canManagerClearance,
     canReleasePaymentHolds,
+    canWriteOffBadDebt,
     canApproveRefunds,
     canApproveStaffPurchaseCreditMd,
     canRejectStaffPurchaseCreditMd,
@@ -1865,6 +1898,7 @@ export function useBranchManagerWorkstation() {
     handleFlagSelectedQuotation,
     handleReleasePaymentsSelectedQuotation,
     handleWaiveBalanceSelectedQuotation,
+    handleWriteOffReceivableSelectedQuotation,
     handleProductionOverrideSelectedQuotation,
     closeIntelModal,
     openMaterialIncidentOperations,

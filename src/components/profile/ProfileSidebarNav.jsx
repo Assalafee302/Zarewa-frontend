@@ -25,7 +25,7 @@ export function ProfileSidebarNav({ cohort = 'employee' }) {
     <nav aria-label="HR sections" className="space-y-1">
       {groups.map((group) => (
         <div key={group.id} className="mb-4 last:mb-0">
-          <p className="mb-1.5 px-3 text-[10px] font-bold uppercase tracking-widest text-slate-400">
+          <p className="mb-1.5 px-3 text-xs font-semibold text-slate-400">
             {group.label}
           </p>
           <ul className="space-y-0.5">

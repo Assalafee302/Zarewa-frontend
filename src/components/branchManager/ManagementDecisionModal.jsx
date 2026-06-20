@@ -36,6 +36,7 @@ export function ManagementDecisionModal({
   canApprovePaymentRequests,
   canManagerClearance,
   canReleasePaymentHolds,
+  canWriteOffBadDebt,
   canApproveMaterialIncidents,
   deliveryGateMode,
   ws,
@@ -48,6 +49,7 @@ export function ManagementDecisionModal({
   handleFlagSelectedQuotation,
   handleReleasePaymentsSelectedQuotation,
   handleWaiveBalanceSelectedQuotation,
+  handleWriteOffReceivableSelectedQuotation,
   handleProductionOverrideSelectedQuotation,
   conversionSignoffRemark,
   setConversionSignoffRemark,
@@ -240,6 +242,7 @@ export function ManagementDecisionModal({
                   })}
                   canManagerClearance={canManagerClearance}
                   canReleasePaymentHolds={canReleasePaymentHolds}
+                  canWriteOffBadDebt={canWriteOffBadDebt}
                   showReleasePayments={Boolean(
                     selectedUnifiedWorkItem?.managerClearedAtIso ||
                       selectedUnifiedWorkItem?.managerFlaggedAtIso ||
@@ -251,6 +254,7 @@ export function ManagementDecisionModal({
                   onFlag={() => void handleFlagSelectedQuotation?.()}
                   onReleasePayments={() => void handleReleasePaymentsSelectedQuotation?.()}
                   onWaiveBalance={() => void handleWaiveBalanceSelectedQuotation?.()}
+                  onWriteOffReceivable={() => void handleWriteOffReceivableSelectedQuotation?.()}
                   onProductionOverride={() => void handleProductionOverrideSelectedQuotation?.()}
                 />
                 <ManagementAuditSections

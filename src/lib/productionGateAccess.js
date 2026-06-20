@@ -17,7 +17,7 @@ export function productionGateApprovalLevelForActor(actorOrRoleKey) {
     const rk = roleKey(actorOrRoleKey);
     if (rk === 'admin') return 'admin';
     if (rk === 'md') return 'md';
-    if (rk === 'sales_manager') return 'branch_manager';
+    if (rk === 'sales_manager' || rk === 'branch_manager') return 'branch_manager';
     return null;
   }
   const actor = actorOrRoleKey;
@@ -27,7 +27,7 @@ export function productionGateApprovalLevelForActor(actorOrRoleKey) {
   const rk = roleKey(actor);
   if (rk === 'admin') return 'admin';
   if (rk === 'md') return 'md';
-  if (rk === 'sales_manager') return 'branch_manager';
+  if (rk === 'sales_manager' || rk === 'branch_manager') return 'branch_manager';
   return null;
 }
 

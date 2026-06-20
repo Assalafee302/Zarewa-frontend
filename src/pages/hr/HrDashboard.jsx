@@ -47,7 +47,7 @@ import {
 } from '../../lib/hrDashboardRequestsList';
 import { HrOperationalReadinessPanel } from '../../components/hr/HrOperationalReadinessPanel';
 import { HrProductionReadinessPanel } from '../../components/hr/HrProductionReadinessPanel';
-import { HrPageBody, HrPageToolbar } from '../../components/hr/hrPageUi';
+import { HrPageBody } from '../../components/hr/hrPageUi';
 import { HrProfileWorkPanel } from '../../components/hr/HrProfileWorkPanel';
 import { HrUnifiedInboxPanel } from '../../components/hr/HrUnifiedInboxPanel';
 import { HrProbationEndingQueue } from '../../components/hr/HrProbationEndingQueue';
@@ -64,6 +64,11 @@ const ALERT_FILTER_OPTIONS = [
   { id: 'all', label: 'All alerts' },
   { id: 'action', label: 'Action required' },
   { id: 'calendar', label: 'Calendar' },
+];
+
+const DASHBOARD_VIEW_OPTIONS = [
+  { id: 'today', label: 'Today' },
+  { id: 'insights', label: 'Insights' },
 ];
 
 const ACTION_ALERT_KEYS = [
@@ -457,6 +462,29 @@ const ACTION_ALERT_CONFIGS = [
   },
 ];
 
+function DashboardViewBar({ value, onChange }) {
+  return (
+    <div className="flex flex-wrap gap-1.5" role="tablist" aria-label="Dashboard view">
+      {DASHBOARD_VIEW_OPTIONS.map((opt) => (
+        <button
+          key={opt.id}
+          type="button"
+          role="tab"
+          aria-selected={value === opt.id}
+          onClick={() => onChange(opt.id)}
+          className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors ${
+            value === opt.id
+              ? 'border-[#134e4a]/30 bg-[#134e4a] text-white'
+              : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+          }`}
+        >
+          {opt.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 function AlertFilterBar({ value, onChange, actionCount, calendarCount, totalCount }) {
   const counts = { all: totalCount, action: actionCount, calendar: calendarCount };
   return (
@@ -466,7 +494,7 @@ function AlertFilterBar({ value, onChange, actionCount, calendarCount, totalCoun
           key={opt.id}
           type="button"
           onClick={() => onChange(opt.id)}
-          className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wide transition-colors ${
+          className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition-colors ${
             value === opt.id
               ? 'border-[#134e4a]/30 bg-[#134e4a] text-white'
               : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
@@ -582,6 +610,7 @@ export default function HrDashboard() {
   const [profileWorkQueue, setProfileWorkQueue] = useState(null);
   const [readiness, setReadiness] = useState(null);
   const [alertFilter, setAlertFilter] = useState('all');
+  const [dashboardView, setDashboardView] = useState('today');
   const [requestSearch, setRequestSearch] = useState('');
   const [requestSortField, setRequestSortField] = useState('updated');
   const [requestSortDir, setRequestSortDir] = useState('desc');
@@ -692,16 +721,19 @@ export default function HrDashboard() {
   const attentionCount = getHrDashboardAttentionCount(alerts, ACTION_ALERT_KEYS, CALENDAR_ALERT_KEYS);
   const showActionAlerts = alertFilter === 'all' || alertFilter === 'action';
   const showCalendarAlerts = alertFilter === 'all' || alertFilter === 'calendar';
+  const isTodayView = dashboardView === 'today';
+  const isInsightsView = dashboardView === 'insights';
 
   return (
     <HrPageBody>
-      <HrPageToolbar>
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <DashboardViewBar value={dashboardView} onChange={setDashboardView} />
         <HrHubToolbar
           hub="dashboard"
           prompt="Summarize HR queues, compliance alerts, and what I should handle first today."
-          pageContext={{ attentionCount, actionAlertCount, calendarAlertCount }}
+          pageContext={{ attentionCount, actionAlertCount, calendarAlertCount, dashboardView }}
         />
-      </HrPageToolbar>
+      </div>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {overviewKpis.map((kpi) => (
@@ -713,158 +745,179 @@ export default function HrDashboard() {
 
       <HrMobileAlertStrip items={mobileAlertItems} />
 
-      {attentionCount > 0 ? (
+      {isTodayView && actionAlertCount > 0 ? (
         <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-4">
-          <p className="text-sm font-bold text-amber-950">{attentionCount} item{attentionCount !== 1 ? 's' : ''} need attention</p>
-          <p className="mt-1 text-xs text-amber-900/80">
-            {actionAlertCount > 0 ? `${actionAlertCount} workflow action${actionAlertCount !== 1 ? 's' : ''}` : null}
-            {actionAlertCount > 0 && calendarAlertCount > 0 ? ' · ' : null}
-            {calendarAlertCount > 0 ? `${calendarAlertCount} calendar reminder${calendarAlertCount !== 1 ? 's' : ''}` : null}
-          </p>
-        </div>
-      ) : (
-        <ProfileInlineAlert variant="success">All clear — no workflow actions or calendar reminders right now.</ProfileInlineAlert>
-      )}
-
-      {showAdminPanels ? (
-        <div className="grid gap-4 lg:grid-cols-2">
-          <HrProductionReadinessPanel readiness={readiness} />
-          <HrOperationalReadinessPanel />
+          <p className="text-sm font-bold text-amber-950">{actionAlertCount} action{actionAlertCount !== 1 ? 's' : ''} need attention today</p>
+          <p className="mt-1 text-xs text-amber-900/80">Review approvals, compliance gaps, and workflow queues below.</p>
         </div>
       ) : null}
 
-      <HrUnifiedInboxPanel
-        recentRequests={recentRequests}
-        queueLines={queueLines}
-        counts={counts}
-        onPreview={setPreviewRequest}
-      />
+      {isTodayView && actionAlertCount === 0 && calendarAlertCount === 0 ? (
+        <ProfileInlineAlert variant="success">All clear — no workflow actions need you right now.</ProfileInlineAlert>
+      ) : null}
 
-      <HrProbationEndingQueue />
+      {isTodayView ? (
+        <>
+          <HrUnifiedInboxPanel
+            recentRequests={recentRequests}
+            queueLines={queueLines}
+            counts={counts}
+            onPreview={setPreviewRequest}
+          />
 
-      <ProfileOverviewSection title="Today's HR actions">
-        <div className="text-sm text-slate-700">
-          {queueLines.length ? (
-            <ul className="space-y-2">
-              {queueLines.map((line) => (
-                <li key={line.label}>
-                  <Link to={line.href} className="font-semibold text-[#134e4a] hover:underline">
-                    {line.label}:
-                  </Link>{' '}
-                  {line.count} pending
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-slate-500">No approval queues assigned to your role.</p>
-          )}
-          {quickActions.length ? (
-            <div className="mt-4 flex flex-wrap gap-2">
-              {quickActions.map((action) => (
-                <Link
-                  key={action.label}
-                  to={action.href}
-                  className={
-                    action.primary
-                      ? 'rounded-lg border border-[#134e4a]/20 bg-[#134e4a] px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide text-white hover:bg-[#0f3d39]'
-                      : 'rounded-lg border border-slate-200 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide text-[#134e4a] hover:bg-slate-50'
-                  }
-                >
-                  {action.label}
-                </Link>
-              ))}
+          <ProfileOverviewSection title="Today's HR actions">
+            <div className="text-sm text-slate-700">
+              {queueLines.length ? (
+                <ul className="space-y-2">
+                  {queueLines.map((line) => (
+                    <li key={line.label}>
+                      <Link to={line.href} className="font-semibold text-[#134e4a] hover:underline">
+                        {line.label}:
+                      </Link>{' '}
+                      {line.count} pending
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-slate-500">No approval queues assigned to your role.</p>
+              )}
+              {quickActions.length ? (
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {quickActions.map((action) => (
+                    <Link
+                      key={action.label}
+                      to={action.href}
+                      className={
+                        action.primary
+                          ? 'rounded-lg border border-[#134e4a]/20 bg-[#134e4a] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#0f3d39]'
+                          : 'rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-[#134e4a] hover:bg-slate-50'
+                      }
+                    >
+                      {action.label}
+                    </Link>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          </ProfileOverviewSection>
+
+          <HrProfileWorkPanel queue={profileWorkQueue} />
+
+          {alerts !== null ? (
+            <ProfileOverviewSection title="Action required" id="hr-alerts-action">
+              <div className="space-y-2">
+                {ACTION_ALERT_CONFIGS.every((cfg) => !((alerts[cfg.key] || []).length)) ? (
+                  <ProfileInlineAlert variant="success">No pending workflow actions</ProfileInlineAlert>
+                ) : (
+                  ACTION_ALERT_CONFIGS.map((cfg) => <ActionAlertCard key={cfg.key} cfg={cfg} items={alerts[cfg.key] || []} />)
+                )}
+              </div>
+            </ProfileOverviewSection>
+          ) : null}
+        </>
+      ) : null}
+
+      {isInsightsView ? (
+        <>
+          {calendarAlertCount > 0 ? (
+            <div className="rounded-2xl border border-teal-200 bg-teal-50/80 px-4 py-4">
+              <p className="text-sm font-bold text-teal-950">{calendarAlertCount} calendar reminder{calendarAlertCount !== 1 ? 's' : ''}</p>
+              <p className="mt-1 text-xs text-teal-900/80">Birthdays, contract dates, probation endings, and other scheduled items.</p>
             </div>
           ) : null}
-        </div>
-      </ProfileOverviewSection>
 
-      <HrProfileWorkPanel queue={profileWorkQueue} />
-
-      <ProfileOverviewSection title="Workforce trends">
-        <HrDashboardAnalyticsStrip />
-      </ProfileOverviewSection>
-
-      {alerts !== null ? (
-        <ProfileOverviewSection title="Alerts">
-          <AlertFilterBar
-            value={alertFilter}
-            onChange={setAlertFilter}
-            actionCount={actionAlertCount}
-            calendarCount={calendarAlertCount}
-            totalCount={attentionCount}
-          />
-        </ProfileOverviewSection>
-      ) : null}
-
-      {alerts !== null && showActionAlerts ? (
-        <ProfileOverviewSection title="Action required" id="hr-alerts-action">
-          <div className="space-y-2">
-            {ACTION_ALERT_CONFIGS.every((cfg) => !((alerts[cfg.key] || []).length)) ? (
-              <ProfileInlineAlert variant="success">No pending workflow actions</ProfileInlineAlert>
-            ) : (
-              ACTION_ALERT_CONFIGS.map((cfg) => <ActionAlertCard key={cfg.key} cfg={cfg} items={alerts[cfg.key] || []} />)
-            )}
-          </div>
-        </ProfileOverviewSection>
-      ) : null}
-
-      {alerts !== null && showCalendarAlerts ? (
-        <ProfileOverviewSection title="Reminders" id="hr-alerts-calendar">
-          <div className="space-y-2">
-            {ALERT_CONFIGS.every((cfg) => !((alerts[cfg.key] || []).length)) ? (
-              <ProfileInlineAlert variant="success">No calendar alerts today</ProfileInlineAlert>
-            ) : (
-              ALERT_CONFIGS.map((cfg) => <AlertCard key={cfg.key} cfg={cfg} items={alerts[cfg.key] || []} />)
-            )}
-          </div>
-        </ProfileOverviewSection>
-      ) : null}
-
-      <ProfileOverviewSection title="Recent requests">
-        {filteredRecentRequests.length > 0 ? (
-          <HrListTableFrame
-            toolbar={
-              <>
-                <HrListSearchInput value={requestSearch} onChange={setRequestSearch} placeholder="Search requests…" />
-                <HrListSortBar
-                  fields={HR_DASHBOARD_REQUEST_SORT_FIELDS}
-                  field={requestSortField}
-                  dir={requestSortDir}
-                  onFieldChange={setRequestSortField}
-                  onDirToggle={() => setRequestSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))}
-                />
-                <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
-                  {filteredRecentRequests.length} showing
-                </p>
-              </>
-            }
-          >
-            <div className="space-y-2">
-              {filteredRecentRequests.map((r) => (
-                <button
-                  key={r.id}
-                  type="button"
-                  className={`${CARD_ROW} w-full text-left`}
-                  onClick={() => setPreviewRequest(r)}
-                >
-                  <div className="min-w-0 flex-1">
-                    <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400">{hrRequestKindLabel(r.kind)}</p>
-                    <p className="truncate text-sm font-bold text-slate-900">{r.staffDisplayName || r.userId || 'Employee'}</p>
-                    <p className="font-mono text-[10px] text-slate-500">{r.updatedAtIso?.slice(0, 10) || '—'}</p>
-                  </div>
-                  <span
-                    className={`shrink-0 inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase ${hrRequestStatusClass(r.status)}`}
-                  >
-                    {r.status?.replace(/_/g, ' ')}
-                  </span>
-                </button>
-              ))}
+          {showAdminPanels ? (
+            <div className="grid gap-4 lg:grid-cols-2">
+              <HrProductionReadinessPanel readiness={readiness} />
+              <HrOperationalReadinessPanel />
             </div>
-          </HrListTableFrame>
-        ) : (
-          <ProfileInlineAlert variant="success">No recent employee requests.</ProfileInlineAlert>
-        )}
-      </ProfileOverviewSection>
+          ) : null}
+
+          <HrProbationEndingQueue />
+
+          <ProfileOverviewSection title="Workforce trends">
+            <HrDashboardAnalyticsStrip />
+          </ProfileOverviewSection>
+
+          {alerts !== null ? (
+            <ProfileOverviewSection title="Alerts">
+              <AlertFilterBar
+                value={alertFilter}
+                onChange={setAlertFilter}
+                actionCount={actionAlertCount}
+                calendarCount={calendarAlertCount}
+                totalCount={attentionCount}
+              />
+            </ProfileOverviewSection>
+          ) : null}
+
+          {alerts !== null && showCalendarAlerts ? (
+            <ProfileOverviewSection title="Reminders" id="hr-alerts-calendar">
+              <div className="space-y-2">
+                {ALERT_CONFIGS.every((cfg) => !((alerts[cfg.key] || []).length)) ? (
+                  <ProfileInlineAlert variant="success">No calendar alerts today</ProfileInlineAlert>
+                ) : (
+                  ALERT_CONFIGS.map((cfg) => <AlertCard key={cfg.key} cfg={cfg} items={alerts[cfg.key] || []} />)
+                )}
+              </div>
+            </ProfileOverviewSection>
+          ) : null}
+
+          {alerts !== null && showActionAlerts && actionAlertCount > 0 ? (
+            <ProfileOverviewSection title="Workflow actions (reference)" id="hr-alerts-action-insights">
+              <div className="space-y-2">
+                {ACTION_ALERT_CONFIGS.map((cfg) => <ActionAlertCard key={cfg.key} cfg={cfg} items={alerts[cfg.key] || []} />)}
+              </div>
+            </ProfileOverviewSection>
+          ) : null}
+
+          <ProfileOverviewSection title="Recent requests">
+            {filteredRecentRequests.length > 0 ? (
+              <HrListTableFrame
+                toolbar={
+                  <>
+                    <HrListSearchInput value={requestSearch} onChange={setRequestSearch} placeholder="Search requests…" />
+                    <HrListSortBar
+                      fields={HR_DASHBOARD_REQUEST_SORT_FIELDS}
+                      field={requestSortField}
+                      dir={requestSortDir}
+                      onFieldChange={setRequestSortField}
+                      onDirToggle={() => setRequestSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))}
+                    />
+                    <p className="z-meta-text font-semibold text-slate-500">
+                      {filteredRecentRequests.length} showing
+                    </p>
+                  </>
+                }
+              >
+                <div className="space-y-2">
+                  {filteredRecentRequests.map((r) => (
+                    <button
+                      key={r.id}
+                      type="button"
+                      className={`${CARD_ROW} w-full text-left`}
+                      onClick={() => setPreviewRequest(r)}
+                    >
+                      <div className="min-w-0 flex-1">
+                        <p className="z-meta-text font-semibold text-slate-500">{hrRequestKindLabel(r.kind)}</p>
+                        <p className="truncate text-sm font-bold text-slate-900">{r.staffDisplayName || r.userId || 'Employee'}</p>
+                        <p className="font-mono text-xs text-slate-500">{r.updatedAtIso?.slice(0, 10) || '—'}</p>
+                      </div>
+                      <span
+                        className={`shrink-0 inline-flex rounded-full border px-2 py-0.5 text-xs font-semibold ${hrRequestStatusClass(r.status)}`}
+                      >
+                        {r.status?.replace(/_/g, ' ')}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </HrListTableFrame>
+            ) : (
+              <ProfileInlineAlert variant="success">No recent employee requests.</ProfileInlineAlert>
+            )}
+          </ProfileOverviewSection>
+        </>
+      ) : null}
 
       <HrRequestPreviewSlideOver
         request={previewRequest}

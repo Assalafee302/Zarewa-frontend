@@ -916,7 +916,7 @@ function AppShell() {
                             }}
                           >
                             <User size={16} className="shrink-0 text-gray-400" aria-hidden />
-                            HR services
+                            My HR
                           </button>
                         ) : null}
                         <button

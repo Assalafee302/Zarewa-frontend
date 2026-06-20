@@ -2,6 +2,11 @@ import React, { Fragment } from 'react';
 import { RefreshCw, CheckCircle2, RotateCcw, Flag, Unlock, Zap, BadgeCheck } from 'lucide-react';
 import { formatPersonName } from '../../lib/formatPersonName';
 import { accountingReceivableOutstandingNgn, quotationWaivedBalanceNgn } from '../../lib/customerLedgerCore.js';
+import {
+  evaluateReceivableWriteOff,
+  registerReceivableOutstandingNgn,
+  MAX_ROUND_OFF_WAIVE_NGN,
+} from '../../lib/receivableWriteOffPolicy.js';
 import { IntelDetailRow, IntelPanel, IntelStat } from './managementIntelUi';
 import { ManagementQuotationIntelGrid } from './ManagementQuotationIntelGrid';
 
@@ -34,9 +39,11 @@ export function ClearanceManagerApprovalPreview({
   onReleasePayments,
   onProductionOverride,
   onWaiveBalance,
+  onWriteOffReceivable,
   canProductionOverride = true,
   canManagerClearance = true,
   canReleasePaymentHolds = false,
+  canWriteOffBadDebt = false,
 }) {
   /** Keep line items visible during background refund-intel refresh when data is already loaded. */
   const loading = loadingAudit || (loadingIntel && !paymentIntel);
@@ -44,7 +51,9 @@ export function ClearanceManagerApprovalPreview({
   const totalNgn = Number(inboxRow?.total_ngn ?? auditData?.summary?.orderTotalNgn) || 0;
   const waivedNgn = quotationWaivedBalanceNgn(inboxRow || auditData?.quotation || {});
   const rawOutstandingAmountNgn = Math.max(0, Math.round(totalNgn - paidNgn));
-  const receivableNgn = accountingReceivableOutstandingNgn(totalNgn, paidNgn, waivedNgn);
+  const strictReceivableNgn = accountingReceivableOutstandingNgn(totalNgn, paidNgn, waivedNgn);
+  const receivableNgn = registerReceivableOutstandingNgn(totalNgn, paidNgn, waivedNgn);
+  const writeOffEval = evaluateReceivableWriteOff(totalNgn, paidNgn, waivedNgn);
   const pct = percentPaid(paidNgn, totalNgn);
   const refunds = Array.isArray(auditData?.refunds) ? auditData.refunds : [];
 
@@ -121,14 +130,21 @@ export function ClearanceManagerApprovalPreview({
 
             {waivedNgn > 0 ? (
               <p className="mb-2 rounded-lg border border-emerald-200 bg-emerald-50/70 px-2.5 py-2 text-[10px] text-emerald-950">
-                Manager waived {formatNgn(waivedNgn)} round-off — not shown in accounts receivable.
+                Manager waived {formatNgn(waivedNgn)} — removed from accounts receivable register.
               </p>
             ) : null}
 
-            {receivableNgn > 0 && paidNgn > 0 ? (
+            {strictReceivableNgn > 0 && receivableNgn === 0 ? (
+              <p className="mb-2 rounded-lg border border-teal-200 bg-teal-50/70 px-2.5 py-2 text-[10px] text-teal-950">
+                Remaining {formatNgn(strictReceivableNgn)} is within the {MAX_ROUND_OFF_WAIVE_NGN.toLocaleString('en-NG')} round-off band (99.5% paid) — hidden from Creditors register until waived or cleared.
+              </p>
+            ) : null}
+
+            {strictReceivableNgn > 0 ? (
               <p className="mb-2 text-[10px] leading-snug text-slate-600">
-                Accounting uses the exact balance ({formatNgn(rawOutstandingAmountNgn)} unpaid). Use{' '}
-                <strong>Clear as paid</strong> to waive a small round-off so it drops from receivables.
+                {writeOffEval.kind === 'round_off'
+                  ? writeOffEval.message
+                  : writeOffEval.blockReason || writeOffEval.message || 'Material balance — collect payment or MD write-off required.'}
               </p>
             ) : null}
 
@@ -186,7 +202,7 @@ export function ClearanceManagerApprovalPreview({
               </button>
             ) : null}
 
-            {canManagerClearance && receivableNgn > 0 && paidNgn > 0 ? (
+            {canManagerClearance && writeOffEval.kind === 'round_off' && strictReceivableNgn > 0 && paidNgn > 0 ? (
               <button
                 type="button"
                 disabled={decisionBusy}
@@ -195,7 +211,21 @@ export function ClearanceManagerApprovalPreview({
               >
                 <BadgeCheck size={16} />
                 <span className="text-[10px] font-black uppercase tracking-widest">
-                  Clear as paid ({formatNgn(receivableNgn)})
+                  Waive round-off ({formatNgn(strictReceivableNgn)})
+                </span>
+              </button>
+            ) : null}
+
+            {canWriteOffBadDebt && writeOffEval.requiresMd && strictReceivableNgn > 0 ? (
+              <button
+                type="button"
+                disabled={decisionBusy}
+                onClick={onWriteOffReceivable}
+                className="mb-2 flex w-full items-center justify-center gap-2 rounded-xl border border-rose-200 bg-rose-700 p-3 text-white transition-colors hover:bg-rose-600 disabled:opacity-50"
+              >
+                <BadgeCheck size={16} />
+                <span className="text-[10px] font-black uppercase tracking-widest">
+                  Write off receivable ({formatNgn(strictReceivableNgn)})
                 </span>
               </button>
             ) : null}

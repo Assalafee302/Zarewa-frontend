@@ -25,7 +25,7 @@ import { useWorkspace } from '../context/WorkspaceContext';
 import { userMayViewManagementReportsClient } from '../lib/reportsAccess';
 import { userMayViewAccountingDeskClient } from '../lib/financeDeskAccess';
 import { userMaySeeLegacyAccountsNav } from '../lib/legacyAccountsAccess';
-import { canAccessExecutiveHr } from '../lib/hrAccess';
+import { canAccessExecutiveHr, canAccessMyProfileHr } from '../lib/hrAccess';
 import { ZAREWA_LOGO_SRC } from '../Data/companyQuotation';
 
 function pathMatches(locationPath, basePath) {
@@ -142,7 +142,7 @@ const Sidebar = ({ mobileOpen = false, onCloseMobile, collapsed = false, onToggl
     },
     {
       icon: <Users size={18} />,
-      label: 'Human Resources',
+      label: 'HR operations',
       path: '/hr',
       active: pathMatches(p, '/hr') && !pathMatches(p, '/hr/executive'),
       visible: ws?.canAccessModule?.('hr') ?? false,
@@ -156,11 +156,18 @@ const Sidebar = ({ mobileOpen = false, onCloseMobile, collapsed = false, onToggl
     },
     {
       icon: <UserCircle size={18} />,
-      label: 'Team HR',
+      label: 'My team',
       path: '/team-hr',
       active: pathMatches(p, '/team-hr'),
       visible:
         (ws?.canAccessModule?.('team_hr') ?? false) && !(ws?.canAccessModule?.('hr') ?? false),
+    },
+    {
+      icon: <UserCircle size={18} />,
+      label: 'My HR',
+      path: '/my-profile',
+      active: pathMatches(p, '/my-profile'),
+      visible: canAccessMyProfileHr(permissions),
     },
     {
       icon: <UserCircle size={18} />,

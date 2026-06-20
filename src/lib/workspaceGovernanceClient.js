@@ -43,3 +43,8 @@ export function userMayReleaseQuotationPaymentHold(actor) {
 export function userMayBlockQuotationRefunds(actor) {
   return userMayReleaseQuotationPaymentHold(actor);
 }
+
+/** @param {{ roleKey?: string; permissions?: string[] } | null | undefined} actor */
+export function userMayWriteOffReceivableBadDebt(actor) {
+  return userMayReleaseQuotationPaymentHold(actor);
+}

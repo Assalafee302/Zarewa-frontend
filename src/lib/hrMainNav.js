@@ -54,7 +54,7 @@ const HR_NAV_DEFINITION = [
   },
   {
     to: '/hr/discipline-exit',
-    label: 'Staff cases & exit',
+    label: 'Cases & exit',
     visible: (p) =>
       canManageHrDiscipline(p) ||
       canApproveHrLetters(p) ||
@@ -72,12 +72,16 @@ const HR_NAV_DEFINITION = [
       hrHasPermission(p, 'hr.letters.approve'),
   },
   {
+    to: '/hr/analytics',
+    label: 'Analytics',
+    visible: (p) => canViewHrReports(p),
+  },
+  {
     to: '/hr/settings',
     label: 'Administration',
     visible: (p) => canViewHrSettings(p),
   },
   { to: '/hr/talent', label: 'Talent & development', section: 'more', visible: (p) => canManageHrStaff(p) },
-  { to: '/hr/analytics', label: 'Analytics', section: 'more', visible: (p) => canViewHrReports(p) },
 ];
 
 /**

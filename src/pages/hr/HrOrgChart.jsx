@@ -320,7 +320,7 @@ export default function HrOrgChart({ staffBasePath = HR_EMPLOYEES, teamMode = fa
         <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-800">{error}</div>
       ) : null}
 
-      <div className="flex flex-wrap gap-2" role="tablist" aria-label="Organogram view">
+      <div className="flex flex-wrap gap-2" role="tablist" aria-label="Org chart view">
         {ORG_CHART_VIEWS.map((v) => (
           <button
             key={v.id}

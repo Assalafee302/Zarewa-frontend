@@ -12,9 +12,13 @@ export default function HrRequestStageBar({ status, kind, compact = false }) {
   return (
     <div className={compact ? 'mt-2' : 'rounded-xl border border-slate-200 bg-slate-50/80 p-3'}>
       {!compact ? (
-        <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-2">Approval stages</p>
+        <p className="z-meta-text mb-2 font-semibold text-slate-500">Approval stages</p>
       ) : null}
-      <div className="flex gap-1 overflow-x-auto pb-0.5">
+      <div
+        className="flex gap-1 overflow-x-auto pb-0.5"
+        role="list"
+        aria-label={`Approval progress: step ${Math.min(currentIdx + 1, chain.length)} of ${chain.length}`}
+      >
         {chain.map((step, i) => {
           const complete = i < currentIdx || (i === currentIdx && status === 'approved');
           const active = i === currentIdx && !rejected && status !== 'approved';
@@ -22,8 +26,10 @@ export default function HrRequestStageBar({ status, kind, compact = false }) {
           return (
             <span
               key={step}
+              role="listitem"
               title={step}
-              className={`shrink-0 rounded-lg px-2 py-1 text-[10px] font-semibold leading-tight ${
+              aria-current={active ? 'step' : undefined}
+              className={`shrink-0 rounded-lg px-2 py-1 text-xs font-semibold leading-tight ${
                 declined
                   ? 'bg-red-100 text-red-900 border border-red-200'
                   : active

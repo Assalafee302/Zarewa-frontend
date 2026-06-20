@@ -67,14 +67,14 @@ function MyProfileLayout() {
       ? FAMILY_BENEFITS.hubSubtitle
       : cohort === 'domestic'
         ? DOMESTIC_BENEFITS.hubSubtitle
-        : 'Leave, pay, documents, and employment records.';
+        : 'Leave, pay, documents, and your employment records.';
 
   const shellTitle =
     cohort === 'scholarship'
       ? FAMILY_BENEFITS.hubTitle
       : cohort === 'domestic'
         ? DOMESTIC_BENEFITS.hubTitle
-        : 'HR services';
+        : 'My HR';
 
   return (
     <ProfileSectionShell
