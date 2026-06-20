@@ -107,7 +107,6 @@ export default function MyProfilePolicies() {
   return (
     <ProfilePageBody>
       <ProfilePageIntro
-        title="Company policies"
         description="Read and sign required policies once. HR stores your typed signature on file."
         actions={
           missing.length ? (

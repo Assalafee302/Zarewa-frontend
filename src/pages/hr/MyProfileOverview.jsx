@@ -30,10 +30,22 @@ import { HrLoanPayrollDeductionBanner } from '../../components/hr/HrLoanPayrollD
 import { loansWithPayrollDeduction } from '../../lib/hrLoanDeductionUi';
 import { HrPayslipTimeline } from '../../components/hr/HrPayslipTimeline';
 import { MyHrTaskStrip } from '../../components/profile/MyHrTaskStrip';
+import { MyHrNextStepBanner } from '../../components/profile/MyHrNextStepBanner';
 
 export default function MyProfileOverview() {
   const { cohort: layoutCohort } = useMyProfileCohort();
-  const { hr, user, me, completeness, error, initialLoading, loanPolicy } = useUserProfile();
+  const {
+    hr,
+    user,
+    me,
+    completeness,
+    documentSummary,
+    pendingProfileRequests,
+    unreadNotifications,
+    error,
+    initialLoading,
+    loanPolicy,
+  } = useUserProfile();
   const cohort = layoutCohort || 'employee';
   const ws = useWorkspace();
   const sensitive = useHrSensitiveAccess();
@@ -148,6 +160,9 @@ export default function MyProfileOverview() {
   const pendingRequests = requests.filter(
     (r) => !['approved', 'rejected', 'cancelled', 'draft'].includes(String(r.status || '').toLowerCase())
   );
+  const incompleteSections = (completeness?.sections || []).filter((s) => s.pct < 100).length;
+  const rejectedDocs = documentSummary?.rejected || 0;
+  const pendingProfileRequestCount = pendingProfileRequests?.length || 0;
   const metricCount = cohort === 'employee' || cohort === 'special' ? 5 : 2;
 
   const summarySection = loading ? (
@@ -352,14 +367,23 @@ export default function MyProfileOverview() {
       <ProfileProbationBanner />
 
       {cohort === 'employee' || cohort === 'special' ? (
+        <MyHrNextStepBanner
+          pendingRequests={pendingRequests.length}
+          rejectedDocs={rejectedDocs}
+          pendingProfileRequests={pendingProfileRequestCount}
+          incompleteSections={incompleteSections}
+        />
+      ) : null}
+
+      {cohort === 'employee' || cohort === 'special' ? (
         <MyHrTaskStrip pendingRequests={pendingRequests.length} />
       ) : null}
 
       <ProfileSetupRow
         completeness={completeness}
-        documentSummary={me?.documentSummary}
-        pendingProfileRequests={me?.pendingProfileRequests}
-        unreadNotifications={me?.unreadNotifications}
+        documentSummary={documentSummary}
+        pendingProfileRequests={pendingProfileRequests}
+        unreadNotifications={unreadNotifications}
         compact
       />
 

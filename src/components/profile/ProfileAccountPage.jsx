@@ -167,7 +167,7 @@ export default function ProfileAccountPage() {
               label="Full legal name"
               hint={
                 hasHrRecord
-                  ? 'Set from first, middle, and surname under HR services → Employment.'
+                  ? 'Set from first, middle, and surname under My HR → Employment.'
                   : 'Your display name on the system.'
               }
             >
@@ -320,7 +320,7 @@ export default function ProfileAccountPage() {
               <Link to={HR_SELF_SERVICE_PATH.policies} className="font-semibold text-[#134e4a] hover:underline">
                 policies
               </Link>{' '}
-              in HR services so HR can verify and activate full access.
+              in My HR so HR can verify and activate full access.
             </p>
           ) : null}
         </div>

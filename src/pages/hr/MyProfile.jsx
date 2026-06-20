@@ -3,8 +3,6 @@ import { lazyWithRetry } from '../../lib/lazyWithRetry';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { ProfileSectionShell } from '../../components/profile/ProfileSectionShell';
 import { useUserProfile } from '../../context/UserProfileContext';
-import { FAMILY_BENEFITS } from '../../lib/familyBenefitsUi';
-import { DOMESTIC_BENEFITS } from '../../lib/domesticStaffUi';
 import { ProfileMetricSkeleton } from '../../components/profile/profileOverviewUi';
 import { useMyProfileCohort } from './useMyProfileCohort';
 
@@ -63,28 +61,7 @@ function MyProfilePaymentsRoute() {
 function MyProfileLayout() {
   const { cohort } = useUserProfile();
 
-  const subtitle =
-    cohort === 'scholarship'
-      ? FAMILY_BENEFITS.hubSubtitle
-      : cohort === 'domestic'
-        ? DOMESTIC_BENEFITS.hubSubtitle
-        : 'Leave, pay, documents, and your employment records.';
-
-  const shellTitle =
-    cohort === 'scholarship'
-      ? FAMILY_BENEFITS.hubTitle
-      : cohort === 'domestic'
-        ? DOMESTIC_BENEFITS.hubTitle
-        : 'My HR';
-
-  return (
-    <ProfileSectionShell
-      title={shellTitle}
-      subtitle={subtitle}
-      cohort={cohort}
-      outletContext={{ cohort }}
-    />
-  );
+  return <ProfileSectionShell cohort={cohort} outletContext={{ cohort }} />;
 }
 
 function MyProfileIndexRedirect() {

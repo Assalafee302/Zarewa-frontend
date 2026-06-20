@@ -1,5 +1,6 @@
 import React from 'react';
 import { useAccountingCreditors } from '../../hooks/useAccountingSubledger';
+import { registerConfigFor } from '../../lib/accountingRegisterConfig';
 import { AccountingRegisterPanel } from './AccountingRegisterPanel';
 
 /**
@@ -14,6 +15,7 @@ export function AccountingCreditorsPanel({
   onFocusTab,
 }) {
   const { data, loading, error, reload } = useAccountingCreditors({ branchId, enabled });
+  const legacyQuickAdd = registerConfigFor('creditor').legacyQuickAdd;
 
   return (
     <AccountingRegisterPanel
@@ -27,6 +29,7 @@ export function AccountingCreditorsPanel({
       branchScopeLabel={branchScopeLabel}
       deskRefresh={deskRefresh}
       onFocusTab={onFocusTab}
+      legacyQuickAdd={legacyQuickAdd}
     />
   );
 }

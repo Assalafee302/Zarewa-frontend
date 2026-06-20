@@ -93,7 +93,7 @@ export default function SettingsProfilePanel({ embedInMyProfile = false }) {
           How you appear in the app (sidebar, chat, approvals). This is <strong>not</strong> your official HR ID photo — upload
           passport photos under{' '}
           <Link to="/my-profile/documents" className="font-semibold text-[#134e4a] underline-offset-2 hover:underline">
-            HR services → Documents
+            My HR → Documents
           </Link>
           .
           {embedInMyProfile ? ' Change your password in the section below.' : (
@@ -138,7 +138,7 @@ export default function SettingsProfilePanel({ embedInMyProfile = false }) {
             <p className="text-[11px] text-slate-500 mb-2">
               Shown in the sidebar and user menu. For your <strong>official ID photo</strong>, upload under{' '}
               <Link to="/my-profile/documents" className="font-medium text-[#134e4a] hover:underline">
-                HR services → Documents
+                My HR → Documents
               </Link>
               .
             </p>

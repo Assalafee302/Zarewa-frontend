@@ -160,7 +160,7 @@ export default function HrLeave({ embedded = false, showYearEndOnly = false } = 
         <p className="text-sm text-slate-600">
           Organisation leave balances and calendar. Staff apply via{' '}
           <Link to="/my-profile/leave" className="font-semibold text-[#134e4a] hover:underline">
-            HR services → Leave
+            My HR → Leave
           </Link>
           .
         </p>

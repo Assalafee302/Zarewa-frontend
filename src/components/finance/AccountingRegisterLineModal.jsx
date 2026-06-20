@@ -14,6 +14,7 @@ import { ProcurementFormSection } from '../procurement/ProcurementFormSection';
 const CATEGORIES = {
   creditor: [
     { value: 'legacy', label: 'General inherited receivable' },
+    { value: 'external_loan', label: 'External / non-staff loan' },
     { value: 'staff_loan', label: 'Staff loan (pre-system)' },
     { value: 'customer_ar', label: 'Customer receivable (pre-system)' },
     { value: 'supplier_prepay', label: 'Supplier prepayment (pre-system)' },

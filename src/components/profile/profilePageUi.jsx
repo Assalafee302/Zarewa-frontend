@@ -5,14 +5,16 @@ export function ProfilePageBody({ children, className = '' }) {
   return <div className={`space-y-6 ${className}`}>{children}</div>;
 }
 
-/** In-page title block */
+/** In-page title block — omit title when the page shell already shows the section name. */
 export function ProfilePageIntro({ title, description, actions, children }) {
   return (
-    <header className="border-b border-slate-200/80 pb-5 mb-6">
+    <header className={`${title ? 'border-b border-slate-200/80 pb-5 mb-6' : 'mb-2'}`}>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           {title ? <h2 className="text-xl font-black tracking-tight text-slate-900">{title}</h2> : null}
-          {description ? <p className="mt-1 text-sm text-slate-600">{description}</p> : null}
+          {description ? (
+            <p className={`${title ? 'mt-1' : ''} text-sm text-slate-600`}>{description}</p>
+          ) : null}
         </div>
         {actions ? <div className="flex shrink-0 flex-wrap gap-2">{actions}</div> : null}
       </div>

@@ -50,11 +50,14 @@ export function documentTitleForPath(pathname) {
     const labels = {
       overview: 'Overview',
       school: 'My school',
+      home: 'Overview',
       employment: 'Employment',
       'time-off': 'Time off',
       leave: 'Time off',
       attendance: 'Time off',
       payslips: 'Payslips',
+      loans: 'Loans & credit',
+      requests: 'My requests',
       documents: 'Documents',
       benefits: 'Benefits',
       policies: 'Policies',
@@ -62,9 +65,10 @@ export function documentTitleForPath(pathname) {
       'id-card': 'ID card',
       discipline: 'Conduct',
       surveys: 'Surveys',
+      payments: 'Payments',
       help: 'HR help',
     };
-    return `HR services – ${labels[sec] || 'Overview'} | ${DOCUMENT_TITLE_BASE}`;
+    return `My HR – ${labels[sec] || 'Overview'} | ${DOCUMENT_TITLE_BASE}`;
   }
 
   if (p === '/executive-hr' || p.startsWith('/executive-hr/')) {

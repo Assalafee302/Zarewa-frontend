@@ -2,8 +2,25 @@ import React from 'react';
 
 /**
  * Shared hero for Leave / Loans / Payslips / Attendance self-service pages.
+ * Use variant="context" when the page shell already shows the section title.
  */
-export function WorkPayHero({ eyebrow, title, description, action, badge }) {
+export function WorkPayHero({ variant = 'full', eyebrow, title, description, action, badge }) {
+  if (variant === 'context') {
+    if (!description && !action) return null;
+    return (
+      <div className="rounded-xl border border-teal-100 bg-teal-50/70 px-4 py-3 sm:px-5 sm:py-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          {description ? (
+            <p className="min-w-0 text-sm leading-relaxed text-slate-700">{description}</p>
+          ) : (
+            <span />
+          )}
+          {action ? <div className="flex shrink-0 flex-col items-stretch gap-2 sm:items-end">{action}</div> : null}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#134e4a] via-[#0f5c55] to-[#134e4a] p-5 text-white shadow-lg shadow-teal-950/10 sm:p-6">
       <div className="pointer-events-none absolute -right-12 -top-12 h-40 w-40 rounded-full bg-white/10 blur-2xl" aria-hidden />

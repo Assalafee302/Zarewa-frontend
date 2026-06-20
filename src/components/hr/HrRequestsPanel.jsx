@@ -6,7 +6,7 @@ import { useHrListLoad } from '../../hooks/useHrListLoad';
 import { useHrDashboardCounts } from '../../hooks/useHrDashboardCounts';
 import { generateLeaveDecisionLetter } from '../../lib/hrPhase2';
 import { generateStaffLoanAgreementLetter } from '../../lib/hrExtended';
-import { canGenerateHrLetters } from '../../lib/hrAccess';
+import { canGenerateHrLetters, canGmApproveChairmanWaiverLoan } from '../../lib/hrAccess';
 import { hrRequestKindLabel, hrRequestStatusClass } from '../../lib/hrFormat';
 import { hrRequestReviewPath } from '../../lib/hrRequests';
 import { filterHrRequestsList, HR_REQUEST_SORT_FIELDS, sortHrRequestsList } from '../../lib/hrRequestsList';
@@ -17,6 +17,7 @@ import HrRequestStageBar from './HrRequestStageBar';
 import { HrListTableFrame, HrListSearchInput, HrListSortBar } from './HrListTableFrame';
 import { HrRequestScopeFilter } from './HrRequestScopeFilter';
 import { HrRequestPreviewSlideOver } from './HrRequestPreviewSlideOver';
+import { HrChairmanWaiverLoanBanner } from './HrChairmanWaiverLoanBanner';
 import { MyRequestDetailSlideOver } from './MyRequestDetailSlideOver';
 import { HrEmptyState } from './hrPageUi';
 import { hrRequestsEmptyState } from '../../lib/hrRequestsEmptyState';
@@ -43,7 +44,9 @@ export function HrRequestsPanel({
   compact = false,
 }) {
   const ws = useWorkspace();
-  const canLetter = canGenerateHrLetters(ws?.session?.permissions);
+  const permissions = ws?.permissions || ws?.session?.permissions || [];
+  const roleKey = ws?.session?.roleKey || ws?.roleKey || '';
+  const canLetter = canGenerateHrLetters(permissions);
   const [scope, setScope] = useState(defaultScope);
   const [requests, setRequests] = useState([]);
   const [busyId, setBusyId] = useState('');
@@ -346,6 +349,7 @@ export function HrRequestsPanel({
             <p><span className="text-slate-500">Kind:</span> {hrRequestKindLabel(r.kind)}</p>
           </div>
           <HrRequestPayloadSummary request={r} compact />
+          <HrChairmanWaiverLoanBanner request={r} permissions={permissions} roleKey={roleKey} />
           {(() => {
             const { chain, currentIdx } = hrRequestApprovalChain(r.status, r.kind);
             return (
@@ -388,9 +392,14 @@ export function HrRequestsPanel({
           <div className="flex flex-col gap-2 sm:flex-row">
             <button
               type="button"
-              disabled={busyId === r.id}
+              disabled={busyId === r.id || !canGmApproveChairmanWaiverLoan(r, permissions, roleKey)}
+              title={
+                !canGmApproveChairmanWaiverLoan(r, permissions, roleKey)
+                  ? 'Chairman or MD must approve this waiver-flagged loan'
+                  : undefined
+              }
               onClick={() => runReview(r.id, r.status, true)}
-              className={`${HR_BTN_PRIMARY} bg-emerald-700 hover:bg-emerald-800`}
+              className={`${HR_BTN_PRIMARY} bg-emerald-700 hover:bg-emerald-800 disabled:opacity-50`}
             >
               Approve
             </button>

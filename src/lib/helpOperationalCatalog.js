@@ -318,14 +318,14 @@ const OPERATIONAL_TOPICS = [
     module: 'finance',
     action: 'pay an approved customer refund',
     title: 'Refund treasury payout',
-    answer: 'Approved refunds are paid from treasury after manager/MD approval — use **Cashier desk** for payout execution.',
+    answer: 'Approved refunds are paid after manager/MD approval — use **My desk** for cashier payout execution.',
     steps: [
-      'Open **Cashier desk** → refunds awaiting payout (or Finance payments if you are Accountant).',
+      'Open **Finance → My desk** → refunds awaiting payout (Accountant may use Payment register).',
       'Verify payee bank details on the approved refund.',
       'Click **Pay** from the correct treasury account — Cashiers cannot approve refunds in Sales.',
     ],
     links: [
-      { label: 'Cashier desk', to: '/cashier' },
+      { label: 'My desk', to: '/accounts?tab=desk' },
       { label: 'Sales — Refunds', to: '/sales', state: { focusSalesTab: 'refund' } },
     ],
     extraKeywords: ['refund payout', 'pay refund'],
@@ -362,12 +362,12 @@ const OPERATIONAL_TOPICS = [
     title: 'Finance receipt clearance',
     answer: 'Cashier or Finance confirms receipt against bank before refunds and some downstream rules unlock.',
     steps: [
-      '**Cashier desk** → **Confirm payment received** when bank/cash matches (primary).',
+      '**My desk** → **Confirm payment received** when bank/cash matches (primary).',
       'Accountant may clear from **Finance & accounts** → Receipts when reconciling.',
       'Cleared receipts affect refund eligibility — pending clearance blocks refund submit.',
     ],
     links: [
-      { label: 'Cashier desk', to: '/cashier' },
+      { label: 'My desk', to: '/accounts?tab=desk' },
       { label: 'Finance — Receipts', to: '/accounts', state: { accountsTab: 'receipts' } },
     ],
     extraKeywords: ['clearance', 'reconcile receipt'],
@@ -951,7 +951,7 @@ const OPERATIONAL_TOPICS = [
   },
   {
     module: 'settings',
-    action: 'update account and HR services security',
+    action: 'update account and My HR security',
     title: 'Profile & security',
     answer: 'Users update display name and password.',
     steps: [

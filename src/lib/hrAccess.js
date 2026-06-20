@@ -276,6 +276,34 @@ export function canRejectStaffPurchaseCredit(roleKey, permissions) {
   );
 }
 
+/** Pause/resume payroll deductions and adjust loan or purchase credit schedule. */
+export function canMaintainStaffObligations(permissions) {
+  if (hasPermissionInList(permissions, '*')) return true;
+  return hrHasPermission(permissions, 'hr.loan_maintain') || hrHasPermission(permissions, 'hr.loans.manage');
+}
+
+/** Chairman / MD waiver of remaining obligation balance. */
+export function canChairmanWaiveObligation(permissions, roleKey) {
+  if (hasPermissionInList(permissions, '*')) return true;
+  if (hrHasPermission(permissions, 'hr.chairman.manage')) return true;
+  if (hrHasPermission(permissions, 'hr.payroll.md_approve')) return true;
+  const rk = String(roleKey || '').toLowerCase();
+  return rk === 'chairman' || rk === 'md';
+}
+
+/** GM final approve on loan requests flagged for Chairman policy waiver. */
+export function canGmApproveChairmanWaiverLoan(request, permissions, roleKey) {
+  if (request?.kind !== 'loan') return true;
+  if (String(request?.status || '') !== 'gm_hr_review') return true;
+  if (!request?.payload?.needsChairmanWaiver) return true;
+  return canChairmanWaiveObligation(permissions, roleKey);
+}
+
+/** Loan request requires Chairman / MD at GM HR final step. */
+export function loanRequestNeedsChairmanWaiver(request) {
+  return request?.kind === 'loan' && Boolean(request?.payload?.needsChairmanWaiver);
+}
+
 /** @param {string[] | undefined} permissions */
 export function canApproveSalaryReduction(permissions) {
   return (

@@ -51,6 +51,10 @@ const SECTION_ACTIONS = {
   ],
   inter_branch_receivable: [{ label: 'Treasury movements', to: '/accounts?tab=movements' }],
   inter_branch_payable: [{ label: 'Treasury movements', to: '/accounts?tab=movements' }],
+  external_loans: [
+    { label: 'Record settlement payment', icon: Banknote, to: '/accounting', state: { focusTab: 'creditors' } },
+    { label: 'Finance desk', to: '/accounts?tab=desk' },
+  ],
   legacy_inherited: [
     { label: 'Open linked party', icon: User, resolve: (s, i) => accountingRegisterPartyLink(s, i) },
   ],

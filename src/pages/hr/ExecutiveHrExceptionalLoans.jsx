@@ -40,14 +40,15 @@ export default function ExecutiveHrExceptionalLoans() {
             <AppTableTh>Staff</AppTableTh>
             <AppTableTh>Title</AppTableTh>
             <AppTableTh>Status</AppTableTh>
+            <AppTableTh>Flags</AppTableTh>
             <AppTableTh align="right">Amount</AppTableTh>
           </AppTableThead>
           <AppTableBody>
             {loading && !loans.length ? (
-              <HrTableLoadingRow colSpan={4} message="Loading exceptional loan queue…" />
+              <HrTableLoadingRow colSpan={5} message="Loading exceptional loan queue…" />
             ) : null}
             {!loading && !loans.length ? (
-              <HrTableEmptyRow colSpan={4} message="No exceptional loans in queue." />
+              <HrTableEmptyRow colSpan={5} message="No exceptional loans in queue." />
             ) : null}
             {loans.map((l) => (
               <AppTableTr key={l.id}>
@@ -55,6 +56,15 @@ export default function ExecutiveHrExceptionalLoans() {
                 <AppTableTd>{l.title}</AppTableTd>
                 <AppTableTd>
                   <HrStatusBadge status={l.status} variant="request" />
+                </AppTableTd>
+                <AppTableTd className="text-xs text-slate-600">
+                  {l.payload?.needsChairmanWaiver ? (
+                    <span className="font-semibold text-violet-800">Chairman waiver</span>
+                  ) : l.payload?.exceptionalLoan ? (
+                    <span className="text-amber-800">Exceptional</span>
+                  ) : (
+                    '—'
+                  )}
                 </AppTableTd>
                 <AppTableTd align="right">
                   {l.payload?.amountNgn != null ? formatNgn(l.payload.amountNgn) : '—'}

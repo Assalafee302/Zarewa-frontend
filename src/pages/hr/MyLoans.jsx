@@ -8,12 +8,10 @@ import { createHrLoanRequest } from '../../lib/hrStaff';
 import { fetchStaffLoanSchedule } from '../../lib/hrMasterData';
 import {
   fetchStaffMoneySummary,
-  obligationDisbursementVoucherPdfUrl,
-  obligationStatementPdfUrl,
 } from '../../lib/hrStaffObligations';
 import { WorkPayFormModal } from '../../components/profile/WorkPayFormModal';
 import { WorkPayHero } from '../../components/profile/WorkPayHero';
-import { WorkPayFormAlert, WorkPayHeroButton } from '../../components/profile/workPayFormUi';
+import { WorkPayFormAlert } from '../../components/profile/workPayFormUi';
 import { ProfileFormActions, ProfileFormField } from '../../components/profile/profileFormUi';
 import { computeLoanEligibility, loanRepaymentPreview } from '../../lib/hrLoanEligibility';
 import { ProfilePageBody } from '../../components/profile/profilePageUi';
@@ -26,14 +24,15 @@ import { GUARANTOR_FORM_TEMPLATE_URL } from '../../lib/hrStaffDocumentKinds';
 import { fetchMyQuotationsForPurchaseCredit } from '../../lib/hrStaffPurchaseCredit';
 import { StaffPurchaseCreditRequestModal } from '../../components/sales/StaffPurchaseCreditRequestModal';
 import { salesQuotationDeepLink } from '../../lib/staffPurchaseCreditLinks';
-import { HrLoanPayrollDeductionBanner } from '../../components/hr/HrLoanPayrollDeductionBanner';
+import { StaffObligationPayGuide } from '../../components/hr/StaffObligationPayGuide';
+import { StaffObligationBalanceCard } from '../../components/hr/StaffObligationBalanceCard';
 import { StaffRecoveryPayGuide } from '../../components/hr/StaffRecoveryPayGuide';
-import { loansWithPayrollDeduction } from '../../lib/hrLoanDeductionUi';
+import { collectRepayableObligations } from '../../lib/hrObligationPayUi';
 
 import { HR_SELF_SERVICE_PATH } from '../../lib/hrSelfServiceRoutes';
 
 const LOAN_TABS = [
-  { id: 'overview', label: 'Overview' },
+  { id: 'repay', label: 'Pay back' },
   { id: 'loans', label: 'Staff loans' },
   { id: 'credit', label: 'Purchase credit' },
 ];
@@ -42,8 +41,6 @@ const LOAN_STEPS = ['Amount & period', 'Purpose & guarantor', 'Review & acknowle
 
 export default function MyLoans({ staffLinkBase = '/my-profile' }) {
   const [searchParams, setSearchParams] = useSearchParams();
-  const tabRaw = searchParams.get('tab') || 'overview';
-  const tab = LOAN_TABS.some((t) => t.id === tabRaw) ? tabRaw : 'overview';
   const ws = useWorkspace();
   const { hr, loanPolicy: ctxLoanPolicy, reload, me } = useUserProfile();
   const userId = ws?.session?.user?.id;
@@ -63,6 +60,13 @@ export default function MyLoans({ staffLinkBase = '/my-profile' }) {
   const [message, setMessage] = useState('');
   const [schedule, setSchedule] = useState([]);
   const [moneySummary, setMoneySummary] = useState(null);
+
+  const tabRaw = searchParams.get('tab') || '';
+  const tab = LOAN_TABS.some((t) => t.id === tabRaw)
+    ? tabRaw
+    : Number(moneySummary?.totalOutstandingNgn) > 0
+      ? 'repay'
+      : 'loans';
   const [scheduleLoading, setScheduleLoading] = useState(true);
   const [summaryLoading, setSummaryLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
@@ -171,7 +175,10 @@ export default function MyLoans({ staffLinkBase = '/my-profile' }) {
     [amount, months]
   );
 
-  const payrollDeductionLoans = useMemo(() => loansWithPayrollDeduction(schedule), [schedule]);
+  const payrollDeductionLoans = useMemo(
+    () => collectRepayableObligations({ schedule, purchases: moneySummary?.purchases }),
+    [schedule, moneySummary?.purchases]
+  );
 
   const resetWizard = () => {
     setStep(0);
@@ -258,16 +265,25 @@ export default function MyLoans({ staffLinkBase = '/my-profile' }) {
   return (
     <ProfilePageBody>
       <WorkPayHero
-        eyebrow="Work & pay"
-        title="Loans & credit"
-        description="Staff loans and purchase credit for roofing and materials — balances and payroll repayment."
+        variant="context"
+        description="Track what you owe, how payroll collects it, and apply for new loans or purchase credit."
         action={
           <div className="flex flex-col items-stretch gap-2 sm:items-end">
-            <WorkPayHeroButton onClick={() => setModalOpen(true)} disabled={!eligibility.eligible}>
-              Apply for loan
-            </WorkPayHeroButton>
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              <ProfileStatusChip variant={eligibility.eligible ? 'approved' : 'pending'}>
+                {eligibility.eligible ? 'Eligible' : 'Action needed'}
+              </ProfileStatusChip>
+              <button
+                type="button"
+                onClick={() => setModalOpen(true)}
+                disabled={!eligibility.eligible}
+                className={HR_BTN_PRIMARY}
+              >
+                Apply for loan
+              </button>
+            </div>
             {!eligibility.eligible && eligibility.issues.length ? (
-              <div className="max-w-xs rounded-xl border border-white/20 bg-black/20 px-3 py-2 text-left text-xs text-white/95">
+              <div className="max-w-xs rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-left text-xs text-amber-950">
                 <p className="font-semibold">Before you can apply:</p>
                 <ul className="mt-1 space-y-0.5">
                   {eligibility.issues.map((line) => (
@@ -277,17 +293,6 @@ export default function MyLoans({ staffLinkBase = '/my-profile' }) {
               </div>
             ) : null}
           </div>
-        }
-        badge={
-          eligibility.eligible ? (
-            <span className="rounded-full bg-emerald-500/20 px-2.5 py-0.5 text-[10px] font-bold uppercase text-white ring-1 ring-white/30">
-              Eligible
-            </span>
-          ) : (
-            <span className="rounded-full bg-amber-500/20 px-2.5 py-0.5 text-[10px] font-bold uppercase text-white ring-1 ring-white/30">
-              Action needed
-            </span>
-          )
         }
       />
 
@@ -309,10 +314,66 @@ export default function MyLoans({ staffLinkBase = '/my-profile' }) {
         <p className="text-sm text-slate-500">Loading your balances…</p>
       ) : null}
 
-      {tab === 'overview' ? (
+      {tab === 'repay' ? (
         <>
-      {payrollDeductionLoans.length ? <HrLoanPayrollDeductionBanner loans={payrollDeductionLoans} /> : null}
+          {payrollDeductionLoans.length ? (
+            <StaffObligationPayGuide
+              obligations={payrollDeductionLoans}
+              staffEmployeeNo={moneySummary?.staffEmployeeNo}
+              staffBranchId={moneySummary?.staffBranchId || hr?.branchId || ws?.session?.currentBranchId}
+            />
+          ) : null}
 
+          {activeRecoveries.length ? (
+            <ProfileOverviewSection
+              title="Discipline recovery"
+              subtitle="Paid at the branch cashier — separate from loans and purchase credit"
+            >
+              <StaffRecoveryPayGuide
+                recoveries={activeRecoveries}
+                staffEmployeeNo={moneySummary?.staffEmployeeNo}
+                staffBranchId={hr?.branchId || ws?.session?.currentBranchId}
+              />
+            </ProfileOverviewSection>
+          ) : null}
+
+          {payrollDeductionLoans.length ? (
+            <ProfileOverviewSection title="Your balances" subtitle="Loans and purchase credit on staff payroll deduction">
+              <div className="grid gap-3 sm:grid-cols-2">
+                {payrollDeductionLoans.map((o) => (
+                  <StaffObligationBalanceCard key={o.id} obligation={o} />
+                ))}
+              </div>
+            </ProfileOverviewSection>
+          ) : !activeRecoveries.length ? (
+            <ProfileOverviewSection title="Nothing to pay back" subtitle="No active staff loans or purchase credit">
+              <p className="text-sm text-slate-600">
+                When you have an approved loan or purchase credit, this tab shows your balance, monthly payroll
+                deduction, and how to pay early if you choose.
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  className={HR_BTN_SECONDARY}
+                  onClick={() => setSearchParams((p) => { const n = new URLSearchParams(p); n.set('tab', 'loans'); return n; })}
+                >
+                  Apply for staff loan
+                </button>
+                <button
+                  type="button"
+                  className={HR_BTN_SECONDARY}
+                  onClick={() => setSearchParams((p) => { const n = new URLSearchParams(p); n.set('tab', 'credit'); return n; })}
+                >
+                  Request purchase credit
+                </button>
+              </div>
+            </ProfileOverviewSection>
+          ) : null}
+        </>
+      ) : null}
+
+      {tab === 'loans' ? (
+        <>
       <ProfileOverviewSection title="Eligibility" subtitle="Requirements before you apply">
         <div
           className={`rounded-xl border px-4 py-3 text-sm ${
@@ -356,83 +417,18 @@ export default function MyLoans({ staffLinkBase = '/my-profile' }) {
         </ProfileInlineAlert>
       ) : null}
 
-      {moneySummary?.totalOutstandingNgn > 0 ? (
-        <ProfileOverviewSection title="Total outstanding" subtitle="All active staff obligations">
-          {moneySummary.staffBranchId ? (
-            <p className="mb-2 text-xs text-slate-500">Home branch: {moneySummary.staffBranchId}</p>
-          ) : null}
-          <ProfileKpiCard label="You owe Zarewa">
-            <p className="text-2xl font-black tabular-nums text-[#134e4a]">{formatNgn(moneySummary.totalOutstandingNgn)}</p>
-          </ProfileKpiCard>
-        </ProfileOverviewSection>
-      ) : null}
-
       {activeLoans.length ? (
-        <ProfileInlineAlert variant="warning">
+        <ProfileInlineAlert variant="info">
           Active loan outstanding:{' '}
-          <strong>{formatNgn(activeLoans.reduce((s, l) => s + (l.outstandingNgn || 0), 0))}</strong>. Contact HR for
-          exceptional top-up.
+          <strong>{formatNgn(activeLoans.reduce((s, l) => s + (l.outstandingNgn || 0), 0))}</strong>.{' '}
+          <button
+            type="button"
+            className="font-bold underline"
+            onClick={() => setSearchParams((p) => { const n = new URLSearchParams(p); n.set('tab', 'repay'); return n; })}
+          >
+            View payback details
+          </button>
         </ProfileInlineAlert>
-      ) : null}
-        </>
-      ) : null}
-
-      {tab === 'loans' ? (
-        <>
-      {schedule.length ? (
-        <ProfileOverviewSection title="Loan & repayment schedule" subtitle="Approved loans and outstanding balances">
-          <div className="grid gap-3 sm:grid-cols-2">
-            {schedule.map((loan) => (
-              <ProfileKpiCard key={loan.requestId} label={loan.title || 'Staff loan'}>
-                <dl className="mt-1 grid grid-cols-2 gap-x-3 gap-y-2 text-xs">
-                  <div>
-                    <dt className="text-slate-500">Approved</dt>
-                    <dd className="font-bold tabular-nums text-slate-900">{formatNgn(loan.amountNgn)}</dd>
-                  </div>
-                  <div>
-                    <dt className="text-slate-500">Monthly</dt>
-                    <dd className="font-bold tabular-nums text-slate-900">{formatNgn(loan.monthlyDeductionNgn)}</dd>
-                  </div>
-                  <div className="col-span-2">
-                    <dt className="text-slate-500">Outstanding</dt>
-                    <dd className="text-lg font-black tabular-nums text-[#134e4a]">{formatNgn(loan.outstandingNgn)}</dd>
-                  </div>
-                </dl>
-                <ProfileStatusChip variant={loan.outstandingNgn > 0 ? 'pending' : 'approved'}>
-                  {loan.status === 'pending_disbursement'
-                    ? 'Awaiting payout'
-                    : loan.status === 'paid_off'
-                      ? 'Paid off'
-                      : loan.status === 'active'
-                        ? 'Repaying'
-                        : loan.status || 'active'}
-                </ProfileStatusChip>
-                {loan.obligationAccountId ? (
-                  <div className="mt-2 flex flex-wrap gap-2 text-xs font-semibold">
-                    <a
-                      className="text-[#134e4a] underline"
-                      href={obligationStatementPdfUrl(loan.obligationAccountId)}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      Statement PDF
-                    </a>
-                    {loan.status !== 'pending_disbursement' ? null : (
-                      <a
-                        className="text-[#134e4a] underline"
-                        href={obligationDisbursementVoucherPdfUrl(loan.obligationAccountId)}
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        Disbursement voucher
-                      </a>
-                    )}
-                  </div>
-                ) : null}
-              </ProfileKpiCard>
-            ))}
-          </div>
-        </ProfileOverviewSection>
       ) : null}
 
       <ProfileOverviewSection title="My loan requests" subtitle="Track approval progress">
@@ -491,6 +487,27 @@ export default function MyLoans({ staffLinkBase = '/my-profile' }) {
         </ProfileOverviewSection>
       ) : null}
 
+      {(moneySummary?.purchases || []).some((p) => p.principalOutstandingNgn > 0) ? (
+        <ProfileInlineAlert variant="info">
+          Purchase credit outstanding:{' '}
+          <strong>
+            {formatNgn(
+              (moneySummary.purchases || [])
+                .filter((p) => p.principalOutstandingNgn > 0)
+                .reduce((s, p) => s + p.principalOutstandingNgn, 0)
+            )}
+          </strong>
+          .{' '}
+          <button
+            type="button"
+            className="font-bold underline"
+            onClick={() => setSearchParams((p) => { const n = new URLSearchParams(p); n.set('tab', 'repay'); return n; })}
+          >
+            View payback details
+          </button>
+        </ProfileInlineAlert>
+      ) : null}
+
       {(myQuotesLoading || myQuotations.length > 0) ? (
         <ProfileOverviewSection
           title="Quotations ready for purchase credit"
@@ -534,89 +551,6 @@ export default function MyLoans({ staffLinkBase = '/my-profile' }) {
               })}
             </div>
           )}
-        </ProfileOverviewSection>
-      ) : null}
-
-      {(moneySummary?.purchases || []).filter((p) => p.principalOutstandingNgn > 0 || p.status === 'pending_approval').length ? (
-        <ProfileOverviewSection title="Purchase credit" subtitle="Roofing and materials on staff credit">
-          <div className="grid gap-3 sm:grid-cols-2">
-            {moneySummary.purchases
-              .filter((p) => p.principalOutstandingNgn > 0 || p.status === 'pending_approval')
-              .map((p) => (
-                <ProfileKpiCard key={p.id} label={p.title || 'Staff purchase'}>
-                  <dl className="mt-1 grid grid-cols-2 gap-x-3 gap-y-2 text-xs">
-                    <div>
-                      <dt className="text-slate-500">Amount</dt>
-                      <dd className="font-bold tabular-nums">{formatNgn(p.principalOriginalNgn)}</dd>
-                    </div>
-                    <div>
-                      <dt className="text-slate-500">Monthly</dt>
-                      <dd className="font-bold tabular-nums">{formatNgn(p.installmentNgn)}</dd>
-                    </div>
-                    <div className="col-span-2">
-                      <dt className="text-slate-500">Outstanding</dt>
-                      <dd className="text-lg font-black tabular-nums text-[#134e4a]">{formatNgn(p.principalOutstandingNgn)}</dd>
-                    </div>
-                  </dl>
-                  {p.quotationRef ? (
-                    <p className="mt-1 text-xs text-slate-500">Quote {p.quotationRef}</p>
-                  ) : null}
-                  <ProfileStatusChip variant={p.status === 'active' ? 'pending' : 'default'}>
-                    {p.status === 'pending_approval' ? 'Awaiting approval' : p.status === 'active' ? 'Repaying' : p.status}
-                  </ProfileStatusChip>
-                  <a
-                    className="mt-2 inline-block text-xs font-semibold text-[#134e4a] underline"
-                    href={obligationStatementPdfUrl(p.id)}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    Statement PDF
-                  </a>
-                </ProfileKpiCard>
-              ))}
-          </div>
-        </ProfileOverviewSection>
-      ) : null}
-
-      {activeRecoveries.length ? (
-        <ProfileOverviewSection
-          title="Discipline recovery"
-          subtitle="Pay in full at your branch cashier — or via monthly payroll deduction"
-        >
-          <StaffRecoveryPayGuide
-            recoveries={activeRecoveries}
-            staffEmployeeNo={moneySummary?.staffEmployeeNo}
-            staffBranchId={hr?.branchId || ws?.session?.currentBranchId}
-          />
-          <div className="grid gap-3 sm:grid-cols-2">
-            {activeRecoveries.map((r) => (
-                <ProfileKpiCard key={r.id} label={r.title || 'Recovery'}>
-                  <dl className="mt-1 grid grid-cols-2 gap-x-3 gap-y-2 text-xs">
-                    <div>
-                      <dt className="text-slate-500">Original</dt>
-                      <dd className="font-bold tabular-nums">{formatNgn(r.principalOriginalNgn)}</dd>
-                    </div>
-                    <div>
-                      <dt className="text-slate-500">Monthly</dt>
-                      <dd className="font-bold tabular-nums">{formatNgn(r.installmentNgn)}</dd>
-                    </div>
-                    <div className="col-span-2">
-                      <dt className="text-slate-500">Outstanding</dt>
-                      <dd className="text-lg font-black tabular-nums text-[#134e4a]">{formatNgn(r.principalOutstandingNgn)}</dd>
-                    </div>
-                  </dl>
-                  <ProfileStatusChip variant="pending">Recovering</ProfileStatusChip>
-                  <a
-                    className="mt-2 inline-block text-xs font-semibold text-[#134e4a] underline"
-                    href={obligationStatementPdfUrl(r.id)}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    Statement PDF
-                  </a>
-                </ProfileKpiCard>
-              ))}
-          </div>
         </ProfileOverviewSection>
       ) : null}
         </>

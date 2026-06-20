@@ -11,8 +11,8 @@ const ROLE_CASHIER = 'cashier';
 const ROLE_ACCOUNTANT = 'finance_manager';
 const OVERSIGHT_ROLES = new Set(['admin', 'md']);
 
-/** Branch cashier daily work queues — merged from former Cashier Desk. */
-const CASHIER_LEGACY_TABS = new Set(['desk', 'treasury', 'receipts', 'movements', 'disbursements']);
+/** Cashier: Desk + receipts + movements + treasury (balances). No disbursements register or audit. */
+const CASHIER_LEGACY_TABS = new Set(['desk', 'treasury', 'receipts', 'movements']);
 const ACCOUNTANT_LEGACY_TABS = new Set(['treasury', 'receipts', 'movements', 'disbursements', 'audit']);
 
 /**
@@ -120,4 +120,44 @@ export function userMaySeeLegacyAccountsNav(roleKey, permissions) {
   const rk = String(roleKey || '').trim().toLowerCase();
   if (rk === ROLE_BRANCH_MANAGER) return false;
   return userMayAccessLegacyAccountsRoute(roleKey, permissions);
+}
+
+export function isCashierRole(roleKey) {
+  return String(roleKey || '').trim().toLowerCase() === ROLE_CASHIER;
+}
+
+/** Cashiers pay from Desk; Treasury tab is balances and statements only. */
+export function treasuryTabShowsPayoutQueues(roleKey) {
+  return !isCashierRole(roleKey);
+}
+
+/**
+ * Resolve deep-link tab targets (including `requests` / `payments` aliases) to a tab the role may open.
+ * Falls back to the role default when the requested tab is forbidden (e.g. cashier → desk not disbursements).
+ * @param {string | undefined} tabOrAlias
+ * @param {string | undefined} roleKey
+ * @param {string[] | undefined} permissions
+ * @returns {string | null}
+ */
+export function resolveAccountsNavigationTab(tabOrAlias, roleKey, permissions) {
+  let tab = String(tabOrAlias || '').trim().toLowerCase();
+  if (!tab) return null;
+  if (tab === 'requests' || tab === 'payments') tab = 'disbursements';
+  if (!LEGACY_ACCOUNT_TAB_IDS.includes(tab)) return null;
+  const allowed = getAllowedLegacyAccountTabs(roleKey, permissions);
+  if (!allowed.length) return tab;
+  if (allowed.includes(tab)) return tab;
+  return getDefaultLegacyAccountTab(roleKey, permissions);
+}
+
+/** Cashier-friendly tab labels on Finance → PageTabs. */
+export function legacyAccountTabLabelForRole(tabId, roleKey) {
+  if (!isCashierRole(roleKey)) return null;
+  const labels = {
+    desk: 'My desk',
+    treasury: 'Accounts & balances',
+    receipts: 'Receipts',
+    movements: 'Movements',
+  };
+  return labels[String(tabId || '').trim()] || null;
 }

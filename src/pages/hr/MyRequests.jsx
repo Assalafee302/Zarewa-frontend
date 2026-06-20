@@ -16,8 +16,7 @@ export default function MyRequests() {
   return (
     <ProfilePageBody>
       <WorkPayHero
-        eyebrow="My HR"
-        title="My requests"
+        variant="context"
         description="Track leave, loan, and profile change requests. See where each one is in the approval chain."
       />
 

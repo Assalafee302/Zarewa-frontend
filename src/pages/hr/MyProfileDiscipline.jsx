@@ -95,7 +95,6 @@ export default function MyProfileDiscipline() {
   return (
     <ProfilePageBody>
       <ProfilePageIntro
-        title="Conduct record"
         description="View cases addressed to you, submit written responses, and file appeals when permitted. Records are confidential."
         actions={
           cases.length > 0 ? (

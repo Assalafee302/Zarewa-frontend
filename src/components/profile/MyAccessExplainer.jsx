@@ -79,12 +79,12 @@ export function MyAccessExplainer() {
               </AccessLink>
             </li>
             <li>
-              <AccessLink to="/my-profile">HR services</AccessLink>
+              <AccessLink to="/my-profile">My HR</AccessLink>
             </li>
           </ul>
         ) : (
           <p className="text-sm leading-relaxed text-slate-600">
-            You have Account, HR services, and any modules granted by your administrator.
+            You have Account, My HR, and any modules granted by your administrator.
           </p>
         )}
 

@@ -80,10 +80,21 @@ import {
   isPayFromCorrectionTreasuryRow,
   TREASURY_STATEMENT_TYPE_LABEL,
 } from '../lib/accountCore';
-import { getAllowedLegacyAccountTabs, getDefaultLegacyAccountTab } from '../lib/legacyAccountsAccess';
+import {
+  getAllowedLegacyAccountTabs,
+  getDefaultLegacyAccountTab,
+  legacyAccountTabLabelForRole,
+  resolveAccountsNavigationTab,
+  treasuryTabShowsPayoutQueues,
+  isCashierRole as userIsCashierRole,
+} from '../lib/legacyAccountsAccess';
 import { FinanceDeskWorkQueues } from '../components/finance/FinanceDeskWorkQueues.jsx';
+import { FinanceDeskTreasuryAccountGrid } from '../components/finance/FinanceDeskTreasuryAccountGrid.jsx';
+import { FinanceTreasuryAwaitingPayoutQueues } from '../components/finance/FinanceTreasuryAwaitingPayoutQueues.jsx';
+import { FinanceDeskQueueActionButton } from '../components/finance/FinanceDeskColoredQueuePanel.jsx';
 import { AccountingRegisterSettlementPayModal } from '../components/finance/AccountingRegisterSettlementPayModal.jsx';
 import { StaffRecoveryCashierModal } from '../components/finance/StaffRecoveryCashierModal.jsx';
+import { StaffObligationRepaymentModal } from '../components/finance/StaffObligationRepaymentModal.jsx';
 import { registerSettlementsAwaitingPayment, registerSettlementOutstandingNgn } from '../lib/registerSettlementPay';
 import {
   treasuryAccountBranchLabel,
@@ -142,6 +153,7 @@ const Account = () => {
   const [paymentsApprovalEntity, setPaymentsApprovalEntity] = useState(null);
   const [showPaymentEntry, setShowPaymentEntry] = useState(false);
   const [staffRecoveryTarget, setStaffRecoveryTarget] = useState(null);
+  const [staffObligationTarget, setStaffObligationTarget] = useState(null);
   const [showAddBank, setShowAddBank] = useState(false);
   const [showExpenseModal, setShowExpenseModal] = useState(false);
   const [showPayRequestModal, setShowPayRequestModal] = useState(false);
@@ -1155,7 +1167,12 @@ const Account = () => {
     const permissions = ws?.permissions;
     const allowed = getAllowedLegacyAccountTabs(rk, permissions);
     if (!allowed.length) return all;
-    return all.filter((t) => allowed.includes(t.id));
+    return all
+      .filter((t) => allowed.includes(t.id))
+      .map((t) => {
+        const cashierLabel = legacyAccountTabLabelForRole(t.id, rk);
+        return cashierLabel ? { ...t, label: cashierLabel } : t;
+      });
   }, [ws?.session?.user?.roleKey, ws?.permissions]);
 
   const handleAccountTabChange = useCallback(
@@ -1179,8 +1196,8 @@ const Account = () => {
         openRequestPayment(req);
         return;
       }
-      handleAccountTabChange('disbursements');
-      showToast(id ? `Payment request ${id} — open from Payment register tab.` : 'Open Payment register tab to record payout.', {
+      handleAccountTabChange('desk');
+      showToast(id ? `Payment request ${id} — check the payout queues on My desk.` : 'Open My desk to record payout.', {
         variant: 'info',
       });
     },
@@ -1195,8 +1212,8 @@ const Account = () => {
         openRefundPay(row);
         return;
       }
-      handleAccountTabChange('disbursements');
-      showToast(id ? `Refund ${id} — open from Payment register or Treasury.` : 'Open Payment register tab to record refund payout.', {
+      handleAccountTabChange('desk');
+      showToast(id ? `Refund ${id} — check refund payouts on My desk.` : 'Open My desk to record refund payout.', {
         variant: 'info',
       });
     },
@@ -1277,6 +1294,24 @@ const Account = () => {
         return;
       }
       setStaffRecoveryTarget(row);
+    },
+    [canPayRequests, ws, showToast]
+  );
+
+  const handleDeskReceiveStaffObligation = useCallback(
+    (row) => {
+      if (!row?.id) return;
+      if (!canPayRequests && !ws?.hasPermission?.('finance.post') && !ws?.hasPermission?.('cashier.desk.view')) {
+        showToast('You do not have permission to record staff loan or purchase credit payments.', { variant: 'error' });
+        return;
+      }
+      if (!ws?.viewAllBranches && row?.branchId && ws?.branchScope && row.branchId !== ws.branchScope) {
+        showToast(`This employee belongs to branch ${row.branchId}. Switch branch before receiving payment.`, {
+          variant: 'error',
+        });
+        return;
+      }
+      setStaffObligationTarget(row);
     },
     [canPayRequests, ws, showToast]
   );
@@ -1376,57 +1411,69 @@ const Account = () => {
     const st = location.state;
     if (!st || typeof st !== 'object') return;
 
-    const tab = st.accountsTab;
-    if (tab === 'requests' || tab === 'payments') {
-      handleAccountTabChange('disbursements');
-      navigate({ pathname: location.pathname, search: '?tab=disbursements' }, { replace: true, state: {} });
-      return;
-    }
+    const rk = ws?.session?.user?.roleKey;
+    const permissions = ws?.permissions;
 
-    if (tab && TAB_LABELS[tab]) {
-      handleAccountTabChange(tab);
-      navigate(
-        { pathname: location.pathname, search: tab === 'treasury' ? '' : `?tab=${encodeURIComponent(tab)}` },
-        { replace: true, state: {} }
-      );
+    const goToResolvedTab = (tabOrAlias) => {
+      const resolved =
+        resolveAccountsNavigationTab(tabOrAlias, rk, permissions) ??
+        getDefaultLegacyAccountTab(rk, permissions);
+      handleAccountTabChange(resolved);
+      const search =
+        resolved === 'treasury' && !userIsCashierRole(rk)
+          ? ''
+          : `?tab=${encodeURIComponent(resolved)}`;
+      navigate({ pathname: location.pathname, search }, { replace: true, state: {} });
+      return resolved;
+    };
+
+    const tab = st.accountsTab;
+    if (tab === 'requests' || tab === 'payments' || (tab && TAB_LABELS[tab])) {
+      goToResolvedTab(tab);
       return;
     }
 
     const glJid = st.highlightGlJournalId != null ? String(st.highlightGlJournalId).trim() : '';
     if (glJid) {
-      handleAccountTabChange('audit');
-      navigate(
-        { pathname: location.pathname, search: '?tab=audit' },
-        { replace: true, state: {} }
-      );
-      showToast(`GL journal ${glJid} — use Audit and GL tools to open details.`, { variant: 'info' });
+      const resolved = goToResolvedTab('audit');
+      if (resolved !== 'audit') {
+        showToast(`GL journal ${glJid} — audit tools are not available on your desk.`, { variant: 'info' });
+      } else {
+        showToast(`GL journal ${glJid} — use Audit and GL tools to open details.`, { variant: 'info' });
+      }
       return;
     }
 
     if (st.openPayRequestModal) {
-      handleAccountTabChange('disbursements');
-      setRequestForm({
-        ...initialExpenseRequestFormState(),
-        requestDate: todayIso,
-        requestReference: '',
-        expenseCategory: '',
-        description: '',
-        attachment: null,
-      });
-      if (payRequestFileRef.current) payRequestFileRef.current.value = '';
-      setShowPayRequestModal(true);
-      navigate({ pathname: location.pathname, search: '?tab=disbursements' }, { replace: true, state: {} });
+      const resolved = goToResolvedTab('disbursements');
+      if (resolved === 'disbursements') {
+        setRequestForm({
+          ...initialExpenseRequestFormState(),
+          requestDate: todayIso,
+          requestReference: '',
+          expenseCategory: '',
+          description: '',
+          attachment: null,
+        });
+        if (payRequestFileRef.current) payRequestFileRef.current.value = '';
+        setShowPayRequestModal(true);
+      } else {
+        showToast('Open My desk to pay approved payment requests.', { variant: 'info' });
+      }
       return;
     }
 
     if (st.openExpenseModal) {
-      handleAccountTabChange('disbursements');
-      setExpenseForm((f) => ({
-        ...f,
-        debitAccountId: String(bankAccountsForBranch[0]?.id ?? ''),
-      }));
-      setShowExpenseModal(true);
-      navigate({ pathname: location.pathname, search: '?tab=disbursements' }, { replace: true, state: {} });
+      const resolved = goToResolvedTab('disbursements');
+      if (resolved === 'disbursements') {
+        setExpenseForm((f) => ({
+          ...f,
+          debitAccountId: String(bankAccountsForBranch[0]?.id ?? ''),
+        }));
+        setShowExpenseModal(true);
+      } else {
+        showToast('Expense recording is on the payment register — use My desk for payouts.', { variant: 'info' });
+      }
       return;
     }
 
@@ -1439,24 +1486,27 @@ const Account = () => {
       const suggestedReference = String(
         req?.requestReference || correction.requestReference || requestId || req?.requestID || ''
       ).trim();
-      handleAccountTabChange('disbursements');
-      setExpenseForm({
-        expenseType: 'Operational — correction entry',
-        amountNgn: amountNgn > 0 ? String(amountNgn) : '',
-        date: String(req?.requestDate || correction.requestDate || todayIso).slice(0, 10),
-        category: chosenCategory,
-        paymentMethod: 'Bank Transfer',
-        debitAccountId: String(bankAccountsForBranch[0]?.id ?? ''),
-        reference: suggestedReference || 'Correction entry',
-      });
-      setShowExpenseModal(true);
-      showToast(
-        requestId
-          ? `Rejected request ${requestId} moved to archive. Record the corrected expense below.`
-          : 'Rejected request moved to archive. Record the corrected expense below.',
-        { variant: 'info' }
-      );
-      navigate({ pathname: location.pathname, search: '?tab=disbursements' }, { replace: true, state: {} });
+      const resolved = goToResolvedTab('disbursements');
+      if (resolved === 'disbursements') {
+        setExpenseForm({
+          expenseType: 'Operational — correction entry',
+          amountNgn: amountNgn > 0 ? String(amountNgn) : '',
+          date: String(req?.requestDate || correction.requestDate || todayIso).slice(0, 10),
+          category: chosenCategory,
+          paymentMethod: 'Bank Transfer',
+          debitAccountId: String(bankAccountsForBranch[0]?.id ?? ''),
+          reference: suggestedReference || 'Correction entry',
+        });
+        setShowExpenseModal(true);
+        showToast(
+          requestId
+            ? `Rejected request ${requestId} moved to archive. Record the corrected expense below.`
+            : 'Rejected request moved to archive. Record the corrected expense below.',
+          { variant: 'info' }
+        );
+      } else {
+        showToast('Open My desk for payout work — payment register is not on your role.', { variant: 'info' });
+      }
     }
   }, [
     location.state,
@@ -1468,6 +1518,8 @@ const Account = () => {
     bankAccountsForBranch,
     payRequests,
     showToast,
+    ws?.session?.user?.roleKey,
+    ws?.permissions,
   ]);
    
 
@@ -2944,22 +2996,47 @@ const Account = () => {
     [needsPaymentsMutateSecondApproval, paymentsMutateApprovalId, showToast, ws]
   );
 
-  const isCashierRole = String(ws?.session?.user?.roleKey || '').trim().toLowerCase() === 'cashier';
-  const financePageTitle =
-    isCashierRole && activeTab === 'desk' ? 'Cashier desk' : 'Finance & accounts';
-  const financePageSubtitle =
-    activeTab === 'desk'
-      ? isCashierRole
-        ? 'Your payout home — confirm receipts and post approved expense, refund, and haulage payouts here.'
-        : 'Daily work queues — receipts, expense payouts, refunds, haulage, and treasury flags.'
-      : activeTab === 'disbursements'
-        ? 'Posted treasury outflows and corrections — pay new items from Desk or Treasury.'
-        : 'Treasury, customer receipt settlement, and approvals';
+  const isCashierRole = userIsCashierRole(ws?.session?.user?.roleKey);
+  const financePageTitle = (() => {
+    if (isCashierRole && activeTab === 'desk') return 'Cashier desk';
+    if (isCashierRole && activeTab === 'treasury') return 'Branch accounts & balances';
+    return 'Finance & accounts';
+  })();
+  const financePageSubtitle = (() => {
+    if (!isCashierRole) {
+      if (activeTab === 'desk') {
+        return 'Daily work queues — receipts, expense payouts, refunds, haulage, and treasury flags.';
+      }
+      if (activeTab === 'disbursements') {
+        return 'Posted treasury outflows and corrections — pay new items from Desk or Treasury.';
+      }
+      return 'Treasury, customer receipt settlement, and approvals';
+    }
+    if (activeTab === 'desk') {
+      return 'Your payout home — confirm receipts and post approved expense, refund, and haulage payouts here.';
+    }
+    if (activeTab === 'treasury') {
+      return 'View till and bank balances and statements. Post all payouts from My desk — not here.';
+    }
+    if (activeTab === 'receipts') {
+      return 'Confirm customer payments and reconcile bank/cash received.';
+    }
+    if (activeTab === 'movements') {
+      return 'Record lodgements, withdrawals, and internal transfers between accounts.';
+    }
+    return 'Branch finance';
+  })();
 
   return (
     <PageShell blurred={isAnyModalOpen}>
       <FinancePilotHeader
-        eyebrow={isCashierRole && activeTab === 'desk' ? 'Finance · Cashier' : 'Finance'}
+        eyebrow={
+          isCashierRole
+            ? activeTab === 'desk'
+              ? 'Finance · Cashier'
+              : 'Finance · Cashier'
+            : 'Finance'
+        }
         title={financePageTitle}
         subtitle={financePageSubtitle}
         tabs={<PageTabs tabs={accountTabs} value={activeTab} onChange={handleAccountTabChange} />}
@@ -3123,6 +3200,7 @@ const Account = () => {
                 onPayPoTransport={handleDeskPayPoTransport}
                 onViewPoTransport={handleDeskViewPoTransport}
                 onReceiveStaffRecovery={handleDeskReceiveStaffRecovery}
+                onReceiveStaffObligation={handleDeskReceiveStaffObligation}
                 onGoToTab={handleAccountTabChange}
               />
             )}
@@ -3508,6 +3586,24 @@ const Account = () => {
                     local bank or till accounts.
                   </p>
                 ) : null}
+                {isCashierRole ? (
+                  <div
+                    className="rounded-xl border border-teal-200/90 bg-teal-50/60 px-4 py-3 flex flex-wrap items-center justify-between gap-3"
+                    data-testid="cashier-treasury-desk-banner"
+                  >
+                    <p className="text-[11px] text-teal-950 leading-relaxed max-w-2xl">
+                      <strong>My desk</strong> is where you confirm receipts and post payouts. This tab is for
+                      viewing till and bank balances and opening account statements.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => handleAccountTabChange('desk')}
+                      className="text-[10px] font-bold uppercase tracking-wide text-white bg-[#134e4a] hover:bg-[#0f3d3a] px-3 py-2 rounded-lg shrink-0"
+                    >
+                      Go to My desk
+                    </button>
+                  </div>
+                ) : null}
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div className="rounded-xl border border-slate-200/75 bg-white px-3 py-2.5 shadow-[0_10px_36px_-28px_rgba(15,23,42,0.12)]">
                     <p className="text-[9px] font-bold text-slate-500 uppercase tracking-wide">Cash inflows</p>
@@ -3526,7 +3622,11 @@ const Account = () => {
                       {formatNgn(ws?.hasWorkspaceData ? treasuryOutflowsNgn : expenses.reduce((s, e) => s + e.amountNgn, 0))}
                     </p>
                     <p className="text-[8px] text-slate-500 mt-0.5 leading-snug">
-                      See <strong>Payments</strong> tab for the full posted-outflow register
+                      {isCashierRole ? (
+                        <>Approved payouts post from <strong>My desk</strong></>
+                      ) : (
+                        <>See <strong>Payments</strong> tab for the full posted-outflow register</>
+                      )}
                     </p>
                   </div>
                   <div className="rounded-xl border border-amber-200/85 bg-amber-50/75 px-3 py-2.5 shadow-[0_10px_36px_-28px_rgba(15,23,42,0.1)]">
@@ -3544,330 +3644,85 @@ const Account = () => {
                   </div>
                 </div>
 
-                {refundsAwaitingPay.length > 0 ? (
-                  <div
-                    className="rounded-2xl border border-rose-200/90 bg-rose-50/50 p-5 space-y-3"
-                    data-testid="finance-refunds-awaiting-payout"
-                  >
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                      <p className="text-xs font-black text-rose-900 uppercase tracking-widest flex items-center gap-2">
-                        <RotateCcw size={16} strokeWidth={2} />
-                        Customer refunds — approved, awaiting payout
-                      </p>
-                      <span className="text-[10px] font-bold text-rose-800 tabular-nums">
-                        {refundsAwaitingPay.length} open
-                      </span>
-                    </div>
-                    <p className="text-[10px] text-rose-900/80 leading-relaxed">
-                      Sales submits refund requests with a breakdown; managers approve. Record bank/cash
-                      payment here once funds leave the business.
-                    </p>
-                    <ul className="space-y-1.5">
-                      {refundsAwaitingPay.map((r) => {
-                        const meta2 = [
-                          r.quotationRef ? `Quote ${r.quotationRef}` : 'No quote ref',
-                          r.approvedBy ? `Approved by ${r.approvedBy}` : null,
-                          `Aprv ${formatNgn(refundApprovedAmount(r))} · Paid ${formatNgn(Number(r.paidAmountNgn) || 0)}`,
-                        ]
-                          .filter(Boolean)
-                          .join(' · ');
-                        const payeeTitle = [r.payeeName, r.payeeBankName, r.payeeAccountNo].filter(Boolean).join(' · ');
-                        return (
-                          <li
-                            key={r.refundID}
-                            data-testid={`finance-refund-awaiting-row-${r.refundID}`}
-                            className="rounded-lg border border-rose-200/50 bg-white/40 backdrop-blur-md py-1.5 px-2.5 shadow-sm"
-                          >
-                            <div className="flex flex-wrap items-start justify-between gap-2 min-w-0">
-                              <div className="min-w-0 leading-tight flex-1">
-                                <p className="text-[11px] font-bold text-[#134e4a] truncate">
-                                  <span className="font-mono">{r.refundID}</span>
-                                  <span className="font-medium text-slate-600"> · {r.customer}</span>
-                                </p>
-                                <p className="text-[8px] text-slate-500 mt-0.5 leading-snug line-clamp-2" title={meta2}>
-                                  {meta2}
-                                </p>
-                                {r.payeeAccountNo ? (
-                                  <p
-                                    className="text-[8px] font-semibold text-sky-900/90 mt-0.5 truncate"
-                                    title={payeeTitle || undefined}
-                                  >
-                                    Pay to:{' '}
-                                    <span className="font-mono tabular-nums">{r.payeeAccountNo}</span>
-                                    {r.payeeName || r.payeeBankName ? (
-                                      <span className="font-sans text-sky-900/85">
-                                        {' '}
-                                        ({[r.payeeName, r.payeeBankName].filter(Boolean).join(' · ')})
-                                      </span>
-                                    ) : null}
-                                  </p>
-                                ) : null}
-                              </div>
-                              <div className="flex flex-col items-end gap-1 shrink-0">
-                                <span className="text-[11px] font-black text-[#134e4a] tabular-nums">
-                                  {formatNgn(refundOutstandingAmount(r))}
-                                </span>
-                                <button
-                                  type="button"
-                                  onClick={() => openRefundPay(r)}
-                                  className="text-[8px] font-semibold uppercase tracking-wide text-sky-800 bg-sky-100 hover:bg-sky-200 px-2 py-1 rounded-md"
-                                >
-                                  Record pay
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => void cancelRefundBeforePay(r)}
-                                  disabled={cancelRefundBusyId === r.refundID}
-                                  className="text-[8px] font-semibold uppercase tracking-wide text-rose-800 bg-rose-100 hover:bg-rose-200 px-2 py-1 rounded-md disabled:opacity-60 disabled:cursor-not-allowed"
-                                  title="Cancel this approved refund before payout"
-                                >
-                                  {cancelRefundBusyId === r.refundID ? 'Cancelling...' : 'Cancel'}
-                                </button>
-                              </div>
-                            </div>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  </div>
+                {treasuryTabShowsPayoutQueues(ws?.session?.user?.roleKey) ? (
+                <FinanceTreasuryAwaitingPayoutQueues
+                  refunds={refundsAwaitingPay}
+                  paymentRequests={payRequestsAwaitingTreasuryPayout}
+                  registerSettlements={registerSettlementsAwaitingPay}
+                  poTransport={filteredPoTransportAwaitingTreasury}
+                  branchNameById={branchNameById}
+                  expensePanelDescription="Same flow as Desk and refunds: approve elsewhere, then record bank or cash payout here (Desk is the recommended daily surface for cashiers)."
+                  renderRefundActions={(r) => (
+                    <>
+                      <FinanceDeskQueueActionButton tone="sky" onClick={() => openRefundPay(r)}>
+                        Record pay
+                      </FinanceDeskQueueActionButton>
+                      <FinanceDeskQueueActionButton
+                        tone="rose"
+                        onClick={() => void cancelRefundBeforePay(r)}
+                        disabled={cancelRefundBusyId === r.refundID}
+                        title="Cancel this approved refund before payout"
+                      >
+                        {cancelRefundBusyId === r.refundID ? 'Cancelling...' : 'Cancel'}
+                      </FinanceDeskQueueActionButton>
+                    </>
+                  )}
+                  renderPaymentRequestActions={(req) => (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => printExpenseRequestRecord(req, formatNgn)}
+                        className="text-[8px] font-semibold uppercase tracking-wide text-slate-700 bg-slate-100 hover:bg-slate-200 px-2 py-1 rounded-md inline-flex items-center gap-1"
+                        title="Print filing copy"
+                      >
+                        <Printer size={12} /> Print
+                      </button>
+                      <FinanceDeskQueueActionButton
+                        tone="sky"
+                        onClick={() => openRequestPayment(req)}
+                        title="Record treasury payout"
+                      >
+                        Payout
+                      </FinanceDeskQueueActionButton>
+                      <FinanceDeskQueueActionButton
+                        tone="rose"
+                        onClick={() => void cancelPaymentRequestBeforePay(req)}
+                        disabled={cancelPayRequestBusyId === req.requestID}
+                        title="Cancel this approved request before payout"
+                      >
+                        {cancelPayRequestBusyId === req.requestID ? 'Cancelling...' : 'Cancel'}
+                      </FinanceDeskQueueActionButton>
+                    </>
+                  )}
+                  renderRegisterSettlementActions={(s) => (
+                    <FinanceDeskQueueActionButton
+                      tone="teal"
+                      onClick={() => openRegisterSettlementPay(s)}
+                      title="Record treasury payout"
+                    >
+                      Payout
+                    </FinanceDeskQueueActionButton>
+                  )}
+                  renderPoTransportActions={(row) => (
+                    <FinanceDeskQueueActionButton
+                      tone="sky"
+                      onClick={() => openPoTransportTreasuryPayout(row)}
+                      title="Record treasury payout for haulage"
+                    >
+                      Record pay
+                    </FinanceDeskQueueActionButton>
+                  )}
+                />
                 ) : null}
 
-                {payRequestsAwaitingTreasuryPayout.length > 0 ? (
-                  <div
-                    className="rounded-2xl border border-teal-200/90 bg-teal-50/45 p-5 space-y-3"
-                    data-testid="finance-payment-requests-awaiting-payout"
-                  >
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                      <p className="text-xs font-black text-teal-950 uppercase tracking-widest flex items-center gap-2">
-                        <Banknote size={16} strokeWidth={2} />
-                        Expense payment requests — approved, awaiting payout
-                      </p>
-                      <span className="text-[10px] font-bold text-teal-900 tabular-nums">
-                        {payRequestsAwaitingTreasuryPayout.length} open
-                      </span>
-                    </div>
-                    <p className="text-[10px] text-teal-950/80 leading-relaxed">
-                      Same flow as Desk and refunds: approve elsewhere, then record bank or cash payout here (Desk is
-                      the recommended daily surface for cashiers).
-                    </p>
-                    <ul className="space-y-1.5">
-                      {payRequestsAwaitingTreasuryPayout.map((req) => {
-                        const paidAmountNgn = Number(req.paidAmountNgn) || 0;
-                        const outstandingNgn = effectiveOutstandingNgn(
-                          Number(req.amountRequestedNgn) || 0,
-                          paidAmountNgn
-                        );
-                        const meta2 = [
-                          `Linked ${req.expenseID}`,
-                          req.expenseCategory ? req.expenseCategory : null,
-                          req.requestReference ? `Ref ${req.requestReference}` : null,
-                          req.branchId ? branchNameById[req.branchId] || req.branchId : null,
-                          paidAmountNgn > 0 ? `Paid ${formatNgn(paidAmountNgn)}` : null,
-                        ]
-                          .filter(Boolean)
-                          .join(' · ');
-                        return (
-                          <li
-                            key={req.requestID}
-                            data-testid={`finance-preq-awaiting-row-${req.requestID}`}
-                            className="rounded-lg border border-teal-200/55 bg-white/50 backdrop-blur-md py-1.5 px-2.5 shadow-sm"
-                          >
-                            <div className="flex flex-wrap items-start justify-between gap-2 min-w-0">
-                              <div className="min-w-0 leading-tight flex-1">
-                                <p className="text-[11px] font-bold text-[#134e4a] truncate">
-                                  <span className="font-mono">{req.requestID}</span>
-                                  <span className="font-medium text-slate-600">
-                                    {' '}
-                                    · {req.description || req.expenseCategory || '—'}
-                                  </span>
-                                </p>
-                                <p
-                                  className="text-[8px] text-slate-500 mt-0.5 leading-snug line-clamp-2"
-                                  title={meta2}
-                                >
-                                  {meta2}
-                                </p>
-                              </div>
-                              <div className="flex flex-col items-end gap-1 shrink-0">
-                                <span className="text-[11px] font-black text-[#134e4a] tabular-nums">
-                                  {formatNgn(outstandingNgn)}
-                                </span>
-                                <div className="flex flex-wrap items-center justify-end gap-1">
-                                  <button
-                                    type="button"
-                                    onClick={() => printExpenseRequestRecord(req, formatNgn)}
-                                    className="text-[8px] font-semibold uppercase tracking-wide text-slate-700 bg-slate-100 hover:bg-slate-200 px-2 py-1 rounded-md inline-flex items-center gap-1"
-                                    title="Print filing copy"
-                                  >
-                                    <Printer size={12} /> Print
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => openRequestPayment(req)}
-                                    className="text-[8px] font-semibold uppercase tracking-wide text-sky-800 bg-sky-100 hover:bg-sky-200 px-2 py-1 rounded-md"
-                                    title="Record treasury payout"
-                                  >
-                                    Payout
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => void cancelPaymentRequestBeforePay(req)}
-                                    disabled={cancelPayRequestBusyId === req.requestID}
-                                    className="text-[8px] font-semibold uppercase tracking-wide text-rose-800 bg-rose-100 hover:bg-rose-200 px-2 py-1 rounded-md disabled:opacity-60 disabled:cursor-not-allowed"
-                                    title="Cancel this approved request before payout"
-                                  >
-                                    {cancelPayRequestBusyId === req.requestID ? 'Cancelling...' : 'Cancel'}
-                                  </button>
-                                </div>
-                              </div>
-                            </div>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  </div>
-                ) : null}
-
-                {registerSettlementsAwaitingPay.length > 0 ? (
-                  <div
-                    className="rounded-2xl border border-teal-200/90 bg-teal-50/50 p-5 space-y-3"
-                    data-testid="finance-register-withdrawals-awaiting-payout"
-                  >
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                      <p className="text-xs font-black text-teal-950 uppercase tracking-widest flex items-center gap-2">
-                        <Wallet size={16} strokeWidth={2} />
-                        Register withdrawals — approved, awaiting payout
-                      </p>
-                      <span className="text-[10px] font-bold text-teal-900 tabular-nums">
-                        {registerSettlementsAwaitingPay.length} open
-                      </span>
-                    </div>
-                    <p className="text-[10px] text-teal-950/85 leading-relaxed">
-                      Accounting requests a debtor-register withdrawal; MD/finance approves. Record bank or cash payout
-                      here — same flow as refunds and expense requests on Desk.
-                    </p>
-                    <ul className="space-y-1.5">
-                      {registerSettlementsAwaitingPay.map((s) => {
-                        const outstandingNgn = registerSettlementOutstandingNgn(s);
-                        const meta2 = [
-                          s.partyName || 'Party',
-                          s.reason || null,
-                          s.branchId ? branchNameById[s.branchId] || s.branchId : null,
-                        ]
-                          .filter(Boolean)
-                          .join(' · ');
-                        return (
-                          <li
-                            key={s.settlementId}
-                            data-testid={`finance-register-withdrawal-awaiting-row-${s.settlementId}`}
-                            className="rounded-lg border border-teal-200/55 bg-white/50 backdrop-blur-md py-1.5 px-2.5 shadow-sm"
-                          >
-                            <div className="flex flex-wrap items-start justify-between gap-2 min-w-0">
-                              <div className="min-w-0 leading-tight flex-1">
-                                <p className="text-[11px] font-bold text-[#134e4a] truncate">
-                                  <span className="font-mono">{s.settlementId}</span>
-                                  <span className="font-medium text-slate-600"> · {s.partyName || 'Withdrawal'}</span>
-                                </p>
-                                <p
-                                  className="text-[8px] text-slate-500 mt-0.5 leading-snug line-clamp-2"
-                                  title={meta2}
-                                >
-                                  {meta2}
-                                </p>
-                              </div>
-                              <div className="flex flex-col items-end gap-1 shrink-0">
-                                <span className="text-[11px] font-black text-[#134e4a] tabular-nums">
-                                  {formatNgn(outstandingNgn)}
-                                </span>
-                                <button
-                                  type="button"
-                                  onClick={() => openRegisterSettlementPay(s)}
-                                  className="text-[8px] font-semibold uppercase tracking-wide text-teal-900 bg-teal-100 hover:bg-teal-200 px-2 py-1 rounded-md"
-                                  title="Record treasury payout"
-                                >
-                                  Payout
-                                </button>
-                              </div>
-                            </div>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  </div>
-                ) : null}
-
-                {filteredPoTransportAwaitingTreasury.length > 0 ? (
-                  <div
-                    className="rounded-2xl border border-sky-200/90 bg-sky-50/50 p-5 space-y-3"
-                    data-testid="finance-po-transport-awaiting-payout"
-                  >
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                      <p className="text-xs font-black text-sky-950 uppercase tracking-widest flex items-center gap-2">
-                        <Truck size={16} strokeWidth={2} />
-                        PO transport / haulage — awaiting treasury
-                      </p>
-                      <span className="text-[10px] font-bold text-sky-900 tabular-nums">
-                        {filteredPoTransportAwaitingTreasury.length} open
-                      </span>
-                    </div>
-                    <p className="text-[10px] text-sky-950/85 leading-relaxed">
-                      Procurement links the transporter and quoted fee on the PO. Record payout from Desk or here so
-                      balances and in-transit status stay aligned.
-                    </p>
-                    <ul className="space-y-1.5">
-                      {filteredPoTransportAwaitingTreasury.map((row) => {
-                        const meta2 = [
-                          row.supplierName ? `Supplier ${row.supplierName}` : null,
-                          row.transportReference ? `Ref ${row.transportReference}` : null,
-                          row.branchId ? branchNameById[row.branchId] || row.branchId : null,
-                          row.transportPaidNgn > 0 ? `Paid ${formatNgn(row.transportPaidNgn)} of ${formatNgn(row.transportAmountNgn)}` : `Quoted ${formatNgn(row.transportAmountNgn)}`,
-                          row.status ? row.status : null,
-                        ]
-                          .filter(Boolean)
-                          .join(' · ');
-                        return (
-                          <li
-                            key={row.poID}
-                            data-testid={`finance-po-transport-awaiting-row-${row.poID}`}
-                            className="rounded-lg border border-sky-200/55 bg-white/50 backdrop-blur-md py-1.5 px-2.5 shadow-sm"
-                          >
-                            <div className="flex flex-wrap items-start justify-between gap-2 min-w-0">
-                              <div className="min-w-0 leading-tight flex-1">
-                                <p className="text-[11px] font-bold text-[#134e4a] truncate">
-                                  <span className="font-mono">{row.poID}</span>
-                                  <span className="font-medium text-slate-600">
-                                    {' '}
-                                    · {row.transportAgentName || 'Transporter'}
-                                  </span>
-                                </p>
-                                <p
-                                  className="text-[8px] text-slate-500 mt-0.5 leading-snug line-clamp-2"
-                                  title={meta2}
-                                >
-                                  {meta2}
-                                </p>
-                              </div>
-                              <div className="flex flex-col items-end gap-1 shrink-0">
-                                <span className="text-[11px] font-black text-[#134e4a] tabular-nums">
-                                  {formatNgn(row.outstandingNgn)}
-                                </span>
-                                <button
-                                  type="button"
-                                  onClick={() => openPoTransportTreasuryPayout(row)}
-                                  className="text-[8px] font-semibold uppercase tracking-wide text-sky-800 bg-sky-100 hover:bg-sky-200 px-2 py-1 rounded-md"
-                                  title="Record treasury payout for haulage"
-                                >
-                                  Record pay
-                                </button>
-                              </div>
-                            </div>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  </div>
-                ) : null}
-
+                {isCashierRole ? (
+                  <FinanceDeskTreasuryAccountGrid
+                    accounts={filteredBankAccounts}
+                    bookById={treasuryDisplayedBookNgnById}
+                    onAccountClick={setStatementAccount}
+                    cardActionLabel="View statement"
+                  />
+                ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {filteredBankAccounts.length === 0 ? (
                     <div className="sm:col-span-2 lg:col-span-3 z-empty-state py-12">
@@ -3962,6 +3817,7 @@ const Account = () => {
                     ))
                   )}
                 </div>
+                )}
               </div>
             )}
 
@@ -6449,6 +6305,18 @@ const Account = () => {
         onSaved={async () => {
           await ws.refresh();
           showToast('Staff recovery payment recorded — treasury, obligation, and case balances updated.', {
+            variant: 'success',
+          });
+        }}
+      />
+
+      <StaffObligationRepaymentModal
+        obligation={staffObligationTarget}
+        treasuryAccounts={bankAccounts}
+        onClose={() => setStaffObligationTarget(null)}
+        onSaved={async () => {
+          await ws.refresh();
+          showToast('Staff loan / purchase credit payment recorded — treasury and obligation balance updated.', {
             variant: 'success',
           });
         }}

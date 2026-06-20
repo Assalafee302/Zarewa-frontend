@@ -26,7 +26,7 @@ export default function ProfileActions() {
     <div className="space-y-6 sm:space-y-8">
       <ProfileServicesHero
         title="All services"
-        description="Every shortcut for your role — account settings stay here; HR tasks open in HR services; team and admin areas open in their workspaces."
+        description="Every shortcut for your role — account settings stay here; HR tasks open in My HR; team and admin areas open in their workspaces."
         count={actions.length}
       />
 

@@ -322,8 +322,8 @@ export function buildWorkspaceNotifications({
     items.push({
       id: 'payment-requests-payout',
       category: 'finance',
-      title: 'Treasury payouts',
-      detail: `${pendingPayPayout.length} approved payment request(s) still need treasury payout.`,
+      title: 'Desk payouts',
+      detail: `${pendingPayPayout.length} approved payment request(s) still need payout from My desk.`,
       severity: 'warning',
       priority: 76,
       path: '/accounts',
@@ -338,7 +338,7 @@ export function buildWorkspaceNotifications({
       id: 'refund-payouts',
       category: 'finance',
       title: 'Refund payouts',
-      detail: `${refundDue.length} approved refund(s) awaiting treasury payout.`,
+      detail: `${refundDue.length} approved refund(s) awaiting payout on My desk.`,
       severity: 'warning',
       priority: 77,
       path: '/accounts',
@@ -358,7 +358,7 @@ export function buildWorkspaceNotifications({
       id: 'register-withdrawal-payouts',
       category: 'finance',
       title: 'Register withdrawals',
-      detail: `${registerWithdrawalsDue.length} approved register withdrawal(s) awaiting treasury payout.`,
+      detail: `${registerWithdrawalsDue.length} approved register withdrawal(s) awaiting payout on My desk.`,
       severity: 'warning',
       priority: 77,
       path: '/accounts',
@@ -369,16 +369,20 @@ export function buildWorkspaceNotifications({
   const transportTreasuryDue = Array.isArray(snapshot?.poTransportAwaitingTreasury)
     ? snapshot.poTransportAwaitingTreasury
     : [];
-  if (canAccessModule('finance') && can('finance.pay') && transportTreasuryDue.length > 0) {
+  if (
+    canAccessModule('finance') &&
+    (can('finance.pay') || can('cashier.desk.view')) &&
+    transportTreasuryDue.length > 0
+  ) {
     items.push({
       id: 'po-transport-payouts',
       category: 'finance',
       title: 'PO transport payouts',
-      detail: `${transportTreasuryDue.length} purchase order(s) with haulage still to pay from treasury.`,
+      detail: `${transportTreasuryDue.length} purchase order(s) with haulage still to pay from My desk.`,
       severity: 'warning',
       priority: 74,
       path: '/accounts',
-      state: { accountsTab: 'treasury' },
+      state: { accountsTab: 'desk' },
     });
   }
 

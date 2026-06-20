@@ -20,8 +20,7 @@ export default function MyTimeOff() {
   return (
     <ProfilePageBody>
       <WorkPayHero
-        eyebrow="Work & pay"
-        title="Time off"
+        variant="context"
         description="Apply for leave, check balances, see attendance marks, and request exceptions — one place for when you are in or out."
       />
       <ProfileProbationBanner />

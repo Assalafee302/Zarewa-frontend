@@ -8,7 +8,7 @@ import { FAMILY_BENEFITS } from '../../lib/familyBenefitsUi';
 import { DOMESTIC_BENEFITS } from '../../lib/domesticStaffUi';
 
 /**
- * Hub switcher — Account vs HR services — using the same PageTabs pattern as Sales / Procurement.
+ * Hub switcher — Account vs My HR — using the same PageTabs pattern as Sales / Procurement.
  */
 export function ProfileHubTabs() {
   const { hasHrSelfService, cohort } = useUserProfile();

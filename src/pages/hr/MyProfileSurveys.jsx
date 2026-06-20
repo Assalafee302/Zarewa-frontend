@@ -59,7 +59,6 @@ export default function MyProfileSurveys() {
   return (
     <ProfilePageBody>
       <ProfilePageIntro
-        title="Engagement surveys"
         description="Participate in open surveys. Your feedback is confidential and helps HR improve the workplace."
         actions={
           openCount > 0 ? <ProfileStatusChip variant="pending">{openCount} open</ProfileStatusChip> : (

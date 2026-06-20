@@ -42,7 +42,7 @@ function UserProfileShellInner() {
       ? 'Sign-in, security, and shortcuts to your benefits hub.'
       : cohort === 'account_only'
         ? 'Profile, security, and workspace shortcuts.'
-        : 'Sign-in details, security, and shortcuts to HR services.';
+        : 'Sign-in details, security, and shortcuts to My HR.';
 
   return (
     <PageShell className="pb-[max(2.5rem,env(safe-area-inset-bottom))]">

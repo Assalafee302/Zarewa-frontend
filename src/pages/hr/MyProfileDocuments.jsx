@@ -52,7 +52,6 @@ export default function MyProfileDocuments() {
   return (
     <ProfilePageBody>
       <ProfilePageIntro
-        title="Documents"
         description="Upload certificates, IDs, and signed forms. HR uses these to verify your profile and approve requests like loans."
         actions={
           docMissing > 0 ? (

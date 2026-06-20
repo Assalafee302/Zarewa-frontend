@@ -265,8 +265,52 @@ function installFetchMock(overrides = {}) {
         registerSettlementsAwaitingPayment: [],
         poTransportAwaitingTreasury: [],
         staffRecoveriesDue: [],
+        staffObligationsDue: [],
         receipts: [],
       });
+    }
+    if (path.includes('/api/hr/me')) {
+      return jsonFetchResponse({
+        ok: true,
+        user: { id: 'u-hr', displayName: 'HR Staff', username: 'staff.user' },
+        hr: {
+          jobTitle: 'Operator',
+          dateJoinedIso: '2020-01-01',
+          employmentType: 'permanent',
+          baseSalaryNgn: 150000,
+        },
+        completeness: { sections: [{ id: 'employment', pct: 100 }] },
+        documentSummary: { total: 0, verified: 0, pending: 0, rejected: 0 },
+        pendingProfileRequests: [],
+        loanPolicy: { loanMinServiceYears: 3, loanMaxSalaryMonths: 4, loanMaxRepaymentMonths: 12 },
+        documents: [],
+        unreadNotifications: 0,
+      });
+    }
+    if (path.includes('/api/hr/leave/balances')) {
+      return jsonFetchResponse({ ok: true, balances: [] });
+    }
+    if (path.includes('/api/hr/payslips')) {
+      return jsonFetchResponse({ ok: true, payslips: [], periodHint: null });
+    }
+    if (path.includes('/api/hr/requests')) {
+      return jsonFetchResponse({ ok: true, requests: [] });
+    }
+    if (path.includes('/api/hr/me/attendance-summary')) {
+      return jsonFetchResponse({ ok: true, absentDays: 0, lateDays: 0, deductionNgn: 0 });
+    }
+    if (path.includes('/money-summary')) {
+      return jsonFetchResponse({
+        ok: true,
+        totalOutstandingNgn: 0,
+        loans: [],
+        purchases: [],
+        recoveries: [],
+        purchaseEligibility: { eligible: true, issues: [] },
+      });
+    }
+    if (path.includes('/loan-schedule') || path.includes('/loans/schedule')) {
+      return jsonFetchResponse({ ok: true, schedule: [] });
     }
     if (path.includes('/api/exec/reserve-policy')) {
       return jsonFetchResponse({ ok: true, policy: {} });
@@ -421,7 +465,110 @@ describe('authenticated startup TDZ', () => {
     );
     await waitFor(
       () => {
-        expect(screen.getByRole('tab', { name: /^Desk$/i })).toBeInTheDocument();
+        expect(screen.getByRole('tab', { name: /^My desk$/i })).toBeInTheDocument();
+      },
+      { timeout: 15000 }
+    );
+  });
+
+  it('renders cashier treasury tab with desk banner and no payout queues', async () => {
+    vi.stubGlobal(
+      'fetch',
+      installFetchMock({
+        bootstrap: cashierBootstrap(),
+      })
+    );
+    window.history.pushState({}, '', '/accounts?tab=treasury');
+    const { default: App } = await import('./App.jsx');
+    render(
+      <StrictMode>
+        <App />
+      </StrictMode>
+    );
+    await waitFor(
+      () => {
+        expect(screen.queryByText(/Zarewa could not load/i)).toBeNull();
+      },
+      { timeout: 15000 }
+    );
+    await waitFor(
+      () => {
+        expect(screen.getByTestId('cashier-treasury-desk-banner')).toBeInTheDocument();
+      },
+      { timeout: 15000 }
+    );
+    expect(screen.queryByTestId('finance-refunds-awaiting-payout')).toBeNull();
+  });
+
+  it('renders My HR overview without error boundary crash', async () => {
+    vi.stubGlobal(
+      'fetch',
+      installFetchMock({
+        bootstrap: bootstrapPayload(
+          {
+            id: 'u-hr',
+            username: 'staff.user',
+            displayName: 'HR Staff',
+            roleKey: 'operator',
+            branchId: 'BR1',
+          },
+          ['hr.self', 'workspace.view']
+        ),
+      })
+    );
+    window.history.pushState({}, '', '/my-profile/overview');
+    const { default: App } = await import('./App.jsx');
+    render(
+      <StrictMode>
+        <App />
+      </StrictMode>
+    );
+    await waitFor(
+      () => {
+        expect(screen.queryByText(/Zarewa could not load/i)).toBeNull();
+      },
+      { timeout: 15000 }
+    );
+    await waitFor(
+      () => {
+        expect(screen.getByText(/At a glance/i)).toBeInTheDocument();
+      },
+      { timeout: 15000 }
+    );
+  });
+
+  it('renders My HR loans page without error boundary crash', async () => {
+    vi.stubGlobal(
+      'fetch',
+      installFetchMock({
+        bootstrap: bootstrapPayload(
+          {
+            id: 'u-hr',
+            username: 'staff.user',
+            displayName: 'HR Staff',
+            roleKey: 'operator',
+            branchId: 'BR1',
+          },
+          ['hr.self', 'workspace.view']
+        ),
+      })
+    );
+    window.history.pushState({}, '', '/my-profile/loans');
+    const { default: App } = await import('./App.jsx');
+    render(
+      <StrictMode>
+        <App />
+      </StrictMode>
+    );
+    await waitFor(
+      () => {
+        expect(screen.queryByText(/Zarewa could not load/i)).toBeNull();
+      },
+      { timeout: 15000 }
+    );
+    await waitFor(
+      () => {
+        expect(screen.getByRole('button', { name: /Apply for loan/i })).toBeInTheDocument();
       },
       { timeout: 15000 }
     );

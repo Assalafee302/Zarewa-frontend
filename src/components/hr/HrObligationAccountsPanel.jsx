@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { formatNgn } from '../../lib/hrFormat';
 import {
   fetchObligationAccountDetail,
@@ -8,9 +8,16 @@ import {
   obligationStatementPdfUrl,
   recordObligationRepayment,
 } from '../../lib/hrStaffObligations';
+import { HrObligationMaintenancePanel } from './HrObligationMaintenancePanel';
 import { HR_BTN_PRIMARY, HR_BTN_SECONDARY, HR_FIELD_CLASS } from './hrFormStyles';
 
 const KIND_LABEL = { loan: 'Loan', purchase: 'Purchase credit', recovery: 'Discipline recovery' };
+const KIND_FILTERS = [
+  { id: 'all', label: 'All' },
+  { id: 'loan', label: 'Loans' },
+  { id: 'purchase', label: 'Purchase credit' },
+  { id: 'recovery', label: 'Recovery' },
+];
 
 /**
  * HR / finance view of staff obligation accounts with cash repayment and PDF downloads.
@@ -26,9 +33,16 @@ export function HrObligationAccountsPanel() {
   const [repayAmount, setRepayAmount] = useState('');
   const [repayRef, setRepayRef] = useState('');
   const [repayNote, setRepayNote] = useState('');
+  const [recalculateInstallment, setRecalculateInstallment] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const [kindFilter, setKindFilter] = useState('all');
+
+  const filteredAccounts = useMemo(() => {
+    if (kindFilter === 'all') return accounts;
+    return accounts.filter((a) => a.kind === kindFilter);
+  }, [accounts, kindFilter]);
 
   const loadAccounts = useCallback(async () => {
     setLoading(true);
@@ -78,16 +92,21 @@ export function HrObligationAccountsPanel() {
     loadDetail(selectedId);
   }, [selectedId, loadDetail]);
 
-  const submitRepayment = async (e) => {
+  const submitRepayment = async (e, payInFull = false) => {
     e.preventDefault();
-    if (!selectedId) return;
+    if (!selectedId || !detail) return;
     setBusy(true);
     setError('');
     setMessage('');
+    const amount = payInFull
+      ? detail.principalOutstandingNgn
+      : Math.round(Number(repayAmount) || 0);
     const r = await recordObligationRepayment(selectedId, {
-      amountNgn: Math.round(Number(repayAmount) || 0),
+      amountNgn: amount,
+      payInFull: payInFull || undefined,
       paymentReference: repayRef.trim() || undefined,
       note: repayNote.trim() || undefined,
+      recalculateInstallment: !payInFull && recalculateInstallment ? true : undefined,
     });
     setBusy(false);
     const data = r.data || r;
@@ -117,9 +136,28 @@ export function HrObligationAccountsPanel() {
   if (!accounts.length) return <p className="text-sm text-slate-500">No active staff obligation accounts.</p>;
 
   return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap gap-2">
+        {KIND_FILTERS.map((f) => (
+          <button
+            key={f.id}
+            type="button"
+            onClick={() => setKindFilter(f.id)}
+            className={`rounded-full px-3 py-1 text-xs font-bold transition ${
+              kindFilter === f.id
+                ? 'bg-[#134e4a] text-white'
+                : 'border border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+            }`}
+          >
+            {f.label}
+          </button>
+        ))}
+      </div>
+
     <div className="grid gap-4 lg:grid-cols-2">
       <div className="space-y-2 max-h-[420px] overflow-y-auto rounded-xl border border-slate-200 bg-white p-3">
-        {accounts.map((a) => (
+        {filteredAccounts.length ? (
+          filteredAccounts.map((a) => (
           <button
             key={a.id}
             type="button"
@@ -135,9 +173,15 @@ export function HrObligationAccountsPanel() {
             </p>
             <p className="text-xs font-semibold text-[#134e4a] tabular-nums">
               {formatNgn(a.principalOutstandingNgn)} outstanding
+              {a.status === 'active' && a.deductionsActive === false && a.principalOutstandingNgn > 0 ? (
+                <span className="ml-2 text-amber-700 font-bold">· Paused</span>
+              ) : null}
             </p>
           </button>
-        ))}
+          ))
+        ) : (
+          <p className="text-sm text-slate-500 px-1">No accounts in this category.</p>
+        )}
       </div>
 
       {detail ? (
@@ -200,9 +244,22 @@ export function HrObligationAccountsPanel() {
             </div>
           ) : null}
 
+          <HrObligationMaintenancePanel
+            account={detail}
+            onUpdated={async () => {
+              await loadAccounts();
+              await loadDetail(selectedId);
+            }}
+          />
+
           {detail.principalOutstandingNgn > 0 && detail.status === 'active' && detail.kind !== 'recovery' ? (
             <form onSubmit={submitRepayment} className="space-y-3 border-t border-slate-100 pt-3">
-              <p className="text-[10px] font-bold uppercase text-slate-500">Record cash / bank repayment</p>
+              <p className="text-[10px] font-bold uppercase text-slate-500">Record staff repayment</p>
+              <p className="text-xs text-slate-600">
+                Staff pay cash or bank transfer — post here after payment is received, or use{' '}
+                <strong>Finance → Desk</strong> at the branch cashier. They see the updated balance on{' '}
+                <strong>My Profile → Loans & credit → Pay back</strong>.
+              </p>
               {error ? <p className="text-xs font-bold text-rose-700">{error}</p> : null}
               {message ? <p className="text-xs font-semibold text-emerald-800">{message}</p> : null}
               <label className="block text-xs font-semibold text-slate-600">
@@ -225,9 +282,26 @@ export function HrObligationAccountsPanel() {
                 Note
                 <input className={`mt-1 ${HR_FIELD_CLASS}`} value={repayNote} onChange={(e) => setRepayNote(e.target.value)} />
               </label>
-              <div className="flex gap-2">
+              <label className="flex items-start gap-2 text-xs font-semibold text-slate-600">
+                <input
+                  type="checkbox"
+                  className="mt-0.5"
+                  checked={recalculateInstallment}
+                  onChange={(e) => setRecalculateInstallment(e.target.checked)}
+                />
+                <span>Recalculate monthly installment from new balance (partial pay only)</span>
+              </label>
+              <div className="flex flex-wrap gap-2">
                 <button type="submit" disabled={busy} className={HR_BTN_PRIMARY}>
-                  {busy ? 'Posting…' : 'Post repayment'}
+                  {busy ? 'Posting…' : 'Post partial payment'}
+                </button>
+                <button
+                  type="button"
+                  disabled={busy}
+                  className={HR_BTN_SECONDARY}
+                  onClick={(e) => submitRepayment(e, true)}
+                >
+                  Pay in full ({formatNgn(detail.principalOutstandingNgn)})
                 </button>
                 <button type="button" onClick={() => loadDetail(selectedId)} className={HR_BTN_SECONDARY}>
                   Refresh
@@ -246,6 +320,7 @@ export function HrObligationAccountsPanel() {
           {detailError || 'Select an account to view detail and record repayments.'}
         </p>
       )}
+    </div>
     </div>
   );
 }

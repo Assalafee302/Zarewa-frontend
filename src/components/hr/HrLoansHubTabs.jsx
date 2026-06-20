@@ -4,7 +4,7 @@ import { PageTabs } from '../layout/PageTabs';
 
 const TABS = [
   { id: 'requests', label: 'Loan requests' },
-  { id: 'obligations', label: 'Repayments ledger' },
+  { id: 'obligations', label: 'Record repayments' },
   { id: 'purchase-credit', label: 'Purchase credit' },
 ];
 

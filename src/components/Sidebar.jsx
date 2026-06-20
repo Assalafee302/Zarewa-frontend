@@ -26,6 +26,7 @@ import { userMayViewManagementReportsClient } from '../lib/reportsAccess';
 import { userMayViewAccountingDeskClient } from '../lib/financeDeskAccess';
 import { userMaySeeLegacyAccountsNav } from '../lib/legacyAccountsAccess';
 import { canAccessExecutiveHr, canAccessMyProfileHr } from '../lib/hrAccess';
+import { HR_SELF_SERVICE_BASE } from '../lib/hrSelfServiceRoutes';
 import { ZAREWA_LOGO_SRC } from '../Data/companyQuotation';
 
 function pathMatches(locationPath, basePath) {
@@ -165,7 +166,7 @@ const Sidebar = ({ mobileOpen = false, onCloseMobile, collapsed = false, onToggl
     {
       icon: <UserCircle size={18} />,
       label: canAccessMyProfileHr(permissions) ? 'Account & HR' : 'Account',
-      path: '/me',
+      path: canAccessMyProfileHr(permissions) ? HR_SELF_SERVICE_BASE : '/me',
       active:
         pathMatches(p, '/me') ||
         (canAccessMyProfileHr(permissions) && pathMatches(p, '/my-profile')),

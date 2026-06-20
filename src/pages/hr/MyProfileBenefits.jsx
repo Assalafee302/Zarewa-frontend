@@ -50,7 +50,6 @@ export default function MyProfileBenefits() {
   return (
     <ProfilePageBody>
       <ProfilePageIntro
-        title="Benefits"
         description="Allowances and benefits linked to your staff record. Amounts may require unlocking sensitive data."
       />
 

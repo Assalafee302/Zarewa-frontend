@@ -11,6 +11,7 @@ export const ACCOUNTING_REGISTER_CONFIG = {
     helpPoints: [
       'Customer receivables include quotations with completed production only; balances below ₦1,000 are omitted.',
       'Supplier prepayments are payments before GRN — verify in Procurement before clearing.',
+      'Staff loans and purchase credit live in HR — use External loan for non-staff borrowers (directors, contractors).',
       'Use Add legacy line for pre-system balances not captured in live transactions.',
     ],
     kpis: [
@@ -18,6 +19,7 @@ export const ACCOUNTING_REGISTER_CONFIG = {
       { key: 'customerReceivablesNgn', sectionId: 'customer_receivables', label: 'Customer receivables', tone: 'default' },
       { key: 'supplierPrepaymentsNgn', sectionId: 'supplier_prepayments', label: 'Supplier prepayments', tone: 'teal' },
       { key: 'interBranchReceivableNgn', sectionId: 'inter_branch_receivable', label: 'Inter-branch receivable', tone: 'default' },
+      { key: 'externalLoansNgn', sectionId: 'external_loans', label: 'External loans', tone: 'amber' },
       { key: 'legacyInheritedNgn', sectionId: 'legacy_inherited', label: 'Inherited / manual', tone: 'amber' },
     ],
     emptySectionHints: {
@@ -25,7 +27,13 @@ export const ACCOUNTING_REGISTER_CONFIG = {
       customer_receivables: 'No customer trade receivables — all completed jobs may be fully paid.',
       supplier_prepayments: 'No supplier prepayments — paid amounts match received goods.',
       inter_branch_receivable: 'No inter-branch receivables for this branch scope.',
+      external_loans: 'No external loans recorded. Add a line for non-staff borrowers — collect via register settlement.',
       legacy_inherited: 'No inherited receivables recorded. Add a line for pre-system balances.',
+    },
+    legacyQuickAdd: {
+      category: 'external_loan',
+      description: 'Non-staff loan — director, contractor, or other non-payroll borrower',
+      reference: 'External loan',
     },
   },
   debtor: {
@@ -78,6 +86,7 @@ export function registerConfigFor(side) {
 export const REGISTER_CATEGORY_LABELS = {
   legacy: 'General inherited',
   staff_loan: 'Staff loan',
+  external_loan: 'External / non-staff loan',
   customer_ar: 'Customer receivable',
   supplier_prepay: 'Supplier prepayment',
   inter_branch: 'Inter-branch',

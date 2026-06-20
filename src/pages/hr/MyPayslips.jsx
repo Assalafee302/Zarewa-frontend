@@ -102,8 +102,7 @@ export default function MyPayslips() {
   return (
     <ProfilePageBody>
       <WorkPayHero
-        eyebrow="Work & pay"
-        title="Payslips"
+        variant="context"
         description="View and download payslips after payroll is locked and paid. Unlock with your password to see amounts."
       />
 

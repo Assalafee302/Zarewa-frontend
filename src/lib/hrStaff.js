@@ -437,6 +437,7 @@ export async function createHrLoanRequest(userId, payload) {
         expectedStartPeriod: payload.expectedStartPeriod || null,
         guarantorNote: payload.guarantorNote || null,
         exceptionalLoan: Boolean(payload.exceptionalLoan),
+        needsChairmanWaiver: Boolean(payload.needsChairmanWaiver),
       },
     }),
   });

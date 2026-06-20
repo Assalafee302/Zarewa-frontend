@@ -104,7 +104,6 @@ export default function MyProfileEmployment() {
   return (
     <ProfilePageBody>
       <ProfilePageIntro
-        title="Employment record"
         description={
           profileLocked
             ? 'Your profile is on file. View your record below or request HR to update locked fields.'

@@ -53,3 +53,27 @@ export function backfillRecoveryObligations() {
     body: JSON.stringify({}),
   });
 }
+
+export function patchObligationDeductionPause(accountId, body) {
+  return apiFetch(`/api/hr/obligation-accounts/${encodeURIComponent(accountId)}/pause`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+}
+
+export function maintainObligationAccount(accountId, body) {
+  return apiFetch(`/api/hr/obligation-accounts/${encodeURIComponent(accountId)}/maintenance`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+}
+
+export function chairmanWaiveObligation(accountId, body) {
+  return apiFetch(`/api/hr/obligation-accounts/${encodeURIComponent(accountId)}/chairman-waive`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+}

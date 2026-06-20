@@ -83,4 +83,20 @@ describe('workspaceNotifications', () => {
     ]);
     expect(sorted[0].severity).toBe('critical');
   });
+
+  it('routes finance payout alerts to My desk including PO transport for cashiers', () => {
+    const items = buildWorkspaceNotifications({
+      snapshot: {
+        ...baseSnapshot,
+        permissions: ['cashier.desk.view', 'finance.pay'],
+        session: { user: { id: 'u1', roleKey: 'cashier' }, permissions: ['cashier.desk.view', 'finance.pay'] },
+        paymentRequests: [{ requestID: 'P2', approvalStatus: 'Approved', amountRequestedNgn: 100, amountPaidNgn: 0 }],
+        poTransportAwaitingTreasury: [{ id: 'PO1' }],
+      },
+      hasPermission: (p) => ['cashier.desk.view', 'finance.pay'].includes(p),
+      canAccessModule: (m) => m === 'finance',
+    });
+    expect(items.find((n) => n.id === 'payment-requests-payout')?.state?.accountsTab).toBe('desk');
+    expect(items.find((n) => n.id === 'po-transport-payouts')?.state?.accountsTab).toBe('desk');
+  });
 });

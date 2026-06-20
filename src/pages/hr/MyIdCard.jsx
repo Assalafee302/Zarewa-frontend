@@ -194,7 +194,6 @@ export default function MyIdCard() {
   return (
     <ProfilePageBody>
       <ProfilePageIntro
-        title="ID card"
         description="Request a new or replacement employee ID card. HR processes and issues the card after approval."
         actions={
           <div className="flex flex-wrap gap-2">

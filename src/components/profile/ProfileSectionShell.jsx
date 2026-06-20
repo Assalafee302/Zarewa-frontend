@@ -1,26 +1,27 @@
 import React from 'react';
-import { Outlet } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router-dom';
 import { PageHeader, PageShell, MainPanel } from '../layout';
 import { ProfileHubTabs } from './ProfileHubTabs';
 import { ProfileSidebarNav, ProfileMobileNav } from './ProfileSidebarNav';
 import { HrNotificationsPanel } from '../hr/HrNotificationsPanel';
+import { profilePageMetaForPath, profileShellEyebrow } from '../../lib/profileNavConfig';
 
 /**
- * HR services layout — open work surface (Sales / Procurement), not nested cards.
+ * My HR layout — open work surface (Sales / Procurement), not nested cards.
  */
 export function ProfileSectionShell({
-  title,
-  subtitle,
   cohort = 'employee',
   beforeNav = null,
   outletContext,
 }) {
+  const location = useLocation();
+  const { title, subtitle } = profilePageMetaForPath(location.pathname, cohort);
   const isExecutiveBenefitsHub = cohort === 'scholarship' || cohort === 'domestic';
 
   return (
     <PageShell className="pb-10">
       <PageHeader
-        eyebrow="My HR"
+        eyebrow={profileShellEyebrow(cohort)}
         title={title}
         subtitle={subtitle}
         tabs={

@@ -71,7 +71,7 @@ function ScholarshipTeaser() {
           </div>
         </dl>
       ) : (
-        <p className="text-sm text-slate-500">Open HR services for full school and payment details.</p>
+        <p className="text-sm text-slate-500">Open My HR for full school and payment details.</p>
       )}
     </ProfileModuleSection>
   );
@@ -128,7 +128,7 @@ function DomesticTeaser() {
           </div>
         </dl>
       ) : (
-        <p className="text-sm text-slate-500">Open HR services for payment details.</p>
+        <p className="text-sm text-slate-500">Open My HR for payment details.</p>
       )}
     </ProfileModuleSection>
   );
@@ -203,7 +203,7 @@ export default function ProfileOverview() {
           <p className="text-xs leading-relaxed text-slate-500">
             Employment records and payslips are in{' '}
             <Link to={HR_SELF_SERVICE_PATH.overview} className="font-semibold text-[#134e4a] hover:underline">
-              HR services
+              My HR
             </Link>
             .
           </p>

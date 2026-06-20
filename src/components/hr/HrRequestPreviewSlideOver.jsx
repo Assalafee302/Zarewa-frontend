@@ -7,9 +7,12 @@ import { hrRequestKindLabel } from '../../lib/hrFormat';
 import { hrRequestReviewPath } from '../../lib/hrRequests';
 import { HR_EMPLOYEES, HR_TIME_ABSENCE, hrTabPath } from '../../lib/hrRoutes';
 import { HrRequestPayloadSummary } from './HrRequestPayloadSummary';
+import { HrChairmanWaiverLoanBanner } from './HrChairmanWaiverLoanBanner';
 import HrRequestStageBar from './HrRequestStageBar';
 import { HrStatusBadge } from './HrStatusBadge';
 import { HR_BTN_PRIMARY, HR_BTN_SECONDARY, HR_FIELD_CLASS, HR_TEXTAREA_CLASS } from './hrFormStyles';
+import { useWorkspace } from '../../context/WorkspaceContext';
+import { canGmApproveChairmanWaiverLoan } from '../../lib/hrAccess';
 
 const REASON_CODES = [
   { value: 'policy', label: 'Policy' },
@@ -29,6 +32,9 @@ function canReviewRequest(request) {
  * Preview-first HR request panel — approve/reject without leaving dashboard.
  */
 export function HrRequestPreviewSlideOver({ request: initialRequest, isOpen, onClose, onReviewed }) {
+  const ws = useWorkspace();
+  const permissions = ws?.permissions || ws?.session?.permissions || [];
+  const roleKey = ws?.session?.roleKey || ws?.roleKey || '';
   const [request, setRequest] = useState(initialRequest);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -139,6 +145,8 @@ export function HrRequestPreviewSlideOver({ request: initialRequest, isOpen, onC
                 <HrRequestPayloadSummary request={request} />
               </div>
 
+              <HrChairmanWaiverLoanBanner request={request} permissions={permissions} roleKey={roleKey} />
+
               {canReviewRequest(request) ? (
                 <div className="space-y-3 rounded-xl border border-amber-200 bg-amber-50/50 p-3">
                   <p className="text-[10px] font-bold uppercase tracking-widest text-amber-900">Review action</p>
@@ -163,7 +171,17 @@ export function HrRequestPreviewSlideOver({ request: initialRequest, isOpen, onC
                     />
                   </label>
                   <div className="flex flex-wrap gap-2">
-                    <button type="button" className={HR_BTN_PRIMARY} disabled={busy} onClick={() => void runReview(true)}>
+                    <button
+                      type="button"
+                      className={HR_BTN_PRIMARY}
+                      disabled={busy || !canGmApproveChairmanWaiverLoan(request, permissions, roleKey)}
+                      title={
+                        !canGmApproveChairmanWaiverLoan(request, permissions, roleKey)
+                          ? 'Chairman or MD must approve this waiver-flagged loan'
+                          : undefined
+                      }
+                      onClick={() => void runReview(true)}
+                    >
                       Approve
                     </button>
                     <button

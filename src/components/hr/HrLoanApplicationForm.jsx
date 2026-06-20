@@ -15,6 +15,7 @@ export function HrLoanApplicationForm({ onSuccess, onCancel }) {
   const [deductionPerMonthNgn, setDeductionPerMonthNgn] = useState('');
   const [purpose, setPurpose] = useState('');
   const [exceptionalLoan, setExceptionalLoan] = useState(false);
+  const [needsChairmanWaiver, setNeedsChairmanWaiver] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
@@ -49,6 +50,7 @@ export function HrLoanApplicationForm({ onSuccess, onCancel }) {
       deductionPerMonthNgn: Number(deductionPerMonthNgn) || minDeduction,
       purpose: purpose.trim(),
       exceptionalLoan,
+      needsChairmanWaiver: needsChairmanWaiver || exceptionalLoan,
       title: `Staff loan — ${staff.find((s) => s.userId === userId)?.displayName || userId}`,
     });
     if (!created.ok || !created.data?.ok) {
@@ -114,6 +116,14 @@ export function HrLoanApplicationForm({ onSuccess, onCancel }) {
         <label className="flex items-center gap-2 text-xs font-semibold text-slate-600 sm:col-span-2">
           <input type="checkbox" checked={exceptionalLoan} onChange={(e) => setExceptionalLoan(e.target.checked)} />
           Exceptional loan (above policy limits — requires GM HR / MD path)
+        </label>
+        <label className="flex items-center gap-2 text-xs font-semibold text-slate-600 sm:col-span-2">
+          <input
+            type="checkbox"
+            checked={needsChairmanWaiver}
+            onChange={(e) => setNeedsChairmanWaiver(e.target.checked)}
+          />
+          Needs Chairman waiver (final GM approval requires Chairman / MD)
         </label>
       </div>
       <div className="flex flex-wrap gap-2">

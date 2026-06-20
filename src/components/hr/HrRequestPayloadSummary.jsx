@@ -27,6 +27,7 @@ export function HrRequestPayloadSummary({ request, compact = false }) {
       ['Monthly deduction', p.deductionPerMonthNgn != null ? formatNgn(p.deductionPerMonthNgn) : null],
       ['Purpose', p.purpose],
       ['Exceptional', p.exceptionalLoan ? 'Yes' : null],
+      ['Chairman waiver', p.needsChairmanWaiver ? 'Required at final approval' : null],
     ].filter(([, v]) => v != null && v !== '');
     return <PayloadGrid rows={rows} compact={compact} />;
   }

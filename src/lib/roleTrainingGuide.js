@@ -176,7 +176,7 @@ const ROLE_TRAINING = {
     ],
     quickLinks: [
       { label: 'Sales', path: '/sales' },
-      { label: 'HR services', path: '/my-profile' },
+      { label: 'My HR', path: '/my-profile' },
       { label: 'Workspace', path: '/' },
     ],
   },

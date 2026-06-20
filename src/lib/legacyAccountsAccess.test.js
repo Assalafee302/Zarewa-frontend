@@ -3,8 +3,11 @@ import {
   getAllowedLegacyAccountTabs,
   getDefaultLegacyAccountTab,
   resolveLegacyAccountsRedirect,
+  resolveAccountsNavigationTab,
   userMayAccessLegacyAccountsRoute,
   userMaySeeLegacyAccountsNav,
+  treasuryTabShowsPayoutQueues,
+  legacyAccountTabLabelForRole,
 } from './legacyAccountsAccess.js';
 
 describe('legacyAccountsAccess (client)', () => {
@@ -19,9 +22,28 @@ describe('legacyAccountsAccess (client)', () => {
     expect(getDefaultLegacyAccountTab('cashier', ['cashier.desk.view'])).toBe('desk');
     expect(getAllowedLegacyAccountTabs('cashier', ['cashier.desk.view'])).toContain('desk');
     expect(getAllowedLegacyAccountTabs('cashier', ['cashier.desk.view'])).not.toContain('audit');
+    expect(getAllowedLegacyAccountTabs('cashier', ['cashier.desk.view'])).not.toContain('disbursements');
     expect(resolveLegacyAccountsRedirect('cashier', ['cashier.desk.view'], 'audit')?.to).toBe(
       '/accounts?tab=desk'
     );
+    expect(resolveLegacyAccountsRedirect('cashier', ['cashier.desk.view'], 'disbursements')?.to).toBe(
+      '/accounts?tab=desk'
+    );
+  });
+
+  it('cashier treasury is balances-only for payout queue visibility', () => {
+    expect(treasuryTabShowsPayoutQueues('cashier')).toBe(false);
+    expect(treasuryTabShowsPayoutQueues('finance_manager')).toBe(true);
+    expect(legacyAccountTabLabelForRole('treasury', 'cashier')).toBe('Accounts & balances');
+  });
+
+  it('resolveAccountsNavigationTab maps forbidden tabs to role default', () => {
+    expect(resolveAccountsNavigationTab('disbursements', 'cashier', ['cashier.desk.view'])).toBe('desk');
+    expect(resolveAccountsNavigationTab('requests', 'cashier', ['cashier.desk.view'])).toBe('desk');
+    expect(resolveAccountsNavigationTab('disbursements', 'finance_manager', ['accounting.desk.view'])).toBe(
+      'disbursements'
+    );
+    expect(resolveAccountsNavigationTab('desk', 'cashier', ['cashier.desk.view'])).toBe('desk');
   });
 
   it('accountant sees accounting tabs but not desk', () => {

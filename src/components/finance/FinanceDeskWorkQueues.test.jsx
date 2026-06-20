@@ -11,7 +11,18 @@ vi.mock('../../context/WorkspaceContext', () => ({
     branchScope: 'BR-YOL',
     snapshot: {
       receipts: [],
-      treasuryAccounts: [{ id: 'a1', name: 'Main till', type: 'cash', balance: 1000 }],
+      treasuryAccounts: [
+        {
+          id: 1,
+          name: 'Main till',
+          type: 'Cash',
+          balance: 1000,
+          openingBalanceNgn: 1000,
+          branchId: 'BR-YOL',
+          accNo: 'TILL-1',
+        },
+      ],
+      treasuryMovements: [],
       paymentRequests: [],
       refunds: [],
     },
@@ -29,7 +40,7 @@ vi.mock('../../hooks/useFinanceTrialExceptions', () => ({
 }));
 
 describe('FinanceDeskWorkQueues', () => {
-  it('renders branch desk queues without crashing', () => {
+  it('renders liquidity header and treasury account cards', () => {
     render(
       <MemoryRouter>
         <FinanceDeskWorkQueues
@@ -43,7 +54,9 @@ describe('FinanceDeskWorkQueues', () => {
       </MemoryRouter>
     );
     expect(screen.getByText(/cashier desk/i)).toBeTruthy();
-    expect(screen.getByText(/PO transport \/ haulage to pay/i)).toBeTruthy();
-    expect(screen.getByText(/Branch treasury balances/i)).toBeTruthy();
+    expect(screen.getByText(/Total liquidity/i)).toBeTruthy();
+    expect(screen.getByText(/Branch treasury accounts/i)).toBeTruthy();
+    expect(screen.getByTestId('desk-all-clear')).toBeTruthy();
+    expect(screen.getByText(/Main till/i)).toBeTruthy();
   });
 });

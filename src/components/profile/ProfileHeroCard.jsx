@@ -143,7 +143,7 @@ export function ProfileHeroCard() {
                 to={hrHubTo}
                 className="inline-flex min-h-10 items-center justify-center gap-1 rounded-xl bg-white/15 px-4 py-2 text-xs font-bold text-white no-underline ring-1 ring-white/25 transition hover:bg-white/25"
               >
-                HR services
+                My HR
                 <ChevronRight size={14} aria-hidden />
               </Link>
             ) : null}

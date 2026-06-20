@@ -81,8 +81,8 @@ export default function HrLoans({ embedded = false } = {}) {
             {section === 'obligations' ? (
               <section className="space-y-3">
                 <p className="text-xs text-slate-600 max-w-2xl">
-                  Active loan accounts, statements, and bulk bank repayments. Discipline recoveries are paid at the branch
-                  cashier — not through this ledger.
+                  When staff pay cash or bank transfer, record it here. Payroll deductions post automatically on locked
+                  runs — discipline recoveries are paid at the branch cashier instead.
                 </p>
                 <HrObligationAccountsPanel />
                 <HrRecoveryObligationBackfillPanel />
