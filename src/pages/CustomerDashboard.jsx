@@ -2119,7 +2119,11 @@ const CustomerDashboard = () => {
                   ...f,
                   linkedStaffUserId: staffUserId,
                   tier: staffUserId ? 'Staff' : f.tier === 'Staff' ? 'Regular' : f.tier,
-                  paymentTerms: staffUserId ? 'Staff credit' : f.paymentTerms,
+                  paymentTerms: staffUserId
+                    ? 'Staff credit'
+                    : f.paymentTerms === 'Staff credit'
+                      ? 'Net 30'
+                      : f.paymentTerms,
                 }))
               }
               onStaffPick={(staff) => {

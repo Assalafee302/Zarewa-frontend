@@ -87,11 +87,27 @@ export async function apiFetch(path, options = {}) {
   if (needsCsrf && !exempt && csrfToken) {
     headers['X-CSRF-Token'] = csrfToken;
   }
-  const r = await fetch(apiUrl(path), {
-    ...options,
-    credentials: 'include',
-    headers,
-  });
+  let r;
+  try {
+    r = await fetch(apiUrl(path), {
+      ...options,
+      credentials: 'include',
+      headers,
+    });
+  } catch (err) {
+    return {
+      ok: false,
+      status: 0,
+      data: {
+        ok: false,
+        code: 'NETWORK_ERROR',
+        error:
+          err?.message === 'Failed to fetch'
+            ? 'Could not reach the server. Check your connection and that the API is running.'
+            : String(err?.message || err || 'Network request failed'),
+      },
+    };
+  }
   const text = await r.text();
   let data = null;
   try {

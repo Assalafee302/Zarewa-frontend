@@ -74,7 +74,6 @@ export default function SalesCustomerCreateModal({
       });
       if (!ok || !data?.ok) throw new Error(data?.error || 'Create customer API failed');
 
-      await ws?.refresh?.();
       const customerID = String(data.customerID || '').trim();
       const displayName = data.staffLink?.customerName || form.name.trim();
       onCreated?.({
@@ -91,6 +90,11 @@ export default function SalesCustomerCreateModal({
             : `Customer ${customerID} saved.`
           : 'Customer saved.'
       );
+      try {
+        await ws?.refresh?.();
+      } catch {
+        /* Customer was saved; refresh can retry on next navigation. */
+      }
     } catch (err) {
       showToast(err?.message || 'Could not save customer.', { variant: 'error' });
     }
@@ -131,7 +135,11 @@ export default function SalesCustomerCreateModal({
                     ...f,
                     linkedStaffUserId: staffUserId,
                     tier: staffUserId ? 'Staff' : f.tier === 'Staff' ? 'Regular' : f.tier,
-                    paymentTerms: staffUserId ? 'Staff credit' : f.paymentTerms,
+                    paymentTerms: staffUserId
+                      ? 'Staff credit'
+                      : f.paymentTerms === 'Staff credit'
+                        ? 'Net 30'
+                        : f.paymentTerms,
                   }))
                 }
                 onStaffPick={(staff) => {

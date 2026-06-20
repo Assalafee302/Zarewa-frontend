@@ -18,21 +18,26 @@ export function CustomerStaffLinkField({ value = '', onChange, disabled = false,
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
-    if (disabled) return undefined;
+    if (disabled || !open) return undefined;
     let cancelled = false;
     const timer = window.setTimeout(async () => {
       setLoading(true);
-      const { ok, data } = await fetchStaffLinkOptions(query);
-      if (cancelled) return;
-      setLoading(false);
-      if (ok && data?.ok) setOptions(Array.isArray(data.items) ? data.items : []);
-      else setOptions([]);
+      try {
+        const { ok, data } = await fetchStaffLinkOptions(query);
+        if (cancelled) return;
+        if (ok && data?.ok) setOptions(Array.isArray(data.items) ? data.items : []);
+        else setOptions([]);
+      } catch {
+        if (!cancelled) setOptions([]);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
     }, query.trim() ? 200 : 0);
     return () => {
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [query, disabled]);
+  }, [query, disabled, open]);
 
   const selected = useMemo(
     () => options.find((o) => o.userId === value) || null,
@@ -62,10 +67,11 @@ export function CustomerStaffLinkField({ value = '', onChange, disabled = false,
   return (
     <div className="space-y-2">
       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
-        Link to staff (purchase credit)
+        Link to staff (optional)
       </label>
       <p className="text-[10px] text-slate-500 leading-relaxed">
-        Search by staff name or employee ID (e.g. ZAPKD004). Required for staff to buy materials on credit via Sales.
+        Optional — only link when this customer is an employee buying on staff purchase credit. Search by name or
+        employee ID (e.g. ZAPKD004). Regular customers can be saved without a staff link.
       </p>
       <div className="relative">
         <input
