@@ -166,7 +166,7 @@ export function getHrDashboardQuickActions(permissions = []) {
   if (canPreparePayroll(permissions)) {
     actions.push({ label: 'Start monthly payroll', href: HR_PAYROLL });
   } else if (canGmApprovePayroll(permissions)) {
-    actions.push({ label: 'Review payroll runs', href: hrPayrollRunsPath(c.primaryDraftPayrollAwaitingGmRunId || c.primaryDraftPayrollRunId) });
+    actions.push({ label: 'Review payroll runs', href: hrPayrollRunsPath() });
   }
   if (canViewHrReports(permissions)) {
     actions.push({ label: 'Open reports', href: hrTabPath(HR_DOCUMENTS, 'reports') });

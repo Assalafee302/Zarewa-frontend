@@ -4,7 +4,7 @@ import { useWorkspace } from '../../context/WorkspaceContext';
 import { useHrListLoad } from '../../hooks/useHrListLoad';
 import { canManageHrBenefits } from '../../lib/hrAccess';
 import { formatNgn } from '../../lib/hrFormat';
-import { currentPeriodYyyymm } from '../../lib/hrRequests';
+import { HrPayrollPeriodFields } from '../../components/hr/HrPayrollPeriodFields';
 import {
   fetchHrBeneficiaries,
   fetchHrBenefitPayments,

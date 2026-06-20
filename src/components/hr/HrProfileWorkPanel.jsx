@@ -19,8 +19,7 @@ export function HrProfileWorkPanel({ queue }) {
     <section className="rounded-2xl border border-violet-100 bg-gradient-to-br from-violet-50/80 to-white p-5 shadow-sm">
       <div className="flex flex-wrap items-end justify-between gap-2">
         <div>
-          <h2 className="text-[11px] font-black uppercase tracking-widest text-violet-800">Profile work queue</h2>
-          <p className="mt-1 text-xs text-slate-600">Documents to verify, profile changes, and incomplete employee files</p>
+          <h2 className="text-sm font-bold text-slate-900">Profile work queue</h2>
         </div>
         <Link to={hrTabPath(HR_TIME_ABSENCE, 'approvals')} className="text-[11px] font-bold uppercase text-[#134e4a] hover:underline">
           Time & absence →

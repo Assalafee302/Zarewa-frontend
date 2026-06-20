@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { apiFetch } from '../../lib/apiBase';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { canManageHrDeductions } from '../../lib/hrAccess';
+import { HrPayrollPeriodFields } from '../../components/hr/HrPayrollPeriodFields';
 import { currentPeriodYyyymm } from '../../lib/hrRequests';
 import { formatNgn } from '../../lib/hrFormat';
 import {
@@ -145,14 +146,7 @@ export default function HrAttendance({
             Preview projected attendance deductions for the payroll month. HR reviews before lock; staff may raise
             attendance exception requests.
           </p>
-          <label className="text-xs font-semibold text-slate-600">
-            Payroll period (YYYYMM)
-            <input
-              value={periodYyyymm}
-              onChange={(e) => setPeriodYyyymm(e.target.value.replace(/\D/g, '').slice(0, 6))}
-              className="mt-1 block w-28 rounded-xl border border-slate-200 px-3 py-2 font-mono text-sm"
-            />
-          </label>
+          <HrPayrollPeriodFields value={periodYyyymm} onChange={setPeriodYyyymm} labelMonth="Payroll month" />
           <HrDualView
             mobile={
               <HrMobileCardList

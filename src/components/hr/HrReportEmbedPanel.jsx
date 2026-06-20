@@ -59,10 +59,12 @@ export function HrReportEmbedPanel({ reportId, title, description, limit = 25 })
 
   return (
     <div className="space-y-4 rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
-      <div>
-        <h3 className="text-sm font-bold text-[#134e4a]">{title}</h3>
-        {description ? <p className="mt-1 text-sm text-slate-600">{description}</p> : null}
-      </div>
+      {title || description ? (
+        <div>
+          {title ? <h3 className="text-sm font-bold text-slate-900">{title}</h3> : null}
+          {description ? <p className="mt-1 text-sm text-slate-600">{description}</p> : null}
+        </div>
+      ) : null}
       {loading ? <p className="text-sm text-slate-500">Loading preview…</p> : null}
       {error ? <ProfileInlineAlert variant="error">{error}</ProfileInlineAlert> : null}
       {sensitiveBlocked ? (

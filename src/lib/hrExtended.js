@@ -167,6 +167,17 @@ export function fetchPayrollMissingBank(runId) {
   return apiFetch(`/api/hr/payroll-runs/${encodeURIComponent(runId)}/missing-bank`);
 }
 
+export function fetchPayrollPayeAlerts(runId) {
+  return apiFetch(`/api/hr/payroll-runs/${encodeURIComponent(runId)}/paye-alerts`);
+}
+
+export function patchPayrollLineHold(runId, userId, body = {}) {
+  return apiFetch(
+    `/api/hr/payroll-runs/${encodeURIComponent(runId)}/lines/${encodeURIComponent(userId)}/hold`,
+    { method: 'PATCH', body: JSON.stringify(body) }
+  );
+}
+
 export function fetchHrPolicyRequirements() {
   return apiFetch('/api/hr/policy-requirements');
 }

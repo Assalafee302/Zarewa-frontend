@@ -116,14 +116,15 @@ export default function HrStaffDirectory({
   listTitle = 'Staff directory',
   initialRegisterOpen = false,
   initialQuickFilter = '',
+  teamMode = false,
 } = {}) {
   const navigate = useNavigate();
   const ws = useWorkspace();
   const perms = ws?.permissions || [];
-  const showSalary = canViewOrgSensitiveHr(perms);
-  const canRegister = canManageHrStaff(perms);
-  const canBulkImport = canBulkImportStaff(perms);
-  const canBulkManage = canManageHrStaff(perms);
+  const showSalary = teamMode ? false : canViewOrgSensitiveHr(perms);
+  const canRegister = teamMode ? false : canManageHrStaff(perms);
+  const canBulkImport = teamMode ? false : canBulkImportStaff(perms);
+  const canBulkManage = teamMode ? false : canManageHrStaff(perms);
   const [bulkOpen, setBulkOpen] = useState(false);
   const [importNotice, setImportNotice] = useState(null);
   const [bulkNotice, setBulkNotice] = useState(null);
@@ -160,12 +161,14 @@ export default function HrStaffDirectory({
   const [masterDepartments, setMasterDepartments] = useState([]);
   const isSpecialList = cohort !== 'employees';
   const includeInactive = status === 'all' || status === 'inactive';
+  const showSavedViews = !isSpecialList && !teamMode;
 
   useEffect(() => {
     setVisibleColumns(loadVisibleColumns(showSalary));
   }, [showSalary]);
 
   useEffect(() => {
+    if (teamMode) return undefined;
     let cancelled = false;
     (async () => {
       const { ok, data } = await fetchHrDirectoryViews();
@@ -179,7 +182,7 @@ export default function HrStaffDirectory({
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [teamMode]);
 
   useEffect(() => {
     if (initialRegisterOpen) setRegisterOpen(true);
@@ -470,7 +473,7 @@ export default function HrStaffDirectory({
         />
       ) : null}
 
-      {!isSpecialList && savedViews.length ? (
+      {showSavedViews && savedViews.length ? (
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-xs font-bold uppercase text-slate-400">Saved views</span>
           {savedViews.map((v) => (
@@ -495,7 +498,7 @@ export default function HrStaffDirectory({
         </div>
       ) : null}
 
-      {!isSpecialList ? (
+      {showSavedViews ? (
         <div className="flex flex-wrap items-end gap-2">
           <input
             type="text"

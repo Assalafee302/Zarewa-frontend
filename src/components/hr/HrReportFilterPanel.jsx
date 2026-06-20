@@ -1,4 +1,5 @@
 import React from 'react';
+import { HrPayrollPeriodFields } from './HrPayrollPeriodFields';
 import { HR_FIELD_CLASS } from './hrFormStyles';
 
 /**
@@ -48,10 +49,16 @@ export function HrReportFilterPanel({
         <input type="date" className={`${HR_FIELD_CLASS} mt-1 w-full`} value={filters.toIso || ''} onChange={(e) => set('toIso', e.target.value)} />
       </label>
       {showPeriod ? (
-        <label className="block text-[10px] font-black uppercase tracking-widest text-slate-500">
-          Payroll period (YYYYMM)
-          <input className={`${HR_FIELD_CLASS} mt-1 w-full`} placeholder="202606" value={filters.periodYyyymm || ''} onChange={(e) => set('periodYyyymm', e.target.value)} />
-        </label>
+        <div className="block text-[10px] font-black uppercase tracking-widest text-slate-500">
+          Payroll month
+          <div className="mt-1">
+            <HrPayrollPeriodFields
+              value={filters.periodYyyymm || ''}
+              onChange={(periodYyyymm) => set('periodYyyymm', periodYyyymm)}
+              compact
+            />
+          </div>
+        </div>
       ) : null}
       {showStatus ? (
         <label className="block text-[10px] font-black uppercase tracking-widest text-slate-500">

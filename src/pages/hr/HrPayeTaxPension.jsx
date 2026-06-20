@@ -1,10 +1,13 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { apiFetch } from '../../lib/apiBase';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { useHrSensitiveAccess } from '../../hooks/useHrSensitiveAccess';
 import { canViewOrgSensitiveHr } from '../../lib/hrAccess';
 import { formatNgn } from '../../lib/hrFormat';
 import { formatPayrollPeriodLabel, formatPayrollPeriodShort } from '../../lib/hrPayroll';
+import { HrPolicyConfigSection } from '../../components/hr/HrSettingsSections';
+import { HrSubViewTabs } from '../../components/hr/HrSubViewTabs';
 import {
   AppTable,
   AppTableBody,
@@ -595,12 +598,15 @@ function PensionTab({ runs, lines, latestRun, loading, policy }) {
 // ════════════════════════════════════════════════════════════════════════════════
 // MAIN PAGE
 // ════════════════════════════════════════════════════════════════════════════════
-export default function HrPayeTaxPension() {
+export default function HrPayeTaxPension({ embedded = false } = {}) {
   const ws = useWorkspace();
   const sensitive = useHrSensitiveAccess();
   const showSensitiveInline = canViewOrgSensitiveHr(ws?.permissions || []);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const sectionFromUrl = embedded ? searchParams.get('section') : null;
+  const initialTab = ['paye', 'pension', 'policy'].includes(sectionFromUrl) ? sectionFromUrl : 'paye';
 
-  const [tab, setTab] = useState('paye');
+  const [tab, setTab] = useState(initialTab);
   const [runs, setRuns] = useState([]);
   const [selectedRunId, setSelectedRunId] = useState('');
   const [lines, setLines] = useState([]);
@@ -608,6 +614,27 @@ export default function HrPayeTaxPension() {
   const [loading, setLoading] = useState(true);
   const [linesLoading, setLinesLoading] = useState(false);
   const [error, setError] = useState('');
+
+  const setSectionTab = useCallback(
+    (next) => {
+      setTab(next);
+      if (embedded) {
+        setSearchParams((prev) => {
+          const nextParams = new URLSearchParams(prev);
+          if (next === 'paye') nextParams.delete('section');
+          else nextParams.set('section', next);
+          return nextParams;
+        });
+      }
+    },
+    [embedded, setSearchParams]
+  );
+
+  useEffect(() => {
+    if (embedded && sectionFromUrl && ['paye', 'pension', 'policy'].includes(sectionFromUrl)) {
+      setTab(sectionFromUrl);
+    }
+  }, [embedded, sectionFromUrl]);
 
   // Load payroll runs and pension policy
   useEffect(() => {
@@ -696,27 +723,20 @@ export default function HrPayeTaxPension() {
       )}
 
       {/* Tabs */}
-      <div className="flex gap-1 border-b border-slate-200 pb-px overflow-x-auto">
-        {[
-          { key: 'paye', label: 'PAYE Tax' },
-          { key: 'pension', label: 'Pension' },
-        ].map((t) => (
-          <button
-            key={t.key}
-            type="button"
-            onClick={() => setTab(t.key)}
-            className={`shrink-0 min-h-[44px] rounded-t-lg px-4 py-2.5 text-xs font-bold uppercase touch-manipulation ${
-              tab === t.key ? 'border border-b-white bg-white text-[#134e4a]' : 'text-slate-500'
-            }`}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
+      <HrSubViewTabs
+        tabs={[
+          { id: 'paye', label: 'PAYE tax' },
+          { id: 'pension', label: 'Pension' },
+          { id: 'policy', label: 'Statutory policy' },
+        ]}
+        value={tab}
+        onChange={setSectionTab}
+        ariaLabel="PAYE and pension sections"
+      />
 
       {tab === 'paye' ? (
         <PayeTab runs={runs} lines={lines} latestRun={latestRun} loading={loading || linesLoading} />
-      ) : (
+      ) : tab === 'pension' ? (
         <PensionTab
           runs={runs}
           lines={lines}
@@ -724,6 +744,13 @@ export default function HrPayeTaxPension() {
           loading={loading || linesLoading}
           policy={policy}
         />
+      ) : (
+        <div className="space-y-4">
+          <p className="text-sm text-slate-600">
+            Company pension rates, statutory deductions, and payroll policy defaults used across runs.
+          </p>
+          <HrPolicyConfigSection />
+        </div>
       )}
     </div>
   );

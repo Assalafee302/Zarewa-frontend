@@ -33,8 +33,10 @@ export function HrRequestsPanel({
   kindsInclude = null,
   hideKindFilter = false,
   staffLinkBase = '/hr/staff',
+  staffUserId = '',
   focusRequestId = '',
   showStageBar = false,
+  compact = false,
 }) {
   const ws = useWorkspace();
   const canLetter = canGenerateHrLetters(ws?.session?.permissions);
@@ -68,6 +70,7 @@ export function HrRequestsPanel({
   const { loading, error, setError, reload: load } = useHrListLoad(async () => {
     const q = new URLSearchParams({ scope });
     if (kindFilter) q.set('kind', kindFilter);
+    if (staffUserId) q.set('userId', staffUserId);
     const { ok, data } = await apiFetch(`/api/hr/requests?${q}`);
     if (!ok || !data?.ok) {
       setRequests([]);
@@ -75,7 +78,7 @@ export function HrRequestsPanel({
     }
     setRequests(data.requests || []);
     return { hasData: true };
-  }, [scope, kindFilter]);
+  }, [scope, kindFilter, staffUserId]);
 
   useEffect(() => {
     if (defaultScope && allowedScopes.includes(defaultScope)) {
@@ -157,15 +160,16 @@ export function HrRequestsPanel({
     }
     const kind = kindFilter || filterKindLocal;
     if (kind) rows = rows.filter((r) => r.kind === kind);
+    if (staffUserId) rows = rows.filter((r) => String(r.userId) === String(staffUserId));
     return filterHrRequestsList(rows, filterSearch);
-  }, [requests, kindFilter, filterKindLocal, filterSearch, kindsInclude]);
+  }, [requests, kindFilter, filterKindLocal, filterSearch, kindsInclude, staffUserId]);
 
   const visibleSortedRequests = useMemo(
     () => sortHrRequestsList(visibleRequests, sortField, sortDir),
     [visibleRequests, sortField, sortDir]
   );
 
-  const requestPaging = useAppTablePaging(visibleSortedRequests, 20, scope, kindFilter, filterKindLocal, filterSearch, sortField, sortDir);
+  const requestPaging = useAppTablePaging(visibleSortedRequests, compact ? 5 : 20, scope, kindFilter, filterKindLocal, filterSearch, sortField, sortDir, staffUserId);
 
   const exportQueueCsv = () => {
     const esc = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
@@ -213,7 +217,7 @@ export function HrRequestsPanel({
     await load();
   };
 
-  const showEmployeeColumn = scope !== 'mine' && staffLinkBase !== '/me';
+  const showEmployeeColumn = !staffUserId && scope !== 'mine' && staffLinkBase !== '/me';
 
   const renderEmployeeCell = (r) => {
     if (!r.userId) return '—';
@@ -415,6 +419,11 @@ export function HrRequestsPanel({
 
       <HrListTableFrame
         toolbar={
+          compact ? (
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+              {loading ? 'Loading…' : `${visibleSortedRequests.length} pending`}
+            </p>
+          ) : (
           <>
             <HrListSearchInput value={filterSearch} onChange={setFilterSearch} placeholder="Search title, employee, kind…" />
             <HrListSortBar
@@ -448,6 +457,7 @@ export function HrRequestsPanel({
               </p>
             </div>
           </>
+          )
         }
       >
         {error ? (
