@@ -129,3 +129,158 @@ export function buildGroupedSections(chart, groupBy = 'department') {
   sections.sort((a, b) => b.count - a.count || a.key.localeCompare(b.key));
   return sections;
 }
+
+function flattenChartNodes(chart) {
+  const all = [];
+  const walk = (node) => {
+    all.push(node);
+    for (const child of node.children || []) walk(child);
+  };
+  for (const root of chart?.roots || []) walk(root);
+  for (const orphan of chart?.orphans || []) all.push(orphan);
+  return all;
+}
+
+/** Mirror shared summarizeHrOrgChart for client-side filtered charts. */
+export function summarizeHrOrgChart(chart) {
+  const nodes = flattenChartNodes(chart);
+  const byDepartment = new Map();
+  const byBranch = new Map();
+  const byOrgNode = new Map();
+  const byRoleFamily = new Map();
+  let leadership = 0;
+  let maxDepth = 0;
+
+  const depthWalk = (node, depth) => {
+    maxDepth = Math.max(maxDepth, depth);
+    for (const child of node.children || []) depthWalk(child, depth + 1);
+  };
+  for (const root of chart?.roots || []) depthWalk(root, 0);
+
+  for (const node of nodes) {
+    const dept = String(node.department || '').trim() || 'Unassigned';
+    const branch = String(node.branchId || '').trim() || 'Unassigned';
+    const unit = String(node.orgNode || node.payrollGroup || '').trim() || 'branch_ops';
+    const family = String(node.roleFamily || '').trim() || 'general';
+
+    byDepartment.set(dept, (byDepartment.get(dept) || 0) + 1);
+    byBranch.set(branch, (byBranch.get(branch) || 0) + 1);
+    byOrgNode.set(unit, (byOrgNode.get(unit) || 0) + 1);
+    byRoleFamily.set(family, (byRoleFamily.get(family) || 0) + 1);
+    if (node.seniority === 'leadership') leadership += 1;
+  }
+
+  const toSorted = (map) =>
+    Array.from(map.entries())
+      .map(([key, count]) => ({ key, count }))
+      .sort((a, b) => b.count - a.count || a.key.localeCompare(b.key));
+
+  return {
+    total: chart?.total || nodes.length,
+    roots: chart?.roots?.length || 0,
+    orphans: chart?.orphans?.length || 0,
+    leadership,
+    maxDepth,
+    departments: toSorted(byDepartment),
+    branches: toSorted(byBranch),
+    orgUnits: toSorted(byOrgNode),
+    roleFamilies: toSorted(byRoleFamily),
+  };
+}
+
+/** @param {{ roots?: object[]; orphans?: object[] }} chart */
+export function exportFilteredChartCsv(chart, branches = []) {
+  const lines = [];
+  const walk = (node, depth, managerName) => {
+    lines.push({
+      displayName: node.displayName,
+      userId: node.userId,
+      jobTitle: node.jobTitle || '',
+      department: node.department || '',
+      branchId: branchLabel(node.branchId, branches),
+      orgNode: node.orgNode || node.payrollGroup || '',
+      roleFamily: node.roleFamily || '',
+      seniority: node.seniority || '',
+      directReportCount: node.directReportCount ?? (node.children?.length || 0),
+      lineManager: managerName || '',
+      depth,
+    });
+    for (const child of node.children || []) walk(child, depth + 1, node.displayName);
+  };
+  for (const root of chart?.roots || []) walk(root, 0, '');
+  for (const orphan of chart?.orphans || []) {
+    lines.push({
+      displayName: orphan.displayName,
+      userId: orphan.userId,
+      jobTitle: orphan.jobTitle || '',
+      department: orphan.department || '',
+      branchId: branchLabel(orphan.branchId, branches),
+      orgNode: orphan.orgNode || orphan.payrollGroup || '',
+      roleFamily: orphan.roleFamily || '',
+      seniority: orphan.seniority || '',
+      directReportCount: orphan.directReportCount ?? 0,
+      lineManager: '',
+      depth: 0,
+    });
+  }
+  const esc = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+  const header = [
+    'Name',
+    'UserId',
+    'JobTitle',
+    'Department',
+    'Branch',
+    'OrgNode',
+    'RoleFamily',
+    'Seniority',
+    'DirectReportCount',
+    'LineManager',
+    'Depth',
+  ];
+  const rows = lines.map((l) =>
+    [
+      l.displayName,
+      l.userId,
+      l.jobTitle,
+      l.department,
+      l.branchId,
+      l.orgNode,
+      l.roleFamily,
+      l.seniority,
+      l.directReportCount,
+      l.lineManager,
+      l.depth,
+    ]
+      .map(esc)
+      .join(',')
+  );
+  const csv = [header.join(','), ...rows].join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `org-chart-filtered-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+/** Find path of userIds from roots/orphans to target user. */
+export function findOrgChartFocusPath(chart, focusUserId) {
+  const target = String(focusUserId || '').trim();
+  if (!target) return [];
+
+  const findInNodes = (nodes, path) => {
+    for (const n of nodes) {
+      const nextPath = [...path, n.userId];
+      if (n.userId === target) return nextPath;
+      const found = findInNodes(n.children || [], nextPath);
+      if (found) return found;
+    }
+    return null;
+  };
+
+  const inTree = findInNodes(chart?.roots || [], []);
+  if (inTree) return inTree;
+  if ((chart?.orphans || []).some((o) => o.userId === target)) return [target];
+  return [];
+}

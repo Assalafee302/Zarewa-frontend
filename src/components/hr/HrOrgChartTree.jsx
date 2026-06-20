@@ -14,8 +14,11 @@ import {
 function OrgPersonCard({
   node,
   linkPrefix,
+  branches = [],
   compact = false,
   highlight = false,
+  focused = false,
+  inCycle = false,
   editMode = false,
   selected = false,
   linkTarget = false,
@@ -23,10 +26,11 @@ function OrgPersonCard({
 }) {
   const reports = node.directReportCount || 0;
   const seniority = seniorityLabel(node.seniority);
+  const branchName = node.branchId ? branchLabel(node.branchId, branches) : null;
 
   const cardClass = `group relative flex min-w-[168px] max-w-[220px] flex-col rounded-2xl border bg-white shadow-sm transition hover:shadow-md ${
-    selected ? 'border-[#134e4a] ring-2 ring-[#134e4a]/40' : highlight ? 'border-[#134e4a]/40 ring-2 ring-[#134e4a]/10' : 'border-slate-200'
-  } ${linkTarget ? 'ring-2 ring-amber-300/80' : ''} ${node.orphanReason ? 'border-amber-200 bg-amber-50/40' : ''} ${
+    selected ? 'border-[#134e4a] ring-2 ring-[#134e4a]/40' : focused ? 'border-[#134e4a] ring-2 ring-[#134e4a]/30' : highlight ? 'border-[#134e4a]/40 ring-2 ring-[#134e4a]/10' : 'border-slate-200'
+  } ${linkTarget ? 'ring-2 ring-amber-300/80' : ''} ${inCycle ? 'border-red-300 bg-red-50/40' : ''} ${node.orphanReason ? 'border-amber-200 bg-amber-50/40' : ''} ${
     editMode ? 'cursor-pointer hover:border-[#134e4a]/50' : ''
   }`;
 
@@ -73,7 +77,9 @@ function OrgPersonCard({
           </span>
         ) : null}
         {node.branchId && !compact ? (
-          <span className="truncate text-[9px] font-medium uppercase tracking-wide text-slate-400">{node.branchId}</span>
+          <span className="truncate text-[9px] font-medium text-slate-500" title={node.branchId}>
+            {branchName}
+          </span>
         ) : null}
       </div>
     </>
@@ -93,20 +99,31 @@ function OrgPersonCard({
 function HierarchyNode({
   node,
   linkPrefix,
+  branches,
   collapseAll,
   depth = 0,
   editMode = false,
   linkSourceId = '',
+  focusUserId = '',
+  focusPath = null,
+  cycleUserIds = null,
   onNodeClick,
 }) {
   const [open, setOpen] = useState(depth < 2);
   const hasChildren = Array.isArray(node.children) && node.children.length > 0;
   const showChildren = hasChildren && !collapseAll && open;
+  const subtreeHasFocus =
+    focusUserId &&
+    (node.userId === focusUserId ||
+      (node.children || []).some(function hasFocus(n) {
+        return n.userId === focusUserId || (n.children || []).some(hasFocus);
+      }));
 
   useEffect(() => {
     if (collapseAll) setOpen(false);
+    else if (focusUserId && subtreeHasFocus) setOpen(true);
     else if (depth < 2) setOpen(true);
-  }, [collapseAll, depth]);
+  }, [collapseAll, depth, focusUserId, subtreeHasFocus]);
 
   return (
     <li className="org-chart-node flex flex-col items-center">
@@ -124,7 +141,10 @@ function HierarchyNode({
         <OrgPersonCard
           node={node}
           linkPrefix={linkPrefix}
+          branches={branches}
           highlight={depth === 0}
+          focused={focusUserId === node.userId}
+          inCycle={cycleUserIds?.has?.(node.userId)}
           editMode={editMode}
           selected={editMode && linkSourceId === node.userId}
           linkTarget={editMode && linkSourceId && linkSourceId !== node.userId}
@@ -149,10 +169,14 @@ function HierarchyNode({
                 <HierarchyNode
                   node={child}
                   linkPrefix={linkPrefix}
+                  branches={branches}
                   collapseAll={collapseAll}
                   depth={depth + 1}
                   editMode={editMode}
                   linkSourceId={linkSourceId}
+                  focusUserId={focusUserId}
+                  focusPath={focusPath}
+                  cycleUserIds={cycleUserIds}
                   onNodeClick={onNodeClick}
                 />
               </li>
@@ -164,7 +188,7 @@ function HierarchyNode({
   );
 }
 
-function GroupedSection({ section, view, linkPrefix, collapseAll, branches, editMode, linkSourceId, onNodeClick }) {
+function GroupedSection({ section, view, linkPrefix, collapseAll, branches, editMode, linkSourceId, focusUserId, focusPath, cycleUserIds, onNodeClick }) {
   const title = sectionTitle(view, section.key, branches);
   const familyHint = view === 'department' && section.roots[0]?.roleFamily ? roleFamilyLabel(section.roots[0].roleFamily) : null;
 
@@ -186,10 +210,14 @@ function GroupedSection({ section, view, linkPrefix, collapseAll, branches, edit
               key={root.userId}
               node={root}
               linkPrefix={linkPrefix}
+              branches={branches}
               collapseAll={collapseAll}
               depth={0}
               editMode={editMode}
               linkSourceId={linkSourceId}
+              focusUserId={focusUserId}
+              focusPath={focusPath}
+              cycleUserIds={cycleUserIds}
               onNodeClick={onNodeClick}
             />
           ))}
@@ -199,10 +227,10 @@ function GroupedSection({ section, view, linkPrefix, collapseAll, branches, edit
   );
 }
 
-function OrphansPanel({ orphans, linkPrefix, editMode, linkSourceId, onNodeClick }) {
+function OrphansPanel({ orphans, linkPrefix, branches, editMode, linkSourceId, focusUserId, cycleUserIds, onNodeClick, panelRef }) {
   if (!orphans.length) return null;
   return (
-    <section className="rounded-2xl border border-amber-200 bg-amber-50/50 p-4 sm:p-5">
+    <section ref={panelRef} className="rounded-2xl border border-amber-200 bg-amber-50/50 p-4 sm:p-5">
       <header className="mb-4">
         <h3 className="text-xs font-black uppercase tracking-widest text-amber-800">
           Unlinked in scope ({orphans.length})
@@ -217,7 +245,10 @@ function OrphansPanel({ orphans, linkPrefix, editMode, linkSourceId, onNodeClick
             <OrgPersonCard
               node={o}
               linkPrefix={linkPrefix}
+              branches={branches}
               compact
+              focused={focusUserId === o.userId}
+              inCycle={cycleUserIds?.has?.(o.userId)}
               editMode={editMode}
               selected={editMode && linkSourceId === o.userId}
               linkTarget={editMode && linkSourceId && linkSourceId !== o.userId}
@@ -250,6 +281,10 @@ export function HrOrgChartTree({
   branches = [],
   editMode = false,
   linkSourceId = '',
+  focusUserId = '',
+  focusPath = null,
+  cycleUserIds = null,
+  orphansPanelRef = null,
   onNodeClick,
 }) {
   const roots = chart?.roots || [];
@@ -274,15 +309,22 @@ export function HrOrgChartTree({
             branches={branches}
             editMode={editMode}
             linkSourceId={linkSourceId}
+            focusUserId={focusUserId}
+            focusPath={focusPath}
+            cycleUserIds={cycleUserIds}
             onNodeClick={onNodeClick}
           />
         ))}
         <OrphansPanel
           orphans={orphans}
           linkPrefix={linkPrefix}
+          branches={branches}
           editMode={editMode}
           linkSourceId={linkSourceId}
+          focusUserId={focusUserId}
+          cycleUserIds={cycleUserIds}
           onNodeClick={onNodeClick}
+          panelRef={orphansPanelRef}
         />
       </div>
     );
@@ -297,10 +339,14 @@ export function HrOrgChartTree({
               key={root.userId}
               node={root}
               linkPrefix={linkPrefix}
+              branches={branches}
               collapseAll={collapseAll}
               depth={0}
               editMode={editMode}
               linkSourceId={linkSourceId}
+              focusUserId={focusUserId}
+              focusPath={focusPath}
+              cycleUserIds={cycleUserIds}
               onNodeClick={onNodeClick}
             />
           ))}
@@ -309,9 +355,13 @@ export function HrOrgChartTree({
       <OrphansPanel
         orphans={orphans}
         linkPrefix={linkPrefix}
+        branches={branches}
         editMode={editMode}
         linkSourceId={linkSourceId}
+        focusUserId={focusUserId}
+        cycleUserIds={cycleUserIds}
         onNodeClick={onNodeClick}
+        panelRef={orphansPanelRef}
       />
     </div>
   );

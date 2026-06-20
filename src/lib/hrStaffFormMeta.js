@@ -13,6 +13,7 @@ export const HR_EMPLOYMENT_STATUSES = [
   { value: 'probation', label: 'On probation' },
   { value: 'confirmed', label: 'Confirmed' },
   { value: 'suspended', label: 'Suspended' },
+  { value: 'retired', label: 'Retired' },
   { value: 'exited', label: 'Exited' },
 ];
 

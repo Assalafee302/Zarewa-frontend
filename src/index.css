@@ -2936,3 +2936,39 @@ summary {
   border-radius: 999px;
   background: rgb(153 246 228 / 0.55);
 }
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+
+  .hr-org-chart-root,
+  .hr-org-chart-root * {
+    visibility: visible;
+  }
+
+  .hr-org-chart-root {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+  }
+
+  .hr-org-chart-toolbar,
+  .hr-org-chart-root > .flex[role='tablist'],
+  .hr-org-chart-root > p.text-xs.text-slate-500 {
+    display: none !important;
+  }
+
+  .hr-org-chart-canvas {
+    overflow: visible !important;
+    border: none !important;
+    background: white !important;
+    padding: 0 !important;
+  }
+
+  .hr-org-chart-canvas > div {
+    transform: none !important;
+    width: 100% !important;
+  }
+}

@@ -34,7 +34,7 @@ import { HrStaffSalesCustomerPanel } from '../../components/hr/HrStaffSalesCusto
 import { HrProfileCompleteness } from '../../components/hr/HrProfileCompleteness';
 import { HrCard } from '../../components/hr/hrPageUi';
 import { HrStaffFileChecklist } from '../../components/hr/HrStaffFileChecklist';
-import { HrSkillsMatrixPanel } from '../../components/hr/HrSkillsMatrixPanel';
+import { HrStaffReportingBlock } from '../../components/hr/HrStaffReportingBlock';
 import { CRITICAL_MISSING_LABELS } from '../../lib/hrStaffDocumentKinds';
 import { HR_BTN_PRIMARY, HR_BTN_SECONDARY } from '../../components/hr/hrFormStyles';
 import { formToProfilePatch, staffToForm, updateHrStaffProfile, downloadStaffRegistrationFormPdf } from '../../lib/hrStaff';
@@ -781,6 +781,11 @@ export default function HrStaffProfile() {
             />
           ) : null}
           <HrStaffAppraisalSnapshot userId={userId} compact />
+          <HrStaffReportingBlock
+            staff={staff}
+            staffBasePath={HR_EMPLOYEES}
+            organogramPath={hrTabPath(HR_EMPLOYEES, 'org-chart', { focus: userId })}
+          />
           <div className="grid gap-4 lg:grid-cols-2">
             <ProfileSectionCard
               title="Personal data"
@@ -825,7 +830,6 @@ export default function HrStaffProfile() {
                       ? `L${staff.salaryLevel} / Step ${staff.salaryStep ?? 1} · ${staff.promotionGrade || '—'}`
                       : '—',
                 },
-                { label: 'Line manager', value: staff.lineManagerDisplayName || staff.lineManager?.displayName || staff.lineManagerUserId || '—' },
               ]}
             />
             <ProfileSectionCard
@@ -858,7 +862,11 @@ export default function HrStaffProfile() {
       ) : null}
 
       {tab === 'lifecycle' ? (
-        <HrStaffLifecyclePanel userId={userId} onUpdated={reloadProfile} />
+        <HrStaffLifecyclePanel
+          userId={userId}
+          staff={{ displayName: staff.displayName, username: staff.username, employeeNo: staff.employeeNo }}
+          onUpdated={reloadProfile}
+        />
       ) : null}
 
       {tab === 'employment' ? (

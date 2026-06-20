@@ -160,7 +160,7 @@ export default function HrStaffDirectory({
   const [previewStaff, setPreviewStaff] = useState(null);
   const [masterDepartments, setMasterDepartments] = useState([]);
   const isSpecialList = cohort !== 'employees';
-  const includeInactive = status === 'all' || status === 'inactive';
+  const includeInactive = status === 'all' || status === 'inactive' || quickFilter === 'exited-retired';
   const showSavedViews = !isSpecialList && !teamMode;
 
   useEffect(() => {
@@ -753,7 +753,11 @@ export default function HrStaffDirectory({
             {!loading && total === 0 ? (
               <HrEmptyState
                 title="No staff match these filters"
-                description="Try clearing filters or widening the status to include inactive staff."
+                description={
+                  quickFilter === 'exited-retired'
+                    ? 'No staff are marked exited or retired yet. Update employment status or run a separation on staff profiles.'
+                    : 'Try clearing filters or widening the status to include inactive staff.'
+                }
                 action={
                   canRegister ? (
                     <button type="button" onClick={() => setRegisterOpen(true)} className={HR_BTN_PRIMARY}>

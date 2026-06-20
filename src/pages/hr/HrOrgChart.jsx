@@ -1,16 +1,27 @@
-import React, { useMemo, useState, useEffect, useCallback } from 'react';
-import { Download, Link2, Minus, Plus, Search } from 'lucide-react';
+import React, { useMemo, useState, useEffect, useCallback, useRef } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
+import { Download, Link2, Minus, Plus, Printer, Search } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { useToast } from '../../context/ToastContext';
 import { useHrListLoad } from '../../hooks/useHrListLoad';
 import { HrOrgChartTree } from '../../components/hr/HrOrgChartTree';
 import { HrOrgRelationshipModal } from '../../components/hr/HrOrgRelationshipModal';
+import { HrOrgDataQualityPanel } from '../../components/hr/HrOrgDataQualityPanel';
 import { applyOrgLineManager, fetchHrOrgChart } from '../../lib/hrOrgChart';
 import { orgChartExportCsvUrl } from '../../lib/hrStaffDirectoryApi';
 import { HR_FIELD_CLASS, HR_BTN_SECONDARY } from '../../components/hr/hrFormStyles';
-import { HR_EMPLOYEES } from '../../lib/hrRoutes';
+import { HR_EMPLOYEES, hrTabPath } from '../../lib/hrRoutes';
+import { TEAM_HR_BASE } from '../../lib/teamHrRoutes';
 import { canManageHrStaff } from '../../lib/hrAccess';
-import { ORG_CHART_VIEWS, branchLabel, orgUnitLabel, roleFamilyLabel } from '../../lib/hrOrgChartUi';
+import {
+  ORG_CHART_VIEWS,
+  branchLabel,
+  exportFilteredChartCsv,
+  findOrgChartFocusPath,
+  orgUnitLabel,
+  roleFamilyLabel,
+  summarizeHrOrgChart,
+} from '../../lib/hrOrgChartUi';
 
 const COLLAPSE_KEY = 'zarewa-hr-org-chart-collapse';
 const VIEW_KEY = 'zarewa-hr-org-chart-view';
@@ -73,7 +84,10 @@ function StatTile({ label, value, hint }) {
   );
 }
 
-export default function HrOrgChart({ staffBasePath = HR_EMPLOYEES } = {}) {
+export default function HrOrgChart({ staffBasePath = HR_EMPLOYEES, teamMode = false } = {}) {
+  const [searchParams] = useSearchParams();
+  const focusUserId = String(searchParams.get('focus') || '').trim();
+  const orphansPanelRef = useRef(null);
   const ws = useWorkspace();
   const { show: toast } = useToast();
   const perms = ws?.permissions || [];
@@ -83,7 +97,7 @@ export default function HrOrgChart({ staffBasePath = HR_EMPLOYEES } = {}) {
     return list.map((b) => ({ id: b.id, name: b.name || b.id }));
   }, [ws?.snapshot?.workspaceBranches, ws?.session?.branches]);
 
-  const [chart, setChart] = useState({ roots: [], orphans: [], total: 0, summary: null });
+  const [chart, setChart] = useState({ roots: [], orphans: [], total: 0, summary: null, dataQuality: null });
   const [branchFilter, setBranchFilter] = useState('');
   const [departmentFilter, setDepartmentFilter] = useState('');
   const [search, setSearch] = useState('');
@@ -125,10 +139,10 @@ export default function HrOrgChart({ staffBasePath = HR_EMPLOYEES } = {}) {
   const { loading, error, reload } = useHrListLoad(async () => {
     const { ok, data } = await fetchHrOrgChart();
     if (!ok || !data?.ok) {
-      setChart({ roots: [], orphans: [], total: 0, summary: null });
+      setChart({ roots: [], orphans: [], total: 0, summary: null, dataQuality: null });
       return { error: data?.error || 'Could not load org chart.', hasData: false };
     }
-    setChart(data.chart || { roots: [], orphans: [], total: 0, summary: null });
+    setChart(data.chart || { roots: [], orphans: [], total: 0, summary: null, dataQuality: null });
     return { hasData: true };
   }, []);
 
@@ -238,7 +252,35 @@ export default function HrOrgChart({ staffBasePath = HR_EMPLOYEES } = {}) {
     return working;
   }, [chart, branchFilter, departmentFilter, search]);
 
-  const summary = chart.summary;
+  const isFiltered = Boolean(branchFilter || departmentFilter || search.trim());
+  const displaySummary = useMemo(() => summarizeHrOrgChart(filteredChart), [filteredChart]);
+  const focusPath = useMemo(() => new Set(findOrgChartFocusPath(filteredChart, focusUserId)), [filteredChart, focusUserId]);
+  const cycleUserIds = useMemo(() => {
+    const ids = new Set();
+    for (const cycle of chart.dataQuality?.cycles || []) {
+      for (const m of cycle.members || []) ids.add(m.userId);
+    }
+    return ids;
+  }, [chart.dataQuality?.cycles]);
+
+  const directoryFixPath = teamMode
+    ? `${TEAM_HR_BASE}/staff?quick=no-manager`
+    : hrTabPath(HR_EMPLOYEES, 'directory', { quick: 'no-manager' });
+
+  const scrollToOrphans = useCallback(() => {
+    orphansPanelRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
+  }, []);
+
+  const handlePrint = () => {
+    window.print();
+  };
+
+  const handleExportFiltered = () => {
+    exportFilteredChartCsv(filteredChart, branches);
+  };
+
+  const summary = displaySummary;
+  const summaryScopeLabel = isFiltered ? 'Filtered view' : 'All staff in scope';
   const activeView = ORG_CHART_VIEWS.find((v) => v.id === view) || ORG_CHART_VIEWS[0];
   const topDepartments = (summary?.departments || []).slice(0, 3).map((d) => d.key).join(' · ');
   const topBranches = (summary?.branches || [])
@@ -247,20 +289,29 @@ export default function HrOrgChart({ staffBasePath = HR_EMPLOYEES } = {}) {
     .join(' · ');
 
   return (
-    <div className="space-y-5">
+    <div className="hr-org-chart-root space-y-5">
       <div className="rounded-2xl border border-slate-100 bg-gradient-to-br from-slate-50 to-white p-4 sm:p-5">
         <p className="text-sm text-slate-700">
           Company organogram built from line-manager reporting lines. Switch lenses to see departments, branches, or payroll
           units. Click any person to open their HR file.
         </p>
+        <HrOrgDataQualityPanel
+          dataQuality={chart.dataQuality}
+          directoryFixPath={directoryFixPath}
+          staffBasePath={staffBasePath}
+          onScrollToOrphans={(chart.orphans || []).length ? scrollToOrphans : undefined}
+        />
         {summary ? (
-          <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-6">
-            <StatTile label="Active staff" value={summary.total} />
-            <StatTile label="Top level" value={summary.roots} hint="No manager in scope" />
-            <StatTile label="Leadership" value={summary.leadership} hint="Heads & directors" />
-            <StatTile label="Depth" value={summary.maxDepth + 1} hint="Reporting tiers" />
-            <StatTile label="Departments" value={summary.departments.length} hint={topDepartments || '—'} />
-            <StatTile label="Branches" value={summary.branches.length} hint={topBranches || '—'} />
+          <div className="mt-4">
+            <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-slate-400">{summaryScopeLabel}</p>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-6">
+              <StatTile label="Active staff" value={summary.total} />
+              <StatTile label="Top level" value={summary.roots} hint="No manager in scope" />
+              <StatTile label="Leadership" value={summary.leadership} hint="Heads & directors" />
+              <StatTile label="Depth" value={summary.maxDepth + 1} hint="Reporting tiers" />
+              <StatTile label="Departments" value={summary.departments.length} hint={topDepartments || '—'} />
+              <StatTile label="Branches" value={summary.branches.length} hint={topBranches || '—'} />
+            </div>
           </div>
         ) : null}
       </div>
@@ -315,7 +366,7 @@ export default function HrOrgChart({ staffBasePath = HR_EMPLOYEES } = {}) {
         </div>
       ) : null}
 
-      <div className="flex flex-wrap items-end gap-3">
+      <div className="hr-org-chart-toolbar flex flex-wrap items-end gap-3">
         <label className="text-xs font-semibold text-slate-600">
           Branch
           <select
@@ -339,7 +390,7 @@ export default function HrOrgChart({ staffBasePath = HR_EMPLOYEES } = {}) {
             onChange={(e) => setDepartmentFilter(e.target.value)}
           >
             <option value="">All departments</option>
-            {(summary?.departments || []).map((d) => (
+            {(chart.summary?.departments || []).map((d) => (
               <option key={d.key} value={d.key}>
                 {d.key} ({d.count})
               </option>
@@ -384,7 +435,7 @@ export default function HrOrgChart({ staffBasePath = HR_EMPLOYEES } = {}) {
         >
           {collapseAll ? 'Expand all' : 'Collapse all'}
         </button>
-        {canEditRelationships ? (
+        {canEditRelationships && !teamMode ? (
           <button
             type="button"
             onClick={toggleEditMode}
@@ -398,18 +449,35 @@ export default function HrOrgChart({ staffBasePath = HR_EMPLOYEES } = {}) {
             {editMode ? 'Done editing' : 'Edit relationships'}
           </button>
         ) : null}
+        <button
+          type="button"
+          onClick={handleExportFiltered}
+          disabled={!displaySummary?.total}
+          className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold uppercase text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+        >
+          <Download size={14} aria-hidden />
+          Export view
+        </button>
         <a
           href={orgChartExportCsvUrl()}
           className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold uppercase text-slate-600 hover:bg-slate-50"
         >
           <Download size={14} aria-hidden />
-          Export CSV
+          Export all
         </a>
+        <button
+          type="button"
+          onClick={handlePrint}
+          className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold uppercase text-slate-600 hover:bg-slate-50"
+        >
+          <Printer size={14} aria-hidden />
+          Print
+        </button>
       </div>
 
-      {summary && view === 'unit' ? (
+      {chart.summary && view === 'unit' ? (
         <div className="flex flex-wrap gap-2">
-          {(summary.orgUnits || []).map((u) => (
+          {(chart.summary.orgUnits || []).map((u) => (
             <span
               key={u.key}
               className="rounded-full border border-slate-200 bg-white px-3 py-1 text-[10px] font-semibold text-slate-600"
@@ -420,9 +488,9 @@ export default function HrOrgChart({ staffBasePath = HR_EMPLOYEES } = {}) {
         </div>
       ) : null}
 
-      {summary && view === 'department' ? (
+      {chart.summary && view === 'department' ? (
         <div className="flex flex-wrap gap-2">
-          {(summary.roleFamilies || []).slice(0, 8).map((f) => (
+          {(chart.summary.roleFamilies || []).slice(0, 8).map((f) => (
             <span
               key={f.key}
               className="rounded-full border border-slate-200 bg-white px-3 py-1 text-[10px] font-semibold text-slate-600"
@@ -435,7 +503,7 @@ export default function HrOrgChart({ staffBasePath = HR_EMPLOYEES } = {}) {
 
       {loading && !chart.total ? <p className="text-sm text-slate-600">Loading organogram…</p> : null}
 
-      <div className="overflow-x-auto rounded-2xl border border-slate-100 bg-slate-50/60 p-4 sm:p-6">
+      <div className="hr-org-chart-canvas overflow-x-auto rounded-2xl border border-slate-100 bg-slate-50/60 p-4 sm:p-6">
         <div
           className="inline-block min-w-full origin-top transition-transform"
           style={{ transform: `scale(${zoom})`, width: zoom < 1 ? `${100 / zoom}%` : '100%' }}
@@ -448,6 +516,10 @@ export default function HrOrgChart({ staffBasePath = HR_EMPLOYEES } = {}) {
             branches={branches}
             editMode={editMode}
             linkSourceId={linkSource?.userId || ''}
+            focusUserId={focusUserId}
+            focusPath={focusPath}
+            cycleUserIds={cycleUserIds}
+            orphansPanelRef={orphansPanelRef}
             onNodeClick={handleNodeClick}
           />
         </div>
@@ -469,8 +541,11 @@ export default function HrOrgChart({ staffBasePath = HR_EMPLOYEES } = {}) {
 
       {(filteredChart.orphans || []).length ? (
         <p className="text-xs text-amber-800 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2">
-          {filteredChart.orphans.length} staff without a complete reporting line in this view — assign line managers in the
-          employee directory.
+          {filteredChart.orphans.length} staff without a complete reporting line in this view —{' '}
+          <Link to={directoryFixPath} className="font-semibold underline">
+            fix in the directory
+          </Link>
+          .
         </p>
       ) : null}
     </div>

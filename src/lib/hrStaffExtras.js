@@ -33,3 +33,17 @@ export function bulkUpdateHrStaff({ userIds, lineManagerUserId, accountStatus, b
     body: JSON.stringify({ userIds, lineManagerUserId, accountStatus, branchId, flagForReview }),
   });
 }
+
+/**
+ * Permanently delete a staff login and HR data. Irreversible — prefer separation for leavers.
+ * @param {string} userId
+ * @param {{ reason: string; confirmUsername: string }} payload
+ */
+export function deleteHrStaffPermanently(userId, payload) {
+  const id = String(userId || '').trim();
+  if (!id) return Promise.resolve({ ok: false, data: { ok: false, error: 'Staff not selected.' } });
+  return apiFetch(`/api/hr/staff/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+    body: JSON.stringify(payload),
+  });
+}

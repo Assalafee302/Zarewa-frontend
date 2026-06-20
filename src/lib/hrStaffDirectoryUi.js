@@ -8,7 +8,20 @@ export const QUICK_FILTERS = [
   { id: 'contract', label: 'Contract expiring' },
   { id: 'doc-expiry', label: 'Documents expiring' },
   { id: 'no-manager', label: 'No line manager' },
+  { id: 'exited-retired', label: 'Exited / retired' },
 ];
+
+const EXITED_EMPLOYMENT_STATUSES = new Set(['exited', 'retired', 'terminated', 'resigned', 'inactive']);
+
+/** Staff who have left or are in an exit workflow (employment status or lifecycle separation). */
+export function isExitedOrRetiredStaff(staff) {
+  const emp = String(staff?.profileExtra?.employmentMeta?.employmentStatus || '').toLowerCase();
+  if (EXITED_EMPLOYMENT_STATUSES.has(emp)) return true;
+  const sep = String(staff?.profileExtra?.lifecycle?.separation?.status || staff?.lifecycle?.separation?.status || '').toLowerCase();
+  if (sep === 'separating' || sep === 'separated') return true;
+  const reason = String(staff?.profileExtra?.lifecycle?.separation?.reason || staff?.lifecycle?.separation?.reason || '').toLowerCase();
+  return reason.includes('retir');
+}
 
 /** Dashboard alert keys → directory quick filter ids */
 export const DIRECTORY_QUICK_FROM_ALERT = {
@@ -145,6 +158,7 @@ export function matchesQuickFilter(staff, quickFilter) {
   if (quickFilter === 'contract') return isContractExpiringSoon(staff);
   if (quickFilter === 'no-manager') return !String(staff?.lineManagerUserId || '').trim();
   if (quickFilter === 'doc-expiry') return Boolean(staff?.docExpirySummary?.nextExpiryIso);
+  if (quickFilter === 'exited-retired') return isExitedOrRetiredStaff(staff);
   return true;
 }
 

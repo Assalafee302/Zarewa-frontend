@@ -100,6 +100,7 @@ export const ABSENCE_TYPES = [
 
 export const SEPARATION_TYPES = [
   { value: 'resignation', label: 'Resignation' },
+  { value: 'retirement', label: 'Retirement' },
   { value: 'termination', label: 'Termination' },
   { value: 'layoff', label: 'Lay-off' },
   { value: 'retrenchment', label: 'Retrenchment' },

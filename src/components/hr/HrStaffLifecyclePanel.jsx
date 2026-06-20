@@ -9,16 +9,18 @@ import {
 } from '../../lib/hrStaffLifecycle';
 import { HR_BTN_PRIMARY, HR_FIELD_CLASS } from './hrFormStyles';
 import { useHrListLoad } from '../../hooks/useHrListLoad';
+import { HrStaffPermanentDeletePanel } from './HrStaffPermanentDeletePanel';
 
 /**
  * @param {{
  *   userId: string;
+ *   staff?: { displayName?: string; username?: string; employeeNo?: string };
  *   isSelf?: boolean;
  *   initialLifecycle?: object | null;
  *   onUpdated?: () => void;
  * }} props
  */
-export function HrStaffLifecyclePanel({ userId, isSelf = false, initialLifecycle, onUpdated }) {
+export function HrStaffLifecyclePanel({ userId, staff, isSelf = false, initialLifecycle, onUpdated }) {
   const ws = useWorkspace();
   const canManage = hrHasPermission(ws?.permissions, 'hr.staff.manage');
   const [lifecycle, setLifecycle] = useState(initialLifecycle || null);
@@ -194,7 +196,7 @@ export function HrStaffLifecyclePanel({ userId, isSelf = false, initialLifecycle
                 className={HR_FIELD_CLASS}
                 value={sepReason}
                 onChange={(e) => setSepReason(e.target.value)}
-                placeholder="Resignation, end of contract, termination…"
+                placeholder="Resignation, retirement, end of contract, termination…"
               />
             </label>
             <label className="block text-xs font-semibold text-slate-600 sm:col-span-2">
@@ -208,7 +210,8 @@ export function HrStaffLifecyclePanel({ userId, isSelf = false, initialLifecycle
           </div>
           <p className="text-xs text-slate-500">
             Setting status to Separated disables self-service for this employee. Offboarding tasks appear when status is
-            Separating or Separated.
+            Separating or Separated. Completing exit clearance also deactivates the login account and sets employment
+            status to Exited or Retired.
           </p>
           <button type="submit" disabled={busy} className={HR_BTN_PRIMARY}>
             {busy ? 'Saving…' : 'Save separation'}
@@ -221,6 +224,13 @@ export function HrStaffLifecyclePanel({ userId, isSelf = false, initialLifecycle
             <p className="text-xs mt-1">Last day: {lifecycle.separation.lastWorkingDayIso}</p>
           ) : null}
         </div>
+      ) : null}
+
+      {canManage && staff?.username ? (
+        <HrStaffPermanentDeletePanel
+          staff={{ userId, displayName: staff.displayName, username: staff.username, employeeNo: staff.employeeNo }}
+          redirectAfterDelete
+        />
       ) : null}
     </div>
   );

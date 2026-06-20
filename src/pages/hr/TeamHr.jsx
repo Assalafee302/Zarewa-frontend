@@ -12,10 +12,12 @@ import TeamHrIncidents from './TeamHrIncidents';
 import TeamHrTransfers from './TeamHrTransfers';
 import TeamHrTimeAbsenceHub from './TeamHrTimeAbsenceHub';
 import TeamHrHome from './TeamHrHome';
+import TeamHrOrgChart from './TeamHrOrgChart';
 
 const NAV = [
   { to: '/team-hr', label: 'Dashboard', end: true },
   { to: '/team-hr/staff', label: 'Team staff' },
+  { to: '/team-hr/org-chart', label: 'Organogram' },
   { to: TEAM_HR_TIME_ABSENCE, label: 'Time & absence' },
   { to: '/team-hr/incidents', label: 'Incident memos' },
   { to: '/team-hr/transfers', label: 'Transfers' },
@@ -35,6 +37,7 @@ export default function TeamHr() {
       >
         <Route index element={<TeamHrHome />} />
         <Route path="staff" element={<TeamHrStaff />} />
+        <Route path="org-chart" element={<TeamHrOrgChart />} />
         <Route path="time-absence" element={<TeamHrTimeAbsenceHub />} />
         <Route path="attendance" element={<TeamHrAttendanceLegacyRedirect />} />
         <Route path="requests" element={<TeamHrRequestsLegacyRedirect />} />

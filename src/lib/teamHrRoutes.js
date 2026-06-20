@@ -1,6 +1,8 @@
 /** Canonical Team HR route paths. */
 
 export const TEAM_HR_BASE = '/team-hr';
+export const TEAM_HR_STAFF = '/team-hr/staff';
+export const TEAM_HR_ORG_CHART = '/team-hr/org-chart';
 export const TEAM_HR_TIME_ABSENCE = '/team-hr/time-absence';
 
 /** @deprecated — redirects to TEAM_HR_TIME_ABSENCE */
