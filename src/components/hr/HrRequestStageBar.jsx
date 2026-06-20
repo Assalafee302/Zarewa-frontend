@@ -19,8 +19,11 @@ export default function HrRequestStageBar({ status, kind, request, compact = fal
       <div
         className="flex gap-1 overflow-x-auto pb-0.5"
         role="list"
-        aria-label={`Approval progress: step ${Math.min(currentIdx + 1, chain.length)} of ${chain.length}`}
+        aria-label={`Approval progress: step ${Math.min(currentIdx + 1, chain.length)} of ${chain.length}${rejected ? ', rejected' : resolvedStatus === 'approved' ? ', approved' : ''}`}
       >
+        <span className="sr-only">
+          Current step: {chain[Math.min(currentIdx, chain.length - 1)] || 'Pending'}
+        </span>
         {chain.map((step, i) => {
           const complete = i < currentIdx || (i === currentIdx && resolvedStatus === 'approved');
           const active = i === currentIdx && !rejected && resolvedStatus !== 'approved';

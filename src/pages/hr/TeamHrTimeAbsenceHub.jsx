@@ -69,7 +69,12 @@ export default function TeamHrTimeAbsenceHub() {
       ) : null}
 
       {tab === 'endorsements' ? (
-        <HrRequestsPanel allowedScopes={['endorse_queue']} defaultScope="endorse_queue" staffLinkBase="/hr/employees" />
+        <HrRequestsPanel
+          allowedScopes={['endorse_queue']}
+          defaultScope="endorse_queue"
+          staffLinkBase="/hr/employees"
+          showStageBar
+        />
       ) : null}
 
       {tab === 'calendar' ? <TeamHrLeaveCalendar embedded /> : null}

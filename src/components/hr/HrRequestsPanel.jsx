@@ -19,7 +19,7 @@ import { HrRequestScopeFilter } from './HrRequestScopeFilter';
 import { HrRequestPreviewSlideOver } from './HrRequestPreviewSlideOver';
 import { MyRequestDetailSlideOver } from './MyRequestDetailSlideOver';
 import { HrEmptyState } from './hrPageUi';
-import { HR_SELF_SERVICE_PATH } from '../../lib/hrSelfServiceRoutes';
+import { hrRequestsEmptyState } from '../../lib/hrRequestsEmptyState';
 import { HR_BTN_PILL, HR_BTN_PRIMARY, HR_BTN_SECONDARY, HR_FIELD_CLASS, HR_TEXTAREA_CLASS } from './hrFormStyles';
 
 const CARD_ROW =
@@ -327,7 +327,7 @@ export function HrRequestsPanel({
           <HrRequestPayloadSummary request={r} compact />
           {r.reviewNotes?.length ? (
             <div className="mt-2 border-t border-slate-100 pt-2">
-              <p className="text-[10px] font-bold uppercase text-slate-400">Approval history</p>
+              <p className="text-xs font-semibold text-slate-500">Approval history</p>
               <ul className="mt-1 space-y-1 text-xs text-slate-600">
                 {r.reviewNotes.map((n, i) => (
                   <li key={i}>{n.atIso?.slice(0, 16)} — {n.note || n.action}</li>
@@ -350,12 +350,12 @@ export function HrRequestsPanel({
             const { chain, currentIdx } = hrRequestApprovalChain(r.status, r.kind);
             return (
               <div>
-                <p className="text-[10px] font-bold uppercase text-slate-400 mb-1">Approval chain</p>
+                <p className="mb-1 text-xs font-semibold text-slate-500">Approval chain</p>
                 <div className="flex flex-wrap gap-1.5">
                   {chain.map((step, i) => (
                     <span
                       key={step}
-                      className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${
+                      className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
                         i <= currentIdx ? 'bg-[#134e4a] text-white' : 'bg-slate-200 text-slate-500'
                       }`}
                     >
@@ -426,7 +426,7 @@ export function HrRequestsPanel({
       <HrListTableFrame
         toolbar={
           compact ? (
-            <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+            <p className="text-xs font-semibold text-slate-500">
               {loading ? 'Loading…' : `${visibleSortedRequests.length} pending`}
             </p>
           ) : (
@@ -502,8 +502,8 @@ export function HrRequestsPanel({
               className="w-full rounded-lg border border-red-200 px-3 py-2 text-sm"
             />
             <div className="flex gap-2">
-              <button type="button" onClick={() => bulkReview(false, bulkRejectReason)} className="rounded-lg bg-red-700 px-3 py-1.5 text-[10px] font-bold uppercase text-white">
-                Confirm Reject All
+              <button type="button" onClick={() => bulkReview(false, bulkRejectReason)} className={`${HR_BTN_PRIMARY} bg-red-700 hover:bg-red-800`}>
+                Confirm reject all
               </button>
               <button
                 type="button"
@@ -511,7 +511,7 @@ export function HrRequestsPanel({
                   setShowBulkRejectPrompt(false);
                   setBulkRejectReason('');
                 }}
-                className="rounded-lg border border-slate-200 px-3 py-1.5 text-[10px] font-bold uppercase text-slate-600"
+                className={HR_BTN_SECONDARY}
               >
                 Cancel
               </button>
@@ -522,26 +522,34 @@ export function HrRequestsPanel({
         {loading && requests.length === 0 ? (
           <p className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">Loading requests…</p>
         ) : null}
-        {!loading && visibleSortedRequests.length === 0 ? (
-          selfService ? (
+        {!loading && visibleSortedRequests.length === 0 ? (() => {
+          const empty = hrRequestsEmptyState(scope, { selfService });
+          return (
             <HrEmptyState
-              title="No requests yet"
-              description="Leave, loan, and profile change requests appear here once you submit them."
+              title={empty.title}
+              description={empty.description}
               action={
-                <div className="flex flex-wrap justify-center gap-2">
-                  <Link to={HR_SELF_SERVICE_PATH.timeOff + '?tab=leave'} className="rounded-lg bg-[#134e4a] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#0f3d39] no-underline">
-                    Apply for leave
-                  </Link>
-                  <Link to={HR_SELF_SERVICE_PATH.loans} className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-[#134e4a] hover:bg-slate-50 no-underline">
-                    Apply for loan
-                  </Link>
-                </div>
+                empty.quickLinks?.length ? (
+                  <div className="flex flex-wrap justify-center gap-2">
+                    {empty.quickLinks.map((link) => (
+                      <Link
+                        key={link.to}
+                        to={link.to}
+                        className={
+                          link.primary
+                            ? 'inline-flex min-h-10 items-center rounded-lg bg-[#134e4a] px-3 py-2 text-xs font-semibold text-white hover:bg-[#0f3d39] no-underline'
+                            : 'inline-flex min-h-10 items-center rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-[#134e4a] hover:bg-slate-50 no-underline'
+                        }
+                      >
+                        {link.label}
+                      </Link>
+                    ))}
+                  </div>
+                ) : null
               }
             />
-          ) : (
-            <p className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">No requests in this queue.</p>
-          )
-        ) : null}
+          );
+        })() : null}
 
         <div className="space-y-2">
           {requestPaging.slice.map((r) => (
@@ -560,7 +568,7 @@ export function HrRequestsPanel({
                   <span className="w-4 shrink-0" />
                 )}
                 <button type="button" className="min-w-0 flex-1 text-left" onClick={() => setPreviewRequest(r)}>
-                  <p className={`${selfService ? 'text-xs font-semibold text-slate-500' : 'text-[9px] font-bold uppercase tracking-widest text-slate-400'}`}>
+                  <p className="text-xs font-semibold text-slate-500">
                     {hrRequestKindLabel(r.kind)}
                   </p>
                   <p className="truncate text-sm font-bold text-slate-900">{r.title || 'Request'}</p>
@@ -576,7 +584,7 @@ export function HrRequestsPanel({
                   {selfService && showStageBar ? <HrRequestStageBar status={r.status} kind={r.kind} compact /> : null}
                 </button>
                 <span
-                  className={`shrink-0 inline-flex rounded-full border px-2 py-0.5 ${selfService ? 'text-xs font-semibold' : 'text-[10px] font-bold uppercase'} ${hrRequestStatusClass(r.status)}`}
+                  className={`shrink-0 inline-flex rounded-full border px-2 py-0.5 text-xs font-semibold ${hrRequestStatusClass(r.status)}`}
                 >
                   {r.status?.replace(/_/g, ' ')}
                 </span>

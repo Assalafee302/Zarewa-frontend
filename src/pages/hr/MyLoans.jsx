@@ -407,7 +407,7 @@ export default function MyLoans({ staffLinkBase = '/my-profile' }) {
                         : loan.status || 'active'}
                 </ProfileStatusChip>
                 {loan.obligationAccountId ? (
-                  <div className="mt-2 flex flex-wrap gap-2 text-[10px] font-semibold">
+                  <div className="mt-2 flex flex-wrap gap-2 text-xs font-semibold">
                     <a
                       className="text-[#134e4a] underline"
                       href={obligationStatementPdfUrl(loan.obligationAccountId)}
@@ -513,7 +513,7 @@ export default function MyLoans({ staffLinkBase = '/my-profile' }) {
                     ) : (
                       <button
                         type="button"
-                        className={`${HR_BTN_PRIMARY} mt-2 text-[10px]`}
+                        className={`${HR_BTN_PRIMARY} mt-2 text-xs`}
                         onClick={() => setPurchaseModalRef(q.quotationRef)}
                       >
                         Request purchase credit
@@ -523,7 +523,7 @@ export default function MyLoans({ staffLinkBase = '/my-profile' }) {
                       <Link
                         to={quoteLink.to}
                         state={quoteLink.state}
-                        className="mt-2 inline-block text-[10px] font-semibold text-[#134e4a] underline"
+                        className="mt-2 inline-block text-xs font-semibold text-[#134e4a] underline"
                       >
                         View quotation
                       </Link>
@@ -558,13 +558,13 @@ export default function MyLoans({ staffLinkBase = '/my-profile' }) {
                     </div>
                   </dl>
                   {p.quotationRef ? (
-                    <p className="mt-1 text-[10px] text-slate-500">Quote {p.quotationRef}</p>
+                    <p className="mt-1 text-xs text-slate-500">Quote {p.quotationRef}</p>
                   ) : null}
                   <ProfileStatusChip variant={p.status === 'active' ? 'pending' : 'default'}>
                     {p.status === 'pending_approval' ? 'Awaiting approval' : p.status === 'active' ? 'Repaying' : p.status}
                   </ProfileStatusChip>
                   <a
-                    className="mt-2 inline-block text-[10px] font-semibold text-[#134e4a] underline"
+                    className="mt-2 inline-block text-xs font-semibold text-[#134e4a] underline"
                     href={obligationStatementPdfUrl(p.id)}
                     target="_blank"
                     rel="noreferrer"
@@ -606,7 +606,7 @@ export default function MyLoans({ staffLinkBase = '/my-profile' }) {
                   </dl>
                   <ProfileStatusChip variant="pending">Recovering</ProfileStatusChip>
                   <a
-                    className="mt-2 inline-block text-[10px] font-semibold text-[#134e4a] underline"
+                    className="mt-2 inline-block text-xs font-semibold text-[#134e4a] underline"
                     href={obligationStatementPdfUrl(r.id)}
                     target="_blank"
                     rel="noreferrer"
