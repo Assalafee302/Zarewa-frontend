@@ -242,6 +242,14 @@ export function Ap3CostingReadinessPanel({
               hint={formatNgn(s?.dieselExpenseNgn ?? 0)}
               tone={s?.dieselSeparated ? 'teal' : 'amber'}
             />
+            {data.branchContributionDraft?.poolNgn ? (
+              <AccountingDeskKpiCard
+                label="AP3c cost pool"
+                value={formatNgn(data.branchContributionDraft.poolNgn.total)}
+                hint={`Labour ${formatNgn(data.branchContributionDraft.poolNgn.labour)} · OH ${formatNgn(data.branchContributionDraft.poolNgn.overhead)}`}
+                tone="teal"
+              />
+            ) : null}
             <AccountingDeskKpiCard
               label="Unclassified expenses"
               value={formatNgn(s?.unclassifiedExpenseNgn ?? 0)}
