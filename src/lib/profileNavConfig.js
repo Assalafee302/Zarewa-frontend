@@ -39,6 +39,7 @@ export const EMPLOYEE_PROFILE_NAV = [
     label: 'Work & pay',
     items: [
       { to: '/my-profile/time-off', label: 'Time off', icon: CalendarDays, primary: true },
+      { to: '/my-profile/requests', label: 'My requests', icon: FileText, primary: true },
       { to: '/my-profile/payslips', label: 'Payslips', icon: Receipt, primary: true },
       { to: '/my-profile/loans', label: 'Money with Zarewa', icon: Wallet, primary: true },
     ],

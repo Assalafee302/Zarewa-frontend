@@ -47,6 +47,7 @@ import {
 } from '../../lib/hrDashboardRequestsList';
 import { HrOperationalReadinessPanel } from '../../components/hr/HrOperationalReadinessPanel';
 import { HrProductionReadinessPanel } from '../../components/hr/HrProductionReadinessPanel';
+import { HrOperatorOnboardingPanel } from '../../components/hr/HrOperatorOnboardingPanel';
 import { HrPageBody } from '../../components/hr/hrPageUi';
 import { HrProfileWorkPanel } from '../../components/hr/HrProfileWorkPanel';
 import { HrUnifiedInboxPanel } from '../../components/hr/HrUnifiedInboxPanel';
@@ -758,6 +759,8 @@ export default function HrDashboard() {
 
       {isTodayView ? (
         <>
+          <HrOperatorOnboardingPanel />
+
           <HrUnifiedInboxPanel
             recentRequests={recentRequests}
             queueLines={queueLines}

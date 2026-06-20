@@ -27,6 +27,7 @@ const MyProfileDomesticPayments = lazyWithRetry(() => import('./MyProfileDomesti
 const MyProfileScholarshipRequests = lazyWithRetry(() => import('./MyProfileScholarshipRequests'), {
   id: 'MyProfileScholarshipRequests',
 });
+const MyRequests = lazyWithRetry(() => import('./MyRequests'), { id: 'MyRequests' });
 const MyTimeOff = lazyWithRetry(() => import('./MyTimeOff'), { id: 'MyTimeOff' });
 const MyPayslips = lazyWithRetry(() => import('./MyPayslips'), { id: 'MyPayslips' });
 const MyLoans = lazyWithRetry(() => import('./MyLoans'), { id: 'MyLoans' });
@@ -106,6 +107,23 @@ function MyProfileEmployeeRoute({ children }) {
   return children;
 }
 
+function MyProfileRequestsRoute() {
+  const { cohort } = useMyProfileCohort();
+  if (cohort === 'scholarship') {
+    return (
+      <ProfileTab>
+        <MyProfileScholarshipRequests />
+      </ProfileTab>
+    );
+  }
+  if (cohort === 'domestic') return <Navigate to="/my-profile/home" replace />;
+  return (
+    <ProfileTab>
+      <MyRequests />
+    </ProfileTab>
+  );
+}
+
 export default function MyProfile() {
   return (
     <Routes>
@@ -142,16 +160,7 @@ export default function MyProfile() {
           }
         />
         <Route path="payments" element={<MyProfilePaymentsRoute />} />
-        <Route
-          path="requests"
-          element={
-            <MyProfileCohortRoute cohort="scholarship" redirectTo="/my-profile/overview">
-              <ProfileTab>
-                <MyProfileScholarshipRequests />
-              </ProfileTab>
-            </MyProfileCohortRoute>
-          }
-        />
+        <Route path="requests" element={<MyProfileRequestsRoute />} />
         <Route
           path="employment"
           element={

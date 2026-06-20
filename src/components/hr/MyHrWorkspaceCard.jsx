@@ -1,12 +1,13 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { CalendarDays, ChevronRight, FileText, Receipt, Wallet } from 'lucide-react';
+import { CalendarDays, ChevronRight, ClipboardList, FileText, Receipt, Wallet } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { canAccessMyProfileHr } from '../../lib/hrAccess';
 import { HR_SELF_SERVICE_PATH } from '../../lib/hrSelfServiceRoutes';
 
 const QUICK_LINKS = [
   { to: HR_SELF_SERVICE_PATH.timeOff, label: 'Request leave', icon: CalendarDays },
+  { to: HR_SELF_SERVICE_PATH.requests, label: 'My requests', icon: ClipboardList },
   { to: HR_SELF_SERVICE_PATH.payslips, label: 'Payslips', icon: Receipt },
   { to: HR_SELF_SERVICE_PATH.documents, label: 'Documents', icon: FileText },
   { to: HR_SELF_SERVICE_PATH.loans, label: 'Loans', icon: Wallet },

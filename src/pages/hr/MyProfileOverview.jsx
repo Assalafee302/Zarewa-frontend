@@ -185,7 +185,7 @@ export default function MyProfileOverview() {
               <p className="mt-2 text-lg font-black tabular-nums text-[#134e4a]">
                 {formatNgn(attendance.deductionNgn || 0)}
               </p>
-              <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Est. deduction</p>
+              <p className="text-xs font-semibold text-slate-400">Est. deduction</p>
             </>
           )}
         </ProfileKpiCard>
@@ -238,10 +238,10 @@ export default function MyProfileOverview() {
             actionLabel="View payslips"
           />
         ) : (
-          <>
-            <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
-              {formatPeriodYyyymm(lastPayslip.periodYyyymm)} · {lastPayslip.runStatus}
-            </p>
+            <>
+              <p className="text-xs font-semibold text-slate-500">
+                {formatPeriodYyyymm(lastPayslip.periodYyyymm)} · {lastPayslip.runStatus}
+              </p>
             {lastPayslip.amountsRedacted || (!showSensitiveInline && !sensitive.isUnlocked) ? (
               <p className="mt-2 text-sm italic text-slate-500">Unlock payslips to view amount</p>
             ) : (
@@ -249,7 +249,7 @@ export default function MyProfileOverview() {
                 <p className="mt-2 text-2xl font-black tabular-nums tracking-tight text-slate-900">
                   {formatNgn(lastPayslip.netNgn)}
                 </p>
-                <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Net pay</p>
+                <p className="text-xs font-semibold text-slate-400">Net pay</p>
               </>
             )}
             {lastPayslip.attendanceDeductionNgn > 0 ? (
@@ -264,13 +264,13 @@ export default function MyProfileOverview() {
         )}
       </ProfileKpiCard>
 
-      <ProfileKpiCard label="Recent requests">
+      <ProfileKpiCard label="Recent requests" to={HR_SELF_SERVICE_PATH.requests} actionLabel="All requests">
         {requests.length === 0 ? (
           <ProfileEmptyState
             title="No requests yet"
             description="Leave, loan, and profile requests appear here."
-            actionTo={HR_SELF_SERVICE_PATH.timeOff + '?tab=leave'}
-            actionLabel="Apply for leave"
+            actionTo={HR_SELF_SERVICE_PATH.requests}
+            actionLabel="View my requests"
           />
         ) : (
           <ul className="space-y-2">

@@ -17,6 +17,9 @@ import HrRequestStageBar from './HrRequestStageBar';
 import { HrListTableFrame, HrListSearchInput, HrListSortBar } from './HrListTableFrame';
 import { HrRequestScopeFilter } from './HrRequestScopeFilter';
 import { HrRequestPreviewSlideOver } from './HrRequestPreviewSlideOver';
+import { MyRequestDetailSlideOver } from './MyRequestDetailSlideOver';
+import { HrEmptyState } from './hrPageUi';
+import { HR_SELF_SERVICE_PATH } from '../../lib/hrSelfServiceRoutes';
 import { HR_BTN_PILL, HR_BTN_PRIMARY, HR_BTN_SECONDARY, HR_FIELD_CLASS, HR_TEXTAREA_CLASS } from './hrFormStyles';
 
 const CARD_ROW =
@@ -24,7 +27,7 @@ const CARD_ROW =
 
 /**
  * Shared HR requests list with optional approval actions.
- * @param {{ allowedScopes: string[]; defaultScope?: string; kindFilter?: string; kindsInclude?: string[]; hideKindFilter?: boolean; staffLinkBase?: string; focusRequestId?: string; showStageBar?: boolean }} props
+ * @param {{ allowedScopes: string[]; defaultScope?: string; kindFilter?: string; kindsInclude?: string[]; hideKindFilter?: boolean; staffLinkBase?: string; focusRequestId?: string; showStageBar?: boolean; selfService?: boolean }} props
  */
 export function HrRequestsPanel({
   allowedScopes = ['mine'],
@@ -36,6 +39,7 @@ export function HrRequestsPanel({
   staffUserId = '',
   focusRequestId = '',
   showStageBar = false,
+  selfService = false,
   compact = false,
 }) {
   const ws = useWorkspace();
@@ -406,16 +410,18 @@ export function HrRequestsPanel({
 
   return (
     <div className="space-y-4">
-      <HrRequestScopeFilter
-        allowedScopes={allowedScopes}
-        scope={scope}
-        onChange={(s) => {
-          setScope(s);
-          setSelectedIds([]);
-        }}
-        counts={queueCounts}
-        loading={countsLoading}
-      />
+      {!selfService ? (
+        <HrRequestScopeFilter
+          allowedScopes={allowedScopes}
+          scope={scope}
+          onChange={(s) => {
+            setScope(s);
+            setSelectedIds([]);
+          }}
+          counts={queueCounts}
+          loading={countsLoading}
+        />
+      ) : null}
 
       <HrListTableFrame
         toolbar={
@@ -452,8 +458,8 @@ export function HrRequestsPanel({
                   Export CSV
                 </button>
               ) : null}
-              <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
-                {loading ? 'Loading…' : `${visibleSortedRequests.length} in queue`}
+              <p className={`${selfService ? 'text-xs' : 'text-[10px]'} font-semibold ${selfService ? 'text-slate-500' : 'uppercase tracking-wide text-slate-500'}`}>
+                {loading ? 'Loading…' : `${visibleSortedRequests.length} ${selfService ? 'requests' : 'in queue'}`}
               </p>
             </div>
           </>
@@ -517,7 +523,24 @@ export function HrRequestsPanel({
           <p className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">Loading requests…</p>
         ) : null}
         {!loading && visibleSortedRequests.length === 0 ? (
-          <p className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">No requests in this queue.</p>
+          selfService ? (
+            <HrEmptyState
+              title="No requests yet"
+              description="Leave, loan, and profile change requests appear here once you submit them."
+              action={
+                <div className="flex flex-wrap justify-center gap-2">
+                  <Link to={HR_SELF_SERVICE_PATH.timeOff + '?tab=leave'} className="rounded-lg bg-[#134e4a] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#0f3d39] no-underline">
+                    Apply for leave
+                  </Link>
+                  <Link to={HR_SELF_SERVICE_PATH.loans} className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-[#134e4a] hover:bg-slate-50 no-underline">
+                    Apply for loan
+                  </Link>
+                </div>
+              }
+            />
+          ) : (
+            <p className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">No requests in this queue.</p>
+          )
         ) : null}
 
         <div className="space-y-2">
@@ -537,16 +560,23 @@ export function HrRequestsPanel({
                   <span className="w-4 shrink-0" />
                 )}
                 <button type="button" className="min-w-0 flex-1 text-left" onClick={() => setPreviewRequest(r)}>
-                  <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400">{hrRequestKindLabel(r.kind)}</p>
+                  <p className={`${selfService ? 'text-xs font-semibold text-slate-500' : 'text-[9px] font-bold uppercase tracking-widest text-slate-400'}`}>
+                    {hrRequestKindLabel(r.kind)}
+                  </p>
                   <p className="truncate text-sm font-bold text-slate-900">{r.title || 'Request'}</p>
                   <p className="mt-0.5 text-xs text-slate-600">
-                    {showEmployeeColumn ? renderEmployeeCell(r) : r.staffDisplayName || 'You'}
-                    <span className="mx-1 text-slate-300">·</span>
-                    <span className="font-mono text-[10px] text-slate-500">{r.submittedAtIso?.slice(0, 10) || r.updatedAtIso?.slice(0, 10) || '—'}</span>
+                    {!selfService ? (
+                      <>
+                        {showEmployeeColumn ? renderEmployeeCell(r) : r.staffDisplayName || 'You'}
+                        <span className="mx-1 text-slate-300">·</span>
+                      </>
+                    ) : null}
+                    <span className="font-mono text-xs text-slate-500">{r.submittedAtIso?.slice(0, 10) || r.updatedAtIso?.slice(0, 10) || '—'}</span>
                   </p>
+                  {selfService && showStageBar ? <HrRequestStageBar status={r.status} kind={r.kind} compact /> : null}
                 </button>
                 <span
-                  className={`shrink-0 inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase ${hrRequestStatusClass(r.status)}`}
+                  className={`shrink-0 inline-flex rounded-full border px-2 py-0.5 ${selfService ? 'text-xs font-semibold' : 'text-[10px] font-bold uppercase'} ${hrRequestStatusClass(r.status)}`}
                 >
                   {r.status?.replace(/_/g, ' ')}
                 </span>
@@ -569,12 +599,20 @@ export function HrRequestsPanel({
         />
       ) : null}
 
-      <HrRequestPreviewSlideOver
-        request={previewRequest}
-        isOpen={Boolean(previewRequest)}
-        onClose={() => setPreviewRequest(null)}
-        onReviewed={() => void load()}
-      />
+      {selfService ? (
+        <MyRequestDetailSlideOver
+          request={previewRequest}
+          isOpen={Boolean(previewRequest)}
+          onClose={() => setPreviewRequest(null)}
+        />
+      ) : (
+        <HrRequestPreviewSlideOver
+          request={previewRequest}
+          isOpen={Boolean(previewRequest)}
+          onClose={() => setPreviewRequest(null)}
+          onReviewed={() => void load()}
+        />
+      )}
     </div>
   );
 }
