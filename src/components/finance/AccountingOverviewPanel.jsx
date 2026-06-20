@@ -11,7 +11,7 @@ import {
 /**
  * @param {{ branchScopeLabel?: string; showToast?: (msg: string, opts?: object) => void }} props
  */
-export function AccountingOverviewPanel({ branchScopeLabel = '', showToast }) {
+export function AccountingOverviewPanel({ branchScopeLabel = '' }) {
   const [data, setData] = useState(null);
   const [opening, setOpening] = useState(null);
   const [loading, setLoading] = useState(false);

@@ -24,7 +24,7 @@ const STATUS_ICON = {
  *   onFocusTab?: (tabId: string) => void;
  * }} props
  */
-export function AccountingClosePanel({ branchScopeLabel = '', showToast, onFocusTab }) {
+export function AccountingClosePanel({ branchScopeLabel = '', onFocusTab }) {
   const [period, setPeriod] = useState(currentPeriod);
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);

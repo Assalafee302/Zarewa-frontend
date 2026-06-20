@@ -46,6 +46,8 @@ export function FinancePayrollPaymentsPanel() {
   const [remitPension, setRemitPension] = useState('');
   const [remitDate, setRemitDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [remitBusy, setRemitBusy] = useState(false);
+  const [glStatus, setGlStatus] = useState(null);
+  const [glBusy, setGlBusy] = useState(false);
 
   const sortedRuns = useMemo(() => sortPayrollRunsByPeriod(runs), [runs]);
 
