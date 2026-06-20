@@ -44,7 +44,7 @@ const HR_NAV_DEFINITION = [
   },
   {
     to: '/hr/payroll',
-    label: 'Payroll',
+    label: 'Payroll & credit',
     visible: (p) =>
       canPreparePayroll(p) ||
       canGmApprovePayroll(p) ||

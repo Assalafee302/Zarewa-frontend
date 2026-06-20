@@ -10,7 +10,7 @@ const QUICK_LINKS = [
   { to: HR_SELF_SERVICE_PATH.requests, label: 'My requests', icon: ClipboardList },
   { to: HR_SELF_SERVICE_PATH.payslips, label: 'Payslips', icon: Receipt },
   { to: HR_SELF_SERVICE_PATH.documents, label: 'Documents', icon: FileText },
-  { to: HR_SELF_SERVICE_PATH.loans, label: 'Loans', icon: Wallet },
+  { to: HR_SELF_SERVICE_PATH.loans, label: 'Loans & credit', icon: Wallet },
 ];
 
 /**

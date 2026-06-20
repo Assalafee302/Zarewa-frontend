@@ -12,7 +12,7 @@ const HrPayeTaxPension = lazyWithRetry(() => import('./HrPayeTaxPension'), { id:
 
 const TABS = [
   { id: 'payroll-runs', label: 'Monthly payroll' },
-  { id: 'loans', label: 'Loans' },
+  { id: 'loans', label: 'Staff credit' },
   { id: 'benefits', label: 'Benefits' },
   { id: 'salary-matrix', label: 'Salary matrix' },
   { id: 'tax-pension', label: 'Tax & pension' },
@@ -33,6 +33,7 @@ export default function HrPayrollHub() {
   return (
     <HrTabbedPage
       title="Payroll & benefits"
+      description="Monthly salary runs are separate from staff loans and purchase credit."
       tabs={TABS}
       tab={tab}
       onTabChange={setTab}
@@ -41,7 +42,7 @@ export default function HrPayrollHub() {
         tab === 'payroll-runs'
           ? 'Explain payroll run status and what HR should prepare or approve next.'
           : tab === 'loans'
-            ? 'Summarize pending loan requests and endorsement steps.'
+            ? 'Summarize pending staff credit requests, loan endorsements, and purchase credit queues.'
             : tab === 'tax-pension'
               ? 'Summarize PAYE schedules, pension contributions, and statutory policy settings.'
               : 'Summarize salary matrix variances and payroll compliance issues.'

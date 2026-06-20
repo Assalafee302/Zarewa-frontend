@@ -38,12 +38,12 @@ export function HrLoansHubIntro({ embedded }) {
   return (
     <p className="text-sm text-slate-600 max-w-2xl">
       {embedded ? (
-        'Staff loan requests, repayments, and purchase credit — separate from monthly payroll runs.'
+        'Staff loans, repayments, and purchase credit — separate from monthly payroll runs.'
       ) : (
         <>
           Staff apply from{' '}
           <Link to="/my-profile/loans" className="font-semibold text-[#134e4a] hover:underline">
-            My HR → Loans
+            My HR → Loans & credit
           </Link>
           . HR originates applications here and tracks approvals below.
         </>

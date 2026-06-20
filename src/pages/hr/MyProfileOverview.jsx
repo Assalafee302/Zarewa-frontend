@@ -29,6 +29,7 @@ import { ProfileProbationBanner } from '../../components/profile/ProfileProbatio
 import { HrLoanPayrollDeductionBanner } from '../../components/hr/HrLoanPayrollDeductionBanner';
 import { loansWithPayrollDeduction } from '../../lib/hrLoanDeductionUi';
 import { HrPayslipTimeline } from '../../components/hr/HrPayslipTimeline';
+import { MyHrTaskStrip } from '../../components/profile/MyHrTaskStrip';
 
 export default function MyProfileOverview() {
   const { cohort: layoutCohort } = useMyProfileCohort();
@@ -349,6 +350,10 @@ export default function MyProfileOverview() {
       <ProfileIdentityStrip user={user} hr={hr} cohort={cohort} />
 
       <ProfileProbationBanner />
+
+      {cohort === 'employee' || cohort === 'special' ? (
+        <MyHrTaskStrip pendingRequests={pendingRequests.length} />
+      ) : null}
 
       <ProfileSetupRow
         completeness={completeness}

@@ -27,6 +27,7 @@ import { fetchMyQuotationsForPurchaseCredit } from '../../lib/hrStaffPurchaseCre
 import { StaffPurchaseCreditRequestModal } from '../../components/sales/StaffPurchaseCreditRequestModal';
 import { salesQuotationDeepLink } from '../../lib/staffPurchaseCreditLinks';
 import { HrLoanPayrollDeductionBanner } from '../../components/hr/HrLoanPayrollDeductionBanner';
+import { StaffRecoveryPayGuide } from '../../components/hr/StaffRecoveryPayGuide';
 import { loansWithPayrollDeduction } from '../../lib/hrLoanDeductionUi';
 
 import { HR_SELF_SERVICE_PATH } from '../../lib/hrSelfServiceRoutes';

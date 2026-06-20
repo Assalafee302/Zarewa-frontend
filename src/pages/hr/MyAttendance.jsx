@@ -7,7 +7,7 @@ import { HR_SELF_SERVICE_PATH } from '../../lib/hrSelfServiceRoutes';
 import { WorkPayHero } from '../../components/profile/WorkPayHero';
 import { WorkPayFilterBar } from '../../components/profile/workPayFormUi';
 import { ProfilePageBody } from '../../components/profile/profilePageUi';
-import { ProfileInlineAlert, ProfileOverviewSection } from '../../components/profile/profileOverviewUi';
+import { ProfileInlineAlert, ProfileOverviewSection, ProfileEmptyState } from '../../components/profile/profileOverviewUi';
 import { ProfileKpiCard, ProfileListRow, ProfileStatusChip } from '../../components/profile/profileDesign';
 import { ProfileProbationBanner } from '../../components/profile/ProfileProbationBanner';
 import { ProfileFormField } from '../../components/profile/profileFormUi';
@@ -140,7 +140,10 @@ export default function MyAttendance({ embedded = false }) {
                 ))}
               </div>
             ) : (
-              <p className="text-sm text-slate-500">No daily roll entries for you in this month yet.</p>
+              <ProfileEmptyState
+                title="No roll marks yet"
+                description="Your branch manager marks daily attendance in Management. Use Request exception above if you need a day waived before payroll locks."
+              />
             )}
           </ProfileOverviewSection>
 
