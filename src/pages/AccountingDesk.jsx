@@ -108,20 +108,16 @@ export default function AccountingDesk() {
 
   const [openingPosted, setOpeningPosted] = useState(false);
 
+  const hasFinanceView = Boolean(ws?.hasPermission?.('finance.view'));
+
   const {
     overview,
     loading: overviewLoading,
     error: overviewError,
     reload: reloadOverview,
-  } = useAccountingDeskOverview({ periodKey, deskRefresh });
-
-
+  } = useAccountingDeskOverview({ periodKey, deskRefresh, enabled: hasFinanceView });
 
   const endDate = useMemo(() => defaultPeriodEndDate(periodKey), [periodKey]);
-
-
-
-  const hasFinanceView = Boolean(ws?.hasPermission?.('finance.view'));
 
   const branchScopeLabel = ws.viewAllBranches
 
