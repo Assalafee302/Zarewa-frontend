@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { LayoutDashboard, Banknote, Landmark, ArrowRightLeft, X, ChevronDown, ChevronUp } from 'lucide-react';
+import { LayoutDashboard, Banknote, Landmark, ArrowRightLeft, UserRound, X, ChevronDown, ChevronUp } from 'lucide-react';
 import { FinanceActionButton } from './FinanceActionButton';
 
 const STORAGE_KEY = 'zarewa.cashierDeskGuide.dismissed';
@@ -18,7 +18,12 @@ const STEPS = [
   {
     icon: LayoutDashboard,
     title: 'Post approved payouts',
-    body: 'Refunds, expenses, register withdrawals, haulage, and staff loan/recovery payments — all from this tab.',
+    body: 'Refunds, expenses, register withdrawals, and haulage — all from this tab.',
+  },
+  {
+    icon: UserRound,
+    title: 'Staff payments stay private',
+    body: 'Loans and HR recoveries sit in a collapsed section at the bottom — expand only when the employee is at your desk.',
   },
   {
     icon: ArrowRightLeft,

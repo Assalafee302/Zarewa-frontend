@@ -1,11 +1,7 @@
 import React, { useMemo, useState } from 'react';
-import { Search, UserRound } from 'lucide-react';
+import { ChevronDown, ChevronUp, Lock, Search, UserRound } from 'lucide-react';
 import { formatNgn } from '../../Data/mockData';
-import {
-  FinanceDeskColoredQueuePanel,
-  FinanceDeskColoredQueueRow,
-  FinanceDeskQueueActionButton,
-} from './FinanceDeskColoredQueuePanel';
+import { FinanceDeskColoredQueueRow, FinanceDeskQueueActionButton } from './FinanceDeskColoredQueuePanel';
 
 function searchText(row) {
   return [
@@ -66,14 +62,25 @@ function normalizeRows(recoveries = [], obligations = []) {
 }
 
 /**
- * Unified cashier queue — staff recoveries, loans, and purchase credit in one compact panel.
+ * Staff loan / recovery desk queue — collapsed by default so names are not visible on shared screens.
+ * @param {{ expanded?: boolean; onExpandedChange?: (open: boolean) => void }} props
  */
 export function StaffPaymentsCashierPanel({
   recoveries = [],
   obligations = [],
   onReceiveRecovery,
   onReceiveObligation,
+  expanded: expandedProp,
+  onExpandedChange,
 }) {
+  const [expandedInternal, setExpandedInternal] = useState(false);
+  const expanded = expandedProp ?? expandedInternal;
+  const setExpanded = (next) => {
+    const value = typeof next === 'function' ? next(expanded) : next;
+    onExpandedChange?.(value);
+    if (expandedProp === undefined) setExpandedInternal(value);
+  };
+
   const [query, setQuery] = useState('');
 
   const allRows = useMemo(() => normalizeRows(recoveries, obligations), [recoveries, obligations]);
@@ -84,74 +91,110 @@ export function StaffPaymentsCashierPanel({
     return allRows.filter((r) => searchText(r.row).includes(q));
   }, [allRows, query]);
 
-  const totalDue = useMemo(() => rows.reduce((s, r) => s + r.amountNgn, 0), [rows]);
+  const totalDue = useMemo(() => allRows.reduce((s, r) => s + r.amountNgn, 0), [allRows]);
 
   if (allRows.length === 0) return null;
 
   return (
-    <FinanceDeskColoredQueuePanel
-      sectionId="desk-queue-staff-payments"
-      theme="violet"
-      title="Staff payments — loans, credit & recoveries"
-      icon={<UserRound size={16} strokeWidth={2} />}
-      count={allRows.length}
-      description="One desk flow: search employee ID or name, confirm HR balance, record cash or transfer to the correct till/bank. Payroll still deducts monthly unless they pay early here."
-      testId="finance-staff-payments-awaiting"
+    <div
+      id="desk-queue-staff-payments"
+      className="scroll-mt-20 rounded-xl border border-violet-200/80 bg-violet-50/35 shadow-sm"
+      data-testid="finance-staff-payments-awaiting"
     >
-      <div className="flex flex-wrap items-center gap-2 mb-1">
-        <div className="relative flex-1 min-w-[12rem]">
-          <Search
-            className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
-            size={14}
-          />
-          <input
-            type="search"
-            className="w-full rounded-lg border border-violet-200/80 bg-white py-1.5 pl-7 pr-2 text-[10px] font-semibold text-slate-800 outline-none focus:border-violet-400 focus:ring-1 focus:ring-violet-100"
-            placeholder="Search name, employee ID, case, quote…"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            aria-label="Search staff payments due"
-          />
-        </div>
-        <span className="text-[10px] font-bold tabular-nums text-violet-950">
-          {formatNgn(totalDue)} due · {rows.length} shown
+      <button
+        type="button"
+        onClick={() => setExpanded((v) => !v)}
+        className="flex w-full flex-wrap items-center gap-2 px-3 py-2.5 text-left hover:bg-violet-50/60 rounded-xl transition-colors"
+        aria-expanded={expanded}
+        data-testid="finance-staff-payments-toggle"
+      >
+        <Lock size={14} className="shrink-0 text-violet-800" aria-hidden />
+        <span className="text-[10px] font-black uppercase tracking-wide text-violet-950 flex items-center gap-1.5">
+          <UserRound size={14} strokeWidth={2} aria-hidden />
+          Staff payments
         </span>
-      </div>
+        <span className="text-[10px] font-bold tabular-nums text-violet-900">
+          {allRows.length} due · {formatNgn(totalDue)}
+        </span>
+        <span className="ml-auto inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-wide text-violet-800/90">
+          {expanded ? (
+            <>
+              Hide list <ChevronUp size={14} aria-hidden />
+            </>
+          ) : (
+            <>
+              Show list <ChevronDown size={14} aria-hidden />
+            </>
+          )}
+        </span>
+      </button>
 
-      {rows.length === 0 ? (
-        <p className="text-[10px] text-slate-500 py-2 text-center">No matches — try another search.</p>
+      {!expanded ? (
+        <p className="px-3 pb-2.5 text-[9px] leading-relaxed text-violet-950/75 border-t border-violet-100/80">
+          Private — employee names stay hidden until you expand. Search by ID or name when the staff member is at
+          your desk.
+        </p>
       ) : (
-        <ul className="space-y-1.5">
-          {rows.map((item) => (
-            <FinanceDeskColoredQueueRow
-              key={item.key}
-              theme="violet"
-              testId={`finance-staff-payment-row-${item.key}`}
-              title={
-                <>
-                  <span>{item.staffName}</span>
-                  <span className="ml-1 text-[8px] font-bold uppercase text-violet-800">{item.badge}</span>
-                </>
-              }
-              meta={[item.meta, item.detail].filter(Boolean).join(' · ')}
-              amount={formatNgn(item.amountNgn)}
-              actions={
-                <FinanceDeskQueueActionButton
-                  tone="primary"
-                  onClick={() =>
-                    item.payKind === 'recovery'
-                      ? onReceiveRecovery?.(item.row)
-                      : onReceiveObligation?.(item.row)
+        <div className="border-t border-violet-100/80 px-3 pb-3 pt-2 space-y-2">
+          <p className="text-[9px] leading-relaxed text-violet-950/80">
+            Loans, purchase credit, and HR recoveries — confirm balance, then record cash or transfer to till/bank.
+          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="relative flex-1 min-w-[12rem]">
+              <Search
+                className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
+                size={14}
+              />
+              <input
+                type="search"
+                className="w-full rounded-lg border border-violet-200/80 bg-white py-1.5 pl-7 pr-2 text-[10px] font-semibold text-slate-800 outline-none focus:border-violet-400 focus:ring-1 focus:ring-violet-100"
+                placeholder="Search name, employee ID, case, quote…"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                aria-label="Search staff payments due"
+              />
+            </div>
+            <span className="text-[10px] font-bold tabular-nums text-violet-950">
+              {formatNgn(totalDue)} due · {rows.length} shown
+            </span>
+          </div>
+
+          {rows.length === 0 ? (
+            <p className="text-[10px] text-slate-500 py-2 text-center">No matches — try another search.</p>
+          ) : (
+            <ul className="space-y-1.5">
+              {rows.map((item) => (
+                <FinanceDeskColoredQueueRow
+                  key={item.key}
+                  theme="violet"
+                  testId={`finance-staff-payment-row-${item.key}`}
+                  title={
+                    <>
+                      <span>{item.staffName}</span>
+                      <span className="ml-1 text-[8px] font-bold uppercase text-violet-800">{item.badge}</span>
+                    </>
                   }
-                  title="Record payment received at desk"
-                >
-                  Record pay
-                </FinanceDeskQueueActionButton>
-              }
-            />
-          ))}
-        </ul>
+                  meta={[item.meta, item.detail].filter(Boolean).join(' · ')}
+                  amount={formatNgn(item.amountNgn)}
+                  actions={
+                    <FinanceDeskQueueActionButton
+                      tone="primary"
+                      onClick={() =>
+                        item.payKind === 'recovery'
+                          ? onReceiveRecovery?.(item.row)
+                          : onReceiveObligation?.(item.row)
+                      }
+                      title="Record payment received at desk"
+                    >
+                      Record pay
+                    </FinanceDeskQueueActionButton>
+                  }
+                />
+              ))}
+            </ul>
+          )}
+        </div>
       )}
-    </FinanceDeskColoredQueuePanel>
+    </div>
   );
 }

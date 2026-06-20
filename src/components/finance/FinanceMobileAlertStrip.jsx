@@ -18,6 +18,7 @@ export function FinanceMobileAlertStrip({
   poHaulage = 0,
   staffPayments = 0,
   bookTotalNgn = null,
+  onOpenStaffPayments,
 }) {
   const items = [];
   if (pendingReceipts > 0) {
@@ -63,9 +64,10 @@ export function FinanceMobileAlertStrip({
   if (staffPayments > 0) {
     items.push({
       key: 'staff-payments',
-      label: `${staffPayments} staff payment${staffPayments !== 1 ? 's' : ''} due`,
+      label: `Staff payments (${staffPayments})`,
       tone: 'violet',
       scrollTo: 'desk-queue-staff-payments',
+      onClick: onOpenStaffPayments,
     });
   }
 
@@ -99,7 +101,10 @@ export function FinanceMobileAlertStrip({
         <button
           key={item.key}
           type="button"
-          onClick={() => scrollToSection(item.scrollTo)}
+          onClick={() => {
+            item.onClick?.();
+            scrollToSection(item.scrollTo);
+          }}
           className={`inline-flex rounded-lg border px-2.5 py-2 text-[11px] font-semibold min-h-9 items-center transition-colors ${toneCls[item.tone] || toneCls.teal}`}
         >
           {item.label}

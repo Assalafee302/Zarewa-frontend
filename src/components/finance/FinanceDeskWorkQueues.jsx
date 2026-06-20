@@ -148,6 +148,8 @@ export function FinanceDeskWorkQueues({
 
   const [showAllKpis, setShowAllKpis] = useState(false);
 
+  const [staffPaymentsExpanded, setStaffPaymentsExpanded] = useState(false);
+
   const receipts = useMemo(
     () => (Array.isArray(ws?.snapshot?.receipts) ? ws.snapshot.receipts : []),
 
@@ -387,10 +389,6 @@ export function FinanceDeskWorkQueues({
     payoutQueueCount > 0
       ? `${payoutQueueCount} payout${payoutQueueCount !== 1 ? "s" : ""} to post`
       : null,
-
-    staffRecoveriesDue.length + staffObligationsDue.length > 0
-      ? `${staffRecoveriesDue.length + staffObligationsDue.length} staff payment${staffRecoveriesDue.length + staffObligationsDue.length !== 1 ? "s" : ""} to collect`
-      : null,
   ]);
 
   const warnings = useMemo(() => {
@@ -419,9 +417,10 @@ export function FinanceDeskWorkQueues({
       {branchLabel ? (
         <p className="text-[11px] text-slate-600 leading-relaxed rounded-xl border border-teal-200/70 bg-teal-50/50 px-4 py-3">
           <strong className="text-[#134e4a]">{branchLabel}</strong> cashier desk
-          — your payout home. Confirm receipts, receive staff payments, and post
-          approved expense, refund, and haulage payouts here. Supplier payments
-          stay on Procurement.
+          — your payout home. Confirm receipts and post approved expense, refund,
+          and haulage payouts here. Staff loan and recovery payments use the
+          private section below when an employee pays at the desk. Supplier
+          payments stay on Procurement.
         </p>
       ) : null}
 
@@ -440,8 +439,9 @@ export function FinanceDeskWorkQueues({
         approvedRefunds={approvedRefunds.length}
         registerWithdrawals={approvedRegisterSettlements.length}
         poHaulage={poTransportAwaiting.length}
-        staffRecoveries={staffRecoveriesDue.length + staffObligationsDue.length}
+        staffPayments={staffRecoveriesDue.length + staffObligationsDue.length}
         bookTotalNgn={liquidity.bookTotalNgn}
+        onOpenStaffPayments={() => setStaffPaymentsExpanded(true)}
       />
 
       <FinanceTabs
@@ -475,7 +475,7 @@ export function FinanceDeskWorkQueues({
           />
 
           <section className="space-y-3">
-            <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+            <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3">
               <FinanceKpiCard
                 compact
                 label="Pending receipts"
@@ -498,25 +498,6 @@ export function FinanceDeskWorkQueues({
                 }
                 tone={payoutQueueCount > 0 ? "amber" : "default"}
                 icon={<ClipboardList size={14} />}
-              />
-
-              <FinanceKpiCard
-                compact
-                label="Staff payments to collect"
-                value={staffRecoveriesDue.length + staffObligationsDue.length}
-                hint={
-                  staffRecoveriesDue.length + staffObligationsDue.length
-                    ? formatNgn(
-                        staffRecoveriesTotalNgn + staffObligationsTotalNgn,
-                      )
-                    : "None due"
-                }
-                tone={
-                  staffRecoveriesDue.length + staffObligationsDue.length > 0
-                    ? "teal"
-                    : "default"
-                }
-                icon={<UserRound size={14} />}
               />
 
               <FinanceKpiCard
@@ -544,6 +525,25 @@ export function FinanceDeskWorkQueues({
 
             {showAllKpis ? (
               <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+                <FinanceKpiCard
+                  compact
+                  label="Staff payments due"
+                  value={staffRecoveriesDue.length + staffObligationsDue.length}
+                  hint={
+                    staffRecoveriesDue.length + staffObligationsDue.length
+                      ? formatNgn(
+                          staffRecoveriesTotalNgn + staffObligationsTotalNgn,
+                        )
+                      : "None due — expand private section when needed"
+                  }
+                  tone={
+                    staffRecoveriesDue.length + staffObligationsDue.length > 0
+                      ? "teal"
+                      : "default"
+                  }
+                  icon={<UserRound size={14} />}
+                />
+
                 <FinanceKpiCard
                   compact
                   label="Expense requests"
@@ -683,15 +683,6 @@ export function FinanceDeskWorkQueues({
             </FinanceDeskColoredQueuePanel>
           ) : null}
 
-          {(staffRecoveriesDue.length > 0 || staffObligationsDue.length > 0) ? (
-            <StaffPaymentsCashierPanel
-              recoveries={staffRecoveriesDue}
-              obligations={staffObligationsDue}
-              onReceiveRecovery={onReceiveStaffRecovery}
-              onReceiveObligation={onReceiveStaffObligation}
-            />
-          ) : null}
-
           <FinanceTreasuryAwaitingPayoutQueues
             sectionIdPrefix="desk-queue"
             refunds={approvedRefunds}
@@ -757,6 +748,17 @@ export function FinanceDeskWorkQueues({
               </>
             )}
           />
+
+          {(staffRecoveriesDue.length > 0 || staffObligationsDue.length > 0) ? (
+            <StaffPaymentsCashierPanel
+              recoveries={staffRecoveriesDue}
+              obligations={staffObligationsDue}
+              onReceiveRecovery={onReceiveStaffRecovery}
+              onReceiveObligation={onReceiveStaffObligation}
+              expanded={staffPaymentsExpanded}
+              onExpandedChange={setStaffPaymentsExpanded}
+            />
+          ) : null}
 
           <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
             <h2 className="flex items-center gap-2 text-xs font-black uppercase tracking-wide text-slate-800 mb-1">
