@@ -1,5 +1,5 @@
-import React, { useMemo, useState } from 'react';
-import { Building2, FileSpreadsheet, Plus, Printer, RefreshCw } from 'lucide-react';
+import React, { useMemo, useState, useCallback, useEffect } from 'react';
+import { Building2, FileSpreadsheet, Plus, Printer, RefreshCw, Calculator } from 'lucide-react';
 import { formatNgn } from '../../Data/mockData';
 import { downloadFinanceCsv } from '../../lib/exportFinanceCsv';
 import { printAccountingAssets } from '../../lib/printAccountingAssets';
@@ -7,6 +7,7 @@ import { useAccountingAssets, useAccountingRegisterMutations } from '../../hooks
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { treasuryAccountsForWorkspace } from '../../lib/treasuryAccountsStore';
 import { useToast } from '../../context/ToastContext';
+import { apiFetch } from '../../lib/apiBase';
 import { ModalFrame } from '../layout/ModalFrame';
 import { ProcurementFormSection } from '../procurement/ProcurementFormSection';
 import {
@@ -81,6 +82,9 @@ export function AccountingAssetsPanel({
   const [selectedAsset, setSelectedAsset] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [sort, setSort] = useState({ field: 'amount', dir: 'desc' });
+  const [depPeriod, setDepPeriod] = useState(() => new Date().toISOString().slice(0, 7));
+  const [depPreview, setDepPreview] = useState(null);
+  const [depBusy, setDepBusy] = useState(false);
   const [form, setForm] = useState({
     name: '',
     category: 'plant',
@@ -178,6 +182,36 @@ export function AccountingAssetsPanel({
     };
   }, [assets]);
 
+  const loadDepPreview = useCallback(async () => {
+    const res = await apiFetch(`/api/finance/depreciation/preview?period=${encodeURIComponent(depPeriod)}`);
+    if (res.ok && res.data?.ok) setDepPreview(res.data);
+    else {
+      setDepPreview(null);
+      showToast(res.data?.error || 'Could not preview depreciation.', { variant: 'error' });
+    }
+  }, [depPeriod, showToast]);
+
+  useEffect(() => {
+    if (enabled) loadDepPreview();
+  }, [enabled, loadDepPreview]);
+
+  const postDepreciation = async () => {
+    setDepBusy(true);
+    const res = await apiFetch('/api/finance/depreciation/post', {
+      method: 'POST',
+      body: { period: depPeriod },
+    });
+    setDepBusy(false);
+    if (!res.ok || !res.data?.ok) {
+      showToast(res.data?.error || 'Could not post depreciation.', { variant: 'error' });
+      return;
+    }
+    const note = res.data.duplicate ? 'Depreciation already posted for this period.' : 'Depreciation posted to GL.';
+    showToast(note, { variant: 'success' });
+    await loadDepPreview();
+    reload();
+  };
+
   const handleCreate = async (e) => {
     e.preventDefault();
     const result = await mutations.createAsset({
@@ -208,6 +242,46 @@ export function AccountingAssetsPanel({
 
   return (
     <div className="space-y-4 min-w-0">
+      <div className="rounded-xl border border-slate-200 bg-slate-50/40 p-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-[#134e4a] flex items-center gap-1.5">
+              <Calculator size={14} /> Monthly depreciation
+            </p>
+            <p className="mt-1 text-[10px] text-slate-600">
+              Dr 6100 / Cr 1398 — land is excluded. Post once per period before month-end close.
+            </p>
+          </div>
+          <label className="text-[10px] font-bold text-slate-600">
+            Period
+            <input
+              type="month"
+              value={depPeriod}
+              onChange={(e) => setDepPeriod(e.target.value)}
+              className="mt-1 block rounded-lg border border-slate-200 px-2 py-1 text-[11px] font-semibold"
+            />
+          </label>
+        </div>
+        {depPreview?.totalDepreciationNgn > 0 ? (
+          <p className="mt-3 text-[11px] font-medium text-slate-800">
+            Due: <span className="font-bold tabular-nums">{formatNgn(depPreview.totalDepreciationNgn)}</span>
+            <span className="text-slate-500"> · {depPreview.rows?.length || 0} asset(s)</span>
+          </p>
+        ) : (
+          <p className="mt-3 text-[10px] text-slate-500">No depreciation due for this period.</p>
+        )}
+        {canManage && depPreview?.totalDepreciationNgn > 0 ? (
+          <button
+            type="button"
+            onClick={postDepreciation}
+            disabled={depBusy}
+            className="mt-3 inline-flex items-center rounded-lg bg-[#134e4a] px-4 py-2 text-[9px] font-semibold uppercase tracking-wider text-white disabled:opacity-50"
+          >
+            Post depreciation to GL
+          </button>
+        ) : null}
+      </div>
+
       <AccountingRegisterHeader
         title="Fixed assets register"
         subtitle="Cost, depreciation, and NBV. Capex purchases auto-register; sales post treasury and GL."

@@ -1,6 +1,19 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Scale, Users, Building2, Landmark, Wallet, CreditCard, ArrowRightLeft } from 'lucide-react';
+import {
+  Scale,
+  Users,
+  Building2,
+  Landmark,
+  Wallet,
+  CreditCard,
+  ArrowRightLeft,
+  LayoutDashboard,
+  FileBarChart,
+  BookOpen,
+  Flag,
+  Lock,
+} from 'lucide-react';
 import { PageShell, MainPanel, PageHeader, PageTabs } from '../components/layout';
 import { useToast } from '../context/ToastContext';
 import { useWorkspace } from '../context/WorkspaceContext';
@@ -13,6 +26,11 @@ import { AccountingCreditorsPanel } from '../components/finance/AccountingCredit
 import { AccountingDebtorsPanel } from '../components/finance/AccountingDebtorsPanel';
 import { AccountingAssetsPanel } from '../components/finance/AccountingAssetsPanel';
 import { AccountingInterBranchPanel } from '../components/finance/interBranch/AccountingInterBranchPanel';
+import { AccountingOverviewPanel } from '../components/finance/AccountingOverviewPanel';
+import { AccountingStatementsPanel } from '../components/finance/AccountingStatementsPanel';
+import { AccountingGlPanel } from '../components/finance/AccountingGlPanel';
+import { AccountingOpeningBalancePanel } from '../components/finance/AccountingOpeningBalancePanel';
+import { AccountingClosePanel } from '../components/finance/AccountingClosePanel';
 
 function defaultPeriodRange() {
   const now = new Date();
@@ -23,6 +41,11 @@ function defaultPeriodRange() {
 }
 
 const TAB_LABELS = {
+  overview: 'Overview',
+  statements: 'Statements',
+  gl: 'General ledger',
+  opening: 'Opening balance',
+  close: 'Month-end close',
   creditors: 'Creditors',
   debtors: 'Debtors',
   assets: 'Fixed assets',
@@ -32,10 +55,14 @@ const TAB_LABELS = {
   payroll: 'Payroll',
 };
 
-/** One-line context under the active tab title — no trial/draft labels. */
 const TAB_HINTS = {
+  overview: 'Exceptions, cutover readiness, and quick paths to close.',
+  statements: 'Profit & Loss and Statement of Financial Position from GL.',
+  gl: 'Trial balance and journal activity for the period.',
+  opening: 'One-time 1 July opening journal from last closing balances.',
+  close: 'Checklist before locking the period — receipts, payroll, depreciation, statements.',
   creditors: 'Amounts owed to the company — receivables, prepayments, and opening balances.',
-  debtors: 'Amounts owed by the company — supplier AP, pre-production deposits, refund commitments, overpayments, and suspense.',
+  debtors: 'Amounts owed by the company — supplier AP, deposits, refunds, and suspense.',
   assets: 'Plant, property, and equipment register.',
   interBranch: 'Cross-branch treasury funding — propose, approve, repay, and track balances.',
   credit: 'Approve delivery before full payment is received.',
@@ -43,8 +70,13 @@ const TAB_HINTS = {
   payroll: 'Bulk bank file and treasury posting after HR locks the run.',
 };
 
-/** Accountant-facing primary navigation — one level only. */
+/** Accountant-facing navigation — Overview first. */
 const ACCOUNTING_TABS = [
+  { id: 'overview', label: 'Overview', icon: <LayoutDashboard size={16} /> },
+  { id: 'statements', label: 'Statements', icon: <FileBarChart size={16} /> },
+  { id: 'gl', label: 'GL', icon: <BookOpen size={16} /> },
+  { id: 'opening', label: 'Opening', icon: <Flag size={16} /> },
+  { id: 'close', label: 'Close', icon: <Lock size={16} /> },
   { id: 'creditors', label: 'Creditors', icon: <Users size={16} /> },
   { id: 'debtors', label: 'Debtors', icon: <Wallet size={16} /> },
   { id: 'assets', label: 'Fixed assets', icon: <Building2 size={16} /> },
@@ -67,7 +99,7 @@ export default function AccountingDesk() {
   const { show: showToast } = useToast();
   const ws = useWorkspace();
   const location = useLocation();
-  const [tab, setTab] = useState('creditors');
+  const [tab, setTab] = useState('overview');
   const [{ endDate }] = useState(defaultPeriodRange);
 
   const hasFinanceView = Boolean(ws?.hasPermission?.('finance.view'));
@@ -88,7 +120,7 @@ export default function AccountingDesk() {
     else if (focus && TAB_LABELS[focus]) setTab(focus);
     else if (focus === 'supplier-ap' || focus === 'costing') setTab('debtors');
     else if (focus === 'inter-branch' || focus === 'interBranch') setTab('interBranch');
-    else if (focus) setTab('creditors');
+    else if (focus) setTab('overview');
   }, [location.state?.focusTab, location.search]);
 
   useEffect(() => {
@@ -98,8 +130,11 @@ export default function AccountingDesk() {
   let accessDenied = null;
   if ((tab === 'creditors' || tab === 'debtors' || tab === 'assets') && !mayRegisters) {
     accessDenied = 'Registers require Head of Accounts or accounting desk access.';
-  } else if (tab === 'reconciliation' && !hasFinanceView) {
-    accessDenied = 'Reconciliation requires finance view access.';
+  } else if (
+    (tab === 'statements' || tab === 'gl' || tab === 'opening' || tab === 'close' || tab === 'reconciliation') &&
+    !hasFinanceView
+  ) {
+    accessDenied = 'GL and statements require finance view access.';
   } else if (tab === 'interBranch' && !mayInterBranch) {
     accessDenied = 'Inter-branch transfers require finance or accounting desk access.';
   }
@@ -141,6 +176,30 @@ export default function AccountingDesk() {
         <div className="p-4 sm:p-5 md:p-6">
           {accessDenied ? (
             <p className="text-[11px] font-medium text-slate-600">{accessDenied}</p>
+          ) : null}
+
+          {!accessDenied && tab === 'overview' ? (
+            <AccountingOverviewPanel branchScopeLabel={branchScopeLabel} showToast={showToast} />
+          ) : null}
+
+          {!accessDenied && tab === 'statements' && hasFinanceView ? (
+            <AccountingStatementsPanel branchScopeLabel={branchScopeLabel} showToast={showToast} />
+          ) : null}
+
+          {!accessDenied && tab === 'gl' && hasFinanceView ? (
+            <AccountingGlPanel hasFinanceView={hasFinanceView} showToast={showToast} />
+          ) : null}
+
+          {!accessDenied && tab === 'opening' && hasFinanceView ? (
+            <AccountingOpeningBalancePanel showToast={showToast} />
+          ) : null}
+
+          {!accessDenied && tab === 'close' && hasFinanceView ? (
+            <AccountingClosePanel
+              branchScopeLabel={branchScopeLabel}
+              showToast={showToast}
+              onFocusTab={setTab}
+            />
           ) : null}
 
           {!accessDenied && tab === 'creditors' && mayRegisters ? (

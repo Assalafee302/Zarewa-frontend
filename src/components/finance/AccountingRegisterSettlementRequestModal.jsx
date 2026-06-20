@@ -14,24 +14,44 @@ export function AccountingRegisterSettlementRequestModal({ item, open, onClose, 
   const [reason, setReason] = useState('');
   const [payeeName, setPayeeName] = useState(item?.partyName || '');
   const [payeeBankDetails, setPayeeBankDetails] = useState('');
+  const [validationError, setValidationError] = useState('');
 
   useEffect(() => {
     if (!open || !item?.id) return;
+    setValidationError('');
     setPayeeName(item.partyName || '');
     setReason(item.description || item.detail || '');
     void fetchAvailable(item.id).then((r) => {
       const avail = r.availableNgn ?? item.amountNgn ?? 0;
       setAvailableNgn(avail);
-      setAmountNgn(String(avail));
+      setAmountNgn(avail > 0 ? String(avail) : '');
     });
   }, [open, item, fetchAvailable]);
 
   if (!open || !item) return null;
 
+  const canRequest = availableNgn > 0;
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setValidationError('');
+    if (!canRequest) {
+      setValidationError(
+        'Nothing is available to request — pending or approved unpaid withdrawals already hold the full open balance on this line.'
+      );
+      return;
+    }
+    const amt = Math.round(Number(amountNgn) || 0);
+    if (amt <= 0) {
+      setValidationError('Enter an amount greater than zero.');
+      return;
+    }
+    if (amt > availableNgn) {
+      setValidationError(`Amount exceeds available balance (${formatNgn(availableNgn)}).`);
+      return;
+    }
     const result = await createSettlement(item.id, {
-      amountNgn: Math.round(Number(amountNgn) || 0),
+      amountNgn: amt,
       reason: reason.trim(),
       payeeName: payeeName.trim(),
       payeeBankDetails: payeeBankDetails.trim() || undefined,
@@ -53,17 +73,24 @@ export function AccountingRegisterSettlementRequestModal({ item, open, onClose, 
                 {formatNgn(availableNgn)} (after other pending settlements).
               </p>
             </div>
+            {!canRequest ? (
+              <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-[11px] text-amber-950 leading-relaxed">
+                The full open balance is already reserved by other pending or approved unpaid withdrawals on this
+                line. Close this form, review existing withdrawal requests on the register line, and reject or pay
+                them before submitting a new request.
+              </div>
+            ) : null}
             <ProcurementFormSection letter="1" title="Withdrawal" compact>
               <label className="block text-[10px] font-bold uppercase tracking-wide text-slate-500">
                 Amount (₦) *
                 <input
                   type="number"
-                  min="1"
-                  max={availableNgn}
-                  className="z-finance-field"
+                  {...(canRequest ? { min: 1, max: availableNgn } : {})}
+                  className="z-finance-field disabled:opacity-60"
                   value={amountNgn}
                   onChange={(e) => setAmountNgn(e.target.value)}
-                  required
+                  disabled={!canRequest}
+                  required={canRequest}
                 />
               </label>
               <label className="block text-[10px] font-bold uppercase tracking-wide text-slate-500 mt-3">
@@ -93,6 +120,7 @@ export function AccountingRegisterSettlementRequestModal({ item, open, onClose, 
                 />
               </label>
             </ProcurementFormSection>
+            {validationError ? <p className="text-[10px] font-medium text-rose-700">{validationError}</p> : null}
             {error ? <p className="text-[10px] font-medium text-rose-700">{error}</p> : null}
             <p className="text-[10px] text-slate-500">
               After submit: MD or finance approves → Cashier pays from treasury → Debtors line reduces automatically.
@@ -109,7 +137,7 @@ export function AccountingRegisterSettlementRequestModal({ item, open, onClose, 
             </button>
             <button
               type="submit"
-              disabled={busy}
+              disabled={busy || !canRequest}
               className="min-h-11 rounded-lg bg-[#134e4a] text-white px-4 py-2 text-[10px] font-semibold uppercase disabled:opacity-50 sm:min-h-0 sm:py-1.5 sm:text-[9px]"
             >
               {busy ? 'Submitting…' : 'Submit for approval'}

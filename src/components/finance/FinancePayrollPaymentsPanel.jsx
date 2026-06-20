@@ -42,6 +42,10 @@ export function FinancePayrollPaymentsPanel() {
   const [markPaidOpen, setMarkPaidOpen] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
+  const [remitPaye, setRemitPaye] = useState('');
+  const [remitPension, setRemitPension] = useState('');
+  const [remitDate, setRemitDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [remitBusy, setRemitBusy] = useState(false);
 
   const sortedRuns = useMemo(() => sortPayrollRunsByPeriod(runs), [runs]);
 
@@ -78,17 +82,27 @@ export function FinancePayrollPaymentsPanel() {
     if (!selectedId) {
       setTotals(null);
       setRun(null);
+      setGlStatus(null);
       return;
     }
     (async () => {
-      const [runRes, totalsRes] = await Promise.all([
+      const [runRes, totalsRes, glRes] = await Promise.all([
         apiFetch(`/api/hr/payroll-runs/${encodeURIComponent(selectedId)}`),
         apiFetch(`/api/hr/payroll-runs/${encodeURIComponent(selectedId)}/totals`),
+        apiFetch(`/api/finance/payroll-runs/${encodeURIComponent(selectedId)}/gl-status`),
       ]);
       setRun(runRes.ok && runRes.data?.ok ? runRes.data.run : null);
       setTotals(totalsRes.ok && totalsRes.data?.ok ? totalsRes.data.totals : null);
+      setGlStatus(glRes.ok && glRes.data?.ok ? glRes.data : null);
     })();
   }, [selectedId]);
+
+  useEffect(() => {
+    if (!totals?.amountsRedacted) {
+      setRemitPaye(totals?.taxTotalNgn != null ? String(totals.taxTotalNgn) : '');
+      setRemitPension(totals?.pensionTotalNgn != null ? String(totals.pensionTotalNgn) : '');
+    }
+  }, [totals?.taxTotalNgn, totals?.pensionTotalNgn, totals?.amountsRedacted, selectedId]);
 
   useEffect(() => {
     (async () => {
@@ -123,9 +137,68 @@ export function FinancePayrollPaymentsPanel() {
         : data.treasury?.alreadyPosted
           ? ' Treasury was already posted for this run.'
           : '';
-    setMessage(`Payroll marked paid.${treasuryNote}`);
+    const glNote =
+      data.glPayment?.journalId
+        ? ` GL payment journal ${data.glPayment.journalId}.`
+        : data.glPayment?.duplicate
+          ? ' GL payment already posted.'
+          : '';
+    setMessage(`Payroll marked paid.${treasuryNote}${glNote}`);
     setMarkPaidOpen(false);
     await loadRuns();
+  };
+
+  const postAccrualGl = async () => {
+    if (!selectedId) return;
+    setGlBusy(true);
+    setError('');
+    const { ok, data } = await apiFetch(`/api/finance/payroll-runs/${encodeURIComponent(selectedId)}/accrual-gl`, {
+      method: 'POST',
+    });
+    setGlBusy(false);
+    if (!ok || !data?.ok) {
+      setError(data?.error || 'Could not post payroll accrual to GL.');
+      return;
+    }
+    setMessage(
+      data.duplicate ? 'Payroll accrual already in GL.' : `Accrual posted — journal ${data.journalId || 'saved'}.`
+    );
+    const glRes = await apiFetch(`/api/finance/payroll-runs/${encodeURIComponent(selectedId)}/gl-status`);
+    if (glRes.ok && glRes.data?.ok) setGlStatus(glRes.data);
+  };
+
+  const postStatutoryRemittance = async () => {
+    if (!treasuryAccountId) return;
+    const payeNgn = Math.round(Number(remitPaye) || 0);
+    const pensionNgn = Math.round(Number(remitPension) || 0);
+    if (payeNgn + pensionNgn <= 0) {
+      setError('Enter PAYE and/or pension amount to remit.');
+      return;
+    }
+    setRemitBusy(true);
+    setError('');
+    const period = run?.periodYyyymm || selected?.periodYyyymm || '';
+    const { ok, data } = await apiFetch('/api/finance/payroll-remittance', {
+      method: 'POST',
+      body: {
+        entryDateISO: remitDate,
+        treasuryAccountId: Number(treasuryAccountId),
+        payeNgn,
+        pensionNgn,
+        sourceId: `REMIT-${period || remitDate}-${selectedId || 'MANUAL'}`,
+        memo: period ? `PAYE/pension remittance ${period}` : 'Payroll statutory remittance',
+      },
+    });
+    setRemitBusy(false);
+    if (!ok || !data?.ok) {
+      setError(data?.error || 'Could not post remittance.');
+      return;
+    }
+    setMessage(
+      data.duplicate
+        ? 'Remittance already posted for this reference.'
+        : `Remittance posted — journal ${data.journalId || 'saved'}.`
+    );
   };
 
   const selected = runs.find((r) => r.id === selectedId);
@@ -221,9 +294,33 @@ export function FinancePayrollPaymentsPanel() {
                 PAYE total: <span className="font-bold tabular-nums">{formatNgn(totals.taxTotalNgn)}</span>
               </p>
             ) : null}
+            {glStatus ? (
+              <div className="mt-3 flex flex-wrap gap-2 text-[10px] font-semibold">
+                <span
+                  className={`rounded-md px-2 py-0.5 ${glStatus.accrualPosted ? 'bg-emerald-50 text-emerald-800' : 'bg-amber-50 text-amber-900'}`}
+                >
+                  Accrual GL: {glStatus.accrualPosted ? 'Posted' : 'Pending'}
+                </span>
+                <span
+                  className={`rounded-md px-2 py-0.5 ${glStatus.netPaymentPosted ? 'bg-emerald-50 text-emerald-800' : 'bg-slate-100 text-slate-600'}`}
+                >
+                  Net payment GL: {glStatus.netPaymentPosted ? 'Posted' : selected?.status === 'paid' ? 'Pending' : 'After mark paid'}
+                </span>
+              </div>
+            ) : null}
           </ProcurementFormSection>
 
           <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+            {(selected?.status === 'locked' || selected?.status === 'paid') && !glStatus?.accrualPosted ? (
+              <button
+                type="button"
+                onClick={postAccrualGl}
+                disabled={glBusy}
+                className="inline-flex min-h-[44px] items-center justify-center rounded-lg border border-[#134e4a] bg-white px-4 py-2.5 text-[9px] font-semibold uppercase tracking-wider text-[#134e4a] disabled:opacity-50"
+              >
+                Post accrual to GL
+              </button>
+            ) : null}
             <button
               type="button"
               onClick={downloadBankFile}
@@ -249,6 +346,53 @@ export function FinancePayrollPaymentsPanel() {
             ) : null}
           </div>
         </>
+      ) : null}
+
+      {runs.length > 0 && totals && !totals.amountsRedacted ? (
+        <ProcurementFormSection letter="2" title="Statutory remittance (PAYE / pension)" compact>
+          <p className="text-[10px] text-slate-600 mb-3">
+            When you pay FIRS / pension administrator, post Dr 2300/2400 and Cr bank to clear payables.
+          </p>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <label className={ACCOUNTING_FIELD_LABEL}>
+              PAYE amount (₦)
+              <input
+                type="number"
+                min="0"
+                value={remitPaye}
+                onChange={(e) => setRemitPaye(e.target.value)}
+                className={ACCOUNTING_INPUT}
+              />
+            </label>
+            <label className={ACCOUNTING_FIELD_LABEL}>
+              Pension amount (₦)
+              <input
+                type="number"
+                min="0"
+                value={remitPension}
+                onChange={(e) => setRemitPension(e.target.value)}
+                className={ACCOUNTING_INPUT}
+              />
+            </label>
+            <label className={ACCOUNTING_FIELD_LABEL}>
+              Remittance date
+              <input
+                type="date"
+                value={remitDate}
+                onChange={(e) => setRemitDate(e.target.value)}
+                className={ACCOUNTING_INPUT}
+              />
+            </label>
+          </div>
+          <button
+            type="button"
+            onClick={postStatutoryRemittance}
+            disabled={remitBusy || !treasuryAccountId}
+            className="mt-3 inline-flex min-h-[44px] items-center justify-center rounded-lg border border-[#134e4a] bg-white px-4 py-2.5 text-[9px] font-semibold uppercase tracking-wider text-[#134e4a] disabled:opacity-50"
+          >
+            Post remittance to GL
+          </button>
+        </ProcurementFormSection>
       ) : null}
 
       <HrPayrollMarkPaidModal

@@ -36,7 +36,7 @@ export const ACCOUNTING_REGISTER_CONFIG = {
       'Record pre-system overpayments (e.g. April project ~₦8M) via Add legacy line → Project overpayment.',
       'Pre-production deposits are cleared quote payments before production completes — customer deposit liability (Policy v1).',
       'Refund commitments list pending/approved refunds on closed jobs; treasury “Record pay” is only for approved, unblocked payouts.',
-      'Overpayment credits show economic excess (cash in minus quote total), capped by the ledger pool — matches refund preview.',
+      'Overpayment credits show economic excess (cash in minus quote total) on finance-cleared quotes only, capped by the ledger pool — matches refund preview.',
       'Unallocated receipts and unlinked bank deposits are suspense until matched — not trade payables.',
       'Receipts pending finance clearance appear in the notice above; they are not part of this register total.',
     ],
