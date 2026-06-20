@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { applyCaseDecision, DECISION_TYPE_OPTIONS } from '../../lib/hrIncidents';
 import { mapManagementDecisionToType } from '../../lib/hrAccountabilityStageProgress';
 import { patchDisciplineCase } from '../../lib/hrDisciplineCases';
@@ -8,7 +8,7 @@ import HrCaseRecoveryPanel from './HrCaseRecoveryPanel';
 import HrCasePartyLettersPanel from './HrCasePartyLettersPanel';
 
 /**
- * Phase 3 — one place for management decision, apply sanction, recovery, and letters.
+ * Phase 3 — management decision, apply sanction, recovery initiation, and letters.
  */
 export default function HrCaseSanctionPhase({
   caseId,
@@ -16,6 +16,7 @@ export default function HrCaseSanctionPhase({
   canManage,
   canApprove,
   recoveryCount,
+  responsibilityOk = false,
   onUpdated,
   workflow,
   setWorkflow,
@@ -26,9 +27,25 @@ export default function HrCaseSanctionPhase({
   const [err, setErr] = useState('');
   const [msg, setMsg] = useState('');
 
+  const isDeduction = decisionType === 'deduction' || detail?.decisionType === 'deduction';
+  const recoveryReady = recoveryCount > 0;
+
   const decisionApplied =
-    Boolean(detail?.decisionType) &&
-    (detail.decisionType !== 'deduction' || recoveryCount > 0 || detail.status === 'action_issued');
+    Boolean(detail?.decisionType) && (detail.decisionType !== 'deduction' || recoveryReady);
+
+  const deductionPrereqs = useMemo(() => {
+    if (!isDeduction) return [];
+    const loss = Math.round(Number(lossValueNgn) || 0);
+    const items = [];
+    if (!workflow.managementDecision.trim()) {
+      items.push('Write the management decision in plain language.');
+    }
+    if (loss <= 0) items.push('Enter loss value (NGN) — this drives how much each staff repays.');
+    if (!responsibilityOk) {
+      items.push('Complete the responsibility map (100%) in the Investigate phase.');
+    }
+    return items;
+  }, [isDeduction, lossValueNgn, workflow.managementDecision, responsibilityOk]);
 
   useEffect(() => {
     if (detail?.decisionType) {
@@ -47,6 +64,23 @@ export default function HrCaseSanctionPhase({
     }
   }, [workflow.managementDecision, decisionApplied, decisionType]);
 
+  const saveSanctionFields = async () => {
+    setErr('');
+    setMsg('');
+    setBusy(true);
+    const patchRes = await patchDisciplineCase(caseId, {
+      managementDecision: workflow.managementDecision.trim(),
+      sanction: workflow.sanction.trim(),
+      lossValueNgn: Number(lossValueNgn) || 0,
+    });
+    setBusy(false);
+    if (!patchRes.ok || !patchRes.data?.ok) {
+      setErr(patchRes.data?.error || 'Could not save sanction details.');
+      return false;
+    }
+    return true;
+  };
+
   const applySanction = async () => {
     setErr('');
     setMsg('');
@@ -58,8 +92,12 @@ export default function HrCaseSanctionPhase({
       setErr('Choose a sanction type (warning, deduction, suspension, etc.).');
       return;
     }
-    setBusy(true);
+    if (isDeduction && deductionPrereqs.length) {
+      setErr(deductionPrereqs.join(' '));
+      return;
+    }
 
+    setBusy(true);
     const patchRes = await patchDisciplineCase(caseId, {
       managementDecision: workflow.managementDecision.trim(),
       sanction: workflow.sanction.trim(),
@@ -71,7 +109,7 @@ export default function HrCaseSanctionPhase({
       return;
     }
 
-    if (!decisionApplied) {
+    if (!detail?.decisionType || (detail.decisionType === 'deduction' && !recoveryReady)) {
       const { ok, data } = await applyCaseDecision(caseId, { decisionType });
       setBusy(false);
       if (!ok || !data?.ok) {
@@ -79,10 +117,20 @@ export default function HrCaseSanctionPhase({
         onUpdated?.();
         return;
       }
-      setMsg('Sanction applied — recovery schedules and draft letters were created where needed.');
+      if (decisionType === 'deduction') {
+        const created = (data.actions || []).find((a) => a.kind === 'recovery_schedules');
+        const count = created?.schedules?.length || 0;
+        setMsg(
+          count > 0
+            ? `Recovery created for ${count} staff — now on the branch cashier desk.`
+            : 'Sanction saved. Use “Create recovery & send to cashier desk” below if needed.'
+        );
+      } else {
+        setMsg('Sanction applied — draft letters were created where needed.');
+      }
     } else {
       setBusy(false);
-      setMsg('Management decision updated on file.');
+      setMsg('Sanction details saved.');
     }
     onUpdated?.();
   };
@@ -90,9 +138,9 @@ export default function HrCaseSanctionPhase({
   return (
     <div className="space-y-4">
       <p className="text-xs text-slate-600 rounded-lg bg-slate-50 border border-slate-100 px-3 py-2">
-        <strong>One action:</strong> write what management decided, pick the sanction type, then click{' '}
-        <em>Apply sanction</em>. This saves the narrative and triggers payroll recovery + draft letters (no separate
-        “apply decision” step elsewhere).
+        <strong>HR sets what is owed;</strong> the branch cashier records payment (date + bank/cash account). Write the
+        management decision, pick sanction type, enter loss value for recoveries, then apply. Recovery amounts are sent
+        to the cashier desk in the panel below.
       </p>
 
       {canManage ? (
@@ -107,7 +155,6 @@ export default function HrCaseSanctionPhase({
                 value={workflow.managementDecision}
                 onChange={(e) => setWorkflow({ ...workflow, managementDecision: e.target.value })}
                 placeholder="e.g. Salary deduction per responsibility map — recover ₦250,000 over 6 months"
-                disabled={decisionApplied}
               />
             </label>
             <label className="block text-xs font-semibold text-slate-600">
@@ -121,9 +168,10 @@ export default function HrCaseSanctionPhase({
             </label>
             <div className="grid gap-2 sm:grid-cols-2">
               <label className="block text-xs font-semibold text-slate-600">
-                Loss value (NGN)
+                Loss value (NGN) {isDeduction ? <span className="text-amber-800">*</span> : null}
                 <input
                   type="number"
+                  min={0}
                   className={HR_FIELD_CLASS}
                   value={lossValueNgn}
                   onChange={(e) => setLossValueNgn(e.target.value)}
@@ -134,7 +182,7 @@ export default function HrCaseSanctionPhase({
                 <select
                   className={HR_FIELD_CLASS}
                   value={decisionType}
-                  disabled={decisionApplied}
+                  disabled={decisionApplied && !isDeduction}
                   onChange={(e) => setDecisionType(e.target.value)}
                 >
                   <option value="">Select type…</option>
@@ -146,27 +194,64 @@ export default function HrCaseSanctionPhase({
                 </select>
               </label>
             </div>
-            {decisionApplied ? (
+
+            {isDeduction && !recoveryReady && deductionPrereqs.length ? (
+              <ul className="text-xs text-amber-900 rounded-lg bg-amber-50 border border-amber-100 p-2 space-y-1">
+                {deductionPrereqs.map((t) => (
+                  <li key={t}>• {t}</li>
+                ))}
+              </ul>
+            ) : null}
+
+            {decisionApplied && detail?.decisionType !== 'deduction' ? (
               <p className="text-xs text-emerald-800 rounded-lg bg-emerald-50 border border-emerald-100 p-2">
-                Sanction <strong>{detail.decisionType}</strong> is on file
-                {recoveryCount > 0 ? ` · ${recoveryCount} recovery schedule(s)` : ''}. Issue letters in phase 4 to close.
+                Sanction <strong>{detail.decisionType}</strong> is on file. Issue letters in phase 4 to close.
               </p>
-            ) : (
+            ) : null}
+
+            {isDeduction && recoveryReady ? (
+              <p className="text-xs text-emerald-800 rounded-lg bg-emerald-50 border border-emerald-100 p-2">
+                Recovery active — {recoveryCount} schedule(s) on cashier desk. Issue salary recovery letters in phase 4.
+              </p>
+            ) : null}
+
+            <div className="flex flex-wrap gap-2">
+              {!decisionApplied || (isDeduction && !recoveryReady) ? (
+                <button
+                  type="button"
+                  disabled={busy || !decisionType || (isDeduction && deductionPrereqs.length > 0)}
+                  className={HR_BTN_PRIMARY}
+                  onClick={applySanction}
+                >
+                  {busy ? 'Saving…' : isDeduction ? 'Save sanction & prepare recovery' : 'Apply sanction'}
+                </button>
+              ) : null}
               <button
                 type="button"
-                disabled={busy || !decisionType}
-                className={HR_BTN_PRIMARY}
-                onClick={applySanction}
+                disabled={busy}
+                className={HR_BTN_SECONDARY}
+                onClick={async () => {
+                  const ok = await saveSanctionFields();
+                  if (ok) {
+                    setMsg('Sanction details saved.');
+                    onUpdated?.();
+                  }
+                }}
               >
-                {busy ? 'Applying…' : 'Apply sanction'}
+                {busy ? 'Saving…' : 'Save changes'}
               </button>
-            )}
+            </div>
           </div>
         </HrCard>
       ) : null}
 
-      {decisionApplied && canManage ? (
-        <HrCaseRecoveryPanel caseId={caseId} detail={detail} canManage={canManage} onUpdated={onUpdated} />
+      {canManage && isDeduction ? (
+        <HrCaseRecoveryPanel
+          caseId={caseId}
+          detail={{ ...detail, lossValueNgn: Number(lossValueNgn) || detail?.lossValueNgn }}
+          responsibilityOk={responsibilityOk}
+          onUpdated={onUpdated}
+        />
       ) : null}
 
       {(canManage || canApprove) && (detail.relatedLetters?.length || detail.relatedLetterIds?.length) ? (

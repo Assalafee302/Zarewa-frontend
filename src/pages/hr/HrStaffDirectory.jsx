@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Search, UserPlus } from 'lucide-react';
+import { Lock, Search, UserPlus } from 'lucide-react';
 import { HrFormModal } from '../../components/hr/HrFormModal';
 import { HrStaffRegisterForm } from '../../components/hr/HrStaffRegisterForm';
 import { apiFetch } from '../../lib/apiBase';
@@ -12,6 +12,19 @@ import { HrStaffDuplicateCleanupPanel } from '../../components/hr/HrStaffDuplica
 import { formatNgn, payrollGroupLabel } from '../../lib/hrFormat';
 import { fetchHrDepartments } from '../../lib/hrMasterData';
 import { HR_EMPLOYEES } from '../../lib/hrRoutes';
+import {
+  branchNameMap,
+  computeDirectoryKpis,
+  contractBadge,
+  filterStaffList,
+  probationBadge,
+  profilePct,
+  profilePctBadge,
+  QUICK_FILTERS,
+  resolveBranchLabel,
+  SORT_OPTIONS,
+  sortStaffList,
+} from '../../lib/hrStaffDirectoryUi';
 import {
   AppTable,
   AppTableBody,
@@ -25,27 +38,38 @@ import {
 import { HrStatusBadge } from '../../components/hr/HrStatusBadge';
 import { HrTableEmptyRow, HrTableLoadingRow } from '../../components/hr/HrTableBodyState';
 import { useAppTablePaging } from '../../lib/appDataTable';
-
-function contractBadge(staff) {
-  if (!staff) return null;
-  const et = String(staff.employmentType || staff.normalized?.taxonomy?.employmentType || '').toLowerCase();
-  if (!et.includes('contract') && !et.includes('temp')) return null;
-  const end = staff.contractEndIso;
-  const today = new Date().toISOString().slice(0, 10);
-  if (!end) return { label: 'No contract end', cls: 'border-amber-200 bg-amber-50 text-amber-900' };
-  if (end < today) return { label: 'Past contract end', cls: 'border-red-200 bg-red-50 text-red-900' };
-  const in30 = new Date();
-  in30.setDate(in30.getDate() + 30);
-  if (end <= in30.toISOString().slice(0, 10)) return { label: 'Contract ending soon', cls: 'border-orange-200 bg-orange-50 text-orange-900' };
-  if (staff.dateJoinedIso) {
-    const months = (Date.parse(end) - Date.parse(staff.dateJoinedIso)) / (30.44 * 86400000);
-    if (months > 6) return { label: 'Over 6 months', cls: 'border-violet-200 bg-violet-50 text-violet-900' };
-  }
-  return null;
-}
+import { HrKpiCard } from '../../components/hr/HrKpiCard';
+import { HrEmptyState } from '../../components/hr/hrPageUi';
+import { HR_BTN_PRIMARY } from '../../components/hr/hrFormStyles';
 
 function uniqueSorted(values) {
   return [...new Set(values.filter(Boolean))].sort((a, b) => String(a).localeCompare(String(b)));
+}
+
+function StaffBadges({ staff }) {
+  const contract = contractBadge(staff);
+  const probation = probationBadge(staff);
+  const pct = profilePct(staff);
+  const pctBadge = profilePctBadge(pct);
+  return (
+    <div className="mt-2 flex flex-wrap gap-1">
+      {probation ? (
+        <span className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase ${probation.cls}`}>
+          {probation.label}
+        </span>
+      ) : null}
+      {contract ? (
+        <span className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase ${contract.cls}`}>
+          {contract.label}
+        </span>
+      ) : null}
+      {pct < 90 ? (
+        <span className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase ${pctBadge.cls}`}>
+          Profile {pctBadge.label}
+        </span>
+      ) : null}
+    </div>
+  );
 }
 
 export default function HrStaffDirectory({
@@ -66,14 +90,16 @@ export default function HrStaffDirectory({
     const list = ws?.snapshot?.workspaceBranches ?? ws?.session?.branches ?? [];
     return list.map((b) => ({ id: b.id, name: b.name || b.id }));
   }, [ws?.snapshot?.workspaceBranches, ws?.session?.branches]);
+  const branchNames = useMemo(() => branchNameMap(branches), [branches]);
 
   const [staff, setStaff] = useState([]);
   const [search, setSearch] = useState('');
   const [branchId, setBranchId] = useState('');
   const [department, setDepartment] = useState('');
   const [employmentType, setEmploymentType] = useState('');
-  const [status, setStatus] = useState('');
-  const [includeInactive, setIncludeInactive] = useState(false);
+  const [status, setStatus] = useState('active');
+  const [quickFilter, setQuickFilter] = useState('');
+  const [sortKey, setSortKey] = useState('name');
   const [registerOpen, setRegisterOpen] = useState(initialRegisterOpen);
   const [compactTable, setCompactTable] = useState(false);
 
@@ -82,8 +108,8 @@ export default function HrStaffDirectory({
   }, [initialRegisterOpen]);
 
   const [masterDepartments, setMasterDepartments] = useState([]);
-
   const isSpecialList = cohort !== 'employees';
+  const includeInactive = status === 'all' || status === 'inactive';
 
   const { loading, error, reload } = useHrListLoad(async () => {
     const params = new URLSearchParams();
@@ -117,46 +143,35 @@ export default function HrStaffDirectory({
     [staff]
   );
 
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    return staff.filter((s) => {
-      if (!s) return false;
-      if (status === 'active' && String(s.status) !== 'active') return false;
-      if (status === 'inactive' && String(s.status) === 'active') return false;
-      if (branchId && String(s.branchId || s.normalized?.branchId) !== branchId) return false;
-      if (department && String(s.department || '') !== department) return false;
-      if (employmentType) {
-        const et = String(s.employmentType || s.normalized?.taxonomy?.employmentType || '');
-        if (et !== employmentType) return false;
-      }
-      if (!q) return true;
-      const hay = [
-        s.displayName,
-        s.username,
-        s.employeeNo,
-        s.jobTitle,
-        s.department,
-        s.branchId,
-      ]
-        .join(' ')
-        .toLowerCase();
-      return hay.includes(q);
-    });
-  }, [staff, search, branchId, department, employmentType, status]);
+  const kpis = useMemo(() => computeDirectoryKpis(staff), [staff]);
 
-  const staffPaging = useAppTablePaging(filtered, 20, search, branchId, department, employmentType, status);
+  const filtered = useMemo(() => {
+    const rows = filterStaffList(staff, {
+      search,
+      branchId,
+      department,
+      employmentType,
+      status: status === 'all' ? '' : status,
+      quickFilter,
+    });
+    return sortStaffList(rows, sortKey, branchNames);
+  }, [staff, search, branchId, department, employmentType, status, quickFilter, sortKey, branchNames]);
+
+  const staffPaging = useAppTablePaging(filtered, 20, search, branchId, department, employmentType, status, quickFilter, sortKey);
 
   const exportRosterCsv = () => {
     const esc = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
-    const header = ['Name', 'EmployeeNo', 'Branch', 'Department', 'JobTitle', 'Status', 'Joined'];
+    const header = ['Name', 'EmployeeNo', 'Branch', 'Department', 'JobTitle', 'LineManager', 'ProfilePct', 'Status', 'Joined'];
     if (showSalary) header.push('BaseSalary');
     const lines = filtered.map((s) => {
       const row = [
         s.displayName,
         s.employeeNo,
-        s.branchId,
+        resolveBranchLabel(s, branchNames),
         s.department,
         s.jobTitle,
+        s.lineManagerDisplayName || s.lineManagerUserId || '',
+        profilePct(s),
         s.status,
         s.dateJoinedIso,
       ];
@@ -170,6 +185,15 @@ export default function HrStaffDirectory({
     a.download = `staff-roster-${new Date().toISOString().slice(0, 10)}.csv`;
     a.click();
     URL.revokeObjectURL(url);
+  };
+
+  const clearFilters = () => {
+    setSearch('');
+    setBranchId('');
+    setDepartment('');
+    setEmploymentType('');
+    setStatus('active');
+    setQuickFilter('');
   };
 
   return (
@@ -197,18 +221,9 @@ export default function HrStaffDirectory({
           const updated = Number(data?.updated) || 0;
           const failed = Number(data?.failed) || 0;
           const total = imported + updated;
-          setBranchId('');
-          setDepartment('');
-          setEmploymentType('');
-          setStatus('');
+          clearFilters();
           await reload({ forceSpinner: true });
-          setImportNotice({
-            imported,
-            updated,
-            failed,
-            total,
-            ok: total > 0,
-          });
+          setImportNotice({ imported, updated, failed, total, ok: total > 0 });
         }}
       />
 
@@ -233,11 +248,10 @@ export default function HrStaffDirectory({
             {importNotice.ok ? 'Staff import completed' : 'Staff import finished with issues'}
           </p>
           <p className="mt-1 text-xs">
-            Imported {importNotice.imported}, updated {importNotice.updated}, failed {importNotice.failed}. Staff
-            directory refreshed below.
+            Imported {importNotice.imported}, updated {importNotice.updated}, failed {importNotice.failed}.
             {importNotice.total === 0
               ? ' No accounts were created — open Bulk Register Staff again to read row errors.'
-              : ' If counts look low, set branch filter to “All branches”.'}
+              : ' Directory refreshed below.'}
           </p>
           <button
             type="button"
@@ -259,54 +273,94 @@ export default function HrStaffDirectory({
         </div>
       ) : null}
 
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-        <div className="flex flex-wrap gap-2 lg:order-2">
-          <button
-            type="button"
-            onClick={exportRosterCsv}
-            className="inline-flex items-center justify-center rounded-xl border border-slate-200 px-4 py-2.5 text-xs font-bold uppercase tracking-wide text-slate-700 hover:bg-slate-50"
-          >
-            Export CSV
-          </button>
-          <label className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold uppercase text-slate-600">
-            <input type="checkbox" checked={compactTable} onChange={(e) => setCompactTable(e.target.checked)} />
-            Compact
-          </label>
-          {canBulkImport ? (
-            <button
-              type="button"
-              onClick={() => setBulkOpen(true)}
-              className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#134e4a] px-4 py-2.5 text-xs font-bold uppercase tracking-wide text-[#134e4a] hover:bg-teal-50"
-            >
-              Bulk Register Staff
-            </button>
-          ) : null}
-          {canRegister ? (
-            <button
-              type="button"
-              onClick={() => setRegisterOpen(true)}
-              className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#134e4a] px-4 py-2.5 text-xs font-bold uppercase tracking-wide text-white shadow-sm hover:bg-[#0f3d39]"
-            >
-              <UserPlus size={16} aria-hidden />
-              Register staff
-            </button>
-          ) : null}
-        </div>
-        <div className="relative max-w-md flex-1 lg:order-1">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" aria-hidden />
-          <input
-            type="search"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search name, ID, job, department…"
-            className="w-full rounded-xl border border-slate-200 py-2.5 pl-9 pr-3 text-sm shadow-sm focus:border-[#134e4a] focus:outline-none focus:ring-2 focus:ring-[#134e4a]/15"
+      {!isSpecialList ? (
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <HrKpiCard label="Active staff" value={kpis.active} hint={`${kpis.total} total in scope`} />
+          <HrKpiCard
+            label="Incomplete profiles"
+            value={kpis.incomplete}
+            tone={kpis.incomplete > 0 ? 'amber' : 'default'}
+            onClick={() => setQuickFilter('incomplete')}
+          />
+          <HrKpiCard
+            label="On probation"
+            value={kpis.onProbation}
+            tone={kpis.onProbation > 0 ? 'teal' : 'default'}
+            onClick={() => setQuickFilter('probation')}
+          />
+          <HrKpiCard
+            label="Contracts expiring"
+            value={kpis.contractsExpiring}
+            tone={kpis.contractsExpiring > 0 ? 'amber' : 'default'}
+            onClick={() => setQuickFilter('contract')}
           />
         </div>
+      ) : null}
+
+      <div className="flex flex-col gap-3 border-b border-slate-100 pb-4">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div className="relative max-w-md flex-1">
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" aria-hidden />
+            <input
+              type="search"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search name, ID, job, department, manager…"
+              className="w-full rounded-xl border border-slate-200 py-2.5 pl-9 pr-3 text-sm shadow-sm focus:border-[#134e4a] focus:outline-none focus:ring-2 focus:ring-[#134e4a]/15"
+            />
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={exportRosterCsv}
+              className="inline-flex items-center justify-center rounded-xl border border-slate-200 px-4 py-2.5 text-xs font-bold uppercase tracking-wide text-slate-700 hover:bg-slate-50"
+            >
+              Export CSV
+            </button>
+            <label className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold uppercase text-slate-600">
+              <input type="checkbox" checked={compactTable} onChange={(e) => setCompactTable(e.target.checked)} />
+              Compact
+            </label>
+            {canBulkImport ? (
+              <button
+                type="button"
+                onClick={() => setBulkOpen(true)}
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#134e4a] px-4 py-2.5 text-xs font-bold uppercase tracking-wide text-[#134e4a] hover:bg-teal-50"
+              >
+                Bulk register
+              </button>
+            ) : null}
+            {canRegister ? (
+              <button type="button" onClick={() => setRegisterOpen(true)} className={`${HR_BTN_PRIMARY} gap-2`}>
+                <UserPlus size={16} aria-hidden />
+                Register staff
+              </button>
+            ) : null}
+          </div>
+        </div>
         <p className="text-xs font-medium text-slate-500 tabular-nums">
-          {filtered.length} of {staff.length} record{staff.length === 1 ? '' : 's'}
-          {staff.length === 0 && !loading && !error ? ' — try “All statuses” or refresh the page' : ''}
+          Showing {filtered.length} of {staff.length} record{staff.length === 1 ? '' : 's'}
         </p>
       </div>
+
+      {!isSpecialList ? (
+        <div className="flex flex-wrap gap-2">
+          {QUICK_FILTERS.map((f) => (
+            <button
+              key={f.id || 'all'}
+              type="button"
+              onClick={() => setQuickFilter(f.id)}
+              className={`rounded-full border px-3 py-1.5 text-xs font-bold uppercase tracking-wide transition ${
+                quickFilter === f.id
+                  ? 'border-[#134e4a] bg-[#134e4a] text-white'
+                  : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
+              }`}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+      ) : null}
 
       <div className="flex flex-wrap gap-2">
         {!isSpecialList ? (
@@ -356,143 +410,197 @@ export default function HrStaffDirectory({
           className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700"
           aria-label="Filter by status"
         >
-          <option value="">All statuses</option>
-          <option value="active">Active</option>
-          <option value="inactive">Inactive</option>
+          <option value="active">Active only</option>
+          <option value="inactive">Inactive only</option>
+          <option value="all">All statuses</option>
         </select>
-        <label className="flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700">
-          <input
-            type="checkbox"
-            checked={includeInactive}
-            onChange={(e) => setIncludeInactive(e.target.checked)}
-          />
-          Include inactive in fetch
-        </label>
+        <select
+          value={sortKey}
+          onChange={(e) => setSortKey(e.target.value)}
+          className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700"
+          aria-label="Sort by"
+        >
+          {SORT_OPTIONS.map((o) => (
+            <option key={o.id} value={o.id}>
+              Sort: {o.label}
+            </option>
+          ))}
+        </select>
+        {(search || branchId || department || employmentType || quickFilter || status !== 'active') ? (
+          <button
+            type="button"
+            onClick={clearFilters}
+            className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold uppercase text-slate-600 hover:bg-slate-50"
+          >
+            Clear filters
+          </button>
+        ) : null}
       </div>
 
       {!error ? (
         <>
-        <div className="space-y-3 md:hidden">
-          {loading && !staff.length ? (
-            <p className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">Loading staff…</p>
-          ) : null}
-          {!loading && filtered.length === 0 ? (
-            <p className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">No staff match these filters.</p>
-          ) : null}
-          {staffPaging.slice.map((s) => (
-            <article key={s.userId} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-              <div className="flex items-start justify-between gap-3">
-                <Link
-                  to={`${staffBasePath}/${encodeURIComponent(s.userId)}`}
-                  className="text-sm font-bold text-[#134e4a] hover:underline"
-                >
-                  {s.displayName || s.username}
-                </Link>
-                <HrStatusBadge status={s.status} variant="staff" />
-              </div>
-              <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 text-xs">
-                <div>
-                  <dt className="font-bold uppercase tracking-wide text-slate-400">Staff ID</dt>
-                  <dd className="mt-0.5 font-medium text-slate-800">{s.employeeNo || '—'}</dd>
+          <div className="space-y-3 md:hidden">
+            {loading && !staff.length ? (
+              <p className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">
+                Loading staff…
+              </p>
+            ) : null}
+            {!loading && filtered.length === 0 ? (
+              <HrEmptyState
+                title="No staff match these filters"
+                description="Try clearing filters or widening the status to include inactive staff."
+                action={
+                  canRegister ? (
+                    <button type="button" onClick={() => setRegisterOpen(true)} className={HR_BTN_PRIMARY}>
+                      Register staff
+                    </button>
+                  ) : (
+                    <button type="button" onClick={clearFilters} className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-bold uppercase text-slate-700">
+                      Clear filters
+                    </button>
+                  )
+                }
+              />
+            ) : null}
+            {staffPaging.slice.map((s) => (
+              <article key={s.userId} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                <div className="flex items-start justify-between gap-3">
+                  <Link
+                    to={`${staffBasePath}/${encodeURIComponent(s.userId)}`}
+                    className="text-sm font-bold text-[#134e4a] hover:underline"
+                  >
+                    {s.displayName || s.username}
+                  </Link>
+                  <HrStatusBadge status={s.status} variant="staff" />
                 </div>
-                <div>
-                  <dt className="font-bold uppercase tracking-wide text-slate-400">Branch</dt>
-                  <dd className="mt-0.5 font-medium text-slate-800">{s.branchId || s.normalized?.branchId || '—'}</dd>
-                </div>
-                <div className="col-span-2">
-                  <dt className="font-bold uppercase tracking-wide text-slate-400">Job</dt>
-                  <dd className="mt-0.5 font-medium text-slate-800">{s.jobTitle || '—'} · {s.department || '—'}</dd>
-                </div>
-                {showSalary ? (
+                <StaffBadges staff={s} />
+                <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 text-xs">
+                  <div>
+                    <dt className="font-bold uppercase tracking-wide text-slate-400">Staff ID</dt>
+                    <dd className="mt-0.5 font-medium text-slate-800">{s.employeeNo || '—'}</dd>
+                  </div>
+                  <div>
+                    <dt className="font-bold uppercase tracking-wide text-slate-400">Branch</dt>
+                    <dd className="mt-0.5 font-medium text-slate-800">{resolveBranchLabel(s, branchNames)}</dd>
+                  </div>
                   <div className="col-span-2">
-                    <dt className="font-bold uppercase tracking-wide text-slate-400">Base salary</dt>
-                    <dd className="mt-0.5 font-semibold tabular-nums text-slate-800">
-                      {s.compensationRedacted ? '—' : formatNgn(s.baseSalaryNgn)}
+                    <dt className="font-bold uppercase tracking-wide text-slate-400">Job</dt>
+                    <dd className="mt-0.5 font-medium text-slate-800">
+                      {s.jobTitle || '—'} · {s.department || '—'}
                     </dd>
                   </div>
-                ) : null}
-              </dl>
-            </article>
-          ))}
-        </div>
-
-        <div className="hidden md:block">
-        <AppTableWrap>
-          <AppTable role="numeric" className={compactTable ? 'text-xs' : undefined}>
-            <AppTableThead>
-              <AppTableTh>Name</AppTableTh>
-              <AppTableTh>Staff ID</AppTableTh>
-              <AppTableTh>Branch</AppTableTh>
-              <AppTableTh>Department</AppTableTh>
-              <AppTableTh>Job title</AppTableTh>
-              <AppTableTh>Group</AppTableTh>
-              {showSalary ? (
-                <AppTableTh align="right">
-                  <span className="inline-flex items-center gap-1">
-                    🔒 Base salary
-                  </span>
-                </AppTableTh>
-              ) : null}
-              <AppTableTh>Joined</AppTableTh>
-              <AppTableTh>Status</AppTableTh>
-            </AppTableThead>
-            <AppTableBody>
-              {loading && !staff.length ? (
-                <HrTableLoadingRow colSpan={showSalary ? 9 : 8} message="Loading staff…" />
-              ) : null}
-              {!loading && filtered.length === 0 ? (
-                <HrTableEmptyRow colSpan={showSalary ? 9 : 8} message="No staff match these filters." />
-              ) : null}
-              {staffPaging.slice.map((s) => (
-                  <AppTableTr key={s.userId}>
-                    <AppTableTd>
-                      <Link
-                        to={`${staffBasePath}/${encodeURIComponent(s.userId)}`}
-                        className="font-semibold text-[#134e4a] hover:underline"
-                      >
-                        {s.displayName || s.username}
-                      </Link>
-                    </AppTableTd>
-                    <AppTableTd>{s.employeeNo || '—'}</AppTableTd>
-                    <AppTableTd>{s.branchId || s.normalized?.branchId || '—'}</AppTableTd>
-                    <AppTableTd>{s.department || '—'}</AppTableTd>
-                    <AppTableTd>{s.jobTitle || '—'}</AppTableTd>
-                    <AppTableTd>{payrollGroupLabel(s)}</AppTableTd>
-                    {showSalary ? (
-                      <AppTableTd align="right">
+                  <div className="col-span-2">
+                    <dt className="font-bold uppercase tracking-wide text-slate-400">Line manager</dt>
+                    <dd className="mt-0.5 font-medium text-slate-800">
+                      {s.lineManagerDisplayName || s.lineManagerUserId || '—'}
+                    </dd>
+                  </div>
+                  {showSalary ? (
+                    <div className="col-span-2">
+                      <dt className="font-bold uppercase tracking-wide text-slate-400">Base salary</dt>
+                      <dd className="mt-0.5 font-semibold tabular-nums text-slate-800">
                         {s.compensationRedacted ? '—' : formatNgn(s.baseSalaryNgn)}
-                      </AppTableTd>
-                    ) : null}
-                    <AppTableTd>{s.dateJoinedIso || '—'}</AppTableTd>
-                    <AppTableTd truncate={false}>
-                      <HrStatusBadge status={s.status} variant="staff" />
-                      {(() => {
-                        const b = contractBadge(s);
-                        return b ? (
-                          <span className={`ml-1 inline-flex rounded-full border px-2 py-0.5 text-xs font-bold uppercase ${b.cls}`}>
-                            {b.label}
+                      </dd>
+                    </div>
+                  ) : null}
+                </dl>
+              </article>
+            ))}
+          </div>
+
+          <div className="hidden md:block">
+            <AppTableWrap>
+              <AppTable role="numeric" className={compactTable ? 'text-xs' : undefined}>
+                <AppTableThead>
+                  <AppTableTh>Name</AppTableTh>
+                  <AppTableTh>Staff ID</AppTableTh>
+                  <AppTableTh>Branch</AppTableTh>
+                  <AppTableTh>Department</AppTableTh>
+                  <AppTableTh>Job title</AppTableTh>
+                  <AppTableTh>Manager</AppTableTh>
+                  <AppTableTh>Profile</AppTableTh>
+                  <AppTableTh>Group</AppTableTh>
+                  {showSalary ? (
+                    <AppTableTh align="right">
+                      <span className="inline-flex items-center gap-1">
+                        <Lock size={12} aria-hidden />
+                        Base salary
+                      </span>
+                    </AppTableTh>
+                  ) : null}
+                  <AppTableTh>Joined</AppTableTh>
+                  <AppTableTh>Status</AppTableTh>
+                </AppTableThead>
+                <AppTableBody>
+                  {loading && !staff.length ? (
+                    <HrTableLoadingRow colSpan={showSalary ? 11 : 10} message="Loading staff…" />
+                  ) : null}
+                  {!loading && filtered.length === 0 ? (
+                    <HrTableEmptyRow colSpan={showSalary ? 11 : 10} message="No staff match these filters." />
+                  ) : null}
+                  {staffPaging.slice.map((s) => {
+                    const pct = profilePct(s);
+                    const pctBadge = profilePctBadge(pct);
+                    const contract = contractBadge(s);
+                    const probation = probationBadge(s);
+                    return (
+                      <AppTableTr key={s.userId}>
+                        <AppTableTd>
+                          <Link
+                            to={`${staffBasePath}/${encodeURIComponent(s.userId)}`}
+                            className="font-semibold text-[#134e4a] hover:underline"
+                          >
+                            {s.displayName || s.username}
+                          </Link>
+                        </AppTableTd>
+                        <AppTableTd>{s.employeeNo || '—'}</AppTableTd>
+                        <AppTableTd>{resolveBranchLabel(s, branchNames)}</AppTableTd>
+                        <AppTableTd>{s.department || '—'}</AppTableTd>
+                        <AppTableTd>{s.jobTitle || '—'}</AppTableTd>
+                        <AppTableTd>{s.lineManagerDisplayName || s.lineManagerUserId || '—'}</AppTableTd>
+                        <AppTableTd>
+                          <span className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold ${pctBadge.cls}`}>
+                            {pct}%
                           </span>
-                        ) : null;
-                      })()}
-                    </AppTableTd>
-                  </AppTableTr>
-                ))
-              }
-            </AppTableBody>
-          </AppTable>
-        </AppTableWrap>
-        </div>
-        {staffPaging.total > staffPaging.pageSize ? (
-          <AppTablePager
-            showingFrom={staffPaging.showingFrom}
-            showingTo={staffPaging.showingTo}
-            total={staffPaging.total}
-            hasPrev={staffPaging.hasPrev}
-            hasNext={staffPaging.hasNext}
-            onPrev={staffPaging.goPrev}
-            onNext={staffPaging.goNext}
-          />
-        ) : null}
+                        </AppTableTd>
+                        <AppTableTd>{payrollGroupLabel(s)}</AppTableTd>
+                        {showSalary ? (
+                          <AppTableTd align="right">
+                            {s.compensationRedacted ? '—' : formatNgn(s.baseSalaryNgn)}
+                          </AppTableTd>
+                        ) : null}
+                        <AppTableTd>{s.dateJoinedIso || '—'}</AppTableTd>
+                        <AppTableTd truncate={false}>
+                          <HrStatusBadge status={s.status} variant="staff" />
+                          {probation ? (
+                            <span className={`ml-1 inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase ${probation.cls}`}>
+                              {probation.label}
+                            </span>
+                          ) : null}
+                          {contract ? (
+                            <span className={`ml-1 inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase ${contract.cls}`}>
+                              {contract.label}
+                            </span>
+                          ) : null}
+                        </AppTableTd>
+                      </AppTableTr>
+                    );
+                  })}
+                </AppTableBody>
+              </AppTable>
+            </AppTableWrap>
+          </div>
+          {staffPaging.total > staffPaging.pageSize ? (
+            <AppTablePager
+              showingFrom={staffPaging.showingFrom}
+              showingTo={staffPaging.showingTo}
+              total={staffPaging.total}
+              hasPrev={staffPaging.hasPrev}
+              hasNext={staffPaging.hasNext}
+              onPrev={staffPaging.goPrev}
+              onNext={staffPaging.goNext}
+            />
+          ) : null}
         </>
       ) : null}
       {error ? (

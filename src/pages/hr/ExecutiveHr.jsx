@@ -14,15 +14,15 @@ import ExecutiveHrScholarshipRequests from './ExecutiveHrScholarshipRequests';
 import ExecutiveHrFamilyDashboard from './ExecutiveHrFamilyDashboard';
 import ExecutiveHrDomesticDashboard from './ExecutiveHrDomesticDashboard';
 import HrReports from './HrReports';
-import { hrTabPath, HR_SETTINGS } from '../../lib/hrRoutes';
+import { hrTabPath, HR_EMPLOYEE_REGISTERS, HR_SETTINGS } from '../../lib/hrRoutes';
 const HrExecutiveBenefitsHub = lazyWithRetry(() => import('./HrChairmanAccounts'), { id: 'HrChairmanAccounts' });
 
 const NAV = [
   { to: '/executive-hr/family-dashboard', label: 'Family overview' },
   { to: '/executive-hr/domestic-dashboard', label: 'Household staff overview' },
   { to: '/executive-hr/benefits', label: 'Executive benefits', end: true },
-  { to: '/hr/employees?tab=scholarship', label: 'Executive family register' },
-  { to: '/hr/employees?tab=domestic', label: 'Household staff (optional ERP)' },
+  { to: `${HR_EMPLOYEE_REGISTERS}?tab=scholarship`, label: 'Executive family register' },
+  { to: `${HR_EMPLOYEE_REGISTERS}?tab=domestic`, label: 'Household staff (optional ERP)' },
   { to: '/executive-hr/scholarship-requests', label: 'Family benefit requests' },
   { to: '/executive-hr/payroll', label: 'Payroll summary' },
   { to: '/executive-hr/contributions', label: 'Branch contributions' },

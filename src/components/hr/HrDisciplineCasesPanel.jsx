@@ -316,6 +316,7 @@ function CaseDetailModal({ caseId, onClose, onUpdated, canManage, canApprove, ca
             canManage={canManage}
             canApprove={canApprove}
             recoveryCount={recoveryCount}
+            responsibilityOk={responsibilityOk}
             onUpdated={load}
             workflow={workflow}
             setWorkflow={setWorkflow}

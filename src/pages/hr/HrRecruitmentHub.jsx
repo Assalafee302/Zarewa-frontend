@@ -2,12 +2,12 @@ import React, { Suspense } from 'react';
 import { lazyWithRetry } from '../../lib/lazyWithRetry';
 import { useHrUrlTab } from '../../hooks/useHrUrlTab';
 import { HrTabbedPage } from '../../components/hr/HrTabbedPage';
-import HrPhase2Placeholder from '../../components/hr/HrPhase2Placeholder';
+import { HrOnboardingQueue } from '../../components/hr/HrOnboardingQueue';
 
 const HrRecruiting = lazyWithRetry(() => import('./HrRecruiting'), { id: 'HrRecruiting' });
 
 const TABS = [
-  { id: 'jobs', label: 'Job Postings' },
+  { id: 'jobs', label: 'Job postings' },
   { id: 'applicants', label: 'Applicants' },
   { id: 'onboarding', label: 'Onboarding' },
 ];
@@ -17,8 +17,8 @@ export default function HrRecruitmentHub() {
 
   return (
     <HrTabbedPage
-      title="Recruitment & Onboarding"
-      description="Job postings, applicant pipeline, offer letters, and onboarding checklists."
+      title="Recruitment & onboarding"
+      description="Job postings, applicant pipeline, offer letters, and onboarding checklists for new hires."
       tabs={TABS}
       tab={tab}
       onTabChange={setTab}
@@ -28,12 +28,7 @@ export default function HrRecruitmentHub() {
           <HrRecruiting embedded />
         </Suspense>
       ) : null}
-      {tab === 'onboarding' ? (
-        <HrPhase2Placeholder
-          title="Onboarding queue"
-          purpose="Track staff with incomplete lifecycle checklists and pending policy acknowledgements after hire."
-        />
-      ) : null}
+      {tab === 'onboarding' ? <HrOnboardingQueue /> : null}
     </HrTabbedPage>
   );
 }

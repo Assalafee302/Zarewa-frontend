@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { HR_EMPLOYEES, HR_REQUESTS } from '../../lib/hrRoutes';
+import { HR_EMPLOYEES, HR_TIME_ABSENCE, hrTabPath } from '../../lib/hrRoutes';
 import { hrStaffDocKindLabel } from '../../lib/hrStaffDocumentKinds';
 
 /**
@@ -22,8 +22,8 @@ export function HrProfileWorkPanel({ queue }) {
           <h2 className="text-[11px] font-black uppercase tracking-widest text-violet-800">Profile work queue</h2>
           <p className="mt-1 text-xs text-slate-600">Documents to verify, profile changes, and incomplete employee files</p>
         </div>
-        <Link to={HR_REQUESTS} className="text-[11px] font-bold uppercase text-[#134e4a] hover:underline">
-          All requests →
+        <Link to={hrTabPath(HR_TIME_ABSENCE, 'approvals')} className="text-[11px] font-bold uppercase text-[#134e4a] hover:underline">
+          Time & absence →
         </Link>
       </div>
 
@@ -69,7 +69,7 @@ export function HrProfileWorkPanel({ queue }) {
                 <span className="truncate">
                   <strong>{r.displayName}</strong> — {r.title}
                 </span>
-                <Link to={HR_REQUESTS} className="shrink-0 font-bold text-[#134e4a] hover:underline">
+                <Link to={hrTabPath(HR_TIME_ABSENCE, 'approvals')} className="shrink-0 font-bold text-[#134e4a] hover:underline">
                   Open
                 </Link>
               </li>

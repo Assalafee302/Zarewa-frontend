@@ -1,9 +1,13 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Building2, FileText } from 'lucide-react';
-import { fetchCaseRecoverySchedules } from '../../lib/hrIncidents';
+import {
+  createCaseRecoverySchedules,
+  fetchCaseRecoverySchedules,
+  fetchCaseResponsibility,
+} from '../../lib/hrIncidents';
 import { formatNgn } from '../../lib/hrFormat';
-import { HR_BTN_SECONDARY } from './hrFormStyles';
+import { HR_BTN_PRIMARY, HR_BTN_SECONDARY, HR_FIELD_CLASS } from './hrFormStyles';
 
 function settlementLabel(p) {
   if (p.collectionChannel === 'cashier') {
@@ -13,34 +17,113 @@ function settlementLabel(p) {
   return `Paid ${formatNgn(p.amountNgn)} on ${p.paymentDateIso || p.createdAtIso?.slice(0, 10)}`;
 }
 
-export default function HrCaseRecoveryPanel({ caseId, detail, onUpdated }) {
+export default function HrCaseRecoveryPanel({
+  caseId,
+  detail,
+  responsibilityOk = false,
+  onUpdated,
+}) {
   const [rows, setRows] = useState([]);
+  const [parties, setParties] = useState([]);
   const [busy, setBusy] = useState(false);
+  const [durationMonths, setDurationMonths] = useState('12');
+  const [err, setErr] = useState('');
+  const [msg, setMsg] = useState('');
+
+  const lossNgn = Math.round(Number(detail?.lossValueNgn) || 0);
+  const isDeduction = detail?.decisionType === 'deduction';
 
   const load = useCallback(async () => {
     if (!caseId) return;
     setBusy(true);
-    const { ok, data } = await fetchCaseRecoverySchedules(caseId);
+    setErr('');
+    const [schedRes, respRes] = await Promise.all([
+      fetchCaseRecoverySchedules(caseId),
+      fetchCaseResponsibility(caseId),
+    ]);
     setBusy(false);
-    if (ok && data?.ok) setRows(data.schedules || []);
+    if (schedRes.ok && schedRes.data?.ok) setRows(schedRes.data.schedules || []);
     else setRows([]);
+    if (respRes.ok && respRes.data?.ok) setParties(respRes.data.parties || []);
+    else setParties([]);
   }, [caseId]);
 
   useEffect(() => {
     load();
-  }, [load, detail?.decisionType]);
+  }, [load, detail?.decisionType, detail?.lossValueNgn]);
 
-  if (!detail?.decisionType && !rows.length) {
+  const preview = useMemo(() => {
+    const months = Math.max(1, Math.round(Number(durationMonths) || 12));
+    return parties
+      .filter((p) => String(p.userId || '').trim())
+      .map((p) => {
+        const weight = Number(p.responsibilityWeight) || 0;
+        const total = Math.round((lossNgn * weight) / 100);
+        const installment = total > 0 ? Math.max(1, Math.round(total / months)) : 0;
+        return {
+          userId: p.userId,
+          name: p.staffDisplayName || p.userId,
+          weight,
+          total,
+          installment,
+        };
+      })
+      .filter((p) => p.total > 0);
+  }, [parties, lossNgn, durationMonths]);
+
+  const prerequisites = useMemo(() => {
+    const items = [];
+    if (!isDeduction) items.push({ ok: false, text: 'Apply sanction type “Salary deduction / recovery” first.' });
+    else items.push({ ok: true, text: 'Salary deduction sanction is on file.' });
+    if (lossNgn <= 0) items.push({ ok: false, text: 'Enter loss value (NGN) on the sanction form and save.' });
+    else items.push({ ok: true, text: `Loss value set: ${formatNgn(lossNgn)}` });
+    if (!responsibilityOk) {
+      items.push({ ok: false, text: 'Complete the responsibility map (must total 100%) in Investigate phase.' });
+    } else {
+      items.push({ ok: true, text: `Responsibility map ready (${parties.length} staff)` });
+    }
+    return items;
+  }, [isDeduction, lossNgn, responsibilityOk, parties.length]);
+
+  const canInitiate = prerequisites.every((p) => p.ok) && preview.length > 0;
+
+  const initiateRecovery = async () => {
+    setErr('');
+    setMsg('');
+    if (!canInitiate) {
+      setErr('Complete all checklist items before sending to the cashier desk.');
+      return;
+    }
+    setBusy(true);
+    const { ok, data } = await createCaseRecoverySchedules(caseId, {
+      durationMonths: Math.max(1, Math.round(Number(durationMonths) || 12)),
+      activate: true,
+    });
+    setBusy(false);
+    if (!ok || !data?.ok) {
+      setErr(data?.error || 'Could not create recovery schedules.');
+      return;
+    }
+    setMsg(
+      `Recovery sent to cashier desk for ${(data.schedules || []).length} staff member(s). They can now pay at Finance → Desk.`
+    );
+    await load();
+    onUpdated?.();
+  };
+
+  if (!isDeduction && !rows.length) {
     return (
       <div className="space-y-2 border-t border-slate-200 pt-4 mt-4">
         <h4 className="text-sm font-semibold text-slate-800">Recovery amount (HR initiates)</h4>
         <p className="text-xs text-slate-500">
-          Apply a salary deduction decision to set what the staff member must repay. The branch cashier records
-          actual payments.
+          Choose sanction type <strong>Salary deduction / recovery</strong> to set what staff must repay. The branch
+          cashier records actual payments.
         </p>
       </div>
     );
   }
+
+  const needsInitiation = isDeduction && rows.length === 0;
 
   return (
     <div className="space-y-3 border-t border-slate-200 pt-4 mt-4">
@@ -53,9 +136,8 @@ export default function HrCaseRecoveryPanel({ caseId, detail, onUpdated }) {
 
       <div className="rounded-xl border border-violet-200 bg-violet-50/40 px-4 py-3 space-y-2">
         <p className="text-xs text-violet-950 leading-relaxed">
-          <strong>HR sets the amount owed</strong> when you apply the sanction. Issue the salary recovery letter, then
-          send the staff member to the branch cashier. The cashier records the payment date and which bank or cash
-          account was credited — you do not post payments here.
+          <strong>HR sets the amount owed</strong> below, then staff pay at the branch cashier. The cashier records
+          payment date and which bank or cash account was credited — HR does not post payments here.
         </p>
         <p className="text-xs text-violet-900/80 flex items-center gap-1.5">
           <Building2 size={14} aria-hidden />
@@ -63,9 +145,66 @@ export default function HrCaseRecoveryPanel({ caseId, detail, onUpdated }) {
         </p>
       </div>
 
-      {rows.length === 0 ? (
-        <p className="text-xs text-slate-500">{busy ? 'Loading…' : 'No recovery schedules yet — apply a deduction decision first.'}</p>
-      ) : (
+      {msg ? <p className="text-sm text-emerald-800">{msg}</p> : null}
+      {err ? <p className="text-sm text-red-700">{err}</p> : null}
+
+      {needsInitiation ? (
+        <div className="rounded-xl border border-amber-200 bg-amber-50/50 p-4 space-y-4">
+          <p className="text-sm font-semibold text-amber-950">Send recovery to cashier desk</p>
+          <ul className="space-y-1.5 text-xs">
+            {prerequisites.map((p) => (
+              <li key={p.text} className={p.ok ? 'text-emerald-800' : 'text-amber-900 font-medium'}>
+                {p.ok ? '✓' : '○'} {p.text}
+              </li>
+            ))}
+          </ul>
+
+          {canInitiate ? (
+            <>
+              <label className="block text-xs font-semibold text-slate-700">
+                Repayment period (months)
+                <input
+                  type="number"
+                  min={1}
+                  max={60}
+                  className={`mt-1 ${HR_FIELD_CLASS}`}
+                  value={durationMonths}
+                  onChange={(e) => setDurationMonths(e.target.value)}
+                />
+              </label>
+              <div className="rounded-lg border border-slate-200 bg-white p-3 space-y-2">
+                <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">Amount per staff (HR sets)</p>
+                {preview.map((p) => (
+                  <div key={p.userId} className="flex flex-wrap justify-between gap-2 text-sm">
+                    <span className="font-medium text-slate-800">
+                      {p.name} <span className="text-slate-500">({p.weight}%)</span>
+                    </span>
+                    <span className="tabular-nums font-bold text-[#134e4a]">
+                      {formatNgn(p.total)}
+                      <span className="text-xs font-normal text-slate-500 ml-1">
+                        · {formatNgn(p.installment)}/mo
+                      </span>
+                    </span>
+                  </div>
+                ))}
+              </div>
+              <button type="button" disabled={busy} className={HR_BTN_PRIMARY} onClick={initiateRecovery}>
+                {busy ? 'Creating…' : 'Create recovery & send to cashier desk'}
+              </button>
+            </>
+          ) : (
+            <p className="text-xs text-amber-900">
+              Complete the checklist above, then return here to send amounts to the cashier desk.
+            </p>
+          )}
+        </div>
+      ) : null}
+
+      {rows.length === 0 && !needsInitiation ? (
+        <p className="text-xs text-slate-500">{busy ? 'Loading…' : 'No recovery schedules on this case.'}</p>
+      ) : null}
+
+      {rows.length > 0 ? (
         <ul className="space-y-3 text-sm">
           {rows.map((s) => {
             const onCashierDesk = s.status === 'active' && Number(s.principalOutstandingNgn) > 0;
@@ -115,7 +254,7 @@ export default function HrCaseRecoveryPanel({ caseId, detail, onUpdated }) {
             );
           })}
         </ul>
-      )}
+      ) : null}
 
       <button type="button" className={HR_BTN_SECONDARY} onClick={load} disabled={busy}>
         Refresh

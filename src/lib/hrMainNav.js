@@ -31,22 +31,16 @@ const HR_NAV_DEFINITION = [
     visible: (p) => hrHasPermission(p, 'hr.directory.view') || canManageHrStaff(p),
   },
   {
-    to: '/hr/requests',
-    label: 'Requests',
-    visible: (p) => canReviewHrRequests(p) || canEndorseBranchHr(p) || canGmApproveHrRequests(p),
-  },
-  {
-    to: '/hr/attendance',
-    label: 'Attendance',
+    to: '/hr/time-absence',
+    label: 'Time & Absence',
     visible: (p) =>
+      canReviewHrRequests(p) ||
+      canEndorseBranchHr(p) ||
+      canGmApproveHrRequests(p) ||
+      canManageHrLeave(p) ||
       canMarkHrAttendance(p) ||
       hrHasPermission(p, 'hr.attendance.manage') ||
       hrHasPermission(p, 'hr.attendance.upload'),
-  },
-  {
-    to: '/hr/leave',
-    label: 'Leave',
-    visible: (p) => canManageHrLeave(p) || canReviewHrRequests(p) || canGmApproveHrRequests(p),
   },
   {
     to: '/hr/payroll',

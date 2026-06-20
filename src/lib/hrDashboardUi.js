@@ -2,15 +2,16 @@ import {
   canGmApproveHrRequests,
   canGmApprovePayroll,
   canManageHrStaff,
+  canManageHrTransfers,
   canPreparePayroll,
   canReviewHrRequests,
   canViewHrReports,
 } from './hrAccess.js';
-import { HR_DOCUMENTS, HR_EMPLOYEES, HR_PAYROLL, HR_REQUESTS, hrTabPath } from './hrRoutes.js';
+import { HR_DISCIPLINE_EXIT, HR_DOCUMENTS, HR_EMPLOYEES, HR_PAYROLL, HR_TIME_ABSENCE, hrTabPath, hrTimeAbsenceQueuePath } from './hrRoutes.js';
 
 /** @param {string} scope */
 export function hrRequestQueuePath(scope) {
-  return `${HR_REQUESTS}?view=queue&scope=${encodeURIComponent(scope)}`;
+  return hrTimeAbsenceQueuePath(scope);
 }
 
 export function hrPayrollRunsPath() {
@@ -63,6 +64,14 @@ export function getHrDashboardQueueLines(counts, summary, permissions = []) {
       count: Number(c.pendingHrReview ?? s.pendingHrReview ?? 0),
       href: hrRequestQueuePath('hr_queue'),
     });
+    const overdue = Number(c.overdueRequests ?? s.overdueRequests ?? 0);
+    if (overdue > 0) {
+      lines.push({
+        label: 'Overdue requests (SLA)',
+        count: overdue,
+        href: hrRequestQueuePath('hr_queue'),
+      });
+    }
   }
   if (canReviewHrRequests(permissions) || canGmApproveHrRequests(permissions)) {
     lines.push({
@@ -90,6 +99,29 @@ export function getHrDashboardQueueLines(counts, summary, permissions = []) {
       count: Number(c.draftPayrollRuns ?? 0),
       href: HR_PAYROLL,
     });
+  }
+  if (canManageHrTransfers(permissions)) {
+    const transferPending =
+      Number(s.pendingTransferHrReview ?? 0) +
+      Number(s.pendingTransferGmApproval ?? 0) +
+      Number(s.pendingTransferComplete ?? 0);
+    if (transferPending > 0) {
+      lines.push({
+        label: 'Transfer requests',
+        count: transferPending,
+        href: hrTabPath(HR_DISCIPLINE_EXIT, 'transfers'),
+      });
+    }
+  }
+  if (canManageHrStaff(permissions)) {
+    const incomplete = Number(c.incompleteProfiles ?? 0);
+    if (incomplete > 0) {
+      lines.push({
+        label: 'Incomplete profiles',
+        count: incomplete,
+        href: HR_EMPLOYEES,
+      });
+    }
   }
   return lines;
 }
@@ -169,7 +201,7 @@ export function getHrDashboardPendingKpi(counts, summary, permissions = []) {
   return {
     label: 'Pending requests',
     value: 0,
-    href: HR_REQUESTS,
+    href: hrTimeAbsenceQueuePath('hr_queue'),
     tone: 'default',
   };
 }
@@ -190,6 +222,15 @@ export function getHrPayrollIntro(canPrepare, canGm) {
 
 const INCIDENTS_PATH = '/hr/discipline-exit?tab=accountability&view=memos';
 
+/** Count total actionable + calendar alert items for the attention banner. */
+export function getHrDashboardAttentionCount(alerts = {}, actionKeys = [], calendarKeys = []) {
+  if (!alerts || typeof alerts !== 'object') return 0;
+  let total = 0;
+  for (const key of actionKeys) total += (alerts[key] || []).length;
+  for (const key of calendarKeys) total += (alerts[key] || []).length;
+  return total;
+}
+
 /**
  * Top overview KPI row — four cards, prioritised by role.
  * @param {{
@@ -204,10 +245,25 @@ export function getHrDashboardOverviewKpis(data = {}) {
   const { counts, summary, staff, alerts, permissions = [] } = data;
   const c = counts || {};
   const s = summary || {};
-  const incidents = Number(s.openIncidents ?? 0);
+  const incidents = Number(s.openIncidents ?? staff?.openIncidents ?? 0);
   const activeStaff = staff?.active ?? s.activeStaff ?? '—';
-  const probation = Number(staff?.onProbation ?? alerts?.probationEnding?.length ?? 0);
+  const probationEnding = Number(staff?.onProbationEnding ?? alerts?.probationEnding?.length ?? 0);
+  const documentsExpiring = Number(staff?.documentsExpiring ?? alerts?.documentsExpiring?.length ?? 0);
   const gmPayrollCount = Number(c.draftPayrollAwaitingGm ?? 0);
+  const probationKpi = {
+    label: 'Probation ending',
+    value: probationEnding,
+    hint: 'Within 30 days',
+    href: HR_EMPLOYEES,
+    tone: probationEnding > 0 ? 'amber' : 'default',
+  };
+  const documentsKpi = {
+    label: 'Expiring documents',
+    value: documentsExpiring,
+    hint: 'Within 60 days',
+    href: hrTabPath(HR_DOCUMENTS, 'reports'),
+    tone: documentsExpiring > 0 ? 'red' : 'default',
+  };
   const incidentsKpi = {
     label: 'Open incidents',
     value: incidents,
@@ -239,12 +295,7 @@ export function getHrDashboardOverviewKpis(data = {}) {
     const hrPending = Number(c.pendingHrReview ?? s.pendingHrReview ?? 0);
     const kpis = [
       { label: 'Active staff', value: activeStaff, href: HR_EMPLOYEES, tone: 'teal' },
-      {
-        label: 'On probation',
-        value: probation,
-        href: HR_EMPLOYEES,
-        tone: probation > 0 ? 'amber' : 'default',
-      },
+      probationKpi,
       {
         label: 'Pending HR review',
         value: hrPending,
@@ -256,13 +307,15 @@ export function getHrDashboardOverviewKpis(data = {}) {
     if (canGmApprovePayroll(permissions)) {
       const gmPayroll = Number(c.draftPayrollAwaitingGm ?? 0);
       if (gmPayroll > 0) {
-        kpis[1] = {
+        kpis[2] = {
           label: 'Payroll awaiting GM',
           value: gmPayroll,
           href: hrPayrollRunsPath(),
           tone: 'amber',
         };
       }
+    } else if (documentsExpiring > 0) {
+      kpis[2] = documentsKpi;
     }
     return kpis;
   }
@@ -270,12 +323,7 @@ export function getHrDashboardOverviewKpis(data = {}) {
   const pendingKpi = getHrDashboardPendingKpi(c, s, permissions);
   return [
     { label: 'Active staff', value: activeStaff, href: HR_EMPLOYEES, tone: 'teal' },
-    {
-      label: 'On probation',
-      value: probation,
-      href: HR_EMPLOYEES,
-      tone: probation > 0 ? 'amber' : 'default',
-    },
+    probationKpi,
     {
       label: pendingKpi.label,
       value: pendingKpi.value,

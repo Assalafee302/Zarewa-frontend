@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  getHrDashboardAttentionCount,
   getHrDashboardIntro,
   getHrDashboardOverviewKpis,
   getHrDashboardPendingKpi,
@@ -15,6 +16,7 @@ describe('hrDashboardUi', () => {
     const lines = getHrDashboardQueueLines({ pendingHrReview: 3 }, {}, perms);
     expect(lines.some((l) => l.label === 'HR queue' && l.count === 3)).toBe(true);
     expect(lines.some((l) => l.href === hrRequestQueuePath('hr_queue'))).toBe(true);
+    expect(hrRequestQueuePath('hr_queue')).toContain('/hr/time-absence');
   });
 
   it('prioritises GM final KPI for gmhr-only permissions', () => {
@@ -56,5 +58,25 @@ describe('hrDashboardUi', () => {
   it('surfaces payroll awaiting GM in queue lines for gmhr', () => {
     const lines = getHrDashboardQueueLines({ draftPayrollAwaitingGm: 3 }, {}, ['hr.payroll.gm_approve']);
     expect(lines.some((l) => l.label === 'Payroll awaiting GM sign-off' && l.count === 3)).toBe(true);
+  });
+
+  it('counts dashboard attention items from alert buckets', () => {
+    const count = getHrDashboardAttentionCount(
+      { absenceAwaitingReview: [{}, {}], birthdays: [{}], ok: true },
+      ['absenceAwaitingReview'],
+      ['birthdays']
+    );
+    expect(count).toBe(3);
+  });
+
+  it('uses probation ending KPI label with staff counts', () => {
+    const kpis = getHrDashboardOverviewKpis({
+      counts: { pendingHrReview: 1 },
+      summary: { openIncidents: 2 },
+      staff: { active: 40, onProbationEnding: 5 },
+      permissions: ['hr.requests.review', 'hr.staff.manage'],
+    });
+    expect(kpis.some((k) => k.label === 'Probation ending' && k.value === 5 && k.hint === 'Within 30 days')).toBe(true);
+    expect(kpis.some((k) => k.label === 'Open incidents' && k.value === 2)).toBe(true);
   });
 });

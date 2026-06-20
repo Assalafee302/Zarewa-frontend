@@ -200,7 +200,7 @@ export function HrObligationAccountsPanel() {
             </div>
           ) : null}
 
-          {detail.principalOutstandingNgn > 0 && detail.status === 'active' ? (
+          {detail.principalOutstandingNgn > 0 && detail.status === 'active' && detail.kind !== 'recovery' ? (
             <form onSubmit={submitRepayment} className="space-y-3 border-t border-slate-100 pt-3">
               <p className="text-[10px] font-bold uppercase text-slate-500">Record cash / bank repayment</p>
               {error ? <p className="text-xs font-bold text-rose-700">{error}</p> : null}
@@ -234,6 +234,11 @@ export function HrObligationAccountsPanel() {
                 </button>
               </div>
             </form>
+          ) : detail.kind === 'recovery' && detail.principalOutstandingNgn > 0 ? (
+            <div className="rounded-lg border border-violet-100 bg-violet-50/60 px-3 py-3 text-xs text-violet-950">
+              <strong>Discipline recoveries are paid at the branch cashier</strong> (Finance → Desk → Staff recoveries).
+              HR sets the amount on the discipline case; the cashier records payment date and which account was credited.
+            </div>
           ) : null}
         </div>
       ) : (

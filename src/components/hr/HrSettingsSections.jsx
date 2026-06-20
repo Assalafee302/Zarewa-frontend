@@ -7,7 +7,7 @@ import { fetchHrDepartments } from '../../lib/hrMasterData';
 import { downloadBlankStaffRegistrationFormPdf } from '../../lib/hrStaff';
 import { canEditPensionPolicyRates, canManageHrSettings } from '../../lib/hrAccess';
 import { useWorkspace } from '../../context/WorkspaceContext';
-import { HR_DOCUMENTS, HR_EMPLOYEES, HR_LEAVE, HR_PAYROLL, hrTabPath } from '../../lib/hrRoutes';
+import { HR_DOCUMENTS, HR_EMPLOYEES, HR_PAYROLL, HR_TIME_ABSENCE, hrTabPath } from '../../lib/hrRoutes';
 import { HrAddFormButton, HrFormModal } from './HrFormModal';
 import { HR_BTN_PRIMARY, HR_BTN_SECONDARY, HR_FIELD_CLASS } from './hrFormStyles';
 import { HrAlert, HrCard } from './hrPageUi';
@@ -358,7 +358,7 @@ export function HrSettingsRelatedLinks() {
     {
       label: 'Public holidays',
       hint: 'Non-working days for leave and attendance',
-      to: hrTabPath(HR_LEAVE, 'holidays'),
+      to: hrTabPath(HR_TIME_ABSENCE, 'holidays'),
     },
     {
       label: 'Salary matrix',

@@ -1,4 +1,4 @@
-import { HR_DOCUMENTS, HR_EMPLOYEES, HR_LEAVE, HR_PAYROLL, HR_SETTINGS, hrTabPath } from './hrRoutes';
+import { HR_DOCUMENTS, HR_EMPLOYEE_REGISTERS, HR_TIME_ABSENCE, HR_PAYROLL, HR_SETTINGS, hrTabPath } from './hrRoutes';
 
 /** Copy for each HR Settings tab — aligned with branch/HQ employee operations. */
 export const HR_SETTINGS_TABS = [
@@ -43,7 +43,7 @@ export const HR_SETTINGS_SCOPE = {
   ],
   elsewhere: [
     'Payroll runs, salary matrix, pension rates → Payroll',
-    'Public holidays and leave balances → Leave',
+    'Public holidays and leave balances → Time & Absence',
     'Executive family & household staff → Executive HR',
     'Letters workflow and HR exports → Documents',
   ],
@@ -82,12 +82,12 @@ export const HR_SETTINGS_MODULE_LINK_GROUPS = [
       {
         label: 'Public holidays',
         hint: 'Company non-working days',
-        to: hrTabPath(HR_LEAVE, 'holidays'),
+        to: hrTabPath(HR_TIME_ABSENCE, 'holidays'),
       },
       {
         label: 'Leave balances',
         hint: 'Accrual, carry-over, and approvals',
-        to: hrTabPath(HR_LEAVE, 'balances'),
+        to: hrTabPath(HR_TIME_ABSENCE, 'balances'),
       },
     ],
   },
@@ -117,7 +117,7 @@ export const HR_SETTINGS_MODULE_LINK_GROUPS = [
       {
         label: 'Family & household registers',
         hint: 'Executive family and optional domestic ERP records',
-        to: `${HR_EMPLOYEES}?tab=scholarship`,
+        to: `${HR_EMPLOYEE_REGISTERS}?tab=scholarship`,
       },
     ],
   },

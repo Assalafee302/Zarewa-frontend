@@ -6,22 +6,21 @@ import HrTabRedirect from '../../components/hr/HrTabRedirect';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { buildHrMainNav } from '../../lib/hrMainNav';
 import {
-  HR_ATTENDANCE,
   HR_DEVELOPMENT,
   HR_DISCIPLINE_EXIT,
   HR_DOCUMENTS,
   HR_EMPLOYEES,
-  HR_LEAVE,
   HR_PAYROLL,
   HR_RECRUITMENT,
   HR_SETTINGS,
+  HR_TIME_ABSENCE,
 } from '../../lib/hrRoutes';
 import HrDashboard from './HrDashboard';
 import HrEmployees from './HrEmployees';
+import HrStaffRegisters from './HrStaffRegisters';
 import HrStaffProfile from './HrStaffProfile';
-import HrRequests from './HrRequests';
-import HrAttendanceHub from './HrAttendanceHub';
-import HrLeaveHub from './HrLeaveHub';
+import { HrAttendanceLegacyRedirect, HrLeaveLegacyRedirect, HrRequestsLegacyRedirect } from './HrLegacyHrRedirects';
+import HrTimeAbsenceHub from './HrTimeAbsenceHub';
 import HrPayrollHub from './HrPayrollHub';
 import HrRecruitmentHub from './HrRecruitmentHub';
 import HrDevelopmentHub from './HrDevelopmentHub';
@@ -54,7 +53,7 @@ export default function HumanResources() {
         element={
           <HrSectionShell
             title="Human Resources"
-            subtitle="HQ payroll, staff records, leave, attendance, and people operations for Zarewa."
+            subtitle="HQ payroll, staff records, time & absence, and people operations for Zarewa."
             navItems={navItems}
             moreNavItems={moreNavItems}
             stickySubnav
@@ -67,17 +66,18 @@ export default function HumanResources() {
 
         {/* Consolidated Phase 1 hubs */}
         <Route path="employees" element={<HrEmployees />} />
+        <Route path="employees/registers" element={<HrStaffRegisters />} />
         <Route path="employees/:userId" element={<HrStaffProfile />} />
-        <Route path="attendance" element={<HrAttendanceHub />} />
-        <Route path="leave" element={<HrLeaveHub />} />
+        <Route path="time-absence" element={<HrTimeAbsenceHub />} />
+        <Route path="attendance" element={<HrAttendanceLegacyRedirect />} />
+        <Route path="leave" element={<HrLeaveLegacyRedirect />} />
+        <Route path="requests" element={<HrRequestsLegacyRedirect />} />
         <Route path="payroll" element={<HrPayrollHub />} />
         <Route path="recruitment" element={<HrRecruitmentHub />} />
         <Route path="development" element={<HrDevelopmentHub />} />
         <Route path="discipline-exit" element={<HrDisciplineExitHub />} />
         <Route path="documents" element={<HrDocumentsHub />} />
         <Route path="settings" element={<HrSettingsHub />} />
-
-        <Route path="requests" element={<HrRequests />} />
 
         {/* Legacy redirects */}
         <Route path="staff" element={<Navigate to="/hr/employees" replace />} />
@@ -92,13 +92,13 @@ export default function HumanResources() {
         <Route path="reports" element={<HrTabRedirect base={HR_DOCUMENTS} tab="reports" />} />
         <Route path="appraisal" element={<HrTabRedirect base={HR_DEVELOPMENT} tab="appraisals" />} />
         <Route path="analytics" element={<Suspense fallback={<p className="text-sm text-slate-600">Loading analytics…</p>}><HrAnalytics /></Suspense>} />
-        <Route path="id-cards" element={<HrTabRedirect base={HR_EMPLOYEES} tab="id-cards" />} />
+        <Route path="id-cards" element={<HrTabRedirect base={HR_DOCUMENTS} tab="id-cards" />} />
         <Route path="chairman" element={<Navigate to="/executive-hr/benefits" replace />} />
         <Route path="executive/*" element={<Navigate to="/executive-hr" replace />} />
 
         {/* Legacy standalone routes → hub equivalents */}
-        <Route path="leave-legacy" element={<Navigate to={HR_LEAVE} replace />} />
-        <Route path="attendance-legacy" element={<Navigate to={HR_ATTENDANCE} replace />} />
+        <Route path="leave-legacy" element={<Navigate to={HR_TIME_ABSENCE} replace />} />
+        <Route path="attendance-legacy" element={<Navigate to={HR_TIME_ABSENCE} replace />} />
         <Route path="payroll-legacy" element={<Navigate to={HR_PAYROLL} replace />} />
         <Route path="settings-legacy" element={<Navigate to={HR_SETTINGS} replace />} />
       </Route>

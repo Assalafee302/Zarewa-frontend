@@ -1016,7 +1016,7 @@ const OPERATIONAL_TOPICS = [
     links: [
       { label: 'My Profile — Leave', to: '/my-profile/leave' },
       { label: 'Team HR — Requests', to: '/team-hr/requests' },
-      { label: 'HR — Leave', to: '/hr/leave' },
+      { label: 'HR — Time & Absence', to: '/hr/time-absence' },
     ],
     extraKeywords: ['leave', 'annual leave', 'time off'],
   },

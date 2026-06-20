@@ -28,12 +28,12 @@ import {
   canViewHrOrgStructure,
   canViewHrSettings,
 } from '../../lib/hrAccess';
-import { HR_LEAVE, HR_PAYROLL, HR_SETTINGS, hrTabPath } from '../../lib/hrRoutes';
+import { HR_TIME_ABSENCE, HR_PAYROLL, HR_SETTINGS, hrTabPath } from '../../lib/hrRoutes';
 import { HR_SETTINGS_PAGE, HR_SETTINGS_TABS } from '../../lib/hrSettingsUi';
 
 /** Retired settings tabs — send users to the module that owns the workflow. */
 const EXTERNAL_TAB_REDIRECTS = {
-  holidays: hrTabPath(HR_LEAVE, 'holidays'),
+  holidays: hrTabPath(HR_TIME_ABSENCE, 'holidays'),
   compensation: hrTabPath(HR_SETTINGS, 'structure'),
   'salary-matrix': hrTabPath(HR_SETTINGS, 'structure'),
   quality: '/hr/dashboard',

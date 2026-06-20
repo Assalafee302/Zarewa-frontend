@@ -280,7 +280,7 @@ export default function ExecutiveHrDomesticDashboard() {
           Executive benefits → Household staff
         </Link>
         . ERP login is optional — see{' '}
-        <Link to="/hr/employees?tab=domestic" className="font-semibold text-slate-600 underline">
+        <Link to="/hr/employees/registers?tab=domestic" className="font-semibold text-slate-600 underline">
           household staff register
         </Link>{' '}
         only if self-service is needed.

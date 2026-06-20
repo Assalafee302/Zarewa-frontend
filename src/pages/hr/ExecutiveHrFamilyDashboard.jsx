@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { fetchExecutiveFamilyDashboard } from '../../lib/hrExecutiveBenefits';
 import { formatNgn } from '../../lib/hrFormat';
 import { FAMILY_BENEFITS } from '../../lib/familyBenefitsUi';
-import { HR_EMPLOYEES } from '../../lib/hrRoutes';
+import { HR_EMPLOYEE_REGISTERS } from '../../lib/hrRoutes';
 import { paymentHealthMeta } from '../../lib/scholarshipUi';
 
 const HEALTH_BORDER = {
@@ -132,7 +132,7 @@ function ChildCard({ child }) {
         ) : null}
         {!child.hasLogin ? (
           <Link
-            to={`${HR_EMPLOYEES}?tab=scholarship`}
+            to={`${HR_EMPLOYEE_REGISTERS}?tab=scholarship`}
             className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-900 no-underline"
           >
             No login — register in Executive family
@@ -250,7 +250,7 @@ export default function ExecutiveHrFamilyDashboard() {
           <p className="text-sm font-semibold text-slate-800">{FAMILY_BENEFITS.familyDashboardEmpty}</p>
           <p className="mt-2 text-sm text-slate-500">{FAMILY_BENEFITS.familyDashboardEmptyHint}</p>
           <Link
-            to={`${HR_EMPLOYEES}?tab=scholarship`}
+            to={`${HR_EMPLOYEE_REGISTERS}?tab=scholarship`}
             className="mt-4 inline-flex text-sm font-semibold text-violet-700 underline"
           >
             Open Executive family register →

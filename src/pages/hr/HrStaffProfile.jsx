@@ -3,13 +3,17 @@ import { Link, useParams } from 'react-router-dom';
 import { ArrowLeft, AlertTriangle } from 'lucide-react';
 import { apiFetch } from '../../lib/apiBase';
 import { useWorkspace } from '../../context/WorkspaceContext';
+import { useHrUrlTab } from '../../hooks/useHrUrlTab';
 import { HrDetailGrid } from '../../components/hr/HrDetailGrid';
 import { HrStaffFormFields } from '../../components/hr/HrStaffFormFields';
 import { HrSensitiveGate } from '../../components/hr/HrSensitiveGate';
 import { useHrSensitiveAccess } from '../../hooks/useHrSensitiveAccess';
 import { canManageHrStaff, canViewOrgSensitiveHr, hrHasPermission } from '../../lib/hrAccess';
 import { formatNgn, payrollGroupLabel, yearsOfServiceFromIso } from '../../lib/hrFormat';
-import { HR_EMPLOYEES } from '../../lib/hrRoutes';
+import { HrStaffLifecyclePanel } from '../../components/hr/HrStaffLifecyclePanel';
+import { HrStaffFeedbackPanel } from '../../components/hr/HrStaffFeedbackPanel';
+import { HrStaffSalaryHistoryPanel } from '../../components/hr/HrStaffSalaryHistoryPanel';
+import { HR_DEVELOPMENT, HR_EMPLOYEES } from '../../lib/hrRoutes';
 import { HrSalaryIncrementPanel } from '../../components/hr/HrSalaryIncrementPanel';
 import { HrPromotionFromMatrix } from '../../components/hr/HrPromotionFromMatrix';
 import { HrFormModal } from '../../components/hr/HrFormModal';
@@ -43,21 +47,23 @@ import {
   AppTableWrap,
 } from '../../components/ui/AppDataTable';
 
-const TABS = [
+const PROFILE_TABS = [
   { id: 'overview', label: 'Overview' },
   { id: 'employment', label: 'Employment' },
+  { id: 'lifecycle', label: 'Lifecycle' },
   { id: 'compensation', label: 'Compensation' },
   { id: 'leave', label: 'Leave' },
   { id: 'loans', label: 'Loans' },
   { id: 'documents', label: 'Documents' },
   { id: 'transfers', label: 'Transfers' },
+  { id: 'notes', label: 'Notes' },
   { id: 'audit', label: 'Audit' },
 ];
 
 function TabBar({ active, onChange }) {
   return (
     <div className="flex flex-wrap gap-1 border-b border-slate-200 pb-px">
-      {TABS.map((t) => (
+      {PROFILE_TABS.map((t) => (
         <button
           key={t.id}
           type="button"
@@ -329,7 +335,7 @@ export default function HrStaffProfile() {
     return list.map((b) => ({ id: b.id, name: b.name || b.id }));
   }, [ws?.snapshot?.workspaceBranches, ws?.session?.branches]);
 
-  const [tab, setTab] = useState('overview');
+  const { tab, setTab } = useHrUrlTab('overview', PROFILE_TABS.map((t) => t.id));
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [saveError, setSaveError] = useState('');
@@ -623,6 +629,7 @@ export default function HrStaffProfile() {
         onFixTab={(fixTab) => {
           if (fixTab === 'compensation') setTab('compensation');
           else if (fixTab === 'documents') setTab('documents');
+          else if (fixTab === 'lifecycle') setTab('lifecycle');
           else setTab('employment');
         }}
       />
@@ -678,6 +685,7 @@ export default function HrStaffProfile() {
             onFixSection={(fixTab) => {
               if (fixTab === 'compensation') setTab('compensation');
               else if (fixTab === 'documents') setTab('documents');
+              else if (fixTab === 'lifecycle') setTab('lifecycle');
               else setTab('employment');
               if (canManage) startEdit(fixTab === 'compensation' ? 'payroll' : fixTab === 'documents' ? 'personal' : fixTab);
             }}
@@ -733,7 +741,7 @@ export default function HrStaffProfile() {
                       ? `L${staff.salaryLevel} / Step ${staff.salaryStep ?? 1} · ${staff.promotionGrade || '—'}`
                       : '—',
                 },
-                { label: 'Line manager', value: staff.lineManagerDisplayName || staff.lineManagerUserId || '—' },
+                { label: 'Line manager', value: staff.lineManagerDisplayName || staff.lineManager?.displayName || staff.lineManagerUserId || '—' },
               ]}
             />
             <ProfileSectionCard
@@ -765,6 +773,10 @@ export default function HrStaffProfile() {
         </div>
       ) : null}
 
+      {tab === 'lifecycle' ? (
+        <HrStaffLifecyclePanel userId={userId} onUpdated={reloadProfile} />
+      ) : null}
+
       {tab === 'employment' ? (
         <div className="space-y-6">
           <HrDetailGrid
@@ -777,7 +789,7 @@ export default function HrStaffProfile() {
               { label: 'Date joined', value: staff.dateJoinedIso },
               { label: 'Probation ends', value: staff.probationEndIso },
               { label: 'Leave entitlement band', value: staff.leaveEntitlementBand },
-              { label: 'Line manager ID', value: staff.lineManagerUserId },
+              { label: 'Line manager', value: staff.lineManagerDisplayName || staff.lineManager?.displayName || staff.lineManagerUserId || '—' },
               { label: 'Minimum qualification', value: staff.minimumQualification },
               { label: 'Academic qualification', value: staff.academicQualification },
               { label: 'Training summary', value: staff.trainingSummary },
@@ -785,6 +797,15 @@ export default function HrStaffProfile() {
             ]}
           />
           <HrSkillsMatrixPanel userId={userId} canEdit={canManage} />
+          <div className="rounded-xl border border-slate-100 bg-slate-50/60 px-4 py-3 text-sm text-slate-700">
+            <p>
+              Performance appraisals are managed in{' '}
+              <Link to={`${HR_DEVELOPMENT}?tab=appraisals`} className="font-bold text-[#134e4a] underline">
+                HR Development → Appraisals
+              </Link>
+              .
+            </p>
+          </div>
           {canManage ? (
             <div className="rounded-2xl border border-slate-100 bg-white p-4 space-y-2">
               <div>
@@ -829,6 +850,10 @@ export default function HrStaffProfile() {
               />
             </>
           ) : null}
+          <HrStaffSalaryHistoryPanel
+            userId={userId}
+            canViewAmounts={showSensitiveInline || sensitive.isUnlocked || !staff.compensationRedacted}
+          />
         </div>
       ) : null}
 
@@ -967,16 +992,21 @@ export default function HrStaffProfile() {
       {tab === 'transfers' ? (
         <div className="space-y-3">
           {canManage ? (
-            <p className="text-xs text-slate-500">
-              To transfer: use <strong>Edit profile</strong> and change branch (add a reason). Or use{' '}
-              <Link to="/hr/transfers" className="font-semibold text-[#134e4a] hover:underline">
-                HR → Transfers
-              </Link>
-              .
-            </p>
+            <div className="rounded-xl border border-slate-100 bg-slate-50/60 px-4 py-3 text-sm text-slate-700 space-y-2">
+              <p>
+                To transfer branch: use <strong>Edit profile</strong> and change branch (add a reason).
+              </p>
+              <p>
+                Formal transfer requests:{' '}
+                <Link to="/hr/discipline-exit?tab=transfers" className="font-semibold text-[#134e4a] hover:underline">
+                  HR → Staff cases & exit → Transfers
+                </Link>
+                .
+              </p>
+            </div>
           ) : null}
         {branchHistory.length === 0 ? (
-          <p className="text-sm text-slate-600">No branch transfer history recorded.</p>
+          <p className="text-sm text-slate-600">No branch transfer history recorded for this employee.</p>
         ) : (
           <AppTableWrap>
             <AppTable>
@@ -1001,6 +1031,8 @@ export default function HrStaffProfile() {
         )}
         </div>
       ) : null}
+
+      {tab === 'notes' ? <HrStaffFeedbackPanel userId={userId} /> : null}
 
       {tab === 'audit' ? (
         auditEvents == null ? (
