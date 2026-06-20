@@ -90,6 +90,7 @@ import {
 } from '../lib/legacyAccountsAccess';
 import { FinanceDeskWorkQueues } from '../components/finance/FinanceDeskWorkQueues.jsx';
 import { FinanceTabContextBanner } from '../components/finance/FinanceTabContextBanner.jsx';
+import { FinanceReceiptsWorkflowStrip } from '../components/finance/FinanceReceiptsWorkflowStrip.jsx';
 import { FinanceDeskTreasuryAccountGrid } from '../components/finance/FinanceDeskTreasuryAccountGrid.jsx';
 import { FinanceTreasuryAwaitingPayoutQueues } from '../components/finance/FinanceTreasuryAwaitingPayoutQueues.jsx';
 import { FinanceDeskQueueActionButton } from '../components/finance/FinanceDeskColoredQueuePanel.jsx';
@@ -1712,6 +1713,20 @@ const Account = () => {
     return { total, pageCount, safePage, slice, from, to };
   }, [confirmedReceipts, confirmedReceiptsPage]);
 
+  const receiptsPendingClearanceNgn = useMemo(
+    () =>
+      waitingConfirmationReceipts.reduce((s, r) => s + (Number(receiptCashReceivedNgn(r)) || Number(r.amountNgn) || 0), 0),
+    [waitingConfirmationReceipts]
+  );
+
+  const openBankDepositsCount = useMemo(() => {
+    const rows = Array.isArray(ws?.snapshot?.bankDeposits) ? ws.snapshot.bankDeposits : [];
+    return rows.filter((d) => {
+      const st = String(d.status || '').toUpperCase();
+      return ['OPEN', 'PARTIAL', 'RESERVED'].includes(st) && Math.round(Number(d.remainingNgn) || 0) > 0;
+    }).length;
+  }, [ws?.snapshot?.bankDeposits]);
+
   useEffect(() => {
     setWaitingReceiptsPage(0);
     setConfirmedReceiptsPage(0);
@@ -3223,15 +3238,21 @@ const Account = () => {
                     }
                   />
                 ) : null}
+                <FinanceReceiptsWorkflowStrip
+                  pendingCount={waitingReceiptsListWindow.total}
+                  confirmedCount={receiptsListWindow.total}
+                  pendingNgn={receiptsPendingClearanceNgn}
+                  openBankDeposits={openBankDepositsCount}
+                  onGoToDesk={() => handleAccountTabChange('desk')}
+                />
                 <section className="space-y-3">
                   <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
                     <div>
                       <h3 className="text-xs font-bold uppercase tracking-widest text-[#134e4a]">
                         Receipts confirmation & reconciliation
                       </h3>
-                      <p className="text-[11px] text-slate-600 mt-1 max-w-3xl">
-                        This is one finance desk workflow: confirm what actually landed, capture deductions/variances,
-                        then finalize reconciliation for posting and delivery clearance.
+                      <p className="text-[10px] text-slate-600 mt-1 max-w-3xl leading-relaxed">
+                        Confirm sales receipts, register unknown bank inflows, then match daily bank lines.
                       </p>
                     </div>
                   </div>
@@ -3408,9 +3429,9 @@ const Account = () => {
                                     <button
                                       type="button"
                                       onClick={() => openReceiptFinance(r)}
-                                      className="text-[9px] font-bold uppercase px-3 py-1.5 rounded-lg bg-[#134e4a] text-white hover:bg-[#0f3d3a]"
-                                    >
-                                      Confirm payment
+                                      className="text-[8px] font-bold uppercase px-2 py-1 rounded-md bg-[#134e4a] text-white hover:bg-[#0f3d3a]"
+                                      >
+                                      Confirm
                                     </button>
                                   ) : null}
                                 </div>
@@ -3531,9 +3552,9 @@ const Account = () => {
                                 <button
                                   type="button"
                                   onClick={() => openReceiptFinance(r)}
-                                  className="text-[9px] font-bold uppercase px-3 py-1.5 rounded-lg bg-[#134e4a] text-white hover:bg-[#0f3d3a]"
+                                  className="text-[8px] font-bold uppercase px-2 py-1 rounded-md bg-[#134e4a] text-white hover:bg-[#0f3d3a]"
                                 >
-                                  {r.financeReconciliationSavedAtISO ? 'Revise' : 'Confirm & reconcile'}
+                                  {r.financeReconciliationSavedAtISO ? 'Revise' : 'Confirm'}
                                 </button>
                               ) : null}
                             </div>
@@ -3566,12 +3587,11 @@ const Account = () => {
                       {ws?.hasPermission?.('finance.view') ? (
                         <section className="space-y-3 border-t border-slate-200/80 pt-6">
                           <div>
-                            <h3 className="text-xs font-bold uppercase tracking-widest text-[#134e4a]">
+                            <h3 className="text-[10px] font-bold uppercase tracking-widest text-[#134e4a]">
                               Daily bank line queue
                             </h3>
-                            <p className="text-[11px] text-slate-600 mt-1 max-w-3xl">
-                              Compare treasury balances to your external reference (bank app / cash count). Add or match
-                              lines manually — bulk CSV import is optional later.
+                            <p className="text-[9px] text-slate-600 mt-0.5 max-w-3xl leading-relaxed">
+                              Match treasury to your bank app or cash count — add lines manually.
                             </p>
                           </div>
                           <AccountBankReconciliationPanel
@@ -4073,18 +4093,18 @@ const Account = () => {
                       return (
                         <li
                           key={row.movementId || `m-${idx}`}
-                          className="rounded-xl border border-slate-200/90 bg-white p-3 shadow-sm"
+                          className="rounded-lg border border-slate-200/90 bg-white py-1.5 px-2.5 shadow-sm"
                         >
                           <div className="flex items-start justify-between gap-2">
                             <div className="min-w-0">
                               <p className="text-[10px] font-bold text-slate-400 tabular-nums">#{rowOrdinal}</p>
-                              <p className="text-[11px] font-semibold text-slate-800 line-clamp-2">{row.description}</p>
-                              <p className="mt-1 text-[10px] text-slate-500">
+                              <p className="text-[10px] font-semibold text-slate-800 line-clamp-2">{row.description}</p>
+                              <p className="mt-0.5 text-[9px] text-slate-500">
                                 {String(row.postedAtISO || '').slice(0, 10) || '—'} · {typeLabel}
                               </p>
-                              <p className="text-[10px] text-slate-500 truncate">{row.accountName || '—'}</p>
+                              <p className="text-[9px] text-slate-500 truncate">{row.accountName || '—'}</p>
                             </div>
-                            <p className="shrink-0 text-sm font-black tabular-nums text-[#134e4a]">
+                            <p className="shrink-0 text-[11px] font-black tabular-nums text-[#134e4a]">
                               {formatNgn(row.amountAbs)}
                             </p>
                           </div>
@@ -4759,9 +4779,13 @@ const Account = () => {
                 </p>
 
                 <div>
-                  <h3 className="text-xs font-bold text-[#134e4a] uppercase tracking-widest mb-3">
+                  <h3 className="text-xs font-bold text-[#134e4a] uppercase tracking-widest mb-2">
                     Exception queue (misc receipts)
                   </h3>
+                  <p className="text-[9px] text-slate-500 mb-2 leading-relaxed">
+                    Review-only — open Receipts & recon to attach evidence and post clearance. Nothing is auto-cleared
+                    from this list.
+                  </p>
                   <ul className="space-y-1.5">
                     {auditQueue.map((item) => {
                       const meta2 = [`via ${item.bank}`, item.date, item.desc].filter(Boolean).join(' · ');
@@ -4785,24 +4809,14 @@ const Account = () => {
                               type="button"
                               onClick={() => {
                                 handleAccountTabChange('receipts');
-                                showToast('Open Receipts & recon to review and attach supporting evidence.', {
+                                showToast('Review on Receipts & recon — attach evidence there.', {
                                   variant: 'info',
                                 });
                               }}
-                              className="p-1.5 bg-white text-slate-400 hover:text-[#134e4a] rounded-md border border-slate-200 transition-all"
-                              title="Review evidence"
+                              className="text-[8px] font-bold uppercase px-2 py-1 rounded-md bg-[#134e4a] text-white hover:bg-[#0f3d3a]"
+                              title="Open Receipts tab to review"
                             >
-                              <Edit3 size={14} />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() =>
-                                showToast('Marked cleared in the audit review queue.', { variant: 'success' })
-                              }
-                              className="p-1.5 bg-[#134e4a] text-white rounded-md shadow-sm"
-                              title="Clear"
-                            >
-                              <CheckCircle2 size={14} />
+                              Review
                             </button>
                           </div>
                         </div>

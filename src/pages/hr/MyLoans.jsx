@@ -24,9 +24,8 @@ import { GUARANTOR_FORM_TEMPLATE_URL } from '../../lib/hrStaffDocumentKinds';
 import { fetchMyQuotationsForPurchaseCredit } from '../../lib/hrStaffPurchaseCredit';
 import { StaffPurchaseCreditRequestModal } from '../../components/sales/StaffPurchaseCreditRequestModal';
 import { salesQuotationDeepLink } from '../../lib/staffPurchaseCreditLinks';
-import { StaffObligationPayGuide } from '../../components/hr/StaffObligationPayGuide';
+import { StaffPaymentsPayGuide } from '../../components/hr/StaffPaymentsPayGuide';
 import { StaffObligationBalanceCard } from '../../components/hr/StaffObligationBalanceCard';
-import { StaffRecoveryPayGuide } from '../../components/hr/StaffRecoveryPayGuide';
 import { collectRepayableObligations } from '../../lib/hrObligationPayUi';
 
 import { HR_SELF_SERVICE_PATH } from '../../lib/hrSelfServiceRoutes';
@@ -316,25 +315,13 @@ export default function MyLoans({ staffLinkBase = '/my-profile' }) {
 
       {tab === 'repay' ? (
         <>
-          {payrollDeductionLoans.length ? (
-            <StaffObligationPayGuide
+          {payrollDeductionLoans.length || activeRecoveries.length ? (
+            <StaffPaymentsPayGuide
+              recoveries={activeRecoveries}
               obligations={payrollDeductionLoans}
               staffEmployeeNo={moneySummary?.staffEmployeeNo}
               staffBranchId={moneySummary?.staffBranchId || hr?.branchId || ws?.session?.currentBranchId}
             />
-          ) : null}
-
-          {activeRecoveries.length ? (
-            <ProfileOverviewSection
-              title="Discipline recovery"
-              subtitle="Paid at the branch cashier — separate from loans and purchase credit"
-            >
-              <StaffRecoveryPayGuide
-                recoveries={activeRecoveries}
-                staffEmployeeNo={moneySummary?.staffEmployeeNo}
-                staffBranchId={hr?.branchId || ws?.session?.currentBranchId}
-              />
-            </ProfileOverviewSection>
           ) : null}
 
           {payrollDeductionLoans.length ? (

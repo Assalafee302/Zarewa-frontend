@@ -9,17 +9,23 @@ const TONES = {
 };
 
 /**
- * @param {{ label: string; value: React.ReactNode; hint?: string; tone?: keyof typeof TONES; icon?: React.ReactNode }} props
+ * @param {{ label: string; value: React.ReactNode; hint?: string; tone?: keyof typeof TONES; icon?: React.ReactNode; compact?: boolean }} props
  */
-export function FinanceKpiCard({ label, value, hint, tone = 'default', icon }) {
+export function FinanceKpiCard({ label, value, hint, tone = 'default', icon, compact = false }) {
   return (
-    <div className={`rounded-2xl border p-4 shadow-sm ${TONES[tone] || TONES.default}`}>
+    <div
+      className={`border shadow-sm ${compact ? 'rounded-xl p-2.5' : 'rounded-2xl p-4'} ${TONES[tone] || TONES.default}`}
+    >
       <div className="flex items-start justify-between gap-2">
-        <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">{label}</p>
+        <p className={`font-bold uppercase tracking-wide text-slate-500 ${compact ? 'text-[9px]' : 'text-[10px]'}`}>
+          {label}
+        </p>
         {icon ? <span className="text-slate-400">{icon}</span> : null}
       </div>
-      <p className="mt-1 text-2xl font-black tabular-nums">{value}</p>
-      {hint ? <p className="mt-1 text-xs font-medium opacity-80">{hint}</p> : null}
+      <p className={`mt-0.5 font-black tabular-nums ${compact ? 'text-lg' : 'text-2xl'}`}>{value}</p>
+      {hint ? (
+        <p className={`mt-0.5 font-medium opacity-80 ${compact ? 'text-[10px] leading-snug' : 'text-xs'}`}>{hint}</p>
+      ) : null}
     </div>
   );
 }

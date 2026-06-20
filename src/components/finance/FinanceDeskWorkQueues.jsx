@@ -477,6 +477,7 @@ export function FinanceDeskWorkQueues({
           <section className="space-y-3">
             <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
               <FinanceKpiCard
+                compact
                 label="Pending receipts"
                 value={
                   trialEx?.pendingReceiptClearance ?? pendingReceipts.length
@@ -487,6 +488,7 @@ export function FinanceDeskWorkQueues({
               />
 
               <FinanceKpiCard
+                compact
                 label="Payouts to post"
                 value={payoutQueueCount}
                 hint={
@@ -499,6 +501,7 @@ export function FinanceDeskWorkQueues({
               />
 
               <FinanceKpiCard
+                compact
                 label="Staff payments to collect"
                 value={staffRecoveriesDue.length + staffObligationsDue.length}
                 hint={
@@ -517,6 +520,7 @@ export function FinanceDeskWorkQueues({
               />
 
               <FinanceKpiCard
+                compact
                 label="Confirmed today"
                 value={
                   trialData?.confirmedReceipts?.today ?? confirmedToday.length
@@ -541,6 +545,7 @@ export function FinanceDeskWorkQueues({
             {showAllKpis ? (
               <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
                 <FinanceKpiCard
+                  compact
                   label="Expense requests"
                   value={
                     trialEx?.approvedUnpaidPaymentRequests ??
@@ -549,6 +554,7 @@ export function FinanceDeskWorkQueues({
                 />
 
                 <FinanceKpiCard
+                  compact
                   label="Refund payouts"
                   value={
                     trialEx?.approvedUnpaidRefunds ?? approvedRefunds.length
@@ -558,18 +564,21 @@ export function FinanceDeskWorkQueues({
                 />
 
                 <FinanceKpiCard
+                  compact
                   label="Register withdrawals"
                   value={approvedRegisterSettlements.length}
                   icon={<Wallet size={14} />}
                 />
 
                 <FinanceKpiCard
+                  compact
                   label="PO haulage"
                   value={poTransportAwaiting.length}
                   icon={<Truck size={14} />}
                 />
 
                 <FinanceKpiCard
+                  compact
                   label="Treasury flags"
                   value={
                     trialEx?.treasuryMovementWithoutFinanceSettlement ?? "—"

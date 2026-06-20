@@ -147,7 +147,7 @@ export function RegisterBankDepositPanel({
   );
 
   return (
-    <div className="space-y-4 rounded-xl border border-sky-200/80 bg-white p-4 shadow-sm">
+    <div className="space-y-3 rounded-lg border border-sky-200/80 bg-white p-3 shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <h3 className="text-xs font-bold uppercase tracking-widest text-[#134e4a]">Register bank payment</h3>
