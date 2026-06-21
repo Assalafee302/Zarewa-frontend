@@ -469,7 +469,7 @@ describe('authenticated startup TDZ', () => {
     );
     await waitFor(
       () => {
-        expect(screen.getByRole('tab', { name: /^My desk$/i })).toBeInTheDocument();
+        expect(screen.getByRole('tab', { name: /^Finance desk$/i })).toBeInTheDocument();
       },
       { timeout: 15000 }
     );
@@ -497,12 +497,12 @@ describe('authenticated startup TDZ', () => {
     );
     await waitFor(
       () => {
-        expect(screen.getByRole('tab', { name: /^My desk$/i })).toBeInTheDocument();
+        expect(screen.getByRole('tab', { name: /^Finance desk$/i })).toBeInTheDocument();
         expect(screen.getByTestId('desk-treasury-summary')).toBeInTheDocument();
       },
       { timeout: 15000 }
     );
-    expect(screen.queryByRole('tab', { name: /Accounts & balances/i })).toBeNull();
+    expect(screen.queryByRole('tab', { name: /^Treasury$/i })).toBeNull();
     expect(screen.queryByTestId('cashier-treasury-desk-banner')).toBeNull();
     expect(screen.queryByTestId('finance-refunds-awaiting-payout')).toBeNull();
   });

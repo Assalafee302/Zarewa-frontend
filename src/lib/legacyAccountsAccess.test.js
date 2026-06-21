@@ -7,6 +7,7 @@ import {
   userMayAccessLegacyAccountsRoute,
   userMaySeeLegacyAccountsNav,
   treasuryTabShowsPayoutQueues,
+  legacyAccountTabLabelForRole,
 } from './legacyAccountsAccess.js';
 
 describe('legacyAccountsAccess (client)', () => {
@@ -30,14 +31,14 @@ describe('legacyAccountsAccess (client)', () => {
     );
   });
 
-  it('cashier treasury tab resolves to desk and is not in allowed tabs', () => {
+  it('cashier treasury tab resolves to Finance desk and is not in allowed tabs', () => {
     expect(treasuryTabShowsPayoutQueues('cashier')).toBe(false);
     expect(treasuryTabShowsPayoutQueues('finance_manager')).toBe(true);
     expect(getAllowedLegacyAccountTabs('cashier', ['cashier.desk.view'])).not.toContain('treasury');
     expect(resolveAccountsNavigationTab('treasury', 'cashier', ['cashier.desk.view'])).toBe('desk');
-    expect(resolveLegacyAccountsRedirect('cashier', ['cashier.desk.view'], 'treasury')?.to).toBe(
-      '/accounts?tab=desk'
-    );
+    expect(resolveAccountsNavigationTab('treasury', 'finance_manager', ['accounting.desk.view'])).toBe('desk');
+    expect(legacyAccountTabLabelForRole('desk', 'cashier')).toBe('Finance desk');
+    expect(resolveLegacyAccountsRedirect('cashier', ['cashier.desk.view'], 'treasury')).toBeNull();
   });
 
   it('resolveAccountsNavigationTab maps forbidden tabs to role default', () => {
@@ -49,10 +50,11 @@ describe('legacyAccountsAccess (client)', () => {
     expect(resolveAccountsNavigationTab('desk', 'cashier', ['cashier.desk.view'])).toBe('desk');
   });
 
-  it('accountant sees accounting tabs but not desk', () => {
+  it('accountant sees Finance desk and accounting tabs', () => {
     expect(userMayAccessLegacyAccountsRoute('finance_manager', ['accounting.desk.view'])).toBe(true);
+    expect(getAllowedLegacyAccountTabs('finance_manager', ['accounting.desk.view'])).toContain('desk');
     expect(getAllowedLegacyAccountTabs('finance_manager', ['accounting.desk.view'])).toContain('audit');
-    expect(getAllowedLegacyAccountTabs('finance_manager', ['accounting.desk.view'])).not.toContain('desk');
-    expect(getDefaultLegacyAccountTab('finance_manager', ['accounting.desk.view'])).toBe('treasury');
+    expect(getAllowedLegacyAccountTabs('finance_manager', ['accounting.desk.view'])).not.toContain('treasury');
+    expect(getDefaultLegacyAccountTab('finance_manager', ['accounting.desk.view'])).toBe('desk');
   });
 });

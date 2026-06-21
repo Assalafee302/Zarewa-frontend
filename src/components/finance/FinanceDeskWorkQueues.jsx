@@ -137,6 +137,8 @@ export function FinanceDeskWorkQueues({
   onAccountClick,
 
   treasurySummary,
+
+  hideAccountGrid = false,
 }) {
   const ws = useWorkspace();
 
@@ -422,11 +424,10 @@ export function FinanceDeskWorkQueues({
     <div className="space-y-6 animate-in fade-in duration-300">
       {branchLabel ? (
         <p className="text-[11px] text-slate-600 leading-relaxed rounded-xl border border-teal-200/70 bg-teal-50/50 px-4 py-3">
-          <strong className="text-[#134e4a]">{branchLabel}</strong> cashier desk
-          — your payout home. Confirm receipts, post approved payouts, and view till/bank
-          balances and statements on this page. Staff loan and recovery payments use the
-          private section below when an employee pays at the desk. Supplier payments stay
-          on Procurement.
+          <strong className="text-[#134e4a]">{branchLabel}</strong> finance desk
+          — confirm receipts, post approved payouts, and view till/bank balances and statements here.
+          Staff loan and recovery payments use the private section below when an employee pays at the desk.
+          Supplier payments stay on Procurement.
         </p>
       ) : null}
 
@@ -483,6 +484,7 @@ export function FinanceDeskWorkQueues({
             />
           ) : null}
 
+          {!hideAccountGrid ? (
           <FinanceDeskTreasuryAccountGrid
             accounts={treasuryAccounts}
             bookById={bookById}
@@ -490,6 +492,7 @@ export function FinanceDeskWorkQueues({
             onAccountClick={onAccountClick}
             cardActionLabel={onAccountClick ? 'View statement' : undefined}
           />
+          ) : null}
 
           <section className="space-y-3">
             <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3">

@@ -7,7 +7,7 @@ import { ArrowRightLeft, Banknote, ClipboardList, Landmark, Scale } from 'lucide
  */
 export function FinanceOperationalLinks({ className = '' }) {
   const links = [
-    { to: '/accounts?tab=treasury', label: 'Treasury', icon: Landmark },
+    { to: '/accounts?tab=desk', label: 'Finance desk', icon: Landmark },
     { to: '/accounts?tab=receipts', label: 'Receipts', icon: Banknote },
     { to: '/accounts?tab=disbursements', label: 'Payment register', icon: ClipboardList },
     { to: '/accounts?tab=movements', label: 'Movements', icon: ArrowRightLeft },

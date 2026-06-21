@@ -85,15 +85,13 @@ import {
   getDefaultLegacyAccountTab,
   legacyAccountTabLabelForRole,
   resolveAccountsNavigationTab,
-  treasuryTabShowsPayoutQueues,
+  FINANCE_DESK_TAB_LABEL,
   isCashierRole as userIsCashierRole,
 } from '../lib/legacyAccountsAccess';
 import { FinanceDeskWorkQueues } from '../components/finance/FinanceDeskWorkQueues.jsx';
 import { FinanceTabContextBanner } from '../components/finance/FinanceTabContextBanner.jsx';
 import { FinanceReceiptsWorkflowStrip } from '../components/finance/FinanceReceiptsWorkflowStrip.jsx';
-import { FinanceDeskTreasuryAccountGrid } from '../components/finance/FinanceDeskTreasuryAccountGrid.jsx';
-import { FinanceTreasuryAwaitingPayoutQueues } from '../components/finance/FinanceTreasuryAwaitingPayoutQueues.jsx';
-import { FinanceDeskQueueActionButton } from '../components/finance/FinanceDeskColoredQueuePanel.jsx';
+import { FinanceTreasuryManageAccountsPanel } from '../components/finance/FinanceTreasuryManageAccountsPanel.jsx';
 import { AccountingRegisterSettlementPayModal } from '../components/finance/AccountingRegisterSettlementPayModal.jsx';
 import { StaffRecoveryCashierModal } from '../components/finance/StaffRecoveryCashierModal.jsx';
 import { StaffObligationRepaymentModal } from '../components/finance/StaffObligationRepaymentModal.jsx';
@@ -138,7 +136,7 @@ const Account = () => {
   const wsUsingCachedData = ws?.usingCachedData;
   useWorkspaceDomain('finance');
 
-  const [activeTab, setActiveTab] = useState('treasury');
+  const [activeTab, setActiveTab] = useState('desk');
   const [searchQuery, setSearchQuery] = useState('');
   /** In-tab filter for Payment register tab (also falls back to header search). */
   const [disbursementsSearch, setDisbursementsSearch] = useState('');
@@ -743,7 +741,8 @@ const Account = () => {
   useEffect(() => {
     const ref = new URLSearchParams(location.search).get('treasuryRef')?.trim();
     if (!ref) return;
-    setActiveTab('treasury');
+    setActiveTab('desk');
+    setSearchParams({ tab: 'desk' }, { replace: true });
     setSearchQuery(ref);
   }, [location.search]);
 
@@ -1158,8 +1157,7 @@ const Account = () => {
 
   const accountTabs = useMemo(() => {
     const all = [
-      { id: 'desk', icon: <LayoutDashboard size={16} />, label: 'Desk' },
-      { id: 'treasury', icon: <Landmark size={16} />, label: 'Treasury' },
+      { id: 'desk', icon: <LayoutDashboard size={16} />, label: FINANCE_DESK_TAB_LABEL },
       { id: 'receipts', icon: <Banknote size={16} />, label: 'Receipts & recon' },
       { id: 'movements', icon: <ArrowRightLeft size={16} />, label: 'Movements' },
       { id: 'disbursements', icon: <ClipboardList size={16} />, label: TAB_LABELS.disbursements },
@@ -1180,14 +1178,9 @@ const Account = () => {
   const handleAccountTabChange = useCallback(
     (tabId) => {
       setActiveTab(tabId);
-      const rk = String(ws?.session?.user?.roleKey || '').trim().toLowerCase();
-      if (tabId === 'treasury' && rk !== 'cashier') {
-        setSearchParams({}, { replace: true });
-      } else {
-        setSearchParams({ tab: tabId }, { replace: true });
-      }
+      setSearchParams({ tab: tabId }, { replace: true });
     },
-    [setSearchParams, ws?.session?.user?.roleKey]
+    [setSearchParams]
   );
 
   const handleDeskPayRequest = useCallback(
@@ -1276,7 +1269,7 @@ const Account = () => {
   const handleDeskViewPoTransport = useCallback(
     (row) => {
       const poId = String(row?.poID || '').trim();
-      handleAccountTabChange('treasury');
+      handleAccountTabChange('desk');
       if (poId) setSearchQuery(poId);
     },
     [handleAccountTabChange]
@@ -1327,18 +1320,12 @@ const Account = () => {
 
     const applyTab = (tabId) => {
       setActiveTab(tabId);
-      if (tabId === 'treasury' && String(rk || '').trim().toLowerCase() !== 'cashier') {
-        setSearchParams({}, { replace: true });
-      } else if (tabId !== 'treasury') {
-        setSearchParams({ tab: tabId }, { replace: true });
-      }
+      setSearchParams({ tab: tabId }, { replace: true });
     };
 
     if (t && TAB_LABELS[t]) {
-      const rkLower = String(rk || '').trim().toLowerCase();
-      const cashierTreasuryMerge = rkLower === 'cashier' && t === 'treasury';
-      const tabId = cashierTreasuryMerge ? 'desk' : t;
-      if (!allowed.length || allowed.includes(t) || cashierTreasuryMerge) {
+      const tabId = t === 'treasury' ? 'desk' : t;
+      if (!allowed.length || allowed.includes(tabId) || t === 'treasury') {
         applyTab(tabId);
       } else {
         applyTab(defaultTab);
@@ -1347,9 +1334,7 @@ const Account = () => {
     }
     if (!t) {
       setActiveTab(defaultTab);
-      if (defaultTab !== 'treasury') {
-        setSearchParams({ tab: defaultTab }, { replace: true });
-      }
+      setSearchParams({ tab: defaultTab }, { replace: true });
       return;
     }
     applyTab(defaultTab);
@@ -1365,9 +1350,10 @@ const Account = () => {
     ['admin', 'md', 'ceo'].includes(String(ws?.session?.user?.roleKey || '').toLowerCase());
 
   const headerAction = () => {
-    if (activeTab === 'treasury') {
+    if (activeTab === 'desk' && canManageTreasury) {
       setNewBank(emptyBankForm());
       setShowAddBank(true);
+      return;
     }
     if (activeTab === 'movements') {
       setEditingTransferBatchId('');
@@ -1405,7 +1391,7 @@ const Account = () => {
   };
 
   const newRecordLabel =
-    activeTab === 'treasury' && canManageTreasury
+    activeTab === 'desk' && canManageTreasury
       ? 'New account'
       : activeTab === 'movements'
         ? 'New transfer'
@@ -1424,10 +1410,7 @@ const Account = () => {
         resolveAccountsNavigationTab(tabOrAlias, rk, permissions) ??
         getDefaultLegacyAccountTab(rk, permissions);
       handleAccountTabChange(resolved);
-      const search =
-        resolved === 'treasury' && !userIsCashierRole(rk)
-          ? ''
-          : `?tab=${encodeURIComponent(resolved)}`;
+      const search = `?tab=${encodeURIComponent(resolved)}`;
       navigate({ pathname: location.pathname, search }, { replace: true, state: {} });
       return resolved;
     };
@@ -3017,21 +3000,18 @@ const Account = () => {
 
   const isCashierRole = userIsCashierRole(ws?.session?.user?.roleKey);
   const financePageTitle = (() => {
-    if (isCashierRole && activeTab === 'desk') return 'My desk';
+    if (activeTab === 'desk') return FINANCE_DESK_TAB_LABEL;
     return 'Finance & accounts';
   })();
   const financePageSubtitle = (() => {
+    if (activeTab === 'desk') {
+      return 'Balances, statements, receipts, and payout queues — your branch finance home.';
+    }
     if (!isCashierRole) {
-      if (activeTab === 'desk') {
-        return 'Daily work queues — receipts, expense payouts, refunds, haulage, and treasury flags.';
-      }
       if (activeTab === 'disbursements') {
-        return 'Posted treasury outflows and corrections — pay new items from Desk or Treasury.';
+        return 'Posted treasury outflows and corrections — pay new items from Finance desk.';
       }
       return 'Treasury, customer receipt settlement, and approvals';
-    }
-    if (activeTab === 'desk') {
-      return 'Your finance home — balances, statements, receipts, and payout queues in one place.';
     }
     if (activeTab === 'receipts') {
       return 'Confirm customer payments and reconcile bank/cash received.';
@@ -3078,7 +3058,7 @@ const Account = () => {
                 <Plus size={16} /> {newRecordLabel}
               </button>
             ) : null}
-            {activeTab === 'receipts' || activeTab === 'treasury' ? (
+            {activeTab === 'receipts' || activeTab === 'desk' ? (
               <ZareHelpButton
                 transactionContext={{
                   module: 'finance',
@@ -3093,10 +3073,8 @@ const Account = () => {
               mode="finance"
               prompt={
                 activeTab === 'desk'
-                  ? 'Summarize my branch cashier desk queues — pending receipts, approved payouts, and treasury flags.'
-                  : activeTab === 'treasury'
-                    ? 'Give me a short treasury and payout summary from the live workspace.'
-                    : activeTab === 'receipts'
+                  ? 'Summarize Finance desk — liquidity, account balances, pending receipts, and approved payouts.'
+                  : activeTab === 'receipts'
                       ? 'Summarize pending customer receipt settlement and which receipts need review first.'
                       : activeTab === 'audit'
                         ? 'Summarize the audit and reconciliation queue and what needs action first.'
@@ -3203,34 +3181,50 @@ const Account = () => {
           <FinanceSequencePanel>
             <>
             {activeTab === 'desk' && (
-              <FinanceDeskWorkQueues
-                onConfirmReceipt={handleDeskConfirmReceipt}
-                onViewReceipt={handleDeskViewReceipt}
-                onPayRequest={handleDeskPayRequest}
-                onViewPaymentRequest={handleDeskViewPaymentRequest}
-                onPayRefund={handleDeskPayRefund}
-                onPayRegisterSettlement={handleDeskPayRegisterSettlement}
-                onPayPoTransport={handleDeskPayPoTransport}
-                onViewPoTransport={handleDeskViewPoTransport}
-                onReceiveStaffRecovery={handleDeskReceiveStaffRecovery}
-                onReceiveStaffObligation={handleDeskReceiveStaffObligation}
-                onGoToTab={handleAccountTabChange}
-                onAccountClick={isCashierRole ? setStatementAccount : undefined}
-                treasurySummary={
-                  isCashierRole
-                    ? {
-                        inflowsNgn: ws?.hasWorkspaceData
-                          ? treasuryInflowsNgn
-                          : liveReceipts.reduce((s, r) => s + receiptCashReceivedNgn(r), 0),
-                        outflowsNgn: ws?.hasWorkspaceData
-                          ? treasuryOutflowsNgn
-                          : expenses.reduce((s, e) => s + e.amountNgn, 0),
-                        reconciliationCount: reconciliationFlags,
-                        onGoToReceipts: () => handleAccountTabChange('receipts'),
-                      }
-                    : null
-                }
-              />
+              <>
+                <FinanceDeskWorkQueues
+                  onConfirmReceipt={handleDeskConfirmReceipt}
+                  onViewReceipt={handleDeskViewReceipt}
+                  onPayRequest={handleDeskPayRequest}
+                  onViewPaymentRequest={handleDeskViewPaymentRequest}
+                  onPayRefund={handleDeskPayRefund}
+                  onPayRegisterSettlement={handleDeskPayRegisterSettlement}
+                  onPayPoTransport={handleDeskPayPoTransport}
+                  onViewPoTransport={handleDeskViewPoTransport}
+                  onReceiveStaffRecovery={handleDeskReceiveStaffRecovery}
+                  onReceiveStaffObligation={handleDeskReceiveStaffObligation}
+                  onGoToTab={handleAccountTabChange}
+                  onAccountClick={canManageTreasury ? undefined : setStatementAccount}
+                  hideAccountGrid={canManageTreasury}
+                  treasurySummary={{
+                    inflowsNgn: ws?.hasWorkspaceData
+                      ? treasuryInflowsNgn
+                      : liveReceipts.reduce((s, r) => s + receiptCashReceivedNgn(r), 0),
+                    outflowsNgn: ws?.hasWorkspaceData
+                      ? treasuryOutflowsNgn
+                      : expenses.reduce((s, e) => s + e.amountNgn, 0),
+                    reconciliationCount: reconciliationFlags,
+                    onGoToReceipts: () => handleAccountTabChange('receipts'),
+                  }}
+                />
+                {canManageTreasury ? (
+                  <FinanceTreasuryManageAccountsPanel
+                    workspaceBranchLabel={workspaceBranchLabel}
+                    accounts={filteredBankAccounts}
+                    bankAccountsVisibleCount={bankAccountsVisible.length}
+                    bookDisplayNgn={treasuryBookDisplayNgn}
+                    branchNameById={branchNameById}
+                    workspaceBranchId={workspaceBranchId}
+                    showAllTreasuryInTab={showAllTreasuryInTab}
+                    canManageTreasury={canManageTreasury}
+                    canMutate={Boolean(ws?.canMutate)}
+                    canExecTreasuryDelete={canExecTreasuryDelete}
+                    onOpenStatement={setStatementAccount}
+                    onEditAccount={openEditTreasuryAccount}
+                    onRemoveAccount={removeTreasuryAccount}
+                  />
+                ) : null}
+              </>
             )}
 
             {activeTab === 'receipts' && (
@@ -3240,14 +3234,14 @@ const Account = () => {
                     testId="cashier-receipts-desk-banner"
                     tone="amber"
                     title="Receipts & clearance"
-                    body="Confirm bank/cash here or jump to My desk for the same queue. Cleared receipts unlock refunds and accurate balances."
+                    body="Confirm bank/cash here or jump to Finance desk for the same queue. Cleared receipts unlock refunds and accurate balances."
                     action={
                       <button
                         type="button"
                         onClick={() => handleAccountTabChange('desk')}
                         className="text-[10px] font-bold uppercase tracking-wide text-white bg-[#134e4a] hover:bg-[#0f3d3a] px-3 py-1.5 rounded-lg"
                       >
-                        My desk
+                        Finance desk
                       </button>
                     }
                   />
@@ -3626,251 +3620,6 @@ const Account = () => {
               </div>
             )}
 
-            {activeTab === 'treasury' && (
-              <div className="space-y-6 animate-in fade-in duration-300">
-                {workspaceBranchLabel ? (
-                  <p className="text-[11px] text-slate-600 leading-relaxed rounded-xl border border-slate-200/80 bg-slate-50/80 px-4 py-3">
-                    Bank and cash accounts shown here belong to{' '}
-                    <strong className="text-[#134e4a]">{workspaceBranchLabel}</strong>. Switch workspace to Yola or
-                    Maiduguri to manage that branch&apos;s treasury, then use <strong>New account</strong> to register
-                    local bank or till accounts.
-                  </p>
-                ) : null}
-                {isCashierRole ? (
-                  <div
-                    className="rounded-xl border border-teal-200/90 bg-teal-50/60 px-4 py-3 flex flex-wrap items-center justify-between gap-3"
-                    data-testid="cashier-treasury-desk-banner"
-                  >
-                    <p className="text-[11px] text-teal-950 leading-relaxed max-w-2xl">
-                      <strong>My desk</strong> is where you confirm receipts and post payouts. This tab is for
-                      viewing till and bank balances and opening account statements.
-                    </p>
-                    <button
-                      type="button"
-                      onClick={() => handleAccountTabChange('desk')}
-                      className="text-[10px] font-bold uppercase tracking-wide text-white bg-[#134e4a] hover:bg-[#0f3d3a] px-3 py-2 rounded-lg shrink-0"
-                    >
-                      Go to My desk
-                    </button>
-                  </div>
-                ) : null}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <div className="rounded-xl border border-slate-200/75 bg-white px-3 py-2.5 shadow-[0_10px_36px_-28px_rgba(15,23,42,0.12)]">
-                    <p className="text-[9px] font-bold text-slate-500 uppercase tracking-wide">Cash inflows</p>
-                    <p className="text-sm font-black text-emerald-700 tabular-nums">
-                      {formatNgn(
-                        ws?.hasWorkspaceData
-                          ? treasuryInflowsNgn
-                          : liveReceipts.reduce((s, r) => s + receiptCashReceivedNgn(r), 0)
-                      )}
-                    </p>
-                    <p className="text-[8px] text-slate-500 mt-0.5 leading-snug">Receipts and advance deposits</p>
-                  </div>
-                  <div className="rounded-xl border border-slate-200/75 bg-white px-3 py-2.5 shadow-[0_10px_36px_-28px_rgba(15,23,42,0.12)]">
-                    <p className="text-[9px] font-bold text-slate-500 uppercase tracking-wide">Cash outflows</p>
-                    <p className="text-sm font-black text-[#134e4a] tabular-nums">
-                      {formatNgn(ws?.hasWorkspaceData ? treasuryOutflowsNgn : expenses.reduce((s, e) => s + e.amountNgn, 0))}
-                    </p>
-                    <p className="text-[8px] text-slate-500 mt-0.5 leading-snug">
-                      {isCashierRole ? (
-                        <>Approved payouts post from <strong>My desk</strong></>
-                      ) : (
-                        <>See <strong>Payments</strong> tab for the full posted-outflow register</>
-                      )}
-                    </p>
-                  </div>
-                  <div className="rounded-xl border border-amber-200/85 bg-amber-50/75 px-3 py-2.5 shadow-[0_10px_36px_-28px_rgba(15,23,42,0.1)]">
-                    <p className="text-[9px] font-bold text-amber-800 uppercase">Reconciliation</p>
-                    <p className="text-sm font-black text-amber-900">
-                      {reconciliationFlags} item{reconciliationFlags !== 1 ? 's' : ''} to review
-                    </p>
-                    <button
-                      type="button"
-                      onClick={() => handleAccountTabChange('receipts')}
-                      className="text-[9px] font-black uppercase text-amber-900 mt-1 underline-offset-2 hover:underline"
-                    >
-                      Receipts &amp; recon tab
-                    </button>
-                  </div>
-                </div>
-
-                {treasuryTabShowsPayoutQueues(ws?.session?.user?.roleKey) ? (
-                <FinanceTreasuryAwaitingPayoutQueues
-                  refunds={refundsAwaitingPay}
-                  paymentRequests={payRequestsAwaitingTreasuryPayout}
-                  registerSettlements={registerSettlementsAwaitingPay}
-                  poTransport={filteredPoTransportAwaitingTreasury}
-                  branchNameById={branchNameById}
-                  expensePanelDescription="Same flow as Desk and refunds: approve elsewhere, then record bank or cash payout here (Desk is the recommended daily surface for cashiers)."
-                  renderRefundActions={(r) => (
-                    <>
-                      <FinanceDeskQueueActionButton tone="sky" onClick={() => openRefundPay(r)}>
-                        Record pay
-                      </FinanceDeskQueueActionButton>
-                      <FinanceDeskQueueActionButton
-                        tone="rose"
-                        onClick={() => void cancelRefundBeforePay(r)}
-                        disabled={cancelRefundBusyId === r.refundID}
-                        title="Cancel this approved refund before payout"
-                      >
-                        {cancelRefundBusyId === r.refundID ? 'Cancelling...' : 'Cancel'}
-                      </FinanceDeskQueueActionButton>
-                    </>
-                  )}
-                  renderPaymentRequestActions={(req) => (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() => printExpenseRequestRecord(req, formatNgn)}
-                        className="text-[8px] font-semibold uppercase tracking-wide text-slate-700 bg-slate-100 hover:bg-slate-200 px-2 py-1 rounded-md inline-flex items-center gap-1"
-                        title="Print filing copy"
-                      >
-                        <Printer size={12} /> Print
-                      </button>
-                      <FinanceDeskQueueActionButton
-                        tone="sky"
-                        onClick={() => openRequestPayment(req)}
-                        title="Record treasury payout"
-                      >
-                        Payout
-                      </FinanceDeskQueueActionButton>
-                      <FinanceDeskQueueActionButton
-                        tone="rose"
-                        onClick={() => void cancelPaymentRequestBeforePay(req)}
-                        disabled={cancelPayRequestBusyId === req.requestID}
-                        title="Cancel this approved request before payout"
-                      >
-                        {cancelPayRequestBusyId === req.requestID ? 'Cancelling...' : 'Cancel'}
-                      </FinanceDeskQueueActionButton>
-                    </>
-                  )}
-                  renderRegisterSettlementActions={(s) => (
-                    <FinanceDeskQueueActionButton
-                      tone="teal"
-                      onClick={() => openRegisterSettlementPay(s)}
-                      title="Record treasury payout"
-                    >
-                      Payout
-                    </FinanceDeskQueueActionButton>
-                  )}
-                  renderPoTransportActions={(row) => (
-                    <FinanceDeskQueueActionButton
-                      tone="sky"
-                      onClick={() => openPoTransportTreasuryPayout(row)}
-                      title="Record treasury payout for haulage"
-                    >
-                      Record pay
-                    </FinanceDeskQueueActionButton>
-                  )}
-                />
-                ) : null}
-
-                {isCashierRole ? (
-                  <FinanceDeskTreasuryAccountGrid
-                    accounts={filteredBankAccounts}
-                    bookById={treasuryDisplayedBookNgnById}
-                    onAccountClick={setStatementAccount}
-                    cardActionLabel="View statement"
-                  />
-                ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {filteredBankAccounts.length === 0 ? (
-                    <div className="sm:col-span-2 lg:col-span-3 z-empty-state py-12">
-                      <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">
-                        {bankAccountsVisible.length === 0
-                          ? workspaceBranchLabel
-                            ? `No treasury accounts for ${workspaceBranchLabel}`
-                            : 'No treasury accounts in this workspace'
-                          : 'No accounts match your search'}
-                      </p>
-                      {bankAccountsVisible.length === 0 && workspaceBranchLabel && canManageTreasury ? (
-                        <p className="text-[11px] text-slate-500 mt-2 max-w-md mx-auto leading-relaxed">
-                          Use <strong>New account</strong> above to add this branch&apos;s bank or cash till. Existing
-                          Yola accounts stay on the Yola workspace; Maiduguri needs its own accounts here.
-                        </p>
-                      ) : null}
-                    </div>
-                  ) : (
-                    filteredBankAccounts.map((acc) => (
-                      <div
-                        key={acc.id}
-                        className="rounded-zarewa border border-gray-100 bg-gray-50/50 hover:bg-white hover:shadow-lg hover:border-teal-100 transition-all group flex flex-col"
-                      >
-                        <button
-                          type="button"
-                          onClick={() => setStatementAccount(acc)}
-                          className="text-left p-4 flex-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#134e4a]/30 rounded-t-zarewa"
-                        >
-                          <div className="flex justify-between items-start mb-3">
-                            <div className="p-2 bg-white rounded-lg shadow-sm text-[#134e4a]">
-                              {acc.type === 'Bank' ? <Landmark size={18} /> : <CreditCard size={18} />}
-                            </div>
-                            <div className="text-right">
-                              {(showAllTreasuryInTab || String(acc.branchId || '') !== workspaceBranchId) &&
-                              acc.branchId ? (
-                                <span className="block text-[8px] font-bold text-sky-800 uppercase tracking-wide mb-0.5">
-                                  {treasuryAccountBranchLabel(acc.branchId, branchNameById)}
-                                </span>
-                              ) : null}
-                              <span className="text-[9px] font-bold text-gray-400 uppercase tracking-tighter">
-                                {acc.accNo}
-                              </span>
-                            </div>
-                          </div>
-                          <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-0.5">
-                            {acc.name}
-                          </p>
-                          {acc.type === 'Bank' && acc.bankName ? (
-                            <p className="text-[9px] text-slate-500 font-semibold mb-1 truncate" title={acc.bankName}>
-                              {acc.bankName}
-                            </p>
-                          ) : null}
-                          <h4 className="text-lg font-black text-[#134e4a] italic tracking-tighter">
-                            {formatNgn(treasuryBookDisplayNgn(acc))}
-                          </h4>
-                          {acc.accountOfficerName || acc.accountOfficerPhone ? (
-                            <p className="text-[9px] text-slate-600 mt-2 leading-snug line-clamp-2">
-                              {acc.accountOfficerName ? <span className="font-semibold">{acc.accountOfficerName}</span> : null}
-                              {acc.accountOfficerName && acc.accountOfficerPhone ? ' · ' : null}
-                              {acc.accountOfficerPhone ? <span className="tabular-nums">{acc.accountOfficerPhone}</span> : null}
-                            </p>
-                          ) : null}
-                          <p className="text-[9px] text-teal-700/80 font-bold mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                            View statement
-                          </p>
-                        </button>
-                        {(canManageTreasury && ws?.canMutate) || canExecTreasuryDelete ? (
-                          <div className="flex items-center justify-end gap-2 px-3 pb-3 pt-0 border-t border-gray-100/80">
-                            {canManageTreasury && ws?.canMutate ? (
-                              <button
-                                type="button"
-                                onClick={() => openEditTreasuryAccount(acc)}
-                                className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[9px] font-bold uppercase tracking-wide text-slate-700 hover:border-teal-200 hover:bg-teal-50/50"
-                              >
-                                <Pencil size={12} /> Edit
-                              </button>
-                            ) : null}
-                            {canExecTreasuryDelete ? (
-                              <button
-                                type="button"
-                                onClick={() => void removeTreasuryAccount(acc)}
-                                className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-slate-300 opacity-[0.28] hover:opacity-100 hover:text-rose-600 hover:bg-rose-50/30 transition-all"
-                                title="Remove account (Admin, MD, or CEO only; balance must be ₦0 and no history)"
-                                aria-label="Delete treasury account"
-                              >
-                                <Trash2 size={13} strokeWidth={1.65} />
-                              </button>
-                            ) : null}
-                          </div>
-                        ) : null}
-                      </div>
-                    ))
-                  )}
-                </div>
-                )}
-              </div>
-            )}
-
             {activeTab === 'movements' && (
               <div className="space-y-4 animate-in fade-in duration-300">
                 <FinanceTabContextBanner
@@ -3878,7 +3627,7 @@ const Account = () => {
                   title="Treasury movements"
                   body={
                     isCashierRole
-                      ? 'Same-branch transfers only — each movement debits one till/bank and credits another. Customer receipts and payouts stay on My desk.'
+                      ? 'Same-branch transfers only — each movement debits one till/bank and credits another. Customer receipts and payouts stay on Finance desk.'
                       : 'Internal transfers update both accounts immediately. Cross-branch funding is on Accounting Desk → Inter-branch.'
                   }
                   action={

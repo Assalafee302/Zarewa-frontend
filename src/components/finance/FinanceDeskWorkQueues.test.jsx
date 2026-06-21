@@ -53,7 +53,7 @@ describe('FinanceDeskWorkQueues', () => {
         />
       </MemoryRouter>
     );
-    expect(screen.getByText(/cashier desk/i)).toBeTruthy();
+    expect(screen.getByText(/finance desk/i)).toBeTruthy();
     expect(screen.getByText(/Total liquidity/i)).toBeTruthy();
     expect(screen.getByText(/Branch treasury accounts/i)).toBeTruthy();
     expect(screen.getByTestId('desk-all-clear')).toBeTruthy();

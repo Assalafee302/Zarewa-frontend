@@ -266,7 +266,7 @@ export function WorkspaceExpenseQuickActions() {
           )}
           {canFinance ? (
             <Link
-              to="/accounts?tab=treasury"
+              to="/accounts?tab=desk"
               className="text-center text-[9px] font-bold uppercase tracking-wide text-teal-800 hover:underline"
             >
               Finance &amp; treasury
