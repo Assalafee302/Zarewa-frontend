@@ -19,4 +19,12 @@ describe('bootstrapConnectError', () => {
     expect(formatBootstrapNetworkError(new TypeError('Failed to fetch'))).toContain('Could not reach the API');
     expect(formatBootstrapNetworkError(new TypeError('Failed to fetch'))).toContain('erp.zarewaglobalservices.com');
   });
+
+  it('includes bootstrap server detail on 500', () => {
+    const msg = formatBootstrapConnectError(500, {
+      error: 'Bootstrap failed',
+      detail: 'Unknown column in field list',
+    });
+    expect(msg).toContain('Unknown column');
+  });
 });

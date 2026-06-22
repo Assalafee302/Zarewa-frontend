@@ -11,6 +11,12 @@ export function formatBootstrapConnectError(httpStatus, data) {
     if (data?.fixHint) parts.push(String(data.fixHint));
     return parts.join(' ');
   }
+  if (httpStatus === 401 || data?.code === 'AUTH_REQUIRED') {
+    return 'Sign in required. Your session cookie may not have been saved — refresh and sign in again.';
+  }
+  if (data?.detail) {
+    return `${data?.error || 'Bootstrap failed'}: ${data.detail}`;
+  }
   return data?.error || 'Bootstrap failed';
 }
 

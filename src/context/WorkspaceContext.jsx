@@ -176,10 +176,15 @@ export function WorkspaceProvider({ children }) {
   const workspaceRevisionEtagRef = useRef('');
   const loadedDomainsRef = useRef(new Set());
   const fullBootstrapLoadedRef = useRef(false);
+  const lastErrorRef = useRef(null);
 
   useEffect(() => {
     snapshotRef.current = snapshot;
   }, [snapshot]);
+
+  useEffect(() => {
+    lastErrorRef.current = lastError;
+  }, [lastError]);
 
   const applySnapshot = useCallback((data, mode = 'ok') => {
     let merged = null;
@@ -505,7 +510,15 @@ export function WorkspaceProvider({ children }) {
           bootstrapPollEtagRef.current = '';
           bootstrapFullEtagRef.current = '';
           await refreshDashboardSummary();
-          await refresh({ mode: 'dashboard' });
+          const boot = await refresh({ mode: 'dashboard' });
+          if (!boot) {
+            return {
+              ok: false,
+              error:
+                lastErrorRef.current ||
+                'Sign-in succeeded but workspace bootstrap failed. Restart the API and try again.',
+            };
+          }
         }
         return { ok: true, data };
       } catch (e) {
