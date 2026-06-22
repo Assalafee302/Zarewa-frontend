@@ -26,6 +26,7 @@ import { AccountingExecutiveBrief } from '../components/finance/accounting/Accou
 import { userMayViewFinanceTrialOversightClient } from '../lib/financeTrialExceptionsAccess';
 import { userMayViewManagementReportsClient } from '../lib/reportsAccess';
 import CommandCentreIntelligenceTab from '../components/exec/CommandCentreIntelligenceTab';
+import { ExpenseCategoryExceptionBanner } from '../components/office/ExpenseCategoryExceptionBanner.jsx';
 import { ExecutiveWorkItemReviewModal } from '../components/exec/ExecutiveWorkItemReviewModal';
 import { execWorkItemOpensInModal } from '../lib/execWorkItemReview';
 import {
@@ -230,9 +231,14 @@ export default function ExecutiveCommandCentre() {
   const [reviewItem, setReviewItem] = useState(null);
   const [reserveModalBusy, setReserveModalBusy] = useState(false);
   const [workTrayFilter, setWorkTrayFilter] = useState('all');
+  const [othersTrend, setOthersTrend] = useState(null);
+  const [othersTrendBusy, setOthersTrendBusy] = useState(false);
+  const [othersTrendErr, setOthersTrendErr] = useState('');
 
   const roleKey = String(ws?.session?.user?.roleKey || '').toLowerCase();
   const roleLabel = roleKey === 'md' ? 'Managing Director' : roleKey === 'ceo' ? 'CEO' : roleKey || 'Executive';
+  const isExecutiveOversight = roleKey === 'md' || roleKey === 'ceo' || roleKey === 'admin';
+  const expenseCategoryAlert = ws?.snapshot?.expenseCategoryMonthlyAlert;
   const canPickBranch = Boolean(ws?.viewAllBranches || data?.actor?.canUseAllBranches);
   const mayFinanceOversight = userMayViewFinanceTrialOversightClient(
     roleKey,
@@ -281,6 +287,30 @@ export default function ExecutiveCommandCentre() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  const loadOthersTrend = useCallback(async () => {
+    const onFinance = activeTab === 'finance';
+    const onOverview = activeTab === 'overview' && isExecutiveOversight;
+    if (!onFinance && !onOverview) return;
+    setOthersTrendBusy(true);
+    setOthersTrendErr('');
+    const qs = new URLSearchParams({ months: '6' });
+    if (canPickBranch && branchId && branchId !== 'ALL') qs.set('branchScope', branchId);
+    else qs.set('branchScope', 'ALL');
+    const { ok, data: d } = await apiFetch(`/api/reports/expense-category-others-trend?${qs.toString()}`);
+    setOthersTrendBusy(false);
+    if (!ok || !d?.ok) {
+      setOthersTrend(null);
+      setOthersTrendErr(d?.error || 'Could not load Others trend.');
+      return;
+    }
+    setOthersTrend(d);
+  }, [activeTab, branchId, canPickBranch, isExecutiveOversight]);
+
+  useEffect(() => {
+    if (activeTab !== 'finance' && !(activeTab === 'overview' && isExecutiveOversight)) return;
+    void loadOthersTrend();
+  }, [activeTab, isExecutiveOversight, loadOthersTrend]);
 
   const readOnly = Boolean(data?.workTray?.readOnlyForActor ?? data?.actor?.readOnlyExecutiveView);
 
@@ -570,6 +600,81 @@ export default function ExecutiveCommandCentre() {
           loading={busy && !data}
         />
       </div>
+
+      {isExecutiveOversight && expenseCategoryAlert?.shouldAlert ? (
+        <div className="mb-6 space-y-2">
+          <ExpenseCategoryExceptionBanner summary={expenseCategoryAlert} formatNgn={formatNgn} />
+          <Link
+            to="/accounts"
+            state={{ accountsTab: 'disbursements' }}
+            className="inline-flex items-center gap-1 text-[11px] font-bold uppercase text-amber-900 hover:underline ml-1"
+          >
+            Open Finance exceptions <ArrowRight size={12} />
+          </Link>
+        </div>
+      ) : null}
+
+      {isExecutiveOversight ? (
+        <Section
+          title="Others spend trend"
+          subtitle="Approved payment requests coded Others — rolling 6 months"
+          icon={<BarChart3 size={18} className="text-amber-700" />}
+        >
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
+            <p className="text-xs text-slate-600">
+              Company share:{' '}
+              <span className="font-bold tabular-nums text-[#134e4a]">
+                {othersTrend?.summary?.othersPct != null ? `${othersTrend.summary.othersPct}%` : '—'}
+              </span>
+            </p>
+            <button
+              type="button"
+              onClick={() => setActiveTab('finance')}
+              className="text-[10px] font-bold uppercase text-[#134e4a] hover:underline"
+            >
+              Full finance view
+            </button>
+          </div>
+          {othersTrendErr ? (
+            <p className="text-sm text-rose-700">{othersTrendErr}</p>
+          ) : othersTrendBusy && !othersTrend ? (
+            <p className="text-sm text-slate-500">Loading…</p>
+          ) : (othersTrend?.branches || []).length === 0 ? (
+            <p className="text-sm text-slate-500">No data in window.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[480px] text-xs">
+                <thead>
+                  <tr className="border-b border-slate-200 text-left text-[9px] font-bold uppercase text-slate-500">
+                    <th className="py-2 pr-3">Branch</th>
+                    <th className="py-2 text-right">6-mo Others %</th>
+                    <th className="py-2 pl-3 text-right">Amount</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(othersTrend?.branches || []).slice(0, 6).map((row) => (
+                    <tr key={row.branchId} className="border-b border-slate-100">
+                      <td className="py-2 pr-3 font-medium">
+                        {BRANCH_OPTIONS.find((b) => b.id === row.branchId)?.label || row.branchId}
+                      </td>
+                      <td
+                        className={`py-2 text-right tabular-nums font-semibold ${
+                          (row.summary?.othersPct ?? 0) >= 20 ? 'text-rose-700' : 'text-slate-700'
+                        }`}
+                      >
+                        {row.summary?.othersPct ?? 0}%
+                      </td>
+                      <td className="py-2 pl-3 text-right tabular-nums text-slate-600">
+                        {formatNgn(row.summary?.othersNgn ?? 0)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </Section>
+      ) : null}
 
       {mayViewBi ? (
         <p className="mb-6 text-xs text-slate-600">
@@ -963,6 +1068,89 @@ export default function ExecutiveCommandCentre() {
               />
             </div>
           ) : null}
+
+          <Section
+            title="Others category trend"
+            subtitle="Share of approved payment requests coded Others — last 6 months by branch"
+            icon={<BarChart3 size={18} className="text-amber-700" />}
+          >
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+              <p className="text-xs text-slate-600">
+                Company Others share:{' '}
+                <span className="font-bold tabular-nums text-[#134e4a]">
+                  {othersTrend?.summary?.othersPct != null ? `${othersTrend.summary.othersPct}%` : '—'}
+                </span>
+                {othersTrend?.summary?.othersNgn != null ? (
+                  <span className="text-slate-500"> ({formatNgn(othersTrend.summary.othersNgn)})</span>
+                ) : null}
+              </p>
+              <button
+                type="button"
+                onClick={() => void loadOthersTrend()}
+                disabled={othersTrendBusy}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+              >
+                <RefreshCw size={12} className={othersTrendBusy ? 'animate-spin' : ''} />
+                Refresh
+              </button>
+            </div>
+            {othersTrendErr ? (
+              <p className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
+                {othersTrendErr}
+              </p>
+            ) : othersTrendBusy && !othersTrend ? (
+              <p className="text-sm text-slate-500">Loading trend…</p>
+            ) : (othersTrend?.branches || []).length === 0 ? (
+              <p className="text-sm text-slate-500">No approved payment requests in the selected window.</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[640px] text-sm">
+                  <thead>
+                    <tr className="border-b border-slate-200 text-left text-[10px] font-bold uppercase text-slate-500">
+                      <th className="py-2 pr-4">Branch</th>
+                      {(othersTrend?.monthKeys || []).map((mk) => (
+                        <th key={mk} className="py-2 px-2 text-right">
+                          {mk}
+                        </th>
+                      ))}
+                      <th className="py-2 pl-2 text-right">6-mo %</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(othersTrend?.branches || []).map((row) => (
+                      <tr key={row.branchId} className="border-b border-slate-100">
+                        <td className="py-2.5 pr-4 font-medium text-slate-800">
+                          {BRANCH_OPTIONS.find((b) => b.id === row.branchId)?.label || row.branchId}
+                        </td>
+                        {(othersTrend?.monthKeys || []).map((mk) => {
+                          const month = row.months?.find((m) => m.monthKey === mk);
+                          const pct = month?.othersPct ?? 0;
+                          return (
+                            <td key={mk} className="py-2.5 px-2 text-right tabular-nums">
+                              <span
+                                className={
+                                  pct >= 25
+                                    ? 'font-bold text-rose-700'
+                                    : pct >= 15
+                                      ? 'font-semibold text-amber-800'
+                                      : 'text-slate-700'
+                                }
+                              >
+                                {month?.totalNgn ? `${pct}%` : '—'}
+                              </span>
+                            </td>
+                          );
+                        })}
+                        <td className="py-2.5 pl-2 text-right tabular-nums font-black text-[#134e4a]">
+                          {row.summary?.othersPct ?? 0}%
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </Section>
 
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
             <Section

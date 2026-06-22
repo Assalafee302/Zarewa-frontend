@@ -84,6 +84,7 @@ const PREVIOUS_CANONICAL = new Map([
   ['Bank & finance charges', 'Bank charges'],
   ['Taxes & licences (non-payroll)', 'Tax'],
   ['Staff loan (disbursement)', 'Staff loan'],
+  ['HR — staff loan', 'Staff loan'],
   ['Other — misc operating', 'Others'],
 ]);
 
@@ -131,6 +132,7 @@ export function isAllowedExpenseCategory(value) {
 export function mapLegacyExpenseCategoryToCanonical(value) {
   const s = String(value ?? '').trim();
   if (!s) return FALLBACK;
+  if (s === 'Miscellaneous') return 'Others';
   if (SET.has(s)) return s;
   if (PREVIOUS_CANONICAL.has(s)) return PREVIOUS_CANONICAL.get(s);
 

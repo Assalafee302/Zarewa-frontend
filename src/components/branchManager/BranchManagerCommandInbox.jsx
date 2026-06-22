@@ -18,6 +18,7 @@ import {
 import { Card, Button } from '../ui';
 import { CreditExceptionPanel } from '../finance/CreditExceptionPanel';
 import { HrDailyRollPanel } from '../hr/HrDailyRollPanel';
+import { ExpenseCategoryLaneBadge } from '../office/ExpenseCategoryLaneBadge.jsx';
 
 const inboxRowBase =
   'group w-full text-left flex items-center gap-2 sm:gap-3 px-3 py-2.5 border-b border-slate-100 last:border-0 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset';
@@ -234,6 +235,12 @@ export function BranchManagerCommandInbox(props) {
             <span className="shrink-0 rounded-md bg-slate-200 px-1.5 py-0.5 text-[8px] font-black uppercase text-slate-800">
               expense
             </span>
+            {row.expense_category || row.expense_category_lane ? (
+              <ExpenseCategoryLaneBadge
+                category={row.expense_category}
+                laneKey={row.expense_category_lane}
+              />
+            ) : null}
             <span className="shrink-0 text-xs font-bold text-slate-800">{row.request_id}</span>
             <span className="min-w-0 flex-1 truncate text-[11px] font-semibold text-slate-600">{row.description}</span>
             {!canApprovePaymentRequests ? (

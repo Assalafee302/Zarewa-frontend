@@ -44,7 +44,7 @@ import { formatNgn } from '../Data/mockData';
 import { useToast } from '../context/ToastContext';
 import { useWorkspace } from '../context/WorkspaceContext';
 import { useWorkspaceDomain } from '../hooks/useWorkspaceDomain';
-import { apiFetch } from '../lib/apiBase';
+import { apiFetch, apiUrl } from '../lib/apiBase';
 import {
   normalizeRefund,
   approvedRefundsAwaitingPayment,
@@ -61,8 +61,14 @@ import {
 import { printExpenseRequestRecord } from '../lib/expenseRequestPrint';
 import { openPrintHtmlDocument } from '../lib/officeDeskPrint';
 import { ExpenseRequestFormFields } from '../components/office/ExpenseRequestFormFields.jsx';
+import { ExpenseCategorySelect } from '../components/office/ExpenseCategorySelect.jsx';
+import { ExpenseCategoryLaneBadge } from '../components/office/ExpenseCategoryLaneBadge.jsx';
+import { ExpenseCategoryExceptionBanner } from '../components/office/ExpenseCategoryExceptionBanner.jsx';
+import { ExpenseCategoryPayoutReadinessPanel } from '../components/office/ExpenseCategoryPayoutReadinessPanel.jsx';
+import { OthersJustificationField } from '../components/office/OthersJustificationField.jsx';
 import { buildPaymentRequestBodyFromForm, initialExpenseRequestFormState } from '../lib/expenseRequestFormCore.js';
-import { EXPENSE_CATEGORY_OPTIONS } from '../shared/expenseCategories.js';
+import { isFinanceExceptionExpenseItem, resolveExpenseCategoryPolicyLimits } from '../shared/expenseCategoryPolicy.js';
+import { isExceptionExpenseCategory } from '../components/office/ExpenseCategorySelect.jsx';
 import {
   ACCOUNT_TAB_LABELS as TAB_LABELS,
   createRequestPayLine,
@@ -134,12 +140,21 @@ const Account = () => {
   const wsHasPermission = ws?.hasPermission;
   const wsCanMutate = ws?.canMutate;
   const wsUsingCachedData = ws?.usingCachedData;
+  const othersMinJustificationLen = resolveExpenseCategoryPolicyLimits(
+    ws?.snapshot?.orgGovernanceLimits
+  ).othersMinJustificationLen;
   useWorkspaceDomain('finance');
 
   const [activeTab, setActiveTab] = useState('desk');
   const [searchQuery, setSearchQuery] = useState('');
   /** In-tab filter for Payment register tab (also falls back to header search). */
   const [disbursementsSearch, setDisbursementsSearch] = useState('');
+  const [disbursementsPayRequestQueue, setDisbursementsPayRequestQueue] = useState('all');
+  const [reclassifyTarget, setReclassifyTarget] = useState(null);
+  const [reclassifyForm, setReclassifyForm] = useState({ expenseCategory: '', categoryJustification: '' });
+  const [reclassifySaving, setReclassifySaving] = useState(false);
+  const [reclassifyGlPreview, setReclassifyGlPreview] = useState(null);
+  const [exceptionReportSummary, setExceptionReportSummary] = useState(null);
   /** In-tab filter for Receipts reconciliation list (also falls back to header search). */
   const [receiptsTableSearch, setReceiptsTableSearch] = useState('');
   const [deletingExpenseId, setDeletingExpenseId] = useState('');
@@ -176,6 +191,7 @@ const Account = () => {
   const [refundPaymentNote, setRefundPaymentNote] = useState('');
   const [requestPayLines, setRequestPayLines] = useState([]);
   const [requestPayNote, setRequestPayNote] = useState('');
+  const [paymentGlPreview, setPaymentGlPreview] = useState(null);
   const [cancelRefundBusyId, setCancelRefundBusyId] = useState('');
   const [cancelPayRequestBusyId, setCancelPayRequestBusyId] = useState('');
   const [treasuryPayoutSubmitting, setTreasuryPayoutSubmitting] = useState(false);
@@ -330,6 +346,8 @@ const Account = () => {
   const canPayRequests = ws?.hasPermission?.('finance.pay');
   const canApprovePaymentRequests =
     Boolean(ws?.hasPermission?.('finance.approve')) || Boolean(ws?.hasPermission?.('*'));
+  const canPostExpenseReclass =
+    Boolean(ws?.hasPermission?.('finance.post')) || Boolean(ws?.hasPermission?.('*'));
   const todayIso = useMemo(() => new Date().toISOString().slice(0, 10), []);
   const branchOptions = useMemo(
     () => ws?.snapshot?.workspaceBranches ?? ws?.session?.branches ?? [],
@@ -535,7 +553,8 @@ const Account = () => {
     showTransferModal ||
     showRefundPayModal ||
     statementAccount != null ||
-    receiptFinanceRow != null;
+    receiptFinanceRow != null ||
+    reclassifyTarget != null;
 
   const accountStatementLines = useMemo(() => {
     if (!statementAccount) return [];
@@ -550,6 +569,74 @@ const Account = () => {
         return String(b.id || '').localeCompare(String(a.id || ''));
       });
   }, [statementAccount, liveTreasuryMovements]);
+
+  useEffect(() => {
+    if (!showPaymentEntry || selectedPayment?.type !== 'payment_request' || !selectedPayment?.id) {
+      setPaymentGlPreview(null);
+      return undefined;
+    }
+    let cancelled = false;
+    (async () => {
+      const { ok, data } = await apiFetch(
+        `/api/payment-requests/${encodeURIComponent(selectedPayment.id)}/gl-preview`
+      );
+      if (!cancelled) setPaymentGlPreview(ok && data?.ok ? data : null);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [showPaymentEntry, selectedPayment?.id, selectedPayment?.type]);
+
+  useEffect(() => {
+    if (activeTab !== 'disbursements' || !ws?.hasWorkspaceData) {
+      setExceptionReportSummary(null);
+      return undefined;
+    }
+    let cancelled = false;
+    const now = new Date();
+    const startISO = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+    const endISO = now.toISOString().slice(0, 10);
+    const branchQ =
+      ws?.viewAllBranches && ws?.branchScope === 'ALL' ? '' : `&branchScope=${encodeURIComponent(ws?.branchScope || '')}`;
+    (async () => {
+      const { ok, data } = await apiFetch(
+        `/api/reports/expense-category-monthly-alert?startDate=${startISO}&endDate=${endISO}${branchQ}`
+      );
+      if (!cancelled && ok && data?.ok) setExceptionReportSummary(data.summary || null);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [activeTab, ws?.hasWorkspaceData, ws?.branchScope, ws?.viewAllBranches]);
+
+  useEffect(() => {
+    if (!reclassifyTarget || !reclassifyForm.expenseCategory) {
+      setReclassifyGlPreview(null);
+      return undefined;
+    }
+    const paid = Number(reclassifyTarget.paidAmountNgn) || 0;
+    const isExpense = reclassifyTarget._reclassKind === 'expense';
+    if (!isExpense && paid <= 0) {
+      setReclassifyGlPreview(null);
+      return undefined;
+    }
+    if (isExpense && !reclassifyTarget.expenseID) {
+      setReclassifyGlPreview(null);
+      return undefined;
+    }
+    let cancelled = false;
+    const q = encodeURIComponent(reclassifyForm.expenseCategory);
+    const url = isExpense
+      ? `/api/expenses/${encodeURIComponent(reclassifyTarget.expenseID)}/category-reclass-preview?expenseCategory=${q}`
+      : `/api/payment-requests/${encodeURIComponent(reclassifyTarget.requestID)}/category-reclass-preview?expenseCategory=${q}`;
+    (async () => {
+      const { ok, data } = await apiFetch(url);
+      if (!cancelled) setReclassifyGlPreview(ok && data?.ok ? data : null);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [reclassifyTarget, reclassifyForm.expenseCategory]);
 
   const statementDateBounds = useMemo(() => {
     if (accountStatementLines.length === 0) return { minDate: '', maxDate: '' };
@@ -989,6 +1076,75 @@ const Account = () => {
     }
   };
 
+  const openReclassifyPaymentRequest = useCallback((req) => {
+    if (!req?.requestID) return;
+    setReclassifyGlPreview(null);
+    setReclassifyTarget(req);
+    setReclassifyForm({
+      expenseCategory: req.expenseCategory || '',
+      categoryJustification: req.categoryJustification || '',
+    });
+  }, []);
+
+  const openReclassifyExpense = useCallback((ex) => {
+    if (!ex?.expenseID) return;
+    setReclassifyGlPreview(null);
+    setReclassifyTarget({ ...ex, requestID: '', _reclassKind: 'expense' });
+    setReclassifyForm({
+      expenseCategory: ex.category || '',
+      categoryJustification: '',
+    });
+  }, []);
+
+  const closeReclassifyModal = useCallback(() => {
+    setReclassifyTarget(null);
+    setReclassifyForm({ expenseCategory: '', categoryJustification: '' });
+    setReclassifyGlPreview(null);
+  }, []);
+
+  const saveReclassifyCategory = useCallback(async () => {
+    const isExpense = reclassifyTarget?._reclassKind === 'expense';
+    const targetId = isExpense ? reclassifyTarget?.expenseID : reclassifyTarget?.requestID;
+    if (!targetId || reclassifySaving) return;
+    if (!ws?.canMutate) {
+      showToast(
+        ws?.usingCachedData
+          ? 'Reconnect to reclassify categories — workspace is read-only.'
+          : 'Connect to the API to reclassify expense categories.',
+        { variant: 'info' }
+      );
+      return;
+    }
+    setReclassifySaving(true);
+    try {
+      const url = isExpense
+        ? `/api/expenses/${encodeURIComponent(targetId)}/reclassify-category`
+        : `/api/payment-requests/${encodeURIComponent(targetId)}/reclassify-category`;
+      const { ok, data } = await apiFetch(url, {
+        method: 'POST',
+        body: JSON.stringify({
+          expenseCategory: reclassifyForm.expenseCategory,
+          categoryJustification: reclassifyForm.categoryJustification,
+        }),
+      });
+      if (!ok || !data?.ok) {
+        showToast(data?.error || 'Could not reclassify expense category.', { variant: 'error' });
+        return;
+      }
+      await ws.refresh();
+      closeReclassifyModal();
+      const glNote =
+        data.postPay && Number(data.glReclassCount) > 0
+          ? ` GL reclass journal${Number(data.glReclassCount) === 1 ? '' : 's'} posted.`
+          : data.postPay
+            ? ' Register updated (no GL movement was required).'
+            : '';
+      showToast(`Category updated for ${targetId}.${glNote}`, { variant: 'success' });
+    } finally {
+      setReclassifySaving(false);
+    }
+  }, [reclassifyTarget, reclassifyForm, reclassifySaving, ws, showToast, closeReclassifyModal]);
+
   const openPoTransportTreasuryPayout = (row) => {
     const outstanding = Math.max(0, Number(row.outstandingNgn) || 0);
     if (outstanding <= 0) {
@@ -1015,6 +1171,37 @@ const Account = () => {
     setRequestPayLines([createRequestPayLine(bankAccountsForPayout[0]?.id ?? '', outstanding)]);
     setRequestPayNote(row.transportFinanceAdvice || '');
     setShowPaymentEntry(true);
+  };
+
+  const exportExceptionsCsv = async () => {
+    const now = new Date();
+    const startISO = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+    const endISO = now.toISOString().slice(0, 10);
+    const branchQ =
+      ws?.viewAllBranches && ws?.branchScope === 'ALL'
+        ? ''
+        : `&branchScope=${encodeURIComponent(ws?.branchScope || '')}`;
+    try {
+      const r = await fetch(
+        apiUrl(
+          `/api/reports/expense-category-exceptions?format=csv&startDate=${startISO}&endDate=${endISO}${branchQ}`
+        ),
+        { credentials: 'include' }
+      );
+      if (!r.ok) {
+        showToast('Could not export category exceptions.', { variant: 'error' });
+        return;
+      }
+      const blob = await r.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `expense-category-exceptions-${endISO}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      showToast('Could not export category exceptions.', { variant: 'error' });
+    }
   };
 
   const confirmProcessPaymentModal = async () => {
@@ -2488,6 +2675,19 @@ const Account = () => {
       ),
     [disbursementsFilteredPayRequests]
   );
+
+  const disbursementsExceptionPayRequests = useMemo(
+    () =>
+      disbursementsActivePayRequests.filter((req) =>
+        isFinanceExceptionExpenseItem(req.expenseCategory, req.expenseCategoryLane)
+      ),
+    [disbursementsActivePayRequests]
+  );
+
+  const disbursementsVisiblePayRequests = useMemo(() => {
+    if (disbursementsPayRequestQueue === 'exceptions') return disbursementsExceptionPayRequests;
+    return disbursementsActivePayRequests;
+  }, [disbursementsPayRequestQueue, disbursementsActivePayRequests, disbursementsExceptionPayRequests]);
 
   const disbursementsArchivedRejectedPayRequests = useMemo(
     () =>
@@ -4179,6 +4379,16 @@ const Account = () => {
                               Pay-from
                             </button>
                           ) : null}
+                          {canPostExpenseReclass && ws?.canMutate && expenseTreasuryOut.length > 0 ? (
+                            <button
+                              type="button"
+                              title="Reclassify posted expense category (GL adjustment)"
+                              onClick={() => openReclassifyExpense(ex)}
+                              className="text-[8px] font-semibold uppercase tracking-wide text-indigo-800 bg-indigo-100 hover:bg-indigo-200 px-2 py-1 rounded-md"
+                            >
+                              Reclass
+                            </button>
+                          ) : null}
                           {canDeleteRolloutExpenseOrRequest ? (
                             <button
                               type="button"
@@ -4206,16 +4416,64 @@ const Account = () => {
                     </h3>
                     <p className="text-[11px] text-slate-500 mt-1">
                       Pending, submitted, approved (awaiting treasury), and cancelled — same rows as workspace. Approved
-                      items with balance due can be paid from here or from Desk / Treasury.
+                      items with balance due can be paid from here or from Desk / Treasury. Finance may reclassify category
+                      on approved, unpaid requests before payout.
                     </p>
                   </div>
-                  {disbursementsActivePayRequests.length === 0 ? (
+                  <ExpenseCategoryExceptionBanner
+                    summary={exceptionReportSummary}
+                    formatNgn={formatNgn}
+                    activeFilter={disbursementsPayRequestQueue === 'exceptions'}
+                    onFilterExceptions={() =>
+                      setDisbursementsPayRequestQueue((q) => (q === 'exceptions' ? 'all' : 'exceptions'))
+                    }
+                    onExportCsv={() => void exportExceptionsCsv()}
+                  />
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-[9px] font-bold uppercase tracking-wide text-slate-500">Queue</span>
+                    <button
+                      type="button"
+                      onClick={() => setDisbursementsPayRequestQueue('all')}
+                      className={`text-[9px] font-bold uppercase tracking-wide px-2.5 py-1 rounded-md ${
+                        disbursementsPayRequestQueue === 'all'
+                          ? 'bg-[#134e4a] text-white'
+                          : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                      }`}
+                    >
+                      All ({disbursementsActivePayRequests.length})
+                    </button>
+                    {!exceptionReportSummary?.shouldAlert ? (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => setDisbursementsPayRequestQueue('exceptions')}
+                          className={`text-[9px] font-bold uppercase tracking-wide px-2.5 py-1 rounded-md ${
+                            disbursementsPayRequestQueue === 'exceptions'
+                              ? 'bg-amber-700 text-white'
+                              : 'bg-amber-50 text-amber-900 hover:bg-amber-100 border border-amber-200'
+                          }`}
+                        >
+                          Finance exceptions ({disbursementsExceptionPayRequests.length})
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => void exportExceptionsCsv()}
+                          className="text-[9px] font-bold uppercase tracking-wide px-2.5 py-1 rounded-md border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                        >
+                          Export CSV
+                        </button>
+                      </>
+                    ) : null}
+                  </div>
+                  {disbursementsVisiblePayRequests.length === 0 ? (
                     <p className="text-[10px] text-slate-400 rounded-lg border border-slate-100 bg-slate-50/70 px-3 py-2">
-                      No payment requests match this filter.
+                      {disbursementsPayRequestQueue === 'exceptions'
+                        ? 'No finance exception payment requests match this filter.'
+                        : 'No payment requests match this filter.'}
                     </p>
                   ) : (
                     <ul className="space-y-1.5">
-                      {disbursementsActivePayRequests.map((req) => {
+                      {disbursementsVisiblePayRequests.map((req) => {
                         const paid = Number(req.paidAmountNgn) || 0;
                         const prTreasuryOut = treasuryOutflowLinesForPaymentRequest(
                           req.requestID,
@@ -4245,9 +4503,28 @@ const Account = () => {
                                     · {req.description || req.expenseCategory || '—'}
                                   </span>
                                 </p>
+                                <div className="flex flex-wrap items-center gap-1 mt-0.5">
+                                  {req.expenseCategory || req.expenseCategoryLane ? (
+                                    <ExpenseCategoryLaneBadge
+                                      category={req.expenseCategory}
+                                      laneKey={req.expenseCategoryLane}
+                                    />
+                                  ) : null}
+                                  {req.expenseCategory ? (
+                                    <span className="text-[8px] font-semibold text-slate-600">{req.expenseCategory}</span>
+                                  ) : null}
+                                </div>
                                 <p className="text-[8px] text-slate-500 mt-0.5 line-clamp-2" title={meta2}>
                                   {meta2}
                                 </p>
+                                {req.categoryJustification ? (
+                                  <p
+                                    className="text-[8px] text-amber-900/90 mt-1 line-clamp-2 italic"
+                                    title={req.categoryJustification}
+                                  >
+                                    Justification: {req.categoryJustification}
+                                  </p>
+                                ) : null}
                                 {['pending', 'submitted'].includes(
                                   String(req.approvalStatus || '').trim().toLowerCase()
                                 ) && !canApprovePaymentRequests ? (
@@ -4283,6 +4560,29 @@ const Account = () => {
                                       title="Record treasury payout"
                                     >
                                       Pay
+                                    </button>
+                                  ) : null}
+                                  {req.approvalStatus === 'Approved' &&
+                                  paid <= 0 &&
+                                  canApprovePaymentRequests &&
+                                  ws?.canMutate ? (
+                                    <button
+                                      type="button"
+                                      onClick={() => openReclassifyPaymentRequest(req)}
+                                      className="text-[8px] font-semibold uppercase tracking-wide text-violet-800 bg-violet-100 hover:bg-violet-200 px-2 py-1 rounded-md"
+                                      title="Change expense category before treasury payout"
+                                    >
+                                      Reclassify
+                                    </button>
+                                  ) : null}
+                                  {paid > 0 && canPostExpenseReclass && ws?.canMutate ? (
+                                    <button
+                                      type="button"
+                                      onClick={() => openReclassifyPaymentRequest(req)}
+                                      className="text-[8px] font-semibold uppercase tracking-wide text-indigo-800 bg-indigo-100 hover:bg-indigo-200 px-2 py-1 rounded-md"
+                                      title="Reclassify category and post GL adjustment"
+                                    >
+                                      Reclass (posted)
                                     </button>
                                   ) : null}
                                   {canFinanceReceiptSettlement && ws?.canMutate && prTreasuryOut.length > 0 ? (
@@ -5188,6 +5488,12 @@ const Account = () => {
               {selectedPayment?.type === 'po_transport' ? `PO ${selectedPayment?.id}` : selectedPayment?.id}
             </span>
           </div>
+          {selectedPayment?.type === 'payment_request' ? (
+            <ExpenseCategoryPayoutReadinessPanel
+              glPreview={paymentGlPreview}
+              payoutGate={paymentGlPreview?.payoutGate}
+            />
+          ) : null}
           {bankAccounts.length === 0 ? (
             <p className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
               Add at least one treasury account before posting payout.
@@ -5297,7 +5603,12 @@ const Account = () => {
               <button
                 type="button"
                 onClick={confirmProcessPaymentModal}
-                disabled={treasuryPayoutSubmitting}
+                disabled={
+                  treasuryPayoutSubmitting ||
+                  (selectedPayment?.type === 'payment_request' &&
+                    paymentGlPreview?.payoutGate &&
+                    paymentGlPreview.payoutGate.ok === false)
+                }
                 className="w-full bg-[#134e4a] text-white py-4 rounded-xl font-bold text-xs uppercase tracking-widest shadow-xl mt-4 disabled:opacity-70 disabled:cursor-not-allowed"
               >
                 {treasuryPayoutSubmitting
@@ -5604,21 +5915,14 @@ const Account = () => {
                 <label className="text-[10px] font-bold text-gray-400 uppercase ml-1 block mb-1">
                   Category
                 </label>
-                <select
+                <ExpenseCategorySelect
                   required
                   value={expenseForm.category}
-                  onChange={(e) =>
-                    setExpenseForm((f) => ({ ...f, category: e.target.value }))
-                  }
+                  onChange={(category) => setExpenseForm((f) => ({ ...f, category }))}
+                  actor={{ roleKey: ws?.session?.user?.roleKey, permissions: ws?.session?.permissions }}
+                  hasPermission={(p) => Boolean(ws?.hasPermission?.(p))}
                   className="w-full z-finance-field rounded-xl font-bold outline-none"
-                >
-                  <option value="">Select category…</option>
-                  {EXPENSE_CATEGORY_OPTIONS.map((name) => (
-                    <option key={name} value={name}>
-                      {name}
-                    </option>
-                  ))}
-                </select>
+                />
               </div>
               <div>
                 <label className="text-[10px] font-bold text-gray-400 uppercase ml-1 block mb-1">
@@ -5708,6 +6012,8 @@ const Account = () => {
             formatNgn={formatNgn}
             submitting={savingPayRequest}
             hintBeforeSubmit="Extra rows can be left blank — only completed lines are sent. Request ID is assigned on save. Use Print on the list row for a filing copy."
+            actor={{ roleKey: ws?.session?.user?.roleKey, permissions: ws?.session?.permissions }}
+            hasPermission={(p) => Boolean(ws?.hasPermission?.(p))}
           />
         </div>
       </ModalFrame>
@@ -6119,6 +6425,71 @@ const Account = () => {
               </button>
             </form>
           ) : null}
+        </div>
+      </ModalFrame>
+
+      <ModalFrame isOpen={Boolean(reclassifyTarget)} onClose={closeReclassifyModal}>
+        <div className="space-y-4">
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-violet-700/80">Reclassify category</p>
+            <h2 className="text-lg font-black text-slate-900 mt-1">
+              {reclassifyTarget?._reclassKind === 'expense'
+                ? reclassifyTarget?.expenseID
+                : reclassifyTarget?.requestID}
+            </h2>
+            <p className="text-[11px] text-slate-500 mt-2 leading-snug">
+              {Number(reclassifyTarget?.paidAmountNgn) > 0 || reclassifyTarget?._reclassKind === 'expense'
+                ? 'After treasury payout — updates the expense register and posts a GL reclass journal (Dr new / Cr old).'
+                : 'Approved, unpaid requests only. Updates GL mapping on the next payout preview.'}
+            </p>
+          </div>
+          <div>
+            <label className="text-[10px] font-bold text-gray-400 uppercase ml-1 block mb-1">New category</label>
+            <ExpenseCategorySelect
+              required
+              value={reclassifyForm.expenseCategory}
+              onChange={(expenseCategory) => setReclassifyForm((f) => ({ ...f, expenseCategory }))}
+              actor={{ roleKey: ws?.session?.user?.roleKey, permissions: ws?.session?.permissions }}
+              hasPermission={(p) => Boolean(ws?.hasPermission?.(p))}
+              othersMinJustificationLen={othersMinJustificationLen}
+              className="w-full z-finance-field rounded-xl font-bold outline-none focus:border-violet-300 focus:ring-2 focus:ring-violet-200/40"
+            />
+          </div>
+          {isExceptionExpenseCategory(reclassifyForm.expenseCategory) ? (
+            <OthersJustificationField
+              value={reclassifyForm.categoryJustification}
+              onChange={(e) =>
+                setReclassifyForm((f) => ({ ...f, categoryJustification: e.target.value }))
+              }
+              minLength={othersMinJustificationLen}
+              placeholder="Explain why this category applies…"
+            />
+          ) : null}
+          {reclassifyGlPreview?.gl ? (
+            <div className="rounded-lg border border-indigo-200 bg-indigo-50/80 px-3 py-2 text-[10px] text-indigo-950 leading-snug">
+              <p className="font-bold uppercase tracking-wide text-[9px] text-indigo-800 mb-1">GL reclass preview</p>
+              <p>
+                {reclassifyGlPreview.priorCategory || '—'} ({reclassifyGlPreview.gl.fromAccountCode}) →{' '}
+                {reclassifyForm.expenseCategory} ({reclassifyGlPreview.gl.toAccountCode})
+              </p>
+              {reclassifyGlPreview.gl.fromAccountCode === reclassifyGlPreview.gl.toAccountCode ? (
+                <p className="mt-1 text-indigo-700">Same GL account — register update only.</p>
+              ) : null}
+            </div>
+          ) : null}
+          <div className="flex flex-wrap gap-2 pt-1">
+            <button
+              type="button"
+              disabled={reclassifySaving || !reclassifyForm.expenseCategory}
+              onClick={() => void saveReclassifyCategory()}
+              className="z-btn-primary flex-1 justify-center py-2.5 disabled:opacity-50"
+            >
+              {reclassifySaving ? 'Saving…' : 'Save category'}
+            </button>
+            <button type="button" onClick={closeReclassifyModal} className="z-btn-secondary px-4 py-2.5">
+              Cancel
+            </button>
+          </div>
         </div>
       </ModalFrame>
 

@@ -1,6 +1,11 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Paperclip, Plus, X } from 'lucide-react';
-import { EXPENSE_CATEGORY_OPTIONS, isCapexExpenseCategory } from '../../shared/expenseCategories.js';
+import { ExpenseCategorySelect, isExceptionExpenseCategory } from './ExpenseCategorySelect.jsx';
+import { ExpenseCategoryRecommendationCard } from './ExpenseCategoryRecommendationCard.jsx';
+import { OthersJustificationField } from './OthersJustificationField.jsx';
+import { resolveExpenseCategoryPolicyLimits } from '../../shared/expenseCategoryPolicy.js';
+import { suggestExpenseCategoryForActor } from '../../shared/lib/expenseCategorySuggestions.js';
+import { useWorkspace } from '../../context/WorkspaceContext.jsx';
 import {
   createExpenseRequestLineItem,
   expenseRequestLineTotal,
@@ -18,6 +23,8 @@ import {
  * @param {boolean} [props.submitting]
  * @param {string} [props.hintBeforeSubmit]
  * @param {{ category: string, reason?: string, onApply?: () => void } | null} [props.categoryRecommendation]
+ * @param {{ roleKey?: string; permissions?: string[] } | null | undefined} [props.actor]
+ * @param {(perm: string) => boolean} [props.hasPermission]
  */
 export function ExpenseRequestFormFields({
   form,
@@ -30,7 +37,38 @@ export function ExpenseRequestFormFields({
   submitting = false,
   hintBeforeSubmit,
   categoryRecommendation = null,
+  actor = null,
+  hasPermission = () => false,
 }) {
+  const ws = useWorkspace();
+  const othersMinJustificationLen = resolveExpenseCategoryPolicyLimits(
+    ws?.snapshot?.orgGovernanceLimits
+  ).othersMinJustificationLen;
+
+  const memoSuggestion = useMemo(() => {
+    if (categoryRecommendation?.category) return null;
+    const text = [form.description, form.requestReference].filter(Boolean).join('\n');
+    if (String(text).trim().length < 8) return null;
+    return suggestExpenseCategoryForActor(
+      { description: form.description, reference: form.requestReference },
+      actor,
+      hasPermission
+    );
+  }, [actor, categoryRecommendation?.category, form.description, form.requestReference, hasPermission]);
+
+  const activeRecommendation = useMemo(() => {
+    if (categoryRecommendation?.category) return categoryRecommendation;
+    if (!memoSuggestion?.category || memoSuggestion.category === form.expenseCategory) return null;
+    return {
+      category: memoSuggestion.category,
+      reason:
+        memoSuggestion.reasons?.length > 0
+          ? `Matched keywords (${memoSuggestion.reasons.join(', ')}).`
+          : 'Suggested from description text.',
+      onApply: () => setForm((f) => ({ ...f, expenseCategory: memoSuggestion.category })),
+    };
+  }, [categoryRecommendation, form.expenseCategory, memoSuggestion, setForm]);
+
   return (
     <form className="space-y-4" onSubmit={onSubmit}>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -66,47 +104,34 @@ export function ExpenseRequestFormFields({
       </div>
       <div>
         <label className="text-[10px] font-bold text-gray-400 uppercase ml-1 block mb-1">Expense category</label>
-        {categoryRecommendation?.category ? (
-          <div className="mb-3 rounded-xl border border-teal-200/90 bg-teal-50/90 px-3 py-2.5">
-            <p className="text-[9px] font-black uppercase tracking-wide text-teal-900/80">Recommended from memo text</p>
-            <p className="text-[12px] font-bold text-teal-950 mt-0.5">{categoryRecommendation.category}</p>
-            {categoryRecommendation.reason ? (
-              <p className="text-[10px] text-teal-800/90 mt-1 leading-snug">{categoryRecommendation.reason}</p>
-            ) : null}
-            {categoryRecommendation.onApply ? (
-              <button
-                type="button"
-                onClick={categoryRecommendation.onApply}
-                className="mt-2 rounded-lg border border-teal-300 bg-white px-3 py-1.5 text-[10px] font-black uppercase text-teal-900 hover:bg-teal-50"
-              >
-                Use recommended category
-              </button>
-            ) : null}
-          </div>
+        {activeRecommendation?.category ? (
+          <ExpenseCategoryRecommendationCard
+            category={activeRecommendation.category}
+            reason={activeRecommendation.reason}
+            onApply={activeRecommendation.onApply}
+          />
+        ) : memoSuggestion?.suggestedCategory && !memoSuggestion.actorMaySelect ? (
+          <ExpenseCategoryRecommendationCard
+            category={memoSuggestion.suggestedCategory}
+            blocked
+            blockedReason={memoSuggestion.blockedReason}
+          />
         ) : null}
-        <select
+        <ExpenseCategorySelect
           required
           value={form.expenseCategory}
-          onChange={(e) => setForm((f) => ({ ...f, expenseCategory: e.target.value }))}
-          className="w-full bg-gray-50 border border-gray-100 rounded-xl py-3 px-4 text-sm font-bold outline-none"
-        >
-          <option value="" disabled>
-            Select category…
-          </option>
-          {EXPENSE_CATEGORY_OPTIONS.map((name) => (
-            <option key={name} value={name}>
-              {name}
-            </option>
-          ))}
-        </select>
-        <p className="text-[10px] text-gray-400 mt-1 ml-1">
-          Standard chart — same list as posted expenses for consistent month-end reporting.
-        </p>
-        {isCapexExpenseCategory(form.expenseCategory) ? (
-          <p className="text-[10px] text-teal-800 mt-2 ml-1 rounded-lg border border-teal-200/80 bg-teal-50/80 px-2.5 py-2 leading-snug">
-            Capex category — when this expense is fully paid from treasury, Accounting will auto-register a fixed asset
-            and post capitalization to the GL.
-          </p>
+          onChange={(expenseCategory) => setForm((f) => ({ ...f, expenseCategory }))}
+          actor={actor}
+          hasPermission={hasPermission}
+          othersMinJustificationLen={othersMinJustificationLen}
+          className="w-full bg-gray-50 border border-gray-100 rounded-xl py-3 px-4 text-sm font-bold outline-none focus:border-teal-300 focus:ring-2 focus:ring-teal-200/40"
+        />
+        {isExceptionExpenseCategory(form.expenseCategory) ? (
+          <OthersJustificationField
+            value={form.categoryJustification || ''}
+            onChange={(e) => setForm((f) => ({ ...f, categoryJustification: e.target.value }))}
+            minLength={othersMinJustificationLen}
+          />
         ) : null}
       </div>
       <div>

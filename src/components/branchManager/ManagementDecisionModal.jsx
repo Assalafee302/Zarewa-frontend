@@ -17,6 +17,7 @@ import { EditSecondApprovalInline } from '../EditSecondApprovalInline';
 import MaterialIncidentDetailModal from '../material/MaterialIncidentDetailModal';
 import { GovernanceDetailPanel } from './GovernanceDetailPanel';
 import { StaffPurchaseCreditManagerPreview } from '../management/StaffPurchaseCreditManagerPreview';
+import { ExpenseCategoryLaneBadge } from '../office/ExpenseCategoryLaneBadge.jsx';
 
 export function ManagementDecisionModal({
   selectedIntel,
@@ -318,9 +319,16 @@ export function ManagementDecisionModal({
                   <h2 className="text-lg font-black text-slate-900 leading-tight">{selectedIntel.requestId}</h2>
                   <p className="text-xs text-slate-500 mt-2 font-mono">{selectedIntel.row?.expense_id}</p>
                   {selectedIntel.row?.expense_category ? (
-                    <p className="text-[11px] text-teal-700 mt-2">
-                      Category: <span className="font-semibold text-slate-800">{selectedIntel.row.expense_category}</span>
-                    </p>
+                    <div className="flex flex-wrap items-center gap-2 mt-2">
+                      <ExpenseCategoryLaneBadge
+                        category={selectedIntel.row.expense_category}
+                        laneKey={selectedIntel.row.expense_category_lane}
+                      />
+                      <p className="text-[11px] text-teal-700">
+                        Category:{' '}
+                        <span className="font-semibold text-slate-800">{selectedIntel.row.expense_category}</span>
+                      </p>
+                    </div>
                   ) : null}
                   {selectedIntel.row?.request_reference ? (
                     <p className="text-[11px] text-slate-600 mt-2">

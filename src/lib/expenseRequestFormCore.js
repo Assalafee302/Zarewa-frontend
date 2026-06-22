@@ -22,6 +22,7 @@ export function initialExpenseRequestFormState() {
     requestDate: new Date().toISOString().slice(0, 10),
     requestReference: '',
     expenseCategory: '',
+    categoryJustification: '',
     description: '',
     attachment: null,
   };
@@ -49,6 +50,7 @@ export function buildPaymentRequestBodyFromForm(requestForm) {
     description,
     requestReference,
     expenseCategory,
+    categoryJustification: String(requestForm.categoryJustification || '').trim(),
     lineItems,
   };
   if (requestForm.attachment?.dataBase64) {

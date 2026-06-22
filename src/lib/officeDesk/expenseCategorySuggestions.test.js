@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { suggestExpenseCategoryFromMemoText } from './expenseCategorySuggestions.js';
+import { describe, expect, it } from 'vitest';
+import { suggestExpenseCategoryFromMemoText } from '../../shared/lib/expenseCategorySuggestions.js';
 
 describe('suggestExpenseCategoryFromMemoText', () => {
   it('suggests logistics for haulage keywords', () => {

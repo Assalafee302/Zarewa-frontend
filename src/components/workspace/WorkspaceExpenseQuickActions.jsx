@@ -8,9 +8,7 @@ import { useToast } from '../../context/ToastContext';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { apiFetch } from '../../lib/apiBase';
 import { buildPaymentRequestBodyFromForm, initialExpenseRequestFormState } from '../../lib/expenseRequestFormCore.js';
-import { EXPENSE_CATEGORY_OPTIONS } from '../../shared/expenseCategories.js';
-import { treasuryAccountDisplayName, treasuryAccountsForWorkspace } from '../../lib/treasuryAccountsStore';
-import { compareSelectLabels } from '../../lib/selectOptionSort';
+import { ExpenseCategorySelect } from '../office/ExpenseCategorySelect.jsx';
 import { canAccessMyProfileHr } from '../../lib/hrAccess';
 
 /**
@@ -51,9 +49,9 @@ export function WorkspaceExpenseQuickActions() {
     [bankAccounts]
   );
 
-  const expenseCategoriesSorted = useMemo(
-    () => [...EXPENSE_CATEGORY_OPTIONS].sort((a, b) => compareSelectLabels(a, b)),
-    []
+  const expenseActor = useMemo(
+    () => ({ roleKey: ws?.session?.user?.roleKey, permissions: ws?.session?.permissions }),
+    [ws?.session?.user?.roleKey, ws?.session?.permissions]
   );
 
   const [showPayRequestModal, setShowPayRequestModal] = useState(false);
@@ -310,6 +308,8 @@ export function WorkspaceExpenseQuickActions() {
             formatNgn={formatNgn}
             submitting={savingPayRequest}
             hintBeforeSubmit="Extra rows can be left blank — only completed lines are sent. Request ID is assigned on save."
+            actor={{ roleKey: ws?.session?.user?.roleKey, permissions: ws?.session?.permissions }}
+            hasPermission={(p) => Boolean(ws?.hasPermission?.(p))}
           />
         </div>
       </ModalFrame>
@@ -366,19 +366,14 @@ export function WorkspaceExpenseQuickActions() {
             </div>
             <div>
               <label className="text-[10px] font-bold text-gray-400 uppercase ml-1 block mb-1">Category</label>
-              <select
+              <ExpenseCategorySelect
                 required
                 value={expenseForm.category}
-                onChange={(e) => setExpenseForm((f) => ({ ...f, category: e.target.value }))}
+                onChange={(category) => setExpenseForm((f) => ({ ...f, category }))}
+                actor={expenseActor}
+                hasPermission={(p) => Boolean(ws?.hasPermission?.(p))}
                 className="w-full bg-gray-50 border border-gray-100 rounded-xl py-3 px-4 text-sm font-bold outline-none"
-              >
-                <option value="">Select category…</option>
-                {expenseCategoriesSorted.map((name) => (
-                  <option key={name} value={name}>
-                    {name}
-                  </option>
-                ))}
-              </select>
+              />
             </div>
             <div>
               <label className="text-[10px] font-bold text-gray-400 uppercase ml-1 block mb-1">Payment method</label>

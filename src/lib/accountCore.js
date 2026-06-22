@@ -222,6 +222,8 @@ export const normalizePaymentRequest = (row) => ({
   paymentNote: row?.paymentNote || '',
   branchId: row?.branchId || '',
   expenseCategory: row?.expenseCategory || '',
+  expenseCategoryLane: row?.expenseCategoryLane || '',
+  categoryJustification: row?.categoryJustification || '',
   isStaffLoan: Boolean(row?.isStaffLoan),
   hrRequestId: row?.hrRequestId || '',
   staffUserId: row?.staffUserId || '',

@@ -849,6 +849,8 @@ export function OfficeThreadConversationDrawer({
                   }
                 : null
             }
+            actor={{ roleKey: ws?.session?.user?.roleKey, permissions: ws?.session?.permissions }}
+            hasPermission={(p) => Boolean(ws?.hasPermission?.(p))}
           />
           <div className="mt-4 flex justify-end">
             <button

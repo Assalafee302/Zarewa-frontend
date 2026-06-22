@@ -636,15 +636,15 @@ export default function MasterDataWorkbench({ masterData }) {
     },
     {
       kind: 'expense-categories',
-      title: 'Expense categories',
+      title: 'Expense categories (reference archive)',
       description:
-        'Labels for Finance expenses (P&L grouping). Treasury accounts stay under Finance; this is the category dimension only.',
+        'Legacy reference labels only — not wired to payment requests or GL. Live categories are fixed in the accounting chart (see Finance policy). Miscellaneous is retired; use Others for exceptions.',
       rows: masterData?.expenseCategories || [],
       fields: [
         { key: 'name', label: 'Category name', placeholder: 'e.g. Diesel & fuel' },
         { key: 'code', label: 'Short code (optional)', placeholder: 'FUEL' },
         { key: 'sortOrder', label: 'Sort order', type: 'number', min: '0', step: '1', defaultValue: 0 },
-        { key: 'active', label: 'Active', type: 'checkbox', checkboxLabel: 'Offer in expense form', defaultValue: true },
+        { key: 'active', label: 'Active', type: 'checkbox', checkboxLabel: 'Keep in reference list', defaultValue: true },
       ],
       rowSummary: (row) =>
         `${row.name}${row.code ? ` · ${row.code}` : ''}${row.active ? '' : ' (inactive)'}`,

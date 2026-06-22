@@ -130,6 +130,7 @@ export function buildManagementQueuesFromSnapshot(snapshot) {
       attachment_present: Boolean(pr.attachmentPresent),
       attachment_name: pr.attachmentName ?? '',
       expense_category: pr.expenseCategory ?? '',
+      expense_category_lane: pr.expenseCategoryLane ?? '',
       branch_id: pr.branchId || '',
     }));
 

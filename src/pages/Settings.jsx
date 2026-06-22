@@ -20,6 +20,7 @@ import {
   Lock,
   SlidersHorizontal,
   RotateCcw,
+  Tags,
 } from 'lucide-react';
 import { PageHeader, PageShell, MainPanel, PageTabs } from '../components/layout';
 import MasterDataWorkbench from '../components/settings/MasterDataWorkbench';
@@ -320,6 +321,10 @@ const Settings = () => {
   const [govLimitsForm, setGovLimitsForm] = useState({
     expenseExecutiveThresholdNgn: 200_000,
     refundExecutiveThresholdNgn: 1_000_000,
+    othersMinJustificationLen: 40,
+    othersFinanceReviewThresholdNgn: 50_000,
+    ap3UnclassifiedAlertThresholdNgn: 100_000,
+    othersBranchCoachThresholdPct: 15,
   });
   const [govLimitsBusy, setGovLimitsBusy] = useState(false);
 
@@ -387,6 +392,10 @@ const Settings = () => {
         setGovLimitsForm({
           expenseExecutiveThresholdNgn: Number(data.limits.expenseExecutiveThresholdNgn) || 200_000,
           refundExecutiveThresholdNgn: Number(data.limits.refundExecutiveThresholdNgn) || 1_000_000,
+          othersMinJustificationLen: Number(data.limits.othersMinJustificationLen) || 40,
+          othersFinanceReviewThresholdNgn: Number(data.limits.othersFinanceReviewThresholdNgn) || 50_000,
+          ap3UnclassifiedAlertThresholdNgn: Number(data.limits.ap3UnclassifiedAlertThresholdNgn) || 100_000,
+          othersBranchCoachThresholdPct: Number(data.limits.othersBranchCoachThresholdPct) || 15,
         });
       }
     })();
@@ -403,6 +412,10 @@ const Settings = () => {
         body: JSON.stringify({
           expenseExecutiveThresholdNgn: Number(govLimitsForm.expenseExecutiveThresholdNgn),
           refundExecutiveThresholdNgn: Number(govLimitsForm.refundExecutiveThresholdNgn),
+          othersMinJustificationLen: Number(govLimitsForm.othersMinJustificationLen),
+          othersFinanceReviewThresholdNgn: Number(govLimitsForm.othersFinanceReviewThresholdNgn),
+          ap3UnclassifiedAlertThresholdNgn: Number(govLimitsForm.ap3UnclassifiedAlertThresholdNgn),
+          othersBranchCoachThresholdPct: Number(govLimitsForm.othersBranchCoachThresholdPct),
         }),
       });
       if (!ok || !data?.ok) {
@@ -793,6 +806,98 @@ const Settings = () => {
                               }))
                             }
                           />
+                        </div>
+                      </div>
+                      <div className="mt-6 rounded-2xl border border-amber-200/80 bg-gradient-to-br from-amber-50/40 to-white p-5">
+                        <h4 className="text-sm font-semibold text-slate-800 mb-1 flex items-center gap-2">
+                          <Tags size={15} className="text-amber-700" aria-hidden />
+                          Expense category governance
+                        </h4>
+                        <p className="text-xs text-gray-500 mb-4">
+                          Controls for the Others exception lane, AP3 costing alerts, and branch manager coaching when
+                          too many requests use catch-all categories.
+                        </p>
+                        <div className="space-y-5">
+                          <div>
+                            <p className="text-[10px] font-bold uppercase tracking-wide text-amber-900/80 mb-3">
+                              Others lane
+                            </p>
+                            <div className="grid gap-4 md:grid-cols-2">
+                              <div>
+                                <label className="z-field-label">Min explanation (characters)</label>
+                                <input
+                                  type="number"
+                                  min={10}
+                                  max={500}
+                                  step={1}
+                                  className="z-input"
+                                  value={govLimitsForm.othersMinJustificationLen}
+                                  onChange={(e) =>
+                                    setGovLimitsForm((p) => ({
+                                      ...p,
+                                      othersMinJustificationLen: Number(e.target.value),
+                                    }))
+                                  }
+                                />
+                              </div>
+                              <div>
+                                <label className="z-field-label">Finance review from (NGN)</label>
+                                <input
+                                  type="number"
+                                  min={0}
+                                  step={1000}
+                                  className="z-input"
+                                  value={govLimitsForm.othersFinanceReviewThresholdNgn}
+                                  onChange={(e) =>
+                                    setGovLimitsForm((p) => ({
+                                      ...p,
+                                      othersFinanceReviewThresholdNgn: Number(e.target.value),
+                                    }))
+                                  }
+                                />
+                              </div>
+                            </div>
+                          </div>
+                          <div className="border-t border-amber-100/90 pt-5">
+                            <p className="text-[10px] font-bold uppercase tracking-wide text-violet-900/75 mb-3">
+                              Alerts & coaching
+                            </p>
+                            <div className="grid gap-4 md:grid-cols-2">
+                              <div>
+                                <label className="z-field-label">AP3 unclassified alert from (NGN)</label>
+                                <input
+                                  type="number"
+                                  min={0}
+                                  step={1000}
+                                  className="z-input"
+                                  value={govLimitsForm.ap3UnclassifiedAlertThresholdNgn}
+                                  onChange={(e) =>
+                                    setGovLimitsForm((p) => ({
+                                      ...p,
+                                      ap3UnclassifiedAlertThresholdNgn: Number(e.target.value),
+                                    }))
+                                  }
+                                />
+                              </div>
+                              <div>
+                                <label className="z-field-label">Branch coach — Others % threshold</label>
+                                <input
+                                  type="number"
+                                  min={1}
+                                  max={100}
+                                  step={1}
+                                  className="z-input"
+                                  value={govLimitsForm.othersBranchCoachThresholdPct}
+                                  onChange={(e) =>
+                                    setGovLimitsForm((p) => ({
+                                      ...p,
+                                      othersBranchCoachThresholdPct: Number(e.target.value),
+                                    }))
+                                  }
+                                />
+                              </div>
+                            </div>
+                          </div>
                         </div>
                       </div>
                       <div className="mt-4">

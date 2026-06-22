@@ -1,4 +1,5 @@
 import React, { useCallback } from 'react';
+import { AlertTriangle, ArrowRight } from 'lucide-react';
 import { PageShell } from '../components/layout';
 import DeliveryGateDiagnosticsBanner from '../components/finance/DeliveryGateDiagnosticsBanner';
 import { StockRegisterMonthEndModal } from '../components/reports/StockRegisterMonthEndModal';
@@ -115,6 +116,35 @@ const ManagerDashboard = () => {
           </div>
           <button type="button" className="z-btn-primary shrink-0" onClick={() => bm.setStockRegisterMgrOpen(true)}>
             Review stock register
+          </button>
+        </div>
+      ) : null}
+
+      {bm.ws?.snapshot?.expenseCategoryBranchCoachAlert?.shouldCoach ? (
+        <div className="rounded-2xl border border-amber-200/90 bg-gradient-to-br from-amber-50/95 to-orange-50/40 px-4 py-4 mb-6 shadow-sm flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="min-w-0">
+            <p className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wide text-amber-900">
+              <AlertTriangle size={13} aria-hidden />
+              Others category — branch coaching
+            </p>
+            <p className="text-sm font-bold text-amber-950 mt-1.5 tabular-nums">
+              {bm.ws.snapshot.expenseCategoryBranchCoachAlert.othersPct ?? '—'}% Others
+              <span className="font-medium text-amber-900/80 text-xs ml-1">
+                · last {bm.ws.snapshot.expenseCategoryBranchCoachAlert.months || 3} months
+              </span>
+            </p>
+            <p className="text-xs text-amber-900/85 mt-1 leading-relaxed">
+              {bm.ws.snapshot.expenseCategoryBranchCoachAlert.message ||
+                'A high share of approved payment requests were coded Others. Review descriptions and pick standard categories where possible.'}
+            </p>
+          </div>
+          <button
+            type="button"
+            className="z-btn-primary shrink-0 inline-flex items-center gap-1.5"
+            onClick={() => bm.setActiveTab('cash_out')}
+          >
+            Review cash out
+            <ArrowRight size={14} aria-hidden />
           </button>
         </div>
       ) : null}
@@ -251,6 +281,8 @@ const ManagerDashboard = () => {
             submitting={bm.savingExpenseCorrection}
             submitLabel="Save request changes"
             hintBeforeSubmit={`Editing request ${bm.editingPaymentRequestId || ''}. This updates request details only (no payout posting).`}
+            actor={{ roleKey: bm.ws?.session?.user?.roleKey, permissions: bm.ws?.session?.permissions }}
+            hasPermission={(p) => Boolean(bm.ws?.hasPermission?.(p))}
           />
         </div>
       </ModalFrame>

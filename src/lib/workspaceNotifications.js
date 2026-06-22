@@ -193,6 +193,22 @@ function pushBranchManagerAlerts(items, { snapshot, roleKey, hasPermission, mana
     });
   }
 
+  const branchCoach = snapshot?.expenseCategoryBranchCoachAlert;
+  if (canMgmt && branchCoach?.shouldCoach) {
+    items.push({
+      id: 'mgr-expense-others-coach',
+      category: 'manager',
+      title: 'Others category coaching',
+      detail:
+        branchCoach.message ||
+        `${branchCoach.othersPct}% of branch payment requests coded Others — coach staff to use standard categories.`,
+      severity: Number(branchCoach.othersPct) >= 25 ? 'warning' : 'info',
+      priority: 58,
+      path: '/manager',
+      state: {},
+    });
+  }
+
   if (userCanApproveEditMutationsClient(roleKey, permissions)) {
     const editPending = (Array.isArray(snapshot?.unifiedWorkItems) ? snapshot.unifiedWorkItems : []).filter(
       (item) =>
@@ -384,6 +400,37 @@ export function buildWorkspaceNotifications({
       path: '/accounts',
       state: { accountsTab: 'desk' },
     });
+  }
+
+  if (
+    canAccessModule('finance') &&
+    (can('finance.approve') || can('finance.post') || can('reports.view'))
+  ) {
+    const catAlert = snapshot?.expenseCategoryMonthlyAlert;
+    if (catAlert?.shouldAlert) {
+      const parts = [];
+      if (Number(catAlert.exceptionRowCount) > 0) {
+        parts.push(`${catAlert.exceptionRowCount} exception request(s)`);
+      }
+      if (Number(catAlert.othersCount) > 0) {
+        parts.push(`${catAlert.othersCount} Others`);
+      }
+      if (catAlert.ap3ShouldAlert && Number(catAlert.ap3UnclassifiedNgn) > 0) {
+        parts.push(`AP3 unclassified ₦${Number(catAlert.ap3UnclassifiedNgn).toLocaleString('en-NG')}`);
+      }
+      items.push({
+        id: 'expense-category-monthly',
+        category: 'finance',
+        title: 'Expense category review',
+        detail:
+          parts.join(' · ') ||
+          `${catAlert.othersCount || 0} Others request(s) need Finance review this month.`,
+        severity: Number(catAlert.othersCount) > 2 ? 'warning' : 'info',
+        priority: 62,
+        path: '/accounts',
+        state: { accountsTab: 'disbursements' },
+      });
+    }
   }
 
   const transportLinkDue = Array.isArray(snapshot?.poTransportMissingLink)
