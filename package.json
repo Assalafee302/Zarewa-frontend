@@ -12,8 +12,11 @@
     "test": "vitest run",
     "test:edit-approval": "vitest run src/lib/editApprovalInput.test.js",
     "test:watch": "vitest",
-    "verify:ci": "npm run lint && npm run build",
-    "test:critical-lib": "vitest run src/lib/moduleAccess.test.js src/lib/accountCore.test.js src/lib/managerDashboardCore.test.js src/lib/salesStockCore.test.js src/lib/workspaceGovernanceClient.test.js"
+    "test:critical-lib": "vitest run src/lib/moduleAccess.test.js src/lib/accountCore.test.js src/lib/managerDashboardCore.test.js src/lib/salesStockCore.test.js src/lib/workspaceGovernanceClient.test.js",
+    "sync:shared": "node scripts/sync-shared-from-backend.mjs",
+    "verify:shared": "node scripts/verify-shared-sync.mjs",
+    "test:expense-category": "vitest run src/components/office/ExpenseCategoryComponents.test.jsx src/lib/expenseCategorySuggestApi.test.js src/components/finance/FinanceTreasuryAwaitingPayoutQueues.test.jsx src/lib/officeDesk/expenseCategorySuggestions.test.js",
+    "verify:ci": "npm run verify:shared && npm run lint && npm run build"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.15",

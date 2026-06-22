@@ -2,6 +2,11 @@ import React, { useMemo } from 'react';
 import { AlertTriangle, CheckCircle2, Sparkles, Wand2 } from 'lucide-react';
 import { buildSmartMemoSuggestions, SMART_MEMO_TYPES } from '../../lib/smartMemoComposer';
 import { ZareComposeAssistBar } from './ZareComposeAssistBar';
+import { ExpenseCategorySelect } from './ExpenseCategorySelect.jsx';
+import { ExpenseCategoryRecommendationCard } from './ExpenseCategoryRecommendationCard.jsx';
+import { useExpenseCategoryMemoSuggestion } from '../../hooks/useExpenseCategoryMemoSuggestion.js';
+import { resolveExpenseCategoryPolicyLimits } from '../../shared/expenseCategoryPolicy.js';
+import { useWorkspace } from '../../context/WorkspaceContext.jsx';
 
 function ComposerStep({ step, title, children, defaultOpen = false }) {
   return (
@@ -42,7 +47,16 @@ export function SmartMemoComposerPanel({
   onRequiresResponseChange,
   onRequiresApprovalChange,
   onConfidentialityChange,
+  expenseCategory = '',
+  onExpenseCategoryChange,
+  actor = null,
+  hasPermission = () => false,
 }) {
+  const ws = useWorkspace();
+  const othersMinJustificationLen = resolveExpenseCategoryPolicyLimits(
+    ws?.snapshot?.orgGovernanceLimits
+  ).othersMinJustificationLen;
+
   const suggestions = useMemo(
     () =>
       buildSmartMemoSuggestions({
@@ -56,6 +70,38 @@ export function SmartMemoComposerPanel({
   );
 
   const memoType = memoTypeProp || suggestions.memoType;
+  const showExpenseCategoryPicker = (SMART_MEMO_TYPES[memoType]?.conversionTargets || []).includes('expense');
+
+  const { suggestion: memoCategorySuggestion } = useExpenseCategoryMemoSuggestion({
+    description: body,
+    reference: subject,
+    actor,
+    hasPermission,
+    enabled: showExpenseCategoryPicker && !expenseCategory,
+  });
+
+  const categoryRecommendation = useMemo(() => {
+    if (!showExpenseCategoryPicker) return null;
+    const fromMemo = memoCategorySuggestion?.category;
+    const fromType = suggestions.expenseCategory;
+    const pick = fromMemo || fromType;
+    if (!pick || pick === expenseCategory) return null;
+    return {
+      category: pick,
+      reason: fromMemo
+        ? memoCategorySuggestion?.reasons?.length
+          ? `Matched keywords (${memoCategorySuggestion.reasons.join(', ')}).`
+          : 'Suggested from memo text.'
+        : 'Suggested for this memo type.',
+      onApply: () => onExpenseCategoryChange?.(pick),
+    };
+  }, [
+    showExpenseCategoryPicker,
+    memoCategorySuggestion,
+    suggestions.expenseCategory,
+    expenseCategory,
+    onExpenseCategoryChange,
+  ]);
 
   const applyOfficeAndPriority = () => {
     onApplySuggestion?.({
@@ -272,6 +318,33 @@ export function SmartMemoComposerPanel({
               )
             )}
           </div>
+        ) : null}
+
+        {showExpenseCategoryPicker ? (
+          <ComposerStep step="★" title="Expense category (for conversion)" defaultOpen={Boolean(expenseCategory || categoryRecommendation)}>
+            {categoryRecommendation?.category ? (
+              <ExpenseCategoryRecommendationCard
+                category={categoryRecommendation.category}
+                reason={categoryRecommendation.reason}
+                onApply={categoryRecommendation.onApply}
+              />
+            ) : memoCategorySuggestion?.suggestedCategory && !memoCategorySuggestion?.actorMaySelect ? (
+              <ExpenseCategoryRecommendationCard
+                category={memoCategorySuggestion.suggestedCategory}
+                blocked
+                blockedReason={memoCategorySuggestion.blockedReason}
+              />
+            ) : null}
+            <ExpenseCategorySelect
+              value={expenseCategory}
+              onChange={(cat) => onExpenseCategoryChange?.(cat)}
+              actor={actor}
+              hasPermission={hasPermission}
+              othersMinJustificationLen={othersMinJustificationLen}
+              compactHints
+              className="mt-2 w-full rounded-lg border border-slate-200 bg-white px-2 py-2 text-[12px] font-semibold outline-none focus:border-teal-300 focus:ring-2 focus:ring-teal-200/40"
+            />
+          </ComposerStep>
         ) : null}
 
         {missingRequired.length > 0 ? (

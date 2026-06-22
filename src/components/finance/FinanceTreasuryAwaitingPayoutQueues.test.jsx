@@ -15,6 +15,8 @@ describe('FinanceTreasuryAwaitingPayoutQueues', () => {
             amountRequestedNgn: 2000,
             paidAmountNgn: 0,
             expenseID: 'E-1',
+            expenseCategory: 'Fuel & lubricant',
+            expenseCategoryLane: 'production',
           },
         ]}
         registerSettlements={[]}
@@ -29,5 +31,6 @@ describe('FinanceTreasuryAwaitingPayoutQueues', () => {
     expect(screen.getByTestId('finance-payment-requests-awaiting-payout')).toBeTruthy();
     expect(screen.getByTestId('finance-refund-awaiting-row-RF-1')).toBeTruthy();
     expect(screen.getByTestId('finance-preq-awaiting-row-PR-1')).toBeTruthy();
+    expect(screen.getByText('Fuel & lubricant')).toBeTruthy();
   });
 });

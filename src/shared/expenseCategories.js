@@ -68,6 +68,26 @@ export function isCapexExpenseCategory(category) {
   return CAPEX_SET.has(String(category || '').trim());
 }
 
+/**
+ * Fixed-asset register + GL defaults for a capex expense category.
+ * @param {string} category
+ */
+export function capexExpenseAssetMeta(category) {
+  const c = String(category || '').trim();
+  switch (c) {
+    case 'Land and buildings':
+      return { assetCategory: 'building', glAccountCode: '1501', usefulLifeMonths: 240 };
+    case 'Plant and machinery':
+      return { assetCategory: 'plant', glAccountCode: '1500', usefulLifeMonths: 60 };
+    case 'Furniture & fittings':
+      return { assetCategory: 'it', glAccountCode: '1502', usefulLifeMonths: 84 };
+    case 'Generator':
+      return { assetCategory: 'plant', glAccountCode: '1504', usefulLifeMonths: 60 };
+    default:
+      return { assetCategory: 'other', glAccountCode: '1500', usefulLifeMonths: 60 };
+  }
+}
+
 const FALLBACK = 'Others';
 
 /** Prior canonical labels (v1) → current option (migration / imports). */

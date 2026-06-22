@@ -27,6 +27,8 @@ import { userMayViewFinanceTrialOversightClient } from '../lib/financeTrialExcep
 import { userMayViewManagementReportsClient } from '../lib/reportsAccess';
 import CommandCentreIntelligenceTab from '../components/exec/CommandCentreIntelligenceTab';
 import { ExpenseCategoryExceptionBanner } from '../components/office/ExpenseCategoryExceptionBanner.jsx';
+import { ExpenseCategoryOthersTrendTable } from '../components/office/ExpenseCategoryOthersTrendTable.jsx';
+import { downloadExpenseCategoryExceptionsCsv } from '../lib/expenseCategoryExceptionExport.js';
 import { ExecutiveWorkItemReviewModal } from '../components/exec/ExecutiveWorkItemReviewModal';
 import { execWorkItemOpensInModal } from '../lib/execWorkItemReview';
 import {
@@ -311,6 +313,49 @@ export default function ExecutiveCommandCentre() {
     if (activeTab !== 'finance' && !(activeTab === 'overview' && isExecutiveOversight)) return;
     void loadOthersTrend();
   }, [activeTab, isExecutiveOversight, loadOthersTrend]);
+
+  const branchTrendLabel = useCallback(
+    (id) => BRANCH_OPTIONS.find((b) => b.id === id)?.label || id,
+    []
+  );
+
+  const exportCategoryExceptionsCsv = useCallback(async () => {
+    try {
+      await downloadExpenseCategoryExceptionsCsv({
+        viewAllBranches: ws?.viewAllBranches,
+        branchScope: ws?.branchScope,
+      });
+    } catch {
+      showToast('Could not export category exceptions.', { variant: 'error' });
+    }
+  }, [showToast, ws?.branchScope, ws?.viewAllBranches]);
+
+  const renderOthersTrendBody = (compact = false) => {
+    if (othersTrendErr) {
+      return (
+        <p className={`rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 ${compact ? 'text-xs' : 'text-sm'} text-rose-800`}>
+          {othersTrendErr}
+        </p>
+      );
+    }
+    if (othersTrendBusy && !othersTrend) {
+      return <p className={`${compact ? 'text-xs' : 'text-sm'} text-slate-500`}>Loading trend…</p>;
+    }
+    if ((othersTrend?.branches || []).length === 0) {
+      return (
+        <p className={`${compact ? 'text-xs' : 'text-sm'} text-slate-500`}>
+          No approved payment requests in the selected window.
+        </p>
+      );
+    }
+    return (
+      <ExpenseCategoryOthersTrendTable
+        trend={othersTrend}
+        branchLabel={branchTrendLabel}
+        compact={compact}
+      />
+    );
+  };
 
   const readOnly = Boolean(data?.workTray?.readOnlyForActor ?? data?.actor?.readOnlyExecutiveView);
 
@@ -603,7 +648,11 @@ export default function ExecutiveCommandCentre() {
 
       {isExecutiveOversight && expenseCategoryAlert?.shouldAlert ? (
         <div className="mb-6 space-y-2">
-          <ExpenseCategoryExceptionBanner summary={expenseCategoryAlert} formatNgn={formatNgn} />
+          <ExpenseCategoryExceptionBanner
+            summary={expenseCategoryAlert}
+            formatNgn={formatNgn}
+            onExportCsv={() => void exportCategoryExceptionsCsv()}
+          />
           <Link
             to="/accounts"
             state={{ accountsTab: 'disbursements' }}
@@ -635,44 +684,7 @@ export default function ExecutiveCommandCentre() {
               Full finance view
             </button>
           </div>
-          {othersTrendErr ? (
-            <p className="text-sm text-rose-700">{othersTrendErr}</p>
-          ) : othersTrendBusy && !othersTrend ? (
-            <p className="text-sm text-slate-500">Loading…</p>
-          ) : (othersTrend?.branches || []).length === 0 ? (
-            <p className="text-sm text-slate-500">No data in window.</p>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[480px] text-xs">
-                <thead>
-                  <tr className="border-b border-slate-200 text-left text-[9px] font-bold uppercase text-slate-500">
-                    <th className="py-2 pr-3">Branch</th>
-                    <th className="py-2 text-right">6-mo Others %</th>
-                    <th className="py-2 pl-3 text-right">Amount</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(othersTrend?.branches || []).slice(0, 6).map((row) => (
-                    <tr key={row.branchId} className="border-b border-slate-100">
-                      <td className="py-2 pr-3 font-medium">
-                        {BRANCH_OPTIONS.find((b) => b.id === row.branchId)?.label || row.branchId}
-                      </td>
-                      <td
-                        className={`py-2 text-right tabular-nums font-semibold ${
-                          (row.summary?.othersPct ?? 0) >= 20 ? 'text-rose-700' : 'text-slate-700'
-                        }`}
-                      >
-                        {row.summary?.othersPct ?? 0}%
-                      </td>
-                      <td className="py-2 pl-3 text-right tabular-nums text-slate-600">
-                        {formatNgn(row.summary?.othersNgn ?? 0)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+          {renderOthersTrendBody(true)}
         </Section>
       ) : null}
 
@@ -1094,62 +1106,7 @@ export default function ExecutiveCommandCentre() {
                 Refresh
               </button>
             </div>
-            {othersTrendErr ? (
-              <p className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
-                {othersTrendErr}
-              </p>
-            ) : othersTrendBusy && !othersTrend ? (
-              <p className="text-sm text-slate-500">Loading trend…</p>
-            ) : (othersTrend?.branches || []).length === 0 ? (
-              <p className="text-sm text-slate-500">No approved payment requests in the selected window.</p>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[640px] text-sm">
-                  <thead>
-                    <tr className="border-b border-slate-200 text-left text-[10px] font-bold uppercase text-slate-500">
-                      <th className="py-2 pr-4">Branch</th>
-                      {(othersTrend?.monthKeys || []).map((mk) => (
-                        <th key={mk} className="py-2 px-2 text-right">
-                          {mk}
-                        </th>
-                      ))}
-                      <th className="py-2 pl-2 text-right">6-mo %</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {(othersTrend?.branches || []).map((row) => (
-                      <tr key={row.branchId} className="border-b border-slate-100">
-                        <td className="py-2.5 pr-4 font-medium text-slate-800">
-                          {BRANCH_OPTIONS.find((b) => b.id === row.branchId)?.label || row.branchId}
-                        </td>
-                        {(othersTrend?.monthKeys || []).map((mk) => {
-                          const month = row.months?.find((m) => m.monthKey === mk);
-                          const pct = month?.othersPct ?? 0;
-                          return (
-                            <td key={mk} className="py-2.5 px-2 text-right tabular-nums">
-                              <span
-                                className={
-                                  pct >= 25
-                                    ? 'font-bold text-rose-700'
-                                    : pct >= 15
-                                      ? 'font-semibold text-amber-800'
-                                      : 'text-slate-700'
-                                }
-                              >
-                                {month?.totalNgn ? `${pct}%` : '—'}
-                              </span>
-                            </td>
-                          );
-                        })}
-                        <td className="py-2.5 pl-2 text-right tabular-nums font-black text-[#134e4a]">
-                          {row.summary?.othersPct ?? 0}%
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
+            {renderOthersTrendBody(false)}
           </Section>
 
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">

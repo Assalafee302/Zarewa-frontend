@@ -1,6 +1,8 @@
 import React from 'react';
 import { Banknote, RotateCcw, Truck, Wallet } from 'lucide-react';
 import { formatNgn } from '../../Data/mockData';
+import { ExpenseCategoryLaneBadge } from '../office/ExpenseCategoryLaneBadge.jsx';
+import { isFinanceExceptionExpenseItem } from '../../shared/expenseCategoryPolicy.js';
 import {
   FinanceDeskColoredQueuePanel,
   FinanceDeskColoredQueueRow,
@@ -14,6 +16,24 @@ import {
   registerSettlementOutstandingNgn,
   registerSettlementPayoutMetaLine,
 } from '../../lib/financeTreasuryPayoutQueueMeta';
+
+function PaymentRequestCategoryExtra({ req }) {
+  if (!req?.expenseCategory && !req?.expenseCategoryLane) return null;
+  const isException = isFinanceExceptionExpenseItem(req.expenseCategory, req.expenseCategoryLane);
+  return (
+    <div className="flex flex-wrap items-center gap-1 mt-0.5">
+      <ExpenseCategoryLaneBadge category={req.expenseCategory} laneKey={req.expenseCategoryLane} />
+      {req.expenseCategory ? (
+        <span className="text-[8px] font-semibold text-slate-600">{req.expenseCategory}</span>
+      ) : null}
+      {isException ? (
+        <span className="text-[8px] font-black uppercase tracking-wide text-amber-800 bg-amber-100 px-1.5 py-0.5 rounded">
+          Review
+        </span>
+      ) : null}
+    </div>
+  );
+}
 
 function RefundPayeeExtra({ refund }) {
   if (!refund?.payeeAccountNo) return null;
@@ -124,6 +144,7 @@ export function FinanceTreasuryAwaitingPayoutQueues({
                   </>
                 }
                 meta={paymentRequestPayoutMetaLine(req, branchNameById)}
+                extra={<PaymentRequestCategoryExtra req={req} />}
                 amount={formatNgn(paymentRequestOutstandingNgn(req))}
                 actions={renderPaymentRequestActions(req)}
               />

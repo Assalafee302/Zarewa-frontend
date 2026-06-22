@@ -477,6 +477,10 @@ export function OfficeRecordComposeDrawer({ isOpen, onDismiss, presentation = 'm
         onMemoAssist={(action) => void onImproveMemo(action)}
         improving={improvingMemo}
         quickMode={quickComposeMode}
+        expenseCategory={smartExpenseCategory}
+        onExpenseCategoryChange={setSmartExpenseCategory}
+        actor={{ roleKey: ws?.session?.user?.roleKey, permissions: ws?.session?.permissions }}
+        hasPermission={(p) => Boolean(ws?.hasPermission?.(p))}
       />
       <div className={isFloating ? '' : 'px-3 py-3 sm:px-4'}>
         {!quickComposeMode ? (

@@ -154,6 +154,7 @@ export function requiresElevatedApprovalLane(category) {
   return ELEVATED_APPROVAL_LANE_KEYS.includes(getExpenseCategoryLane(category));
 }
 
+/** UI badge metadata per lane (Finance desk + manager inbox). */
 export const EXPENSE_CATEGORY_LANE_BADGE = Object.freeze({
   production: { label: 'Production', className: 'bg-teal-100 text-teal-900 ring-1 ring-teal-200/80' },
   logistics: { label: 'Logistics', className: 'bg-sky-100 text-sky-900 ring-1 ring-sky-200/80' },
@@ -165,6 +166,10 @@ export const EXPENSE_CATEGORY_LANE_BADGE = Object.freeze({
   exception: { label: 'Exception', className: 'bg-amber-100 text-amber-950 ring-1 ring-amber-200/80' },
 });
 
+/**
+ * @param {string} category
+ * @param {string} [laneKey]
+ */
 export function expenseCategoryLaneBadge(category, laneKey) {
   const lane = laneKey || getExpenseCategoryLane(category);
   return EXPENSE_CATEGORY_LANE_BADGE[lane] || EXPENSE_CATEGORY_LANE_BADGE.exception;

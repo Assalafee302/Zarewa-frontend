@@ -1,6 +1,10 @@
 /* eslint-disable react-refresh/only-export-components */
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { apiFetch, apiUrl } from '../lib/apiBase';
+import {
+  formatBootstrapConnectError,
+  formatBootstrapNetworkError,
+} from '../lib/bootstrapConnectError';
 import { replaceLedgerEntries } from '../lib/customerLedgerStore';
 import {
   canAccessModuleWithPermissions,
@@ -299,11 +303,16 @@ export function WorkspaceProvider({ children }) {
       }
       const skipEtag = Boolean(opts?.forceReconnect);
       const etag = skipEtag ? '' : isPoll ? bootstrapPollEtagRef.current : bootstrapFullEtagRef.current;
-      const r = await fetch(apiUrl(`/api/bootstrap${qs}`), {
-        method: 'GET',
-        credentials: 'include',
-        headers: etag ? { 'If-None-Match': etag } : {},
-      });
+      let r;
+      try {
+        r = await fetch(apiUrl(`/api/bootstrap${qs}`), {
+          method: 'GET',
+          credentials: 'include',
+          headers: etag ? { 'If-None-Match': etag } : {},
+        });
+      } catch (err) {
+        throw new Error(formatBootstrapNetworkError(err));
+      }
       if (r.status === 304) {
         // Server is reachable — leave degraded/read-only lock (304 used to leave status stuck).
         setStatus('ok');
@@ -344,7 +353,9 @@ export function WorkspaceProvider({ children }) {
       if (data?.code === 'CSRF_INVALID') {
         setSessionMessage('Your session security token expired. Please sign in again.');
       }
-      if (!r.ok || !data?.ok) throw new Error(data?.error || 'Bootstrap failed');
+      if (!r.ok || !data?.ok) {
+        throw new Error(formatBootstrapConnectError(httpStatus, data));
+      }
       if (!effectiveMode && !isPoll) {
         fullBootstrapLoadedRef.current = true;
       }

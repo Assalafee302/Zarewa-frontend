@@ -1,10 +1,11 @@
 import React, { useMemo } from 'react';
 import { Paperclip, Plus, X } from 'lucide-react';
-import { ExpenseCategorySelect, isExceptionExpenseCategory } from './ExpenseCategorySelect.jsx';
+import { ExpenseCategorySelect } from './ExpenseCategorySelect.jsx';
+import { isExceptionExpenseCategory } from '../../shared/expenseCategorySelectUtils.js';
 import { ExpenseCategoryRecommendationCard } from './ExpenseCategoryRecommendationCard.jsx';
 import { OthersJustificationField } from './OthersJustificationField.jsx';
 import { resolveExpenseCategoryPolicyLimits } from '../../shared/expenseCategoryPolicy.js';
-import { suggestExpenseCategoryForActor } from '../../shared/lib/expenseCategorySuggestions.js';
+import { useExpenseCategoryMemoSuggestion } from '../../hooks/useExpenseCategoryMemoSuggestion.js';
 import { useWorkspace } from '../../context/WorkspaceContext.jsx';
 import {
   createExpenseRequestLineItem,
@@ -45,16 +46,13 @@ export function ExpenseRequestFormFields({
     ws?.snapshot?.orgGovernanceLimits
   ).othersMinJustificationLen;
 
-  const memoSuggestion = useMemo(() => {
-    if (categoryRecommendation?.category) return null;
-    const text = [form.description, form.requestReference].filter(Boolean).join('\n');
-    if (String(text).trim().length < 8) return null;
-    return suggestExpenseCategoryForActor(
-      { description: form.description, reference: form.requestReference },
-      actor,
-      hasPermission
-    );
-  }, [actor, categoryRecommendation?.category, form.description, form.requestReference, hasPermission]);
+  const memoSuggestion = useExpenseCategoryMemoSuggestion({
+    description: form.description,
+    reference: form.requestReference,
+    actor,
+    hasPermission,
+    enabled: !categoryRecommendation?.category,
+  }).suggestion;
 
   const activeRecommendation = useMemo(() => {
     if (categoryRecommendation?.category) return categoryRecommendation;

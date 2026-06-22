@@ -4,9 +4,6 @@ import { useWorkspace } from '../../context/WorkspaceContext.jsx';
 import { isExceptionExpenseCategory } from '../../shared/expenseCategoryLanes.js';
 import { ExpenseCategoryHintPanel } from './ExpenseCategoryHintPanel.jsx';
 
-export { isExceptionExpenseCategory };
-export { OTHERS_MIN_JUSTIFICATION_LEN } from '../../shared/expenseCategoryPolicy.js';
-
 /**
  * Grouped expense category picker with lane hints and role filtering.
  */

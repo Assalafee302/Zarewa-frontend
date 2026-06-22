@@ -1,5 +1,6 @@
 /**
- * Mirror of Zarewa-backend-main/shared/lib/expenseCategoryGlMap.js — keep in sync.
+ * Expense category → GL account code (paid-on-payment recognition).
+ * Keep aligned with server accountingPostingOps and Accounting Desk UX labels.
  */
 import { isCapexExpenseCategory, capexExpenseAssetMeta } from '../expenseCategories.js';
 

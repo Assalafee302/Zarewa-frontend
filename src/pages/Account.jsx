@@ -67,8 +67,14 @@ import { ExpenseCategoryExceptionBanner } from '../components/office/ExpenseCate
 import { ExpenseCategoryPayoutReadinessPanel } from '../components/office/ExpenseCategoryPayoutReadinessPanel.jsx';
 import { OthersJustificationField } from '../components/office/OthersJustificationField.jsx';
 import { buildPaymentRequestBodyFromForm, initialExpenseRequestFormState } from '../lib/expenseRequestFormCore.js';
-import { isFinanceExceptionExpenseItem, resolveExpenseCategoryPolicyLimits } from '../shared/expenseCategoryPolicy.js';
-import { isExceptionExpenseCategory } from '../components/office/ExpenseCategorySelect.jsx';
+import {
+  isFinanceExceptionExpenseItem,
+  resolveExpenseCategoryPolicyLimits,
+  validateExpenseCategorySelection,
+} from '../shared/expenseCategoryPolicy.js';
+import { ExpenseCategoryReclassPreviewPanel } from '../components/office/ExpenseCategoryReclassPreviewPanel.jsx';
+import { downloadExpenseCategoryExceptionsCsv } from '../lib/expenseCategoryExceptionExport.js';
+import { isExceptionExpenseCategory } from '../shared/expenseCategorySelectUtils.js';
 import {
   ACCOUNT_TAB_LABELS as TAB_LABELS,
   createRequestPayLine,
@@ -328,6 +334,7 @@ const Account = () => {
     amountNgn: '',
     date: '',
     category: '',
+    categoryJustification: '',
     paymentMethod: 'Bank Transfer',
     debitAccountId: '',
     reference: '',
@@ -1174,31 +1181,11 @@ const Account = () => {
   };
 
   const exportExceptionsCsv = async () => {
-    const now = new Date();
-    const startISO = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
-    const endISO = now.toISOString().slice(0, 10);
-    const branchQ =
-      ws?.viewAllBranches && ws?.branchScope === 'ALL'
-        ? ''
-        : `&branchScope=${encodeURIComponent(ws?.branchScope || '')}`;
     try {
-      const r = await fetch(
-        apiUrl(
-          `/api/reports/expense-category-exceptions?format=csv&startDate=${startISO}&endDate=${endISO}${branchQ}`
-        ),
-        { credentials: 'include' }
-      );
-      if (!r.ok) {
-        showToast('Could not export category exceptions.', { variant: 'error' });
-        return;
-      }
-      const blob = await r.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `expense-category-exceptions-${endISO}.csv`;
-      a.click();
-      URL.revokeObjectURL(url);
+      await downloadExpenseCategoryExceptionsCsv({
+        viewAllBranches: ws?.viewAllBranches,
+        branchScope: ws?.branchScope,
+      });
     } catch {
       showToast('Could not export category exceptions.', { variant: 'error' });
     }
@@ -1668,6 +1655,7 @@ const Account = () => {
           amountNgn: amountNgn > 0 ? String(amountNgn) : '',
           date: String(req?.requestDate || correction.requestDate || todayIso).slice(0, 10),
           category: chosenCategory,
+          categoryJustification: String(req?.categoryJustification || correction.categoryJustification || '').trim(),
           paymentMethod: 'Bank Transfer',
           debitAccountId: String(bankAccountsForBranch[0]?.id ?? ''),
           reference: suggestedReference || 'Correction entry',
@@ -2118,11 +2106,27 @@ const Account = () => {
       showToast('Selected account has insufficient balance.', { variant: 'error' });
       return;
     }
+    const catCheck = validateExpenseCategorySelection({
+      actor: { roleKey: ws?.session?.user?.roleKey, permissions: ws?.session?.permissions },
+      category: expenseForm.category.trim(),
+      amountNgn: amount,
+      description: expenseForm.expenseType || expenseForm.reference || '',
+      categoryJustification: expenseForm.categoryJustification,
+      hasAttachment: false,
+      requireAttachment: false,
+      hasPermission: (p) => Boolean(ws?.hasPermission?.(p)),
+      policyLimits: ws?.snapshot?.orgGovernanceLimits,
+    });
+    if (!catCheck.ok) {
+      showToast(catCheck.error || 'Check expense category and justification.', { variant: 'error' });
+      return;
+    }
     const row = {
       expenseType: expenseForm.expenseType,
       amountNgn: amount,
       date: expenseForm.date || new Date().toISOString().slice(0, 10),
       category: expenseForm.category.trim(),
+      categoryJustification: String(expenseForm.categoryJustification || '').trim() || undefined,
       paymentMethod: expenseForm.paymentMethod,
       debitAccountId: debitId,
       reference: expenseForm.reference.trim() || '—',
@@ -2162,6 +2166,7 @@ const Account = () => {
       amountNgn: '',
       date: '',
       category: '',
+      categoryJustification: '',
       paymentMethod: 'Bank Transfer',
       debitAccountId: String(bankAccountsForBranch[0]?.id ?? ''),
       reference: '',
@@ -4692,6 +4697,7 @@ const Account = () => {
                                         amountNgn: String(Number(req.amountRequestedNgn) || ''),
                                         date: String(req.requestDate || todayIso).slice(0, 10),
                                         category: String(req.expenseCategory || '').trim(),
+                                        categoryJustification: String(req.categoryJustification || '').trim(),
                                         paymentMethod: 'Bank Transfer',
                                         debitAccountId: String(bankAccountsForBranch[0]?.id ?? ''),
                                         reference: String(
@@ -5921,8 +5927,18 @@ const Account = () => {
                   onChange={(category) => setExpenseForm((f) => ({ ...f, category }))}
                   actor={{ roleKey: ws?.session?.user?.roleKey, permissions: ws?.session?.permissions }}
                   hasPermission={(p) => Boolean(ws?.hasPermission?.(p))}
-                  className="w-full z-finance-field rounded-xl font-bold outline-none"
+                  othersMinJustificationLen={othersMinJustificationLen}
+                  className="w-full z-finance-field rounded-xl font-bold outline-none focus:border-teal-300 focus:ring-2 focus:ring-teal-200/40"
                 />
+                {isExceptionExpenseCategory(expenseForm.category) ? (
+                  <OthersJustificationField
+                    value={expenseForm.categoryJustification || ''}
+                    onChange={(e) =>
+                      setExpenseForm((f) => ({ ...f, categoryJustification: e.target.value }))
+                    }
+                    minLength={othersMinJustificationLen}
+                  />
+                ) : null}
               </div>
               <div>
                 <label className="text-[10px] font-bold text-gray-400 uppercase ml-1 block mb-1">
@@ -6466,16 +6482,10 @@ const Account = () => {
             />
           ) : null}
           {reclassifyGlPreview?.gl ? (
-            <div className="rounded-lg border border-indigo-200 bg-indigo-50/80 px-3 py-2 text-[10px] text-indigo-950 leading-snug">
-              <p className="font-bold uppercase tracking-wide text-[9px] text-indigo-800 mb-1">GL reclass preview</p>
-              <p>
-                {reclassifyGlPreview.priorCategory || '—'} ({reclassifyGlPreview.gl.fromAccountCode}) →{' '}
-                {reclassifyForm.expenseCategory} ({reclassifyGlPreview.gl.toAccountCode})
-              </p>
-              {reclassifyGlPreview.gl.fromAccountCode === reclassifyGlPreview.gl.toAccountCode ? (
-                <p className="mt-1 text-indigo-700">Same GL account — register update only.</p>
-              ) : null}
-            </div>
+            <ExpenseCategoryReclassPreviewPanel
+              preview={reclassifyGlPreview}
+              newCategory={reclassifyForm.expenseCategory}
+            />
           ) : null}
           <div className="flex flex-wrap gap-2 pt-1">
             <button

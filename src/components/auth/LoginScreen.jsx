@@ -260,7 +260,8 @@ export default function LoginScreen() {
 
               {ws.status === 'offline' ? (
                 <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-                  API server is offline. Start the backend to sign in to the live database.
+                  {ws.lastError ||
+                    'API server is offline. Start the backend to sign in to the live database.'}
                 </div>
               ) : null}
 
