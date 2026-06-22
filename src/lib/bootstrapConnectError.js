@@ -20,8 +20,24 @@ export function formatBootstrapConnectError(httpStatus, data) {
   return data?.error || 'Bootstrap failed';
 }
 
-/** @param {unknown} err */
-export function formatBootstrapNetworkError(err) {
+/** Try /api/health when bootstrap fetch failed — server may be up but degraded (MySQL down). */
+export async function probeDegradedApiHealth(fetchImpl = fetch, urlFn = (p) => p) {
+  try {
+    const r = await fetchImpl(urlFn('/api/health'));
+    const data = await r.json().catch(() => null);
+    if (data?.degraded || data?.bootError) {
+      return formatBootstrapConnectError(503, {
+        error: 'API server is running but the database is not connected.',
+        bootError: data.bootError,
+        mysqlTarget: data.mysqlTarget,
+        fixHint: data.fixHint,
+      });
+    }
+  } catch {
+    /* ignore */
+  }
+  return null;
+}
   const msg = String(/** @type {{ message?: string }} */ (err)?.message || err || '');
   if (msg === 'Failed to fetch' || /network/i.test(msg)) {
     return (

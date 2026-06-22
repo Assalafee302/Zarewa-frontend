@@ -4,6 +4,7 @@ import { apiFetch, apiUrl } from '../lib/apiBase';
 import {
   formatBootstrapConnectError,
   formatBootstrapNetworkError,
+  probeDegradedApiHealth,
 } from '../lib/bootstrapConnectError';
 import { replaceLedgerEntries } from '../lib/customerLedgerStore';
 import {
@@ -319,7 +320,8 @@ export function WorkspaceProvider({ children }) {
           headers: etag ? { 'If-None-Match': etag } : {},
         });
       } catch (err) {
-        throw new Error(formatBootstrapNetworkError(err));
+        const degradedMsg = await probeDegradedApiHealth(fetch, apiUrl);
+        throw new Error(degradedMsg || formatBootstrapNetworkError(err));
       }
       if (r.status === 304) {
         // Server is reachable — leave degraded/read-only lock (304 used to leave status stuck).
