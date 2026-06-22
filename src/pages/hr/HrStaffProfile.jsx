@@ -27,6 +27,7 @@ import { hrRequestKindLabel, hrRequestStatusClass } from '../../lib/hrFormat';
 import { fetchHrTransferRequests } from '../../lib/hrTransfers';
 import { HrSalaryIncrementPanel } from '../../components/hr/HrSalaryIncrementPanel';
 import { HrPromotionFromMatrix } from '../../components/hr/HrPromotionFromMatrix';
+import { HrSkillsMatrixPanel } from '../../components/hr/HrSkillsMatrixPanel';
 import { HrFormModal } from '../../components/hr/HrFormModal';
 import { HrIdCardApplyFields } from '../../components/hr/HrIdCardApplyFields';
 import { HrStaffDocumentsPanel } from '../../components/hr/HrStaffDocumentsPanel';
