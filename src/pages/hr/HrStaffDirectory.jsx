@@ -147,6 +147,7 @@ export default function HrStaffDirectory({
 
   const [staff, setStaff] = useState([]);
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [branchId, setBranchId] = useState('');
   const [department, setDepartment] = useState('');
   const [employmentType, setEmploymentType] = useState('');
@@ -193,8 +194,13 @@ export default function HrStaffDirectory({
   }, [initialQuickFilter]);
 
   useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search.trim()), 350);
+    return () => clearTimeout(t);
+  }, [search]);
+
+  useEffect(() => {
     setPage(1);
-  }, [search, branchId, department, employmentType, status, quickFilter, sortKey, sortDir, lineManagerUserId, cohort, includeInactive]);
+  }, [debouncedSearch, branchId, department, employmentType, status, quickFilter, sortKey, sortDir, lineManagerUserId, cohort, includeInactive]);
 
   const directoryParams = useMemo(
     () => ({
@@ -202,7 +208,7 @@ export default function HrStaffDirectory({
       includeInactive: includeInactive ? '1' : undefined,
       page,
       pageSize,
-      search: search.trim() || undefined,
+      search: debouncedSearch || undefined,
       branchId: branchId || undefined,
       department: department || undefined,
       employmentType: employmentType || undefined,
@@ -212,14 +218,11 @@ export default function HrStaffDirectory({
       sortKey,
       sortDir,
     }),
-    [cohort, includeInactive, page, pageSize, search, branchId, department, employmentType, status, quickFilter, lineManagerUserId, sortKey, sortDir]
+    [cohort, includeInactive, page, pageSize, debouncedSearch, branchId, department, employmentType, status, quickFilter, lineManagerUserId, sortKey, sortDir]
   );
 
   const { loading, error, reload } = useHrListLoad(async () => {
-    const [dirRes, deptRes] = await Promise.all([
-      fetchHrStaffDirectory(directoryParams),
-      fetchHrDepartments(false),
-    ]);
+    const dirRes = await fetchHrStaffDirectory(directoryParams);
     if (!dirRes.ok || !dirRes.data?.ok) {
       setStaff([]);
       setTotal(0);
@@ -231,9 +234,19 @@ export default function HrStaffDirectory({
     setTotal(Number(dirRes.data.total) || rows.length);
     setServerKpis(dirRes.data.kpis || null);
     setFacets(dirRes.data.facets || { departments: [], employmentTypes: [], managers: [] });
-    if (deptRes.ok && deptRes.data?.ok) setMasterDepartments(deptRes.data.departments || []);
     return { hasData: true };
   }, [directoryParams]);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchHrDepartments(false).then(({ ok, data }) => {
+      if (cancelled || !ok || !data?.ok) return;
+      setMasterDepartments(data.departments || []);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const departments = useMemo(() => {
     const names = new Set([
