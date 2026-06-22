@@ -4,6 +4,7 @@ import { ZareApprovalHint } from '../ZareApprovalHint';
 import { HR_BTN_PRIMARY, HR_BTN_SECONDARY } from '../hr/hrFormStyles';
 import { salesQuotationDeepLink } from '../../lib/staffPurchaseCreditLinks';
 import { hrStaffCreditPath, HR_STAFF_CREDIT_SECTION } from '../../lib/hrRoutes';
+import { HrPurchaseCreditDecisionContext } from '../hr/HrPurchaseCreditDecisionContext';
 
 /**
  * MD / manager review panel for pending staff purchase credit (materials on credit).
@@ -81,6 +82,8 @@ export function StaffPurchaseCreditManagerPreview({
           ) : null}
         </dl>
       </div>
+
+      <HrPurchaseCreditDecisionContext item={account} className="mt-2" />
 
       <p className="text-xs leading-relaxed text-slate-600">
         Approved credit covers the quotation balance for delivery. Repayment is collected through payroll on the staff

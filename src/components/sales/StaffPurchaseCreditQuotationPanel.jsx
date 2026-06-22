@@ -5,6 +5,9 @@ import { formatNgn } from '../../lib/hrFormat';
 import { isStaffLinkedCustomer, customerPickerPrimaryLabel } from '../../lib/customerPickerSearch';
 import { fetchQuotationStaffPurchaseStatus } from '../../lib/hrStaffPurchaseCredit';
 import { salesQuotationDeepLink } from '../../lib/staffPurchaseCreditLinks';
+import { ProfileStatusChip } from '../profile/profileDesign';
+import { HR_BTN_PRIMARY } from '../hr/hrFormStyles';
+import { HrPurchaseCreditDecisionContext } from '../hr/HrPurchaseCreditDecisionContext';
 import { StaffPurchaseCreditRequestModal } from './StaffPurchaseCreditRequestModal';
 
 const STATUS_LABELS = {
@@ -29,6 +32,13 @@ function formatTimelineAt(iso) {
   } catch {
     return s;
   }
+}
+
+function statusChipVariant(status) {
+  if (status === 'pending_approval') return 'pending';
+  if (status === 'rejected' || status === 'cancelled') return 'rejected';
+  if (status === 'active') return 'approved';
+  return 'neutral';
 }
 
 /**
@@ -79,14 +89,16 @@ export function StaffPurchaseCreditQuotationPanel({
     return null;
   }
 
+  const panelShell = 'rounded-xl border border-teal-100 bg-gradient-to-br from-teal-50/50 to-white p-4 mb-5 shadow-sm';
+
   if (!quotationRef) {
     return (
-      <div className="rounded-xl border border-amber-200 bg-amber-50/90 p-4 mb-5">
-        <p className="text-[9px] font-semibold text-amber-900 uppercase tracking-widest mb-2 flex items-center gap-2">
-          <HardHat size={14} />
+      <div className={`${panelShell} border-amber-200 bg-amber-50/80`}>
+        <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-amber-900">
+          <HardHat size={14} aria-hidden />
           Staff purchase credit
         </p>
-        <p className="text-[10px] text-amber-950 leading-relaxed">
+        <p className="mt-2 text-sm text-amber-950 leading-relaxed">
           Staff customer selected
           {customer ? `: ${customerPickerPrimaryLabel(customer)}` : ''}. Save the quotation first, then return here
           to request purchase credit.
@@ -101,33 +113,59 @@ export function StaffPurchaseCreditQuotationPanel({
   const hrLinkMissing = clientStaff && status && !status.isStaffCustomer;
   const quoteLink = salesQuotationDeepLink(quotationRef);
   const timeline = Array.isArray(status?.timeline) ? status.timeline : [];
+  const decisionData = account
+    ? {
+        ...account,
+        serviceYears: status?.eligibility?.serviceYears,
+        activeOutstandingNgn: status?.eligibility?.activeOutstandingNgn,
+        eligible: status?.eligibility?.eligible,
+        eligibilityIssues: status?.eligibility?.issues,
+        quoteBalanceNgn: balance,
+        depositRequiredNgn: status?.amountBounds?.depositRequiredNgn,
+        depositPct: status?.amountBounds?.depositPct,
+        maxSinglePurchaseNgn: status?.policy?.maxSinglePurchaseNgn,
+        purposeNote: account.note,
+      }
+    : {
+        serviceYears: status?.eligibility?.serviceYears,
+        activeOutstandingNgn: status?.eligibility?.activeOutstandingNgn,
+        eligible: status?.eligibility?.eligible,
+        eligibilityIssues: status?.eligibility?.issues,
+        quoteBalanceNgn: balance,
+        depositRequiredNgn: status?.amountBounds?.depositRequiredNgn,
+        depositPct: status?.amountBounds?.depositPct,
+        maxSinglePurchaseNgn: status?.policy?.maxSinglePurchaseNgn,
+      };
 
   return (
     <>
-      <div className="rounded-xl border border-[#134e4a]/20 bg-[#134e4a]/5 p-4 mb-5">
-        <p className="text-[9px] font-semibold text-[#134e4a] uppercase tracking-widest mb-2 flex items-center gap-2">
-          <HardHat size={14} />
-          Staff purchase credit
-        </p>
-        {loading ? (
-          <p className="text-[10px] text-slate-500">Checking staff credit status…</p>
-        ) : null}
+      <div className={panelShell}>
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-[#134e4a]">
+            <HardHat size={14} aria-hidden />
+            Staff purchase credit
+          </p>
+          {account ? (
+            <ProfileStatusChip variant={statusChipVariant(account.status)}>
+              {STATUS_LABELS[account.status] || account.status}
+            </ProfileStatusChip>
+          ) : null}
+        </div>
+        {loading ? <p className="mt-2 text-sm text-slate-500">Checking staff credit status…</p> : null}
         {loadError ? (
-          <p className="text-[10px] font-semibold text-rose-800 bg-rose-50 border border-rose-100 rounded-lg px-2 py-1.5 mb-2">
+          <p className="mt-2 text-sm font-semibold text-rose-800 bg-rose-50 border border-rose-100 rounded-lg px-3 py-2">
             {loadError}
           </p>
         ) : null}
         {hrLinkMissing ? (
-          <p className="text-[10px] font-semibold text-amber-900 bg-amber-50 border border-amber-100 rounded-lg px-2 py-1.5 mb-2">
+          <p className="mt-2 text-sm font-semibold text-amber-900 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
             Customer looks like staff, but HR link is missing. Open the customer profile → Edit → Link to staff, then
             refresh and reopen this quotation.
           </p>
         ) : null}
         {account ? (
-          <div className="space-y-2 text-sm">
-            <p className="font-bold text-slate-900">
-              {STATUS_LABELS[account.status] || account.status} · {formatNgn(account.principalOriginalNgn)}
-            </p>
+          <div className="mt-3 space-y-2 text-sm">
+            <p className="font-bold text-slate-900">{formatNgn(account.principalOriginalNgn)} credit</p>
             {account.principalOutstandingNgn > 0 ? (
               <p className="text-xs text-slate-600">
                 Outstanding on staff ledger: <strong>{formatNgn(account.principalOutstandingNgn)}</strong>
@@ -135,18 +173,18 @@ export function StaffPurchaseCreditQuotationPanel({
               </p>
             ) : null}
             {status?.rejectionNote ? (
-              <p className="text-[10px] font-semibold text-rose-800 bg-rose-50 border border-rose-100 rounded-lg px-2 py-1.5">
+              <p className="text-xs font-semibold text-rose-800 bg-rose-50 border border-rose-100 rounded-lg px-3 py-2">
                 Rejection reason: {status.rejectionNote}
               </p>
             ) : null}
             {status?.activeCredit?.coversBalance ? (
-              <p className="text-[10px] font-semibold text-emerald-800 bg-emerald-50 border border-emerald-100 rounded-lg px-2 py-1.5">
+              <p className="text-xs font-semibold text-emerald-800 bg-emerald-50 border border-emerald-100 rounded-lg px-3 py-2">
                 Delivery may proceed — active staff credit covers quotation balance.
               </p>
             ) : null}
           </div>
         ) : (
-          <p className="text-[10px] text-slate-700 leading-relaxed mb-2">
+          <p className="mt-2 text-sm text-slate-700 leading-relaxed">
             This quotation is on a staff customer account. Request purchase credit for Managing Director approval;
             repayment is collected via payroll.
             {balance > 0 ? (
@@ -159,12 +197,13 @@ export function StaffPurchaseCreditQuotationPanel({
             ) : null}
           </p>
         )}
+        <HrPurchaseCreditDecisionContext data={decisionData} className="mt-3" />
         {timeline.length ? (
-          <div className="mt-3 rounded-lg border border-slate-200 bg-white/80 px-3 py-2">
-            <p className="text-[9px] font-bold uppercase tracking-wide text-slate-500 mb-1.5">Status timeline</p>
+          <div className="mt-3 rounded-lg border border-slate-200 bg-white px-3 py-2">
+            <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500 mb-1.5">Status timeline</p>
             <ul className="space-y-1.5">
               {timeline.map((ev, idx) => (
-                <li key={`${ev.atIso}-${ev.action}-${idx}`} className="text-[10px] text-slate-700">
+                <li key={`${ev.atIso}-${ev.action}-${idx}`} className="text-xs text-slate-700">
                   <span className="font-semibold text-slate-900">
                     {TIMELINE_LABELS[ev.action] || ev.action}
                   </span>
@@ -176,11 +215,7 @@ export function StaffPurchaseCreditQuotationPanel({
           </div>
         ) : null}
         {canRequest ? (
-          <button
-            type="button"
-            onClick={() => setModalOpen(true)}
-            className="mt-2 rounded-lg bg-[#134e4a] px-3 py-2 text-[10px] font-bold uppercase tracking-wide text-white hover:brightness-105"
-          >
+          <button type="button" onClick={() => setModalOpen(true)} className={`${HR_BTN_PRIMARY} mt-3 text-xs`}>
             Request staff purchase credit
           </button>
         ) : null}
@@ -188,7 +223,7 @@ export function StaffPurchaseCreditQuotationPanel({
           <Link
             to={quoteLink.to}
             state={quoteLink.state}
-            className="mt-2 inline-block text-[10px] font-bold text-[#134e4a] underline"
+            className="mt-3 inline-block text-xs font-semibold text-[#134e4a] underline"
           >
             Open quotation in Sales
           </Link>

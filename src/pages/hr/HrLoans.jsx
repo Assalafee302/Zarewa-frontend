@@ -9,6 +9,8 @@ import { HrRequestsPanel } from '../../components/hr/HrRequestsPanel';
 import { HrAddFormButton, HrFormModal } from '../../components/hr/HrFormModal';
 import { HrLoansHubIntro, HrLoansHubTabs } from '../../components/hr/HrLoansHubTabs';
 import { HrStaffCreditSummaryStrip } from '../../components/hr/HrStaffCreditSummaryStrip';
+import { HrStaffCreditWorkflowGuide } from '../../components/hr/HrStaffCreditWorkflowGuide';
+import { HrStaffSalesCustomerSetupAlert } from '../../components/hr/HrStaffSalesCustomerSetupAlert';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import {
   canGmApproveHrRequests,
@@ -43,6 +45,8 @@ export default function HrLoans({ embedded = false } = {}) {
       </div>
 
       <HrStaffCreditSummaryStrip />
+
+      <HrStaffCreditWorkflowGuide />
 
       <HrFormModal
         isOpen={loanModalOpen}
@@ -101,7 +105,12 @@ export default function HrLoans({ embedded = false } = {}) {
             {section === 'purchase-credit' ? (
               <section className="space-y-3">
                 <p className="text-xs text-slate-600">Roofing and materials sold on staff credit via Sales quotations.</p>
-                {canManageHrStaff(ws?.permissions) ? <HrStaffBulkSalesCustomerLink /> : null}
+                {canManageHrStaff(ws?.permissions) ? (
+                  <>
+                    <HrStaffSalesCustomerSetupAlert />
+                    <HrStaffBulkSalesCustomerLink />
+                  </>
+                ) : null}
                 <HrStaffPurchaseCreditQueue />
               </section>
             ) : null}

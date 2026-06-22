@@ -1,5 +1,12 @@
 import { apiFetch } from './apiBase';
 
+export function fetchStaffSalesCustomerLinkStats(params = {}) {
+  const q = new URLSearchParams();
+  if (params.branchId) q.set('branchId', params.branchId);
+  const qs = q.toString();
+  return apiFetch(`/api/hr/staff/sales-customer-link-stats${qs ? `?${qs}` : ''}`);
+}
+
 export function fetchStaffPurchaseCredits(params = {}) {
   const q = new URLSearchParams();
   if (params.status) q.set('status', params.status);

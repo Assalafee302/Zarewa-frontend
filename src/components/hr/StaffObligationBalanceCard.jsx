@@ -6,10 +6,12 @@ import { obligationStatementPdfUrl } from '../../lib/hrStaffObligations';
 
 const STATUS_LABEL = {
   pending_disbursement: 'Awaiting payout',
-  pending_approval: 'Awaiting approval',
+  pending_approval: 'Awaiting MD approval',
   paid_off: 'Paid off',
   active: 'Repaying',
   repaying: 'Repaying',
+  rejected: 'Rejected',
+  cancelled: 'Cancelled',
 };
 
 /**
@@ -29,11 +31,19 @@ export function StaffObligationBalanceCard({ obligation }) {
     status,
     quotationRef,
     principalOriginalNgn,
+    note,
   } = obligation;
 
   const original = principalOriginalNgn;
   const statusLabel = STATUS_LABEL[status] || (outstandingNgn > 0 ? 'Repaying' : status);
-  const chipVariant = status === 'pending_approval' || status === 'pending_disbursement' ? 'pending' : outstandingNgn > 0 ? 'pending' : 'approved';
+  const chipVariant =
+    status === 'pending_approval' || status === 'pending_disbursement'
+      ? 'pending'
+      : status === 'rejected' || status === 'cancelled'
+        ? 'rejected'
+        : outstandingNgn > 0
+          ? 'pending'
+          : 'approved';
 
   return (
     <ProfileKpiCard label={title || kindLabel}>
@@ -64,6 +74,9 @@ export function StaffObligationBalanceCard({ obligation }) {
         </div>
       </dl>
       {quotationRef ? <p className="mt-1 text-xs text-slate-500">Quote {quotationRef}</p> : null}
+      {status === 'rejected' && note ? (
+        <p className="mt-1 text-xs text-rose-800">Rejection: {note}</p>
+      ) : null}
       <ProfileStatusChip variant={chipVariant}>{statusLabel}</ProfileStatusChip>
       <a
         className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-[#134e4a] underline"

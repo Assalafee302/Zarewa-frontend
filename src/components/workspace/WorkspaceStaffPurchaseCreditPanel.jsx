@@ -1,13 +1,14 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useToast } from '../../context/ToastContext';
 import { useWorkspace } from '../../context/WorkspaceContext';
-import { decideStaffPurchaseCredit } from '../../lib/hrStaffPurchaseCredit';
+import { decideStaffPurchaseCredit, fetchStaffPurchaseCredits } from '../../lib/hrStaffPurchaseCredit';
 import { canApproveStaffPurchaseCredit, canRejectStaffPurchaseCredit } from '../../lib/hrAccess';
 import { formatNgn } from '../../lib/hrFormat';
 import { salesQuotationDeepLink } from '../../lib/staffPurchaseCreditLinks';
 import { hrStaffCreditPath, HR_STAFF_CREDIT_SECTION } from '../../lib/hrRoutes';
 import { ZareApprovalHint } from '../ZareApprovalHint';
+import { HrPurchaseCreditDecisionContext } from '../hr/HrPurchaseCreditDecisionContext';
 import { HR_BTN_PRIMARY, HR_BTN_SECONDARY } from '../hr/hrFormStyles';
 
 /**
@@ -19,6 +20,30 @@ export default function WorkspaceStaffPurchaseCreditPanel({ item, onDone }) {
   const [busy, setBusy] = useState(false);
   const [rejectOpen, setRejectOpen] = useState(false);
   const [rejectNote, setRejectNote] = useState('');
+  const [enriched, setEnriched] = useState(null);
+
+  useEffect(() => {
+    if (!id) return;
+    let cancelled = false;
+    (async () => {
+      for (const status of ['pending_approval', 'all']) {
+        const { ok, data } = await fetchStaffPurchaseCredits({ status });
+        if (cancelled) return;
+        if (ok && data?.ok) {
+          const match = (data.items || []).find((i) => i.id === id);
+          if (match) {
+            setEnriched(match);
+            return;
+          }
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [id]);
+
+  const decisionData = enriched || { ...data, purposeNote: data.purposeNote || data.note };
 
   const permissions = ws?.permissions ?? [];
   const roleKey = ws?.session?.user?.roleKey;
@@ -125,6 +150,7 @@ export default function WorkspaceStaffPurchaseCreditPanel({ item, onDone }) {
           </p>
         ) : null}
       </div>
+      <HrPurchaseCreditDecisionContext data={decisionData} className="mt-4" />
       <p className="mt-4 text-xs leading-relaxed text-slate-500">
         Staff roofing / materials on credit. Approved balances are collected via payroll and cover the quotation balance
         for delivery.

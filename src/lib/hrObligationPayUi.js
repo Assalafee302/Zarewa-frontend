@@ -39,6 +39,7 @@ export function normalizeObligationForPayback(row, kind = 'loan') {
     status,
     quotationRef: row.quotationRef || null,
     expectedStartPeriod: row.expectedStartPeriod || null,
+    note: row.note || null,
     deductionsActive,
     pauseUntilIso,
     pauseReason,

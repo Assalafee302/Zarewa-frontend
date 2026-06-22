@@ -7,6 +7,8 @@ import { formatNgn } from '../../lib/hrFormat';
 import { salesQuotationDeepLink } from '../../lib/staffPurchaseCreditLinks';
 import { PageTabs } from '../layout/PageTabs';
 import { HR_BTN_PRIMARY, HR_BTN_SECONDARY } from './hrFormStyles';
+import { HrPurchaseCreditDecisionContext } from './HrPurchaseCreditDecisionContext';
+import { ProfileStatusChip } from '../profile/profileDesign';
 
 const QUEUE_TABS = [
   { id: 'pending', label: 'Pending approval' },
@@ -134,18 +136,26 @@ export function HrStaffPurchaseCreditQueue() {
                     <Link
                       to={quoteLink.to}
                       state={quoteLink.state}
-                      className="mt-1 inline-block text-[10px] font-bold text-[#134e4a] underline"
+                      className="mt-1 inline-block text-xs font-semibold text-[#134e4a] underline"
                     >
                       Open quotation
                     </Link>
                   ) : null}
-                  <p
-                    className={`text-[10px] font-semibold uppercase tracking-wide mt-1 ${
-                      isPending ? 'text-[#134e4a]' : item.status === 'rejected' ? 'text-rose-700' : 'text-slate-500'
-                    }`}
-                  >
-                    {statusLabel(item.status)}
-                  </p>
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    <ProfileStatusChip
+                      variant={
+                        isPending ? 'pending' : item.status === 'rejected' ? 'rejected' : item.status === 'active' ? 'approved' : 'neutral'
+                      }
+                    >
+                      {statusLabel(item.status)}
+                    </ProfileStatusChip>
+                  </div>
+                  {item.status === 'rejected' && item.note ? (
+                    <p className="mt-2 text-xs font-semibold text-rose-800 bg-rose-50 border border-rose-100 rounded-lg px-3 py-2">
+                      Rejection reason: {item.note}
+                    </p>
+                  ) : null}
+                  <HrPurchaseCreditDecisionContext item={item} className="mt-2" />
                   {item.principalOutstandingNgn > 0 && !isPending ? (
                     <p className="text-xs text-slate-600 mt-1">
                       Outstanding: <strong>{formatNgn(item.principalOutstandingNgn)}</strong>
