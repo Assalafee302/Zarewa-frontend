@@ -1,5 +1,10 @@
 import { apiFetch, apiUrl } from './apiBase';
 
+/** All payroll groups — branch, HQ, mining, domestic, etc. (not just branch_ops). */
+export function fetchHrStaffForLoanRegister() {
+  return apiFetch('/api/hr/staff?cohort=all');
+}
+
 export function fetchObligationAccounts(params = {}) {
   const q = new URLSearchParams();
   if (params.userId) q.set('userId', params.userId);

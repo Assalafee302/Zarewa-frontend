@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
-import { apiFetch } from '../../lib/apiBase';
 import { useHrListLoad } from '../../hooks/useHrListLoad';
-import { migrateLegacyStaffLoan } from '../../lib/hrStaffObligations';
+import { fetchHrStaffForLoanRegister, migrateLegacyStaffLoan } from '../../lib/hrStaffObligations';
 import { ProfileFormActions, ProfileFormField } from '../profile/profileFormUi';
 import { HR_BTN_PRIMARY, HR_BTN_SECONDARY, HR_FIELD_CLASS } from './hrFormStyles';
 
@@ -14,7 +13,7 @@ export function HrLegacyLoanMigrateForm({ staffOptions: staffOptionsProp = [], d
 
   useHrListLoad(async () => {
     if (staffOptionsProp.length) return { hasData: true };
-    const { ok, data } = await apiFetch('/api/hr/staff');
+    const { ok, data } = await fetchHrStaffForLoanRegister();
     if (!ok || !data?.ok) {
       setStaffLocal([]);
       return { hasData: false };

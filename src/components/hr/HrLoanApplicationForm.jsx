@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { apiFetch } from '../../lib/apiBase';
 import { useHrListLoad } from '../../hooks/useHrListLoad';
 import { createHrLoanRequest } from '../../lib/hrStaff';
+import { fetchHrStaffForLoanRegister } from '../../lib/hrStaffObligations';
 import { HR_BTN_PRIMARY, HR_BTN_SECONDARY, HR_FIELD_CLASS } from './hrFormStyles';
 
 /**
@@ -20,7 +21,7 @@ export function HrLoanApplicationForm({ onSuccess, onCancel }) {
   const [error, setError] = useState('');
 
   useHrListLoad(async () => {
-    const { ok, data } = await apiFetch('/api/hr/staff');
+    const { ok, data } = await fetchHrStaffForLoanRegister();
     if (!ok || !data?.ok) {
       setStaff([]);
       return { hasData: false };
