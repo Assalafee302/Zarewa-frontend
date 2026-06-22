@@ -177,6 +177,7 @@ export function WorkspaceProvider({ children }) {
   const loadedDomainsRef = useRef(new Set());
   const fullBootstrapLoadedRef = useRef(false);
   const lastErrorRef = useRef(null);
+  const refreshSeqRef = useRef(0);
 
   useEffect(() => {
     snapshotRef.current = snapshot;
@@ -288,6 +289,8 @@ export function WorkspaceProvider({ children }) {
    * QuotationModal / CuttingListModal) so snapshot churn does not reset in-progress edits.
    */
   const refresh = useCallback(async (opts = {}) => {
+    const seq = ++refreshSeqRef.current;
+    const stale = () => seq !== refreshSeqRef.current;
     try {
       const mode = String(opts?.mode ?? '').trim();
       const isPoll = Boolean(opts?.poll);
@@ -320,6 +323,7 @@ export function WorkspaceProvider({ children }) {
       }
       if (r.status === 304) {
         // Server is reachable — leave degraded/read-only lock (304 used to leave status stuck).
+        if (stale()) return snapshotRef.current;
         setStatus('ok');
         setLastError(null);
         return snapshotRef.current;
@@ -336,6 +340,7 @@ export function WorkspaceProvider({ children }) {
       if (isPoll) bootstrapPollEtagRef.current = nextEtag;
       else bootstrapFullEtagRef.current = nextEtag;
       if (httpStatus === 401 || data?.code === 'AUTH_REQUIRED') {
+        if (stale()) return snapshotRef.current;
         const uid = snapshotRef.current?.session?.user?.id;
         if (uid && hasPendingPasswordChange(uid)) {
           setSessionMessage('Session could not be refreshed. Set your new password or sign out and try again.');
@@ -364,8 +369,10 @@ export function WorkspaceProvider({ children }) {
       if (!effectiveMode && !isPoll) {
         fullBootstrapLoadedRef.current = true;
       }
+      if (stale()) return snapshotRef.current;
       return applySnapshot(withPendingPasswordSession(data), 'ok');
     } catch (e) {
+      if (stale()) return snapshotRef.current;
       const cached = readBootstrapCache(snapshotRef.current?.session);
       if (cached) {
         setLastError(String(e.message || e));
