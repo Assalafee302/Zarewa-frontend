@@ -55,6 +55,11 @@ import {
   ProcurementPoPreviewSlideOver,
 } from '../components/procurement/ProcurementPreviewSlideOvers';
 import { PROCUREMENT_PO_SORT_FIELDS, sortPurchaseOrdersList } from '../lib/procurementPoListSorting';
+import { TransportCatchUpPanel } from '../components/procurement/TransportCatchUpPanel';
+import {
+  purchaseOrderCanAssignTransport,
+  purchaseOrderTransportGapLabel,
+} from '../lib/purchaseOrderWorkflow';
 import { defaultTransportAgentProfile, mergeTransportAgentProfile } from '../lib/transportAgentIntel';
 import { PAYABLES_SORT_FIELDS, sortAccountsPayableList } from '../lib/procurementPayablesSorting';
 import { useAppTablePaging } from '../lib/appDataTable';
@@ -77,6 +82,7 @@ const PAYABLES_TABLE_PAGE_SIZE = 10;
 const TAB_LABELS = {
   purchases: 'Purchases',
   payables: 'Payments',
+  transport: 'Transport catch-up',
   suppliers: 'Suppliers',
   conversion: 'Conversion',
 };
@@ -406,15 +412,6 @@ const Procurement = () => {
     navigate(location.pathname, { replace: true, state: {} });
   }, [location.state, location.pathname, navigate]);
 
-  const procurementTabs = useMemo(() => {
-    return [
-      { id: 'purchases', icon: <DollarSign size={16} />, label: 'Purchases' },
-      { id: 'payables', icon: <Banknote size={16} />, label: 'Payments' },
-      { id: 'suppliers', icon: <Anchor size={16} />, label: 'Suppliers' },
-      { id: 'conversion', icon: <Ruler size={16} />, label: 'Conversion' },
-    ];
-  }, []);
-
   const outstandingSupplierNgn = useMemo(
     () =>
       purchaseOrders.reduce((s, p) => {
@@ -648,6 +645,74 @@ const Procurement = () => {
         : [],
     [ws?.snapshot?.poTransportAwaitingTreasury]
   );
+
+  const poTransportMissingLinkRows = useMemo(
+    () =>
+      Array.isArray(ws?.snapshot?.poTransportMissingLink) ? ws.snapshot.poTransportMissingLink : [],
+    [ws?.snapshot?.poTransportMissingLink]
+  );
+
+  const poTransportCatchUpRows = useMemo(
+    () => (Array.isArray(ws?.snapshot?.poTransportCatchUp) ? ws.snapshot.poTransportCatchUp : []),
+    [ws?.snapshot?.poTransportCatchUp]
+  );
+
+  const orphanHaulageRows = useMemo(
+    () =>
+      Array.isArray(ws?.snapshot?.orphanHaulageTreasuryMovements)
+        ? ws.snapshot.orphanHaulageTreasuryMovements
+        : [],
+    [ws?.snapshot?.orphanHaulageTreasuryMovements]
+  );
+
+  const transportCatchUpCount = poTransportCatchUpRows.length + orphanHaulageRows.length;
+
+  const procurementTabs = useMemo(() => {
+    return [
+      { id: 'purchases', icon: <DollarSign size={16} />, label: 'Purchases' },
+      { id: 'payables', icon: <Banknote size={16} />, label: 'Payments' },
+      {
+        id: 'transport',
+        icon: <Truck size={16} />,
+        label: transportCatchUpCount > 0 ? `Transport (${transportCatchUpCount})` : 'Transport catch-up',
+      },
+      { id: 'suppliers', icon: <Anchor size={16} />, label: 'Suppliers' },
+      { id: 'conversion', icon: <Ruler size={16} />, label: 'Conversion' },
+    ];
+  }, [transportCatchUpCount]);
+
+  const poTransportMissingLinkIds = useMemo(
+    () => new Set(poTransportMissingLinkRows.map((row) => row.poID)),
+    [poTransportMissingLinkRows]
+  );
+
+  const [poTransportFilter, setPoTransportFilter] = useState('all');
+
+  const openPoPreviewById = (poID) => {
+    const fullPo = purchaseOrders.find((po) => po.poID === poID);
+    if (fullPo) {
+      setPreviewPo(fullPo);
+      setPreviewAp(null);
+    }
+  };
+
+  const openPoTransportLink = (poID) => {
+    const p = purchaseOrders.find((row) => row.poID === poID);
+    if (!p) return;
+    setPreviewPo(null);
+    setPreviewAp(null);
+    setProcurementPoForApprovalUi(p.poID);
+    setTransportForm({
+      poID: p.poID,
+      agentId: p.transportAgentId || '',
+      transportReference: p.transportReference || '',
+      transportNote: p.transportNote || '',
+      transportFinanceAdvice: p.transportFinanceAdvice || '',
+      transportAmountNgn: p.transportAmountNgn > 0 ? String(p.transportAmountNgn) : '',
+      transportAdvanceNgn: Number(p.transportAdvanceNgn) > 0 ? String(p.transportAdvanceNgn) : '',
+    });
+    setShowTransportModal(true);
+  };
 
   const saveStandardConversion = async (e) => {
     e.preventDefault();
@@ -967,15 +1032,19 @@ const Procurement = () => {
 
   const filteredPOs = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
-    if (!q) return purchaseOrders;
-    return purchaseOrders.filter((p) => {
+    let rows = purchaseOrders;
+    if (poTransportFilter === 'needs_transport') {
+      rows = rows.filter((p) => poTransportMissingLinkIds.has(p.poID));
+    }
+    if (!q) return rows;
+    return rows.filter((p) => {
       const lineProductIds = Array.isArray(p?.lines)
         ? p.lines.map((l) => String(l?.productID || '')).filter(Boolean)
         : [];
       const blob = [p?.poID, p?.supplierName, p?.status, ...lineProductIds].join(' ');
       return blob.toLowerCase().includes(q);
     });
-  }, [purchaseOrders, searchQuery]);
+  }, [purchaseOrders, searchQuery, poTransportFilter, poTransportMissingLinkIds]);
 
   const coilPOsFiltered = useMemo(
     () => filteredPOs.filter((p) => procurementKindFromPo(p) === 'coil'),
@@ -1200,6 +1269,9 @@ const Procurement = () => {
       if (shouldAdvancePo) {
         const st = await setPurchaseOrderStatus(poRef, 'In Transit');
         if (st.ok) procurementNote = ` ${poRef} → In Transit (await GRN in Operations).`;
+      } else if (fullySettled && poForAdvance?.status === 'Approved' && !hasQuotedTransport) {
+        procurementNote =
+          ' Supplier fully paid — assign transport on the PO before marking in transit.';
       }
       await ws.refresh?.();
       setApPayBusy(false);
@@ -1618,6 +1690,71 @@ const Procurement = () => {
 
               {activeTab === 'purchases' && (
                 <div className="space-y-3">
+                  {poTransportMissingLinkRows.length > 0 ? (
+                    <div className="rounded-xl border border-amber-200/90 bg-amber-50/95 px-3 py-2.5 sm:px-4 space-y-2">
+                      <div className="flex flex-wrap items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="text-[10px] font-bold uppercase tracking-wide text-amber-950 flex items-center gap-1.5">
+                            <AlertTriangle className="size-3.5 shrink-0" strokeWidth={2.25} aria-hidden />
+                            POs need transport linked
+                          </p>
+                          <p className="text-[10px] text-amber-950/85 mt-1 leading-relaxed">
+                            {poTransportMissingLinkRows.length} purchase order
+                          {poTransportMissingLinkRows.length !== 1 ? 's' : ''} approved or in transit without haulier
+                          and/or quoted fee. Link transport before Finance can record haulage payout.
+                        </p>
+                      </div>
+                      <div className="flex flex-col items-end gap-1 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => setActiveTab('transport')}
+                          className="text-[10px] font-bold uppercase text-amber-950 underline-offset-2 hover:underline"
+                        >
+                          Open catch-up table
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setPoTransportFilter((f) => (f === 'needs_transport' ? 'all' : 'needs_transport'))
+                          }
+                          className="text-[10px] font-bold uppercase text-amber-950/80 underline-offset-2 hover:underline"
+                        >
+                          {poTransportFilter === 'needs_transport' ? 'Show all POs' : 'Filter list'}
+                        </button>
+                      </div>
+                      </div>
+                      <ul className="space-y-1 max-h-28 overflow-y-auto custom-scrollbar">
+                        {poTransportMissingLinkRows.slice(0, 8).map((row) => (
+                          <li key={row.poID}>
+                            <button
+                              type="button"
+                              onClick={() => openPoTransportLink(row.poID)}
+                              className="w-full text-left rounded-lg border border-amber-200/80 bg-white/80 px-2.5 py-1.5 hover:bg-white transition-colors"
+                            >
+                              <p className="text-[10px] font-bold text-amber-950">
+                                <span className="font-mono">{row.poID}</span>
+                                <span className="font-medium text-amber-900/90"> · {row.supplierName}</span>
+                                <span className="font-normal text-amber-900/75"> · {row.status}</span>
+                              </p>
+                              <p className="text-[9px] text-amber-900/70 mt-0.5">
+                                {row.gapKind === 'fee'
+                                  ? 'Fee missing'
+                                  : row.gapKind === 'agent'
+                                    ? 'Haulier missing'
+                                    : 'Haulier and fee missing'}
+                                {Number(row.supplierPaidNgn) > 0 ? ' · Supplier already paid' : ''}
+                              </p>
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                      {poTransportMissingLinkRows.length > 8 ? (
+                        <p className="text-[9px] text-amber-900/70">
+                          +{poTransportMissingLinkRows.length - 8} more — use filter to see all in the list below.
+                        </p>
+                      ) : null}
+                    </div>
+                  ) : null}
                   {poTransportAwaitingTreasuryRows.length > 0 ? (
                     <div className="rounded-xl border border-sky-200/80 bg-sky-50/90 px-3 py-2.5 sm:px-4 flex flex-wrap items-start justify-between gap-2">
                       <div className="min-w-0">
@@ -1739,6 +1876,14 @@ const Procurement = () => {
                                   <span className="font-medium text-slate-600"> · {p.supplierName}</span>
                                 </p>
                                 <div className="flex items-center gap-1.5 shrink-0">
+                                  {poTransportMissingLinkIds.has(p.poID) ? (
+                                    <span
+                                      className="text-[7px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-md border border-amber-200 bg-amber-50 text-amber-900"
+                                      title={purchaseOrderTransportGapLabel(p)}
+                                    >
+                                      Transport
+                                    </span>
+                                  ) : null}
                                   <span
                                     className="text-[11px] font-black text-[#134e4a] tabular-nums"
                                     title="Ordered value: each line uses ₦/m (stone), ₦/unit or ₦/kg (accessory), or ₦/kg (coil), including legacy rows with only per-kg price."
@@ -1782,6 +1927,21 @@ const Procurement = () => {
                     ))}
                   </div>
                 </div>
+              )}
+
+              {activeTab === 'transport' && (
+                <TransportCatchUpPanel
+                  catchUpRows={poTransportCatchUpRows}
+                  orphanRows={orphanHaulageRows}
+                  branchNameById={branchNameById}
+                  canManagePo={canManagePo}
+                  canFinancePay={Boolean(
+                    ws?.canAccessModule?.('finance') &&
+                      (ws?.hasPermission?.('finance.pay') || ws?.hasPermission?.('cashier.desk.view'))
+                  )}
+                  onLinkTransport={openPoTransportLink}
+                  onOpenPo={openPoPreviewById}
+                />
               )}
 
               {activeTab === 'suppliers' && (
@@ -3142,6 +3302,13 @@ const Procurement = () => {
           if (r.ok) {
             setProcurementPoEditApprovalId('');
             showToast(`${p.poID} approved.`);
+            if (
+              purchaseOrderCanAssignTransport({ ...p, status: 'Approved' }) &&
+              typeof window !== 'undefined' &&
+              window.confirm(`${p.poID} approved. Assign transport (haulier and fee) now?`)
+            ) {
+              openPoTransportLink(p.poID);
+            }
           } else showToast(r.error || 'Update failed', { variant: 'error' });
         }}
         onReject={async (p) => {
@@ -3154,22 +3321,7 @@ const Procurement = () => {
             showToast(`${p.poID} rejected.`);
           } else showToast(r.error || 'Update failed', { variant: 'error' });
         }}
-        onAssignTransport={(p) => {
-          setPreviewPo(null);
-          setPreviewAp(null);
-          setProcurementPoForApprovalUi(p.poID);
-          setTransportForm({
-            poID: p.poID,
-            agentId: p.transportAgentId || '',
-            transportReference: p.transportReference || '',
-            transportNote: p.transportNote || '',
-            transportFinanceAdvice: p.transportFinanceAdvice || '',
-            transportAmountNgn: p.transportAmountNgn > 0 ? String(p.transportAmountNgn) : '',
-            transportAdvanceNgn:
-              Number(p.transportAdvanceNgn) > 0 ? String(p.transportAdvanceNgn) : '',
-          });
-          setShowTransportModal(true);
-        }}
+        onAssignTransport={(p) => openPoTransportLink(p.poID)}
       />
       <ProcurementPayablePreviewSlideOver
         payable={previewAp}

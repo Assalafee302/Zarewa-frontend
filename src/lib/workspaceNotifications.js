@@ -386,6 +386,26 @@ export function buildWorkspaceNotifications({
     });
   }
 
+  const transportLinkDue = Array.isArray(snapshot?.poTransportMissingLink)
+    ? snapshot.poTransportMissingLink
+    : [];
+  if (
+    canAccessModule('procurement') &&
+    can('purchase_orders.manage') &&
+    transportLinkDue.length > 0
+  ) {
+    items.push({
+      id: 'po-transport-missing-link',
+      category: 'procurement',
+      title: 'POs need transport linked',
+      detail: `${transportLinkDue.length} purchase order(s) missing haulier or quoted transport fee.`,
+      severity: 'warning',
+      priority: 72,
+      path: '/procurement',
+      state: { focusTab: 'transport' },
+    });
+  }
+
   const coilReq = Array.isArray(snapshot?.coilRequests) ? snapshot.coilRequests : [];
   const pendingCoils = coilReq.filter((r) => r.status === 'pending');
   if (canAccessModule('operations') && can('operations.manage') && pendingCoils.length > 0) {

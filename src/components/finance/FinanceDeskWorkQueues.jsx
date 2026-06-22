@@ -82,6 +82,7 @@ import {
 } from "./FinanceDeskColoredQueuePanel";
 
 import { FinanceTreasuryAwaitingPayoutQueues } from "./FinanceTreasuryAwaitingPayoutQueues";
+import { OrphanHaulageDeskPanel } from "./OrphanHaulageDeskPanel";
 
 function todayIso() {
   return new Date().toISOString().slice(0, 10);
@@ -287,6 +288,15 @@ export function FinanceDeskWorkQueues({
         .slice(0, 15),
 
     [ws?.snapshot?.poTransportAwaitingTreasury],
+  );
+
+  const orphanHaulageRows = useMemo(
+    () =>
+      (Array.isArray(ws?.snapshot?.orphanHaulageTreasuryMovements)
+        ? ws.snapshot.orphanHaulageTreasuryMovements
+        : []
+      ).slice(0, 15),
+    [ws?.snapshot?.orphanHaulageTreasuryMovements],
   );
 
   const staffRecoveriesDue = useMemo(
@@ -702,6 +712,11 @@ export function FinanceDeskWorkQueues({
               </ul>
             </FinanceDeskColoredQueuePanel>
           ) : null}
+
+          <OrphanHaulageDeskPanel
+            orphanRows={orphanHaulageRows}
+            canAccessProcurement={Boolean(ws?.canAccessModule?.("procurement"))}
+          />
 
           <FinanceTreasuryAwaitingPayoutQueues
             sectionIdPrefix="desk-queue"

@@ -10,6 +10,7 @@ import React, {
 import { apiFetch } from '../lib/apiBase';
 import { roundConv2 } from '../lib/conversionKgPerM.js';
 import { procurementKindFromPo } from '../lib/procurementPoKind';
+import { purchaseOrderInTransitTransportWarning } from '../lib/purchaseOrderWorkflow';
 import { branchScopedCreateBlockedMessage, isBranchScopedCreateBlocked } from '../lib/workspaceBranchCreate';
 import { useWorkspace } from './WorkspaceContext';
 
@@ -572,7 +573,19 @@ export function InventoryProvider({ children }) {
   );
 
   const setPurchaseOrderStatus = useCallback(
-    async (poID, status, { editApprovalId } = {}) => {
+    async (poID, status, { editApprovalId, acknowledgeTransportGap } = {}) => {
+      const normalizedStatus = String(status || '').trim();
+      let ackTransportGap = Boolean(acknowledgeTransportGap);
+      if (normalizedStatus === 'In Transit' && !ackTransportGap) {
+        const po = purchaseOrders.find((p) => p.poID === poID);
+        const warning = purchaseOrderInTransitTransportWarning(po);
+        if (warning && typeof window !== 'undefined') {
+          if (!window.confirm(warning)) {
+            return { ok: false, cancelled: true };
+          }
+          ackTransportGap = true;
+        }
+      }
       if (wsCanMutate) {
         const { ok, data } = await apiFetch(
           `/api/purchase-orders/${encodeURIComponent(poID)}/status`,
@@ -581,11 +594,17 @@ export function InventoryProvider({ children }) {
             body: JSON.stringify({
               status,
               ...(editApprovalId ? { editApprovalId: String(editApprovalId).trim() } : {}),
+              ...(ackTransportGap ? { acknowledgeTransportGap: true } : {}),
             }),
           }
         );
         if (!ok || !data?.ok) {
-          return { ok: false, error: data?.error || 'Could not update PO status.' };
+          return {
+            ok: false,
+            error: data?.error || 'Could not update PO status.',
+            needsAcknowledgement: Boolean(data?.needsAcknowledgement),
+            code: data?.code,
+          };
         }
         await wsRefresh?.();
         return { ok: true };
@@ -596,7 +615,7 @@ export function InventoryProvider({ children }) {
       appendMovement({ type: 'PO_STATUS', ref: poID, detail: status });
       return { ok: true };
     },
-    [appendMovement, wsCanMutate, wsRefresh]
+    [appendMovement, purchaseOrders, wsCanMutate, wsRefresh]
   );
 
   const confirmStoreReceipt = useCallback(

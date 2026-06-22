@@ -15,6 +15,7 @@ import { purchaseOrderOrderedValueNgn } from '../../lib/liveAnalytics';
 import {
   purchaseOrderCanAssignTransport,
   purchaseOrderTransportActionLabel,
+  purchaseOrderTransportGapLabel,
 } from '../../lib/purchaseOrderWorkflow';
 import { buildPoReceiptPreview, poReceiptFmtQty } from '../../lib/poReceiptPreview';
 import { ZareApprovalHint } from '../ZareApprovalHint';
@@ -363,6 +364,11 @@ export function ProcurementPoPreviewSlideOver({
 
             <section className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
               <p className={`${detailLabel} mb-2`}>Transport & settlement</p>
+              {canTransport ? (
+                <p className="mb-2 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-2 text-[10px] font-semibold text-amber-950 leading-snug">
+                  {purchaseOrderTransportGapLabel(po)} — assign haulier and quoted fee so Finance can post payout.
+                </p>
+              ) : null}
               <dl className="space-y-1.5 text-[11px]">
                 <div className="flex flex-wrap justify-between gap-2">
                   <dt className="text-slate-500">Agent</dt>
