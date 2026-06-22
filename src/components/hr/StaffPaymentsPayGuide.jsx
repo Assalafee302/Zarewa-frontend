@@ -82,7 +82,7 @@ export function StaffPaymentsPayGuide({
             </span>
             <span>
               Go to <strong>Finance → My desk</strong>
-              {staffBranchId ? ` (${staffBranchId})` : ''} with your employee ID
+              {staffBranchId ? ` (${staffBranchId})` : ''} — use <strong>your branch cashier</strong>, with your employee ID
               {staffEmployeeNo ? (
                 <>
                   {' '}

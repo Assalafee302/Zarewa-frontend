@@ -68,6 +68,10 @@ export default function HrLoans({ embedded = false } = {}) {
             {section === 'requests' ? (
               <section className="space-y-3">
                 <p className="text-xs text-slate-600">Approval queue for staff loan applications.</p>
+                <p className="text-xs text-slate-500 max-w-2xl">
+                  After GM HR final approval, the employee&apos;s branch cashier pays the loan from Finance → My desk.
+                  Repayments by cash or bank (outside payroll) also go through that branch cashier.
+                </p>
                 <HrRequestsPanel
                   allowedScopes={allowedScopes}
                   defaultScope={allowedScopes[0] || 'all'}
@@ -81,8 +85,10 @@ export default function HrLoans({ embedded = false } = {}) {
             {section === 'obligations' ? (
               <section className="space-y-3">
                 <p className="text-xs text-slate-600 max-w-2xl">
-                  When staff pay cash or bank transfer, record it here. Payroll deductions post automatically on locked
-                  runs — discipline recoveries are paid at the branch cashier instead.
+                  When staff pay cash or bank transfer (not payroll deduction), their branch cashier records it under{' '}
+                  <strong>Finance → My desk → Staff payments</strong>. HQ and mining staff use Kaduna (HQ); domestic staff
+                  use their host branch. Payroll deductions post automatically on locked runs — discipline recoveries are
+                  paid at the branch cashier instead.
                 </p>
                 <HrObligationAccountsPanel />
                 <HrRecoveryObligationBackfillPanel />

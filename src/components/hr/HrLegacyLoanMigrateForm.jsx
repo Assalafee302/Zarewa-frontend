@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useHrListLoad } from '../../hooks/useHrListLoad';
 import { fetchHrStaffForLoanRegister, migrateLegacyStaffLoan } from '../../lib/hrStaffObligations';
+import { HrStaffLoanBranchCashierNote } from './HrStaffLoanBranchCashierNote';
 import { ProfileFormActions, ProfileFormField } from '../profile/profileFormUi';
 import { HR_BTN_PRIMARY, HR_BTN_SECONDARY, HR_FIELD_CLASS } from './hrFormStyles';
 
@@ -130,6 +131,7 @@ export function HrLegacyLoanMigrateForm({ staffOptions: staffOptionsProp = [], d
         No cashier payout is created. The balance appears on the staff profile, creditors register, and the next payroll
         run.
       </p>
+      <HrStaffLoanBranchCashierNote variant="legacy" />
       <ProfileFormActions>
         <button type="button" className={HR_BTN_SECONDARY} onClick={onCancel} disabled={busy}>
           Cancel

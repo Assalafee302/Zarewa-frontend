@@ -3,6 +3,7 @@ import { apiFetch } from '../../lib/apiBase';
 import { useHrListLoad } from '../../hooks/useHrListLoad';
 import { createHrLoanRequest } from '../../lib/hrStaff';
 import { fetchHrStaffForLoanRegister } from '../../lib/hrStaffObligations';
+import { HrStaffLoanBranchCashierNote } from './HrStaffLoanBranchCashierNote';
 import { HR_BTN_PRIMARY, HR_BTN_SECONDARY, HR_FIELD_CLASS } from './hrFormStyles';
 
 /**
@@ -72,6 +73,7 @@ export function HrLoanApplicationForm({ onSuccess, onCancel }) {
   return (
     <form onSubmit={submit} className="space-y-4">
       <p className="text-xs text-slate-500">Creates and submits a loan request for the selected employee (policy checks apply).</p>
+      <HrStaffLoanBranchCashierNote />
       {error ? (
         <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-800">{error}</div>
       ) : null}
