@@ -145,7 +145,7 @@ function DegradedWorkspaceLock() {
   const handleReconnect = async () => {
     setRetrying(true);
     try {
-      await ws.refresh?.();
+      await ws.refresh?.({ forceReconnect: true });
     } finally {
       setRetrying(false);
     }

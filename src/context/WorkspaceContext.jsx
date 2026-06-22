@@ -297,13 +297,17 @@ export function WorkspaceProvider({ children }) {
       if (!isPoll) {
         bootstrapPollEtagRef.current = '';
       }
-      const etag = isPoll ? bootstrapPollEtagRef.current : bootstrapFullEtagRef.current;
+      const skipEtag = Boolean(opts?.forceReconnect);
+      const etag = skipEtag ? '' : isPoll ? bootstrapPollEtagRef.current : bootstrapFullEtagRef.current;
       const r = await fetch(apiUrl(`/api/bootstrap${qs}`), {
         method: 'GET',
         credentials: 'include',
         headers: etag ? { 'If-None-Match': etag } : {},
       });
       if (r.status === 304) {
+        // Server is reachable — leave degraded/read-only lock (304 used to leave status stuck).
+        setStatus('ok');
+        setLastError(null);
         return snapshotRef.current;
       }
       const text = await r.text();
@@ -718,6 +722,15 @@ export function WorkspaceProvider({ children }) {
   useEffect(() => {
     void refresh({ mode: 'dashboard' });
   }, [refresh]);
+
+  /** After a transient outage, retry bootstrap until live sync is restored. */
+  useEffect(() => {
+    if (status !== 'degraded') return undefined;
+    const id = window.setInterval(() => {
+      void refresh({ forceReconnect: true });
+    }, 20_000);
+    return () => window.clearInterval(id);
+  }, [status, refresh]);
 
   /** Timer + tab focus: cheap revision check, then bootstrap poll only when data changed. */
   useEffect(() => {
