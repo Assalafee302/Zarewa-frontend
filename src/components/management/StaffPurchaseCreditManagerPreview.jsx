@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { ZareApprovalHint } from '../ZareApprovalHint';
 import { HR_BTN_PRIMARY, HR_BTN_SECONDARY } from '../hr/hrFormStyles';
 import { salesQuotationDeepLink } from '../../lib/staffPurchaseCreditLinks';
+import { hrStaffCreditPath, HR_STAFF_CREDIT_SECTION } from '../../lib/hrRoutes';
 
 /**
  * MD / manager review panel for pending staff purchase credit (materials on credit).
@@ -143,8 +144,8 @@ export function StaffPurchaseCreditManagerPreview({
               {busy ? 'Working…' : 'Approve'}
             </button>
           ) : null}
-          <Link to="/hr/payroll?tab=loans" className={HR_BTN_SECONDARY}>
-            HR loans queue
+          <Link to={hrStaffCreditPath(HR_STAFF_CREDIT_SECTION.PURCHASE_CREDIT)} className={HR_BTN_SECONDARY}>
+            Open purchase credit queue
           </Link>
         </div>
       )}

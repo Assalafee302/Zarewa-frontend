@@ -7,27 +7,34 @@ import { HrSalaryVarianceReportSection } from '../../components/hr/HrSalaryVaria
 import HrPayroll from './HrPayroll';
 import HrLoans from './HrLoans';
 import HrBenefits from './HrBenefits';
+import {
+  HR_PAYROLL_TAB_LOANS_LEGACY,
+  HR_PAYROLL_TAB_STAFF_CREDIT,
+  resolvePayrollStaffCreditTab,
+} from '../../lib/hrRoutes';
 
 const HrPayeTaxPension = lazyWithRetry(() => import('./HrPayeTaxPension'), { id: 'HrPayeTaxPension' });
 
 const TABS = [
   { id: 'payroll-runs', label: 'Monthly payroll' },
-  { id: 'loans', label: 'Staff credit' },
+  { id: HR_PAYROLL_TAB_STAFF_CREDIT, label: 'Staff loans & credit' },
   { id: 'benefits', label: 'Benefits' },
   { id: 'salary-matrix', label: 'Salary matrix' },
   { id: 'tax-pension', label: 'Tax & pension' },
 ];
 
-/** Legacy tab id — redirects to tax-pension with policy section. */
-const LEGACY_TAB_IDS = ['statutory'];
+/** Legacy tab ids — normalized to canonical tabs on load. */
+const LEGACY_TAB_IDS = ['statutory', HR_PAYROLL_TAB_LOANS_LEGACY];
 
 export default function HrPayrollHub() {
   const validTabs = [...TABS.map((t) => t.id), ...LEGACY_TAB_IDS];
   const { tab: rawTab, setTab } = useHrUrlTab('payroll-runs', validTabs);
-  const tab = rawTab === 'statutory' ? 'tax-pension' : rawTab;
+  const tab =
+    rawTab === 'statutory' ? 'tax-pension' : resolvePayrollStaffCreditTab(rawTab);
 
   useEffect(() => {
     if (rawTab === 'statutory') setTab('tax-pension', { section: 'policy' });
+    else if (rawTab === HR_PAYROLL_TAB_LOANS_LEGACY) setTab(HR_PAYROLL_TAB_STAFF_CREDIT);
   }, [rawTab, setTab]);
 
   return (
@@ -41,7 +48,7 @@ export default function HrPayrollHub() {
       hubPrompt={
         tab === 'payroll-runs'
           ? 'Explain payroll run status and what HR should prepare or approve next.'
-          : tab === 'loans'
+          : tab === HR_PAYROLL_TAB_STAFF_CREDIT
             ? 'Summarize pending staff credit requests, loan endorsements, and purchase credit queues.'
             : tab === 'tax-pension'
               ? 'Summarize PAYE schedules, pension contributions, and statutory policy settings.'
@@ -50,7 +57,7 @@ export default function HrPayrollHub() {
       hubPageContext={{ payrollTab: tab }}
     >
       {tab === 'payroll-runs' ? <HrPayroll embedded /> : null}
-      {tab === 'loans' ? <HrLoans embedded /> : null}
+      {tab === HR_PAYROLL_TAB_STAFF_CREDIT ? <HrLoans embedded /> : null}
       {tab === 'benefits' ? <HrBenefits embedded /> : null}
       {tab === 'salary-matrix' ? (
         <div className="space-y-6">

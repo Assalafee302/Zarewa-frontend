@@ -50,6 +50,8 @@ import {
 } from '../../lib/hrIdCardForm';
 import { fetchStaffLoanSchedule } from '../../lib/hrMasterData';
 import { fetchStaffMoneySummary, obligationStatementPdfUrl } from '../../lib/hrStaffObligations';
+import { StaffObligationBalanceCard } from '../../components/hr/StaffObligationBalanceCard';
+import { normalizeObligationForPayback } from '../../lib/hrObligationPayUi';
 import {
   AppTable,
   AppTableBody,
@@ -74,7 +76,7 @@ const PROFILE_TAB_LABELS = {
   lifecycle: 'Lifecycle',
   compensation: 'Compensation',
   leave: 'Leave',
-  loans: 'Loans',
+  loans: 'Loans & credit',
   documents: 'Documents',
   cases: 'Cases',
   transfers: 'Transfers',
@@ -1090,21 +1092,14 @@ export default function HrStaffProfile() {
           ) : !loansLoading ? (
             <p>No active loan schedule. Staff loan requests appear in HR Requests once submitted.</p>
           ) : null}
-          {(moneySummary?.purchases || []).filter((p) => p.principalOutstandingNgn > 0 || p.status === 'pending_approval').length ? (
+          {(moneySummary?.purchases || []).length ? (
             <div className="space-y-2">
               <h4 className="text-xs font-black uppercase text-[#134e4a]">Purchase credit</h4>
               <div className="grid gap-3 sm:grid-cols-2">
-                {moneySummary.purchases
-                  .filter((p) => p.principalOutstandingNgn > 0 || p.status === 'pending_approval')
-                  .map((p) => (
-                    <HrCard key={p.id} className="!p-4">
-                      <p className="font-bold text-slate-900">{p.title || 'Staff purchase'}</p>
-                      <p className="text-xs text-slate-600 mt-1">
-                        Outstanding {formatNgn(p.principalOutstandingNgn)} · {formatNgn(p.installmentNgn)}/mo
-                      </p>
-                      {p.quotationRef ? <p className="text-[10px] text-slate-500">Quote {p.quotationRef}</p> : null}
-                    </HrCard>
-                  ))}
+                {moneySummary.purchases.map((p) => {
+                  const obligation = normalizeObligationForPayback(p, 'purchase');
+                  return obligation ? <StaffObligationBalanceCard key={p.id} obligation={obligation} /> : null;
+                })}
               </div>
             </div>
           ) : null}

@@ -8,6 +8,7 @@ import { HrRecoveryObligationBackfillPanel } from '../../components/hr/HrRecover
 import { HrRequestsPanel } from '../../components/hr/HrRequestsPanel';
 import { HrAddFormButton, HrFormModal } from '../../components/hr/HrFormModal';
 import { HrLoansHubIntro, HrLoansHubTabs } from '../../components/hr/HrLoansHubTabs';
+import { HrStaffCreditSummaryStrip } from '../../components/hr/HrStaffCreditSummaryStrip';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import {
   canGmApproveHrRequests,
@@ -40,6 +41,8 @@ export default function HrLoans({ embedded = false } = {}) {
           </div>
         ) : null}
       </div>
+
+      <HrStaffCreditSummaryStrip />
 
       <HrFormModal
         isOpen={loanModalOpen}

@@ -82,7 +82,7 @@ export default function HumanResources() {
         <Route path="staff" element={<Navigate to="/hr/employees" replace />} />
         <Route path="staff/register" element={<LegacyStaffRegisterRedirect />} />
         <Route path="staff/:userId" element={<LegacyStaffProfileRedirect />} />
-        <Route path="loans" element={<HrTabRedirect base={HR_PAYROLL} tab="loans" />} />
+        <Route path="loans" element={<HrTabRedirect base={HR_PAYROLL} tab="staff-credit" />} />
         <Route path="benefits" element={<HrTabRedirect base={HR_PAYROLL} tab="benefits" />} />
         <Route path="tax-pension" element={<HrTabRedirect base={HR_PAYROLL} tab="tax-pension" />} />
         <Route path="transfers" element={<HrTabRedirect base={HR_DISCIPLINE_EXIT} tab="transfers" />} />

@@ -7,6 +7,7 @@ import { useWorkspace } from '../../context/WorkspaceContext';
 import { officeThreadIdFromWorkItem } from '../../lib/officeThreadFromWorkItem';
 import { workItemShowsOnWorkspaceUnifiedInbox } from '../../lib/workItemPersonalInbox';
 import { managerWorkItemPath, workItemShouldOpenManagerDesk } from '../../lib/managerWorkItemRoute';
+import { hrStaffCreditPath, HR_STAFF_CREDIT_SECTION } from '../../lib/hrRoutes';
 import {
   groupFileTrayItemsByCategory,
   workItemNeedsActionForUser,
@@ -43,7 +44,7 @@ function fallbackRoute(item) {
     if (quote) {
       return { to: '/sales', state: { openSalesRecord: { type: 'quotation', id: quote } } };
     }
-    return { to: '/hr/payroll?tab=loans' };
+    return { to: hrStaffCreditPath(HR_STAFF_CREDIT_SECTION.PURCHASE_CREDIT) };
   }
   if (item.documentType === 'material_incident') {
     return { to: managerWorkItemPath(item) };

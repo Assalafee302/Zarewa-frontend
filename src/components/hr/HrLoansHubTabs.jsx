@@ -3,8 +3,8 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { PageTabs } from '../layout/PageTabs';
 
 const TABS = [
-  { id: 'requests', label: 'Loan requests' },
-  { id: 'obligations', label: 'Record repayments' },
+  { id: 'requests', label: 'Loan applications' },
+  { id: 'obligations', label: 'Balances & repayments' },
   { id: 'purchase-credit', label: 'Purchase credit' },
 ];
 

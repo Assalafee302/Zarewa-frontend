@@ -6,6 +6,7 @@ import { decideStaffPurchaseCredit } from '../../lib/hrStaffPurchaseCredit';
 import { canApproveStaffPurchaseCredit, canRejectStaffPurchaseCredit } from '../../lib/hrAccess';
 import { formatNgn } from '../../lib/hrFormat';
 import { salesQuotationDeepLink } from '../../lib/staffPurchaseCreditLinks';
+import { hrStaffCreditPath, HR_STAFF_CREDIT_SECTION } from '../../lib/hrRoutes';
 import { ZareApprovalHint } from '../ZareApprovalHint';
 import { HR_BTN_PRIMARY, HR_BTN_SECONDARY } from '../hr/hrFormStyles';
 
@@ -185,8 +186,11 @@ export default function WorkspaceStaffPurchaseCreditPanel({ item, onDone }) {
               {busy ? 'Working…' : 'Approve'}
             </button>
           ) : null}
-          <Link to="/hr/payroll?tab=loans" className={HR_BTN_SECONDARY}>
-            Open HR loans queue
+          <Link
+            to={hrStaffCreditPath(HR_STAFF_CREDIT_SECTION.PURCHASE_CREDIT)}
+            className={HR_BTN_SECONDARY}
+          >
+            Open purchase credit queue
           </Link>
         </div>
       )}

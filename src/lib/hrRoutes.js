@@ -50,6 +50,30 @@ export function hrPayrollRunPath(runId) {
   return hrTabPath(HR_PAYROLL, 'payroll-runs', { runId: String(runId) });
 }
 
+/** Payroll hub — staff loans & purchase credit tab. */
+export const HR_PAYROLL_TAB_STAFF_CREDIT = 'staff-credit';
+
+/** @deprecated Use HR_PAYROLL_TAB_STAFF_CREDIT — kept for bookmarks and legacy links. */
+export const HR_PAYROLL_TAB_LOANS_LEGACY = 'loans';
+
+/** Sub-sections under staff credit (`?section=`). */
+export const HR_STAFF_CREDIT_SECTION = {
+  LOAN_REQUESTS: 'requests',
+  BALANCES: 'obligations',
+  PURCHASE_CREDIT: 'purchase-credit',
+};
+
+/** Deep link to HR payroll staff loans & credit hub. */
+export function hrStaffCreditPath(section = '', extra = {}) {
+  const params = section ? { section, ...extra } : { ...extra };
+  return hrTabPath(HR_PAYROLL, HR_PAYROLL_TAB_STAFF_CREDIT, params);
+}
+
+/** Normalize legacy `?tab=loans` to canonical staff-credit tab id. */
+export function resolvePayrollStaffCreditTab(rawTab) {
+  return rawTab === HR_PAYROLL_TAB_LOANS_LEGACY ? HR_PAYROLL_TAB_STAFF_CREDIT : rawTab;
+}
+
 /** Finance accounting desk — payroll bank payments tab. */
 export function hrFinancePayrollPath(runId) {
   const params = new URLSearchParams({ tab: 'payroll' });

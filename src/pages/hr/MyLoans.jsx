@@ -26,7 +26,7 @@ import { StaffPurchaseCreditRequestModal } from '../../components/sales/StaffPur
 import { salesQuotationDeepLink } from '../../lib/staffPurchaseCreditLinks';
 import { StaffPaymentsPayGuide } from '../../components/hr/StaffPaymentsPayGuide';
 import { StaffObligationBalanceCard } from '../../components/hr/StaffObligationBalanceCard';
-import { collectRepayableObligations } from '../../lib/hrObligationPayUi';
+import { collectRepayableObligations, normalizeObligationForPayback } from '../../lib/hrObligationPayUi';
 
 import { HR_SELF_SERVICE_PATH } from '../../lib/hrSelfServiceRoutes';
 
@@ -494,6 +494,22 @@ export default function MyLoans({ staffLinkBase = '/my-profile' }) {
           </button>
         </ProfileInlineAlert>
       ) : null}
+
+      <ProfileOverviewSection title="My purchase credit requests" subtitle="Track MD approval and payroll repayment">
+        {(moneySummary?.purchases || []).length ? (
+          <div className="grid gap-3 sm:grid-cols-2">
+            {moneySummary.purchases.map((p) => {
+              const obligation = normalizeObligationForPayback(p, 'purchase');
+              return obligation ? <StaffObligationBalanceCard key={p.id} obligation={obligation} /> : null;
+            })}
+          </div>
+        ) : (
+          <p className="text-sm text-slate-600">
+            When you request purchase credit on a Sales quotation, it appears here with approval status and repayment
+            details.
+          </p>
+        )}
+      </ProfileOverviewSection>
 
       {(myQuotesLoading || myQuotations.length > 0) ? (
         <ProfileOverviewSection

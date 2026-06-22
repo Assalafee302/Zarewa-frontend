@@ -1114,13 +1114,13 @@ const OPERATIONAL_TOPICS = [
     answer:
       'Staff buy on credit via a Sales quotation on their linked staff customer account. MD must approve before delivery; repayment is payroll deduction.',
     steps: [
-      'HR links staff to a Sales customer (Employees or bulk link under **HR → Payroll → Loans**).',
+      'HR links staff to a Sales customer (Employees or bulk link under **HR → Payroll → Staff loans & credit → Purchase credit**).',
       'Sales creates/saves a quotation on that staff customer and clicks **Request staff purchase credit**.',
-      'Managing Director approves in **Workspace Action Inbox**, **Manager → Staff credit**, or **HR → Payroll → Loans**.',
+      'Managing Director approves in **Workspace Action Inbox**, **Manager → Staff credit**, or **HR → Payroll → Staff loans & credit → Purchase credit**.',
       'After approval, quotation balance is covered and delivery may proceed; payroll collects repayment.',
     ],
     links: [
-      { label: 'HR — Payroll / Loans', to: '/hr/payroll', state: { tab: 'loans' } },
+      { label: 'HR — Staff loans & credit', to: '/hr/payroll?tab=staff-credit&section=purchase-credit' },
       { label: 'Sales — Quotations', to: '/sales', state: { focusSalesTab: 'quotations' } },
       { label: 'Workspace', to: '/' },
     ],

@@ -1,11 +1,33 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { decideStaffPurchaseCredit, fetchStaffPurchaseCredits } from '../../lib/hrStaffPurchaseCredit';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { canApproveStaffPurchaseCredit, canRejectStaffPurchaseCredit } from '../../lib/hrAccess';
 import { formatNgn } from '../../lib/hrFormat';
 import { salesQuotationDeepLink } from '../../lib/staffPurchaseCreditLinks';
+import { PageTabs } from '../layout/PageTabs';
 import { HR_BTN_PRIMARY, HR_BTN_SECONDARY } from './hrFormStyles';
+
+const QUEUE_TABS = [
+  { id: 'pending', label: 'Pending approval' },
+  { id: 'active', label: 'Active' },
+  { id: 'all', label: 'All' },
+];
+
+const STATUS_LABELS = {
+  pending_approval: 'Awaiting MD approval',
+  active: 'Active — payroll collection',
+  rejected: 'Rejected',
+  paid_off: 'Paid off',
+  cancelled: 'Cancelled',
+  approved_pending_disbursement: 'Approved — pending',
+  suspended: 'Suspended',
+  closed_written_off: 'Written off',
+};
+
+function statusLabel(status) {
+  return STATUS_LABELS[status] || String(status || '').replace(/_/g, ' ');
+}
 
 export function HrStaffPurchaseCreditQueue() {
   const ws = useWorkspace();
@@ -14,6 +36,7 @@ export function HrStaffPurchaseCreditQueue() {
   const mayApprove = canApproveStaffPurchaseCredit(roleKey, permissions);
   const mayReject = canRejectStaffPurchaseCredit(roleKey, permissions);
 
+  const [queueTab, setQueueTab] = useState('pending');
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -21,9 +44,15 @@ export function HrStaffPurchaseCreditQueue() {
   const [rejectId, setRejectId] = useState('');
   const [rejectNote, setRejectNote] = useState('');
 
+  const statusParam = useMemo(() => {
+    if (queueTab === 'pending') return 'pending_approval';
+    if (queueTab === 'active') return 'active';
+    return 'all';
+  }, [queueTab]);
+
   const load = useCallback(async () => {
     setLoading(true);
-    const { ok, data } = await fetchStaffPurchaseCredits();
+    const { ok, data } = await fetchStaffPurchaseCredits({ status: statusParam });
     setLoading(false);
     if (!ok || !data?.ok) {
       setError(data?.error || 'Could not load purchase credit queue.');
@@ -32,7 +61,7 @@ export function HrStaffPurchaseCreditQueue() {
     }
     setError('');
     setItems(data.items || []);
-  }, []);
+  }, [statusParam]);
 
   useEffect(() => {
     load();
@@ -59,15 +88,8 @@ export function HrStaffPurchaseCreditQueue() {
     load();
   };
 
-  if (loading) {
-    return <p className="text-sm text-slate-500">Loading purchase credit queue…</p>;
-  }
-
   const pending = items.filter((i) => i.status === 'pending_approval');
-
-  if (!items.length && !error) {
-    return <p className="text-sm text-slate-500">No staff purchase credit requests in queue.</p>;
-  }
+  const visibleItems = queueTab === 'pending' ? pending : items;
 
   return (
     <div className="space-y-3">
@@ -76,14 +98,26 @@ export function HrStaffPurchaseCreditQueue() {
         Staff roofing / materials on credit — requests require <strong>Managing Director approval</strong>. Approved
         balances are collected via payroll. Delivery is allowed when credit covers the quotation balance.
       </p>
-      {!mayApprove && pending.length ? (
+      <PageTabs tabs={QUEUE_TABS} value={queueTab} onChange={setQueueTab} />
+      {!mayApprove && queueTab === 'pending' && pending.length ? (
         <p className="text-xs font-semibold text-amber-800 rounded-lg border border-amber-100 bg-amber-50 px-3 py-2">
           {pending.length} request(s) awaiting MD approval. You can view the queue; only the MD can approve.
         </p>
       ) : null}
+      {loading ? <p className="text-sm text-slate-500">Loading purchase credit queue…</p> : null}
+      {!loading && !visibleItems.length ? (
+        <p className="text-sm text-slate-500">
+          {queueTab === 'pending'
+            ? 'No purchase credit requests awaiting MD approval.'
+            : queueTab === 'active'
+              ? 'No active purchase credit accounts.'
+              : 'No staff purchase credit records yet.'}
+        </p>
+      ) : null}
       <div className="space-y-2">
-        {pending.map((item) => {
+        {visibleItems.map((item) => {
           const quoteLink = salesQuotationDeepLink(item.quotationRef);
+          const isPending = item.status === 'pending_approval';
           return (
             <div key={item.id} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
               <div className="flex flex-wrap items-start justify-between gap-3">
@@ -105,9 +139,20 @@ export function HrStaffPurchaseCreditQueue() {
                       Open quotation
                     </Link>
                   ) : null}
-                  <p className="text-[10px] font-semibold uppercase tracking-wide text-[#134e4a] mt-1">Awaiting MD approval</p>
+                  <p
+                    className={`text-[10px] font-semibold uppercase tracking-wide mt-1 ${
+                      isPending ? 'text-[#134e4a]' : item.status === 'rejected' ? 'text-rose-700' : 'text-slate-500'
+                    }`}
+                  >
+                    {statusLabel(item.status)}
+                  </p>
+                  {item.principalOutstandingNgn > 0 && !isPending ? (
+                    <p className="text-xs text-slate-600 mt-1">
+                      Outstanding: <strong>{formatNgn(item.principalOutstandingNgn)}</strong>
+                    </p>
+                  ) : null}
                 </div>
-                {mayApprove || mayReject ? (
+                {isPending && (mayApprove || mayReject) ? (
                   <div className="flex shrink-0 flex-col gap-2 items-end">
                     {rejectId === item.id ? (
                       <div className="w-full min-w-[220px] space-y-2">
@@ -165,9 +210,6 @@ export function HrStaffPurchaseCreditQueue() {
             </div>
           );
         })}
-        {!pending.length ? (
-          <p className="text-sm text-slate-500">No pending approvals — {items.length} active/historical record(s).</p>
-        ) : null}
       </div>
     </div>
   );

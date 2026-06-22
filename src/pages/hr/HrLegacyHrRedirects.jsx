@@ -1,6 +1,6 @@
 import React from 'react';
 import { Navigate, useSearchParams } from 'react-router-dom';
-import { HR_PAYROLL, HR_TIME_ABSENCE, hrTabPath } from '../../lib/hrRoutes';
+import { HR_PAYROLL, HR_TIME_ABSENCE, hrStaffCreditPath, hrTabPath } from '../../lib/hrRoutes';
 
 const LEAVE_TAB_MAP = {
   balances: 'balances',
@@ -49,7 +49,7 @@ export function HrRequestsLegacyRedirect() {
 
   if (view === 'loans') {
     const extra = requestId ? { requestId } : {};
-    return <Navigate to={hrTabPath(HR_PAYROLL, 'loans', extra)} replace />;
+    return <Navigate to={hrStaffCreditPath('', extra)} replace />;
   }
 
   const extra = {};
