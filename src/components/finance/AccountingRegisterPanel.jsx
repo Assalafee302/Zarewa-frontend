@@ -247,13 +247,6 @@ export function AccountingRegisterPanel({
         onFocusTab={onFocusTab}
       />
 
-      {registerSide === 'debtor' && (data?.summary?.significantOverpaymentCount ?? 0) > 0 ? (
-        <AccountingDeskNotice tone="warn">
-          {data.summary.significantOverpaymentCount} significant overpayment(s) —{' '}
-          {formatNgn(data.summary.significantOverpaymentNgn)}. Review in Overpayment credits or add a legacy line.
-        </AccountingDeskNotice>
-      ) : null}
-
       {registerSide === 'debtor' && (data?.summary?.pendingFinanceClearanceCount ?? 0) > 0 ? (
         <AccountingDeskNotice tone="info">
           {data.summary.pendingFinanceClearanceCount} receipt(s) ({formatNgn(data.summary.pendingFinanceClearanceNgn)}{' '}

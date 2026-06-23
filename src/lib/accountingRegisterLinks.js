@@ -31,7 +31,9 @@ export function accountingRegisterPartyLink(sectionId, item) {
       return entityId ? { to: `/hr/employees/${encodeURIComponent(entityId)}` } : null;
     case 'customer_receivables':
     case 'customer_deposits':
-    case 'overpayment_credits':
+    case 'deposit_on_production_line':
+    case 'deposit_paid_backlog':
+    case 'customer_refund_commitments':
       return entityId ? { to: `/customers/${encodeURIComponent(entityId)}#cd-financial` } : null;
     case 'supplier_payables':
     case 'supplier_prepayments':

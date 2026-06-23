@@ -37,7 +37,15 @@ const SECTION_ACTIONS = {
     { label: 'Customer ledger', icon: User, resolve: (s, i) => accountingRegisterPartyLink(s, i) },
     { label: 'Finance receipts', to: '/accounts?tab=receipts' },
   ],
-  overpayment_credits: [
+  deposit_on_production_line: [
+    { label: 'Operations production', to: '/operations', state: { focusTab: 'production' } },
+    { label: 'Quotation', icon: FileText, resolve: (s, i) => accountingRegisterReferenceLink(s, i) },
+  ],
+  deposit_paid_backlog: [
+    { label: 'Sales quotations', to: '/sales' },
+    { label: 'Customer ledger', icon: User, resolve: (s, i) => accountingRegisterPartyLink(s, i) },
+  ],
+  customer_refund_commitments: [
     { label: 'Customer record', icon: User, resolve: (s, i) => accountingRegisterPartyLink(s, i) },
     { label: 'Finance refunds', to: '/accounts?tab=refunds' },
   ],
