@@ -13,7 +13,8 @@ export default function UserOnboardingGate({ children }) {
   const user = ws?.session?.user;
   const userId = user?.id;
   const needsPassword =
-    Boolean(user?.mustChangePassword) || (userId ? hasPendingPasswordChange(userId) : false);
+    Boolean(user?.mustChangePassword) ||
+    (user && user.mustChangePassword !== false && userId ? hasPendingPasswordChange(userId) : false);
   const needsTraining = Boolean(user && !needsPassword && user.trainingCompleted === false);
 
   return (

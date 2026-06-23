@@ -35,6 +35,7 @@ export function AccountingGlPanel({
   periodKey: periodKeyProp,
   onPeriodKeyChange,
   deskRefresh = 0,
+  branchId = '',
 }) {
   const [periodLocal, setPeriodLocal] = useState(currentPeriodKey);
   const period = periodKeyProp ?? periodLocal;
@@ -72,11 +73,12 @@ export function AccountingGlPanel({
         />
       ) : null}
       <ReportsGlPilotSection
-        key={`${range.startDate}-${deskRefresh}`}
+        key={`${range.startDate}-${deskRefresh}-${branchId || 'session'}`}
         startDate={range.startDate}
         endDate={range.endDate}
         hasFinanceView={hasFinanceView}
         showToast={showToast}
+        branchId={branchId}
       />
     </div>
   );

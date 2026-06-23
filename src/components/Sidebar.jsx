@@ -20,7 +20,6 @@ import {
   Users,
   UserCircle,
   Calculator,
-  Smartphone,
 } from 'lucide-react';
 import { useWorkspace } from '../context/WorkspaceContext';
 import { userMayViewManagementReportsClient } from '../lib/reportsAccess';
@@ -86,19 +85,10 @@ const Sidebar = ({ mobileOpen = false, onCloseMobile, collapsed = false, onToggl
       icon: <LayoutDashboard size={18} />,
       label: roleKey === 'md' ? 'MD Office' : 'Command Centre',
       path: '/exec',
-      active: pathMatches(p, '/exec') && !pathMatches(p, '/exec/m'),
+      active: pathMatches(p, '/exec'),
       visible:
         ws?.hasPermission?.('exec.dashboard.view') &&
         roleKey !== 'ceo' &&
-        ['md', 'admin'].includes(roleKey),
-    },
-    {
-      icon: <Smartphone size={18} />,
-      label: 'Mobile Decide',
-      path: '/exec/m',
-      active: pathMatches(p, '/exec/m'),
-      visible:
-        ws?.hasPermission?.('exec.dashboard.view') &&
         ['md', 'admin'].includes(roleKey),
     },
     { icon: <Home size={18} />, label: 'Workspace', path: '/', badgeCount: staffCreditPending },

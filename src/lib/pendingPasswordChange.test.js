@@ -23,8 +23,17 @@ describe('pendingPasswordChange', () => {
     markPendingPasswordChange('user-1');
     const out = withPendingPasswordSession({
       ok: true,
-      session: { user: { id: 'user-1', username: 'staff', mustChangePassword: false } },
+      session: { user: { id: 'user-1', username: 'staff' } },
     });
     expect(out.session.user.mustChangePassword).toBe(true);
+  });
+
+  it('trusts server mustChangePassword=false over stale pending flag', () => {
+    markPendingPasswordChange('user-1');
+    const out = withPendingPasswordSession({
+      ok: true,
+      session: { user: { id: 'user-1', username: 'staff', mustChangePassword: false } },
+    });
+    expect(out.session.user.mustChangePassword).toBe(false);
   });
 });

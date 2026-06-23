@@ -1,6 +1,7 @@
 /* eslint-disable react-refresh/only-export-components -- context + hook pair */
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { apiFetch } from '../lib/apiBase';
+import { branchScopedCreateBlockedMessage, isBranchScopedCreateBlocked } from '../lib/workspaceBranchCreate';
 import { useToast } from './ToastContext';
 import { useWorkspace } from './WorkspaceContext';
 
@@ -29,6 +30,9 @@ export function CustomersProvider({ children }) {
 
   const addCustomer = useCallback(
     async (record) => {
+      if (isBranchScopedCreateBlocked(ws)) {
+        throw new Error(branchScopedCreateBlockedMessage(ws));
+      }
       if (!wsCanMutate) {
         showToast('Reconnect to save customers — read-only workspace.', { variant: 'info' });
         throw new Error('Read-only workspace.');
@@ -41,7 +45,7 @@ export function CustomersProvider({ children }) {
       await wsRefresh?.();
       return data?.customerID || record.customerID;
     },
-    [showToast, wsCanMutate, wsRefresh]
+    [showToast, ws, wsCanMutate, wsRefresh]
   );
 
   const deleteCustomer = useCallback(

@@ -13,6 +13,7 @@ export function ReportsFinanceToolsPanel({
   hasFinanceView,
   showToast,
   branchScopeLabel,
+  branchId = '',
   mayViewAp2,
   mayViewAp3,
 }) {
@@ -77,6 +78,7 @@ export function ReportsFinanceToolsPanel({
             endDate={endDate}
             hasFinanceView={hasFinanceView}
             showToast={showToast}
+            branchId={branchId}
           />
           <Ap2ReportsSection mayView={mayViewAp2} />
           <Ap3ReportsSection mayView={mayViewAp3} />

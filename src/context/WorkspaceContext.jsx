@@ -125,26 +125,15 @@ function mergeSessionOnboardingFlags(prevSnapshot, incoming) {
   if (!nextUser?.id) {
     return normalized;
   }
-  if (hasPendingPasswordChange(nextUser.id) && !nextUser.mustChangePassword) {
-    return {
-      ...normalized,
-      session: {
-        ...normalized.session,
-        user: { ...nextUser, mustChangePassword: true },
-      },
-    };
+  if (nextUser.mustChangePassword === false) {
+    clearPendingPasswordChange(nextUser.id);
+    return normalized;
   }
   if (!prevUser?.id || String(prevUser.id) !== String(nextUser.id)) {
     return normalized;
   }
   let user = nextUser;
   let changed = false;
-  if (prevUser.mustChangePassword && nextUser.mustChangePassword !== false) {
-    if (!nextUser.mustChangePassword) {
-      user = { ...user, mustChangePassword: true };
-      changed = true;
-    }
-  }
   if (prevUser.trainingCompleted === false && nextUser.trainingCompleted !== true) {
     if (nextUser.trainingCompleted !== false) {
       user = { ...user, trainingCompleted: false };
@@ -193,8 +182,12 @@ export function WorkspaceProvider({ children }) {
     setSnapshot((prev) => {
       merged = mergeSessionOnboardingFlags(prev, withPendingPasswordSession(data));
       const uid = merged?.session?.user?.id;
-      if (uid && merged.session.user?.mustChangePassword) {
-        markPendingPasswordChange(uid);
+      if (uid) {
+        if (merged.session.user?.mustChangePassword) {
+          markPendingPasswordChange(uid);
+        } else {
+          clearPendingPasswordChange(uid);
+        }
       }
       return merged;
     });
@@ -490,6 +483,8 @@ export function WorkspaceProvider({ children }) {
         sessionNoticeShownRef.current = false;
         if (data.user?.mustChangePassword) {
           markPendingPasswordChange(data.user.id);
+        } else if (data.user?.id) {
+          clearPendingPasswordChange(data.user.id);
         }
         // Hydrate session immediately so first-login password modal appears before bootstrap finishes.
         applySnapshot(
@@ -618,11 +613,13 @@ export function WorkspaceProvider({ children }) {
 
   const endSessionForTimeout = useCallback(async () => {
     const mins = Number(snapshot?.session?.sessionTimeoutMinutes) || 120;
+    const uid = snapshotRef.current?.session?.user?.id;
     try {
       await apiFetch('/api/session/timeout', { method: 'POST' });
     } catch {
       /* ignore */
     }
+    if (uid) clearPendingPasswordChange(uid);
     replaceLedgerEntries([]);
     clearBootstrapCache();
     bootstrapPollEtagRef.current = '';
@@ -672,7 +669,8 @@ export function WorkspaceProvider({ children }) {
         });
         setRefreshEpoch((n) => n + 1);
       }
-      await refresh();
+      bootstrapPollEtagRef.current = '';
+      await refresh({ forceFull: true });
       return { ok: true };
     },
     [refresh]

@@ -440,6 +440,11 @@ export default function AccountingDesk() {
                   periodKey={periodKey}
                   onPeriodKeyChange={setPeriodKey}
                   deskRefresh={deskRefresh}
+                  branchId={
+                    ws.viewAllBranches
+                      ? 'ALL'
+                      : branchId || ws.branchScope || ws.session?.currentBranchId || ''
+                  }
                 />
               </AccountingDeskTabPane>
             ) : null}

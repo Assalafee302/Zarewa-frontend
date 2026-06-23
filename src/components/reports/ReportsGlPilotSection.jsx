@@ -16,10 +16,16 @@ function previousPeriod(startIso, endIso) {
   return { startDate: z(ps), endDate: z(pe) };
 }
 
+function glBranchQuery(branchId) {
+  const bid = String(branchId || '').trim();
+  if (!bid) return '';
+  return `&branchId=${encodeURIComponent(bid)}`;
+}
+
 /**
  * Pilot GL surface: cost-center-scoped trial balance, prior-period comparison, activity drill-down.
  */
-export function ReportsGlPilotSection({ startDate, endDate, hasFinanceView, showToast }) {
+export function ReportsGlPilotSection({ startDate, endDate, hasFinanceView, showToast, branchId = '' }) {
   const [costCenter, setCostCenter] = useState('');
   const [loading, setLoading] = useState(false);
   const [tbCur, setTbCur] = useState(null);
@@ -35,7 +41,8 @@ export function ReportsGlPilotSection({ startDate, endDate, hasFinanceView, show
     try {
       const cc = costCenter.trim();
       const ccQ = cc ? `&costCenter=${encodeURIComponent(cc)}` : '';
-      const q = `startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}${ccQ}`;
+      const bQ = glBranchQuery(branchId);
+      const q = `startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}${ccQ}${bQ}`;
       const curRes = await apiFetch(`/api/gl/trial-balance?${q}`);
       if (!curRes.ok || !curRes.data?.ok) {
         showToast(curRes.data?.error || 'Could not load trial balance.', { variant: 'error' });
@@ -63,7 +70,7 @@ export function ReportsGlPilotSection({ startDate, endDate, hasFinanceView, show
     } finally {
       setLoading(false);
     }
-  }, [costCenter, endDate, hasFinanceView, prevPeriod, showToast, startDate]);
+  }, [branchId, costCenter, endDate, hasFinanceView, prevPeriod, showToast, startDate]);
 
   useEffect(() => {
     void load();

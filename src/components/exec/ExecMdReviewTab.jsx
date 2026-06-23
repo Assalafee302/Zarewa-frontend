@@ -4,6 +4,7 @@ import { apiFetch } from '../../lib/apiBase';
 import { useToast } from '../../context/ToastContext';
 import { buildMdChairmanPackHtml } from '../../lib/mdChairmanPackPrint';
 import { openPrintHtmlDocument } from '../../lib/officeDeskPrint';
+import { EXEC_PRIMARY_BTN, EXEC_SECONDARY_BTN } from '../../lib/execPageUi';
 import { ExecMdPeoplePanel } from './ExecMdPeoplePanel';
 import { ExecMdSupplyPanel } from './ExecMdSupplyPanel';
 import { ExecMdBranchesPanel } from './ExecMdBranchesPanel';
@@ -26,7 +27,7 @@ export function ExecMdReviewTab({
   onOpenDecide,
   onOpenCustomers,
   onOpenTrace,
-  onOpenIntelligence,
+  onOpenDeepDive,
   payrollItems,
   onReview,
 }) {
@@ -96,80 +97,85 @@ export function ExecMdReviewTab({
   const counts = mdPack?.counts || {};
 
   return (
-    <div className="space-y-6 mb-8">
-      <div className="rounded-xl border border-teal-200/80 bg-teal-50/30 px-4 py-4 flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <p className="text-[10px] font-black uppercase tracking-widest text-teal-800 flex items-center gap-1">
-            <FileText size={12} /> Monthly review
-          </p>
-          <h2 className="text-lg font-bold text-[#134e4a] mt-1">Chairman pack · {monthKey || '—'}</h2>
-          <p className="text-[11px] text-slate-600 mt-1 max-w-xl">
-            Exception-oriented monthly snapshot for board / chairman briefing. Save your narrative, then print or
-            export as PDF from the browser.
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={printPack}
-            disabled={busy && !data}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-[#134e4a] px-3 py-2 text-[10px] font-black uppercase text-white hover:brightness-105 disabled:opacity-50"
-          >
-            <Printer size={14} />
-            Print chairman pack
-          </button>
-          {!readOnly ? (
-            <button
-              type="button"
-              onClick={() => void saveNote()}
-              disabled={noteSaving || noteBusy}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-[10px] font-black uppercase text-slate-700 hover:bg-slate-50 disabled:opacity-50"
-            >
-              <Save size={14} />
-              {noteSaving ? 'Saving…' : 'Save narrative'}
-            </button>
-          ) : null}
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-3">
-        {COUNT_LABELS.map(({ key, label }) => (
-          <div key={key} className="rounded-xl border border-slate-200 bg-white p-3">
-            <p className="text-[9px] font-bold uppercase tracking-wide text-slate-500">{label}</p>
-            <p className="mt-1 text-xl font-black text-[#134e4a] tabular-nums">
-              {busy && !mdPack ? '…' : String(counts[key] ?? 0)}
+    <div className="space-y-6">
+      <div className="rounded-xl border border-slate-200/90 bg-white shadow-sm overflow-hidden">
+        <div className="h-1 bg-[#134e4a]" aria-hidden />
+        <div className="px-4 sm:px-5 py-4 flex flex-wrap items-start justify-between gap-3 border-b border-slate-100">
+          <div>
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-500 flex items-center gap-1.5">
+              <FileText size={14} strokeWidth={2} /> Chairman pack
+            </p>
+            <h2 className="text-base font-bold text-[#134e4a] mt-1">{monthKey || '—'}</h2>
+            <p className="text-[11px] text-slate-500 mt-1 max-w-xl leading-snug">
+              Exception-oriented monthly snapshot for board briefing. Save your narrative, then print or export
+              as PDF from the browser.
             </p>
           </div>
-        ))}
-      </div>
-
-      <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-3">
-        <div className="flex items-center justify-between gap-2">
-          <p className="text-sm font-bold text-[#134e4a]">MD narrative for chairman</p>
-          <button
-            type="button"
-            onClick={() => void loadNote()}
-            disabled={noteBusy}
-            className="inline-flex items-center gap-1 text-[10px] font-bold uppercase text-slate-500 hover:text-[#134e4a]"
-          >
-            <RefreshCw size={12} className={noteBusy ? 'animate-spin' : ''} />
-            Reload
-          </button>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={printPack}
+              disabled={busy && !data}
+              className={`${EXEC_PRIMARY_BTN} disabled:opacity-50 min-h-[40px] py-2`}
+            >
+              <Printer size={14} strokeWidth={2} />
+              Print pack
+            </button>
+            {!readOnly ? (
+              <button
+                type="button"
+                onClick={() => void saveNote()}
+                disabled={noteSaving || noteBusy}
+                className={`${EXEC_SECONDARY_BTN} disabled:opacity-50 min-h-[40px] py-2`}
+              >
+                <Save size={14} strokeWidth={2} />
+                {noteSaving ? 'Saving…' : 'Save narrative'}
+              </button>
+            ) : null}
+          </div>
         </div>
-        <textarea
-          value={narrative}
-          onChange={(e) => setNarrative(e.target.value)}
-          readOnly={readOnly}
-          rows={6}
-          placeholder="What happened this month? Cash, production, people, risks, and asks for the chairman…"
-          className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[#134e4a]/15 disabled:bg-slate-50"
-        />
-        {noteMeta?.updatedAtIso ? (
-          <p className="text-[10px] text-slate-500">
-            Last saved {new Date(noteMeta.updatedAtIso).toLocaleString()}
-            {noteMeta.updatedByDisplay ? ` · ${noteMeta.updatedByDisplay}` : ''}
-          </p>
-        ) : null}
+
+        <div className="p-4 sm:p-5 space-y-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-3">
+            {COUNT_LABELS.map(({ key, label }) => (
+              <div key={key} className="rounded-lg border border-slate-200/80 bg-slate-50/50 p-3">
+                <p className="text-[9px] font-semibold uppercase tracking-wide text-slate-500">{label}</p>
+                <p className="mt-1 text-xl font-black text-[#134e4a] tabular-nums">
+                  {busy && !mdPack ? '…' : String(counts[key] ?? 0)}
+                </p>
+              </div>
+            ))}
+          </div>
+
+          <div className="rounded-lg border border-slate-200 bg-white p-4 space-y-3">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-sm font-bold text-[#134e4a]">MD narrative for chairman</p>
+              <button
+                type="button"
+                onClick={() => void loadNote()}
+                disabled={noteBusy}
+                className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase text-slate-500 hover:text-[#134e4a]"
+              >
+                <RefreshCw size={12} className={noteBusy ? 'animate-spin' : ''} />
+                Reload
+              </button>
+            </div>
+            <textarea
+              value={narrative}
+              onChange={(e) => setNarrative(e.target.value)}
+              readOnly={readOnly}
+              rows={6}
+              placeholder="What happened this month? Cash, production, people, risks, and asks for the chairman…"
+              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[#134e4a]/15 disabled:bg-slate-50"
+            />
+            {noteMeta?.updatedAtIso ? (
+              <p className="text-[10px] text-slate-500">
+                Last saved {new Date(noteMeta.updatedAtIso).toLocaleString()}
+                {noteMeta.updatedByDisplay ? ` · ${noteMeta.updatedByDisplay}` : ''}
+              </p>
+            ) : null}
+          </div>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
@@ -183,7 +189,7 @@ export function ExecMdReviewTab({
         <ExecMdSupplyPanel
           inventory={data?.inventory}
           coilPulse={data?.cockpit?.pulses?.coil}
-          onOpenIntelligence={onOpenIntelligence}
+          onOpenDeepDive={onOpenDeepDive ? () => onOpenDeepDive('intelligence') : undefined}
           busy={busy}
         />
         <ExecMdBranchesPanel

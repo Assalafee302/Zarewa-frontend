@@ -51,12 +51,19 @@ import {
   rowsPeriodCostsInventoryPack,
 } from '../lib/reportsPackRows.js';
 
+function glBranchQuery(branchId) {
+  const bid = String(branchId || '').trim();
+  if (!bid) return '';
+  return `&branchId=${encodeURIComponent(bid)}`;
+}
+
 export function useReportsExport({
   apiFetch,
   showToast,
   hasFinanceView,
   startDate,
   endDate,
+  branchId = '',
   expenses,
   paymentRequests,
   coilLots,
@@ -404,7 +411,7 @@ export function useReportsExport({
         showToast('General ledger pack requires finance.view.', { variant: 'info' });
         return;
       }
-      const q = `startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}`;
+      const q = `startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}${glBranchQuery(branchId)}`;
       const [tbRes, jRes, aRes] = await Promise.all([
         apiFetch(`/api/gl/trial-balance?${q}`),
         apiFetch(`/api/gl/journals?${q}`),
@@ -756,6 +763,7 @@ export function useReportsExport({
     accessoryUsage,
     apiFetch,
     bankReconciliation,
+    branchId,
     coilLots,
     endDate,
     expenses,
@@ -784,7 +792,7 @@ export function useReportsExport({
         return;
       }
       const { ok, data } = await apiFetch(
-        `/api/gl/trial-balance?startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}`
+        `/api/gl/trial-balance?startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}${glBranchQuery(branchId)}`
       );
       if (!ok || !data?.ok) {
         showToast(data?.error || 'Could not load trial balance.', { variant: 'error' });
@@ -847,7 +855,7 @@ export function useReportsExport({
     const cfg = getPrintConfig(name);
     setPrintPayload(cfg);
     setPrintOpen(true);
-  }, [apiFetch, endDate, getPrintConfig, hasFinanceView, showToast, startDate]);
+  }, [apiFetch, branchId, endDate, getPrintConfig, hasFinanceView, showToast, startDate]);
 
   const runApiWorkbook = useCallback(
     (workbook) => {

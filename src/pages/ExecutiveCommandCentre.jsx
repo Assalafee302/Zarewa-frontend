@@ -7,22 +7,26 @@ import {
   Building2,
   FileText,
   RefreshCw,
+  Search,
   Settings2,
   Shield,
+  ShieldCheck,
   Sparkles,
+  Sun,
+  Users,
   X,
   TrendingDown,
   TrendingUp,
   Wallet,
 } from 'lucide-react';
-import { MainPanel } from '../components/layout';
+import { MainPanel, PageHeader, PageShell, PageTabs } from '../components/layout';
+import { ExecMdAlertStrip } from '../components/exec/ExecMdAlertStrip';
+import { EXEC_SELECT, EXEC_SECONDARY_BTN } from '../lib/execPageUi';
 import { formatNgn } from '../Data/mockData';
 import { useWorkspace } from '../context/WorkspaceContext';
 import { apiFetch } from '../lib/apiBase';
 import { useToast } from '../context/ToastContext';
 import { useFinanceTrialExceptions } from '../hooks/useFinanceTrialExceptions';
-import { FinanceTrialExceptionPanel } from '../components/finance/FinanceTrialExceptionPanel';
-import { AccountingExecutiveBrief } from '../components/finance/accounting/AccountingExecutiveBrief';
 import { userMayViewFinanceTrialOversightClient } from '../lib/financeTrialExceptionsAccess';
 import { userMayViewManagementReportsClient } from '../lib/reportsAccess';
 import CommandCentreIntelligenceTab from '../components/exec/CommandCentreIntelligenceTab';
@@ -32,6 +36,8 @@ import { ExecCustomersTab } from '../components/exec/ExecCustomersTab';
 import { ExecTraceTab } from '../components/exec/ExecTraceTab';
 import { ExecCustomerSlideOver } from '../components/exec/ExecCustomerSlideOver';
 import { ExecMdReviewTab } from '../components/exec/ExecMdReviewTab';
+import { ExecMdReviewNav } from '../components/exec/ExecMdReviewNav';
+import { ExecFinanceTab } from '../components/exec/ExecFinanceTab';
 import { ExpenseCategoryExceptionBanner } from '../components/office/ExpenseCategoryExceptionBanner.jsx';
 import { ExpenseCategoryOthersTrendTable } from '../components/office/ExpenseCategoryOthersTrendTable.jsx';
 import { downloadExpenseCategoryExceptionsCsv } from '../lib/expenseCategoryExceptionExport.js';
@@ -71,6 +77,16 @@ const BRANCH_OPTIONS = [
   { id: 'BR-YL', label: 'Yola Factory' },
   { id: 'BR-MDG', label: 'Maiduguri Factory' },
 ];
+
+const EXEC_TAB_ICONS = {
+  today: <Sun size={14} strokeWidth={2} />,
+  decide: <ShieldCheck size={14} strokeWidth={2} />,
+  customers: <Users size={14} strokeWidth={2} />,
+  trace: <Search size={14} strokeWidth={2} />,
+  overview: <FileText size={14} strokeWidth={2} />,
+  intelligence: <BarChart3 size={14} strokeWidth={2} />,
+  finance: <Wallet size={14} strokeWidth={2} />,
+};
 
 function alertTone(level) {
   if (level === 'critical') return 'border-rose-300 bg-rose-50 text-rose-950';
@@ -263,6 +279,7 @@ export default function ExecutiveCommandCentre() {
   const roleKey = String(ws?.session?.user?.roleKey || '').toLowerCase();
   const roleLabel = roleKey === 'md' ? 'Managing Director' : roleKey === 'ceo' ? 'CEO' : roleKey || 'Executive';
   const isMdCockpit = roleKey === 'md' || roleKey === 'admin';
+  const isMdOffice = isMdCockpit && roleKey !== 'ceo';
   const isExecutiveOversight = roleKey === 'md' || roleKey === 'ceo' || roleKey === 'admin';
   const expenseCategoryAlert = ws?.snapshot?.expenseCategoryMonthlyAlert;
   const canPickBranch = Boolean(ws?.viewAllBranches || data?.actor?.canUseAllBranches);
@@ -271,7 +288,16 @@ export default function ExecutiveCommandCentre() {
     ws?.permissions
   );
   const mayViewBi = userMayViewManagementReportsClient(roleKey, ws?.permissions);
-  const rawTab = searchParams.get('tab') || (isMdCockpit && roleKey !== 'ceo' ? 'today' : 'overview');
+  const rawTab = searchParams.get('tab') || (isMdOffice ? 'today' : 'overview');
+  const rawReviewView = String(searchParams.get('view') || '').trim();
+  const reviewView =
+    rawTab === 'intelligence'
+      ? 'intelligence'
+      : rawTab === 'finance'
+        ? 'finance'
+        : rawReviewView === 'intelligence' || rawReviewView === 'finance'
+          ? rawReviewView
+          : 'pack';
   const activeTab =
     rawTab === 'today' && isMdCockpit
       ? 'today'
@@ -281,17 +307,40 @@ export default function ExecutiveCommandCentre() {
           ? 'customers'
           : rawTab === 'trace' && isMdCockpit
             ? 'trace'
-            : rawTab === 'intelligence' && mayViewBi
+            : rawTab === 'intelligence' && mayViewBi && !isMdOffice
               ? 'intelligence'
-              : rawTab === 'finance'
-                ? 'finance'
-                : rawTab === 'overview'
-                  ? 'overview'
-                  : isMdCockpit && roleKey !== 'ceo'
-                    ? 'today'
-                    : 'overview';
+              : rawTab === 'intelligence' && isMdOffice
+                ? 'overview'
+                : rawTab === 'finance' && !isMdOffice
+                  ? 'finance'
+                  : rawTab === 'finance' && isMdOffice
+                    ? 'overview'
+                    : rawTab === 'overview' || (isMdOffice && (rawTab === 'intelligence' || rawTab === 'finance'))
+                      ? 'overview'
+                      : rawTab === 'intelligence' && mayViewBi
+                        ? 'intelligence'
+                        : rawTab === 'finance'
+                          ? 'finance'
+                          : isMdOffice
+                            ? 'today'
+                            : 'overview';
+
+  const setReviewView = useCallback(
+    (view) => {
+      if (view === 'pack') {
+        setSearchParams({ tab: 'overview' });
+        return;
+      }
+      setSearchParams({ tab: 'overview', view });
+    },
+    [setSearchParams]
+  );
 
   const setActiveTab = (tabId) => {
+    if (isMdOffice && (tabId === 'intelligence' || tabId === 'finance')) {
+      setReviewView(tabId);
+      return;
+    }
     if (tabId === 'overview' || (tabId === 'today' && !isMdCockpit)) {
       setSearchParams({});
     } else if (tabId === 'today' && isMdCockpit) {
@@ -302,10 +351,16 @@ export default function ExecutiveCommandCentre() {
   };
   const trialBranchScope =
     canPickBranch && branchId && branchId !== 'ALL' ? branchId : null;
+  const showFinancePanel = activeTab === 'finance' && !isMdOffice;
+  const showIntelligencePanel = mayViewBi && activeTab === 'intelligence' && !isMdOffice;
+  const showMdFinanceReview = isMdOffice && activeTab === 'overview' && reviewView === 'finance';
+  const showMdIntelligenceReview =
+    isMdOffice && activeTab === 'overview' && reviewView === 'intelligence' && mayViewBi;
+  const financePanelActive = showFinancePanel || showMdFinanceReview;
   const { data: trialData, loading: trialLoading, error: trialError, reload: reloadTrial } =
     useFinanceTrialExceptions({
       branchId: trialBranchScope,
-      enabled: mayFinanceOversight && activeTab === 'finance',
+      enabled: mayFinanceOversight && financePanelActive,
     });
 
   const load = useCallback(async () => {
@@ -419,8 +474,8 @@ export default function ExecutiveCommandCentre() {
   );
 
   const loadOthersTrend = useCallback(async () => {
-    const onFinance = activeTab === 'finance';
-    const onOverview = activeTab === 'overview' && isExecutiveOversight;
+    const onFinance = financePanelActive;
+    const onOverview = activeTab === 'overview' && isExecutiveOversight && !isMdOffice;
     if (!onFinance && !onOverview) return;
     setOthersTrendBusy(true);
     setOthersTrendErr('');
@@ -435,12 +490,12 @@ export default function ExecutiveCommandCentre() {
       return;
     }
     setOthersTrend(d);
-  }, [activeTab, branchId, canPickBranch, isExecutiveOversight]);
+  }, [activeTab, branchId, canPickBranch, financePanelActive, isExecutiveOversight, isMdOffice]);
 
   useEffect(() => {
-    if (activeTab !== 'finance' && !(activeTab === 'overview' && isExecutiveOversight)) return;
+    if (!financePanelActive && !(activeTab === 'overview' && isExecutiveOversight && !isMdOffice)) return;
     void loadOthersTrend();
-  }, [activeTab, isExecutiveOversight, loadOthersTrend]);
+  }, [activeTab, financePanelActive, isExecutiveOversight, isMdOffice, loadOthersTrend]);
 
   const branchTrendLabel = useCallback(
     (id) => BRANCH_OPTIONS.find((b) => b.id === id)?.label || id,
@@ -593,72 +648,58 @@ export default function ExecutiveCommandCentre() {
   const scopeNote = (data?.dataScopeNotes || [])[0]?.message;
 
   const visibleTabs = EXEC_TABS.filter((t) => {
+    if (isMdOffice && (t.id === 'intelligence' || t.id === 'finance')) return false;
     if (t.mdOnly && !isMdCockpit) return false;
     if (t.mdOnly && roleKey === 'ceo') return false;
     if (t.id === 'intelligence') return mayViewBi;
     return true;
   });
 
+  const pageTabs = visibleTabs.map((t) => ({
+    id: t.id,
+    label:
+      t.id === 'decide' && workTrayMdOnlyCount > 0
+        ? `Decide (${workTrayMdOnlyCount})`
+        : t.label,
+    icon: EXEC_TAB_ICONS[t.id] ?? null,
+  }));
+
+  const pageSubtitle = [
+    roleKey === 'md'
+      ? 'Decisions, approvals, and company performance — act here without opening other departments.'
+      : 'Company performance, decisions, and intelligence for executive oversight.',
+    periodWindow ? `Window: ${periodWindow}` : null,
+    branchScopeLabel ? `Scope: ${branchScopeLabel}` : null,
+    data?.generatedAtISO ? `Updated ${formatLastUpdated(data.generatedAtISO)}` : null,
+  ]
+    .filter(Boolean)
+    .join(' · ');
+
   return (
-    <MainPanel className="bg-slate-50/50">
-      <header className="mb-8 rounded-2xl border border-[#134e4a]/15 bg-gradient-to-br from-[#134e4a] via-[#0f3d3a] to-[#134e4a] text-white shadow-lg overflow-hidden">
-        <div className="px-6 py-7 sm:px-8 sm:py-8">
-          <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
-            <div className="min-w-0">
-              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-teal-200/90">
-                Zarewa Aluminium &amp; Plastics
-              </p>
-              <h1 className="mt-2 text-2xl sm:text-3xl font-black tracking-tight">Command Centre</h1>
-              <p className="mt-2 text-sm text-teal-50/85 max-w-2xl leading-relaxed">
-                {roleKey === 'md'
-                  ? 'Decisions, approvals, and company performance — act here without opening other departments.'
-                  : 'Company performance, decisions, and intelligence for executive oversight.'}
-              </p>
-              <div className="mt-4 flex flex-wrap items-center gap-2">
-                <span className="rounded-lg bg-white/15 px-3 py-1 text-[10px] font-black uppercase tracking-wider ring-1 ring-white/20">
-                  {roleLabel}
-                </span>
-                {readOnly ? (
-                  <span className="rounded-lg bg-amber-400/20 px-3 py-1 text-[10px] font-black uppercase text-amber-100 ring-1 ring-amber-300/30">
-                    Read-only
-                  </span>
-                ) : null}
-                {data?.degraded ? (
-                  <span className="rounded-lg bg-rose-500/30 px-3 py-1 text-[10px] font-black uppercase">
-                    Partial data
-                  </span>
-                ) : null}
-              </div>
-              {periodWindow || branchScopeLabel ? (
-                <p className="mt-3 text-[11px] text-teal-100/90 font-medium">
-                  {periodWindow ? (
-                    <span>
-                      Data window: <span className="font-bold text-white">{periodWindow}</span>
-                    </span>
-                  ) : null}
-                  {periodWindow && branchScopeLabel ? ' · ' : null}
-                  {branchScopeLabel ? (
-                    <span>
-                      Scope: <span className="font-bold text-white">{branchScopeLabel}</span>
-                    </span>
-                  ) : null}
-                </p>
-              ) : null}
-              {data?.generatedAtISO ? (
-                <p className="mt-1 text-[11px] text-teal-200/80">
-                  Last updated: {formatLastUpdated(data.generatedAtISO)}
-                </p>
-              ) : null}
-            </div>
-            <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap lg:justify-end shrink-0">
+    <MainPanel>
+      <PageShell>
+        <PageHeader
+          eyebrow="Zarewa Aluminium & Plastics"
+          title={roleKey === 'md' ? 'MD Office' : 'Command Centre'}
+          subtitle={pageSubtitle}
+          tabs={
+            <PageTabs
+              tabs={pageTabs}
+              value={activeTab}
+              onChange={setActiveTab}
+              ariaLabel="Command centre sections"
+            />
+          }
+          toolbar={
+            <>
               <select
                 value={periodKey}
                 onChange={(e) => setPeriodKey(e.target.value)}
-                className="rounded-xl border border-white/20 bg-white/10 px-3 py-2 text-xs font-bold text-white backdrop-blur-sm"
+                className={EXEC_SELECT}
                 aria-label="Period"
               >
                 {PERIOD_OPTIONS.map((p) => (
-                  <option key={p.key} value={p.key} className="text-slate-900">
+                  <option key={p.key} value={p.key}>
                     {p.label}
                   </option>
                 ))}
@@ -667,57 +708,53 @@ export default function ExecutiveCommandCentre() {
                 <select
                   value={branchId}
                   onChange={(e) => setBranchId(e.target.value)}
-                  className="rounded-xl border border-white/20 bg-white/10 px-3 py-2 text-xs font-bold text-white backdrop-blur-sm"
+                  className={EXEC_SELECT}
                   aria-label="Branch"
                 >
                   {BRANCH_OPTIONS.map((b) => (
-                    <option key={b.id} value={b.id} className="text-slate-900">
+                    <option key={b.id} value={b.id}>
                       {b.label}
                     </option>
                   ))}
                 </select>
               ) : null}
+              <span className="hidden sm:inline-flex rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-[10px] font-semibold uppercase text-slate-600">
+                {roleLabel}
+              </span>
+              {readOnly ? (
+                <span className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[10px] font-semibold uppercase text-amber-900">
+                  Read-only
+                </span>
+              ) : null}
+              {data?.degraded ? (
+                <span className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-[10px] font-semibold uppercase text-rose-900">
+                  Partial data
+                </span>
+              ) : null}
               <button
                 type="button"
                 onClick={() => void load()}
                 disabled={busy}
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-white px-4 py-2 text-[11px] font-black uppercase text-[#134e4a] disabled:opacity-50"
+                className={`${EXEC_SECONDARY_BTN} disabled:opacity-50`}
               >
-                <RefreshCw size={14} className={busy ? 'animate-spin' : ''} />
+                <RefreshCw size={14} strokeWidth={2} className={busy ? 'animate-spin' : ''} />
                 Refresh
               </button>
-              <button
-                type="button"
-                onClick={() => navigate('/reports')}
-                className="inline-flex items-center justify-center gap-2 rounded-xl border border-amber-300/50 bg-amber-400/20 px-4 py-2 text-[11px] font-black uppercase text-amber-50"
-              >
-                <FileText size={14} />
+              <button type="button" onClick={() => navigate('/reports')} className={EXEC_SECONDARY_BTN}>
+                <FileText size={14} strokeWidth={2} />
                 Reports
               </button>
-            </div>
-          </div>
-        </div>
-      </header>
+            </>
+          }
+        />
 
-      <nav
-        className="mb-6 flex flex-wrap gap-2 rounded-2xl border border-slate-200/90 bg-white p-2 shadow-sm"
-        aria-label="Command centre sections"
-      >
-        {visibleTabs.map((t) => (
-          <button
-            key={t.id}
-            type="button"
-            onClick={() => setActiveTab(t.id)}
-            className={`rounded-xl px-4 py-2 text-[11px] font-black uppercase tracking-wide transition-colors ${
-              activeTab === t.id
-                ? 'bg-[#134e4a] text-white shadow-sm'
-                : 'text-slate-600 hover:bg-slate-50'
-            }`}
-          >
-            {t.label}
-          </button>
-        ))}
-      </nav>
+        {isMdCockpit ? (
+          <ExecMdAlertStrip
+            mdOnlyCount={workTrayMdOnlyCount}
+            activeTab={activeTab}
+            onOpenDecide={() => setActiveTab('decide')}
+          />
+        ) : null}
 
       {err ? (
         <p className="mb-6 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">{err}</p>
@@ -787,30 +824,68 @@ export default function ExecutiveCommandCentre() {
         />
       ) : null}
 
-      {activeTab === 'overview' ? (
-        <>
-      {isMdCockpit && roleKey !== 'ceo' ? (
-        <ExecMdReviewTab
-          data={data}
-          busy={busy}
-          readOnly={readOnly}
-          formatNgn={formatNgn}
-          branchScopeLabel={
-            branchId === 'ALL' || !branchId
-              ? 'Company-wide'
-              : BRANCH_OPTIONS.find((b) => b.id === branchId)?.label || branchId
-          }
-          payrollItems={workTrayItems.filter(
-            (row) => String(row.kind || '').toLowerCase() === 'payroll' && !row.summaryOnly
-          )}
-          onReview={handleWorkTrayAction}
-          onOpenDecide={() => setActiveTab('decide')}
-          onOpenCustomers={() => setActiveTab('customers')}
-          onOpenTrace={() => setActiveTab('trace')}
-          onOpenIntelligence={() => setActiveTab('intelligence')}
-        />
+      {activeTab === 'overview' && isMdOffice ? (
+        <div className="space-y-6 pb-10">
+          <ExecMdReviewNav
+            value={reviewView}
+            onChange={setReviewView}
+            mayViewBi={mayViewBi}
+          />
+          {reviewView === 'pack' ? (
+            <ExecMdReviewTab
+              data={data}
+              busy={busy}
+              readOnly={readOnly}
+              formatNgn={formatNgn}
+              branchScopeLabel={
+                branchId === 'ALL' || !branchId
+                  ? 'Company-wide'
+                  : BRANCH_OPTIONS.find((b) => b.id === branchId)?.label || branchId
+              }
+              payrollItems={workTrayItems.filter(
+                (row) => String(row.kind || '').toLowerCase() === 'payroll' && !row.summaryOnly
+              )}
+              onReview={handleWorkTrayAction}
+              onOpenDecide={() => setActiveTab('decide')}
+              onOpenCustomers={() => setActiveTab('customers')}
+              onOpenTrace={() => setActiveTab('trace')}
+              onOpenDeepDive={setReviewView}
+            />
+          ) : null}
+          {showMdIntelligenceReview ? (
+            <CommandCentreIntelligenceTab branchId={canPickBranch && branchId ? branchId : null} />
+          ) : null}
+          {showMdFinanceReview ? (
+            <ExecFinanceTab
+              data={data}
+              formatNgn={formatNgn}
+              branchId={branchId}
+              branchScopeLabel={
+                branchId === 'ALL' || !branchId
+                  ? 'Company-wide'
+                  : BRANCH_OPTIONS.find((b) => b.id === branchId)?.label || branchId
+              }
+              ws={ws}
+              canPickBranch={canPickBranch}
+              mayFinanceOversight={mayFinanceOversight}
+              trialData={trialData}
+              trialLoading={trialLoading}
+              trialError={trialError}
+              reloadTrial={reloadTrial}
+              othersTrend={othersTrend}
+              othersTrendBusy={othersTrendBusy}
+              othersTrendErr={othersTrendErr}
+              onReloadOthersTrend={loadOthersTrend}
+              canManageReservePolicy={canManageReservePolicy}
+              onConfigureReserve={openReservePolicyModal}
+              branchTrendLabel={branchTrendLabel}
+            />
+          ) : null}
+        </div>
       ) : null}
 
+      {activeTab === 'overview' && !isMdOffice ? (
+        <>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5 mb-8">
         <KpiCard
           label="Sales This Period"
@@ -1263,186 +1338,40 @@ export default function ExecutiveCommandCentre() {
         </>
       ) : null}
 
-      {activeTab === 'intelligence' && mayViewBi ? (
+      {showIntelligencePanel ? (
         <CommandCentreIntelligenceTab
           branchId={canPickBranch && branchId ? branchId : null}
         />
       ) : null}
 
-      {activeTab === 'finance' ? (
-        <div className="space-y-8 pb-12">
-          <AccountingExecutiveBrief
-            branchId={canPickBranch ? branchId : ws?.branchScope || ws?.session?.currentBranchId}
-            branchScopeLabel={
-              branchId === 'ALL' || !branchId
-                ? 'Company-wide'
-                : BRANCH_OPTIONS.find((b) => b.id === branchId)?.label || branchId
-            }
-          />
-          {!mayFinanceOversight ? (
-            <p className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
-              Accounting trial oversight panel is limited to finance oversight roles. Cash, working capital,
-              and payables below use executive dashboard data for the selected period and branch.
-            </p>
-          ) : null}
-          {mayFinanceOversight ? (
-            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-              <FinanceTrialExceptionPanel
-                variant="oversight"
-                data={trialData}
-                loading={trialLoading}
-                error={trialError}
-                onReload={reloadTrial}
-              />
-            </div>
-          ) : null}
-
-          <Section
-            title="Others category trend"
-            subtitle="Share of approved payment requests coded Others — last 6 months by branch"
-            icon={<BarChart3 size={18} className="text-amber-700" />}
-          >
-            <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-              <p className="text-xs text-slate-600">
-                Company Others share:{' '}
-                <span className="font-bold tabular-nums text-[#134e4a]">
-                  {othersTrend?.summary?.othersPct != null ? `${othersTrend.summary.othersPct}%` : '—'}
-                </span>
-                {othersTrend?.summary?.othersNgn != null ? (
-                  <span className="text-slate-500"> ({formatNgn(othersTrend.summary.othersNgn)})</span>
-                ) : null}
-              </p>
-              <button
-                type="button"
-                onClick={() => void loadOthersTrend()}
-                disabled={othersTrendBusy}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60"
-              >
-                <RefreshCw size={12} className={othersTrendBusy ? 'animate-spin' : ''} />
-                Refresh
-              </button>
-            </div>
-            {renderOthersTrendBody(false)}
-          </Section>
-
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
-            <Section
-              title="Cash & Treasury"
-              subtitle="Estimated cash pressure — not a safe-withdrawal calculation."
-              icon={<Wallet size={18} className="text-teal-600" />}
-            >
-              <dl className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-                {[
-                  { label: 'Cash / bank', val: data?.cash?.cashNgn },
-                  { label: 'Receivables', val: data?.cash?.receivablesNgn },
-                  { label: 'Inventory', val: data?.cash?.inventoryValueNgn, estimated: true },
-                  { label: 'Pending outflows', val: data?.cash?.pendingOutflowsNgn },
-                ].map(({ label, val, estimated }) => (
-                  <div key={label} className="rounded-xl border border-slate-100 bg-slate-50/60 px-4 py-3">
-                    <dt className="text-[10px] font-bold uppercase text-slate-500 flex items-center gap-1.5">
-                      {label}
-                      {estimated ? <EstChip /> : null}
-                    </dt>
-                    <dd className="mt-1 font-black tabular-nums text-[#134e4a]">{formatNgn(val ?? 0)}</dd>
-                  </div>
-                ))}
-              </dl>
-              {(data?.cash?.horizons || []).length ? (
-                <div className="mt-4 flex flex-wrap gap-2">
-                  {data.cash.horizons.map((h) => (
-                    <span
-                      key={h.days}
-                      className={`rounded-lg px-3 py-2 text-[10px] font-bold ring-1 ${
-                        h.stress === 'deficit'
-                          ? 'bg-rose-50 text-rose-800 ring-rose-200'
-                          : h.stress === 'tight'
-                            ? 'bg-amber-50 text-amber-900 ring-amber-200'
-                            : 'bg-emerald-50 text-emerald-900 ring-emerald-100'
-                      }`}
-                    >
-                      {h.days}d: {formatNgn(h.projectedBalanceNgn)} ({h.stress})
-                    </span>
-                  ))}
-                </div>
-              ) : null}
-            </Section>
-
-            <Section
-              title="Payables & Outflows"
-              subtitle={data?.payables?.label || 'Supplier and treasury pressure'}
-              icon={<TrendingDown size={18} className="text-rose-700" />}
-            >
-              <dl className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-                {[
-                  { label: 'AP outstanding', val: data?.payables?.apOutstandingNgn },
-                  { label: 'Approved unpaid PR', val: data?.payables?.approvedUnpaidPaymentRequestsNgn },
-                  {
-                    label: data?.payables?.poCommitmentLabel || 'PO commitment proxy',
-                    val: data?.payables?.poCommitmentGapNgn,
-                    est: true,
-                  },
-                ].map(({ label, val, est }) => (
-                  <div key={label} className="rounded-xl border border-slate-100 bg-slate-50/60 px-4 py-3">
-                    <dt className="text-[10px] font-bold uppercase text-slate-500 flex items-center gap-1.5">
-                      {label}
-                      {est ? <EstChip /> : null}
-                    </dt>
-                    <dd className="mt-1 font-black tabular-nums text-[#134e4a]">{formatNgn(val ?? 0)}</dd>
-                  </div>
-                ))}
-              </dl>
-            </Section>
-          </div>
-
-          <Section
-            title="Working Capital Snapshot"
-            subtitle={data?.workingCapital?.label || 'Estimated — not statutory accounts'}
-            icon={<Wallet size={18} className="text-teal-600" />}
-          >
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <WcLinesTable title="Current assets" lines={data?.workingCapital?.currentAssets} />
-              <WcLinesTable title="Current liabilities" lines={data?.workingCapital?.currentLiabilities} />
-            </div>
-            <p className="mt-4 text-sm font-black tabular-nums text-[#134e4a]">
-              Est. working capital:{' '}
-              {data?.workingCapital?.estimatedWorkingCapitalNgn != null
-                ? formatNgn(data.workingCapital.estimatedWorkingCapitalNgn)
-                : '—'}
-            </p>
-          </Section>
-
-          <Section
-            title="Reserve Policy"
-            subtitle={data?.reservePolicy?.note || 'Management decision support only.'}
-            icon={<Shield size={18} className="text-amber-700" />}
-          >
-            <div className="flex flex-wrap items-center gap-3 mb-4">
-              <InfoChip>{data?.reservePolicy?.configured ? 'Configured' : 'Not configured'}</InfoChip>
-              <span className="text-sm tabular-nums font-bold text-[#134e4a]">
-                {data?.reservePolicy?.completionPct ?? 0}% complete
-              </span>
-              {canManageReservePolicy ? (
-                <button
-                  type="button"
-                  onClick={() => void openReservePolicyModal()}
-                  className="inline-flex items-center gap-2 rounded-xl border border-[#134e4a]/30 bg-[#134e4a]/5 px-4 py-2 text-[11px] font-black uppercase text-[#134e4a] hover:bg-[#134e4a]/10"
-                >
-                  <Settings2 size={16} />
-                  Configure
-                </button>
-              ) : null}
-            </div>
-            {(data?.reservePolicy?.warnings || []).map((w, i) => (
-              <p
-                key={i}
-                className="mb-2 text-xs text-amber-900 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2"
-              >
-                {w}
-              </p>
-            ))}
-          </Section>
-        </div>
+      {showFinancePanel ? (
+        <ExecFinanceTab
+          data={data}
+          formatNgn={formatNgn}
+          branchId={branchId}
+          branchScopeLabel={
+            branchId === 'ALL' || !branchId
+              ? 'Company-wide'
+              : BRANCH_OPTIONS.find((b) => b.id === branchId)?.label || branchId
+          }
+          ws={ws}
+          canPickBranch={canPickBranch}
+          mayFinanceOversight={mayFinanceOversight}
+          trialData={trialData}
+          trialLoading={trialLoading}
+          trialError={trialError}
+          reloadTrial={reloadTrial}
+          othersTrend={othersTrend}
+          othersTrendBusy={othersTrendBusy}
+          othersTrendErr={othersTrendErr}
+          onReloadOthersTrend={loadOthersTrend}
+          canManageReservePolicy={canManageReservePolicy}
+          onConfigureReserve={openReservePolicyModal}
+          branchTrendLabel={branchTrendLabel}
+        />
       ) : null}
+
+      </PageShell>
 
       {reserveModalOpen ? (
         <div

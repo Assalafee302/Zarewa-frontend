@@ -59,7 +59,10 @@ import { HelpChatProvider } from './context/HelpChatContext';
 import { RoleTrainingReplayLayer } from './components/auth/RoleTrainingReplayLayer';
 import SessionTimeoutWarning from './components/auth/SessionTimeoutWarning';
 import { notificationPrompt } from './lib/aiAssistUi';
-import { searchWorkspaceSnapshot } from './lib/workspaceSearchLocal';
+import { useWorkspaceSearch } from './lib/useWorkspaceSearch';
+import { pushRecentWorkspaceSearch } from './lib/workspaceSearchRecent';
+import { flattenSearchHits, WorkspaceSearchResults } from './components/workspace/WorkspaceSearchResults';
+import { resolveGlobalSearchEnterFallback } from './shared/lib/workspaceSearchCore.js';
 import { formatPersonName } from './lib/formatPersonName';
 /** Eager — loaded on most sign-ins; avoids lazy-chunk races with the app-shell bundle at startup. */
 import Dashboard from './pages/Dashboard';
@@ -68,11 +71,6 @@ import ManagerDashboard from './pages/ManagerDashboard';
 const ExecutiveCommandCentre = lazyWithRetry(
   () => import('./pages/ExecutiveCommandCentre.jsx'),
   { id: 'ExecutiveCommandCentre' }
-);
-
-const ExecMobileDecidePage = lazyWithRetry(
-  () => import('./pages/ExecMobileDecidePage.jsx'),
-  { id: 'ExecMobileDecidePage' }
 );
 
 const AiAssistantDock = lazyWithRetry(
@@ -366,11 +364,18 @@ function AppShell() {
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const searchRef = useRef(null);
   const [headerSearch, setHeaderSearch] = useState('');
-  const [searchHits, setSearchHits] = useState([]);
-  const [searchBusy, setSearchBusy] = useState(false);
-  /** True when dropdown results came from cached snapshot (offline / API error), not live `/api/workspace/search`. */
-  const [searchFromCache, setSearchFromCache] = useState(false);
-  const searchDebounceRef = useRef(null);
+  const [searchActiveIdx, setSearchActiveIdx] = useState(0);
+  const wsHasPerm = useCallback((p) => wsHasPermission?.(p), [wsHasPermission]);
+  const { hits: searchHits, busy: searchBusy, fromCache: searchFromCache } = useWorkspaceSearch({
+    query: headerSearch,
+    apiOnline: wsApiOnline,
+    snapshot: wsSnapshot,
+    hasPermission: wsHasPerm,
+    canAccessModule: (m) => wsCanAccessModule?.(m),
+    roleKey: ws?.session?.user?.roleKey,
+    limit: 18,
+  });
+  const flatSearchHits = useMemo(() => flattenSearchHits(searchHits), [searchHits]);
   const [notifOpen, setNotifOpen] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
@@ -449,36 +454,8 @@ function AppShell() {
   }, [userMenuOpen]);
 
   useEffect(() => {
-    const q = headerSearch.trim();
-    if (searchDebounceRef.current) window.clearTimeout(searchDebounceRef.current);
-    if (q.length < 2) {
-      setSearchHits([]);
-      setSearchBusy(false);
-      setSearchFromCache(false);
-      return undefined;
-    }
-    searchDebounceRef.current = window.setTimeout(async () => {
-      if (wsApiOnline) {
-        setSearchFromCache(false);
-        setSearchBusy(true);
-        const { ok, data } = await apiFetch(
-          `/api/workspace/search?q=${encodeURIComponent(q)}&limit=18`
-        );
-        setSearchBusy(false);
-        if (ok && data?.ok && Array.isArray(data.results)) {
-          setSearchHits(data.results);
-          return;
-        }
-      }
-      setSearchFromCache(true);
-      setSearchHits(
-        searchWorkspaceSnapshot(wsSnapshot, q, (p) => wsHasPermission?.(p), 18)
-      );
-    }, 260);
-    return () => {
-      if (searchDebounceRef.current) window.clearTimeout(searchDebounceRef.current);
-    };
-  }, [headerSearch, wsApiOnline, wsSnapshot, wsHasPermission]);
+    setSearchActiveIdx(0);
+  }, [headerSearch, flatSearchHits.length]);
 
   const guardedNavigate = useCallback(
     (to, opts) => {
@@ -498,9 +475,12 @@ function AppShell() {
 
   const goSearchHit = useCallback(
     (hit) => {
+      if (hit?.path) {
+        pushRecentWorkspaceSearch({ label: hit.label, path: hit.path, state: hit.state });
+      }
       guardedNavigate(hit.path, { state: hit.state || {} });
       setHeaderSearch('');
-      setSearchHits([]);
+      setSearchActiveIdx(0);
     },
     [guardedNavigate]
   );
@@ -509,22 +489,17 @@ function AppShell() {
     e?.preventDefault?.();
     const q = headerSearch.trim();
     if (!q) return;
-    if (searchHits.length > 0) {
-      goSearchHit(searchHits[0]);
+    const activeHit = flatSearchHits[searchActiveIdx] || flatSearchHits[0];
+    if (activeHit) {
+      goSearchHit(activeHit);
       return;
     }
-    const lower = q.toLowerCase();
-    if (lower.startsWith('qt-') || lower.startsWith('q-')) {
-      guardedNavigate('/sales', { state: { globalSearchQuery: q, focusSalesTab: 'quotations' } });
-    } else if (lower.startsWith('rcp-') || lower.startsWith('rcpt')) {
-      guardedNavigate('/sales', { state: { globalSearchQuery: q, focusSalesTab: 'receipts' } });
-    } else if (lower.startsWith('rf-')) {
-      guardedNavigate('/sales', { state: { globalSearchQuery: q, focusSalesTab: 'refund' } });
-    } else {
-      guardedNavigate('/sales', { state: { globalSearchQuery: q, focusSalesTab: 'customers' } });
+    const fallback = resolveGlobalSearchEnterFallback(q);
+    if (fallback) {
+      guardedNavigate(fallback.path, { state: fallback.state || {} });
     }
     setHeaderSearch('');
-    setSearchHits([]);
+    setSearchActiveIdx(0);
   };
 
   const askAiAboutSearch = useCallback(() => {
@@ -542,7 +517,7 @@ function AppShell() {
       autoSend: true,
     });
     setHeaderSearch('');
-    setSearchHits([]);
+    setSearchActiveIdx(0);
   }, [ai, headerSearch, searchHits.length]);
 
   return (
@@ -615,67 +590,47 @@ function AppShell() {
                     type="search"
                     value={headerSearch}
                     onChange={(e) => setHeaderSearch(e.target.value)}
-                    placeholder="Search… (2+ chars)"
+                    onKeyDown={(e) => {
+                      if (headerSearch.trim().length < 2 || !flatSearchHits.length) return;
+                      if (e.key === 'ArrowDown') {
+                        e.preventDefault();
+                        setSearchActiveIdx((i) => Math.min(i + 1, flatSearchHits.length - 1));
+                      }
+                      if (e.key === 'ArrowUp') {
+                        e.preventDefault();
+                        setSearchActiveIdx((i) => Math.max(i - 1, 0));
+                      }
+                    }}
+                    placeholder="Search pages, customers, refs…"
                     autoComplete="off"
                     aria-label="Global search"
                     aria-autocomplete="list"
                     aria-expanded={headerSearch.trim().length >= 2}
                     enterKeyHint="search"
-                    className="w-full min-h-10 rounded-xl border border-slate-200/90 bg-white py-2.5 pl-10 pr-3 text-[15px] font-medium shadow-sm outline-none transition focus:border-teal-300/60 focus:ring-2 focus:ring-teal-500/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/25 sm:z-toolbar-shell sm:min-h-12 sm:py-3 sm:pl-12 sm:pr-14 sm:text-[13px] sm:focus:ring-4"
+                    className="w-full min-h-10 rounded-xl border border-slate-200/90 bg-white py-2.5 pl-10 pr-12 text-[15px] font-medium shadow-sm outline-none transition focus:border-teal-300/60 focus:ring-2 focus:ring-teal-500/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/25 sm:z-toolbar-shell sm:min-h-12 sm:py-3 sm:pl-12 sm:pr-14 sm:text-[13px] sm:focus:ring-4"
                   />
-                  <div className="pointer-events-none absolute right-3 top-1/2 hidden -translate-y-1/2 items-center gap-1 rounded-lg border border-gray-100 bg-gray-50/90 px-2 py-1 sm:flex">
+                  <button
+                    type="button"
+                    onClick={() => setCommandPaletteOpen(true)}
+                    className="pointer-events-auto absolute right-3 top-1/2 hidden -translate-y-1/2 items-center gap-1 rounded-lg border border-gray-100 bg-gray-50/90 px-2 py-1 sm:flex hover:bg-gray-100"
+                    aria-label="Open command palette"
+                    title="Command palette (Ctrl+K)"
+                  >
                     <Command size={10} className="text-gray-400" />
                     <span className="text-[9px] font-black text-gray-400">K</span>
-                  </div>
+                  </button>
                   {headerSearch.trim().length >= 2 ? (
-                    <div className="absolute left-0 right-0 top-full z-[60] mt-1 max-h-[min(18rem,50dvh)] sm:max-h-72 overflow-y-auto overscroll-contain rounded-xl border border-gray-200 bg-white py-1 text-left shadow-lg">
-                      {searchBusy ? (
-                        <p className="px-3 py-2 text-[11px] text-gray-500">Searching…</p>
-                      ) : searchHits.length === 0 ? (
-                        <div className="divide-y divide-amber-50">
-                          <p className="px-3 py-2 text-[11px] text-gray-500">
-                            No matches — Enter uses quick path (QT-/RCP-/RF-).
-                          </p>
-                          {searchFromCache ? (
-                            <p
-                              className="px-3 py-2 text-[10px] font-medium text-amber-950 bg-amber-50/90"
-                              role="status"
-                            >
-                              Cached workspace — empty results may be false negatives. Reconnect for live search.
-                            </p>
-                          ) : null}
-                        </div>
-                      ) : (
-                        <>
-                          <ul className="divide-y divide-gray-100" role="listbox">
-                            {searchHits.map((hit) => (
-                              <li key={`${hit.kind}-${hit.id}`}>
-                                <button
-                                  type="button"
-                                  role="option"
-                                  className="flex w-full flex-col items-start gap-0.5 px-3 py-3 text-left text-[12px] hover:bg-teal-50/80 sm:py-2"
-                                  onMouseDown={(ev) => ev.preventDefault()}
-                                  onClick={() => goSearchHit(hit)}
-                                >
-                                  <span className="font-semibold text-[#134e4a]">{hit.label}</span>
-                                  <span className="text-[10px] text-gray-500">
-                                    {hit.kind.replace(/_/g, ' ')}
-                                    {hit.sublabel ? ` · ${hit.sublabel}` : ''}
-                                  </span>
-                                </button>
-                              </li>
-                            ))}
-                          </ul>
-                          {searchFromCache ? (
-                            <p
-                              className="border-t border-amber-100 bg-amber-50/90 px-3 py-2 text-[10px] font-medium text-amber-950"
-                              role="status"
-                            >
-                              Cached workspace — results may be incomplete or outdated. Reconnect for live search.
-                            </p>
-                          ) : null}
-                        </>
-                      )}
+                    <div className="absolute left-0 right-0 top-full z-[60] mt-1 max-h-[min(22rem,55dvh)] sm:max-h-80 overflow-y-auto overscroll-contain rounded-xl border border-gray-200 bg-white py-1 text-left shadow-lg">
+                      <WorkspaceSearchResults
+                        hits={searchHits}
+                        query={headerSearch}
+                        activeIndex={searchActiveIdx}
+                        onSelect={goSearchHit}
+                        onActiveIndexChange={setSearchActiveIdx}
+                        busy={searchBusy}
+                        fromCache={searchFromCache}
+                        variant="dropdown"
+                      />
                     </div>
                   ) : null}
                 </form>
@@ -701,8 +656,7 @@ function AppShell() {
                 </div>
 
                 <p className="hidden text-[11px] text-gray-400 sm:block sm:max-w-[220px] sm:text-right lg:max-w-none">
-                  <span className="font-semibold text-gray-500">Tip:</span> results respect your role; pick a row or press
-                  Enter for the first match.
+                  <span className="font-semibold text-gray-500">Tip:</span> ↑↓ to browse, Enter to open, Ctrl+K for palette.
                 </p>
               </>
             )}
@@ -975,7 +929,7 @@ function AppShell() {
             <Route path="/" element={<HomeRoute />} />
             <Route path="/workspace/monitoring" element={<WorkspaceMonitoring />} />
             <Route path="/exec" element={<ExecutiveCommandCentre />} />
-            <Route path="/exec/m" element={<ExecMobileDecidePage />} />
+            <Route path="/exec/m" element={<Navigate to="/exec?tab=decide" replace />} />
             <Route path="/price-list" element={<PriceListAdmin />} />
             <Route path="/pricing-policy" element={<PricingPolicyAdmin />} />
             <Route
@@ -1206,6 +1160,7 @@ function AppShell() {
           onClose={() => setCommandPaletteOpen(false)}
           ws={ws}
           hasPermission={(p) => ws?.hasPermission?.(p)}
+          initialQuery={headerSearch}
         />
       </Suspense>
       <Suspense fallback={null}>

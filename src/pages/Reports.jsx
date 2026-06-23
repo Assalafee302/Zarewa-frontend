@@ -82,6 +82,7 @@ const Reports = () => {
     hasFinanceView: ws.hasPermission('finance.view'),
     startDate,
     endDate,
+    branchId: ws.viewAllBranches ? 'ALL' : ws.branchScope || ws.session?.currentBranchId || '',
     expenses,
     paymentRequests,
     coilLots,
@@ -217,6 +218,11 @@ const Reports = () => {
                   ws.viewAllBranches
                     ? 'All branches (HQ roll-up)'
                     : ws.branchLabel || ws.branchScope || ws.session?.currentBranchId || ''
+                }
+                branchId={
+                  ws.viewAllBranches
+                    ? 'ALL'
+                    : ws.branchScope || ws.session?.currentBranchId || ''
                 }
                 mayViewAp2={userMayViewAp2SupplierDiagnosticsClient(
                   ws?.session?.user?.roleKey,

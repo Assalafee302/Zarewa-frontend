@@ -1058,6 +1058,9 @@ const Sales = () => {
   };
 
   const persistCuttingList = async (payload) => {
+    if (!payload.id && ws?.blocksBranchScopedCreate) {
+      return { ok: false, error: ws.branchScopedCreateMessage || 'Select a single branch workspace before creating a cutting list.' };
+    }
     if (!ws?.canMutate) {
       return {
         ok: false,

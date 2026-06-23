@@ -6,6 +6,7 @@ import { useWorkspace } from '../../context/WorkspaceContext';
 import { useTrackedUnsavedForm } from '../../hooks/useTrackedUnsavedForm';
 import { CustomerFormFields } from '../customers/CustomerFormFields';
 import { apiFetch } from '../../lib/apiBase';
+import { branchScopedCreateBlockedMessage, isBranchScopedCreateBlocked } from '../../lib/workspaceBranchCreate';
 
 const emptyForm = {
   name: '',
@@ -45,6 +46,10 @@ export default function SalesCustomerCreateModal({
 
   const submitNew = async (e) => {
     e.preventDefault();
+    if (isBranchScopedCreateBlocked(ws)) {
+      showToast(branchScopedCreateBlockedMessage(ws), { variant: 'error' });
+      return;
+    }
     const staffLinked = Boolean(String(form.linkedStaffUserId || '').trim());
     if (!form.name.trim()) {
       showToast('Name is required.', { variant: 'error' });

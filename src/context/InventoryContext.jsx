@@ -31,6 +31,12 @@ function nextPoId(list) {
   return `PO-2026-${String(n).padStart(3, '0')}`;
 }
 
+function productMatchesBranchScope(p, productID, branchScope) {
+  if (p.productID !== productID) return false;
+  if (!branchScope || branchScope === 'ALL') return true;
+  return !p.branchId || String(p.branchId) === String(branchScope);
+}
+
 function normalizePoLine(l, idx, catalog = []) {
   const p = catalog.find((x) => x.productID === l.productID);
   const kg = Number(l.qtyOrdered) || 0;
@@ -89,6 +95,7 @@ function findPoLine(po, entry) {
 
 export function InventoryProvider({ children }) {
   const ws = useWorkspace();
+  const wsBranchScope = ws?.branchScope ?? null;
   const wsHasWorkspaceData = ws?.hasWorkspaceData;
   const wsSnapshot = ws?.snapshot;
   const wsCanMutate = ws?.canMutate;
@@ -179,20 +186,40 @@ export function InventoryProvider({ children }) {
   }, [wsHasWorkspaceData, wsSnapshot]);
    
 
-  const appendMovement = useCallback((entry) => {
-    setMovements((prev) => [
-      {
-        id: `MV-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-        atISO: new Date().toISOString().slice(0, 19),
-        ...entry,
-      },
-      ...prev,
-    ]);
-  }, []);
+  const appendMovement = useCallback(
+    (entry) => {
+      const branchId =
+        entry.branchId ??
+        (wsBranchScope && wsBranchScope !== 'ALL' ? wsBranchScope : '');
+      setMovements((prev) => [
+        {
+          id: `MV-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+          atISO: new Date().toISOString().slice(0, 19),
+          ...entry,
+          ...(branchId ? { branchId } : {}),
+        },
+        ...prev,
+      ]);
+    },
+    [wsBranchScope]
+  );
 
   const getProduct = useCallback(
-    (productID) => products.find((p) => p.productID === productID),
-    [products]
+    (productID) => {
+      const pid = String(productID || '').trim();
+      if (!pid) return undefined;
+      if (wsBranchScope && wsBranchScope !== 'ALL') {
+        return (
+          products.find(
+            (p) =>
+              p.productID === pid &&
+              (!p.branchId || String(p.branchId) === String(wsBranchScope))
+          ) ?? products.find((p) => p.productID === pid)
+        );
+      }
+      return products.find((p) => p.productID === pid);
+    },
+    [products, wsBranchScope]
   );
 
   const createPurchaseOrder = useCallback(
@@ -749,6 +776,14 @@ export function InventoryProvider({ children }) {
         prev.map((p) => {
           const d = deltaByProduct[p.productID];
           if (!d) return p;
+          if (
+            wsBranchScope &&
+            wsBranchScope !== 'ALL' &&
+            p.branchId &&
+            String(p.branchId) !== String(wsBranchScope)
+          ) {
+            return p;
+          }
           return { ...p, stockLevel: p.stockLevel + d };
         })
       );
@@ -803,7 +838,7 @@ export function InventoryProvider({ children }) {
       const delta = type === 'Increase' ? q : -q;
       setProducts((prev) =>
         prev.map((p) => {
-          if (p.productID !== productID) return p;
+          if (!productMatchesBranchScope(p, productID, wsBranchScope)) return p;
           const raw = p.stockLevel + delta;
           const allowNeg = /^ACC-/i.test(String(productID));
           const next = allowNeg ? raw : Math.max(0, raw);
@@ -819,14 +854,14 @@ export function InventoryProvider({ children }) {
       });
       return { ok: true };
     },
-    [appendMovement, wsCanMutate, wsRefresh]
+    [appendMovement, wsBranchScope, wsCanMutate, wsRefresh]
   );
 
   const transferToProduction = useCallback(
     async (productID, qty, productionOrderId, dateISO) => {
       const q = Number(qty);
       if (Number.isNaN(q) || q <= 0) return { ok: false, error: 'Invalid quantity.' };
-      const p = products.find((x) => x.productID === productID);
+      const p = getProduct(productID);
       if (!p || p.stockLevel < q) {
         return { ok: false, error: 'Insufficient stock in store.' };
       }
@@ -848,7 +883,9 @@ export function InventoryProvider({ children }) {
       }
       setProducts((prev) =>
         prev.map((x) =>
-          x.productID === productID ? { ...x, stockLevel: x.stockLevel - q } : x
+          productMatchesBranchScope(x, productID, wsBranchScope)
+            ? { ...x, stockLevel: x.stockLevel - q }
+            : x
         )
       );
       setWipByProduct((prev) => ({
@@ -864,7 +901,7 @@ export function InventoryProvider({ children }) {
       });
       return { ok: true };
     },
-    [products, appendMovement, wsCanMutate, wsRefresh]
+    [getProduct, appendMovement, wsBranchScope, wsCanMutate, wsRefresh]
   );
 
   const receiveFinishedGoods = useCallback(
@@ -937,7 +974,9 @@ export function InventoryProvider({ children }) {
 
       setProducts((prev) =>
         prev.map((x) =>
-          x.productID === productID ? { ...x, stockLevel: x.stockLevel + q } : x
+          productMatchesBranchScope(x, productID, wsBranchScope)
+            ? { ...x, stockLevel: x.stockLevel + q }
+            : x
         )
       );
       const spool =
@@ -957,7 +996,7 @@ export function InventoryProvider({ children }) {
       });
       return { ok: true };
     },
-    [appendMovement, wipByProduct, wsCanMutate, wsRefresh]
+    [appendMovement, wipByProduct, wsBranchScope, wsCanMutate, wsRefresh]
   );
 
   const value = useMemo(

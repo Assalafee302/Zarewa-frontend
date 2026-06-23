@@ -34,7 +34,9 @@ export function hasPendingPasswordChange(userId) {
 export function withPendingPasswordSession(data) {
   if (!data || typeof data !== 'object') return data;
   const uid = data?.session?.user?.id;
-  if (!uid || !hasPendingPasswordChange(uid) || !data.session?.user) return data;
+  if (!uid || !data.session?.user) return data;
+  if (data.session.user.mustChangePassword === false) return data;
+  if (!hasPendingPasswordChange(uid)) return data;
   if (data.session.user.mustChangePassword) return data;
   return {
     ...data,

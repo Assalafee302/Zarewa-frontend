@@ -13,6 +13,10 @@ import { AccountingDeskWizardSteps } from './accounting/AccountingDeskWizardStep
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { ACCOUNTING_OPENING_DATE_ISO, ACCOUNTING_OPENING_DATE_LABEL } from '../../shared/accountingCutover';
 import { glSourceMappingForCode } from '../../shared/lib/accountingSourceOfTruth';
+import {
+  branchScopedCreateBlockedMessage,
+  isBranchScopedCreateBlocked,
+} from '../../lib/workspaceBranchCreate';
 
 const DEFAULT_DATE = ACCOUNTING_OPENING_DATE_ISO;
 
@@ -80,9 +84,10 @@ export function AccountingOpeningBalancePanel({
   const [lines, setLines] = useState([emptyLine(), emptyLine()]);
 
   const loadStatus = useCallback(async () => {
-    const res = await apiFetch('/api/finance/opening-balance/status');
+    const params = packQueryString(ws, capitalNgn);
+    const res = await apiFetch(`/api/finance/opening-balance/status${params}`);
     if (res.ok && res.data?.ok) setStatus(res.data);
-  }, []);
+  }, [capitalNgn, ws]);
 
   const loadPack = useCallback(async () => {
     setLoading(true);
@@ -126,6 +131,7 @@ export function AccountingOpeningBalancePanel({
     pack &&
     !pack.alreadyPosted &&
     !pack.blockers?.length &&
+    !isBranchScopedCreateBlocked(ws) &&
     proposed?.totalDebitsNgn > 0 &&
     proposed?.totalDebitsNgn === proposed?.totalCreditsNgn;
 
@@ -134,6 +140,10 @@ export function AccountingOpeningBalancePanel({
   };
 
   const postPack = async () => {
+    if (isBranchScopedCreateBlocked(ws)) {
+      showToast?.(branchScopedCreateBlockedMessage(ws), { variant: 'info' });
+      return;
+    }
     if (!canPostPack) {
       showToast?.('Resolve blockers and balance the pack before posting.', { variant: 'error' });
       return;
@@ -151,7 +161,7 @@ export function AccountingOpeningBalancePanel({
         body: JSON.stringify({
           capitalNgn: cap || undefined,
           inventoryPeriodKey: pack.inventoryPeriodKey,
-          branchId: ws.viewAllBranches ? 'ALL' : ws.branchScope || ws.session?.currentBranchId || undefined,
+          branchId: ws.branchScope || ws.session?.currentBranchId || undefined,
         }),
       });
       if (!res.ok || !res.data?.ok) {

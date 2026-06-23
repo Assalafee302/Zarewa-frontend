@@ -8,7 +8,7 @@ const STATUS_TONE = {
   red: 'border-rose-200 bg-rose-50 text-rose-950',
 };
 
-export function ExecMdSupplyPanel({ inventory, coilPulse, onOpenIntelligence, busy }) {
+export function ExecMdSupplyPanel({ inventory, coilPulse, onOpenDeepDive, busy }) {
   const buyNext = inventory?.lowStockHighDemand || [];
   const recommendations = inventory?.recommendations || [];
   const coilWeeks = coilPulse?.weeksCover;
@@ -47,10 +47,10 @@ export function ExecMdSupplyPanel({ inventory, coilPulse, onOpenIntelligence, bu
           <Link to="/procurement" className="text-[10px] font-bold uppercase text-[#134e4a] hover:underline">
             Procurement desk
           </Link>
-          {onOpenIntelligence ? (
+          {onOpenDeepDive ? (
             <button
               type="button"
-              onClick={onOpenIntelligence}
+              onClick={onOpenDeepDive}
               className="text-[10px] font-bold uppercase text-slate-600 hover:text-[#134e4a]"
             >
               Coil intelligence

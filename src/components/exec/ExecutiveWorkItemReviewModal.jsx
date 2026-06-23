@@ -565,9 +565,9 @@ export function ExecutiveWorkItemReviewModal({ item, isOpen, onClose, onComplete
   const isOfficeMemo = review.view === 'office_memo';
 
   return (
-    <ModalFrame isOpen={isOpen} onClose={onClose} surface="plain" title={`Executive review — ${kindLabel}`}>
+    <ModalFrame isOpen={isOpen} onClose={onClose} surface="plain" title={`Executive review — ${kindLabel}`} edgeToEdgeMobile>
       <div
-        className={`z-modal-panel flex max-h-[min(92vh,880px)] w-full flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl ${
+        className={`z-modal-panel flex max-h-[min(92vh,880px)] w-full flex-col overflow-hidden rounded-none sm:rounded-2xl border-0 sm:border border-slate-200 bg-white shadow-xl max-sm:h-[100dvh] max-sm:max-h-[100dvh] ${
           isOfficeMemo ? 'max-w-[min(100%,960px)]' : 'max-w-[min(100%,720px)]'
         }`}
       >
