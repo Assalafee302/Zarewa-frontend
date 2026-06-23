@@ -67,8 +67,7 @@ export function ExpenseCategoryHintPanel({ category = '', othersMinJustification
     hints.push(
       <HintCard key="others" tone="amber" icon={AlertTriangle} title="Exception category">
         <p>
-          Explain why no standard category fits (min {othersMinJustificationLen} characters) and attach an invoice
-          or receipt.
+          Add notes below (min {othersMinJustificationLen} characters) and attach an invoice or receipt.
         </p>
       </HintCard>
     );

@@ -7,7 +7,7 @@ export function OthersJustificationField({
   value = '',
   onChange,
   minLength = 40,
-  label = 'Why not a standard category?',
+  label = 'Notes for approvers',
   placeholder,
   className = '',
 }) {
@@ -45,7 +45,7 @@ export function OthersJustificationField({
         onChange={onChange}
         placeholder={
           placeholder ||
-          `Explain why this expense does not fit a standard category (min ${minLength} characters).`
+          `Brief context for this expense category (min ${minLength} characters).`
         }
         className="w-full bg-amber-50/60 border border-amber-200/90 rounded-xl py-3 px-4 text-sm font-medium outline-none resize-y min-h-[80px] focus:border-amber-300 focus:ring-2 focus:ring-amber-200/50"
       />
