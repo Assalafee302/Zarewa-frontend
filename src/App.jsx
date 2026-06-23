@@ -366,12 +366,13 @@ function AppShell() {
   const [headerSearch, setHeaderSearch] = useState('');
   const [searchActiveIdx, setSearchActiveIdx] = useState(0);
   const wsHasPerm = useCallback((p) => wsHasPermission?.(p), [wsHasPermission]);
+  const wsCanAccessMod = useCallback((m) => wsCanAccessModule?.(m), [wsCanAccessModule]);
   const { hits: searchHits, busy: searchBusy, fromCache: searchFromCache } = useWorkspaceSearch({
     query: headerSearch,
     apiOnline: wsApiOnline,
     snapshot: wsSnapshot,
     hasPermission: wsHasPerm,
-    canAccessModule: (m) => wsCanAccessModule?.(m),
+    canAccessModule: wsCanAccessMod,
     roleKey: ws?.session?.user?.roleKey,
     limit: 18,
   });
@@ -1159,7 +1160,7 @@ function AppShell() {
           isOpen={commandPaletteOpen}
           onClose={() => setCommandPaletteOpen(false)}
           ws={ws}
-          hasPermission={(p) => ws?.hasPermission?.(p)}
+          hasPermission={wsHasPerm}
           initialQuery={headerSearch}
         />
       </Suspense>

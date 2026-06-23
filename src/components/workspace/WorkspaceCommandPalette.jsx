@@ -11,12 +11,13 @@ export function WorkspaceCommandPalette({ isOpen, onClose, ws, hasPermission, in
   const [query, setQuery] = useState('');
   const [activeIdx, setActiveIdx] = useState(0);
 
+  const canAccessModule = useCallback((m) => ws?.canAccessModule?.(m), [ws?.canAccessModule]);
   const { hits, busy, fromCache } = useWorkspaceSearch({
     query,
     apiOnline: ws?.apiOnline,
     snapshot: ws?.snapshot,
     hasPermission,
-    canAccessModule: (m) => ws?.canAccessModule?.(m),
+    canAccessModule,
     roleKey: ws?.session?.user?.roleKey,
     limit: 20,
   });

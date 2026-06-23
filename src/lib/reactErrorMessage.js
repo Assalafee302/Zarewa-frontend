@@ -17,6 +17,7 @@ export function humanizeReactError(error) {
 
   const code = m[1];
   const known = {
+    185: 'Maximum update depth exceeded — an infinite render loop (often an effect that updates state when a callback dependency is recreated every render). Hard refresh; if it persists after deploy, report the build id to IT.',
     300: 'Rendered fewer hooks than expected. This may be caused by an accidental early return before all hooks run, or by loading a mix of old and new JavaScript files after a deploy.',
     301: 'Rendered more hooks than expected. A component may be calling hooks conditionally.',
     310: 'Rendered more hooks than during the previous render.',

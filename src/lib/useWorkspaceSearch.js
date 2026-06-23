@@ -34,15 +34,22 @@ export function useWorkspaceSearch({
   const [fromCache, setFromCache] = useState(false);
   const abortRef = useRef(null);
   const reqGenRef = useRef(0);
+  const hasPermissionRef = useRef(hasPermission);
+  const canAccessModuleRef = useRef(canAccessModule);
+
+  useEffect(() => {
+    hasPermissionRef.current = hasPermission;
+    canAccessModuleRef.current = canAccessModule;
+  }, [hasPermission, canAccessModule]);
 
   useEffect(() => {
     const q = String(query || '').trim();
     if (abortRef.current) abortRef.current.abort();
 
     if (q.length < 2) {
-      setHits([]);
-      setBusy(false);
-      setFromCache(false);
+      setHits((prev) => (prev.length ? [] : prev));
+      setBusy((prev) => (prev ? false : prev));
+      setFromCache((prev) => (prev ? false : prev));
       return undefined;
     }
 
@@ -76,9 +83,9 @@ export function useWorkspaceSearch({
       setBusy(false);
       setFromCache(true);
       setHits(
-        searchWorkspaceSnapshot(snapshot, q, hasPermission, limit, {
+        searchWorkspaceSnapshot(snapshot, q, hasPermissionRef.current, limit, {
           roleKey,
-          canAccessModule,
+          canAccessModule: canAccessModuleRef.current,
           contextPath: routeContext,
         })
       );
@@ -88,7 +95,7 @@ export function useWorkspaceSearch({
       window.clearTimeout(timer);
       controller.abort();
     };
-  }, [query, apiOnline, snapshot, hasPermission, canAccessModule, roleKey, routeContext, limit, debounceMs]);
+  }, [query, apiOnline, snapshot, roleKey, routeContext, limit, debounceMs]);
 
   return { hits, busy, fromCache };
 }
