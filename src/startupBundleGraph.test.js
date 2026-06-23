@@ -56,4 +56,15 @@ describe('production bundle chunk graph', () => {
 
     expect(lucideMicroChunks).toEqual([]);
   });
+
+  it('profile-ui does not import my-profile-hub (prevents WB TDZ on Payments tab)', () => {
+    const assetsDir = resolveAssetsDir();
+    if (!assetsDir) return;
+    const assets = readdirSync(assetsDir).filter((f) => f.endsWith('.js'));
+    const profileUi = assets.find((f) => f.startsWith('profile-ui-'));
+    if (!profileUi) return;
+
+    const code = readFileSync(join(assetsDir, profileUi), 'utf8');
+    expect(code).not.toMatch(/my-profile-hub-/);
+  });
 });

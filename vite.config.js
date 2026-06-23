@@ -49,11 +49,15 @@ export default defineConfig({
             if (id.includes('firebase')) return 'vendor-firebase';
             return;
           }
-          // My Profile hub — shared shell + design system (tabs lazy-load their own chunks).
-          if (id.includes('/src/pages/hr/MyProfile.jsx') || id.includes('/src/pages/hr/useMyProfileCohort')) {
-            return 'my-profile-hub';
+          // Profile shell + My Profile routes in one chunk — splitting my-profile-hub out
+          // made profile-ui import the hub back ("Cannot access 'WB' before initialization").
+          if (
+            id.includes('/src/components/profile/') ||
+            id.includes('/src/pages/hr/MyProfile.jsx') ||
+            id.includes('/src/pages/hr/useMyProfileCohort')
+          ) {
+            return 'profile-ui';
           }
-          if (id.includes('/src/components/profile/')) return 'profile-ui';
           // Route pages stay in their own lazy chunks.
           if (id.includes('/src/pages/')) return undefined;
           // Everything else (App shell, components, lib, contexts) — never the entry index.

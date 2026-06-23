@@ -11,6 +11,9 @@ export function humanizeReactError(error) {
   if (/\bis not a function\b/i.test(raw)) {
     return `${raw} — often a stale app-shell JavaScript file after deploy (browser cached an older assets/* bundle). Hard refresh (Ctrl+Shift+R). IT must replace the entire dist/ folder atomically and set Cache-Control: no-cache on index.html.`;
   }
+  if (/Cannot access .+ before initialization/i.test(raw)) {
+    return `${raw} — usually a mismatched JavaScript bundle after deploy (old cached assets/* with new index.html). Hard refresh (Ctrl+Shift+R). IT must upload the entire dist/ folder in one step.`;
+  }
 
   const m = raw.match(/Minified React error #(\d+)/i);
   if (!m) return raw;
