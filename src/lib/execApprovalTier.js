@@ -8,6 +8,7 @@ const MD_ONLY_KINDS = new Set([
   'payroll',
   'inter_branch_loan',
   'stock_register',
+  'staff_purchase_credit',
 ]);
 
 const DEFAULT_REFUND_MD_THRESHOLD_NGN = 1_000_000;
@@ -38,6 +39,13 @@ export function classifyExecWorkTrayApprovalTier(item, limits = {}) {
       return { tier: EXEC_APPROVAL_TIER_MD_ONLY, label: 'MD only', reason: 'Above refund threshold' };
     }
     return { tier: EXEC_APPROVAL_TIER_SHARED, label: 'BM or MD' };
+  }
+
+  if (kind === 'register_settlement') {
+    if (amt >= refundHi) {
+      return { tier: EXEC_APPROVAL_TIER_MD_ONLY, label: 'MD only', reason: 'Above withdrawal threshold' };
+    }
+    return { tier: EXEC_APPROVAL_TIER_SHARED, label: 'Finance / MD' };
   }
 
   if (kind === 'payments') {

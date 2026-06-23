@@ -11,6 +11,11 @@ const EXEC_IN_MODAL_KINDS = new Set([
   'governance',
   'material',
   'edit_approvals',
+  'staff_purchase_credit',
+  'payroll',
+  'inter_branch_loan',
+  'stock_register',
+  'office_memo',
 ]);
 
 /**
@@ -56,6 +61,12 @@ export function execWorkItemReviewContext(item) {
   const ctx = item?.reviewContext && typeof item.reviewContext === 'object' ? item.reviewContext : {};
   const row = ctx.row && typeof ctx.row === 'object' ? ctx.row : {};
   const settlementId = resolveExecSettlementId(item);
+  const fromId = String(item?.id || '').trim();
+  const staffCreditMatch = fromId.match(/^staff_purchase_credit:(.+)$/i);
+  const payrollMatch = fromId.match(/^payroll:(.+)$/i);
+  const iblMatch = fromId.match(/^ibl:(.+)$/i);
+  const stockMatch = fromId.match(/^stockreg:([^:]+):(.+)$/i);
+  const officeMatch = fromId.match(/^office:(.+)$/i);
   return {
     quotationRef: String(item?.quotationRef || ctx.quotationRef || row.id || row.quotation_ref || '').trim(),
     jobId: String(ctx.jobId || row.job_id || '').trim(),
@@ -65,6 +76,18 @@ export function execWorkItemReviewContext(item) {
     cuttingListId: String(ctx.cuttingListId || row.id || '').trim(),
     materialIncidentId: String(ctx.materialIncidentId || row.id || '').trim(),
     editApprovalId: String(ctx.editApprovalId || row.id || '').trim(),
+    accountId: String(ctx.accountId || row.id || (staffCreditMatch ? staffCreditMatch[1] : '') || '').trim(),
+    payrollRunId: String(
+      ctx.payrollRunId || row.id || row.run_id || (payrollMatch ? payrollMatch[1] : '') || ''
+    ).trim(),
+    loanId: String(ctx.loanId || row.loan_id || (iblMatch ? iblMatch[1] : '') || '').trim(),
+    periodKey: String(
+      ctx.periodKey || row.periodKey || row.period_key || (stockMatch ? stockMatch[2] : '') || ''
+    ).trim(),
+    branchIdForRegister: String(
+      ctx.branchIdForRegister || row.branch_id || item?.branchId || (stockMatch ? stockMatch[1] : '') || ''
+    ).trim(),
+    threadId: String(ctx.threadId || row.threadId || row.thread_id || (officeMatch ? officeMatch[1] : '') || '').trim(),
     reasons: Array.isArray(ctx.reasons) ? ctx.reasons : [],
     subtitle: String(ctx.subtitle || item?.requestedBy || '').trim(),
     row,
@@ -129,6 +152,26 @@ export function resolveExecReviewView(item) {
   }
   if (kind === 'edit_approvals') {
     return { view: 'edit_approval', editApprovalId: ctx.editApprovalId || ctx.row.id, row: ctx.row };
+  }
+  if (kind === 'staff_purchase_credit') {
+    return { view: 'staff_purchase_credit', accountId: ctx.accountId, row: ctx.row };
+  }
+  if (kind === 'payroll') {
+    return { view: 'payroll', payrollRunId: ctx.payrollRunId, row: ctx.row };
+  }
+  if (kind === 'inter_branch_loan') {
+    return { view: 'inter_branch_loan', loanId: ctx.loanId, row: ctx.row };
+  }
+  if (kind === 'stock_register') {
+    return {
+      view: 'stock_register',
+      periodKey: ctx.periodKey,
+      branchIdForRegister: ctx.branchIdForRegister,
+      row: ctx.row,
+    };
+  }
+  if (kind === 'office_memo') {
+    return { view: 'office_memo', threadId: ctx.threadId, row: ctx.row };
   }
   return { view: 'fallback', route: item?.route || '/manager' };
 }

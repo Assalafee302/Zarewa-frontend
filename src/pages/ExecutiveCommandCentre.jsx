@@ -26,6 +26,12 @@ import { AccountingExecutiveBrief } from '../components/finance/accounting/Accou
 import { userMayViewFinanceTrialOversightClient } from '../lib/financeTrialExceptionsAccess';
 import { userMayViewManagementReportsClient } from '../lib/reportsAccess';
 import CommandCentreIntelligenceTab from '../components/exec/CommandCentreIntelligenceTab';
+import { ExecTodayTab } from '../components/exec/ExecTodayTab';
+import { ExecDecideTab } from '../components/exec/ExecDecideTab';
+import { ExecCustomersTab } from '../components/exec/ExecCustomersTab';
+import { ExecTraceTab } from '../components/exec/ExecTraceTab';
+import { ExecCustomerSlideOver } from '../components/exec/ExecCustomerSlideOver';
+import { ExecMdReviewTab } from '../components/exec/ExecMdReviewTab';
 import { ExpenseCategoryExceptionBanner } from '../components/office/ExpenseCategoryExceptionBanner.jsx';
 import { ExpenseCategoryOthersTrendTable } from '../components/office/ExpenseCategoryOthersTrendTable.jsx';
 import { downloadExpenseCategoryExceptionsCsv } from '../lib/expenseCategoryExceptionExport.js';
@@ -38,7 +44,11 @@ import {
 } from '../lib/execApprovalTier';
 
 const EXEC_TABS = [
-  { id: 'overview', label: 'Overview' },
+  { id: 'today', label: 'Today', mdOnly: true },
+  { id: 'decide', label: 'Decide', mdOnly: true },
+  { id: 'customers', label: 'Customers', mdOnly: true },
+  { id: 'trace', label: 'Trace', mdOnly: true },
+  { id: 'overview', label: 'Review' },
   { id: 'intelligence', label: 'Intelligence' },
   { id: 'finance', label: 'Finance' },
 ];
@@ -236,9 +246,18 @@ export default function ExecutiveCommandCentre() {
   const [othersTrend, setOthersTrend] = useState(null);
   const [othersTrendBusy, setOthersTrendBusy] = useState(false);
   const [othersTrendErr, setOthersTrendErr] = useState('');
+  const [customerIntel, setCustomerIntel] = useState(null);
+  const [customerIntelBusy, setCustomerIntelBusy] = useState(false);
+  const [customerIntelErr, setCustomerIntelErr] = useState('');
+  const [customerSegmentFilter, setCustomerSegmentFilter] = useState('all');
+  const [selectedCustomer, setSelectedCustomer] = useState(null);
+  const [tracePack, setTracePack] = useState(null);
+  const [traceBusy, setTraceBusy] = useState(false);
+  const [traceErr, setTraceErr] = useState('');
 
   const roleKey = String(ws?.session?.user?.roleKey || '').toLowerCase();
   const roleLabel = roleKey === 'md' ? 'Managing Director' : roleKey === 'ceo' ? 'CEO' : roleKey || 'Executive';
+  const isMdCockpit = roleKey === 'md' || roleKey === 'admin';
   const isExecutiveOversight = roleKey === 'md' || roleKey === 'ceo' || roleKey === 'admin';
   const expenseCategoryAlert = ws?.snapshot?.expenseCategoryMonthlyAlert;
   const canPickBranch = Boolean(ws?.viewAllBranches || data?.actor?.canUseAllBranches);
@@ -247,17 +266,31 @@ export default function ExecutiveCommandCentre() {
     ws?.permissions
   );
   const mayViewBi = userMayViewManagementReportsClient(roleKey, ws?.permissions);
-  const rawTab = searchParams.get('tab') || 'overview';
+  const rawTab = searchParams.get('tab') || (isMdCockpit && roleKey !== 'ceo' ? 'today' : 'overview');
   const activeTab =
-    rawTab === 'intelligence' && mayViewBi
-      ? 'intelligence'
-      : rawTab === 'finance'
-        ? 'finance'
-        : 'overview';
+    rawTab === 'today' && isMdCockpit
+      ? 'today'
+      : rawTab === 'decide' && isMdCockpit
+        ? 'decide'
+        : rawTab === 'customers' && isMdCockpit
+          ? 'customers'
+          : rawTab === 'trace' && isMdCockpit
+            ? 'trace'
+            : rawTab === 'intelligence' && mayViewBi
+              ? 'intelligence'
+              : rawTab === 'finance'
+                ? 'finance'
+                : rawTab === 'overview'
+                  ? 'overview'
+                  : isMdCockpit && roleKey !== 'ceo'
+                    ? 'today'
+                    : 'overview';
 
   const setActiveTab = (tabId) => {
-    if (tabId === 'overview') {
+    if (tabId === 'overview' || (tabId === 'today' && !isMdCockpit)) {
       setSearchParams({});
+    } else if (tabId === 'today' && isMdCockpit) {
+      setSearchParams({ tab: 'today' });
     } else {
       setSearchParams({ tab: tabId });
     }
@@ -289,6 +322,75 @@ export default function ExecutiveCommandCentre() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  const loadCustomerIntel = useCallback(async () => {
+    setCustomerIntelBusy(true);
+    setCustomerIntelErr('');
+    const qs = new URLSearchParams({ periodKey });
+    if (canPickBranch && branchId && branchId !== 'ALL') qs.set('branchId', branchId);
+    else if (canPickBranch && branchId === 'ALL') qs.set('branchId', 'ALL');
+    const { ok, data: d } = await apiFetch(`/api/exec/customers?${qs.toString()}`);
+    setCustomerIntelBusy(false);
+    if (!ok || !d?.ok) {
+      setCustomerIntel(null);
+      setCustomerIntelErr(d?.error || 'Could not load customer intelligence.');
+      return;
+    }
+    setCustomerIntel(d);
+  }, [periodKey, branchId, canPickBranch]);
+
+  const loadTrace = useCallback(
+    async (shuffle = false) => {
+      setTraceBusy(true);
+      setTraceErr('');
+      const qs = new URLSearchParams();
+      if (canPickBranch && branchId && branchId !== 'ALL') qs.set('branchId', branchId);
+      else if (canPickBranch && branchId === 'ALL') qs.set('branchId', 'ALL');
+      if (shuffle) qs.set('shuffle', '1');
+      const { ok, data: d } = await apiFetch(`/api/exec/trace?${qs.toString()}`);
+      setTraceBusy(false);
+      if (!ok || !d?.ok) {
+        setTracePack(null);
+        setTraceErr(d?.error || 'Could not load MD trace.');
+        return;
+      }
+      setTracePack(d);
+    },
+    [branchId, canPickBranch]
+  );
+
+  useEffect(() => {
+    if (activeTab === 'customers' && isMdCockpit) void loadCustomerIntel();
+  }, [activeTab, isMdCockpit, loadCustomerIntel]);
+
+  useEffect(() => {
+    if (activeTab === 'trace' && isMdCockpit) void loadTrace(false);
+  }, [activeTab, isMdCockpit, loadTrace]);
+
+  const handleTraceOpenRef = useCallback(
+    (domain, docRef) => {
+      const ref = String(docRef || '').trim();
+      if (!ref) return;
+      if (domain === 'sales' || domain === 'collections' || domain === 'governance') {
+        navigate(`/sales?quotation=${encodeURIComponent(ref)}`);
+        return;
+      }
+      if (domain === 'procurement') {
+        navigate('/procurement');
+        return;
+      }
+      if (domain === 'operations') {
+        navigate('/operations');
+        return;
+      }
+      if (domain === 'finance') {
+        navigate('/accounts');
+        return;
+      }
+      showToast(`Reference: ${ref}`, { variant: 'info' });
+    },
+    [navigate, showToast]
+  );
 
   const loadOthersTrend = useCallback(async () => {
     const onFinance = activeTab === 'finance';
@@ -465,6 +567,8 @@ export default function ExecutiveCommandCentre() {
   const scopeNote = (data?.dataScopeNotes || [])[0]?.message;
 
   const visibleTabs = EXEC_TABS.filter((t) => {
+    if (t.mdOnly && !isMdCockpit) return false;
+    if (t.mdOnly && roleKey === 'ceo') return false;
     if (t.id === 'intelligence') return mayViewBi;
     return true;
   });
@@ -480,7 +584,9 @@ export default function ExecutiveCommandCentre() {
               </p>
               <h1 className="mt-2 text-2xl sm:text-3xl font-black tracking-tight">Command Centre</h1>
               <p className="mt-2 text-sm text-teal-50/85 max-w-2xl leading-relaxed">
-                Company performance, decisions, and intelligence for executive oversight.
+                {roleKey === 'md'
+                  ? 'Decisions, approvals, and company performance — act here without opening other departments.'
+                  : 'Company performance, decisions, and intelligence for executive oversight.'}
               </p>
               <div className="mt-4 flex flex-wrap items-center gap-2">
                 <span className="rounded-lg bg-white/15 px-3 py-1 text-[10px] font-black uppercase tracking-wider ring-1 ring-white/20">
@@ -603,8 +709,82 @@ export default function ExecutiveCommandCentre() {
         </p>
       ) : null}
 
+      {activeTab === 'today' && isMdCockpit ? (
+        <ExecTodayTab
+          data={data}
+          busy={busy}
+          readOnly={readOnly}
+          formatNgn={formatNgn}
+          filteredWorkTrayItems={filteredWorkTrayItems.filter((row) => !row.summaryOnly)}
+          onReview={handleWorkTrayAction}
+          onOpenDecide={() => setActiveTab('decide')}
+        />
+      ) : null}
+
+      {activeTab === 'decide' && isMdCockpit ? (
+        <ExecDecideTab
+          data={data}
+          busy={busy}
+          readOnly={readOnly}
+          formatNgn={formatNgn}
+          filteredWorkTrayItems={filteredWorkTrayItems.filter((row) => !row.summaryOnly)}
+          workTrayFilter={workTrayFilter}
+          onWorkTrayFilterChange={setWorkTrayFilter}
+          mdOnlyCount={workTrayMdOnlyCount}
+          sharedCount={workTraySharedCount}
+          onReview={handleWorkTrayAction}
+        />
+      ) : null}
+
+      {activeTab === 'customers' && isMdCockpit ? (
+        <ExecCustomersTab
+          data={customerIntel}
+          busy={customerIntelBusy}
+          err={customerIntelErr}
+          formatNgn={formatNgn}
+          segmentFilter={customerSegmentFilter}
+          onSegmentFilterChange={setCustomerSegmentFilter}
+          onReload={() => void loadCustomerIntel()}
+          onSelectCustomer={setSelectedCustomer}
+        />
+      ) : null}
+
+      {activeTab === 'trace' && isMdCockpit ? (
+        <ExecTraceTab
+          data={tracePack}
+          busy={traceBusy}
+          err={traceErr}
+          formatNgn={formatNgn}
+          onReload={() => void loadTrace(false)}
+          onShuffle={() => void loadTrace(true)}
+          onOpenRef={handleTraceOpenRef}
+        />
+      ) : null}
+
       {activeTab === 'overview' ? (
         <>
+      {isMdCockpit && roleKey !== 'ceo' ? (
+        <ExecMdReviewTab
+          data={data}
+          busy={busy}
+          readOnly={readOnly}
+          formatNgn={formatNgn}
+          branchScopeLabel={
+            branchId === 'ALL' || !branchId
+              ? 'Company-wide'
+              : BRANCH_OPTIONS.find((b) => b.id === branchId)?.label || branchId
+          }
+          payrollItems={workTrayItems.filter(
+            (row) => String(row.kind || '').toLowerCase() === 'payroll' && !row.summaryOnly
+          )}
+          onReview={handleWorkTrayAction}
+          onOpenDecide={() => setActiveTab('decide')}
+          onOpenCustomers={() => setActiveTab('customers')}
+          onOpenTrace={() => setActiveTab('trace')}
+          onOpenIntelligence={() => setActiveTab('intelligence')}
+        />
+      ) : null}
+
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5 mb-8">
         <KpiCard
           label="Sales This Period"
@@ -900,6 +1080,7 @@ export default function ExecutiveCommandCentre() {
           )}
         </Section>
 
+        {roleKey !== 'md' ? (
         <Section
           title="Executive Work Tray"
           subtitle={
@@ -1038,6 +1219,15 @@ export default function ExecutiveCommandCentre() {
             </table>
           </div>
         </Section>
+        ) : (
+          <p className="mb-6 rounded-xl border border-teal-200/80 bg-teal-50/40 px-4 py-3 text-sm text-[#134e4a]">
+            Approvals and reviews are on the{' '}
+            <button type="button" onClick={() => setActiveTab('decide')} className="font-bold underline">
+              Decide
+            </button>{' '}
+            tab — no need to open Sales, Finance, or HR separately.
+          </p>
+        )}
 
         <p className="text-[10px] text-slate-400 text-center pb-8">
           Generated {data?.generatedAtISO ? new Date(data.generatedAtISO).toLocaleString() : '—'}
@@ -1343,6 +1533,12 @@ export default function ExecutiveCommandCentre() {
         onClose={() => setReviewItem(null)}
         onCompleted={load}
         readOnly={readOnly}
+      />
+
+      <ExecCustomerSlideOver
+        customer={selectedCustomer}
+        isOpen={Boolean(selectedCustomer)}
+        onClose={() => setSelectedCustomer(null)}
       />
     </MainPanel>
   );

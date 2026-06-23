@@ -16,6 +16,13 @@ import { canApproveProductionGate, productionGateOverrideNoteValid } from '../..
 import { userMayApproveRefundRequests } from '../../lib/refundsStore';
 import { isExecutiveRoleKey, userMayWriteOffReceivableBadDebt } from '../../lib/workspaceGovernanceClient';
 import { RECEIVABLE_WRITEOFF_NOTE_MIN_LEN } from '../../lib/receivableWriteOffPolicy';
+import { StaffPurchaseCreditManagerPreview } from '../management/StaffPurchaseCreditManagerPreview';
+import { OfficeThreadConversationDrawer } from '../office/OfficeThreadConversationDrawer';
+import { decideStaffPurchaseCredit, fetchStaffPurchaseCredits } from '../../lib/hrStaffPurchaseCredit';
+import { canApproveStaffPurchaseCredit, canRejectStaffPurchaseCredit, canMdApprovePayroll } from '../../lib/hrAccess';
+import { mdApprovePayrollRun } from '../../lib/hrExtended';
+import { postStockRegisterWorkflow } from '../reports/stockRegister/stockRegisterApi';
+import { formatPeriodYyyymm } from '../../lib/hrPayroll';
 import { formatPersonName } from '../../lib/formatPersonName';
 
 /**
@@ -44,6 +51,15 @@ export function ExecutiveWorkItemReviewModal({ item, isOpen, onClose, onComplete
   const [loadingSettlement, setLoadingSettlement] = useState(false);
   const [settlementNote, setSettlementNote] = useState('');
   const [settlementActionError, setSettlementActionError] = useState('');
+  const [staffCreditRow, setStaffCreditRow] = useState(null);
+  const [loadingStaffCredit, setLoadingStaffCredit] = useState(false);
+  const [payrollTotals, setPayrollTotals] = useState(null);
+  const [loadingPayroll, setLoadingPayroll] = useState(false);
+  const [interBranchLoan, setInterBranchLoan] = useState(null);
+  const [loadingLoan, setLoadingLoan] = useState(false);
+  const [loanRejectNote, setLoanRejectNote] = useState('');
+  const [stockWorkflow, setStockWorkflow] = useState(null);
+  const [loadingStock, setLoadingStock] = useState(false);
 
   const review = useMemo(() => resolveExecReviewView(item), [item]);
   const ctx = useMemo(() => execWorkItemReviewContext(item), [item]);
@@ -55,6 +71,11 @@ export function ExecutiveWorkItemReviewModal({ item, isOpen, onClose, onComplete
   const canApproveProductionGateOverride = canApproveProductionGate(ws?.session?.user?.roleKey);
   const canWriteOffBadDebt = userMayWriteOffReceivableBadDebt(ws?.session?.user);
   const canApproveRefunds = userMayApproveRefundRequests(ws);
+  const canApproveStaffCredit = canApproveStaffPurchaseCredit(ws?.session?.user?.roleKey, ws?.permissions);
+  const canRejectStaffCredit = canRejectStaffPurchaseCredit(ws?.session?.user?.roleKey, ws?.permissions);
+  const canMdPayroll = canMdApprovePayroll(ws?.permissions);
+  const canMdInterBranch =
+    ws?.hasPermission?.('inter_branch_loan.md_approve') || ws?.hasPermission?.('*');
 
   const fetchAudit = useCallback(async (quoteId) => {
     const qid = String(quoteId || '').trim();
@@ -84,6 +105,11 @@ export function ExecutiveWorkItemReviewModal({ item, isOpen, onClose, onComplete
     setSettlementDetail(null);
     setSettlementNote('');
     setSettlementActionError('');
+    setStaffCreditRow(null);
+    setPayrollTotals(null);
+    setInterBranchLoan(null);
+    setLoanRejectNote('');
+    setStockWorkflow(null);
 
     if (review.view === 'register_settlement' && settlementId) {
       if (review.row?.settlementId || review.row?.amountNgn != null) {
@@ -126,7 +152,50 @@ export function ExecutiveWorkItemReviewModal({ item, isOpen, onClose, onComplete
         })();
       }
     }
-  }, [isOpen, item, review, settlementId, fetchAudit, fetchQuotation]);
+    if (review.view === 'staff_purchase_credit' && ctx.accountId) {
+      setLoadingStaffCredit(true);
+      void (async () => {
+        const { ok, data } = await fetchStaffPurchaseCredits({ status: 'pending_approval' });
+        setLoadingStaffCredit(false);
+        if (ok && data?.ok) {
+          const match = (data.items || []).find((i) => i.id === ctx.accountId);
+          if (match) setStaffCreditRow(match);
+          else if (ctx.row?.id) setStaffCreditRow(ctx.row);
+        } else if (ctx.row?.id) setStaffCreditRow(ctx.row);
+      })();
+    }
+    if (review.view === 'payroll' && review.payrollRunId) {
+      setLoadingPayroll(true);
+      void (async () => {
+        const { ok, data } = await apiFetch(
+          `/api/hr/payroll-runs/${encodeURIComponent(review.payrollRunId)}/totals`
+        );
+        setLoadingPayroll(false);
+        if (ok && data?.ok) setPayrollTotals(data.totals);
+      })();
+    }
+    if (review.view === 'inter_branch_loan' && review.loanId) {
+      setLoadingLoan(true);
+      void (async () => {
+        const { ok, data } = await apiFetch(
+          `/api/inter-branch-loans/${encodeURIComponent(review.loanId)}`
+        );
+        setLoadingLoan(false);
+        if (ok && data?.ok) setInterBranchLoan(data.loan);
+      })();
+    }
+    if (review.view === 'stock_register' && review.periodKey) {
+      setLoadingStock(true);
+      void (async () => {
+        const { ok, data } = await apiFetch(
+          `/api/stock-register/workflow?periodKey=${encodeURIComponent(review.periodKey)}`
+        );
+        setLoadingStock(false);
+        if (ok && data?.ok) setStockWorkflow(data.workflow || data);
+        else setStockWorkflow({ status: review.row?.status || 'unknown' });
+      })();
+    }
+  }, [isOpen, item, review, settlementId, fetchAudit, fetchQuotation, ctx]);
 
   const finish = useCallback(async () => {
     if (typeof onCompleted === 'function') await onCompleted();
@@ -386,14 +455,126 @@ export function ExecutiveWorkItemReviewModal({ item, isOpen, onClose, onComplete
     await finish();
   };
 
+  const handleStaffCreditDecision = async (decision, note = '') => {
+    const id = ctx.accountId;
+    if (!id || readOnly) return;
+    if (decision === 'reject' && String(note || '').trim().length < 3) {
+      showToast('Rejection reason is required (at least 3 characters).', { variant: 'error' });
+      return;
+    }
+    setBusy(true);
+    const { ok, data: resp } = await decideStaffPurchaseCredit(id, decision, {
+      note:
+        decision === 'approve'
+          ? String(note || '').trim() || 'Approved by MD (Command Centre)'
+          : String(note || '').trim(),
+    });
+    setBusy(false);
+    if (!ok || !resp?.ok) {
+      showToast(resp?.error || 'Action failed.', { variant: 'error' });
+      return;
+    }
+    showToast(decision === 'approve' ? 'Staff purchase credit approved.' : 'Staff purchase credit rejected.', {
+      variant: 'success',
+    });
+    await ws?.refresh?.();
+    await ws?.refreshStaffPurchaseCreditPending?.();
+    await finish();
+  };
+
+  const handlePayrollMdApprove = async () => {
+    const runId = review.payrollRunId;
+    if (!runId || readOnly || !canMdPayroll) return;
+    setBusy(true);
+    const { ok, data } = await mdApprovePayrollRun(runId);
+    setBusy(false);
+    if (!ok || !data?.ok) {
+      showToast(data?.error || 'Could not sign off payroll.', { variant: 'error' });
+      return;
+    }
+    showToast('Payroll MD sign-off recorded.', { variant: 'success' });
+    await ws?.refresh?.();
+    await finish();
+  };
+
+  const handleInterBranchMdApprove = async () => {
+    const loanId = review.loanId;
+    if (!loanId || readOnly || !canMdInterBranch) return;
+    setBusy(true);
+    const { ok, data } = await apiFetch(
+      `/api/inter-branch-loans/${encodeURIComponent(loanId)}/md-approve`,
+      { method: 'POST', body: JSON.stringify({}) }
+    );
+    setBusy(false);
+    if (!ok || !data?.ok) {
+      showToast(data?.error || 'Approval failed.', { variant: 'error' });
+      return;
+    }
+    showToast('Inter-branch loan approved.', { variant: 'success' });
+    await ws?.refresh?.();
+    await finish();
+  };
+
+  const handleInterBranchMdReject = async () => {
+    const loanId = review.loanId;
+    if (!loanId || readOnly || !canMdInterBranch) return;
+    const note = loanRejectNote.trim();
+    if (note.length < 3) {
+      showToast('Rejection note required (at least 3 characters).', { variant: 'error' });
+      return;
+    }
+    setBusy(true);
+    const { ok, data } = await apiFetch(
+      `/api/inter-branch-loans/${encodeURIComponent(loanId)}/md-reject`,
+      { method: 'POST', body: JSON.stringify({ note }) }
+    );
+    setBusy(false);
+    if (!ok || !data?.ok) {
+      showToast(data?.error || 'Rejection failed.', { variant: 'error' });
+      return;
+    }
+    showToast('Inter-branch loan rejected.', { variant: 'success' });
+    await ws?.refresh?.();
+    await finish();
+  };
+
+  const handleStockRegisterMdApprove = async () => {
+    const periodKey = review.periodKey;
+    if (!periodKey || readOnly) return;
+    const branchHint = review.branchIdForRegister;
+    if (ws?.viewAllBranches) {
+      showToast(
+        `Switch workspace to branch ${branchHint || 'for this register'} before MD approval.`,
+        { variant: 'info' }
+      );
+      return;
+    }
+    setBusy(true);
+    const { ok, data } = await postStockRegisterWorkflow({ action: 'md_approve', periodKey });
+    setBusy(false);
+    if (!ok || !data?.ok) {
+      showToast(data?.error || 'MD stock register approval failed.', { variant: 'error' });
+      return;
+    }
+    showToast('Stock register MD approval recorded.', { variant: 'success' });
+    await ws?.refresh?.();
+    await finish();
+  };
+
   if (!item) return null;
 
   const kindLabel = String(item.kind || 'review').replace(/_/g, ' ');
   const reasons = ctx.reasons;
+  const isOfficeMemo = review.view === 'office_memo';
 
   return (
     <ModalFrame isOpen={isOpen} onClose={onClose} surface="plain" title={`Executive review — ${kindLabel}`}>
-      <div className="z-modal-panel flex max-h-[min(92vh,880px)] w-full max-w-[min(100%,720px)] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl">
+      <div
+        className={`z-modal-panel flex max-h-[min(92vh,880px)] w-full flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl ${
+          isOfficeMemo ? 'max-w-[min(100%,960px)]' : 'max-w-[min(100%,720px)]'
+        }`}
+      >
+        {!isOfficeMemo ? (
         <div className="flex items-start justify-between gap-3 border-b border-slate-100 px-5 py-4">
           <div className="min-w-0">
             <p className="text-[10px] font-black uppercase tracking-widest text-[#134e4a]">{kindLabel}</p>
@@ -420,8 +601,38 @@ export function ExecutiveWorkItemReviewModal({ item, isOpen, onClose, onComplete
             <X size={18} />
           </button>
         </div>
+        ) : (
+        <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-5 py-3">
+          <div className="min-w-0">
+            <p className="text-[10px] font-black uppercase tracking-widest text-[#134e4a]">Office memo</p>
+            <h2 className="text-base font-bold text-slate-900 truncate">{item.title || 'Memo'}</h2>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="shrink-0 rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+            aria-label="Close"
+          >
+            <X size={18} />
+          </button>
+        </div>
+        )}
 
-        <div className="flex-1 overflow-y-auto p-5 custom-scrollbar space-y-4">
+        <div className={`flex-1 overflow-y-auto custom-scrollbar ${isOfficeMemo ? 'min-h-[420px]' : 'p-5 space-y-4'}`}>
+          {review.view === 'office_memo' && review.threadId ? (
+            <OfficeThreadConversationDrawer
+              variant="inline"
+              isOpen={isOpen}
+              threadId={review.threadId}
+              onDismiss={() => {
+                void onCompleted?.();
+                onClose();
+              }}
+            />
+          ) : null}
+
+          {!isOfficeMemo ? (
+          <>
           {review.view === 'price_exception' && review.quotationId ? (
             <>
               <QuotationPriceExceptionPanel
@@ -737,15 +948,138 @@ export function ExecutiveWorkItemReviewModal({ item, isOpen, onClose, onComplete
             </div>
           ) : null}
 
+          {review.view === 'staff_purchase_credit' ? (
+            loadingStaffCredit && !staffCreditRow ? (
+              <p className="text-[11px] text-slate-500">Loading staff purchase credit…</p>
+            ) : (
+              <StaffPurchaseCreditManagerPreview
+                row={staffCreditRow || review.row}
+                formatNgn={formatNgn}
+                canApprove={!readOnly && canApproveStaffCredit}
+                canReject={!readOnly && canRejectStaffCredit}
+                busy={busy}
+                onApprove={() => void handleStaffCreditDecision('approve')}
+                onReject={(note) => void handleStaffCreditDecision('reject', note)}
+              />
+            )
+          ) : null}
+
+          {review.view === 'payroll' ? (
+            <div className="space-y-4 rounded-xl border border-amber-200 bg-amber-50/60 p-4">
+              <p className="text-[10px] font-black uppercase text-amber-950">Payroll MD sign-off</p>
+              <p className="font-mono text-sm font-bold">{review.payrollRunId}</p>
+              <p className="text-[11px] text-amber-950/90">
+                Period {formatPeriodYyyymm(review.row?.period_yyyymm || review.row?.periodYyyymm || review.payrollRunId)}
+              </p>
+              {loadingPayroll ? (
+                <p className="text-[11px] text-slate-500">Loading payroll totals…</p>
+              ) : payrollTotals ? (
+                <p className="text-2xl font-black text-[#134e4a] tabular-nums">
+                  {formatNgn(payrollTotals.netPayNgn ?? payrollTotals.totalNetNgn ?? payrollTotals.grandTotalNgn ?? 0)}
+                </p>
+              ) : null}
+              {!readOnly && canMdPayroll ? (
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => void handlePayrollMdApprove()}
+                  className="rounded-lg bg-[#134e4a] px-4 py-2.5 text-[10px] font-black uppercase text-white hover:bg-[#0f3d39] disabled:opacity-40"
+                >
+                  Sign off payroll
+                </button>
+              ) : null}
+            </div>
+          ) : null}
+
+          {review.view === 'inter_branch_loan' ? (
+            <div className="space-y-4 rounded-xl border border-sky-200 bg-sky-50/60 p-4">
+              <p className="text-[10px] font-black uppercase text-sky-950">Inter-branch loan</p>
+              <p className="font-mono text-sm font-bold">{review.loanId}</p>
+              {loadingLoan ? (
+                <p className="text-[11px] text-slate-500">Loading loan…</p>
+              ) : interBranchLoan ? (
+                <>
+                  <p className="text-2xl font-black text-[#134e4a] tabular-nums">
+                    {formatNgn(interBranchLoan.principalNgn ?? item.amountNgn)}
+                  </p>
+                  <p className="text-[11px] text-slate-700">{interBranchLoan.purpose || review.row?.purpose || '—'}</p>
+                </>
+              ) : null}
+              {!readOnly && canMdInterBranch ? (
+                <div className="space-y-3 border-t border-sky-200/80 pt-3">
+                  <textarea
+                    value={loanRejectNote}
+                    onChange={(e) => setLoanRejectNote(e.target.value)}
+                    rows={2}
+                    placeholder="Rejection note (required to reject)"
+                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-[11px] outline-none focus:ring-2 focus:ring-sky-300/50"
+                  />
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => void handleInterBranchMdApprove()}
+                      className="rounded-lg bg-emerald-600 px-3 py-2.5 text-[10px] font-black uppercase text-white hover:bg-emerald-500 disabled:opacity-40"
+                    >
+                      Approve
+                    </button>
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => void handleInterBranchMdReject()}
+                      className="rounded-lg bg-rose-600 px-3 py-2.5 text-[10px] font-black uppercase text-white hover:bg-rose-500 disabled:opacity-40"
+                    >
+                      Reject
+                    </button>
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+
+          {review.view === 'stock_register' ? (
+            <div className="space-y-4 rounded-xl border border-teal-200 bg-teal-50/40 p-4">
+              <p className="text-[10px] font-black uppercase text-teal-900">Month-end stock register</p>
+              <p className="text-sm font-bold text-[#134e4a]">
+                {review.branchIdForRegister || item.branchName} · {review.periodKey}
+              </p>
+              {ws?.viewAllBranches ? (
+                <p className="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                  Switch workspace from <strong>All branches</strong> to{' '}
+                  <strong>{review.branchIdForRegister || 'this branch'}</strong> in the branch bar, then approve.
+                </p>
+              ) : null}
+              {loadingStock ? (
+                <p className="text-[11px] text-slate-500">Loading register workflow…</p>
+              ) : (
+                <p className="text-[11px] text-slate-700">
+                  Status: {String(stockWorkflow?.status || '—').replace(/_/g, ' ')}
+                </p>
+              )}
+              {!readOnly && item.canAct !== false ? (
+                <button
+                  type="button"
+                  disabled={busy || ws?.viewAllBranches || stockWorkflow?.status !== 'procurement_costed'}
+                  onClick={() => void handleStockRegisterMdApprove()}
+                  className="rounded-lg bg-[#134e4a] px-4 py-2.5 text-[10px] font-black uppercase text-white hover:bg-[#0f3d39] disabled:opacity-40"
+                >
+                  MD approve register
+                </button>
+              ) : null}
+            </div>
+          ) : null}
+
           {review.view === 'fallback' ? (
             <p className="text-[11px] text-slate-600">
               Open the linked module to complete this review.
             </p>
           ) : null}
+          </>
+          ) : null}
         </div>
 
         <div className="border-t border-slate-100 px-5 py-3 flex justify-end gap-2">
-          {review.view === 'fallback' && item.route ? (
+          {!isOfficeMemo && review.view === 'fallback' && item.route ? (
             <a
               href={item.route}
               className="rounded-lg border border-[#134e4a]/30 bg-[#134e4a]/5 px-4 py-2 text-[10px] font-black uppercase text-[#134e4a] hover:bg-[#134e4a]/10"

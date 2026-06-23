@@ -14,5 +14,14 @@
       "type": "image/png",
       "purpose": "any"
     }
+  ],
+  "shortcuts": [
+    {
+      "name": "MD Decide",
+      "short_name": "Decide",
+      "description": "Mobile approve queue for Managing Director",
+      "url": "/exec/m",
+      "icons": [{ "src": "/zarewa-logo.png", "sizes": "192x192", "type": "image/png" }]
+    }
   ]
 }

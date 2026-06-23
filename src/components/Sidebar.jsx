@@ -20,6 +20,7 @@ import {
   Users,
   UserCircle,
   Calculator,
+  Smartphone,
 } from 'lucide-react';
 import { useWorkspace } from '../context/WorkspaceContext';
 import { userMayViewManagementReportsClient } from '../lib/reportsAccess';
@@ -78,17 +79,26 @@ const Sidebar = ({ mobileOpen = false, onCloseMobile, collapsed = false, onToggl
       icon: <ShieldCheck size={18} />,
       label: 'Management',
       path: '/manager',
-      visible: ['sales_manager', 'branch_manager', 'admin', 'md'].includes(ws?.session?.user?.roleKey),
+      visible: ['sales_manager', 'branch_manager', 'admin'].includes(ws?.session?.user?.roleKey),
       badgeCount: staffCreditPending,
     },
     {
       icon: <LayoutDashboard size={18} />,
-      label: 'Command Centre',
+      label: roleKey === 'md' ? 'MD Office' : 'Command Centre',
       path: '/exec',
-      active: pathMatches(p, '/exec'),
+      active: pathMatches(p, '/exec') && !pathMatches(p, '/exec/m'),
       visible:
         ws?.hasPermission?.('exec.dashboard.view') &&
         roleKey !== 'ceo' &&
+        ['md', 'admin'].includes(roleKey),
+    },
+    {
+      icon: <Smartphone size={18} />,
+      label: 'Mobile Decide',
+      path: '/exec/m',
+      active: pathMatches(p, '/exec/m'),
+      visible:
+        ws?.hasPermission?.('exec.dashboard.view') &&
         ['md', 'admin'].includes(roleKey),
     },
     { icon: <Home size={18} />, label: 'Workspace', path: '/', badgeCount: staffCreditPending },

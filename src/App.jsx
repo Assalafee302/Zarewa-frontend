@@ -70,6 +70,11 @@ const ExecutiveCommandCentre = lazyWithRetry(
   { id: 'ExecutiveCommandCentre' }
 );
 
+const ExecMobileDecidePage = lazyWithRetry(
+  () => import('./pages/ExecMobileDecidePage.jsx'),
+  { id: 'ExecMobileDecidePage' }
+);
+
 const AiAssistantDock = lazyWithRetry(
   () =>
     import('./components/AiAssistantDock.jsx').then((m) => ({ default: m.AiAssistantDock })),
@@ -970,6 +975,7 @@ function AppShell() {
             <Route path="/" element={<HomeRoute />} />
             <Route path="/workspace/monitoring" element={<WorkspaceMonitoring />} />
             <Route path="/exec" element={<ExecutiveCommandCentre />} />
+            <Route path="/exec/m" element={<ExecMobileDecidePage />} />
             <Route path="/price-list" element={<PriceListAdmin />} />
             <Route path="/pricing-policy" element={<PricingPolicyAdmin />} />
             <Route
