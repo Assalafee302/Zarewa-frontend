@@ -38,6 +38,9 @@ export async function probeDegradedApiHealth(fetchImpl = fetch, urlFn = (p) => p
   }
   return null;
 }
+
+/** @param {unknown} err */
+export function formatBootstrapNetworkError(err) {
   const msg = String(/** @type {{ message?: string }} */ (err)?.message || err || '');
   if (msg === 'Failed to fetch' || /network/i.test(msg)) {
     return (
