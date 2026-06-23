@@ -7,6 +7,7 @@ import { PageShell, MainPanel, PageHeader } from '../components/layout';
 import { useToast } from '../context/ToastContext';
 
 import { useWorkspace } from '../context/WorkspaceContext';
+import { useWorkspaceDomain } from '../hooks/useWorkspaceDomain';
 
 import { DOCUMENT_TITLE_BASE } from '../lib/documentTitle';
 
@@ -132,6 +133,7 @@ export default function AccountingDesk() {
   const { show: showToast } = useToast();
 
   const ws = useWorkspace();
+  useWorkspaceDomain('finance');
 
   const location = useLocation();
 
@@ -257,8 +259,9 @@ export default function AccountingDesk() {
   const requestDeskRefresh = useCallback(() => {
     invalidateAllAccountingDeskCache();
     setDeskRefresh((n) => n + 1);
+    void ws?.ensureDomainLoaded?.('finance', { force: true });
     loadOpeningStatus();
-  }, [loadOpeningStatus]);
+  }, [loadOpeningStatus, ws]);
 
 
 

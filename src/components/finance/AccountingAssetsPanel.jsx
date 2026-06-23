@@ -208,10 +208,6 @@ export function AccountingAssetsPanel({
     if (enabled) loadDepPreview();
   }, [enabled, loadDepPreview]);
 
-  useEffect(() => {
-    if (deskRefresh > 0) reload();
-  }, [deskRefresh, reload]);
-
   const postDepreciation = async () => {
     setDepBusy(true);
     const res = await apiFetch('/api/finance/depreciation/post', {
