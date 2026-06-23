@@ -26,6 +26,7 @@ import {
  * @param {{ category: string, reason?: string, onApply?: () => void } | null} [props.categoryRecommendation]
  * @param {{ roleKey?: string; permissions?: string[] } | null | undefined} [props.actor]
  * @param {(perm: string) => boolean} [props.hasPermission]
+ * @param {boolean} [props.scrollable] sticky footer + scrollable body (modal layouts)
  */
 export function ExpenseRequestFormFields({
   form,
@@ -40,6 +41,7 @@ export function ExpenseRequestFormFields({
   categoryRecommendation = null,
   actor = null,
   hasPermission = () => false,
+  scrollable = false,
 }) {
   const ws = useWorkspace();
   const othersMinJustificationLen = resolveExpenseCategoryPolicyLimits(
@@ -67,8 +69,12 @@ export function ExpenseRequestFormFields({
     };
   }, [categoryRecommendation, form.expenseCategory, memoSuggestion, setForm]);
 
-  return (
-    <form className="space-y-4" onSubmit={onSubmit}>
+  const requestTotalNgn = form.lines.reduce((s, row) => s + expenseRequestLineTotal(row), 0);
+
+  const fields = (
+    <>
+      <div className="rounded-xl border border-slate-200/70 bg-slate-50/50 p-4 space-y-4">
+        <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">Request details</p>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label className="text-[10px] font-bold text-gray-400 uppercase ml-1 block mb-1">Request date</label>
@@ -132,8 +138,9 @@ export function ExpenseRequestFormFields({
           />
         ) : null}
       </div>
-      <div>
-        <div className="flex items-center justify-between gap-2 mb-2">
+      </div>
+      <div className="rounded-xl border border-slate-200/70 bg-white p-4 space-y-3">
+        <div className="flex items-center justify-between gap-2">
           <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">Line items</label>
           <button
             type="button"
@@ -143,8 +150,8 @@ export function ExpenseRequestFormFields({
             <Plus size={12} /> Add item
           </button>
         </div>
-        <div className="rounded-xl border border-slate-200/80 overflow-hidden">
-          <div className="hidden sm:grid grid-cols-[1fr_72px_100px_96px_40px] gap-2 px-3 py-2 bg-slate-50 text-[9px] font-black uppercase tracking-wide text-slate-500">
+        <div className="rounded-xl border border-slate-200/80 overflow-hidden max-h-[min(42vh,320px)] overflow-y-auto overscroll-contain">
+          <div className="hidden sm:grid grid-cols-[1fr_72px_100px_96px_40px] gap-2 px-3 py-2 bg-slate-50 text-[9px] font-black uppercase tracking-wide text-slate-500 sticky top-0 z-[1]">
             <span>Item</span>
             <span className="text-center">Unit</span>
             <span className="text-right">Unit price</span>
@@ -219,14 +226,12 @@ export function ExpenseRequestFormFields({
             ))}
           </ul>
         </div>
-        <p className="text-[10px] text-slate-500 mt-2">
+        <p className="text-[10px] text-slate-500">
           Total requested:{' '}
-          <span className="font-black text-[#134e4a] tabular-nums">
-            {formatNgn(form.lines.reduce((s, row) => s + expenseRequestLineTotal(row), 0))}
-          </span>
+          <span className="font-black text-[#134e4a] tabular-nums">{formatNgn(requestTotalNgn)}</span>
         </p>
       </div>
-      <div>
+      <div className="rounded-xl border border-slate-200/70 bg-slate-50/40 p-4">
         <label className="text-[10px] font-bold text-gray-400 uppercase ml-1 block mb-1">
           <span className="inline-flex items-center gap-1">
             <Paperclip size={12} className="opacity-60" />
@@ -285,12 +290,41 @@ export function ExpenseRequestFormFields({
           <p className="text-[10px] text-gray-400 mt-1">PDF or image. Optional but recommended.</p>
         )}
       </div>
-      {hintBeforeSubmit ? (
-        <p className="text-[10px] text-gray-400">{hintBeforeSubmit}</p>
-      ) : null}
-      <button type="submit" disabled={submitting} className="z-btn-primary w-full justify-center py-3 disabled:opacity-60 disabled:pointer-events-none">
+    </>
+  );
+
+  const footer = (
+    <>
+      {hintBeforeSubmit ? <p className="text-[10px] text-slate-500 leading-snug">{hintBeforeSubmit}</p> : null}
+      <button
+        type="submit"
+        disabled={submitting}
+        className="z-btn-primary w-full justify-center py-3 disabled:opacity-60 disabled:pointer-events-none"
+      >
         {submitting ? 'Submitting…' : submitLabel}
       </button>
+    </>
+  );
+
+  if (scrollable) {
+    return (
+      <form className="flex min-h-0 flex-1 flex-col" onSubmit={onSubmit}>
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain pr-1 -mr-1">{fields}</div>
+        <div className="mt-4 shrink-0 space-y-3 border-t border-slate-200/80 bg-white/95 pt-4 backdrop-blur-sm">
+          <div className="flex items-center justify-between gap-3 rounded-lg bg-teal-50/80 px-3 py-2">
+            <span className="text-[10px] font-bold uppercase tracking-wide text-teal-900/80">Total</span>
+            <span className="text-sm font-black tabular-nums text-[#134e4a]">{formatNgn(requestTotalNgn)}</span>
+          </div>
+          {footer}
+        </div>
+      </form>
+    );
+  }
+
+  return (
+    <form className="space-y-4" onSubmit={onSubmit}>
+      {fields}
+      {footer}
     </form>
   );
 }
