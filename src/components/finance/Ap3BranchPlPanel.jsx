@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { RefreshCw } from 'lucide-react';
 import { formatNgn } from '../../Data/mockData';
 import { downloadFinanceCsv } from '../../lib/exportFinanceCsv';
@@ -39,13 +39,17 @@ export function Ap3BranchPlPanel({
   const setPeriod = periodKeyProp ? () => {} : setPeriodLocal;
   const [branchId, setBranchId] = useState(initialBranchId || 'ALL');
   const { data, loading, error, load } = useAp3BranchPl({ enabled });
+  const lastRefreshRef = useRef(-1);
   const filters = useMemo(
     () => ({ branchId: branchId === 'ALL' ? 'ALL' : branchId, period }),
     [branchId, period]
   );
 
   useEffect(() => {
-    if (autoLoad && enabled) void load(filters);
+    if (!autoLoad || !enabled) return;
+    const force = deskRefresh !== lastRefreshRef.current;
+    lastRefreshRef.current = deskRefresh;
+    void load(filters, force);
   }, [autoLoad, enabled, filters, load, deskRefresh]);
 
   const exportCsv = () => {

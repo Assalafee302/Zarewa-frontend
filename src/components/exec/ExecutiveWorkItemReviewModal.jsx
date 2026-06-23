@@ -18,7 +18,7 @@ import { isExecutiveRoleKey, userMayWriteOffReceivableBadDebt } from '../../lib/
 import { RECEIVABLE_WRITEOFF_NOTE_MIN_LEN } from '../../lib/receivableWriteOffPolicy';
 import { StaffPurchaseCreditManagerPreview } from '../management/StaffPurchaseCreditManagerPreview';
 import { OfficeThreadConversationDrawer } from '../office/OfficeThreadConversationDrawer';
-import { decideStaffPurchaseCredit, fetchStaffPurchaseCredits } from '../../lib/hrStaffPurchaseCredit';
+import { decideStaffPurchaseCredit } from '../../lib/hrStaffPurchaseCredit';
 import { canApproveStaffPurchaseCredit, canRejectStaffPurchaseCredit, canMdApprovePayroll } from '../../lib/hrAccess';
 import { mdApprovePayrollRun } from '../../lib/hrExtended';
 import { postStockRegisterWorkflow } from '../reports/stockRegister/stockRegisterApi';
@@ -112,25 +112,28 @@ export function ExecutiveWorkItemReviewModal({ item, isOpen, onClose, onComplete
     setStockWorkflow(null);
 
     if (review.view === 'register_settlement' && settlementId) {
-      if (review.row?.settlementId || review.row?.amountNgn != null) {
+      const hasSettlementPreview =
+        review.row &&
+        (review.row.amountNgn != null || review.row.amount_ngn != null || review.row.purpose);
+      if (hasSettlementPreview) {
         setSettlementDetail(review.row);
+      } else {
+        setLoadingSettlement(true);
+        void (async () => {
+          try {
+            const { ok, data } = await apiFetch(
+              `/api/accounting/settlements/${encodeURIComponent(settlementId)}`
+            );
+            if (ok && data?.settlement) setSettlementDetail(data.settlement);
+            else if (review.row?.settlementId) setSettlementDetail(review.row);
+          } finally {
+            setLoadingSettlement(false);
+          }
+        })();
       }
-      setLoadingSettlement(true);
-      void (async () => {
-        try {
-          const { ok, data } = await apiFetch(
-            `/api/accounting/settlements/${encodeURIComponent(settlementId)}`
-          );
-          if (ok && data?.settlement) setSettlementDetail(data.settlement);
-          else if (review.row?.settlementId) setSettlementDetail(review.row);
-        } finally {
-          setLoadingSettlement(false);
-        }
-      })();
     }
     if (review.view === 'price_exception' && review.quotationId) {
-      void fetchQuotation(review.quotationId);
-      void fetchAudit(review.quotationId);
+      void Promise.all([fetchQuotation(review.quotationId), fetchAudit(review.quotationId)]);
     }
     if (review.view === 'quotation' && review.quotationId) {
       void fetchAudit(review.quotationId);
@@ -140,29 +143,23 @@ export function ExecutiveWorkItemReviewModal({ item, isOpen, onClose, onComplete
     }
     if (review.view === 'refund') {
       const qref = String(review.row?.quotation_ref || '').trim();
-      if (qref) void fetchAudit(qref);
+      const auditPromise = qref ? fetchAudit(qref) : Promise.resolve();
       if (qref) {
         setLoadingRefundIntel(true);
-        void (async () => {
-          const { ok, data } = await apiFetch(
-            `/api/refunds/intelligence?quotationRef=${encodeURIComponent(qref)}`
-          );
-          setLoadingRefundIntel(false);
-          if (ok && data && data.ok !== false) setRefundIntelExtras(data);
-        })();
+        void Promise.all([
+          auditPromise,
+          apiFetch(`/api/refunds/intelligence?quotationRef=${encodeURIComponent(qref)}`).then(({ ok, data }) => {
+            if (ok && data && data.ok !== false) setRefundIntelExtras(data);
+          }),
+        ]).finally(() => setLoadingRefundIntel(false));
       }
     }
-    if (review.view === 'staff_purchase_credit' && ctx.accountId) {
-      setLoadingStaffCredit(true);
-      void (async () => {
-        const { ok, data } = await fetchStaffPurchaseCredits({ status: 'pending_approval' });
-        setLoadingStaffCredit(false);
-        if (ok && data?.ok) {
-          const match = (data.items || []).find((i) => i.id === ctx.accountId);
-          if (match) setStaffCreditRow(match);
-          else if (ctx.row?.id) setStaffCreditRow(ctx.row);
-        } else if (ctx.row?.id) setStaffCreditRow(ctx.row);
-      })();
+    if (review.view === 'staff_purchase_credit') {
+      if (ctx.row?.id) {
+        setStaffCreditRow(ctx.row);
+      } else if (ctx.accountId) {
+        setStaffCreditRow({ id: ctx.accountId, ...ctx.row });
+      }
     }
     if (review.view === 'payroll' && review.payrollRunId) {
       setLoadingPayroll(true);

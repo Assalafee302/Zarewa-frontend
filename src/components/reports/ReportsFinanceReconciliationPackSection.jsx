@@ -1,7 +1,12 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { RefreshCw, Scale } from 'lucide-react';
 import { apiFetch } from '../../lib/apiBase';
 import { formatNgn } from '../../Data/mockData';
+import {
+  getAccountingDeskCache,
+  invalidateAccountingDeskCache,
+  setAccountingDeskCache,
+} from '../../lib/accountingDeskCache';
 import { ProcurementFormSection } from '../procurement/ProcurementFormSection';
 import { AccountingRegisterHeader } from '../finance/accounting/AccountingRegisterLayout';
 import {
@@ -19,7 +24,7 @@ function defaultPeriodFromEndDate(endDate) {
 
 /**
  * Phase A1 — operational cash tie-out (receipt confirmation basis). Not statutory reconciliation.
- * @param {{ endDate?: string; hasFinanceView?: boolean; showToast?: Function; branchScopeLabel?: string; deskLayout?: boolean }} props
+ * @param {{ endDate?: string; hasFinanceView?: boolean; showToast?: Function; branchScopeLabel?: string; deskLayout?: boolean; deskRefresh?: number }} props
  */
 export function ReportsFinanceReconciliationPackSection({
   endDate,
@@ -27,11 +32,13 @@ export function ReportsFinanceReconciliationPackSection({
   showToast,
   branchScopeLabel,
   deskLayout = false,
+  deskRefresh = 0,
 }) {
   const [period, setPeriod] = useState(() => defaultPeriodFromEndDate(endDate));
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(deskLayout);
   const [data, setData] = useState(null);
+  const lastRefreshRef = useRef(-1);
 
   useEffect(() => {
     setPeriod((prev) => {
@@ -40,31 +47,47 @@ export function ReportsFinanceReconciliationPackSection({
     });
   }, [endDate]);
 
-  const load = useCallback(async () => {
-    if (!hasFinanceView) return;
-    if (!/^\d{4}-\d{2}$/.test(period)) {
-      showToast('Choose a valid month (YYYY-MM).', { variant: 'error' });
-      return;
-    }
-    setLoading(true);
-    try {
-      const res = await apiFetch(`/api/finance/reconciliation-pack?period=${encodeURIComponent(period)}`);
-      if (!res.ok || !res.data?.ok) {
-        showToast(res.data?.error || 'Could not load reconciliation pack.', { variant: 'error' });
-        setData(null);
+  const load = useCallback(
+    async (force = false) => {
+      if (!hasFinanceView) return;
+      if (!/^\d{4}-\d{2}$/.test(period)) {
+        showToast('Choose a valid month (YYYY-MM).', { variant: 'error' });
         return;
       }
-      setData(res.data);
-    } finally {
-      setLoading(false);
-    }
-  }, [hasFinanceView, period, showToast]);
+      const cacheKey = `reconciliation|${period}`;
+      if (!force) {
+        const cached = getAccountingDeskCache(cacheKey);
+        if (cached) {
+          setData(cached);
+          setLoading(false);
+          return;
+        }
+      } else {
+        invalidateAccountingDeskCache(cacheKey);
+      }
+      setLoading(true);
+      try {
+        const res = await apiFetch(`/api/finance/reconciliation-pack?period=${encodeURIComponent(period)}`);
+        if (!res.ok || !res.data?.ok) {
+          showToast(res.data?.error || 'Could not load reconciliation pack.', { variant: 'error' });
+          setData(null);
+          return;
+        }
+        setAccountingDeskCache(cacheKey, res.data);
+        setData(res.data);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [hasFinanceView, period, showToast]
+  );
 
   useEffect(() => {
-    if ((open || deskLayout) && hasFinanceView && !data && !loading) {
-      void load();
-    }
-  }, [open, deskLayout, hasFinanceView, data, loading, load]);
+    if (!(open || deskLayout) || !hasFinanceView) return;
+    const force = deskRefresh !== lastRefreshRef.current;
+    lastRefreshRef.current = deskRefresh;
+    if (force || !data) void load(force);
+  }, [open, deskLayout, hasFinanceView, data, load, deskRefresh]);
 
   const pack = data?.pack;
   const cashRows = data?.cashFlowSummary?.rows || [];

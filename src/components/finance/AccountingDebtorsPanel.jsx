@@ -17,7 +17,7 @@ export function AccountingDebtorsPanel({
   onFocusTab,
 }) {
   const [subTab, setSubTab] = useState('register');
-  const { data, loading, error, reload } = useAccountingDebtors({ branchId, enabled });
+  const { data, loading, error, reload } = useAccountingDebtors({ branchId, enabled, deskRefresh });
   const legacyQuickAdd = registerConfigFor('debtor').legacyQuickAdd;
 
   return (

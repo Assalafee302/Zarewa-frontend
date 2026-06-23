@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
 import { formatNgn } from '../../Data/mockData';
@@ -69,13 +69,17 @@ export function Ap3CostingReadinessPanel({
   const [colour, setColour] = useState('');
 
   const { data, loading, error, load } = useAp3CostingReadiness({ enabled });
+  const lastRefreshRef = useRef(-1);
   const filters = useMemo(
     () => buildCostingReadinessFilters({ branchId, period, materialFamily, gauge, colour }),
     [branchId, period, materialFamily, gauge, colour]
   );
 
   useEffect(() => {
-    if (autoLoad && enabled) void load(filters);
+    if (!autoLoad || !enabled) return;
+    const force = deskRefresh !== lastRefreshRef.current;
+    lastRefreshRef.current = deskRefresh;
+    void load(filters, force);
   }, [autoLoad, enabled, filters, load, deskRefresh]);
 
   const s = data?.summary;

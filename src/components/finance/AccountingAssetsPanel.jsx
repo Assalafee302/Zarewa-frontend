@@ -85,7 +85,7 @@ export function AccountingAssetsPanel({
     () => treasuryAccountsForWorkspace(ws?.snapshot, ws?.session),
     [ws?.snapshot, ws?.session]
   );
-  const { data, loading, error, reload } = useAccountingAssets({ branchId, enabled });
+  const { data, loading, error, reload } = useAccountingAssets({ branchId, enabled, deskRefresh });
   const workspaceLockedBranch = branchId && branchId !== 'ALL' ? String(branchId).trim() : '';
   const canAddAsset = canManage && Boolean(workspaceLockedBranch);
   const mutations = useAccountingRegisterMutations({ onDone: reload });

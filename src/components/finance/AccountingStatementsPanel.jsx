@@ -1,9 +1,14 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { RefreshCw, Download, Printer } from 'lucide-react';
 import { apiFetch } from '../../lib/apiBase';
 import { formatNgn } from '../../Data/mockData';
 import { downloadFinanceCsv } from '../../lib/exportFinanceCsv';
 import { printAccountingStatements } from '../../lib/printAccountingStatements';
+import {
+  getAccountingDeskCache,
+  invalidateAccountingDeskCache,
+  setAccountingDeskCache,
+} from '../../lib/accountingDeskCache';
 import {
   AccountingDeskKpiCard,
   AccountingDeskPageIntro,
@@ -41,33 +46,51 @@ export function AccountingStatementsPanel({
   const setPeriod = onPeriodKeyChange ?? setPeriodLocal;
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
+  const lastRefreshRef = useRef(-1);
 
   const branchQuery = useMemo(() => {
     if (ws?.viewAllBranches) return 'ALL';
     return ws?.branchScope || ws?.session?.currentBranchId || '';
   }, [ws]);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
+  const load = useCallback(
+    async (force = false) => {
       const branchQ =
         branchQuery && branchQuery !== 'ALL' ? `&branchId=${encodeURIComponent(branchQuery)}` : '';
-      const res = await apiFetch(
-        `/api/finance/statements-pack?period=${encodeURIComponent(period)}${branchQ}`
-      );
-      if (!res.ok || !res.data?.ok) {
-        showToast?.(res.data?.error || 'Could not load statements.', { variant: 'error' });
-        setData(null);
-        return;
+      const cacheKey = `statements|${period}|${branchQuery || 'ALL'}`;
+      if (!force) {
+        const cached = getAccountingDeskCache(cacheKey);
+        if (cached) {
+          setData(cached);
+          setLoading(false);
+          return;
+        }
+      } else {
+        invalidateAccountingDeskCache(cacheKey);
       }
-      setData(res.data);
-    } finally {
-      setLoading(false);
-    }
-  }, [period, branchQuery, showToast]);
+      setLoading(true);
+      try {
+        const res = await apiFetch(
+          `/api/finance/statements-pack?period=${encodeURIComponent(period)}${branchQ}`
+        );
+        if (!res.ok || !res.data?.ok) {
+          showToast?.(res.data?.error || 'Could not load statements.', { variant: 'error' });
+          setData(null);
+          return;
+        }
+        setAccountingDeskCache(cacheKey, res.data);
+        setData(res.data);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [period, branchQuery, showToast]
+  );
 
   useEffect(() => {
-    load();
+    const force = deskRefresh !== lastRefreshRef.current;
+    lastRefreshRef.current = deskRefresh;
+    void load(force);
   }, [load, deskRefresh]);
 
   const pl = data?.profitAndLoss;
@@ -151,7 +174,7 @@ export function AccountingStatementsPanel({
       <button
         type="button"
         className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[10px] font-bold uppercase text-[#134e4a] min-h-11"
-        onClick={load}
+        onClick={() => load(true)}
         disabled={loading}
       >
         <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />

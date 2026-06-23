@@ -1,5 +1,10 @@
 import { useCallback, useState } from 'react';
 import { apiFetch } from '../lib/apiBase';
+import {
+  getAccountingDeskCache,
+  invalidateAccountingDeskCache,
+  setAccountingDeskCache,
+} from '../lib/accountingDeskCache';
 
 function buildQs(opts = {}) {
   const qs = new URLSearchParams();
@@ -18,17 +23,30 @@ export function useAp3BranchPl(opts = {}) {
   const [error, setError] = useState('');
 
   const load = useCallback(
-    async (filters = {}) => {
+    async (filters = {}, force = false) => {
       if (!enabled) return;
+      const qs = buildQs(filters);
+      const cacheKey = `ap3-branch-pl|${filters.branchId ?? 'ALL'}|${filters.period ?? ''}`;
+      if (!force) {
+        const cached = getAccountingDeskCache(cacheKey);
+        if (cached) {
+          setData(cached);
+          setError('');
+          setLoading(false);
+          return;
+        }
+      } else {
+        invalidateAccountingDeskCache(cacheKey);
+      }
       setLoading(true);
       setError('');
-      const qs = buildQs(filters);
       const res = await apiFetch(`/api/finance/ap3-branch-pl?${qs}`);
       setLoading(false);
       if (!res.ok || !res.data?.ok) {
         setError(res.data?.error || 'Could not load branch P&L.');
         return;
       }
+      setAccountingDeskCache(cacheKey, res.data);
       setData(res.data);
     },
     [enabled]

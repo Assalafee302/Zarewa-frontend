@@ -1,7 +1,12 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { CheckCircle2, AlertTriangle, XCircle, RefreshCw, Lock } from 'lucide-react';
 import { apiFetch } from '../../lib/apiBase';
 import { formatNgn } from '../../Data/mockData';
+import {
+  getAccountingDeskCache,
+  invalidateAccountingDeskCache,
+  setAccountingDeskCache,
+} from '../../lib/accountingDeskCache';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import {
   AccountingDeskKpiCard,
@@ -52,25 +57,44 @@ export function AccountingClosePanel({
   const [forceReason, setForceReason] = useState('');
   const [showForceLock, setShowForceLock] = useState(false);
   const [error, setError] = useState('');
+  const lastRefreshRef = useRef(-1);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError('');
-    try {
-      const res = await apiFetch(`/api/finance/month-end-close?period=${encodeURIComponent(period)}`);
-      if (!res.ok || !res.data?.ok) {
-        setError(res.data?.error || 'Could not load close checklist.');
-        setData(null);
-        return;
+  const load = useCallback(
+    async (force = false) => {
+      const cacheKey = `month-end-close|${period}`;
+      if (!force) {
+        const cached = getAccountingDeskCache(cacheKey);
+        if (cached) {
+          setData(cached);
+          setError('');
+          setLoading(false);
+          return;
+        }
+      } else {
+        invalidateAccountingDeskCache(cacheKey);
       }
-      setData(res.data);
-    } finally {
-      setLoading(false);
-    }
-  }, [period]);
+      setLoading(true);
+      setError('');
+      try {
+        const res = await apiFetch(`/api/finance/month-end-close?period=${encodeURIComponent(period)}`);
+        if (!res.ok || !res.data?.ok) {
+          setError(res.data?.error || 'Could not load close checklist.');
+          setData(null);
+          return;
+        }
+        setAccountingDeskCache(cacheKey, res.data);
+        setData(res.data);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [period]
+  );
 
   useEffect(() => {
-    load();
+    const force = deskRefresh !== lastRefreshRef.current;
+    lastRefreshRef.current = deskRefresh;
+    void load(force);
   }, [load, deskRefresh]);
 
   const lockPeriod = async (force = false) => {
@@ -96,7 +120,7 @@ export function AccountingClosePanel({
       showToast?.(`Period ${period} locked.${force ? ' (MD/HoA override)' : ''}`);
       setShowForceLock(false);
       setForceReason('');
-      await load();
+      await load(true);
     } finally {
       setLocking(false);
     }
@@ -115,7 +139,7 @@ export function AccountingClosePanel({
         return;
       }
       showToast?.(`Period ${period} unlocked.`);
-      await load();
+      await load(true);
     } finally {
       setLocking(false);
     }
@@ -147,7 +171,7 @@ export function AccountingClosePanel({
       ) : null}
       <button
         type="button"
-        onClick={load}
+        onClick={() => load(true)}
         disabled={loading}
         className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide text-[#134e4a] hover:bg-slate-50"
       >

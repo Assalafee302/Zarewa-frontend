@@ -57,6 +57,7 @@ import { AccountingDeskProvider } from '../components/finance/accounting/Account
 import { AccountingDeskExecutiveNotice } from '../components/finance/accounting/AccountingDeskExecutiveNotice';
 
 import { useAccountingDeskOverview } from '../hooks/useAccountingDeskOverview';
+import { invalidateAllAccountingDeskCache } from '../lib/accountingDeskCache';
 
 import {
 
@@ -90,6 +91,42 @@ function defaultPeriodEndDate(periodKey) {
 
 
 
+function tabAccessDenied(
+  tabId,
+  { mayRegisters, hasFinanceView, mayInterBranch }
+) {
+  if ((tabId === 'creditors' || tabId === 'debtors' || tabId === 'assets') && !mayRegisters) {
+    return 'Registers require Head of Accounts or accounting desk access.';
+  }
+  if (
+    (tabId === 'statements' ||
+      tabId === 'gl' ||
+      tabId === 'opening' ||
+      tabId === 'close' ||
+      tabId === 'reconciliation' ||
+      tabId === 'branchPl') &&
+    !hasFinanceView
+  ) {
+    return 'GL and statements require finance view access.';
+  }
+  if ((tabId === 'policy' || tabId === 'costing' || tabId === 'supplierAp') && !mayRegisters) {
+    return 'Policy and costing reports require Head of Accounts or accounting desk access.';
+  }
+  if (tabId === 'interBranch' && !mayInterBranch) {
+    return 'Inter-branch transfers require finance or accounting desk access.';
+  }
+  return null;
+}
+
+
+
+function AccountingDeskTabPane({ tabId, activeTab, mountedTabs, children }) {
+  if (!mountedTabs.has(tabId)) return null;
+  return <div hidden={activeTab !== tabId}>{children}</div>;
+}
+
+
+
 export default function AccountingDesk() {
 
   const { show: showToast } = useToast();
@@ -105,6 +142,7 @@ export default function AccountingDesk() {
   const [periodKey, setPeriodKey] = useState(currentAccountingPeriodKey);
 
   const [deskRefresh, setDeskRefresh] = useState(0);
+  const [mountedTabs, setMountedTabs] = useState(() => new Set(['overview']));
 
   const [openingPosted, setOpeningPosted] = useState(false);
 
@@ -180,6 +218,13 @@ export default function AccountingDesk() {
 
 
   useEffect(() => {
+    if (tabAccessDenied(tab, { mayRegisters, hasFinanceView, mayInterBranch })) return;
+    setMountedTabs((prev) => (prev.has(tab) ? prev : new Set(prev).add(tab)));
+  }, [tab, mayRegisters, hasFinanceView, mayInterBranch]);
+
+
+
+  useEffect(() => {
 
     if (readOnlyExecutive && EXECUTIVE_READONLY_HIDDEN_TABS.has(tab)) {
 
@@ -210,11 +255,9 @@ export default function AccountingDesk() {
 
 
   const requestDeskRefresh = useCallback(() => {
-
+    invalidateAllAccountingDeskCache();
     setDeskRefresh((n) => n + 1);
-
     loadOpeningStatus();
-
   }, [loadOpeningStatus]);
 
 
@@ -268,43 +311,8 @@ export default function AccountingDesk() {
 
 
 
-  let accessDenied = null;
-
-  if ((tab === 'creditors' || tab === 'debtors' || tab === 'assets') && !mayRegisters) {
-
-    accessDenied = 'Registers require Head of Accounts or accounting desk access.';
-
-  } else if (
-
-    (tab === 'statements' ||
-
-      tab === 'gl' ||
-
-      tab === 'opening' ||
-
-      tab === 'close' ||
-
-      tab === 'reconciliation' ||
-
-      tab === 'branchPl') &&
-
-    !hasFinanceView
-
-  ) {
-
-    accessDenied = 'GL and statements require finance view access.';
-
-  } else if ((tab === 'policy' || tab === 'costing' || tab === 'supplierAp') && !mayRegisters) {
-
-    accessDenied = 'Policy and costing reports require Head of Accounts or accounting desk access.';
-
-  } else if (tab === 'interBranch' && !mayInterBranch) {
-
-    accessDenied = 'Inter-branch transfers require finance or accounting desk access.';
-
-  }
-
-
+  const accessCtx = { mayRegisters, hasFinanceView, mayInterBranch };
+  const accessDenied = tabAccessDenied(tab, accessCtx);
 
   const hidePeriodBar = tab === 'opening' || tab === 'overview';
 
@@ -396,285 +404,180 @@ export default function AccountingDesk() {
 
 
 
-            {!accessDenied && tab === 'overview' ? (
-
-              <AccountingOverviewPanel
-
-                branchScopeLabel={branchScopeLabel}
-
-                showToast={showToast}
-
-                deskLayout
-
-                onFocusTab={setTab}
-
-              />
-
+            {!accessDenied && mountedTabs.has('overview') ? (
+              <AccountingDeskTabPane tabId="overview" activeTab={tab} mountedTabs={mountedTabs}>
+                <AccountingOverviewPanel
+                  branchScopeLabel={branchScopeLabel}
+                  showToast={showToast}
+                  deskLayout
+                  onFocusTab={setTab}
+                />
+              </AccountingDeskTabPane>
             ) : null}
 
-
-
-            {!accessDenied && tab === 'statements' && hasFinanceView ? (
-
-              <AccountingStatementsPanel
-
-                branchScopeLabel={branchScopeLabel}
-
-                showToast={showToast}
-
-                deskLayout
-
-                periodKey={periodKey}
-
-                onPeriodKeyChange={setPeriodKey}
-
-                deskRefresh={deskRefresh}
-
-              />
-
+            {!accessDenied && hasFinanceView && mountedTabs.has('statements') ? (
+              <AccountingDeskTabPane tabId="statements" activeTab={tab} mountedTabs={mountedTabs}>
+                <AccountingStatementsPanel
+                  branchScopeLabel={branchScopeLabel}
+                  showToast={showToast}
+                  deskLayout
+                  periodKey={periodKey}
+                  onPeriodKeyChange={setPeriodKey}
+                  deskRefresh={deskRefresh}
+                />
+              </AccountingDeskTabPane>
             ) : null}
 
-
-
-            {!accessDenied && tab === 'gl' && hasFinanceView ? (
-
-              <AccountingGlPanel
-
-                hasFinanceView={hasFinanceView}
-
-                showToast={showToast}
-
-                deskLayout
-
-                periodKey={periodKey}
-
-                onPeriodKeyChange={setPeriodKey}
-
-                deskRefresh={deskRefresh}
-
-              />
-
+            {!accessDenied && hasFinanceView && mountedTabs.has('gl') ? (
+              <AccountingDeskTabPane tabId="gl" activeTab={tab} mountedTabs={mountedTabs}>
+                <AccountingGlPanel
+                  hasFinanceView={hasFinanceView}
+                  showToast={showToast}
+                  deskLayout
+                  periodKey={periodKey}
+                  onPeriodKeyChange={setPeriodKey}
+                  deskRefresh={deskRefresh}
+                />
+              </AccountingDeskTabPane>
             ) : null}
 
-
-
-            {!accessDenied && tab === 'opening' && hasFinanceView ? (
-
-              <AccountingOpeningBalancePanel
-
-                showToast={showToast}
-
-                deskLayout
-
-                branchScopeLabel={branchScopeLabel}
-
-                onFocusTab={setTab}
-
-                deskRefresh={deskRefresh}
-
-                onOpeningPosted={setOpeningPosted}
-
-              />
-
+            {!accessDenied && hasFinanceView && mountedTabs.has('opening') ? (
+              <AccountingDeskTabPane tabId="opening" activeTab={tab} mountedTabs={mountedTabs}>
+                <AccountingOpeningBalancePanel
+                  showToast={showToast}
+                  deskLayout
+                  branchScopeLabel={branchScopeLabel}
+                  onFocusTab={setTab}
+                  deskRefresh={deskRefresh}
+                  onOpeningPosted={setOpeningPosted}
+                />
+              </AccountingDeskTabPane>
             ) : null}
 
-
-
-            {!accessDenied && tab === 'close' && hasFinanceView ? (
-
-              <AccountingClosePanel
-
-                branchScopeLabel={branchScopeLabel}
-
-                showToast={showToast}
-
-                onFocusTab={setTab}
-
-                deskLayout
-
-                periodKey={periodKey}
-
-                onPeriodKeyChange={setPeriodKey}
-
-                deskRefresh={deskRefresh}
-
-              />
-
+            {!accessDenied && hasFinanceView && mountedTabs.has('close') ? (
+              <AccountingDeskTabPane tabId="close" activeTab={tab} mountedTabs={mountedTabs}>
+                <AccountingClosePanel
+                  branchScopeLabel={branchScopeLabel}
+                  showToast={showToast}
+                  onFocusTab={setTab}
+                  deskLayout
+                  periodKey={periodKey}
+                  onPeriodKeyChange={setPeriodKey}
+                  deskRefresh={deskRefresh}
+                />
+              </AccountingDeskTabPane>
             ) : null}
 
-
-
-            {!accessDenied && tab === 'policy' && mayRegisters ? (
-
-              <AccountingPolicyPanel branchId={branchId} enabled deskLayout showToast={showToast} />
-
+            {!accessDenied && mayRegisters && mountedTabs.has('policy') ? (
+              <AccountingDeskTabPane tabId="policy" activeTab={tab} mountedTabs={mountedTabs}>
+                <AccountingPolicyPanel branchId={branchId} enabled deskLayout showToast={showToast} />
+              </AccountingDeskTabPane>
             ) : null}
 
-
-
-            {!accessDenied && tab === 'supplierAp' && mayRegisters ? (
-
-              <AccountingSupplierPolicyPanel branchId={branchId} enabled deskLayout showToast={showToast} />
-
+            {!accessDenied && mayRegisters && mountedTabs.has('supplierAp') ? (
+              <AccountingDeskTabPane tabId="supplierAp" activeTab={tab} mountedTabs={mountedTabs}>
+                <AccountingSupplierPolicyPanel branchId={branchId} enabled deskLayout showToast={showToast} />
+              </AccountingDeskTabPane>
             ) : null}
 
-
-
-            {!accessDenied && tab === 'costing' && mayRegisters ? (
-
-              <Ap3CostingReadinessPanel
-
-                initialBranchId={branchId || 'ALL'}
-
-                autoLoad
-
-                enabled
-
-                deskLayout
-
-                periodKey={periodKey}
-
-                deskRefresh={deskRefresh}
-
-              />
-
+            {!accessDenied && mayRegisters && mountedTabs.has('costing') ? (
+              <AccountingDeskTabPane tabId="costing" activeTab={tab} mountedTabs={mountedTabs}>
+                <Ap3CostingReadinessPanel
+                  initialBranchId={branchId || 'ALL'}
+                  autoLoad
+                  enabled
+                  deskLayout
+                  periodKey={periodKey}
+                  deskRefresh={deskRefresh}
+                />
+              </AccountingDeskTabPane>
             ) : null}
 
-
-
-            {!accessDenied && tab === 'branchPl' && hasFinanceView ? (
-
-              <Ap3BranchPlPanel
-
-                initialBranchId={branchId || 'ALL'}
-
-                autoLoad
-
-                enabled
-
-                deskLayout
-
-                periodKey={periodKey}
-
-                deskRefresh={deskRefresh}
-
-              />
-
+            {!accessDenied && hasFinanceView && mountedTabs.has('branchPl') ? (
+              <AccountingDeskTabPane tabId="branchPl" activeTab={tab} mountedTabs={mountedTabs}>
+                <Ap3BranchPlPanel
+                  initialBranchId={branchId || 'ALL'}
+                  autoLoad
+                  enabled
+                  deskLayout
+                  periodKey={periodKey}
+                  deskRefresh={deskRefresh}
+                />
+              </AccountingDeskTabPane>
             ) : null}
 
-
-
-            {!accessDenied && tab === 'creditors' && mayRegisters ? (
-
-              <AccountingCreditorsPanel
-
-                branchId={branchId}
-
-                enabled
-
-                canManage={canManageRegisters}
-
-                branchScopeLabel={branchScopeLabel}
-
-                deskRefresh={deskRefresh}
-
-                onFocusTab={setTab}
-
-              />
-
+            {!accessDenied && mayRegisters && mountedTabs.has('creditors') ? (
+              <AccountingDeskTabPane tabId="creditors" activeTab={tab} mountedTabs={mountedTabs}>
+                <AccountingCreditorsPanel
+                  branchId={branchId}
+                  enabled
+                  canManage={canManageRegisters}
+                  branchScopeLabel={branchScopeLabel}
+                  deskRefresh={deskRefresh}
+                  onFocusTab={setTab}
+                />
+              </AccountingDeskTabPane>
             ) : null}
 
-
-
-            {!accessDenied && tab === 'debtors' && mayRegisters ? (
-
-              <AccountingDebtorsPanel
-
-                branchId={branchId}
-
-                enabled
-
-                canManage={canManageRegisters}
-
-                branchScopeLabel={branchScopeLabel}
-
-                deskRefresh={deskRefresh}
-
-                onFocusTab={setTab}
-
-              />
-
+            {!accessDenied && mayRegisters && mountedTabs.has('debtors') ? (
+              <AccountingDeskTabPane tabId="debtors" activeTab={tab} mountedTabs={mountedTabs}>
+                <AccountingDebtorsPanel
+                  branchId={branchId}
+                  enabled
+                  canManage={canManageRegisters}
+                  branchScopeLabel={branchScopeLabel}
+                  deskRefresh={deskRefresh}
+                  onFocusTab={setTab}
+                />
+              </AccountingDeskTabPane>
             ) : null}
 
-
-
-            {!accessDenied && tab === 'assets' && mayRegisters ? (
-
-              <AccountingAssetsPanel
-
-                branchId={branchId}
-
-                enabled
-
-                canManage={canManageRegisters}
-
-                branchScopeLabel={branchScopeLabel}
-
-                deskRefresh={deskRefresh}
-
-                onFocusTab={setTab}
-
-              />
-
+            {!accessDenied && mayRegisters && mountedTabs.has('assets') ? (
+              <AccountingDeskTabPane tabId="assets" activeTab={tab} mountedTabs={mountedTabs}>
+                <AccountingAssetsPanel
+                  branchId={branchId}
+                  enabled
+                  canManage={canManageRegisters}
+                  branchScopeLabel={branchScopeLabel}
+                  deskRefresh={deskRefresh}
+                  onFocusTab={setTab}
+                />
+              </AccountingDeskTabPane>
             ) : null}
 
-
-
-            {!accessDenied && tab === 'interBranch' && mayInterBranch ? (
-
-              <AccountingInterBranchPanel
-
-                branchScopeLabel={branchScopeLabel}
-
-                workspaceBranchId={branchId || ws?.branchScope || ws?.session?.currentBranchId || ''}
-
-              />
-
+            {!accessDenied && mayInterBranch && mountedTabs.has('interBranch') ? (
+              <AccountingDeskTabPane tabId="interBranch" activeTab={tab} mountedTabs={mountedTabs}>
+                <AccountingInterBranchPanel
+                  branchScopeLabel={branchScopeLabel}
+                  workspaceBranchId={branchId || ws?.branchScope || ws?.session?.currentBranchId || ''}
+                />
+              </AccountingDeskTabPane>
             ) : null}
 
-
-
-            {!accessDenied && tab === 'credit' ? (
-
-              <CreditExceptionPanel branchId={branchId} roleKey={roleKey} />
-
+            {!accessDenied && mountedTabs.has('credit') ? (
+              <AccountingDeskTabPane tabId="credit" activeTab={tab} mountedTabs={mountedTabs}>
+                <CreditExceptionPanel branchId={branchId} roleKey={roleKey} />
+              </AccountingDeskTabPane>
             ) : null}
 
-
-
-            {!accessDenied && tab === 'reconciliation' && hasFinanceView ? (
-
-              <ReportsFinanceReconciliationPackSection
-
-                endDate={endDate}
-
-                hasFinanceView={hasFinanceView}
-
-                showToast={showToast}
-
-                branchScopeLabel={branchScopeLabel}
-
-                deskLayout
-
-                deskRefresh={deskRefresh}
-
-              />
-
+            {!accessDenied && hasFinanceView && mountedTabs.has('reconciliation') ? (
+              <AccountingDeskTabPane tabId="reconciliation" activeTab={tab} mountedTabs={mountedTabs}>
+                <ReportsFinanceReconciliationPackSection
+                  endDate={endDate}
+                  hasFinanceView={hasFinanceView}
+                  showToast={showToast}
+                  branchScopeLabel={branchScopeLabel}
+                  deskLayout
+                  deskRefresh={deskRefresh}
+                />
+              </AccountingDeskTabPane>
             ) : null}
 
-
-
-            {!accessDenied && tab === 'payroll' ? <FinancePayrollPaymentsPanel deskRefresh={deskRefresh} /> : null}
+            {!accessDenied && mountedTabs.has('payroll') ? (
+              <AccountingDeskTabPane tabId="payroll" activeTab={tab} mountedTabs={mountedTabs}>
+                <FinancePayrollPaymentsPanel deskRefresh={deskRefresh} />
+              </AccountingDeskTabPane>
+            ) : null}
 
           </div>
 

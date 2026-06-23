@@ -38,6 +38,11 @@ import { downloadExpenseCategoryExceptionsCsv } from '../lib/expenseCategoryExce
 import { ExecutiveWorkItemReviewModal } from '../components/exec/ExecutiveWorkItemReviewModal';
 import { execWorkItemOpensInModal } from '../lib/execWorkItemReview';
 import {
+  getCachedTabPayload,
+  invalidateTabPayload,
+  setCachedTabPayload,
+} from '../lib/execDetailCache';
+import {
   approvalTierChipClass,
   EXEC_APPROVAL_TIER_MD_ONLY,
   EXEC_APPROVAL_TIER_SHARED,
@@ -323,7 +328,16 @@ export default function ExecutiveCommandCentre() {
     void load();
   }, [load]);
 
-  const loadCustomerIntel = useCallback(async () => {
+  const loadCustomerIntel = useCallback(async (force = false) => {
+    const cacheKey = `customers|${periodKey}|${branchId}`;
+    if (!force) {
+      const cached = getCachedTabPayload(cacheKey);
+      if (cached) {
+        setCustomerIntel(cached);
+        setCustomerIntelErr('');
+        return;
+      }
+    }
     setCustomerIntelBusy(true);
     setCustomerIntelErr('');
     const qs = new URLSearchParams({ periodKey });
@@ -336,11 +350,21 @@ export default function ExecutiveCommandCentre() {
       setCustomerIntelErr(d?.error || 'Could not load customer intelligence.');
       return;
     }
+    setCachedTabPayload(cacheKey, d);
     setCustomerIntel(d);
   }, [periodKey, branchId, canPickBranch]);
 
   const loadTrace = useCallback(
     async (shuffle = false) => {
+      const cacheKey = `trace|${branchId}`;
+      if (!shuffle) {
+        const cached = getCachedTabPayload(cacheKey);
+        if (cached) {
+          setTracePack(cached);
+          setTraceErr('');
+          return;
+        }
+      }
       setTraceBusy(true);
       setTraceErr('');
       const qs = new URLSearchParams();
@@ -354,6 +378,8 @@ export default function ExecutiveCommandCentre() {
         setTraceErr(d?.error || 'Could not load MD trace.');
         return;
       }
+      if (!shuffle) setCachedTabPayload(cacheKey, d);
+      else invalidateTabPayload(cacheKey);
       setTracePack(d);
     },
     [branchId, canPickBranch]
@@ -744,7 +770,7 @@ export default function ExecutiveCommandCentre() {
           formatNgn={formatNgn}
           segmentFilter={customerSegmentFilter}
           onSegmentFilterChange={setCustomerSegmentFilter}
-          onReload={() => void loadCustomerIntel()}
+          onReload={() => void loadCustomerIntel(true)}
           onSelectCustomer={setSelectedCustomer}
         />
       ) : null}

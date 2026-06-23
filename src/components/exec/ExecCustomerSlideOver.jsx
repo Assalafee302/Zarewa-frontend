@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { SlideOverPanel } from '../layout/SlideOverPanel';
 import { formatNgn } from '../../Data/mockData';
 import { apiFetch } from '../../lib/apiBase';
+import { getCachedCustomerBrief, setCachedCustomerBrief } from '../../lib/execDetailCache';
 
 const TABS = [
   { id: 'overview', label: 'Overview' },
@@ -20,20 +21,34 @@ export function ExecCustomerSlideOver({ customer, isOpen, onClose }) {
   const [summaryBusy, setSummaryBusy] = useState(false);
   const [summaryErr, setSummaryErr] = useState('');
 
-  const loadSummary = useCallback(async () => {
-    const id = String(c?.customerId || '').trim();
-    if (!id) return;
-    setSummaryBusy(true);
-    setSummaryErr('');
-    const { ok, data } = await apiFetch(`/api/customers/${encodeURIComponent(id)}/summary`);
-    setSummaryBusy(false);
-    if (!ok || !data?.ok) {
-      setSummary(null);
-      setSummaryErr(data?.error || 'Could not load customer detail.');
-      return;
-    }
-    setSummary(data);
-  }, [c?.customerId]);
+  const loadBrief = useCallback(
+    async (showSpinner = false) => {
+      const id = String(c?.customerId || '').trim();
+      if (!id) return;
+
+      const cached = getCachedCustomerBrief(id);
+      if (cached) {
+        setSummary(cached);
+        setSummaryErr('');
+        return;
+      }
+
+      if (showSpinner) setSummaryBusy(true);
+      setSummaryErr('');
+      const { ok, data } = await apiFetch(`/api/exec/customers/${encodeURIComponent(id)}/brief`);
+      if (showSpinner) setSummaryBusy(false);
+      if (!ok || !data?.ok) {
+        if (showSpinner) {
+          setSummary(null);
+          setSummaryErr(data?.error || 'Could not load customer detail.');
+        }
+        return;
+      }
+      setCachedCustomerBrief(id, data);
+      setSummary(data);
+    },
+    [c?.customerId]
+  );
 
   useEffect(() => {
     if (!isOpen || !c?.customerId) {
@@ -42,13 +57,27 @@ export function ExecCustomerSlideOver({ customer, isOpen, onClose }) {
       setTab('overview');
       return;
     }
-    void loadSummary();
-  }, [isOpen, c?.customerId, loadSummary]);
+
+    const cached = getCachedCustomerBrief(c.customerId);
+    if (cached) {
+      setSummary(cached);
+      return;
+    }
+
+    if (tab === 'overview') {
+      void loadBrief(false);
+    }
+  }, [isOpen, c?.customerId, loadBrief, tab]);
+
+  useEffect(() => {
+    if (!isOpen || !c?.customerId || tab === 'overview') return;
+    void loadBrief(true);
+  }, [tab, isOpen, c?.customerId, loadBrief]);
 
   if (!c) return null;
 
   const quotes = summary?.outstandingByQuotation || [];
-  const ledgerEntries = (summary?.entries || []).slice(0, 12);
+  const ledgerEntries = summary?.entries || [];
 
   return (
     <SlideOverPanel isOpen={isOpen} onClose={onClose} title="Customer brief" maxWidthClass="max-w-lg">
@@ -114,15 +143,20 @@ export function ExecCustomerSlideOver({ customer, isOpen, onClose }) {
                       <dd className="tabular-nums">{formatNgn(summary.receiptTotalNgn ?? 0)}</dd>
                     </div>
                   </>
-                ) : null}
+                ) : summaryErr ? (
+                  <div className="col-span-2">
+                    <p className="text-[11px] text-slate-500">{summaryErr}</p>
+                  </div>
+                ) : (
+                  <div className="col-span-2">
+                    <p className="text-[11px] text-slate-400">Loading advance balance…</p>
+                  </div>
+                )}
               </dl>
               {c.debtRiskLabel ? (
                 <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-950">
                   {c.debtRiskLabel}
                 </p>
-              ) : null}
-              {summaryBusy ? (
-                <p className="text-[11px] text-slate-500">Loading commercial detail…</p>
               ) : null}
             </>
           ) : null}
@@ -134,7 +168,7 @@ export function ExecCustomerSlideOver({ customer, isOpen, onClose }) {
               ) : quotes.length === 0 ? (
                 <p className="text-[11px] text-slate-500">No quotations in scope.</p>
               ) : (
-                quotes.slice(0, 15).map((q) => (
+                quotes.map((q) => (
                   <div
                     key={q.quotationId}
                     className="rounded-lg border border-slate-100 bg-slate-50/60 px-3 py-2 text-[11px]"
@@ -164,15 +198,15 @@ export function ExecCustomerSlideOver({ customer, isOpen, onClose }) {
               ) : (
                 ledgerEntries.map((e, i) => (
                   <div
-                    key={`${e.id || e.dateISO}-${i}`}
+                    key={`${e.id || e.atISO}-${i}`}
                     className="flex justify-between gap-2 border-b border-slate-50 pb-2 text-[11px]"
                   >
                     <span className="text-slate-600 truncate">
-                      {String(e.type || e.kind || 'Entry').replace(/_/g, ' ')}
+                      {String(e.type || 'Entry').replace(/_/g, ' ')}
                       {e.reference ? ` · ${e.reference}` : ''}
                     </span>
                     <span className="font-semibold tabular-nums shrink-0">
-                      {formatNgn(e.amountNgn ?? e.amount ?? 0)}
+                      {formatNgn(e.amountNgn ?? 0)}
                     </span>
                   </div>
                 ))

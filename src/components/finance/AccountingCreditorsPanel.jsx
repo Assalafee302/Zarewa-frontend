@@ -14,7 +14,7 @@ export function AccountingCreditorsPanel({
   deskRefresh = 0,
   onFocusTab,
 }) {
-  const { data, loading, error, reload } = useAccountingCreditors({ branchId, enabled });
+  const { data, loading, error, reload } = useAccountingCreditors({ branchId, enabled, deskRefresh });
   const legacyQuickAdd = registerConfigFor('creditor').legacyQuickAdd;
 
   return (

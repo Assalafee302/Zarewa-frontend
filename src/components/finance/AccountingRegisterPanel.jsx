@@ -73,10 +73,6 @@ export function AccountingRegisterPanel({
     deskRefresh,
   });
 
-  useEffect(() => {
-    if (deskRefresh > 0) onReload();
-  }, [deskRefresh, onReload]);
-
   const [modalOpen, setModalOpen] = useState(false);
   const [modalInitial, setModalInitial] = useState(null);
   const [editLine, setEditLine] = useState(null);
