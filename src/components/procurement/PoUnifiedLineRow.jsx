@@ -121,6 +121,8 @@ export default function PoUnifiedLineRow({
               <input
                 type="number"
                 min="0"
+                step="any"
+                inputMode="decimal"
                 value={row.meters}
                 onChange={(e) => onChange(idx, { meters: e.target.value })}
                 className={`${lineInputClass} tabular-nums`}
@@ -133,6 +135,8 @@ export default function PoUnifiedLineRow({
               <input
                 type="number"
                 min="0"
+                step="any"
+                inputMode="decimal"
                 value={row.meters}
                 onChange={(e) => onChange(idx, { meters: e.target.value })}
                 className={`${lineInputClass} tabular-nums`}
@@ -209,6 +213,8 @@ export default function PoUnifiedLineRow({
             <input
               type="number"
               min="0"
+              step="any"
+              inputMode="decimal"
               value={row.metres}
               onChange={(e) => onChange(idx, { metres: e.target.value })}
               className={`${lineInputClass} tabular-nums`}
