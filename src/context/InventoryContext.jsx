@@ -240,6 +240,7 @@ export function InventoryProvider({ children }) {
           normalizePoLine(
             {
               lineKey: l.lineKey || `L${Date.now()}-${idx}-${l.productID}`,
+              lineType: l.lineType || l.line_type || '',
               productID: l.productID,
               productName: l.productName,
               color: l.color,
@@ -268,6 +269,7 @@ export function InventoryProvider({ children }) {
             status,
             lines: normalizedLines.map((l) => ({
               lineKey: l.lineKey,
+              lineType: l.lineType,
               productID: l.productID,
               productName: l.productName,
               color: l.color,
@@ -376,6 +378,7 @@ export function InventoryProvider({ children }) {
           normalizePoLine(
             {
               lineKey: l.lineKey || `L${Date.now()}-${idx}-${l.productID}`,
+              lineType: l.lineType || l.line_type || '',
               productID: l.productID,
               productName: l.productName,
               color: l.color,
@@ -403,6 +406,7 @@ export function InventoryProvider({ children }) {
             expectedDeliveryISO: expectedDeliveryISO || '',
             lines: normalizedLines.map((l) => ({
               lineKey: l.lineKey,
+              lineType: l.lineType,
               productID: l.productID,
               productName: l.productName,
               color: l.color,
