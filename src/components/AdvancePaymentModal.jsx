@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import { X, Wallet, Save, Printer } from 'lucide-react';
@@ -42,6 +42,8 @@ const AdvancePaymentModal = ({
   const [showPrint, setShowPrint] = useState(false);
   const [postingHint, setPostingHint] = useState(null);
   const [bankDepositId, setBankDepositId] = useState('');
+  const [isPosting, setIsPosting] = useState(false);
+  const postingRef = useRef(false);
 
   const depositSnapshot = workspaceSnapshot ?? ws?.snapshot;
   const linkedDeposit = useMemo(() => {
@@ -132,6 +134,7 @@ const AdvancePaymentModal = ({
 
   const submit = async (e) => {
     e.preventDefault();
+    if (postingRef.current) return;
     if (!customerID) {
       showToast('Select a customer.', { variant: 'error' });
       return;
@@ -156,62 +159,98 @@ const AdvancePaymentModal = ({
       : bankDepositId
         ? 'Linked bank deposit'
         : '—';
-    if (useLedgerApi) {
-      const body = {
-        customerID,
-        customerName,
-        amountNgn: n,
-        paymentMethod,
-        bankReference: [reference.trim(), accountLabelForPrint].filter(Boolean).join(' | '),
-        purpose: purpose.trim(),
-        dateISO,
-      };
-      if (bankDepositId) body.bankDepositId = bankDepositId;
-      if (cashNeeded > 0 && treasuryAccountId) {
-        body.treasuryAccountId = Number(treasuryAccountId);
-        body.paymentLines = [
-          {
-            treasuryAccountId: Number(treasuryAccountId),
-            amountNgn: cashNeeded,
-            reference: reference.trim(),
-            dateISO,
-          },
-        ];
+    postingRef.current = true;
+    setIsPosting(true);
+    try {
+      if (useLedgerApi) {
+        const body = {
+          customerID,
+          customerName,
+          amountNgn: n,
+          paymentMethod,
+          bankReference: [reference.trim(), accountLabelForPrint].filter(Boolean).join(' | '),
+          purpose: purpose.trim(),
+          dateISO,
+        };
+        if (bankDepositId) body.bankDepositId = bankDepositId;
+        if (cashNeeded > 0 && treasuryAccountId) {
+          body.treasuryAccountId = Number(treasuryAccountId);
+          body.paymentLines = [
+            {
+              treasuryAccountId: Number(treasuryAccountId),
+              amountNgn: cashNeeded,
+              reference: reference.trim(),
+              dateISO,
+            },
+          ];
+        }
+        const idempotencyKey =
+          typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+            ? crypto.randomUUID()
+            : `adv-${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
+
+        const postAdvance = async (payload, key) =>
+          apiFetch('/api/ledger/advance', {
+            method: 'POST',
+            body: JSON.stringify(payload),
+            headers: { 'Idempotency-Key': key },
+          });
+
+        let { ok, data } = await postAdvance(body, idempotencyKey);
+        if (!ok && data?.code === 'POSSIBLE_DUPLICATE_ADVANCE') {
+          const lines = (data?.duplicateSignals || [])
+            .map((sig) => `- ${sig.message}`)
+            .join('\n');
+          const reason = window.prompt(
+            `Server detected a duplicate-like advance:\n${lines || '- Similar posting exists.'}\n\nIf this is intentional, type reason to continue:`
+          );
+          if (!reason || !reason.trim()) {
+            showToast('Posting cancelled to avoid duplicate entry.', { variant: 'info' });
+            return;
+          }
+          const secondKey =
+            typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+              ? crypto.randomUUID()
+              : `adv-dup-${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
+          ({ ok, data } = await postAdvance(
+            { ...body, forceDuplicatePost: true, duplicateOverrideReason: reason.trim() },
+            secondKey
+          ));
+        }
+        if (!ok || !data?.ok) {
+          setPostingHint(guidanceForLedgerPostFailure(data) || null);
+          showToast(data?.error || 'Could not post advance to server.', { variant: 'error' });
+          return;
+        }
+        setPostingHint(null);
+        if (Array.isArray(data?.similarUnlinkedDeposits) && data.similarUnlinkedDeposits.length > 0 && !bankDepositId) {
+          showToast(
+            `Tip: ${data.similarUnlinkedDeposits.length} unlinked bank deposit(s) match — link next time to avoid duplicate treasury.`,
+            { variant: 'info' }
+          );
+        }
+      } else {
+        const res = recordAdvancePayment({
+          customerID,
+          customerName,
+          amountNgn: n,
+          paymentMethod,
+          bankReference: [reference.trim(), accountLabelForPrint].filter(Boolean).join(' | '),
+          purpose: purpose.trim(),
+          dateISO,
+        });
+        if (!res.ok) {
+          showToast(res.error, { variant: 'error' });
+          return;
+        }
       }
-      const { ok, data } = await apiFetch('/api/ledger/advance', {
-        method: 'POST',
-        body: JSON.stringify(body),
-      });
-      if (!ok || !data?.ok) {
-        setPostingHint(guidanceForLedgerPostFailure(data) || null);
-        showToast(data?.error || 'Could not post advance to server.', { variant: 'error' });
-        return;
-      }
-      setPostingHint(null);
-      if (Array.isArray(data?.similarUnlinkedDeposits) && data.similarUnlinkedDeposits.length > 0 && !bankDepositId) {
-        showToast(
-          `Tip: ${data.similarUnlinkedDeposits.length} unlinked bank deposit(s) match — link next time to avoid duplicate treasury.`,
-          { variant: 'info' }
-        );
-      }
-    } else {
-      const res = recordAdvancePayment({
-        customerID,
-        customerName,
-        amountNgn: n,
-        paymentMethod,
-        bankReference: [reference.trim(), accountLabelForPrint].filter(Boolean).join(' | '),
-        purpose: purpose.trim(),
-        dateISO,
-      });
-      if (!res.ok) {
-        showToast(res.error, { variant: 'error' });
-        return;
-      }
+      showToast(`Advance ${formatNgn(n)} recorded — not revenue until applied or receipt against a quote.`);
+      await onPosted?.();
+      abandonUnsavedAndRun(() => onClose());
+    } finally {
+      postingRef.current = false;
+      setIsPosting(false);
     }
-    showToast(`Advance ${formatNgn(n)} recorded — not revenue until applied or receipt against a quote.`);
-    await onPosted?.();
-    abandonUnsavedAndRun(() => onClose());
   };
 
   const openPrintPreview = () => {
@@ -401,9 +440,10 @@ const AdvancePaymentModal = ({
           </button>
           <button
             type="submit"
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-amber-600 text-white text-[10px] font-semibold uppercase shadow-sm hover:bg-amber-700"
+            disabled={isPosting || (useLedgerApi && voucherInLockedPeriod)}
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-amber-600 text-white text-[10px] font-semibold uppercase shadow-sm hover:bg-amber-700 disabled:opacity-60 disabled:cursor-not-allowed"
           >
-            <Save size={14} /> Save advance
+            <Save size={14} /> {isPosting ? 'Saving…' : 'Save advance'}
           </button>
         </div>
       </form>

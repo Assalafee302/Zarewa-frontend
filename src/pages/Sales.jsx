@@ -41,6 +41,7 @@ import {
   quotationListPaymentMeta,
 } from '../lib/quotationPaymentSummary';
 import { loadLedgerEntries } from '../lib/customerLedgerStore';
+import { dismissAdvanceEntryId } from '../lib/advanceEntryUiStore';
 import LinkAdvanceModal from '../components/sales/LinkAdvanceModal';
 import { ModalFrame } from '../components/layout';
 import { AdvancePaymentPrintView } from '../components/receipt/ReceiptPrintViews';
@@ -1131,6 +1132,38 @@ const Sales = () => {
     [canDeleteSalesRecord, confirmDangerousDelete, onLedgerSynced, showToast]
   );
 
+  const deleteAdvance = useCallback(
+    async (entry) => {
+      if (!canDeleteSalesRecord) {
+        showToast('Only Admin, MD, or Branch Manager can delete advances.', { variant: 'error' });
+        return;
+      }
+      const entryId = String(entry?.id || '').trim();
+      const label = `advance ${formatNgn(entry?.amountNgn)} for ${entry?.customerName || entry?.customerID || entryId}`;
+      if (!confirmDangerousDelete(label, 'DELETE ADVANCE')) return;
+      if (wsCanMutate) {
+        const { ok, data } = await apiFetch('/api/ledger/reverse-advance', {
+          method: 'POST',
+          body: JSON.stringify({
+            entryId,
+            note: 'Advance removed from Sales — duplicate or correction',
+          }),
+        });
+        if (!ok || !data?.ok) {
+          showToast(data?.error || 'Could not reverse advance on server.', { variant: 'error' });
+          return;
+        }
+        await onLedgerSynced();
+        showToast('Advance reversed — customer balance and treasury account updated.');
+        return;
+      }
+      dismissAdvanceEntryId(entryId);
+      bumpLedger();
+      showToast('Advance removed from list.');
+    },
+    [bumpLedger, canDeleteSalesRecord, confirmDangerousDelete, onLedgerSynced, showToast, wsCanMutate]
+  );
+
   const deleteCuttingList = useCallback(
     async (cuttingListId) => {
       if (!canDeleteSalesRecord) {
@@ -1569,6 +1602,7 @@ const Sales = () => {
                   ledgerNonce={ledgerNonce}
                   onSelectAdvance={setAdvanceViewEntry}
                   onLinkAdvance={setLinkAdvanceEntry}
+                  onDeleteAdvance={deleteAdvance}
                 />
               </div>
             ) : salesTab === 'cuttinglist' ? (

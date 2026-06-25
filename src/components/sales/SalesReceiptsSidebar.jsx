@@ -180,6 +180,7 @@ export function ReceiptsAdvancesPanel({
   ledgerNonce = 0,
   onSelectAdvance,
   onLinkAdvance,
+  onDeleteAdvance,
   className = '',
 }) {
   const [menuKey, setMenuKey] = useState(null);
@@ -251,12 +252,7 @@ export function ReceiptsAdvancesPanel({
                 onView={() => onSelectAdvance?.(e)}
                 onLink={() => onLinkAdvance?.(e)}
                 onDelete={() => {
-                  dismissAdvanceEntryId(e.id);
-                  setLocallyDismissed((prev) => {
-                    const next = new Set(prev);
-                    next.add(String(e.id));
-                    return next;
-                  });
+                  onDeleteAdvance?.(e);
                 }}
               />
             </li>
@@ -331,6 +327,7 @@ export default function SalesReceiptsSidebar(props) {
         ledgerNonce={props.ledgerNonce}
         onSelectAdvance={props.onSelectAdvance}
         onLinkAdvance={props.onLinkAdvance}
+        onDeleteAdvance={props.onDeleteAdvance}
       />
     </div>
   );
