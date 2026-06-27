@@ -10,6 +10,7 @@ import {
   Info,
   Play,
   Plus,
+  RefreshCw,
   Save,
   Sparkles,
   Trash2,
@@ -96,6 +97,13 @@ function formatKg(value) {
 function formatMeters(value) {
   const next = Number(value);
   return Number.isFinite(next) ? `${next.toFixed(2)} m` : '—';
+}
+
+function stockRecalcSuffix(stockRecalc) {
+  if (!stockRecalc?.ok) return '';
+  const n = Number(stockRecalc.recalculatedCount ?? stockRecalc.coils?.length ?? 0);
+  if (!Number.isFinite(n) || n <= 0) return '';
+  return ` Stock recalculated for ${n} coil(s).`;
 }
 
 /** In compact views, omit “Design” when it matches or nests inside the FG product line label. */
@@ -281,6 +289,7 @@ export function LiveProductionMonitor({
   const [correctionModalKind, setCorrectionModalKind] = useState(null);
   const [correctionReason, setCorrectionReason] = useState('');
   const [correctionSaving, setCorrectionSaving] = useState(false);
+  const [stockRecalcBusy, setStockRecalcBusy] = useState(false);
   const [confirmDialog, setConfirmDialog] = useState(null);
   const confirmDialogResolverRef = useRef(null);
   const [jobIntel, setJobIntel] = useState(null);
@@ -619,6 +628,33 @@ export function LiveProductionMonitor({
     await ws?.refresh?.();
   }, [ws]);
 
+  const recalculateJobStock = useCallback(async () => {
+    if (!selectedJob?.jobID || stockRecalcBusy || !ws?.canMutate) {
+      if (!ws?.canMutate) {
+        showToast('Reconnect to recalculate stock.', { variant: 'error' });
+      }
+      return;
+    }
+    setStockRecalcBusy(true);
+    try {
+      const res = await apiFetch(
+        `/api/production-jobs/${encodeURIComponent(selectedJob.jobID)}/recalculate-stock`,
+        { method: 'POST', body: JSON.stringify({}) }
+      );
+      if (!res.ok || !res.data?.ok) {
+        showToast(res.data?.error || 'Could not recalculate stock.', { variant: 'error' });
+        return;
+      }
+      await refreshProductionWorkspace();
+      const note = stockRecalcSuffix(res.data);
+      showToast(note ? note.trim() : 'Stock recalculated for this job.');
+    } catch (e) {
+      showToast(e?.message || 'Stock recalculation failed.', { variant: 'error' });
+    } finally {
+      setStockRecalcBusy(false);
+    }
+  }, [selectedJob?.jobID, stockRecalcBusy, ws?.canMutate, refreshProductionWorkspace, showToast]);
+
   useEffect(() => {
     void reloadJobIntel();
   }, [reloadJobIntel]);
@@ -651,6 +687,12 @@ export function LiveProductionMonitor({
     canEditPlannedAllocations ||
     canAddSupplementalCoil ||
     (canEditCompletedCoilCorrections && !isStoneMeterQuote);
+  const canRecalculateJobStock =
+    Boolean(selectedJob?.jobID) &&
+    !isStoneMeterQuote &&
+    !completionUsesOffcutMode &&
+    selectedJobAllocations.length > 0 &&
+    Boolean(ws?.hasPermission?.('production.manage'));
   const canCaptureRun = jobSt === 'Running' && !readOnly;
   const showPostStartBanner = displayJobStatus === 'Running' && !readOnly;
 
@@ -2053,7 +2095,7 @@ export function LiveProductionMonitor({
         setPostCompletionEditApprovalId('');
         setCorrectionModalKind(null);
         setCorrectionReason('');
-        showToast('Completed job coil correction saved.');
+        showToast(`Completed job coil correction saved.${stockRecalcSuffix(res.data?.stockRecalc)}`);
         return;
       }
       if (correctionModalKind === 'accessory') {
@@ -2154,6 +2196,7 @@ export function LiveProductionMonitor({
         return;
       }
       try {
+        let lastStockRecalc = null;
         if (runLogSaveReady && !isStoneMeterQuote) {
           const buildRunLog = (withAck) => ({
             readings: draftAllocations
@@ -2194,6 +2237,7 @@ export function LiveProductionMonitor({
             await refreshProductionWorkspace();
             return;
           }
+          lastStockRecalc = resRl.data?.stockRecalc ?? lastStockRecalc;
         }
         if (appendSaveReady && !isStoneMeterQuote && isRunningForSave) {
           const pathAlloc = `${jobApi}/allocations`;
@@ -2235,12 +2279,13 @@ export function LiveProductionMonitor({
               await refreshProductionWorkspace();
               return;
             }
+            lastStockRecalc = resA.data?.stockRecalc ?? lastStockRecalc;
           }
         }
         await refreshProductionWorkspace();
         clearProdCoilDraftStorage(selectedJob.jobID);
         setSavingAction('');
-        showToast('Saved.');
+        showToast(`Saved.${stockRecalcSuffix(lastStockRecalc)}`);
       } catch (e) {
         setSavingAction('');
         showToast(e?.message || 'Save failed.', { variant: 'error' });
@@ -2392,9 +2437,9 @@ export function LiveProductionMonitor({
       }
       setSavingAction('');
       showToast(
-        isRunningForSave
+        (isRunningForSave
           ? `Supplemental coil(s) saved on ${listLabel}.`
-          : `Coil allocation saved for ${listLabel}.`
+          : `Coil allocation saved for ${listLabel}.`) + stockRecalcSuffix(res.data?.stockRecalc)
       );
       return;
     } else if (type === 'start') {
@@ -4665,6 +4710,18 @@ export function LiveProductionMonitor({
                 >
                   <Undo2 size={12} />
                   Return to plan
+                </button>
+              ) : null}
+              {canRecalculateJobStock ? (
+                <button
+                  type="button"
+                  onClick={() => void recalculateJobStock()}
+                  disabled={stockRecalcBusy || savingAction !== ''}
+                  title="Reconcile coil on-hand, reserved kg, and raw product stock from this job’s coils."
+                  className="inline-flex items-center gap-0.5 rounded-md border border-teal-300 bg-teal-50 px-2 py-0.5 text-[10px] font-semibold text-teal-950 hover:bg-teal-100 disabled:opacity-45"
+                >
+                  <RefreshCw size={12} />
+                  {stockRecalcBusy ? 'Recalculating…' : 'Recalc stock'}
                 </button>
               ) : null}
               {jobSt === 'Planned' || jobSt === 'Running' ? (
