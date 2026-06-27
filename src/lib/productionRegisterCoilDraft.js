@@ -4,6 +4,25 @@ export function isDraftAllocationRow(row) {
   return String(row?.id ?? '').startsWith('draft-');
 }
 
+/** Placeholder row at the bottom of the coil list — not part of the save payload. */
+export function isEmptyCoilDraftRow(row) {
+  if (!row) return true;
+  if (!isDraftAllocationRow(row)) return false;
+  return (
+    !String(row.coilNo ?? '').trim() &&
+    !String(row.openingWeightKg ?? '').trim() &&
+    !String(row.closingWeightKg ?? '').trim() &&
+    !String(row.metersProduced ?? '').trim() &&
+    !String(row.note ?? '').trim()
+  );
+}
+
+function parseCoilDraftNumber(value) {
+  const raw = String(value ?? '').trim();
+  if (!raw) return NaN;
+  return Number(raw.replace(/,/g, ''));
+}
+
 export function createDraftLine(row = {}) {
   const hasPersistedId = row.id != null && row.id !== '';
   return {
@@ -114,9 +133,9 @@ export function seedDraftAllocationsFromServer(jobId, serverRows, prevDrafts, jo
 /** One coil line has enough data to include in live conversion preview. */
 export function draftRowConversionPreviewReady(row) {
   const coil = row.coilNo?.trim();
-  const op = Number(row.openingWeightKg);
-  const cl = Number(row.closingWeightKg);
-  const m = Number(row.metersProduced);
+  const op = parseCoilDraftNumber(row.openingWeightKg);
+  const cl = parseCoilDraftNumber(row.closingWeightKg);
+  const m = parseCoilDraftNumber(row.metersProduced);
   return (
     Boolean(coil) &&
     Number.isFinite(op) &&
@@ -127,6 +146,11 @@ export function draftRowConversionPreviewReady(row) {
     Number.isFinite(m) &&
     m > 0
   );
+}
+
+/** Rows that carry coil data — excludes empty “Add coil” placeholders. */
+export function coilDraftRowsWithData(rows) {
+  return (Array.isArray(rows) ? rows : []).filter((row) => !isEmptyCoilDraftRow(row));
 }
 
 export function completionLineFromDraft(row) {

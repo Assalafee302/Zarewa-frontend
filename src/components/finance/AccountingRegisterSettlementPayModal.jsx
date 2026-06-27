@@ -9,16 +9,11 @@ import { createRequestPayLine, mapTreasuryPayoutLinesForApi } from '../../lib/ac
 import { registerSettlementOutstandingNgn } from '../../lib/registerSettlementPay';
 import { treasuryAccountDisplayName, treasuryAccountsForWorkspace } from '../../lib/treasuryAccountsStore';
 
-function treasuryBookDisplayNgn(acc, movements) {
-  if (!acc) return 0;
-  const id = Number(acc.id);
-  if (!Number.isFinite(id)) return Number(acc.balance) || 0;
-  const movSum = (movements || [])
-    .filter((m) => Number(m.treasuryAccountId) === id)
-    .reduce((s, m) => s + (Number(m.amountNgn) || 0), 0);
-  const o = Math.round(Number(acc.openingBalanceNgn ?? 0));
-  return (Number.isNaN(o) ? 0 : o) + movSum;
-}
+import {
+  findTreasuryPayoutShortAccount,
+  treasuryBookBalanceByAccountId,
+  treasuryBookDisplayNgn,
+} from '../../lib/financeDeskTreasury';
 
 /**
  * @param {{ settlement: object | null; open: boolean; onClose: () => void; onPaid: () => void }} props
@@ -36,6 +31,11 @@ export function AccountingRegisterSettlementPayModal({ settlement, open, onClose
   const treasuryAccounts = useMemo(
     () => treasuryAccountsForWorkspace(ws?.snapshot, ws?.session),
     [ws?.snapshot, ws?.session]
+  );
+
+  const treasuryBookByAccountId = useMemo(
+    () => treasuryBookBalanceByAccountId(treasuryAccounts, treasuryMovements),
+    [treasuryAccounts, treasuryMovements]
   );
 
   const bankAccountsSelectOrder = useMemo(
@@ -115,12 +115,11 @@ export function AccountingRegisterSettlementPayModal({ settlement, open, onClose
       return;
     }
 
-    const shortAccount = bankAccountsSelectOrder.find((account) => {
-      const applied = validLines
-        .filter((line) => line.treasuryAccountId === account.id)
-        .reduce((sum, line) => sum + line.amountNgn, 0);
-      return applied > treasuryBookDisplayNgn(account, treasuryMovements);
-    });
+    const shortAccount = findTreasuryPayoutShortAccount(
+      validLines,
+      bankAccountsSelectOrder,
+      treasuryBookByAccountId
+    );
     if (shortAccount) {
       showToast(`Insufficient balance in ${shortAccount.name}.`, { variant: 'error' });
       return;
@@ -250,7 +249,7 @@ export function AccountingRegisterSettlementPayModal({ settlement, open, onClose
                       <option value="">Select account…</option>
                       {bankAccountsSelectOrder.map((a) => (
                         <option key={a.id} value={String(a.id)}>
-                          {treasuryAccountDisplayName(a)} ({formatNgn(treasuryBookDisplayNgn(a, treasuryMovements))})
+                          {treasuryAccountDisplayName(a)} ({formatNgn(treasuryBookDisplayNgn(a, treasuryBookByAccountId))})
                         </option>
                       ))}
                     </select>

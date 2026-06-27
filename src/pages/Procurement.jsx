@@ -75,6 +75,11 @@ import {
 } from '../lib/supplierProfileForm';
 import { treasuryAccountDisplayName, treasuryAccountsForWorkspace } from '../lib/treasuryAccountsStore';
 import { createRequestPayLine, mapTreasuryPayoutLinesForApi } from '../lib/accountCore';
+import {
+  findTreasuryPayoutShortAccount,
+  treasuryBookBalanceByAccountId,
+  treasuryBookDisplayNgn,
+} from '../lib/financeDeskTreasury';
 /** Rows per column for Coil / Stone-coated / Accessories lists on Purchases. */
 const PROCUREMENT_PURCHASES_COLUMN_PAGE_SIZE = 10;
 const PAYABLES_TABLE_PAGE_SIZE = 10;
@@ -486,6 +491,19 @@ const Procurement = () => {
       ws?.branchScope,
       ws?.viewAllBranches,
     ]
+  );
+
+  const treasuryMovements = useMemo(
+    () =>
+      ws?.hasWorkspaceData && Array.isArray(ws?.snapshot?.treasuryMovements)
+        ? ws.snapshot.treasuryMovements
+        : [],
+    [ws?.hasWorkspaceData, ws?.snapshot?.treasuryMovements]
+  );
+
+  const treasuryBookByAccountId = useMemo(
+    () => treasuryBookBalanceByAccountId(treasuryAccounts, treasuryMovements),
+    [treasuryAccounts, treasuryMovements]
   );
 
   const payables = useMemo(
@@ -1220,12 +1238,11 @@ const Procurement = () => {
       showToast('Payout total exceeds outstanding payable balance.', { variant: 'error' });
       return;
     }
-    const shortAccount = treasuryAccounts.find((account) => {
-      const applied = validLines
-        .filter((line) => line.treasuryAccountId === account.id)
-        .reduce((sum, line) => sum + line.amountNgn, 0);
-      return applied > account.balance;
-    });
+    const shortAccount = findTreasuryPayoutShortAccount(
+      validLines,
+      treasuryAccounts,
+      treasuryBookByAccountId
+    );
     if (shortAccount) {
       showToast(`Insufficient balance in ${shortAccount.name}.`, { variant: 'error' });
       return;
@@ -2662,7 +2679,7 @@ const Procurement = () => {
                       <option value="">Select account…</option>
                       {treasuryAccounts.map((a) => (
                         <option key={a.id} value={String(a.id)}>
-                          {treasuryAccountDisplayName(a)} ({formatNgn(a.balance)})
+                          {treasuryAccountDisplayName(a)} ({formatNgn(treasuryBookDisplayNgn(a, treasuryBookByAccountId))})
                         </option>
                       ))}
                     </select>

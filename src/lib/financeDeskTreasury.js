@@ -33,3 +33,26 @@ export function treasuryBookTotalNgn(accounts = [], bookById) {
     0
   );
 }
+
+/**
+ * First treasury account whose payout lines exceed available book balance.
+ * Accounts with no payout lines on this payment are skipped — so a low/negative
+ * balance on one account cannot block payout from another.
+ *
+ * @param {object[]} validLines — output of mapTreasuryPayoutLinesForApi
+ * @param {object[]} accounts
+ * @param {Map<number, number>} [bookById]
+ * @returns {object | null}
+ */
+export function findTreasuryPayoutShortAccount(validLines, accounts, bookById) {
+  for (const account of Array.isArray(accounts) ? accounts : []) {
+    const accountId = Number(account.id);
+    if (!Number.isFinite(accountId)) continue;
+    const applied = (Array.isArray(validLines) ? validLines : [])
+      .filter((line) => Number(line.treasuryAccountId) === accountId)
+      .reduce((sum, line) => sum + (Number(line.amountNgn) || 0), 0);
+    if (applied <= 0) continue;
+    if (applied > treasuryBookDisplayNgn(account, bookById)) return account;
+  }
+  return null;
+}

@@ -92,6 +92,7 @@ import {
   isPayFromCorrectionTreasuryRow,
   TREASURY_STATEMENT_TYPE_LABEL,
 } from '../lib/accountCore';
+import { findTreasuryPayoutShortAccount } from '../lib/financeDeskTreasury';
 import {
   getAllowedLegacyAccountTabs,
   getDefaultLegacyAccountTab,
@@ -956,12 +957,11 @@ const Account = () => {
       showToast('Refund payout exceeds the approved outstanding balance.', { variant: 'error' });
       return;
     }
-    const refundShortAccount = bankAccountsForPayout.find((account) => {
-      const applied = validLines
-        .filter((line) => line.treasuryAccountId === account.id)
-        .reduce((sum, line) => sum + line.amountNgn, 0);
-      return applied > treasuryBookDisplayNgn(account);
-    });
+    const refundShortAccount = findTreasuryPayoutShortAccount(
+      validLines,
+      bankAccountsForPayout,
+      treasuryDisplayedBookNgnById
+    );
     if (refundShortAccount) {
       showToast(`Insufficient balance in ${refundShortAccount.name}.`, { variant: 'error' });
       return;
@@ -1219,12 +1219,11 @@ const Account = () => {
       showToast('Payout total exceeds the outstanding balance for this item.', { variant: 'error' });
       return;
     }
-    const requestShortAccount = bankAccountsForPayout.find((account) => {
-      const applied = validLines
-        .filter((line) => line.treasuryAccountId === account.id)
-        .reduce((sum, line) => sum + line.amountNgn, 0);
-      return applied > treasuryBookDisplayNgn(account);
-    });
+    const requestShortAccount = findTreasuryPayoutShortAccount(
+      validLines,
+      bankAccountsForPayout,
+      treasuryDisplayedBookNgnById
+    );
     if (requestShortAccount) {
       showToast(`Insufficient balance in ${requestShortAccount.name}.`, { variant: 'error' });
       return;

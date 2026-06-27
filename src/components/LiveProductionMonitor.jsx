@@ -73,6 +73,7 @@ import {
 } from '../lib/productionRegisterDraftStorage';
 import {
   coilAllocationDraftStorageKey,
+  coilDraftRowsWithData,
   completionLineFromDraft,
   createDraftLine,
   draftRowConversionPreviewReady,
@@ -580,7 +581,7 @@ export function LiveProductionMonitor({
       return undefined;
     }
     onRegisterHeaderMeta({
-      status: selectedJob.status,
+      status: displayJobStatus,
       quotationRef: selectedJob.quotationRef || null,
       machineName: selectedJob.machineName || null,
       materialLabel: registerMaterialLabel,
@@ -1598,7 +1599,9 @@ export function LiveProductionMonitor({
       draftAllocations.filter((r) => !isDraftAllocationRow(r)).map((r) => String(r.id).trim())
     );
     if (persistedIds.size > 0 && ![...persistedIds].every((id) => coveredIds.has(id))) return false;
-    return draftAllocations.every((r) => draftRowConversionPreviewReady(r));
+    const rowsToValidate = coilDraftRowsWithData(draftAllocations);
+    if (rowsToValidate.length === 0) return false;
+    return rowsToValidate.every((r) => draftRowConversionPreviewReady(r));
   }, [canEditCompletedCoilCorrections, draftAllocations, selectedJobAllocations]);
   const plannedAllocSaveReady = useMemo(
     () =>
@@ -2114,6 +2117,13 @@ export function LiveProductionMonitor({
     }
     const jobApi = `/api/production-jobs/${encodeURIComponent(selectedJob.jobID)}`;
     const listLabel = selectedJob.cuttingListId || selectedJob.jobID;
+    const isRunningForSave = jobSt === 'Running';
+    const isPlannedForSave = jobSt === 'Planned';
+
+    if (type === 'allocationsAndStart' && isRunningForSave) {
+      return persist('runningCheckpoint');
+    }
+
     setSavingAction(type);
     let path = '';
     let body = {};
@@ -2136,9 +2146,6 @@ export function LiveProductionMonitor({
       beginCorrectionModal('stoneSf');
       return;
     }
-
-    const isRunningForSave = jobSt === 'Running';
-    const isPlannedForSave = jobSt === 'Planned';
 
     if (type === 'runningCheckpoint') {
       if (!runningCheckpointSaveReady) {
@@ -2682,9 +2689,9 @@ export function LiveProductionMonitor({
                   {readOnly ? <span className="text-slate-400">· read-only</span> : null}
                 </div>
               ) : null}
-              {inModal && !readOnly && selectedJob.status !== 'Completed' && selectedJob.status !== 'Cancelled' ? (
+              {inModal && !readOnly && jobSt !== 'Completed' && jobSt !== 'Cancelled' ? (
                 <div className="mt-2 flex flex-wrap items-end gap-3">
-                  {(selectedJob.status === 'Planned' || selectedJob.status === 'Running') &&
+                  {(jobSt === 'Planned' || jobSt === 'Running') &&
                   !selectedJob.startDateISO ? (
                     <label className="text-[10px] font-semibold text-slate-600">
                       Production date
@@ -2700,7 +2707,7 @@ export function LiveProductionMonitor({
                       Started: <strong>{String(selectedJob.startDateISO).slice(0, 10)}</strong>
                     </p>
                   ) : null}
-                  {selectedJob.status === 'Running' ? (
+                  {jobSt === 'Running' ? (
                     <>
                       <label className="text-[10px] font-semibold text-slate-600">
                         Production business date
@@ -2744,7 +2751,7 @@ export function LiveProductionMonitor({
                 </span>
               ) : (
                 <div className="flex flex-wrap gap-1 rounded-lg border border-slate-200/80 bg-white p-0.5">
-                  {selectedJob.status === 'Planned' ? (
+                  {jobSt === 'Planned' ? (
                     <button
                       type="button"
                       onClick={() => void persist('allocationsAndStart')}
@@ -2777,7 +2784,7 @@ export function LiveProductionMonitor({
                       {savingAction === 'runningCheckpoint' ? 'Saving…' : 'Save while running'}
                     </button>
                   ) : null}
-                  {selectedJob.status === 'Completed' && canEditCompletedCoilCorrections ? (
+                  {jobSt === 'Completed' && canEditCompletedCoilCorrections ? (
                     <button
                       type="button"
                       onClick={() => void persist('completedCoilCorrection')}
@@ -2793,7 +2800,7 @@ export function LiveProductionMonitor({
                       {savingAction === 'completedCoilCorrection' ? 'Saving…' : 'Save correction'}
                     </button>
                   ) : null}
-                  {selectedJob.status === 'Completed' && canEditCompletedAccessoryCorrections ? (
+                  {jobSt === 'Completed' && canEditCompletedAccessoryCorrections ? (
                     <button
                       type="button"
                       onClick={() => void persist('completedAccessoryCorrection')}
@@ -2809,7 +2816,7 @@ export function LiveProductionMonitor({
                       {savingAction === 'completedAccessoryCorrection' ? 'Saving…' : 'Save accessories'}
                     </button>
                   ) : null}
-                  {selectedJob.status === 'Completed' && canEditCompletedAccessoryCorrections && isStoneMeterQuote ? (
+                  {jobSt === 'Completed' && canEditCompletedAccessoryCorrections && isStoneMeterQuote ? (
                     <button
                       type="button"
                       onClick={() => void persist('completedStoneFlatsheetCorrection')}
@@ -2851,7 +2858,7 @@ export function LiveProductionMonitor({
                     <CheckCircle2 size={13} />
                     {savingAction === 'complete' ? 'Completing…' : 'Complete'}
                   </button>
-                  {selectedJob.status === 'Running' && canReturnJobToPlanned ? (
+                  {jobSt === 'Running' && canReturnJobToPlanned ? (
                     <button
                       type="button"
                       onClick={() => setReturnModalOpen(true)}
@@ -2863,7 +2870,7 @@ export function LiveProductionMonitor({
                       Return to plan
                     </button>
                   ) : null}
-                  {selectedJob.status === 'Planned' || selectedJob.status === 'Running' ? (
+                  {jobSt === 'Planned' || jobSt === 'Running' ? (
                     <button
                       type="button"
                       onClick={() => setCancelModalOpen(true)}
@@ -3360,7 +3367,7 @@ export function LiveProductionMonitor({
                 </div>
               ) : null}
 
-              {hasPlannedMeters && (selectedJob.status === 'Running' || selectedJob.status === 'Planned') ? (
+              {hasPlannedMeters && (jobSt === 'Running' || jobSt === 'Planned') ? (
                 <div className="rounded-md border border-slate-200/60 bg-white/60 px-2 py-1.5">
                   <div className="flex items-center justify-between gap-2 text-[9px] font-semibold text-slate-600">
                     <span className="uppercase tracking-wide text-slate-500">vs plan</span>
@@ -3748,7 +3755,7 @@ export function LiveProductionMonitor({
             </div>
           ) : null}
 
-          {selectedJob.status === 'Completed' && selectedJob.managerReviewSignedAtISO ? (
+          {jobSt === 'Completed' && selectedJob.managerReviewSignedAtISO ? (
             <div className="rounded-lg border border-emerald-200 bg-emerald-50/90 px-2.5 py-2 text-xs text-emerald-950">
               <div className="flex items-start gap-1.5">
                 <CheckCircle2 size={15} className="mt-0.5 shrink-0 text-emerald-700" />
@@ -4108,7 +4115,7 @@ export function LiveProductionMonitor({
                     <strong className="text-[#134e4a]">Stone-coated</strong> stock is tracked in metres (no coil
                     numbers). Use <strong>Save &amp; start</strong> once to begin the run.
                   </p>
-                  {selectedJob.status === 'Running' ? (
+                  {jobSt === 'Running' ? (
                     <label className="block text-[10px] font-bold uppercase tracking-wide text-slate-500">
                       Metres consumed (stone stock)
                       <input
@@ -4541,7 +4548,7 @@ export function LiveProductionMonitor({
             </span>
           ) : (
             <div className="flex flex-wrap items-center justify-end gap-1">
-              {selectedJob.status === 'Planned' ? (
+              {jobSt === 'Planned' ? (
                 <button
                   type="button"
                   onClick={() => void persist('allocationsAndStart')}
@@ -4574,7 +4581,7 @@ export function LiveProductionMonitor({
                   {savingAction === 'runningCheckpoint' ? 'Saving…' : 'Save while running'}
                 </button>
               ) : null}
-              {selectedJob.status === 'Completed' && canEditCompletedCoilCorrections ? (
+              {jobSt === 'Completed' && canEditCompletedCoilCorrections ? (
                 <button
                   type="button"
                   onClick={() => void persist('completedCoilCorrection')}
@@ -4590,7 +4597,7 @@ export function LiveProductionMonitor({
                   {savingAction === 'completedCoilCorrection' ? 'Saving…' : 'Save correction'}
                 </button>
               ) : null}
-              {selectedJob.status === 'Completed' && canEditCompletedAccessoryCorrections ? (
+              {jobSt === 'Completed' && canEditCompletedAccessoryCorrections ? (
                 <button
                   type="button"
                   onClick={() => void persist('completedAccessoryCorrection')}
@@ -4606,7 +4613,7 @@ export function LiveProductionMonitor({
                   {savingAction === 'completedAccessoryCorrection' ? 'Saving…' : 'Accessories'}
                 </button>
               ) : null}
-              {selectedJob.status === 'Completed' && canEditCompletedAccessoryCorrections && isStoneMeterQuote ? (
+              {jobSt === 'Completed' && canEditCompletedAccessoryCorrections && isStoneMeterQuote ? (
                 <button
                   type="button"
                   onClick={() => void persist('completedStoneFlatsheetCorrection')}
@@ -4648,7 +4655,7 @@ export function LiveProductionMonitor({
                 <CheckCircle2 size={12} />
                 {savingAction === 'complete' ? 'Completing…' : 'Complete'}
               </button>
-              {selectedJob.status === 'Running' && canReturnJobToPlanned ? (
+              {jobSt === 'Running' && canReturnJobToPlanned ? (
                 <button
                   type="button"
                   onClick={() => setReturnModalOpen(true)}
@@ -4660,7 +4667,7 @@ export function LiveProductionMonitor({
                   Return to plan
                 </button>
               ) : null}
-              {selectedJob.status === 'Planned' || selectedJob.status === 'Running' ? (
+              {jobSt === 'Planned' || jobSt === 'Running' ? (
                 <button
                   type="button"
                   onClick={() => setCancelModalOpen(true)}
