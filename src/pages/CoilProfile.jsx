@@ -22,6 +22,7 @@ import { useTrackedUnsavedForm } from '../hooks/useTrackedUnsavedForm';
 import { apiFetch } from '../lib/apiBase';
 import { fmtConv2 } from '../lib/conversionKgPerM.js';
 import { coilFreeKg, coilKgUsed, coilOnHandKg, coilReceivedKg } from '../lib/coilStockKg.js';
+import { buildCoilProfileJobRows, coilProfileProductionTotals } from '../lib/coilProfileJobRows.js';
 
 function asNum(v) {
   const n = Number(v);
@@ -92,6 +93,7 @@ export default function CoilProfile() {
   const [holdersMeta, setHoldersMeta] = useState(null);
   const [holdersLoading, setHoldersLoading] = useState(false);
   const [reconcilingReservation, setReconcilingReservation] = useState(false);
+  const [recalculatingStock, setRecalculatingStock] = useState(false);
   const [productionTraceModal, setProductionTraceModal] = useState(null);
 
   const actionModalOpen = Boolean(actionModal);
@@ -206,33 +208,35 @@ export default function CoilProfile() {
     return m;
   }, [linkedChecks]);
 
-  const jobRows = useMemo(() => {
-    const source =
-      Array.isArray(holdersMeta?.holders) && holdersMeta.holders.length > 0
-        ? holdersMeta.holders
-        : linkedJobs;
-    return source.map((r) => {
-      const opening = asNum(r.openingWeightKg);
-      const closing = asNum(r.closingWeightKg);
-      const kgUsed = opening > 0 && closing >= 0 && opening >= closing ? opening - closing : null;
-      const meters = asNum(r.metersProduced);
-      const derivedConv = kgUsed != null && meters > 0 ? kgUsed / meters : null;
-      const keyJob = String(r.jobID || '').trim();
-      const keyCl = String(r.cuttingListId || '').trim();
-      const check = checkByKey.get(keyJob) || checkByKey.get(keyCl) || null;
-      const jobStatus = String(r.jobStatus || r.status || '').trim();
+  const jobRows = useMemo(
+    () =>
+      buildCoilProfileJobRows({
+        holders: holdersMeta?.holders,
+        linkedJobs,
+        productionJobs,
+        checkByKey,
+        linkedCuttingSet,
+      }),
+    [linkedJobs, checkByKey, linkedCuttingSet, holdersMeta?.holders, productionJobs]
+  );
+
+  const productionTotals = useMemo(() => {
+    if (
+      holdersMeta != null &&
+      Number.isFinite(Number(holdersMeta.jobsConsumedKgSum)) &&
+      Number.isFinite(Number(holdersMeta.bookUsedKg))
+    ) {
       return {
-        ...r,
-        kgUsed,
-        meters,
-        actualConv: check?.actualConversionKgPerM ?? derivedConv,
-        standardConv: check?.standardConversionKgPerM ?? null,
-        supplierConv: check?.supplierConversionKgPerM ?? null,
-        status: jobStatus || (linkedCuttingSet.has(keyCl) ? 'Linked' : ''),
-        jobStatus,
+        jobsConsumedKgSum: Number(holdersMeta.jobsConsumedKgSum),
+        openingClosingKgSum: Number(holdersMeta.openingClosingKgSum) || 0,
+        gapKg: Number(holdersMeta.reconciliationGapKg),
+        openingClosingGapKg: Number.isFinite(Number(holdersMeta.openingClosingGapKg))
+          ? Number(holdersMeta.openingClosingGapKg)
+          : null,
       };
-    });
-  }, [linkedJobs, checkByKey, linkedCuttingSet, holdersMeta?.holders]);
+    }
+    return coil ? coilProfileProductionTotals(jobRows, coilKgUsed(coil)) : null;
+  }, [jobRows, coil, holdersMeta]);
 
   const movementRows = useMemo(() => {
     const id = coilNo.toLowerCase();
@@ -411,6 +415,32 @@ export default function CoilProfile() {
     }
     const subtitle = [row?.customer, row?.quotationRef].filter(Boolean).join(' · ') || undefined;
     setProductionTraceModal({ cuttingListId: focusId, subtitle });
+  };
+
+  const submitRecalculateProductionStock = async () => {
+    if (!coil || !canReconcileReservation) return;
+    setRecalculatingStock(true);
+    try {
+      const { ok, data } = await apiFetch(
+        `/api/coil-lots/${encodeURIComponent(coil.coilNo)}/recalculate-production-stock`,
+        { method: 'POST', body: JSON.stringify({}) }
+      );
+      if (!ok || !data?.ok) {
+        showToast(data?.error || 'Could not recalculate production stock.', { variant: 'error' });
+        return;
+      }
+      await ws.refresh?.();
+      await refreshProductionHolders();
+      const count = Number(data.recalculatedJobCount || 0);
+      showToast(
+        count > 0
+          ? `Production stock recalculated for ${count} job(s) on this coil.`
+          : 'No production jobs linked to this coil.',
+        { variant: 'info' }
+      );
+    } finally {
+      setRecalculatingStock(false);
+    }
   };
 
   const submitReconcileReservation = async () => {
@@ -631,8 +661,51 @@ export default function CoilProfile() {
             <h3 className="text-xs font-bold text-[#134e4a] uppercase tracking-widest mb-4">Production links</h3>
             <p className="text-[10px] text-slate-500 mb-3 leading-relaxed">
               All jobs that ever allocated this coil (from server). Active planned/running openings should match
-              reserved kg on the overview.
+              reserved kg on the overview. Per-job <strong>kg used</strong> is the booked consumed weight on each
+              allocation (not opening − closing when they differ after corrections).
             </p>
+            {productionTotals && Math.abs(productionTotals.gapKg || 0) > 0.05 ? (
+              <div className="mb-3 rounded-lg border border-amber-300 bg-amber-50 px-3 py-3 text-xs text-amber-950">
+                <p className="font-bold text-amber-900">Job consumption vs coil book</p>
+                <p className="mt-1 leading-relaxed text-amber-900/90 tabular-nums">
+                  Sum of job consumed kg: <strong>{productionTotals.jobsConsumedKgSum.toLocaleString(undefined, { maximumFractionDigits: 2 })}</strong>
+                  {' · '}
+                  Coil book used: <strong>{kgUsed.toLocaleString(undefined, { maximumFractionDigits: 2 })}</strong>
+                  {' · '}
+                  Gap: <strong>{Math.abs(productionTotals.gapKg).toLocaleString(undefined, { maximumFractionDigits: 2 })}</strong> kg
+                </p>
+                {productionTotals.openingClosingGapKg != null &&
+                Math.abs(productionTotals.openingClosingGapKg - (productionTotals.gapKg || 0)) > 0.05 ? (
+                  <p className="mt-1 leading-relaxed text-amber-900/80 tabular-nums">
+                    Opening − closing sum:{' '}
+                    <strong>
+                      {productionTotals.openingClosingKgSum.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                    </strong>{' '}
+                    kg — differs from booked consumed; completion corrections may have restored kg without updating
+                    allocation rows.
+                  </p>
+                ) : null}
+                <p className="mt-1 leading-relaxed text-amber-900/80">
+                  Scrap, finish-roll tail, or completion corrections can explain a gap. Use{' '}
+                  <strong>Recalc production stock</strong> after editing completed jobs, or re-save coil corrections
+                  on the affected production register rows.
+                </p>
+                {canReconcileReservation ? (
+                  <button
+                    type="button"
+                    className="mt-2 z-btn-secondary text-[10px]"
+                    disabled={recalculatingStock}
+                    onClick={submitRecalculateProductionStock}
+                  >
+                    {recalculatingStock ? 'Recalculating…' : 'Recalc production stock'}
+                  </button>
+                ) : null}
+              </div>
+            ) : productionTotals && jobRows.length > 0 ? (
+              <p className="mb-3 text-[10px] text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2 tabular-nums">
+                Job consumed kg sum ({productionTotals.jobsConsumedKgSum.toLocaleString(undefined, { maximumFractionDigits: 2 })}) matches coil book used ({kgUsed.toLocaleString()}).
+              </p>
+            ) : null}
             <div className="space-y-2">
               {jobRows.length === 0 ? (
                 <p className="text-xs text-slate-500">
@@ -657,7 +730,7 @@ export default function CoilProfile() {
                       </span>
                       <span
                         className={`rounded px-1.5 py-0.5 border ${toneForAlert(
-                          row.alertState || row.conversionAlert || row.status
+                          row.alertState || row.conversionAlert || row.jobStatus || row.status
                         )}`}
                       >
                         {row.alertState || row.conversionAlert || row.jobStatus || row.status || '—'}

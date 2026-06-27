@@ -112,8 +112,8 @@ describe('CoilProfile', () => {
 
     expect(screen.getAllByText('CL-001').length).toBeGreaterThan(0);
     expect(screen.getByText(/kg used:/i)).toBeInTheDocument();
-    expect(screen.getByText(/Within band|Watch|Critical/i)).toBeInTheDocument();
-    const watchBadge = screen.getByText('Watch');
+    expect(screen.getAllByText(/Within band|Watch|Critical/i).length).toBeGreaterThan(0);
+    const watchBadge = screen.getAllByText('Watch')[0];
     expect(watchBadge.className).toMatch(/amber/);
   });
 });
