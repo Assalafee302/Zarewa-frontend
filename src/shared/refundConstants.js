@@ -2,7 +2,7 @@
  * Canonical refund reason categories (Sales UI, preview filters, duplicate checks).
  * Bump when preview suggestion rules change materially (stored on refund snapshot).
  */
-export const REFUND_PREVIEW_VERSION = 8;
+export const REFUND_PREVIEW_VERSION = 10;
 
 /** Refund quotation picker: remaining refundable and preview total must each be at least this (₦). */
 export const MIN_REFUND_QUOTATION_REMAINING_NGN = 1000;

@@ -215,6 +215,15 @@ export function RefundManagerApprovalPreview({
         : [],
     [refundIntel?.productionSuggestedCategories]
   );
+  const productionFulfillment = useMemo(() => {
+    const fromIntel = refundIntel?.productionFulfillment;
+    if (fromIntel && typeof fromIntel === 'object') return fromIntel;
+    const snap = refund?.previewSnapshot;
+    if (snap?.productionFulfillment && typeof snap.productionFulfillment === 'object') {
+      return snap.productionFulfillment;
+    }
+    return null;
+  }, [refundIntel?.productionFulfillment, refund?.previewSnapshot]);
   const calcLines = useMemo(() => refund?.calculationLines || [], [refund?.calculationLines]);
   const lineArithmeticIssues = useMemo(
     () => auditRefundCalculationLineArithmetic(calcLines),
@@ -514,6 +523,16 @@ export function RefundManagerApprovalPreview({
         body: `Based on job state, consider: ${productionSuggested.join(', ')}.`,
       });
     }
+    if (
+      productionFulfillment?.fullyProducedRoofing &&
+      currentHasUnproduced
+    ) {
+      alerts.push({
+        tone: 'rose',
+        title: 'Unproduced refund not supported',
+        body: `Quoted ${Number(productionFulfillment.quotedMeters || 0).toLocaleString()} m roofing is fully produced (${Number(productionFulfillment.producedMetersForUnproduced || 0).toLocaleString()} m output${Number(productionFulfillment.offcutFgMeters || 0) > 0 ? `, including ${Number(productionFulfillment.offcutFgMeters).toLocaleString()} m from offcut/accessories` : ''}). Reject or send back unless another category applies.`,
+      });
+    }
     return alerts.filter((a) => a.body);
   }, [
     requiresMdApproval,
@@ -529,6 +548,8 @@ export function RefundManagerApprovalPreview({
     cancellationWithProduction,
     dataQuality,
     productionSuggested,
+    productionFulfillment,
+    currentHasUnproduced,
   ]);
 
   return (
@@ -838,6 +859,33 @@ export function RefundManagerApprovalPreview({
               </div>
             ) : productionLogs.length > 0 ? (
               <div className="space-y-1">
+                {productionFulfillment ? (
+                  <div className="mb-2 rounded-md border border-slate-200 bg-white px-2 py-1.5">
+                    <p className="text-[8px] font-bold uppercase tracking-wide text-slate-500">
+                      Roofing fulfilment
+                    </p>
+                    <p className="text-[9px] text-slate-700 leading-snug">
+                      Quoted {Number(productionFulfillment.quotedMeters || 0).toLocaleString()} m · Eligible
+                      produced {Number(productionFulfillment.producedMetersForUnproduced || 0).toLocaleString()} m
+                      {Number(productionFulfillment.coilProducedMeters || 0) > 0
+                        ? ` (${Number(productionFulfillment.coilProducedMeters).toLocaleString()} m coil`
+                        : ''}
+                      {Number(productionFulfillment.offcutFgMeters || 0) > 0
+                        ? `${Number(productionFulfillment.coilProducedMeters || 0) > 0 ? ',' : ' ('}${Number(productionFulfillment.offcutFgMeters).toLocaleString()} m offcut/accessories`
+                        : ''}
+                      {Number(productionFulfillment.coilProducedMeters || 0) > 0 ||
+                      Number(productionFulfillment.offcutFgMeters || 0) > 0
+                        ? ')'
+                        : ''}
+                      · Unproduced {Number(productionFulfillment.unproducedMetres || 0).toLocaleString()} m
+                    </p>
+                    {productionFulfillment.fullyProducedRoofing ? (
+                      <p className="mt-0.5 text-[8px] font-semibold text-emerald-700">
+                        Fully produced — unproduced meterage refund should not apply.
+                      </p>
+                    ) : null}
+                  </div>
+                ) : null}
                 {productionLogs.slice(0, 4).map((job) => (
                   <div key={job.job_id} className="rounded-md border border-slate-200 bg-slate-50/60 px-1.5 py-1">
                     <div className="flex justify-between gap-1">

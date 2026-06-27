@@ -44,6 +44,15 @@ export function coilAllocationDraftStorageKey(row) {
   if (!isDraftAllocationRow(row) && row.id != null && row.id !== '') {
     return `id:${String(row.id)}`;
   }
+  if (isDraftAllocationRow(row) && row.id != null && row.id !== '') {
+    const hasData =
+      String(row.coilNo ?? '').trim() ||
+      String(row.openingWeightKg ?? '').trim() ||
+      String(row.closingWeightKg ?? '').trim() ||
+      String(row.metersProduced ?? '').trim() ||
+      String(row.note ?? '').trim();
+    if (hasData) return `draft:${String(row.id)}`;
+  }
   const coil = String(row.coilNo ?? '').trim();
   if (!coil) return '';
   const op = Math.round(Number(String(row.openingWeightKg ?? '').replace(/,/g, '')) || 0);
@@ -125,7 +134,46 @@ export function seedDraftAllocationsFromServer(jobId, serverRows, prevDrafts, jo
     return !mergedPersisted.some((m) => coil && String(m.coilNo ?? '').trim() === coil);
   });
 
-  const all = [...mergedPersisted, ...supplementalDrafts];
+  const storedOnlyDrafts = [];
+  if (!jobSwitch && storedMap && typeof storedMap === 'object') {
+    const mergedIds = new Set(mergedPersisted.map((m) => String(m.id ?? '')));
+    const mergedCoils = new Set(
+      mergedPersisted.map((m) => String(m.coilNo ?? '').trim()).filter(Boolean)
+    );
+    for (const [key, stored] of Object.entries(storedMap)) {
+      if (!stored || typeof stored !== 'object') continue;
+      const storedCoil = String(stored.coilNo ?? '').trim();
+      const storedDraftId = key.startsWith('draft:') ? key.slice(6) : '';
+      if (storedDraftId && mergedIds.has(storedDraftId)) continue;
+      if (storedCoil && mergedCoils.has(storedCoil)) continue;
+      if (
+        !storedCoil &&
+        !String(stored.openingWeightKg ?? '').trim() &&
+        !String(stored.closingWeightKg ?? '').trim() &&
+        !String(stored.metersProduced ?? '').trim() &&
+        !String(stored.note ?? '').trim()
+      ) {
+        continue;
+      }
+      const fromStored = createDraftLine({
+        id: storedDraftId || undefined,
+        coilNo: storedCoil,
+        openingWeightKg: stored.openingWeightKg,
+        closingWeightKg: stored.closingWeightKg,
+        metersProduced: stored.metersProduced,
+        note: stored.note,
+        finishCoil: stored.finishCoil,
+      });
+      const dup = [...mergedPersisted, ...supplementalDrafts, ...storedOnlyDrafts].some(
+        (m) =>
+          String(m.id) === String(fromStored.id) ||
+          (storedCoil && String(m.coilNo ?? '').trim() === storedCoil)
+      );
+      if (!dup) storedOnlyDrafts.push(fromStored);
+    }
+  }
+
+  const all = [...mergedPersisted, ...supplementalDrafts, ...storedOnlyDrafts];
   const needsBlank = !all.some((r) => isDraftAllocationRow(r) && !String(r.coilNo ?? '').trim());
   return needsBlank ? [...all, createDraftLine()] : all;
 }

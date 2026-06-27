@@ -867,6 +867,8 @@ const RefundModal = ({
         quotedMeters: preview.quotedMeters,
         actualMeters: preview.actualMeters,
         coilProducedMeters: preview.coilProducedMeters,
+        producedMetersForUnproduced: preview.producedMetersForUnproduced,
+        productionFulfillment: preview.productionFulfillment,
         pricePerMeterNgn: preview.pricePerMeterNgn,
         quoteTotalNgn: preview.quoteTotalNgn,
         quotationCashInNgn: preview.quotationCashInNgn,
@@ -3140,12 +3142,24 @@ const RefundModal = ({
                             m
                           </p>
                           <p className="text-[8px] text-slate-500 mt-1 leading-snug">
-                            Metres from coil allocations — used for unproduced-meterage refunds. Offcut-only output does
-                            not count here.
+                            Metres from coil allocations.
+                            {lastPreviewSnapshot?.producedMetersForUnproduced != null ? (
+                              <span className="block text-emerald-400/90 mt-0.5">
+                                Eligible produced (unproduced refund):{' '}
+                                {Number(lastPreviewSnapshot.producedMetersForUnproduced).toLocaleString()} m
+                                {Number(lastPreviewSnapshot.producedMetersForUnproduced) >
+                                Number(lastPreviewSnapshot.coilProducedMeters || 0) + 0.001
+                                  ? ' — includes offcut/accessory FG when coil metres are lower.'
+                                  : '.'}
+                              </span>
+                            ) : null}
                             {lastPreviewSnapshot?.actualMeters != null &&
                             lastPreviewSnapshot?.coilProducedMeters != null &&
                             Number(lastPreviewSnapshot.actualMeters) >
-                              Number(lastPreviewSnapshot.coilProducedMeters) + 0.001 ? (
+                              Number(lastPreviewSnapshot.coilProducedMeters) + 0.001 &&
+                            (lastPreviewSnapshot?.producedMetersForUnproduced == null ||
+                              Number(lastPreviewSnapshot.producedMetersForUnproduced) <=
+                                Number(lastPreviewSnapshot.coilProducedMeters || 0) + 0.001) ? (
                               <span className="block text-amber-400/90 mt-0.5">
                                 Total FG output: {Number(lastPreviewSnapshot.actualMeters).toLocaleString()} m (includes
                                 offcut/accessories).

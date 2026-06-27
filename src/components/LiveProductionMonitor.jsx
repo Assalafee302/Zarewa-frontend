@@ -255,6 +255,8 @@ export function LiveProductionMonitor({
   const { show: showToast } = useToast();
   const [selectedJobId, setSelectedJobId] = useState('');
   const [draftAllocations, setDraftAllocations] = useState([createDraftLine()]);
+  const [coilAllocRefreshToken, setCoilAllocRefreshToken] = useState(0);
+  const [jobCoilsFromApi, setJobCoilsFromApi] = useState(null);
   const [savingAction, setSavingAction] = useState('');
   const [signoffRemark, setSignoffRemark] = useState('');
   const [signoffEditApprovalId, setSignoffEditApprovalId] = useState('');
@@ -507,12 +509,43 @@ export function LiveProductionMonitor({
     setOptimisticJobStatus('Running');
   }, []);
 
-  const selectedJobAllocations = useMemo(
+  const snapshotJobCoilsForSelected = useMemo(
     () =>
       jobCoils
         .filter((row) => row.jobID === selectedJob?.jobID)
         .sort((a, b) => (a.sequenceNo || 0) - (b.sequenceNo || 0)),
     [jobCoils, selectedJob?.jobID]
+  );
+
+  useEffect(() => {
+    const jobId = String(selectedJob?.jobID || '').trim();
+    if (!jobId) {
+      setJobCoilsFromApi(null);
+      return undefined;
+    }
+    setJobCoilsFromApi(null);
+    let cancelled = false;
+    void (async () => {
+      const r = await apiFetch(`/api/production-jobs/${encodeURIComponent(jobId)}/coil-allocations`);
+      if (cancelled) return;
+      if (r.ok && r.data?.ok && Array.isArray(r.data.allocations)) {
+        setJobCoilsFromApi(
+          [...r.data.allocations]
+            .map((row) => ({ ...row, jobID: row.jobID ?? jobId }))
+            .sort((a, b) => (a.sequenceNo || 0) - (b.sequenceNo || 0))
+        );
+      } else {
+        setJobCoilsFromApi(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedJob?.jobID, coilAllocRefreshToken]);
+
+  const selectedJobAllocations = useMemo(
+    () => (jobCoilsFromApi != null ? jobCoilsFromApi : snapshotJobCoilsForSelected),
+    [jobCoilsFromApi, snapshotJobCoilsForSelected]
   );
   /** Stable while server row *content* is unchanged — avoids re-seeding drafts when `ws` or array identity churns. */
   const selectedJobAllocationsSyncKey = useMemo(
@@ -623,9 +656,10 @@ export function LiveProductionMonitor({
   const refreshProductionWorkspace = useCallback(async () => {
     if (typeof ws?.ensureDomainLoaded === 'function') {
       await ws.ensureDomainLoaded('operations', { force: true });
-      return;
+    } else {
+      await ws?.refresh?.();
     }
-    await ws?.refresh?.();
+    setCoilAllocRefreshToken((n) => n + 1);
   }, [ws]);
 
   const recalculateJobStock = useCallback(async () => {

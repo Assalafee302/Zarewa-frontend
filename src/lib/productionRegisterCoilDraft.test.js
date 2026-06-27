@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
+  coilAllocationDraftStorageKey,
   coilDraftRowsWithData,
   draftRowConversionPreviewReady,
   isEmptyCoilDraftRow,
+  seedDraftAllocationsFromServer,
 } from './productionRegisterCoilDraft.js';
 
 describe('productionRegisterCoilDraft', () => {
@@ -52,5 +54,51 @@ describe('productionRegisterCoilDraft', () => {
         note: '',
       })
     ).toBe(true);
+  });
+
+  it('uses stable draft row id for session storage keys', () => {
+    const row = {
+      id: 'draft-abc',
+      coilNo: 'CL-1',
+      openingWeightKg: '500',
+      closingWeightKg: '',
+      metersProduced: '',
+      note: '',
+    };
+    expect(coilAllocationDraftStorageKey(row)).toBe('draft:draft-abc');
+  });
+
+  it('seedDraftAllocationsFromServer keeps unsaved second coil when server has only first coil', () => {
+    const serverRows = [
+      {
+        id: 'PJC-1',
+        coilNo: 'CL-FIRST',
+        openingWeightKg: 1000,
+        closingWeightKg: 0,
+        metersProduced: 0,
+        note: '',
+      },
+    ];
+    const prev = [
+      {
+        id: 'PJC-1',
+        coilNo: 'CL-FIRST',
+        openingWeightKg: '1000',
+        closingWeightKg: '',
+        metersProduced: '',
+        note: '',
+      },
+      {
+        id: 'draft-second',
+        coilNo: 'CL-SECOND',
+        openingWeightKg: '800',
+        closingWeightKg: '',
+        metersProduced: '',
+        note: '',
+      },
+    ];
+    const seeded = seedDraftAllocationsFromServer('PRO-1', serverRows, prev, false);
+    const coils = seeded.filter((r) => String(r.coilNo ?? '').trim());
+    expect(coils.map((r) => r.coilNo)).toEqual(['CL-FIRST', 'CL-SECOND']);
   });
 });
