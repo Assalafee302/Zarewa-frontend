@@ -35,6 +35,10 @@ import {
   productLineKey,
   quotationHasFlatSheetLine,
 } from '../lib/stoneCoatedQuotationPolicy';
+import {
+  QUOTATION_MATERIAL_HEADER_CODE,
+  quotationMaterialHeaderErrorMessage,
+} from '../lib/quotationMaterialHeader';
 import { ZAREWA_COMPANY_ACCOUNT_NAME } from '../Data/companyQuotation';
 import { formatNgn } from '../Data/mockData';
 import { useToast } from '../context/ToastContext';
@@ -291,6 +295,9 @@ function rowsForPrint(rows, placeholderWhenEmpty = true) {
 }
 
 function quotationRulesErrorMessage(data) {
+  if (data?.code === QUOTATION_MATERIAL_HEADER_CODE) {
+    return quotationMaterialHeaderErrorMessage(data);
+  }
   if (!data || data.code !== QUOTATION_MATERIAL_RULES_CODE) return data?.error || '';
   const d = data.details || {};
   const bits = [data.error].filter(Boolean);
@@ -301,6 +308,14 @@ function quotationRulesErrorMessage(data) {
     bits.push('(Stone flatsheet: choose 1.4 m, 1.5 m, or 2 m — product name or length per line)');
   }
   return bits.join(' ');
+}
+
+function materialHeaderIncompleteMessage(materialTypeId, materialGauge, materialColor, materialDesign) {
+  if (!String(materialTypeId ?? '').trim()) return 'Select material type — required on every quotation.';
+  if (!String(materialGauge ?? '').trim()) return 'Select gauge — required on every quotation.';
+  if (!String(materialColor ?? '').trim()) return 'Select colour — required on every quotation.';
+  if (!String(materialDesign ?? '').trim()) return 'Select profile — required on every quotation.';
+  return '';
 }
 
 function quoteItemUnitIsArea(unit) {
@@ -1774,8 +1789,8 @@ const QuotationModal = ({
       showToast('Enter project / site (required).', { variant: 'error' });
       return;
     }
-    if (!String(materialTypeId ?? '').trim() || !String(materialGauge ?? '').trim() || !String(materialColor ?? '').trim()) {
-      showToast('Select material type, gauge, and colour — required on every quotation.', { variant: 'error' });
+    if (!String(materialTypeId ?? '').trim() || !String(materialGauge ?? '').trim() || !String(materialColor ?? '').trim() || !String(materialDesign ?? '').trim()) {
+      showToast(materialHeaderIncompleteMessage(materialTypeId, materialGauge, materialColor, materialDesign) || 'Complete material type, gauge, colour, and profile.', { variant: 'error' });
       return;
     }
     const belowFloor = validateProductWorkbookFloors();
@@ -1874,8 +1889,8 @@ const QuotationModal = ({
 
   const onSaveMaterialSpecOnly = async () => {
     if (!allowMaterialSpecCorrectionInView || !editData?.id || !materialSpecDirty) return;
-    if (!String(materialTypeId ?? '').trim() || !String(materialGauge ?? '').trim() || !String(materialColor ?? '').trim()) {
-      showToast('Select material type, gauge, and colour — all are required.', { variant: 'error' });
+    if (!String(materialTypeId ?? '').trim() || !String(materialGauge ?? '').trim() || !String(materialColor ?? '').trim() || !String(materialDesign ?? '').trim()) {
+      showToast(materialHeaderIncompleteMessage(materialTypeId, materialGauge, materialColor, materialDesign) || 'Complete material type, gauge, colour, and profile.', { variant: 'error' });
       return;
     }
     setSavingMaterial(true);

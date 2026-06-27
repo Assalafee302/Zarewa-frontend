@@ -893,39 +893,49 @@ const Account = () => {
     setShowRefundPayModal(true);
   }, [bankAccountsForPayout]);
 
-  const cancelRefundBeforePay = async (row) => {
-    const rid = String(row?.refundID || '').trim();
-    if (!rid || cancelRefundBusyId) return;
-    const note = window.prompt(`Optional cancellation note for ${rid}`) || '';
-    if (!window.confirm(`Cancel refund ${rid} before payout?`)) return;
-    if (!ws?.canMutate) {
-      showToast(
-        ws?.usingCachedData
-          ? 'Reconnect to cancel refund requests — workspace is read-only.'
-          : 'Connect to the API to cancel refund requests.',
-        { variant: 'info' }
-      );
-      return;
-    }
-    setCancelRefundBusyId(rid);
-    try {
-      const { ok, data } = await apiFetch(`/api/refunds/${encodeURIComponent(rid)}/cancel-before-pay`, {
-        method: 'POST',
-        body: JSON.stringify({
-          note: note.trim(),
-          actedAtISO: new Date().toISOString().slice(0, 10),
-        }),
-      });
-      if (!ok || !data?.ok) {
-        showToast(data?.error || 'Could not cancel refund before payout.', { variant: 'error' });
+  const cancelRefundBeforePay = useCallback(
+    async (row) => {
+      const rid = String(row?.refundID || '').trim();
+      if (!rid || cancelRefundBusyId) return;
+      const note = window.prompt(`Optional cancellation note for ${rid}`) || '';
+      if (!window.confirm(`Cancel refund ${rid} before payout?`)) return;
+      if (!ws?.canMutate) {
+        showToast(
+          ws?.usingCachedData
+            ? 'Reconnect to cancel refund requests — workspace is read-only.'
+            : 'Connect to the API to cancel refund requests.',
+          { variant: 'info' }
+        );
         return;
       }
-      await ws.refresh();
-      showToast(`Refund ${rid} cancelled before payout.`);
-    } finally {
-      setCancelRefundBusyId('');
-    }
-  };
+      setCancelRefundBusyId(rid);
+      try {
+        const { ok, data } = await apiFetch(`/api/refunds/${encodeURIComponent(rid)}/cancel-before-pay`, {
+          method: 'POST',
+          body: JSON.stringify({
+            note: note.trim(),
+            actedAtISO: new Date().toISOString().slice(0, 10),
+          }),
+        });
+        if (!ok || !data?.ok) {
+          showToast(data?.error || 'Could not cancel refund before payout.', { variant: 'error' });
+          return;
+        }
+        await ws.refresh();
+        showToast(`Refund ${rid} cancelled before payout.`);
+      } finally {
+        setCancelRefundBusyId('');
+      }
+    },
+    [cancelRefundBusyId, showToast, ws]
+  );
+
+  const handleDeskCancelRefund = useCallback(
+    (row) => {
+      void cancelRefundBeforePay(row);
+    },
+    [cancelRefundBeforePay]
+  );
 
   const confirmRefundPaid = async (e) => {
     e.preventDefault();
@@ -3393,6 +3403,7 @@ const Account = () => {
                   onPayRequest={handleDeskPayRequest}
                   onViewPaymentRequest={handleDeskViewPaymentRequest}
                   onPayRefund={handleDeskPayRefund}
+                  onCancelRefund={handleDeskCancelRefund}
                   onPayRegisterSettlement={handleDeskPayRegisterSettlement}
                   onPayPoTransport={handleDeskPayPoTransport}
                   onViewPoTransport={handleDeskViewPoTransport}

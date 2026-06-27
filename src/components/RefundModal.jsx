@@ -866,6 +866,7 @@ const RefundModal = ({
         substitutionPerMeterBreakdown: preview.substitutionPerMeterBreakdown || [],
         quotedMeters: preview.quotedMeters,
         actualMeters: preview.actualMeters,
+        coilProducedMeters: preview.coilProducedMeters,
         pricePerMeterNgn: preview.pricePerMeterNgn,
         quoteTotalNgn: preview.quoteTotalNgn,
         quotationCashInNgn: preview.quotationCashInNgn,
@@ -3130,12 +3131,26 @@ const RefundModal = ({
                           <p className="text-xs font-black">{intelligence.cuttingLists.length}</p>
                         </div>
                         <div className="p-2.5 rounded-xl bg-slate-800/80 border border-slate-700">
-                          <p className="text-[8px] font-bold text-slate-500 uppercase mb-0.5">Produced metres</p>
+                          <p className="text-[8px] font-bold text-slate-500 uppercase mb-0.5">Coil-produced metres</p>
                           <p className="text-xs font-black text-sky-400">
-                            {intelligence.summary?.producedMeters?.toLocaleString() || 0} m
+                            {(lastPreviewSnapshot?.coilProducedMeters != null
+                              ? Number(lastPreviewSnapshot.coilProducedMeters)
+                              : intelligence.summary?.producedMeters
+                            )?.toLocaleString() || 0}{' '}
+                            m
                           </p>
                           <p className="text-[8px] text-slate-500 mt-1 leading-snug">
-                            Coil / longspan metres from completed jobs — not stone flatsheet m².
+                            Metres from coil allocations — used for unproduced-meterage refunds. Offcut-only output does
+                            not count here.
+                            {lastPreviewSnapshot?.actualMeters != null &&
+                            lastPreviewSnapshot?.coilProducedMeters != null &&
+                            Number(lastPreviewSnapshot.actualMeters) >
+                              Number(lastPreviewSnapshot.coilProducedMeters) + 0.001 ? (
+                              <span className="block text-amber-400/90 mt-0.5">
+                                Total FG output: {Number(lastPreviewSnapshot.actualMeters).toLocaleString()} m (includes
+                                offcut/accessories).
+                              </span>
+                            ) : null}
                           </p>
                         </div>
                         {(Number(intelligence.summary?.stoneFlatsheetSummary?.totalSuppliedM2) > 0 ||

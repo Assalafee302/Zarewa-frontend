@@ -123,6 +123,8 @@ export function FinanceDeskWorkQueues({
 
   onPayRefund,
 
+  onCancelRefund,
+
   onPayRegisterSettlement,
 
   onPayPoTransport,
@@ -737,6 +739,11 @@ export function FinanceDeskWorkQueues({
                 <FinanceDeskQueueActionButton tone="sky" onClick={() => onPayRefund(String(r.refundID || ""))}>
                   Payout
                 </FinanceDeskQueueActionButton>
+                {onCancelRefund ? (
+                  <FinanceDeskQueueActionButton tone="rose" onClick={() => onCancelRefund(r)}>
+                    Cancel
+                  </FinanceDeskQueueActionButton>
+                ) : null}
                 <FinanceDeskQueueActionButton tone="slate" to="/sales?tab=refunds">
                   Review
                 </FinanceDeskQueueActionButton>
