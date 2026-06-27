@@ -2414,13 +2414,22 @@ const Procurement = () => {
             const amt = Number(transportForm.transportAmountNgn);
             const advRaw = String(transportForm.transportAdvanceNgn || '').trim();
             const advNum = advRaw === '' ? null : Number(advRaw);
+            if (
+              (Number.isNaN(amt) || amt <= 0) &&
+              (advNum == null || Number.isNaN(advNum) || advNum <= 0)
+            ) {
+              showToast('Enter transport fee and/or advance amount for Finance to pay.', { variant: 'error' });
+              return;
+            }
+            const feeNgn =
+              !Number.isNaN(amt) && amt > 0 ? amt : advNum != null && !Number.isNaN(advNum) && advNum > 0 ? advNum : undefined;
             const r = await linkTransportToPurchaseOrder(transportForm.poID, {
               transportAgentId: ag.id,
               transportAgentName: ag.name,
               transportReference: transportForm.transportReference,
               transportNote: transportForm.transportNote,
               transportFinanceAdvice: transportForm.transportFinanceAdvice,
-              transportAmountNgn: !Number.isNaN(amt) && amt > 0 ? amt : undefined,
+              transportAmountNgn: feeNgn,
               transportAdvanceNgn:
                 advNum != null && !Number.isNaN(advNum) && advNum > 0 ? advNum : undefined,
               editApprovalId: procurementPoEditApprovalId || undefined,
@@ -2434,6 +2443,10 @@ const Procurement = () => {
             if (!Number.isNaN(amt) && amt > 0) {
               showToast(
                 'Transport linked — Finance work queue updated. In transit and settlement follow treasury payments.'
+              );
+            } else if (advNum != null && !Number.isNaN(advNum) && advNum > 0) {
+              showToast(
+                'Transport linked with advance quote — Finance desk will show the haulage payout queue.'
               );
             } else {
               showToast('Transport linked.');
