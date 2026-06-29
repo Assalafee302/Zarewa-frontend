@@ -432,18 +432,26 @@ export default function CoilProfile() {
       await ws.refresh?.();
       await refreshProductionHolders();
       const count = Number(data.recalculatedJobCount || 0);
+      const book = data.bookReconcile;
       const gapAfter = Number(data.summary?.reconciliationGapKg);
-      const gapUnchanged =
-        Number.isFinite(gapAfter) && Math.abs(gapAfter) > 0.05;
+      const aligned = Number.isFinite(gapAfter) && Math.abs(gapAfter) <= 0.05;
+      const onHandDelta = Number(book?.onHandDeltaKg);
       if (count === 0) {
         showToast('No production jobs linked to this coil.', { variant: 'info' });
-      } else if (gapUnchanged) {
+      } else if (aligned && Number.isFinite(onHandDelta) && Math.abs(onHandDelta) > 0.05) {
         showToast(
-          `Reservations and coil status refreshed for ${count} job(s). Job vs book gap (${Math.abs(gapAfter).toFixed(1)} kg) is unchanged — recalc does not rewrite consumed kg; fix via production register corrections, scrap, return, or finish roll.`,
-          { variant: 'info', duration: 9000 }
+          `Production stock recalculated for ${count} job(s). On-hand adjusted ${onHandDelta > 0 ? '+' : ''}${onHandDelta.toFixed(1)} kg — kg used now matches job consumption.`,
+          { variant: 'info', duration: 8000 }
         );
+      } else if (aligned) {
+        showToast(`Production stock recalculated for ${count} job(s) — kg used matches job consumption.`, {
+          variant: 'info',
+        });
       } else {
-        showToast(`Production stock recalculated for ${count} job(s) on this coil.`, { variant: 'info' });
+        showToast(
+          `Recalculated ${count} job(s). ${Math.abs(gapAfter).toFixed(1)} kg gap remains — check scrap, finish roll, or active reservations.`,
+          { variant: 'info', duration: 8000 }
+        );
       }
     } finally {
       setRecalculatingStock(false);
@@ -695,8 +703,8 @@ export default function CoilProfile() {
                 <p className="mt-1 leading-relaxed text-amber-900/80">
                   {(productionTotals.gapKg || 0) > 0.05 ? (
                     <>
-                      Jobs record <strong>more</strong> kg consumed than the coil book shows as used — often a
-                      completion correction that restored kg, a material return, or stale consumed kg on a job row.
+                      Jobs record <strong>more</strong> kg consumed than the coil book shows — often after completion
+                      corrections or import drift.
                     </>
                   ) : (
                     <>
@@ -704,9 +712,9 @@ export default function CoilProfile() {
                       or consumption posted without updating job rows.
                     </>
                   )}{' '}
-                  <strong>Recalc production stock</strong> only refreshes reserved kg and coil status; it does{' '}
-                  <strong>not</strong> change kg used or on-hand. Re-save coil corrections on the affected production
-                  register rows, or post scrap / return / finish roll to align the book.
+                  <strong>Recalc production stock</strong> rebuilds kg used and on-hand from job consumption (plus
+                  scrap, returns, and splits), syncs allocation consumed kg from opening − closing, and clears orphan
+                  reservations.
                 </p>
                 {canReconcileReservation ? (
                   <button
