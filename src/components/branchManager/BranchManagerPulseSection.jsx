@@ -204,11 +204,11 @@ export function BranchManagerPulseSection({
                       <div className="flex justify-between text-[11px] font-bold text-slate-800 mb-1 gap-2">
                         <span className="truncate">{formatPersonName(c.customer_name)}</span>
                         <span className="tabular-nums shrink-0 text-[#134e4a]">
-                          {formatNgn(c.netCollectedNgn)}
+                          {Number(c.cuttingListMeters || 0).toLocaleString()} m
                         </span>
                       </div>
                       <p className="text-[10px] font-semibold text-slate-500 mb-1.5 tabular-nums">
-                        Cutting lists: {Number(c.cuttingListMeters || 0).toLocaleString()} m
+                        Net collected: {formatNgn(c.netCollectedNgn)}
                         {c.refundsNgn > 0 ? (
                           <span className="text-slate-400">
                             {' '}
@@ -220,7 +220,7 @@ export function BranchManagerPulseSection({
                         <motion.div
                           initial={{ width: 0 }}
                           animate={{
-                            width: `${(c.netCollectedNgn / (displaySnapshots.topCustomers[0]?.netCollectedNgn || 1)) * 100}%`,
+                            width: `${(c.cuttingListMeters / (displaySnapshots.topCustomers[0]?.cuttingListMeters || 1)) * 100}%`,
                           }}
                           className="h-full bg-[#134e4a] rounded-full"
                         />

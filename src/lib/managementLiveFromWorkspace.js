@@ -210,8 +210,7 @@ function refundImpactNgn(refund) {
 }
 
 /**
- * Rank customers by net cash collected (receipts minus approved/paid refunds) in the period,
- * with cutting-list metres attached for display.
+ * Rank customers by cutting-list metres in the period, with net cash collected attached for display.
  *
  * @param {object[]} receipts
  * @param {object[]} refunds
@@ -293,8 +292,8 @@ export function topCustomersByNetPaymentsAndMeters(
     .filter((row) => row.netCollectedNgn > 0 || row.cuttingListMeters > 0)
     .sort(
       (a, b) =>
-        b.netCollectedNgn - a.netCollectedNgn ||
         b.cuttingListMeters - a.cuttingListMeters ||
+        b.netCollectedNgn - a.netCollectedNgn ||
         b.paymentsNgn - a.paymentsNgn
     )
     .slice(0, limit);
