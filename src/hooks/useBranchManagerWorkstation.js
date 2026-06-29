@@ -521,6 +521,14 @@ export function useBranchManagerWorkstation() {
     () => (ws?.hasWorkspaceData && Array.isArray(ws.snapshot?.productionJobs) ? ws.snapshot.productionJobs : []),
     [ws?.hasWorkspaceData, ws?.snapshot?.productionJobs]
   );
+  const workspaceReceipts = useMemo(
+    () => (ws?.hasWorkspaceData && Array.isArray(ws.snapshot?.receipts) ? ws.snapshot.receipts : []),
+    [ws?.hasWorkspaceData, ws?.snapshot?.receipts]
+  );
+  const workspaceRefunds = useMemo(
+    () => (ws?.hasWorkspaceData && Array.isArray(ws.snapshot?.refunds) ? ws.snapshot.refunds : []),
+    [ws?.hasWorkspaceData, ws?.snapshot?.refunds]
+  );
 
   const mergedPrefsForTargets = useMemo(
     () => mergeDashboardPrefs(ws?.snapshot?.dashboardPrefs),
@@ -562,7 +570,7 @@ export function useBranchManagerWorkstation() {
         lowStockCount: liveLowStockCount,
         metersCuttingLists: 0,
         completedProductionMetres: 0,
-        topByRevenue: [],
+        topCustomers: [],
         periodKey: metricPeriod,
         periodLabel: periodMeta?.label ?? 'This month',
         targets: scaledTargets,
@@ -574,7 +582,9 @@ export function useBranchManagerWorkstation() {
       workspaceProductionJobs,
       liveLowStockCount,
       managerTargetsForBuild,
-      metricPeriod
+      metricPeriod,
+      workspaceReceipts,
+      workspaceRefunds
     );
   }, [
     liveLowStockCount,
@@ -583,6 +593,8 @@ export function useBranchManagerWorkstation() {
     workspaceCuttingLists,
     workspaceProductionJobs,
     workspaceQuotations,
+    workspaceReceipts,
+    workspaceRefunds,
     ws?.hasWorkspaceData,
     ws?.snapshot,
   ]);

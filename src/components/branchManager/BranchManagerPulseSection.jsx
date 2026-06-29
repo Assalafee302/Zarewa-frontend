@@ -191,24 +191,36 @@ export function BranchManagerPulseSection({
               ) : null}
             </div>
             <div className="space-y-4">
-              {displaySnapshots.topByRevenue.length === 0 ? (
+              {displaySnapshots.topCustomers.length === 0 ? (
                 <p className="text-sm text-slate-500">
-                  No revenue data for {(displaySnapshots.periodLabel ?? 'this period').toLowerCase()} yet.
+                  No customer payments or cutting-list activity for{' '}
+                  {(displaySnapshots.periodLabel ?? 'this period').toLowerCase()} yet.
                 </p>
               ) : (
-                displaySnapshots.topByRevenue.map((c, idx) => (
+                displaySnapshots.topCustomers.map((c, idx) => (
                   <div key={c.customer_id || idx} className="flex items-center gap-4">
                     <span className="text-xs font-black text-slate-400 w-5">{idx + 1}</span>
                     <div className="flex-1 min-w-0">
                       <div className="flex justify-between text-[11px] font-bold text-slate-800 mb-1 gap-2">
                         <span className="truncate">{formatPersonName(c.customer_name)}</span>
-                        <span className="tabular-nums shrink-0 text-[#134e4a]">{formatNgn(c.revenue)}</span>
+                        <span className="tabular-nums shrink-0 text-[#134e4a]">
+                          {formatNgn(c.netCollectedNgn)}
+                        </span>
                       </div>
+                      <p className="text-[10px] font-semibold text-slate-500 mb-1.5 tabular-nums">
+                        Cutting lists: {Number(c.cuttingListMeters || 0).toLocaleString()} m
+                        {c.refundsNgn > 0 ? (
+                          <span className="text-slate-400">
+                            {' '}
+                            · refunds {formatNgn(c.refundsNgn)}
+                          </span>
+                        ) : null}
+                      </p>
                       <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
                         <motion.div
                           initial={{ width: 0 }}
                           animate={{
-                            width: `${(c.revenue / (displaySnapshots.topByRevenue[0]?.revenue || 1)) * 100}%`,
+                            width: `${(c.netCollectedNgn / (displaySnapshots.topCustomers[0]?.netCollectedNgn || 1)) * 100}%`,
                           }}
                           className="h-full bg-[#134e4a] rounded-full"
                         />

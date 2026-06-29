@@ -12,6 +12,7 @@ import {
 } from './managementQueueFilters.js';
 import { purchaseOrderIsPendingApproval, purchaseOrderLineTotalNgn } from './procurementStatus.js';
 import { productionAttributedRevenueNgn, productionOutputDateISO } from './liveAnalytics.js';
+import { isReceiptReversed, receiptEffectiveCashNgn } from './receiptClearance.js';
 
 /** @typedef {'month' | '4months' | 'half' | 'year'} ManagerMetricPeriodKey */
 
@@ -199,6 +200,106 @@ export function buildManagementQueuesFromSnapshot(snapshot) {
   };
 }
 
+function refundImpactNgn(refund) {
+  const status = String(refund?.status || '').toLowerCase();
+  if (status === 'paid') return Math.round(Number(refund?.paidAmountNgn) || 0);
+  if (status === 'approved') {
+    return Math.round(Number(refund?.approvedAmountNgn) || Number(refund?.amountNgn) || 0);
+  }
+  return 0;
+}
+
+/**
+ * Rank customers by net cash collected (receipts minus approved/paid refunds) in the period,
+ * with cutting-list metres attached for display.
+ *
+ * @param {object[]} receipts
+ * @param {object[]} refunds
+ * @param {object[]} cuttingLists
+ * @param {Map<string, object>} quoteById
+ * @param {string} periodStartISO
+ * @param {number} [limit]
+ */
+export function topCustomersByNetPaymentsAndMeters(
+  receipts,
+  refunds,
+  cuttingLists,
+  quoteById,
+  periodStartISO,
+  limit = 5
+) {
+  /** @type {Map<string, { customer_id: string; customer_name: string; paymentsNgn: number; refundsNgn: number; cuttingListMeters: number }>} */
+  const byCustomer = new Map();
+
+  const touch = (cid, name) => {
+    const key = String(cid || '').trim();
+    if (!key) return null;
+    if (!byCustomer.has(key)) {
+      byCustomer.set(key, {
+        customer_id: key,
+        customer_name: formatPersonName(name || key),
+        paymentsNgn: 0,
+        refundsNgn: 0,
+        cuttingListMeters: 0,
+      });
+    }
+    return byCustomer.get(key);
+  };
+
+  for (const r of receipts) {
+    if (isReceiptReversed(r)) continue;
+    const d = String(r.dateISO || r.date || '').slice(0, 10);
+    if (!d || d < periodStartISO) continue;
+    const pay = receiptEffectiveCashNgn(r);
+    if (pay <= 0) continue;
+    const cid = String(r.customerID || '').trim();
+    if (!cid) continue;
+    const row = touch(cid, r.customer);
+    if (!row) continue;
+    row.paymentsNgn += pay;
+  }
+
+  for (const rf of refunds) {
+    const d = String(rf.requestedAtISO || rf.paidAtISO || '').slice(0, 10);
+    if (!d || d < periodStartISO) continue;
+    const amt = refundImpactNgn(rf);
+    if (amt <= 0) continue;
+    const cid = String(rf.customerID || '').trim();
+    if (!cid) continue;
+    const row = touch(cid, rf.customer);
+    if (!row) continue;
+    row.refundsNgn += amt;
+  }
+
+  for (const cl of cuttingLists) {
+    const d = String(cl.dateISO || '').slice(0, 10);
+    if (!d || d < periodStartISO) continue;
+    const q = quoteById.get(cl.quotationRef);
+    const cid = String(cl.customerID || q?.customerID || '').trim();
+    if (!cid) continue;
+    const row = touch(cid, cl.customer || q?.customer);
+    if (!row) continue;
+    row.cuttingListMeters += Number(cl.totalMeters) || 0;
+  }
+
+  return [...byCustomer.values()]
+    .map((row) => ({
+      ...row,
+      paymentsNgn: Math.round(row.paymentsNgn),
+      refundsNgn: Math.round(row.refundsNgn),
+      netCollectedNgn: Math.round(row.paymentsNgn - row.refundsNgn),
+      cuttingListMeters: Math.round(row.cuttingListMeters),
+    }))
+    .filter((row) => row.netCollectedNgn > 0 || row.cuttingListMeters > 0)
+    .sort(
+      (a, b) =>
+        b.netCollectedNgn - a.netCollectedNgn ||
+        b.cuttingListMeters - a.cuttingListMeters ||
+        b.paymentsNgn - a.paymentsNgn
+    )
+    .slice(0, limit);
+}
+
 /**
  * Headline metrics for the hero + top customers (month-scoped) from workspace quotation / cutting-list rows.
  * Produced-sales and completed metres match {@link DashboardKpiStrip} when the same period start is used.
@@ -209,6 +310,8 @@ export function buildManagementQueuesFromSnapshot(snapshot) {
  * @param {number} lowStockSkuCount — from live inventory context
  * @param {{ nairaTarget?: number; meterTarget?: number }} targets — per **month** (multiplied by selected period span)
  * @param {ManagerMetricPeriodKey} [periodKey]
+ * @param {object[]} [receipts]
+ * @param {object[]} [refunds]
  */
 export function buildManagerSnapshotsFromWorkspace(
   quotations,
@@ -216,7 +319,9 @@ export function buildManagerSnapshotsFromWorkspace(
   productionJobs,
   lowStockSkuCount,
   targets,
-  periodKey = 'month'
+  periodKey = 'month',
+  receipts = [],
+  refunds = []
 ) {
   const ms = managementPeriodStartISO(periodKey);
   const qMonth = quotations.filter((q) => String(q.dateISO || '') >= ms);
@@ -235,22 +340,15 @@ export function buildManagerSnapshotsFromWorkspace(
     return s + (Number(j.actualMeters) || 0);
   }, 0);
 
-  const revByCustomer = new Map();
-  for (const q of qMonth) {
-    const cid = q.customerID || '';
-    revByCustomer.set(cid, (revByCustomer.get(cid) || 0) + (Number(q.totalNgn) || 0));
-  }
-  const topByRevenue = [...revByCustomer.entries()]
-    .map(([customer_id, rev]) => ({
-      customer_id,
-      customer_name: formatPersonName(
-        quotations.find((x) => x.customerID === customer_id)?.customer || customer_id || '—'
-      ),
-      revenue: rev,
-    }))
-    .filter((r) => r.revenue > 0)
-    .sort((a, b) => b.revenue - a.revenue)
-    .slice(0, 5);
+  const quoteById = new Map(quotations.map((q) => [q.id, q]));
+  const topCustomers = topCustomersByNetPaymentsAndMeters(
+    receipts,
+    refunds,
+    cuttingLists,
+    quoteById,
+    ms,
+    5
+  );
 
   const meta = MANAGER_METRIC_PERIODS.find((p) => p.key === periodKey);
   const monthsSpan = meta?.monthsSpan ?? 1;
@@ -264,7 +362,7 @@ export function buildManagerSnapshotsFromWorkspace(
     lowStockCount: lowStockSkuCount,
     metersCuttingLists,
     completedProductionMetres,
-    topByRevenue,
+    topCustomers,
     periodKey,
     periodLabel: meta?.label ?? 'This month',
     targets: {
