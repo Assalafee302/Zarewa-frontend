@@ -909,6 +909,16 @@ export function LiveProductionMonitor({
     [offcutSupplySelections]
   );
 
+  /** FG metres for offcut-only completion — explicit field, incidents, or yard stock input. */
+  const effectiveOffcutOutputMeters = useMemo(() => {
+    const rawProduced = String(offcutMetersProduced).trim();
+    const parsedProduced = Number(rawProduced.replace(/,/g, ''));
+    if (rawProduced && Number.isFinite(parsedProduced) && parsedProduced >= 0) return parsedProduced;
+    if (offcutSupplyMetersTotal > 0) return offcutSupplyMetersTotal;
+    if (offcutInventoryMetersNum > 0) return offcutInventoryMetersNum;
+    return 0;
+  }, [offcutInventoryMetersNum, offcutMetersProduced, offcutSupplyMetersTotal]);
+
   const hasCoilRunLogCompletion = useMemo(
     () =>
       draftAllocations.some((row) => {
@@ -948,7 +958,7 @@ export function LiveProductionMonitor({
   useEffect(() => {
     if (isStoneMeterQuote || completionUsesOffcutMode) return;
     if (
-      offcutSupplyMetersTotal > 0 &&
+      (offcutSupplyMetersTotal > 0 || offcutInventoryMetersNum > 0) &&
       !hasCoilRunLogCompletion &&
       (jobSt === 'Planned' || jobSt === 'Running')
     ) {
@@ -959,7 +969,21 @@ export function LiveProductionMonitor({
     hasCoilRunLogCompletion,
     isStoneMeterQuote,
     jobSt,
+    offcutInventoryMetersNum,
     offcutSupplyMetersTotal,
+  ]);
+
+  useEffect(() => {
+    if (!resolvesToOffcutCompletion || offcutInventoryMetersNum <= 0) return;
+    if (String(offcutMetersProduced).trim()) return;
+    const val = String(offcutInventoryMetersNum);
+    setOffcutMetersProduced(val);
+    if (selectedJob?.jobID) writeProdMeterDraft(selectedJob.jobID, { offcutMetersProduced: val });
+  }, [
+    offcutInventoryMetersNum,
+    offcutMetersProduced,
+    resolvesToOffcutCompletion,
+    selectedJob?.jobID,
   ]);
 
   useEffect(() => {
@@ -981,9 +1005,7 @@ export function LiveProductionMonitor({
       return Number.isFinite(m) && Math.abs(m) > 1e-9 ? m : 0;
     }
     if (resolvesToOffcutCompletion && jobSt === 'Running') {
-      const m = Number(String(offcutMetersProduced).replace(/,/g, ''));
-      if (Number.isFinite(m) && m >= 0) return m;
-      return offcutSupplyMetersTotal > 0 ? offcutSupplyMetersTotal : 0;
+      return effectiveOffcutOutputMeters;
     }
     const coilM = draftAllocations.reduce((sum, row) => {
       const meters = Number(row.metersProduced);
@@ -1001,11 +1023,10 @@ export function LiveProductionMonitor({
     canEditCompletedCoilCorrections,
     completionUsesOffcutMode,
     draftAllocations,
+    effectiveOffcutOutputMeters,
     isStoneMeterQuote,
     jobSt,
     offcutInventoryMetersNum,
-    offcutMetersProduced,
-    offcutSupplyMetersTotal,
     resolvesToOffcutCompletion,
     selectedJob?.actualMeters,
     selectedJob?.effectiveOutputMeters,
@@ -1033,9 +1054,11 @@ export function LiveProductionMonitor({
       return jobSt === 'Running' || (jobSt === 'Completed' && canEditCompletedCoilCorrections);
     }
     if (resolvesToOffcutCompletion) {
-      const m = Number(String(offcutMetersProduced).replace(/,/g, ''));
-      if (Number.isFinite(m) && m >= 0) return jobSt === 'Running';
-      return offcutSupplyMetersTotal > 0 && jobSt === 'Running';
+      if (effectiveOffcutOutputMeters > 0) return jobSt === 'Running';
+      if (offcutSupplyMetersTotal > 0) return jobSt === 'Running';
+      if (offcutInventoryMetersNum > 0) return jobSt === 'Running';
+      if (isAccessoriesOnlyQuote) return jobSt === 'Running';
+      return false;
     }
     const hasPreviewRows = draftAllocations.some((row) => draftRowConversionPreviewReady(row));
     if (!hasPreviewRows) return false;
@@ -1044,8 +1067,10 @@ export function LiveProductionMonitor({
     canEditCompletedCoilCorrections,
     completionUsesOffcutMode,
     draftAllocations,
+    effectiveOffcutOutputMeters,
     isStoneMeterQuote,
     jobSt,
+    offcutInventoryMetersNum,
     offcutMetersProduced,
     offcutSupplyMetersTotal,
     resolvesToOffcutCompletion,
@@ -1403,14 +1428,18 @@ export function LiveProductionMonitor({
       });
     }
     if (resolvesToOffcutCompletion) {
-      const parsed = Number(String(offcutMetersProduced).replace(/,/g, ''));
-      const outputM =
-        Number.isFinite(parsed) && parsed >= 0 ? parsed : offcutSupplyMetersTotal > 0 ? offcutSupplyMetersTotal : 0;
+      const outputM = effectiveOffcutOutputMeters;
+      const offInv =
+        offcutSupplyMetersTotal > 0
+          ? offcutSupplyMetersTotal
+          : offcutInventoryMetersNum > 0
+            ? offcutInventoryMetersNum
+            : outputM;
       return JSON.stringify({
         job: selectedJob.jobID,
         offcut: true,
         offcutMetersProduced: outputM,
-        offcutInventoryMeters: offcutSupplyMetersTotal > 0 ? offcutSupplyMetersTotal : outputM,
+        offcutInventoryMeters: offInv,
         accessoriesSupplied: accessoriesSuppliedForApi,
         offcutSupply: offcutSupplySelections,
       });
@@ -1429,10 +1458,10 @@ export function LiveProductionMonitor({
     stoneFlatsheetSuppliedForApi,
     canRunConversionPreview,
     draftAllocations,
+    effectiveOffcutOutputMeters,
     isAccessoriesOnlyQuote,
     isStoneMeterQuote,
     offcutInventoryMetersNum,
-    offcutMetersProduced,
     offcutSupplySelections,
     offcutSupplyMetersTotal,
     resolvesToOffcutCompletion,
@@ -1562,15 +1591,19 @@ export function LiveProductionMonitor({
 
   const completionValidation = useMemo(() => {
     if (resolvesToOffcutCompletion) {
+      if (effectiveOffcutOutputMeters > 0 || offcutSupplyMetersTotal > 0 || offcutInventoryMetersNum > 0) {
+        return { validLineCount: 1, errors: [], canComplete: true };
+      }
+      if (isAccessoriesOnlyQuote) {
+        return { validLineCount: 1, errors: [], canComplete: true };
+      }
       const rawMeters = String(offcutMetersProduced).trim();
-      if (!rawMeters && offcutSupplyMetersTotal > 0) {
-        return { validLineCount: 1, errors: [], canComplete: true };
-      }
-      if (!rawMeters && isAccessoriesOnlyQuote) {
-        return { validLineCount: 1, errors: [], canComplete: true };
-      }
       if (!rawMeters) {
-        return { validLineCount: 1, errors: [], canComplete: true };
+        return {
+          validLineCount: 0,
+          errors: ['Enter offcut stock metres or finished-goods output metres before completing.'],
+          canComplete: false,
+        };
       }
       const m = Number(String(offcutMetersProduced).replace(/,/g, ''));
       if (!Number.isFinite(m) || m < 0) {
@@ -1644,6 +1677,7 @@ export function LiveProductionMonitor({
   }, [
     completionUsesOffcutMode,
     draftAllocations,
+    effectiveOffcutOutputMeters,
     isAccessoriesOnlyQuote,
     isStoneMeterQuote,
     offcutInventoryMetersInput,
@@ -2004,14 +2038,13 @@ export function LiveProductionMonitor({
       };
     }
     if (resolvesToOffcutCompletion) {
-      const parsedField = Number(String(offcutMetersProduced).replace(/,/g, ''));
-      const outputM =
-        Number.isFinite(parsedField) && parsedField >= 0
-          ? parsedField
-          : offcutSupplyMetersTotal > 0
-            ? offcutSupplyMetersTotal
-            : 0;
-      const offInv = offcutSupplyMetersTotal > 0 ? offcutSupplyMetersTotal : outputM;
+      const outputM = effectiveOffcutOutputMeters;
+      const offInv =
+        offcutSupplyMetersTotal > 0
+          ? offcutSupplyMetersTotal
+          : offcutInventoryMetersNum > 0
+            ? offcutInventoryMetersNum
+            : outputM;
       return {
         completedAtISO: completionDateIso,
         productionDateISO: productionDate,
@@ -4223,7 +4256,21 @@ export function LiveProductionMonitor({
               ) : null}
               {completionUsesOffcutMode && !isAccessoriesOnlyQuote ? (
                 <div className="rounded-lg border border-amber-200 bg-amber-50/70 p-3 text-[11px] text-slate-700 space-y-2">
-                  <p>Offcut completion — no coil required. Issue offcut incidents below (or enter output metres), then complete.</p>
+                  <p>
+                    Offcut completion — no coil required. Enter offcut stock metres, issue offcut incidents, or enter
+                    output metres — all count as finished goods produced for this job.
+                  </p>
+                  <label className="block text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                    Offcut stock metres
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      value={offcutInventoryMetersInput}
+                      onChange={(e) => onOffcutInventoryMetersChange(e.target.value)}
+                      placeholder="e.g. 25"
+                      className="mt-1 w-full max-w-[12rem] rounded-md border border-slate-200 bg-white px-2 py-1.5 font-mono text-sm font-bold text-[#134e4a]"
+                    />
+                  </label>
                   <div className="border-t border-amber-200/60 pt-2">
                     <p className="text-[10px] font-bold uppercase text-[#134e4a] mb-1">Issue from offcut incidents</p>
                     <OffcutIncidentPicker
@@ -4242,16 +4289,18 @@ export function LiveProductionMonitor({
                     ) : null}
                   </div>
                   <label className="block text-[10px] font-bold uppercase tracking-wide text-slate-500">
-                    Finished-goods output metres (optional)
+                    Finished-goods output metres
                     <input
                       type="text"
                       inputMode="decimal"
                       value={offcutMetersProduced}
                       onChange={(e) => onOffcutMetersProducedChange(e.target.value)}
                       placeholder={
-                        offcutSupplyMetersTotal > 0
-                          ? `Defaults to ${offcutSupplyMetersTotal.toFixed(2)} m from incidents`
-                          : 'Leave blank for 0'
+                        effectiveOffcutOutputMeters > 0
+                          ? `${effectiveOffcutOutputMeters.toFixed(2)} m will be produced`
+                          : offcutSupplyMetersTotal > 0
+                            ? `Defaults to ${offcutSupplyMetersTotal.toFixed(2)} m from incidents`
+                            : 'Same as offcut stock metres if left blank'
                       }
                       className="mt-1 w-full max-w-[12rem] rounded-md border border-slate-200 bg-white px-2 py-1.5 font-mono text-sm font-bold text-[#134e4a]"
                     />
@@ -4373,7 +4422,7 @@ export function LiveProductionMonitor({
                 {!canRunConversionPreview ? (
                   <p className="rounded-md border border-dashed border-slate-200 bg-slate-50/80 px-2 py-2 text-[11px] text-slate-600">
                     {completionUsesOffcutMode ? (
-                      <>Offcut mode preview is ready after you choose this source. Output metres are optional.</>
+                      <>Enter offcut stock metres or issue incidents — output counts toward production and unproduced refunds.</>
                     ) : (
                       <>
                         Enter <strong className="font-semibold text-slate-800">closing kg</strong> and{' '}
