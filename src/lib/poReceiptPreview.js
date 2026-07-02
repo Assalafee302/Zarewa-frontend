@@ -81,9 +81,26 @@ export function buildPoReceiptPreview(ctx) {
 
   const kind = procurementKindFromPo(po);
   const lines = Array.isArray(po?.lines) ? po.lines : [];
-  const lineProgress = lines.map((line) => poLineReceiptProgress(line, kind));
 
   const coils = (ctx?.coilLots || []).filter((c) => String(c?.poID || '').trim() === poId);
+  const coilsByLineKey = coils.reduce((acc, coil) => {
+    const lk = String(coil?.lineKey || '').trim() || '__unassigned__';
+    if (!acc[lk]) acc[lk] = [];
+    acc[lk].push(coil);
+    return acc;
+  }, /** @type {Record<string, object[]>} */ ({}));
+
+  const lineProgress = lines.map((line) => {
+    const progress = poLineReceiptProgress(line, kind);
+    const lineKey = String(line?.lineKey || '').trim();
+    const lineCoils = lineKey ? coilsByLineKey[lineKey] || [] : [];
+    return {
+      ...progress,
+      coils: lineCoils,
+      coilNos: lineCoils.map((c) => c.coilNo).filter(Boolean),
+    };
+  });
+
   const grnMovements = (ctx?.movements || []).filter((m) => {
     if (String(m?.ref || '').trim() !== poId) return false;
     return GRN_MOVEMENT_TYPES.has(String(m?.type || '').trim());
@@ -163,6 +180,7 @@ export function buildPoReceiptPreview(ctx) {
   return {
     lineProgress,
     coils,
+    coilsByLineKey,
     grnMovements,
     inTransitLoad,
     totals,

@@ -3312,6 +3312,8 @@ const Procurement = () => {
         coilLots={coilLots}
         movements={movements}
         inTransitLoads={inTransitLoads}
+        treasuryMovements={treasuryMovements}
+        accountsPayable={payables}
         onClose={() => {
           setPreviewPo(null);
           setPreviewAp(null);

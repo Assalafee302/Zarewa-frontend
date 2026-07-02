@@ -23,11 +23,12 @@ describe('buildPoReceiptPreview', () => {
         status: 'In Transit',
         lines: [{ lineKey: 'L1', productID: 'COIL-ALU', qtyOrdered: 1000, qtyReceived: 0 }],
       },
-      coilLots: [{ coilNo: 'CL-26-1', poID: 'PO-1', currentWeightKg: 900, currentStatus: 'Available' }],
+      coilLots: [{ coilNo: 'CL-26-1', poID: 'PO-1', lineKey: 'L1', currentWeightKg: 900, currentStatus: 'Available' }],
       movements: [],
     });
     expect(out.receivableInStock).toBe(true);
     expect(out.coils).toHaveLength(1);
+    expect(out.lineProgress[0].coilNos).toEqual(['CL-26-1']);
     expect(out.diagnosis.message).toMatch(/Stock Management/i);
   });
 });

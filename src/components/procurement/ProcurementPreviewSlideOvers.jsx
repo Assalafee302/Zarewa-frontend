@@ -18,6 +18,7 @@ import {
   purchaseOrderTransportGapLabel,
 } from '../../lib/purchaseOrderWorkflow';
 import { buildPoReceiptPreview, poReceiptFmtQty } from '../../lib/poReceiptPreview';
+import { buildPoPaymentPreview } from '../../lib/poPaymentPreview';
 import { ZareApprovalHint } from '../ZareApprovalHint';
 
 function kindTitle(kind) {
@@ -75,6 +76,8 @@ export function ProcurementPoPreviewSlideOver({
   coilLots = [],
   movements = [],
   inTransitLoads = [],
+  treasuryMovements = [],
+  accountsPayable = [],
 }) {
   const [showPrint, setShowPrint] = useState(false);
   const [printStampIso, setPrintStampIso] = useState('');
@@ -86,6 +89,16 @@ export function ProcurementPoPreviewSlideOver({
         : null,
     [po, coilLots, movements, inTransitLoads]
   );
+
+  const paymentPreview = useMemo(
+    () =>
+      po
+        ? buildPoPaymentPreview({ po, treasuryMovements, accountsPayable, movements })
+        : null,
+    [po, treasuryMovements, accountsPayable, movements]
+  );
+
+  const coilsByLineKey = receiptPreview?.coilsByLineKey || {};
 
   if (!po) return null;
   const kind = procurementKindFromPo(po);
@@ -185,7 +198,9 @@ export function ProcurementPoPreviewSlideOver({
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {(po.lines || []).map((line) => (
+                    {(po.lines || []).map((line) => {
+                      const assignedCoils = coilsByLineKey[String(line.lineKey || '').trim()] || [];
+                      return (
                       <tr key={line.lineKey || line.productID} className="tabular-nums">
                         <td className="px-2 py-1.5 text-slate-800">
                           <span className="font-mono text-[9px] text-slate-500">{line.productID}</span>
@@ -195,6 +210,27 @@ export function ProcurementPoPreviewSlideOver({
                           {[line.color, line.gauge].filter(Boolean).length ? (
                             <span className="text-[9px] text-slate-500">
                               {[line.color, line.gauge].filter(Boolean).join(' · ')}
+                            </span>
+                          ) : null}
+                          {assignedCoils.length > 0 ? (
+                            <span className="mt-0.5 block text-[9px] text-[#134e4a]">
+                              Coil #:{' '}
+                              {assignedCoils.map((c, idx) => (
+                                <React.Fragment key={c.coilNo}>
+                                  {idx > 0 ? ', ' : ''}
+                                  <Link
+                                    to={`/operations/coils/${encodeURIComponent(c.coilNo)}`}
+                                    className="font-mono font-bold hover:underline"
+                                    onClick={onClose}
+                                  >
+                                    {c.coilNo}
+                                  </Link>
+                                </React.Fragment>
+                              ))}
+                            </span>
+                          ) : kind === 'coil' && receiptPreview?.receivableInStock ? (
+                            <span className="mt-0.5 block text-[9px] text-slate-400 italic">
+                              Coil # assigned at store receipt
                             </span>
                           ) : null}
                         </td>
@@ -207,7 +243,7 @@ export function ProcurementPoPreviewSlideOver({
                           {formatNgn(lineLineAmountNgn(line, kind))}
                         </td>
                       </tr>
-                    ))}
+                    );})}
                   </tbody>
                 </table>
               </div>
@@ -262,6 +298,23 @@ export function ProcurementPoPreviewSlideOver({
                             ) : row.notStarted ? (
                               <span className="ml-1 text-[8px] font-bold uppercase text-slate-500">Pending</span>
                             ) : null}
+                            {row.coilNos?.length ? (
+                              <span className="mt-0.5 block text-[9px] text-[#134e4a]">
+                                Coil #:{' '}
+                                {row.coils.map((c, idx) => (
+                                  <React.Fragment key={c.coilNo}>
+                                    {idx > 0 ? ', ' : ''}
+                                    <Link
+                                      to={`/operations/coils/${encodeURIComponent(c.coilNo)}`}
+                                      className="font-mono font-bold hover:underline"
+                                      onClick={onClose}
+                                    >
+                                      {c.coilNo}
+                                    </Link>
+                                  </React.Fragment>
+                                ))}
+                              </span>
+                            ) : null}
                           </td>
                           <td className="px-2 py-1.5 text-right text-slate-700">
                             {poReceiptFmtQty(row.ordered, row.unit)}
@@ -308,14 +361,22 @@ export function ProcurementPoPreviewSlideOver({
                           key={c.coilNo}
                           className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-slate-100 bg-slate-50/80 px-2 py-1.5 text-[10px]"
                         >
-                          <Link
-                            to={`/operations/coils/${encodeURIComponent(c.coilNo)}`}
-                            className="font-mono font-bold text-[#134e4a] hover:underline"
-                            onClick={onClose}
-                          >
-                            {c.coilNo}
-                          </Link>
-                          <span className="text-slate-600 tabular-nums">
+                          <div className="min-w-0">
+                            <Link
+                              to={`/operations/coils/${encodeURIComponent(c.coilNo)}`}
+                              className="font-mono font-bold text-[#134e4a] hover:underline"
+                              onClick={onClose}
+                            >
+                              {c.coilNo}
+                            </Link>
+                            {[c.colour, c.gaugeLabel, c.lineKey].filter(Boolean).length ? (
+                              <p className="mt-0.5 text-[9px] text-slate-500">
+                                {[c.colour, c.gaugeLabel].filter(Boolean).join(' · ')}
+                                {c.lineKey ? ` · line ${c.lineKey}` : ''}
+                              </p>
+                            ) : null}
+                          </div>
+                          <span className="text-slate-600 tabular-nums shrink-0">
                             {Number(c.currentWeightKg ?? c.qtyRemaining ?? c.weightKg ?? 0).toLocaleString(undefined, {
                               maximumFractionDigits: 2,
                             })}{' '}
@@ -325,6 +386,10 @@ export function ProcurementPoPreviewSlideOver({
                       ))}
                     </ul>
                   </div>
+                ) : kind === 'coil' && !receiptPreview.receivableInStock ? (
+                  <p className="border-t border-slate-100 pt-2 text-[10px] text-slate-500 italic">
+                    No coil numbers assigned yet for this PO.
+                  </p>
                 ) : null}
 
                 {receiptPreview.grnMovements.length > 0 ? (
@@ -361,6 +426,114 @@ export function ProcurementPoPreviewSlideOver({
                 ) : null}
               </section>
             ) : null}
+
+            <section className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm space-y-3">
+              <p className={`${detailLabel} mb-0`}>Supplier payments</p>
+
+              {paymentPreview?.payable ? (
+                <dl className="grid grid-cols-1 gap-2 sm:grid-cols-2 text-[11px] rounded-lg border border-slate-100 bg-slate-50/80 p-2.5">
+                  <div>
+                    <dt className={detailLabel}>AP record</dt>
+                    <dd className={detailValue}>{paymentPreview.payable.apID}</dd>
+                  </div>
+                  <div>
+                    <dt className={detailLabel}>Invoice ref</dt>
+                    <dd className={detailValue}>{paymentPreview.payable.invoiceRef || '—'}</dd>
+                  </div>
+                  <div>
+                    <dt className={detailLabel}>Due date</dt>
+                    <dd className={detailValue}>{paymentPreview.payable.dueDateISO || '—'}</dd>
+                  </div>
+                  <div>
+                    <dt className={detailLabel}>Invoice amount</dt>
+                    <dd className={detailValue}>{formatNgn(paymentPreview.payable.amountNgn || 0)}</dd>
+                  </div>
+                  <div>
+                    <dt className={detailLabel}>Paid</dt>
+                    <dd className={detailValue}>{formatNgn(paymentPreview.payable.paidNgn || 0)}</dd>
+                  </div>
+                  <div>
+                    <dt className={detailLabel}>Outstanding</dt>
+                    <dd className={detailValue}>
+                      {formatNgn(
+                        Math.max(
+                          0,
+                          (Number(paymentPreview.payable.amountNgn) || 0) -
+                            (Number(paymentPreview.payable.paidNgn) || 0)
+                        )
+                      )}
+                    </dd>
+                  </div>
+                </dl>
+              ) : (
+                <p className="text-[10px] text-slate-500 leading-snug">
+                  No accounts payable record linked yet. Supplier paid on PO:{' '}
+                  <span className="font-semibold text-slate-800 tabular-nums">
+                    {formatNgn(po.supplierPaidNgn || 0)}
+                  </span>
+                </p>
+              )}
+
+              {paymentPreview?.supplierPayments?.length > 0 ? (
+                <div className="space-y-1">
+                  <p className={detailLabel}>
+                    Payment history ({paymentPreview.supplierPayments.length})
+                  </p>
+                  <ul className="max-h-44 overflow-y-auto custom-scrollbar space-y-1">
+                    {paymentPreview.supplierPayments.map((pay) => (
+                      <li
+                        key={pay.movementId || `${pay.postedAtISO}-${pay.amountAbs}`}
+                        className="rounded-md border border-slate-100 bg-slate-50/80 px-2 py-1.5 text-[10px] text-slate-700"
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-2 tabular-nums">
+                          <span className="font-semibold text-slate-800">
+                            {pay.postedAtISO ? String(pay.postedAtISO).slice(0, 10) : '—'}
+                          </span>
+                          <span className="font-bold text-[#134e4a]">{formatNgn(pay.amountAbs)}</span>
+                        </div>
+                        <p className="mt-0.5 text-[9px] text-slate-600">
+                          <span className="font-semibold uppercase tracking-wide">{pay.typeLabel}</span>
+                          {pay.accountName ? (
+                            <>
+                              <span className="mx-1">·</span>
+                              <span>{pay.accountName}</span>
+                            </>
+                          ) : null}
+                          {pay.reference ? (
+                            <>
+                              <span className="mx-1">·</span>
+                              <span>Ref {pay.reference}</span>
+                            </>
+                          ) : null}
+                        </p>
+                        {pay.counterpartyName ? (
+                          <p className="text-[9px] text-slate-500">{pay.counterpartyName}</p>
+                        ) : null}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : paymentPreview?.stockPayments?.length > 0 ? (
+                <div className="space-y-1">
+                  <p className={detailLabel}>Payment ledger ({paymentPreview.stockPayments.length})</p>
+                  <ul className="max-h-36 overflow-y-auto custom-scrollbar space-y-1">
+                    {paymentPreview.stockPayments.map((pay, idx) => (
+                      <li
+                        key={`${pay.atISO}-${idx}`}
+                        className="rounded-md border border-slate-100 bg-slate-50/80 px-2 py-1.5 text-[10px] text-slate-700"
+                      >
+                        <span className="font-semibold">
+                          {pay.atISO ? String(pay.atISO).slice(0, 10) : '—'}
+                        </span>
+                        {pay.detail ? <span className="ml-1">{pay.detail}</span> : null}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : (
+                <p className="text-[10px] text-slate-500 italic">No supplier payments posted yet.</p>
+              )}
+            </section>
 
             <section className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
               <p className={`${detailLabel} mb-2`}>Transport & settlement</p>
@@ -418,6 +591,37 @@ export function ProcurementPoPreviewSlideOver({
                   <p className="text-[10px] text-slate-600 leading-snug border-t border-slate-100 pt-2 mt-2">
                     {po.transportNote}
                   </p>
+                ) : null}
+                {paymentPreview?.transportPayments?.length > 0 ? (
+                  <div className="border-t border-slate-100 pt-2 mt-2 space-y-1">
+                    <p className={detailLabel}>
+                      Transport payment history ({paymentPreview.transportPayments.length})
+                    </p>
+                    <ul className="max-h-36 overflow-y-auto custom-scrollbar space-y-1">
+                      {paymentPreview.transportPayments.map((pay) => (
+                        <li
+                          key={pay.movementId || `tp-${pay.postedAtISO}-${pay.amountAbs}`}
+                          className="rounded-md border border-slate-100 bg-slate-50/80 px-2 py-1.5 text-[10px] text-slate-700"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2 tabular-nums">
+                            <span className="font-semibold text-slate-800">
+                              {pay.postedAtISO ? String(pay.postedAtISO).slice(0, 10) : '—'}
+                            </span>
+                            <span className="font-bold text-[#134e4a]">{formatNgn(pay.amountAbs)}</span>
+                          </div>
+                          <p className="mt-0.5 text-[9px] text-slate-600">
+                            {pay.accountName || pay.typeLabel}
+                            {pay.reference ? (
+                              <>
+                                <span className="mx-1">·</span>
+                                <span>Ref {pay.reference}</span>
+                              </>
+                            ) : null}
+                          </p>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
                 ) : null}
               </dl>
             </section>
