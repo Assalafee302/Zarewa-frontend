@@ -52,8 +52,11 @@ const AdvancePaymentModal = ({
   }, [depositSnapshot?.bankDeposits, bankDepositId]);
 
   useEffect(() => {
-    if (!isOpen) return;
-    if (defaultBankDepositId) setBankDepositId(String(defaultBankDepositId));
+    if (!isOpen) {
+      setBankDepositId('');
+      return;
+    }
+    setBankDepositId(String(defaultBankDepositId || ''));
   }, [isOpen, defaultBankDepositId]);
 
   const treasuryList = useMemo(() => {
@@ -144,9 +147,11 @@ const AdvancePaymentModal = ({
       showToast('Enter a valid amount.', { variant: 'error' });
       return;
     }
-    const depositCover = bankDepositId && linkedDeposit ? Math.min(n, bankDepositRemainingNgn(linkedDeposit)) : 0;
+    const activeBankDepositId =
+      bankDepositId && linkedDeposit && bankDepositRemainingNgn(linkedDeposit) > 0 ? String(bankDepositId) : '';
+    const depositCover = activeBankDepositId && linkedDeposit ? Math.min(n, bankDepositRemainingNgn(linkedDeposit)) : 0;
     const cashNeeded = Math.max(0, n - depositCover);
-    if (!bankDepositId && !selectedAccount) {
+    if (!activeBankDepositId && !selectedAccount) {
       showToast('Add a treasury account in Finance first.', { variant: 'error' });
       return;
     }
@@ -156,7 +161,7 @@ const AdvancePaymentModal = ({
     }
     const paymentMethod = selectedAccount
       ? `${selectedAccount.type} — ${selectedAccount.name}`
-      : bankDepositId
+      : activeBankDepositId
         ? 'Linked bank deposit'
         : '—';
     postingRef.current = true;
@@ -172,7 +177,7 @@ const AdvancePaymentModal = ({
           purpose: purpose.trim(),
           dateISO,
         };
-        if (bankDepositId) body.bankDepositId = bankDepositId;
+        if (activeBankDepositId) body.bankDepositId = activeBankDepositId;
         if (cashNeeded > 0 && treasuryAccountId) {
           body.treasuryAccountId = Number(treasuryAccountId);
           body.paymentLines = [
@@ -223,7 +228,7 @@ const AdvancePaymentModal = ({
           return;
         }
         setPostingHint(null);
-        if (Array.isArray(data?.similarUnlinkedDeposits) && data.similarUnlinkedDeposits.length > 0 && !bankDepositId) {
+        if (Array.isArray(data?.similarUnlinkedDeposits) && data.similarUnlinkedDeposits.length > 0 && !activeBankDepositId) {
           showToast(
             `Tip: ${data.similarUnlinkedDeposits.length} unlinked bank deposit(s) match — link next time to avoid duplicate treasury.`,
             { variant: 'info' }

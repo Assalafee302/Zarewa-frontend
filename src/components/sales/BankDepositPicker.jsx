@@ -54,6 +54,13 @@ export function BankDepositPicker({
   useEffect(() => {
     const id = String(value || '').trim();
     if (!id || disabled) return;
+    const stillLinkable = sorted.some((d) => String(d.id) === id);
+    if (!stillLinkable) onChange?.('');
+  }, [value, sorted, disabled, onChange]);
+
+  useEffect(() => {
+    const id = String(value || '').trim();
+    if (!id || disabled) return;
     void reserve(id);
     return () => {
       void release(id);

@@ -188,8 +188,11 @@ const ReceiptModal = ({
   }, [depositSnapshot?.bankDeposits, bankDepositId]);
 
   useEffect(() => {
-    if (!isOpen) return;
-    if (defaultBankDepositId) setBankDepositId(String(defaultBankDepositId));
+    if (!isOpen) {
+      setBankDepositId('');
+      return;
+    }
+    setBankDepositId(String(defaultBankDepositId || ''));
   }, [isOpen, defaultBankDepositId]);
 
   const treasuryList = useMemo(() => {
@@ -461,10 +464,15 @@ const ReceiptModal = ({
     [paymentLines]
   );
 
+  const activeBankDepositId = useMemo(() => {
+    if (!bankDepositId || !linkedDeposit) return '';
+    return bankDepositRemainingNgn(linkedDeposit) > 0 ? String(bankDepositId) : '';
+  }, [bankDepositId, linkedDeposit]);
+
   const depositCoverNgn = useMemo(() => {
-    if (!linkedDeposit || !bankDepositId) return 0;
+    if (!activeBankDepositId || !linkedDeposit) return 0;
     return Math.min(Math.round(lineTotalNgn), bankDepositRemainingNgn(linkedDeposit));
-  }, [linkedDeposit, bankDepositId, lineTotalNgn]);
+  }, [activeBankDepositId, linkedDeposit, lineTotalNgn]);
 
   const treasuryCashRequiredNgn = Math.max(0, Math.round(lineTotalNgn) - depositCoverNgn);
 
@@ -692,8 +700,8 @@ const ReceiptModal = ({
         'The full amount will be recorded on this quotation (paid may exceed the quoted total). Finance can adjust allocation later if needed.'
       );
     }
-    if (bankDepositId && linkedDeposit) {
-      summaryParts.push('', `Linked bank deposit: ${bankDepositId} (₦${depositCoverNgn.toLocaleString('en-NG')} from pool)`);
+    if (activeBankDepositId && linkedDeposit) {
+      summaryParts.push('', `Linked bank deposit: ${activeBankDepositId} (₦${depositCoverNgn.toLocaleString('en-NG')} from pool)`);
       if (treasuryCashRequiredNgn > 0) {
         summaryParts.push(`Additional treasury cash: ${formatNgn(treasuryCashRequiredNgn)}`);
       }
@@ -718,9 +726,9 @@ const ReceiptModal = ({
       if (useLedgerApi) {
         let linesForTreasury = validLines;
         const cashNeeded = Math.max(0, total - depositCoverNgn);
-        if (bankDepositId && cashNeeded <= 0) {
+        if (activeBankDepositId && cashNeeded <= 0) {
           linesForTreasury = [];
-        } else if (bankDepositId && cashNeeded > 0 && cashNeeded < total) {
+        } else if (activeBankDepositId && cashNeeded > 0 && cashNeeded < total) {
           linesForTreasury = validLines.map((line, idx) => {
             const raw = Math.round((parseNum(line.amount) * cashNeeded) / total);
             return { ...line, amount: String(idx === validLines.length - 1 ? cashNeeded - validLines.slice(0, -1).reduce((s, l, i) => s + Math.round((parseNum(l.amount) * cashNeeded) / total), 0) : raw) };
@@ -761,7 +769,7 @@ const ReceiptModal = ({
         };
         if (branchId) receiptBody.branchId = branchId;
         receiptBody.fullAmountAsReceipt = true;
-        if (bankDepositId) receiptBody.bankDepositId = bankDepositId;
+        if (activeBankDepositId) receiptBody.bankDepositId = activeBankDepositId;
         if (postingHeadroomNgn != null && postingHeadroomNgn <= 0 && total > 0) {
           receiptBody.confirmSettledQuoteOverpay = true;
         }
@@ -859,11 +867,11 @@ const ReceiptModal = ({
           return;
         }
         setPostingHint(null);
-        const linkNote = bankDepositId ? ` Linked to ${bankDepositId}.` : '';
+        const linkNote = activeBankDepositId ? ` Linked to ${activeBankDepositId}.` : '';
         showToast(
           `₦${total.toLocaleString('en-NG')} recorded on ${selectedQuotation.id} — awaiting cashier confirmation.${linkNote}`
         );
-        if (Array.isArray(data?.similarUnlinkedDeposits) && data.similarUnlinkedDeposits.length > 0 && !bankDepositId) {
+        if (Array.isArray(data?.similarUnlinkedDeposits) && data.similarUnlinkedDeposits.length > 0 && !activeBankDepositId) {
           showToast(
             `Tip: ${data.similarUnlinkedDeposits.length} unlinked bank deposit(s) match this amount — link next time to avoid duplicate treasury cash.`,
             { variant: 'info' }
@@ -1196,7 +1204,7 @@ const ReceiptModal = ({
                 snapshot={depositSnapshot}
                 disabled={readOnly}
               />
-              {bankDepositId && treasuryCashRequiredNgn > 0 ? (
+              {activeBankDepositId && treasuryCashRequiredNgn > 0 ? (
                 <p className="text-[9px] text-sky-800 mt-1">
                   Enter treasury lines for the remaining {formatNgn(treasuryCashRequiredNgn)} only.
                 </p>
