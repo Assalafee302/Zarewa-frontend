@@ -1136,11 +1136,12 @@ const Sales = () => {
     async (entry) => {
       if (!canDeleteSalesRecord) {
         showToast('Only Admin, MD, or Branch Manager can delete advances.', { variant: 'error' });
-        return;
+        return false;
       }
       const entryId = String(entry?.id || '').trim();
-      const label = `advance ${formatNgn(entry?.amountNgn)} for ${entry?.customerName || entry?.customerID || entryId}`;
-      if (!confirmDangerousDelete(label, 'DELETE ADVANCE')) return;
+      const amountLabel = entry?.remainingNgn ?? entry?.amountNgn;
+      const label = `advance ${formatNgn(amountLabel)} for ${entry?.customerName || entry?.customerID || entryId}`;
+      if (!confirmDangerousDelete(label, 'DELETE ADVANCE')) return false;
       if (wsCanMutate) {
         const { ok, data } = await apiFetch('/api/ledger/reverse-advance', {
           method: 'POST',
@@ -1151,15 +1152,17 @@ const Sales = () => {
         });
         if (!ok || !data?.ok) {
           showToast(data?.error || 'Could not reverse advance on server.', { variant: 'error' });
-          return;
+          return false;
         }
+        dismissAdvanceEntryId(entryId);
         await onLedgerSynced();
         showToast('Advance reversed — customer balance and treasury account updated.');
-        return;
+        return true;
       }
       dismissAdvanceEntryId(entryId);
       bumpLedger();
       showToast('Advance removed from list.');
+      return true;
     },
     [bumpLedger, canDeleteSalesRecord, confirmDangerousDelete, onLedgerSynced, showToast, wsCanMutate]
   );

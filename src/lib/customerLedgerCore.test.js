@@ -5,7 +5,22 @@ import {
   advanceBalanceFromEntries,
   overpayCreditBalanceFromEntries,
   overpayCreditRemainingOnQuotationFromEntries,
+  pendingAdvanceDepositRowsFromEntries,
+  advanceInRemainingNgnByIdFromEntries,
 } from './customerLedgerCore.js';
+
+describe('pending advance deposits', () => {
+  it('hides fully applied ADVANCE_IN and shows partial remaining', () => {
+    const entries = [
+      { id: 'A1', customerID: 'C1', type: 'ADVANCE_IN', amountNgn: 100_000, atISO: '2026-01-01T12:00:00.000Z' },
+      { id: 'AP1', customerID: 'C1', type: 'ADVANCE_APPLIED', amountNgn: 60_000, quotationRef: 'Q1' },
+    ];
+    expect(advanceInRemainingNgnByIdFromEntries(entries).get('A1')).toBe(40_000);
+    const pending = pendingAdvanceDepositRowsFromEntries(entries);
+    expect(pending).toHaveLength(1);
+    expect(pending[0].amountNgn).toBe(40_000);
+  });
+});
 
 describe('advance vs overpay credit', () => {
   it('does not treat OVERPAY_ADVANCE as deposit advance', () => {

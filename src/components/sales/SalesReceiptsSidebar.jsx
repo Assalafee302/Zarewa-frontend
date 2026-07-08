@@ -10,6 +10,7 @@ import {
   ChevronDown,
 } from 'lucide-react';
 import { loadLedgerEntries } from '../../lib/customerLedgerStore';
+import { pendingAdvanceDepositRowsFromEntries } from '../../lib/customerLedgerCore';
 import { dismissAdvanceEntryId, loadDismissedAdvanceIds } from '../../lib/advanceEntryUiStore';
 import { formatNgn } from '../../Data/mockData';
 import { receiptCashReceivedNgn } from '../../lib/salesReceiptsList';
@@ -23,9 +24,15 @@ import { bankDepositStatusLabel, openBankDepositsFromSnapshot } from '../../lib/
 const PANEL_CLASS =
   'flex flex-col h-full min-h-[min(520px,72vh)] rounded-xl border border-slate-200/90 bg-white shadow-sm overflow-hidden';
 
-function reversalTargetId(raw) {
-  const m = String(raw ?? '').match(/REVERSAL_OF:([A-Za-z0-9-]+)/);
-  return m ? m[1] : '';
+function handleAdvanceDeleted(entryId, setLocallyDismissed) {
+  const id = String(entryId || '').trim();
+  if (!id) return;
+  dismissAdvanceEntryId(id);
+  setLocallyDismissed((prev) => {
+    const next = new Set(prev);
+    next.add(id);
+    return next;
+  });
 }
 
 function RowMenu({ rowKey, openKey, setOpenKey, onView, onLink, onDelete }) {
@@ -199,22 +206,8 @@ export function ReceiptsAdvancesPanel({
   const advanceRows = useMemo(() => {
     void ledgerNonce;
     const dismissed = loadDismissedAdvanceIds();
-    const all = loadLedgerEntries();
-    const reversedAdvanceIds = new Set(
-      all
-        .filter((e) => e.type === 'ADVANCE_REVERSAL')
-        .map((e) => reversalTargetId(e.bankReference || e.note))
-        .filter(Boolean)
-    );
-    return all
-      .filter(
-        (e) =>
-          e.type === 'ADVANCE_IN' &&
-          !dismissed.has(String(e.id)) &&
-          !locallyDismissed.has(String(e.id)) &&
-          !reversedAdvanceIds.has(String(e.id))
-      )
-      .sort((a, b) => String(b.atISO).localeCompare(String(a.atISO)));
+    locallyDismissed.forEach((id) => dismissed.add(id));
+    return pendingAdvanceDepositRowsFromEntries(loadLedgerEntries(), { dismissedIds: dismissed });
   }, [ledgerNonce, locallyDismissed]);
 
   return (
@@ -226,7 +219,7 @@ export function ReceiptsAdvancesPanel({
           Advance deposits
         </p>
         <p className="text-[10px] text-amber-900/70 mt-1 leading-snug">
-          Not yet linked to a quote. <strong>Link</strong> applies to a quotation; full apply removes the row here.
+          Not yet linked to a quote. <strong>Link</strong> applies to a quotation; fully applied advances drop off this list.
         </p>
       </div>
       <ul className="flex-1 min-h-0 overflow-y-auto overflow-x-visible custom-scrollbar p-2 space-y-1.5">
@@ -241,7 +234,12 @@ export function ReceiptsAdvancesPanel({
               }`}
             >
               <div className="min-w-0">
-                <p className="text-[10px] font-black text-[#134e4a] tabular-nums">{formatNgn(e.amountNgn)}</p>
+                <p className="text-[10px] font-black text-[#134e4a] tabular-nums">{formatNgn(e.remainingNgn ?? e.amountNgn)}</p>
+                {e.originalAmountNgn != null && e.remainingNgn < e.originalAmountNgn ? (
+                  <p className="text-[8px] font-semibold text-amber-800/80 tabular-nums">
+                    of {formatNgn(e.originalAmountNgn)} remaining
+                  </p>
+                ) : null}
                 <p className="text-[9px] font-semibold text-slate-700 truncate">{e.customerName || e.customerID}</p>
                 <p className="text-[8px] text-slate-400">{(e.atISO || '').slice(0, 10)}</p>
               </div>
@@ -251,8 +249,9 @@ export function ReceiptsAdvancesPanel({
                 setOpenKey={setMenuKey}
                 onView={() => onSelectAdvance?.(e)}
                 onLink={() => onLinkAdvance?.(e)}
-                onDelete={() => {
-                  onDeleteAdvance?.(e);
+                onDelete={async () => {
+                  const removed = await onDeleteAdvance?.(e);
+                  if (removed) handleAdvanceDeleted(e.id, setLocallyDismissed);
                 }}
               />
             </li>

@@ -6,7 +6,8 @@ import { useTrackedUnsavedForm } from '../../hooks/useTrackedUnsavedForm';
 import { useToast } from '../../context/ToastContext';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { guidanceForLedgerPostFailure, isVoucherDateInLockedPeriod } from '../../lib/ledgerPostingGuidance';
-import { amountDueOnQuotation, recordAdvanceAppliedToQuotation } from '../../lib/customerLedgerStore';
+import { amountDueOnQuotation, loadLedgerEntries, recordAdvanceAppliedToQuotation } from '../../lib/customerLedgerStore';
+import { advanceInRemainingNgnByIdFromEntries } from '../../lib/customerLedgerCore';
 import { formatNgn } from '../../Data/mockData';
 import { apiFetch } from '../../lib/apiBase';
 import { dismissAdvanceEntryId } from '../../lib/advanceEntryUiStore';
@@ -56,14 +57,22 @@ export default function LinkAdvanceModal({
   });
   const handleClose = wrapClose(() => onClose());
 
+  const advanceRemainingNgn = useMemo(() => {
+    if (!advanceEntry?.id) return 0;
+    const fromRow = Math.round(Number(advanceEntry.remainingNgn ?? advanceEntry.amountNgn) || 0);
+    if (advanceEntry.remainingNgn != null) return fromRow;
+    const map = advanceInRemainingNgnByIdFromEntries(loadLedgerEntries());
+    return Math.round(Number(map.get(String(advanceEntry.id))) || fromRow);
+  }, [advanceEntry]);
+
   useEffect(() => {
     if (!isOpen || !advanceEntry) return;
     setQuotationRef('');
     setPostingHint(null);
     setAmount(
-      advanceEntry.amountNgn != null ? String(Math.min(Number(advanceEntry.amountNgn) || 0, 999999999)) : ''
+      advanceRemainingNgn > 0 ? String(Math.min(advanceRemainingNgn, 999999999)) : ''
     );
-  }, [isOpen, advanceEntry]);
+  }, [isOpen, advanceEntry, advanceRemainingNgn]);
    
 
   const quoteOptions = useMemo(() => {
@@ -85,9 +94,8 @@ export default function LinkAdvanceModal({
   }, [selectedQ]);
 
   const maxApply = useMemo(() => {
-    const adv = Number(advanceEntry?.amountNgn) || 0;
-    return Math.max(0, Math.min(adv, dueNgn));
-  }, [advanceEntry?.amountNgn, dueNgn]);
+    return Math.max(0, Math.min(advanceRemainingNgn, dueNgn));
+  }, [advanceRemainingNgn, dueNgn]);
 
   const submit = async (e) => {
     e.preventDefault();
@@ -102,7 +110,7 @@ export default function LinkAdvanceModal({
       return;
     }
     if (n > maxApply) {
-      showToast(`Amount cannot exceed ${formatNgn(maxApply)} (advance line vs quote due).`, { variant: 'error' });
+      showToast(`Amount cannot exceed ${formatNgn(maxApply)} (remaining advance vs quote due).`, { variant: 'error' });
       return;
     }
     if (useLedgerApi) {
@@ -134,7 +142,7 @@ export default function LinkAdvanceModal({
         return;
       }
     }
-    if (n >= (Number(advanceEntry.amountNgn) || 0) - 0.5) {
+    if (n >= advanceRemainingNgn - 0.5) {
       dismissAdvanceEntryId(advanceEntry.id);
     }
     showToast(`Applied ${formatNgn(n)} advance to ${quotationRef}.`);
@@ -156,7 +164,10 @@ export default function LinkAdvanceModal({
           <div>
             <h2 className="text-base font-bold text-[#134e4a]">Link advance to quotation</h2>
             <p className="text-[9px] font-semibold text-slate-400 uppercase tracking-widest mt-0.5">
-              {advanceEntry.customerName ?? advanceEntry.customerID} · {formatNgn(advanceEntry.amountNgn)}
+              {advanceEntry.customerName ?? advanceEntry.customerID} · {formatNgn(advanceRemainingNgn)} available
+              {advanceEntry.originalAmountNgn != null && advanceRemainingNgn < advanceEntry.originalAmountNgn
+                ? ` (of ${formatNgn(advanceEntry.originalAmountNgn)})`
+                : ''}
             </p>
           </div>
           <button
