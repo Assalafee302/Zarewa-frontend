@@ -25,8 +25,8 @@ import { receiptCashReceivedNgn, normalizeReceiptMatchDashes } from '../lib/sale
 import { STONE_METER_INVENTORY_MODEL } from '../lib/stoneCoatedQuotationPolicy';
 import { normalizeJobStatus } from '../lib/productionJobPick';
 import { productionGateOverrideEffective, quotationHasRecordedPayment } from '../lib/productionGateAccess';
-import { quotedRoofingSheetMetresFromLines } from '../lib/refundQuotationMetres';
 import { validateCuttingListQuotedRoofingAlignment, cuttingListTotalMetresFromLines } from '../lib/refundCuttingListQuotationReconciliation';
+import { assessCuttingListQuotationConsumption } from '../lib/cuttingListBlankConsumption';
 
 /** Compare quote / receipt links when pasted refs use en-dash etc. */
 function normQuoteKey(s) {
@@ -587,18 +587,40 @@ const CuttingListModal = ({
     [flatLinesWithType]
   );
 
-  const quotedRoofingMetres = useMemo(() => {
-    if (!selectedQuotation) return 0;
-    return quotedRoofingSheetMetresFromLines(selectedQuotation.quotationLines ?? '');
-  }, [selectedQuotation]);
+  const cuttingListLinesForValidation = useMemo(
+    () =>
+      flatLinesWithType.map((line) => ({
+        sheets: line.sheets,
+        lengthM: line.lengthM,
+        lineType: line.type,
+      })),
+    [flatLinesWithType]
+  );
+
+  const quotationConsumption = useMemo(() => {
+    if (!selectedQuotation || selectedQuotationAccessoriesOnly) {
+      return {
+        ok: true,
+        warnings: [],
+        quotedSheetPoolM: 0,
+        quotedTrimBlankM: 0,
+        expectedTotalM: 0,
+        cuttingListTotalM: 0,
+      };
+    }
+    return assessCuttingListQuotationConsumption({
+      quotationLinesJson: selectedQuotation.quotationLines ?? '',
+      cuttingListLines: cuttingListLinesForValidation,
+    });
+  }, [selectedQuotation, selectedQuotationAccessoriesOnly, cuttingListLinesForValidation]);
 
   const quotationMetreAlignment = useMemo(() => {
     if (!selectedQuotation || selectedQuotationAccessoriesOnly) return { ok: true };
     return validateCuttingListQuotedRoofingAlignment({
-      quotedRoofingMetres,
-      cuttingListMetres: totalMeters,
+      quotationLinesJson: selectedQuotation.quotationLines ?? '',
+      cuttingListLines: cuttingListLinesForValidation,
     });
-  }, [selectedQuotation, selectedQuotationAccessoriesOnly, quotedRoofingMetres, totalMeters]);
+  }, [selectedQuotation, selectedQuotationAccessoriesOnly, cuttingListLinesForValidation]);
 
   const hasUnsavedCuttingListChanges = useMemo(() => {
     if (!editData?.id || readOnly || isDraftRecord) return false;
@@ -1545,9 +1567,25 @@ const CuttingListModal = ({
               </div>
               {!selectedQuotationAccessoriesOnly ? (
                 <div className="flex justify-between gap-2 text-[10px] font-semibold">
-                  <span className="text-slate-500 shrink-0">Quoted roof m</span>
+                  <span className="text-slate-500 shrink-0">Quoted sheet m</span>
                   <span className="text-[#134e4a] text-right tabular-nums">
-                    {quotedRoofingMetres.toLocaleString(undefined, { maximumFractionDigits: 2 })} m
+                    {quotationConsumption.quotedSheetPoolM.toLocaleString(undefined, { maximumFractionDigits: 2 })} m
+                  </span>
+                </div>
+              ) : null}
+              {!selectedQuotationAccessoriesOnly && quotationConsumption.quotedTrimBlankM > 0 ? (
+                <div className="flex justify-between gap-2 text-[10px] font-semibold">
+                  <span className="text-slate-500 shrink-0">Trim blank m</span>
+                  <span className="text-[#134e4a] text-right tabular-nums">
+                    {quotationConsumption.quotedTrimBlankM.toLocaleString(undefined, { maximumFractionDigits: 2 })} m
+                  </span>
+                </div>
+              ) : null}
+              {!selectedQuotationAccessoriesOnly ? (
+                <div className="flex justify-between gap-2 text-[10px] font-semibold">
+                  <span className="text-slate-500 shrink-0">Expected total m</span>
+                  <span className="text-[#134e4a] text-right tabular-nums">
+                    {quotationConsumption.expectedTotalM.toLocaleString(undefined, { maximumFractionDigits: 2 })} m
                   </span>
                 </div>
               ) : null}
@@ -1597,6 +1635,20 @@ const CuttingListModal = ({
               <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-[10px] text-amber-950 leading-snug">
                 <p className="font-bold uppercase tracking-wide text-[9px] text-amber-900">Quotation mismatch</p>
                 <p className="mt-1">{quotationMetreAlignment.message}</p>
+              </div>
+            ) : null}
+
+            {!selectedQuotationAccessoriesOnly &&
+            selectedQuotation &&
+            quotationMetreAlignment.ok &&
+            quotationConsumption.warnings?.length ? (
+              <div className="rounded-lg border border-sky-200 bg-sky-50 p-3 text-[10px] text-sky-950 leading-snug">
+                <p className="font-bold uppercase tracking-wide text-[9px] text-sky-900">Coil consumption note</p>
+                <ul className="mt-1 list-disc pl-4 space-y-0.5">
+                  {quotationConsumption.warnings.map((msg) => (
+                    <li key={msg}>{msg}</li>
+                  ))}
+                </ul>
               </div>
             ) : null}
 

@@ -302,7 +302,8 @@ const Settings = () => {
   };
 
   const showPeriodControls = Boolean(ws?.hasPermission?.('period.manage'));
-  const showAuditExport = permissions.includes('*') || permissions.includes('audit.view');
+  // Annex D §D.5.4: full export is admin-only (`audit.export`); viewing stays on `audit.view`.
+  const showAuditExport = permissions.includes('*') || permissions.includes('audit.export');
   const showBranchAudit = permissions.includes('*') || permissions.includes('settings.view');
   const showCuttingThresholdControl = permissions.includes('*') || permissions.includes('settings.view');
   const showGovernanceLimitsControl = permissions.includes('*') || permissions.includes('settings.view');

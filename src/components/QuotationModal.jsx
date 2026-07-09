@@ -66,6 +66,12 @@ import {
   resolveMaterialWorkbookPriceFromRows,
 } from '../lib/materialWorkbookQuotationPrice';
 import {
+  defaultGirthMmForTrimProduct,
+  isQuotationTrimProductLine,
+  quotationLineKindForProductName,
+  TRIM_GIRTH_OPTIONS_MM,
+} from '../lib/cuttingListBlankConsumption';
+import {
   quotationBelowFloorExceptionApproved,
   quotationBelowFloorPendingMdApproval,
 } from '../lib/quotationPriceException';
@@ -140,7 +146,6 @@ const DEFAULT_PRODUCT_ITEMS = [
   'Stone flatsheet 2',
   'Offcut',
   'Wall eaves',
-  'Crimp',
   'Coil',
 ];
 const DEFAULT_ACCESSORY_ITEMS = [
@@ -205,7 +210,26 @@ function newLineId() {
 }
 
 function emptyOrderLine() {
-  return { id: newLineId(), name: '', qty: '', unitPrice: '', customLine: false, stoneFlatsheetLengthM: '' };
+  return {
+    id: newLineId(),
+    name: '',
+    qty: '',
+    unitPrice: '',
+    customLine: false,
+    stoneFlatsheetLengthM: '',
+    girthMm: '',
+    lineKind: '',
+  };
+}
+
+function trimFieldsForProductName(name) {
+  if (!isQuotationTrimProductLine(name)) {
+    return { lineKind: '', girthMm: '' };
+  }
+  return {
+    lineKind: quotationLineKindForProductName(name),
+    girthMm: String(defaultGirthMmForTrimProduct(name)),
+  };
 }
 
 function parseLineNum(s) {
@@ -384,6 +408,8 @@ function OrderLinesSection({
     showStoneFlatsheetLength &&
     title === 'Products' &&
     rows.some((r) => isStoneFlatsheetQuotationLine(String(r?.name || '')));
+  const anyTrimRow =
+    title === 'Products' && rows.some((r) => isQuotationTrimProductLine(String(r?.name || '')));
 
   return (
     <div className="mb-5">
@@ -420,6 +446,9 @@ function OrderLinesSection({
                   resolveStoneFlatsheetLengthM(row) != null
                     ? ` · ${resolveStoneFlatsheetLengthM(row)} m`
                     : null}
+                  {title === 'Products' && isQuotationTrimProductLine(row.name) && row.girthMm
+                    ? ` · ${row.girthMm} mm`
+                    : null}
                 </span>
                 <span className="tabular-nums text-slate-600">
                   {row.qty || '0'} × {formatNgn(parseLineNum(row.unitPrice))} ={' '}
@@ -438,6 +467,7 @@ function OrderLinesSection({
               {showStoneFlatsheetLength && title === 'Products' ? (
                 <div className="w-[4.25rem] shrink-0 text-center">Len</div>
               ) : null}
+              {anyTrimRow ? <div className="w-[3.75rem] shrink-0 text-center">Width</div> : null}
               <div className="w-14 sm:w-16 shrink-0 text-center">{anyStoneFlatsheetRow ? 'Qty m²' : 'Qty'}</div>
               <div className="w-[4.25rem] sm:w-24 shrink-0 text-center">Unit ₦</div>
               <div className="w-[5.25rem] sm:w-28 shrink-0 text-right tabular-nums">Amount</div>
@@ -458,6 +488,7 @@ function OrderLinesSection({
                 isStoneFlatsheetQuotationLine(String(row.name || ''));
               const needsStoneFlatsheetLengthPicker =
                 isStoneFlatsheetRow && normQuoteItemKey(String(row.name || '')) === 'stone flatsheet';
+              const isTrimRow = title === 'Products' && isQuotationTrimProductLine(String(row.name || ''));
               const qtyPriceEnabled = quotationLineQtyPriceEnabled(row, {
                 requireStoneLength: showStoneFlatsheetLength && title === 'Products',
               });
@@ -481,6 +512,9 @@ function OrderLinesSection({
                               productLineKey(nm) !== 'stone flatsheet'
                             ) {
                               patch.stoneFlatsheetLengthM = '';
+                            }
+                            if (title === 'Products') {
+                              Object.assign(patch, trimFieldsForProductName(nm));
                             }
                             updateRow(row.id, patch);
                           }}
@@ -545,6 +579,7 @@ function OrderLinesSection({
                                       ? row.stoneFlatsheetLengthM
                                       : ''
                                   : '',
+                                ...(title === 'Products' ? trimFieldsForProductName(nextName) : {}),
                               });
                             }}
                             className="w-full min-w-0 bg-white border border-slate-200 rounded-lg py-1.5 pl-2 pr-7 text-[11px] font-semibold text-[#134e4a] appearance-none outline-none focus:ring-2 focus:ring-[#134e4a]/15 cursor-pointer"
@@ -629,6 +664,27 @@ function OrderLinesSection({
                           <option value="1.4">1.4 m</option>
                           <option value="1.5">1.5 m</option>
                           <option value="2">2 m</option>
+                        </select>
+                      ) : (
+                        <div className="h-8" aria-hidden />
+                      )}
+                    </div>
+                  ) : null}
+                  {anyTrimRow ? (
+                    <div className="w-[3.75rem] shrink-0">
+                      {isTrimRow ? (
+                        <select
+                          aria-label="Trim strip width mm"
+                          title="Strip width on 1200 mm coil blank"
+                          value={row.girthMm || String(defaultGirthMmForTrimProduct(row.name))}
+                          onChange={(e) => updateRow(row.id, { girthMm: e.target.value })}
+                          className="w-full rounded-lg border border-slate-200 bg-white py-1.5 pl-1 pr-1 text-[10px] font-semibold text-[#134e4a] outline-none focus:ring-2 focus:ring-[#134e4a]/15"
+                        >
+                          {TRIM_GIRTH_OPTIONS_MM.map((mm) => (
+                            <option key={mm} value={String(mm)}>
+                              {mm}
+                            </option>
+                          ))}
                         </select>
                       ) : (
                         <div className="h-8" aria-hidden />
@@ -1812,21 +1868,31 @@ const QuotationModal = ({
       );
     };
     return {
-      products: productRows.map((row) => ({
-        id: row.id,
-        name: row.name,
-        qty: row.qty,
-        unitPrice: row.unitPrice,
-        customLine: lineCustom(row, productOptions),
-        gauge: materialGauge,
-        colour: materialColor,
-        design: materialDesign,
-        profile: materialDesign,
-        ...(isStoneFlatsheetQuotationLine(row.name) &&
-        resolveStoneFlatsheetLengthM(row) != null
-          ? { stoneFlatsheetLengthM: resolveStoneFlatsheetLengthM(row) }
-          : {}),
-      })),
+      products: productRows.map((row) => {
+        const trimKind = quotationLineKindForProductName(row.name);
+        return {
+          id: row.id,
+          name: row.name,
+          qty: row.qty,
+          unitPrice: row.unitPrice,
+          customLine: lineCustom(row, productOptions),
+          gauge: materialGauge,
+          colour: materialColor,
+          design: materialDesign,
+          profile: materialDesign,
+          ...(trimKind ? { lineKind: trimKind } : row.lineKind ? { lineKind: row.lineKind } : {}),
+          ...(isQuotationTrimProductLine(row.name)
+            ? {
+                girthMm:
+                  Number(row.girthMm) > 0 ? Number(row.girthMm) : defaultGirthMmForTrimProduct(row.name),
+              }
+            : {}),
+          ...(isStoneFlatsheetQuotationLine(row.name) &&
+          resolveStoneFlatsheetLengthM(row) != null
+            ? { stoneFlatsheetLengthM: resolveStoneFlatsheetLengthM(row) }
+            : {}),
+        };
+      }),
       accessories: accessoryRows.map((row) => ({
         id: row.id,
         name: row.name,
