@@ -172,7 +172,7 @@ function sumAdvanceAppliedNgnForQuotation(ledgerEntries, quotationId) {
   if (!idKey || !Array.isArray(ledgerEntries)) return 0;
   let s = 0;
   for (const e of ledgerEntries) {
-    if (e.type !== 'ADVANCE_APPLIED') continue;
+    if (e.type !== 'ADVANCE_APPLIED' && e.type !== 'OVERPAY_APPLIED') continue;
     if (normQuoteKey(e.quotationRef) !== idKey) continue;
     s += Math.round(Number(e.amountNgn) || 0);
   }

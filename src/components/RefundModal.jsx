@@ -1312,7 +1312,7 @@ const RefundModal = ({
       const ackCodes = Object.entries(productionAlignmentAck)
         .filter(([, v]) => v)
         .map(([k]) => k);
-      const { data } = await apiFetch('/api/refunds/production-alignment-check', {
+      const { ok, data } = await apiFetch('/api/refunds/production-alignment-check', {
         method: 'POST',
         body: JSON.stringify({
           quotationRef: qref,
@@ -1322,9 +1322,18 @@ const RefundModal = ({
         }),
       });
       setAlignmentCheckLoading(false);
-      if (data) {
-        setProductionAlignmentIssues(Array.isArray(data.issues) ? data.issues : []);
+      if (!ok || !data?.ok) {
+        setProductionAlignmentIssues([
+          {
+            code: 'production_alignment_check_failed',
+            submitAction: 'block',
+            title: 'Production alignment check failed',
+            message: data?.error || 'Could not verify production alignment. Retry before submitting.',
+          },
+        ]);
+        return;
       }
+      setProductionAlignmentIssues(Array.isArray(data.issues) ? data.issues : []);
     }, 350);
     return () => clearTimeout(timer);
   }, [

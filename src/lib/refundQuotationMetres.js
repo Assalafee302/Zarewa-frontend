@@ -1,6 +1,8 @@
 /** Mirror of Zarewa-backend-main/shared/lib/refundQuotationMetres.js */
 import { isStoneFlatsheetQuotationLine } from './stoneCoatedQuotationPolicy.js';
 import { quotationLineQtyNumber } from './quotationLineNumericForRefund.js';
+import { quotedCuttingListSheetPoolMetresFromProducts } from './cuttingListBlankConsumption.js';
+import { hasQuotationProductsPayload } from './refundCuttingListQuotationReconciliation.js';
 
 function normQuoteProductLineName(name) {
   return String(name ?? '')
@@ -49,4 +51,15 @@ export function quotedRoofingSheetMetresFromLines(linesJson) {
     if (productLineIsTrimSheetNotRoofingMetres(line) || isStoneFlatsheetQuotationLine(line?.name)) return sum;
     return sum + quotationLineQtyNumber(line);
   }, 0);
+}
+
+/**
+ * Coil sheet-pool metres for unproduced refund (roofing + cladding, 1:1 with CL sections).
+ * Falls back to roofing-only when quote has no structured products payload.
+ */
+export function quotedCoilSheetPoolMetresFromLines(linesJson) {
+  if (hasQuotationProductsPayload(linesJson)) {
+    return quotedCuttingListSheetPoolMetresFromProducts(linesJson);
+  }
+  return quotedRoofingSheetMetresFromLines(linesJson);
 }
