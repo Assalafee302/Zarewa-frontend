@@ -3740,6 +3740,15 @@ export function LiveProductionMonitor({
                         <p className={`mt-0.5 truncate text-sm font-black tabular-nums leading-none ${valueClass}`}>
                           {value}
                         </p>
+                        {label === 'Planned' &&
+                        (Number(selectedJob.plannedRoofM) > 0 ||
+                          Number(selectedJob.plannedCladdingM) > 0 ||
+                          Number(selectedJob.plannedFlatsheetM) > 0) ? (
+                          <p className="mt-0.5 text-[8px] font-semibold tabular-nums text-slate-500 leading-tight">
+                            R {formatMeters(selectedJob.plannedRoofM)} · C {formatMeters(selectedJob.plannedCladdingM)} · F{' '}
+                            {formatMeters(selectedJob.plannedFlatsheetM)}
+                          </p>
+                        ) : null}
                       </div>
                     ))}
                   </div>

@@ -371,6 +371,8 @@ const CuttingListModal = ({
   const lastCuttingListHydrateSigRef = useRef('');
   const autosaveTimerRef = useRef(null);
   const initialDraftAttemptedRef = useRef(false);
+  const pendingDraftIdRef = useRef('');
+  const initialDraftInflightRef = useRef(null);
 
   const cuttingListHydrateSig = useMemo(
     () =>
@@ -1006,14 +1008,24 @@ const CuttingListModal = ({
   useEffect(() => {
     if (!isOpen) {
       initialDraftAttemptedRef.current = false;
+      pendingDraftIdRef.current = '';
+      initialDraftInflightRef.current = null;
+      return;
     }
-  }, [isOpen]);
+    const id = String(editData?.id ?? '').trim();
+    if (id) pendingDraftIdRef.current = id;
+  }, [isOpen, editData?.id]);
 
-  useEffect(() => {
-    if (!autosaveEnabled) return undefined;
-    autosaveTimerRef.current = window.setTimeout(async () => {
+  const runInitialDraftSave = useCallback(async () => {
+    const existingId = String(editData?.id ?? pendingDraftIdRef.current ?? '').trim();
+    if (existingId) return { id: existingId };
+
+    if (initialDraftInflightRef.current) return initialDraftInflightRef.current;
+
+    if (!selectedQuotation || !quotationRef || readOnly || !ws?.canMutate) return null;
+
+    const promise = (async () => {
       initialDraftAttemptedRef.current = true;
-      if (!selectedQuotation || saving) return;
       setAutosaving(true);
       setAutosaveNote('Saving draft…');
       const body = buildPersistPayload({ autosave: true, draft: true });
@@ -1024,11 +1036,36 @@ const CuttingListModal = ({
       setAutosaving(false);
       if (!ok || !data?.ok) {
         setAutosaveNote('Draft not saved — click Save list when ready.');
-        return;
+        return null;
       }
       const cl = data.cuttingList;
+      const id = String(cl?.id ?? data?.id ?? '').trim();
+      if (id) pendingDraftIdRef.current = id;
       if (cl) onDraftAutosaved?.(cl);
-      setAutosaveNote(cl?.id ? `Draft saved · ${cl.id}` : 'Draft saved');
+      setAutosaveNote(id ? `Draft saved · ${id}` : 'Draft saved');
+      return { id, cuttingList: cl };
+    })();
+
+    initialDraftInflightRef.current = promise;
+    try {
+      return await promise;
+    } finally {
+      initialDraftInflightRef.current = null;
+    }
+  }, [
+    editData?.id,
+    selectedQuotation,
+    quotationRef,
+    readOnly,
+    ws?.canMutate,
+    buildPersistPayload,
+    onDraftAutosaved,
+  ]);
+
+  useEffect(() => {
+    if (!autosaveEnabled) return undefined;
+    autosaveTimerRef.current = window.setTimeout(() => {
+      void runInitialDraftSave();
     }, 1500);
     return () => {
       if (autosaveTimerRef.current != null) {
@@ -1036,15 +1073,7 @@ const CuttingListModal = ({
         autosaveTimerRef.current = null;
       }
     };
-  }, [
-    autosaveEnabled,
-    saving,
-    selectedQuotation,
-    buildPersistPayload,
-    onDraftAutosaved,
-    draftLinesPayload,
-    quotationRef,
-  ]);
+  }, [autosaveEnabled, runInitialDraftSave, draftLinesPayload, quotationRef]);
 
   const submit = async (e) => {
     e.preventDefault();
@@ -1072,12 +1101,40 @@ const CuttingListModal = ({
       });
       return;
     }
-    const shouldFinalize = isDraftRecord || Boolean(serverDraftForQuote);
+    if (
+      !selectedQuotationAccessoriesOnly &&
+      quotationConsumption.trimBlankProductionBlocked
+    ) {
+      showToast(
+        quotationConsumption.warnings?.find((w) => String(w).includes('Flatsheet section')) ||
+          'Add trim blank metres under the Flatsheet section before saving.',
+        { variant: 'error' }
+      );
+      return;
+    }
+
+    setSaving(true);
+    let resolvedDraftId = String(
+      editData?.id ?? pendingDraftIdRef.current ?? serverDraftForQuote?.id ?? ''
+    ).trim();
+    if (!resolvedDraftId && isCreate && draftLinesPayload.length > 0) {
+      const draftResult = await runInitialDraftSave();
+      resolvedDraftId = String(draftResult?.id ?? '').trim();
+    } else if (initialDraftInflightRef.current) {
+      const draftResult = await initialDraftInflightRef.current;
+      resolvedDraftId = String(draftResult?.id ?? resolvedDraftId).trim();
+    }
+
+    const shouldFinalize =
+      isDraftRecord ||
+      Boolean(serverDraftForQuote) ||
+      (isCreate && Boolean(resolvedDraftId));
     if (
       (shouldFinalize || isCreate) &&
       selectedQuotation &&
       !meetsCuttingListPayThreshold(selectedQuotation, receipts, ledgerEntries, minPaidFraction)
     ) {
+      setSaving(false);
       showToast(
         `Under ${minPaidPercentLabel}% paid: a manager must approve production on the Manager dashboard before you can save this cutting list.`,
         { variant: 'error' }
@@ -1086,10 +1143,10 @@ const CuttingListModal = ({
     }
     const persistExtra = shouldFinalize ? { finalize: true } : {};
     const payload = buildPersistPayload(persistExtra);
-    if (shouldFinalize && !payload.id && serverDraftForQuote?.id) {
+    if (resolvedDraftId) payload.id = resolvedDraftId;
+    else if (shouldFinalize && !payload.id && serverDraftForQuote?.id) {
       payload.id = serverDraftForQuote.id;
     }
-    setSaving(true);
     const result = await onPersist?.(payload);
     setSaving(false);
     if (!result?.ok) {
@@ -1123,6 +1180,22 @@ const CuttingListModal = ({
   const registerProduction = useCallback(async () => {
     const id = editData?.id;
     if (!id || !wsCanMutate) return;
+    if (isDraftRecord) {
+      showToast('Finish and save this cutting list before sending it to production.', { variant: 'error' });
+      return;
+    }
+    if (hasUnsavedCuttingListChanges) {
+      showToast('Save your changes before sending this list to the production queue.', { variant: 'error' });
+      return;
+    }
+    if (quotationConsumption.trimBlankProductionBlocked) {
+      showToast(
+        quotationConsumption.warnings?.find((w) => String(w).includes('Flatsheet section')) ||
+          'Add trim blank metres under Flatsheet before production.',
+        { variant: 'error' }
+      );
+      return;
+    }
     if (editData?.productionRegistered) {
       showToast('This cutting list is already linked to a production job.', { variant: 'error' });
       return;
@@ -1150,7 +1223,7 @@ const CuttingListModal = ({
     showToast('Cutting list added to the production queue.', { variant: 'success' });
     if (data?.cuttingList) onCuttingListUpdated?.(data.cuttingList);
     await wsRefresh?.();
-  }, [editData?.id, editData?.productionRegistered, editData?.productionReleasePending, machineName, wsCanMutate, wsRefresh, showToast, onCuttingListUpdated]);
+  }, [editData?.id, editData?.productionRegistered, editData?.productionReleasePending, isDraftRecord, hasUnsavedCuttingListChanges, quotationConsumption, machineName, wsCanMutate, wsRefresh, showToast, onCuttingListUpdated]);
 
   return (
     <ModalFrame isOpen={isOpen} onClose={handleClose} modal={!showPrintPreview}>
@@ -1730,11 +1803,34 @@ const CuttingListModal = ({
               </p>
             ) : null}
 
-            {editData?.id && !editData?.productionRegistered && ws?.canMutate && canRegisterProduction && !editData?.productionReleasePending ? (
+            {editData?.id && !editData?.productionRegistered && hasUnsavedCuttingListChanges && !isDraftRecord ? (
+              <p className="text-[9px] font-medium text-amber-900 bg-amber-50 border border-amber-100 rounded-lg p-2 leading-snug">
+                Save your changes before sending this list to the production queue.
+              </p>
+            ) : null}
+            {editData?.id && !editData?.productionRegistered && quotationConsumption.trimBlankProductionBlocked ? (
+              <p className="text-[9px] font-medium text-rose-900 bg-rose-50 border border-rose-100 rounded-lg p-2 leading-snug">
+                Trim blank is missing from the Flatsheet section. Add flatsheet lines for quoted ridge/trim before production.
+              </p>
+            ) : null}
+
+            {editData?.id && !editData?.productionRegistered && ws?.canMutate && canRegisterProduction && !editData?.productionReleasePending && !isDraftRecord ? (
               <button
                 type="button"
                 onClick={registerProduction}
-                disabled={registering || readOnly}
+                disabled={
+                  registering ||
+                  readOnly ||
+                  hasUnsavedCuttingListChanges ||
+                  quotationConsumption.trimBlankProductionBlocked
+                }
+                title={
+                  hasUnsavedCuttingListChanges
+                    ? 'Save the cutting list first'
+                    : quotationConsumption.trimBlankProductionBlocked
+                      ? 'Add trim blank under Flatsheet before production'
+                      : undefined
+                }
                 className="w-full inline-flex items-center justify-center gap-1.5 rounded-lg border border-[#134e4a]/20 bg-[#134e4a] px-3 py-2.5 text-[9px] font-semibold uppercase tracking-wide text-white hover:bg-[#0f3d39] disabled:opacity-40"
               >
                 <Factory size={14} className="shrink-0" />

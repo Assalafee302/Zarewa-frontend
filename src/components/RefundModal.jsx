@@ -1287,8 +1287,8 @@ const RefundModal = ({
   );
 
   const canOverrideProductionAlignment = useMemo(
-    () => userMayOverrideProductionAlignment(ws?.user?.roleKey),
-    [ws?.user?.roleKey]
+    () => userMayOverrideProductionAlignment(ws?.session?.user?.roleKey),
+    [ws?.session?.user?.roleKey]
   );
 
   useEffect(() => {
@@ -1304,10 +1304,11 @@ const RefundModal = ({
           : refundCategoryTokens(record?.reasonCategory ?? record?.reason_category);
     if ((mode !== 'create' && !showApproval) || !qref || categories.length === 0) {
       setProductionAlignmentIssues([]);
+      setAlignmentCheckLoading(false);
       return undefined;
     }
+    setAlignmentCheckLoading(true);
     const timer = setTimeout(async () => {
-      setAlignmentCheckLoading(true);
       const ackCodes = Object.entries(productionAlignmentAck)
         .filter(([, v]) => v)
         .map(([k]) => k);

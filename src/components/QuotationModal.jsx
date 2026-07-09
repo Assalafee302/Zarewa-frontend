@@ -1354,7 +1354,9 @@ const QuotationModal = ({
       if (!name) return 0;
 
       const materialKey = priceListMaterialKeyFromMeta(selectedMaterialTypeMeta);
-      const branchId = String(editData?.branchId ?? '').trim();
+      const branchId = String(
+        editData?.branchId ?? ws?.session?.currentBranchId ?? ws?.session?.branchId ?? ''
+      ).trim();
       const wbCtx = {
         materialPricingRows,
         ridgeAddOns: ridgeAddOnsEffective,

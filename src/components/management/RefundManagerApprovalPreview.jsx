@@ -236,8 +236,8 @@ export function RefundManagerApprovalPreview({
   useEffect(() => {
     if (!approvalQuoteRef || typeof onRefreshApprovalContext !== 'function') return;
     const fp = refundWorkspaceSnapshotFingerprint(
-      ws?.productionJobs,
-      ws?.productionJobAccessoryUsage,
+      ws?.snapshot?.productionJobs,
+      ws?.snapshot?.productionJobAccessoryUsage,
       approvalQuoteRef
     );
     const prev = productionFingerprintRef.current;
@@ -248,8 +248,8 @@ export function RefundManagerApprovalPreview({
   }, [
     approvalQuoteRef,
     onRefreshApprovalContext,
-    ws?.productionJobs,
-    ws?.productionJobAccessoryUsage,
+    ws?.snapshot?.productionJobs,
+    ws?.snapshot?.productionJobAccessoryUsage,
   ]);
 
   useEffect(() => {
