@@ -68,9 +68,11 @@ import {
 import {
   defaultGirthMmForTrimProduct,
   isQuotationTrimProductLine,
+  normQuoteProductLineName,
   quotationLineKindForProductName,
   TRIM_GIRTH_OPTIONS_MM,
 } from '../lib/cuttingListBlankConsumption';
+import { resolveTrimListPricePerMeterFromWorkbook } from '../lib/materialWorkbookTrimPrice';
 import {
   quotationBelowFloorExceptionApproved,
   quotationBelowFloorPendingMdApproval,
@@ -230,6 +232,11 @@ function trimFieldsForProductName(name) {
     lineKind: quotationLineKindForProductName(name),
     girthMm: String(defaultGirthMmForTrimProduct(name)),
   };
+}
+
+function productUsesWorkbookAutoPrice(name) {
+  const n = normQuoteProductLineName(name);
+  return isMeterSheetProductLine(name) || n === 'cladding' || isQuotationTrimProductLine(name);
 }
 
 function parseLineNum(s) {
@@ -545,9 +552,11 @@ function OrderLinesSection({
                             onChange={(e) => {
                               const option = normalizedOptions.find((item) => item.id === e.target.value);
                               const nextName = option?.name || '';
+                              const trimMeta =
+                                title === 'Products' ? trimFieldsForProductName(nextName) : { girthMm: '' };
                               const suggestedPrice =
                                 typeof resolveUnitPrice === 'function'
-                                  ? resolveUnitPrice(nextName, option || null)
+                                  ? resolveUnitPrice(nextName, option || null, { girthMm: trimMeta.girthMm })
                                   : option?.defaultUnitPriceNgn || 0;
                               const wbMeta =
                                 typeof resolveWorkbookLineMeta === 'function'
@@ -579,7 +588,7 @@ function OrderLinesSection({
                                       ? row.stoneFlatsheetLengthM
                                       : ''
                                   : '',
-                                ...(title === 'Products' ? trimFieldsForProductName(nextName) : {}),
+                                ...(title === 'Products' ? trimMeta : {}),
                               });
                             }}
                             className="w-full min-w-0 bg-white border border-slate-200 rounded-lg py-1.5 pl-2 pr-7 text-[11px] font-semibold text-[#134e4a] appearance-none outline-none focus:ring-2 focus:ring-[#134e4a]/15 cursor-pointer"
@@ -677,7 +686,17 @@ function OrderLinesSection({
                           aria-label="Trim strip width mm"
                           title="Strip width on 1200 mm coil blank"
                           value={row.girthMm || String(defaultGirthMmForTrimProduct(row.name))}
-                          onChange={(e) => updateRow(row.id, { girthMm: e.target.value })}
+                          onChange={(e) => {
+                            const girthMm = e.target.value;
+                            const suggestedPrice =
+                              typeof resolveUnitPrice === 'function'
+                                ? resolveUnitPrice(row.name, matchedOption, { girthMm })
+                                : 0;
+                            updateRow(row.id, {
+                              girthMm,
+                              ...(suggestedPrice > 0 ? { unitPrice: String(suggestedPrice) } : {}),
+                            });
+                          }}
                           className="w-full rounded-lg border border-slate-200 bg-white py-1.5 pl-1 pr-1 text-[10px] font-semibold text-[#134e4a] outline-none focus:ring-2 focus:ring-[#134e4a]/15"
                         >
                           {TRIM_GIRTH_OPTIONS_MM.map((mm) => (
@@ -855,8 +874,15 @@ const QuotationModal = ({
     () => (Array.isArray(ws?.snapshot?.materialPricingRows) ? ws.snapshot.materialPricingRows : []),
     [ws?.snapshot?.materialPricingRows]
   );
+  const pricingRidgeAddOns = useMemo(
+    () => (Array.isArray(ws?.snapshot?.pricingRidgeAddOns) ? ws.snapshot.pricingRidgeAddOns : []),
+    [ws?.snapshot?.pricingRidgeAddOns]
+  );
+  const [ridgeAddOnsFallback, setRidgeAddOnsFallback] = useState([]);
+  const ridgeAddOnsEffective = pricingRidgeAddOns.length ? pricingRidgeAddOns : ridgeAddOnsFallback;
   const lastQuotationHydrateSigRef = useRef('');
   const prevMaterialTypeIdForStoneRef = useRef(null);
+  const skipWorkbookPriceRefreshRef = useRef(true);
 
   const quotationHydrateSig = useMemo(
     () =>
@@ -1293,7 +1319,7 @@ const QuotationModal = ({
 
   const resolveWorkbookLineMeta = useCallback(
     (itemName) => {
-      if (!isMeterSheetProductLine(itemName)) return null;
+      if (!productUsesWorkbookAutoPrice(itemName) || isQuotationTrimProductLine(itemName)) return null;
       const hit = resolveMaterialWorkbookPriceFromRows(materialPricingRows, {
         materialKey: priceListMaterialKeyFromMeta(selectedMaterialTypeMeta),
         gaugeMm: materialGauge,
@@ -1316,14 +1342,35 @@ const QuotationModal = ({
   );
 
   const resolveUnitPrice = useCallback(
-    (itemName, option) => {
-      const usesWorkbook = isMeterSheetProductLine(itemName);
+    (itemName, option, { girthMm: girthOverride } = {}) => {
+      const name = String(itemName ?? '').trim();
+      if (!name) return 0;
+
+      const materialKey = priceListMaterialKeyFromMeta(selectedMaterialTypeMeta);
+      const branchId = String(editData?.branchId ?? '').trim();
+      const wbCtx = {
+        materialPricingRows,
+        ridgeAddOns: ridgeAddOnsEffective,
+        materialKey,
+        gaugeLabel: materialGauge,
+        branchId,
+        designLabel: materialDesign,
+      };
+
+      if (isQuotationTrimProductLine(name)) {
+        const girth =
+          Number(girthOverride) > 0 ? Number(girthOverride) : defaultGirthMmForTrimProduct(name);
+        const trimPrice = resolveTrimListPricePerMeterFromWorkbook({ ...wbCtx, girthMm: girth });
+        if (trimPrice > 0) return trimPrice;
+      }
+
+      const usesWorkbook = productUsesWorkbookAutoPrice(name);
 
       if (usesWorkbook) {
         const hit = resolveMaterialWorkbookPriceFromRows(materialPricingRows, {
-          materialKey: priceListMaterialKeyFromMeta(selectedMaterialTypeMeta),
+          materialKey,
           gaugeMm: materialGauge,
-          branchId: String(editData?.branchId ?? '').trim(),
+          branchId,
           designLabel: materialDesign,
         });
         if (hit?.suggestedListPerMeter > 0) return hit.suggestedListPerMeter;
@@ -1333,8 +1380,6 @@ const QuotationModal = ({
       if (usesWorkbook && priceListItems.length > 0) {
         const gaugeK = gaugeMmKeyFromQuotationGauge(materialGauge);
         const designK = pricingNormKey(materialDesign);
-        const mtKey = priceListMaterialKeyFromMeta(selectedMaterialTypeMeta);
-        const branchId = String(editData?.branchId ?? '').trim();
 
         let bestScore = -1;
         let bestN = 0;
@@ -1347,9 +1392,9 @@ const QuotationModal = ({
           if (rb && branchId && rb !== branchId) continue;
           if (gaugeK && rg && rg !== gaugeK) continue;
           if (designK && rd && rd !== designK) continue;
-          if (rmt && mtKey) {
-            if (rmt !== mtKey && !mtKey.includes(rmt) && !rmt.includes(mtKey)) continue;
-          } else if (rmt && !mtKey) {
+          if (rmt && materialKey) {
+            if (rmt !== materialKey && !materialKey.includes(rmt) && !rmt.includes(materialKey)) continue;
+          } else if (rmt && !materialKey) {
             continue;
           }
 
@@ -1359,7 +1404,7 @@ const QuotationModal = ({
           let score = 0;
           if (gaugeK && rg === gaugeK) score += 4;
           if (designK && rd === designK) score += 4;
-          if (rmt && mtKey) score += 2;
+          if (rmt && materialKey) score += 2;
           if (rb && branchId) score += 1;
           if (score > bestScore) {
             bestScore = score;
@@ -1373,7 +1418,7 @@ const QuotationModal = ({
         .filter((row) => {
           const sameItem =
             (option?.id && row.quoteItemId === option.id) ||
-            String(row.itemName || '').trim().toLowerCase() === String(itemName || '').trim().toLowerCase();
+            String(row.itemName || '').trim().toLowerCase() === name.toLowerCase();
           if (!sameItem) return false;
           if (row.gaugeId && row.gaugeId !== selectedGaugeMeta?.id) return false;
           if (row.colourId && row.colourId !== selectedColourMeta?.id) return false;
@@ -1393,6 +1438,7 @@ const QuotationModal = ({
     },
     [
       materialPricingRows,
+      ridgeAddOnsEffective,
       priceListItems,
       priceListRows,
       materialGauge,
@@ -1404,6 +1450,75 @@ const QuotationModal = ({
       selectedMaterialTypeMeta,
     ]
   );
+
+  const materialHeaderReady = useMemo(
+    () =>
+      Boolean(
+        String(materialTypeId ?? '').trim() &&
+          String(materialGauge ?? '').trim() &&
+          String(materialDesign ?? '').trim()
+      ),
+    [materialTypeId, materialGauge, materialDesign]
+  );
+
+  const refreshWorkbookProductPrices = useCallback(() => {
+    setProductRows((prev) => {
+      let anyChange = false;
+      const next = prev.map((row) => {
+        const name = String(row.name ?? '').trim();
+        if (!name || !productUsesWorkbookAutoPrice(name)) return row;
+        const option = productOptions.find((o) => o.name === name) || null;
+        const girthMm =
+          row.girthMm || (isQuotationTrimProductLine(name) ? String(defaultGirthMmForTrimProduct(name)) : '');
+        const price = resolveUnitPrice(name, option, { girthMm });
+        if (!(price > 0)) return row;
+        anyChange = true;
+        const wbMeta = resolveWorkbookLineMeta(name);
+        return {
+          ...row,
+          unitPrice: String(price),
+          ...(isQuotationTrimProductLine(name) && !row.girthMm && girthMm ? { girthMm } : {}),
+          ...(wbMeta?.floorPerMeter ? { floorPricePerMeter: wbMeta.floorPerMeter } : {}),
+          ...(wbMeta?.suggestedListPerMeter ? { recommendedPricePerMeter: wbMeta.suggestedListPerMeter } : {}),
+        };
+      });
+      return anyChange ? next : prev;
+    });
+  }, [productOptions, resolveUnitPrice, resolveWorkbookLineMeta]);
+
+  useEffect(() => {
+    if (!isOpen || readOnly || !materialHeaderReady) return;
+    if (skipWorkbookPriceRefreshRef.current) {
+      skipWorkbookPriceRefreshRef.current = false;
+      return;
+    }
+    refreshWorkbookProductPrices();
+  }, [
+    isOpen,
+    readOnly,
+    materialHeaderReady,
+    materialTypeId,
+    materialGauge,
+    materialDesign,
+    materialPricingRows,
+    ridgeAddOnsEffective,
+    editData?.branchId,
+    refreshWorkbookProductPrices,
+  ]);
+
+  useEffect(() => {
+    if (!isOpen || pricingRidgeAddOns.length) return;
+    let cancelled = false;
+    (async () => {
+      const { ok, data } = await apiFetch('/api/pricing/policy');
+      if (!cancelled && ok && Array.isArray(data?.ridgeAddOns)) {
+        setRidgeAddOnsFallback(data.ridgeAddOns);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, pricingRidgeAddOns.length]);
 
   const canApproveMdPriceException = useMemo(() => {
     if (wsHasPermission?.('*')) return true;
@@ -1448,6 +1563,7 @@ const QuotationModal = ({
     }
     if (lastQuotationHydrateSigRef.current === quotationHydrateSig) return;
     lastQuotationHydrateSigRef.current = quotationHydrateSig;
+    skipWorkbookPriceRefreshRef.current = true;
 
     prevMaterialTypeIdForStoneRef.current = String(editData?.materialTypeId ?? '').trim();
 
