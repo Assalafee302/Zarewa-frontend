@@ -22,6 +22,14 @@ export function parseUnproducedMetresLabel(label) {
   return { metres, pricePerMeterNgn };
 }
 
+export function formatUnproducedMetresLabel(metres, pricePerMeterNgn) {
+  const m = Number(metres);
+  const ppm = roundRefundLineMoney(pricePerMeterNgn);
+  if (!Number.isFinite(m) || m <= 0 || ppm <= 0) return '';
+  const metresText = Number.isInteger(m) ? String(m) : m.toFixed(2);
+  return `Unproduced metres (${metresText}m @ ₦${ppm.toLocaleString('en-NG')})`;
+}
+
 export function expectedAmountFromRefundLineLabel(label, category) {
   const cat = String(category || '').trim();
   const text = String(label || '').trim();
@@ -44,7 +52,7 @@ export function sumRefundCalculationLines(lines) {
 
 /**
  * When an approver sets a lower approved amount but lines still sum to the original request,
- * scale included line amounts proportionally so the API line-sum check passes.
+ * scale included line amounts proportionally and rebuild formula labels where applicable.
  */
 export function scaleRefundCalculationLinesToApprovedAmount(lines, targetNgn) {
   const target = roundRefundLineMoney(targetNgn);
@@ -70,7 +78,12 @@ export function scaleRefundCalculationLinesToApprovedAmount(lines, targetNgn) {
     const raw = Number(String(lines[i]?.amountNgn ?? lines[i]?.amount_ngn ?? '').replace(/,/g, ''));
     const isLast = j === includedIndices.length - 1;
     const amt = isLast ? target - allocated : roundRefundLineMoney(raw * scale);
-    next[i] = { ...next[i], amountNgn: amt };
+    const parsed = parseUnproducedMetresLabel(lines[i]?.label);
+    const label =
+      parsed != null
+        ? formatUnproducedMetresLabel(amt / parsed.pricePerMeterNgn, parsed.pricePerMeterNgn)
+        : lines[i]?.label;
+    next[i] = { ...next[i], amountNgn: amt, ...(label ? { label } : {}) };
     allocated += amt;
   }
   return next;

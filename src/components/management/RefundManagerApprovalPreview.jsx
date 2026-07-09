@@ -1,4 +1,4 @@
-﻿import React, { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
+﻿import React, { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { RefreshCw, CheckCircle2, RotateCcw, AlertTriangle } from 'lucide-react';
 import { flattenQuotationLineItems, formatRefundReasonCategory, ledgerTypeStyle } from '../../lib/managerDashboardCore';
 import { formatActorAttribution } from '../../lib/actorAttribution';
@@ -14,6 +14,7 @@ import {
   scaleRefundCalculationLinesToApprovedAmount,
   sumRefundCalculationLines,
 } from '../../lib/refundLineArithmetic';
+import { refundWorkspaceSnapshotFingerprint } from '../../lib/refundWorkspaceSnapshot';
 import { isStoneFlatsheetQuotationLine } from '../../lib/stoneCoatedQuotationPolicy';
 
 function refundCategoryTokens(value) {
@@ -218,6 +219,46 @@ export function RefundManagerApprovalPreview({
     setIntegrityResult(null);
     setLocalIntelPatch(null);
   }, [refundId]);
+
+  const productionFingerprintRef = useRef('');
+  const approvalQuoteRef = String(
+    refundRecord?.quotationRef ||
+      refundRecord?.quotation_ref ||
+      inboxRow?.quotationRef ||
+      inboxRow?.quotation_ref ||
+      ''
+  ).trim();
+
+  useEffect(() => {
+    productionFingerprintRef.current = '';
+  }, [refundId, approvalQuoteRef]);
+
+  useEffect(() => {
+    if (!approvalQuoteRef || typeof onRefreshApprovalContext !== 'function') return;
+    const fp = refundWorkspaceSnapshotFingerprint(
+      ws?.productionJobs,
+      ws?.productionJobAccessoryUsage,
+      approvalQuoteRef
+    );
+    const prev = productionFingerprintRef.current;
+    if (fp === prev) return;
+    productionFingerprintRef.current = fp;
+    if (prev === '') return;
+    void onRefreshApprovalContext();
+  }, [
+    approvalQuoteRef,
+    onRefreshApprovalContext,
+    ws?.productionJobs,
+    ws?.productionJobAccessoryUsage,
+  ]);
+
+  useEffect(() => {
+    if (!approvalQuoteRef || typeof onRefreshApprovalContext !== 'function') return;
+    const id = window.setInterval(() => {
+      void onRefreshApprovalContext();
+    }, 60_000);
+    return () => window.clearInterval(id);
+  }, [approvalQuoteRef, onRefreshApprovalContext]);
 
   const loading = loadingAudit || (loadingIntel && !effectiveRefundIntel);
   const refund = useMemo(() => {
