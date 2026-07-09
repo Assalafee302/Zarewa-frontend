@@ -120,6 +120,10 @@ import { productionQueueLineStatusPresentation } from '../lib/productionQueueLin
 import { assessCuttingListQuotationConsumption } from '../lib/cuttingListBlankConsumption';
 import { quotationIsAccessoriesOnlyForProduction } from '../lib/quotationProductionLines';
 import {
+  cuttingListMinPaidFractionFromSession,
+  meetsCuttingListPayThreshold,
+} from '../lib/cuttingListPaymentGate';
+import {
   buildStockVerdict,
   coilLotRemainingKg,
   colourShort,
@@ -1235,6 +1239,23 @@ const Sales = () => {
       const quotation = quotations.find(
         (q) => String(q.id ?? '').trim() === String(cuttingList?.quotationRef ?? '').trim()
       );
+      const minPaidFraction = cuttingListMinPaidFractionFromSession(ws?.session);
+      const minPaidPercentLabel = Math.round(minPaidFraction * 100);
+      if (
+        quotation &&
+        !meetsCuttingListPayThreshold(
+          quotation,
+          mergedReceiptRowsWithCuttingMeta,
+          loadLedgerEntries(),
+          minPaidFraction
+        )
+      ) {
+        showToast(
+          `Under ${minPaidPercentLabel}% paid: a manager must approve production on the Manager dashboard before this list can join the queue.`,
+          { variant: 'error' }
+        );
+        return;
+      }
       if (quotation && !quotationIsAccessoriesOnlyForProduction(quotation)) {
         const assessment = assessCuttingListQuotationConsumption({
           quotationLinesJson: quotation.quotationLines ?? quotation.linesJson ?? '',
@@ -1274,7 +1295,7 @@ const Sales = () => {
       if (wsCanMutate) await wsRefresh?.();
       showToast('Cutting list added to the production queue.', { variant: 'success' });
     },
-    [showToast, wsCanMutate, wsRefresh, wsHasPermission, quotations]
+    [showToast, wsCanMutate, wsRefresh, wsHasPermission, quotations, mergedReceiptRowsWithCuttingMeta, ws?.session]
   );
 
   const isAnyModalOpen =

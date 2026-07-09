@@ -25,6 +25,10 @@ import { receiptCashReceivedNgn, normalizeReceiptMatchDashes } from '../lib/sale
 import { STONE_METER_INVENTORY_MODEL } from '../lib/stoneCoatedQuotationPolicy';
 import { normalizeJobStatus } from '../lib/productionJobPick';
 import { productionGateOverrideEffective, quotationHasRecordedPayment } from '../lib/productionGateAccess';
+import {
+  cuttingListMinPaidFractionFromSession,
+  meetsCuttingListPayThreshold,
+} from '../lib/cuttingListPaymentGate';
 import { validateCuttingListQuotedRoofingAlignment, cuttingListTotalMetresFromLines } from '../lib/refundCuttingListQuotationReconciliation';
 import { assessCuttingListQuotationConsumption } from '../lib/cuttingListBlankConsumption';
 
@@ -154,73 +158,6 @@ function linesForDraftPayload(linesByCat, categories) {
     }
   }
   return out;
-}
-
-function cuttingListMinPaidFractionFromSession(session) {
-  const bid = String(session?.currentBranchId || '').trim();
-  const branches = Array.isArray(session?.branches) ? session.branches : [];
-  const row = branches.find((b) => String(b.id) === bid);
-  const f = Number(row?.cuttingListMinPaidFraction);
-  if (Number.isFinite(f) && f >= 0.05 && f <= 1) return f;
-  return 0.7;
-}
-
-/** Book paid on quote: receipt allocations in DB + ADVANCE_APPLIED (matches `quotations.paid_ngn`). */
-function bookPaidTowardQuotation(q) {
-  return Math.max(0, Number(q.paidNgn ?? q.paid_ngn) || 0);
-}
-
-function sumAdvanceAppliedNgnForQuotation(ledgerEntries, quotationId) {
-  const idKey = normQuoteKey(quotationId);
-  if (!idKey || !Array.isArray(ledgerEntries)) return 0;
-  let s = 0;
-  for (const e of ledgerEntries) {
-    if (e.type !== 'ADVANCE_APPLIED' && e.type !== 'OVERPAY_APPLIED') continue;
-    if (normQuoteKey(e.quotationRef) !== idKey) continue;
-    s += Math.round(Number(e.amountNgn) || 0);
-  }
-  return s;
-}
-
-/** Till / bank cash on receipts for this quote only (no advance applied — avoids double-count in UI). */
-function receiptTillCashOnlyOnQuotation(quotationId, receiptRows) {
-  const idKey = normQuoteKey(quotationId);
-  if (!idKey || !Array.isArray(receiptRows)) return 0;
-  let s = 0;
-  for (const r of receiptRows) {
-    if (normQuoteKey(r.quotationRef) !== idKey) continue;
-    if (String(r.status || '').toLowerCase() === 'reversed') continue;
-    s += receiptCashReceivedNgn(r);
-  }
-  return s;
-}
-
-/** Cash actually received for this quote: merged receipt rows + ledger advance applied. */
-function cashPaidOnQuotation(quotationId, receiptRows, ledgerEntries) {
-  const idKey = normQuoteKey(quotationId);
-  if (!idKey) return 0;
-  let s = sumAdvanceAppliedNgnForQuotation(ledgerEntries, quotationId);
-  for (const r of receiptRows || []) {
-    if (normQuoteKey(r.quotationRef) !== idKey) continue;
-    if (String(r.status || '').toLowerCase() === 'reversed') continue;
-    s += receiptCashReceivedNgn(r);
-  }
-  return s;
-}
-
-/** Paid fraction gate (branch setting): actual cash in, or book allocation, or manager override. */
-function meetsCuttingListPayThreshold(q, receiptRows, ledgerEntries, minPaidFraction = 0.7) {
-  if (productionGateOverrideEffective(q)) return true;
-  const total = Number(q.totalNgn ?? q.total_ngn) || 0;
-  if (total <= 0) return false;
-  const mf =
-    Number.isFinite(minPaidFraction) && minPaidFraction >= 0.05 && minPaidFraction <= 1
-      ? minPaidFraction
-      : 0.7;
-  const threshold = total * mf - 1e-6;
-  const book = bookPaidTowardQuotation(q);
-  const cash = cashPaidOnQuotation(q.id, receiptRows, ledgerEntries);
-  return cash >= threshold || book >= threshold;
 }
 
 /** Resolve colour / gauge / profile from API or mock quotation objects. */
@@ -1243,6 +1180,16 @@ const CuttingListModal = ({
       );
       return;
     }
+    if (
+      selectedQuotation &&
+      !meetsCuttingListPayThreshold(selectedQuotation, receipts, ledgerEntries, minPaidFraction)
+    ) {
+      showToast(
+        `Under ${minPaidPercentLabel}% paid: a manager must approve production on the Manager dashboard before this list can join the queue.`,
+        { variant: 'error' }
+      );
+      return;
+    }
     setRegistering(true);
     const { ok, data } = await apiFetch(
       `/api/cutting-lists/${encodeURIComponent(id)}/register-production`,
@@ -1259,7 +1206,7 @@ const CuttingListModal = ({
     showToast('Cutting list added to the production queue.', { variant: 'success' });
     if (data?.cuttingList) onCuttingListUpdated?.(data.cuttingList);
     await wsRefresh?.();
-  }, [editData?.id, editData?.productionRegistered, editData?.productionReleasePending, isDraftRecord, hasUnsavedCuttingListChanges, quotationConsumption, machineName, wsCanMutate, wsRefresh, showToast, onCuttingListUpdated]);
+  }, [editData?.id, editData?.productionRegistered, editData?.productionReleasePending, isDraftRecord, hasUnsavedCuttingListChanges, quotationConsumption, machineName, wsCanMutate, wsRefresh, showToast, onCuttingListUpdated, selectedQuotation, receipts, ledgerEntries, minPaidFraction, minPaidPercentLabel]);
 
   return (
     <ModalFrame isOpen={isOpen} onClose={handleClose} modal={!showPrintPreview}>
