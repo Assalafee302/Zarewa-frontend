@@ -6,6 +6,7 @@ import { formatPersonName } from '../../lib/formatPersonName';
 import { normalizeRefund } from '../../lib/refundsStore';
 import { apiFetch } from '../../lib/apiBase';
 import { useWorkspace } from '../../context/WorkspaceContext';
+import { useToast } from '../../context/ToastContext';
 import { userMayOverrideProductionAlignment } from '../../lib/workspaceGovernanceClient';
 import {
   auditRefundCalculationLineArithmetic,
@@ -171,8 +172,10 @@ export function RefundManagerApprovalPreview({
   onEditDetails,
   editDetailsLabel = 'Edit breakdown & payee',
   officialRecord = null,
+  onRefreshApprovalContext,
 }) {
   const ws = useWorkspace();
+  const { show: showToast } = useToast();
   const [productionAlignmentIssues, setProductionAlignmentIssues] = useState([]);
   const [productionAlignmentAck, setProductionAlignmentAck] = useState({});
   const [productionAlignmentOverrideNote, setProductionAlignmentOverrideNote] = useState('');
@@ -181,6 +184,9 @@ export function RefundManagerApprovalPreview({
   const [approvalAmountError, setApprovalAmountError] = useState('');
   const [managerComments, setManagerComments] = useState('');
   const [rejectNoteError, setRejectNoteError] = useState('');
+  const [integrityBusy, setIntegrityBusy] = useState(false);
+  const [integrityResult, setIntegrityResult] = useState(null);
+  const [localIntelPatch, setLocalIntelPatch] = useState(null);
 
   const REJECT_NOTE_MIN = 3;
 
@@ -188,8 +194,28 @@ export function RefundManagerApprovalPreview({
     () => userMayOverrideProductionAlignment(ws?.user?.roleKey ?? ws?.session?.user?.roleKey),
     [ws?.user?.roleKey, ws?.session?.user?.roleKey]
   );
+  const canRecalculateIntegrity = useMemo(
+    () =>
+      Boolean(
+        ws?.hasPermission?.('finance.approve') ||
+          ws?.hasPermission?.('refunds.approve') ||
+          ws?.hasPermission?.('quotations.manage')
+      ),
+    [ws]
+  );
 
-  const loading = loadingAudit || (loadingIntel && !refundIntel);
+  const effectiveRefundIntel = localIntelPatch || refundIntel;
+
+  useEffect(() => {
+    setLocalIntelPatch(null);
+  }, [refundIntel]);
+
+  useEffect(() => {
+    setIntegrityResult(null);
+    setLocalIntelPatch(null);
+  }, [refundId]);
+
+  const loading = loadingAudit || (loadingIntel && !effectiveRefundIntel);
   const refund = useMemo(() => {
     if (refundRecord) return normalizeRefund(refundRecord);
     if (!inboxRow) return null;
@@ -221,34 +247,90 @@ export function RefundManagerApprovalPreview({
     [auditData?.conversionChecks]
   );
   const salesReceipts = Array.isArray(auditData?.salesReceipts) ? auditData.salesReceipts : [];
-  const intelSum = refundIntel?.summary;
+  const intelSum = effectiveRefundIntel?.summary;
   const dataQuality = useMemo(
-    () => (Array.isArray(refundIntel?.dataQualityIssues) ? refundIntel.dataQualityIssues : []),
-    [refundIntel?.dataQualityIssues]
+    () => (Array.isArray(effectiveRefundIntel?.dataQualityIssues) ? effectiveRefundIntel.dataQualityIssues : []),
+    [effectiveRefundIntel?.dataQualityIssues]
   );
   const productionSuggested = useMemo(
     () =>
-      Array.isArray(refundIntel?.productionSuggestedCategories)
-        ? refundIntel.productionSuggestedCategories
+      Array.isArray(effectiveRefundIntel?.productionSuggestedCategories)
+        ? effectiveRefundIntel.productionSuggestedCategories
         : [],
-    [refundIntel?.productionSuggestedCategories]
+    [effectiveRefundIntel?.productionSuggestedCategories]
   );
   const productionFulfillment = useMemo(() => {
-    const fromIntel = refundIntel?.productionFulfillment;
+    const fromIntel = effectiveRefundIntel?.productionFulfillment;
     if (fromIntel && typeof fromIntel === 'object') return fromIntel;
     const snap = refund?.previewSnapshot;
     if (snap?.productionFulfillment && typeof snap.productionFulfillment === 'object') {
       return snap.productionFulfillment;
     }
     return null;
-  }, [refundIntel?.productionFulfillment, refund?.previewSnapshot]);
+  }, [effectiveRefundIntel?.productionFulfillment, refund?.previewSnapshot]);
   const economicFloor = useMemo(() => {
-    const fromIntel = refundIntel?.economicFloor;
+    const fromIntel = effectiveRefundIntel?.economicFloor;
     if (fromIntel && typeof fromIntel === 'object') return fromIntel;
     const snap = refund?.previewSnapshot?.economicFloor;
     if (snap && typeof snap === 'object') return snap;
-    return null;
-  }, [refundIntel?.economicFloor, refund?.previewSnapshot]);
+    return integrityResult?.economicFloor ?? null;
+  }, [effectiveRefundIntel?.economicFloor, refund?.previewSnapshot, integrityResult?.economicFloor]);
+  const staleRefundWarnings = useMemo(() => {
+    const fromIntel = Array.isArray(effectiveRefundIntel?.staleRefundWarnings)
+      ? effectiveRefundIntel.staleRefundWarnings
+      : [];
+    const fromRecalc = Array.isArray(integrityResult?.staleRefundWarnings)
+      ? integrityResult.staleRefundWarnings
+      : [];
+    return fromRecalc.length ? fromRecalc : fromIntel;
+  }, [effectiveRefundIntel?.staleRefundWarnings, integrityResult?.staleRefundWarnings]);
+
+  const runRecalculateIntegrity = useCallback(async () => {
+    const qref = String(refund?.quotationRef || refund?.quotation_ref || '').trim();
+    if (!qref || integrityBusy || !canRecalculateIntegrity) return;
+    setIntegrityBusy(true);
+    try {
+      const { ok, data } = await apiFetch(
+        `/api/quotations/${encodeURIComponent(qref)}/recalculate-integrity`,
+        { method: 'POST', body: JSON.stringify({}) }
+      );
+      if (!ok || !data?.ok) {
+        showToast(data?.error || 'Could not recalculate quotation integrity.', { variant: 'error' });
+        return;
+      }
+      setIntegrityResult(data);
+      if (typeof onRefreshApprovalContext === 'function') {
+        await onRefreshApprovalContext(data);
+      } else {
+        const intelRes = await apiFetch(
+          `/api/refunds/intelligence?quotationRef=${encodeURIComponent(qref)}`
+        );
+        if (intelRes.ok && intelRes.data?.ok !== false) {
+          setLocalIntelPatch(intelRes.data);
+        }
+      }
+      const paidChanged = Boolean(data.receiptReconcile?.paidNgnChanged);
+      const staleCount = Array.isArray(data.staleRefundWarnings) ? data.staleRefundWarnings.length : 0;
+      showToast(
+        paidChanged
+          ? `Integrity recalculated — paid balance updated to ${formatNgn(data.receiptReconcile?.paidNgn)}.${staleCount ? ` ${staleCount} open refund(s) exceed the economic floor.` : ''}`
+          : staleCount
+            ? `Integrity recalculated. ${staleCount} open refund(s) exceed the economic floor cap.`
+            : 'Quotation integrity recalculated.',
+        { variant: staleCount ? 'info' : 'success' }
+      );
+    } finally {
+      setIntegrityBusy(false);
+    }
+  }, [
+    refund?.quotationRef,
+    refund?.quotation_ref,
+    integrityBusy,
+    canRecalculateIntegrity,
+    onRefreshApprovalContext,
+    showToast,
+    formatNgn,
+  ]);
   const calcLines = useMemo(() => refund?.calculationLines || [], [refund?.calculationLines]);
   const lineArithmeticIssues = useMemo(
     () => auditRefundCalculationLineArithmetic(calcLines),
@@ -777,9 +859,22 @@ export function RefundManagerApprovalPreview({
                     : 'border-slate-200 bg-slate-50/80 text-slate-700'
                 }`}
               >
-                <p className="font-bold uppercase tracking-wide text-[8px] text-slate-500">
-                  Economic floor (produced × workbook minimum)
-                </p>
+                <div className="flex items-start justify-between gap-2">
+                  <p className="font-bold uppercase tracking-wide text-[8px] text-slate-500">
+                    Economic floor (produced × workbook minimum)
+                  </p>
+                  {canRecalculateIntegrity ? (
+                    <button
+                      type="button"
+                      disabled={integrityBusy || decisionBusy}
+                      onClick={() => void runRecalculateIntegrity()}
+                      className="inline-flex shrink-0 items-center gap-0.5 rounded border border-slate-300 bg-white px-1.5 py-0.5 text-[8px] font-bold uppercase text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                    >
+                      <RefreshCw size={10} className={integrityBusy ? 'animate-spin' : ''} />
+                      Recalc
+                    </button>
+                  ) : null}
+                </div>
                 <p className="mt-0.5">
                   {Number(economicFloor.producedOutputMeters || 0).toLocaleString()} m produced · floor value{' '}
                   {formatNgn(economicFloor.floorDeliveredValueNgn)} · max defensible refund{' '}
@@ -790,6 +885,33 @@ export function RefundManagerApprovalPreview({
                     Floor ₦/m missing for some jobs — verify workbook pricing manually.
                   </p>
                 ) : null}
+              </div>
+            ) : canRecalculateIntegrity ? (
+              <div className="mb-2 flex justify-end">
+                <button
+                  type="button"
+                  disabled={integrityBusy || decisionBusy}
+                  onClick={() => void runRecalculateIntegrity()}
+                  className="inline-flex items-center gap-1 rounded border border-slate-300 bg-white px-2 py-1 text-[8px] font-bold uppercase text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                >
+                  <RefreshCw size={10} className={integrityBusy ? 'animate-spin' : ''} />
+                  Recalculate integrity
+                </button>
+              </div>
+            ) : null}
+            {staleRefundWarnings.length > 0 ? (
+              <div className="mb-2">
+                <AlertBanner tone="amber" title="Stale open refunds (above economic floor)">
+                <ul className="list-disc pl-3">
+                  {staleRefundWarnings.map((w) => (
+                    <li key={w.refundId}>
+                      <span className="font-mono">{w.refundId}</span> · {w.status} · requested{' '}
+                      {formatNgn(w.amountNgn)} · cap {formatNgn(w.maxDefensibleRefundNgn)}
+                      {w.reasonCategory ? ` · ${w.reasonCategory}` : ''}
+                    </li>
+                  ))}
+                </ul>
+              </AlertBanner>
               </div>
             ) : null}
             {intelSum && (intelSum.overpayAdvanceNgn > 0 || intelSum.overpayAppliedNgn > 0) ? (

@@ -1235,6 +1235,29 @@ const RefundModal = ({
     };
   }, [isOpen, showApproval, record?.quotationRef, record?.quotation_ref, record?.refundID]);
 
+  const refreshApprovalContext = useCallback(async () => {
+    const qref = String(record?.quotationRef || record?.quotation_ref || '').trim();
+    if (!qref) return null;
+    setLoadingApprovalAudit(true);
+    setLoadingApprovalIntel(true);
+    const [auditRes, intelRes] = await Promise.all([
+      apiFetch(`/api/management/quotation-audit?quotationRef=${encodeURIComponent(qref)}`),
+      apiFetch(`/api/refunds/intelligence?quotationRef=${encodeURIComponent(qref)}`),
+    ]);
+    setLoadingApprovalAudit(false);
+    setLoadingApprovalIntel(false);
+    if (auditRes.ok && auditRes.data) setApprovalAuditData(auditRes.data);
+    else {
+      setApprovalAuditData({
+        ok: false,
+        error: auditRes.data?.error || 'Could not load quotation audit.',
+      });
+    }
+    if (intelRes.ok && intelRes.data && intelRes.data.ok !== false) setApprovalRefundIntel(intelRes.data);
+    else setApprovalRefundIntel(null);
+    return intelRes.data ?? null;
+  }, [record?.quotationRef, record?.quotation_ref]);
+
   const approvalQuoteRef = String(record?.quotationRef || record?.quotation_ref || '').trim();
   const approvalQuoteRow = useMemo(() => {
     if (!approvalQuoteRef) return null;
@@ -2069,6 +2092,7 @@ const RefundModal = ({
                 refundExecutiveThresholdNgn={
                   Number(ws?.snapshot?.orgGovernanceLimits?.refundExecutiveThresholdNgn) || 1_000_000
                 }
+                onRefreshApprovalContext={refreshApprovalContext}
                 onApprove={(decisionExtras) =>
                   void submitApprovalDecision({
                     status: 'Approved',

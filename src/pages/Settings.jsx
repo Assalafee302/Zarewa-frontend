@@ -31,6 +31,7 @@ import LoginSecurityPanel from '../components/settings/LoginSecurityPanel';
 import CustomPermissionOverridesPanel from '../components/settings/CustomPermissionOverridesPanel';
 import SettingsProfilePanel from '../components/settings/SettingsProfilePanel';
 import AdminDataResetPanel from '../components/settings/AdminDataResetPanel';
+import QuotationLineIntegrityPanel from '../components/settings/QuotationLineIntegrityPanel';
 import { SettingsIntegrationApiPanel } from '../components/settings/SettingsIntegrationApiPanel';
 import { ZareIntelligencePanel } from '../components/settings/ZareIntelligencePanel';
 import { KnowledgeCenterPanel } from '../components/settings/KnowledgeCenterPanel';
@@ -305,12 +306,19 @@ const Settings = () => {
   const showBranchAudit = permissions.includes('*') || permissions.includes('settings.view');
   const showCuttingThresholdControl = permissions.includes('*') || permissions.includes('settings.view');
   const showGovernanceLimitsControl = permissions.includes('*') || permissions.includes('settings.view');
+  const showQuotationLineIntegrityAudit =
+    permissions.includes('*') ||
+    permissions.includes('settings.view') ||
+    permissions.includes('finance.approve') ||
+    permissions.includes('refunds.approve') ||
+    permissions.includes('quotations.manage');
   const governanceHasContent =
     showPeriodControls ||
     showAuditExport ||
     showBranchAudit ||
     showCuttingThresholdControl ||
     showGovernanceLimitsControl ||
+    showQuotationLineIntegrityAudit ||
     showIntegrationApiPanel ||
     auditLog.length > 0;
 
@@ -756,6 +764,8 @@ const Settings = () => {
                   {showIntegrationApiPanel ? (
                     <SettingsIntegrationApiPanel showToast={showToast} onRefresh={() => void ws?.refresh?.()} />
                   ) : null}
+
+                  {showQuotationLineIntegrityAudit ? <QuotationLineIntegrityPanel /> : null}
 
                   {!governanceHasContent ? (
                     <div className="rounded-3xl border border-dashed border-slate-200 bg-slate-50/60 px-6 py-10 text-center">
