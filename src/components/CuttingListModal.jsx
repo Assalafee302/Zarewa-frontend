@@ -26,7 +26,7 @@ import { STONE_METER_INVENTORY_MODEL } from '../lib/stoneCoatedQuotationPolicy';
 import { normalizeJobStatus } from '../lib/productionJobPick';
 import { productionGateOverrideEffective, quotationHasRecordedPayment } from '../lib/productionGateAccess';
 import { quotedRoofingSheetMetresFromLines } from '../lib/refundQuotationMetres';
-import { validateCuttingListQuotedRoofingAlignment } from '../lib/refundCuttingListQuotationReconciliation';
+import { validateCuttingListQuotedRoofingAlignment, cuttingListTotalMetresFromLines } from '../lib/refundCuttingListQuotationReconciliation';
 
 /** Compare quote / receipt links when pasted refs use en-dash etc. */
 function normQuoteKey(s) {
@@ -572,7 +572,14 @@ const CuttingListModal = ({
   }, [linesByCat, cuttingCategoriesUi]);
 
   const totalMeters = useMemo(
-    () => flatLinesWithType.reduce((sum, line) => sum + line.sheets * line.lengthM, 0),
+    () =>
+      cuttingListTotalMetresFromLines(
+        flatLinesWithType.map((line) => ({
+          sheets: line.sheets,
+          lengthM: line.lengthM,
+          lineType: line.type,
+        }))
+      ),
     [flatLinesWithType]
   );
   const computedSheets = useMemo(
@@ -585,21 +592,13 @@ const CuttingListModal = ({
     return quotedRoofingSheetMetresFromLines(selectedQuotation.quotationLines ?? '');
   }, [selectedQuotation]);
 
-  const cuttingRoofMetres = useMemo(
-    () =>
-      flatLinesWithType
-        .filter((line) => line.type === 'Roof')
-        .reduce((sum, line) => sum + line.sheets * line.lengthM, 0),
-    [flatLinesWithType]
-  );
-
   const quotationMetreAlignment = useMemo(() => {
     if (!selectedQuotation || selectedQuotationAccessoriesOnly) return { ok: true };
     return validateCuttingListQuotedRoofingAlignment({
       quotedRoofingMetres,
-      cuttingRoofMetres,
+      cuttingListMetres: totalMeters,
     });
-  }, [selectedQuotation, selectedQuotationAccessoriesOnly, quotedRoofingMetres, cuttingRoofMetres]);
+  }, [selectedQuotation, selectedQuotationAccessoriesOnly, quotedRoofingMetres, totalMeters]);
 
   const hasUnsavedCuttingListChanges = useMemo(() => {
     if (!editData?.id || readOnly || isDraftRecord) return false;
@@ -1548,15 +1547,15 @@ const CuttingListModal = ({
                 <div className="flex justify-between gap-2 text-[10px] font-semibold">
                   <span className="text-slate-500 shrink-0">Quoted roof m</span>
                   <span className="text-[#134e4a] text-right tabular-nums">
-                    {quotedRoofingMetres.toLocaleString()} m
+                    {quotedRoofingMetres.toLocaleString(undefined, { maximumFractionDigits: 2 })} m
                   </span>
                 </div>
               ) : null}
               {!selectedQuotationAccessoriesOnly ? (
                 <div className="flex justify-between gap-2 text-[10px] font-semibold">
-                  <span className="text-slate-500 shrink-0">List roof m</span>
+                  <span className="text-slate-500 shrink-0">List total m</span>
                   <span className="text-[#134e4a] text-right tabular-nums">
-                    {cuttingRoofMetres.toLocaleString()} m
+                    {totalMeters.toLocaleString(undefined, { maximumFractionDigits: 2 })} m
                   </span>
                 </div>
               ) : null}
