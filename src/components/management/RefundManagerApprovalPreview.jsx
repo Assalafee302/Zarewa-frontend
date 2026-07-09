@@ -7,7 +7,7 @@ import { normalizeRefund } from '../../lib/refundsStore';
 import { apiFetch } from '../../lib/apiBase';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { useToast } from '../../context/ToastContext';
-import { userMayOverrideProductionAlignment } from '../../lib/workspaceGovernanceClient';
+import { userMayOverrideProductionAlignment, isExecutiveRoleKey } from '../../lib/workspaceGovernanceClient';
 import {
   auditRefundCalculationLineArithmetic,
   expectedAmountFromRefundLineLabel,
@@ -194,6 +194,10 @@ export function RefundManagerApprovalPreview({
     () => userMayOverrideProductionAlignment(ws?.user?.roleKey ?? ws?.session?.user?.roleKey),
     [ws?.user?.roleKey, ws?.session?.user?.roleKey]
   );
+  const canBypassIncompleteFloor = useMemo(() => {
+    const rk = String(ws?.user?.roleKey ?? ws?.session?.user?.roleKey ?? '').toLowerCase();
+    return Boolean(ws?.hasPermission?.('*') || rk === 'admin' || isExecutiveRoleKey(rk));
+  }, [ws]);
   const canRecalculateIntegrity = useMemo(
     () =>
       Boolean(
@@ -284,6 +288,28 @@ export function RefundManagerApprovalPreview({
       : [];
     return fromRecalc.length ? fromRecalc : fromIntel;
   }, [effectiveRefundIntel?.staleRefundWarnings, integrityResult?.staleRefundWarnings]);
+
+  const refundAmountNgn = useMemo(
+    () => Math.round(Number(refund?.amountNgn ?? refund?.amount_ngn ?? 0) || 0),
+    [refund?.amountNgn, refund?.amount_ngn]
+  );
+
+  const exceedsEconomicFloorCap = useMemo(() => {
+    const cap = Number(economicFloor?.maxDefensibleRefundNgn);
+    if (!Number.isFinite(cap)) return false;
+    return refundAmountNgn > cap + 1;
+  }, [economicFloor?.maxDefensibleRefundNgn, refundAmountNgn]);
+
+  const incompleteFloorBlocksApprove = useMemo(() => {
+    if (!economicFloor?.incompleteFloorPricing) return false;
+    if (Number(economicFloor.producedOutputMeters || 0) <= 0) return false;
+    return !canBypassIncompleteFloor;
+  }, [economicFloor, canBypassIncompleteFloor]);
+
+  const financialBlocksApprove = useMemo(
+    () => staleRefundWarnings.length > 0 || exceedsEconomicFloorCap || incompleteFloorBlocksApprove,
+    [staleRefundWarnings.length, exceedsEconomicFloorCap, incompleteFloorBlocksApprove]
+  );
 
   const runRecalculateIntegrity = useCallback(async () => {
     const qref = String(refund?.quotationRef || refund?.quotation_ref || '').trim();
@@ -425,6 +451,7 @@ export function RefundManagerApprovalPreview({
 
   const alignmentBlocksApprove = useMemo(() => {
     if (alignmentCheckLoading) return true;
+    if (financialBlocksApprove) return true;
     if (productionAlignmentIssues.length === 0) return false;
     const hasBlock = productionAlignmentIssues.some((i) => i.submitAction === 'block');
     if (hasBlock && !(canOverrideProductionAlignment && productionAlignmentOverrideNote.trim().length >= 10)) {
@@ -434,6 +461,7 @@ export function RefundManagerApprovalPreview({
     return needAck.some((i) => !productionAlignmentAck[i.code]);
   }, [
     alignmentCheckLoading,
+    financialBlocksApprove,
     productionAlignmentIssues,
     canOverrideProductionAlignment,
     productionAlignmentOverrideNote,
@@ -901,7 +929,7 @@ export function RefundManagerApprovalPreview({
             ) : null}
             {staleRefundWarnings.length > 0 ? (
               <div className="mb-2">
-                <AlertBanner tone="amber" title="Stale open refunds (above economic floor)">
+                <AlertBanner tone="rose" title="Approval blocked — refund exceeds current economic floor">
                 <ul className="list-disc pl-3">
                   {staleRefundWarnings.map((w) => (
                     <li key={w.refundId}>
@@ -911,7 +939,30 @@ export function RefundManagerApprovalPreview({
                     </li>
                   ))}
                 </ul>
+                <p className="mt-1 font-semibold">
+                  Recalculate integrity, reject, or reduce the approved amount before proceeding.
+                </p>
               </AlertBanner>
+              </div>
+            ) : null}
+            {incompleteFloorBlocksApprove ? (
+              <div className="mb-2">
+                <AlertBanner tone="rose" title="Approval blocked — workbook floor pricing incomplete">
+                  <p>
+                    {Number(economicFloor?.producedOutputMeters || 0).toLocaleString()} m produced but floor ₦/m
+                    could not be resolved. Resolve workbook pricing or escalate to MD/CEO.
+                  </p>
+                </AlertBanner>
+              </div>
+            ) : null}
+            {exceedsEconomicFloorCap && staleRefundWarnings.length === 0 ? (
+              <div className="mb-2">
+                <AlertBanner tone="rose" title="Approval blocked — amount above economic floor">
+                  <p>
+                    Requested {formatNgn(refundAmountNgn)} exceeds max defensible{' '}
+                    {formatNgn(economicFloor?.maxDefensibleRefundNgn)}. Recalculate integrity or reduce the amount.
+                  </p>
+                </AlertBanner>
               </div>
             ) : null}
             {intelSum && (intelSum.overpayAdvanceNgn > 0 || intelSum.overpayAppliedNgn > 0) ? (
