@@ -23,15 +23,32 @@ function parseCoilDraftNumber(value) {
   return Number(raw.replace(/,/g, ''));
 }
 
+/** Production register: opening/closing kg are whole numbers only. */
+export function parseWholeKgInput(value) {
+  const n = parseCoilDraftNumber(value);
+  return Number.isFinite(n) ? Math.round(n) : NaN;
+}
+
+export function wholeKgStringFromValue(value) {
+  if (value == null || value === '') return '';
+  const n = parseWholeKgInput(value);
+  if (!Number.isFinite(n)) return '';
+  return String(n);
+}
+
 export function createDraftLine(row = {}) {
   const hasPersistedId = row.id != null && row.id !== '';
   return {
     id: hasPersistedId ? row.id : `draft-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
     coilNo: row.coilNo || '',
     openingWeightKg:
-      row.openingWeightKg != null && row.openingWeightKg !== 0 ? String(row.openingWeightKg) : '',
+      row.openingWeightKg != null && row.openingWeightKg !== 0
+        ? wholeKgStringFromValue(row.openingWeightKg)
+        : '',
     closingWeightKg:
-      row.closingWeightKg != null && row.closingWeightKg !== 0 ? String(row.closingWeightKg) : '',
+      row.closingWeightKg != null && row.closingWeightKg !== 0
+        ? wholeKgStringFromValue(row.closingWeightKg)
+        : '',
     metersProduced:
       row.metersProduced != null && row.metersProduced !== 0 ? String(row.metersProduced) : '',
     note: row.note || '',
@@ -69,7 +86,7 @@ function mergeAllocationDraftFromServer(serverRow, prevDraft, storedDraft) {
   const base = createDraftLine(serverRow);
   for (const src of [storedDraft, prevDraft].filter(Boolean)) {
     if (!serverAllocationHasRunLogField(serverRow, 'closingWeightKg') && src.closingWeightKg) {
-      base.closingWeightKg = String(src.closingWeightKg);
+      base.closingWeightKg = wholeKgStringFromValue(src.closingWeightKg);
     }
     if (!serverAllocationHasRunLogField(serverRow, 'metersProduced') && src.metersProduced) {
       base.metersProduced = String(src.metersProduced);
@@ -81,7 +98,7 @@ function mergeAllocationDraftFromServer(serverRow, prevDraft, storedDraft) {
       base.finishCoil = Boolean(src.finishCoil);
     }
     if ((!serverRow.openingWeightKg || serverRow.openingWeightKg === 0) && src.openingWeightKg) {
-      base.openingWeightKg = String(src.openingWeightKg);
+      base.openingWeightKg = wholeKgStringFromValue(src.openingWeightKg);
     }
     if (!String(serverRow.coilNo || '').trim() && src.coilNo) {
       base.coilNo = String(src.coilNo);
@@ -159,8 +176,8 @@ export function seedDraftAllocationsFromServer(jobId, serverRows, prevDrafts, jo
       const fromStored = createDraftLine({
         id: storedDraftId || undefined,
         coilNo: storedCoil,
-        openingWeightKg: stored.openingWeightKg,
-        closingWeightKg: stored.closingWeightKg,
+        openingWeightKg: wholeKgStringFromValue(stored.openingWeightKg),
+        closingWeightKg: wholeKgStringFromValue(stored.closingWeightKg),
         metersProduced: stored.metersProduced,
         note: stored.note,
         finishCoil: stored.finishCoil,
@@ -182,8 +199,8 @@ export function seedDraftAllocationsFromServer(jobId, serverRows, prevDrafts, jo
 /** One coil line has enough data to include in live conversion preview. */
 export function draftRowConversionPreviewReady(row) {
   const coil = row.coilNo?.trim();
-  const op = parseCoilDraftNumber(row.openingWeightKg);
-  const cl = parseCoilDraftNumber(row.closingWeightKg);
+  const op = parseWholeKgInput(row.openingWeightKg);
+  const cl = parseWholeKgInput(row.closingWeightKg);
   const m = parseCoilDraftNumber(row.metersProduced);
   return (
     Boolean(coil) &&
@@ -214,13 +231,13 @@ export function countUnsavedCoilDraftRows(rows) {
 export function completionLineFromDraft(row) {
   const line = {
     coilNo: row.coilNo.trim(),
-    closingWeightKg: Math.round(Number(row.closingWeightKg) || 0),
+    closingWeightKg: parseWholeKgInput(row.closingWeightKg) || 0,
     metersProduced: Number(row.metersProduced),
     note: row.note.trim(),
   };
-  const opening = Number(String(row.openingWeightKg ?? '').replace(/,/g, ''));
+  const opening = parseWholeKgInput(row.openingWeightKg);
   if (Number.isFinite(opening) && opening > 0) {
-    line.openingWeightKg = Math.round(opening);
+    line.openingWeightKg = opening;
   }
   if (row.finishCoil) {
     line.finishCoil = true;

@@ -80,19 +80,26 @@ import {
   createDraftLine,
   draftRowConversionPreviewReady,
   isDraftAllocationRow,
+  isEmptyCoilDraftRow,
+  parseWholeKgInput,
   seedDraftAllocationsFromServer,
 } from '../lib/productionRegisterCoilDraft';
 import { productionDatesFromJob } from '../lib/productionRegisterJobDates';
 import { ProductionRegisterCorrectionModal } from './operations/ProductionRegisterCorrectionModal';
 import { ProductionRegisterConfirmModal } from './operations/ProductionRegisterConfirmModal';
+import { ProductionRegisterIssuesPanel } from './operations/ProductionRegisterIssuesPanel';
 import { ProductionRegisterPostStartBanner } from './operations/ProductionRegisterPostStartBanner';
+import {
+  buildProductionRegisterIssues,
+  productionCoilSyncSummary,
+} from '../lib/productionRegisterIssues';
 
 /** Matches server: closing below this (kg) may use “Finish roll” on completion to clear the tail from stock. */
 const COIL_TAIL_FINISH_MAX_KG = 85;
 
 function formatKg(value) {
   const next = Number(value);
-  return Number.isFinite(next) ? `${next.toFixed(2)} kg` : '—';
+  return Number.isFinite(next) ? `${Math.round(next)} kg` : '—';
 }
 
 function formatMeters(value) {
@@ -105,6 +112,26 @@ function stockRecalcSuffix(stockRecalc) {
   const n = Number(stockRecalc.recalculatedCount ?? stockRecalc.coils?.length ?? 0);
   if (!Number.isFinite(n) || n <= 0) return '';
   return ` Stock recalculated for ${n} coil(s).`;
+}
+
+function savedCoilCountFromAllocPayload(body, data) {
+  const fromResponse = Array.isArray(data?.allocations) ? data.allocations.length : 0;
+  if (fromResponse > 0) return fromResponse;
+  const fromRequest = Array.isArray(body?.allocations) ? body.allocations.length : 0;
+  return fromRequest;
+}
+
+function coilAllocSavedToastMessage({ body, data, isRunning, listLabel, stockRecalc, started = false }) {
+  const count = savedCoilCountFromAllocPayload(body, data);
+  const countPhrase = count > 0 ? `${count} coil(s) ` : '';
+  const suffix = stockRecalcSuffix(stockRecalc);
+  if (started) {
+    return `${countPhrase}saved to server and production started for ${listLabel} — visible to all users.${suffix}`;
+  }
+  if (isRunning) {
+    return `${countPhrase}saved to server on ${listLabel} — admin and manager can see them now.${suffix}`;
+  }
+  return `${countPhrase}saved to server for ${listLabel} — visible to admin and manager.${suffix}`;
 }
 
 /** In compact views, omit “Design” when it matches or nests inside the FG product line label. */
@@ -128,11 +155,11 @@ function formatKgPerMCompact(value) {
   return fmtConv2(value);
 }
 
-/** Default opening kg when picking a coil — same value as free kg in the picker (2 decimal places). */
+/** Default opening kg when picking a coil — whole kg, same as free kg shown in the picker. */
 function suggestedOpeningKgFromFree(freeKg) {
   const n = Number(freeKg);
   if (!Number.isFinite(n) || n <= 0) return '';
-  return String(Math.round(n * 100) / 100);
+  return String(Math.round(n));
 }
 
 /** Metres implied by free kg using supplier conversion, else scaled from supplier nominal length vs received kg. */
@@ -1132,9 +1159,6 @@ export function LiveProductionMonitor({
     coilDraftJobRef.current = jobId;
     const serverRows = selectedJobAllocationsRef.current;
     const jobStatus = normalizeJobStatus(selectedJob?.status);
-    if (jobStatus === 'Planned') {
-      clearProdCoilDraftStorage(jobId);
-    }
     setDraftAllocations((prev) =>
       seedDraftAllocationsFromServer(jobId, serverRows, prev, jobSwitch, {
         restoreSupplementalLocalDrafts: jobStatus !== 'Planned',
@@ -1649,8 +1673,8 @@ export function LiveProductionMonitor({
     draftAllocations.forEach((row, idx) => {
       const label = `Line ${idx + 1}`;
       const coil = row.coilNo?.trim();
-      const opening = Number(row.openingWeightKg);
-      const closing = Number(row.closingWeightKg);
+      const opening = parseWholeKgInput(row.openingWeightKg);
+      const closing = parseWholeKgInput(row.closingWeightKg);
       const meters = Number(row.metersProduced);
       if (!coil && !row.openingWeightKg && !row.closingWeightKg && !row.metersProduced) return;
       if (!coil) errors.push(`${label}: select a coil.`);
@@ -1763,6 +1787,69 @@ export function LiveProductionMonitor({
       ? plannedMetersValue - recordedMeters
       : 0;
   const requiresUnderProductionConfirm = underProducedMeters > 0.01;
+
+  const productionRegisterIssues = useMemo(
+    () =>
+      buildProductionRegisterIssues({
+        readOnly,
+        usingCachedData: Boolean(ws?.usingCachedData),
+        canMutate: Boolean(ws?.canMutate),
+        jobStatus: jobSt,
+        isStoneMeterQuote,
+        completionUsesOffcutMode,
+        unsavedCoilDraftCount,
+        savedCoilCount: selectedJobAllocations.length,
+        draftAllocations,
+        hasPersistedCoilAllocations,
+        canEditPlannedAllocations,
+        canCaptureRun,
+        coilSpecMismatchPending: Boolean(selectedJob?.coilSpecMismatchPending),
+        completionValidation,
+        requiresManagerOverrunApproval,
+        overProducedMeters,
+        stoneFlatsheetLinesMissingLength,
+        stoneAllocAck,
+        stoneFlatsheetPostedForJob,
+        quotedStoneFlatsheetLinesCount: quotedStoneFlatsheetLines.length,
+        canEditCompletedAccessoryCorrections,
+      }),
+    [
+      readOnly,
+      ws?.usingCachedData,
+      ws?.canMutate,
+      jobSt,
+      isStoneMeterQuote,
+      completionUsesOffcutMode,
+      unsavedCoilDraftCount,
+      selectedJobAllocations.length,
+      draftAllocations,
+      hasPersistedCoilAllocations,
+      canEditPlannedAllocations,
+      canCaptureRun,
+      selectedJob?.coilSpecMismatchPending,
+      completionValidation,
+      requiresManagerOverrunApproval,
+      overProducedMeters,
+      stoneFlatsheetLinesMissingLength,
+      stoneAllocAck,
+      stoneFlatsheetPostedForJob,
+      quotedStoneFlatsheetLines.length,
+      canEditCompletedAccessoryCorrections,
+    ]
+  );
+
+  const discardUnsavedCoilDrafts = useCallback(() => {
+    const jobId = selectedJob?.jobID;
+    if (!jobId) return;
+    clearProdCoilDraftStorage(jobId);
+    setDraftAllocations((prev) => {
+      const kept = prev.filter((row) => !isDraftAllocationRow(row) || isEmptyCoilDraftRow(row));
+      if (!kept.length) return [createDraftLine()];
+      const needsBlank = !kept.some((r) => isDraftAllocationRow(r) && isEmptyCoilDraftRow(r));
+      return needsBlank ? [...kept, createDraftLine()] : kept;
+    });
+    showToast('Removed unsaved coil lines from this device. Server coils unchanged.', { variant: 'info' });
+  }, [selectedJob?.jobID, showToast]);
 
   /** Unique rolls in the draft: summed est. metres from free kg (same coil on two rows counted once). */
   const allocationUniqueRollCapacityInsight = useMemo(() => {
@@ -1984,15 +2071,26 @@ export function LiveProductionMonitor({
         if (row.id !== id) return row;
         const next = { ...row, ...patch };
         if (Object.prototype.hasOwnProperty.call(patch, 'closingWeightKg')) {
-          const cl = Number(next.closingWeightKg);
-          if (Number.isFinite(cl)) next.closingWeightKg = Math.round(cl);
-          if (!Number.isFinite(cl) || cl < 0 || cl >= COIL_TAIL_FINISH_MAX_KG) {
+          const raw = String(next.closingWeightKg ?? '').trim();
+          if (!raw) {
+            next.closingWeightKg = '';
+          } else {
+            const cl = parseWholeKgInput(raw);
+            next.closingWeightKg = Number.isFinite(cl) ? String(cl) : raw;
+          }
+          const clNum = Number(next.closingWeightKg);
+          if (!Number.isFinite(clNum) || clNum < 0 || clNum >= COIL_TAIL_FINISH_MAX_KG) {
             next.finishCoil = false;
           }
         }
         if (Object.prototype.hasOwnProperty.call(patch, 'openingWeightKg')) {
-          const op = Number(String(next.openingWeightKg ?? '').replace(/,/g, ''));
-          if (Number.isFinite(op)) next.openingWeightKg = Math.round(op);
+          const raw = String(next.openingWeightKg ?? '').trim();
+          if (!raw) {
+            next.openingWeightKg = '';
+          } else {
+            const op = parseWholeKgInput(raw);
+            next.openingWeightKg = Number.isFinite(op) ? String(op) : raw;
+          }
         }
         if (
           Object.prototype.hasOwnProperty.call(patch, 'coilNo') &&
@@ -2153,8 +2251,8 @@ export function LiveProductionMonitor({
             .map((row) => ({
               allocationId: isDraftAllocationRow(row) ? '' : row.id,
               coilNo: String(row.coilNo ?? '').trim(),
-              openingWeightKg: Number(String(row.openingWeightKg).replace(/,/g, '')) || 0,
-              closingWeightKg: Number(String(row.closingWeightKg).replace(/,/g, '')) || 0,
+              openingWeightKg: parseWholeKgInput(row.openingWeightKg) || 0,
+              closingWeightKg: parseWholeKgInput(row.closingWeightKg) || 0,
               metersProduced: Number(String(row.metersProduced).replace(/,/g, '')) || 0,
               note: String(row.note ?? '').trim(),
               ...(withAck ? { specMismatchAcknowledged: true } : {}),
@@ -2314,8 +2412,8 @@ export function LiveProductionMonitor({
               .map((row) => ({
                 allocationId: row.id,
                 coilNo: String(row.coilNo ?? '').trim(),
-                openingWeightKg: Number(String(row.openingWeightKg).replace(/,/g, '')) || 0,
-                closingWeightKg: Number(String(row.closingWeightKg).replace(/,/g, '')) || 0,
+                openingWeightKg: parseWholeKgInput(row.openingWeightKg) || 0,
+                closingWeightKg: parseWholeKgInput(row.closingWeightKg) || 0,
                 metersProduced: Number(String(row.metersProduced).replace(/,/g, '')) || 0,
                 note: String(row.note ?? '').trim(),
                 ...(withAck ? { specMismatchAcknowledged: true } : {}),
@@ -2360,7 +2458,7 @@ export function LiveProductionMonitor({
               append: true,
               allocations: toAppend.map((row) => ({
                 coilNo: row.coilNo.trim(),
-                openingWeightKg: Number(row.openingWeightKg),
+                openingWeightKg: parseWholeKgInput(row.openingWeightKg) || 0,
                 note: row.note.trim(),
                 ...(withAck ? { specMismatchAcknowledged: true } : {}),
               })),
@@ -2469,7 +2567,7 @@ export function LiveProductionMonitor({
             append: true,
             allocations: toAppend.map((row) => ({
               coilNo: row.coilNo.trim(),
-              openingWeightKg: Number(row.openingWeightKg),
+              openingWeightKg: parseWholeKgInput(row.openingWeightKg) || 0,
               note: row.note.trim(),
               ...(withAck ? { specMismatchAcknowledged: true } : {}),
             })),
@@ -2478,7 +2576,7 @@ export function LiveProductionMonitor({
         const allocations = draftAllocations
           .map((row) => ({
             coilNo: row.coilNo.trim(),
-            openingWeightKg: Number(row.openingWeightKg),
+            openingWeightKg: parseWholeKgInput(row.openingWeightKg) || 0,
             note: row.note.trim(),
             ...(withAck ? { specMismatchAcknowledged: true } : {}),
           }))
@@ -2498,6 +2596,7 @@ export function LiveProductionMonitor({
         return;
       }
       let res = await apiFetch(path, { method: 'POST', body: JSON.stringify(firstBody) });
+      let savedAllocBody = firstBody;
       if (!res.ok && res.data?.code === 'PRODUCTION_SPEC_MISMATCH') {
         const detail = (res.data.mismatches || [])
           .map((m) => `${m.coilNo}: ${m.detail}`)
@@ -2511,7 +2610,10 @@ export function LiveProductionMonitor({
         });
         if (go) {
           const second = buildAllocBody(true);
-          if (second) res = await apiFetch(path, { method: 'POST', body: JSON.stringify(second) });
+          if (second) {
+            savedAllocBody = second;
+            res = await apiFetch(path, { method: 'POST', body: JSON.stringify(second) });
+          }
         }
       }
       if (!res.ok || !res.data?.ok) {
@@ -2545,15 +2647,28 @@ export function LiveProductionMonitor({
         markProductionStarted();
         await refreshProductionWorkspace();
         clearProdCoilDraftStorage(selectedJob.jobID);
-        showToast(`Coils saved and production started for ${listLabel}.`);
+        showToast(
+          coilAllocSavedToastMessage({
+            body: savedAllocBody,
+            data: res.data,
+            isRunning: false,
+            listLabel,
+            stockRecalc: res.data?.stockRecalc,
+            started: true,
+          })
+        );
         return;
       }
       setSavingAction('');
       clearProdCoilDraftStorage(selectedJob.jobID);
       showToast(
-        (isRunningForSave
-          ? `Supplemental coil(s) saved on ${listLabel}.`
-          : `Coil allocation saved for ${listLabel}.`) + stockRecalcSuffix(res.data?.stockRecalc)
+        coilAllocSavedToastMessage({
+          body: savedAllocBody,
+          data: res.data,
+          isRunning: isRunningForSave,
+          listLabel,
+          stockRecalc: res.data?.stockRecalc,
+        })
       );
       return;
     } else if (type === 'start') {
@@ -3022,11 +3137,18 @@ export function LiveProductionMonitor({
                   <button
                     type="button"
                     onClick={() => void persist('complete')}
-                    disabled={!canCaptureRun || savingAction !== '' || !completionValidation.canComplete}
+                    disabled={
+                      !canCaptureRun ||
+                      savingAction !== '' ||
+                      !completionValidation.canComplete ||
+                      unsavedCoilDraftCount > 0
+                    }
                     title={
-                      completionValidation.canComplete
-                        ? undefined
-                        : completionValidation.errors[0] || 'Complete all run-log fields before completion.'
+                      unsavedCoilDraftCount > 0
+                        ? 'Save or remove unsaved coil lines before completing.'
+                        : completionValidation.canComplete
+                          ? undefined
+                          : completionValidation.errors[0] || 'Complete all run-log fields before completion.'
                     }
                     className="inline-flex items-center gap-1 rounded-md bg-[#134e4a] px-2 py-1 text-[11px] font-semibold text-white hover:bg-[#0f3d39] disabled:opacity-45"
                   >
@@ -3126,6 +3248,21 @@ export function LiveProductionMonitor({
           />
         </div>
       ) : null}
+      {productionRegisterIssues.length > 0 ? (
+        <div
+          className={
+            inModal
+              ? 'px-2 pb-2 sm:px-2.5'
+              : 'border-b border-slate-100 bg-gradient-to-b from-white to-slate-50/80 px-2 py-2 sm:px-3'
+          }
+        >
+          <ProductionRegisterIssuesPanel
+            issues={productionRegisterIssues}
+            compact={inModal}
+            onDiscardUnsavedCoils={unsavedCoilDraftCount > 0 ? discardUnsavedCoilDrafts : undefined}
+          />
+        </div>
+      ) : null}
       {inModal && !readOnly ? null : (
         <div className={`border-b border-slate-100 bg-slate-50/70 ${inModal ? 'px-2 py-0.5 sm:px-2.5' : 'px-2 py-1 sm:px-3'}`}>
           <div className={`flex flex-wrap ${inModal ? 'gap-1' : 'gap-1.5'}`}>
@@ -3148,7 +3285,7 @@ export function LiveProductionMonitor({
                 ) : null}
               </span>
             ) : null}
-            {!readOnly && !inModal ? (
+            {!readOnly && !inModal && productionRegisterIssues.length === 0 ? (
               <span className="inline-flex max-w-full items-start gap-1 rounded-md border border-slate-200 bg-white px-2 py-1 text-[10px] text-slate-600">
                 <ClipboardList size={14} className="mt-0.5 shrink-0 text-slate-500" />
                 <span>
@@ -3157,48 +3294,7 @@ export function LiveProductionMonitor({
                 </span>
               </span>
             ) : null}
-            {canEditPlannedAllocations && !hasPersistedCoilAllocations && !isStoneMeterQuote ? (
-              <span className="inline-flex items-center gap-1 rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-[10px] font-medium text-amber-950">
-                <AlertTriangle size={14} className="shrink-0" />
-                Save coil + opening kg, then use Save & start.
-              </span>
-            ) : null}
-            {stoneFlatsheetLinesMissingLength.length > 0 && isStoneMeterQuote && !readOnly ? (
-              <span className="inline-flex max-w-full items-start gap-1 rounded-md border border-amber-300 bg-amber-50 px-2 py-1 text-[10px] font-medium text-amber-950">
-                <AlertTriangle size={14} className="mt-0.5 shrink-0" />
-                <span>
-                  Stone flatsheet on the quote is missing length (1.4 m, 1.5 m, or 2 m) for:{' '}
-                  <strong>{stoneFlatsheetLinesMissingLength.join(', ')}</strong>. Update the quotation product line
-                  (use <strong>Stone flatsheet</strong> with length — not Cladding, which is coil roofing), then refresh.
-                </span>
-              </span>
-            ) : null}
-            {canEditPlannedAllocations && isStoneMeterQuote && !stoneAllocAck ? (
-              <span className="inline-flex max-w-full items-start gap-1 rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-[10px] font-medium text-amber-950">
-                <AlertTriangle size={14} className="mt-0.5 shrink-0" />
-                <span>
-                  Stone-coated: use <strong className="font-semibold">Save &amp; start</strong> (no coils) to begin the
-                  run.
-                  {quotedStoneFlatsheetLines.length > 0
-                    ? ' Enter stone flatsheet m² below before completing — fields are available while Planned.'
-                    : null}
-                </span>
-              </span>
-            ) : null}
-            {jobSt === 'Completed' &&
-            isStoneMeterQuote &&
-            quotedStoneFlatsheetLines.length > 0 &&
-            !stoneFlatsheetPostedForJob &&
-            canEditCompletedAccessoryCorrections ? (
-              <span className="inline-flex max-w-full items-start gap-1 rounded-md border border-sky-300 bg-sky-50 px-2 py-1 text-[10px] font-medium text-sky-950">
-                <Info size={14} className="mt-0.5 shrink-0" />
-                <span>
-                  Stone flatsheet m² was not recorded on this job. Enter supplied m² in the section below, then{' '}
-                  <strong>Save stone flatsheet</strong> — stone jobs use flatsheet stock (m²), not coil allocation.
-                </span>
-              </span>
-            ) : null}
-            {canAddSupplementalCoil ? (
+            {canAddSupplementalCoil && !productionRegisterIssues.some((i) => i.id === 'running-next-step') ? (
               <span className="inline-flex items-center gap-1 rounded-md border border-sky-200 bg-sky-50 px-2 py-1 text-[10px] text-sky-950">
                 <Plus size={14} className="shrink-0" />
                 Mid-run: <strong className="font-semibold">Add coil</strong> if one roll is not enough.
@@ -3208,24 +3304,6 @@ export function LiveProductionMonitor({
               <span className="inline-flex items-center gap-1 rounded-md border border-teal-200 bg-teal-50 px-2 py-1 text-[10px] text-teal-950">
                 <Plus size={14} className="shrink-0" />
                 Completed correction: <strong className="font-semibold">Add coil</strong> if a roll was omitted.
-              </span>
-            ) : null}
-            {selectedJob?.coilSpecMismatchPending ? (
-              <span className="inline-flex items-center gap-1.5 rounded-lg border border-amber-300 bg-amber-50 px-2.5 py-1.5 text-[11px] font-medium text-amber-950">
-                <AlertTriangle size={14} className="shrink-0" />
-                Spec exception logged — manager flag active.
-              </span>
-            ) : null}
-            {canCaptureRun && !completionValidation.canComplete ? (
-              <span className="inline-flex items-center gap-1 rounded-md border border-red-200 bg-red-50 px-2 py-1 text-[10px] font-medium text-red-900">
-                <AlertTriangle size={14} className="shrink-0" />
-                {completionValidation.errors[0] || 'Complete all coil rows to finish.'}
-              </span>
-            ) : null}
-            {canCaptureRun && requiresManagerOverrunApproval ? (
-              <span className="inline-flex items-center gap-1 rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-[10px] text-amber-950">
-                <BarChart3 size={14} className="shrink-0" />
-                +{overProducedMeters.toFixed(2)}m over plan — manager remark needed to complete.
               </span>
             ) : null}
             {!readOnly &&
@@ -3295,12 +3373,23 @@ export function LiveProductionMonitor({
                       <span className="tabular-nums">{formatMeters(job.plannedMeters)} plan</span>
                       {job.quotationRef ? <span className="text-slate-400">· {job.quotationRef}</span> : null}
                     </div>
-                    {job.status === 'Planned' ? (
-                      <p
-                        className={`mt-1 text-[9px] font-semibold ${allocN === 0 ? 'text-amber-700' : 'text-slate-500'}`}
-                      >
-                        {allocN === 0 ? 'No coils saved' : `${allocN} coil(s)`}
-                      </p>
+                    {job.status === 'Planned' || job.status === 'Running' ? (
+                      (() => {
+                        const sync = productionCoilSyncSummary({
+                          savedCoilCount: allocN,
+                          unsavedCoilDraftCount: active ? unsavedCoilDraftCount : 0,
+                          isActiveJob: active,
+                        });
+                        return (
+                          <p
+                            className={`mt-1 text-[9px] font-semibold ${
+                              sync.tone === 'amber' ? 'text-amber-700' : 'text-slate-500'
+                            }`}
+                          >
+                            {sync.label}
+                          </p>
+                        );
+                      })()
                     ) : null}
                   </button>
                 );
@@ -3350,6 +3439,23 @@ export function LiveProductionMonitor({
                   <p className="text-[11px] font-medium leading-snug text-slate-600">
                     {selectedJob.productName || selectedJob.productID || '—'}
                   </p>
+                  {!isStoneMeterQuote &&
+                  !completionUsesOffcutMode &&
+                  (jobSt === 'Planned' || jobSt === 'Running') ? (
+                    <p
+                      className={`text-[10px] font-semibold ${
+                        unsavedCoilDraftCount > 0 ? 'text-amber-700' : 'text-slate-500'
+                      }`}
+                    >
+                      {
+                        productionCoilSyncSummary({
+                          savedCoilCount: selectedJobAllocations.length,
+                          unsavedCoilDraftCount,
+                          isActiveJob: true,
+                        }).label
+                      }
+                    </p>
+                  ) : null}
                   {!inModal ? (
                     <div className="flex flex-wrap gap-1.5 pt-0.5">
                       {selectedJob.quotationRef ? (
@@ -4195,19 +4301,6 @@ export function LiveProductionMonitor({
             </div>
 
             <div className={`${inModal ? 'space-y-1.5 p-2' : 'space-y-2 p-2 sm:p-2.5'}`}>
-              {unsavedCoilDraftCount > 0 && !readOnly && !isStoneMeterQuote && !completionUsesOffcutMode ? (
-                <div className="flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 px-2.5 py-2 text-[11px] font-medium leading-snug text-amber-950">
-                  <AlertTriangle size={16} className="mt-0.5 shrink-0" aria-hidden />
-                  <p>
-                    <strong className="font-bold">{unsavedCoilDraftCount} coil line(s)</strong> are only on this device
-                    — admin and manager will not see them until you tap{' '}
-                    <strong className="font-bold">
-                      {jobSt === 'Planned' ? 'Save & start' : 'Save while running'}
-                    </strong>
-                    .
-                  </p>
-                </div>
-              ) : null}
               {!isStoneMeterQuote && !isAccessoriesOnlyQuote && (canCaptureRun || canEditPlannedAllocations) ? (
                 <div className="flex flex-wrap items-center gap-1 rounded-lg border border-slate-200 bg-slate-50/70 p-1">
                   <button
@@ -4780,7 +4873,9 @@ export function LiveProductionMonitor({
                   className={`inline-flex items-center gap-0.5 rounded-md px-2 py-0.5 text-[10px] font-semibold transition-colors disabled:opacity-45 ${
                     savingAction === 'runningCheckpoint'
                       ? 'bg-slate-100 text-slate-500'
-                      : 'bg-slate-800 text-white hover:bg-slate-900'
+                      : unsavedCoilDraftCount > 0
+                        ? 'animate-pulse bg-amber-500 text-white ring-2 ring-amber-300 hover:bg-amber-600'
+                        : 'bg-slate-800 text-white hover:bg-slate-900'
                   }`}
                 >
                   <Save size={12} />
@@ -4850,11 +4945,18 @@ export function LiveProductionMonitor({
               <button
                 type="button"
                 onClick={() => void persist('complete')}
-                disabled={!canCaptureRun || savingAction !== '' || !completionValidation.canComplete}
+                disabled={
+                  !canCaptureRun ||
+                  savingAction !== '' ||
+                  !completionValidation.canComplete ||
+                  unsavedCoilDraftCount > 0
+                }
                 title={
-                  completionValidation.canComplete
-                    ? undefined
-                    : completionValidation.errors[0] || 'Complete all run-log fields before completion.'
+                  unsavedCoilDraftCount > 0
+                    ? 'Save or remove unsaved coil lines before completing.'
+                    : completionValidation.canComplete
+                      ? undefined
+                      : completionValidation.errors[0] || 'Complete all run-log fields before completion.'
                 }
                 className="inline-flex items-center gap-0.5 rounded-md bg-[#134e4a] px-2 py-0.5 text-[10px] font-semibold text-white hover:bg-[#0f3d39] disabled:opacity-45"
               >

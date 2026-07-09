@@ -2,9 +2,12 @@ import { describe, expect, it } from 'vitest';
 import {
   coilAllocationDraftStorageKey,
   coilDraftRowsWithData,
+  countUnsavedCoilDraftRows,
+  createDraftLine,
   draftRowConversionPreviewReady,
   isEmptyCoilDraftRow,
   seedDraftAllocationsFromServer,
+  unsavedCoilDraftRows,
 } from './productionRegisterCoilDraft.js';
 
 describe('productionRegisterCoilDraft', () => {
@@ -100,5 +103,65 @@ describe('productionRegisterCoilDraft', () => {
     const seeded = seedDraftAllocationsFromServer('PRO-1', serverRows, prev, false);
     const coils = seeded.filter((r) => String(r.coilNo ?? '').trim());
     expect(coils.map((r) => r.coilNo)).toEqual(['CL-FIRST', 'CL-SECOND']);
+  });
+
+  it('counts unsaved coil draft rows with data', () => {
+    const rows = [
+      {
+        id: 'PJC-1',
+        coilNo: 'CL-FIRST',
+        openingWeightKg: '1000',
+        closingWeightKg: '',
+        metersProduced: '',
+        note: '',
+      },
+      {
+        id: 'draft-second',
+        coilNo: 'CL-SECOND',
+        openingWeightKg: '800',
+        closingWeightKg: '',
+        metersProduced: '',
+        note: '',
+      },
+      {
+        id: 'draft-blank',
+        coilNo: '',
+        openingWeightKg: '',
+        closingWeightKg: '',
+        metersProduced: '',
+        note: '',
+      },
+    ];
+    expect(unsavedCoilDraftRows(rows).map((r) => r.coilNo)).toEqual(['CL-SECOND']);
+    expect(countUnsavedCoilDraftRows(rows)).toBe(1);
+  });
+
+  it('rounds opening and closing kg to whole numbers in draft lines', () => {
+    const line = createDraftLine({
+      openingWeightKg: 1000.6,
+      closingWeightKg: 120.4,
+      metersProduced: 45.75,
+    });
+    expect(line.openingWeightKg).toBe('1001');
+    expect(line.closingWeightKg).toBe('120');
+    expect(line.metersProduced).toBe('45.75');
+  });
+
+  it('does not restore session-only supplemental drafts for planned jobs', () => {
+    const serverRows = [
+      {
+        id: 'PJC-1',
+        coilNo: 'CL-FIRST',
+        openingWeightKg: 1000,
+        closingWeightKg: 0,
+        metersProduced: 0,
+        note: '',
+      },
+    ];
+    const seeded = seedDraftAllocationsFromServer('PRO-1', serverRows, [], false, {
+      restoreSupplementalLocalDrafts: false,
+    });
+    const coils = seeded.filter((r) => String(r.coilNo ?? '').trim());
+    expect(coils.map((r) => r.coilNo)).toEqual(['CL-FIRST']);
   });
 });

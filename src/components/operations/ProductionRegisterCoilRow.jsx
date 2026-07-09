@@ -4,7 +4,7 @@ import { draftRowConversionPreviewReady } from '../../lib/productionRegisterCoil
 
 function formatKg(value) {
   const next = Number(value);
-  return Number.isFinite(next) ? `${next.toFixed(2)} kg` : '—';
+  return Number.isFinite(next) ? `${Math.round(next)} kg` : '—';
 }
 
 /**
@@ -181,10 +181,12 @@ export const ProductionRegisterCoilRow = memo(function ProductionRegisterCoilRow
             <input
               type="number"
               min="0"
-              step="0.01"
+              step="1"
+              inputMode="numeric"
               disabled={!canPickCoilAndOpening}
               value={row.openingWeightKg}
               onChange={(e) => onFieldChange(row.id, { openingWeightKg: e.target.value })}
+              title="Whole kg only"
               className="min-h-10 w-full rounded-md border border-slate-200 bg-white py-2 px-1.5 text-xs font-bold tabular-nums text-[#134e4a] outline-none transition-all focus:border-[#134e4a]/40 focus:ring-1 focus:ring-[#134e4a]/20 disabled:opacity-60 lg:min-h-0 lg:py-1.5"
             />
           </div>
@@ -196,10 +198,12 @@ export const ProductionRegisterCoilRow = memo(function ProductionRegisterCoilRow
             <input
               type="number"
               min="0"
-              step="0.01"
+              step="1"
+              inputMode="numeric"
               disabled={!(canCaptureRun || canEditCompletedCoilCorrections)}
               value={row.closingWeightKg}
               onChange={(e) => onFieldChange(row.id, { closingWeightKg: e.target.value })}
+              title="Whole kg only"
               className="min-h-10 w-full rounded-md border border-slate-200 bg-white py-2 px-1.5 text-xs font-bold tabular-nums text-[#134e4a] outline-none transition-all focus:border-[#134e4a]/40 focus:ring-1 focus:ring-[#134e4a]/20 disabled:opacity-60 lg:min-h-0 lg:py-1.5"
             />
           </div>
