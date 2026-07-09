@@ -25,6 +25,8 @@ import { receiptCashReceivedNgn, normalizeReceiptMatchDashes } from '../lib/sale
 import { STONE_METER_INVENTORY_MODEL } from '../lib/stoneCoatedQuotationPolicy';
 import { normalizeJobStatus } from '../lib/productionJobPick';
 import { productionGateOverrideEffective, quotationHasRecordedPayment } from '../lib/productionGateAccess';
+import { quotedRoofingSheetMetresFromLines } from '../lib/refundQuotationMetres';
+import { validateCuttingListQuotedRoofingAlignment } from '../lib/refundCuttingListQuotationReconciliation';
 
 /** Compare quote / receipt links when pasted refs use en-dash etc. */
 function normQuoteKey(s) {
@@ -578,6 +580,27 @@ const CuttingListModal = ({
     [flatLinesWithType]
   );
 
+  const quotedRoofingMetres = useMemo(() => {
+    if (!selectedQuotation) return 0;
+    return quotedRoofingSheetMetresFromLines(selectedQuotation.quotationLines ?? '');
+  }, [selectedQuotation]);
+
+  const cuttingRoofMetres = useMemo(
+    () =>
+      flatLinesWithType
+        .filter((line) => line.type === 'Roof')
+        .reduce((sum, line) => sum + line.sheets * line.lengthM, 0),
+    [flatLinesWithType]
+  );
+
+  const quotationMetreAlignment = useMemo(() => {
+    if (!selectedQuotation || selectedQuotationAccessoriesOnly) return { ok: true };
+    return validateCuttingListQuotedRoofingAlignment({
+      quotedRoofingMetres,
+      cuttingRoofMetres,
+    });
+  }, [selectedQuotation, selectedQuotationAccessoriesOnly, quotedRoofingMetres, cuttingRoofMetres]);
+
   const hasUnsavedCuttingListChanges = useMemo(() => {
     if (!editData?.id || readOnly || isDraftRecord) return false;
     if (normQuoteKey(quotationRef) !== normQuoteKey(editData.quotationRef)) return true;
@@ -856,6 +879,16 @@ const CuttingListModal = ({
               : 'New';
   const isCreate = !editData?.id;
 
+  const serverDraftForQuote = useMemo(() => {
+    if (!quotationRef) return null;
+    const key = normQuoteKey(quotationRef);
+    return (
+      cuttingLists.find(
+        (cl) => normQuoteKey(cl.quotationRef) === key && cuttingListIsDraft(cl)
+      ) ?? null
+    );
+  }, [cuttingLists, quotationRef]);
+
   const buildPersistPayload = useCallback(
     (extra = {}) => {
       const normalizedLines = flatLinesWithType.map((line) => ({
@@ -875,7 +908,7 @@ const CuttingListModal = ({
         lines: extra.autosave ? draftLinesPayload : normalizedLines,
         totalMeters: selectedQuotationAccessoriesOnly ? 0 : totalMeters,
         ...(selectedQuotationAccessoriesOnly ? { productName: 'Accessories only' } : {}),
-        ...((isCreate || (isDraftRecord && extra.finalize)) && !extra.autosave ? { holdForProductionApproval } : {}),
+        ...(!extra.autosave && (isCreate || extra.finalize) ? { holdForProductionApproval } : {}),
         ...(!isCreate && cuttingListEditApprovalId.trim()
           ? { editApprovalId: cuttingListEditApprovalId.trim() }
           : {}),
@@ -986,6 +1019,10 @@ const CuttingListModal = ({
   const submit = async (e) => {
     e.preventDefault();
     if (readOnly || saving) return;
+    if (autosaving) {
+      showToast('Draft is still saving — wait a moment, then click Save list again.', { variant: 'info' });
+      return;
+    }
     if (!quotationRef || !selectedQuotation) {
       showToast('Select a quotation before saving.', { variant: 'error' });
       return;
@@ -999,8 +1036,15 @@ const CuttingListModal = ({
       showToast('Add at least one valid line (length and quantity) in any section.', { variant: 'error' });
       return;
     }
+    if (!selectedQuotationAccessoriesOnly && !quotationMetreAlignment.ok) {
+      showToast(quotationMetreAlignment.message || 'Cutting list roof metres must match the quotation.', {
+        variant: 'error',
+      });
+      return;
+    }
+    const shouldFinalize = isDraftRecord || Boolean(serverDraftForQuote);
     if (
-      (isCreate || isDraftRecord) &&
+      (shouldFinalize || isCreate) &&
       selectedQuotation &&
       !meetsCuttingListPayThreshold(selectedQuotation, receipts, ledgerEntries, minPaidFraction)
     ) {
@@ -1010,10 +1054,13 @@ const CuttingListModal = ({
       );
       return;
     }
+    const persistExtra = shouldFinalize ? { finalize: true } : {};
+    const payload = buildPersistPayload(persistExtra);
+    if (shouldFinalize && !payload.id && serverDraftForQuote?.id) {
+      payload.id = serverDraftForQuote.id;
+    }
     setSaving(true);
-    const result = await onPersist?.(
-      buildPersistPayload(isDraftRecord ? { finalize: true } : {})
-    );
+    const result = await onPersist?.(payload);
     setSaving(false);
     if (!result?.ok) {
       showToast(result?.error || 'Could not save cutting list.', { variant: 'error' });
@@ -1419,7 +1466,7 @@ const CuttingListModal = ({
                   ) : null}
                 </div>
 
-                {isCreate &&
+                {(isCreate || isDraftRecord) &&
                   quotationRef &&
                   selectedQuotation &&
                   !meetsCuttingListPayThreshold(selectedQuotation, receipts, ledgerEntries, minPaidFraction) && (
@@ -1497,6 +1544,22 @@ const CuttingListModal = ({
                 <span className="text-slate-500 shrink-0">Gauge</span>
                 <span className="text-[#134e4a] text-right tabular-nums">{materialSpec.gauge}</span>
               </div>
+              {!selectedQuotationAccessoriesOnly ? (
+                <div className="flex justify-between gap-2 text-[10px] font-semibold">
+                  <span className="text-slate-500 shrink-0">Quoted roof m</span>
+                  <span className="text-[#134e4a] text-right tabular-nums">
+                    {quotedRoofingMetres.toLocaleString()} m
+                  </span>
+                </div>
+              ) : null}
+              {!selectedQuotationAccessoriesOnly ? (
+                <div className="flex justify-between gap-2 text-[10px] font-semibold">
+                  <span className="text-slate-500 shrink-0">List roof m</span>
+                  <span className="text-[#134e4a] text-right tabular-nums">
+                    {cuttingRoofMetres.toLocaleString()} m
+                  </span>
+                </div>
+              ) : null}
               <div className="flex justify-between gap-2 text-[10px] font-semibold">
                 <span className="text-slate-500 shrink-0">Profile</span>
                 <span className="text-[#134e4a] text-right">{materialSpec.profile}</span>
@@ -1530,6 +1593,13 @@ const CuttingListModal = ({
                 </div>
               ) : null}
             </div>
+
+            {!selectedQuotationAccessoriesOnly && selectedQuotation && !quotationMetreAlignment.ok ? (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-[10px] text-amber-950 leading-snug">
+                <p className="font-bold uppercase tracking-wide text-[9px] text-amber-900">Quotation mismatch</p>
+                <p className="mt-1">{quotationMetreAlignment.message}</p>
+              </div>
+            ) : null}
 
             <p className="text-[9px] font-semibold text-slate-500 uppercase tracking-widest">This order — detail</p>
             {!selectedQuotation ? (
