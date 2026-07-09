@@ -1093,7 +1093,7 @@ const CuttingListModal = ({
     const result = await onPersist?.(payload);
     setSaving(false);
     if (!result?.ok) {
-      showToast(result?.error || 'Could not save cutting list.', { variant: 'error' });
+      showToast(result?.error || result?.message || 'Could not save cutting list.', { variant: 'error' });
       return;
     }
     clearCuttingListFormDraft(branchId, quotationRef);
@@ -1144,7 +1144,7 @@ const CuttingListModal = ({
     );
     setRegistering(false);
     if (!ok) {
-      showToast(data?.error || 'Could not add to production queue.', { variant: 'error' });
+      showToast(data?.error || data?.message || 'Could not add to production queue.', { variant: 'error' });
       return;
     }
     showToast('Cutting list added to the production queue.', { variant: 'success' });

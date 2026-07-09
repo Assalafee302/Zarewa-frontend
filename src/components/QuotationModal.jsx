@@ -274,25 +274,32 @@ function normalizeLoadedLines(raw) {
   const a = raw.accessories;
   const s = raw.services;
   if (!Array.isArray(p) || !Array.isArray(a) || !Array.isArray(s)) return null;
-  const mapRow = (r) => ({
-    id: r.id && String(r.id),
-    name: String(r.name ?? ''),
-    qty: r.qty != null ? String(r.qty) : '',
-    unitPrice: r.unitPrice != null ? String(r.unitPrice) : '',
-    customLine: r.customLine === true,
-    gauge: r.gauge != null ? String(r.gauge) : '',
-    colour: r.colour != null || r.color != null ? String(r.colour ?? r.color ?? '') : '',
-    design: r.design != null ? String(r.design) : '',
-    profile: r.profile != null ? String(r.profile) : '',
-    recommendedPricePerMeter: r.recommendedPricePerMeter,
-    floorPricePerMeter: r.floorPricePerMeter,
-    lineKind: r.lineKind,
-    girthMm: r.girthMm != null ? String(r.girthMm) : '',
-    stoneFlatsheetLengthM:
-      r.stoneFlatsheetLengthM != null && r.stoneFlatsheetLengthM !== ''
-        ? r.stoneFlatsheetLengthM
-        : '',
-  });
+  const mapRow = (r) => {
+    const x = {
+      id: r.id && String(r.id),
+      name: String(r.name ?? ''),
+      qty: r.qty != null ? String(r.qty) : '',
+      unitPrice: r.unitPrice != null ? String(r.unitPrice) : '',
+      customLine: r.customLine === true,
+      gauge: r.gauge != null ? String(r.gauge) : '',
+      colour: r.colour != null || r.color != null ? String(r.colour ?? r.color ?? '') : '',
+      design: r.design != null ? String(r.design) : '',
+      profile: r.profile != null ? String(r.profile) : '',
+      recommendedPricePerMeter: r.recommendedPricePerMeter,
+      floorPricePerMeter: r.floorPricePerMeter,
+      lineKind: r.lineKind,
+      girthMm: r.girthMm != null ? String(r.girthMm) : '',
+      stoneFlatsheetLengthM:
+        r.stoneFlatsheetLengthM != null && r.stoneFlatsheetLengthM !== ''
+          ? r.stoneFlatsheetLengthM
+          : '',
+    };
+    if (isQuotationTrimProductLine(x.name)) {
+      if (!x.girthMm) x.girthMm = String(defaultGirthMmForTrimProduct(x.name));
+      if (!x.lineKind) x.lineKind = quotationLineKindForProductName(x.name);
+    }
+    return x;
+  };
   const withIds = (arr) =>
     arr.map((r) => {
       const x = mapRow(r);
