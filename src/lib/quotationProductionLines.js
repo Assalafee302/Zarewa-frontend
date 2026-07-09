@@ -41,10 +41,11 @@ export function quotationHasPositiveCategoryLines(q, category) {
   return arr.some((row) => String(row?.name ?? '').trim() && parseLineQty(row?.qty) > 0);
 }
 
-/** Quote has accessory lines with qty but no roofing / flat-sheet product metres. */
+/** Quote has accessory or service lines with qty but no roofing / flat-sheet product metres. */
 export function quotationIsAccessoriesOnlyForProduction(q) {
   return (
-    quotationHasPositiveCategoryLines(q, 'accessories') &&
+    (quotationHasPositiveCategoryLines(q, 'accessories') ||
+      quotationHasPositiveCategoryLines(q, 'services')) &&
     !quotationHasPositiveCategoryLines(q, 'products')
   );
 }

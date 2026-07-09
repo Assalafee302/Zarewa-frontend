@@ -73,6 +73,7 @@ import { useCustomers } from '../context/CustomersContext';
 import { useInventory } from '../context/InventoryContext';
 import { useWorkspace } from '../context/WorkspaceContext';
 import { useWorkspaceDomain } from '../hooks/useWorkspaceDomain';
+import { useDebouncedValue } from '../hooks/useDebouncedValue';
 import { spotPricesForSalesSidebar } from '../lib/spotPricesFromMasterData';
 import { apiFetch } from '../lib/apiBase';
 import {
@@ -116,6 +117,8 @@ import {
 } from '../lib/refundsStore';
 import { pickProductionJobForCuttingList } from '../lib/productionJobPick';
 import { productionQueueLineStatusPresentation } from '../lib/productionQueueLineStatus';
+import { assessCuttingListQuotationConsumption } from '../lib/cuttingListBlankConsumption';
+import { quotationIsAccessoriesOnlyForProduction } from '../lib/quotationProductionLines';
 import {
   buildStockVerdict,
   coilLotRemainingKg,
@@ -199,6 +202,7 @@ const Sales = () => {
 
   const [activeTab, setActiveTab] = useState('quotations');
   const [searchQuery, setSearchQuery] = useState('');
+  const debouncedSearchQuery = useDebouncedValue(searchQuery, 300);
 
   const [showQuotationModal, setShowQuotationModal] = useState(false);
   const [showReceiptModal, setShowReceiptModal] = useState(false);
@@ -527,7 +531,7 @@ const Sales = () => {
   );
 
   const quotationsSearchFiltered = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase();
+    const q = debouncedSearchQuery.trim().toLowerCase();
     return quotations.filter((row) => {
       if (!q) return true;
       const blob = [
@@ -546,7 +550,7 @@ const Sales = () => {
         .toLowerCase();
       return blob.includes(q);
     });
-  }, [quotations, searchQuery]);
+  }, [quotations, debouncedSearchQuery]);
 
   const quotationFollowUpRows = useMemo(
     () =>
@@ -665,7 +669,7 @@ const Sales = () => {
   const awaitingCashierReceiptCount = receiptPaymentStatusCounts.awaiting;
 
   const filteredMergedReceipts = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase();
+    const q = debouncedSearchQuery.trim().toLowerCase();
     const filtered = mergedReceiptRowsWithCuttingMeta.filter((row) => {
       if (!receiptMatchesSalesPaymentFilter(row, receiptPaymentStatusFilter)) return false;
       if (!q) return true;
@@ -690,10 +694,10 @@ const Sales = () => {
     });
     const sorted = sortReceiptsList(filtered, salesListSort.field, salesListSort.dir);
     return sorted.slice(0, showCount);
-  }, [mergedReceiptRowsWithCuttingMeta, searchQuery, showCount, salesListSort, receiptPaymentStatusFilter]);
+  }, [mergedReceiptRowsWithCuttingMeta, debouncedSearchQuery, showCount, salesListSort, receiptPaymentStatusFilter]);
 
   const filteredCuttingLists = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase();
+    const q = debouncedSearchQuery.trim().toLowerCase();
     const filtered = cuttingLists.filter((row) => {
       if (!q) return true;
       const job = pickProductionJobForCuttingList(row.id, productionJobs, cuttingLists);
@@ -710,10 +714,10 @@ const Sales = () => {
       },
     });
     return sorted.slice(0, showCount);
-  }, [cuttingLists, productionJobs, searchQuery, showCount, salesListSort]);
+  }, [cuttingLists, productionJobs, debouncedSearchQuery, showCount, salesListSort]);
 
   const filteredRefunds = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase();
+    const q = debouncedSearchQuery.trim().toLowerCase();
     const filtered = refunds.filter((row) => {
       if (!q) return true;
       const blob = [
@@ -725,11 +729,11 @@ const Sales = () => {
     });
     const sorted = sortRefundsList(filtered, salesListSort.field, salesListSort.dir);
     return sorted.slice(0, showCount);
-  }, [refunds, searchQuery, showCount, salesListSort]);
+  }, [refunds, debouncedSearchQuery, showCount, salesListSort]);
 
   const filteredCustomersCount = useMemo(() => {
     const list = Array.isArray(customerRecords) ? customerRecords : [];
-    const q = searchQuery.trim().toLowerCase();
+    const q = debouncedSearchQuery.trim().toLowerCase();
     if (!q) return list.length;
     return list.filter((c) => {
       const blob = [
@@ -745,7 +749,7 @@ const Sales = () => {
         .toLowerCase();
       return blob.includes(q);
     }).length;
-  }, [customerRecords, searchQuery]);
+  }, [customerRecords, debouncedSearchQuery]);
 
   const listStats = useMemo(
     () => ({
@@ -1228,6 +1232,32 @@ const Sales = () => {
         });
         return;
       }
+      const quotation = quotations.find(
+        (q) => String(q.id ?? '').trim() === String(cuttingList?.quotationRef ?? '').trim()
+      );
+      if (quotation && !quotationIsAccessoriesOnlyForProduction(quotation)) {
+        const assessment = assessCuttingListQuotationConsumption({
+          quotationLinesJson: quotation.quotationLines ?? quotation.linesJson ?? '',
+          cuttingListLines: (cuttingList?.lines ?? []).map((line) => ({
+            sheets: line.sheets,
+            lengthM: line.lengthM,
+            totalM: line.totalM,
+            lineType: line.lineType ?? line.line_type ?? 'Roof',
+          })),
+        });
+        if (assessment.trimBlankProductionBlocked) {
+          showToast(
+            assessment.warnings?.find((w) => String(w).includes('Flatsheet section')) ||
+              'Add trim blank metres under Flatsheet before production.',
+            { variant: 'error' }
+          );
+          return;
+        }
+        if (!assessment.ok && assessment.message) {
+          showToast(assessment.message, { variant: 'error' });
+          return;
+        }
+      }
       const { ok, data } = await apiFetch(
         `/api/cutting-lists/${encodeURIComponent(id)}/register-production`,
         {
@@ -1238,13 +1268,13 @@ const Sales = () => {
         }
       );
       if (!ok || !data?.ok) {
-        showToast(data?.error || 'Could not add to production queue.', { variant: 'error' });
+        showToast(data?.error || data?.message || 'Could not add to production queue.', { variant: 'error' });
         return;
       }
       if (wsCanMutate) await wsRefresh?.();
       showToast('Cutting list added to the production queue.', { variant: 'success' });
     },
-    [showToast, wsCanMutate, wsRefresh, wsHasPermission]
+    [showToast, wsCanMutate, wsRefresh, wsHasPermission, quotations]
   );
 
   const isAnyModalOpen =

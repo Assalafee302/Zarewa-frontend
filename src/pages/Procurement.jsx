@@ -39,6 +39,7 @@ import { useToast } from '../context/ToastContext';
 import { useInventory } from '../context/InventoryContext';
 import { useWorkspace } from '../context/WorkspaceContext';
 import { useWorkspaceDomain } from '../hooks/useWorkspaceDomain';
+import { useDebouncedValue } from '../hooks/useDebouncedValue';
 import { apiFetch, apiUrl } from '../lib/apiBase';
 import { purchaseOrderOrderedValueNgn } from '../lib/liveAnalytics';
 import { procurementKindFromPo } from '../lib/procurementPoKind';
@@ -307,6 +308,7 @@ const Procurement = () => {
   const [suppliers, setSuppliers] = useState([]);
 
   const [searchQuery, setSearchQuery] = useState('');
+  const debouncedSearchQuery = useDebouncedValue(searchQuery, 300);
   const [payablesOpenSearchQuery, setPayablesOpenSearchQuery] = useState('');
   const [payablesSettledSearchQuery, setPayablesSettledSearchQuery] = useState('');
   const [payablesOpenSort, setPayablesOpenSort] = useState({ field: 'due', dir: 'desc' });
@@ -1049,7 +1051,7 @@ const Procurement = () => {
   };
 
   const filteredPOs = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase();
+    const q = debouncedSearchQuery.trim().toLowerCase();
     let rows = purchaseOrders;
     if (poTransportFilter === 'needs_transport') {
       rows = rows.filter((p) => poTransportMissingLinkIds.has(p.poID));
@@ -1062,7 +1064,7 @@ const Procurement = () => {
       const blob = [p?.poID, p?.supplierName, p?.status, ...lineProductIds].join(' ');
       return blob.toLowerCase().includes(q);
     });
-  }, [purchaseOrders, searchQuery, poTransportFilter, poTransportMissingLinkIds]);
+  }, [purchaseOrders, debouncedSearchQuery, poTransportFilter, poTransportMissingLinkIds]);
 
   const coilPOsFiltered = useMemo(
     () => filteredPOs.filter((p) => procurementKindFromPo(p) === 'coil'),
@@ -1103,32 +1105,32 @@ const Procurement = () => {
     PROCUREMENT_PURCHASES_COLUMN_PAGE_SIZE,
     poListSort.field,
     poListSort.dir,
-    searchQuery
+    debouncedSearchQuery
   );
   const stonePoPurchasesPage = useAppTablePaging(
     stonePOsSorted,
     PROCUREMENT_PURCHASES_COLUMN_PAGE_SIZE,
     poListSort.field,
     poListSort.dir,
-    searchQuery
+    debouncedSearchQuery
   );
   const accessoryPoPurchasesPage = useAppTablePaging(
     accessoryPOsSorted,
     PROCUREMENT_PURCHASES_COLUMN_PAGE_SIZE,
     poListSort.field,
     poListSort.dir,
-    searchQuery
+    debouncedSearchQuery
   );
   const mixedPoPurchasesPage = useAppTablePaging(
     mixedPOsSorted,
     PROCUREMENT_PURCHASES_COLUMN_PAGE_SIZE,
     poListSort.field,
     poListSort.dir,
-    searchQuery
+    debouncedSearchQuery
   );
 
   const filteredSuppliers = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase();
+    const q = debouncedSearchQuery.trim().toLowerCase();
     if (!q) return suppliers;
     return suppliers.filter((s) => {
       const p = s.supplierProfile || {};
@@ -1151,7 +1153,7 @@ const Procurement = () => {
         .toLowerCase();
       return blob.includes(q);
     });
-  }, [suppliers, searchQuery]);
+  }, [suppliers, debouncedSearchQuery]);
 
   const openPoEditor = (p) => {
     setProcurementPoForApprovalUi(p.poID);

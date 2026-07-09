@@ -44,6 +44,7 @@ import { formatNgn } from '../Data/mockData';
 import { useToast } from '../context/ToastContext';
 import { useWorkspace } from '../context/WorkspaceContext';
 import { useWorkspaceDomain } from '../hooks/useWorkspaceDomain';
+import { useDebouncedValue } from '../hooks/useDebouncedValue';
 import { apiFetch, apiUrl } from '../lib/apiBase';
 import {
   normalizeRefund,
@@ -154,6 +155,7 @@ const Account = () => {
 
   const [activeTab, setActiveTab] = useState('desk');
   const [searchQuery, setSearchQuery] = useState('');
+  const debouncedSearchQuery = useDebouncedValue(searchQuery, 300);
   /** In-tab filter for Payment register tab (also falls back to header search). */
   const [disbursementsSearch, setDisbursementsSearch] = useState('');
   const [disbursementsPayRequestQueue, setDisbursementsPayRequestQueue] = useState('all');
@@ -1732,7 +1734,7 @@ const Account = () => {
   const receiptsVisibleInReconciliationQueue = useMemo(() => salesReceipts, [salesReceipts]);
 
   const filteredSalesReceipts = useMemo(() => {
-    const qq = (receiptsTableSearch.trim() || searchQuery.trim()).toLowerCase();
+    const qq = (receiptsTableSearch.trim() || debouncedSearchQuery.trim()).toLowerCase();
     if (!qq) return receiptsVisibleInReconciliationQueue;
     return receiptsVisibleInReconciliationQueue.filter((r) => {
       const id = String(r.id || '').toLowerCase();
@@ -1748,7 +1750,7 @@ const Account = () => {
         date.includes(qq)
       );
     });
-  }, [receiptsVisibleInReconciliationQueue, receiptsTableSearch, searchQuery]);
+  }, [receiptsVisibleInReconciliationQueue, receiptsTableSearch, debouncedSearchQuery]);
 
   const resolveSalesReceiptFromStatementMovement = useCallback(
     (movement) => {
@@ -1900,7 +1902,7 @@ const Account = () => {
   useEffect(() => {
     setWaitingReceiptsPage(0);
     setConfirmedReceiptsPage(0);
-  }, [receiptsSortKey, receiptsSortDir, searchQuery, receiptsTableSearch]);
+  }, [receiptsSortKey, receiptsSortDir, debouncedSearchQuery, receiptsTableSearch]);
 
   useEffect(() => {
     const total = waitingConfirmationReceipts.length;
@@ -2620,7 +2622,7 @@ const Account = () => {
   };
 
   const filteredPayRequests = useMemo(() => {
-    const qq = searchQuery.trim().toLowerCase();
+    const qq = debouncedSearchQuery.trim().toLowerCase();
     if (!qq) return payRequests;
     return payRequests.filter((req) => {
       const lineBlob = (req.lineItems || [])
@@ -2643,10 +2645,10 @@ const Account = () => {
         .toLowerCase();
       return blob.includes(qq);
     });
-  }, [payRequests, searchQuery]);
+  }, [payRequests, debouncedSearchQuery]);
 
   const disbursementsFilteredExpenses = useMemo(() => {
-    const qq = (disbursementsSearch.trim() || searchQuery.trim()).toLowerCase();
+    const qq = (disbursementsSearch.trim() || debouncedSearchQuery.trim()).toLowerCase();
     if (!qq) return expenses;
     return expenses.filter((ex) => {
       const blob = [ex.expenseID, ex.category, ex.expenseType, ex.reference, ex.paymentMethod, ex.branchId, ex.date]
@@ -2654,10 +2656,10 @@ const Account = () => {
         .toLowerCase();
       return blob.includes(qq);
     });
-  }, [expenses, disbursementsSearch, searchQuery]);
+  }, [expenses, disbursementsSearch, debouncedSearchQuery]);
 
   const disbursementsFilteredPayRequests = useMemo(() => {
-    const qq = (disbursementsSearch.trim() || searchQuery.trim()).toLowerCase();
+    const qq = (disbursementsSearch.trim() || debouncedSearchQuery.trim()).toLowerCase();
     if (!qq) return payRequests;
     return payRequests.filter((req) => {
       const lineBlob = (req.lineItems || [])
@@ -2680,7 +2682,7 @@ const Account = () => {
         .toLowerCase();
       return blob.includes(qq);
     });
-  }, [payRequests, disbursementsSearch, searchQuery]);
+  }, [payRequests, disbursementsSearch, debouncedSearchQuery]);
 
   const disbursementsActivePayRequests = useMemo(
     () =>
@@ -2807,7 +2809,7 @@ const Account = () => {
   }, [paymentOutflowBaseRows]);
 
   const paymentsTableRowsSorted = useMemo(() => {
-    const q = (disbursementsSearch.trim() || searchQuery.trim()).toLowerCase();
+    const q = (disbursementsSearch.trim() || debouncedSearchQuery.trim()).toLowerCase();
     let rows = paymentOutflowBaseRows.filter((r) =>
       !q
         ? true
@@ -2858,7 +2860,7 @@ const Account = () => {
   }, [
     paymentOutflowBaseRows,
     disbursementsSearch,
-    searchQuery,
+    debouncedSearchQuery,
     paymentsTableSortKey,
     paymentsTableSortDir,
   ]);
@@ -2876,7 +2878,7 @@ const Account = () => {
 
   useEffect(() => {
     setPaymentsTablePage(0);
-  }, [disbursementsSearch, searchQuery, paymentsTableSortKey, paymentsTableSortDir]);
+  }, [disbursementsSearch, debouncedSearchQuery, paymentsTableSortKey, paymentsTableSortDir]);
 
   useEffect(() => {
     const total = paymentsTableRowsSorted.length;
@@ -2919,7 +2921,7 @@ const Account = () => {
   );
 
   const filteredPoTransportAwaitingTreasury = useMemo(() => {
-    const qq = searchQuery.trim().toLowerCase();
+    const qq = debouncedSearchQuery.trim().toLowerCase();
     if (!qq) return livePoTransportAwaitingTreasury;
     return livePoTransportAwaitingTreasury.filter((row) => {
       const blob = [
@@ -2936,10 +2938,10 @@ const Account = () => {
         .toLowerCase();
       return blob.includes(qq);
     });
-  }, [livePoTransportAwaitingTreasury, searchQuery]);
+  }, [livePoTransportAwaitingTreasury, debouncedSearchQuery]);
 
   const filteredBankAccounts = useMemo(() => {
-    const qq = searchQuery.trim().toLowerCase();
+    const qq = debouncedSearchQuery.trim().toLowerCase();
     if (!qq) return bankAccountsVisible;
     return bankAccountsVisible.filter((a) => {
       const blob = [
@@ -2957,7 +2959,7 @@ const Account = () => {
         .toLowerCase();
       return blob.includes(qq);
     });
-  }, [bankAccountsVisible, searchQuery]);
+  }, [bankAccountsVisible, debouncedSearchQuery]);
 
   const togglePaymentsSort = useCallback((key) => {
     setPaymentsTableSortKey((prevKey) => {
@@ -3297,7 +3299,7 @@ const Account = () => {
               pageContext={{
                 source: 'finance-page',
                 activeTab,
-                searchQuery,
+                debouncedSearchQuery,
               }}
               className="inline-flex items-center gap-2 rounded-xl border border-slate-200/80 bg-white px-3 py-2 text-[10px] font-black uppercase tracking-wide text-[#134e4a] shadow-[0_8px_24px_-18px_rgba(15,23,42,0.12)] transition hover:border-teal-200/60 hover:bg-teal-50/80"
             >

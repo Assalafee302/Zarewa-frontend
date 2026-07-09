@@ -103,7 +103,10 @@ function quotationHasPositiveLines(q, cat) {
 }
 
 function quotationIsAccessoriesOnly(q) {
-  return quotationHasPositiveLines(q, 'accessories') && !quotationHasPositiveLines(q, 'products');
+  return (
+    (quotationHasPositiveLines(q, 'accessories') || quotationHasPositiveLines(q, 'services')) &&
+    !quotationHasPositiveLines(q, 'products')
+  );
 }
 
 function displayCuttingListStatus(s) {
@@ -1074,6 +1077,39 @@ const CuttingListModal = ({
       }
     };
   }, [autosaveEnabled, runInitialDraftSave, draftLinesPayload, quotationRef]);
+
+  const draftPatchAutosaveEnabled =
+    !readOnly && ws?.canMutate && isDraftRecord && savedCuttingListId && draftLinesPayload.length > 0;
+
+  useEffect(() => {
+    if (!draftPatchAutosaveEnabled || saving) return undefined;
+    const timer = window.setTimeout(async () => {
+      setAutosaving(true);
+      setAutosaveNote('Saving draft…');
+      const { ok, data } = await apiFetch(
+        `/api/cutting-lists/${encodeURIComponent(savedCuttingListId)}`,
+        {
+          method: 'PATCH',
+          body: JSON.stringify(buildPersistPayload({ autosave: true })),
+        }
+      );
+      setAutosaving(false);
+      if (ok && data?.ok) {
+        setAutosaveNote(`Draft saved · ${savedCuttingListId}`);
+        if (data.cuttingList) onDraftAutosaved?.(data.cuttingList);
+      } else {
+        setAutosaveNote('Draft sync failed — click Save list.');
+      }
+    }, 2000);
+    return () => clearTimeout(timer);
+  }, [
+    draftPatchAutosaveEnabled,
+    draftLinesPayload,
+    savedCuttingListId,
+    saving,
+    buildPersistPayload,
+    onDraftAutosaved,
+  ]);
 
   const submit = async (e) => {
     e.preventDefault();

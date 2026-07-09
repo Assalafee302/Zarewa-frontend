@@ -754,6 +754,7 @@ const RefundModal = ({
     setLoadingIntelligence(false);
     if (previewSeq != null && previewSeq !== refundsPreviewSeqRef.current) return;
     if (ok && data?.ok) {
+      const dq = Array.isArray(data.dataQualityIssues) ? data.dataQualityIssues : [];
       setIntelligence({
         receipts: data.receipts || [],
         cuttingLists: data.cuttingLists || [],
@@ -762,8 +763,29 @@ const RefundModal = ({
           accessoriesSummary: { lines: [] },
           stoneFlatsheetSummary: { totalSuppliedM2: 0, totalDeductionM2: 0, lines: [] },
         },
-        dataQualityIssues: Array.isArray(data.dataQualityIssues) ? data.dataQualityIssues : [],
+        dataQualityIssues: dq,
       });
+      if (mode === 'create') {
+        const blockers = dq
+          .filter((i) => String(i.severity || '').toLowerCase() === 'error')
+          .map((i) => ({
+            ...i,
+            submitAction: 'block',
+            title: i.title || 'Data quality',
+            message: i.message || 'Resolve data quality issues before submitting.',
+          }));
+        if (blockers.length) {
+          setProductionAlignmentIssues((prev) => {
+            const seen = new Set();
+            return [...prev, ...blockers].filter((issue) => {
+              const key = `${issue.code}|${issue.message}`;
+              if (seen.has(key)) return false;
+              seen.add(key);
+              return true;
+            });
+          });
+        }
+      }
     }
   };
 
@@ -1302,8 +1324,12 @@ const RefundModal = ({
         : derivedReasonCategories.length > 0
           ? derivedReasonCategories
           : refundCategoryTokens(record?.reasonCategory ?? record?.reason_category);
-    if ((mode !== 'create' && !showApproval) || !qref || categories.length === 0) {
+    if ((mode !== 'create' && !showApproval) || !qref) {
       setProductionAlignmentIssues([]);
+      setAlignmentCheckLoading(false);
+      return undefined;
+    }
+    if (categories.length === 0) {
       setAlignmentCheckLoading(false);
       return undefined;
     }

@@ -97,13 +97,13 @@ function quoteLineFloorPpm(item) {
 
 function formatKgPerM(v) {
   const n = Number(v);
-  return Number.isFinite(n) && n > 0 ? n.toFixed(2) : 'â€”';
+  return Number.isFinite(n) && n > 0 ? n.toFixed(2) : '—';
 }
 
 function accessorySupplyLabel(issued, quoted) {
   const i = Number(issued);
   const q = Number(quoted);
-  if (!Number.isFinite(q) || q <= 0) return { text: 'â€”', tone: 'slate' };
+  if (!Number.isFinite(q) || q <= 0) return { text: '—', tone: 'slate' };
   if (Number.isFinite(i) && i >= q) return { text: 'Supplied', tone: 'emerald' };
   if (Number.isFinite(i) && i > 0) return { text: 'Partial', tone: 'amber' };
   return { text: 'Not issued', tone: 'rose' };
@@ -153,7 +153,7 @@ function quoteLineQtyDisplay(raw) {
 }
 
 /**
- * Four-quadrant refund approval intel for Management â†’ Action inbox â†’ Refunds.
+ * Four-quadrant refund approval intel for Management → Action inbox → Refunds.
  */
 export function RefundManagerApprovalPreview({
   refundId,
@@ -518,13 +518,13 @@ export function RefundManagerApprovalPreview({
     }
     if (approved > requestedAmountNgn) {
       setApprovalAmountError(
-        `Approved amount cannot exceed the requested â‚¦${requestedAmountNgn.toLocaleString('en-NG')}.`
+        `Approved amount cannot exceed the requested ₦${requestedAmountNgn.toLocaleString('en-NG')}.`
       );
       return;
     }
     if (maxApprovableNgn > 0 && approved > maxApprovableNgn + 1) {
       setApprovalAmountError(
-        `Approved amount exceeds quotation headroom (max â‚¦${maxApprovableNgn.toLocaleString('en-NG')} after other open refunds).`
+        `Approved amount exceeds quotation headroom (max ₦${maxApprovableNgn.toLocaleString('en-NG')} after other open refunds).`
       );
       return;
     }
@@ -548,7 +548,7 @@ export function RefundManagerApprovalPreview({
         }
       } else {
         setApprovalAmountError(
-          `Breakdown total is â‚¦${Math.round(lineSum).toLocaleString('en-NG')} â€” edit lines in Sales or approve the full requested amount.`
+          `Breakdown total is ₦${Math.round(lineSum).toLocaleString('en-NG')} — edit lines in Sales or approve the full requested amount.`
         );
         return;
       }
@@ -647,7 +647,7 @@ export function RefundManagerApprovalPreview({
     if (requiresMdApproval) {
       alerts.push({
         tone: 'violet',
-        title: `MD approval required â€” above â‚¦${Number(refundExecutiveThresholdNgn).toLocaleString('en-NG')}`,
+        title: `MD approval required — above ₦${Number(refundExecutiveThresholdNgn).toLocaleString('en-NG')}`,
         body: `Requested ${formatNgn(requestedAmountNgn)} exceeds the executive refund threshold. Only MD/CEO (or administrator) may approve this amount.`,
       });
     }
@@ -669,9 +669,9 @@ export function RefundManagerApprovalPreview({
         tone: sameRequestOverpayAndCancel ? 'rose' : 'amber',
         title: 'Multi-category overlap on quotation',
         body: sameRequestOverpayAndCancel
-          ? 'This request combines Overpayment with Order cancellation â€” these double-count cash received. Reject or send back until one category is removed.'
+          ? 'This request combines Overpayment with Order cancellation — these double-count cash received. Reject or send back until one category is removed.'
           : priorRefundCategories.length
-            ? `Prior refund(s): ${priorRefundCategories.join(', ')}. Current: ${currentCategories.join(', ') || 'â€”'}. Verify Overpayment is not double-counted with cancellation/unproduced meterage on this quote.`
+            ? `Prior refund(s): ${priorRefundCategories.join(', ')}. Current: ${currentCategories.join(', ') || '—'}. Verify Overpayment is not double-counted with cancellation/unproduced meterage on this quote.`
             : 'This quote has Overpayment combined with Order cancellation and/or Unproduced meterage across refund requests. Verify categories are not double-counting the same economic loss.',
       });
     }
@@ -681,7 +681,7 @@ export function RefundManagerApprovalPreview({
         title: 'Partial production detected',
         body:
           partialProductionJobs.length > 0
-            ? `${partialProductionJobs.length} completed job(s) produced less than planned â€” consider Unproduced meterage instead of full cancellation.`
+            ? `${partialProductionJobs.length} completed job(s) produced less than planned — consider Unproduced meterage instead of full cancellation.`
             : 'Order cancellation requested but production jobs show completed output on this quote.',
       });
     }
@@ -745,14 +745,14 @@ export function RefundManagerApprovalPreview({
               <h2 className="font-mono text-base font-black text-slate-900">{refundId}</h2>
               <span className="text-[10px] text-slate-400">Â·</span>
               <span className="text-sm font-semibold text-slate-800">
-                {formatPersonName(refund?.customer || inboxRow?.customer_name || 'â€”')}
+                {formatPersonName(refund?.customer || inboxRow?.customer_name || '—')}
               </span>
             </div>
             <p className="mt-0.5 text-[10px] text-slate-600">
               {refund?.quotationRef || inboxRow?.quotation_ref ? (
                 <span className="font-mono font-semibold">{refund?.quotationRef || inboxRow?.quotation_ref}</span>
               ) : (
-                'â€”'
+                '—'
               )}
               <span className="text-slate-400"> Â· </span>
               {formatRefundReasonCategory(refund?.reasonCategory ?? inboxRow?.reason_category)}
@@ -788,7 +788,7 @@ export function RefundManagerApprovalPreview({
       {loading ? (
         <div className="flex items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white py-10">
           <RefreshCw className="animate-spin text-[#134e4a]" size={22} />
-          <span className="text-[10px] font-semibold text-slate-500">Loading contextâ€¦</span>
+          <span className="text-[10px] font-semibold text-slate-500">Loading context…</span>
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-2 lg:grid-cols-2">
@@ -1046,7 +1046,7 @@ export function RefundManagerApprovalPreview({
           {/* Conversion & supply */}
           <Panel title="Conversion & supply" hint="Output, accessories, and four-reference conversion checks.">
             <div className="mb-2 grid grid-cols-2 gap-1 sm:grid-cols-4">
-              <Stat label="Sheet pool" value={`${Number((totals.quotedSheetPoolM ?? totals.quotedRoofingMetres) || 0).toLocaleString()} m`} />
+              <Stat label="Sheet pool" value={`${Number(totals.quotedSheetPoolM || 0).toLocaleString()} m`} />
               {Number(totals.quotedTrimBlankM || 0) > 0 ? (
                 <Stat label="Trim blank" value={`${Number(totals.quotedTrimBlankM).toLocaleString()} m`} />
               ) : null}

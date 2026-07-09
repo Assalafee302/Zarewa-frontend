@@ -1,6 +1,5 @@
 import * as React from "react"
 import { Slot } from "@radix-ui/react-slot"
-import { motion } from "framer-motion"
 import { cn } from "../../lib/utils"
 
 const buttonVariants = {
@@ -20,30 +19,15 @@ const buttonSizes = {
 
 const Button = React.forwardRef(({ className, variant = "default", size = "default", asChild = false, ...props }, ref) => {
   const Comp = asChild ? Slot : "button"
-  
-  // Create a motion version of the component if it's a standard button element.
-  // Using Radix Slot with motion is tricky, so we apply motion inline or wrap if not asChild
-  
+
   const classString = cn(
-    "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/30 disabled:pointer-events-none disabled:opacity-50 text-xs text-center",
+    "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/30 disabled:pointer-events-none disabled:opacity-50 text-xs text-center active:scale-[0.98]",
     buttonVariants[variant],
     buttonSizes[size],
     className
   )
 
-  if (asChild) {
-    return <Comp className={classString} ref={ref} {...props} />
-  }
-
-  return (
-    <motion.button
-      whileTap={{ scale: 0.97 }}
-      whileHover={{ scale: 1.01 }}
-      className={classString}
-      ref={ref}
-      {...props}
-    />
-  )
+  return <Comp className={classString} ref={ref} {...props} />
 })
 Button.displayName = "Button"
 
