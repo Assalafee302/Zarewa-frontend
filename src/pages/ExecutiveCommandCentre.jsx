@@ -28,7 +28,7 @@ import { apiFetch } from '../lib/apiBase';
 import { useToast } from '../context/ToastContext';
 import { useFinanceTrialExceptions } from '../hooks/useFinanceTrialExceptions';
 import { userMayViewFinanceTrialOversightClient } from '../lib/financeTrialExceptionsAccess';
-import { userMayViewManagementReportsClient } from '../lib/reportsAccess';
+import { userMayViewManagementReportsClient, userMayAccessBranchCommandCentreClient, userMayAccessExecutiveCommandCentreClient } from '../lib/reportsAccess';
 import CommandCentreIntelligenceTab from '../components/exec/CommandCentreIntelligenceTab';
 import { ExecTodayTab } from '../components/exec/ExecTodayTab';
 import { ExecDecideTab } from '../components/exec/ExecDecideTab';
@@ -288,7 +288,10 @@ export default function ExecutiveCommandCentre() {
     ws?.permissions
   );
   const mayViewBi = userMayViewManagementReportsClient(roleKey, ws?.permissions);
-  const rawTab = searchParams.get('tab') || (isMdOffice ? 'today' : 'overview');
+  const hasExecNav = userMayAccessExecutiveCommandCentreClient(ws?.permissions);
+  const isIntelligenceOnly = userMayAccessBranchCommandCentreClient(roleKey, ws?.permissions) && !hasExecNav;
+  const rawTab =
+    searchParams.get('tab') || (isIntelligenceOnly ? 'intelligence' : isMdOffice ? 'today' : 'overview');
   const rawReviewView = String(searchParams.get('view') || '').trim();
   const reviewView =
     rawTab === 'intelligence'
@@ -364,6 +367,12 @@ export default function ExecutiveCommandCentre() {
     });
 
   const load = useCallback(async () => {
+    if (isIntelligenceOnly) {
+      setBusy(false);
+      setErr('');
+      setData(null);
+      return;
+    }
     setBusy(true);
     setErr('');
     const qs = new URLSearchParams({ periodKey });
@@ -377,7 +386,7 @@ export default function ExecutiveCommandCentre() {
       return;
     }
     setData(d);
-  }, [periodKey, branchId, canPickBranch]);
+  }, [periodKey, branchId, canPickBranch, isIntelligenceOnly]);
 
   useEffect(() => {
     void load();
@@ -633,7 +642,7 @@ export default function ExecutiveCommandCentre() {
     void load();
   };
 
-  if (!ws?.hasPermission?.('exec.dashboard.view')) {
+  if (!hasExecNav && !isIntelligenceOnly) {
     return <Navigate to="/" replace />;
   }
 
@@ -647,7 +656,10 @@ export default function ExecutiveCommandCentre() {
   const branchComparisonEmpty = !showBranchComparison && !busy && data;
   const scopeNote = (data?.dataScopeNotes || [])[0]?.message;
 
-  const visibleTabs = EXEC_TABS.filter((t) => {
+  const visibleTabs = (isIntelligenceOnly
+    ? EXEC_TABS.filter((t) => t.id === 'intelligence')
+    : EXEC_TABS
+  ).filter((t) => {
     if (isMdOffice && (t.id === 'intelligence' || t.id === 'finance')) return false;
     if (t.mdOnly && !isMdCockpit) return false;
     if (t.mdOnly && roleKey === 'ceo') return false;
@@ -665,9 +677,11 @@ export default function ExecutiveCommandCentre() {
   }));
 
   const pageSubtitle = [
-    roleKey === 'md'
-      ? 'Decisions, approvals, and company performance — act here without opening other departments.'
-      : 'Company performance, decisions, and intelligence for executive oversight.',
+    isIntelligenceOnly
+      ? 'Business intelligence for your branch — forecasts, expenses, and material signals.'
+      : roleKey === 'md'
+        ? 'Decisions, approvals, and company performance — act here without opening other departments.'
+        : 'Company performance, decisions, and intelligence for executive oversight.',
     periodWindow ? `Window: ${periodWindow}` : null,
     branchScopeLabel ? `Scope: ${branchScopeLabel}` : null,
     data?.generatedAtISO ? `Updated ${formatLastUpdated(data.generatedAtISO)}` : null,
@@ -691,6 +705,7 @@ export default function ExecutiveCommandCentre() {
             />
           }
           toolbar={
+            isIntelligenceOnly ? null : (
             <>
               <select
                 value={periodKey}
@@ -745,6 +760,7 @@ export default function ExecutiveCommandCentre() {
                 Reports
               </button>
             </>
+            )
           }
         />
 

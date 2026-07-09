@@ -6,7 +6,7 @@ import { normalizeEditApprovalInput } from '../lib/editApprovalInput.js';
 
 /**
  * Shown when the signed-in role must obtain a manager/admin approval before PATCHing this entity.
- * @param {{ entityKind: string; entityId: string; value: string; onChange: (v: string) => void; className?: string; requiresSecondApproval?: boolean }} props
+ * @param {{ entityKind: string; entityId: string; value: string; onChange: (v: string) => void; className?: string; requiresSecondApproval?: boolean; changeSummary?: string; changeDetails?: { label: string; from?: string; to?: string }[] }} props
  */
 export function EditSecondApprovalInline({
   entityKind,
@@ -15,6 +15,8 @@ export function EditSecondApprovalInline({
   onChange,
   className = '',
   requiresSecondApproval,
+  changeSummary = '',
+  changeDetails = null,
 }) {
   const ws = useWorkspace();
   const roleKey = ws?.session?.user?.roleKey;
@@ -136,6 +138,10 @@ export function EditSecondApprovalInline({
       body: JSON.stringify({
         entityKind: String(entityKind || '').trim(),
         entityId: String(entityId || '').trim(),
+        ...(String(changeSummary || '').trim() ? { changeSummary: String(changeSummary).trim() } : {}),
+        ...(Array.isArray(changeDetails) && changeDetails.length
+          ? { changeDetails }
+          : {}),
       }),
     });
     setBusy(false);

@@ -1638,6 +1638,7 @@ const CuttingListModal = ({
               value={cuttingListEditApprovalId}
               onChange={setCuttingListEditApprovalId}
               requiresSecondApproval={cuttingListEditNeedsSecondApproval}
+              changeSummary="Edit cutting list lines or quantities after production release"
             />
           </div>
         ) : null}

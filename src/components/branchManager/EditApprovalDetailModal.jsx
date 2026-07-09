@@ -6,6 +6,11 @@ import { Button } from '../ui';
 import { apiFetch } from '../../lib/apiBase';
 import { useToast } from '../../context/ToastContext';
 import { formatPersonName } from '../../lib/formatPersonName';
+import {
+  editApprovalEntityLabel,
+  formatEditApprovalFieldValue,
+  normalizeEditApprovalChangeDetails,
+} from '../../lib/editApprovalReview';
 
 const ENTITY_ROUTES = {
   quotation: (id) => ({ to: '/sales', state: { openSalesRecord: { type: 'quotation', id } } }),
@@ -84,6 +89,16 @@ export function EditApprovalDetailModal({
   }, [isOpen, editApprovalId, load]);
 
   const record = approval || inboxRow;
+  const recordContext = record?.recordContext;
+  const entityLabel = useMemo(
+    () => recordContext?.entityLabel || editApprovalEntityLabel(record?.entityKind),
+    [record?.entityKind, recordContext?.entityLabel]
+  );
+  const changeSummary = String(record?.changeSummary || '').trim();
+  const changeDetails = useMemo(
+    () => normalizeEditApprovalChangeDetails(record?.changeDetails),
+    [record?.changeDetails]
+  );
   const route = useMemo(
     () => entityRoute(record?.entityKind, record?.entityId),
     [record?.entityKind, record?.entityId]
@@ -143,8 +158,11 @@ export function EditApprovalDetailModal({
       <div className="z-modal-panel w-full max-w-lg p-6 sm:p-8 max-h-[90vh] overflow-y-auto">
         <div className="flex items-start justify-between gap-3 mb-5">
           <div>
-            <p className="text-[10px] font-black uppercase tracking-widest text-violet-700">Edit approval</p>
+            <p className="text-[10px] font-black uppercase tracking-widest text-violet-700">KPI edit approval</p>
             <h3 className="text-lg font-black text-[#134e4a] font-mono mt-1">{editApprovalId || record?.id || '—'}</h3>
+            {recordContext?.headline ? (
+              <p className="mt-1 text-sm font-semibold text-slate-700">{recordContext.headline}</p>
+            ) : null}
           </div>
           <button
             type="button"
@@ -163,21 +181,73 @@ export function EditApprovalDetailModal({
           </div>
         ) : (
           <div className="space-y-4">
-            <dl className="grid grid-cols-1 gap-3 text-sm">
-              <div className="rounded-xl border border-slate-200 bg-slate-50/80 px-3 py-2.5">
-                <dt className="text-[9px] font-bold uppercase text-slate-400">Record</dt>
-                <dd className="font-semibold text-slate-900 mt-0.5">
-                  {record?.entityKind || '—'} · <span className="font-mono">{record?.entityId || '—'}</span>
-                </dd>
-              </div>
-              <div className="rounded-xl border border-slate-200 bg-slate-50/80 px-3 py-2.5">
-                <dt className="text-[9px] font-bold uppercase text-slate-400">Requested by</dt>
-                <dd className="font-semibold text-slate-900 mt-0.5">
-                  {formatPersonName(record?.requestedByDisplay || record?.requestedByUserId || '—')}
-                </dd>
-                <dd className="text-[11px] text-slate-500 mt-0.5">{record?.requestedAtISO || ''}</dd>
-              </div>
-            </dl>
+            <section className="rounded-xl border border-violet-200/80 bg-violet-50/40 px-4 py-3">
+              <p className="text-[9px] font-black uppercase tracking-widest text-violet-800">What will be edited</p>
+              {changeSummary ? (
+                <p className="mt-2 text-sm font-semibold text-slate-900 leading-relaxed">{changeSummary}</p>
+              ) : (
+                <p className="mt-2 text-sm text-slate-600 leading-relaxed">
+                  Sensitive save on this {entityLabel.toLowerCase()} — review the record snapshot below before approving.
+                </p>
+              )}
+              {changeDetails.length > 0 ? (
+                <div className="mt-3 overflow-hidden rounded-lg border border-violet-200/70 bg-white">
+                  <table className="w-full text-left text-[11px]">
+                    <thead>
+                      <tr className="border-b border-slate-100 bg-slate-50/90 text-[9px] font-bold uppercase tracking-wide text-slate-500">
+                        <th className="px-3 py-2">Field</th>
+                        <th className="px-3 py-2">Current</th>
+                        <th className="px-3 py-2">Requested</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {changeDetails.map((row) => (
+                        <tr key={row.label} className="border-b border-slate-50 last:border-0">
+                          <td className="px-3 py-2 font-semibold text-slate-800">{row.label}</td>
+                          <td className="px-3 py-2 text-slate-600">{formatEditApprovalFieldValue(row.from)}</td>
+                          <td className="px-3 py-2 font-semibold text-[#134e4a]">
+                            {formatEditApprovalFieldValue(row.to)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : null}
+            </section>
+
+            {Array.isArray(recordContext?.fields) && recordContext.fields.length > 0 ? (
+              <section>
+                <p className="text-[9px] font-black uppercase tracking-widest text-slate-500 mb-2">
+                  {entityLabel} snapshot
+                </p>
+                <dl className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
+                  {recordContext.fields.map((f) => (
+                    <div key={f.label} className="rounded-xl border border-slate-200 bg-slate-50/80 px-3 py-2.5">
+                      <dt className="text-[9px] font-bold uppercase text-slate-400">{f.label}</dt>
+                      <dd className="font-semibold text-slate-900 mt-0.5 break-words">{f.value}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </section>
+            ) : (
+              <dl className="grid grid-cols-1 gap-3 text-sm">
+                <div className="rounded-xl border border-slate-200 bg-slate-50/80 px-3 py-2.5">
+                  <dt className="text-[9px] font-bold uppercase text-slate-400">Record</dt>
+                  <dd className="font-semibold text-slate-900 mt-0.5">
+                    {entityLabel} · <span className="font-mono">{record?.entityId || '—'}</span>
+                  </dd>
+                </div>
+              </dl>
+            )}
+
+            <div className="rounded-xl border border-slate-200 bg-slate-50/80 px-3 py-2.5 text-sm">
+              <p className="text-[9px] font-bold uppercase text-slate-400">Requested by</p>
+              <p className="font-semibold text-slate-900 mt-0.5">
+                {formatPersonName(record?.requestedByDisplay || record?.requestedByUserId || '—')}
+              </p>
+              <p className="text-[11px] text-slate-500 mt-0.5">{record?.requestedAtISO || ''}</p>
+            </div>
 
             <p className="text-sm text-slate-600 leading-relaxed">{entityGuidance(record?.entityKind)}</p>
 

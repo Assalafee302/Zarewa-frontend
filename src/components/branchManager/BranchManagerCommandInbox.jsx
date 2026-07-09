@@ -87,6 +87,12 @@ export function BranchManagerCommandInbox(props) {
             edit
           </span>
           <span className="min-w-0 flex-1 truncate text-[11px] font-semibold text-slate-800">
+            {e.changeSummary ? (
+              <>
+                <span className="text-violet-900">{e.changeSummary}</span>
+                {' · '}
+              </>
+            ) : null}
             {e.entityKind || 'record'} · <span className="font-mono">{e.entityId || '—'}</span>
             {' · '}
             {asPersonName(e.requestedByDisplay || e.requestedByUserId || e.requestedBy || '—')}

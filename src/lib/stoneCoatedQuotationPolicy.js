@@ -362,6 +362,86 @@ export function assertQuotationMaterialRules(db, linesJson) {
   throw err;
 }
 
+export const QUOTATION_LINE_INTEGRITY_CODE = 'QUOTATION_LINE_INTEGRITY';
+
+function quotationLineNumericQty(row) {
+  return Number(String(row?.qty ?? row?.quantity ?? '').replace(/,/g, '')) || 0;
+}
+
+function quotationLineNumericUnitPrice(row) {
+  if (row?.unitPrice != null && row?.unitPrice !== '') {
+    return Number(String(row.unitPrice).replace(/,/g, '')) || 0;
+  }
+  if (row?.unit_price != null && row?.unit_price !== '') {
+    return Number(String(row.unit_price).replace(/,/g, '')) || 0;
+  }
+  if (row?.unit_price_ngn != null) return Number(row.unit_price_ngn) || 0;
+  return 0;
+}
+
+export function validateQuotationLineIntegrity(linesJson) {
+  const j = linesJson && typeof linesJson === 'object' ? linesJson : {};
+  const unnamedWithValues = [];
+  const stoneFlatsheetLengthMissing = [];
+
+  for (const cat of ['products', 'accessories', 'services']) {
+    const arr = Array.isArray(j[cat]) ? j[cat] : [];
+    for (const row of arr) {
+      const n = String(row?.name ?? '').trim();
+      const qty = quotationLineNumericQty(row);
+      const unitPrice = quotationLineNumericUnitPrice(row);
+      if ((qty > 0 || unitPrice > 0) && !n) {
+        unnamedWithValues.push(cat);
+      }
+      if (n && isStoneFlatsheetQuotationLine(n) && qty > 0) {
+        if (resolveStoneFlatsheetLengthM(row) == null) {
+          stoneFlatsheetLengthMissing.push(n);
+        }
+      }
+    }
+  }
+
+  if (unnamedWithValues.length === 0 && stoneFlatsheetLengthMissing.length === 0) {
+    return { ok: true };
+  }
+
+  const parts = [];
+  if (unnamedWithValues.length) {
+    parts.push('Select a product on every line before entering quantity or unit price.');
+  }
+  if (stoneFlatsheetLengthMissing.length) {
+    parts.push(
+      'Stone flatsheet lines with quantity must include length 1.4 m, 1.5 m, or 2 m (select product and length before entering m²).'
+    );
+  }
+
+  return {
+    ok: false,
+    error: parts.join(' '),
+    code: QUOTATION_LINE_INTEGRITY_CODE,
+    details: { unnamedWithValues, stoneFlatsheetLengthMissing },
+  };
+}
+
+export function assertQuotationLineIntegrity(linesJson) {
+  const r = validateQuotationLineIntegrity(linesJson);
+  if (r.ok) return;
+  const err = new Error(r.error);
+  err.code = r.code;
+  err.details = r.details;
+  err.statusCode = 422;
+  throw err;
+}
+
+export function quotationLineQtyPriceEnabled(row, opts = {}) {
+  const n = String(row?.name ?? '').trim();
+  if (!n) return false;
+  if (opts.requireStoneLength && isStoneFlatsheetQuotationLine(n)) {
+    return resolveStoneFlatsheetLengthM(row) != null;
+  }
+  return true;
+}
+
 export function applyStoneMeterMaterialChangeCleanup({
   toStoneMeter,
   products,

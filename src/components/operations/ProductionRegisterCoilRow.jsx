@@ -92,13 +92,35 @@ export const ProductionRegisterCoilRow = memo(function ProductionRegisterCoilRow
     ? 'Primary coil is fixed while the run is open. Use Return to plan to change coils, or add a new coil row for an extra roll.'
     : coilSelectTitle;
   const lotMat = lot ? String(lot.materialTypeName || '').trim() : '';
+  const hasUnsavedCoilData =
+    draftRow &&
+    Boolean(
+      String(row.coilNo ?? '').trim() ||
+        String(row.openingWeightKg ?? '').trim() ||
+        String(row.closingWeightKg ?? '').trim() ||
+        String(row.metersProduced ?? '').trim() ||
+        String(row.note ?? '').trim()
+    );
 
   return (
     <div
-      className={`rounded-xl border border-slate-200/90 bg-gradient-to-b from-white to-slate-50/40 shadow-sm ${
+      className={`rounded-xl border bg-gradient-to-b from-white to-slate-50/40 shadow-sm ${
         inModal ? 'p-1.5' : 'p-2'
+      } ${
+        hasUnsavedCoilData
+          ? 'border-amber-300/90 ring-2 ring-amber-200/80'
+          : 'border-slate-200/90'
       } ${draftRowConversionPreviewReady(row) ? 'ring-1 ring-teal-400/35' : ''}`}
     >
+      {hasUnsavedCoilData ? (
+        <p className="mb-1.5 flex items-start gap-1 rounded-md border border-amber-300 bg-amber-50 px-2 py-1 text-[10px] font-semibold leading-snug text-amber-950">
+          <AlertTriangle size={12} className="mt-0.5 shrink-0" aria-hidden />
+          <span>
+            Not saved to server — only visible on this device until you tap{' '}
+            <strong className="font-bold">{jobSt === 'Planned' ? 'Save & start' : 'Save while running'}</strong>.
+          </span>
+        </p>
+      ) : null}
       <div
         className={`min-w-0 flex flex-col gap-2 pb-1 lg:grid lg:items-end lg:gap-x-2 lg:overflow-visible lg:pb-0 ${
           inModal

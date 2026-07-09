@@ -8,6 +8,7 @@ import { ModalFrame } from '../components/layout';
 import { BranchManagerHealthStrip } from '../components/branchManager/BranchManagerHealthStrip';
 import { BranchManagerPulseSection } from '../components/branchManager/BranchManagerPulseSection';
 import { BranchManagerCommandInbox } from '../components/branchManager/BranchManagerCommandInbox';
+import { DashboardKpiStrip } from '../components/dashboard/DashboardKpiStrip';
 import { ManagementDecisionModal } from '../components/branchManager/ManagementDecisionModal';
 import {
   ManagementConfirmDialog,
@@ -16,6 +17,7 @@ import {
 import { useBranchManagerWorkstation } from '../hooks/useBranchManagerWorkstation';
 import { EditApprovalDetailModal } from '../components/branchManager/EditApprovalDetailModal';
 import { userMayViewManagementReportsClient } from '../lib/reportsAccess';
+import { managementPeriodStartISO } from '../lib/managementLiveFromWorkspace';
 
 const HEALTH_TAB_MAP = {
   orders: 'orders',
@@ -80,7 +82,13 @@ const ManagerDashboard = () => {
         </div>
       ) : null}
 
-      <BranchManagerHealthStrip signals={bm.healthSignals} onSelect={handleHealthSelect} compact />
+      <DashboardKpiStrip
+        sectionClassName="mb-6"
+        metricsWindow={{
+          startISO: managementPeriodStartISO(bm.metricPeriod),
+          label: bm.displaySnapshots.periodLabel ?? 'This month',
+        }}
+      />
 
       {!bm.loading && bm.pendingOrderSignOffCount > 0 ? (
         <div className="rounded-2xl border border-teal-200 bg-teal-50 px-4 py-4 mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -152,6 +160,8 @@ const ManagerDashboard = () => {
       <section className="mb-8" aria-label="Command">
         <BranchManagerCommandInbox bm={bm} />
       </section>
+
+      <BranchManagerHealthStrip signals={bm.healthSignals} onSelect={handleHealthSelect} compact />
 
       <BranchManagerPulseSection
         displaySnapshots={bm.displaySnapshots}

@@ -665,7 +665,7 @@ export default function HrStaffDirectory({
       ) : null}
 
       <div className={`flex flex-wrap gap-2 ${mobileFiltersOpen ? '' : 'hidden md:flex'}`}>
-        {!isSpecialList ? (
+        {!isSpecialList && !teamMode ? (
           <select
             value={branchId}
             onChange={(e) => setBranchId(e.target.value)}
@@ -680,7 +680,7 @@ export default function HrStaffDirectory({
             ))}
           </select>
         ) : null}
-        {!isSpecialList ? (
+        {!isSpecialList && !teamMode ? (
           <select
             value={lineManagerUserId}
             onChange={(e) => setLineManagerUserId(e.target.value)}

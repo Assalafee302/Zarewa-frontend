@@ -869,6 +869,7 @@ const RefundModal = ({
         coilProducedMeters: preview.coilProducedMeters,
         producedMetersForUnproduced: preview.producedMetersForUnproduced,
         productionFulfillment: preview.productionFulfillment,
+        economicFloor: preview.economicFloor,
         pricePerMeterNgn: preview.pricePerMeterNgn,
         quoteTotalNgn: preview.quoteTotalNgn,
         quotationCashInNgn: preview.quotationCashInNgn,
@@ -3167,6 +3168,29 @@ const RefundModal = ({
                             ) : null}
                           </p>
                         </div>
+                        {lastPreviewSnapshot?.economicFloor &&
+                        (Number(lastPreviewSnapshot.economicFloor.producedOutputMeters) > 0 ||
+                          Number(lastPreviewSnapshot.economicFloor.floorDeliveredValueNgn) > 0) ? (
+                          <div className="p-2.5 rounded-xl bg-slate-800/80 border border-amber-700/50 sm:col-span-2">
+                            <p className="text-[8px] font-bold text-amber-400/90 uppercase mb-0.5">
+                              Economic floor check
+                            </p>
+                            <p className="text-[10px] text-slate-300 leading-snug">
+                              {Number(lastPreviewSnapshot.economicFloor.producedOutputMeters || 0).toLocaleString()} m
+                              produced × workbook floor ≈{' '}
+                              {formatNgnPrint(lastPreviewSnapshot.economicFloor.floorDeliveredValueNgn)} delivered value.
+                              Max defensible refund after prior payouts:{' '}
+                              <strong className="text-amber-200">
+                                {formatNgnPrint(lastPreviewSnapshot.economicFloor.maxDefensibleRefundNgn)}
+                              </strong>
+                            </p>
+                            {lastPreviewSnapshot.economicFloor.incompleteFloorPricing ? (
+                              <p className="text-[8px] text-amber-400/90 mt-1">
+                                Floor ₦/m could not be resolved for all jobs — verify workbook pricing manually.
+                              </p>
+                            ) : null}
+                          </div>
+                        ) : null}
                         {(Number(intelligence.summary?.stoneFlatsheetSummary?.totalSuppliedM2) > 0 ||
                           (intelligence.summary?.stoneFlatsheetSummary?.lines || []).length > 0) ? (
                           <div className="p-2.5 rounded-xl bg-slate-800/80 border border-slate-700 sm:col-span-2">

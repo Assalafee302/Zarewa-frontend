@@ -76,6 +76,7 @@ import {
   coilAllocationDraftStorageKey,
   coilDraftRowsWithData,
   completionLineFromDraft,
+  countUnsavedCoilDraftRows,
   createDraftLine,
   draftRowConversionPreviewReady,
   isDraftAllocationRow,
@@ -1130,8 +1131,16 @@ export function LiveProductionMonitor({
     const jobSwitch = coilDraftJobRef.current != null && coilDraftJobRef.current !== jobId;
     coilDraftJobRef.current = jobId;
     const serverRows = selectedJobAllocationsRef.current;
-    setDraftAllocations((prev) => seedDraftAllocationsFromServer(jobId, serverRows, prev, jobSwitch));
-  }, [selectedJob?.jobID, selectedJobAllocationsSyncKey]);
+    const jobStatus = normalizeJobStatus(selectedJob?.status);
+    if (jobStatus === 'Planned') {
+      clearProdCoilDraftStorage(jobId);
+    }
+    setDraftAllocations((prev) =>
+      seedDraftAllocationsFromServer(jobId, serverRows, prev, jobSwitch, {
+        restoreSupplementalLocalDrafts: jobStatus !== 'Planned',
+      })
+    );
+  }, [selectedJob?.jobID, selectedJob?.status, selectedJobAllocationsSyncKey]);
 
   const quotedAccessoryLines = useMemo(() => {
     const ref = String(selectedJob?.quotationRef ?? '').trim();
@@ -1696,6 +1705,19 @@ export function LiveProductionMonitor({
       ),
     [draftAllocations]
   );
+  const unsavedCoilDraftCount = useMemo(
+    () => countUnsavedCoilDraftRows(draftAllocations),
+    [draftAllocations]
+  );
+  useEffect(() => {
+    if (!unsavedCoilDraftCount || readOnly || !ws?.canMutate) return undefined;
+    const onBeforeUnload = (event) => {
+      event.preventDefault();
+      event.returnValue = '';
+    };
+    window.addEventListener('beforeunload', onBeforeUnload);
+    return () => window.removeEventListener('beforeunload', onBeforeUnload);
+  }, [unsavedCoilDraftCount, readOnly, ws?.canMutate]);
   const runningCheckpointSaveReady = useMemo(
     () => appendSaveReady || runLogSaveReady,
     [appendSaveReady, runLogSaveReady]
@@ -1736,6 +1758,11 @@ export function LiveProductionMonitor({
   const overProducedMeters =
     hasPlannedMeters && Number.isFinite(recordedMeters) ? recordedMeters - plannedMetersValue : 0;
   const requiresManagerOverrunApproval = overProducedMeters > 0.01;
+  const underProducedMeters =
+    hasPlannedMeters && Number.isFinite(recordedMeters) && recordedMeters < plannedMetersValue - 0.01
+      ? plannedMetersValue - recordedMeters
+      : 0;
+  const requiresUnderProductionConfirm = underProducedMeters > 0.01;
 
   /** Unique rolls in the draft: summed est. metres from free kg (same coil on two rows counted once). */
   const allocationUniqueRollCapacityInsight = useMemo(() => {
@@ -1990,7 +2017,10 @@ export function LiveProductionMonitor({
         }
         if (jobId) {
           const storageKey = coilAllocationDraftStorageKey(next);
-          if (storageKey) {
+          const jobStatus = normalizeJobStatus(selectedJob?.status);
+          const persistNewCoilDraftLocally =
+            !isDraftAllocationRow(next) || jobStatus === 'Running' || jobStatus === 'Completed';
+          if (storageKey && persistNewCoilDraftLocally) {
             writeProdCoilDraftRow(jobId, storageKey, {
               coilNo: next.coilNo,
               openingWeightKg: next.openingWeightKg,
@@ -2004,7 +2034,7 @@ export function LiveProductionMonitor({
         return next;
       });
     });
-  }, [coilByNo, savedOpeningKgByCoil, showToast, selectedJob?.jobID]);
+  }, [coilByNo, savedOpeningKgByCoil, showToast, selectedJob?.jobID, selectedJob?.status]);
 
   const addDraftRow = () => {
     if (!canAppendCoilRow) return;
@@ -2265,6 +2295,19 @@ export function LiveProductionMonitor({
       try {
         let lastStockRecalc = null;
         if (runLogSaveReady && !isStoneMeterQuote) {
+          const persistedRows = draftAllocations.filter((r) => !isDraftAllocationRow(r));
+          const persistedMetersTotal = persistedRows.reduce(
+            (s, row) => s + (Number(String(row.metersProduced).replace(/,/g, '')) || 0),
+            0
+          );
+          if (persistedRows.length > 0 && persistedMetersTotal <= 0) {
+            setSavingAction('');
+            showToast(
+              'Enter metres produced before saving. Use Cancel job if nothing was produced (zero metres means cancellation).',
+              { variant: 'error' }
+            );
+            return;
+          }
           const buildRunLog = (withAck) => ({
             readings: draftAllocations
               .filter((r) => !isDraftAllocationRow(r))
@@ -2389,6 +2432,7 @@ export function LiveProductionMonitor({
         setStoneAllocAck(true);
         markProductionStarted();
         await refreshProductionWorkspace();
+        clearProdCoilDraftStorage(selectedJob.jobID);
         showToast(`Stone-coated job saved and production started for ${listLabel}.`);
         return;
       }
@@ -2478,6 +2522,7 @@ export function LiveProductionMonitor({
       const willStartAfterAlloc = alsoStartAfterAlloc && isPlannedForSave;
       if (!willStartAfterAlloc) {
         await refreshProductionWorkspace();
+        clearProdCoilDraftStorage(selectedJob.jobID);
       }
       if (willStartAfterAlloc) {
         const startRes = await apiFetch(`${jobApi}/start`, {
@@ -2499,10 +2544,12 @@ export function LiveProductionMonitor({
         }
         markProductionStarted();
         await refreshProductionWorkspace();
+        clearProdCoilDraftStorage(selectedJob.jobID);
         showToast(`Coils saved and production started for ${listLabel}.`);
         return;
       }
       setSavingAction('');
+      clearProdCoilDraftStorage(selectedJob.jobID);
       showToast(
         (isRunningForSave
           ? `Supplemental coil(s) saved on ${listLabel}.`
@@ -2549,6 +2596,18 @@ export function LiveProductionMonitor({
           tone: 'amber',
         });
         if (!proceedOverrun) {
+          setSavingAction('');
+          return;
+        }
+      }
+      if (requiresUnderProductionConfirm) {
+        const proceedUnder = await askProductionConfirm({
+          title: 'Under planned metres',
+          message: `Recorded ${recordedMeters.toFixed(2)} m is less than the cutting list plan (${plannedMetersValue.toFixed(2)} m). Are the remaining ${underProducedMeters.toFixed(2)} m for another coil or job, or is this intentional partial production?`,
+          confirmLabel: 'Complete with shortfall',
+          tone: 'amber',
+        });
+        if (!proceedUnder) {
           setSavingAction('');
           return;
         }
@@ -2872,7 +2931,9 @@ export function LiveProductionMonitor({
                       className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-semibold transition-colors disabled:opacity-45 ${
                         savingAction === 'allocationsAndStart'
                           ? 'bg-sky-100 text-sky-800'
-                          : 'bg-sky-600 text-white hover:bg-sky-700'
+                          : unsavedCoilDraftCount > 0
+                            ? 'animate-pulse bg-amber-500 text-white ring-2 ring-amber-300 hover:bg-amber-600'
+                            : 'bg-sky-600 text-white hover:bg-sky-700'
                       }`}
                     >
                       <Save size={14} />
@@ -2889,7 +2950,9 @@ export function LiveProductionMonitor({
                       className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-semibold transition-colors disabled:opacity-45 ${
                         savingAction === 'runningCheckpoint'
                           ? 'bg-slate-100 text-slate-500'
-                          : 'bg-slate-800 text-white hover:bg-slate-900'
+                          : unsavedCoilDraftCount > 0
+                            ? 'animate-pulse bg-amber-500 text-white ring-2 ring-amber-300 hover:bg-amber-600'
+                            : 'bg-slate-800 text-white hover:bg-slate-900'
                       }`}
                     >
                       <Save size={15} />
@@ -4132,6 +4195,19 @@ export function LiveProductionMonitor({
             </div>
 
             <div className={`${inModal ? 'space-y-1.5 p-2' : 'space-y-2 p-2 sm:p-2.5'}`}>
+              {unsavedCoilDraftCount > 0 && !readOnly && !isStoneMeterQuote && !completionUsesOffcutMode ? (
+                <div className="flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 px-2.5 py-2 text-[11px] font-medium leading-snug text-amber-950">
+                  <AlertTriangle size={16} className="mt-0.5 shrink-0" aria-hidden />
+                  <p>
+                    <strong className="font-bold">{unsavedCoilDraftCount} coil line(s)</strong> are only on this device
+                    — admin and manager will not see them until you tap{' '}
+                    <strong className="font-bold">
+                      {jobSt === 'Planned' ? 'Save & start' : 'Save while running'}
+                    </strong>
+                    .
+                  </p>
+                </div>
+              ) : null}
               {!isStoneMeterQuote && !isAccessoriesOnlyQuote && (canCaptureRun || canEditPlannedAllocations) ? (
                 <div className="flex flex-wrap items-center gap-1 rounded-lg border border-slate-200 bg-slate-50/70 p-1">
                   <button
@@ -4685,7 +4761,9 @@ export function LiveProductionMonitor({
                   className={`inline-flex items-center gap-0.5 rounded-md px-2 py-0.5 text-[10px] font-semibold transition-colors disabled:opacity-45 ${
                     savingAction === 'allocationsAndStart'
                       ? 'bg-sky-100 text-sky-800'
-                      : 'bg-sky-600 text-white hover:bg-sky-700'
+                      : unsavedCoilDraftCount > 0
+                        ? 'animate-pulse bg-amber-500 text-white ring-2 ring-amber-300 hover:bg-amber-600'
+                        : 'bg-sky-600 text-white hover:bg-sky-700'
                   }`}
                 >
                   <Save size={12} />

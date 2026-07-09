@@ -1803,6 +1803,7 @@ const Procurement = () => {
                     <div className="mb-2">
                       <EditSecondApprovalInline
                         entityKind="purchase_order"
+                        changeSummary="Edit purchase order lines, dates, or supplier details"
                         entityId={procurementPoForApprovalUi}
                         value={procurementPoEditApprovalId}
                         onChange={setProcurementPoEditApprovalId}
@@ -2248,6 +2249,7 @@ const Procurement = () => {
           unifiedPoEditDraft?.poID ? (
             <EditSecondApprovalInline
               entityKind="purchase_order"
+              changeSummary="Edit purchase order lines, dates, or supplier details"
               entityId={unifiedPoEditDraft.poID}
               value={procurementPoEditApprovalId}
               onChange={setProcurementPoEditApprovalId}
@@ -2275,6 +2277,7 @@ const Procurement = () => {
           coilPoEditDraft?.poID ? (
             <EditSecondApprovalInline
               entityKind="purchase_order"
+              changeSummary="Edit purchase order lines, dates, or supplier details"
               entityId={coilPoEditDraft.poID}
               value={procurementPoEditApprovalId}
               onChange={setProcurementPoEditApprovalId}
@@ -2326,6 +2329,7 @@ const Procurement = () => {
           stonePoEditDraft?.poID ? (
             <EditSecondApprovalInline
               entityKind="purchase_order"
+              changeSummary="Edit purchase order lines, dates, or supplier details"
               entityId={stonePoEditDraft.poID}
               value={procurementPoEditApprovalId}
               onChange={setProcurementPoEditApprovalId}
@@ -2376,6 +2380,7 @@ const Procurement = () => {
           accessoryPoEditDraft?.poID ? (
             <EditSecondApprovalInline
               entityKind="purchase_order"
+              changeSummary="Edit purchase order lines, dates, or supplier details"
               entityId={accessoryPoEditDraft.poID}
               value={procurementPoEditApprovalId}
               onChange={setProcurementPoEditApprovalId}
@@ -2502,6 +2507,7 @@ const Procurement = () => {
             {transportForm.poID ? (
               <EditSecondApprovalInline
                 entityKind="purchase_order"
+                changeSummary="Edit purchase order lines, dates, or supplier details"
                 entityId={transportForm.poID}
                 value={procurementPoEditApprovalId}
                 onChange={setProcurementPoEditApprovalId}

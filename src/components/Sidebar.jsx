@@ -22,7 +22,11 @@ import {
   Calculator,
 } from 'lucide-react';
 import { useWorkspace } from '../context/WorkspaceContext';
-import { userMayViewManagementReportsClient } from '../lib/reportsAccess';
+import {
+  userMayAccessBranchCommandCentreClient,
+  userMayAccessExecutiveCommandCentreClient,
+  userMayViewManagementReportsClient,
+} from '../lib/reportsAccess';
 import { userMayViewAccountingDeskClient } from '../lib/financeDeskAccess';
 import { userMaySeeLegacyAccountsNav } from '../lib/legacyAccountsAccess';
 import { canAccessExecutiveHr, canAccessMyProfileHr } from '../lib/hrAccess';
@@ -71,7 +75,9 @@ const Sidebar = ({ mobileOpen = false, onCloseMobile, collapsed = false, onToggl
   const permissions = ws?.permissions;
   const staffCreditPending = ws?.staffPurchaseCreditPendingCount ?? 0;
   const mayViewBi = userMayViewManagementReportsClient(roleKey, permissions);
-  const hasExecNav = Boolean(ws?.hasPermission?.('exec.dashboard.view'));
+  const hasExecNav = userMayAccessExecutiveCommandCentreClient(permissions);
+  const hasBranchCommandCentre = userMayAccessBranchCommandCentreClient(roleKey, permissions);
+  const showCommandCentreNav = hasExecNav || hasBranchCommandCentre;
 
   const fullMenuItems = [
     {
@@ -84,12 +90,9 @@ const Sidebar = ({ mobileOpen = false, onCloseMobile, collapsed = false, onToggl
     {
       icon: <LayoutDashboard size={18} />,
       label: roleKey === 'md' ? 'MD Office' : 'Command Centre',
-      path: '/exec',
+      path: hasBranchCommandCentre && !hasExecNav ? '/exec?tab=intelligence' : '/exec',
       active: pathMatches(p, '/exec'),
-      visible:
-        ws?.hasPermission?.('exec.dashboard.view') &&
-        roleKey !== 'ceo' &&
-        ['md', 'admin'].includes(roleKey),
+      visible: showCommandCentreNav && roleKey !== 'ceo' && (hasExecNav ? ['md', 'admin'].includes(roleKey) : hasBranchCommandCentre),
     },
     { icon: <Home size={18} />, label: 'Workspace', path: '/', badgeCount: staffCreditPending },
     {
@@ -139,7 +142,7 @@ const Sidebar = ({ mobileOpen = false, onCloseMobile, collapsed = false, onToggl
       icon: <Sparkles size={18} />,
       label: 'Business intelligence',
       path: '/analytics',
-      visible: mayViewBi && !hasExecNav,
+      visible: mayViewBi && !showCommandCentreNav,
     },
     {
       icon: <Users size={18} />,

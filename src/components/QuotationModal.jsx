@@ -26,11 +26,14 @@ import {
   STONE_PROFILE_FALLBACK,
   STONE_DEFAULT_COLOUR_KEYS,
   QUOTATION_MATERIAL_RULES_CODE,
+  QUOTATION_LINE_INTEGRITY_CODE,
   applyStoneMeterMaterialChangeCleanup,
   accessoryLineAllowedForStone,
   isStoneFlatsheetQuotationLine,
   normQuoteItemKey,
+  quotationLineQtyPriceEnabled,
   resolveStoneFlatsheetLengthM,
+  validateQuotationLineIntegrity,
   productLineAllowedForStone,
   productLineKey,
   quotationHasFlatSheetLine,
@@ -219,21 +222,8 @@ function sumRowsNgn(rows) {
   return rows.reduce((s, r) => s + lineAmountNgn(r), 0);
 }
 
-/** Stable key for which quotation record we're editing — excludes customers/treasury epoch churn. */
+/** Stable key for which quotation record we're editing — excludes line JSON so in-progress edits are not reset on poll. */
 function quotationHydrateSignature(editData) {
-  const q = editData?.quotationLines;
-  let linesKey = '';
-  if (q && typeof q === 'object') {
-    try {
-      linesKey = JSON.stringify({
-        products: q.products,
-        accessories: q.accessories,
-        services: q.services,
-      });
-    } catch {
-      linesKey = '';
-    }
-  }
   return [
     editData?.id ?? '',
     editData?.customerID ?? '',
@@ -243,7 +233,6 @@ function quotationHydrateSignature(editData) {
     editData?.materialColor ?? '',
     editData?.materialDesign ?? '',
     editData?.projectName ?? '',
-    linesKey,
   ].join('\u0000');
 }
 
@@ -268,6 +257,10 @@ function normalizeLoadedLines(raw) {
     floorPricePerMeter: r.floorPricePerMeter,
     lineKind: r.lineKind,
     girthMm: r.girthMm != null ? String(r.girthMm) : '',
+    stoneFlatsheetLengthM:
+      r.stoneFlatsheetLengthM != null && r.stoneFlatsheetLengthM !== ''
+        ? r.stoneFlatsheetLengthM
+        : '',
   });
   const withIds = (arr) =>
     arr.map((r) => {
@@ -297,6 +290,9 @@ function rowsForPrint(rows, placeholderWhenEmpty = true) {
 function quotationRulesErrorMessage(data) {
   if (data?.code === QUOTATION_MATERIAL_HEADER_CODE) {
     return quotationMaterialHeaderErrorMessage(data);
+  }
+  if (data?.code === QUOTATION_LINE_INTEGRITY_CODE) {
+    return data.error || 'Complete every line item (select product before quantity and price).';
   }
   if (!data || data.code !== QUOTATION_MATERIAL_RULES_CODE) return data?.error || '';
   const d = data.details || {};
@@ -462,6 +458,9 @@ function OrderLinesSection({
                 isStoneFlatsheetQuotationLine(String(row.name || ''));
               const needsStoneFlatsheetLengthPicker =
                 isStoneFlatsheetRow && normQuoteItemKey(String(row.name || '')) === 'stone flatsheet';
+              const qtyPriceEnabled = quotationLineQtyPriceEnabled(row, {
+                requireStoneLength: showStoneFlatsheetLength && title === 'Products',
+              });
               return (
                 <div
                   key={row.id}
@@ -641,16 +640,25 @@ function OrderLinesSection({
                     min="0"
                     step="any"
                     placeholder="0"
+                    disabled={!qtyPriceEnabled}
                     title={
-                      isStoneFlatsheetRow
-                        ? 'Quantity in square metres (m²) for stone flatsheet'
-                        : quoteItemUnitIsArea(matchedOption?.unit)
-                          ? 'Quantity in square metres (m²) for this price-list item'
-                          : undefined
+                      !qtyPriceEnabled
+                        ? needsStoneFlatsheetLengthPicker
+                          ? 'Select stone flatsheet product and length before entering m²'
+                          : 'Select a product before entering quantity'
+                        : isStoneFlatsheetRow
+                          ? 'Quantity in square metres (m²) for stone flatsheet'
+                          : quoteItemUnitIsArea(matchedOption?.unit)
+                            ? 'Quantity in square metres (m²) for this price-list item'
+                            : undefined
                     }
                     value={row.qty}
                     onChange={(e) => updateRow(row.id, { qty: e.target.value })}
-                    className="w-14 sm:w-16 shrink-0 bg-white border border-slate-200 py-1.5 px-1 rounded-lg text-[11px] text-center font-semibold text-[#134e4a] outline-none tabular-nums"
+                    className={`w-14 sm:w-16 shrink-0 border py-1.5 px-1 rounded-lg text-[11px] text-center font-semibold outline-none tabular-nums ${
+                      qtyPriceEnabled
+                        ? 'bg-white border-slate-200 text-[#134e4a]'
+                        : 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed'
+                    }`}
                     placeholder={isStoneFlatsheetRow ? 'm²' : '0'}
                   />
                   <input
@@ -658,7 +666,13 @@ function OrderLinesSection({
                     min="0"
                     step="any"
                     placeholder="0"
+                    disabled={!qtyPriceEnabled}
                     title={(() => {
+                      if (!qtyPriceEnabled) {
+                        return needsStoneFlatsheetLengthPicker
+                          ? 'Select stone flatsheet product and length before entering unit price'
+                          : 'Select a product before entering unit price';
+                      }
                       const wb =
                         typeof resolveWorkbookLineMeta === 'function'
                           ? resolveWorkbookLineMeta(row.name)
@@ -668,7 +682,11 @@ function OrderLinesSection({
                     })()}
                     value={row.unitPrice}
                     onChange={(e) => updateRow(row.id, { unitPrice: e.target.value })}
-                    className="w-[4.25rem] sm:w-24 shrink-0 bg-white border border-slate-200 py-1.5 px-1 rounded-lg text-[11px] text-center font-semibold text-[#134e4a] outline-none tabular-nums"
+                    className={`w-[4.25rem] sm:w-24 shrink-0 border py-1.5 px-1 rounded-lg text-[11px] text-center font-semibold outline-none tabular-nums ${
+                      qtyPriceEnabled
+                        ? 'bg-white border-slate-200 text-[#134e4a]'
+                        : 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed'
+                    }`}
                   />
                   <div className="w-[5.25rem] sm:w-28 shrink-0 text-right pr-0.5 sm:pr-1 text-[10px] sm:text-[11px] font-bold text-[#134e4a] tabular-nums leading-tight">
                     {formatNgn(amt)}
@@ -1151,6 +1169,57 @@ const QuotationModal = ({
     );
   }, [
     allowMaterialSpecCorrectionInView,
+    committedMaterialSpec,
+    materialTypeId,
+    materialGauge,
+    materialColor,
+    materialDesign,
+  ]);
+
+  const quotationEditApprovalPayload = useMemo(() => {
+    if (!editData?.id) return { changeSummary: '', changeDetails: [] };
+    if (materialSpecDirty) {
+      const details = [];
+      if (String(materialTypeId ?? '').trim() !== committedMaterialSpec.materialTypeId) {
+        details.push({
+          label: 'Material type',
+          from: committedMaterialSpec.materialTypeId || '—',
+          to: materialTypeId || '—',
+        });
+      }
+      if (String(materialGauge ?? '').trim() !== committedMaterialSpec.materialGauge) {
+        details.push({
+          label: 'Gauge',
+          from: committedMaterialSpec.materialGauge || '—',
+          to: materialGauge || '—',
+        });
+      }
+      if (String(materialColor ?? '').trim() !== committedMaterialSpec.materialColor) {
+        details.push({
+          label: 'Colour',
+          from: committedMaterialSpec.materialColor || '—',
+          to: materialColor || '—',
+        });
+      }
+      if (String(materialDesign ?? '').trim() !== committedMaterialSpec.materialDesign) {
+        details.push({
+          label: 'Profile / design',
+          from: committedMaterialSpec.materialDesign || '—',
+          to: materialDesign || '—',
+        });
+      }
+      return {
+        changeSummary: 'Material specification correction (quantities and prices unchanged)',
+        changeDetails: details,
+      };
+    }
+    return {
+      changeSummary: 'Edit quotation lines, pricing, discounts, customer details, or payment allocation',
+      changeDetails: [],
+    };
+  }, [
+    editData?.id,
+    materialSpecDirty,
     committedMaterialSpec,
     materialTypeId,
     materialGauge,
@@ -1793,6 +1862,20 @@ const QuotationModal = ({
       showToast(materialHeaderIncompleteMessage(materialTypeId, materialGauge, materialColor, materialDesign) || 'Complete material type, gauge, colour, and profile.', { variant: 'error' });
       return;
     }
+    const linesPayload = buildLinesPayload();
+    const lineIntegrity = validateQuotationLineIntegrity({
+      products: linesPayload.products,
+      accessories: linesPayload.accessories,
+      services: linesPayload.services,
+    });
+    if (!lineIntegrity.ok) {
+      showToast(lineIntegrity.error, { variant: 'error' });
+      return;
+    }
+    if (stoneFlatsheetQuotationIssues.length > 0) {
+      showToast(stoneFlatsheetQuotationIssues[0], { variant: 'error' });
+      return;
+    }
     const belowFloor = validateProductWorkbookFloors();
     if (belowFloor) {
       const first = belowFloor[0];
@@ -1812,7 +1895,7 @@ const QuotationModal = ({
           customerID: selectedCustomer.customerID,
           projectName: projectName.trim(),
           dateISO: quoteDate,
-          lines: buildLinesPayload(),
+          lines: linesPayload,
           materialTypeId,
           materialGauge,
           materialColor,
@@ -2406,6 +2489,8 @@ const QuotationModal = ({
                     value={quotationEditApprovalId}
                     onChange={setQuotationEditApprovalId}
                     requiresSecondApproval={quotationEditNeedsSecondApproval}
+                    changeSummary={quotationEditApprovalPayload.changeSummary}
+                    changeDetails={quotationEditApprovalPayload.changeDetails}
                   />
                   <button
                     type="button"
@@ -2567,6 +2652,8 @@ const QuotationModal = ({
               value={quotationEditApprovalId}
               onChange={setQuotationEditApprovalId}
               requiresSecondApproval={quotationEditNeedsSecondApproval}
+              changeSummary={quotationEditApprovalPayload.changeSummary}
+              changeDetails={quotationEditApprovalPayload.changeDetails}
             />
           </div>
         ) : null}

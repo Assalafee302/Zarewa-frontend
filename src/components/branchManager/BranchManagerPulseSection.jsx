@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { ChevronDown, HelpCircle, LayoutDashboard, Radio } from 'lucide-react';
 import { formatNgn } from '../../Data/mockData';
 import { MANAGER_METRIC_PERIODS, managementPeriodStartISO } from '../../lib/managementLiveFromWorkspace';
-import { DashboardKpiStrip } from '../dashboard/DashboardKpiStrip';
 import { Card } from '../ui';
 import { formatPersonName } from '../../lib/formatPersonName';
 import { motion } from 'framer-motion';
@@ -163,15 +162,6 @@ export function BranchManagerPulseSection({
             </div>
           </div>
 
-          <DashboardKpiStrip
-            sectionClassName=""
-            omitMetresAndSales
-            metricsWindow={{
-              startISO: managementPeriodStartISO(metricPeriod),
-              label: displaySnapshots.periodLabel ?? 'This month',
-            }}
-          />
-
           {!hasWorkspaceData ? (
             <p className="text-xs font-semibold text-slate-500">Connect to the API for live KPI figures.</p>
           ) : null}
@@ -183,10 +173,10 @@ export function BranchManagerPulseSection({
               </h3>
               {mayViewReports ? (
                 <Link
-                  to="/reports"
+                  to="/exec?tab=intelligence"
                   className="text-[10px] font-bold uppercase tracking-wide text-[#134e4a] hover:underline"
                 >
-                  Full reports
+                  Business intelligence
                 </Link>
               ) : null}
             </div>

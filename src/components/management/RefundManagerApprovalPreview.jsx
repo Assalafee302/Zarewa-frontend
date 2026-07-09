@@ -13,6 +13,7 @@ import {
   scaleRefundCalculationLinesToApprovedAmount,
   sumRefundCalculationLines,
 } from '../../lib/refundLineArithmetic';
+import { isStoneFlatsheetQuotationLine } from '../../lib/stoneCoatedQuotationPolicy';
 
 function refundCategoryTokens(value) {
   if (Array.isArray(value)) return value.map((x) => String(x ?? '').trim()).filter(Boolean);
@@ -132,6 +133,23 @@ function quoteProductRows(quotation) {
   return (Array.isArray(ql.products) ? ql.products : []).filter((item) => item && typeof item === 'object');
 }
 
+function quoteLineQtyNumber(raw) {
+  return Number(String(raw?.qty ?? raw?.quantity ?? '').replace(/,/g, '')) || 0;
+}
+
+function quoteLineUnitPriceNumber(raw) {
+  const n = Number(raw?.unitPrice ?? raw?.unit_price ?? raw?.unit_price_ngn ?? 0);
+  return Number.isFinite(n) ? n : 0;
+}
+
+function quoteLineQtyDisplay(raw) {
+  const qty = quoteLineQtyNumber(raw);
+  if (qty <= 0) return '—';
+  const name = String(raw?.name ?? raw?.label ?? '');
+  if (isStoneFlatsheetQuotationLine(name)) return `${qty.toLocaleString()} m²`;
+  return `${qty.toLocaleString()} m`;
+}
+
 /**
  * Four-quadrant refund approval intel for Management â†’ Action inbox â†’ Refunds.
  */
@@ -224,6 +242,13 @@ export function RefundManagerApprovalPreview({
     }
     return null;
   }, [refundIntel?.productionFulfillment, refund?.previewSnapshot]);
+  const economicFloor = useMemo(() => {
+    const fromIntel = refundIntel?.economicFloor;
+    if (fromIntel && typeof fromIntel === 'object') return fromIntel;
+    const snap = refund?.previewSnapshot?.economicFloor;
+    if (snap && typeof snap === 'object') return snap;
+    return null;
+  }, [refundIntel?.economicFloor, refund?.previewSnapshot]);
   const calcLines = useMemo(() => refund?.calculationLines || [], [refund?.calculationLines]);
   const lineArithmeticIssues = useMemo(
     () => auditRefundCalculationLineArithmetic(calcLines),
@@ -617,7 +642,7 @@ export function RefundManagerApprovalPreview({
       ) : (
         <div className="grid grid-cols-1 gap-2 lg:grid-cols-2">
           {/* Quotation — product spec & price comparison */}
-          <Panel title="Quotation" hint="Gauge, material, colour, and quoted vs floor ₦/m.">
+          <Panel title="Quotation" hint="Metres/m², unit price, line amount, and floor ₦/m.">
             {!auditData || auditData.ok === false ? (
               <p className="text-[10px] text-rose-600">{auditData?.error || 'Quotation audit unavailable.'}</p>
             ) : (
@@ -647,11 +672,10 @@ export function RefundManagerApprovalPreview({
                       <thead>
                         <tr className="border-b border-slate-100 bg-slate-50/90 text-[7px] font-bold uppercase text-slate-500">
                           <th className="px-1.5 py-1">Product</th>
-                          <th className="px-1 py-1">Gauge</th>
-                          <th className="px-1 py-1">Material</th>
-                          <th className="px-1 py-1">Colour</th>
-                          <th className="px-1 py-1 text-right">Quoted</th>
-                          <th className="px-1.5 py-1 text-right">Floor</th>
+                          <th className="px-1 py-1 text-right">Qty</th>
+                          <th className="px-1 py-1 text-right">Unit ₦</th>
+                          <th className="px-1 py-1 text-right">Amount</th>
+                          <th className="px-1.5 py-1 text-right">Floor ₦/m</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -660,9 +684,11 @@ export function RefundManagerApprovalPreview({
                           : lines.filter((l) => l.category === 'products')
                         ).map((raw, idx) => {
                           const name = raw.name || raw.label || '—';
-                          const quoted = Number(raw.unitPrice ?? raw.unit_price_ngn ?? 0);
+                          const qty = quoteLineQtyNumber(raw);
+                          const unit = quoteLineUnitPriceNumber(raw);
+                          const lineTotal = qty > 0 && unit > 0 ? Math.round(qty * unit) : 0;
                           const floor = quoteLineFloorPpm(raw);
-                          const belowFloor = floor != null && quoted > 0 && quoted < floor;
+                          const belowFloor = floor != null && unit > 0 && unit < floor;
                           return (
                             <tr key={idx} className="border-b border-slate-50 last:border-0">
                               <td
@@ -671,15 +697,16 @@ export function RefundManagerApprovalPreview({
                               >
                                 {name}
                               </td>
-                              <td className="px-1 py-1 text-slate-600">{raw.gauge || raw.gaugeLabel || '—'}</td>
-                              <td className="max-w-[4rem] truncate px-1 py-1 text-slate-600">
-                                {raw.materialType || raw.material || '—'}
+                              <td className="px-1 py-1 text-right tabular-nums text-slate-700">
+                                {quoteLineQtyDisplay(raw)}
                               </td>
-                              <td className="px-1 py-1 text-slate-600">{raw.colour || raw.color || '—'}</td>
                               <td
                                 className={`px-1 py-1 text-right tabular-nums font-semibold ${belowFloor ? 'text-rose-700' : 'text-slate-800'}`}
                               >
-                                {quoted > 0 ? formatNgn(quoted) : '—'}
+                                {unit > 0 ? formatNgn(unit) : '—'}
+                              </td>
+                              <td className="px-1 py-1 text-right tabular-nums font-bold text-slate-900">
+                                {lineTotal > 0 ? formatNgn(lineTotal) : '—'}
                               </td>
                               <td className="px-1.5 py-1 text-right tabular-nums text-slate-600">
                                 {floor != null ? formatNgn(floor) : '—'}
@@ -741,6 +768,30 @@ export function RefundManagerApprovalPreview({
                 {reservedOtherRefundsNgn > 0 ? ` · ${formatNgn(reservedOtherRefundsNgn)} reserved` : ''}
               </p>
             )}
+            {economicFloor && (economicFloor.producedOutputMeters > 0 || economicFloor.floorDeliveredValueNgn > 0) ? (
+              <div
+                className={`mb-2 rounded-md border px-2 py-1.5 text-[9px] leading-snug ${
+                  Number(refund?.amountNgn ?? refund?.amount_ngn ?? 0) >
+                  Number(economicFloor.maxDefensibleRefundNgn || 0) + 1
+                    ? 'border-amber-300 bg-amber-50 text-amber-950'
+                    : 'border-slate-200 bg-slate-50/80 text-slate-700'
+                }`}
+              >
+                <p className="font-bold uppercase tracking-wide text-[8px] text-slate-500">
+                  Economic floor (produced × workbook minimum)
+                </p>
+                <p className="mt-0.5">
+                  {Number(economicFloor.producedOutputMeters || 0).toLocaleString()} m produced · floor value{' '}
+                  {formatNgn(economicFloor.floorDeliveredValueNgn)} · max defensible refund{' '}
+                  <span className="font-bold">{formatNgn(economicFloor.maxDefensibleRefundNgn)}</span>
+                </p>
+                {economicFloor.incompleteFloorPricing ? (
+                  <p className="mt-0.5 font-semibold text-amber-800">
+                    Floor ₦/m missing for some jobs — verify workbook pricing manually.
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
             {intelSum && (intelSum.overpayAdvanceNgn > 0 || intelSum.overpayAppliedNgn > 0) ? (
               <p className="mb-2 text-[9px] text-slate-600">
                 Overpay ledger {formatNgn(intelSum.overpayAdvanceNgn)}

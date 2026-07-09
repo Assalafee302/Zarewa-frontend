@@ -90,8 +90,9 @@ function mergeAllocationDraftFromServer(serverRow, prevDraft, storedDraft) {
   return base;
 }
 
-export function seedDraftAllocationsFromServer(jobId, serverRows, prevDrafts, jobSwitch) {
-  const storedMap = jobSwitch ? {} : readProdCoilDraftMap(jobId);
+export function seedDraftAllocationsFromServer(jobId, serverRows, prevDrafts, jobSwitch, opts = {}) {
+  const restoreSupplementalLocalDrafts = opts.restoreSupplementalLocalDrafts !== false;
+  const storedMap = jobSwitch || !restoreSupplementalLocalDrafts ? {} : readProdCoilDraftMap(jobId);
   const prevForMerge = jobSwitch ? [] : prevDrafts;
 
   if (!serverRows.length) {
@@ -135,7 +136,7 @@ export function seedDraftAllocationsFromServer(jobId, serverRows, prevDrafts, jo
   });
 
   const storedOnlyDrafts = [];
-  if (!jobSwitch && storedMap && typeof storedMap === 'object') {
+  if (restoreSupplementalLocalDrafts && !jobSwitch && storedMap && typeof storedMap === 'object') {
     const mergedIds = new Set(mergedPersisted.map((m) => String(m.id ?? '')));
     const mergedCoils = new Set(
       mergedPersisted.map((m) => String(m.coilNo ?? '').trim()).filter(Boolean)
@@ -199,6 +200,15 @@ export function draftRowConversionPreviewReady(row) {
 /** Rows that carry coil data — excludes empty “Add coil” placeholders. */
 export function coilDraftRowsWithData(rows) {
   return (Array.isArray(rows) ? rows : []).filter((row) => !isEmptyCoilDraftRow(row));
+}
+
+/** New coil lines typed in the UI but not yet written to the server. */
+export function unsavedCoilDraftRows(rows) {
+  return coilDraftRowsWithData(rows).filter((row) => isDraftAllocationRow(row));
+}
+
+export function countUnsavedCoilDraftRows(rows) {
+  return unsavedCoilDraftRows(rows).length;
 }
 
 export function completionLineFromDraft(row) {

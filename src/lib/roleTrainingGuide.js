@@ -138,8 +138,12 @@ const ROLE_TRAINING = {
         body: 'Create and oversee quotations, cutting lists, and deliveries from Sales and Operations. Approve refunds and material incidents for your branch.',
       },
       {
+        heading: 'Command Centre',
+        body: 'Open **Command Centre** → **Intelligence** for business forecasts, expense analysis, and coil/material signals for your branch.',
+      },
+      {
         heading: 'Team HR (not main HR admin)',
-        body: 'Use **Team HR** (`/team-hr`) to endorse staff leave and loans. You do not use the HQ HR admin shell unless given extra permissions.',
+        body: 'Use **My team** (`/team-hr`) for everyone in your branch — endorse leave and loans, attendance, and incidents. Staff appear by branch and role; you do not need to link line managers.',
       },
       {
         heading: 'Zare coaching',
@@ -147,9 +151,9 @@ const ROLE_TRAINING = {
       },
     ],
     quickLinks: [
-      { label: 'Manager dashboard', path: '/manager' },
-      { label: 'Sales', path: '/sales' },
-      { label: 'Team HR', path: '/team-hr' },
+      { label: 'Management', path: '/manager' },
+      { label: 'Command Centre', path: '/exec?tab=intelligence' },
+      { label: 'My team', path: '/team-hr' },
     ],
   },
   sales_staff: {

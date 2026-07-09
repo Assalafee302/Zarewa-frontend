@@ -21,6 +21,7 @@ import {
   SlidersHorizontal,
   RotateCcw,
   Tags,
+  Library,
 } from 'lucide-react';
 import { PageHeader, PageShell, MainPanel, PageTabs } from '../components/layout';
 import MasterDataWorkbench from '../components/settings/MasterDataWorkbench';
@@ -32,6 +33,7 @@ import SettingsProfilePanel from '../components/settings/SettingsProfilePanel';
 import AdminDataResetPanel from '../components/settings/AdminDataResetPanel';
 import { SettingsIntegrationApiPanel } from '../components/settings/SettingsIntegrationApiPanel';
 import { ZareIntelligencePanel } from '../components/settings/ZareIntelligencePanel';
+import { KnowledgeCenterPanel } from '../components/settings/KnowledgeCenterPanel';
 import {
   DEFAULT_MANAGER_TARGETS_PER_MONTH,
   mergeDashboardPrefs,
@@ -125,6 +127,7 @@ const Settings = () => {
     }
     if (showZareIntelligence) {
       tabs.push({ id: 'zare-intelligence', label: 'Zare intelligence', icon: <LifeBuoy size={14} /> });
+      tabs.push({ id: 'knowledge-center', label: 'AI Knowledge Center', icon: <Library size={14} /> });
     }
     tabs.push(
       { id: 'data', label: 'Data & catalog', icon: <Database size={14} /> },
@@ -1242,6 +1245,16 @@ const Settings = () => {
               element={
                 showZareIntelligence ? (
                   <ZareIntelligencePanel />
+                ) : (
+                  <Navigate to="/settings/profile" replace />
+                )
+              }
+            />
+            <Route
+              path="knowledge-center"
+              element={
+                showZareIntelligence ? (
+                  <KnowledgeCenterPanel />
                 ) : (
                   <Navigate to="/settings/profile" replace />
                 )

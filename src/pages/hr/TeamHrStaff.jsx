@@ -12,7 +12,7 @@ export default function TeamHrStaff() {
     <HrPageBody>
       <HrPageIntro
         title="Team roster"
-        description="Scoped directory for supervisors and department heads — salary and bank details are never shown here."
+        description="Everyone active in your branch — roles define who reports to you; line-manager links are not required."
       />
       <HrStaffDirectory teamMode listTitle="Team roster" initialQuickFilter={quick} />
     </HrPageBody>
