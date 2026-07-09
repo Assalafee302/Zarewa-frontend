@@ -1045,8 +1045,13 @@ export function RefundManagerApprovalPreview({
 
           {/* Conversion & supply */}
           <Panel title="Conversion & supply" hint="Output, accessories, and four-reference conversion checks.">
-            <div className="mb-2 grid grid-cols-3 gap-1">
-              <Stat label="Cut lists" value={`${Number(totals.cuttingListMetersSum || 0).toLocaleString()} m`} />
+            <div className="mb-2 grid grid-cols-2 gap-1 sm:grid-cols-4">
+              <Stat label="Quoted" value={`${Number(totals.quotedRoofingMetres || 0).toLocaleString()} m`} />
+              <Stat
+                label="Cut lists"
+                value={`${Number(totals.cuttingListMetersSum || 0).toLocaleString()} m`}
+                warn={dataQuality.some((d) => d.code === 'cutting_list_quotation_metre_mismatch')}
+              />
               <Stat
                 label="Produced"
                 value={`${Number(totals.completedProductionMetersSum || 0).toLocaleString()} m`}
