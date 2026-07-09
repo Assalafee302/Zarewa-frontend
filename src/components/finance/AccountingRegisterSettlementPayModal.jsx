@@ -258,7 +258,7 @@ export function AccountingRegisterSettlementPayModal({ settlement, open, onClose
                         type="date"
                         value={line.dateISO}
                         onChange={(e) => updatePayLine(line.id, { dateISO: e.target.value })}
-                        className="w-full z-finance-field rounded-lg font-semibold"
+                        className="sm:col-span-3 w-full z-finance-field rounded-lg font-semibold"
                         title="Payment date"
                       />
                       <input
