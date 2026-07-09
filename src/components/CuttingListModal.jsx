@@ -369,6 +369,8 @@ const CuttingListModal = ({
   const [showQuotePicker, setShowQuotePicker] = useState(false);
   const [cuttingListEditApprovalId, setCuttingListEditApprovalId] = useState('');
   const lastCuttingListHydrateSigRef = useRef('');
+  const autosaveTimerRef = useRef(null);
+  const initialDraftAttemptedRef = useRef(false);
 
   const cuttingListHydrateSig = useMemo(
     () =>
@@ -526,7 +528,13 @@ const CuttingListModal = ({
     [linesByCat, cuttingCategoriesUi]
   );
   const hasAutosaveContent = Boolean(quotationRef) && draftLinesPayload.length > 0;
-  const autosaveEnabled = !readOnly && ws?.canMutate && hasAutosaveContent && (!savedCuttingListId || isDraftRecord);
+  /** Create the server draft once when the user first enters lines — not on every edit afterward. */
+  const autosaveEnabled =
+    !readOnly &&
+    ws?.canMutate &&
+    hasAutosaveContent &&
+    !savedCuttingListId &&
+    !initialDraftAttemptedRef.current;
 
   const bookPaidOnQuote = selectedQuotation ? bookPaidTowardQuotation(selectedQuotation) : 0;
   const advanceAppliedOnQuote = selectedQuotation
@@ -996,53 +1004,54 @@ const CuttingListModal = ({
   ]);
 
   useEffect(() => {
+    if (!isOpen) {
+      initialDraftAttemptedRef.current = false;
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
     if (!autosaveEnabled) return undefined;
-    const timer = window.setTimeout(async () => {
-      if (!selectedQuotation || autosaving || saving) return;
+    autosaveTimerRef.current = window.setTimeout(async () => {
+      initialDraftAttemptedRef.current = true;
+      if (!selectedQuotation || saving) return;
       setAutosaving(true);
       setAutosaveNote('Saving draft…');
       const body = buildPersistPayload({ autosave: true, draft: true });
-      const isEdit = Boolean(editData?.id);
-      const path = isEdit
-        ? `/api/cutting-lists/${encodeURIComponent(editData.id)}`
-        : '/api/cutting-lists';
-      const { ok, data } = await apiFetch(path, {
-        method: isEdit ? 'PATCH' : 'POST',
+      const { ok, data } = await apiFetch('/api/cutting-lists', {
+        method: 'POST',
         body: JSON.stringify(body),
       });
       setAutosaving(false);
       if (!ok || !data?.ok) {
-        setAutosaveNote('Draft not saved — will retry when you keep typing.');
+        setAutosaveNote('Draft not saved — click Save list when ready.');
         return;
       }
       const cl = data.cuttingList;
       if (cl) onDraftAutosaved?.(cl);
-      setAutosaveNote(
-        cl?.id ? `Draft saved · ${cl.id}` : 'Draft saved'
-      );
+      setAutosaveNote(cl?.id ? `Draft saved · ${cl.id}` : 'Draft saved');
     }, 1500);
-    return () => window.clearTimeout(timer);
+    return () => {
+      if (autosaveTimerRef.current != null) {
+        window.clearTimeout(autosaveTimerRef.current);
+        autosaveTimerRef.current = null;
+      }
+    };
   }, [
     autosaveEnabled,
-    autosaving,
     saving,
     selectedQuotation,
     buildPersistPayload,
-    editData?.id,
     onDraftAutosaved,
     draftLinesPayload,
     quotationRef,
-    dateISO,
-    machineName,
-    linesByCat,
   ]);
 
   const submit = async (e) => {
     e.preventDefault();
     if (readOnly || saving) return;
-    if (autosaving) {
-      showToast('Draft is still saving — wait a moment, then click Save list again.', { variant: 'info' });
-      return;
+    if (autosaveTimerRef.current != null) {
+      window.clearTimeout(autosaveTimerRef.current);
+      autosaveTimerRef.current = null;
     }
     if (!quotationRef || !selectedQuotation) {
       showToast('Select a quotation before saving.', { variant: 'error' });
@@ -1176,12 +1185,12 @@ const CuttingListModal = ({
                   <span className="font-normal normal-case text-slate-600">
                     ID <span className="font-mono font-semibold text-[#134e4a]">{savedCuttingListId}</span>
                     {' '}
-                    · <span className="font-semibold text-slate-700 uppercase tracking-wide">Draft (auto-saved)</span>
+                    · <span className="font-semibold text-slate-700 uppercase tracking-wide">Draft</span>
                     {autosaveNote ? (
                       <span className="block text-[8px] font-normal text-slate-500 normal-case mt-0.5">{autosaveNote}</span>
                     ) : (
                       <span className="block text-[8px] font-normal text-slate-500 normal-case mt-0.5">
-                        Lines save automatically while you type. Click Save list when finished.
+                        Click Save list when finished — your edits stay in this session until then.
                       </span>
                     )}
                   </span>
@@ -1198,7 +1207,7 @@ const CuttingListModal = ({
                       <span className="block text-[8px] font-normal text-slate-500 normal-case mt-0.5">{autosaveNote}</span>
                     ) : (
                       <span className="block text-[8px] font-normal text-slate-500 normal-case mt-0.5">
-                        Pick a quotation and start entering lines — your progress drafts automatically.
+                        Pick a quotation and enter lines — an initial draft is created once. Click Save list when finished.
                       </span>
                     )}
                   </span>

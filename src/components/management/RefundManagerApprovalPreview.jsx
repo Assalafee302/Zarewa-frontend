@@ -1046,7 +1046,14 @@ export function RefundManagerApprovalPreview({
           {/* Conversion & supply */}
           <Panel title="Conversion & supply" hint="Output, accessories, and four-reference conversion checks.">
             <div className="mb-2 grid grid-cols-2 gap-1 sm:grid-cols-4">
-              <Stat label="Quoted" value={`${Number(totals.quotedRoofingMetres || 0).toLocaleString()} m`} />
+              <Stat label="Sheet pool" value={`${Number((totals.quotedSheetPoolM ?? totals.quotedRoofingMetres) || 0).toLocaleString()} m`} />
+              {Number(totals.quotedTrimBlankM || 0) > 0 ? (
+                <Stat label="Trim blank" value={`${Number(totals.quotedTrimBlankM).toLocaleString()} m`} />
+              ) : null}
+              <Stat
+                label="Expected CL"
+                value={`${Number((totals.expectedCoilConsumptionM ?? totals.cuttingListMetersSum) || 0).toLocaleString()} m`}
+              />
               <Stat
                 label="Cut lists"
                 value={`${Number(totals.cuttingListMetersSum || 0).toLocaleString()} m`}
@@ -1057,7 +1064,13 @@ export function RefundManagerApprovalPreview({
                 value={`${Number(totals.completedProductionMetersSum || 0).toLocaleString()} m`}
                 accent
               />
-              <Stat label="Job actuals" value={`${Number(totals.productionJobsMetersSum || 0).toLocaleString()} m`} />
+              {Number(totals.trimBlankGapM || 0) > 0.1 ? (
+                <Stat
+                  label="Trim gap"
+                  value={`${Number(totals.trimBlankGapM).toFixed(2)} m`}
+                  warn
+                />
+              ) : null}
             </div>
             {accLines.length > 0 ? (
               <div className="mb-2">

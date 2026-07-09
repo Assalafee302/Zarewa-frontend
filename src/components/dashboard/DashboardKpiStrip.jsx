@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { ChevronRight, Landmark } from 'lucide-react';
 import { useInventory } from '../../context/InventoryContext';
 import { useWorkspace } from '../../context/WorkspaceContext';
-import { formatNgn } from '../../Data/mockData';
+import { formatNgn } from '../../lib/formatNgn';
 import {
   liveLiquidityBreakdown,
   liveMetersSeries,

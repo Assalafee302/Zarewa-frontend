@@ -3535,6 +3535,14 @@ export function LiveProductionMonitor({
                           <p className="text-[11px] font-black tabular-nums leading-tight text-[#134e4a]">
                             {formatMeters(selectedJob.plannedMeters)} <span className="text-[6px] font-medium text-slate-500">m</span>
                           </p>
+                          {(Number(selectedJob.plannedRoofM) > 0 ||
+                            Number(selectedJob.plannedCladdingM) > 0 ||
+                            Number(selectedJob.plannedFlatsheetM) > 0) && (
+                            <p className="text-[7px] font-semibold tabular-nums text-slate-500 leading-tight">
+                              R {formatMeters(selectedJob.plannedRoofM)} · C {formatMeters(selectedJob.plannedCladdingM)} · F{' '}
+                              {formatMeters(selectedJob.plannedFlatsheetM)}
+                            </p>
+                          )}
                         </div>
                         <div
                           className="min-w-0 flex-1"

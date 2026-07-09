@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { apiFetch, apiUrl } from '../lib/apiBase';
 import { printExpenseRequestRecord } from '../lib/expenseRequestPrint';
-import { formatNgn } from '../Data/mockData';
+import { formatNgn } from '../lib/formatNgn';
 import { useWorkspace } from '../context/WorkspaceContext';
 import { useInventory } from '../context/InventoryContext';
 import { useToast } from '../context/ToastContext';

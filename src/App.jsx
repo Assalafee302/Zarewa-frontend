@@ -64,9 +64,17 @@ import { pushRecentWorkspaceSearch } from './lib/workspaceSearchRecent';
 import { flattenSearchHits, WorkspaceSearchResults } from './components/workspace/WorkspaceSearchResults';
 import { resolveGlobalSearchEnterFallback } from './shared/lib/workspaceSearchCore.js';
 import { formatPersonName } from './lib/formatPersonName';
-/** Eager — loaded on most sign-ins; avoids lazy-chunk races with the app-shell bundle at startup. */
-import Dashboard from './pages/Dashboard';
-import ManagerDashboard from './pages/ManagerDashboard';
+const Dashboard = lazyWithRetry(() => import('./pages/Dashboard'), { id: 'Dashboard' });
+const ManagerDashboard = lazyWithRetry(() => import('./pages/ManagerDashboard'), { id: 'ManagerDashboard' });
+
+/** Defer non-critical API calls until after first paint. */
+function deferUntilIdle(fn) {
+  if (typeof window !== 'undefined' && typeof window.requestIdleCallback === 'function') {
+    window.requestIdleCallback(() => fn(), { timeout: 2500 });
+    return;
+  }
+  window.setTimeout(fn, 150);
+}
 
 const ExecutiveCommandCentre = lazyWithRetry(
   () => import('./pages/ExecutiveCommandCentre.jsx'),
@@ -281,12 +289,15 @@ function AppShell() {
       return;
     }
     let cancelled = false;
-    (async () => {
-      const { ok, data } = await apiFetch('/api/office/summary');
+    deferUntilIdle(() => {
       if (cancelled) return;
-      if (ok && data?.ok) setOfficeSummary(data);
-      else setOfficeSummary(null);
-    })();
+      (async () => {
+        const { ok, data } = await apiFetch('/api/office/summary');
+        if (cancelled) return;
+        if (ok && data?.ok) setOfficeSummary(data);
+        else setOfficeSummary(null);
+      })();
+    });
     return () => {
       cancelled = true;
     };
@@ -298,12 +309,15 @@ function AppShell() {
       return;
     }
     let cancelled = false;
-    (async () => {
-      const { ok, data } = await apiFetch('/api/hr/notification-summary');
+    deferUntilIdle(() => {
       if (cancelled) return;
-      if (ok && data?.ok) setHrNotifSummary(data.summary);
-      else setHrNotifSummary(null);
-    })();
+      (async () => {
+        const { ok, data } = await apiFetch('/api/hr/notification-summary');
+        if (cancelled) return;
+        if (ok && data?.ok) setHrNotifSummary(data.summary);
+        else setHrNotifSummary(null);
+      })();
+    });
     return () => { cancelled = true; };
   }, [canSeeHrModule, ws?.refreshEpoch]);
 
@@ -313,12 +327,15 @@ function AppShell() {
       return;
     }
     let cancelled = false;
-    (async () => {
-      const { ok, data } = await apiFetch('/api/management/attention');
+    deferUntilIdle(() => {
       if (cancelled) return;
-      if (ok && data?.ok !== false) setManagementAttention(data);
-      else setManagementAttention(null);
-    })();
+      (async () => {
+        const { ok, data } = await apiFetch('/api/management/attention');
+        if (cancelled) return;
+        if (ok && data?.ok !== false) setManagementAttention(data);
+        else setManagementAttention(null);
+      })();
+    });
     return () => {
       cancelled = true;
     };

@@ -8,7 +8,7 @@ import {
   receiptSalesPaymentStatusDetail,
   receiptSalesPaymentStatusLabel,
 } from './receiptClearance.js';
-import { formatNgn } from '../Data/mockData.js';
+import { formatNgn } from './formatNgn.js';
 
 function reversalTargetId(raw) {
   const m = String(raw ?? '').match(/REVERSAL_OF:([A-Za-z0-9-]+)/);

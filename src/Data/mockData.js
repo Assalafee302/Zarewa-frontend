@@ -14,10 +14,7 @@ import {
 const { longspanThinQty, aluzinc028Kg, heavyCoilKg, tappingScrewCartons } =
   REFERENCE_STOCK_CALIBRATION;
 
-/** @param {number} n */
-export function formatNgn(n) {
-  return `₦${Number(n).toLocaleString()}`;
-}
+export { formatNgn } from '../lib/formatNgn.js';
 
 /**
  * Customer records (tblCustomer-shaped for future API).

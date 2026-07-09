@@ -32,12 +32,67 @@ import {
 const WorkspaceContext = createContext(null);
 
 const BOOTSTRAP_CACHE_KEY_PREFIX = 'zarewa.bootstrap.cache.v4';
+const BOOTSTRAP_CACHE_LAST_KEY = `${BOOTSTRAP_CACHE_KEY_PREFIX}:lastKey`;
 
 function bootstrapCacheKey(session) {
   const uid = String(session?.user?.id || 'anon').trim() || 'anon';
   const bid = String(session?.currentBranchId || 'default').trim() || 'default';
   const all = session?.viewAllBranches ? ':all' : '';
   return `${BOOTSTRAP_CACHE_KEY_PREFIX}:${uid}:${bid}${all}`;
+}
+
+function parseBootstrapCacheRaw(raw) {
+  if (!raw) return null;
+  try {
+    const data = JSON.parse(raw);
+    if (!data || typeof data !== 'object' || !data.ok) return null;
+    if (!data.session?.user) return null;
+    return data;
+  } catch {
+    return null;
+  }
+}
+
+function readBootstrapCache(session) {
+  try {
+    const raw = sessionStorage.getItem(bootstrapCacheKey(session));
+    return parseBootstrapCacheRaw(raw);
+  } catch {
+    return null;
+  }
+}
+
+/** Hydrate instantly from the last signed-in session (stale-while-revalidate). */
+function readLatestBootstrapCache() {
+  try {
+    const lastKey = sessionStorage.getItem(BOOTSTRAP_CACHE_LAST_KEY);
+    if (lastKey) {
+      const fromLast = parseBootstrapCacheRaw(sessionStorage.getItem(lastKey));
+      if (fromLast) return fromLast;
+    }
+    const prefix = `${BOOTSTRAP_CACHE_KEY_PREFIX}:`;
+    for (let i = 0; i < sessionStorage.length; i += 1) {
+      const key = sessionStorage.key(i);
+      if (!key || key === BOOTSTRAP_CACHE_LAST_KEY || !key.startsWith(prefix)) continue;
+      const parsed = parseBootstrapCacheRaw(sessionStorage.getItem(key));
+      if (parsed) return parsed;
+    }
+  } catch {
+    /* ignore */
+  }
+  return null;
+}
+
+function writeBootstrapCache(data) {
+  try {
+    if (data?.ok && data?.session?.user) {
+      const key = bootstrapCacheKey(data.session);
+      sessionStorage.setItem(key, JSON.stringify(sanitizeBootstrapForCache(data)));
+      sessionStorage.setItem(BOOTSTRAP_CACHE_LAST_KEY, key);
+    }
+  } catch {
+    /* ignore */
+  }
 }
 
 function sanitizeBootstrapForCache(data) {
@@ -61,29 +116,6 @@ function workspacePollIntervalMs() {
     /* ignore */
   }
   return 60_000;
-}
-
-function readBootstrapCache(session) {
-  try {
-    const raw = sessionStorage.getItem(bootstrapCacheKey(session));
-    if (!raw) return null;
-    const data = JSON.parse(raw);
-    if (!data || typeof data !== 'object' || !data.ok) return null;
-    if (!data.session?.user) return null;
-    return data;
-  } catch {
-    return null;
-  }
-}
-
-function writeBootstrapCache(data) {
-  try {
-    if (data?.ok && data?.session?.user) {
-      sessionStorage.setItem(bootstrapCacheKey(data.session), JSON.stringify(sanitizeBootstrapForCache(data)));
-    }
-  } catch {
-    /* ignore */
-  }
 }
 
 function clearBootstrapCache() {
@@ -148,8 +180,14 @@ function mergeSessionOnboardingFlags(prevSnapshot, incoming) {
 }
 
 export function WorkspaceProvider({ children }) {
-  const [status, setStatus] = useState('checking');
-  const [snapshot, setSnapshot] = useState(null);
+  const initialBootstrap = useMemo(() => {
+    if (typeof window === 'undefined') return null;
+    return readLatestBootstrapCache();
+  }, []);
+  const [status, setStatus] = useState(() => (initialBootstrap ? 'ok' : 'checking'));
+  const [snapshot, setSnapshot] = useState(() =>
+    initialBootstrap ? withPendingPasswordSession(initialBootstrap) : null
+  );
   const [dashboardSummary, setDashboardSummary] = useState(null);
   const [dashboardSummaryEtag, setDashboardSummaryEtag] = useState('');
   const [lastError, setLastError] = useState(null);
@@ -172,6 +210,12 @@ export function WorkspaceProvider({ children }) {
   useEffect(() => {
     snapshotRef.current = snapshot;
   }, [snapshot]);
+
+  useEffect(() => {
+    if (initialBootstrap && Array.isArray(initialBootstrap.ledgerEntries)) {
+      replaceLedgerEntries(initialBootstrap.ledgerEntries);
+    }
+  }, [initialBootstrap]);
 
   useEffect(() => {
     lastErrorRef.current = lastError;
