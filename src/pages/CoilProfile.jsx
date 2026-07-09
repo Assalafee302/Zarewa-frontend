@@ -269,9 +269,18 @@ export default function CoilProfile() {
     );
   }
 
-  const currentKg = liveKg(coil);
-  const receivedKg = coilReceivedKg(coil);
-  const kgUsed = coilKgUsed(coil);
+  const currentKg =
+    holdersMeta != null && Number.isFinite(Number(holdersMeta.onHandKg))
+      ? Number(holdersMeta.onHandKg)
+      : liveKg(coil);
+  const receivedKg =
+    holdersMeta != null && Number.isFinite(Number(holdersMeta.receivedKg))
+      ? Number(holdersMeta.receivedKg)
+      : coilReceivedKg(coil);
+  const kgUsed =
+    holdersMeta != null && Number.isFinite(Number(holdersMeta.bookUsedKg))
+      ? Number(holdersMeta.bookUsedKg)
+      : coilKgUsed(coil);
   const reservedKg = asNum(coil.qtyReserved);
   const expectedReservedKg =
     holdersMeta != null ? asNum(holdersMeta.expectedReservedKg) : null;
@@ -279,7 +288,10 @@ export default function CoilProfile() {
     holdersMeta != null
       ? Math.max(0, asNum(holdersMeta.orphanReservedKg))
       : Math.max(0, reservedKg - (expectedReservedKg ?? 0));
-  const freeKg = coilFreeKg(coil);
+  const freeKg =
+    holdersMeta != null && Number.isFinite(Number(holdersMeta.freeKg))
+      ? Number(holdersMeta.freeKg)
+      : coilFreeKg(coil);
   const canReconcileReservation = Boolean(
     ws?.canMutate && (ws?.hasPermission?.('production.manage') || ws?.hasPermission?.('operations.manage'))
   );
