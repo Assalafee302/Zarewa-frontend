@@ -13,7 +13,6 @@ import { apiFetch } from '../lib/apiBase';
 import {
   INCIDENT_TYPES,
   INCIDENT_STATUS_LABEL,
-  INCIDENT_RECORD_HINTS,
 } from '../lib/materialIncidentConstants';
 import { coilDamagePreview, isCoilDamageIncident } from '../lib/coilDamageRecordCore';
 import CoilDamageRecordModal from '../components/operations/CoilDamageRecordModal';
@@ -132,28 +131,33 @@ export default function MaterialExceptions({ embedded = false, initialView = 're
 
   const content = (
     <div className="space-y-6">
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         {[
           { id: 'register', label: 'Register' },
-          { id: 'new', label: 'New incident' },
           { id: 'pending', label: `Pending (${pendingRows.length})` },
           { id: 'pool', label: 'Offcut pool' },
-          { id: 'legacy', label: 'Legacy coil control' },
+          { id: 'legacy', label: 'Coil control' },
         ].map((t) => (
           <button
             key={t.id}
             type="button"
-            onClick={() => {
-              setView(t.id);
-              if (t.id === 'new') openRecordModal(form.incidentType);
-            }}
-            className={`rounded-full px-4 py-2 text-ui-xs font-black uppercase tracking-wide ${
-              view === t.id ? 'bg-zarewa-teal text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+            onClick={() => setView(t.id)}
+            className={`rounded-lg px-3.5 py-2 text-ui-xs font-black uppercase tracking-wide transition-colors ${
+              view === t.id
+                ? 'bg-zarewa-teal text-white shadow-sm'
+                : 'border border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
             }`}
           >
             {t.label}
           </button>
         ))}
+        <button
+          type="button"
+          onClick={() => openRecordModal(form.incidentType)}
+          className="rounded-lg bg-amber-900 px-3.5 py-2 text-ui-xs font-black uppercase tracking-wide text-white hover:bg-amber-950"
+        >
+          Record incident
+        </button>
       </div>
 
       {view === 'register' && (
@@ -235,41 +239,6 @@ export default function MaterialExceptions({ embedded = false, initialView = 're
               </AppTableBody>
             </AppTable>
           </AppTableWrap>
-        </section>
-      )}
-
-      {view === 'new' && (
-        <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm space-y-4 max-w-3xl">
-          <p className="text-xs text-slate-500 leading-relaxed">
-            Record stain, production error, customer return, or yard offcut. Submit for branch manager approval before
-            stock is updated. Print the document for your physical offcut book.
-          </p>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <label className="block sm:col-span-2">
-              <span className="text-ui-xs font-bold uppercase text-gray-400">Type</span>
-              <select
-                className="z-input w-full mt-1"
-                value={form.incidentType}
-                onChange={(e) => openRecordModal(e.target.value)}
-              >
-                {INCIDENT_TYPES.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-
-          <div className="rounded-xl border border-teal-100 bg-teal-50/40 p-5 space-y-3">
-            <p className="text-sm font-semibold text-zarewa-teal">{incidentTypeLabel(form.incidentType)}</p>
-            <p className="text-xs text-slate-600 leading-relaxed">
-              {INCIDENT_RECORD_HINTS[form.incidentType] || INCIDENT_RECORD_HINTS.coil_stain}
-            </p>
-            <button type="button" className="z-btn-primary" onClick={() => openRecordModal()}>
-              Open incident form
-            </button>
-          </div>
         </section>
       )}
 

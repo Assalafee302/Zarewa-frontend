@@ -705,113 +705,12 @@ export function InventoryProvider({ children }) {
         };
       }
 
-      /* Offline / demo GRN (no API): synthetic coil IDs (CL-YY-####) from a local counter only.
-         The live server assigns coil numbers when POST /api/purchase-orders/:id/grn succeeds — do not expect IDs to match. */
-      const coilYy = String(new Date().getFullYear()).slice(-2);
-      const coilNumbers = [];
-
-      setCoilLots((prevLots) => {
-        let seq = prevLots.length;
-        const newLots = entries.map((e) => {
-          seq += 1;
-          const coilNo =
-            e.coilNo?.trim() ||
-            `CL-${coilYy}-${String(seq).padStart(4, '0')}`;
-          coilNumbers.push(coilNo);
-          const w = e.weightKg != null && e.weightKg !== '' ? Number(e.weightKg) : null;
-          const qty = Number(e.qtyReceived);
-          const line = po.lines.find((l) =>
-            e.lineKey ? l.lineKey === e.lineKey : l.productID === e.productID
-          );
-          const initialKg = w != null && !Number.isNaN(w) ? w : qty;
-          return {
-            coilNo,
-            productID: e.productID,
-            lineKey: e.lineKey ?? null,
-            qtyReceived: qty,
-            weightKg: w != null && !Number.isNaN(w) ? w : null,
-            colour: line?.color ?? '',
-            gaugeLabel: line?.gauge != null && line?.gauge !== '' ? String(line.gauge) : '',
-            materialTypeName: '',
-            supplierExpectedMeters: line?.metersOffered ?? null,
-            supplierConversionKgPerM: roundConv2(line?.conversionKgPerM),
-            qtyRemaining: initialKg,
-            qtyReserved: 0,
-            currentWeightKg: initialKg,
-            currentStatus: 'Available',
-            location: e.location?.trim() || null,
-            poID,
-            supplierID: sid ?? po.supplierID,
-            supplierName: sname ?? po.supplierName,
-            receivedAtISO: new Date().toISOString().slice(0, 10),
-          };
-        });
-        return [...newLots, ...prevLots];
-      });
-
-      setPurchaseOrders((prev) =>
-        prev.map((p) => {
-          if (p.poID !== poID) return p;
-          const nextLines = p.lines.map((l) => {
-            const hit = entries.find((x) =>
-              x.lineKey ? x.lineKey === l.lineKey : x.productID === l.productID
-            );
-            if (!hit) return l;
-            const q = Number(hit.qtyReceived);
-            const received = l.qtyReceived + q;
-            const ordered = Number(l.qtyOrdered) || 0;
-            const closedReceived =
-              ordered > 0 && received > 0 && received < ordered ? ordered : received;
-            return { ...l, qtyReceived: closedReceived };
-          });
-          const allIn = nextLines.every(poLineFullyReceived);
-          const nextStatus = allIn ? 'Received' : p.status;
-          return { ...p, lines: nextLines, status: nextStatus };
-        })
-      );
-
-      const deltaByProduct = {};
-      for (const e of entries) {
-        const pid = e.productID;
-        const w = e.weightKg != null && e.weightKg !== '' ? Number(e.weightKg) : null;
-        const line = po.lines.find((l) =>
-          e.lineKey ? l.lineKey === e.lineKey : l.productID === e.productID
-        );
-        const isStone = /^STONE-/i.test(String(line?.productID || e.productID || '').trim());
-        const isAcc = /^ACC-/i.test(String(line?.productID || e.productID || '').trim());
-        const qtyDelta = isStone || isAcc ? Number(e.qtyReceived) : w != null && !Number.isNaN(w) && w > 0 ? w : Number(e.qtyReceived);
-        deltaByProduct[pid] = (deltaByProduct[pid] || 0) + qtyDelta;
-      }
-      setProducts((prev) =>
-        prev.map((p) => {
-          const d = deltaByProduct[p.productID];
-          if (!d) return p;
-          if (
-            wsBranchScope &&
-            wsBranchScope !== 'ALL' &&
-            p.branchId &&
-            String(p.branchId) !== String(wsBranchScope)
-          ) {
-            return p;
-          }
-          return { ...p, stockLevel: p.stockLevel + d };
-        })
-      );
-
-      for (let i = 0; i < entries.length; i += 1) {
-        const e = entries[i];
-        appendMovement({
-          type: 'STORE_GRN',
-          ref: poID,
-          productID: e.productID,
-          qty: Number(e.qtyReceived),
-          detail: `${coilNumbers[i] || 'GRN'} · ${e.location || 'main store'}`,
-        });
-      }
-
-      return { ok: true, coilNos: coilNumbers };
+      return {
+        ok: false,
+        error: 'Connect to the API to post goods receipt. Offline demo posting is disabled to protect inventory accuracy.',
+      };
     },
-    [purchaseOrders, appendMovement, wsCanMutate, wsRefresh]
+    [purchaseOrders, wsCanMutate, wsRefresh]
   );
 
   const adjustStock = useCallback(
@@ -839,32 +738,21 @@ export function InventoryProvider({ children }) {
             coilLotCount: data?.coilLotCount,
           };
         }
+        if (status === 403 && data?.code === 'COIL_SKU_DRIFT_FORBIDDEN') {
+          return { ok: false, code: data.code, error: data?.error || 'Manager approval required.' };
+        }
         if (!ok || !data?.ok) {
           return { ok: false, error: data?.error || 'Adjustment failed on server.' };
         }
         await wsRefresh?.();
         return { ok: true };
       }
-      const delta = type === 'Increase' ? q : -q;
-      setProducts((prev) =>
-        prev.map((p) => {
-          if (!productMatchesBranchScope(p, productID, wsBranchScope)) return p;
-          const raw = p.stockLevel + delta;
-          const allowNeg = /^ACC-/i.test(String(productID));
-          const next = allowNeg ? raw : Math.max(0, raw);
-          return { ...p, stockLevel: next };
-        })
-      );
-      appendMovement({
-        type: 'ADJUSTMENT',
-        productID,
-        qty: delta,
-        detail: `${reasonCode}${note ? ` — ${note}` : ''}`,
-        dateISO: dateISO || new Date().toISOString().slice(0, 10),
-      });
-      return { ok: true };
+      return {
+        ok: false,
+        error: 'Connect to the API to post stock adjustments. Offline demo posting is disabled to protect inventory accuracy.',
+      };
     },
-    [appendMovement, wsBranchScope, wsCanMutate, wsRefresh]
+    [wsCanMutate, wsRefresh]
   );
 
   const transferToProduction = useCallback(

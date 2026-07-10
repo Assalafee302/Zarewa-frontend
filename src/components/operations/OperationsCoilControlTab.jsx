@@ -100,6 +100,10 @@ export default function OperationsCoilControlTab() {
   const { show: showToast } = useToast();
   const ws = useWorkspace();
   const { products: inventoryRows, coilLots, coilControlEvents: events, refreshInventory } = useInventory();
+  const canMutate = Boolean(ws?.canMutate);
+  const canLedgerAdjust = Boolean(
+    ws?.hasPermission?.('material_incidents.approve') || ws?.hasPermission?.('*')
+  );
 
   const cuttingLists = useMemo(
     () => (Array.isArray(ws?.snapshot?.cuttingLists) ? ws.snapshot.cuttingLists : []),
@@ -501,93 +505,122 @@ export default function OperationsCoilControlTab() {
         corrections on the active coil.
       </p>
 
-      <div className="flex flex-wrap gap-2">
-        <div className="inline-flex flex-wrap items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 shadow-sm">
-          <AlertTriangle size={14} aria-hidden className="text-amber-800 shrink-0" />
-          <label className="inline-flex items-center gap-1.5">
-            <span className="text-ui-xs font-black uppercase tracking-wide text-amber-900/70">Incident</span>
-            <select
-              value={incidentTypePick}
-              onChange={(e) => setIncidentTypePick(e.target.value)}
-              className="rounded-lg border border-amber-200/80 bg-white py-1.5 pl-2 pr-7 text-ui-xs font-bold text-amber-950 outline-none"
+      <div className="space-y-3">
+        <div className="rounded-xl border border-amber-200 bg-amber-50/90 p-3">
+          <p className="text-[10px] font-black uppercase tracking-widest text-amber-900/60 mb-2">Incidents (primary)</p>
+          <div className="flex flex-wrap items-center gap-2">
+            <label className="inline-flex items-center gap-1.5">
+              <span className="sr-only">Incident type</span>
+              <select
+                value={incidentTypePick}
+                onChange={(e) => setIncidentTypePick(e.target.value)}
+                className="rounded-lg border border-amber-200/80 bg-white py-2 pl-2.5 pr-8 text-ui-xs font-bold text-amber-950 outline-none"
+              >
+                {INCIDENT_TYPES.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <button
+              type="button"
+              disabled={!canMutate}
+              onClick={() => openMaterialIncident(incidentTypePick, suggestedIncidentCoilNo)}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-amber-900 px-3.5 py-2 text-ui-xs font-black uppercase tracking-wide text-white hover:bg-amber-950 disabled:opacity-40"
             >
-              {INCIDENT_TYPES.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <button
-            type="button"
-            onClick={() => openMaterialIncident(incidentTypePick, suggestedIncidentCoilNo)}
-            className="rounded-full bg-amber-900 px-3 py-1.5 text-ui-xs font-black uppercase tracking-wide text-white hover:bg-amber-950"
-          >
-            Record incident
-          </button>
+              <AlertTriangle size={14} aria-hidden />
+              Record incident
+            </button>
+            <button
+              type="button"
+              disabled={!canMutate}
+              onClick={() => {
+                const coil = String(defectForm.coilNo || suggestedIncidentCoilNo || '').trim();
+                if (coil) setDefectForm((s) => ({ ...s, coilNo: coil }));
+                openMaterialIncident('supplier_defect', coil);
+              }}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-amber-300 bg-white px-3 py-2 text-ui-xs font-bold uppercase tracking-wide text-amber-950 hover:bg-amber-100/60 disabled:opacity-40"
+              title="Record supplier defect as a material incident (manager approval)"
+            >
+              <Truck size={14} aria-hidden />
+              Supplier defect
+            </button>
+          </div>
         </div>
-        <button
-          type="button"
-          onClick={() => setModal('adjust')}
-          className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-ui-xs font-black uppercase tracking-wide text-zarewa-teal shadow-sm hover:bg-slate-50"
-        >
-          <Ruler size={14} aria-hidden />
-          Coil kg adjustment
-        </button>
-        <button
-          type="button"
-          onClick={() => setModal('scrap')}
-          className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-ui-xs font-black uppercase tracking-wide text-zarewa-teal shadow-sm hover:bg-slate-50"
-        >
-          <Scissors size={14} aria-hidden />
-          Scrap / offcut
-        </button>
-        <button
-          type="button"
-          onClick={() => setModal('returnIn')}
-          className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-ui-xs font-black uppercase tracking-wide text-zarewa-teal shadow-sm hover:bg-slate-50"
-        >
-          <ArrowDownToLine size={14} aria-hidden />
-          Return inward (offcut pool)
-        </button>
-        <button
-          type="button"
-          onClick={() => setModal('returnOut')}
-          className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-ui-xs font-black uppercase tracking-wide text-zarewa-teal shadow-sm hover:bg-slate-50"
-        >
-          <ArrowUpFromLine size={14} aria-hidden />
-          Return outward
-        </button>
-        <button
-          type="button"
-          onClick={() => setModal('head')}
-          className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-ui-xs font-black uppercase tracking-wide text-zarewa-teal shadow-sm hover:bg-slate-50"
-        >
-          <Factory size={14} aria-hidden />
-          Open coil — head trim
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            const coil = String(defectForm.coilNo || suggestedIncidentCoilNo || '').trim();
-            if (coil) setDefectForm((s) => ({ ...s, coilNo: coil }));
-            openMaterialIncident('supplier_defect', coil);
-          }}
-          className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-ui-xs font-black uppercase tracking-wide text-zarewa-teal shadow-sm hover:bg-slate-50"
-          title="Record supplier defect as a material incident (manager approval)"
-        >
-          <Truck size={14} aria-hidden />
-          Supplier defect incident
-        </button>
-        <button
-          type="button"
-          onClick={() => setModal('supplier')}
-          className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-ui-xs font-black uppercase tracking-wide text-slate-500 shadow-sm hover:bg-slate-50"
-          title="Quick supplier defect log (legacy coil control)"
-        >
-          <Truck size={14} aria-hidden />
-          Legacy defect log
-        </button>
+
+        <div className="rounded-xl border border-slate-200 bg-white p-3">
+          <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Daily coil movements</p>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              disabled={!canMutate}
+              onClick={() => setModal('scrap')}
+              className="inline-flex items-center gap-2 rounded-lg border border-rose-200 bg-rose-50 px-3.5 py-2 text-ui-xs font-black uppercase tracking-wide text-rose-900 hover:bg-rose-100 disabled:opacity-40"
+            >
+              <Scissors size={14} aria-hidden />
+              Scrap / offcut
+            </button>
+            <button
+              type="button"
+              disabled={!canMutate}
+              onClick={() => setModal('returnIn')}
+              className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3.5 py-2 text-ui-xs font-bold uppercase tracking-wide text-zarewa-teal hover:bg-slate-100 disabled:opacity-40"
+            >
+              <ArrowDownToLine size={14} aria-hidden />
+              Return inward
+            </button>
+            <button
+              type="button"
+              disabled={!canMutate}
+              onClick={() => setModal('returnOut')}
+              className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3.5 py-2 text-ui-xs font-bold uppercase tracking-wide text-zarewa-teal hover:bg-slate-100 disabled:opacity-40"
+            >
+              <ArrowUpFromLine size={14} aria-hidden />
+              Return outward
+            </button>
+            <button
+              type="button"
+              disabled={!canMutate}
+              onClick={() => setModal('head')}
+              className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3.5 py-2 text-ui-xs font-bold uppercase tracking-wide text-zarewa-teal hover:bg-slate-100 disabled:opacity-40"
+            >
+              <Factory size={14} aria-hidden />
+              Head trim
+            </button>
+          </div>
+        </div>
+
+        <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50/50 p-3">
+          <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Corrections (use carefully)</p>
+          <div className="flex flex-wrap gap-2">
+            {canLedgerAdjust ? (
+              <button
+                type="button"
+                disabled={!canMutate}
+                onClick={() => setModal('adjust')}
+                className="inline-flex items-center gap-2 rounded-lg border border-amber-200 bg-white px-3.5 py-2 text-ui-xs font-bold uppercase tracking-wide text-amber-950 hover:bg-amber-50 disabled:opacity-40"
+              >
+                <Ruler size={14} aria-hidden />
+                Coil kg adjustment
+              </button>
+            ) : (
+              <p className="text-ui-xs text-slate-500 self-center">
+                Coil kg ledger adjust requires branch manager.
+              </p>
+            )}
+            <button
+              type="button"
+              disabled={!canMutate}
+              onClick={() => setModal('supplier')}
+              className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-ui-xs font-semibold uppercase tracking-wide text-slate-500 hover:bg-slate-50 disabled:opacity-40"
+              title="Quick supplier defect log (legacy coil control)"
+            >
+              <Truck size={14} aria-hidden />
+              Legacy defect log
+            </button>
+          </div>
+        </div>
       </div>
 
       <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">

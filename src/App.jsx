@@ -1024,7 +1024,20 @@ function AppShell() {
                 </ModuleRouteGuard>
               }
             />
-            <Route path="/deliveries" element={<Navigate to="/operations" replace />} />
+            <Route
+              path="/deliveries"
+              element={
+                <Navigate
+                  to="/operations"
+                  replace
+                  state={{
+                    focusOpsTab: 'production',
+                    opsNotice:
+                      'Customer deliveries desk is not available on Operations yet. Use Production line for job completion; delivery confirm will land here when shipped.',
+                  }}
+                />
+              }
+            />
             <Route
               path="/cashier"
               element={

@@ -6,6 +6,7 @@ import {
   CheckCircle2,
   LayoutDashboard,
   Factory,
+  History,
   Pencil,
   ScrollText,
 } from 'lucide-react';
@@ -55,8 +56,8 @@ function isoTs(v) {
   return Number.isFinite(t) ? t : 0;
 }
 
-/** Matches server `COIL_PROFILE_FINISH_MAX_KG` — tail-only close from coil profile. */
-const COIL_PROFILE_FINISH_MAX_KG = 100;
+/** Matches server `COIL_PROFILE_FINISH_MAX_KG` (SOP-04 §4.3 ≤85 kg) — tail-only close from coil profile. */
+const COIL_PROFILE_FINISH_MAX_KG = 85;
 
 function movementTitle(m) {
   const t = String(m?.type || '').toUpperCase();
@@ -252,7 +253,7 @@ export default function CoilProfile() {
     { id: 'overview', label: 'Overview', icon: LayoutDashboard },
     { id: 'links', label: 'Production links', icon: Factory },
     { id: 'conversion', label: 'Conversion history', icon: ScrollText },
-    { id: 'history', label: 'Movement history', icon: ScrollText },
+    { id: 'history', label: 'Movement history', icon: History },
   ];
   const go = (id) => document.getElementById(`coil-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
@@ -510,70 +511,78 @@ export default function CoilProfile() {
         title={`Coil ${coil.coilNo}`}
         subtitle={`${coil.productID || '—'} · ${coil.colour || '—'} · ${coil.gaugeLabel || '—'}`}
         actions={
-          <div className="flex flex-wrap gap-2">
-            <Link to="/operations" state={{ focusOpsTab: 'inventory' }} className="z-btn-secondary inline-flex">
-              <ArrowLeft size={16} /> Inventory
-            </Link>
-            {coil.poID ? (
-              <Link to="/procurement" state={{ focusTab: 'purchases' }} className="z-btn-secondary inline-flex">
-                Open PO
+          <div className="flex flex-col items-stretch sm:items-end gap-2 w-full sm:w-auto">
+            <div className="flex flex-wrap gap-2 justify-end">
+              {finishRollEligible ? (
+                <button
+                  type="button"
+                  className="z-btn-primary inline-flex items-center gap-1.5"
+                  onClick={() => setActionModal('finish')}
+                >
+                  <CheckCircle2 size={16} aria-hidden />
+                  Finish roll
+                </button>
+              ) : null}
+              <div className="inline-flex flex-wrap items-center gap-1.5 rounded-xl border border-amber-200 bg-amber-50 px-2 py-1.5">
+                <select
+                  value={incidentTypePick}
+                  onChange={(e) => setIncidentTypePick(e.target.value)}
+                  className="rounded-lg border border-amber-200/80 bg-white py-1.5 pl-2 pr-7 text-ui-xs font-bold text-amber-950 outline-none max-w-[11rem]"
+                  aria-label="Incident type"
+                >
+                  {INCIDENT_TYPES.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.label}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  className="z-btn-secondary inline-flex items-center gap-1.5 border-amber-300 bg-amber-100 text-amber-950 hover:bg-amber-200"
+                  onClick={() => openMaterialIncident(incidentTypePick)}
+                >
+                  <AlertTriangle size={16} aria-hidden />
+                  Record incident
+                </button>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2 justify-end">
+              <Link to="/operations" state={{ focusOpsTab: 'inventory' }} className="z-btn-secondary inline-flex">
+                <ArrowLeft size={16} /> Inventory
               </Link>
-            ) : null}
-            {coil.supplierID ? (
-              <Link to={`/procurement/suppliers/${encodeURIComponent(coil.supplierID)}`} className="z-btn-secondary inline-flex">
-                Supplier
+              <Link
+                to="/operations"
+                state={{ focusOpsTab: 'coilControl' }}
+                className="z-btn-secondary inline-flex text-center no-underline"
+              >
+                Coil control
               </Link>
-            ) : null}
-            <Link
-              to="/operations"
-              state={{ focusOpsTab: 'coilControl' }}
-              className="z-btn-secondary inline-flex text-center no-underline"
-            >
-              Coil control
-            </Link>
-            {mayEditCoilMaster ? (
-              <button type="button" className="z-btn-secondary inline-flex items-center gap-1.5" onClick={() => setActionModal('edit')}>
-                <Pencil size={16} aria-hidden /> Edit &amp; recalculate
-              </button>
-            ) : null}
-            {finishRollEligible ? (
+              {mayEditCoilMaster ? (
+                <button type="button" className="z-btn-secondary inline-flex items-center gap-1.5" onClick={() => setActionModal('edit')}>
+                  <Pencil size={16} aria-hidden /> Edit
+                </button>
+              ) : null}
+              {coil.poID ? (
+                <Link to="/procurement" state={{ focusTab: 'purchases' }} className="z-btn-secondary inline-flex">
+                  Open PO
+                </Link>
+              ) : null}
+              {coil.supplierID ? (
+                <Link to={`/procurement/suppliers/${encodeURIComponent(coil.supplierID)}`} className="z-btn-secondary inline-flex">
+                  Supplier
+                </Link>
+              ) : null}
               <button
                 type="button"
-                className="z-btn-primary inline-flex items-center gap-1.5"
-                onClick={() => setActionModal('finish')}
+                className="z-btn-secondary inline-flex border-rose-200 text-rose-900 hover:bg-rose-50"
+                onClick={() => setActionModal('scrap')}
               >
-                <CheckCircle2 size={16} aria-hidden />
-                Finish roll
+                Scrap
               </button>
-            ) : null}
-            <div className="inline-flex flex-wrap items-center gap-1.5 rounded-xl border border-amber-200 bg-amber-50 px-2 py-1.5">
-              <select
-                value={incidentTypePick}
-                onChange={(e) => setIncidentTypePick(e.target.value)}
-                className="rounded-lg border border-amber-200/80 bg-white py-1.5 pl-2 pr-7 text-ui-xs font-bold text-amber-950 outline-none max-w-[11rem]"
-                aria-label="Incident type"
-              >
-                {INCIDENT_TYPES.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.label}
-                  </option>
-                ))}
-              </select>
-              <button
-                type="button"
-                className="z-btn-secondary inline-flex items-center gap-1.5 border-amber-300 bg-amber-100 text-amber-950 hover:bg-amber-200"
-                onClick={() => openMaterialIncident(incidentTypePick)}
-              >
-                <AlertTriangle size={16} aria-hidden />
-                Record incident
+              <button type="button" className="z-btn-secondary inline-flex" onClick={() => setActionModal('return')}>
+                Return
               </button>
             </div>
-            <button type="button" className="z-btn-secondary inline-flex" onClick={() => setActionModal('scrap')}>
-              Scrap
-            </button>
-            <button type="button" className="z-btn-secondary inline-flex" onClick={() => setActionModal('return')}>
-              Return
-            </button>
           </div>
         }
       />

@@ -249,6 +249,8 @@ const PO_RECEIVABLE_STATUSES = ['Approved', 'On loading', 'In Transit'];
 
 /** Default rows shown; search or sort surfaces older items. */
 const STOCK_SIDE_LIST_LIMIT = 15;
+/** Cap unfiltered coil live list to keep Stock tab responsive. */
+const COIL_SIDE_LIST_LIMIT = 40;
 
 function sortTransitPurchaseOrders(rows, sortKey) {
   const poCmp = (a, b) => String(a.poID || '').localeCompare(String(b.poID || ''));
@@ -583,6 +585,9 @@ const Operations = () => {
   useWorkspaceDomain('operations');
   const canReceiveInventory = Boolean(ws?.hasPermission?.('inventory.receive'));
   const canAdjustInventory = Boolean(ws?.hasPermission?.('inventory.adjust'));
+  const canAcknowledgeCoilSkuDrift = Boolean(
+    ws?.hasPermission?.('material_incidents.approve') || ws?.hasPermission?.('*')
+  );
   const canRegisterCoil = Boolean(
     ws?.hasPermission?.('purchase_orders.manage') ||
       ws?.hasPermission?.('inventory.receive') ||
@@ -636,6 +641,8 @@ const Operations = () => {
   const [expandedReceivePoId, setExpandedReceivePoId] = useState(null);
   const [grnLines, setGrnLines] = useState([]);
   const [grnConversionOverride, setGrnConversionOverride] = useState(false);
+  const [grnSubmitting, setGrnSubmitting] = useState(false);
+  const [stockAdjustSubmitting, setStockAdjustSubmitting] = useState(false);
   const grnReceivePoIdRef = useRef('');
 
   const [coilRequestForm, setCoilRequestForm] = useState({
@@ -729,7 +736,7 @@ const Operations = () => {
 
     for (const c of activeCoils) {
       const live = liveCoilWeightKg(c);
-      if (live > 0 && live < 100) lowStock += 1;
+      if (live > 0 && live < 85) lowStock += 1;
       const mt = String(c.materialTypeName || '').toLowerCase();
       if (mt.includes('alumin')) aluminiumKg += live;
       else aluzincKg += live;
@@ -1149,6 +1156,10 @@ const Operations = () => {
     const st = location.state || {};
     const t = st.focusOpsTab;
     const invSku = String(st.opsInventorySkuQuery || '').trim();
+    const notice = String(st.opsNotice || '').trim();
+    if (notice) {
+      showToast(notice, { variant: 'info' });
+    }
 
     if (t === 'overview') {
       setActiveTab('overview');
@@ -1178,12 +1189,18 @@ const Operations = () => {
       setActiveTab('materialExceptions');
       const mexId = String(st.materialIncidentId || '').trim();
       setMaterialIncidentFocusId(mexId);
+      if (t === 'coilControl') {
+        showToast('Coil control is under Material exceptions for now.', { variant: 'info' });
+      }
       navigate(location.pathname, { replace: true, state: {} });
       return;
     }
 
-    if (t === 'maintenance') {
+    if (t === 'maintenance' || t === 'deliveries') {
       setActiveTab('production');
+      if (t === 'maintenance') {
+        showToast('Maintenance shortcuts open the Production line.', { variant: 'info' });
+      }
       navigate(location.pathname, { replace: true, state: {} });
       return;
     }
@@ -1295,6 +1312,15 @@ const Operations = () => {
     coilReceiptSort,
     coilLotsReceiptFiltered,
   ]);
+
+  const coilLotsByReceiptCapped = useMemo(() => {
+    if (hasCoilReceiptSearch) return coilLotsByReceipt;
+    if (coilLotsByReceipt.length <= COIL_SIDE_LIST_LIMIT) return coilLotsByReceipt;
+    return coilLotsByReceipt.slice(0, COIL_SIDE_LIST_LIMIT);
+  }, [coilLotsByReceipt, hasCoilReceiptSearch]);
+
+  const coilReceiptListTruncated =
+    !hasCoilReceiptSearch && coilLotsByReceipt.length > COIL_SIDE_LIST_LIMIT;
 
   const coilReceiptIncludesArchived = useMemo(
     () =>
@@ -1436,99 +1462,145 @@ const Operations = () => {
   const applyTransitReceipt = async (e) => {
     e.preventDefault();
     if (!canReceiveInventory) {
-      showToast('Only a branch manager or director can post goods into inventory.', { variant: 'error' });
+      showToast('You need inventory.receive permission to post goods into inventory.', { variant: 'error' });
       return;
     }
+    if (grnSubmitting) return;
     if (!receiveDraft.poID) {
       showToast('Select an incoming order.', { variant: 'error' });
       return;
     }
-    const entries = grnLines
-      .map((row) => {
-        const entry = {
+    const entries = [];
+    for (const row of grnLines) {
+      const qtyReceived = Number(row.qtyReceived);
+      if (!(qtyReceived > 0) || Number.isNaN(qtyReceived)) continue;
+      if (row.grnKind === 'coil') {
+        const coilNo = String(row.coilNo || '').trim();
+        const weightKg = Number(row.weightKg);
+        if (!coilNo) {
+          showToast('Enter a coil number for every coil line you are receiving.', { variant: 'error' });
+          return;
+        }
+        if (!Number.isFinite(weightKg) || weightKg <= 0) {
+          showToast(`Enter a positive weight (kg) for coil ${coilNo || 'line'}.`, { variant: 'error' });
+          return;
+        }
+        entries.push({
           lineKey: row.lineKey,
           productID: row.productID,
-          qtyReceived: Number(row.qtyReceived),
-          coilNo: row.grnKind === 'coil' ? row.coilNo : '',
+          qtyReceived,
+          coilNo,
+          weightKg,
           location: receiveDraft.location,
-        };
-        if (row.grnKind === 'coil' && row.weightKg !== '' && row.weightKg != null) {
-          entry.weightKg = Number(row.weightKg);
-        }
-        return entry;
-      })
-      .filter((x) => x.qtyReceived > 0 && !Number.isNaN(x.qtyReceived));
+        });
+      } else {
+        entries.push({
+          lineKey: row.lineKey,
+          productID: row.productID,
+          qtyReceived,
+          coilNo: '',
+          location: receiveDraft.location,
+        });
+      }
+    }
     if (!entries.length) {
       showToast('Enter receive quantity for at least one open line.', { variant: 'error' });
       return;
     }
-    const res = await confirmStoreReceipt(
-      receiveDraft.poID,
-      entries,
-      {},
-      { allowConversionMismatch: grnConversionOverride }
-    );
-    if (!res.ok) {
-      showToast(res.error, { variant: 'error' });
-      return;
-    }
-    const coils = res.coilNos?.filter(Boolean).join(', ') || '';
-    const shortAlerts = Array.isArray(res.mdShortReceiptAlerts) ? res.mdShortReceiptAlerts : [];
-    if (shortAlerts.length > 0) {
-      const first = shortAlerts[0];
-      const shortKg = Number(first?.shortKg) || 0;
-      showToast(
-        `Receipt posted${coils ? ` · ${coils}` : ''}. Received ${Number(first?.receivedKg || 0).toLocaleString()} kg vs ${Number(first?.orderedKg || 0).toLocaleString()} kg ordered (${shortKg.toLocaleString()} kg short) — PO line closed; no further receipt on this line.`,
-        { variant: 'warning' }
+    setGrnSubmitting(true);
+    try {
+      const res = await confirmStoreReceipt(
+        receiveDraft.poID,
+        entries,
+        {},
+        { allowConversionMismatch: grnConversionOverride }
       );
-    } else {
-      showToast(`Receipt posted — stock updated${coils ? ` · ${coils}` : ''}.`);
+      if (!res.ok) {
+        showToast(res.error, { variant: 'error' });
+        return;
+      }
+      const coils = res.coilNos?.filter(Boolean).join(', ') || '';
+      const shortAlerts = Array.isArray(res.mdShortReceiptAlerts) ? res.mdShortReceiptAlerts : [];
+      if (shortAlerts.length > 0) {
+        const first = shortAlerts[0];
+        const shortKg = Number(first?.shortKg) || 0;
+        showToast(
+          `Receipt posted${coils ? ` · ${coils}` : ''}. Received ${Number(first?.receivedKg || 0).toLocaleString()} kg vs ${Number(first?.orderedKg || 0).toLocaleString()} kg ordered (${shortKg.toLocaleString()} kg short) — PO line closed; no further receipt on this line.`,
+          { variant: 'warning' }
+        );
+      } else {
+        showToast(`Receipt posted — stock updated${coils ? ` · ${coils}` : ''}.`);
+      }
+      setReceiveDraft({ poID: '', location: '' });
+      setGrnLines([]);
+      setGrnConversionOverride(false);
+      setExpandedReceivePoId(null);
+    } finally {
+      setGrnSubmitting(false);
     }
-    setReceiveDraft({ poID: '', location: '' });
-    setGrnLines([]);
-    setGrnConversionOverride(false);
-    setExpandedReceivePoId(null);
   };
 
   const applyStockAdjust = async (e) => {
     e.preventDefault();
     if (!canAdjustInventory) {
-      showToast('Only a branch manager or director can post stock adjustments.', { variant: 'error' });
+      showToast('You need inventory.adjust permission to post stock adjustments.', { variant: 'error' });
       return;
     }
+    if (stockAdjustSubmitting) return;
     const { productID, type, qty, reasonCode, reasonNote, date } = stockAdjust;
-    if (!productID || !qty) return;
+    if (!productID || !qty) {
+      showToast('Select a product and enter a quantity.', { variant: 'error' });
+      return;
+    }
+    if (!String(date || '').trim()) {
+      showToast('Adjustment date is required.', { variant: 'error' });
+      return;
+    }
     if (reasonCode === 'Other' && !reasonNote.trim()) {
       showToast('Describe the reason for “Other”.', { variant: 'error' });
       return;
     }
     const q = Number(qty);
-    if (Number.isNaN(q) || q <= 0) return;
-    const res = await adjustStock(productID, type, q, reasonCode, reasonNote.trim(), date, {
-      acknowledgeCoilSkuDrift: type === 'Decrease' && stockAdjustCoilAck,
-    });
-    if (!res.ok) {
-      if (res.code === 'COIL_SKU_DRIFT') {
-        setStockAdjustCoilPrompt(true);
-        setStockAdjustCoilCount(
-          typeof res.coilLotCount === 'number' ? res.coilLotCount : null
-        );
+    if (Number.isNaN(q) || q <= 0) {
+      showToast('Enter a valid positive quantity.', { variant: 'error' });
+      return;
+    }
+    if (type === 'Decrease' && stockAdjustCoilAck && !canAcknowledgeCoilSkuDrift) {
+      showToast('Book-only coil SKU decreases require branch manager approval.', { variant: 'error' });
+      return;
+    }
+    setStockAdjustSubmitting(true);
+    try {
+      const res = await adjustStock(productID, type, q, reasonCode, reasonNote.trim(), date, {
+        acknowledgeCoilSkuDrift: type === 'Decrease' && stockAdjustCoilAck,
+      });
+      if (!res.ok) {
+        if (res.code === 'COIL_SKU_DRIFT') {
+          setStockAdjustCoilPrompt(true);
+          setStockAdjustCoilCount(
+            typeof res.coilLotCount === 'number' ? res.coilLotCount : null
+          );
+          showToast(res.error, { variant: 'error' });
+          return;
+        }
         showToast(res.error, { variant: 'error' });
         return;
       }
-      showToast(res.error, { variant: 'error' });
-      return;
+      setStockAdjust({
+        productID: '',
+        type: 'Increase',
+        qty: '',
+        reasonCode: 'Count correction',
+        reasonNote: '',
+        date: date || '',
+      });
+      setStockAdjustCoilAck(false);
+      setStockAdjustCoilPrompt(false);
+      setShowStockAdjust(false);
+      showToast('Stock adjustment posted.');
+    } finally {
+      setStockAdjustSubmitting(false);
     }
-    setStockAdjust({
-      productID: '',
-      type: 'Increase',
-      qty: '',
-      reasonCode: 'Count correction',
-      reasonNote: '',
-      date: date || '',
-    });
-    closeStockAdjustModal();
-    showToast('Stock adjustment applied.');
   };
 
   const submitCoilRequest = async (e) => {
@@ -1544,6 +1616,17 @@ const Operations = () => {
     if (!rows.length) {
       showToast('Add at least one request line.', { variant: 'error' });
       return;
+    }
+    for (const r of rows) {
+      const kg = Number(r.requestedKg);
+      if (!Number.isFinite(kg) || kg <= 0) {
+        showToast('Each request line needs a positive approx kg.', { variant: 'error' });
+        return;
+      }
+      if (!r.gauge && !r.colour && !r.materialType) {
+        showToast('Each line needs gauge, colour, or material type.', { variant: 'error' });
+        return;
+      }
     }
     if (!ws?.canMutate) {
       showToast(
@@ -1595,11 +1678,13 @@ const Operations = () => {
   useEffect(() => {
     if (activeTab !== 'inventory') return undefined;
     if (!ws?.hasWorkspaceData) return undefined;
+    if (isAnyModalOpen) return undefined;
+    if (receiveDraft.poID || grnLines.length > 0) return undefined;
     const t = window.setInterval(() => {
       void wsRefresh?.();
     }, 15000);
     return () => window.clearInterval(t);
-  }, [activeTab, ws?.hasWorkspaceData, wsRefresh]);
+  }, [activeTab, ws?.hasWorkspaceData, wsRefresh, isAnyModalOpen, receiveDraft.poID, grnLines.length]);
 
   const openProductionQueueRow = (item) => {
     if (ws?.canMutate) {
@@ -1645,12 +1730,15 @@ const Operations = () => {
       completeChecklist.runLogPosted &&
       completeChecklist.conversionChecked;
     if (!allChecked) {
-      showToast('Tick all checklist items before completion.', { variant: 'error' });
+      showToast('Tick all checklist items before opening the register.', { variant: 'error' });
       return;
     }
     const item = completeChecklistModal;
     setCompleteChecklistModal(null);
-    openTraceWithHint(item, `Now mark ${item.id} as completed in the traceability panel.`);
+    openTraceWithHint(
+      item,
+      `Checklist noted for ${item.id}. Complete the job in the production register (this checklist does not post completion by itself).`
+    );
   };
 
   return (
@@ -2053,10 +2141,10 @@ const Operations = () => {
                           {grnLines.length > 0 ? (
                             <button
                               type="submit"
-                              disabled={!canReceiveInventory}
+                              disabled={!canReceiveInventory || grnSubmitting}
                               className="w-full rounded-lg bg-zarewa-teal text-white text-ui-xs font-black uppercase tracking-wide py-2 hover:bg-[#0f3d39] disabled:opacity-40 disabled:pointer-events-none"
                             >
-                              Confirm receipt
+                              {grnSubmitting ? 'Posting…' : 'Confirm receipt'}
                             </button>
                           ) : null}
                         </form>
@@ -2188,7 +2276,7 @@ const Operations = () => {
                             <span className="sr-only">Open profile</span>
                           </div>
                           <ul className="overflow-y-auto divide-y divide-slate-200/60">
-                            {coilLotsByReceipt.map((c) => {
+                            {coilLotsByReceiptCapped.map((c) => {
                               const live = liveCoilWeightKg(c);
                               const material = c.materialTypeName || c.productID || '—';
                               const rcvd = c.receivedAtISO ? String(c.receivedAtISO).slice(0, 10) : '—';
@@ -2237,6 +2325,11 @@ const Operations = () => {
                               );
                             })}
                           </ul>
+                          {coilReceiptListTruncated ? (
+                            <p className="px-2 py-1.5 text-ui-xs text-slate-500 border-t border-slate-100">
+                              Showing {COIL_SIDE_LIST_LIMIT} of {coilLotsByReceipt.length} coils. Search to find more.
+                            </p>
+                          ) : null}
                         </div>
                       </div>
                     </>
@@ -2335,25 +2428,47 @@ const Operations = () => {
         ) : null}
 
         {activeTab === 'inventory' ? (
-        <div className="col-span-full mb-2 order-1">
+        <div className="col-span-full mb-3 order-1 space-y-2">
+          <div className="rounded-xl border border-slate-200/90 bg-gradient-to-r from-slate-50/90 to-white px-3 py-2.5 sm:px-4">
+            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">
+              Stock desk · today
+            </p>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="inline-flex items-center rounded-lg border border-teal-200 bg-teal-50/80 px-2.5 py-1.5 text-ui-xs font-bold text-teal-900">
+                1. Receive GRN below
+              </span>
+              <span className="text-slate-300 hidden sm:inline" aria-hidden>
+                →
+              </span>
+              <button
+                type="button"
+                onClick={() => setActiveTab('production')}
+                className="inline-flex items-center rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-ui-xs font-bold text-slate-700 hover:bg-slate-50"
+              >
+                2. Production line
+              </button>
+              <span className="text-slate-300 hidden sm:inline" aria-hidden>
+                →
+              </span>
+              <button
+                type="button"
+                onClick={() => setActiveTab('materialExceptions')}
+                className="inline-flex items-center rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-ui-xs font-bold text-slate-700 hover:bg-slate-50"
+              >
+                3. Exceptions / coil control
+              </button>
+            </div>
+          </div>
           <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              disabled={!canAdjustInventory}
-              title={
-                canAdjustInventory
-                  ? 'Post a book stock adjustment'
-                  : 'Branch manager or director required'
-              }
-              onClick={() => {
-                if (!canAdjustInventory) return;
-                setStockAdjustMaterialFamily(null);
-                setShowStockAdjust(true);
-              }}
-              className="z-btn-secondary disabled:opacity-40 disabled:pointer-events-none"
-            >
-                  <Box size={16} /> Adjust stock
-            </button>
+            {ws?.canMutate ? (
+              <button
+                type="button"
+                onClick={() => setShowCoilRequest(true)}
+                className="z-btn-primary"
+              >
+                <Plus size={16} /> Request coils
+              </button>
+            ) : null}
             {canRegisterCoil && stockReceiveKind === 'coil' ? (
               <button
                 type="button"
@@ -2365,13 +2480,19 @@ const Operations = () => {
                 <Plus size={16} /> Register coil
               </button>
             ) : null}
-            <button
-              type="button"
-              onClick={() => setShowCoilRequest(true)}
-              className="z-btn-primary"
-            >
-                  <Plus size={16} /> Request coils
-            </button>
+            {canAdjustInventory ? (
+              <button
+                type="button"
+                title="Post a book stock adjustment (SKU qty)"
+                onClick={() => {
+                  setStockAdjustMaterialFamily(null);
+                  setShowStockAdjust(true);
+                }}
+                className="z-btn-secondary border-amber-200 text-amber-950 hover:bg-amber-50"
+              >
+                <Box size={16} /> Adjust stock
+              </button>
+            ) : null}
           </div>
         </div>
         ) : null}
@@ -2381,11 +2502,12 @@ const Operations = () => {
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <div className="rounded-xl border border-slate-200 bg-white p-3">
               <p className="text-ui-xs font-bold uppercase tracking-wide text-slate-500 flex items-center gap-1">
-                <Package size={12} /> Total stock
+                <Package size={12} /> Coil stock on hand
               </p>
               <p className="mt-1 text-xl font-black text-zarewa-teal tabular-nums">
                 {inventoryStats.totalKg.toLocaleString()} <span className="text-ui-xs font-semibold">kg</span>
               </p>
+              <p className="mt-0.5 text-[10px] text-slate-400">Aluminium + aluzinc coils (not accessories/stone)</p>
               <div className="mt-2 border-t border-slate-100 pt-2 space-y-1 text-ui-xs">
                 <p className="flex items-center justify-between text-slate-600">
                   <span>Aluminium</span>
@@ -2402,16 +2524,18 @@ const Operations = () => {
               <p className="mt-1 text-xl font-black text-zarewa-teal tabular-nums">
                 {conversionStats.efficiencyPct != null ? `${conversionStats.efficiencyPct}%` : '—'}
               </p>
+              <p className="mt-0.5 text-[10px] text-slate-400">From recent production conversion checks</p>
             </div>
             <div className="rounded-xl border border-red-200 bg-red-50/40 p-3">
               <p className="text-ui-xs font-bold uppercase tracking-wide text-red-700 flex items-center gap-1">
-                <AlertTriangle size={12} /> Low coils (&lt;100kg)
+                <AlertTriangle size={12} /> Near-empty coils (&lt;85 kg)
               </p>
               <p className="mt-1 text-xl font-black text-red-700 tabular-nums">{inventoryStats.lowStock}</p>
+              <p className="mt-0.5 text-[10px] text-red-800/70">Finish-roll threshold — check Coil profile</p>
             </div>
             <div className="rounded-xl border border-teal-200 bg-teal-50/40 p-3">
               <p className="text-ui-xs font-bold uppercase tracking-wide text-teal-700 flex items-center gap-1">
-                <Award size={12} /> Top materials
+                <Award size={12} /> Top coil mixes
               </p>
               <div className="mt-1 space-y-1">
                 {inventoryStats.topMaterials.length === 0 ? (
@@ -2924,11 +3048,11 @@ const Operations = () => {
                                     type="button"
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      openTraceWithHint(item, 'Opens production register — run log and start.');
+                                      openTraceWithHint(item, 'Opens production register — use Start run in the register after coils are allocated.');
                                     }}
                                     className="text-ui-xs font-semibold uppercase tracking-wide px-2 py-1 rounded-md border border-sky-200 bg-sky-50 text-sky-900 hover:bg-sky-100 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300/40"
                                   >
-                                    Start run
+                                    Open register
                                   </button>
                                   <button
                                     type="button"
@@ -2938,7 +3062,7 @@ const Operations = () => {
                                     }}
                                     className="text-ui-xs font-semibold uppercase tracking-wide px-2 py-1 rounded-md border border-emerald-200 bg-emerald-50 text-emerald-900 hover:bg-emerald-100 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/35"
                                   >
-                                    Mark complete
+                                    Prepare complete
                                   </button>
                                 </div>
                               ) : null}
@@ -3110,19 +3234,29 @@ const Operations = () => {
                       floor.
                     </span>
                   </p>
-                  <label className="flex items-start gap-2 cursor-pointer font-medium">
-                    <input
-                      type="checkbox"
-                      className="mt-1 rounded border-amber-300"
-                      checked={stockAdjustCoilAck}
-                      onChange={(e) => setStockAdjustCoilAck(e.target.checked)}
-                    />
-                    <span>I need a book-only decrease anyway (SKU only; coil rows stay unchanged).</span>
-                  </label>
+                  {canAcknowledgeCoilSkuDrift ? (
+                    <label className="flex items-start gap-2 cursor-pointer font-medium">
+                      <input
+                        type="checkbox"
+                        className="mt-1 rounded border-amber-300"
+                        checked={stockAdjustCoilAck}
+                        onChange={(e) => setStockAdjustCoilAck(e.target.checked)}
+                      />
+                      <span>I need a book-only decrease anyway (SKU only; coil rows stay unchanged). Manager approval.</span>
+                    </label>
+                  ) : (
+                    <p className="text-ui-xs font-semibold text-amber-900">
+                      Book-only decreases require a branch manager. Ask BM to post, or use Coil control.
+                    </p>
+                  )}
                 </div>
               ) : null}
-              <button type="submit" className="z-btn-primary w-full justify-center py-3">
-                Post adjustment
+              <button
+                type="submit"
+                disabled={stockAdjustSubmitting}
+                className="z-btn-primary w-full justify-center py-3 disabled:opacity-40"
+              >
+                {stockAdjustSubmitting ? 'Posting…' : 'Post adjustment'}
               </button>
             </form>
         </div>
@@ -3198,8 +3332,10 @@ const Operations = () => {
                           rows: f.rows.map((x, i) => (i === idx ? { ...x, requestedKg: e.target.value } : x)),
                         }))
                       }
-                      placeholder="Approx kg"
+                      placeholder="Approx kg (required)"
                       className="w-full bg-white border border-gray-100 rounded-xl py-2.5 px-3 text-sm font-bold outline-none"
+                      inputMode="decimal"
+                      required
                     />
                   </div>
                   <div className="flex justify-end">
@@ -3274,6 +3410,10 @@ const Operations = () => {
             </div>
           </ModalScrollHeader>
           <ModalScrollBody className="space-y-3">
+            <p className="rounded-lg border border-sky-100 bg-sky-50/80 px-3 py-2 text-ui-xs text-sky-950 leading-snug">
+              This checklist is a floor reminder only. It does <strong>not</strong> complete the job — after you continue,
+              use <strong>Complete</strong> in the production register.
+            </p>
             {[
               { key: 'transferPosted', label: 'Material transfer to production is posted' },
               { key: 'runLogPosted', label: 'Run log / output meters are recorded' },
@@ -3301,7 +3441,7 @@ const Operations = () => {
               onClick={confirmMarkCompleteChecklist}
               className="z-btn-primary flex-1 justify-center min-h-11"
             >
-              Continue to mark complete
+              Open register to complete
             </button>
             <button
               type="button"

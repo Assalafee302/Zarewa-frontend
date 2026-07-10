@@ -170,18 +170,51 @@ export function OperationsProductionOverview({
 
   return (
     <div className="space-y-4">
+      <div className="rounded-xl border border-slate-200/90 bg-gradient-to-r from-slate-50/90 to-white px-3 py-2.5 sm:px-4">
+        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Store desk · today</p>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => onGoInventory?.('coil')}
+            className="inline-flex items-center rounded-lg border border-teal-200 bg-teal-50/80 px-2.5 py-1.5 text-ui-xs font-bold text-teal-900 hover:bg-teal-100/70"
+          >
+            1. Receive / stock
+          </button>
+          <span className="text-slate-300 hidden sm:inline" aria-hidden>
+            →
+          </span>
+          <button
+            type="button"
+            onClick={onGoProduction}
+            className="inline-flex items-center rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-ui-xs font-bold text-slate-700 hover:bg-slate-50"
+          >
+            2. Production line
+          </button>
+          <span className="text-slate-300 hidden sm:inline" aria-hidden>
+            →
+          </span>
+          <button
+            type="button"
+            onClick={onRequestCoils}
+            className="inline-flex items-center rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-ui-xs font-bold text-slate-700 hover:bg-slate-50"
+          >
+            3. Request coils
+          </button>
+        </div>
+      </div>
+
       {onMonthEndStock ? (
         <OverviewCard
           title="Month-end stock register"
           hint="Physical count for period end — print, then send to branch manager (no costing on store copy)."
           icon={<ClipboardCheck size={16} />}
-          className="border-teal-200/90 bg-gradient-to-br from-teal-50/40 to-white"
+          className="border-slate-200 bg-white"
         >
           <p className="text-xs text-slate-600 leading-relaxed mb-3">
             Run the floor count register for month-end (or any period end date). Preview and print without
             prices; forward to management when the count is complete.
           </p>
-          <button type="button" onClick={onMonthEndStock} className="z-btn-primary text-xs">
+          <button type="button" onClick={onMonthEndStock} className="z-btn-secondary text-xs">
             Open month-end stock register
           </button>
         </OverviewCard>
@@ -383,7 +416,7 @@ export function OperationsProductionOverview({
               onClick={() => onGoInventory?.('coil')}
               className="z-btn-secondary text-ui-xs"
             >
-              Receive / adjust stock
+              Open stock receive
             </button>
           </div>
         </OverviewCard>

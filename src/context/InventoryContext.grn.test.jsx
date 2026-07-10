@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -43,6 +43,7 @@ vi.mock('./WorkspaceContext', () => ({
 /** Minimal harness: receive one line on first in-transit PO */
 function ReceiveHarness() {
   const { purchaseOrders, products, confirmStoreReceipt } = useInventory();
+  const [lastError, setLastError] = useState('');
   const po = purchaseOrders.find((p) => p.status === 'In Transit' || p.status === 'On loading');
   const line = po?.lines?.find((l) => l.qtyOrdered > l.qtyReceived);
   const productId = line?.productID || 'P-TEST-1';
@@ -53,12 +54,13 @@ function ReceiveHarness() {
     <div>
       <span data-testid="stock">{stock != null ? String(stock) : 'none'}</span>
       <span data-testid="po">{po?.poID ?? 'none'}</span>
+      <span data-testid="error">{lastError}</span>
       <button
         type="button"
-        onClick={() => {
+        onClick={async () => {
           if (!po || !line) return;
           const q = Math.min(100, line.qtyOrdered - line.qtyReceived);
-          confirmStoreReceipt(po.poID, [
+          const res = await confirmStoreReceipt(po.poID, [
             {
               lineKey: line.lineKey,
               productID: line.productID,
@@ -67,6 +69,7 @@ function ReceiveHarness() {
               location: 'Bay test',
             },
           ]);
+          setLastError(res.ok ? '' : String(res.error || 'failed'));
         }}
       >
         Receive 100kg
@@ -76,7 +79,7 @@ function ReceiveHarness() {
 }
 
 describe('InventoryContext GRN', () => {
-  it('confirmStoreReceipt increases product stockLevel', async () => {
+  it('refuses offline demo GRN so inventory cannot be faked without API', async () => {
     const user = userEvent.setup();
     render(
       <InventoryProvider>
@@ -84,15 +87,14 @@ describe('InventoryContext GRN', () => {
       </InventoryProvider>
     );
 
-    const beforeEl = screen.getByTestId('stock');
-    const before = Number(beforeEl.textContent);
+    const before = Number(screen.getByTestId('stock').textContent);
     expect(Number.isFinite(before)).toBe(true);
 
     await user.click(screen.getByRole('button', { name: /receive 100kg/i }));
 
     await waitFor(() => {
-      const next = Number(screen.getByTestId('stock').textContent);
-      expect(next).toBeGreaterThanOrEqual(before + 100);
+      expect(screen.getByTestId('error').textContent).toMatch(/Connect to the API/i);
     });
+    expect(Number(screen.getByTestId('stock').textContent)).toBe(before);
   });
 });
