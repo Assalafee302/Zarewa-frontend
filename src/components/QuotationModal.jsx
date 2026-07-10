@@ -1478,18 +1478,29 @@ const QuotationModal = ({
     [materialTypeId, materialGauge, materialDesign]
   );
 
+  const productOptionsRef = useRef(productOptions);
+  const resolveUnitPriceRef = useRef(resolveUnitPrice);
+  const resolveWorkbookLineMetaRef = useRef(resolveWorkbookLineMeta);
+  productOptionsRef.current = productOptions;
+  resolveUnitPriceRef.current = resolveUnitPrice;
+  resolveWorkbookLineMetaRef.current = resolveWorkbookLineMeta;
+
+  /** Stable — must not recreate when productOptions changes after a line select (that was #185). */
   const refreshWorkbookProductPrices = useCallback(() => {
+    const options = productOptionsRef.current;
+    const priceOf = resolveUnitPriceRef.current;
+    const metaOf = resolveWorkbookLineMetaRef.current;
     setProductRows((prev) => {
       let anyChange = false;
       const next = prev.map((row) => {
         const name = String(row.name ?? '').trim();
         if (!name || !productUsesWorkbookAutoPrice(name)) return row;
-        const option = productOptions.find((o) => o.name === name) || null;
+        const option = options.find((o) => o.name === name) || null;
         const girthMm =
           row.girthMm || (isQuotationTrimProductLine(name) ? String(defaultGirthMmForTrimProduct(name)) : '');
-        const price = resolveUnitPrice(name, option, { girthMm });
+        const price = priceOf(name, option, { girthMm });
         if (!(price > 0)) return row;
-        const wbMeta = resolveWorkbookLineMeta(name);
+        const wbMeta = metaOf(name);
         const nextGirthMm =
           isQuotationTrimProductLine(name) && !row.girthMm && girthMm ? girthMm : row.girthMm;
         const nextUnit = String(price);
@@ -1525,7 +1536,7 @@ const QuotationModal = ({
       });
       return anyChange ? next : prev;
     });
-  }, [productOptions, resolveUnitPrice, resolveWorkbookLineMeta]);
+  }, []);
 
   useEffect(() => {
     if (!isOpen || readOnly || !materialHeaderReady) return;
@@ -1645,6 +1656,11 @@ const QuotationModal = ({
   }, [isOpen, quotationHydrateSig, customers, treasuryPayAccountsLive, editData]);
 
   /** Stone-coated: strip incompatible lines / reset header when material type changes. */
+  const productRowsRef = useRef(productRows);
+  const accessoryRowsRef = useRef(accessoryRows);
+  productRowsRef.current = productRows;
+  accessoryRowsRef.current = accessoryRows;
+
   useEffect(() => {
     if (!isOpen || readOnly) return;
     const prev = prevMaterialTypeIdForStoneRef.current;
@@ -1670,8 +1686,8 @@ const QuotationModal = ({
       const allowedProfileKeys = new Set(fromDb.length ? fromDb : [...stoneAllow]);
       const cleaned = applyStoneMeterMaterialChangeCleanup({
         toStoneMeter: true,
-        products: productRows,
-        accessories: accessoryRows,
+        products: productRowsRef.current,
+        accessories: accessoryRowsRef.current,
         materialGauge,
         materialColor,
         materialDesign,
@@ -1734,8 +1750,6 @@ const QuotationModal = ({
     materialTypeId,
     liveMasterData?.materialTypes,
     liveMasterData?.profiles,
-    productRows,
-    accessoryRows,
     materialGauge,
     materialColor,
     materialDesign,
